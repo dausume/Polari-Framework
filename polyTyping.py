@@ -1,0 +1,297 @@
+#    Copyright (C) 2020  Dustin Etts
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from definePolari import *
+from managedApp import *
+from remoteEvents import *
+from functionalityAnalysis import *
+
+dataTypesPython = ['str','int','float','complex','list','tuple','range','dict',
+'set','frozenset','bool','bytes','bytearray','memoryview']
+dataTypesJS = ['undefined','Boolean','Number','String','BigInt','Symbol','null','Object','Function']
+dataTypesJSON = ['String','Number','Object','Array','Boolean','null']
+dataAffinitiesSqlite = ['NONE','INTEGER','REAL','TEXT','NUMERIC']
+
+#Accounts for data on a class and allows for valid data typing in multiple types,
+#also accounts for the conversion of data types that should be performed when
+#transmitting data across environments and into other programming language contexts.
+class polyTypedObject():
+    def __init__(self, objectReferencesDict=None, manager=None, sourceFiles=[], className=None, identifierVariables=[], variableNameList=[]):
+        self.className = className
+        #The list of objects that have variables which reference this object, either as a single
+        #instance, or as a list of the instances.
+        self.objectReferencesDict = objectReferencesDict
+        #A list of managed files that defined this class for different languages.
+        self.sourceFiles = sourceFiles
+        #The context (App or Polari) in which this Object is being utilized
+        self.manager = manager
+        #The instances of this object's polyTyping in higher tiered contexts.
+        self.inheritedTyping = []
+        #Variables that may be used as unique identifiers.
+        self.identifiers = identifierVariables
+        #The names of all of the Variables for the class.
+        self.variableNameList = variableNameList
+        #The polyTypedVariable instances for each of the variables in the class.
+        self.polyTypedVars = []
+
+    #Uses the Identifiers and the class name
+    def makeTypedTable(self):
+        pySource = None
+        for sourceFile in self.sourceFiles:
+            if((sourceFile.extension) == 'py'):
+                 pySource = sourceFile
+        ((self.manager).DB).makeTableByClass(absDirPath=sourceFile.Path, definingFile=sourceFile.name)
+
+    #Returns another polyTyped Object instance from the manager object
+    def getObject(self, className):
+        for obj in (self.manager).objectTyping:
+            if(obj.className == className):
+                return obj
+        return None
+
+    def getInstanceIdentifiers(self, instance):
+        obj = self.getObject(type(instance).__name__)
+        idVars = obj.identifiers
+        #Compiles a dictionary of key-value pairs for the identifiers 
+        identifiersDict = {}
+        for id in idVars:
+            identifiersDict[id] = getattr(instance,id)
+        return identifiersDict
+
+    def getActiveInstances(self):
+        #Retrieves the generalized dictionary which describes a tree showing how the manager
+        #instance (an app or polari, generally) is related to the given object being described
+        #by this polyTypedObject instance.
+        keys = (self.objectReferencesDict).keys()
+        #A dictionary of the active instances of this object that sit directly on variables of
+        #the manager object.
+        instancesList = []
+        managerInstanceVarsList = None
+        #Checks if the manager has instances sitting on it directly.
+        if(type(self.manager).__name__ in keys):
+            #Gets the list of variable names that directly reference this objecct or lists of it.
+            managerInstanceVarsList = (self.objectReferencesDict)[type(self.manager).__name__]
+            #Goes through the variables on the manager object and pulls the instances from them.
+            for num in managerInstanceVarsList:
+                value = getattr( self.manager, managerInstanceVarsList[num] )
+                if(type(value) == list):
+                    for inst in value:
+                        instancesList.append(inst)
+                else:
+                    instancesList.append(value)
+        baseTuple = (type(self.manager).__name__, self.getInstanceIdentifiers(self.manager), self.manager)
+        #A dictionary/tree which shows all objects with their identifiers which reference this object.
+        objectTree = {baseTuple:{}}
+        #An ordered list of tuples (or a stack) which shows the current traversal of objects.
+        objectTraversalPath = [baseTuple]
+        #A list of objects that have variables which could potentially hold more instances.
+        #Go though every potential object and see if it has potential references on the manager.
+        potentialObjects = []
+        #A list of all object instances referenced on the current object, regardless of relation.
+        traversalObjects = []
+        mngObj = self.getObject( type(self.manager).__name__ )
+        #Checks each Object see if the current object (the manager) has any potential references to it.
+        #Generates a list of potentialObjects, which may potentially hold instances of the desired obj.
+        for obj in (self.manager).objectTyping:
+            #Gets the list of all objects referenced in variables on the given object definition.
+            referenceVarsList = (obj.objectReferencesDict)[type(self.manager).__name__]
+            #Checks if the manager object has this object and the desired object referenced.
+            if type(self.manager).__name__ in (obj.objectReferencesDict).keys() and self.className in (obj.objectReferencesDict).keys():
+                for var in referenceVarsList:
+                    value = getattr(self.manager, var)
+                    if(type(value) == list):
+                        for inst in value:
+                            potentialObjects.append(inst)
+                            traversalObjects.append(inst)
+                    else:
+                        potentialObjects.append(value)
+                        traversalObjects.append(value)
+            #Checks if the manager object has this object referenced anywhere on it at all.
+            elif type(self.manager).__name__ in (obj.objectReferencesDict).keys():
+                for var in referenceVarsList:
+                    value = getattr(self.manager, var)
+                    if(type(value) == list):
+                        for inst in value:
+                            traversalObjects.append(inst)
+                    else:
+                        traversalObjects.append(value)
+            #Go through each potential object and check to ensure it is not already accounted
+            #for inside the objectTree, if it is not, then add it to the tree.
+            for obj in traversalObjects:
+                objTuple = (type(obj).__name__,
+                                    self.getInstanceIdentifiers(obj),
+                                    obj)
+                if(isTupleInTree(tree=objectTree,traversalList=baseTuple,instanceTuple=objTuple)):
+                    self.getTreeBranch()
+        #First, get all objects which have references to this object on them.
+        #Then, get all references to those objects on a given instance of the manager object.
+        #Retrieve those instances and use tuples to track them (className,identifiersList,instance,traversed)
+        #Compile a list of those tuples, then check the already existing tree and remove any with
+        #matching classNames & identifiersLists, then use the objectTraversalPath to access the
+        #appropriate node (at this time an empty dictionary) in the tree and put all valid
+        #tuples into that dictionary as new tuple-dictionary pairs.
+        #self.objectTraversal()
+        return objectTree
+
+    #Will go through every dictionary in the tree and return True if the tuple exists anywhere.
+    def isTupleInTree(self, tree, traversalList, instanceTuple):
+        found = False
+        branch = self.getTreeBranch(tree = tree, traversalList = traversalList)
+        for branchTuple in branch.keys():
+            if branchTuple[0] == instanceTuple[0] and branchTuple[0] == instanceTuple[0]:
+                return True
+        for branchTuple in branch.keys():
+            found = self.isTupleInTree(tree=tree,traversalList=traversalList+[branchTuple],instanceTuple=instanceTuple)
+            if(found):
+                return True
+        return found
+    
+    def getTreeBranch(self, tree, traversalList):
+        branch = tree
+        for tup in traversalList:
+            branch = tree[tup]
+        return branch
+            
+    #Allows the traversal of objects using known paths to retrieve object instances of the
+    #given type.
+    #Uses a combination of the original dictionary (self.activeObjectsDict) in addition to the
+    #traversalDictionary to get the instances of the object from all related objects.
+    def objectTraversal(self, sourceInstance, originalActiveObjectsDict, traversalDictionary):
+        #the variables specified as being specified as instances or lists of instances of the
+        #desired object.
+        traversalKeys = traversalDictionary.keys()
+        baseList = []
+        for key in traversalKeys:
+            #Gets all of the keys for instances and lists of instances immediately located
+            #on this instance.
+            if( type(key) == int ):
+                baseList.append(key)
+        originKeys = originalActiveObjectsDict.keys()
+        
+
+    def makeGeneralizedTable(self):
+        managerDB = (self.manager).DB
+        definingFile = None
+        for sourceFile in sourceFiles:
+            if sourceFile.contains('.py'):
+                definingFile=sourceFile
+        #managerDB.makeTableByClass(absDirPath, definingFile=, className)
+
+    #First, pull in all of the instances from the json dictionary,
+    #and for each instance load them on first as they are pulled from the
+    #key-value pairings.  Second, go through each of the newly generated
+    #Object Instances, and convert them according to 
+    def convertJSONvarsToObjectInstances(self, jsonDict):
+        for instance in jsonDict:
+            break
+
+    def addObjTypingToManager(self):
+        foundExisting = False
+        for typedObj in ((self.manager).objectTyping):
+            if(typedObj.className == self.className):
+                foundExisting = True
+        if not foundExisting:
+            ((self.manager).objectTyping).append(self)
+        else:
+            logging.warn(msg='Attempting to generate Object typing that already exists '
+            + 'for ' + self.className + 'in the context of a ' + (self.manager).__name__
+            + ' with the name ' + (self.manager).name)
+
+    #Creates typing
+    def analyzeInstance(self, pythonClassInstance):
+        classInfoDict = pythonClassInstance.__dict__
+        polyTypedVarNames = []
+        for accountedVar in polyTypedVars:
+            polyTypedVarNames.append(polyTypedVars.name)
+        for someVariableKey in classInfoDict.keys():
+            if(not callable(someVariableKey)):
+                var = getattr(pythonClassInstance, someVariableKey)
+                #If the var is accounted for, analyze the current value.
+                analyzeVariableValue(pythonClassInstance, var)
+
+    def analyzeVariableValue(self, pythonClassInstance, var):
+        numAccVars = len(self.polyVars)
+        foundVar = False
+        for polyVar in self.polyTypedVars:
+            #If the variable is found, account for it on it's typeDicts.
+            if(polyVar.name == var.__name__):
+                polyVar.accountValue(var)
+                foundVar = True
+                break
+        if not foundVar:
+            newPolyTypedVar = polyTypedVariable(polyTypedObj=self, attribute=var)
+            (self.polyTypedVars).append(newPolyTypedVar)
+
+
+class polyTypedVariable():
+    def __init__(self, polyTypedObj=None, attribute=None):
+        #The name of the variable in the class
+        self.name = attribute.__name__
+        #Breaks down a data type into the programming language name of the data type,
+        #the datatype defined for it, and the number of symbols (regardless of type)
+        #that must be used in order to define it.
+        dataType = type(attribute).__name__
+        #Accounts for different set-like data types and what may be contained inside.
+        if(dataType == 'list' or dataType == 'tuple' or dataType == 'dict'):
+            dataType = 'list('
+            #ACCOUNT FOR OBJECTS INSIDE LIST OR WHATEVER HERE!
+            dataType += ')'
+        if(not dataType in dataTypesPython):
+            self.findObject()
+            dataType = 'object(' + dataType + ')'
+        symbolCount = len(str(attribute))
+        #Each typing dictionary contains the programming language, context (Object, ObjIdentifiers)
+        #
+        self.typingDicts = [{"language":'python',"manager":tuple([type(polyTypedObj.manager).__name__, (polyTypedObj.manager).name]),"dataType":dataType,"symbolCount":symbolCount,"occurences":1}]
+        self.pythonTypeDefault = dataType
+
+    #Allows you to get what the expected variable types should be for a variable
+    #as well as what type they should be converted to when they arrive at their
+    #destination.
+    def getConversionValues(self, sourceLanguage, sinkLanguage):
+        #Makes a list of key-value pairs for each variable and it's expectation
+        #data types (the potential data types used in that language, and their
+        #default conversion type, which is the type most used or most encompassing)
+        sourceLanguageVarTypes = []
+        sinkLanguageVarTypes = []
+        #Adds all variable variations into the lists for their language
+        #Both are if statements (in order to account for conversions where both
+        #source and sink are the same language in a different context)
+        for varDict in self.typingDicts:
+            if(varDict['language'] == sourceLanguage):
+                sourceLanguageVarTypes.append(varDict)
+            if(varDict['language'] == sinkLanguage):
+                sinkLanguageVarTypes.append(varDict)
+        sourceTypeDict = None
+        greatestOccNum = 0
+        for varDict in sourceLanguageVarTypes:
+            if(varDict['occurences'] > greatestOccNum):
+                greatestOccNum = varDict['occurences']
+                sourceTypeDict = varDict
+        sinkTypeDict = None
+        greatestOccNum = 0
+        for varDict in sinkLanguageVarTypes:
+            if(varDict['occurences'] > greatestOccNum):
+                greatestOccNum = varDict['occurences']
+                sinkTypeDict = varDict
+        
+
+    #MAKES A conversionTest Remote Event, which causes the data to be returned in
+    #a response after it has been converted and before it has any operations performed
+    #on it.
+    #Detects a variable with a particular value to another language using default
+    #conversions, then recieves that same value after it has been returned to python
+    #both are analyzed as converted strings to assess if they are still the same value.
+    #def isLosslessConversion(self, attributeTypingDict):
+    #    define something here!!
