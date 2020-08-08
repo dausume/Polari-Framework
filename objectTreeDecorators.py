@@ -13,7 +13,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from functools import wraps
-from polyTyping import *
+from polyTyping import * 
 from managedFiles import *
 from managedExecutables import *
 from managedDB import *
@@ -336,13 +336,13 @@ def revertBase64numToInt(self, b64num):
 #%+ - gets instances which have a post-fix matching the given specifier, and may have anything following that.
 #+% - gets instances which have a pre-fix matching the given specifier
 #+%+ - gets instances where any portion of the variables value matches the specifier
-strictOperationTypes = [("max"),("min"),("==","specifier")]
-relationalOperationTypes = [("hasChild","specifier"),("hasParent","specifier")]
-subSetOperationTypes = [("specifier","%","specifier"),(">","specifier"),("<","specifier"),(">=","specifier"),("<=","specifier"),("%","specifier"),("specifier","%")]
+strictOperationTypes = [("max"),("min"),("=","var")]
+relationalOperationTypes = [("hasChild","var"),("hasParent","var")]
+subSetOperationTypes = [("var","%","var"),(">","var"),("<","var"),(">=","var"),("<=","var"),("%","var"),("var","%")]
 allOperationTypes = strictOperationTypes + relationalOperationTypes + subSetOperationTypes
 specialCharacters = ["=",">","<"]
 orderingCharacters = [",","[","]","(",")",":"]
-#Example Object Tree query: (className='testObj', "[identifier:(max), testVar:(==None), name:(a%c%)]")
+#Example Object Tree query: (className='testObj', "[identifier:(max), testVar:(=None), name:(a%c%)]")
 def queryObjectTree(self, className, queryString):
     curType = None
     idName = None
@@ -364,37 +364,96 @@ def queryObjectTree(self, className, queryString):
     i = 0
     varName = None
     cmdFound = False
+    #Go through the query and convert the query into a list of query commands
+    #sorted into strict subSet and relational sections, and assigned a specific
+    #variable to perform the operation on and specified variables to utilize within
+    #the operation to narrow down allowed values.
+    curVar = None
     while i < len(queryString):
         cmdFound = False
         if(queryString[i] == ' '):
             continue
-        else:
-            for strCmd in strictCommands:
-                if(strCmd[0] == 'specifier'):
-                    continue
+        elif(curVar != None):
+            if(queryString[i]==')'):
+                varDict['criteriaEndIndex'] = i
+                curVar == None
+                continue
+            for cmdTuple in allOperationTypes:
+                if(cmdTuple[0] == 'var'):
+                    cmd = cmdTuple[1]
                 else:
-                    j = 0
-                    while j < len(strCmd):
-                        if((strCmd[0])[j:j+1] == queryString[i+j]):
-                            if(j == len(strCmd) - 1):
-                                strictCommands.append( tuple([]) )
-                                cmdFound = True
-                        else:
-                            break
-                        j += 1
-            if(cmdFound == False):
-                foundKeyChar = False
+                    cmd = cmdTuple[0]
                 j = 0
-                while (not foundKeyChar) or i+j < len(queryString):
-                    if(queryString[i+j] in orderingCharacters):
-                        if(queryString[i+j:i+j+2] == ":("):
-                            #Get the word before this ':', which should be the variable name, load it onto varName.
-                            varName = queryString[i:i+j-1]
-                            i = (i+j+2)
+                while j < len(cmd):
+                    if((cmd)[j:j+1] == queryString[i+j]):
+                        if(j == len(cmd) - 1):
+                            if(queryString[i:i+j] in strictOperationTypes):
+                                strictCommands.append( tuple([]) )
+                            elif(queryString[i:i+j] in subSetOperationTypes):
+                                subSetCommands.append( tuple([]) )
+                            elif(queryString[i:i+j] in relationalOperationTypes):
+                                relationalCommands.append( tuple([]) )
+                            else:
+                                print('Error: Could not find type for command.')
+                            cmdFound = True
+                            i = i + j
                             break
+                    else:
+                        break
                     j += 1
-        if(not cmdFound):
-            i += 1
+        elif(curVar == None):
+            foundKeyChar = False
+            j = 0
+            while (not foundKeyChar) or i+j < len(queryString):
+                if(queryString[i+j] in orderingCharacters):
+                    if(queryString[i+j:i+j+2] == ":("):
+                        #Get the word before this ':', which should be the variable name, load it onto varName.
+                        k = 0
+                        endSpaceIndexes = []
+                        wordStartFound = False
+                        lowestSpcIndex = None
+                        while not wordStartFound:
+                            if(queryString[i+j-k] == ' '):
+                                if(k == 1):
+                                    lowestSpcIndex = k
+                                elif(k == lowestSpcIndex+1):
+                                    lowestSpcIndex = k
+                            elif(queryString[i+j-k] == '[' or ','):
+                                l = 1
+                                while(i+j-k+l):
+                                    if(queryString[i+j-k+l]!=' '):
+                                        wordStartFound = True
+                                        startIndex= i+j-k+l
+                                    l+=1
+                            k+=1
+                        varDict = {'varName':queryString[startIndex:i+j-(lowestSpcIndex+1)],'queryCriteriaCount':0,'criteriaStartIndex':i+j+2,'criteriaEndIndex':None}
+                        varName = queryString[i:i+j-1]
+                        i = (i+j+2)
+                        break
+                j += 1
+    if(not cmdFound):
+        i += 1
+
+def parseSelect(startIndex, endIndex, queryString):
+    selectionsDict = {}
+    if(endIndex <= len(queryString)):
+        i = startIndex
+        while i < endIndex:
+            #Skips through spaces that are not important in terms of notation
+            if(queryString[i] == ' '):
+                i += 1
+                continue
+            #catches notation within the query which would indicate a subquery, calculates
+            #the logical equivolent WHERE operations based on the WHERE operations of the current
+            #query.
+            elif(queryString[i] == '['):
+                closerIndex = None
+                while i < endIndex and closerIndex==None:
+                    if(queryString[i] == ']'):
+                        closerIndex = i
+                    i += 1
+            
+    return selectionsDict
     
 
 class testObj:
