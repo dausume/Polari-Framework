@@ -77,15 +77,6 @@ class isoSys():
         self.totalSwapMemoryInBytes = swapMemoryInfo[0]
         self.SwapMemoryConsumptionVectorInBytesPerVarMilliSeconds = (None, 1000) #(0 bytes consumed, over 1000 milliseconds OR 1 second)
 
-    
-    def __setattr__(self, key, value):
-        #Throw event indicating that the variable was changed
-        #WRITE CODE HERE
-        #Assign the variable
-        super(Point, self).__setattr__(key, value)
-
-    validDecodeMethods = ['utf-8']
-
     def powerShellCommand(self, commandString, decodeMethod):
         process = subprocess.Popen(['powershell', commandString], stdout=subprocess.PIPE)
         resolve = process.communicate()

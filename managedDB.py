@@ -22,7 +22,7 @@
 from managedFiles import managedFile
 from dataChannels import *
 from sqlite3 import Error
-import os, psutil, json, sqlite3, sys
+import os, json, sqlite3, sys
 
 DBtypesList = ['Polari', 'App', 'Test']
 DBstatuses = ['UnInitialized Tables', 'Finalized DB']
@@ -251,4 +251,3 @@ class managedDatabase(managedFile):
             dbConnection.close()
         else:
             print("Error: Database file not found at location " + dbPath + " cannot load database, dumbass.")
-        

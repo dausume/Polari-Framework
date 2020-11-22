@@ -12,21 +12,28 @@
 
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from managedApp import *
 from dataChannels import *
 from dataStreams import *
-from managedUserInterface import *
+from objectTreeManagerDecorators import *
+from objectTreeDecorators import *
+from polariServer import *
+from defineLocalSys import *
+from objectTreeManagerDecoratorsTest import *
 import unittest, logging, os
 
 if(__name__=='__main__'):
-    fakeApp = managedApp(name='fakeApp')
-    fakeApp.mkApp()
-    fakeDS = dataStream(manager=fakeApp, source=fakeApp)
-    fakeDS.getManagerChannels()
-    fakeDS
-    fakeDS.send()
-    #fakeApp.delete()
-    #unittest.main()
+    localSys = isoSys(name='localSys')
+    print('Made isoSys')
+    fakeManager = testObj()
+    print('made test object / manager')
+    secondObj = secondTestObj()
+    print('made secondary test object')
+    fakeManager.objList.append(secondObj)
+    print('added secondary test object to manager\'s object list.')
+    fakeServer = polariServer(name='testServer', displayName='displayName', hostSystem=localSys, manager=fakeManager)
+    print('Created polariServer with a set manager.')
+    fakeServer.startupPolariServer()
+    print('Finished setting up server for manager object.')
 
 #First, set up a fake app.
 #Second, set up a fake local datastream for that app.

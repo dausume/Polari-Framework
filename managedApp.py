@@ -22,6 +22,7 @@ from managedFolders import *
 from managedImages import *
 from remoteEvents import *
 from polyTyping import *
+from objectTreeManagerDecorators import *
 import os, webbrowser, urllib.request, urllib.parse, datetime, time
 
 class managedApp(managedFolder):
@@ -38,18 +39,17 @@ class managedApp(managedFolder):
     #Additional Statuses which may be applied onto the 'Statuses' variable, which are important only to Applications.
     statusSet = ['launchable','Channels-Complete','Channels-Incomplete','Pages-Incomplete','Pages-Complete']
 
+    @managerObject
     def __init__(self, name=None, displayName=None, Path=None, manager=None):
         managedFolder.__init__(self, name=name, Path=Path, manager=manager)
         #Says whether or not the Application is meant to be running synchronously
         #with it's manager object's event loop, or on it's own event loop.
         self.managerSync = True
-        self.appType = 'PolariElectronApp'
+        self.appType = 'PolariWebApp'
         self.displayName = displayName
-        self.distributionType = 'Localized'
+        self.distributionType = 'HTTPS'
         #Determines whether the Application Loop should be running.
         self.activeApp = False
-        #The tree of objects utilized by this Application.
-        self.objectTree = {}
         #The time (in minutes) after which, if the app has recieved no more requests, it will
         #time-out, effectively changing self.activeApp = False and closing out the App.
         self.lastRequestTime = None
@@ -177,7 +177,7 @@ class managedApp(managedFolder):
             polyTypedObject(sourceFiles=[source_managedDatabase], className='managedDatabase', identifierVariables = ['name','Path'], objectReferencesDict={'managedApp':['DB']}, manager=self),
             polyTypedObject(sourceFiles=[source_dataChannel], className='dataChannel', identifierVariables = ['name','Path'], objectReferencesDict={'managedApp':['serverChannel','localAppChannel'],'managedSourcePage':['']}, manager=self),
             polyTypedObject(sourceFiles=[source_managedExecutable], className='managedExecutable', identifierVariables = ['name', 'extension','Path'], objectReferencesDict={}, manager=self),
-            polyTypedObject(sourceFiles=[source_polyTypedObjectANDvariables], className='polyTypedObject', identifierVariables = ['className'], objectReferencesDict={'managedApp':['objectTyping']}, manager=self),
+            polyTypedObject(sourceFiles=[source_polyTypedObjectANDvariables], className='polyTypedObject', identifierVariables = ['className'], objectReferencesDict={self.__class__.__name__:['objectTyping']}, manager=self),
             polyTypedObject(sourceFiles=[source_polyTypedObjectANDvariables], className='polyTypedVariable', identifierVariables = ['name','polyTypedObj'], objectReferencesDict={'polyTypedObject':['polyTypedVars']}, manager=self)
             ]
 

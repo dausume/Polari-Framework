@@ -51,4 +51,3 @@ class managedImage(managedFile):
             logging.warning('Entered an invalid or unhandled file Extension.')
         else:
             logging.warning('Entered an invalid or unhandled file Extension.')
-

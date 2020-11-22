@@ -13,12 +13,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from dataChannels import *
-from dataStreams import *
-from managedApp import *
-from managedUserInterfaces import *
+from functionalityAnalysis import *
 import unittest, logging, os
 
-class dataChannel_testClass(unittest.TestCase):
+class dataStream_testClass(unittest.TestCase):
     #A method which runs once before any tests in the test case.
     @classmethod
     def setUpClass(cls):
@@ -33,20 +31,21 @@ class dataChannel_testClass(unittest.TestCase):
         logging.info('Test Case Data was torn down.')
 
     def setUp(self):
-        self.defaultTestClass = dataChannel()
-        self.namedTestClass = dataChannel('TestFile')
-        (self.namedTestClass).createFile()
+        self.namedTestClass = dataChannel(name='testChannel')
         logging.info('Setting up before a test is run.')
 
     def tearDown(self):
         logging.info('Tearing down at the end of the class.')
 
     def test_singleDefault(self):
-        classJSON = getJSONforClass(definingFile='dataChannels', className='dataChannel', passedInstances=self.defaultTestClass )
+        classJSON = self.namedTestClass.getJSONforClass(definingFile='dataChannels', className='dataChannel', passedInstances=self.namedTestClass )
         logging.info(classJSON)
 
+    def test_makeChannel(self):
+        self.namedTestClass.makeChannel()
+
     def test_singleNamed(self):
-        classJSON = getJSONforClass(definingFile='dataChannels', className='dataChannel', passedInstances=self.namedTestClass)
+        classJSON = self.namedTestClass.getJSONforClass(definingFile='dataChannels', className='dataChannel', passedInstances=self.namedTestClass)
         logging.info(classJSON)
 
 if(__name__=='__main__'):

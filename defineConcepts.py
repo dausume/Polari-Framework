@@ -25,5 +25,3 @@ class Concept():
         #WRITE CODE HERE
         #Assign the variable
         super(Point, self).__setattr__(key, value)
-
-    

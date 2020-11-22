@@ -12,7 +12,7 @@
 
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-import os, psutil, json, sqlite3, sys, time, datetime, importlib
+import os, json, sqlite3, sys, time, datetime, importlib
 #Returns the initialization function for a class -> used so that the Polarity can instantiate any Python Classes
 def getAccessToClass(absDirPath, definingFile, className, returnMethod=False):
     #compares the absolute paths of this file and the directory where the class is defined
@@ -45,7 +45,7 @@ def getAccessToClass(absDirPath, definingFile, className, returnMethod=False):
             +"absolute directory path to the folder of the class to be made into a Database table first, then"
             + "enter the name of the file (without extension) where the class is defined second, then enter"
             +"the class name third.")
-
+"""
 def getAccessToFunctionDefault(absDirPath, definingFile, varFunction):
     #compares the absolute paths of this file and the directory where the class is defined
     #the first character at which the two paths diverge is stored into divIndex
@@ -149,3 +149,4 @@ def RecursiveVarFunctionVelocityMeasuring(self, devianceTupleList, const, maxite
         #if()
     else:
         print('Calibrated for ' + iter + ' iterations, deviance is')
+"""

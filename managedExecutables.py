@@ -13,6 +13,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from managedFiles import *
+#from objectTreeDecorators import *
 
 LanguageExtensionsDict = {'py':'python','js':'javascript','html':'hypertextmarkuplanguage','css':'cascadingstylesheets'}
 
@@ -51,7 +52,3 @@ class managedExecutable(managedFile):
             logging.warning('Entered an invalid or unhandled file Extension.')
         else:
             logging.warning('Entered an invalid or unhandled file Extension.')
-
-
-    
-    

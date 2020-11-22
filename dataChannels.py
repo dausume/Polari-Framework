@@ -14,45 +14,148 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from functionalityAnalysis import getAccessToClass
+from inspect import isclass, ismethod
 from managedFiles import *
+from objectTreeDecorators import *
 import os, json, logging, datetime
 
 #A file used to manage JSON for a particular Polari or App.
 class dataChannel(managedFile):
-    def __init__(self, name=None):
-        managedFile.__init__(self, name=name, extension='json')
+    @treeObject
+    def __init__(self, manager, name=None, Path=None):
+        managedFile.__init__(self, name=name, Path=Path, extension='json')
         #The JSON currently being manipulated in the python object
         self.jsonDict = []
         #The recorded JSON from the last time the JSON File was read.
         self.lastFileReadJSON = []
         #The current system performing operations on the file, according to last reading.
         #Ex: (sourceClass:Polari, sourceName:polariName)
-        self.currentOwner = (None, None)
-        #Register for the different Sources which may contribute data to this JSON File, and their access order.
-        self.sourceRegister = []
+        if(manager == None):
+            self.currentOwner = (None, None)
+        else:
+            self.currentOwner = (manager.__class__.__name__, manager.getInstanceIdentifiers(instance=manager))
+        #Register for the different Sources "(managerClass, manager's Id Tuple): { 'objectName':( [Scope Limiter 'a query or filter'], ['get', 'put', 'post', 'delete', 'auth']) }"
+        #which specifies what data is to be pulled into this JSON File, auth means that a specific object is searched for and if it is found with matching identifiers,
+        #the data goes through.
+        self.localSourceRegister = {self.currentOwner:{}}
+        self.remoteSourceRegister = {}
         #Register for the different Sinks which consume data from this JSON File, and their access order.
-        self.sinkRegister = []
+        #Ex: ( self.currentOwner, { "user":"*" } ) would mean the dataChannel allows for anyone with access to it
+        self.localSinkRegister = {self.currentOwner:{}}
+        self.remoteSinkRegister = {}
         #The date-time when the last source claimed ownership of the JSON File.
-        self.lastOccupationDateTime = None
-        #The date-time when the most current source claimed ownership of the JSON File.
-        self.occupationDateTime = None
+        self.lastRefreshDateTime = None
+        print('jsonDict at dataChannel ', self.name, ' initialization before makeChannel: ', self.jsonDict)
+        self.makeChannel()
+        print('jsonDict at dataChannel ', self.name, ' initialization after makeChannel.', self.jsonDict)
+
+    def makeChannel(self):
+        self.createFile()
+        #os.path.basename(__file__)
+        dataChannelBase = self.makeDataSet(className="dataChannel")
+        self.jsonDict.append(dataChannelBase)
+        #self.getJSONdictForClass(definingFile='dataChannels', className=self.__class__.__name__,passedInstances=[self], instanceLimit=1, varsLimited=['lastFileReadJSON', 'jsonDict', 'fileInstance'])
+        # Serialize json
+        print('Printing dataChannel Base in the makeChannel function: ',dataChannelBase)
+        jsonStr = json.dumps(dataChannelBase)
+        # Write to the dataChannel
+        with open(self.name + '.json', "w") as outfile: 
+            outfile.write(jsonStr)
 
     #The function called by an App or Polari when it looks through the dataChannel for requests
     #intended for itself.
     def channelIteration(self):
         available = self.checkChannelAvailability()
-        
+
+    def retrieveDataSet(self, className, source=None):
+        print("Retrieving a data set")
+        (managerClassName, managerIdentifiers) = self.getIdData(self.manager)
+        if(source == None):
+            (sourceClassName, sourceIdentifiers) = (managerClassName, managerIdentifiers)
+        else:
+            (sourceClassName, sourceIdentifiers) = self.getIdData(source)
+        for someDataSet in self.jsonDict:
+            print('In retrieveDataSet, printing the current data set: ', someDataSet)
+            if(someDataSet != None):
+                if("class" in someDataSet and "manager"  in someDataSet and "source"  in someDataSet):
+                    if(someDataSet["class"] == className and someDataSet["manager"] == (managerClassName, managerIdentifiers) and someDataSet["source"] == (sourceClassName, sourceIdentifiers)):
+                        print("Successfully returning Data Set")
+                        return someDataSet
+                else:
+                    print("!! WARNING: Data Set was missing class, manager, or source specifications !!")
+            else:
+                self.jsonDict.remove(someDataSet)
+        return None
+
+    def updateDataSet(self, className, source=None, filter="*", sinks=[]):
+        #Find if the data set already exists
+        updatingDataSet = self.retrieveDataSet(className, source)
+        if(updatingDataSet != None):
+            #Access the manager and pull data of all objects of the given class.
+            instanceSet = self.manager.getListOfClassInstances(className=className, source=self.manager)
+            #print('In update dataSet')
+            setToUpload = self.getJSONdictForClass(definingFile='dataChannels', className=className, passedInstances=instanceSet)
+        else:
+            print('The data set you are attempting to update with values: Class Name = ', className, ', Source = ', source, ', Filter = ', filter, ' does not exist.')
+
+    #Either updates a dataSet or inserts a new dataset
+    def makeDataSet(self, className, source=None, filter="*", sinks=[], instances=[]):
+        (managerClassName, managerIdentifiers) = self.getIdData(self.manager)
+        if(source == None):
+            (sourceClassName, sourceIdentifiers) = (managerClassName, managerIdentifiers)
+        else:
+            (sourceClassName, sourceIdentifiers) = self.getIdData(source)
+        #Make sure the dataSet does not already exist before creating and adding it to the dataChannel.
+        if( self.retrieveDataSet(className=className, source=source) != None ):
+            #print("Attempting to create a dataSet that already exists with values: Class Name = ", className, ', Source = ', source, ', Filter = ', filter, '.')
+            self.updateDataSet(className=className, source=source, filter=filter, sinks=sinks)
+        else:
+            #Set up the base of the dataSet, there will be one dataSet per source-manager per object accounted for.
+            #Note: Manager objects may hold object instances within them that have a remote source-manager object, in this case where the source and manager object are different,
+            #it means that the object is read-only on the given manager object and a re-direct must be performed for any commands that are not 'get' or 'auth'.
+            newDataSet = {
+                "class":className,
+                "manager":(managerClassName, managerIdentifiers),
+                "source":(sourceClassName, sourceIdentifiers),
+                "filter":filter,
+                "sinks":[],
+                "data":[
+                    #Put object instances here.
+                ]
+            }
+            #Write the sinks into the sink section of the base.
+            for sinkInstance in self.localSinkRegister:
+                (sinkClassName, sinkIdentifiers) = self.getIdData(self.manager)
+                newDataSet["sinks"].append(
+                    {
+                        "sinkClass":sinkClassName,
+                        "sinkIdentifiers":sinkIdentifiers
+                    }
+                )
+            #Access the manager and pull data of all objects of the given class.
+            instanceSet = self.manager.getListOfClassInstances(className=className, source=self.manager)
+            #print('In makeDataSet, defining dataSet for class: ', className)
+            #print('instanceSet being passed: ', instanceSet)
+            #pass the set of all object instances into the function
+            defFileObj = self.manager.getObjectTypingClassFile(className=className)
+            if(instanceSet != []):
+                newDataSet["data"] = self.getJSONdictForClass(definingFile=defFileObj.name, className=className, passedInstances=instanceSet)
+            (self.jsonDict).append(newDataSet)
+            #print("Made new dataSet: ", newDataSet)
+            #print("Channel's jsondict after appending new dataSet: ", self.jsonDict)
 
     #Injects all JSON currently in the jsonDict variable, into the JSON file.
     def injectJSON(self):
-        if(self.checkChannelAvailability()):
-            (self.jsonDict).pullDataComms()
-            self.openFile()
-            json.dump(
-                self.jsonDict,
-                self.fileInstance
-            )
-            self.closeFile()
+        #if(self.checkChannelAvailability()):
+        #self.openChannel()
+        self.openFile()
+        print(self.fileInstance)
+        #Dumps the jsonDict variable into the dataChannel file.
+        json.dump(
+            self.jsonDict,
+            self.fileInstance
+        )
+        self.closeFile()
 
     #Goes through all access records in the JSON file, and returns True if this Object currently owns the writing access
     #to the channel or if nothing owns the writing access currently.  Returns False if writing access is currently owned
@@ -60,13 +163,17 @@ class dataChannel(managedFile):
     def checkChannelAvailability(self):
         isAvailable = True
         self.openFile()
-        self.lastFileReadJSON = json.load(self.fileInstance)
+        print(self.Path, '/', self.name, '.', self.extension)
+        if(not os.stat(self.Path + '/' + self.name + '.' + self.extension)):
+            self.lastFileReadJSON = json.load(self.fileInstance)
         self.closeFile()
         accessDataSets = self.getClassDataSets('dataChannel')
+        #print('Access Data Sets: ', accessDataSets)
         setIndex = 0
         occupationIndex = None
         lastOccupationDateTime = None
-        for dataSet in accessDataSets:
+        for dataSet in accessDataSets[1]:
+            #print('In a dataSet: ', dataSet)
             if(lastOccupationDateTime != None):
                 #If the occupationDateTime of this dataSet is more recent than the current 'lastOccupationDateTime', set it.
                 if((dataSet.get('occupationDateTime') - lastOccupationDateTime) > 0):
@@ -85,30 +192,32 @@ class dataChannel(managedFile):
         return isAvailable
 
     #Checks the channel asynchronously to see if it is available, if it is, then we claim it and do operations as needed.
-    def occupyChannel(self):
+    #def occupyChannel(self):
         #open the file
-        self.openFile()
+        #self.openFile()
         #If we successfully open the file, pull information from there.
-        if(self.checkChannelAvailability()):
+        #if(self.checkChannelAvailability()):
             #If file is opened, and we detect that the file does not have another Owner acting on it currently, and we claim it.
-            self.currentOwner = ((self.manager).__class__, (self.manager).name)
-            self.occupationDateTime = datetime.datetime.now()
-            json.dump(
-                getJSONdictForClass(definingFile='managedDataComms', className='dataChannel', passedInstances=self),
-                self.fileInstance
-            )
+            #self.currentOwner = ((self.manager).__class__, (self.manager).name)
+            #self.occupationDateTime = datetime.datetime.now()
+            #json.dump(
+            #    getJSONdictForClass(definingFile='dataChannels', className='dataChannel', passedInstances=self),
+            #    self.fileInstance
+            #)
 
     def openChannel(self):
+        #If we successfully open the file, and make sure it is owned by this dataChannel object.
+        #if(self.checkChannelAvailability()):
         #open the file
         self.openFile()
-        #If we successfully open the file, and make sure it is owned by this dataChannel object.
-        if(self.checkChannelAvailability()):
-            #If file is opened, and we detect that the file does not have another Owner acting on it currently, and we claim it.
-            self.currentOwner = (None, None)
-            json.dump(
-                getJSONdictForClass(definingFile='managedDataComms', className='dataChannel', passedInstances=self),
-                self.fileInstance
-            )
+        #If file is opened, and we detect that the file does not have another Owner acting on it currently, and we claim it.
+        self.currentOwner = (None, None)
+        print(self.fileInstance)
+        print(self.getJSONdictForClass(definingFile='dataChannels', className='dataChannel', passedInstances=self))
+        json.dump(
+            self.getJSONdictForClass(definingFile='dataChannels', className='dataChannel', passedInstances=self),
+            self.fileInstance
+        )
 
     def setExtension(self, fileExtension):
         if(fileExtensions.__contains__(fileExtension)):
@@ -225,11 +334,11 @@ class dataChannel(managedFile):
     def pullJSON(self, otherSet):
         if(isinstance(otherSet, list)):
             for newDataSet in otherSet:
-                duplicationDataSetTuple = hasDuplicateDataSet(newDataSet)
+                duplicationDataSetTuple = self.hasDuplicateDataSet(newDataSet)
                 if(duplicationDataSetTuple[0]): #A duplicate data set was found.
                     #Iterates through each instance in the dataSet which was found to be the duplicate of the new dataSet
                     instanceIndex = 0
-                    duplicateTuples = matchDuplicateInstances()
+                    duplicateTuples = self.matchDuplicateInstances()
                     isDuplicate = False
                     for newInstance in newDataSet:
                         #Go through all of the duplicate tuples and see if the second value matches
@@ -295,78 +404,189 @@ class dataChannel(managedFile):
     def getClassDataSets(self, className):
         tempDict = []
         foundSet = False
-        if(self.jsonDict != None):
+        if(self.jsonDict != [] and self.jsonDict != None):
             for dataSet in (self.jsonDict):
-                if(dataSet.keys()).__contains__('class'):
-                    if(dataSet.get('class') == className):
-                        tempDict.append(dataSet)
-                        foundSet = True
+                if(dataSet != None):
+                    if(dataSet.keys()).__contains__('class'):
+                        if(dataSet.get('class') == className):
+                            tempDict.append(dataSet)
+                            foundSet = True
             if(not foundSet):
                 logging.warning(msg='No Class Instances found in JSON Dict.')
         else:
             logging.error(msg='JSON Data must first be entered before any info can be extracted.')
         return (foundSet, tempDict)
 
-#Gets all data for a class and returns a Dictionary which is convertable to a json object.
-def getJSONdictForClass(absDirPath = os.path.dirname(os.path.realpath(__file__)),
-                    definingFile = os.path.realpath(__file__)[os.path.realpath(__file__).rfind('\\') + 1 : os.path.realpath(__file__).rfind('.')],
-                    className = 'testClass', passedInstances = None):
-    #If an instance or list of instances of the same type are passed, grabs the class name.
-    if(passedInstances!=None):
+    #Gets all data for a class and returns a Dictionary which is convertable to a json object.
+    def getJSONdictForClass(self, absDirPath = os.path.dirname(os.path.realpath(__file__)),
+                        definingFile = os.path.realpath(__file__)[os.path.realpath(__file__).rfind('\\') + 1 : os.path.realpath(__file__).rfind('.')],
+                        className = 'testClass', instanceLimit=None, varsLimited=[], passedInstances = None):
+        #If an instance or list of instances of the same type are passed, grabs the class name.
+        if(passedInstances!=None):
+            if(isinstance(passedInstances, list)):
+                if(passedInstances != []):
+                    className = passedInstances[0].__class__.__name__
+                else:
+                    className = passedInstances.__class__.__name__
+            else:
+                className = passedInstances.__class__.__name__
+        #Gives access to the class by importing it and simultaneously passes in the method for instantiating it.
+        #returnedClassInstantiationMethod = getAccessToClass(absDirPath, definingFile, className, True)
+        classVarDict = [
+            {
+                "class":className,
+                #A limit on the number of objects allowed to be entered into this JSON Dictionary.
+                "instanceLimit":instanceLimit,
+                #A list of variables which will be excluded from data transmitted for each instance.
+                "varsLimited":varsLimited,
+                "data":[
+                    #Left empty so that instance data can be entered
+                ]
+            }
+        ]
+        #dataEntriesList = classVarDict[0]["data"]
+        #Accounts for the case where a list of instances of the same class are passed into the function
         if(isinstance(passedInstances, list)):
-            className = passedInstances[0].__class__.__name__
-        else:
-            className = passedInstances.__class__.__name__
-    #Gives access to the class by importing it and simultaneously passes in the method for instantiating it.
-    returnedClassInstantiationMethod = getAccessToClass(absDirPath, definingFile, className, True)
-    classVarDict = [
-        {
-            "class":className,
-            "data":[
-                #Left empty so that instance data can be entered
-            ]
-        }
-    ]
-    #dataEntriesList = classVarDict[0]["data"]
-    #Accounts for the case where a list of instances of the same class are passed into the function
-    if(isinstance(passedInstances, list)):
-        for someInstance in passedInstances:
+            for someInstance in passedInstances:
+                classInstanceDict = {}
+                classInfoDict = someInstance.__dict__
+                #print('Printing Class Info: ' + str(classInfoDict))
+                for classElement in classInfoDict:
+                    if(not callable(classElement) and not classElement in varsLimited):
+                        classInstanceDict[classElement] = None
+                classVarDict[0]["data"].append( self.getJSONclassInstance(someInstance, classInstanceDict) )
+        elif(passedInstances == None):
+            if(passedInstances == None):
+                #classInstance = returnedClassInstantiationMethod()
+                classInfoDict = classInstance.__dict__
+        else: #Accounts for the case where only a single instance of the class is passed into the function
             classInstanceDict = {}
-            classInfoDict = someInstance.__dict__
-            print('Printing Class Info: ' + str(classInfoDict))
+            classInfoDict = passedInstances.__dict__
             for classElement in classInfoDict:
-                if(not callable(classElement)):
+                #print('got attribute: ' + classElement)
+                if(not callable(classElement) and not classElement in varsLimited):
                     classInstanceDict[classElement] = None
-            classVarDict[0]["data"].append( getJSONclassInstance(someInstance, classInstanceDict) )
-    elif(passedInstances == None):
-        if(passedInstances == None):
-            classInstance = returnedClassInstantiationMethod()
-            classInfoDict = classInstance.__dict__
-    else: #Accounts for the case where only a single instance of the class is passed into the function
-        classInstanceDict = {}
-        classInfoDict = passedInstances.__dict__
-        for classElement in classInfoDict:
-            #print('got attribute: ' + classElement)
-            if(not callable(classElement)):
-                classInstanceDict[classElement] = None
-                #print('not callable attribute: ' + classElement)
-        classVarDict[0]["data"].append( getJSONclassInstance(passedInstances, classInstanceDict) )
-    return classVarDict
+                    #print('not callable attribute: ' + classElement)
+            classVarDict[0]["data"].append( self.getJSONclassInstance(passedInstances, classInstanceDict) )
+        if(instanceLimit != None):
+            if( len(classVarDict) > instanceLimit):
+                logging.error(msg='Exceeded limit on instances for the dataSet.')
+            else:
+                #print('Class Variable Dictionary: ', classVarDict)
+                return classVarDict
+        else:
+            #print('Class Variable Dictionary: ', classVarDict)
+            return classVarDict
 
-#Takes in all information needed to access a class and returns a formatted json string 
-def getJSONforClass(absDirPath = os.path.dirname(os.path.realpath(__file__)),
-                    definingFile = os.path.realpath(__file__)[os.path.realpath(__file__).rfind('\\') + 1 : os.path.realpath(__file__).rfind('.')],
-                    className = 'testClass', passedInstances = None):
-    classVarDict = getJSONdictForClass(absDirPath=absDirPath,definingFile=definingFile,className=className, passedInstances=passedInstances)
-    JSONstring = json.dumps(classVarDict)
-    return JSONstring
+    #Takes in all information needed to access a class and returns a formatted json string 
+    def getJSONforClass(self, absDirPath = os.path.dirname(os.path.realpath(__file__)),
+                        definingFile = os.path.realpath(__file__)[os.path.realpath(__file__).rfind('\\') + 1 : os.path.realpath(__file__).rfind('.')],
+                        className = 'testClass', passedInstances = None):
+        classVarDict = self.getJSONdictForClass(absDirPath=absDirPath,definingFile=definingFile,className=className, passedInstances=passedInstances)
+        JSONstring = json.dumps(classVarDict)
+        return JSONstring
 
-def getJSONclassInstance(passedInstance, classInstanceDict):
-    for someVariableKey in classInstanceDict.keys():
-        classInstanceDict[someVariableKey] = getattr(passedInstance, someVariableKey)
-        #Handles Cases where particular classes must be converted into a string format.
-        if(type(classInstanceDict[someVariableKey]).__name__ == 'dateTime'):
-            classInstanceDict[someVariableKey] = 'someDateTime'
-        elif(type(classInstanceDict[someVariableKey]).__name__ == 'TextIOWrapper'):
-            classInstanceDict[someVariableKey] = 'OpenedFile'
-    return classInstanceDict
+    def getIdData(self, instance):
+        #Find PolyTypedObject for the object.
+        className = type(instance).__name__
+        polyTypingInstance = None
+        for polyTypedObj in self.manager.objectTyping:
+            if(polyTypedObj.className == className):
+                polyTypingInstance = polyTypedObj
+        instanceIdentifiers = []
+        if(polyTypingInstance != None):
+            if(polyTypingInstance.identifiers != []):
+                for identifier in (polyTypingInstance.identifiers):
+                    #Retrieves the value of the identifier defined and creates a JSON Object for it
+                    instanceIdentifiers.append(
+                        { identifier : getattr(instance, identifier) }
+                    )
+        return (className, instanceIdentifiers)
+
+    
+
+    #Traverses all elements in the manager's object tree, if the class matches this one
+    #def composeDataStream(self):
+    #    if(source != None):
+    #        if(type(source).__name__ == 'Polari' or type(source).__name__ == 'managedApp'):
+    #            for objName in (self.objectRequestDict).keys():
+    #                retrieveDataSet(objName)
+    #        else:
+    #            logging.warn(msg='No Source specified for the Data Request!')
+
+    def getActiveData(self, className):
+        #
+        (self.manager).objectTree
+
+    def getJSONclassInstance(self, passedInstance, classInstanceDict):
+        dataTypesPython = ['str','int','float','complex','list','tuple','range','dict','set','frozenset','bool','bytes','bytearray','memoryview', 'NoneType']
+        print("entered getJSONclassInstance()")
+        for someVariableKey in classInstanceDict.keys():
+            #Handles Cases where particular classes must be converted into a string format.
+            if(type(getattr(passedInstance, someVariableKey)).__name__ == 'dateTime'):
+                classInstanceDict[someVariableKey] = "someDateTime"
+            elif(type(getattr(passedInstance, someVariableKey)).__name__ == 'TextIOWrapper'):
+                classInstanceDict[someVariableKey] = "OpenedFile"
+            elif(type(getattr(passedInstance, someVariableKey)).__name__ == 'bytes' or type(getattr(passedInstance, someVariableKey)).__name__ == 'bytearray'):
+                #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
+                classInstanceDict[someVariableKey] = getattr(passedInstance, someVariableKey).decode()
+            elif(type(getattr(passedInstance, someVariableKey)).__name__ == 'dict'):
+                classInstanceDict[someVariableKey] = 'Some dict'
+            elif(type(getattr(passedInstance, someVariableKey)).__name__ == 'tuple' or type(getattr(passedInstance, someVariableKey)).__name__ == 'list'):
+                #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
+                classInstanceDict[someVariableKey] = self.convertTupleOrListToJSONdict(passedSet=getattr(passedInstance, someVariableKey))
+            elif(ismethod(getattr(passedInstance, someVariableKey))):
+                #print('found bound method (not adding this) ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
+                classInstanceDict[someVariableKey] = "event"
+            elif(isclass(type(getattr(passedInstance, someVariableKey))) and not type(getattr(passedInstance, someVariableKey)).__name__ in dataTypesPython):
+                #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
+                #print('found custom class or type ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
+                classInstanceDict[someVariableKey] = "className(id0:val0, id1:val1, ...)"
+            #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
+            else:
+                #print('Standard type: ', type(getattr(passedInstance, someVariableKey)), getattr(passedInstance, someVariableKey))
+                classInstanceDict[someVariableKey] = getattr(passedInstance, someVariableKey)
+        return classInstanceDict
+
+
+    #Converts a passed in list or tuple into a json dictionary where the keys are the datatypes in python
+    def convertTupleOrListToJSONdict(self, passedSet):
+        returnVal = {"__" + type(passedSet).__name__ + "__0":{}}
+        someDict = returnVal["__" + type(passedSet).__name__ + "__0"]
+        for elem in passedSet:
+            #Handles Cases where particular classes must be converted into a string format.
+            if(type(elem).__name__ == 'dateTime'):
+                someDict[self.getJsonTypeKeyNumber(typeName='dateTime', someDict=someDict)] = "someDateTime"
+            elif(type(elem).__name__ == 'TextIOWrapper'):
+                someDict[self.getJsonTypeKeyNumber(typeName='TextIOWrapper', someDict=someDict)] = "OpenedFile"
+            elif(type(elem).__name__ == 'bytes' or type(elem).__name__ == 'bytearray'):
+                #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
+                someDict[self.getJsonTypeKeyNumber(typeName=type(elem).__name__, someDict=someDict)] = elem.decode()
+            elif(type(elem).__name__ == 'tuple' or type(elem).__name__ == 'list'):
+                print('adding a tuple or list: ', elem)
+                someDict[self.getJsonTypeKeyNumber(typeName=type(elem).__name__, someDict=someDict)] = self.convertTupleOrListToJSONList(passedSet=elem)
+            elif(type(elem).__name__ == 'dict'):
+                print('trying to add a dict', elem)
+            elif(ismethod(elem)):
+                #print('found bound method (not adding this) ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
+                someDict[self.getJsonTypeKeyNumber(typeName="event", someDict=someDict)] = "event"
+            elif(isclass(type(elem)) and not type(elem).__name__ in dataTypesPython):
+                #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
+                #print('found custom class or type ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
+                someDict[self.getJsonTypeKeyNumber(typeName=type(elem).__name__, someDict=someDict)] = "className(id0:val0, id1:val1, ...)"
+            #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
+            else:
+                #print('Standard type: ', type(getattr(passedInstance, someVariableKey)))
+                someDict[self.getJsonTypeKeyNumber(typeName=type(elem).__name__, someDict=someDict)] = elem
+            return returnVal
+
+    def getJsonTypeKeyNumber(self, typeName, someDict):
+        topTypeNum = 0
+        for someKey in someDict.keys():
+            if(type(someKey) == 'str'):
+                if(someKey.__contains__("__" + typeName + "__")):
+                    curTypeNum = int(someKey[someKey.index("__" + typeName + "__") + len(typeName) + 4:])
+                    if(curTypeNum > topTypeNum):
+                        topTypeNum = curTypeNum
+        return "__" + typeName + "__" + str(topTypeNum + 1)
+        

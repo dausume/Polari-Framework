@@ -12,13 +12,14 @@
 
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from definePolari import *
-from managedApp import *
+#from definePolari import *
+#from managedApp import *
 from remoteEvents import *
-from functionalityAnalysis import *
+#from functionalityAnalysis import *
+import logging
 
 dataTypesPython = ['str','int','float','complex','list','tuple','range','dict',
-'set','frozenset','bool','bytes','bytearray','memoryview']
+'set','frozenset','bool','bytes','bytearray','memoryview', 'struct_time', 'type']
 dataTypesJS = ['undefined','Boolean','Number','String','BigInt','Symbol','null','Object','Function']
 dataTypesJSON = ['String','Number','Object','Array','Boolean','null']
 dataAffinitiesSqlite = ['NONE','INTEGER','REAL','TEXT','NUMERIC']
@@ -27,23 +28,59 @@ dataAffinitiesSqlite = ['NONE','INTEGER','REAL','TEXT','NUMERIC']
 #also accounts for the conversion of data types that should be performed when
 #transmitting data across environments and into other programming language contexts.
 class polyTypedObject():
-    def __init__(self, objectReferencesDict=None, manager=None, sourceFiles=[], className=None, identifierVariables=[], variableNameList=[]):
+    def __init__(self, objectReferencesDict={}, manager=None, sourceFiles=[], className=None, identifierVariables=[], variableNameList=[]):
         self.className = className
         #The list of objects that have variables which reference this object, either as a single
         #instance, or as a list of the instances.
         self.objectReferencesDict = objectReferencesDict
         #A list of managed files that defined this class for different languages.
+        print('passed source files: ', sourceFiles)
         self.sourceFiles = sourceFiles
         #The context (App or Polari) in which this Object is being utilized
         self.manager = manager
         #The instances of this object's polyTyping in higher tiered contexts.
         self.inheritedTyping = []
         #Variables that may be used as unique identifiers.
-        self.identifiers = identifierVariables
+        if(identifierVariables == [] or identifierVariables == ['id']):
+            self.identifiers = ['id']
+        elif(type(identifierVariables).__name__ == 'list'):
+            self.identifiers = identifierVariables
+        else:
+            #This should probably throw an error, but I'll just be nice and autocorrect it to the default if someone messes things up for now.
+            self.identifiers = ['id']
         #The names of all of the Variables for the class.
         self.variableNameList = variableNameList
         #The polyTypedVariable instances for each of the variables in the class.
         self.polyTypedVars = []
+
+    #Creates typing for the instance by analyzing it's variables and creating
+    #default polyTypedVariables for it.
+    def analyzeInstance(self, pythonClassInstance):
+        #print('Entered analyzeInstance')
+        classInfoDict = pythonClassInstance.__dict__
+        for someVariableKey in classInfoDict:
+            if(not callable(classInfoDict[someVariableKey])):
+                #print('accVar: ' + someVariableKey)
+                var = getattr(pythonClassInstance, someVariableKey)
+                #If the var is accounted for, analyze the current value.
+                self.analyzeVariableValue(pythonClassInstance=pythonClassInstance, varName=someVariableKey, varVal=var)
+        #print('Showing all polytyped Var for object ' + self.className + ': ', self.polyTypedVars)
+
+
+    def analyzeVariableValue(self, pythonClassInstance, varName, varVal):
+        #print('Analyzing variable ' + varName + ' in class ' + self.className)
+        numAccVars = len(self.polyTypedVars)
+        foundVar = False
+        for polyVar in self.polyTypedVars:
+            #If the variable is found, account for it on it's typeDicts.
+            if(polyVar.name == varName):
+                #polyVar.accountValue(varVal)
+                foundVar = True
+                break
+        if not foundVar:
+            #print('Adding new polyTypedVar ' + varName)
+            newPolyTypedVar = polyTypedVariable(polyTypedObj=self, attributeName=varName, attributeValue=varVal)
+            (self.polyTypedVars).append(newPolyTypedVar)
 
     #Uses the Identifiers and the class name
     def makeTypedTable(self):
@@ -133,7 +170,7 @@ class polyTypedObject():
                                     self.getInstanceIdentifiers(obj),
                                     obj)
                 if(isTupleInTree(tree=objectTree,traversalList=baseTuple,instanceTuple=objTuple)):
-                    self.getTreeBranch()
+                    getTreeBranch()
         #First, get all objects which have references to this object on them.
         #Then, get all references to those objects on a given instance of the manager object.
         #Retrieve those instances and use tuples to track them (className,identifiersList,instance,traversed)
@@ -208,53 +245,85 @@ class polyTypedObject():
             + 'for ' + self.className + 'in the context of a ' + (self.manager).__name__
             + ' with the name ' + (self.manager).name)
 
-    #Creates typing
-    def analyzeInstance(self, pythonClassInstance):
-        classInfoDict = pythonClassInstance.__dict__
-        polyTypedVarNames = []
-        for accountedVar in polyTypedVars:
-            polyTypedVarNames.append(polyTypedVars.name)
-        for someVariableKey in classInfoDict.keys():
-            if(not callable(someVariableKey)):
-                var = getattr(pythonClassInstance, someVariableKey)
-                #If the var is accounted for, analyze the current value.
-                analyzeVariableValue(pythonClassInstance, var)
-
-    def analyzeVariableValue(self, pythonClassInstance, var):
-        numAccVars = len(self.polyVars)
-        foundVar = False
-        for polyVar in self.polyTypedVars:
-            #If the variable is found, account for it on it's typeDicts.
-            if(polyVar.name == var.__name__):
-                polyVar.accountValue(var)
-                foundVar = True
-                break
-        if not foundVar:
-            newPolyTypedVar = polyTypedVariable(polyTypedObj=self, attribute=var)
-            (self.polyTypedVars).append(newPolyTypedVar)
-
 
 class polyTypedVariable():
-    def __init__(self, polyTypedObj=None, attribute=None):
+    def __init__(self, polyTypedObj=None, attributeName=None, attributeValue=None):
         #The name of the variable in the class
-        self.name = attribute.__name__
+        self.name = attributeName
+        self.polyTypedObj = polyTypedObj
         #Breaks down a data type into the programming language name of the data type,
         #the datatype defined for it, and the number of symbols (regardless of type)
         #that must be used in order to define it.
-        dataType = type(attribute).__name__
+        dataType = type(attributeValue).__name__
+        self.eventsList = []
         #Accounts for different set-like data types and what may be contained inside.
+        if(callable(attributeValue)):
+            self.eventsList.append(attributeValue)
         if(dataType == 'list' or dataType == 'tuple' or dataType == 'dict'):
-            dataType = 'list('
-            #ACCOUNT FOR OBJECTS INSIDE LIST OR WHATEVER HERE!
-            dataType += ')'
-        if(not dataType in dataTypesPython):
-            self.findObject()
+            dataType = self.extractSetTyping(varSet=attributeValue)
+        elif(not dataType in dataTypesPython and dataType != 'NoneType' and dataType != 'method'):
+            #Find the definition of the object for the given manager, and construct based on that.
+            #Case where the object is not accounted for by the manager with a PolyTyping Instance.
+            print('Getting object of type, ', dataType, 'as an object.')
+            obj = polyTypedObj.manager.getObject(instance=attributeValue)
+            if(None == obj):
+                obj = polyTypedObj.manager.makeDefaultObjectTyping()
+            self.addToObjReferenceDict(attributeName)
+            #TEMPORARY SOLUTION: Just put anything I can't find as an object.
             dataType = 'object(' + dataType + ')'
-        symbolCount = len(str(attribute))
+        symbolCount = len(str(attributeValue))
         #Each typing dictionary contains the programming language, context (Object, ObjIdentifiers)
         #
-        self.typingDicts = [{"language":'python',"manager":tuple([type(polyTypedObj.manager).__name__, (polyTypedObj.manager).name]),"dataType":dataType,"symbolCount":symbolCount,"occurences":1}]
+        self.typingDicts = [{"language":'python',"manager":tuple([type(polyTypedObj.manager).__name__, (polyTypedObj.manager)]),"dataType":dataType,"symbolCount":symbolCount,"occurences":1}]
         self.pythonTypeDefault = dataType
+
+    #Pulls apart a set-typed variable (dict, list, or tuple)
+    def extractSetTyping(self, varSet, typingString = '', curDepth=1, maxDepth=3):
+        setType = type(varSet).__name__
+        typingString = setType + '('
+        if(curDepth >= maxDepth):
+            return setType + '(?)'
+        firstRun = True
+        if(setType == 'list' or setType == 'tuple'):
+            for elem in varSet:
+                elemType = type(elem).__name__
+                if(elemType == 'list' or elemType == 'tuple' or elemType == 'dict'):
+                    tempString = self.extractSetTyping(varSet=elem,typingString=typingString, curDepth = curDepth + 1, maxDepth=maxDepth)
+                else:
+                    tempString = elemType
+                if(not tempString in typingString):
+                    tempString += ','
+                    typingString += tempString
+        elif(setType == 'dict'):
+            for elem in varSet.keys():
+                elemType = type(elem).__name__
+                if(elemType == 'list' or elemType == 'tuple' or elemType == 'dict'):
+                    tempString = self.extractSetTyping(varSet=elem,typingString=typingString, curDepth = curDepth + 1, maxDepth=maxDepth)
+                else:
+                    tempString = elemType
+                tempString += ':'
+                elemType = type(varSet[elem]).__name__
+                if(elemType == 'list' or elemType == 'tuple' or elemType == 'dict'):
+                    tempString += self.extractSetTyping(varSet=elem,typingString=typingString, curDepth = curDepth + 1, maxDepth=maxDepth)
+                else:
+                    tempString += elemType
+                if(not tempString in typingString):
+                    tempString += ','
+                    typingString += tempString
+        typingString = typingString[:-1]
+        typingString += ')'
+        return typingString
+
+    #Where the object passed in is the value or values of the list of this polyTypedVariable,
+    #we retrieve the key - self.polyTypedObject, from the objectReferencesDict of the passed in obj,
+    #and ensure that our current variable's name is within the list which is the value owned by that key.
+    def addToObjReferenceDict(self, obj):
+        for objType in self.polyTypedObj.manager.objectTyping:
+            if(objType.className == obj.__class__.__name__):
+                if(not self.polyTypedObj.className in objType.objectReferencesDict):
+                    objType.objectReferencesDict[self.polyTypedObj.className] = [self.name]
+                elif(not self.name in objType.objectReferencesDict[self.polyTypedObj.className]):
+                    (objType.objectReferencesDict[self.polyTypedObj.className]).append(self.name)
 
     #Allows you to get what the expected variable types should be for a variable
     #as well as what type they should be converted to when they arrive at their

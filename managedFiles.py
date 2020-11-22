@@ -13,6 +13,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from functionalityAnalysis import *
+#CANNOT DEFINE as @treeObj on managedFile level, causes recursive imports!!
+#from objectTreeDecorators import *
 import logging, os
 #Centralized global variable arrays accounting for the different types of files/file-extensions the system can handle
 #Each individual array accounts for a different type of Object which should be utilized for handling a particular type
@@ -31,7 +33,7 @@ executableExtensions = ['js', 'py', 'html', 'css']
 
 #Wraps the managedFile Object creation and returns the appropriate derivative
 #object instance according to the extension.
-def fileObject(name=None, Path=None, extension=None, manager=None):
+def fileObject(name=None, Path=None, extension=None):
     tempFileObj = managedFile(name=name, Path=Path, extension=extension, manager=manager)
     if(tempFileObj.extension in fileExtensions):
         fileObj = tempFileObj
@@ -48,7 +50,8 @@ def fileObject(name=None, Path=None, extension=None, manager=None):
 #Allows for handling particular file types, and saving them to a register.
 #plty is the custom file extension of the Polarity System.
 class managedFile():
-    def __init__(self, name=None, Path=None, extension=None, manager=None):
+    #@treeObject
+    def __init__(self, name=None, Path=None, extension=None):
         self.name = name
         self.extension = extension
         self.version = None
@@ -58,8 +61,6 @@ class managedFile():
         self.url = None
         #Indicates whether this is the active version of this file.
         self.active = False
-        #Declares what is managing this file and updating it's information(Ex: A Polari, or an App).
-        self.manager = manager
         #Declares whether this file exists locally, or if a remote data request must be performed to read it's current data.
         self.isRemote = False
         #Indicates whether or not this file actually exists in the OS.
@@ -138,21 +139,27 @@ class managedFile():
     def createFile(self):
         if(not os.path.exists(self.name + '.' + self.extension) and self.name != None):
             if(self.Path == os.getcwd() or self.Path == None):
+                self.Path = os.getcwd()
+                print('Set path for object ', self, ' to:  ', self.Path)
                 self.fileInstance = open(self.name + '.' + self.extension, mode='x')
                 (self.fileInstance).close()
             else:
                 logging.warning(msg='Indicated Path lies outside of Current Working Directory, this case is not built out yet.')
         else:
             if(self.Path == None):
-                logging.warning('Attempting to create a file \'' + self.name + self.extension + '\' which already exists in the directory, '+ os.getcwd() +'.')
+                self.Path = os.getcwd()
+                logging.warning('Attempting to create a file \'' + self.name + '.' + self.extension + '\' which already exists in the directory, '+ os.getcwd() +'.')
             else:
-                logging.warning('Attempting to create a file \'' + self.name + self.extension + '\' which already exists in the directory, '+ self.Path +'.')
+                logging.warning('Attempting to create a file \'' + self.name + '.' + self.extension + '\' which already exists in the directory, '+ self.Path +'.')
 
     def openFile(self):
-        if(not (self.fileInstance).closed):
-            logging.error(msg='Attempting to open a file Instance that was already opened.')
+        if(self.fileInstance != None):
+            if(not (self.fileInstance).closed):
+                logging.error(msg='Attempting to open a file Instance that was already opened.')
+            else:
+                self.fileInstance = open(self.name + '.' + self.extension,'w')
         else:
-            self.fileInstance = open(self.name + self.extension)
+            self.fileInstance = open(self.name + '.' + self.extension,'w')
 
     def closeFile(self):
         if(not (self.fileInstance).closed):
@@ -200,5 +207,3 @@ class managedFile():
         autoVersion = (self.version)[dotIndex + 1]
         newVersion = int(manualVersion) + 1
         self.version = str(newVersion) + '.0'
-
-    
