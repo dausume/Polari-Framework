@@ -12,37 +12,38 @@
 
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from dataChannels import *
-from dataStreams import *
-from objectTreeManagerDecorators import *
-from objectTreeDecorators import *
-from polariServer import *
-from defineLocalSys import *
-from objectTreeManagerDecoratorsTest import *
+
+#from dataChannels import *
+#from dataStreams import *
+#from objectTreeManagerDecorators import *
+#from objectTreeDecorators import *
+#from polariServer import *
+#from defineLocalSys import *
+#from objectTreeManagerDecoratorsTest import *
 import unittest, logging, os
 
 def wrappedObject(obj):
 
     class wrapper:
         def __init__(self, *args, **keywordargs):
-            #self.__setattr__ = new_setattr
-            #setattr( self, '__setattr__', types.MethodType(new_setattr, self) )
-            #obj.__init__()
-            print("In wrapper init..")
+            print("Inside wrapper\'s init")
+            self.wrappedObj = obj(*args, **keywordargs)
 
-        def new_setattr(self, name, value):
-            print("overwritten setattr printing value")
-            new_setattr = super(self.__class__, self).__setattr__(name, value)
+        def __setattr__(self, name, value):
+            print("Inside wrapper\'s setattr")
+            #self.__setattr__(name, value)
+    return wrapper
 
 @wrappedObject
 class someClass:
     
     def __init__(self):
+        print("Inside Class\'s init")
         self.varZero = "val0"
         self.varOne = None
 
     def __setattr__(self, name, value):
-        print("overwritten setattr printing value")
+        print("Class\'s setattr setting ", name, " to value: ", value)
         super(self.__class__, self).__setattr__(name, value)
 
 
