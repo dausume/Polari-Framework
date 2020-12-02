@@ -117,6 +117,10 @@ class dataChannel(managedFile):
                 "class":className,
                 "manager":(managerClassName, managerIdentifiers),
                 "source":(sourceClassName, sourceIdentifiers),
+                "create":False,
+                "read":True,
+                "update":False,
+                "delete":False,
                 "filter":filter,
                 "sinks":[],
                 "data":[

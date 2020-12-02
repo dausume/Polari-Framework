@@ -12,7 +12,6 @@
 
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 #from dataChannels import *
 #from dataStreams import *
 #from objectTreeManagerDecorators import *
@@ -20,37 +19,35 @@
 #from polariServer import *
 #from defineLocalSys import *
 #from objectTreeManagerDecoratorsTest import *
-import unittest, logging, os
+import unittest, logging, os, functools
+class parentCls:
+    def __init__(self, *args, **keywordargs):
+        print("In parent init..")
+        #functools.update_wrapper(self.__class__, obj)
 
-def wrappedObject(obj):
+    def __setattr__(self, name, value):
+        print("inherited setattr")
 
-    class wrapper:
-        def __init__(self, *args, **keywordargs):
-            print("Inside wrapper\'s init")
-            self.wrappedObj = obj(*args, **keywordargs)
+    def __getattribute__(self, name):
+        print("inhereted getattr")
 
-        def __setattr__(self, name, value):
-            print("Inside wrapper\'s setattr")
-            #self.__setattr__(name, value)
-    return wrapper
-
-@wrappedObject
-class someClass:
+class someClass(parentCls):
     
     def __init__(self):
-        print("Inside Class\'s init")
         self.varZero = "val0"
         self.varOne = None
 
     def __setattr__(self, name, value):
-        print("Class\'s setattr setting ", name, " to value: ", value)
-        super(self.__class__, self).__setattr__(name, value)
+        print("overwritten setattr printing value")
+        #super(self.__class__, self).__setattr__(name, value)
 
 
 
 if(__name__=='__main__'):
     tester = someClass()
     tester.varOne = "Hello"
+    print("Name of wrapper is: ", tester.__class__.__name__)
+    print("Name of class is: ", tester.__name__)
     print("tester object, ", tester, " var zero: ", tester.varZero, ", var one: ", tester.varOne)
     #localSys = isoSys(name='localSys')
     #print('Made isoSys')
