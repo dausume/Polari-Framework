@@ -27,8 +27,9 @@ import os, json, sqlite3, sys
 DBtypesList = ['Polari', 'App', 'Test']
 DBstatuses = ['UnInitialized Tables', 'Finalized DB']
 
-class managedDatabase(managedFile):
+class managedDatabase(treeObject, managedFile):
     #Creates an anonymous Database, used only when looking to load a pre-existing Database
+    @treeObjectInit
     def __init__(self, name=None, manager=None, DBurl=None, DBtype=None, tables=[], inRAM=False):
             managedFile.__init__(self, name=name, extension='db')
             if(DBtype in DBtypesList or DBtype == None):

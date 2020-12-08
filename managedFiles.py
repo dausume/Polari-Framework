@@ -12,9 +12,9 @@
 
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from functionalityAnalysis import *
+#from functionalityAnalysis import *
 #CANNOT DEFINE as @treeObj on managedFile level, causes recursive imports!!
-#from objectTreeDecorators import *
+#import objectTreeDecorators
 import logging, os
 #Centralized global variable arrays accounting for the different types of files/file-extensions the system can handle
 #Each individual array accounts for a different type of Object which should be utilized for handling a particular type
@@ -49,8 +49,8 @@ def fileObject(name=None, Path=None, extension=None):
 
 #Allows for handling particular file types, and saving them to a register.
 #plty is the custom file extension of the Polarity System.
-class managedFile():
-    #@treeObject
+class managedFile:
+    
     def __init__(self, name=None, Path=None, extension=None):
         self.name = name
         self.extension = extension
@@ -140,7 +140,7 @@ class managedFile():
         if(not os.path.exists(self.name + '.' + self.extension) and self.name != None):
             if(self.Path == os.getcwd() or self.Path == None):
                 self.Path = os.getcwd()
-                print('Set path for object ', self, ' to:  ', self.Path)
+                #print('Set path for object ', self, ' to:  ', self.Path)
                 self.fileInstance = open(self.name + '.' + self.extension, mode='x')
                 (self.fileInstance).close()
             else:
@@ -153,13 +153,16 @@ class managedFile():
                 logging.warning('Attempting to create a file \'' + self.name + '.' + self.extension + '\' which already exists in the directory, '+ self.Path +'.')
 
     def openFile(self):
-        if(self.fileInstance != None):
-            if(not (self.fileInstance).closed):
-                logging.error(msg='Attempting to open a file Instance that was already opened.')
+        try:
+            if(self.fileInstance != None):
+                if(not (self.fileInstance).closed):
+                    logging.error(msg='Attempting to open a file Instance that was already opened.')
+                else:
+                    self.fileInstance = open(self.name + '.' + self.extension,'w')
             else:
                 self.fileInstance = open(self.name + '.' + self.extension,'w')
-        else:
-            self.fileInstance = open(self.name + '.' + self.extension,'w')
+        except:
+            print('File Instance of file \'', self.name, '.', self.extension, '\' could not be generated.  Either file exists outside of path scope, or it does not exist.')
 
     def closeFile(self):
         if(not (self.fileInstance).closed):

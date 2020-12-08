@@ -23,6 +23,7 @@ picExtensions = ['svg', 'pil', 'jpg', 'png', 'pdf', 'gif']
 
 class managedImage(managedFile):
     def __init__(self, name = None, extension = None, xPix = 100, yPix = 100):
+        managedFile.__init__(self, name=name, extension=extension)
         if(picExtensions.__contains__(extension)):
             managedFile.__init__(name)
             #The number of pixels along the x-axis for the current image size, or the width.

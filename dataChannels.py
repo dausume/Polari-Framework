@@ -20,10 +20,10 @@ from objectTreeDecorators import *
 import os, json, logging, datetime
 
 #A file used to manage JSON for a particular Polari or App.
-class dataChannel(managedFile):
-    @treeObject
+class dataChannel(managedFile, treeObject):
+    @treeObjectInit
     def __init__(self, manager, name=None, Path=None):
-        managedFile.__init__(self, name=name, Path=Path, extension='json')
+        managedFile.__init__(self, name=name, extension='json')
         #The JSON currently being manipulated in the python object
         self.jsonDict = []
         #The recorded JSON from the last time the JSON File was read.
@@ -68,18 +68,18 @@ class dataChannel(managedFile):
         available = self.checkChannelAvailability()
 
     def retrieveDataSet(self, className, source=None):
-        print("Retrieving a data set")
+        #print("Retrieving a data set")
         (managerClassName, managerIdentifiers) = self.getIdData(self.manager)
         if(source == None):
             (sourceClassName, sourceIdentifiers) = (managerClassName, managerIdentifiers)
         else:
             (sourceClassName, sourceIdentifiers) = self.getIdData(source)
         for someDataSet in self.jsonDict:
-            print('In retrieveDataSet, printing the current data set: ', someDataSet)
+            #print('In retrieveDataSet, printing the current data set: ', someDataSet)
             if(someDataSet != None):
                 if("class" in someDataSet and "manager"  in someDataSet and "source"  in someDataSet):
                     if(someDataSet["class"] == className and someDataSet["manager"] == (managerClassName, managerIdentifiers) and someDataSet["source"] == (sourceClassName, sourceIdentifiers)):
-                        print("Successfully returning Data Set")
+                        #print("Successfully returning Data Set")
                         return someDataSet
                 else:
                     print("!! WARNING: Data Set was missing class, manager, or source specifications !!")
@@ -118,9 +118,21 @@ class dataChannel(managedFile):
                 "manager":(managerClassName, managerIdentifiers),
                 "source":(sourceClassName, sourceIdentifiers),
                 "create":False,
-                "read":True,
-                "update":False,
                 "delete":False,
+                #If true, all fields/variables from this class are sent/readable for instances in this dataSet.
+                "readAll":True,
+                #For cases with readAll == False, the list of readable fields/variables for instances in this dataSet
+                "readSpecifics":[
+
+                ],
+                "updateAll":False,
+                "updateSpecifics":[
+
+                ],
+                "functionsAll":False,
+                "functionsSpecifics":[
+                    
+                ],
                 "filter":filter,
                 "sinks":[],
                 "data":[
@@ -138,6 +150,7 @@ class dataChannel(managedFile):
                 )
             #Access the manager and pull data of all objects of the given class.
             instanceSet = self.manager.getListOfClassInstances(className=className, source=self.manager)
+            print("List of instances returned: ", instanceSet)
             #print('In makeDataSet, defining dataSet for class: ', className)
             #print('instanceSet being passed: ', instanceSet)
             #pass the set of all object instances into the function

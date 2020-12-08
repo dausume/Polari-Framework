@@ -22,8 +22,8 @@ import subprocess
 
 #Creates a server which either generates an api-endpoint for each object defined in the manager as well as for each dataChannel, or maps them to an endpoint on another server
 #which handles that responsibility instead.  The Server can indicate certain polyTypedObjects & dataChannels as 
-class polariServer:
-    @treeObject
+class polariServer(treeObject):
+    
     def __init__(self, name, displayName, hostSystem, serverChannel=None, serverDataStream=None):
         self.name = name
         self.displayName = displayName
@@ -134,8 +134,8 @@ class polariServer:
         output = subprocess.check_output()
 
 #Defines the Create, Read, Update, and Delete Operations for a particular api endpoint designated for a particular dataChannel or polyTypedObject Instance.
-class polariCRUD(object):
-    @treeObject
+class polariCRUD(treeObject):
+    
     def __init__(self, apiObject):
         #The polyTypedObject or dataChannel Instance
         self.apiObject = apiObject

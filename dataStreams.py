@@ -25,10 +25,10 @@ import logging
 #If an App or Polari is the Source, then data is being pushed from their main server to elsewhere,
 #which may be either another App or Polari, or a UI which is sent to the client side if listed
 #as the sink.
-class dataStream():
+class dataStream(treeObject):
     #Creates a data request (which may or may not recur) from a single source to many potential
     #sinks.  (Acts as a Junction between managedDB, and managedApps or Polari or Pages)
-    @treeObject
+    
     def __init__(self, source, channels=[], sinkInstances=[], recurring=False):
         print('data stream manager: ', self.manager)
         #The Python Object which connects to the data needing to be sent, serving as the source of this data.

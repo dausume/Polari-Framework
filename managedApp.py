@@ -25,7 +25,7 @@ from polyTyping import *
 from objectTreeManagerDecorators import *
 import os, webbrowser, urllib.request, urllib.parse, datetime, time
 
-class managedApp(managedFolder):
+class managedApp(managerObject, managedFolder):
     #Defines what type of Framework functionality is pulled on to create the App
     #Defines what allowed types of apps can be instantiated.
     allowedAppTypes = ['PolariElectronApp']

@@ -16,10 +16,13 @@
 #from managedApp import *
 from remoteEvents import *
 #from functionalityAnalysis import *
+
 import logging
 
-dataTypesPython = ['str','int','float','complex','list','tuple','range','dict',
-'set','frozenset','bool','bytes','bytearray','memoryview', 'struct_time', 'type']
+standardTypesPython = ['str','int','float','complex','list','tuple','range','dict',
+'set','frozenset','bool','bytes','bytearray','memoryview', 'struct_time', 'type', 'NoneType']
+extendedTypedObjectsPython = []
+dataTypesPython = standardTypesPython + extendedTypedObjectsPython
 dataTypesJS = ['undefined','Boolean','Number','String','BigInt','Symbol','null','Object','Function']
 dataTypesJSON = ['String','Number','Object','Array','Boolean','null']
 dataAffinitiesSqlite = ['NONE','INTEGER','REAL','TEXT','NUMERIC']
@@ -29,6 +32,8 @@ dataAffinitiesSqlite = ['NONE','INTEGER','REAL','TEXT','NUMERIC']
 #transmitting data across environments and into other programming language contexts.
 class polyTypedObject():
     def __init__(self, objectReferencesDict={}, manager=None, sourceFiles=[], className=None, identifierVariables=[], variableNameList=[]):
+        self.isTreeObject = None
+        self.isManagerObject = None
         self.className = className
         #The list of objects that have variables which reference this object, either as a single
         #instance, or as a list of the instances.
@@ -52,6 +57,24 @@ class polyTypedObject():
         self.variableNameList = variableNameList
         #The polyTypedVariable instances for each of the variables in the class.
         self.polyTypedVars = []
+
+    def treeOrManager(self):
+        for srcFile in objType.sourceFiles:
+            if(srcFile.extension == 'py'):
+                accessFile = srcFile
+                break
+        moduleImported = __import__(name=accessFile.name, fromlist=self.className)
+        for name, obj in inspect.getmembers(moduleImported):
+            if(name == self.className):
+                from objectTreeDecorators import treeObject
+                from objectTreeManagerDecorators import managerObject
+                if( issubclass(obj, treeObject) ):
+                    self.isTreeObject = True
+                    self.isManagerObject = False
+                if( issubclass(obj, managerObject) ):
+                    self.isTreeObject = False
+                    self.isManagerObject = True
+                
 
     #Creates typing for the instance by analyzing it's variables and creating
     #default polyTypedVariables for it.
