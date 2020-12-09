@@ -39,7 +39,7 @@ class polyTypedObject():
         #instance, or as a list of the instances.
         self.objectReferencesDict = objectReferencesDict
         #A list of managed files that defined this class for different languages.
-        print('passed source files: ', sourceFiles)
+        #print('passed source files: ', sourceFiles)
         self.sourceFiles = sourceFiles
         #The context (App or Polari) in which this Object is being utilized
         self.manager = manager
@@ -287,7 +287,7 @@ class polyTypedVariable():
         elif(not dataType in dataTypesPython and dataType != 'NoneType' and dataType != 'method'):
             #Find the definition of the object for the given manager, and construct based on that.
             #Case where the object is not accounted for by the manager with a PolyTyping Instance.
-            print('Getting object of type, ', dataType, 'as an object.')
+            #print('Getting object of type, ', dataType, 'as an object.')
             obj = polyTypedObj.manager.getObject(instance=attributeValue)
             if(None == obj):
                 obj = polyTypedObj.manager.makeDefaultObjectTyping()

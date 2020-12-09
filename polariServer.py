@@ -40,7 +40,7 @@ class polariServer(treeObject):
         self.lastCycleTime = time.localtime()
         #Sets up the primary data channel which is used as a file relay for information between the back-end and the server
         if(serverChannel == None):
-            print(self.manager)
+            print('Setting manager for dataChannel to ', self.manager)
             self.serverChannel = dataChannel(name=name + '_serverChannel', manager=(self.manager))
         else:
             self.serverChannel = serverChannel

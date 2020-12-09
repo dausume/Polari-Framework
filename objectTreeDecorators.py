@@ -20,14 +20,14 @@ def treeObjectInit(init):
     #Note: For objects instantiated using this Decorator, MUST USER KEYWORD ARGUMENTS NOT POSITIONAL, EX: (manager=mngObj, id='base64Id')
     @wraps(init)
     def new_init(self, *args, **keywordargs):
-        print('Initial kwargs: ', keywordargs)
+        #print('Initial kwargs: ', keywordargs)
         treeObject.__init__(self, *args, **keywordargs)
         objectParamsTuple = init.__code__.co_varnames
         keywordArgsToPass = {}
         for elem in keywordargs.keys():
             if elem in objectParamsTuple:
                 keywordArgsToPass[elem] = keywordargs[elem]
-        print('Passed kwargs: ', keywordArgsToPass)
+        #print('Passed kwargs: ', keywordArgsToPass)
         new_init = init(self, *args, **keywordArgsToPass)
     return new_init
 
