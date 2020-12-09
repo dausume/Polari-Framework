@@ -23,7 +23,7 @@ import subprocess
 #Creates a server which either generates an api-endpoint for each object defined in the manager as well as for each dataChannel, or maps them to an endpoint on another server
 #which handles that responsibility instead.  The Server can indicate certain polyTypedObjects & dataChannels as 
 class polariServer(treeObject):
-    
+    @treeObjectInit
     def __init__(self, name, displayName, hostSystem, serverChannel=None, serverDataStream=None):
         self.name = name
         self.displayName = displayName
@@ -51,6 +51,7 @@ class polariServer(treeObject):
         templateURI = '/manager-' + type(self.manager).__name__ + '_' + idStr + '_/channel/' + self.serverChannel.name
         print('Template URI: ', templateURI)
         self.apiServer.add_route(uri_template = templateURI, resource= polariCRUD(self.serverChannel) )
+        self.uriList = [templateURI]
         #The systems that maintain a secure local connection to this system/server and are used
         #for data processing by it, but do not have their own servers.
         self.siblingSystems = []
