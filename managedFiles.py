@@ -140,9 +140,12 @@ class managedFile:
         if(not os.path.exists(self.name + '.' + self.extension) and self.name != None):
             if(self.Path == os.getcwd() or self.Path == None):
                 self.Path = os.getcwd()
-                #print('Set path for object ', self, ' to:  ', self.Path)
-                self.fileInstance = open(self.name + '.' + self.extension, mode='x')
-                (self.fileInstance).close()
+                try:
+                    #print('Set path for object ', self, ' to:  ', self.Path)
+                    self.fileInstance = open(self.name + '.' + self.extension, mode='x')
+                    (self.fileInstance).close()
+                except:
+                    print('Attempted to create file ', self.name, '.', self.extension, ' but failed, likely file already exists.')
             else:
                 logging.warning(msg='Indicated Path lies outside of Current Working Directory, this case is not built out yet.')
         else:
@@ -158,9 +161,9 @@ class managedFile:
                 if(not (self.fileInstance).closed):
                     logging.error(msg='Attempting to open a file Instance that was already opened.')
                 else:
-                    self.fileInstance = open(self.name + '.' + self.extension,'w')
+                    self.fileInstance = open(self.name + '.' + self.extension,'r+')
             else:
-                self.fileInstance = open(self.name + '.' + self.extension,'w')
+                self.fileInstance = open(self.name + '.' + self.extension,'r+')
         except:
             print('File Instance of file \'', self.name, '.', self.extension, '\' could not be generated.  Either file exists outside of path scope, or it does not exist.')
 
