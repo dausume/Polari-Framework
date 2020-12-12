@@ -45,10 +45,10 @@ class managedExecutable(managedFile):
         elif(picExtensions.__contains__(fileExtension)):
             logging.warning('Entered a valid image file, but instantiated using the wrong object, should be a managedimage.')
         elif(dataBaseExtensions.__contains__(fileExtension)):
-            self.extension = fileExtension
+            logging.warning('Entered a valid file extension meant for a data base, but instantiated using the wrong object, should be a dataComms object.')
         elif(dataCommsExtensions.__contains__(fileExtension)):
-            logging.warning('Entered a valid file extension meant for data transmissions, but instantiated using the wrong object, should be a dataComms object.')
+            logging.warning('Entered a valid file extension meant for data transmissions, but instantiated using the wrong object, should be a managedDB object.')
         elif(executableExtensions.__contains__(fileExtension)):
-            logging.warning('Entered an invalid or unhandled file Extension.')
+            self.extension = fileExtension
         else:
             logging.warning('Entered an invalid or unhandled file Extension.')

@@ -12,9 +12,17 @@
 
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from polyTyping import *
+#from polyTyping import *
 from functools import wraps
 import types, inspect, base64
+
+standardTypesPython = ['str','int','float','complex','list','tuple','range','dict',
+'set','frozenset','bool','bytes','bytearray','memoryview', 'struct_time', 'type', 'NoneType']
+extendedTypedObjectsPython = []
+dataTypesPython = standardTypesPython + extendedTypedObjectsPython
+dataTypesJS = ['undefined','Boolean','Number','String','BigInt','Symbol','null','Object','Function']
+dataTypesJSON = ['String','Number','Object','Array','Boolean','null']
+dataAffinitiesSqlite = ['NONE','INTEGER','REAL','TEXT','NUMERIC']
 
 def treeObjectInit(init):
     #Note: For objects instantiated using this Decorator, MUST USER KEYWORD ARGUMENTS NOT POSITIONAL, EX: (manager=mngObj, id='base64Id')
@@ -40,7 +48,7 @@ BASE_LEN = len(BASE_CHARS)
 class treeObject:
     #Note: For objects instantiated using this Decorator, MUST USER KEYWORD ARGUMENTS NOT POSITIONAL, EX: (manager=mngObj, id='base64Id')
     def __init__(self, *args, **keywordargs):
-        #print('self: ', self)
+        #print('Name of the treeObject: ', self.__class__.__name__)
         #print('args: ', args)
         #print('keywordargs: ', keywordargs)
         #Adding on the necessary variables for a tree object, in the case they are not defined.
@@ -65,7 +73,7 @@ class treeObject:
         if(name == 'manager'):
             if(value != None):
                 if(hasattr(self.manager, 'idList') and hasattr(self.manager, 'objectTyping') and hasattr(self.manager, 'cloudIdList')):
-                    polyObj = self.manager.getObjectTyping(type(self).__name__)
+                    polyObj = self.manager.getObjectTyping(self.__class__)
                     #Adding one object
                     if(self.manager.identifiersComplete(value)):
                         ids = self.manager.getInstanceIdentifiers(value)
@@ -86,7 +94,7 @@ class treeObject:
                     self.manager = None
             #In this case, manager has just been set to None, meaning we are removing it from it's previous object tree.
             else:
-                polyObj = self.manager.getObjectTyping(type(self).__name__)
+                polyObj = self.manager.getObjectTyping(self.__class__)
                 #Adding one object
                 if(self.manager.identifiersComplete(value)):
                     ids = self.manager.getInstanceIdentifiers(value)
@@ -95,12 +103,13 @@ class treeObject:
                 #NEED A FUNCTION TO RETRIEVE ALL DEUPLICATES OF A TUPLE
             super(treeObject, self).__setattr__(name, value)
         if(self.manager != None):
-            polyObj = self.manager.getObjectTyping(type(self).__name__)
+            polyObj = self.manager.getObjectTyping(self.__class__)
             #In polyObj 'polyObj.className' potential references exist for this object.
             #Here, we get each variable that is a reference or a list of references to a
             #particular type of object.
             if(polyObj == None):
                 print('Undefined/unpolytyped object: ', self)
+                pass
             else:
                 if name in polyObj.objectReferencesDict:
                     if(value == None or value == []):
@@ -122,20 +131,20 @@ class treeObject:
                                     self.manager.replaceOriginalTuple(self, originalPath = instPath, newPath=[duplicateBranchTuple], newTuple=duplicateBranchTuple)
                     else:
                         #Adding one object
-                        if(self.manager.identifiersComplete(value)):
-                            ids = self.manager.getInstanceIdentifiers(value)
-                            valuePath = self.manager.getTuplePathInObjTree(instanceTuple=tuple([polyObj.className, ids, value]))
-                            if(valuePath == []):
-                                #Do nothing, because the branch is already accounted for.
-                                pass
-                            elif(valuePath == None):
-                                #add the new Branch
-                                newBranch = tuple([polyObj.className, ids, value])
-                                self.manager.addNewBranch(traversalList=[], branchTuple=newBranch)
-                            else:
-                                #add as a duplicate branch
-                                duplicateBranchTuple = tuple([polyObj.className, ids, tuple(valuePath)])
-                                self.manager.replaceOriginalTuple(self, originalPath=valuePath, newPath=[duplicateBranchTuple], newTuple=duplicateBranchTuple)
+                        #if(self.manager.identifiersComplete(value)):
+                        ids = self.manager.getInstanceIdentifiers(value)
+                        valuePath = self.manager.getTuplePathInObjTree(instanceTuple=tuple([polyObj.className, ids, value]))
+                        if(valuePath == []):
+                            #Do nothing, because the branch is already accounted for.
+                            pass
+                        elif(valuePath == None):
+                            #add the new Branch
+                            newBranch = tuple([polyObj.className, ids, value])
+                            self.manager.addNewBranch(traversalList=[], branchTuple=newBranch)
+                        else:
+                            #add as a duplicate branch
+                            duplicateBranchTuple = tuple([polyObj.className, ids, tuple(valuePath)])
+                            self.manager.replaceOriginalTuple(self, originalPath=valuePath, newPath=[duplicateBranchTuple], newTuple=duplicateBranchTuple)
             super(treeObject, self).__setattr__(name, value)
 
     #In the case where this object is a Subordinate Object tree,

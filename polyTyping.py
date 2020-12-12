@@ -15,23 +15,19 @@
 #from definePolari import *
 #from managedApp import *
 from remoteEvents import *
+from objectTreeDecorators import *
 #from functionalityAnalysis import *
 
 import logging
 
-standardTypesPython = ['str','int','float','complex','list','tuple','range','dict',
-'set','frozenset','bool','bytes','bytearray','memoryview', 'struct_time', 'type', 'NoneType']
-extendedTypedObjectsPython = []
-dataTypesPython = standardTypesPython + extendedTypedObjectsPython
-dataTypesJS = ['undefined','Boolean','Number','String','BigInt','Symbol','null','Object','Function']
-dataTypesJSON = ['String','Number','Object','Array','Boolean','null']
-dataAffinitiesSqlite = ['NONE','INTEGER','REAL','TEXT','NUMERIC']
-
 #Accounts for data on a class and allows for valid data typing in multiple types,
 #also accounts for the conversion of data types that should be performed when
 #transmitting data across environments and into other programming language contexts.
-class polyTypedObject():
-    def __init__(self, objectReferencesDict={}, manager=None, sourceFiles=[], className=None, identifierVariables=[], variableNameList=[]):
+class polyTypedObject(treeObject):
+    @treeObjectInit
+    def __init__(self, className, manager, objectReferencesDict={}, sourceFiles=[], identifierVariables=[], variableNameList=[]):
+        if(className == 'polariServer'):
+            print('Making the polyTyping object for polariServer with manager set as: ', manager)
         self.isTreeObject = None
         self.isManagerObject = None
         self.className = className
@@ -97,7 +93,6 @@ class polyTypedObject():
         for polyVar in self.polyTypedVars:
             #If the variable is found, account for it on it's typeDicts.
             if(polyVar.name == varName):
-                #polyVar.accountValue(varVal)
                 foundVar = True
                 break
         if not foundVar:
@@ -113,15 +108,32 @@ class polyTypedObject():
                  pySource = sourceFile
         ((self.manager).DB).makeTableByClass(absDirPath=sourceFile.Path, definingFile=sourceFile.name)
 
-    #Returns another polyTyped Object instance from the manager object
-    def getObject(self, className):
-        for obj in (self.manager).objectTyping:
-            if(obj.className == className):
-                return obj
-        return None
+    def getObjectTyping(self, classObj=None, className=None, classInstance=None ):
+        if className != None:
+            for objType in (self.manager).objectTyping:
+                if(objType.className == className):
+                    return objType
+        elif classInstance != None:
+            for objType in (self.manager).objectTyping:
+                if(objType.className == classInstance.__class__.__name__):
+                    return objType
+        elif classObj != None:
+            for objType in (self.manager).objectTyping:
+                if(objType.className == classObj.__name__):
+                    return objType
+        else:
+            print("You called the \'getObjectTyping\' function without passing any parameters!  Must pass one of the three parameter options, the string name of the class, an instance of the class, or the class defining object itself \'__class__\'.")
+        obj = None
+        if className != None:
+            print("Attempted to retrieve a polyTypedObject that does not exist \"", className, "\" using it\'s name as a string.  Cannot generate a default polyTypedObject using a passed string, pass either an object instance or the class object \'__class__\' to generate a default polyTypedObject.")
+        elif classInstance != None:
+            obj = (self.manager).makeDefaultObjectTyping(classInstance=classInstance)
+        elif classObj != None:
+            obj = (self.manager).makeDefaultObjectTyping(classObj=classObj)
+        return obj
 
     def getInstanceIdentifiers(self, instance):
-        obj = self.getObject(type(instance).__name__)
+        obj = self.getObjectTyping(type(instance).__name__)
         idVars = obj.identifiers
         #Compiles a dictionary of key-value pairs for the identifiers 
         identifiersDict = {}
@@ -160,7 +172,7 @@ class polyTypedObject():
         potentialObjects = []
         #A list of all object instances referenced on the current object, regardless of relation.
         traversalObjects = []
-        mngObj = self.getObject( type(self.manager).__name__ )
+        mngObj = self.getObjectTyping( type(self.manager).__name__ )
         #Checks each Object see if the current object (the manager) has any potential references to it.
         #Generates a list of potentialObjects, which may potentially hold instances of the desired obj.
         for obj in (self.manager).objectTyping:
@@ -269,11 +281,14 @@ class polyTypedObject():
             + ' with the name ' + (self.manager).name)
 
 
-class polyTypedVariable():
+class polyTypedVariable(treeObject):
+    @treeObjectInit
     def __init__(self, polyTypedObj=None, attributeName=None, attributeValue=None):
         #The name of the variable in the class
-        self.name = attributeName
         self.polyTypedObj = polyTypedObj
+        self.name = attributeName
+        if(polyTypedObj == 'testObj'):
+            print('Making testObj on polariServer for variable: ', attributeName)
         #Breaks down a data type into the programming language name of the data type,
         #the datatype defined for it, and the number of symbols (regardless of type)
         #that must be used in order to define it.
@@ -288,10 +303,10 @@ class polyTypedVariable():
             #Find the definition of the object for the given manager, and construct based on that.
             #Case where the object is not accounted for by the manager with a PolyTyping Instance.
             #print('Getting object of type, ', dataType, 'as an object.')
-            obj = polyTypedObj.manager.getObject(instance=attributeValue)
+            obj = polyTypedObj.manager.getObjectTyping(classInstance=attributeValue)
             if(None == obj):
-                obj = polyTypedObj.manager.makeDefaultObjectTyping()
-            self.addToObjReferenceDict(attributeName)
+                obj = polyTypedObj.manager.makeDefaultObjectTyping(classInstance=attributeValue)
+            self.addToObjReferenceDict(attributeValue.__class__)
             #TEMPORARY SOLUTION: Just put anything I can't find as an object.
             dataType = 'object(' + dataType + ')'
         symbolCount = len(str(attributeValue))
@@ -340,13 +355,17 @@ class polyTypedVariable():
     #Where the object passed in is the value or values of the list of this polyTypedVariable,
     #we retrieve the key - self.polyTypedObject, from the objectReferencesDict of the passed in obj,
     #and ensure that our current variable's name is within the list which is the value owned by that key.
-    def addToObjReferenceDict(self, obj):
-        for objType in self.polyTypedObj.manager.objectTyping:
-            if(objType.className == obj.__class__.__name__):
-                if(not self.polyTypedObj.className in objType.objectReferencesDict):
-                    objType.objectReferencesDict[self.polyTypedObj.className] = [self.name]
-                elif(not self.name in objType.objectReferencesDict[self.polyTypedObj.className]):
-                    (objType.objectReferencesDict[self.polyTypedObj.className]).append(self.name)
+    def addToObjReferenceDict(self, classObj):
+        if(hasattr(self, 'polyTypedObj')):
+            print('Adding obj ', classObj, ' to object ref dict of ', self.polyTypedObj.className, ' for variable named: ', self.name)
+            for objType in self.polyTypedObj.manager.objectTyping:
+                if(objType.className == classObj.__name__):
+                    if(not self.polyTypedObj.className in objType.objectReferencesDict):
+                        objType.objectReferencesDict[self.polyTypedObj.className] = [self.name]
+                    elif(not self.name in objType.objectReferencesDict[self.polyTypedObj.className]):
+                        (objType.objectReferencesDict[self.polyTypedObj.className]).append(self.name)
+        else:
+            print('Attempting to set object reference for object ')
 
     #Allows you to get what the expected variable types should be for a variable
     #as well as what type they should be converted to when they arrive at their

@@ -40,7 +40,7 @@ class polariServer(treeObject):
         self.lastCycleTime = time.localtime()
         #Sets up the primary data channel which is used as a file relay for information between the back-end and the server
         if(serverChannel == None):
-            print('Setting manager for dataChannel to ', self.manager)
+            #print('Setting manager for dataChannel to ', self.manager)
             self.serverChannel = dataChannel(name=name + '_serverChannel', manager=(self.manager))
         else:
             self.serverChannel = serverChannel
@@ -49,7 +49,7 @@ class polariServer(treeObject):
         idStr = ((((str( self.manager.getInstanceIdentifiers(self.manager) ).replace(' ','')).replace('(', '')).replace(',', '~')).replace('\'', '')).replace(')','.')
         idStr = idStr[:len(idStr)-3]
         templateURI = '/manager-' + type(self.manager).__name__ + '_' + idStr + '_/channel/' + self.serverChannel.name
-        print('Template URI: ', templateURI)
+        #print('Template URI: ', templateURI)
         self.apiServer.add_route(uri_template = templateURI, resource= polariCRUD(self.serverChannel) )
         self.uriList = [templateURI]
         #The systems that maintain a secure local connection to this system/server and are used
