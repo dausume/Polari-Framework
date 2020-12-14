@@ -62,5 +62,5 @@ if(__name__=='__main__'):
     print('Created polariServer with a set manager.')
     fakeManager.polServer.startupPolariServer()
     print('-------------------Finished setting up server for manager object---------------------------')
-    #print(fakeManager.objectTree)
+    print('Object Tree: ', fakeManager.objectTree)
     

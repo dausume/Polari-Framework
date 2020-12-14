@@ -137,10 +137,8 @@ class managerObject:
             newpolyObj = self.getObjectTyping(value.__class__)
             print('Setting attribute using a new polariServer polyTyping: ', newpolyObj, '; and it\'s reference dict: ', newpolyObj.objectReferencesDict)
             managerPolyTyping = self.getObjectTyping(self.__class__)
-            for someVar in newpolyObj.polyTypedVars:
-                if(someVar.name == name):
-                    someVar.addToObjReferenceDict(self.__class__)
-                    print('Object\'s referenceDict after assignment: ', newpolyObj.objectReferencesDict)
+            managerPolyTyping.addToObjReferenceDict(referencedClassObj=value.__class__, referenceVarName=name)
+            print('Object\'s referenceDict after assignment: ', newpolyObj.objectReferencesDict)
             if(type(value) == list):
                 #Adding a list of objects
                 for inst in value:
@@ -234,15 +232,19 @@ class managerObject:
         tempList = []
         if(traversalList != None):
             branch = self.getBranchNode(traversalList = traversalList)
-            for branchTuple in branch.keys():
-                if(type(branchTuple[0]) == className and type(branchTuple[2]).__name__ == className):
-                    print("Found a match for the class ", className, " in the manager object ", self, ", the matched object was ", branchTuple[2])
-                    instanceList.append(branchTuple[2])
-                #else:
-                    #print("A non-matching object was found, ", branchTuple[2])
-            for branchTuple in branch.keys():
-                tempList = self.getListOfClassInstances(className=className, traversalList=traversalList+[branchTuple], source=source)
-                instanceList = instanceList + tempList
+            #Handles the case for when we are on a duplicate branch.
+            if(branch == None):
+                instanceList = []
+            else:
+                for branchTuple in branch.keys():
+                    if(type(branchTuple[0]) == className and type(branchTuple[2]).__name__ == className):
+                        print("Found a match for the class ", className, " in the manager object ", self, ", the matched object was ", branchTuple[2])
+                        instanceList.append(branchTuple[2])
+                    #else:
+                        #print("A non-matching object was found, ", branchTuple[2])
+                for branchTuple in branch.keys():
+                    tempList = self.getListOfClassInstances(className=className, traversalList=traversalList+[branchTuple], source=source)
+                    instanceList = instanceList + tempList
         else:
             #print('source object does not exist in the object tree of manager object, returning empty list of objects.')
             instanceList = []
@@ -337,10 +339,12 @@ class managerObject:
         #if(traversalList==[]):
         #    print('Trying to find Tuple match in Object Tree for tuple: ')
         #    print(instanceTuple)
-        path = None
         branch = self.getBranchNode(traversalList = traversalList)
-        #print('Branch to be searched: ')
-        #print(branch)
+        #Handles the case where no further branches exist, meaning, it is currently on a duplicate Node.
+        if(branch == None):
+            return None
+        path = None
+        #print('Branch to be searched: ', branch)
         for branchTuple in branch.keys():
             if branchTuple[0] == instanceTuple[0] and branchTuple[1] == instanceTuple[1]:
                 if(type(branchTuple[2]) == tuple):

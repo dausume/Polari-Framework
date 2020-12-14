@@ -54,6 +54,22 @@ class polyTypedObject(treeObject):
         #The polyTypedVariable instances for each of the variables in the class.
         self.polyTypedVars = []
 
+    #Where the object passed in is the value or values of the list of this polyTypedVariable,
+    #we retrieve the key - self.polyTypedObject, from the objectReferencesDict of the passed in obj,
+    #and ensure that our current variable's name is within the list which is the value owned by that key.
+    def addToObjReferenceDict(self, referencedClassObj, referenceVarName):
+        if(hasattr(self, 'manager')):
+            #print('Adding obj ', classObj, ' to object ref dict of ', self.className, ' for variable named: ', varName)
+            for objType in self.manager.objectTyping:
+                if(objType.className == referencedClassObj.__name__):
+                    if(not self.className in objType.objectReferencesDict):
+                        self.objectReferencesDict[self.className] = [referenceVarName]
+                    elif(not self.name in objType.objectReferencesDict[self.polyTypedObj.className]):
+                        (objType.objectReferencesDict[self.className]).append(referenceVarName)
+                break
+        else:
+            print('Attempting to set object reference on object that is not fully defined.')
+
     def treeOrManager(self):
         for srcFile in objType.sourceFiles:
             if(srcFile.extension == 'py'):
@@ -97,7 +113,7 @@ class polyTypedObject(treeObject):
                 break
         if not foundVar:
             #print('Adding new polyTypedVar ' + varName)
-            newPolyTypedVar = polyTypedVariable(polyTypedObj=self, attributeName=varName, attributeValue=varVal)
+            newPolyTypedVar = polyTypedVariable(polyTypedObj=self, attributeName=varName, attributeValue=varVal, manager=self.manager)
             (self.polyTypedVars).append(newPolyTypedVar)
 
     #Uses the Identifiers and the class name
@@ -287,8 +303,8 @@ class polyTypedVariable(treeObject):
         #The name of the variable in the class
         self.polyTypedObj = polyTypedObj
         self.name = attributeName
-        if(polyTypedObj == 'testObj'):
-            print('Making testObj on polariServer for variable: ', attributeName)
+        #if(polyTypedObj == 'testObj'):
+        #    print('Making testObj on polariServer for variable: ', attributeName)
         #Breaks down a data type into the programming language name of the data type,
         #the datatype defined for it, and the number of symbols (regardless of type)
         #that must be used in order to define it.
@@ -306,7 +322,7 @@ class polyTypedVariable(treeObject):
             obj = polyTypedObj.manager.getObjectTyping(classInstance=attributeValue)
             if(None == obj):
                 obj = polyTypedObj.manager.makeDefaultObjectTyping(classInstance=attributeValue)
-            self.addToObjReferenceDict(attributeValue.__class__)
+            self.polyTypedObj.addToObjReferenceDict(referencedClassObj=attributeValue.__class__, referenceVarName=self.name)
             #TEMPORARY SOLUTION: Just put anything I can't find as an object.
             dataType = 'object(' + dataType + ')'
         symbolCount = len(str(attributeValue))
@@ -355,17 +371,17 @@ class polyTypedVariable(treeObject):
     #Where the object passed in is the value or values of the list of this polyTypedVariable,
     #we retrieve the key - self.polyTypedObject, from the objectReferencesDict of the passed in obj,
     #and ensure that our current variable's name is within the list which is the value owned by that key.
-    def addToObjReferenceDict(self, classObj):
-        if(hasattr(self, 'polyTypedObj')):
-            print('Adding obj ', classObj, ' to object ref dict of ', self.polyTypedObj.className, ' for variable named: ', self.name)
-            for objType in self.polyTypedObj.manager.objectTyping:
-                if(objType.className == classObj.__name__):
-                    if(not self.polyTypedObj.className in objType.objectReferencesDict):
-                        objType.objectReferencesDict[self.polyTypedObj.className] = [self.name]
-                    elif(not self.name in objType.objectReferencesDict[self.polyTypedObj.className]):
-                        (objType.objectReferencesDict[self.polyTypedObj.className]).append(self.name)
-        else:
-            print('Attempting to set object reference for object ')
+    #def addToObjReferenceDict(self, classObj):
+    #    if(hasattr(self, 'polyTypedObj')):
+    #        print('Adding obj ', classObj, ' to object ref dict of ', self.polyTypedObj.className, ' for variable named: ', self.name)
+    #        for objType in self.polyTypedObj.manager.objectTyping:
+    #            if(objType.className == classObj.__name__):
+    #                if(not self.polyTypedObj.className in objType.objectReferencesDict):
+    #                    objType.objectReferencesDict[self.polyTypedObj.className] = [self.name]
+    #                elif(not self.name in objType.objectReferencesDict[self.polyTypedObj.className]):
+    #                    (objType.objectReferencesDict[self.polyTypedObj.className]).append(self.name)
+    #     else:
+    #        print('Attempting to set object reference for object ')
 
     #Allows you to get what the expected variable types should be for a variable
     #as well as what type they should be converted to when they arrive at their
