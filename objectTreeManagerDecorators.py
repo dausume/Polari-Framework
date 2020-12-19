@@ -76,18 +76,12 @@ class managerObject:
         #    print('Setting polServer attribute on manager to: ', value)
         if(not hasattr(self, 'objectTyping') or not hasattr(self, 'objectTree') or type(value).__name__ in dataTypesPython):
             #print('setting value on objectTyping..')
-            if(name == 'polServer'):
-                print("objectTyping exists - ", hasattr(self, 'objectTyping'), ', objectTree exists - ', hasattr(self, 'objectTree'), ', type name - ', type(value).__name__, ' is in dataTypesPython', type(value).__name__ in dataTypesPython)
+            #if(name == 'polServer'):
+            #    print("objectTyping exists - ", hasattr(self, 'objectTyping'), ', objectTree exists - ', hasattr(self, 'objectTree'), ', type name - ', type(value).__name__, ' is in dataTypesPython', type(value).__name__ in dataTypesPython)
                 #print('Setting polServer attribute on manager to: ', value)
             super(managerObject, self).__setattr__(name, value)
             return
-        else:
-            print('-----------Setting an Object on  variable, ', name, ' with value: ', value)
-        #print("-----------------------------Setting a value on the manager------------------------------------")
-        #print('The value being set is: ', value, 'it\'s type is : ', type(value).__name__)
         polyObj = self.getObjectTyping(self.__class__)
-        if(name == 'polServer'):
-            print('objectTyping for polariServer found: , ', polyObj)
         #In polyObj 'polyObj.className' potential references exist for this object.
         #Here, we get each variable that is a reference or a list of references to a
         #particular type of object.
@@ -97,26 +91,26 @@ class managerObject:
             elif(type(value) == list):
                 #Adding a list of objects
                 for inst in value:
-                    print('Adding one object as element in a list variable, ', name ,' to the manager with value: ', inst)
+                    #print('Adding one object as element in a list variable, ', name ,' to the manager with value: ', inst)
                     #if(self.identifiersComplete(inst)):
                     ids = self.getInstanceIdentifiers(inst)
-                    instPath = self.getTuplePathInObjTree(instanceTuple=tuple([polyObj.className, ids, inst]))
+                    instPath = self.getTuplePathInObjTree(instanceTuple=tuple([inst.className, ids, inst]))
                     if instPath == []:
-                        print("found an instance already in the objectTree at the correct location:", inst)
+                        #print("found an instance already in the objectTree at the correct location:", inst)
                         pass
                     elif instPath == None:
-                        print("found an instance with no existing branch, now creating branch on manager: ", inst)
-                        newBranch = tuple([polyObj.className, ids, inst])
+                        #print("found an instance with no existing branch, now creating branch on manager: ", inst)
+                        newBranch = tuple([inst.className, ids, inst])
                         self.addNewBranch(traversalList=[], branchTuple=newBranch)
                     else:
-                        print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", inst)
-                        duplicateBranchTuple = tuple([polyObj.className, ids, tuple([])]) 
+                        #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", inst)
+                        duplicateBranchTuple = tuple([inst.className, ids, tuple(instPath)]) 
                         self.replaceOriginalTuple(self, originalPath = instPath, newPath=[duplicateBranchTuple], newTuple=duplicateBranchTuple)
             else:
                 print('Adding one object as variable, ', name ,' to the manager with value: ', value)
                 #if(self.identifiersComplete(value)):
                 ids = self.getInstanceIdentifiers(value)
-                valuePath = self.getTuplePathInObjTree(instanceTuple=tuple([polyObj.className, ids, value]))
+                valuePath = self.getTuplePathInObjTree(instanceTuple=tuple([value.className, ids, value]))
                 if(valuePath == []):
                     print("found an instance already in the objectTree at the correct location:", value)
                     #Do nothing, because the branch is already accounted for.
@@ -124,12 +118,12 @@ class managerObject:
                 elif(valuePath == None):
                     #add the new Branch
                     print("found an instance with no existing branch, now creating branch on manager: ", value)
-                    newBranch = tuple([polyObj.className, ids, value])
+                    newBranch = tuple([value.className, ids, value])
                     self.addNewBranch(traversalList=[], branchTuple=newBranch)
                 else:
                     #add as a duplicate branch
                     print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", value)
-                    duplicateBranchTuple = tuple([polyObj.className, ids, tuple(valuePath)])
+                    duplicateBranchTuple = tuple([value.className, ids, tuple(valuePath)])
                     self.replaceOriginalTuple(self, originalPath=valuePath, newPath=[duplicateBranchTuple], newTuple=duplicateBranchTuple)
         else:
             #print('Setting attribute to a value: ', value)
@@ -155,7 +149,7 @@ class managerObject:
                         self.addNewBranch(traversalList=[], branchTuple=newBranch)
                     else:
                         print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", inst)
-                        duplicateBranchTuple = tuple([newpolyObj.className, ids, tuple([])]) 
+                        duplicateBranchTuple = tuple([newpolyObj.className, ids, tuple(instPath)]) 
                         self.replaceOriginalTuple(self, originalPath = instPath, newPath=[duplicateBranchTuple], newTuple=duplicateBranchTuple)
             else:
                 print('Adding one object as variable, ', name ,' to the manager with value: ', value)

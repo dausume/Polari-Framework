@@ -91,7 +91,6 @@ class polyTypedObject(treeObject):
     #Creates typing for the instance by analyzing it's variables and creating
     #default polyTypedVariables for it.
     def analyzeInstance(self, pythonClassInstance):
-        #print('Entered analyzeInstance')
         classInfoDict = pythonClassInstance.__dict__
         for someVariableKey in classInfoDict:
             if(not callable(classInfoDict[someVariableKey])):
@@ -322,7 +321,7 @@ class polyTypedVariable(treeObject):
             obj = polyTypedObj.manager.getObjectTyping(classInstance=attributeValue)
             if(None == obj):
                 obj = polyTypedObj.manager.makeDefaultObjectTyping(classInstance=attributeValue)
-            self.polyTypedObj.addToObjReferenceDict(referencedClassObj=attributeValue.__class__, referenceVarName=self.name)
+            polyTypedObj.addToObjReferenceDict(referencedClassObj=attributeValue.__class__, referenceVarName=self.name)
             #TEMPORARY SOLUTION: Just put anything I can't find as an object.
             dataType = 'object(' + dataType + ')'
         symbolCount = len(str(attributeValue))

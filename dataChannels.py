@@ -167,7 +167,8 @@ class dataChannel(managedFile, treeObject):
         #if(self.checkChannelAvailability()):
         #self.openChannel()
         self.openFile()
-        print(self.fileInstance)
+        print('json dict to be injected: ', self.jsonDict)
+        print('File Instance: ',self.fileInstance)
         #Dumps the jsonDict variable into the dataChannel file.
         json.dump(
             self.jsonDict,

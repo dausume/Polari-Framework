@@ -163,6 +163,7 @@ class managedFile:
                 else:
                     self.fileInstance = open(self.name + '.' + self.extension,'r+')
             else:
+                print('opening file instance: ', self.name + '.' + self.extension)
                 self.fileInstance = open(self.name + '.' + self.extension,'r+')
         except:
             print('File Instance of file \'', self.name, '.', self.extension, '\' could not be generated.  Either file exists outside of path scope, or it does not exist.')
