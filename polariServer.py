@@ -44,6 +44,9 @@ class polariServer(treeObject):
             self.serverChannel = dataChannel(name=name + '_serverChannel', manager=(self.manager))
         else:
             self.serverChannel = serverChannel
+        print('ServerChannel: ', self.serverChannel)
+        typing = self.manager.getObjectTyping(self.__class__)
+        print('Typing Dict for polServer: ')
         #Creates an endpoint for the given manager object for the specific channel object Ex:
         #  https://someURL.com/manager-managerObjectType-(id0:val0, id1:val1, id2:val2, ...)/channel/channelName
         idStr = ((((str( self.manager.getInstanceIdentifiers(self.manager) ).replace(' ','')).replace('(', '')).replace(',', '~')).replace('\'', '')).replace(')','.')

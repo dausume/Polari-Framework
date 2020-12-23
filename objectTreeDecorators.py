@@ -17,8 +17,9 @@ from functools import wraps
 import types, inspect, base64
 
 standardTypesPython = ['str','int','float','complex','list','tuple','range','dict',
-'set','frozenset','bool','bytes','bytearray','memoryview', 'struct_time', 'type', 'NoneType', 'TextIOWrapper']
-ignoredObjectsPython = ['API']
+'set','frozenset','bool','bytes','bytearray','memoryview', 'type', 'NoneType', 'TextIOWrapper']
+ignoredObjectsPython = ['struct_time', 'API']
+ignoredObjectImports = {'falcon':['API'], 'time':['struct_time']}
 dataTypesPython = standardTypesPython + ignoredObjectsPython
 dataTypesJS = ['undefined','Boolean','Number','String','BigInt','Symbol','null','Object','Function']
 dataTypesJSON = ['String','Number','Object','Array','Boolean','null']

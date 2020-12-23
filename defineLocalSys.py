@@ -23,11 +23,13 @@ import time
 from datetime import datetime
 #from win32.win32api import GetSystemMetrics
 import psutil
+from objectTreeDecorators import *
 #from PyQt5 import QApplication
 
 #Defines a class for an isolated system, this case assumes a Windows x32 or x64 system
-class isoSys():
+class isoSys(treeObject):
     #gets information needed for the polari from the local system that this code runs on.
+    @treeObjectInit
     def __init__(self, name=None):
         self.name = name
         #Networking Information for the System

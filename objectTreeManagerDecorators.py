@@ -525,9 +525,11 @@ class managerObject:
         source_managedDatabase = self.makeFile(name='managedDB', extension='py')
         source_dataChannel = self.makeFile(name='dataChannels', extension='py')
         source_managedExecutable = self.makeFile(name='managedExecutables', extension='py')
+        source_polariServer = self.makeFile(name='polariServer', extension='py')
         #polyTyped Object and variable are both defined in the same source file
         source_polyTypedObjectANDvariables = self.makeFile(name='polyTypedObject', extension='py')
         self.objectTyping = [
+            polyTypedObject(sourceFiles=[source_polyTypedObjectANDvariables], className='polyTypedVariable', identifierVariables = ['name','polyTypedObj'], objectReferencesDict={'polyTypedObject':['polyTypedVars']}, manager=self),
             polyTypedObject(sourceFiles=[source_Polari], className='Polari', identifierVariables = ['id'], objectReferencesDict={'managedApp':['manager'],'polyTypedObject':['manager']}, manager=self),
             polyTypedObject(sourceFiles=[source_dataStream], className='dataStream', identifierVariables = ['id'], objectReferencesDict={'managedApp':['dataStreamsToProcess','dataStreamsRequested','dataStreamsAwaitingResponse']}, manager=self),
             polyTypedObject(sourceFiles=[source_remoteEvent], className='remoteEvent', identifierVariables = ['id'], objectReferencesDict={'managedApp':['eventsToProcess','eventsToSend','eventsAwaitingResponse']}, manager=self),
@@ -536,10 +538,10 @@ class managerObject:
             polyTypedObject(sourceFiles=[source_managedAppANDbrowserSourcePage], className='managedApp', identifierVariables = ['name'], objectReferencesDict={'managedApp':['subApps','manager'],'polyTypedObject':['manager']}, manager=self),
             polyTypedObject(sourceFiles=[source_managedAppANDbrowserSourcePage], className='browserSourcePage', identifierVariables = ['name','Path'], objectReferencesDict={'managedApp':['landingSourcePage','sourcePages']}, manager=self),
             polyTypedObject(sourceFiles=[source_managedDatabase], className='managedDatabase', identifierVariables = ['name','Path'], objectReferencesDict={'managedApp':['DB']}, manager=self),
-            polyTypedObject(sourceFiles=[source_dataChannel], className='dataChannel', identifierVariables = ['name','Path'], objectReferencesDict={'managedApp':['serverChannel','localAppChannel'],'managedSourcePage':['']}, manager=self),
+            polyTypedObject(sourceFiles=[source_dataChannel], className='dataChannel', identifierVariables = ['name','Path'], objectReferencesDict={'polariServer':['serverChannel'],'managedApp':['serverChannel','localAppChannel']}, manager=self),
             polyTypedObject(sourceFiles=[source_managedExecutable], className='managedExecutable', identifierVariables = ['name', 'extension','Path'], objectReferencesDict={}, manager=self),
             polyTypedObject(sourceFiles=[source_polyTypedObjectANDvariables], className='polyTypedObject', identifierVariables = ['className'], objectReferencesDict={self.__class__.__name__:['objectTyping'], 'polyTypedVariable':['polyTypedObj']}, manager=self),
-            polyTypedObject(sourceFiles=[source_polyTypedObjectANDvariables], className='polyTypedVariable', identifierVariables = ['name','polyTypedObj'], objectReferencesDict={'polyTypedObject':['polyTypedVars']}, manager=self)
+            polyTypedObject(sourceFiles=[source_polariServer], className='polariServer', identifierVariables = ['name', 'id'], objectReferencesDict={}, manager=self)
         ]
         #Goes through the objectTyping list to make sure that the object
         #that is 'self' was accounted for, adds a default typing if not.
