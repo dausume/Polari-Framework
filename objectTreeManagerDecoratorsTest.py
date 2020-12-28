@@ -27,10 +27,10 @@ class testManagerObj(managerObject):
         self.obj_struct_time = time.localtime(time.time())
         self.obj_API = falcon.API()
         #Create samples of attaching objects to the manager in both single and list format cases, with initial null and empty 
-        #self.someObj_initFilled = testTreeObj(manager=self)
-        #self.objList_initFilled = [testTreeObj(manager=self), testTreeObj(manager=self)]
-        #self.someObj_initNull = None
-        #self.objList_initEmptyList = []
+        self.someObj_initFilled = testTreeObj(manager=self)
+        self.objList_initFilled = [testTreeObj(manager=self), testTreeObj(manager=self)]
+        self.someObj_initNull = None
+        self.objList_initEmptyList = []
 
 #standardTypesPython = ['str','int','float','complex','list','tuple','range','dict',
 #'set','frozenset','bool','bytes','bytearray','memoryview', 'struct_time', 'type', 'NoneType', 'TextIOWrapper']
@@ -62,34 +62,14 @@ class testTreeObj(treeObject):
         self.obj_API = falcon.API()
         #Create samples of attaching objects to the manager in both single and list format cases, with initial null and empty 
         self.someObj_initFilled = testTreeBranchObj(manager=self.manager)
-        self.objList_initFilledList = [testTreeBranchObj(manager=self.manager), testTreeBranchObj(manager=self.manager)]
+        self.objList_initFilled = [testTreeBranchObj(manager=self.manager), testTreeBranchObj(manager=self.manager)]
         self.someObj_postFilled = None
         self.objList_postFilledList = []
 
 class testTreeBranchObj(treeObject):
     @treeObjectInit
     def __init__(self):
-        #Create one variable for every standard dataType in python, to test and ensure each of them can be set properly.
-        self.var_str = ''
-        self.var_int = 1
-        self.var_float = 0.1
-        self.var_complex = complex(1,1)
-        self.var_list = []
-        self.var_tuple = ()
-        self.var_range = range(0,1)
-        self.var_dict = {"key":"value"}
-        self.var_set = set([1, 2, 3])
-        self.var_frozenset = frozenset(['a', 'b', 'c'])
-        self.var_bool = True
-        self.var_bytes = bytes(1)
-        self.var_bytearray = bytearray(b'bytearray')
-        self.var_memoryview = memoryview(b'viewBytesMemoryView')
-        self.var_type = type('str')
-        self.var_NoneType = None
-        self.var_TextIOWrapper = open("testDocOne.txt","w+")
-        #Create one variable for every ignored object type defined, to ensure they can be set properly.
-        self.obj_struct_time = time.localtime(time.time())
-        self.obj_API = falcon.API()
+        pass
 
 def printVariables(obj):
     selfPolyObj = obj.getObject(obj)
@@ -104,21 +84,27 @@ class objectTree_TestCase(unittest.TestCase):
     def setUpClass(cls):
         #testLogger = logging.Logger(name='objectTree_testLogger', level=logging.INFO)
         #logging.basicConfig(filename='objectTree_LogTest')
-        print('Test Case Data is set up.')
+        print(' - Test Case Data is set up - ')
 
     #A method which runs once after all tests in the test case are completed
     @classmethod
     def tearDownClass(cls):
-        logging.info('Test Case Data was torn down.')
+        print(' - Test Case Data was torn down - ')
 
     def setUp(self):
         self.mngObj = testManagerObj()
-        self.secondObj = testTreeObj(manager=self.mngObj)
         print('Setting up before a test is run.')
 
     def tearDown(self):
         self.mngObj.var_TextIOWrapper.close()
-        self.secondObj.var_TextIOWrapper.close()
+        #print('----- List of PolyTyped Objects -----')
+        #print(self.mngObj.getListOfClassInstances(className='polyTypedObject'))
+        print('----- List of Test Manager Objects ------')
+        print(self.mngObj.getListOfClassInstances(className='testManagerObj'))
+        print('----- List of Test Tree Objects ------')
+        print(self.mngObj.getListOfClassInstances(className='testTreeObj'))
+        print('----- List of Test Tree Branch Objects ------')
+        print(self.mngObj.getListOfClassInstances(className='testTreeBranchObj'))
         print('Tearing down at the end of the object tree test case.')
 
     #Tests that all standard variable types can be set and supported on a manager object.
@@ -150,8 +136,8 @@ class objectTree_TestCase(unittest.TestCase):
         missingIgnoredObjects = []
         wrongIgnoredTypes = []
         for someType in standardTypesPython:
-            if(hasattr(self.secondObj,'var_' + someType)):
-                someVar = getattr(self.secondObj, 'var_'+someType)
+            if(hasattr(self.mngObj.someObj_initFilled,'var_' + someType)):
+                someVar = getattr(self.mngObj.someObj_initFilled, 'var_'+someType)
                 if(type(someVar).__name__ == someType):
                     pass
                 else:
@@ -188,8 +174,8 @@ class objectTree_TestCase(unittest.TestCase):
         missingIgnoredObjects = []
         wrongIgnoredObjects = []
         for someType in standardTypesPython:
-            if(hasattr(self.secondObj,'var_' + someType)):
-                someVar = getattr(self.secondObj, 'var_'+someType)
+            if(hasattr(self.mngObj.someObj_initFilled,'var_' + someType)):
+                someVar = getattr(self.mngObj.someObj_initFilled, 'var_'+someType)
                 if(type(someVar).__name__ == someType):
                     pass
                 else:
@@ -204,29 +190,49 @@ class objectTree_TestCase(unittest.TestCase):
         self.assertEqual(len(missingIgnoredObjects), 0)
 
     def test_initFilledTreeObjectsOnManager(self):
-        #Check that the values were populated properly
-        self.assertIsInstance(self.mngObj.someObj_initFilled, testTreeObj, msg = "Assert the values are initially set to be treeObjects.")
-        self.assertIsInstance(self.mngObj.objList_initFilled, testTreeObj, msg = "Assert the values are initially set to be treeObjects.")
         #Check to make sure an object typing has been generated for both the manager and the treeObject
         self.assertIsNotNone(self.mngObj.getObjectTyping(className='testManagerObj'))
         self.assertIsNotNone(self.mngObj.getObjectTyping(className='testTreeObj'))
+        #Check that the values were populated properly
+        self.assertIsInstance(self.mngObj, testManagerObj, msg="Asserts the manager obect is an instance of the test manager object.")
+        self.assertIsInstance(self.mngObj.someObj_initFilled, testTreeObj, msg = "Assert the values are initially set to be treeObjects.")
+        self.assertIsInstance(self.mngObj.objList_initFilled[0], testTreeObj, msg = "Assert the values are initially set to be treeObjects.")
+        self.assertIsInstance(self.mngObj.objList_initFilled[1], testTreeObj, msg = "Assert the values are initially set to be treeObjects.")
         #Check that the values/objects were properly allocated onto the tree.
         #The manager's path should always be an empty list since it is the base.
         #The treeObject path, so long as it returns not None meaning a value was found, is good.
-        mngPath = self.mngObj.getTuplePathInObjTree(self.getInstanceTuple(self.mngObj))
-        treeObjPath = self.mngObj.getTuplePathInObjTree(self.getInstanceTuple(self.secondObj))
+        mngPath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj))
+        singleTreeObjPath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj.someObj_initFilled))
+        listTreeObjOnePath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj))
+        listTreeObjTwoPath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj))
+        #Asserts the manager is at the base.
+        self.assertEqual(len(mngPath), 0, msg="The manager object itself should be at the base of it\'s object tree.")
+        #Asserts the treeObject should be inside the tree.
+        self.assertIsNotNone(singleTreeObjPath, msg="Single tree object set to var on manager at initiation should be in the object tree.")
+        self.assertIsNotNone(singleTreeObjPath, msg="Single tree object set to var on manager at initiation should be in the object tree.")
+
+
+
+    def test_initFilledTreeObjectsOnTreeObject(self):
+        #Check to make sure an object typing has been generated for both the manager and the treeObject
+        self.assertIsNotNone(self.mngObj.getObjectTyping(className='testManagerObj'))
+        self.assertIsNotNone(self.mngObj.getObjectTyping(className='testTreeObj'))
+        #Check that the values were populated properly
+        self.assertIsInstance(self.mngObj, testManagerObj, msg="Asserts the manager obect is an instance of the test manager object.")
+        self.assertIsInstance(self.mngObj.someObj_initFilled.someObj_initFilled, testTreeBranchObj, msg = "Assert the values are initially set to be treeObjects.")
+        self.assertIsInstance(self.mngObj.someObj_initFilled.objList_initFilled[0], testTreeBranchObj, msg = "Assert the values are initially set to be treeObjects.")
+        #Check that the values/objects were properly allocated onto the tree.
+        #The manager's path should always be an empty list since it is the base.
+        #The treeObject path, so long as it returns not None meaning a value was found, is good.
+        mngPath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj))
+        treeObjPath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj.someObj_initFilled.someObj_initFilled))
+        treeObjInListPath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj.someObj_initFilled.objList_initFilled[0]))
         #Asserts the manager is at the base.
         self.assertEqual(len(mngPath), 0)
         #Asserts the treeObject should be inside the tree.
         self.assertIsNotNone(treeObjPath)
-
-    def test_initFilledTreeObjectsOnTreeObject(self):
-        #Check that the values were populate properly when assigned.
-        self.assertIsInstance(self.someObj_initFilled, testTreeObj, msg = "Assert the values are initially set to be treeObjects.")
-        self.assertIsInstance(self.objList_initFilled, testTreeObj, msg = "Assert the values are initially set to be treeObjects.")
-        #Check that the values/objects were properly allocated onto the tree after being assigned.
-        self.someObj_initFilled
-        self.objList_initFilled
+        #Asserts the treeObject assigned at initiation in a list is in the tree.
+        self.assertIsNotNone(treeObjInListPath)
 
         
 

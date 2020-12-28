@@ -213,8 +213,9 @@ class managerObject:
     #
     def getListOfClassInstances(self, className, traversalList=[], source=None):
         #print("In \'getListOfClassInstances\' branch with traveral list : ", traversalList)
-        if(source==None and source != self):
+        if(source==None):
             source = self
+            print("Source set as: ", self)
         #else:
         #    return source.getListOfClassInstances(className=className, traversalList=traversalList, source=source)
         ids = self.getInstanceIdentifiers(source)
@@ -226,13 +227,15 @@ class managerObject:
         tempList = []
         if(traversalList != None):
             branch = self.getBranchNode(traversalList = traversalList)
+            #print('Retrieving Branch for traversal List \"', traversalList, '\" : ', branch)
             #Handles the case for when we are on a duplicate branch.
             if(branch == None):
                 instanceList = []
             else:
                 for branchTuple in branch.keys():
-                    if(type(branchTuple[0]) == className and type(branchTuple[2]).__name__ == className):
-                        print("Found a match for the class ", className, " in the manager object ", self, ", the matched object was ", branchTuple[2])
+                    #print('Searching tuple of class: ', branchTuple[0])
+                    if(branchTuple[0] == className):
+                        #print("Found a match for the class ", className, " in the manager object ", self, ", the matched object was ", branchTuple[2])
                         instanceList.append(branchTuple[2])
                     #else:
                         #print("A non-matching object was found, ", branchTuple[2])
