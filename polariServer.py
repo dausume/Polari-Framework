@@ -76,7 +76,7 @@ class polariServer(treeObject):
         self.serverChannel.injectJSON()
 
     def setCertForSSL(self, path, filename):
-        if(manager != None):
+        if(self.manager != None):
             fileObj = self.manager.makeFile(Path=path, name=filename)
 
     def polariServerLoop(self):

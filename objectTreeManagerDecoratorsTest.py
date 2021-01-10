@@ -195,9 +195,9 @@ class objectTree_TestCase(unittest.TestCase):
         self.assertIsNotNone(self.mngObj.getObjectTyping(className='testTreeObj'))
         #Check that the values were populated properly
         self.assertIsInstance(self.mngObj, testManagerObj, msg="Asserts the manager obect is an instance of the test manager object.")
-        self.assertIsInstance(self.mngObj.someObj_initFilled, testTreeObj, msg = "Assert the values are initially set to be treeObjects.")
-        self.assertIsInstance(self.mngObj.objList_initFilled[0], testTreeObj, msg = "Assert the values are initially set to be treeObjects.")
-        self.assertIsInstance(self.mngObj.objList_initFilled[1], testTreeObj, msg = "Assert the values are initially set to be treeObjects.")
+        self.assertIsInstance(self.mngObj.someObj_initFilled, testTreeObj, msg = "Single tree object set to var on manager at initiation should be a testTreeObj Instance.")
+        self.assertIsInstance(self.mngObj.objList_initFilled[0], testTreeObj, msg = "The first tree object set on a list var on manager at initiation should be a testTreeObj Instance.")
+        self.assertIsInstance(self.mngObj.objList_initFilled[1], testTreeObj, msg = "The second tree object set on a list var on manager at initiation should be a testTreeObj Instance.")
         #Check that the values/objects were properly allocated onto the tree.
         #The manager's path should always be an empty list since it is the base.
         #The treeObject path, so long as it returns not None meaning a value was found, is good.
@@ -209,8 +209,8 @@ class objectTree_TestCase(unittest.TestCase):
         self.assertEqual(len(mngPath), 0, msg="The manager object itself should be at the base of it\'s object tree.")
         #Asserts the treeObject should be inside the tree.
         self.assertIsNotNone(singleTreeObjPath, msg="Single tree object set to var on manager at initiation should be in the object tree.")
-        self.assertIsNotNone(singleTreeObjPath, msg="Single tree object set to var on manager at initiation should be in the object tree.")
-
+        self.assertIsNotNone(listTreeObjOnePath, msg="The first tree object set on a list var on manager at initiation should be in the object tree.")
+        self.assertIsNotNone(listTreeObjTwoPath, msg="The second tree object set on a list var on manager at initiation should be in the object tree.")
 
 
     def test_initFilledTreeObjectsOnTreeObject(self):
@@ -226,16 +226,17 @@ class objectTree_TestCase(unittest.TestCase):
         #The treeObject path, so long as it returns not None meaning a value was found, is good.
         mngPath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj))
         treeObjPath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj.someObj_initFilled.someObj_initFilled))
-        treeObjInListPath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj.someObj_initFilled.objList_initFilled[0]))
+        listTreeObjOnePath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj.someObj_initFilled.objList_initFilled[0]))
+        listTreeObjTwoPath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj.someObj_initFilled.objList_initFilled[1]))
         #Asserts the manager is at the base.
-        self.assertEqual(len(mngPath), 0)
+        self.assertEqual(len(mngPath), 0, msg="The manager object itself should be at the base of it\'s object tree.")
         #Asserts the treeObject should be inside the tree.
-        self.assertIsNotNone(treeObjPath)
+        self.assertIsNotNone(treeObjPath, msg="Single tree object set to var on a tree object at it\'s initiation should be in the object tree.")
         #Asserts the treeObject assigned at initiation in a list is in the tree.
-        self.assertIsNotNone(treeObjInListPath)
+        self.assertIsNotNone(listTreeObjOnePath, msg="The first tree object set on a list var on a tree object at it's initiation should be in the object tree.")
+        self.assertIsNotNone(listTreeObjTwoPath, msg="The second tree object set on a list var on a tree object at it's initiation should be in the object tree.")
 
         
-
 if(__name__=='__main__'):
     unittest.main()
     print('Finished Run')

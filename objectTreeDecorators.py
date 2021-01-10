@@ -172,6 +172,56 @@ class treeObject:
                             self.replaceOriginalTuple(self, originalPath=valuePath, newPath=[duplicateBranchTuple], newTuple=duplicateBranchTuple)
                 #print("Finished setting value of ", name, " to be ", value)
         super(treeObject, self).__setattr__(name, value)
+    #A function that triggers when the manager has been set on the object instance
+    #This first goes in and ascertains that the object has indeed been added to the
+    #object tree
+    def managerSet(self):
+        #Checks that the object's manager has been set and is a valid manager.
+        hasManager = False
+        if(hasattr(self, 'manager')):
+            for parentObj in (self.manager).__bases__:
+                if(parentObj.__name__ == 'managerObject'):
+                    hasManager = True
+                    break
+        if(not hasManager):
+            print("ERROR: Called managerSet function, but manager has no valid object instance with parent managerObject.", self, ".")
+            return False
+        #Checks that the manager has a valid polyTyping for this treeObject.
+        selfPolyTyping = self.manager.getObjectTyping(classObj=self.__class__)
+        if(selfPolyTyping == None):
+            print("Could not properly retrieve or set polyTyping on the manager ", self.manager, " for objects of type ", self.__class__.__name__)
+            return False
+        #Checks that the object instance can be found in the manager's object tree.
+        #Then returns the path to that branch.
+        selfTreeTuple = self.manager.getInstanceTuple(self)
+        selfTreePath = self.manager.getTuplePathInObjTree(selfTreeTuple)
+        if(selfTreePath == None):
+            print("The object instance has not yet been added to the tree.")
+            return False
+        #Retrieves the Branching off of the current object
+        selfTreeBranch = self.manager.getBranchNode(traversalList = selfTreePath)
+        #Goes through all attributes on the object, and loads them or their duplicates
+        #onto the branch for this given instance in the tree.
+        for someAttr in self.__dict__:
+            atrTypeList = type(someAttr).__name__
+            if(type(someAttr).__name__ == "list" or type(someAttr).__name__ == "tuple"):
+                for someValue in someAttr:
+                    if(not type(someAttr).__name__ in atrTypeList):
+                        atrTypeList.append(type(someAttr).__name__)
+            if(not atrType in dataTypesPython and not atrType in ignoredObjectsPython):
+                #search for this object type in polyTyped Objects(or create if not there)
+                atrPolyTypedObj  = self.getObjectTyping(someAttr.__class__)
+                if(atrPolyTypedObj == None):
+                    print("PolyTypedObj for type ", atrType, " could not be created.")
+                    continue
+                #Find if this attribute has been defined in the selfPolyTyping.objectReferencesDict
+                if atrType in selfPolyTyping.objectReferencesDict:
+                    #Determines if the attribute has not been allocated yet.
+                    if not someAttr in selfPolyTyping.objectReferencesDict[atrType]:
+                        #Since it is not in there, add the attribute to the ref dict.
+                        selfPolyTyping.objectReferencesDict[atrType].append(someAttr)
+                #Now, we 
+                        
 
     #In the case where this object is a Subordinate Object tree,
     #it should reference the highest order manager to establish it's id.
