@@ -53,7 +53,7 @@ if(__name__=='__main__'):
     #print('Made isoSys')
     fakeManager = testObj()
     #print('made test object / manager')
-    secondObj = secondTestObj()
+    secondObj = secondTestObj(manager=fakeManager)
     #print('made secondary test object')
     fakeManager.objList.append(secondObj)
     #print('added secondary test object to manager\'s object list.')
@@ -61,5 +61,6 @@ if(__name__=='__main__'):
     #print("OBJECT TREE ON MANAGER AFTER SERVER CREATION: ", fakeManager.objectTree)
     print('Created polariServer with a set manager.')
     fakeManager.polServer.startupPolariServer()
-    print('Finished setting up server for manager object.')
+    print('-------------------Finished setting up server for manager object---------------------------')
+    print('Object Tree: ', fakeManager.objectTree)
     

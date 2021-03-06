@@ -40,16 +40,19 @@ class polariServer(treeObject):
         self.lastCycleTime = time.localtime()
         #Sets up the primary data channel which is used as a file relay for information between the back-end and the server
         if(serverChannel == None):
-            print('Setting manager for dataChannel to ', self.manager)
+            #print('Setting manager for dataChannel to ', self.manager)
             self.serverChannel = dataChannel(name=name + '_serverChannel', manager=(self.manager))
         else:
             self.serverChannel = serverChannel
+        print('ServerChannel: ', self.serverChannel)
+        typing = self.manager.getObjectTyping(self.__class__)
+        print('Typing Dict for polServer: ')
         #Creates an endpoint for the given manager object for the specific channel object Ex:
         #  https://someURL.com/manager-managerObjectType-(id0:val0, id1:val1, id2:val2, ...)/channel/channelName
         idStr = ((((str( self.manager.getInstanceIdentifiers(self.manager) ).replace(' ','')).replace('(', '')).replace(',', '~')).replace('\'', '')).replace(')','.')
         idStr = idStr[:len(idStr)-3]
         templateURI = '/manager-' + type(self.manager).__name__ + '_' + idStr + '_/channel/' + self.serverChannel.name
-        print('Template URI: ', templateURI)
+        #print('Template URI: ', templateURI)
         self.apiServer.add_route(uri_template = templateURI, resource= polariCRUD(self.serverChannel) )
         self.uriList = [templateURI]
         #The systems that maintain a secure local connection to this system/server and are used
@@ -73,7 +76,7 @@ class polariServer(treeObject):
         self.serverChannel.injectJSON()
 
     def setCertForSSL(self, path, filename):
-        if(manager != None):
+        if(self.manager != None):
             fileObj = self.manager.makeFile(Path=path, name=filename)
 
     def polariServerLoop(self):

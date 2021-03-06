@@ -45,7 +45,7 @@ class dataChannel(managedFile, treeObject):
         self.remoteSinkRegister = {}
         #The date-time when the last source claimed ownership of the JSON File.
         self.lastRefreshDateTime = None
-        print('jsonDict at dataChannel ', self.name, ' initialization before makeChannel: ', self.jsonDict)
+        #print('jsonDict at dataChannel ', self.name, ' initialization before makeChannel: ', self.jsonDict)
         self.makeChannel()
         print('jsonDict at dataChannel ', self.name, ' initialization after makeChannel.', self.jsonDict)
 
@@ -56,7 +56,7 @@ class dataChannel(managedFile, treeObject):
         self.jsonDict.append(dataChannelBase)
         #self.getJSONdictForClass(definingFile='dataChannels', className=self.__class__.__name__,passedInstances=[self], instanceLimit=1, varsLimited=['lastFileReadJSON', 'jsonDict', 'fileInstance'])
         # Serialize json
-        print('Printing dataChannel Base in the makeChannel function: ',dataChannelBase)
+        print('Printing dataChannel Base in the makeChannel function: ', dataChannelBase)
         jsonStr = json.dumps(dataChannelBase)
         # Write to the dataChannel
         with open(self.name + '.json', "w") as outfile: 
@@ -107,7 +107,7 @@ class dataChannel(managedFile, treeObject):
             (sourceClassName, sourceIdentifiers) = self.getIdData(source)
         #Make sure the dataSet does not already exist before creating and adding it to the dataChannel.
         if( self.retrieveDataSet(className=className, source=source) != None ):
-            #print("Attempting to create a dataSet that already exists with values: Class Name = ", className, ', Source = ', source, ', Filter = ', filter, '.')
+            print("Attempting to create a dataSet that already exists with values: Class Name = ", className, ', Source = ', source, ', Filter = ', filter, '.')
             self.updateDataSet(className=className, source=source, filter=filter, sinks=sinks)
         else:
             #Set up the base of the dataSet, there will be one dataSet per source-manager per object accounted for.
@@ -149,6 +149,7 @@ class dataChannel(managedFile, treeObject):
                     }
                 )
             #Access the manager and pull data of all objects of the given class.
+            print("calling \'getListOfClassInstances\' with values (className=", className, ", source=", self.manager, ")")
             instanceSet = self.manager.getListOfClassInstances(className=className, source=self.manager)
             print("List of instances returned: ", instanceSet)
             #print('In makeDataSet, defining dataSet for class: ', className)
@@ -166,7 +167,8 @@ class dataChannel(managedFile, treeObject):
         #if(self.checkChannelAvailability()):
         #self.openChannel()
         self.openFile()
-        print(self.fileInstance)
+        print('json dict to be injected: ', self.jsonDict)
+        print('File Instance: ',self.fileInstance)
         #Dumps the jsonDict variable into the dataChannel file.
         json.dump(
             self.jsonDict,
