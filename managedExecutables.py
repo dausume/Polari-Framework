@@ -19,8 +19,8 @@ LanguageExtensionsDict = {'py':'python','js':'javascript','html':'hypertextmarku
 
 class managedExecutable(managedFile):
 
-    def __init__(self, name=None, extension=None):
-        managedFile.__init__(self, name=name, extension=extension)
+    def __init__(self, name=None, extension=None, Path = None):
+        managedFile.__init__(self, name=name, extension=extension, Path = Path)
         #The full name of the software language being used in this file.
         self.language = None
         self.setLanguage()

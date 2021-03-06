@@ -70,14 +70,22 @@ class treeObject:
             #print('setting value in treeObj in a standard dataType..')
             super(treeObject, self).__setattr__(name, value)
             return
+        if(self.__class__.__name__ != 'polyTypedObject' or self.__class__.__name__ == 'polyTypedVariable'):
+            super(treeObject, self).__setattr__(name, value)
+            return
         #After a manager object is assigned, ensure a polyTypedObject exists for the given object self.
         if(not hasattr(self, 'manager') or name == 'manager'):
             #Handle cases where the manager was previously something else, but it has been taken by another manager.
             if(hasattr(self, 'manager')):
                 if(self.manager != value and self.manager != None):
+                    #TODO Write code to handle taking branches off of one manager and onto another.
                     print('The manager of the object ', self, 'has been changed from ', self.manager, ' to ', value)
+                    pass
             super(treeObject, self).__setattr__(name, value)
-            self.managerSet()
+            #self.managerSet()
+            return
+        elif(self.manager == None):
+            super(treeObject, self).__setattr__(name, value)
             return
         if(self.manager != None):
             selfPolyObj = self.manager.getObjectTyping(self.__class__)
@@ -101,77 +109,104 @@ class treeObject:
                                 #print("found an instance with no existing branch, now creating branch on manager: ", inst)
                                 newBranch = tuple([inst.__class__.__name__, ids, inst])
                                 self.manager.addNewBranch(traversalList=[], branchTuple=newBranch)
+                                #Make sure the new branch has the current manager set on it.
+                                if(self.manager != inst.manager):
+                                    inst.manager = self.manager
                             else:
                                 #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", inst)
                                 duplicateBranchTuple = tuple([inst.__class__.__name__, ids, tuple([])]) 
                                 self.manager.replaceOriginalTuple(self.manager, originalPath = instPath, newPath=selfPath + [duplicateBranchTuple], newTuple=duplicateBranchTuple)
+                                #Make sure the new branch has the current manager set on it.
+                                if(self.manager != inst.manager):
+                                    inst.manager = self.manager
+                                #TODO make a function that swaps any branching on the original tuple to be on the new location.
                     else:
-                        print('Adding one object as variable, ', name ,' to the manager with value: ', value)
+                        #print('Adding one object as variable, ', name ,' to the manager with value: ', value)
                         #if(self.identifiersComplete(value)):
                         ids = self.manager.getInstanceIdentifiers(value)
                         valuePath = self.manager.getTuplePathInObjTree(instanceTuple=tuple([value.__class__.__name__, ids, value]))
                         if len(valuePath) <= len(selfPath) + 1:
-                            print("found an instance already in the objectTree at the correct location:", value)
+                            #print("found an instance already in the objectTree at the correct location:", value)
                             #Do nothing, because the branch is already accounted for.
                             pass
                         elif(valuePath == None):
                             #add the new Branch
-                            print("found an instance with no existing branch, now creating branch on manager: ", value)
+                            #print("found an instance with no existing branch, now creating branch on manager: ", value)
                             newBranch = tuple([value.__class__.__name__, ids, value])
                             self.manager.addNewBranch(traversalList=[], branchTuple=newBranch)
+                            #Make sure the new branch has the current manager set on it.
+                            if(self.manager != value.manager):
+                                value.manager = self.manager
                         else:
                             #add as a duplicate branch
-                            print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", value)
+                            #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", value)
                             duplicateBranchTuple = tuple([value.__class__.__name__, ids, tuple(valuePath)])
                             self.replaceOriginalTuple(self.manager, originalPath=valuePath, newPath=selfPath + [duplicateBranchTuple], newTuple=duplicateBranchTuple)
+                            #Make sure the new branch has the current manager set on it.
+                            if(self.manager != value.manager):
+                                value.manager = self.manager
+                            #TODO make a function that swaps any branching on the original tuple to be on the new location.
                 else:
                     #print('Setting attribute to a value: ', value)
-                    print('Found object: "', value ,'" being assigned to an undeclared reference variable: ', name, 'On object: ', self)
+                    #print('Found object: "', value ,'" being assigned to an undeclared reference variable: ', name, 'On object: ', self)
                     newpolyObj = self.manager.getObjectTyping(value.__class__)
-                    print('Setting attribute using a new polariServer polyTyping: ', newpolyObj, '; and it\'s reference dict: ', newpolyObj.objectReferencesDict)
+                    #('Setting attribute using a new polariServer polyTyping: ', newpolyObj, '; and it\'s reference dict: ', newpolyObj.objectReferencesDict)
                     managerPolyTyping = self.manager.getObjectTyping(self.__class__)
                     managerPolyTyping.addToObjReferenceDict(referencedClassObj=value.__class__, referenceVarName=name)
-                    print('Object\'s referenceDict after assignment: ', newpolyObj.objectReferencesDict)
+                    #print('Object\'s referenceDict after assignment: ', newpolyObj.objectReferencesDict)
                     if(type(value) == list):
                         #Adding a list of objects
                         for inst in value:
-                            print('Adding one object as element in a list variable, ', name ,' to the manager with value: ', inst)
+                            #print('Adding one object as element in a list variable, ', name ,' to the manager with value: ', inst)
                             #if(self.identifiersComplete(inst)):
                             ids = self.manager.getInstanceIdentifiers(inst)
                             instPath = self.manager.getTuplePathInObjTree(instanceTuple=tuple([inst.__class__.__name__, ids, inst]))
                             #Case where the existing tuple is at the same level as this object or a lower object, in this case we place a duplicate while leaving the original alone.
                             if len(instPath) <= len(selfPath) + 1:
-                                print("found an instance already in the objectTree at the correct location:", inst)
+                                #print("found an instance already in the objectTree at the correct location:", inst)
                                 pass
                             #Case where the object has no existing tuple in the tree.
                             elif instPath == None:
-                                print("found an instance with no existing branch, now creating branch on manager: ", inst)
+                                #print("found an instance with no existing branch, now creating branch on manager: ", inst)
                                 newBranch = tuple([inst.__class__.__name__, ids, inst])
                                 self.addNewBranch(traversalList=[], branchTuple=newBranch)
+                                #Make sure the new branch has the current manager set on it.
+                                if(self.manager != value.manager):
+                                    value.manager = self.manager
                             else:
-                                print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", inst)
+                                #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", inst)
                                 duplicateBranchTuple = tuple([inst.__class__.__name__, ids, tuple([])]) 
                                 self.manager.replaceOriginalTuple(self.manager, originalPath = instPath, newPath=selfPath + [duplicateBranchTuple], newTuple=duplicateBranchTuple)
+                                #Make sure the new branch has the current manager set on it.
+                                if(self.manager != value.manager):
+                                    value.manager = self.manager
+                                #TODO make a function that swaps any branching on the original tuple to be on the new location.
                     else:
-                        print('Adding one object as variable, ', name ,' to the manager with value: ', value)
+                        #print('Adding one object as variable, ', name ,' to the manager with value: ', value)
                         #if(self.identifiersComplete(value)):
                         ids = self.manager.getInstanceIdentifiers(value)
                         valuePath = self.manager.getTuplePathInObjTree(instanceTuple=tuple([value.__class__.__name__, ids, value]))
                         if len(valuePath) <= len(selfPath) + 1:
-                            print("found an instance already in the objectTree at the correct location:", value)
+                            #print("found an instance already in the objectTree at the correct location:", value)
                             #Do nothing, because the branch is already accounted for.
                             pass
                         elif(valuePath == None):
                             #add the new Branch
-                            print("found an instance with no existing branch, now creating branch on manager: ", value)
+                            #print("found an instance with no existing branch, now creating branch on manager: ", value)
                             newBranch = tuple([value.__class__.__name__, ids, value])
                             self.manager.addNewBranch(traversalList=[], branchTuple=newBranch)
+                            #Make sure the new branch has the current manager set on it.
+                            if(self.manager != value.manager):
+                                value.manager = self.manager
                         else:
                             #add as a duplicate branch
-                            print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", value)
+                            #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", value)
                             duplicateBranchTuple = tuple([value.__class__.__name__, ids, tuple(valuePath)])
                             self.manager.replaceOriginalTuple(self, originalPath=valuePath, newPath=[duplicateBranchTuple], newTuple=duplicateBranchTuple)
-                #print("Finished setting value of ", name, " to be ", value)
+                            #Make sure the new branch has the current manager set on it.
+                            if(self.manager != value.manager):
+                                value.manager = self.manager
+                            #TODO make a function that swaps any branching on the original tuple to be on the new location.
         super(treeObject, self).__setattr__(name, value)
 
 
@@ -179,6 +214,7 @@ class treeObject:
     #This first goes in and ascertains that the object has indeed been added to the
     #object tree
     def managerSet(self):
+        print("Calling managerSet for treeObject: ", self)
         #Checks that the object's manager has been set and is a valid manager.
         hasManager = False
         if(hasattr(self, 'manager')):
@@ -241,6 +277,7 @@ class treeObject:
                         ids = self.manager.getInstanceIdentifiers(someValue)
                         if(tupleFoundInTree):
                             if(not tupleFoundInBranch):
+                                print("Adding a branch of an already existing tuple for object: ", someValue)
                                 #Check the depth of the original and the depth + 1 of the selfBranch
                                 #If the depth + 1 of current branch is less than original swap original to
                                 #this branch and place duplicate in the old location.
@@ -257,7 +294,8 @@ class treeObject:
                         else:
                             #The tuple does not exist anywhere in the tree, so we simply place it in the branch.
                             duplicateBranchTuple = tuple([someValue.__class__.__name__, ids, tuple(valueTreePath)])
-                            self.manager.addNewBranch(traversalList=selfTreePath, branchTuple=duplicateBranchTuple)
+                            self.manager.addNewBranch(traversalList=selfTreePath, branchTuple=valueInstanceTuple)
+                            print("Adding a new tuple to the object tree from a List in managerSet: ", valueInstanceTuple)
             #END OF TREE MANAGEMENT FOR TREEOBJECTS IN LISTS OR TUPLES
             #
             #START OF TREE MANAGEMENT FOR TREEOBJECTS DIRECTLY ASSIGNED TO ATTRIBUTES
@@ -303,7 +341,8 @@ class treeObject:
                     else:
                         #The tuple does not exist anywhere in the tree, so we simply place it in the branch.
                         duplicateBranchTuple = tuple([someAttr.__class__.__name__, ids, tuple(valueTreePath)])
-                        self.manager.addNewBranch(traversalList=selfTreePath, branchTuple=duplicateBranchTuple)
+                        self.manager.addNewBranch(traversalList=selfTreePath, branchTuple=valueInstanceTuple)
+                        print("Adding a new tuple to the object tree in managerSet: ", valueInstanceTuple)
         #END OF TREE MANAGEMENT FOR TREEOBJECTS IN LISTS OR TUPLES
         #Return True to indicate the manager was successfully set.
         return True
