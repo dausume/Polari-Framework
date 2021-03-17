@@ -71,8 +71,6 @@ class managerObject:
         
 
     def __setattr__(self, name, value):
-        #if(name == 'polServer'):
-        #    print('Setting polServer attribute on manager to: ', value)
         if(name == 'manager'):
             #TODO Write functionality to connect with a parent tree when/if manager is assigned.
             super(managerObject, self).__setattr__(name, value)
@@ -114,11 +112,21 @@ class managerObject:
                     print("Creating branch on manager for instance on variable ", name, " for instance: ", value)
                     newBranch = tuple([newpolyObj.className, ids, value])
                     self.addNewBranch(traversalList=[], branchTuple=newBranch)
+                    #Make sure the new branch has the current manager and the base as it's origin branch set on it.
+                    if(self != value.branch):
+                        value.branch = self
+                    if(self != value.manager):
+                        value.manager = self
                 else:
                     #add as a duplicate branch
                     #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", value)
                     duplicateBranchTuple = tuple([newpolyObj.className, ids, tuple(valuePath)])
                     self.replaceOriginalTuple(self, originalPath=valuePath, newPath=[duplicateBranchTuple], newTuple=duplicateBranchTuple)
+                    #Make sure the new branch has the current manager and the base as it's origin branch set on it.
+                    if(self != value.branch):
+                        value.branch = self
+                    if(self != value.manager):
+                        value.manager = self
         elif(type(value) == list):
             print("Accounting for setting elements in list on variable \'", name, "\' on the manager object.")
             #Adding a list of objects
@@ -144,10 +152,20 @@ class managerObject:
                     print("Creating branch on manager for instance in list on variable ", name, " for instance: ", inst)
                     newBranch = tuple([newpolyObj.className, ids, inst])
                     self.addNewBranch(traversalList=[], branchTuple=newBranch)
+                    #Make sure the new branch has the current manager and the base as it's origin branch set on it.
+                    if(self != inst.branch):
+                        inst.branch = self
+                    if(self != inst.manager):
+                        inst.manager = self
                 else:
                     #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", inst)
                     duplicateBranchTuple = tuple([newpolyObj.className, ids, tuple(instPath)]) 
                     self.replaceOriginalTuple(self, originalPath = instPath, newPath=[duplicateBranchTuple], newTuple=duplicateBranchTuple)
+                    #Make sure the new branch has the current manager and the base as it's origin branch set on it.
+                    if(self != inst.branch):
+                        inst.branch = self
+                    if(self != inst.manager):
+                        inst.manager = self
         else:
             #print('Setting attribute to a value: ', value)
             print('Found object: "', value ,'" being assigned to an undeclared reference variable: ', name, 'On object: ', self)
@@ -168,11 +186,21 @@ class managerObject:
                 print("Creating branch on manager for variable ", name," for instance: ", value)
                 newBranch = tuple([newpolyObj.className, ids, value])
                 self.addNewBranch(traversalList=[], branchTuple=newBranch)
+                #Make sure the new branch has the current manager and the base as it's origin branch set on it.
+                if(self != value.branch):
+                    value.branch = self
+                if(self != value.manager):
+                    value.manager = self
             else:
                 #add as a duplicate branch
                 #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", value)
                 duplicateBranchTuple = tuple([newpolyObj.className, ids, tuple(valuePath)])
                 self.replaceOriginalTuple(self, originalPath=valuePath, newPath=[duplicateBranchTuple], newTuple=duplicateBranchTuple)
+                #Make sure the new branch has the current manager and the base as it's origin branch set on it.
+                if(self != value.branch):
+                    value.branch = self
+                if(self != value.manager):
+                    value.manager = self
         #print("Finished setting value of ", name, " to be ", value)
         super(managerObject, self).__setattr__(name, value)
 
@@ -196,9 +224,15 @@ class managerObject:
         if className != None:
             print("Attempted to retrieve a polyTypedObject that does not exist \"", className, "\" using it\'s name as a string.  Cannot generate a default polyTypedObject using a passed string, pass either an object instance or the class object \'__class__\' to generate a default polyTypedObject.")
         elif classInstance != None:
-            obj = self.makeDefaultObjectTyping(classInstance=classInstance)
+            if(classInstance.__class__.__name__ == 'polyTypedObject' or classInstance.__class__.__name__ == 'polyTypedVar'):
+                print('Trying to create typing for polyTyping when it should already exist.')
+            else:
+                obj = self.makeDefaultObjectTyping(classInstance=classInstance)
         elif classObj != None:
-            obj = self.makeDefaultObjectTyping(classObj=classObj)
+            if(classObj.__name__ == 'polyTypedObject' or classObj.__name__ == 'polyTypedVar'):
+                print('Trying to create typing for polyTyping when it should already exist.')
+            else:
+                obj = self.makeDefaultObjectTyping(classObj=classObj)
         return obj
 
     #Retrieves the source file for a given PolyTyped object for a given coding language, with the default set as python language.
