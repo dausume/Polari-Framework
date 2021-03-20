@@ -562,6 +562,11 @@ class managerObject:
         elif(branchTuple != None):
             instance = branchTuple[2]
         branchNode = self.getBranchNode(traversalList)
+        branchingInstance = None
+        try:
+            branchingInstance = branchNode[2]
+        except Exception:
+            print("Error: In addNewBranch function, attempted to add new branch using invalid traversal list - ", traversalList)
         if(hasattr(instance, "manager")):
             if(instance.manager == self):
                 pass
@@ -570,6 +575,15 @@ class managerObject:
             else:
                 instance.manager = self
                 #TODO write code to delete branch from other manager and copy to this manager.
+        if(hasattr(instance, "branch") and branchingInstance != None):
+            if(instance.branch == branchNode[2]):
+                pass
+            elif(instance.branch == None):
+                instance.branch = branchNode[2]
+            else:
+                instance.branch = self
+                #TODO this indicates the branch may actually be a duplicate, so we will need to
+                #switch branches instead.
         if(branchNode.get(branchTuple) == None):
             branchNode[branchTuple] = {}
 
@@ -614,7 +628,7 @@ class managerObject:
         source_managedExecutable = self.makeFile(name='managedExecutables', extension='py')
         source_polariServer = self.makeFile(name='polariServer', extension='py')
         #polyTyped Object and variable are both defined in the same source file
-        source_polyTypedObjectANDvariables = self.makeFile(name='polyTyping', extension='py')
+        source_polyTypedObject = self.makeFile(name='polyTyping', extension='py')
         source_polyTypedVars = self.makeFile(name='polyTypedVars', extension='py')
         self_module = inspect.getmodule(self.__class__)
         self_fileName = (self_module.__file__)[self_module.__file__.rfind('\\')+1:self_module.__file__.rfind('.')]
@@ -635,7 +649,7 @@ class managerObject:
             polyTypedObject(sourceFiles=[source_managedDatabase], className='managedDatabase', identifierVariables = ['name','Path'], objectReferencesDict={'managedApp':['DB']}, manager=self),
             polyTypedObject(sourceFiles=[source_dataChannel], className='dataChannel', identifierVariables = ['name','Path'], objectReferencesDict={'polariServer':['serverChannel'],'managedApp':['serverChannel','localAppChannel']}, manager=self),
             polyTypedObject(sourceFiles=[source_managedExecutable], className='managedExecutable', identifierVariables = ['name', 'extension','Path'], objectReferencesDict={}, manager=self),
-            polyTypedObject(sourceFiles=[source_polyTypedObjectANDvariables], className='polyTypedObject', identifierVariables = ['className'], objectReferencesDict={self.__class__.__name__:['objectTyping']}, manager=self),
+            polyTypedObject(sourceFiles=[source_polyTypedObject], className='polyTypedObject', identifierVariables = ['className'], objectReferencesDict={self.__class__.__name__:['objectTyping']}, manager=self),
             polyTypedObject(sourceFiles=[source_polariServer], className='polariServer', identifierVariables = ['name', 'id'], objectReferencesDict={}, manager=self)
         ]
         #Goes through the objectTyping list to make sure that the object
