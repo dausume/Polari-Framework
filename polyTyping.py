@@ -132,7 +132,10 @@ class polyTypedObject(treeObject):
     #Creates typing for the instance by analyzing it's variables and creating
     #default polyTypedVariables for it.
     def analyzeInstance(self, pythonClassInstance):
-        classInfoDict = pythonClassInstance.__dict__
+        try:
+            classInfoDict = pythonClassInstance.__dict__
+        except Exception:
+            print('Invalid value of type ', type(pythonClassInstance).__name__,' in function analyzeInstance for parameter pythonClassInstance: ', pythonClassInstance)
         for someVariableKey in classInfoDict:
             if(not callable(classInfoDict[someVariableKey])):
                 #print('accVar: ' + someVariableKey)

@@ -54,13 +54,15 @@ class managerObject:
             setattr(self, 'subManagers', [])
         if not 'idList' in keywordargs.keys():
             setattr(self, 'idList', [])
+        if not 'branch' in keywordargs.keys():
+            setattr(self, 'branch', self)
         print(self.idList)
         print('Assigning idList to ', self, '.')
         if not 'cloudIdList' in keywordargs.keys():
             setattr(self, 'cloudIdList', [])
         for name in keywordargs.keys():
             #print('In parameters, found attribute ', name, ' with value ', keywordargs[name])
-            if(name=='manager' or name=='id' or name=='objectTree' or name=='managedFiles' or name=='id' or name=='db' or name=='idList' or name=='cloudIdList' or name == 'subManagers' or name == 'polServer'):
+            if(name=='manager' or name=='branch' or name=='id' or name=='objectTree' or name=='managedFiles' or name=='id' or name=='db' or name=='idList' or name=='cloudIdList' or name == 'subManagers' or name == 'polServer'):
                 setattr(self, name, keywordargs[name])
         self.primePolyTyping()
         self.complete = True
@@ -123,7 +125,7 @@ class managerObject:
                     duplicateBranchTuple = tuple([newpolyObj.className, ids, tuple(valuePath)])
                     self.replaceOriginalTuple(self, originalPath=valuePath, newPath=[duplicateBranchTuple], newTuple=duplicateBranchTuple)
                     #Make sure the new branch has the current manager and the base as it's origin branch set on it.
-                    if(self != value.branch):
+                    if(value.branch != self):
                         value.branch = self
                     if(self != value.manager):
                         value.manager = self
@@ -318,8 +320,10 @@ class managerObject:
             print('Class file name: ', classDefiningFile)
         if(classInstance != None):
             classDefaultTyping = polyTypedObject(manager=self, sourceFiles=sourceFiles, className=classInstance.__class__.__name__, identifierVariables=['id'])
+            #return classDefaultTyping
         elif(classObj != None):
             classDefaultTyping = polyTypedObject(manager=self, sourceFiles=sourceFiles, className=classObj.__name__, identifierVariables=['id'])
+            #return classDefaultTyping
         if(classInstance != None):
             if(classInstance.__class__.__name__ != 'list'):
                 classDefaultTyping.analyzeInstance(classInstance)
@@ -341,7 +345,16 @@ class managerObject:
         return True
 
     def getInstanceIdentifiers(self, instance):
-        obj = self.getObjectTyping(classInstance=instance)
+        isValid = False
+        for parentObj in instance.__class__.__bases__:
+            #print("Iterated Parent object in getInstanceIdentifiers: ", parentObj.__name__)
+            if(parentObj.__name__ == "treeObject" or parentObj.__name__ == "managerObject"):
+                isValid = True
+        #If it is a valid object then we retrieve the object typing, otherwise we let it fail by not defining obj.
+        if(isValid):
+            obj = self.getObjectTyping(classInstance=instance)
+        else:
+            print("Invalid instance value sent to getInstanceIdentifiers: ", instance)
         if(obj == None):
             #print('No object found while getting instance identifiers')
             return None
@@ -564,9 +577,10 @@ class managerObject:
         branchNode = self.getBranchNode(traversalList)
         branchingInstance = None
         try:
-            branchingInstance = branchNode[2]
+            if(traversalList != []):
+                branchingInstance = branchNode[0][2]
         except Exception:
-            print("Error: In addNewBranch function, attempted to add new branch using invalid traversal list - ", traversalList)
+            print("Error: In addNewBranch function, attempted to add new branch which returned invalid Node - ", branchNode, " caused using invalid traversal list - ", traversalList)
         if(hasattr(instance, "manager")):
             if(instance.manager == self):
                 pass
@@ -576,15 +590,17 @@ class managerObject:
                 instance.manager = self
                 #TODO write code to delete branch from other manager and copy to this manager.
         if(hasattr(instance, "branch") and branchingInstance != None):
-            if(instance.branch == branchNode[2]):
+            if(instance.branch == branchNode[0][2]):
                 pass
             elif(instance.branch == None):
-                instance.branch = branchNode[2]
+                instance.branch = branchNode[0][2]
             else:
                 instance.branch = self
                 #TODO this indicates the branch may actually be a duplicate, so we will need to
                 #switch branches instead.
-        if(branchNode.get(branchTuple) == None):
+        if(traversalList == []):
+            self.objectTree[branchTuple] = {}
+        elif(branchNode.get(branchTuple) == None):
             branchNode[branchTuple] = {}
 
     #Accesses a branch node and adds an empty duplicate sub-branch, which contain identifiers and
