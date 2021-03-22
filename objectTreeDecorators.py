@@ -153,7 +153,7 @@ class treeObject:
                         elif instPath == None:
                             #print("found an instance with no existing branch, now creating branch on manager: ", inst)
                             newBranch = tuple([inst.__class__.__name__, ids, inst])
-                            self.manager.addNewBranch(traversalList=[], branchTuple=newBranch)
+                            self.manager.addNewBranch(traversalList=selfPath, branchTuple=newBranch)
                             #Make sure the new branch has the current manager and self as it's origin branch set on it.
                             if(self != inst.branch):
                                 inst.branch = self
@@ -184,7 +184,7 @@ class treeObject:
                             #add the new Branch
                             #print("found an instance with no existing branch, now creating branch on manager: ", value)
                             newBranch = tuple([value.__class__.__name__, ids, value])
-                            self.manager.addNewBranch(traversalList=[], branchTuple=newBranch)
+                            self.manager.addNewBranch(traversalList=selfPath, branchTuple=newBranch)
                             #Make sure the new branch has the current manager and self as it's origin branch set on it.
                             if(self != value.branch):
                                 value.branch = self
@@ -235,7 +235,7 @@ class treeObject:
                             elif instPath == None:
                                 #print("found an instance with no existing branch, now creating branch on manager: ", inst)
                                 newBranch = tuple([inst.__class__.__name__, ids, inst])
-                                self.addNewBranch(traversalList=[], branchTuple=newBranch)
+                                self.addNewBranch(traversalList=selfPath, branchTuple=newBranch)
                                 #Make sure the new branch has the current manager set on it.
                                 if(self.manager != inst.manager):
                                     inst.manager = self.manager
@@ -260,7 +260,7 @@ class treeObject:
                             #add the new Branch
                             #print("found an instance with no existing branch, now creating branch on manager: ", value)
                             newBranch = tuple([value.__class__.__name__, ids, value])
-                            self.manager.addNewBranch(traversalList=[], branchTuple=newBranch)
+                            self.manager.addNewBranch(traversalList=selfPath, branchTuple=newBranch)
                             #Make sure the new branch has the current manager set on it.
                             if(self.manager != value.manager):
                                 value.manager = self.manager
@@ -297,7 +297,7 @@ class treeObject:
             if(self.branch == potentialManager):
                 hasBranch = True
             for parentObj in (self.branch.__class__).__bases__:
-                print('parent object name for branch, ', self.branch, ' object instance:')
+                print('parent object name for branch, ', self.branch, ' object instance:', parentObj.__name__)
                 if(parentObj.__name__ == 'treeObject'):
                     hasBranch = True
                     break
