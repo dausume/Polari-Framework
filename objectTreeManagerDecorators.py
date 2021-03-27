@@ -237,6 +237,43 @@ class managerObject:
                 obj = self.makeDefaultObjectTyping(classObj=classObj)
         return obj
 
+    #
+    def getListOfInstancesAtDepth(self, target_depth, depth=0, traversalList=[], source=None):
+        #print("In \'getListOfClassInstances\' branch with traveral list : ", traversalList)
+        if(source==None):
+            source = self
+            print("Source set as: ", self)
+        #else:
+        #    return source.getListOfClassInstances(className=className, traversalList=traversalList, source=source)
+        ids = self.getInstanceIdentifiers(source)
+        #print('Ids of Source: ', ids)
+        #print('Class Name of Source: ', source.__class__.__name__)
+        #print('Current Traversal List: ', traversalList)
+        sourceTuple = tuple([source.__class__.__name__, ids, source])
+        instanceList = []
+        tempList = []
+        if(traversalList != None):
+            branch = self.getBranchNode(traversalList = traversalList)
+            #print('Retrieving Branch for traversal List \"', traversalList, '\" : ', branch)
+            #Handles the case for when we are on a duplicate branch.
+            if(branch == None):
+                instanceList = []
+            else:
+                for branchTuple in branch.keys():
+                    #print('Searching tuple of class: ', branchTuple[0])
+                    if(depth == target_depth):
+                        #print("Found a match for the class ", className, " in the manager object ", self, ", the matched object was ", branchTuple[2])
+                        instanceList.append(branchTuple[2])
+                    #else:
+                        #print("A non-matching object was found, ", branchTuple[2])
+                for branchTuple in branch.keys():
+                    tempList = self.getListOfInstancesAtDepth(target_depth=target_depth, depth=depth+1, traversalList=traversalList+[branchTuple], source=source)
+                    instanceList = instanceList + tempList
+        else:
+            #print('source object does not exist in the object tree of manager object, returning empty list of objects.')
+            instanceList = []
+        return instanceList
+
     #Retrieves the source file for a given PolyTyped object for a given coding language, with the default set as python language.
     def getObjectTypingClassFile(self, className, language='py'):
         for objType in self.objectTyping:
@@ -346,6 +383,7 @@ class managerObject:
 
     def getInstanceIdentifiers(self, instance):
         isValid = False
+        obj = None
         for parentObj in instance.__class__.__bases__:
             #print("Iterated Parent object in getInstanceIdentifiers: ", parentObj.__name__)
             if(parentObj.__name__ == "treeObject" or parentObj.__name__ == "managerObject"):
@@ -382,6 +420,7 @@ class managerObject:
         #print('Path passed in: ', traversalList)
         branch = self.objectTree
         for tup in traversalList:
+            #print("Traversing tuple in path: ", tup)
             branch = branch[tup]
         #print('Branch Found: ', branch)
         return branch
@@ -429,19 +468,33 @@ class managerObject:
         #print('Branch to be searched: ', branch)
         for branchTuple in branch.keys():
             if branchTuple[0] == instanceTuple[0] and branchTuple[1] == instanceTuple[1]:
+                #Case of a dup;icate match, where the path to the original is in the third position.
                 if(type(branchTuple[2]) == tuple):
                     #print('Found tuple match!')
+                    if(branchTuple[2] != [] and branchTuple[2] != None):
+                        print("Returning non-empty path! - ", branchTuple[2])
                     return branchTuple[2]
+                #Case of an exact match.
+                elif(branchTuple[2] == instanceTuple[2]):
+                    print("Found an exact match in the tree for instance: ", instanceTuple[2])
+                    if(traversalList != [] and traversalList != None):
+                        print("Returning non-empty path! - ", traversalList)
+                    traversalList = traversalList + [branchTuple]
+                    return traversalList
                 #print('Found tuple match!')
                 #print(traversalList)
-                return traversalList
+                #return traversalList
         for branchTuple in branch.keys():
             path = self.getTuplePathInObjTree(traversalList=traversalList+[branchTuple],instanceTuple=instanceTuple)
             if(path != None):
+                if(path != [] and path != None):
+                    print("Returning non-empty path! - ", path)
                 return path
         #if(traversalList == []):
         #    print('Tuple not found in tree!')
         #    print(instanceTuple)
+        if(path != [] and path != None):
+            print("Returning non-empty path! - ", path)
         return path
 
     #Access a single object instance as a node, and checks each typingObject to see what variables
@@ -574,13 +627,18 @@ class managerObject:
             branchTuple = self.getInstanceTuple(instance)
         elif(branchTuple != None):
             instance = branchTuple[2]
+        #Overwrites the traversal list in the case where the branch has already been defined.
+        if(hasattr(instance, "branch")):
+            if(instance.branch != None):
+                parentBranchTuple = self.getInstanceTuple(instance.branch)
+                traversalList = self.getTuplePathInObjTree(instanceTuple=parentBranchTuple)
         branchNode = self.getBranchNode(traversalList)
         branchingInstance = None
         try:
             if(traversalList != []):
-                branchingInstance = branchNode[0][2]
+                branchingInstance = traversalList[len(traversalList) - 1]
         except Exception:
-            print("Error: In addNewBranch function, attempted to add new branch which returned invalid Node - ", branchNode, " caused using invalid traversal list - ", traversalList)
+            print("Error: In addNewBranch function, attempted to add new branch which returned invalid Node caused using invalid traversal list - ", traversalList)
         if(hasattr(instance, "manager")):
             if(instance.manager == self):
                 pass
@@ -590,17 +648,16 @@ class managerObject:
                 instance.manager = self
                 #TODO write code to delete branch from other manager and copy to this manager.
         if(hasattr(instance, "branch") and branchingInstance != None):
-            if(instance.branch == branchNode[0][2]):
+            if(instance.branch == traversalList[len(traversalList) - 1]):
                 pass
             elif(instance.branch == None):
-                instance.branch = branchNode[0][2]
-            else:
-                instance.branch = self
-                #TODO this indicates the branch may actually be a duplicate, so we will need to
-                #switch branches instead.
+                instance.branch = traversalList[len(traversalList) - 1]
         if(traversalList == []):
+            if(type(instance).__name__ == "treeBranchObject"):
+                print("Attching treeBranchObject at base of tree?")
             self.objectTree[branchTuple] = {}
         elif(branchNode.get(branchTuple) == None):
+            print("Adding new node in addNewBranch on sub-path's tuple: ", traversalList[len(traversalList) - 1])
             branchNode[branchTuple] = {}
 
     #Accesses a branch node and adds an empty duplicate sub-branch, which contain identifiers and

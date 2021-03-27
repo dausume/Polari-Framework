@@ -106,6 +106,8 @@ class objectTree_TestCase(unittest.TestCase):
         print(self.mngObj.getListOfClassInstances(className='testTreeObj'))
         print('----- List of Test Tree Branch Objects ------')
         print(self.mngObj.getListOfClassInstances(className='testTreeBranchObj'))
+        print('----- List of Objects at Depth 1 in Tree ------')
+        print(self.mngObj.getListOfInstancesAtDepth(target_depth=1))
         print('Tearing down at the end of the object tree test case.')
 
     #Tests that all standard variable types can be set and supported on a manager object.
@@ -207,7 +209,7 @@ class objectTree_TestCase(unittest.TestCase):
         listTreeObjOnePath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj))
         listTreeObjTwoPath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj))
         #Asserts the manager is at the base.
-        self.assertEqual(len(mngPath), 0, msg="The manager object itself should be at the base of it\'s object tree.")
+        self.assertEqual(len(mngPath), 1, msg="The manager object itself should be at the base of it\'s object tree.")
         #Asserts the treeObject should be inside the tree.
         self.assertIsNotNone(singleTreeObjPath, msg="Single tree object set to var on manager at initiation should be in the object tree.")
         self.assertIsNotNone(listTreeObjOnePath, msg="The first tree object set on a list var on manager at initiation should be in the object tree.")
@@ -234,7 +236,7 @@ class objectTree_TestCase(unittest.TestCase):
         listTreeObjOnePath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj.objList_postFillList[0]))
         listTreeObjTwoPath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj.objList_postFillList[1]))
         #Asserts the manager is at the base.
-        self.assertEqual(len(mngPath), 0, msg="The manager object itself should be at the base of it\'s object tree.")
+        self.assertEqual(len(mngPath), 1, msg="The manager object itself should be at the base of it\'s object tree.")
         #Asserts the treeObject should be inside the tree.
         self.assertIsNotNone(singleTreeObjPath, msg="Single tree object set to var on manager after initiation should be in the object tree.")
         self.assertIsNotNone(listTreeObjOnePath, msg="The first tree object set on a list var on manager after initiation should be in the object tree.")
@@ -256,7 +258,7 @@ class objectTree_TestCase(unittest.TestCase):
         listTreeObjOnePath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj.someObj_initFilled.objList_initFilled[0]))
         listTreeObjTwoPath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj.someObj_initFilled.objList_initFilled[1]))
         #Asserts the manager is at the base.
-        self.assertEqual(len(mngPath), 0, msg="The manager object itself should be at the base of it\'s object tree.")
+        self.assertEqual(len(mngPath), 1, msg="The manager object itself should be at the base of it\'s object tree.")
         #Asserts the treeObject should be inside the tree.
         self.assertIsNotNone(treeObjPath, msg="Single tree object set to var on a tree object at it\'s initiation should be in the object tree.")
         #Asserts the treeObject assigned at initiation in a list is in the tree.
