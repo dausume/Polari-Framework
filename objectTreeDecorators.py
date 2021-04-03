@@ -308,8 +308,10 @@ class treeObject:
         if not hasManager or not hasBranch:
             return False
         selfTreeTuple = potentialManager.getInstanceTuple(self)
+        print("Getting self path in setManager.")
         selfTreePath = potentialManager.getTuplePathInObjTree(selfTreeTuple)
         branchTreeTuple = potentialManager.getInstanceTuple(self.branch)
+        print("Getting branch path in setManager.")
         branchTreePath = potentialManager.getTuplePathInObjTree(instanceTuple=branchTreeTuple)
         #Checks that the manager has a valid polyTyping for this treeObject.
         selfPolyTyping = potentialManager.getObjectTyping(classObj=self.__class__)
@@ -322,6 +324,7 @@ class treeObject:
             print("The object's branch instance ", self.branch, " has not yet been added to the tree.")
             return False
         elif(selfTreePath == None):
+            print("Adding new branch in managerSet using path: ", branchTreePath, " and tuple: ", selfTreeTuple)
             potentialManager.addNewBranch(traversalList=branchTreePath, branchTuple=selfTreeTuple)
             selfTreePath = potentialManager.getTuplePathInObjTree(selfTreeTuple)
             print("Placed new branch into tree using traversalList '", branchTreePath, "' and selfTreeTuple '", selfTreeTuple)
@@ -341,17 +344,18 @@ class treeObject:
                 continue
             someAttr = getattr(self, someAttrKey)
             atrType = type(someAttr).__name__
-            if(atrType in dataTypesPython):
+            if(atrType in dataTypesPython and atrType != 'list'):
                 continue
             atrTypeList = []
-            #START OF TREE MANAGEMENT FOR TREEOBJECTS IN LISTS OR TUPLES
+            #START OF TREE MANAGEMENT FOR TREEOBJECTS IN LISTS
             #If it is a list, get a list of all referenced object types in the list.
-            if(type(someAttr).__name__ == "list" or type(someAttr).__name__ == "tuple"):
+            if(type(someAttr).__name__ == "list"):
                 for someValue in someAttr:
                     #Make sure the type of each treeObject in the list is recorded.
-                    if(not type(someAttr).__name__ in dataTypesPython):
-                        if(not type(someAttr).__name__ in atrTypeList):
-                            atrTypeList.append(type(someAttr).__name__)
+                    if(type(someAttr).__name__ in dataTypesPython):
+                        continue
+                    elif(not type(someAttr).__name__ in atrTypeList):
+                        atrTypeList.append(type(someAttr).__name__)
                     #Ensure polyTyping object exists for the value
                     valuePolyTyping = potentialManager.getObjectTyping(classInstance=someValue)
                     if(valuePolyTyping != None):
@@ -359,9 +363,11 @@ class treeObject:
                         valueInstanceTuple = potentialManager.getInstanceTuple(someValue)
                         #Check if the tuple exists somewhere in the current branch
                         tupleFoundInBranch = False
+                        tupleFoundInTree = False
+                        print("Current selfTreeBranch in managerSet: ", selfTreeBranch)
                         for someTuple in selfTreeBranch:
                             #If is in the current branch, ignore it and move to the next iteration.
-                            if(not someTuple[0] == valueInstanceTuple[0] and someTuple[1] == valueInstanceTuple[1]):
+                            if(someTuple == valueInstanceTuple):
                                 tupleFoundInBranch = True
                                 tupleFoundInTree = True
                                 break
@@ -386,11 +392,14 @@ class treeObject:
                                 else:
                                     #Place duplicate on the current branch.
                                     duplicateBranchTuple = tuple([someValue.__class__.__name__, ids, tuple(valueTreePath)])
-                                    potentialManager.addNewBranch(traversalList=branchTreePath, branchTuple=duplicateBranchTuple)
+                                    potentialManager.addDuplicateBranch(traversalList=branchTreePath, branchTuple=duplicateBranchTuple)
                         else:
-                            #The tuple does not exist anywhere in the tree, so we simply place it in the branch.
-                            duplicateBranchTuple = tuple([someValue.__class__.__name__, ids, tuple(valueTreePath)])
+                            #The tuple does not exist anywhere in the tree, so we simply place a new branch.
                             potentialManager.addNewBranch(traversalList=branchTreePath, branchTuple=valueInstanceTuple)
+                            if(self != someValue.branch):
+                                someValue.branch = self
+                            if(self != someValue.manager):
+                                someValue.manager = self.manager
                             print("Adding a new tuple to the object tree from a List in managerSet: ", valueInstanceTuple)
             #END OF TREE MANAGEMENT FOR TREEOBJECTS IN LISTS OR TUPLES
             #

@@ -106,8 +106,12 @@ class objectTree_TestCase(unittest.TestCase):
         print(self.mngObj.getListOfClassInstances(className='testTreeObj'))
         print('----- List of Test Tree Branch Objects ------')
         print(self.mngObj.getListOfClassInstances(className='testTreeBranchObj'))
+        print('----- List of Objects at Depth 0 in Tree ------')
+        print(self.mngObj.getListOfInstancesAtDepth(target_depth=0))
         print('----- List of Objects at Depth 1 in Tree ------')
         print(self.mngObj.getListOfInstancesAtDepth(target_depth=1))
+        print('----- List of Objects at Depth 2 in Tree ------')
+        print(self.mngObj.getListOfInstancesAtDepth(target_depth=2))
         print('Tearing down at the end of the object tree test case.')
 
     #Tests that all standard variable types can be set and supported on a manager object.
