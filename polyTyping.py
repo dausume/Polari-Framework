@@ -61,6 +61,11 @@ class polyTypedObject(treeObject):
     #and ensure that our current variable's name is within the list which is the value owned by that key.
     def addToObjReferenceDict(self, referencedClassObj, referenceVarName):
         foundTyping = False
+        if(referencedClassObj.__name__ == "polyTypedObject"):
+            print("Changing reference dict on polyTyping after init")
+            if(referenceVarName == "polyTypedObj"):
+                print("For some reason trying to put polyTypedObj onto ref dict... not okay.")
+                return
         if(hasattr(self, 'manager')):
             #print('Adding obj ', classObj, ' to object ref dict of ', self.className, ' for variable named: ', varName)
             for objType in self.manager.objectTyping:
@@ -137,6 +142,8 @@ class polyTypedObject(treeObject):
         except Exception:
             print('Invalid value of type ', type(pythonClassInstance).__name__,' in function analyzeInstance for parameter pythonClassInstance: ', pythonClassInstance)
         for someVariableKey in classInfoDict:
+            if(someVariableKey == "polyTypedObj"):
+                print("TRYING TO SET TYPE polyTypedObj in dict.. why?!?")
             if(not callable(classInfoDict[someVariableKey])):
                 #print('accVar: ' + someVariableKey)
                 var = getattr(pythonClassInstance, someVariableKey)

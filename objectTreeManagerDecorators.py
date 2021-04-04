@@ -134,6 +134,9 @@ class managerObject:
             print("Accounting for setting elements in list on variable \'", name, "\' on the manager object.")
             #Adding a list of objects
             for inst in value:
+                if(inst.__class__.__name__ in dataTypesPython):
+                    continue
+                print("accounting for instance in list on manager with value: ", inst)
                 accountedObjectType = False
                 accountedVariableType = False
                 if(type(inst).__class__.__name__ in polyObj.objectReferencesDict):
@@ -148,7 +151,7 @@ class managerObject:
                     managerPolyTyping.addToObjReferenceDict(referencedClassObj=inst.__class__, referenceVarName=name)
                 ids = self.getInstanceIdentifiers(inst)
                 instPath = self.getTuplePathInObjTree(instanceTuple=tuple([newpolyObj.className, ids, inst]))
-                if instPath == []:
+                if instPath == [selfTuple]:
                     #print("found an instance already in the objectTree at the correct location:", inst)
                     pass
                 elif instPath == None:
