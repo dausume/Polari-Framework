@@ -475,14 +475,14 @@ class managerObject:
                 #Case of a dup;icate match, where the path to the original is in the third position.
                 if(type(branchTuple[2]) == tuple):
                     #print('Found tuple match!')
-                    if(branchTuple[2] != [] and branchTuple[2] != None):
-                        print("Returning non-empty path! - ", branchTuple[2])
+                    #if(branchTuple[2] != [] and branchTuple[2] != None):
+                    #    print("Returning non-empty path! - ", branchTuple[2])
                     return branchTuple[2]
                 #Case of an exact match.
                 elif(branchTuple[2] == instanceTuple[2]):
-                    print("Found an exact match in the tree for instance: ", instanceTuple[2])
-                    if(traversalList != [] and traversalList != None):
-                        print("Returning non-empty path! - ", traversalList)
+                    #print("Found an exact match in the tree for instance: ", instanceTuple[2])
+                    #if(traversalList != [] and traversalList != None):
+                    #    print("Returning non-empty path! - ", traversalList)
                     traversalList = traversalList + [branchTuple]
                     return traversalList
                 #print('Found tuple match!')
@@ -491,14 +491,14 @@ class managerObject:
         for branchTuple in branch.keys():
             path = self.getTuplePathInObjTree(traversalList=traversalList+[branchTuple],instanceTuple=instanceTuple)
             if(path != None):
-                if(path != [] and path != None):
-                    print("Returning non-empty path! - ", path)
+                #if(path != [] and path != None):
+                #    print("Returning non-empty path! - ", path)
                 return path
         #if(traversalList == []):
         #    print('Tuple not found in tree!')
         #    print(instanceTuple)
-        if(path != [] and path != None):
-            print("Returning non-empty path! - ", path)
+        #if(path != [] and path != None):
+        #    print("Returning non-empty path! - ", path)
         return path
 
     #Access a single object instance as a node, and checks each typingObject to see what variables
@@ -627,8 +627,8 @@ class managerObject:
 
     #Accesses a branch node and adds a sub-branch to it, if the sub-branch does not already exist.
     def addNewBranch(self, traversalList, branchTuple=None, instance=None):
-        if(len(traversalList) > 2):
-            print("Trying to add new branch using traversalList of depth 3!! -> ", traversalList)
+        #if(len(traversalList) > 2):
+        #    print("Trying to add new branch using traversalList of depth 3!! -> ", traversalList)
         if(instance != None):
             branchTuple = self.getInstanceTuple(instance)
         elif(branchTuple != None):
@@ -661,11 +661,11 @@ class managerObject:
         if(traversalList[len(traversalList) - 1] != branchTuple):
             newTraversalList = traversalList + [branchTuple]
         if(traversalList == []):
-            if(type(instance).__name__ == "treeBranchObject"):
-                print("Attching treeBranchObject at base of tree?")
+            #if(type(instance).__name__ == "treeBranchObject"):
+            #    print("Attching treeBranchObject at base of tree?")
             self.objectTree[branchTuple] = {}
         elif(branchNode.get(branchTuple) == None):
-            print("Adding new node in addNewBranch on sub-path's tuple: ", traversalList[len(traversalList) - 1])
+            #print("Adding new node in addNewBranch on sub-path's tuple: ", traversalList[len(traversalList) - 1])
             branchNode[branchTuple] = {}
 
     #Accesses a branch node and adds an empty duplicate sub-branch, which contain identifiers and

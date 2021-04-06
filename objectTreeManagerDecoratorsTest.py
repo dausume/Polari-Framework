@@ -246,6 +246,35 @@ class objectTree_TestCase(unittest.TestCase):
         self.assertIsNotNone(listTreeObjOnePath, msg="The first tree object set on a list var on manager after initiation should be in the object tree.")
         self.assertIsNotNone(listTreeObjTwoPath, msg="The second tree object set on a list var on manager after initiation should be in the object tree.")
 
+    def test_postFilledTreeObjectsOnTreeObject(self):
+        #Check to make sure an object typing has been generated for both the manager and the treeObject
+        self.assertIsNotNone(self.mngObj.getObjectTyping(className='testManagerObj'))
+        self.assertIsNotNone(self.mngObj.getObjectTyping(className='testTreeObj'))
+        #Check that the dependency values were populated properly
+        self.assertIsInstance(self.mngObj, testManagerObj, msg="Asserts the manager obect is an instance of the test manager object.")
+        self.assertIsInstance(self.mngObj.someObj_initFilled, testTreeObj, msg="Asserts the value someObj_initFilled on manager obect is an instance of the test tree object.")
+        #Set the values on the single variable treeObject on manager at initiation.
+        self.mngObj.someObj_initFilled.someObj_postFill = testTreeBranchObj(manager=self.mngObj)
+        self.mngObj.someObj_initFilled.objList_postFillList.append(testTreeBranchObj(manager=self.mngObj))
+        self.mngObj.someObj_initFilled.objList_postFillList.append(testTreeBranchObj(manager=self.mngObj))
+        #Check that the values were populated properly
+        self.assertIsInstance(self.mngObj.someObj_initFilled.someObj_postFill, testTreeBranchObj, msg = "Assert the values are set to be testTreeBranchObj type.")
+        self.assertIsInstance(self.mngObj.someObj_initFilled.objList_postFillList[0], testTreeBranchObj, msg = "Assert the values are initially set to be testTreeBranchObj type.")
+        #Check that the values/objects were properly allocated onto the tree.
+        #The manager's path should always be an empty list since it is the base.
+        #The treeObject path, so long as it returns not None meaning a value was found, is good.
+        mngPath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj))
+        treeObjPath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj.someObj_initFilled.someObj_postFill))
+        listTreeObjOnePath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj.someObj_initFilled.objList_postFillList[0]))
+        listTreeObjTwoPath = self.mngObj.getTuplePathInObjTree(self.mngObj.getInstanceTuple(self.mngObj.someObj_initFilled.objList_postFillList[1]))
+        #Asserts the manager is at the base.
+        self.assertEqual(len(mngPath), 1, msg="The manager object itself should be at the base of it\'s object tree.")
+        #Asserts the treeObject should be inside the tree.
+        self.assertIsNotNone(treeObjPath, msg="Single tree object set to var on a tree object after initiation should be in the object tree.")
+        #Asserts the treeObject assigned at initiation in a list is in the tree.
+        self.assertIsNotNone(listTreeObjOnePath, msg="The first tree object set on a list var on a tree object after initiation should be in the object tree.")
+        self.assertIsNotNone(listTreeObjTwoPath, msg="The second tree object set on a list var on a tree object after initiation should be in the object tree.")
+
     def test_initFilledTreeObjectsOnTreeObject(self):
         #Check to make sure an object typing has been generated for both the manager and the treeObject
         self.assertIsNotNone(self.mngObj.getObjectTyping(className='testManagerObj'))

@@ -282,7 +282,7 @@ class treeObject:
     #is supposed to be branching off of, and potentialManager is the manager that is
     #supposed to be set.
     def managerSet(self, potentialManager):
-        print("Calling managerSet for treeObject: ", self)
+        #print("Calling managerSet for treeObject: ", self)
         #Checks that the object's manager has been set and is a valid manager.
         hasManager = False
         if(potentialManager != None):
@@ -297,7 +297,7 @@ class treeObject:
             if(self.branch == potentialManager):
                 hasBranch = True
             for parentObj in (self.branch.__class__).__bases__:
-                print('parent object name for branch, ', self.branch, ' object instance:', parentObj.__name__)
+                #print('parent object name for branch, ', self.branch, ' object instance:', parentObj.__name__)
                 if(parentObj.__name__ == 'treeObject'):
                     hasBranch = True
                     break
@@ -308,33 +308,33 @@ class treeObject:
         if not hasManager or not hasBranch:
             return False
         selfTreeTuple = potentialManager.getInstanceTuple(self)
-        print("Getting self path in setManager.")
+        #print("Getting self path in setManager.")
         selfTreePath = potentialManager.getTuplePathInObjTree(selfTreeTuple)
         branchTreeTuple = potentialManager.getInstanceTuple(self.branch)
-        print("Getting branch path in setManager.")
+        #print("Getting branch path in setManager.")
         branchTreePath = potentialManager.getTuplePathInObjTree(instanceTuple=branchTreeTuple)
         #Checks that the manager has a valid polyTyping for this treeObject.
         selfPolyTyping = potentialManager.getObjectTyping(classObj=self.__class__)
         branchPolyTyping = potentialManager.getObjectTyping(classObj=self.branch.__class__)
         if(selfPolyTyping == None or branchPolyTyping == None):
-            print("Could not properly retrieve or set polyTyping on the manager ", potentialManager, " for objects of type ", self.__class__.__name__)
+            #print("Could not properly retrieve or set polyTyping on the manager ", potentialManager, " for objects of type ", self.__class__.__name__)
             return False
         #Handles the case where self has not yet been allocated onto the tree anywhere.
         if(branchTreePath == None):
-            print("The object's branch instance ", self.branch, " has not yet been added to the tree.")
+            #print("The object's branch instance ", self.branch, " has not yet been added to the tree.")
             return False
         elif(selfTreePath == None):
-            print("Adding new branch in managerSet using path: ", branchTreePath, " and tuple: ", selfTreeTuple)
+            #print("Adding new branch in managerSet using path: ", branchTreePath, " and tuple: ", selfTreeTuple)
             potentialManager.addNewBranch(traversalList=branchTreePath, branchTuple=selfTreeTuple)
             selfTreePath = potentialManager.getTuplePathInObjTree(selfTreeTuple)
-            print("Placed new branch into tree using traversalList '", branchTreePath, "' and selfTreeTuple '", selfTreeTuple)
-            print("The new branch's path is: ", selfTreePath)
+            #print("Placed new branch into tree using traversalList '", branchTreePath, "' and selfTreeTuple '", selfTreeTuple)
+            #print("The new branch's path is: ", selfTreePath)
             if(selfTreePath == None):
-                print("ERROR: Attempted to place self into tree for instance ", self, " by branching from instance ", self.branch, " but failed.")
+                #print("ERROR: Attempted to place self into tree for instance ", self, " by branching from instance ", self.branch, " but failed.")
                 return
         #Retrieves the Branching off of the current object
         selfTreePath = potentialManager.getTuplePathInObjTree(selfTreeTuple)
-        print("selfTreePath in setManager after placing self on Tree: ", selfTreePath)
+        #print("selfTreePath in setManager after placing self on Tree: ", selfTreePath)
         selfTreeBranch = potentialManager.getBranchNode(traversalList = selfTreePath)
         #print("selfTreeBranch in setManager: ", selfTreeBranch)
         #Goes through all attributes on the object, and loads them or their duplicates
@@ -357,7 +357,7 @@ class treeObject:
                         continue
                     elif(not type(someValue).__name__ in atrTypeList):
                         atrTypeList.append(type(someValue).__name__)
-                    print("Analyzing someValue in list in managerSet.")
+                    #print("Analyzing someValue in list in managerSet.")
                     #Ensure polyTyping object exists for the value
                     valuePolyTyping = potentialManager.getObjectTyping(classInstance=someValue)
                     if(valuePolyTyping != None):
@@ -371,7 +371,7 @@ class treeObject:
                             #continue
                             #If the value's tuple is not anywhere in the current branch
                             if(not valueInstanceTuple in selfTreeBranch.keys()):
-                                print("Adding a branch of an already existing tuple for object: ", someValue)
+                                #print("Adding a branch of an already existing tuple for object: ", someValue)
                                 #Check the depth of the original and the depth + 1 of the selfBranch
                                 #If the depth + 1 of current branch is less than original swap original to
                                 #this branch and place duplicate in the old location.
@@ -389,19 +389,19 @@ class treeObject:
                                 print("Value ", someValue, " in list attribute ", someAttrKey, "was already in the correct location on tree before managerSet.")
                         else:
                             #TODO the following code in this else block causes everything to break.
-                            print("potential break reason 1: selfTreePath value: ", selfTreePath)
-                            print("potential break reason 2: valueInstanceTuple value: ", valueInstanceTuple)
-                            print("potential break reason 3: someValue value: ", someValue)
+                            #print("potential break reason 1: selfTreePath value: ", selfTreePath)
+                            #print("potential break reason 2: valueInstanceTuple value: ", valueInstanceTuple)
+                            #print("potential break reason 3: someValue value: ", someValue)
                             #continue
                             if(type(someValue).__name__ != "polyTypedVariable"):
                                 #The tuple does not exist anywhere in the tree, so we simply place a new branch.
                                 potentialManager.addNewBranch(traversalList=selfTreePath, branchTuple=valueInstanceTuple)
                                 if(self != someValue.branch):
-                                    print("Adding self ", self, " to be branch value of child ", someValue)
+                                    #print("Adding self ", self, " to be branch value of child ", someValue)
                                     someValue.branch = self
                                 if(self != someValue.manager):
                                     someValue.manager = self.manager
-                                print("Adding a new tuple to the object tree from a List in managerSet: ", valueInstanceTuple)
+                                #print("Adding a new tuple to the object tree from a List in managerSet: ", valueInstanceTuple)
             #END OF TREE MANAGEMENT FOR TREEOBJECTS IN LISTS OR TUPLES
             #
             #START OF TREE MANAGEMENT FOR TREEOBJECTS DIRECTLY ASSIGNED TO ATTRIBUTES
@@ -427,7 +427,7 @@ class treeObject:
                     valueTreePath = potentialManager.getTuplePathInObjTree(valueInstanceTuple)
                     if(valueTreePath == None):
                         tupleFoundInTree = False
-                        print("Could not retrieve path from manager for the tuple: ", valueInstanceTuple, " which was set as a value on the object ", self)
+                        #print("Could not retrieve path from manager for the tuple: ", valueInstanceTuple, " which was set as a value on the object ", self)
                     #If it is NOT in the branch, check to see if it is in the tree at all.
                     if(not tupleFoundInBranch):
                         if(valueTreePath != None):
