@@ -122,15 +122,19 @@ class treeObject:
             super(treeObject, self).__setattr__(name, value)
             return
         if(self.manager != None and self.branch != None):
+            print("Setting non-standard value on treeObject after manager is set and branch is set.")
             selfPolyObj = self.manager.getObjectTyping(self.__class__)
             selfIds = self.manager.getInstanceIdentifiers(value)
-            selfPath = self.manager.getTuplePathInObjTree(instanceTuple=tuple([selfPolyObj.className, selfIds, self]))
+            selfTuple = self.manager.getInstanceTuple(self)
+            selfPath = self.manager.getTuplePathInObjTree(instanceTuple=selfTuple)
             #Handles the case where the current treeObject already exists in the current manager's Tree.
             if(selfPath != None):
+                print("Found appropriate path for treeObject")
                 polyObj = self.manager.getObjectTyping(self.__class__)
                 if value == None or value == []:
                     pass
                 elif(type(value) == list):
+                    print("Going through list on treeObject post-init.")
                     #Adding a list of objects
                     for inst in value:
                         accountedObjectType = False
@@ -203,6 +207,7 @@ class treeObject:
                             #TODO make a function that swaps any branching on the original tuple to be on the new location.
                 #Handles the case where a single variable is being set.
                 else:
+                    print("Going through single variable assignment post-init on treeObject.")
                     accountedObjectType = False
                     accountedVariableType = False
                     if(type(value).__class__.__name__ in polyObj.objectReferencesDict):
@@ -211,8 +216,8 @@ class treeObject:
                         if(polyObj.objectReferencesDict[type(value).__class__.__name__]):
                             accountedVariableType = True
                             print("Accounted for class type ", value, " as sole value in variable ", name)
-                    newpolyObj = self.getObjectTyping(classObj=value.__class__)
-                    managerPolyTyping = self.getObjectTyping(self.manager.__class__)
+                    newpolyObj = self.manager.getObjectTyping(classObj=value.__class__)
+                    managerPolyTyping = self.manager.getObjectTyping(self.manager.__class__)
                     if(not accountedVariableType):
                         managerPolyTyping.addToObjReferenceDict(referencedClassObj=value.__class__, referenceVarName=name)
                     ids = self.manager.getInstanceIdentifiers(value)
@@ -273,6 +278,8 @@ class treeObject:
                             if(self.manager != value.manager):
                                 value.manager = self.manager
                             #TODO make a function that swaps any branching on the original tuple to be on the new location.
+            else:
+                print("selfPath was not found in tree for object ", self)
         super(treeObject, self).__setattr__(name, value)
 
 

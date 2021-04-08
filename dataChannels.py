@@ -23,7 +23,7 @@ import os, json, logging, datetime
 class dataChannel(managedFile, treeObject):
     @treeObjectInit
     def __init__(self, manager, name=None, Path=None):
-        managedFile.__init__(self, name=name, extension='json')
+        managedFile.__init__(self, name=name, extension='json', manager=manager)
         #The JSON currently being manipulated in the python object
         self.jsonDict = []
         #The recorded JSON from the last time the JSON File was read.

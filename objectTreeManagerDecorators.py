@@ -390,7 +390,7 @@ class managerObject:
         obj = None
         for parentObj in instance.__class__.__bases__:
             #print("Iterated Parent object in getInstanceIdentifiers: ", parentObj.__name__)
-            if(parentObj.__name__ == "treeObject" or parentObj.__name__ == "managerObject"):
+            if(parentObj.__name__ == "treeObject" or parentObj.__name__ == "managerObject" or parentObj.__name__ == "managedFile"):
                 isValid = True
         #If it is a valid object then we retrieve the object typing, otherwise we let it fail by not defining obj.
         if(isValid):
@@ -763,15 +763,15 @@ class managerObject:
     def makeFile(self, name=None, extension=None, Path = None):
         #print('Entered makefile function')
         if extension in fileExtensions:
-            newFile = managedFile(name=name, extension=extension, Path = Path)
+            newFile = managedFile(name=name, extension=extension, Path = Path, manager=self)
         elif extension in picExtensions:
-            newFile = managedImage(name=name, extension=extension, Path = Path)
+            newFile = managedImage(name=name, extension=extension, Path = Path, manager=self)
         elif extension in dataBaseExtensions:
-            newFile = managedDatabase(name=name, Path = Path)
+            newFile = managedDatabase(name=name, Path = Path, manager=self)
         elif extension in dataCommsExtensions:
-            newFile = dataChannel(name=name, Path = Path)
+            newFile = dataChannel(name=name, Path = Path, manager=self)
         elif extension in executableExtensions:
-            newFile = managedExecutable(name=name, extension=extension, Path = Path)
+            newFile = managedExecutable(name=name, extension=extension, Path = Path, manager=self)
         newFile.openFile()
         (self.managedFiles).append(newFile)
         return newFile
