@@ -131,10 +131,12 @@ class managerObject:
                     if(self != value.manager):
                         value.manager = self
         elif(type(value) == list):
-            print("Accounting for setting elements in list on variable \'", name, "\' on the manager object.")
+            print("Accounting for setting elements in list on variable \'", name, "\' on the manager object, with value ", value)
             #Adding a list of objects
             for inst in value:
+                print("accounting for instance in list on manager with value: ", inst)
                 if(inst.__class__.__name__ in dataTypesPython):
+                    print("Skipped inst as a standard type")
                     continue
                 print("accounting for instance in list on manager with value: ", inst)
                 accountedObjectType = False

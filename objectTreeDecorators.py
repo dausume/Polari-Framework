@@ -131,10 +131,10 @@ class treeObject:
             if(selfPath != None):
                 print("Found appropriate path for treeObject")
                 polyObj = self.manager.getObjectTyping(self.__class__)
-                if value == None or value == []:
+                if value == None:
                     pass
-                elif(type(value) == list):
-                    print("Going through list on treeObject post-init.")
+                elif(type(value).__name__ == "list"):
+                    print("Going through list variable assignment for var ", name ," post-init on treeObject using list ", value)
                     #Adding a list of objects
                     for inst in value:
                         accountedObjectType = False
@@ -151,10 +151,7 @@ class treeObject:
                             managerPolyTyping.addToObjReferenceDict(referencedClassObj=inst.__class__, referenceVarName=name)
                         ids = self.manager.getInstanceIdentifiers(inst)
                         instPath = self.manager.getTuplePathInObjTree(instanceTuple=tuple([inst.__class__.__name__, ids, inst]))
-                        if len(instPath) <= len(selfPath) + 1:
-                            #print("found an instance already in the objectTree at the correct location:", inst)
-                            pass
-                        elif instPath == None:
+                        if instPath == None:
                             #print("found an instance with no existing branch, now creating branch on manager: ", inst)
                             newBranch = tuple([inst.__class__.__name__, ids, inst])
                             self.manager.addNewBranch(traversalList=selfPath, branchTuple=newBranch)
@@ -163,6 +160,9 @@ class treeObject:
                                 inst.branch = self
                             if(self != inst.manager):
                                 inst.manager = self.manager
+                        elif len(instPath) <= len(selfPath) + 1:
+                            #print("found an instance already in the objectTree at the correct location:", inst)
+                            pass
                         else:
                             #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", inst)
                             duplicateBranchTuple = tuple([inst.__class__.__name__, ids, tuple([])]) 
@@ -180,11 +180,7 @@ class treeObject:
                         #if(self.identifiersComplete(value)):
                         ids = self.manager.getInstanceIdentifiers(value)
                         valuePath = self.manager.getTuplePathInObjTree(instanceTuple=tuple([value.__class__.__name__, ids, value]))
-                        if len(valuePath) <= len(selfPath) + 1:
-                            #print("found an instance already in the objectTree at the correct location:", value)
-                            #Do nothing, because the branch is already accounted for.
-                            pass
-                        elif(valuePath == None):
+                        if(valuePath == None):
                             #add the new Branch
                             #print("found an instance with no existing branch, now creating branch on manager: ", value)
                             newBranch = tuple([value.__class__.__name__, ids, value])
@@ -194,6 +190,10 @@ class treeObject:
                                 value.branch = self
                             if(self.manager != value.manager):
                                 value.manager = self.manager
+                        elif len(valuePath) <= len(selfPath) + 1:
+                            #print("found an instance already in the objectTree at the correct location:", value)
+                            #Do nothing, because the branch is already accounted for.
+                            pass
                         else:
                             #add as a duplicate branch
                             #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", value)
@@ -207,7 +207,7 @@ class treeObject:
                             #TODO make a function that swaps any branching on the original tuple to be on the new location.
                 #Handles the case where a single variable is being set.
                 else:
-                    print("Going through single variable assignment post-init on treeObject.")
+                    print("Going through single variable assignment for var ", name ," post-init on treeObject using value ", value)
                     accountedObjectType = False
                     accountedVariableType = False
                     if(type(value).__class__.__name__ in polyObj.objectReferencesDict):
@@ -233,17 +233,17 @@ class treeObject:
                             ids = self.manager.getInstanceIdentifiers(inst)
                             instPath = self.manager.getTuplePathInObjTree(instanceTuple=tuple([inst.__class__.__name__, ids, inst]))
                             #Case where the existing tuple is at the same level as this object or a lower object, in this case we place a duplicate while leaving the original alone.
-                            if len(instPath) <= len(selfPath) + 1:
-                                #print("found an instance already in the objectTree at the correct location:", inst)
-                                pass
                             #Case where the object has no existing tuple in the tree.
-                            elif instPath == None:
+                            if instPath == None:
                                 #print("found an instance with no existing branch, now creating branch on manager: ", inst)
                                 newBranch = tuple([inst.__class__.__name__, ids, inst])
                                 self.addNewBranch(traversalList=selfPath, branchTuple=newBranch)
                                 #Make sure the new branch has the current manager set on it.
                                 if(self.manager != inst.manager):
                                     inst.manager = self.manager
+                            elif len(instPath) <= len(selfPath) + 1:
+                                #print("found an instance already in the objectTree at the correct location:", inst)
+                                pass
                             else:
                                 #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", inst)
                                 duplicateBranchTuple = tuple([inst.__class__.__name__, ids, tuple([])]) 
@@ -257,11 +257,7 @@ class treeObject:
                         #if(self.identifiersComplete(value)):
                         ids = self.manager.getInstanceIdentifiers(value)
                         valuePath = self.manager.getTuplePathInObjTree(instanceTuple=tuple([value.__class__.__name__, ids, value]))
-                        if len(valuePath) <= len(selfPath) + 1:
-                            #print("found an instance already in the objectTree at the correct location:", value)
-                            #Do nothing, because the branch is already accounted for.
-                            pass
-                        elif(valuePath == None):
+                        if(valuePath == None):
                             #add the new Branch
                             #print("found an instance with no existing branch, now creating branch on manager: ", value)
                             newBranch = tuple([value.__class__.__name__, ids, value])
@@ -269,6 +265,10 @@ class treeObject:
                             #Make sure the new branch has the current manager set on it.
                             if(self.manager != value.manager):
                                 value.manager = self.manager
+                        elif(len(valuePath) <= len(selfPath) + 1):
+                            #print("found an instance already in the objectTree at the correct location:", value)
+                            #Do nothing, because the branch is already accounted for.
+                            pass
                         else:
                             #add as a duplicate branch
                             #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", value)
