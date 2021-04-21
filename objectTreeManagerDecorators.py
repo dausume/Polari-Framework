@@ -18,6 +18,7 @@ from managedFiles import *
 from managedExecutables import *
 from managedDB import *
 #from managedImages import *
+from polariList import polariList
 from dataChannels import *
 import types, inspect, base64
 
@@ -54,13 +55,15 @@ class managerObject:
             setattr(self, 'subManagers', [])
         if not 'idList' in keywordargs.keys():
             setattr(self, 'idList', [])
+        if not 'branch' in keywordargs.keys():
+            setattr(self, 'branch', self)
         print(self.idList)
         print('Assigning idList to ', self, '.')
         if not 'cloudIdList' in keywordargs.keys():
             setattr(self, 'cloudIdList', [])
         for name in keywordargs.keys():
             #print('In parameters, found attribute ', name, ' with value ', keywordargs[name])
-            if(name=='manager' or name=='id' or name=='objectTree' or name=='managedFiles' or name=='id' or name=='db' or name=='idList' or name=='cloudIdList' or name == 'subManagers' or name == 'polServer'):
+            if(name=='manager' or name=='branch' or name=='id' or name=='objectTree' or name=='managedFiles' or name=='id' or name=='db' or name=='idList' or name=='cloudIdList' or name == 'subManagers' or name == 'polServer'):
                 setattr(self, name, keywordargs[name])
         self.primePolyTyping()
         self.complete = True
@@ -71,8 +74,12 @@ class managerObject:
         
 
     def __setattr__(self, name, value):
-        #if(name == 'polServer'):
-        #    print('Setting polServer attribute on manager to: ', value)
+        if(type(value).__name__ == 'list'):
+            print("converting from list with value ", value, " to a polariList.")
+            #Instead of initializing a polariList, we try to just cast the list to be type polariList.
+            value = polariList(value)
+            value.jumpstart(treeObjInstance=self)
+            print("Set list value to be polariList: ", value)
         if(name == 'manager'):
             #TODO Write functionality to connect with a parent tree when/if manager is assigned.
             super(managerObject, self).__setattr__(name, value)
@@ -84,6 +91,7 @@ class managerObject:
             super(managerObject, self).__setattr__(name, value)
             return
         polyObj = self.getObjectTyping(self.__class__)
+        selfTuple = self.getInstanceTuple(instance=self)
         #In polyObj 'polyObj.className' potential references exist for this object.
         #Here, we get each variable that is a reference or a list of references to a
         #particular type of object.
@@ -105,7 +113,7 @@ class managerObject:
                     managerPolyTyping.addToObjReferenceDict(referencedClassObj=value.__class__, referenceVarName=name)
                 ids = self.getInstanceIdentifiers(value)
                 valuePath = self.getTuplePathInObjTree(instanceTuple=tuple([newpolyObj.className, ids, value]))
-                if(valuePath == []):
+                if(valuePath == [selfTuple]):
                     #print("found an instance already in the objectTree at the correct location:", value)
                     #Do nothing, because the branch is already accounted for.
                     pass
@@ -113,16 +121,31 @@ class managerObject:
                     #add the new Branch
                     print("Creating branch on manager for instance on variable ", name, " for instance: ", value)
                     newBranch = tuple([newpolyObj.className, ids, value])
-                    self.addNewBranch(traversalList=[], branchTuple=newBranch)
+                    self.addNewBranch(traversalList=[selfTuple], branchTuple=newBranch)
+                    #Make sure the new branch has the current manager and the base as it's origin branch set on it.
+                    if(self != value.branch):
+                        value.branch = self
+                    if(self != value.manager):
+                        value.manager = self
                 else:
                     #add as a duplicate branch
                     #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", value)
                     duplicateBranchTuple = tuple([newpolyObj.className, ids, tuple(valuePath)])
-                    self.replaceOriginalTuple(self, originalPath=valuePath, newPath=[duplicateBranchTuple], newTuple=duplicateBranchTuple)
-        elif(type(value) == list):
-            print("Accounting for setting elements in list on variable \'", name, "\' on the manager object.")
+                    self.replaceOriginalTuple(self, originalPath=valuePath, newPath=[selfTuple,duplicateBranchTuple], newTuple=duplicateBranchTuple)
+                    #Make sure the new branch has the current manager and the base as it's origin branch set on it.
+                    if(value.branch != self):
+                        value.branch = self
+                    if(self != value.manager):
+                        value.manager = self
+        elif(type(value) == list or type(value).__name__ == "polariList"):
+            print("Accounting for setting elements in list on variable \'", name, "\' on the manager object, with value ", value)
             #Adding a list of objects
             for inst in value:
+                print("accounting for instance in list on manager with value: ", inst)
+                if(inst.__class__.__name__ in dataTypesPython):
+                    print("Skipped inst as a standard type")
+                    continue
+                print("accounting for instance in list on manager with value: ", inst)
                 accountedObjectType = False
                 accountedVariableType = False
                 if(type(inst).__class__.__name__ in polyObj.objectReferencesDict):
@@ -137,17 +160,27 @@ class managerObject:
                     managerPolyTyping.addToObjReferenceDict(referencedClassObj=inst.__class__, referenceVarName=name)
                 ids = self.getInstanceIdentifiers(inst)
                 instPath = self.getTuplePathInObjTree(instanceTuple=tuple([newpolyObj.className, ids, inst]))
-                if instPath == []:
+                if instPath == [selfTuple]:
                     #print("found an instance already in the objectTree at the correct location:", inst)
                     pass
                 elif instPath == None:
                     print("Creating branch on manager for instance in list on variable ", name, " for instance: ", inst)
                     newBranch = tuple([newpolyObj.className, ids, inst])
-                    self.addNewBranch(traversalList=[], branchTuple=newBranch)
+                    self.addNewBranch(traversalList=[selfTuple], branchTuple=newBranch)
+                    #Make sure the new branch has the current manager and the base as it's origin branch set on it.
+                    if(self != inst.branch):
+                        inst.branch = self
+                    if(self != inst.manager):
+                        inst.manager = self
                 else:
                     #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", inst)
                     duplicateBranchTuple = tuple([newpolyObj.className, ids, tuple(instPath)]) 
-                    self.replaceOriginalTuple(self, originalPath = instPath, newPath=[duplicateBranchTuple], newTuple=duplicateBranchTuple)
+                    self.replaceOriginalTuple(self, originalPath = instPath, newPath=[selfTuple,duplicateBranchTuple], newTuple=duplicateBranchTuple)
+                    #Make sure the new branch has the current manager and the base as it's origin branch set on it.
+                    if(self != inst.branch):
+                        inst.branch = self
+                    if(self != inst.manager):
+                        inst.manager = self
         else:
             #print('Setting attribute to a value: ', value)
             print('Found object: "', value ,'" being assigned to an undeclared reference variable: ', name, 'On object: ', self)
@@ -159,7 +192,7 @@ class managerObject:
             #if(self.identifiersComplete(value)):
             ids = self.getInstanceIdentifiers(value)
             valuePath = self.getTuplePathInObjTree(instanceTuple=tuple([newpolyObj.className, ids, value]))
-            if(valuePath == []):
+            if(valuePath == [selfTuple]):
                 #print("found an instance already in the objectTree at the correct location:", value)
                 #Do nothing, because the branch is already accounted for.
                 pass
@@ -167,12 +200,22 @@ class managerObject:
                 #add the new Branch
                 print("Creating branch on manager for variable ", name," for instance: ", value)
                 newBranch = tuple([newpolyObj.className, ids, value])
-                self.addNewBranch(traversalList=[], branchTuple=newBranch)
+                self.addNewBranch(traversalList=[selfTuple], branchTuple=newBranch)
+                #Make sure the new branch has the current manager and the base as it's origin branch set on it.
+                if(self != value.branch):
+                    value.branch = self
+                if(self != value.manager):
+                    value.manager = self
             else:
                 #add as a duplicate branch
                 #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", value)
                 duplicateBranchTuple = tuple([newpolyObj.className, ids, tuple(valuePath)])
-                self.replaceOriginalTuple(self, originalPath=valuePath, newPath=[duplicateBranchTuple], newTuple=duplicateBranchTuple)
+                self.replaceOriginalTuple(self, originalPath=valuePath, newPath=[selfTuple,duplicateBranchTuple], newTuple=duplicateBranchTuple)
+                #Make sure the new branch has the current manager and the base as it's origin branch set on it.
+                if(self != value.branch):
+                    value.branch = self
+                if(self != value.manager):
+                    value.manager = self
         #print("Finished setting value of ", name, " to be ", value)
         super(managerObject, self).__setattr__(name, value)
 
@@ -196,10 +239,53 @@ class managerObject:
         if className != None:
             print("Attempted to retrieve a polyTypedObject that does not exist \"", className, "\" using it\'s name as a string.  Cannot generate a default polyTypedObject using a passed string, pass either an object instance or the class object \'__class__\' to generate a default polyTypedObject.")
         elif classInstance != None:
-            obj = self.makeDefaultObjectTyping(classInstance=classInstance)
+            if(classInstance.__class__.__name__ == 'polyTypedObject' or classInstance.__class__.__name__ == 'polyTypedVar'):
+                print('Trying to create typing for polyTyping when it should already exist.')
+            else:
+                obj = self.makeDefaultObjectTyping(classInstance=classInstance)
         elif classObj != None:
-            obj = self.makeDefaultObjectTyping(classObj=classObj)
+            if(classObj.__name__ == 'polyTypedObject' or classObj.__name__ == 'polyTypedVar'):
+                print('Trying to create typing for polyTyping when it should already exist.')
+            else:
+                obj = self.makeDefaultObjectTyping(classObj=classObj)
         return obj
+
+    #
+    def getListOfInstancesAtDepth(self, target_depth, depth=0, traversalList=[], source=None):
+        #print("In \'getListOfClassInstances\' branch with traveral list : ", traversalList)
+        if(source==None):
+            source = self
+            print("Source set as: ", self)
+        #else:
+        #    return source.getListOfClassInstances(className=className, traversalList=traversalList, source=source)
+        ids = self.getInstanceIdentifiers(source)
+        #print('Ids of Source: ', ids)
+        #print('Class Name of Source: ', source.__class__.__name__)
+        #print('Current Traversal List: ', traversalList)
+        sourceTuple = tuple([source.__class__.__name__, ids, source])
+        instanceList = []
+        tempList = []
+        if(traversalList != None):
+            branch = self.getBranchNode(traversalList = traversalList)
+            #print('Retrieving Branch for traversal List \"', traversalList, '\" : ', branch)
+            #Handles the case for when we are on a duplicate branch.
+            if(branch == None):
+                instanceList = []
+            else:
+                for branchTuple in branch.keys():
+                    #print('Searching tuple of class: ', branchTuple[0])
+                    if(depth == target_depth):
+                        #print("Found a match for the class ", className, " in the manager object ", self, ", the matched object was ", branchTuple[2])
+                        instanceList.append(branchTuple[2])
+                    #else:
+                        #print("A non-matching object was found, ", branchTuple[2])
+                for branchTuple in branch.keys():
+                    tempList = self.getListOfInstancesAtDepth(target_depth=target_depth, depth=depth+1, traversalList=traversalList+[branchTuple], source=source)
+                    instanceList = instanceList + tempList
+        else:
+            #print('source object does not exist in the object tree of manager object, returning empty list of objects.')
+            instanceList = []
+        return instanceList
 
     #Retrieves the source file for a given PolyTyped object for a given coding language, with the default set as python language.
     def getObjectTypingClassFile(self, className, language='py'):
@@ -272,7 +358,7 @@ class managerObject:
                 print("Called \'makeDefaultObjectTyping\' without passing either a class instance or object for reference, no polyTypedObject could be generated.")
             pass
         except:
-            print('Caught exception for retrieving file, thereby,', classInstance.__class__.__name__ ,' must be a built-in class')
+            print('Caught exception for retrieving file, thereby instance of type', classInstance.__class__.__name__ , ' with a value of ', classInstance,' must be a built-in class')
             isBuiltinClass = True
             pass
         if(isBuiltinClass):
@@ -284,8 +370,10 @@ class managerObject:
             print('Class file name: ', classDefiningFile)
         if(classInstance != None):
             classDefaultTyping = polyTypedObject(manager=self, sourceFiles=sourceFiles, className=classInstance.__class__.__name__, identifierVariables=['id'])
+            #return classDefaultTyping
         elif(classObj != None):
             classDefaultTyping = polyTypedObject(manager=self, sourceFiles=sourceFiles, className=classObj.__name__, identifierVariables=['id'])
+            #return classDefaultTyping
         if(classInstance != None):
             if(classInstance.__class__.__name__ != 'list'):
                 classDefaultTyping.analyzeInstance(classInstance)
@@ -307,7 +395,17 @@ class managerObject:
         return True
 
     def getInstanceIdentifiers(self, instance):
-        obj = self.getObjectTyping(classInstance=instance)
+        isValid = False
+        obj = None
+        for parentObj in instance.__class__.__bases__:
+            #print("Iterated Parent object in getInstanceIdentifiers: ", parentObj.__name__)
+            if(parentObj.__name__ == "treeObject" or parentObj.__name__ == "managerObject" or parentObj.__name__ == "managedFile"):
+                isValid = True
+        #If it is a valid object then we retrieve the object typing, otherwise we let it fail by not defining obj.
+        if(isValid):
+            obj = self.getObjectTyping(classInstance=instance)
+        else:
+            print("Invalid instance value sent to getInstanceIdentifiers: ", instance)
         if(obj == None):
             #print('No object found while getting instance identifiers')
             return None
@@ -335,6 +433,7 @@ class managerObject:
         #print('Path passed in: ', traversalList)
         branch = self.objectTree
         for tup in traversalList:
+            #print("Traversing tuple in path: ", tup)
             branch = branch[tup]
         #print('Branch Found: ', branch)
         return branch
@@ -382,19 +481,33 @@ class managerObject:
         #print('Branch to be searched: ', branch)
         for branchTuple in branch.keys():
             if branchTuple[0] == instanceTuple[0] and branchTuple[1] == instanceTuple[1]:
+                #Case of a dup;icate match, where the path to the original is in the third position.
                 if(type(branchTuple[2]) == tuple):
                     #print('Found tuple match!')
+                    #if(branchTuple[2] != [] and branchTuple[2] != None):
+                    #    print("Returning non-empty path! - ", branchTuple[2])
                     return branchTuple[2]
+                #Case of an exact match.
+                elif(branchTuple[2] == instanceTuple[2]):
+                    #print("Found an exact match in the tree for instance: ", instanceTuple[2])
+                    #if(traversalList != [] and traversalList != None):
+                    #    print("Returning non-empty path! - ", traversalList)
+                    traversalList = traversalList + [branchTuple]
+                    return traversalList
                 #print('Found tuple match!')
                 #print(traversalList)
-                return traversalList
+                #return traversalList
         for branchTuple in branch.keys():
             path = self.getTuplePathInObjTree(traversalList=traversalList+[branchTuple],instanceTuple=instanceTuple)
             if(path != None):
+                #if(path != [] and path != None):
+                #    print("Returning non-empty path! - ", path)
                 return path
         #if(traversalList == []):
         #    print('Tuple not found in tree!')
         #    print(instanceTuple)
+        #if(path != [] and path != None):
+        #    print("Returning non-empty path! - ", path)
         return path
 
     #Access a single object instance as a node, and checks each typingObject to see what variables
@@ -425,7 +538,7 @@ class managerObject:
                         print('trying to get value ', varName, ' from an instance ', curTuple[2], ' in polyObj ', polyObj.className, ' but attribute does not exist on object.')
                     #if(value == None or value == []):
                         #print(varName + ' is an empty variable for object ' + classOfBranch)
-                    if(type(value) == list and not (value == None or value == [])):
+                    if( (type(value) == list or type(value).__name__ == "polariList") and not (value == None or value == [])):
                         #print('Entering variable with list: ' + varName)
                         #Adding a list of objects
                         for inst in value:
@@ -523,11 +636,24 @@ class managerObject:
 
     #Accesses a branch node and adds a sub-branch to it, if the sub-branch does not already exist.
     def addNewBranch(self, traversalList, branchTuple=None, instance=None):
+        #if(len(traversalList) > 2):
+        #    print("Trying to add new branch using traversalList of depth 3!! -> ", traversalList)
         if(instance != None):
             branchTuple = self.getInstanceTuple(instance)
         elif(branchTuple != None):
             instance = branchTuple[2]
+        #Overwrites the traversal list in the case where the branch has already been defined.
+        if(hasattr(instance, "branch")):
+            if(instance.branch != None):
+                parentBranchTuple = self.getInstanceTuple(instance.branch)
+                traversalList = self.getTuplePathInObjTree(instanceTuple=parentBranchTuple)
         branchNode = self.getBranchNode(traversalList)
+        branchingInstance = None
+        try:
+            if(traversalList != []):
+                branchingInstance = traversalList[len(traversalList) - 1]
+        except Exception:
+            print("Error: In addNewBranch function, attempted to add new branch which returned invalid Node caused using invalid traversal list - ", traversalList)
         if(hasattr(instance, "manager")):
             if(instance.manager == self):
                 pass
@@ -536,7 +662,19 @@ class managerObject:
             else:
                 instance.manager = self
                 #TODO write code to delete branch from other manager and copy to this manager.
-        if(branchNode.get(branchTuple) == None):
+        if(hasattr(instance, "branch") and branchingInstance != None):
+            if(instance.branch == traversalList[len(traversalList) - 1]):
+                pass
+            elif(instance.branch == None):
+                instance.branch = traversalList[len(traversalList) - 1]
+        if(traversalList[len(traversalList) - 1] != branchTuple):
+            newTraversalList = traversalList + [branchTuple]
+        if(traversalList == []):
+            #if(type(instance).__name__ == "treeBranchObject"):
+            #    print("Attching treeBranchObject at base of tree?")
+            self.objectTree[branchTuple] = {}
+        elif(branchNode.get(branchTuple) == None):
+            #print("Adding new node in addNewBranch on sub-path's tuple: ", traversalList[len(traversalList) - 1])
             branchNode[branchTuple] = {}
 
     #Accesses a branch node and adds an empty duplicate sub-branch, which contain identifiers and
@@ -580,7 +718,7 @@ class managerObject:
         source_managedExecutable = self.makeFile(name='managedExecutables', extension='py')
         source_polariServer = self.makeFile(name='polariServer', extension='py')
         #polyTyped Object and variable are both defined in the same source file
-        source_polyTypedObjectANDvariables = self.makeFile(name='polyTyping', extension='py')
+        source_polyTypedObject = self.makeFile(name='polyTyping', extension='py')
         source_polyTypedVars = self.makeFile(name='polyTypedVars', extension='py')
         self_module = inspect.getmodule(self.__class__)
         self_fileName = (self_module.__file__)[self_module.__file__.rfind('\\')+1:self_module.__file__.rfind('.')]
@@ -601,7 +739,7 @@ class managerObject:
             polyTypedObject(sourceFiles=[source_managedDatabase], className='managedDatabase', identifierVariables = ['name','Path'], objectReferencesDict={'managedApp':['DB']}, manager=self),
             polyTypedObject(sourceFiles=[source_dataChannel], className='dataChannel', identifierVariables = ['name','Path'], objectReferencesDict={'polariServer':['serverChannel'],'managedApp':['serverChannel','localAppChannel']}, manager=self),
             polyTypedObject(sourceFiles=[source_managedExecutable], className='managedExecutable', identifierVariables = ['name', 'extension','Path'], objectReferencesDict={}, manager=self),
-            polyTypedObject(sourceFiles=[source_polyTypedObjectANDvariables], className='polyTypedObject', identifierVariables = ['className'], objectReferencesDict={self.__class__.__name__:['objectTyping']}, manager=self),
+            polyTypedObject(sourceFiles=[source_polyTypedObject], className='polyTypedObject', identifierVariables = ['className'], objectReferencesDict={self.__class__.__name__:['objectTyping']}, manager=self),
             polyTypedObject(sourceFiles=[source_polariServer], className='polariServer', identifierVariables = ['name', 'id'], objectReferencesDict={}, manager=self)
         ]
         #Goes through the objectTyping list to make sure that the object
@@ -613,6 +751,7 @@ class managerObject:
                 selfIsTyped = True
             if(objTyp.className == 'polyTypedObject'):
                 for typingInst in self.objectTyping:
+                    print("Preparing to analyze instance: ", typingInst)
                     objTyp.analyzeInstance(typingInst)
                 for typingInst in self.objectTyping:
                     for typedVar in typingInst.polyTypedVars:
@@ -634,15 +773,15 @@ class managerObject:
     def makeFile(self, name=None, extension=None, Path = None):
         #print('Entered makefile function')
         if extension in fileExtensions:
-            newFile = managedFile(name=name, extension=extension, Path = Path)
+            newFile = managedFile(name=name, extension=extension, Path = Path, manager=self)
         elif extension in picExtensions:
-            newFile = managedImage(name=name, extension=extension, Path = Path)
+            newFile = managedImage(name=name, extension=extension, Path = Path, manager=self)
         elif extension in dataBaseExtensions:
-            newFile = managedDatabase(name=name, Path = Path)
+            newFile = managedDatabase(name=name, Path = Path, manager=self)
         elif extension in dataCommsExtensions:
-            newFile = dataChannel(name=name, Path = Path)
+            newFile = dataChannel(name=name, Path = Path, manager=self)
         elif extension in executableExtensions:
-            newFile = managedExecutable(name=name, extension=extension, Path = Path)
+            newFile = managedExecutable(name=name, extension=extension, Path = Path, manager=self)
         newFile.openFile()
         (self.managedFiles).append(newFile)
         return newFile

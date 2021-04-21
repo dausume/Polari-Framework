@@ -14,7 +14,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #from functionalityAnalysis import *
 #CANNOT DEFINE as @treeObj on managedFile level, causes recursive imports!!
-#import objectTreeDecorators
+from objectTreeDecorators import treeObject, treeObjectInit
 import logging, os
 #Centralized global variable arrays accounting for the different types of files/file-extensions the system can handle
 #Each individual array accounts for a different type of Object which should be utilized for handling a particular type
@@ -49,8 +49,8 @@ def fileObject(name=None, Path=None, extension=None):
 
 #Allows for handling particular file types, and saving them to a register.
 #plty is the custom file extension of the Polarity System.
-class managedFile:
-    
+class managedFile(treeObject):
+    @treeObjectInit
     def __init__(self, name=None, Path=None, extension=None):
         self.name = name
         self.extension = extension

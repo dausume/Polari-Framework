@@ -9,6 +9,7 @@ class polyTypedVariable(treeObject):
         #The name of the variable in the class
         self.polyTypedObj = polyTypedObj
         self.name = attributeName
+        self.manager = polyTypedObj.manager
         #if(polyTypedObj == 'testObj'):
         #    print('Making testObj on polariServer for variable: ', attributeName)
         #Breaks down a data type into the programming language name of the data type,

@@ -45,7 +45,7 @@ class polyTypedObject(treeObject):
         #Variables that may be used as unique identifiers.
         if(identifierVariables == [] or identifierVariables == ['id']):
             self.identifiers = ['id']
-        elif(type(identifierVariables).__name__ == 'list'):
+        elif(type(identifierVariables).__name__ == 'list' or type(identifierVariables).__name__ == 'polariList'):
             self.identifiers = identifierVariables
         else:
             #This should probably throw an error, but I'll just be nice and autocorrect it to the default if someone messes things up for now.
@@ -61,6 +61,11 @@ class polyTypedObject(treeObject):
     #and ensure that our current variable's name is within the list which is the value owned by that key.
     def addToObjReferenceDict(self, referencedClassObj, referenceVarName):
         foundTyping = False
+        if(referencedClassObj.__name__ == "polyTypedObject"):
+            print("Changing reference dict on polyTyping after init")
+            if(referenceVarName == "polyTypedObj"):
+                print("For some reason trying to put polyTypedObj onto ref dict... not okay.")
+                return
         if(hasattr(self, 'manager')):
             #print('Adding obj ', classObj, ' to object ref dict of ', self.className, ' for variable named: ', varName)
             for objType in self.manager.objectTyping:
@@ -132,8 +137,13 @@ class polyTypedObject(treeObject):
     #Creates typing for the instance by analyzing it's variables and creating
     #default polyTypedVariables for it.
     def analyzeInstance(self, pythonClassInstance):
-        classInfoDict = pythonClassInstance.__dict__
+        try:
+            classInfoDict = pythonClassInstance.__dict__
+        except Exception:
+            print('Invalid value of type ', type(pythonClassInstance).__name__,' in function analyzeInstance for parameter pythonClassInstance: ', pythonClassInstance)
         for someVariableKey in classInfoDict:
+            if(someVariableKey == "polyTypedObj"):
+                print("TRYING TO SET TYPE polyTypedObj in dict.. why?!?")
             if(not callable(classInfoDict[someVariableKey])):
                 #print('accVar: ' + someVariableKey)
                 var = getattr(pythonClassInstance, someVariableKey)
@@ -143,7 +153,9 @@ class polyTypedObject(treeObject):
 
 
     def analyzeVariableValue(self, pythonClassInstance, varName, varVal):
-        #print('Analyzing variable ' + varName + ' in class ' + self.className)
+        print('Analyzing variable ' + varName + ' in class ' + self.className)
+        if(self.polyTypedVars == None):
+            self.polyTypedVars = []
         numAccVars = len(self.polyTypedVars)
         foundVar = False
         for polyVar in self.polyTypedVars:
