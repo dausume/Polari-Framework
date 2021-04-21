@@ -14,11 +14,12 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #from polyTyping import *
 from functools import wraps
+from polariList import polariList
 import types, inspect, base64
 
 standardTypesPython = ['str','int','float','complex','list','tuple','range','dict',
 'set','frozenset','bool','bytes','bytearray','memoryview', 'type', 'NoneType', 'TextIOWrapper']
-ignoredObjectsPython = ['struct_time', 'API']
+ignoredObjectsPython = ['struct_time', 'API', 'polariList']
 ignoredObjectImports = {'falcon':['API'], 'time':['struct_time']}
 dataTypesPython = standardTypesPython + ignoredObjectsPython
 dataTypesJS = ['undefined','Boolean','Number','String','BigInt','Symbol','null','Object','Function']
@@ -70,6 +71,12 @@ class treeObject:
             self.makeUniqueIdentifier()
 
     def __setattr__(self, name, value):
+        if(type(value).__name__ == 'list'):
+            print("converting from list with value ", value, " to a polariList.")
+            #Instead of initializing a polariList, we try to just cast the list to be type polariList.
+            value = polariList(value)
+            value.jumpstart(treeObjInstance=self)
+            print("Set list value to be polariList: ", value)
         #Case where the current branch that self is meant to be placed on has not yet been defined
         #*the branch must be defined BEFORE the manager value is set.
         #After a manager object is assigned, ensure a polyTypedObject exists for the given object self.
@@ -133,7 +140,7 @@ class treeObject:
                 polyObj = self.manager.getObjectTyping(self.__class__)
                 if value == None:
                     pass
-                elif(type(value).__name__ == "list"):
+                elif(type(value).__name__ == "list" or type(value).__name__ == "polariList"):
                     print("Going through list variable assignment for var ", name ," post-init on treeObject using list ", value)
                     #Adding a list of objects
                     for inst in value:
@@ -225,7 +232,7 @@ class treeObject:
                     #print('Setting attribute to a value: ', value)
                     #print('Found object: "', value ,'" being assigned to an undeclared reference variable: ', name, 'On object: ', self)
                     newpolyObj = self.manager.getObjectTyping(value.__class__)
-                    if(type(value) == list):
+                    if(type(value).__name__ == "list" or type(value).__name__ == "polariList"):
                         #Adding a list of objects
                         for inst in value:
                             #print('Adding one object as element in a list variable, ', name ,' to the manager with value: ', inst)
@@ -352,12 +359,12 @@ class treeObject:
                 continue
             someAttr = getattr(self, someAttrKey)
             atrType = type(someAttr).__name__
-            if(atrType in dataTypesPython and atrType != 'list'):
+            if(atrType in dataTypesPython and atrType != 'list' and atrType != 'polariList'):
                 continue
             atrTypeList = []
             #START OF TREE MANAGEMENT FOR TREEOBJECTS IN LISTS
             #If it is a list, get a list of all referenced object types in the list.
-            if(type(someAttr).__name__ == "list"):
+            if(type(someAttr).__name__ == "list" or type(someAttr).__name__ == "polariList"):
                 for someValue in someAttr:
                     #Make sure the type of each treeObject in the list is recorded.
                     if(type(someValue).__name__ in dataTypesPython):

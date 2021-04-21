@@ -18,6 +18,7 @@ from managedFiles import *
 from managedExecutables import *
 from managedDB import *
 #from managedImages import *
+from polariList import polariList
 from dataChannels import *
 import types, inspect, base64
 
@@ -73,6 +74,12 @@ class managerObject:
         
 
     def __setattr__(self, name, value):
+        if(type(value).__name__ == 'list'):
+            print("converting from list with value ", value, " to a polariList.")
+            #Instead of initializing a polariList, we try to just cast the list to be type polariList.
+            value = polariList(value)
+            value.jumpstart(treeObjInstance=self)
+            print("Set list value to be polariList: ", value)
         if(name == 'manager'):
             #TODO Write functionality to connect with a parent tree when/if manager is assigned.
             super(managerObject, self).__setattr__(name, value)
@@ -130,7 +137,7 @@ class managerObject:
                         value.branch = self
                     if(self != value.manager):
                         value.manager = self
-        elif(type(value) == list):
+        elif(type(value) == list or type(value).__name__ == "polariList"):
             print("Accounting for setting elements in list on variable \'", name, "\' on the manager object, with value ", value)
             #Adding a list of objects
             for inst in value:
@@ -531,7 +538,7 @@ class managerObject:
                         print('trying to get value ', varName, ' from an instance ', curTuple[2], ' in polyObj ', polyObj.className, ' but attribute does not exist on object.')
                     #if(value == None or value == []):
                         #print(varName + ' is an empty variable for object ' + classOfBranch)
-                    if(type(value) == list and not (value == None or value == [])):
+                    if( (type(value) == list or type(value).__name__ == "polariList") and not (value == None or value == [])):
                         #print('Entering variable with list: ' + varName)
                         #Adding a list of objects
                         for inst in value:
@@ -744,6 +751,7 @@ class managerObject:
                 selfIsTyped = True
             if(objTyp.className == 'polyTypedObject'):
                 for typingInst in self.objectTyping:
+                    print("Preparing to analyze instance: ", typingInst)
                     objTyp.analyzeInstance(typingInst)
                 for typingInst in self.objectTyping:
                     for typedVar in typingInst.polyTypedVars:

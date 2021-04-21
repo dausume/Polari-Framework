@@ -10,7 +10,7 @@ class testManagerObj(managerObject):
         self.var_int = 1
         self.var_float = 0.1
         self.var_complex = complex(1,1)
-        self.var_list = []
+        #self.var_list = []
         self.var_tuple = ()
         self.var_range = range(0,1)
         self.var_dict = {"key":"value"}
@@ -23,9 +23,11 @@ class testManagerObj(managerObject):
         self.var_type = type('str')
         self.var_NoneType = None
         self.var_TextIOWrapper = open("testDocOne.txt","w+")
+        self.var_TextIOWrapper.close()
         #Create one variable for every ignored object type defined, to ensure they can be set properly.
         self.obj_struct_time = time.localtime(time.time())
         self.obj_API = falcon.API()
+        self.obj_polariList = []
         #Create samples of attaching objects to the manager in both single and list format cases, with initial null and empty 
         self.someObj_initFilled = testTreeObj(manager=self)
         self.objList_initFilled = [testTreeObj(manager=self), testTreeObj(manager=self)]
@@ -44,7 +46,7 @@ class testTreeObj(treeObject):
         self.var_int = 1
         self.var_float = 0.1
         self.var_complex = complex(1,1)
-        self.var_list = []
+        #self.var_list = []
         self.var_tuple = ()
         self.var_range = range(0,1)
         self.var_dict = {"key":"value"}
@@ -57,9 +59,11 @@ class testTreeObj(treeObject):
         self.var_type = type('str')
         self.var_NoneType = None
         self.var_TextIOWrapper = open("testDocOne.txt","w+")
+        self.var_TextIOWrapper.close()
         #Create one variable for every ignored object type defined, to ensure they can be set properly.
         self.obj_struct_time = time.localtime(time.time())
         self.obj_API = falcon.API()
+        self.obj_polariList = []
         #Create samples of attaching objects to the manager in both single and list format cases, with initial null and empty 
         self.someObj_initFilled = testTreeBranchObj(manager=self.manager)
         self.objList_initFilled = [testTreeBranchObj(manager=self.manager), testTreeBranchObj(manager=self.manager)]
@@ -121,19 +125,23 @@ class objectTree_TestCase(unittest.TestCase):
         missingIgnoredObjects = []
         wrongIgnoredTypes = []
         for someType in standardTypesPython:
-            if(hasattr(self.mngObj, 'var_' + someType)):
-                someVar = getattr(self.mngObj, 'var_'+someType)
-                if(type(someVar).__name__ == someType):
-                    pass
+            #Dis-regard list because it is replaced by ignored custom type polariList on manager
+            #and tree objects.
+            if(someType != 'list'):
+                if(hasattr(self.mngObj, 'var_' + someType)):
+                    someVar = getattr(self.mngObj, 'var_'+someType)
+                    if(type(someVar).__name__ == someType):
+                        pass
+                    else:
+                        wrongStandardTypes.append('\"Expected Type: '+ someType + ' in variable var_' + someType + ', Found Type: ' + type(someVar).__name__ + '\"')
                 else:
-                    wrongStandardTypes.append('\"Expected Type: '+ someType + ' in variable var_' + someType + ', Found Type: ' + type(someVar).__name__ + '\"')
-            else:
-                missingStandardTypes.append('\"Expected var_' + someType + ' with a value of type ' + someType +' in manager, but variable did not exist\"')
+                    missingStandardTypes.append('\"Expected var_' + someType + ' with a value of type ' + someType +' in manager, but variable did not exist\"')
         if(len(wrongStandardTypes) != 0):
             print('Wrong Standard Types: ', wrongStandardTypes)
         elif(len(missingStandardTypes) != 0):
             print('Missing Standard Types: ', missingStandardTypes)
         self.assertEqual(len(wrongStandardTypes), 0)
+        #List is going to be missing because it is overwritten by polariList
         self.assertEqual(len(missingStandardTypes), 0)
         
     #Tests that all standard variable types can be set and supported on a tree object.
@@ -143,14 +151,17 @@ class objectTree_TestCase(unittest.TestCase):
         missingIgnoredObjects = []
         wrongIgnoredTypes = []
         for someType in standardTypesPython:
-            if(hasattr(self.mngObj.someObj_initFilled,'var_' + someType)):
-                someVar = getattr(self.mngObj.someObj_initFilled, 'var_'+someType)
-                if(type(someVar).__name__ == someType):
-                    pass
+            #Dis-regard list because it is replaced by ignored custom type polariList on manager
+            #and tree objects.
+            if(someType != 'list'):
+                if(hasattr(self.mngObj.someObj_initFilled,'var_' + someType)):
+                    someVar = getattr(self.mngObj.someObj_initFilled, 'var_'+someType)
+                    if(type(someVar).__name__ == someType):
+                        pass
+                    else:
+                        wrongStandardTypes.append('\"Expected Type: '+ someType + ' in variable var_' + someType + ', Found Type: ' + type(someVar).__name__ + '\"')
                 else:
-                    wrongStandardTypes.append('\"Expected Type: '+ someType + ' in variable var_' + someType + ', Found Type: ' + type(someVar).__name__ + '\"')
-            else:
-                missingStandardTypes.append('\"Expected var_' + someType + ' with a value of type ' + someType +' in the treeObject, but variable did not exist\"')
+                    missingStandardTypes.append('\"Expected var_' + someType + ' with a value of type ' + someType +' in the treeObject, but variable did not exist\"')
         if(len(wrongStandardTypes) != 0):
             print('Wrong Standard Types: ', wrongStandardTypes)
         elif(len(missingStandardTypes) != 0):
@@ -161,15 +172,15 @@ class objectTree_TestCase(unittest.TestCase):
     def test_ignoredObjectsOnManager(self):
         missingIgnoredObjects = []
         wrongIgnoredObjects = []
-        for someType in standardTypesPython:
-            if(hasattr(self.mngObj,'var_' + someType)):
-                someVar = getattr(self.mngObj, 'var_'+someType)
+        for someType in ignoredObjectsPython:
+            if(hasattr(self.mngObj,'obj_' + someType)):
+                someVar = getattr(self.mngObj, 'obj_'+someType)
                 if(type(someVar).__name__ == someType):
                     pass
                 else:
-                    wrongIgnoredObjects.append('\"Expected Type: '+ someType + ' in variable var_' + someType + ', Found Type: ' + type(someVar).__name__ + '\"')
+                    wrongIgnoredObjects.append('\"Expected Type: '+ someType + ' in variable obj_' + someType + ', Found Type: ' + type(someVar).__name__ + '\"')
             else:
-                missingIgnoredObjects.append('\"Expected var_' + someType + ' with a value of type ' + someType +' in the treeObject, but variable did not exist\"')
+                missingIgnoredObjects.append('\"Expected obj_' + someType + ' with a value of type ' + someType +' in the treeObject, but variable did not exist\"')
         if(len(wrongIgnoredObjects) != 0):
             print('Wrong Standard Types: ', wrongIgnoredObjects)
         elif(len(missingIgnoredObjects) != 0):
@@ -180,15 +191,15 @@ class objectTree_TestCase(unittest.TestCase):
     def test_ignoredObjectsOnTreeObject(self):
         missingIgnoredObjects = []
         wrongIgnoredObjects = []
-        for someType in standardTypesPython:
-            if(hasattr(self.mngObj.someObj_initFilled,'var_' + someType)):
-                someVar = getattr(self.mngObj.someObj_initFilled, 'var_'+someType)
+        for someType in ignoredObjectsPython:
+            if(hasattr(self.mngObj.someObj_initFilled,'obj_' + someType)):
+                someVar = getattr(self.mngObj.someObj_initFilled, 'obj_'+someType)
                 if(type(someVar).__name__ == someType):
                     pass
                 else:
-                    wrongIgnoredObjects.append('\"Expected Type: '+ someType + ' in variable var_' + someType + ', Found Type: ' + type(someVar).__name__ + '\"')
+                    wrongIgnoredObjects.append('\"Expected Type: '+ someType + ' in variable obj_' + someType + ', Found Type: ' + type(someVar).__name__ + '\"')
             else:
-                missingIgnoredObjects.append('\"Expected var_' + someType + ' with a value of type ' + someType +' in the treeObject, but variable did not exist\"')
+                missingIgnoredObjects.append('\"Expected obj_' + someType + ' with a value of type ' + someType +' in the treeObject, but variable did not exist\"')
         if(len(wrongIgnoredObjects) != 0):
             print('Wrong Standard Types: ', wrongIgnoredObjects)
         elif(len(missingIgnoredObjects) != 0):

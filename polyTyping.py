@@ -45,7 +45,7 @@ class polyTypedObject(treeObject):
         #Variables that may be used as unique identifiers.
         if(identifierVariables == [] or identifierVariables == ['id']):
             self.identifiers = ['id']
-        elif(type(identifierVariables).__name__ == 'list'):
+        elif(type(identifierVariables).__name__ == 'list' or type(identifierVariables).__name__ == 'polariList'):
             self.identifiers = identifierVariables
         else:
             #This should probably throw an error, but I'll just be nice and autocorrect it to the default if someone messes things up for now.
@@ -153,7 +153,9 @@ class polyTypedObject(treeObject):
 
 
     def analyzeVariableValue(self, pythonClassInstance, varName, varVal):
-        #print('Analyzing variable ' + varName + ' in class ' + self.className)
+        print('Analyzing variable ' + varName + ' in class ' + self.className)
+        if(self.polyTypedVars == None):
+            self.polyTypedVars = []
         numAccVars = len(self.polyTypedVars)
         foundVar = False
         for polyVar in self.polyTypedVars:
