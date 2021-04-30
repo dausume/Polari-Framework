@@ -143,7 +143,8 @@ class polyTypedObject(treeObject):
             print('Invalid value of type ', type(pythonClassInstance).__name__,' in function analyzeInstance for parameter pythonClassInstance: ', pythonClassInstance)
         for someVariableKey in classInfoDict:
             if(someVariableKey == "polyTypedObj"):
-                print("TRYING TO SET TYPE polyTypedObj in dict.. why?!?")
+                #print("TRYING TO SET TYPE polyTypedObj in dict.. why?!?")
+                continue
             if(not callable(classInfoDict[someVariableKey])):
                 #print('accVar: ' + someVariableKey)
                 var = getattr(pythonClassInstance, someVariableKey)
@@ -153,7 +154,7 @@ class polyTypedObject(treeObject):
 
 
     def analyzeVariableValue(self, pythonClassInstance, varName, varVal):
-        print('Analyzing variable ' + varName + ' in class ' + self.className)
+        #print('Analyzing variable ' + varName + ' in class ' + self.className)
         if(self.polyTypedVars == None):
             self.polyTypedVars = []
         numAccVars = len(self.polyTypedVars)

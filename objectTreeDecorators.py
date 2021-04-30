@@ -14,17 +14,9 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #from polyTyping import *
 from functools import wraps
-from polariList import polariList
+from polariList import *
 import types, inspect, base64
 
-standardTypesPython = ['str','int','float','complex','list','tuple','range','dict',
-'set','frozenset','bool','bytes','bytearray','memoryview', 'type', 'NoneType', 'TextIOWrapper']
-ignoredObjectsPython = ['struct_time', 'API', 'polariList']
-ignoredObjectImports = {'falcon':['API'], 'time':['struct_time']}
-dataTypesPython = standardTypesPython + ignoredObjectsPython
-dataTypesJS = ['undefined','Boolean','Number','String','BigInt','Symbol','null','Object','Function']
-dataTypesJSON = ['String','Number','Object','Array','Boolean','null']
-dataAffinitiesSqlite = ['NONE','INTEGER','REAL','TEXT','NUMERIC']
 
 def treeObjectInit(init):
     #Note: For objects instantiated using this Decorator, MUST USER KEYWORD ARGUMENTS NOT POSITIONAL, EX: (manager=mngObj, id='base64Id')
@@ -72,11 +64,11 @@ class treeObject:
 
     def __setattr__(self, name, value):
         if(type(value).__name__ == 'list'):
-            print("converting from list with value ", value, " to a polariList.")
+            #print("converting from list with value ", value, " to a polariList.")
             #Instead of initializing a polariList, we try to just cast the list to be type polariList.
             value = polariList(value)
-            value.jumpstart(treeObjInstance=self)
-            print("Set list value to be polariList: ", value)
+            value.jumpstart(treeObjInstance=self, varName=name)
+            #print("Set list value to be polariList: ", value)
         #Case where the current branch that self is meant to be placed on has not yet been defined
         #*the branch must be defined BEFORE the manager value is set.
         #After a manager object is assigned, ensure a polyTypedObject exists for the given object self.
@@ -129,19 +121,19 @@ class treeObject:
             super(treeObject, self).__setattr__(name, value)
             return
         if(self.manager != None and self.branch != None):
-            print("Setting non-standard value on treeObject after manager is set and branch is set.")
+            #print("Setting non-standard value on treeObject after manager is set and branch is set.")
             selfPolyObj = self.manager.getObjectTyping(self.__class__)
             selfIds = self.manager.getInstanceIdentifiers(value)
             selfTuple = self.manager.getInstanceTuple(self)
             selfPath = self.manager.getTuplePathInObjTree(instanceTuple=selfTuple)
             #Handles the case where the current treeObject already exists in the current manager's Tree.
             if(selfPath != None):
-                print("Found appropriate path for treeObject")
+                #print("Found appropriate path for treeObject")
                 polyObj = self.manager.getObjectTyping(self.__class__)
                 if value == None:
                     pass
                 elif(type(value).__name__ == "list" or type(value).__name__ == "polariList"):
-                    print("Going through list variable assignment for var ", name ," post-init on treeObject using list ", value)
+                    #print("Going through list variable assignment for var ", name ," post-init on treeObject using list ", value)
                     #Adding a list of objects
                     for inst in value:
                         accountedObjectType = False

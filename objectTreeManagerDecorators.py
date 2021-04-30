@@ -75,11 +75,11 @@ class managerObject:
 
     def __setattr__(self, name, value):
         if(type(value).__name__ == 'list'):
-            print("converting from list with value ", value, " to a polariList.")
+            #print("converting from list with value ", value, " to a polariList.")
             #Instead of initializing a polariList, we try to just cast the list to be type polariList.
             value = polariList(value)
-            value.jumpstart(treeObjInstance=self)
-            print("Set list value to be polariList: ", value)
+            value.jumpstart(treeObjInstance=self, varName=name)
+            #print("Set list value to be polariList: ", value)
         if(name == 'manager'):
             #TODO Write functionality to connect with a parent tree when/if manager is assigned.
             super(managerObject, self).__setattr__(name, value)
