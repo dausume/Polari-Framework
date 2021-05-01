@@ -4,7 +4,7 @@ import unittest, logging, os, time, falcon
 
 class testManagerObj(managerObject):
     @managerObjectInit
-    def __init__(self):
+    def __init__(self, testVar=None):
         #Create one variable for every standard dataType in python, to test and ensure each of them can be set properly.
         self.var_str = ''
         self.var_int = 1

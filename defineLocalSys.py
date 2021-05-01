@@ -56,7 +56,8 @@ class isoSys(treeObject):
         #Memory Information about the main system
         self.numPhysicalCPUs = psutil.cpu_count(False)
         self.numLogicalCPUs = psutil.cpu_count(True)
-        self.perCPUfreqInMegaHertz = psutil.cpu_freq(percpu=True)
+        #THE FOLLOWING LINE CAUSED AN ERROR OF INVALID TYPE - WAS DEPRICATED?
+        #self.perCPUfreqInMegaHertz = psutil.cpu_freq(percpu=True)
         mainMemoryInfo = psutil.virtual_memory() #Fetches Memory Information from the base system functionality
         timeStamp = str(datetime.now())
         self.totalMainMemoryInBytes = mainMemoryInfo[0]

@@ -17,6 +17,8 @@ from objectTreeDecorators import *
 from dataStreams import *
 from dataChannels import *
 from managedFiles import *
+from polariCORS import polariCORS
+from polariCRUD import polariCRUD
 import falcon
 import subprocess
 
@@ -24,7 +26,7 @@ import subprocess
 #which handles that responsibility instead.  The Server can indicate certain polyTypedObjects & dataChannels as 
 class polariServer(treeObject):
     @treeObjectInit
-    def __init__(self, name, displayName, hostSystem, serverChannel=None, serverDataStream=None):
+    def __init__(self, name="NEW_SERVER", displayName="NEW_POLARI_SERVER", hostSystem=None, serverChannel=None, serverDataStream=None):
         self.name = name
         self.displayName = displayName
         self.apiServer = falcon.API()
@@ -53,7 +55,7 @@ class polariServer(treeObject):
         idStr = idStr[:len(idStr)-3]
         templateURI = '/manager-' + type(self.manager).__name__ + '_' + idStr + '_/channel/' + self.serverChannel.name
         #print('Template URI: ', templateURI)
-        self.apiServer.add_route(uri_template = templateURI, resource= polariCRUD(self.serverChannel) )
+        self.apiServer.add_route(uri_template = templateURI, resource= polariCRUD(self.serverChannel, manager=self.manager) )
         self.uriList = [templateURI]
         #The systems that maintain a secure local connection to this system/server and are used
         #for data processing by it, but do not have their own servers.
@@ -67,8 +69,6 @@ class polariServer(treeObject):
         self.apps = []
         #A list of data streams / pipelines where the server is constantly sending data to endpoints according to the object's specified conditions.
         self.streams = []
-        #Sets the exact system that is the primary host of this server.
-        self.setHostSystem(hostSystem)
 
     def startupPolariServer(self):
         self.serverChannel.makeChannel()
@@ -89,16 +89,8 @@ class polariServer(treeObject):
         while( (now[4] - self.lastCycleTime[4]) < self.timeout):
             now = time.localtime()
 
-    def setHostSystem(self, hostSystemObject=None):
-        if(hostSystemObject == None):
-            self.hostSystem = isoSys()
-        else:
-            self.hostSystem = hostSystemObject
-
     def setMainServerChannel(self):
         self.mainServerChannel
-
-    #THE FOLLOWING FUNCTIONS ARE USED ONLY WHEN SETTING UP A CUSTOM NODE.JS SERVER
 
     def setupNodeServer(self):
         #Sets up the corresponding javaScript file which defines the server for node.js
@@ -136,101 +128,3 @@ class polariServer(treeObject):
         serverProcess.terminate()
         serverProcess.wait(timeout=0.2)
         output = subprocess.check_output()
-
-#Defines the Create, Read, Update, and Delete Operations for a particular api endpoint designated for a particular dataChannel or polyTypedObject Instance.
-class polariCRUD(treeObject):
-    
-    def __init__(self, apiObject):
-        #The polyTypedObject or dataChannel Instance
-        self.apiObject = apiObject
-        #Records whether the object is a 'polyTypedObject' or a 'dataChannel'
-        self.objType = type(apiObject).__name__
-        #Defines whether or not the object's home is not accessable on this server and thus must have a re-direct performed to complete the action.
-        self.isRemote = self.apiObject.isRemote
-        #Ensures the polariCRUD object has a manager that is the same as the manager of it's apiObject.
-        self.manager = (self.apiObject).manager
-
-    #Read in CRUD
-    async def on_get(self, request, response):
-        #Get the authorization data, user data, and potential url parameters, which are both commonly relevant to both cases.
-        authSession = request.auth
-        authUser = request.context.user
-        urlParameters = request.query_string
-        if(self.objType == 'polyTypedObject'):
-            allVars = self.apiObject.polyTypedVars
-        elif(self.objType == 'dataChannel'):
-            allObjects = self.apiObject
-
-    async def on_get_collection(self, request, response):
-        pass
-
-    #Update in CRUD
-    async def on_put(self, request, response):
-        authSession = request.auth
-        authUser = request.context.user
-        urlParameters = request.query_string
-        #if(self.objType == 'polyTypedObject'):
-            #
-        #elif(self.objType == 'dataChannel'):
-            #
-
-    async def on_put_collection(self, request, response):
-        pass
-
-    #Create in CRUD
-    async def on_post(self, request, response):
-        authSession = request.auth
-        authUser = request.context.user
-        urlParameters = request.query_string
-        #if(self.objType == 'polyTypedObject'):
-            #
-        #elif(self.objType == 'dataChannel'):
-            #
-
-    async def on_post_collection(self, request, response):
-        pass
-
-    #Delete in CRUD
-    async def on_delete(self, request, response):
-        authSession = request.auth
-        authUser = request.context.user
-        urlParameters = request.query_string
-        #if(self.objType == 'polyTypedObject'):
-            #
-        #elif(self.objType == 'dataChannel'):
-            #
-
-    async def on_delete_collection(self, request, response):
-        pass
-
-    #
-    def onChannelValidation(apiType):
-        #Does the Channel allow for the particular CRUD action to be performed?
-        self.apiObject
-    #
-    def onObjectValidation(apiType):
-        #Does the user have 
-        self.apiObject
-
-#Defines a class used for basic Cross-origin-resource-sharing (basis taken from sample code on https://falcon.readthedocs.io/en/latest/user/faq.html#faq)
-#This allows for the given server to access an API hosted under a different domain name.
-class polariCORS:
-    def process_response(self, req, resp, resource, req_succeeded):
-        resp.set_header('Access-Control-Allow-Origin', '*')
-        if (req_succeeded
-            and req.method == 'OPTIONS'
-            and req.get_header('Access-Control-Request-Method')
-        ):
-            # NOTE(kgriffs): This is a CORS preflight request. Patch the
-            #   response accordingly.
-            allow = resp.get_header('Allow')
-            resp.delete_header('Allow')
-            allow_headers = req.get_header(
-                'Access-Control-Request-Headers',
-                default='*'
-            )
-            resp.set_headers((
-                ('Access-Control-Allow-Methods', allow),
-                ('Access-Control-Allow-Headers', allow_headers),
-                ('Access-Control-Max-Age', '86400'),  # 24 hours
-            ))

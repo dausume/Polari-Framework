@@ -16,7 +16,9 @@ from functools import wraps
 from polyTyping import * 
 from managedFiles import *
 from managedExecutables import *
+from defineLocalSys import isoSys
 from managedDB import *
+from polariServer import polariServer
 #from managedImages import *
 from polariList import polariList
 from dataChannels import *
@@ -27,7 +29,12 @@ def managerObjectInit(init):
     @wraps(init)
     def new_init(self, *args, **keywordargs):
         managerObject.__init__(self, *args, **keywordargs)
-        new_init = init(self, *args, **keywordargs)
+        initSig = inspect.signature(self.__init__)
+        passableKeywargs = {}
+        for param in initSig.parameters:
+            if param in keywordargs:
+                passableKeywargs[param] = keywordargs[param]
+        new_init = init(self, *args, **passableKeywargs)
     return new_init
 
 #Defines a Decorator @managerObject, which allocates all variables and functions necessary for
@@ -38,6 +45,12 @@ class managerObject:
         self.complete = False
         if not 'manager' in keywordargs.keys():
             setattr(self, 'manager', None)
+        if not 'hostSys' in keywordargs.keys():
+            setattr(self, 'hostSys', None)
+        if not 'hasServer' in keywordargs.keys():
+            setattr(self, 'hasServer', False)
+        if not 'hasDB' in keywordargs.keys():
+            setattr(self, 'hasDB', False)
         if not 'objectTyping' in keywordargs.keys():
             setattr(self, 'objectTyping', [])
         if not 'objectTree' in keywordargs.keys():
@@ -63,7 +76,7 @@ class managerObject:
             setattr(self, 'cloudIdList', [])
         for name in keywordargs.keys():
             #print('In parameters, found attribute ', name, ' with value ', keywordargs[name])
-            if(name=='manager' or name=='branch' or name=='id' or name=='objectTree' or name=='managedFiles' or name=='id' or name=='db' or name=='idList' or name=='cloudIdList' or name == 'subManagers' or name == 'polServer'):
+            if(name=='manager' or name=='branch' or name=='id' or name=='objectTree' or name=='managedFiles' or name=='id' or name=='db' or name=='idList' or name=='cloudIdList' or name == 'subManagers' or name == 'polServer' or name == 'hasServer' or name == 'hostSys'):
                 setattr(self, name, keywordargs[name])
         self.primePolyTyping()
         self.complete = True
@@ -71,6 +84,12 @@ class managerObject:
         self.makeObjectTree()
         if(self.id == None):
             self.makeUniqueIdentifier()
+        if(self.hostSys == None):
+            self.hostSys = isoSys(name="newLocalSys")
+        if(self.hasServer):
+            self.polServer = polariServer(hostSystem=self.hostSys, manager=self)
+        if(self.hasDB):
+            self.db
         
 
     def __setattr__(self, name, value):
