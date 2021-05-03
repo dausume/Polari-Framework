@@ -55,7 +55,8 @@ class polariServer(treeObject):
         idStr = idStr[:len(idStr)-3]
         templateURI = '/manager-' + type(self.manager).__name__ + '_' + idStr + '_/channel/' + self.serverChannel.name
         #print('Template URI: ', templateURI)
-        self.apiServer.add_route(uri_template = templateURI, resource= polariCRUD(self.serverChannel, manager=self.manager) )
+        self.crudObjectsList = [polariCRUD(self.serverChannel, manager=self.manager)]
+        self.apiServer.add_route(uri_template = templateURI, resource= self.crudObjectsList[0] )
         self.uriList = [templateURI]
         #The systems that maintain a secure local connection to this system/server and are used
         #for data processing by it, but do not have their own servers.

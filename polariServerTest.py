@@ -56,7 +56,7 @@ class polariServer_TestCase(unittest.TestCase):
         serversList = self.mngObj.getListOfClassInstances(className="polariServer")
         print("List of server objects in manager's tree: ", serversList)
         crudObjectList = self.mngObj.getListOfClassInstances(className="polariCRUD")
-        print("List of CRUD objects in manager's tree: ", serversList)
+        print("List of CRUD objects in manager's tree: ", crudObjectList)
 
 
 if(__name__=='__main__'):

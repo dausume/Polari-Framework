@@ -1,4 +1,5 @@
 from objectTreeDecorators import *
+from polariPermissionSet import polariPermissionSet
 
 #Defines the Create, Read, Update, and Delete Operations for a particular api endpoint designated for a particular dataChannel or polyTypedObject Instance.
 class polariCRUD(treeObject):
@@ -6,6 +7,9 @@ class polariCRUD(treeObject):
     def __init__(self, apiObject):
         #The polyTypedObject or dataChannel Instance
         self.apiObject = apiObject
+        #Set default or public permissions for the object.  These can be added on to by individual
+        #or group permissions granted to users.
+        self.publicPermissions = None
         #Records whether the object is a 'polyTypedObject' or a 'dataChannel'
         self.objType = type(apiObject).__name__
         #Defines whether or not the object's home is not accessable on this server and thus must have a re-direct performed to complete the action.
