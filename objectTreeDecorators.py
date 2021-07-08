@@ -206,7 +206,7 @@ class treeObject:
                             #TODO make a function that swaps any branching on the original tuple to be on the new location.
                 #Handles the case where a single variable is being set.
                 else:
-                    print("Going through single variable assignment for var ", name ," post-init on treeObject using value ", value)
+                    #print("Going through single variable assignment for var ", name ," post-init on treeObject using value ", value)
                     accountedObjectType = False
                     accountedVariableType = False
                     if(type(value).__class__.__name__ in polyObj.objectReferencesDict):

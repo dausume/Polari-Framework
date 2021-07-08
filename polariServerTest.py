@@ -57,7 +57,11 @@ class polariServer_TestCase(unittest.TestCase):
         print("List of server objects in manager's tree: ", serversList)
         crudObjectList = self.mngObj.getListOfClassInstances(className="polariCRUD")
         print("List of CRUD objects in manager's tree: ", crudObjectList)
+        customApiObjectsList = self.mngObj.getListOfClassInstances(className="polariAPI")
+        print("List of custom API objects in manager's tree: ", customApiObjectsList)
 
+    def test_pingBaseAPIs(self):
+        print('Pinging the Falcon APIs...')
 
 if(__name__=='__main__'):
     unittest.main()

@@ -1,6 +1,7 @@
 *.json
 *.pyc
 */falcon
+*__pycache__
 testDoc.txt
 testDocOne.txt
 testDocTwo.txt

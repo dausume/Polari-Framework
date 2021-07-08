@@ -18,6 +18,7 @@ from managedExecutables import managedExecutable
 from dataChannels import *
 from managedApp import *
 from defineLocalSys import isoSys
+from polariUser import User
 import platform
 
 #An auto-named instance of a User's Interfacing and their saved info on pages navigated through with a given application.
@@ -101,27 +102,7 @@ class pageInstance():
         #Assign the variable
     #    super(Point, self).__setattr__(key, value)
 
-class User():
-    def __init__(self, username=None):
-        #The Username this user leverages
-        self.username = username
-        #A Dictionary indicating the user's allowed operations on any given class
-        #that they have access to. (This does not affect implicit CRUD access through
-        #pages that enable implicit CRUD operations - by allowing user access to the
-        #page, they indicate that user should be able to perform certain operations)
-        self.classDictCRUD = {}
-        #
-        self.appAccess = []
-        self.pageAccess = []
-        self.customizedPages = []
-        self.identifier = None
-        #The Password this user chooses for accessing their account.
-        self.password = None
-        #Access Keys this User was given, which grant specific access privilages for different Applications or Polari.
-        self.accessKeys = []
-        #Interfacing Instances this User has for different applications.
-        self.UIsInDB = []
-        self.UIsActive = []
+
 
     #def __setattr__(self, key, value):
         #Throw event indicating that the variable was changed

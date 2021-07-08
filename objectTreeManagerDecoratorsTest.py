@@ -101,22 +101,22 @@ class objectTree_TestCase(unittest.TestCase):
 
     def tearDown(self):
         self.mngObj.var_TextIOWrapper.close()
-        print(self.mngObj.objectTree)
+        #print(self.mngObj.objectTree)
         #print('----- List of PolyTyped Objects -----')
         #print(self.mngObj.getListOfClassInstances(className='polyTypedObject'))
-        print('----- List of Test Manager Objects ------')
-        print(self.mngObj.getListOfClassInstances(className='testManagerObj'))
-        print('----- List of Test Tree Objects ------')
-        print(self.mngObj.getListOfClassInstances(className='testTreeObj'))
-        print('----- List of Test Tree Branch Objects ------')
-        print(self.mngObj.getListOfClassInstances(className='testTreeBranchObj'))
-        print('----- List of Objects at Depth 0 in Tree ------')
-        print(self.mngObj.getListOfInstancesAtDepth(target_depth=0))
-        print('----- List of Objects at Depth 1 in Tree ------')
-        print(self.mngObj.getListOfInstancesAtDepth(target_depth=1))
-        print('----- List of Objects at Depth 2 in Tree ------')
-        print(self.mngObj.getListOfInstancesAtDepth(target_depth=2))
-        print('Tearing down at the end of the object tree test case.')
+        #print('----- List of Test Manager Objects ------')
+        #print(self.mngObj.getListOfClassInstances(className='testManagerObj'))
+        #print('----- List of Test Tree Objects ------')
+        #print(self.mngObj.getListOfClassInstances(className='testTreeObj'))
+        #print('----- List of Test Tree Branch Objects ------')
+        #print(self.mngObj.getListOfClassInstances(className='testTreeBranchObj'))
+        #print('----- List of Objects at Depth 0 in Tree ------')
+        #print(self.mngObj.getListOfInstancesAtDepth(target_depth=0))
+        #print('----- List of Objects at Depth 1 in Tree ------')
+        #print(self.mngObj.getListOfInstancesAtDepth(target_depth=1))
+        #print('----- List of Objects at Depth 2 in Tree ------')
+        #print(self.mngObj.getListOfInstancesAtDepth(target_depth=2))
+        #print('Tearing down at the end of the object tree test case.')
 
     #Tests that all standard variable types can be set and supported on a manager object.
     def test_allStandardTypesOnManager(self):
@@ -309,7 +309,20 @@ class objectTree_TestCase(unittest.TestCase):
         self.assertIsNotNone(listTreeObjOnePath, msg="The first tree object set on a list var on a tree object at it's initiation should be in the object tree.")
         self.assertIsNotNone(listTreeObjTwoPath, msg="The second tree object set on a list var on a tree object at it's initiation should be in the object tree.")
 
-        
+    def test_objectToJsonConversionTest(self):
+        print("Starting jsonConversion Test.")
+        threwError = False
+        testJsonResult = {}
+        try:
+            testJsonResult = self.mngObj.getJSONdictForClass(passedInstances=[self.mngObj])
+        except Exception as err:
+            print("Threw error while trying to fetch json for manager object.")
+            print("Error : ", err)
+            threwError = True
+        print("testJsonResult", testJsonResult)
+        self.assertFalse(threwError, msg="Error Thrown while trying to get test-json result of manager object.")
+        self.assertNotEqual(testJsonResult, {}, msg="Recieved empty json back as result.")
+
 if(__name__=='__main__'):
     unittest.main()
-    print('Finished Run')
+    print('-- Finished Generalized Manager Object Test Cases --')

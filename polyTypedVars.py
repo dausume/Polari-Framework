@@ -34,14 +34,14 @@ class polyTypedVariable(treeObject):
                 if(obj.checkIfManagerObject()):
                     #Confirms the object being set is a manager object.
                     obj.addToObjReferenceDict(referencedClassObj=attributeValue.__class__, referenceVarName=self.name)
-                    print("ADDING to REFERENCE DICTIONARY FROM polyTypedVar initialization on object ", self.polyTypedObj, " for variable ", self.name)
+                    #print("ADDING to REFERENCE DICTIONARY FROM polyTypedVar initialization on object ", self.polyTypedObj, " for variable ", self.name)
                 else:
                     print("Found attempt to set non-manager object value on manager.")
             else:
                 if(obj.checkIfManagerObject() or obj.checkIfTreeObject()):
                     #Confirms
                     obj.addToObjReferenceDict(referencedClassObj=attributeValue.__class__, referenceVarName=self.name)
-                    print("ADDING to REFERENCE DICTIONARY FROM polyTypedVar initialization on object ", self.polyTypedObj, " for variable ", self.name)
+                    #print("ADDING to REFERENCE DICTIONARY FROM polyTypedVar initialization on object ", self.polyTypedObj, " for variable ", self.name)
                     if(obj.checkIfManagerObject()):
                         #TODO Make functionality to connect a subordinate tree here.
                         pass

@@ -12,7 +12,7 @@ class polariList(list):
         if(type(value).__name__ in dataTypesPython and type(value) != list and type(value).__name__ !="polariList"):
             super().append(value)
             return
-        print("Appending to list on object instance ", self.treeObjInstance, " for variable ", self.varName, " with value ", value)
+        #print("Appending to list on object instance ", self.treeObjInstance, " for variable ", self.varName, " with value ", value)
         for parentClass in self.treeObjInstance.__class__.__bases__:
             typeName = parentClass.__name__
             isManager = False
@@ -37,10 +37,10 @@ class polariList(list):
                     accountedVariableType = False
                     if(type(value).__class__.__name__ in polyObj.objectReferencesDict):
                         accountedObjectType = True
-                        print("Class type ", type(value).__class__.__name__, " accounted for in object typing for ", self.treeObjInstance.__class__.__name__)
+                        #print("Class type ", type(value).__class__.__name__, " accounted for in object typing for ", self.treeObjInstance.__class__.__name__)
                         if(polyObj.objectReferencesDict[type(value).__class__.__name__]):
                             accountedVariableType = True
-                            print("Accounted for class type ", value, " as sole value in variable ", self.varName)
+                            #print("Accounted for class type ", value, " as sole value in variable ", self.varName)
                     newpolyObj = self.treeObjInstance.getObjectTyping(classObj=value.__class__)
                     managerPolyTyping = self.treeObjInstance.getObjectTyping(self.treeObjInstance.__class__)
                     if(not accountedVariableType):
@@ -53,7 +53,7 @@ class polariList(list):
                         pass
                     elif(valuePath == None):
                         #add the new Branch
-                        print("Creating branch on manager for instance on variable ", self.varName, " for instance: ", value)
+                        #print("Creating branch on manager for instance on variable ", self.varName, " for instance: ", value)
                         newBranch = tuple([newpolyObj.className, ids, value])
                         self.treeObjInstance.addNewBranch(traversalList=[selfTuple], branchTuple=newBranch)
                         #Make sure the new branch has the current manager and the base as it's origin branch set on it.
@@ -72,22 +72,22 @@ class polariList(list):
                         if(self.treeObjInstance != value.manager):
                             value.manager = self.treeObjInstance
             elif(type(value) == list or type(value).__name__ == "polariList"):
-                print("Accounting for setting elements in list on variable \'", self.varName, "\' on the manager object, with value ", value)
+                #print("Accounting for setting elements in list on variable \'", self.varName, "\' on the manager object, with value ", value)
                 #Adding a list of objects
                 for inst in value:
-                    print("accounting for instance in list on manager with value: ", inst)
+                    #print("accounting for instance in list on manager with value: ", inst)
                     if(inst.__class__.__name__ in dataTypesPython):
-                        print("Skipped inst as a standard type")
+                        #print("Skipped inst as a standard type")
                         continue
-                    print("accounting for instance in list on manager with value: ", inst)
+                    #print("accounting for instance in list on manager with value: ", inst)
                     accountedObjectType = False
                     accountedVariableType = False
                     if(type(inst).__class__.__name__ in polyObj.objectReferencesDict):
                         accountedObjectType = True
-                        print("Class type ", type(inst).__class__.__name__, " accounted for in object typing for ", self.treeObjInstance.__class__.__name__)
+                        #print("Class type ", type(inst).__class__.__name__, " accounted for in object typing for ", self.treeObjInstance.__class__.__name__)
                         if(polyObj.objectReferencesDict[type(inst).__class__.__name__]):
                             accountedVariableType = True
-                            print("Accounted for class type ", inst, " as sole value in variable ", self.varName)
+                            #print("Accounted for class type ", inst, " as sole value in variable ", self.varName)
                     newpolyObj = self.treeObjInstance.getObjectTyping(classObj=inst.__class__)
                     managerPolyTyping = self.treeObjInstance.getObjectTyping(self.treeObjInstance.__class__)
                     if(not accountedVariableType):
@@ -98,7 +98,7 @@ class polariList(list):
                         #print("found an instance already in the objectTree at the correct location:", inst)
                         pass
                     elif instPath == None:
-                        print("Creating branch on manager for instance in list on variable ", self.varName, " for instance: ", inst)
+                        #print("Creating branch on manager for instance in list on variable ", self.varName, " for instance: ", inst)
                         newBranch = tuple([newpolyObj.className, ids, inst])
                         self.treeObjInstance.addNewBranch(traversalList=[selfTuple], branchTuple=newBranch)
                         #Make sure the new branch has the current manager and the base as it's origin branch set on it.
@@ -117,11 +117,11 @@ class polariList(list):
                             inst.manager = self.treeObjInstance
             else:
                 #print('Setting attribute to a value: ', value)
-                print('Found object: "', value ,'" being assigned to an undeclared reference variable: ', self.varName, 'On object: ', self.treeObjInstance)
+                #print('Found object: "', value ,'" being assigned to an undeclared reference variable: ', self.varName, 'On object: ', self.treeObjInstance)
                 newpolyObj = self.treeObjInstance.getObjectTyping(classObj=value.__class__)
                 managerPolyTyping = self.treeObjInstance.getObjectTyping(self.treeObjInstance.__class__)
                 managerPolyTyping.addToObjReferenceDict(referencedClassObj=value.__class__, referenceVarName=self.varName)
-                print('Setting attribute on manager using a new polyTyping: ', newpolyObj.className, '; and set manager\'s new reference dict: ', managerPolyTyping.objectReferencesDict)
+                #print('Setting attribute on manager using a new polyTyping: ', newpolyObj.className, '; and set manager\'s new reference dict: ', managerPolyTyping.objectReferencesDict)
                 print(newpolyObj.className, 'object placed on manager ', self.treeObjInstance,' it\'s referenceDict after allocation is: ', newpolyObj.objectReferencesDict)
                 #if(self.identifiersComplete(value)):
                 ids = self.treeObjInstance.getInstanceIdentifiers(value)
@@ -132,7 +132,7 @@ class polariList(list):
                     pass
                 elif(valuePath == None):
                     #add the new Branch
-                    print("Creating branch on manager for variable ", self.varName," for instance: ", value)
+                    #print("Creating branch on manager for variable ", self.varName," for instance: ", value)
                     newBranch = tuple([newpolyObj.className, ids, value])
                     self.treeObjInstance.addNewBranch(traversalList=[selfTuple], branchTuple=newBranch)
                     #Make sure the new branch has the current manager and the base as it's origin branch set on it.
@@ -157,7 +157,7 @@ class polariList(list):
             selfPath = self.treeObjInstance.manager.getTuplePathInObjTree(instanceTuple=selfTuple)
             #Handles the case where the current treeObject already exists in the current manager's Tree.
             if(selfPath != None):
-                print("Found appropriate path for treeObject")
+                #print("Found appropriate path for treeObject")
                 if value == None:
                     pass
                 elif(type(value).__name__ == "list" or type(value).__name__ == "polariList"):
@@ -234,15 +234,15 @@ class polariList(list):
                             #TODO make a function that swaps any branching on the original tuple to be on the new location.
                 #Handles the case where a single variable is being set.
                 else:
-                    print("Appending to list post-init on treeObject", self.treeObjInstance, " using value ", value)
+                    #print("Appending to list post-init on treeObject", self.treeObjInstance, " using value ", value)
                     accountedObjectType = False
                     accountedVariableType = False
                     if(type(value).__class__.__name__ in selfPolyObj.objectReferencesDict):
                         accountedObjectType = True
-                        print("Class type ", type(value).__class__.__name__, " accounted for in object typing for ", self.treeObjInstance.__class__.__name__)
+                        #print("Class type ", type(value).__class__.__name__, " accounted for in object typing for ", self.treeObjInstance.__class__.__name__)
                         if(selfPolyObj.objectReferencesDict[type(value).__class__.__name__]):
                             accountedVariableType = True
-                            print("Accounted for class type ", value, " as sole value in variable ", self.varName)
+                            #print("Accounted for class type ", value, " as sole value in variable ", self.varName)
                     newpolyObj = self.treeObjInstance.manager.getObjectTyping(classObj=value.__class__)
                     managerPolyTyping = self.treeObjInstance.manager.getObjectTyping(self.treeObjInstance.manager.__class__)
                     if(not accountedVariableType):
@@ -305,8 +305,8 @@ class polariList(list):
                             if(self.treeObjInstance.manager != value.manager):
                                 value.manager = self.treeObjInstance.manager
                             #TODO make a function that swaps any branching on the original tuple to be on the new location.
-            else:
-                print("selfPath was not found in tree for object ", self.treeObjInstance)
+            #else:
+                #print("selfPath was not found in tree for object ", self.treeObjInstance)
         #print("appending on polariList object")
         #print("instance that this polariList instance is attached to is: ", self.treeObjInstance)
         super().append(value)

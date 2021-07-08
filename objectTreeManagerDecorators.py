@@ -22,7 +22,7 @@ from polariServer import polariServer
 #from managedImages import *
 from polariList import polariList
 from dataChannels import *
-import types, inspect, base64
+import types, inspect, base64, json, os
 
 def managerObjectInit(init):
     #Note: For objects instantiated using this Decorator, MUST USER KEYWORD ARGUMENTS NOT POSITIONAL, EX: (manager=mngObj, id='base64Id')
@@ -53,9 +53,19 @@ class managerObject:
             setattr(self, 'hasDB', False)
         if not 'objectTyping' in keywordargs.keys():
             setattr(self, 'objectTyping', [])
+        #TODO Plan to phase out objectTyping which requires looping with ObjectTypingDict
+        #which is accessible through the class as a key for each typing object.
+        if not 'objectTypingDict' in keywordargs.keys():
+            setattr(self, 'objectTypingDict', {})
         if not 'objectTree' in keywordargs.keys():
             #print('setting object tree')
             setattr(self, 'objectTree', None)
+        #TODO Plan to add functionality for additional 'flattened' or table-styled
+        #object tree dictionary, which have two layers, the class layer which
+        #indicates a 'table' and then the Id-tuples.  These tables can only hold
+        #object instances which have had all Id fields filled out completely.
+        if not 'objectTables' in keywordargs.keys():
+            setattr(self, 'objectTables', None)
         if not 'managedFiles' in keywordargs.keys():
             setattr(self, 'managedFiles', [])
         if not 'id' in keywordargs.keys():
@@ -70,8 +80,8 @@ class managerObject:
             setattr(self, 'idList', [])
         if not 'branch' in keywordargs.keys():
             setattr(self, 'branch', self)
-        print(self.idList)
-        print('Assigning idList to ', self, '.')
+        #print(self.idList)
+        #print('Assigning idList to ', self, '.')
         if not 'cloudIdList' in keywordargs.keys():
             setattr(self, 'cloudIdList', [])
         for name in keywordargs.keys():
@@ -85,11 +95,18 @@ class managerObject:
         if(self.id == None):
             self.makeUniqueIdentifier()
         if(self.hostSys == None):
-            self.hostSys = isoSys(name="newLocalSys")
+            self.hostSys = isoSys(name="newLocalSys", manager=self)
         if(self.hasServer):
+            self.users = []
+            self.userGroups = []
             self.polServer = polariServer(hostSystem=self.hostSys, manager=self)
         if(self.hasDB):
             self.db
+
+    def __delete__(self, instance):
+        #TODO Go through all polyTyping objects and delete them, close all file references.
+        #WRITE CODE HERE
+        super(self.__class__, self).delete()
         
 
     def __setattr__(self, name, value):
@@ -138,7 +155,7 @@ class managerObject:
                     pass
                 elif(valuePath == None):
                     #add the new Branch
-                    print("Creating branch on manager for instance on variable ", name, " for instance: ", value)
+                    #print("Creating branch on manager for instance on variable ", name, " for instance: ", value)
                     newBranch = tuple([newpolyObj.className, ids, value])
                     self.addNewBranch(traversalList=[selfTuple], branchTuple=newBranch)
                     #Make sure the new branch has the current manager and the base as it's origin branch set on it.
@@ -183,7 +200,7 @@ class managerObject:
                     #print("found an instance already in the objectTree at the correct location:", inst)
                     pass
                 elif instPath == None:
-                    print("Creating branch on manager for instance in list on variable ", name, " for instance: ", inst)
+                    #print("Creating branch on manager for instance in list on variable ", name, " for instance: ", inst)
                     newBranch = tuple([newpolyObj.className, ids, inst])
                     self.addNewBranch(traversalList=[selfTuple], branchTuple=newBranch)
                     #Make sure the new branch has the current manager and the base as it's origin branch set on it.
@@ -217,7 +234,7 @@ class managerObject:
                 pass
             elif(valuePath == None):
                 #add the new Branch
-                print("Creating branch on manager for variable ", name," for instance: ", value)
+                #print("Creating branch on manager for variable ", name," for instance: ", value)
                 newBranch = tuple([newpolyObj.className, ids, value])
                 self.addNewBranch(traversalList=[selfTuple], branchTuple=newBranch)
                 #Make sure the new branch has the current manager and the base as it's origin branch set on it.
@@ -237,6 +254,109 @@ class managerObject:
                     value.manager = self
         #print("Finished setting value of ", name, " to be ", value)
         super(managerObject, self).__setattr__(name, value)
+
+    #Takes in all information needed to access a class and returns a formatted json string 
+    def getJSONforClass(self, absDirPath = os.path.dirname(os.path.realpath(__file__)), definingFile = os.path.realpath(__file__)[os.path.realpath(__file__).rfind('\\') + 1 : os.path.realpath(__file__).rfind('.')], className = 'testClass', passedInstances = None):
+        classVarDict = self.getJSONdictForClass(absDirPath=absDirPath,definingFile=definingFile,className=className, passedInstances=passedInstances)
+        JSONstring = json.dumps(classVarDict)
+        return JSONstring
+
+    def getObjectSourceDetailsANDvalidateInstances(self, passedInstances):
+        #print("Entered passedInstances validation and details gathering.")
+        returnDict = {'passedInstances':passedInstances, 'className':None, 'absDirPath':None, 'definingFile':None}
+        #print("Initialized returnDict.")
+        className = None
+        classNames = []
+        for someInst in passedInstances:
+            if(not someInst.__class__.__name__ in classNames):
+                classNames.append(someInst.__class__.__name__)
+        #print("Reached end of first loop.")
+        if(len(classNames)==1):
+            className = classNames[0]
+            returnDict['className'] = className
+        else:
+            raise ValueError("In \'getJSONdictForClass\' the parameter passedInstances should contain one or more values and all be of one type.")
+        #print("Got past valueError, confirming only one class type in list")
+        #Go through and find correct polyTyping.
+        correctObjectTyping = None
+        for somePolyTyping in self.objectTyping:
+            if(somePolyTyping.className == className):
+                correctObjectTyping = somePolyTyping
+                break
+        if(correctObjectTyping == None):
+            errMsg = "PolyTyping for type " + className + " could not be found!"
+            raise ValueError(errMsg)
+        returnDict['absDirPath'] = correctObjectTyping.polariSourceFile.Path
+        returnDict['definingFile'] = correctObjectTyping.polariSourceFile.name
+        if(returnDict['absDirPath'] == None):
+            raise ValueError("No value found for Path on source file for class "+className)
+        elif(returnDict['absDirPath'] == None):
+            raise ValueError("No value found for file name on source file for class "+className)
+        print("Passing back returnDict.")
+        return returnDict
+
+
+    #Gets all data for a class and returns a Dictionary which is convertable to a json object.
+    def getJSONdictForClass(self, passedInstances, varsLimited=[]):
+        print("Attempting to call passedInstances validation.")
+        objSourceDetailsDict = self.getObjectSourceDetailsANDvalidateInstances(passedInstances=passedInstances)
+        #Path to the Directory the file is in.
+        absDirPath = objSourceDetailsDict['absDirPath']
+        #The name of the file which contains the given class.
+        definingFile = objSourceDetailsDict['definingFile']
+        #The name of the class being retrieved.
+        className = objSourceDetailsDict['className']
+        #
+        varsLimited = varsLimited
+        print("Successfully extracted details.")
+        #If an instance or list of instances of the same type are passed, grabs the class name.
+        if(passedInstances!=None):
+            if(isinstance(passedInstances, list)):
+                if(passedInstances != []):
+                    className = passedInstances[0].__class__.__name__
+                else:
+                    className = passedInstances.__class__.__name__
+            else:
+                className = passedInstances.__class__.__name__
+        #Gives access to the class by importing it and simultaneously passes in the method for instantiating it.
+        #returnedClassInstantiationMethod = getAccessToClass(absDirPath, definingFile, className, True)
+        classVarDict = [
+            {
+                "class":className,
+                #A list of variables which will be excluded from data transmitted for each instance.
+                "varsLimited":varsLimited,
+                "data":[
+                    #Left empty so that instance data can be entered
+                ]
+            }
+        ]
+        #dataEntriesList = classVarDict[0]["data"]
+        #Accounts for the case where a list of instances of the same class are passed into the function
+        if(isinstance(passedInstances, list)):
+            for someInstance in passedInstances:
+                classInstanceDict = {}
+                classInfoDict = someInstance.__dict__
+                #print('Printing Class Info: ' + str(classInfoDict))
+                for classElement in classInfoDict:
+                    if(not callable(classElement) and not classElement in varsLimited):
+                        classInstanceDict[classElement] = None
+                classVarDict[0]["data"].append( self.getJSONclassInstance(someInstance, classInstanceDict) )
+        elif(passedInstances == None):
+            pass
+            #if(passedInstances == None):
+                #classInstance = returnedClassInstantiationMethod()
+                #classInfoDict = classInstance.__dict__
+        else: #Accounts for the case where only a single instance of the class is passed into the function
+            classInstanceDict = {}
+            classInfoDict = passedInstances.__dict__
+            for classElement in classInfoDict:
+                #print('got attribute: ' + classElement)
+                if(not callable(classElement) and not classElement in varsLimited):
+                    classInstanceDict[classElement] = None
+                    #print('not callable attribute: ' + classElement)
+            classVarDict[0]["data"].append( self.getJSONclassInstance(passedInstances, classInstanceDict) )
+        #print('Class Variable Dictionary: ', classVarDict)
+        return classVarDict
 
     #If the Object's PolyTypedObject exists on the given manager object
     def getObjectTyping(self, classObj=None, className=None, classInstance=None ):
@@ -268,6 +388,126 @@ class managerObject:
             else:
                 obj = self.makeDefaultObjectTyping(classObj=classObj)
         return obj
+
+    def getJSONclassInstance(self, passedInstance, classInstanceDict):
+        dataTypesPython = ['str','int','float','complex','list','tuple','range','dict','set','frozenset','bool','bytes','bytearray','memoryview', 'NoneType']
+        print("entered getJSONclassInstance()")
+        for someVariableKey in classInstanceDict.keys():
+            curAttr = getattr(passedInstance, someVariableKey)
+            curAttrType = type(curAttr).__name__
+            print("adding elem of type ", curAttrType ," with value: ", curAttr)
+            #Handles Cases where particular classes must be converted into a string format.
+            if(type(getattr(passedInstance, someVariableKey)).__name__ == 'dateTime'):
+                classInstanceDict[someVariableKey] = getattr(passedInstance, someVariableKey).strftime()
+            elif(type(getattr(passedInstance, someVariableKey)).__name__ == 'TextIOWrapper'):
+                classInstanceDict[someVariableKey] = getattr(passedInstance, someVariableKey).name
+            elif(type(getattr(passedInstance, someVariableKey)).__name__ == 'bytes' or type(getattr(passedInstance, someVariableKey)).__name__ == 'bytearray'):
+                #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
+                classInstanceDict[someVariableKey] = getattr(passedInstance, someVariableKey).decode()
+            elif(type(getattr(passedInstance, someVariableKey)).__name__ == 'dict'):
+                classInstanceDict[someVariableKey] = self.convertSetTypeIntoJSONdict(getattr(passedInstance, someVariableKey))
+            elif(type(getattr(passedInstance, someVariableKey)).__name__ == 'tuple' or type(getattr(passedInstance, someVariableKey)).__name__ == 'list'):
+                #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
+                classInstanceDict[someVariableKey] = self.convertSetTypeIntoJSONdict(getattr(passedInstance, someVariableKey))
+            elif(inspect.ismethod(getattr(passedInstance, someVariableKey))):
+                #print('found bound method (not adding this) ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
+                classInstanceDict[someVariableKey] = "event"
+            elif(inspect.isclass(type(getattr(passedInstance, someVariableKey))) and not type(getattr(passedInstance, someVariableKey)).__name__ in dataTypesPython):
+                #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
+                #print('found custom class or type ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
+                classInstanceDict[someVariableKey] = getattr(passedInstance, someVariableKey).__class__.__name__
+            #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
+            else:
+                #print('Standard type: ', type(getattr(passedInstance, someVariableKey)), getattr(passedInstance, someVariableKey))
+                classInstanceDict[someVariableKey] = getattr(passedInstance, someVariableKey)
+        return classInstanceDict
+
+    #Converts a passed in list, tuple, or python dictionary into a jsonifiable dictionary where the keys are the datatypes in python
+    def convertSetTypeIntoJSONdict(self, passedSet):
+        print("Entered \'convertSetTypeIntoJSONdict\' for value: ", passedSet)
+        returnVal = None
+        if(type(passedSet).__name__ == 'tuple' or type(passedSet).__name__ == 'list'):
+            returnVal = []
+            for elem in passedSet:
+                #Handles Cases where particular classes must be converted into a string format.
+                if(type(elem).__name__ == 'dateTime'):
+                    returnVal.append(elem.strftime())
+                elif(type(elem).__name__ == 'TextIOWrapper'):
+                    returnVal.append(elem.name)
+                elif(type(elem).__name__ == 'bytes' or type(elem).__name__ == 'bytearray'):
+                    #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
+                    returnVal.append(elem.decode())
+                elif(type(elem).__name__ == 'tuple' or type(elem).__name__ == 'list'):
+                    print('adding a tuple or list: ', elem)
+                    returnVal.append(self.convertSetTypeIntoJSONdict(passedSet=elem))
+                elif(type(elem).__name__ == 'dict'):
+                    returnVal.append(self.convertSetTypeIntoJSONdict(passedSet=elem))
+                elif(inspect.ismethod(elem)):
+                    #print('found bound method (not adding this) ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
+                    returnVal.append({"__method__":{"name":elem.__name__,"parameterSignature":inspect.signature(elem),"parameterQuery":[],"execute":False}})
+                elif(inspect.isclass(type(elem)) and not type(elem).__name__ in dataTypesPython):
+                    #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
+                    print('found custom class or type ', elem.__class__.__name__, ' with value ', elem, 'in passed set ', passedSet)
+                    returnVal.append(type(elem).__class__.__name__)
+                #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
+                else:
+                    #print('Standard type: ', type(getattr(passedInstance, someVariableKey)))
+                    returnVal.append(elem)
+        elif(type(passedSet).__name__ == 'dict'):
+            print("Entered Dict section of parsing...")
+            returnVal = {}
+            convertedKeyMap = {}
+            tupleKeysNumbering = 0
+            classKeyNumbering = 0
+            #Creates a map of old key values - to - valid key values for json.
+            for keyVal in passedSet.keys():
+                #Handles Cases where particular classes must be converted into a string format.
+                if(type(keyVal).__name__ == 'dateTime'):
+                    convertedKeyMap[keyVal] = keyVal.strftime()
+                elif(type(keyVal).__name__ == 'TextIOWrapper'):
+                    convertedKeyMap[keyVal] = keyVal.name
+                elif(type(keyVal).__name__ == 'bytes' or type(keyVal).__name__ == 'bytearray'):
+                    #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
+                    convertedKeyMap[keyVal] = keyVal.decode()
+                elif(type(keyVal).__name__ == 'tuple'):
+                    convertedKeyMap[keyVal] = "TUPLE-KEY-" + str(tupleKeysNumbering)
+                    tupleKeysNumbering += 1
+                elif(inspect.isclass(type(keyVal)) and not type(keyVal).__name__ in dataTypesPython):
+                    #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
+                    #print('found custom class or type ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
+                    convertedKeyMap[keyVal] = "CLASS-KEY-" + type(keyVal).__name__ + "-" + str(classKeyNumbering)
+                    classKeyNumbering += 1
+                #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
+                else:
+                    #print('Standard type: ', type(getattr(passedInstance, someVariableKey)))
+                    convertedKeyMap[keyVal] = keyVal
+            for keyVal in passedSet.keys():
+                correctedKey = convertedKeyMap[keyVal]
+                if("TUPLE-KEY" in convertedKeyMap[keyVal]):
+                    returnVal[convertedKeyMap[keyVal]] = self.convertSetTypeIntoJSONdict(passedSet=keyVal)
+                    correctedKey = correctedKey + "-VALUE"
+                #Handles Cases where particular classes must be converted into a string format.
+                if(type(passedSet[keyVal]).__name__ == 'dateTime'):
+                    returnVal[correctedKey] = passedSet[keyVal].strftime()
+                elif(type(passedSet[keyVal]).__name__ == 'TextIOWrapper'):
+                    returnVal[correctedKey] = passedSet[keyVal].name
+                elif(type(passedSet[keyVal]).__name__ == 'bytes' or type(passedSet[keyVal]).__name__ == 'bytearray'):
+                    #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
+                    returnVal[correctedKey] = passedSet[keyVal].decode()
+                elif(type(passedSet[keyVal]).__name__ == 'tuple' or type(passedSet[keyVal]).__name__ == 'list' or type(passedSet[keyVal]).__name__ == 'dict'):
+                    returnVal[correctedKey] = self.convertSetTypeIntoJSONdict(passedSet=keyVal)
+                elif(inspect.isclass(type(passedSet[keyVal])) and not type(passedSet[keyVal]).__name__ in dataTypesPython):
+                    #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
+                    #print('found custom class or type ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
+                    returnVal[correctedKey] = type(passedSet[keyVal]).__name__
+                #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
+                else:
+                    #print('Standard type: ', type(getattr(passedInstance, someVariableKey)))
+                    returnVal[keyVal] = keyVal
+        else:
+            ValueError("Passed invalid value into ")
+        returnJSON = [{type(passedSet).__name__:returnVal}]
+        return returnJSON
 
     #
     def getListOfInstancesAtDepth(self, target_depth, depth=0, traversalList=[], source=None):
@@ -375,6 +615,7 @@ class managerObject:
                 classDefiningFile = inspect.getfile(classObj)
             else:
                 print("Called \'makeDefaultObjectTyping\' without passing either a class instance or object for reference, no polyTypedObject could be generated.")
+            filePath = os.path.dirname(classDefiningFile)
             pass
         except:
             print('Caught exception for retrieving file, thereby instance of type', classInstance.__class__.__name__ , ' with a value of ', classInstance,' must be a built-in class')
@@ -384,9 +625,13 @@ class managerObject:
             sourceFiles = []
         else:
             dotIndex = classDefiningFile.index(".")
+            lastSlashIndex = classDefiningFile.rfind("/")
             classDefiningFile = classDefiningFile[0:dotIndex]
-            sourceFiles = [classDefiningFile]
-            print('Class file name: ', classDefiningFile)
+            fileName = classDefiningFile[lastSlashIndex+1:dotIndex]
+            filePath = classDefiningFile[0:lastSlashIndex]
+            pythonSourceFile = self.makeFile(name=fileName, extension='py', Path=filePath)
+            sourceFiles = [pythonSourceFile]
+            #print('Class file name: ', fileName)
         if(classInstance != None):
             classDefaultTyping = polyTypedObject(manager=self, sourceFiles=sourceFiles, className=classInstance.__class__.__name__, identifierVariables=['id'])
             #return classDefaultTyping
@@ -739,12 +984,14 @@ class managerObject:
         #polyTyped Object and variable are both defined in the same source file
         source_polyTypedObject = self.makeFile(name='polyTyping', extension='py')
         source_polyTypedVars = self.makeFile(name='polyTypedVars', extension='py')
-        self_module = inspect.getmodule(self.__class__)
-        self_fileName = (self_module.__file__)[self_module.__file__.rfind('\\')+1:self_module.__file__.rfind('.')]
-        self_path = (self_module.__file__)[:self_module.__file__.rfind('\\')]
+        self_fileInst = inspect.getfile(self.__class__)
+        self_completepath = os.path.abspath(self_fileInst)
+        self_fileName = self_completepath[self_completepath.rfind('\\')+1:self_completepath.rfind('.')]
+        self_path = self_completepath[0:self_completepath.rfind('\\')]
         source_self = self.makeFile(name=self_fileName, extension='py', Path=self_path)
-        print("source_self file name = ", self_fileName)
-        print("source_self file path = ", self_path)
+        #print("source complete path: ", self_completepath)
+        #print("source_self file name = ", self_fileName)
+        #print("source_self file path = ", self_path)
         self.objectTyping = [
             polyTypedObject(sourceFiles=[source_self], className=type(self).__name__, identifierVariables = identifierVariables, objectReferencesDict={}, manager=self),
             polyTypedObject(sourceFiles=[source_polyTypedVars], className='polyTypedVariable', identifierVariables = ['name','polyTypedObj'], objectReferencesDict={'polyTypedObject':['polyTypedVars']}, manager=self),
@@ -770,7 +1017,7 @@ class managerObject:
                 selfIsTyped = True
             if(objTyp.className == 'polyTypedObject'):
                 for typingInst in self.objectTyping:
-                    print("Preparing to analyze instance: ", typingInst)
+                    #print("Preparing to analyze instance: ", typingInst)
                     objTyp.analyzeInstance(typingInst)
                 for typingInst in self.objectTyping:
                     for typedVar in typingInst.polyTypedVars:
@@ -860,7 +1107,7 @@ class managerObject:
     #as well as allowing them to chain criteria as much as desired, allowing maximum freedom.
     #SELECT section - If this section exists, the overall query will return a formatted json dictionary containing all converted objects with the specified variables included.
     #Example complex Object Tree query: queryString=
-    #"[SELECT * FROM testObj WITH { id:(max), testVar:(=None), name:(a%c%), objList:( contains[ FROM secondTestObj WITH { name:(='name') } ] ) } WHERE hasChildren:[ FROM secondTestObj ]")
+    #"[SELECT * FROM testObj WITH { id:(max), testVar:(=None), name:(a%c%), objList:( contains[ secondTestObj WITH { name:(='name') } ] ) } WHERE hasChildren:[ secondTestObj ]")
     #This would return a json dictionary of testObj
     def queryObjectTree(self, queryString): 
         curType = None

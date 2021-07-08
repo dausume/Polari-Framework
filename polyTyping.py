@@ -38,6 +38,17 @@ class polyTypedObject(treeObject):
         #A list of managed files that defined this class for different languages.
         #print('passed source files: ', sourceFiles)
         self.sourceFiles = sourceFiles
+        #
+        self.polariSourceFile = None
+        for someSrc in self.sourceFiles:
+            if(someSrc.__class__.__name__ != 'managedFile' and someSrc.__class__.__name__ != 'managedExecutable'):
+                errMsg = "Sourcefiles for class type " + className + " found to contain an invalid value in sourceFiles list: "+ someSrc + " of type "+ someSrc.__class__.__name__ +"  All values must be of type managedFile or managedExecutable."
+                raise ValueError(errMsg)
+            if(someSrc.extension == 'py'):
+                self.polariSourceFile = someSrc
+                break
+        if(self.polariSourceFile == None):
+            print("No python/polari source file could be found for the class type: ", self.className)
         #The context (App or Polari) in which this Object is being utilized
         self.manager = manager
         #The instances of this object's polyTyping in higher tiered contexts.
@@ -54,6 +65,8 @@ class polyTypedObject(treeObject):
         self.variableNameList = variableNameList
         #The polyTypedVariable instances for each of the variables in the class.
         self.polyTypedVars = []
+        #The list of all permission sets which affect access to this object.
+        self.permissionSets = []
         
 
     #Where the object passed in is the value or values of the list of this polyTypedVariable,
@@ -69,12 +82,15 @@ class polyTypedObject(treeObject):
         if(hasattr(self, 'manager')):
             #print('Adding obj ', classObj, ' to object ref dict of ', self.className, ' for variable named: ', varName)
             for objType in self.manager.objectTyping:
+                #Goes until objType == PolyTyping for object this variable belongs to.
                 if(objType.className == referencedClassObj.__name__):
-                    print("In addToObjReferenceDict for polyTyping of ", self.className," found typing for object ", objType.className, " for this typing adding variable ", referenceVarName)
+                    #The objectReference dictionary on the object's PolyTyping that the variable belongs to,
+                    #with the key-value set to be the class of the value set on the variable.
+                    #print("In addToObjReferenceDict for polyTyping of ", self.className," found typing for object ", objType.className, " for this typing adding variable ", referenceVarName)
                     foundTyping = True
-                    if(not objType.className in objType.objectReferencesDict):
-                        self.objectReferencesDict[objType.className] = [referenceVarName]
-                    elif(not referenceVarName in objType.objectReferencesDict[self.className]):
+                    if(not referencedClassObj.__name__ in objType.objectReferencesDict):
+                        objType.objectReferencesDict[referencedClassObj.__name__] = [referenceVarName]
+                    elif(not referenceVarName in objType.objectReferencesDict[referencedClassObj.__name__]):
                         (objType.objectReferencesDict[objType.className]).append(referenceVarName)
                     break
             if(not foundTyping):
