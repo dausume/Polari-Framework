@@ -46,6 +46,7 @@ class polyTypedObject(treeObject):
                 raise ValueError(errMsg)
             if(someSrc.extension == 'py'):
                 self.polariSourceFile = someSrc
+                #print("Set polari Source file for class", self.className," to value: ", someSrc)
                 break
         if(self.polariSourceFile == None):
             print("No python/polari source file could be found for the class type: ", self.className)
@@ -67,6 +68,41 @@ class polyTypedObject(treeObject):
         self.polyTypedVars = []
         #The list of all permission sets which affect access to this object.
         self.permissionSets = []
+        #Dictionary of all Named Permission Sets
+        self.permissionSetsDict = {}
+
+    def makeDefaultPermissionSets(self):
+        #ACCESS PERMISSION SETS
+        #Allows User to perform GET requests on all existing object instances of this class.
+        #By default this also gives readAllVarsPS. 
+        accessAllPS = polariPermissionSet(apiObject=self.className, Name="Access All Instances")
+        #Allows User to perform GET, PUT, and POST requests on all objects where the self.owner value
+        #is either the given User themselves or a group which they are able to be determined to
+        #belong to.  By default this is a super-set of the readAllVarsPS & the updateAllVarsPS.
+        accessOwnershipPS = polariPermissionSet(apiObject=self.className, Name="Owner-based Instance Access")
+        #FUNCTIONS ON PERMISSION SETS
+        #Allows user to call any function on an object instance using a POST request or custom request type.
+        runAllFunctionsPS = polariPermissionSet(apiObject=self.className, Name="Run Functions on Instance")
+        #CREATE PERMISSION SETS
+        #Allows a user to create an object instance and automatically set them to be the owner.
+        createAsOwner = polariPermissionSet(apiObject=self.className, Name="Create as owner")
+        #Allows a user to create an object instance which by default is them but can be changed to someone else
+        #so long as they also have at least ownershipPS for the given object.
+        createAndEditOwner = polariPermissionSet(apiObject=self.className, Name="Create and assign owner")
+        #Allows a user to create an object instance, but not assign an owner for that instance, is used for objects
+        #which would assign ownership automatically at creation or are always ownerless and available universally.
+        createOwnerless = polariPermissionSet(apiObject=self.className, Name="Create without assigning an owner")
+        #READ PERMISSION SETS
+        readAllVarsPS = polariPermissionSet(apiObject=self.className, Name="Read All Variables")
+        #UPDATE PERMISSION SETS
+        updateAllVarsPS = polariPermissionSet(apiObject=self.className, Name="Update All Variables")
+        #DELETE PERMISSION SETS
+        #Allows ability for user to delete any instance user has access to.
+        deleteAllPS = polariPermissionSet(apiObject=self.className, Name="Delete All Instances")
+        #Allows ability for user to delete instances owned by the user.
+        deleteOwnedPS = polariPermissionSet(apiObject=self.className, Name="Delete Owned Instances")
+
+
         
 
     #Where the object passed in is the value or values of the list of this polyTypedVariable,

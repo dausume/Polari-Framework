@@ -117,6 +117,8 @@ class objectTree_TestCase(unittest.TestCase):
         #print('----- List of Objects at Depth 2 in Tree ------')
         #print(self.mngObj.getListOfInstancesAtDepth(target_depth=2))
         #print('Tearing down at the end of the object tree test case.')
+        #print("-- Object Tables --")
+        #print(self.mngObj.objectTables)
 
     #Tests that all standard variable types can be set and supported on a manager object.
     def test_allStandardTypesOnManager(self):
@@ -310,7 +312,7 @@ class objectTree_TestCase(unittest.TestCase):
         self.assertIsNotNone(listTreeObjTwoPath, msg="The second tree object set on a list var on a tree object at it's initiation should be in the object tree.")
 
     def test_objectToJsonConversionTest(self):
-        print("Starting jsonConversion Test.")
+        #print("Starting jsonConversion Test.")
         threwError = False
         testJsonResult = {}
         try:
@@ -319,9 +321,32 @@ class objectTree_TestCase(unittest.TestCase):
             print("Threw error while trying to fetch json for manager object.")
             print("Error : ", err)
             threwError = True
-        print("testJsonResult", testJsonResult)
+        #print("testJsonResult", testJsonResult)
         self.assertFalse(threwError, msg="Error Thrown while trying to get test-json result of manager object.")
         self.assertNotEqual(testJsonResult, {}, msg="Recieved empty json back as result.")
+
+    def test_ObjectTableDictionaryQueries(self):
+        #Get all Test Tree Objects
+        print("Starting test_ObjectTableDictionaryQueries")
+        allTestTreeBranchObj = self.mngObj.getListOfClassInstances(className="testTreeBranchObj")
+        print("allTestTreeBranchObj: ", allTestTreeBranchObj)
+        self.assertTrue(len(allTestTreeBranchObj)>=2, "Retrieving all allTestTreeBranchObj's, could not retrieve at least 2.")
+        allTestTreeBranchObjWithIds = self.mngObj.getListOfInstancesByAttributes(className="testTreeBranchObj")
+        keysList = list(allTestTreeBranchObjWithIds.keys())
+        print("KeysList: ", keysList)
+        errMsg = "Did not retrieve 2 or more TreeBranchObject Instances using a * Query on all testTreeBranchObj's.  Found " + str(len(keysList)) + " testTreeBranchObj's."
+        self.assertTrue(len(keysList)>=2, errMsg)
+        #From the list of passed back tree objects, get the first object's Id and do a query to get that one object using 'Equals'
+        #Test using EQUALS section for attributes with singular String / Object Instance
+        someTreeObj = self.mngObj.getListOfInstancesByAttributes(className="testTreeBranchObj", attributeQueryDict={"id":{"EQUALS":keysList[0]}})
+        self.assertTrue(len(someTreeObj.keys())==1, "Did not retrieve the first TreeObject using an EQUALS Query testTreeBranchObj for a string id value.")
+        #From the list of tree objects, get the first two Ids in a list.
+        firstTwoIdsList = [keysList[0], keysList[1]]
+        #Test the IN section for attributes with multiple String / Object Instances.
+        firstTwoTreeIds = self.mngObj.getListOfInstancesByAttributes(className="testTreeBranchObj", attributeQueryDict={"id":{"IN":firstTwoIdsList}})
+        self.assertTrue(len(firstTwoTreeIds.keys())==2, "Did not retrieve both TreeObjects using the IN Query for testTreeBranchObjs for string id values, passing a List of two Ids for IN.")
+        print("ending test_ObjectTableDictionaryQueries")
+
 
 if(__name__=='__main__'):
     unittest.main()

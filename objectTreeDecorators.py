@@ -292,10 +292,13 @@ class treeObject:
         #Checks that the object's manager has been set and is a valid manager.
         hasManager = False
         if(potentialManager != None):
-            for parentObj in (potentialManager.__class__).__bases__:
-                if(parentObj.__name__ == 'managerObject'):
-                    hasManager = True
-                    break
+            if(potentialManager.__class__.__name__ == 'managerObject'):
+                hasManager = True
+            else:
+                for parentObj in (potentialManager.__class__).__bases__:
+                    if(parentObj.__name__ == 'managerObject'):
+                        hasManager = True
+                        break
         hasBranch = False
         if(hasattr(self, 'branch')):
             #Handles the case where the branch is coming off of the manager itself.
@@ -453,6 +456,8 @@ class treeObject:
                             else:
                                 #Place duplicate on the current branch.
                                 duplicateBranchTuple = tuple([someAttr.__class__.__name__, ids, tuple(valueTreePath)])
+                                if(duplicateBranchTuple == None):
+                                    print("Duplicate Branch Tuple: ", duplicateBranchTuple)
                                 potentialManager.addNewBranch(traversalList=branchTreePath, branchTuple=duplicateBranchTuple)
                     else:
                         #The tuple does not exist anywhere in the tree, so we simply place it in the branch.

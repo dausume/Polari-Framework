@@ -16,14 +16,14 @@
 from objectTreeDecorators import *
 class polariPermissionSet(treeObject):
     @treeObjectInit
-    def __init__(self, apiObject, setName=None, environment="all", forAllAnonymousUsers=False, forAllAuthUsers=False, assignedUsers=[],assignedUserGroups=["AdminGroup"],
+    def __init__(self, apiObject, Name=None, environment="all", forAllAnonymousUsers=False, forAllAuthUsers=False, assignedUsers=[],assignedUserGroups=["AdminGroup"],
     userCriteriaSharingFilter = [],
     functionsAll=False, functionsSpecific=[], createAll=True, createSpecific=[],
     readAll=True, readSpecific=[], updateAll=True, updateSpecific=[], delete=True,
     filter = [] ):
         #If this is true, all people by default (even anonymous users) have access according
         #to this permission set.
-        self.setName = setName
+        self.Name = Name
         self.forAllAnonymousUsers = forAllAnonymousUsers
         self.forAllAuthUsers = forAllAuthUsers
         self.apiObject = apiObject

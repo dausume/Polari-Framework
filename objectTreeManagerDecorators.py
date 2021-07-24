@@ -64,8 +64,9 @@ class managerObject:
         #object tree dictionary, which have two layers, the class layer which
         #indicates a 'table' and then the Id-tuples.  These tables can only hold
         #object instances which have had all Id fields filled out completely.
+        #FORMAT: {'objectType0':{'polariId0':instance0, 'polariId1':instance1}}
         if not 'objectTables' in keywordargs.keys():
-            setattr(self, 'objectTables', None)
+            setattr(self, 'objectTables', {})
         if not 'managedFiles' in keywordargs.keys():
             setattr(self, 'managedFiles', [])
         if not 'id' in keywordargs.keys():
@@ -286,6 +287,10 @@ class managerObject:
         if(correctObjectTyping == None):
             errMsg = "PolyTyping for type " + className + " could not be found!"
             raise ValueError(errMsg)
+        print("PolyTyping for object type ", className, " is found on PolyTyping instance ", correctObjectTyping)
+        print("The object Typing\'s polariSourceFile is ", correctObjectTyping.polariSourceFile)
+        print("The executable object\'s file name is ", correctObjectTyping.polariSourceFile.name)
+        print("The executable object\'s path is ", correctObjectTyping.polariSourceFile.Path)
         returnDict['absDirPath'] = correctObjectTyping.polariSourceFile.Path
         returnDict['definingFile'] = correctObjectTyping.polariSourceFile.name
         if(returnDict['absDirPath'] == None):
@@ -395,27 +400,30 @@ class managerObject:
         for someVariableKey in classInstanceDict.keys():
             curAttr = getattr(passedInstance, someVariableKey)
             curAttrType = type(curAttr).__name__
-            print("adding elem of type ", curAttrType ," with value: ", curAttr)
+            #print("adding elem of type ", curAttrType ," with value: ", curAttr)
             #Handles Cases where particular classes must be converted into a string format.
-            if(type(getattr(passedInstance, someVariableKey)).__name__ == 'dateTime'):
-                classInstanceDict[someVariableKey] = getattr(passedInstance, someVariableKey).strftime()
-            elif(type(getattr(passedInstance, someVariableKey)).__name__ == 'TextIOWrapper'):
-                classInstanceDict[someVariableKey] = getattr(passedInstance, someVariableKey).name
-            elif(type(getattr(passedInstance, someVariableKey)).__name__ == 'bytes' or type(getattr(passedInstance, someVariableKey)).__name__ == 'bytearray'):
+            if(curAttrType == 'dateTime'):
+                classInstanceDict[someVariableKey] = curAttr.strftime()
+            elif(curAttrType == 'TextIOWrapper'):
+                classInstanceDict[someVariableKey] = curAttr.name
+            elif(curAttrType == 'bytes' or curAttrType == 'bytearray'):
                 #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
-                classInstanceDict[someVariableKey] = getattr(passedInstance, someVariableKey).decode()
-            elif(type(getattr(passedInstance, someVariableKey)).__name__ == 'dict'):
-                classInstanceDict[someVariableKey] = self.convertSetTypeIntoJSONdict(getattr(passedInstance, someVariableKey))
-            elif(type(getattr(passedInstance, someVariableKey)).__name__ == 'tuple' or type(getattr(passedInstance, someVariableKey)).__name__ == 'list'):
+                classInstanceDict[someVariableKey] = curAttr.decode()
+            elif(curAttrType == 'dict'):
+                classInstanceDict[someVariableKey] = self.convertSetTypeIntoJSONdict(curAttr)
+            elif(curAttrType == 'tuple' or curAttrType == 'list' or curAttrType == 'polariList'):
                 #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
-                classInstanceDict[someVariableKey] = self.convertSetTypeIntoJSONdict(getattr(passedInstance, someVariableKey))
-            elif(inspect.ismethod(getattr(passedInstance, someVariableKey))):
+                classInstanceDict[someVariableKey] = self.convertSetTypeIntoJSONdict(curAttr)
+            elif(inspect.ismethod(curAttr)):
                 #print('found bound method (not adding this) ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
-                classInstanceDict[someVariableKey] = "event"
-            elif(inspect.isclass(type(getattr(passedInstance, someVariableKey))) and not type(getattr(passedInstance, someVariableKey)).__name__ in dataTypesPython):
+                errMsg = "Found a class method - " + curAttr + " being set as a key"
+                raise ValueError(errMsg)
+                classInstanceDict[someVariableKey] = "Method-" + curAttr.__name__
+            elif(inspect.isclass(type(curAttr)) and not curAttrType in dataTypesPython):
                 #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
                 #print('found custom class or type ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
-                classInstanceDict[someVariableKey] = getattr(passedInstance, someVariableKey).__class__.__name__
+                instIds = ["CLASS-" + curAttrType + "-IDs", self.convertSetTypeIntoJSONdict(passedSet=self.getInstanceIdentifiers(curAttr))]
+                classInstanceDict[someVariableKey] = instIds
             #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
             else:
                 #print('Standard type: ', type(getattr(passedInstance, someVariableKey)), getattr(passedInstance, someVariableKey))
@@ -424,31 +432,32 @@ class managerObject:
 
     #Converts a passed in list, tuple, or python dictionary into a jsonifiable dictionary where the keys are the datatypes in python
     def convertSetTypeIntoJSONdict(self, passedSet):
-        print("Entered \'convertSetTypeIntoJSONdict\' for value: ", passedSet)
+        #print("Entered \'convertSetTypeIntoJSONdict\' for value: ", passedSet)
         returnVal = None
-        if(type(passedSet).__name__ == 'tuple' or type(passedSet).__name__ == 'list'):
+        if(type(passedSet).__name__ == 'tuple' or type(passedSet).__name__ == 'list' or type(passedSet).__name__ == 'polariList'):
             returnVal = []
             for elem in passedSet:
+                elemType = type(elem).__name__
                 #Handles Cases where particular classes must be converted into a string format.
-                if(type(elem).__name__ == 'dateTime'):
+                if(elemType == 'dateTime'):
                     returnVal.append(elem.strftime())
-                elif(type(elem).__name__ == 'TextIOWrapper'):
+                elif(elemType == 'TextIOWrapper'):
                     returnVal.append(elem.name)
-                elif(type(elem).__name__ == 'bytes' or type(elem).__name__ == 'bytearray'):
+                elif(elemType == 'bytes' or elemType == 'bytearray'):
                     #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
                     returnVal.append(elem.decode())
-                elif(type(elem).__name__ == 'tuple' or type(elem).__name__ == 'list'):
-                    print('adding a tuple or list: ', elem)
+                elif(elemType == 'tuple' or elemType == 'list' or elemType == 'polariList'):
                     returnVal.append(self.convertSetTypeIntoJSONdict(passedSet=elem))
-                elif(type(elem).__name__ == 'dict'):
+                elif(elemType == 'dict'):
                     returnVal.append(self.convertSetTypeIntoJSONdict(passedSet=elem))
                 elif(inspect.ismethod(elem)):
                     #print('found bound method (not adding this) ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
                     returnVal.append({"__method__":{"name":elem.__name__,"parameterSignature":inspect.signature(elem),"parameterQuery":[],"execute":False}})
-                elif(inspect.isclass(type(elem)) and not type(elem).__name__ in dataTypesPython):
+                elif(inspect.isclass(type(elem)) and not elemType in dataTypesPython):
                     #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
-                    print('found custom class or type ', elem.__class__.__name__, ' with value ', elem, 'in passed set ', passedSet)
-                    returnVal.append(type(elem).__class__.__name__)
+                    #print('found custom class or type ', elemType, ' with value ', elem, 'in passed set ', passedSet)
+                    instIds = ["CLASS-" + elemType + "-IDs", self.convertSetTypeIntoJSONdict(passedSet=self.getInstanceIdentifiers(elem))]
+                    returnVal.append(instIds)
                 #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
                 else:
                     #print('Standard type: ', type(getattr(passedInstance, someVariableKey)))
@@ -494,7 +503,7 @@ class managerObject:
                 elif(type(passedSet[keyVal]).__name__ == 'bytes' or type(passedSet[keyVal]).__name__ == 'bytearray'):
                     #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
                     returnVal[correctedKey] = passedSet[keyVal].decode()
-                elif(type(passedSet[keyVal]).__name__ == 'tuple' or type(passedSet[keyVal]).__name__ == 'list' or type(passedSet[keyVal]).__name__ == 'dict'):
+                elif(type(passedSet[keyVal]).__name__ == 'tuple' or type(passedSet[keyVal]).__name__ == 'list' or type(passedSet[keyVal]).__name__ == 'dict' or type(passedSet[keyVal]).__name__ == 'polariList'):
                     returnVal[correctedKey] = self.convertSetTypeIntoJSONdict(passedSet=keyVal)
                 elif(inspect.isclass(type(passedSet[keyVal])) and not type(passedSet[keyVal]).__name__ in dataTypesPython):
                     #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
@@ -557,6 +566,123 @@ class managerObject:
                         if(srcFile.extension == language):
                             return srcFile
         return None
+
+    #{"sampleStringAttribute":{"EQUALS":("id-1234","sampleClassName")),"CONTAINS":("","AND","")}, "sampleRefAttribute":{"IN":["polariID-0", ...]}}
+    def getListOfInstancesByAttributes(self, className, attributeQueryDict="*"):
+        allClassInstancesDict = self.objectTables[className]
+        remainingInstances = allClassInstancesDict
+        eliminatedInstances = {}
+        if(attributeQueryDict == "*"):
+            return allClassInstancesDict
+        else:
+            print("Starting query execution")
+            for someAttribute in attributeQueryDict:
+                if("EQUALS" in attributeQueryDict[someAttribute]):
+                    querySegment = attributeQueryDict[someAttribute]["EQUALS"]
+                    querySegmentTyping = type(querySegment).__name__
+                    #print("Entered EQUALS section of Query.  QuerySegment is type ",querySegmentTyping," and has value: ", querySegment)
+                    if(querySegmentTyping == "str"):
+                        #print("In str section")
+                        #Scenario where it is expected for attribute of instance
+                        #to be an exact instance of a type with an exact id value.
+                        if(someAttribute == "id"):
+                            #print("in id section")
+                            if(querySegment in self.objectTables[className].keys()):
+                                #print("querySegment found in objectTables")
+                                #Find objects with the given attribute equal
+                                for remainingInstanceId in remainingInstances.keys():
+                                #    print("remaining Id: ", remainingInstanceId)
+                                    remainingInstanceMeetsCriteria = False
+                                    if(remainingInstanceId == querySegment):
+                                        returnDict = {remainingInstanceId:self.objectTables[className][remainingInstanceId]}
+                                        #print("ReturnDict = ", returnDict)
+                                        return returnDict
+                                #remainingInstanceMeetsCriteria = False
+                                #remainingInstance = self.objectTables[querySegment][remainingInstanceId]
+                                #if(hasattr(remainingInstance, someAttribute)):
+                                #    referencedInstance = getattr(remainingInstance, someAttribute)
+                                #    if(hasattr(referencedInstance, 'id')):
+                                #        if(referencedInstance.Id == querySegment):
+                                #            remainingInstanceMeetsCriteria = True
+                                    if(not remainingInstanceMeetsCriteria):
+                                        #add to eliminated instances
+                                        eliminatedInstances[querySegment] = self.objectTables[className][remainingInstanceId]
+                        else:
+                            for remainingInstanceId in remainingInstances.keys():
+                                remainingInstanceMeetsCriteria = False
+                                if(remainingInstanceId != querySegment):
+                                    remainingInstanceMeetsCriteria = True
+                            print("finding instances with non-id attribute of type string.")
+                    else:
+                        raise ValueError("Entered invalid type into EQUALS section of query.")
+                #Remove eliminated instances from the remaining instances dict.
+                if(len(eliminatedInstances) != 0):
+                    for someInstId in eliminatedInstances.keys():
+                        remainingInstances.pop(someInstId)
+                    eliminatedInstances = []
+                #
+                if("CONTAINS" in attributeQueryDict[someAttribute]):
+                    print("Entered 'contains' segment of query.")
+                    querySegment = attributeQueryDict[someAttribute]["CONTAINS"]
+                    querySegmentTyping = type(querySegment).__name__
+                    if(querySegmentTyping == "tuple"):
+                        if(len(querySegment) == 2):
+                            for someElem in querySegment:
+                                if(type(someElem).__name__ in self.objectTables.keys()):
+                                    pass
+                            print("Checking if it contains an object instance within the attribute value.")
+                        elif(len(querySegment) == 3):
+                            if(querySegment[1] == "AND" or querySegment[1] == "OR"):
+                                self.logicalOperatorsForQuery(querySegment)
+                            else:
+                                raise ValueError("Contains segment of query only allows for AND or OR to be used with tuples of length 3.")
+                    elif(querySegmentTyping == "str"):
+                        #Find objects with the given attribute equal
+                        for remainingInstanceId in remainingInstances.keys():
+                            remainingInstanceMeetsCriteria = False
+                            remainingInstance = self.objectTables[querySegment[1]][remainingInstanceId]
+                            if(hasattr(remainingInstance, someAttribute)):
+                                if(querySegment in getattr(remainingInstance, someAttribute)):
+                                    remainingInstanceMeetsCriteria = True
+                            if(not remainingInstanceMeetsCriteria):
+                                #add to eliminated instances
+                                eliminatedInstances[querySegment[0]] = remainingInstance
+                #Remove eliminated instances from the remaining instances dict.
+                if(len(eliminatedInstances) != 0):
+                    for someInstId in eliminatedInstances.keys():
+                        remainingInstances.pop(someInstId)
+                    eliminatedInstances = []
+                if("IN" in attributeQueryDict[someAttribute]):
+                    print("Entered 'IN' segment of query.")
+                    querySegment = attributeQueryDict[someAttribute]["IN"]
+                    querySegmentTyping = type(querySegment).__name__
+                    print("querySegment type is ", querySegmentTyping, " and it's value is ", querySegment)
+                    foundMatch = False
+                    if(querySegmentTyping == "list"):
+                        for remainingInstanceId in remainingInstances.keys():
+                            remainingInstanceMeetsCriteria = False
+                            remainingInstance = self.objectTables[className][remainingInstanceId]
+                            if not remainingInstanceId in querySegment:
+                                eliminatedInstances[remainingInstanceId] = remainingInstance
+                                print("Eliminating instances using dict: ", eliminatedInstances)
+                                #Queue Id to be removed from remaining Ids.
+                            else:
+                                print("Found id", remainingInstanceId," in querySegment")
+                    #Remove eliminated instances from the remaining instances dict.
+                    if(len(eliminatedInstances.keys()) != 0):
+                        for someInstId in eliminatedInstances.keys():
+                            remainingInstances.pop(someInstId)
+                        eliminatedInstances = []
+        print("remainingInstancesDict = ", remainingInstances)
+        return remainingInstances
+
+    #Pass in a query Segment containing a tuple with an AND or OR operator
+    #in the middle.
+    def logicalOperatorsForQuery(self, querySegment, remainingInstancesDict):
+        leftSegment = querySegment[0]
+        operator = querySegment[1]
+        rightSegment = querySegment[2]
+
 
     #
     def getListOfClassInstances(self, className, traversalList=[], source=None):
@@ -661,10 +787,13 @@ class managerObject:
     def getInstanceIdentifiers(self, instance):
         isValid = False
         obj = None
-        for parentObj in instance.__class__.__bases__:
-            #print("Iterated Parent object in getInstanceIdentifiers: ", parentObj.__name__)
-            if(parentObj.__name__ == "treeObject" or parentObj.__name__ == "managerObject" or parentObj.__name__ == "managedFile"):
-                isValid = True
+        if(instance.__class__.__name__ == 'treeObject' or instance.__class__.__name__ == 'managerObject'):
+            isValid = True
+        else:
+            for parentObj in instance.__class__.__bases__:
+                #print("Iterated Parent object in getInstanceIdentifiers: ", parentObj.__name__)
+                if(parentObj.__name__ == "treeObject" or parentObj.__name__ == "managerObject" or parentObj.__name__ == "managedFile"):
+                    isValid = True
         #If it is a valid object then we retrieve the object typing, otherwise we let it fail by not defining obj.
         if(isValid):
             obj = self.getObjectTyping(classInstance=instance)
@@ -902,10 +1031,25 @@ class managerObject:
     def addNewBranch(self, traversalList, branchTuple=None, instance=None):
         #if(len(traversalList) > 2):
         #    print("Trying to add new branch using traversalList of depth 3!! -> ", traversalList)
+        #else:
+            #print("Encountered instance being added", instance, " which is missing an id.") 
         if(instance != None):
             branchTuple = self.getInstanceTuple(instance)
         elif(branchTuple != None):
             instance = branchTuple[2]
+        if(instance == None):
+            print("Instance passed was none")
+        else:
+            if(hasattr(instance, 'id') and hasattr(self, "objectTables")):
+                if(instance.id != None):
+                    key = instance.__class__.__name__
+                    if(key in self.objectTables):
+                        self.objectTables[key][instance.id] = instance
+                    else:
+                        self.objectTables[key] = {}
+                        self.objectTables[key][instance.id] = instance
+                else:
+                    print("Instance has an id with value None.")
         #Overwrites the traversal list in the case where the branch has already been defined.
         if(hasattr(instance, "branch")):
             if(instance.branch != None):
@@ -970,20 +1114,21 @@ class managerObject:
     #Adds all of the basic objects that are necessary for the application to run, and accounts for
     #all of their identifiers.
     def primePolyTyping(self, identifierVariables=['id']):
-        source_Polari = self.makeFile(name='definePolari', extension='py')
-        source_dataStream = self.makeFile(name='dataStreams', extension='py')
-        source_remoteEvent = self.makeFile(name='remoteEvents', extension='py')
-        source_managedUserInterface = self.makeFile(name='managedUserInterface', extension='py')
-        source_managedFile = self.makeFile(name='managedFiles', extension='py')
+        mainDirPath = os.getcwd()
+        source_Polari = self.makeFile(name='definePolari', extension='py', Path=mainDirPath)
+        source_dataStream = self.makeFile(name='dataStreams', extension='py', Path=mainDirPath)
+        source_remoteEvent = self.makeFile(name='remoteEvents', extension='py', Path=mainDirPath)
+        source_managedUserInterface = self.makeFile(name='managedUserInterface', extension='py', Path=mainDirPath)
+        source_managedFile = self.makeFile(name='managedFiles', extension='py', Path=mainDirPath)
         #managedApp and browserSourcePage share the same source file.
-        source_managedAppANDbrowserSourcePage = self.makeFile(name='managedApp', extension='py')
-        source_managedDatabase = self.makeFile(name='managedDB', extension='py')
-        source_dataChannel = self.makeFile(name='dataChannels', extension='py')
-        source_managedExecutable = self.makeFile(name='managedExecutables', extension='py')
-        source_polariServer = self.makeFile(name='polariServer', extension='py')
+        source_managedAppANDbrowserSourcePage = self.makeFile(name='managedApp', extension='py', Path=mainDirPath)
+        source_managedDatabase = self.makeFile(name='managedDB', extension='py', Path=mainDirPath)
+        source_dataChannel = self.makeFile(name='dataChannels', extension='py', Path=mainDirPath)
+        source_managedExecutable = self.makeFile(name='managedExecutables', extension='py', Path=mainDirPath)
+        source_polariServer = self.makeFile(name='polariServer', extension='py', Path=mainDirPath)
         #polyTyped Object and variable are both defined in the same source file
-        source_polyTypedObject = self.makeFile(name='polyTyping', extension='py')
-        source_polyTypedVars = self.makeFile(name='polyTypedVars', extension='py')
+        source_polyTypedObject = self.makeFile(name='polyTyping', extension='py', Path=mainDirPath)
+        source_polyTypedVars = self.makeFile(name='polyTypedVars', extension='py', Path=mainDirPath)
         self_fileInst = inspect.getfile(self.__class__)
         self_completepath = os.path.abspath(self_fileInst)
         self_fileName = self_completepath[self_completepath.rfind('\\')+1:self_completepath.rfind('.')]

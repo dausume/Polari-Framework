@@ -21,7 +21,7 @@ from polariCORS import polariCORS
 from polariCRUD import polariCRUD
 from polariAPI import polariAPI
 from polariPermissionSet import polariPermissionSet
-from polariUserGroupings import UserGroup
+from polariUserGroup import UserGroup
 from wsgiref import simple_server
 import falcon
 import subprocess
@@ -43,9 +43,9 @@ class polariServer(treeObject):
         self.active = False
         #Defines endpoints or mapping to remote endpoints which allow for CRUD access to all objects of the server's manager as well as it's subordinate manager objects.
         managerIdTuple = self.manager.getInstanceIdentifiers(self.manager)
-        self.objectEndpoints = {managerIdTuple:[]}
+        self.objectEndpoints = {}
         #Defines endpoints or mapping to remote endpoints which allow for CRUD access through dataChannel specifications on a server's manager as well as it's subordinate manager objects.
-        self.dataChannelEndpoints = {managerIdTuple:[]}
+        self.dataChannelEndpoints = {}
         #A variable used for testing purposes, determines how long the server should be active.
         self.timeActiveInMinutes = 5
         #Records the last time the server on the nodeJS side
@@ -58,7 +58,7 @@ class polariServer(treeObject):
         #    self.serverChannel = serverChannel
         #print('ServerChannel: ', self.serverChannel)
         typing = self.manager.getObjectTyping(self.__class__)
-        print('Typing Dict for polServer: ')
+        #print('Typing Dict for polServer: ')
         #Get the typing for the manager object which houses this server.
         managerType = type(self.manager).__name__
         #SECURE: Does not grant any visibility by default.
@@ -68,6 +68,7 @@ class polariServer(treeObject):
         #PUBLIC: Anyone with access to read all and create by default.
         #anything which someone has created will be granted modify access by default.
         #Secondary permissions grant update based on creators or other criteria.
+        self.managersOnServer = [self.manager]
         self.publicManagersList = []
         self.apiRestrictedObjects = ["isoSys"]
         self.secureTreeObjects = []
@@ -75,17 +76,15 @@ class polariServer(treeObject):
         self.publicTreeObjectsList = []
         #Creates an endpoint for the given manager object for the specific channel object Ex:
         #  https://someURL.com/manager-managerObjectType-(id0:val0, id1:val1, id2:val2, ...)/channel/channelName
-        idStr = ((((str( self.manager.getInstanceIdentifiers(self.manager) ).replace(' ','')).replace('(', '')).replace(',', '~')).replace('\'', '')).replace(')','.')
-        idStr = idStr[:len(idStr)-3]
-        self.serverManagerURI = '/manager/' + 'managerType=' + type(self.manager).__name__ +'&managerIdTuple=' + idStr + '/'
-        self.serverTouchPointAPI = polariAPI(apiName='', availableObjectsList=[self], manager=self.manager)
-        self.falconServer.add_route('/'+self.serverTouchPointAPI.apiName, self.serverTouchPointAPI)
+        self.uriList = []
+        self.crudObjectsList = []
+        objList = [self, self.manager]
+        self.serverTouchPointAPI = polariAPI(apiName='', polServer=self, availableObjectsList=objList, manager=self.manager)
+        self.customAPIsList = [self.serverTouchPointAPI]
         #mainChannelURI = self.baseURIprefix + 'channel/' + self.serverChannel.name + '/' + self.baseURIpostfix
         #print('Template URI: ', templateURI)
-        self.crudObjectsList = []
         #self.crudObjectsList.append(polariCRUD(self.serverChannel, manager=self.manager))
         #self.apiServer.add_route(uri_template = mainChannelURI, resource= self.crudObjectsList[0] )
-        self.uriList = []
         #The systems that maintain a secure local connection to this system/server and are used
         #for data processing by it, but do not have their own servers.
         self.siblingSystems = []

@@ -21,6 +21,9 @@ from polariPermissionSet import polariPermissionSet
 class polariCRUD(treeObject):
     @treeObjectInit
     def __init__(self, apiObject=None):
+        endpointList = self.manager.polServer.uriList
+        if('/' + apiObject in endpointList or '\\' + apiObject in endpointList):
+            raise ValueError("Trying to define an api for uri that already exists on this server.")
         #The polyTypedObject or dataChannel Instance
         self.apiObject = apiObject
         self.permissionSets = []

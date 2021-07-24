@@ -17,20 +17,43 @@
 from objectTreeDecorators import *
 from falcon import falcon
 from polariPermissionSet import polariPermissionSet
+from inspect import isclass
+import json
 
 #Defines the Create, Read, Update, and Delete Operations for a particular api endpoint designated for a particular dataChannel or polyTypedObject Instance.
 class polariAPI(treeObject):
     @treeObjectInit
-    def __init__(self, apiName=None, availableObjectsList=[], allowedMinAccess={'R':{'allObjs':'allVars'}}, allowedMaxAccess={'R':{'allObjs':'allVars'}}):
+    def __init__(self, apiName, polServer, availableObjectsList=[], objectAvailabilityQueries={}, allowedMinAccess={'R':{'allObjs':'allVars'}}, allowedMaxAccess={'R':{'allObjs':'allVars'}}):
         #The polyTypedObject or dataChannel Instance
-        self.apiName = apiName
+        endpointList = polServer.uriList
+        if('/' + apiName in endpointList or '\\' + apiName in endpointList):
+            raise ValueError("Trying to define an api for uri that already exists on this server.")
+        self.apiName = '/' + apiName
         self.permissionSets = []
         self.availableObjectsList = availableObjectsList
+        self.availableObjectGroupings = {}
+        self.objectAvailabilityQueries = objectAvailabilityQueries
+        for someObj in self.availableObjectsList:
+            isValidObj = False
+            if(someObj.__class__.__name__ == "treeObject" or someObj.__class__.__name__ == "managerObject"):
+                isValidObj = True
+            else:
+                for someParentClass in someObj.__class__.__bases__:
+                    if(someParentClass.__name__ == "treeObject" or someParentClass.__name__ == "managerObject"):
+                        isValidObj = True
+                        break
+            if(not isValidObj):
+                errMsg = "Invalid value passed into polariAPI " + str(someObj) + " which has parent objects - "+ str(someObj.__class__.__bases__) + " must be either an instance of type treeObject or managerObject or have one of those objects as a parent class & decorator for __init__()."
+                raise ValueError(errMsg)
+            #if(someObj.__class__.__name__ in self.availableObjectGroupings.keys()):
+            #    self.availableObjectGroupings[someObj.__class__.__name__]
         self.permissionsDict = {'C':{}, 'R':{'allObjs':'allVars'}, 'U':{}, 'D':{}}
         #The level of permissions given to anyone trying to access the api.
         self.allowedMinAccess = allowedMinAccess
         #The hiighest level of permissions that can be granted to anyone accessing the api.
         self.allowedMaxAccess = allowedMaxAccess
+        if(polServer != None):
+            polServer.falconServer.add_route(self.apiName, self)
 
     #Read in CRUD
     def on_get(self, request, response):        
@@ -43,30 +66,23 @@ class polariAPI(treeObject):
         print("request.query_string : ", request.query_string)
         #urlParameters = request.query_string
         print("Got auth, context.user, and queryString data.")
+        for someClassType in self.objectAvailabilityQueries.keys():
+            currentQuery = self.objectAvailabilityQueries[someClassType]
         try:
             jsonArrayToGet = []
             for someObj in self.availableObjectsList:
-                jsonObj = self.manager.getJsonDictForClass(passedInstances=[someObj])
+                jsonObj = self.manager.getJSONdictForClass(passedInstances=[someObj])
                 jsonArrayToGet.append(jsonObj)
-            print('Returning value for api on get: ', jsonArrayToGet)
-            response.context.result = jsonArrayToGet
-            print('Set context.result to return value.')
+            #print('Returning value for api on get: ', jsonArrayToGet)
+            response.media = jsonArrayToGet
+            #print('Set context.result to return value.')
+            response.status = falcon.HTTP_200
+            #print("Staus set to 200 - Success")
         except Exception as err:
+            response.status = falcon.HTTP_500
             print('Threw exception in get method.')
             print(err)
-            #raise falcon.HTTPServiceUnavailable(
-            #    title = 'Service Failure on Manager',
-            #    description = ('Encountered error while trying to get objects on given manager.'),
-            #    retry_after=60
-            #)
-        response.set_header('Powered-By', 'Polari')
-        print("Setting Header.")
-        response.statues = falcon.HTTP_200
-        print("Setting HTTP to 200.")
-        #if(allObjects == [] or allObjects == None):
-        #    response.status = falcon.HTTP_400
-        #else:
-        #    response.status = falcon.HTTP_200
+        response.append_header('Powered-By', 'Polari')
         
 
     async def on_get_collection(self, request, response):

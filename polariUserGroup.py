@@ -1,9 +1,9 @@
 from objectTreeDecorators import *
 class UserGroup(treeObject):
     @treeObjectInit
-    def __init__(self, groupname=None, permissionSets=[]):
+    def __init__(self, name, permissionSets=[]):
         #The Username this user leverages
-        self.groupName = groupname
+        self.name = name
         #All permission sets which are granted to users of the group.
         self.permissionSets = permissionSets
         #The following are auto-generated pseudo-permission sets, which take all of
