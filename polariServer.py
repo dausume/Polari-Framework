@@ -79,7 +79,7 @@ class polariServer(treeObject):
         self.uriList = []
         self.crudObjectsList = []
         objList = [self, self.manager]
-        self.serverTouchPointAPI = polariAPI(apiName='', polServer=self, availableObjectsList=objList, manager=self.manager)
+        self.serverTouchPointAPI = polariAPI(apiName='', polServer=self, minAccessDict={'R':{"polariAPI":"*","polariCRUD":"*", "polariServer":"*"}}, minPermissionsDict={'R':{"polariAPI":"*","polariCRUD":"*", "polariServer":"*"}}, manager=self.manager)
         self.customAPIsList = [self.serverTouchPointAPI]
         #mainChannelURI = self.baseURIprefix + 'channel/' + self.serverChannel.name + '/' + self.baseURIpostfix
         #print('Template URI: ', templateURI)

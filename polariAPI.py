@@ -23,40 +23,80 @@ import json
 #Defines the Create, Read, Update, and Delete Operations for a particular api endpoint designated for a particular dataChannel or polyTypedObject Instance.
 class polariAPI(treeObject):
     @treeObjectInit
-    def __init__(self, apiName, polServer, availableObjectsList=[], objectAvailabilityQueries={}, allowedMinAccess={'R':{'allObjs':'allVars'}}, allowedMaxAccess={'R':{'allObjs':'allVars'}}):
+    def __init__(self, apiName, polServer, minAccessDict={}, maxAccessDict={}, minPermissionsDict={}, maxPermissionsDict={}):
         #The polyTypedObject or dataChannel Instance
         endpointList = polServer.uriList
         if('/' + apiName in endpointList or '\\' + apiName in endpointList):
             raise ValueError("Trying to define an api for uri that already exists on this server.")
         self.apiName = '/' + apiName
         self.permissionSets = []
-        self.availableObjectsList = availableObjectsList
-        self.availableObjectGroupings = {}
-        self.objectAvailabilityQueries = objectAvailabilityQueries
-        for someObj in self.availableObjectsList:
-            isValidObj = False
-            if(someObj.__class__.__name__ == "treeObject" or someObj.__class__.__name__ == "managerObject"):
-                isValidObj = True
-            else:
-                for someParentClass in someObj.__class__.__bases__:
-                    if(someParentClass.__name__ == "treeObject" or someParentClass.__name__ == "managerObject"):
-                        isValidObj = True
-                        break
-            if(not isValidObj):
-                errMsg = "Invalid value passed into polariAPI " + str(someObj) + " which has parent objects - "+ str(someObj.__class__.__bases__) + " must be either an instance of type treeObject or managerObject or have one of those objects as a parent class & decorator for __init__()."
-                raise ValueError(errMsg)
-            #if(someObj.__class__.__name__ in self.availableObjectGroupings.keys()):
-            #    self.availableObjectGroupings[someObj.__class__.__name__]
-        self.permissionsDict = {'C':{}, 'R':{'allObjs':'allVars'}, 'U':{}, 'D':{}}
-        #The level of permissions given to anyone trying to access the api.
-        self.allowedMinAccess = allowedMinAccess
-        #The hiighest level of permissions that can be granted to anyone accessing the api.
-        self.allowedMaxAccess = allowedMaxAccess
+        #C-Create, R-Read, U-Update, D-DELETE, E-Event
+        #
+        #Create Access: Restricts values that may be entered into an instance during
+        #creation.  If instance does not meet query criteria in 'C' segment, instance
+        #cannot be created.
+        #Read Access: Restricts instances returned with a GET to those returned by the
+        #given classes and their queries.
+        #Update Access: Restricts instances that are able to be updated using a PUT
+        #request to only those returned by given classes and their queries.
+        #Delete Access: Restricts instances that are able to be deleted using a DELETE
+        #request to only those returned by given classes and their queries.
+        #Event Access: Restricts which instances may have their events/functions
+        #triggered down to those that are retrieved by the query.
+        # Normal Formatting - {'C':{}, 'R':{}, 'U':{}, 'D':{}, 'E':{}}
+        self.minAccessDict = minAccessDict
+        self.maxAccessDict = maxAccessDict
+        #Create Permissions: Restricts which fields may be passed during the creation
+        #of a given object instance.
+        #Read Permissions: Restricts which fields may be retrieved using a GET request.
+        #Update Permissions: Restricts which fields may be updated via a PUT request.
+        #Delete Permissions: Restricts the ability to do chain-deletion stemming from
+        #the given object from a given field, this also interferes with certain PUT or
+        #update rquests which would happen to remove the final reference to a given object.
+        #Event Permissions: Restricts what events on a given instance is allowed as well
+        #as which parameters may be passed to a given event
+        #Normal Formatting - {'C':{}, 'R':{}, 'U':{}, 'D':{}, 'E':{}}
+        self.minPermissionsDict = minPermissionsDict
+        self.maxPermissionsDict = maxPermissionsDict
         if(polServer != None):
             polServer.falconServer.add_route(self.apiName, self)
 
+    def validate_AccessDict(self, accessDict):
+        for CRUDEsegment in accessDict:
+            if(not CRUDEsegment in ['C', 'R', 'U', 'D', 'E']):
+                raise ValueError("Entered invalid value for CRUDE Permissions segment.")
+        for CRUDEsegment in accessDict:
+            for instanceType in accessDict[CRUDEsegment]:
+                #Validate instance type has a valid PolyTyping Instance on the manager.
+                if not instanceType in self.manager.objectTypingDict.keys():
+                    errMsg = "Entered invalid type "+ instanceType + " into CRUDE Access Query, type must be accounted for in PolyTyping object instance."
+                    raise ValueError(errMsg)
+                typingInstance = self.manager.objectTypingDict[instanceType]
+                for attributeName in accessDict[CRUDEsegment][instanceType]:
+                    #Validate the Attribute exists as a PolyTypedVariable on the PolyTyping Instance
+                    if not attributeName in typingInstance.variableNameList:
+                        errMsg = "Could not find attribute '"+ attributeName + "' accounted for in the PolyTyping for the type"
+                        raise ValueError(errMsg)
+                        for someAttributeQuerySegment in accessDict[CRUDEsegment][instanceType][attributeName]:
+                            if not (someAttributeQuerySegment == "*"):
+                                errMsg = "Invalid Query segment '"+ someAttributeQuerySegment + "' under the attribute '" + attributeName + "' for the type '" + instanceType + "' within an Access Query under the segment '" + CRUDEsegment + "'"
+                                raise ValueError(errMsg)
+                            if type(someAttributeQuerySegment).__name__ == 'dict':
+                                for queryCondition in someAttributeQuerySegment.keys():
+                                    if not queryCondition in ['EQUALS', 'CONTAINS', 'IN']:
+                                        errMsg = "Invalid Query Condition Section '"+ queryCondition +"' in Query segment '"+ someAttributeQuerySegment + "' under the attribute '" + attributeName + "' for the type '" + instanceType + "' within an Access Query under the segment '" + CRUDEsegment + "'"
+                                        raise ValueError(errMsg)
+
+
+    def validate_PermissionsDict(self):
+        print("hi")
+
     #Read in CRUD
-    def on_get(self, request, response):        
+    def on_get(self, request, response):
+        if(not "R" in self.minAccessDict.keys()):
+            response.status = falcon.HTTP_405
+            raise PermissionError("Read or Get requests not allowed on this API.")
+        jsonObj = {}
         #Get the authorization data, user data, and potential url parameters, which are both commonly relevant to both cases.
         print("Starting GET method.")
         authSession = request.auth
@@ -66,15 +106,20 @@ class polariAPI(treeObject):
         print("request.query_string : ", request.query_string)
         #urlParameters = request.query_string
         print("Got auth, context.user, and queryString data.")
-        for someClassType in self.objectAvailabilityQueries.keys():
-            currentQuery = self.objectAvailabilityQueries[someClassType]
+        #TODO Finish incorporating new query functionality
+        tempDict = {}
         try:
-            jsonArrayToGet = []
-            for someObj in self.availableObjectsList:
-                jsonObj = self.manager.getJSONdictForClass(passedInstances=[someObj])
-                jsonArrayToGet.append(jsonObj)
+            if(len(self.minAccessDict) > 0):
+                for someObjType in self.minAccessDict["R"].keys():
+                    curQuery = self.minAccessDict["R"][someObjType]
+                    print("For type ",someObjType, " using query - ",curQuery)
+                    passedInstances = self.manager.getListOfInstancesByAttributes(className=someObjType, attributeQueryDict=curQuery )
+                    if(passedInstances != {}):
+                        jsonObj[someObjType] = self.manager.getJSONdictForClass(passedInstances=passedInstances)
+                    else:
+                        jsonObj[someObjType] = {}
             #print('Returning value for api on get: ', jsonArrayToGet)
-            response.media = jsonArrayToGet
+            response.media = [jsonObj]
             #print('Set context.result to return value.')
             response.status = falcon.HTTP_200
             #print("Staus set to 200 - Success")
@@ -86,25 +131,46 @@ class polariAPI(treeObject):
         
 
     async def on_get_collection(self, request, response):
+        if(not "R" in self.allowedMinAccess.keys()):
+            response.status = falcon.HTTP_405
+            raise PermissionError("Read or Get requests not allowed on this API.")
         pass
 
     #Update in CRUD
     async def on_put(self, request, response):
+        if(not "U" in self.allowedMinAccess.keys()):
+            response.status = falcon.HTTP_405
+            raise PermissionError("Update or Put requests not allowed on this API.")
         pass
 
     async def on_put_collection(self, request, response):
+        if(not "U" in self.allowedMinAccess.keys()):
+            response.status = falcon.HTTP_405
+            raise PermissionError("Update or Put requests not allowed on this API.")
         pass
 
     #Create a single object instance in CRUD
     async def on_post(self, request, response):
+        if(not "C" in self.allowedMinAccess.keys()):
+            response.status = falcon.HTTP_405
+            raise PermissionError("Create or Post requests not allowed on this API.")
         pass
 
     async def on_post_collection(self, request, response):
+        if(not "C" in self.allowedMinAccess.keys()):
+            response.status = falcon.HTTP_405
+            raise PermissionError("Create or Post requests not allowed on this API.")
         pass
 
     #Delete in CRUD
     async def on_delete(self, request, response):
+        if(not "D" in self.allowedMinAccess.keys()):
+            response.status = falcon.HTTP_405
+            raise PermissionError("Delete requests not allowed on this API.")
         pass
 
     async def on_delete_collection(self, request, response):
+        if(not "D" in self.allowedMinAccess.keys()):
+            response.status = falcon.HTTP_405
+            raise PermissionError("Delete requests not allowed on this API.")
         pass

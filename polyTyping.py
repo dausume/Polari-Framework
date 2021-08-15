@@ -52,6 +52,8 @@ class polyTypedObject(treeObject):
             print("No python/polari source file could be found for the class type: ", self.className)
         #The context (App or Polari) in which this Object is being utilized
         self.manager = manager
+        if(manager != None):
+            manager.objectTypingDict[className] = self
         #The instances of this object's polyTyping in higher tiered contexts.
         self.inheritedTyping = []
         #Variables that may be used as unique identifiers.

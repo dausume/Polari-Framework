@@ -87,7 +87,7 @@ class managerObject:
             setattr(self, 'cloudIdList', [])
         for name in keywordargs.keys():
             #print('In parameters, found attribute ', name, ' with value ', keywordargs[name])
-            if(name=='manager' or name=='branch' or name=='id' or name=='objectTree' or name=='managedFiles' or name=='id' or name=='db' or name=='idList' or name=='cloudIdList' or name == 'subManagers' or name == 'polServer' or name == 'hasServer' or name == 'hostSys'):
+            if(name=='manager' or name=='branch' or name=='id' or name=='objectTables' or name=='objectTree' or name=='managedFiles' or name=='id' or name=='db' or name=='idList' or name=='cloudIdList' or name == 'subManagers' or name == 'polServer' or name == 'hasServer' or name == 'hostSys'):
                 setattr(self, name, keywordargs[name])
         self.primePolyTyping()
         self.complete = True
@@ -263,7 +263,7 @@ class managerObject:
         return JSONstring
 
     def getObjectSourceDetailsANDvalidateInstances(self, passedInstances):
-        #print("Entered passedInstances validation and details gathering.")
+        print("Entered passedInstances validation and details gathering, with passedInstances: ", passedInstances)
         returnDict = {'passedInstances':passedInstances, 'className':None, 'absDirPath':None, 'definingFile':None}
         #print("Initialized returnDict.")
         className = None
@@ -272,11 +272,14 @@ class managerObject:
             if(not someInst.__class__.__name__ in classNames):
                 classNames.append(someInst.__class__.__name__)
         #print("Reached end of first loop.")
-        if(len(classNames)==1):
+        if(len(classNames)>=1):
             className = classNames[0]
             returnDict['className'] = className
+        elif(len(classNames) == 0):
+            return {}
         else:
-            raise ValueError("In \'getJSONdictForClass\' the parameter passedInstances should contain one or more values and all be of one type.")
+            errMsg = "In \'getJSONdictForClass\' the parameter passedInstances should contain one or more values and all be of one type, instead had list: " + str(classNames)
+            raise ValueError(errMsg)
         #print("Got past valueError, confirming only one class type in list")
         #Go through and find correct polyTyping.
         correctObjectTyping = None
@@ -303,14 +306,19 @@ class managerObject:
 
     #Gets all data for a class and returns a Dictionary which is convertable to a json object.
     def getJSONdictForClass(self, passedInstances, varsLimited=[]):
-        print("Attempting to call passedInstances validation.")
-        objSourceDetailsDict = self.getObjectSourceDetailsANDvalidateInstances(passedInstances=passedInstances)
-        #Path to the Directory the file is in.
-        absDirPath = objSourceDetailsDict['absDirPath']
-        #The name of the file which contains the given class.
-        definingFile = objSourceDetailsDict['definingFile']
-        #The name of the class being retrieved.
-        className = objSourceDetailsDict['className']
+        print("Attempting to call passedInstances validation, passedInstances:", passedInstances, " and varsLimited: ", varsLimited)
+        if(type(passedInstances).__name__ == "dict"):
+            passedInstances = list(passedInstances.values())
+        if(len(passedInstances) > 0):
+            objSourceDetailsDict = self.getObjectSourceDetailsANDvalidateInstances(passedInstances=passedInstances)
+            #Path to the Directory the file is in.
+            absDirPath = objSourceDetailsDict['absDirPath']
+            #The name of the file which contains the given class.
+            definingFile = objSourceDetailsDict['definingFile']
+            #The name of the class being retrieved.
+            className = objSourceDetailsDict['className']
+        else:
+            objSourceDetailsDict = {}
         #
         varsLimited = varsLimited
         print("Successfully extracted details.")
@@ -569,119 +577,155 @@ class managerObject:
 
     #{"sampleStringAttribute":{"EQUALS":("id-1234","sampleClassName")),"CONTAINS":("","AND","")}, "sampleRefAttribute":{"IN":["polariID-0", ...]}}
     def getListOfInstancesByAttributes(self, className, attributeQueryDict="*"):
+        if(not className in self.objectTables.keys()):
+            return {}
         allClassInstancesDict = self.objectTables[className]
         remainingInstances = allClassInstancesDict
         eliminatedInstances = {}
         if(attributeQueryDict == "*"):
             return allClassInstancesDict
+        elif(type(attributeQueryDict).__name__ == "list" or type(attributeQueryDict).__name__ == "polariList"):
+            remainingInstances = self.listConditionalRequirementsForQuery(className=className, comboMethod="AND",queryListSegment=attributeQueryDict, remainingInstancesDict=remainingInstances)
+        elif(type(attributeQueryDict).__name__ == "dict"):
+            remainingInstances = self.dictAttributeRequirementsForQuery(className=className, queryDictSegment=attributeQueryDict, remainingInstancesDict=remainingInstances)
         else:
-            print("Starting query execution")
-            for someAttribute in attributeQueryDict:
-                if("EQUALS" in attributeQueryDict[someAttribute]):
-                    querySegment = attributeQueryDict[someAttribute]["EQUALS"]
-                    querySegmentTyping = type(querySegment).__name__
-                    #print("Entered EQUALS section of Query.  QuerySegment is type ",querySegmentTyping," and has value: ", querySegment)
-                    if(querySegmentTyping == "str"):
-                        #print("In str section")
-                        #Scenario where it is expected for attribute of instance
-                        #to be an exact instance of a type with an exact id value.
-                        if(someAttribute == "id"):
-                            #print("in id section")
-                            if(querySegment in self.objectTables[className].keys()):
-                                #print("querySegment found in objectTables")
-                                #Find objects with the given attribute equal
-                                for remainingInstanceId in remainingInstances.keys():
-                                #    print("remaining Id: ", remainingInstanceId)
-                                    remainingInstanceMeetsCriteria = False
-                                    if(remainingInstanceId == querySegment):
-                                        returnDict = {remainingInstanceId:self.objectTables[className][remainingInstanceId]}
-                                        #print("ReturnDict = ", returnDict)
-                                        return returnDict
-                                #remainingInstanceMeetsCriteria = False
-                                #remainingInstance = self.objectTables[querySegment][remainingInstanceId]
-                                #if(hasattr(remainingInstance, someAttribute)):
-                                #    referencedInstance = getattr(remainingInstance, someAttribute)
-                                #    if(hasattr(referencedInstance, 'id')):
-                                #        if(referencedInstance.Id == querySegment):
-                                #            remainingInstanceMeetsCriteria = True
-                                    if(not remainingInstanceMeetsCriteria):
-                                        #add to eliminated instances
-                                        eliminatedInstances[querySegment] = self.objectTables[className][remainingInstanceId]
-                        else:
-                            for remainingInstanceId in remainingInstances.keys():
-                                remainingInstanceMeetsCriteria = False
-                                if(remainingInstanceId != querySegment):
-                                    remainingInstanceMeetsCriteria = True
-                            print("finding instances with non-id attribute of type string.")
-                    else:
-                        raise ValueError("Entered invalid type into EQUALS section of query.")
-                #Remove eliminated instances from the remaining instances dict.
-                if(len(eliminatedInstances) != 0):
-                    for someInstId in eliminatedInstances.keys():
-                        remainingInstances.pop(someInstId)
-                    eliminatedInstances = []
-                #
-                if("CONTAINS" in attributeQueryDict[someAttribute]):
-                    print("Entered 'contains' segment of query.")
-                    querySegment = attributeQueryDict[someAttribute]["CONTAINS"]
-                    querySegmentTyping = type(querySegment).__name__
-                    if(querySegmentTyping == "tuple"):
-                        if(len(querySegment) == 2):
-                            for someElem in querySegment:
-                                if(type(someElem).__name__ in self.objectTables.keys()):
-                                    pass
-                            print("Checking if it contains an object instance within the attribute value.")
-                        elif(len(querySegment) == 3):
-                            if(querySegment[1] == "AND" or querySegment[1] == "OR"):
-                                self.logicalOperatorsForQuery(querySegment)
-                            else:
-                                raise ValueError("Contains segment of query only allows for AND or OR to be used with tuples of length 3.")
-                    elif(querySegmentTyping == "str"):
-                        #Find objects with the given attribute equal
-                        for remainingInstanceId in remainingInstances.keys():
-                            remainingInstanceMeetsCriteria = False
-                            remainingInstance = self.objectTables[querySegment[1]][remainingInstanceId]
-                            if(hasattr(remainingInstance, someAttribute)):
-                                if(querySegment in getattr(remainingInstance, someAttribute)):
-                                    remainingInstanceMeetsCriteria = True
-                            if(not remainingInstanceMeetsCriteria):
-                                #add to eliminated instances
-                                eliminatedInstances[querySegment[0]] = remainingInstance
-                #Remove eliminated instances from the remaining instances dict.
-                if(len(eliminatedInstances) != 0):
-                    for someInstId in eliminatedInstances.keys():
-                        remainingInstances.pop(someInstId)
-                    eliminatedInstances = []
-                if("IN" in attributeQueryDict[someAttribute]):
-                    print("Entered 'IN' segment of query.")
-                    querySegment = attributeQueryDict[someAttribute]["IN"]
-                    querySegmentTyping = type(querySegment).__name__
-                    print("querySegment type is ", querySegmentTyping, " and it's value is ", querySegment)
-                    foundMatch = False
-                    if(querySegmentTyping == "list"):
-                        for remainingInstanceId in remainingInstances.keys():
-                            remainingInstanceMeetsCriteria = False
-                            remainingInstance = self.objectTables[className][remainingInstanceId]
-                            if not remainingInstanceId in querySegment:
-                                eliminatedInstances[remainingInstanceId] = remainingInstance
-                                print("Eliminating instances using dict: ", eliminatedInstances)
-                                #Queue Id to be removed from remaining Ids.
-                            else:
-                                print("Found id", remainingInstanceId," in querySegment")
-                    #Remove eliminated instances from the remaining instances dict.
-                    if(len(eliminatedInstances.keys()) != 0):
-                        for someInstId in eliminatedInstances.keys():
-                            remainingInstances.pop(someInstId)
-                        eliminatedInstances = []
-        print("remainingInstancesDict = ", remainingInstances)
+            raise ValueError("attributeQuery value must be of type list or polariList, or a string containing *.")
         return remainingInstances
 
     #Pass in a query Segment containing a tuple with an AND or OR operator
     #in the middle.
-    def logicalOperatorsForQuery(self, querySegment, remainingInstancesDict):
-        leftSegment = querySegment[0]
-        operator = querySegment[1]
-        rightSegment = querySegment[2]
+    def listConditionalRequirementsForQuery(self, className, queryListSegment, remainingInstancesDict, comboMethod="AND"):
+        if(comboMethod in ["AND", "OR"]):
+            errMsg = "Attempted to generate query utilizing incorrect value " + comboMethod + " in the first position of a tuple in a Conditional Requirements List, only the values AND & OR are allowed in those positions for a query."
+            raise ValueError(errMsg)
+        tempInstancesDict = None
+        ListOfRemainingInstanceDictsForUnion = []
+        for logicTuple in queryListSegment:
+            if(type(logicTuple).__name__ == "tuple"):
+                if(len(logicTuple) != 2 and logicTuple[0] in ["AND", "OR"]):
+                    #At the base section, we assume it is an AND initially for the given list.
+                    segmentType = type(logicTuple[1]).__name__
+                    if(segmentType == "dict"):
+                        tempInstancesDict = self.dictAttributeRequirementsForQuery(className=className, queryDictSegment=logicTuple[1], remainingInstancesDict=remainingInstancesDict)
+                    elif(segmentType == "polariList" or segmentType == "list"):
+                        tempInstancesDict = self.listConditionalRequirementsForQuery(className=className, comboMethod=logicTuple[0],queryListSegment=logicTuple[1], remainingInstancesDict=remainingInstancesDict)
+                    else:
+                        errMsg = "Found unexpected value '"+ logicTuple[1] +"' of type '"+ segmentType +"' in conditional requirement tuple"
+                        raise ValueError(errMsg)
+                    if(comboMethod == "AND"):
+                        remainingInstancesDict = tempInstancesDict
+                    elif(comboMethod == "OR"):
+                        ListOfRemainingInstanceDictsForUnion.append(tempInstancesDict)
+        #Returns using this method when OR Conditional is being applied.
+        if(comboMethod == "OR"):
+            unionedInstancesDict = {}
+            for partialInstancesDict in ListOfRemainingInstanceDictsForUnion:
+                for someId in partialInstancesDict.keys():
+                    if(not someId in unionedInstancesDict):
+                        unionedInstancesDict[someId] = partialInstancesDict[someId]
+            return unionedInstancesDict
+        #Return using this method when AND Conditional is being applied
+        else:
+            return remainingInstancesDict
+
+
+
+    def dictAttributeRequirementsForQuery(self, className, queryDictSegment, remainingInstancesDict):
+        print("Starting query execution using atributeQueryDict: ", queryDictSegment)
+        attributeQueryDict = queryDictSegment
+        remainingInstances = remainingInstancesDict
+        eliminatedInstances = {}
+        for someAttribute in attributeQueryDict:
+            if("EQUALS" in attributeQueryDict[someAttribute]):
+                querySegment = attributeQueryDict[someAttribute]["EQUALS"]
+                querySegmentTyping = type(querySegment).__name__
+                #print("Entered EQUALS section of Query.  QuerySegment is type ",querySegmentTyping," and has value: ", querySegment)
+                if(querySegmentTyping == "str"):
+                    #print("In str section")
+                    #Scenario where it is expected for attribute of instance
+                    #to be an exact instance of a type with an exact id value.
+                    if(someAttribute == "id"):
+                        #print("in id section")
+                        if(querySegment in self.objectTables[className].keys()):
+                            #print("querySegment found in objectTables")
+                            #Find objects with the given attribute equal
+                            for remainingInstanceId in remainingInstances.keys():
+                            #    print("remaining Id: ", remainingInstanceId)
+                                remainingInstanceMeetsCriteria = False
+                                if(remainingInstanceId == querySegment):
+                                    returnDict = {remainingInstanceId:self.objectTables[className][remainingInstanceId]}
+                                    #print("ReturnDict = ", returnDict)
+                                    return returnDict
+                            #remainingInstanceMeetsCriteria = False
+                            #remainingInstance = self.objectTables[querySegment][remainingInstanceId]
+                            #if(hasattr(remainingInstance, someAttribute)):
+                            #    referencedInstance = getattr(remainingInstance, someAttribute)
+                            #    if(hasattr(referencedInstance, 'id')):
+                            #        if(referencedInstance.Id == querySegment):
+                            #            remainingInstanceMeetsCriteria = True
+                                if(not remainingInstanceMeetsCriteria):
+                                    #add to eliminated instances
+                                    eliminatedInstances[querySegment] = self.objectTables[className][remainingInstanceId]
+                    else:
+                        for remainingInstanceId in remainingInstances.keys():
+                            remainingInstanceMeetsCriteria = False
+                            if(remainingInstanceId != querySegment):
+                                remainingInstanceMeetsCriteria = True
+                        print("finding instances with non-id attribute of type string.")
+                else:
+                    raise ValueError("Entered invalid type into EQUALS section of query.")
+            #Remove eliminated instances from the remaining instances dict.
+            if(len(eliminatedInstances) != 0):
+                for someInstId in eliminatedInstances.keys():
+                    remainingInstances.pop(someInstId)
+                eliminatedInstances = []
+            #
+            if("CONTAINS" in attributeQueryDict[someAttribute]):
+                print("Entered 'contains' segment of query.")
+                querySegment = attributeQueryDict[someAttribute]["CONTAINS"]
+                querySegmentTyping = type(querySegment).__name__
+                if(querySegmentTyping == "str"):
+                    print("In string section of CONTAINS")
+                    #Find objects with the given attribute equal
+                    for remainingInstanceId in remainingInstances.keys():
+                        print("Analyzing for Id ", remainingInstanceId)
+                        remainingInstanceMeetsCriteria = False
+                        remainingInstance = self.objectTables[className][remainingInstanceId]
+                        if(hasattr(remainingInstance, someAttribute)):
+                            print("Found attribute in instance with CONTAINS: ", someAttribute, " with value: ", getattr(remainingInstance, someAttribute))
+                            if(querySegment in getattr(remainingInstance, someAttribute)):
+                                remainingInstanceMeetsCriteria = True
+                        if(not remainingInstanceMeetsCriteria):
+                            #add to eliminated instances
+                            eliminatedInstances[remainingInstanceId] = remainingInstance
+            #Remove eliminated instances from the remaining instances dict.
+            if(len(eliminatedInstances) != 0):
+                for someInstId in eliminatedInstances.keys():
+                    remainingInstances.pop(someInstId)
+                eliminatedInstances = []
+            if("IN" in attributeQueryDict[someAttribute]):
+                print("Entered 'IN' segment of query.")
+                querySegment = attributeQueryDict[someAttribute]["IN"]
+                querySegmentTyping = type(querySegment).__name__
+                print("querySegment type is ", querySegmentTyping, " and it's value is ", querySegment)
+                foundMatch = False
+                if(querySegmentTyping == "list"):
+                    for remainingInstanceId in remainingInstances.keys():
+                        remainingInstanceMeetsCriteria = False
+                        remainingInstance = self.objectTables[className][remainingInstanceId]
+                        if not remainingInstanceId in querySegment:
+                            eliminatedInstances[remainingInstanceId] = remainingInstance
+                            print("Eliminating instances using dict: ", eliminatedInstances)
+                            #Queue Id to be removed from remaining Ids.
+                        else:
+                            print("Found id", remainingInstanceId," in querySegment")
+                #Remove eliminated instances from the remaining instances dict.
+                if(len(eliminatedInstances.keys()) != 0):
+                    for someInstId in eliminatedInstances.keys():
+                        remainingInstances.pop(someInstId)
+                    eliminatedInstances = []
+        print("remainingInstancesDict = ", remainingInstances)
+        return remainingInstances
 
 
     #
@@ -1039,17 +1083,6 @@ class managerObject:
             instance = branchTuple[2]
         if(instance == None):
             print("Instance passed was none")
-        else:
-            if(hasattr(instance, 'id') and hasattr(self, "objectTables")):
-                if(instance.id != None):
-                    key = instance.__class__.__name__
-                    if(key in self.objectTables):
-                        self.objectTables[key][instance.id] = instance
-                    else:
-                        self.objectTables[key] = {}
-                        self.objectTables[key][instance.id] = instance
-                else:
-                    print("Instance has an id with value None.")
         #Overwrites the traversal list in the case where the branch has already been defined.
         if(hasattr(instance, "branch")):
             if(instance.branch != None):
@@ -1070,6 +1103,18 @@ class managerObject:
             else:
                 instance.manager = self
                 #TODO write code to delete branch from other manager and copy to this manager.
+        if(hasattr(instance, 'id') and hasattr(self, "objectTables")):
+            if(instance.id != None):
+                key = instance.__class__.__name__
+                if(key in self.objectTables):
+                    self.objectTables[key][instance.id] = instance
+                else:
+                    self.objectTables[key] = {}
+                    self.objectTables[key][instance.id] = instance
+            else:
+                instance.makeUniqueIdentifier()
+                print("New instance id: ", instance.id)
+                print("Adding Instance to tree but it has an id with value None.")
         if(hasattr(instance, "branch") and branchingInstance != None):
             if(instance.branch == traversalList[len(traversalList) - 1]):
                 pass

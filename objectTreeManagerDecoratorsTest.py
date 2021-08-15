@@ -346,6 +346,19 @@ class objectTree_TestCase(unittest.TestCase):
         firstTwoTreeIds = self.mngObj.getListOfInstancesByAttributes(className="testTreeBranchObj", attributeQueryDict={"id":{"IN":firstTwoIdsList}})
         self.assertTrue(len(firstTwoTreeIds.keys())==2, "Did not retrieve both TreeObjects using the IN Query for testTreeBranchObjs for string id values, passing a List of two Ids for IN.")
         print("ending test_ObjectTableDictionaryQueries")
+        queryTestingInst0 = testTreeBranchObj()
+        queryTestingInst1 = testTreeBranchObj()
+        queryTestingInst0.lowerBound = 5
+        queryTestingInst0.higherBound = 10
+        queryTestingInst1.subType = "Other"
+        queryTestingInst1.containsTest = "filler_containsTest_filler"
+        self.mngObj.objList_postFillList.append(queryTestingInst0)
+        self.mngObj.objList_postFillList.append(queryTestingInst1)
+        #Testing the CONTAINS portion of the Query
+        idWithTestInst1_dict = self.mngObj.getListOfInstancesByAttributes(className="testTreeBranchObj", attributeQueryDict={"containsTest":{"CONTAINS":"containsTest"}})
+        self.assertTrue(len(idWithTestInst1_dict.keys())==1 and queryTestingInst1.id in idWithTestInst1_dict.keys())
+
+
 
 
 if(__name__=='__main__'):
