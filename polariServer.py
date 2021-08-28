@@ -39,7 +39,7 @@ class polariServer(treeObject):
     def __init__(self, name="NEW_SERVER", displayName="NEW_POLARI_SERVER", hostSystem=None, serverChannel=None, serverDataStream=None):
         self.name = name
         self.displayName = displayName
-        self.falconServer = falcon.API()
+        self.falconServer = falcon.App(cors_enable=True)
         self.active = False
         #Defines endpoints or mapping to remote endpoints which allow for CRUD access to all objects of the server's manager as well as it's subordinate manager objects.
         managerIdTuple = self.manager.getInstanceIdentifiers(self.manager)

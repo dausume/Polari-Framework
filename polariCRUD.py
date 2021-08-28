@@ -20,8 +20,8 @@ from polariPermissionSet import polariPermissionSet
 #Defines the Create, Read, Update, and Delete Operations for a particular api endpoint designated for a particular dataChannel or polyTypedObject Instance.
 class polariCRUD(treeObject):
     @treeObjectInit
-    def __init__(self, apiObject=None):
-        endpointList = self.manager.polServer.uriList
+    def __init__(self, apiObject, polServer):
+        endpointList = self.polServer.uriList
         if('/' + apiObject in endpointList or '\\' + apiObject in endpointList):
             raise ValueError("Trying to define an api for uri that already exists on this server.")
         #The polyTypedObject or dataChannel Instance

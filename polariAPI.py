@@ -130,46 +130,46 @@ class polariAPI(treeObject):
         response.append_header('Powered-By', 'Polari')
         
 
-    async def on_get_collection(self, request, response):
+    def on_get_collection(self, request, response):
         if(not "R" in self.allowedMinAccess.keys()):
             response.status = falcon.HTTP_405
             raise PermissionError("Read or Get requests not allowed on this API.")
         pass
 
     #Update in CRUD
-    async def on_put(self, request, response):
+    def on_put(self, request, response):
         if(not "U" in self.allowedMinAccess.keys()):
             response.status = falcon.HTTP_405
             raise PermissionError("Update or Put requests not allowed on this API.")
         pass
 
-    async def on_put_collection(self, request, response):
+    def on_put_collection(self, request, response):
         if(not "U" in self.allowedMinAccess.keys()):
             response.status = falcon.HTTP_405
             raise PermissionError("Update or Put requests not allowed on this API.")
         pass
 
     #Create a single object instance in CRUD
-    async def on_post(self, request, response):
+    def on_post(self, request, response):
         if(not "C" in self.allowedMinAccess.keys()):
             response.status = falcon.HTTP_405
             raise PermissionError("Create or Post requests not allowed on this API.")
         pass
 
-    async def on_post_collection(self, request, response):
+    def on_post_collection(self, request, response):
         if(not "C" in self.allowedMinAccess.keys()):
             response.status = falcon.HTTP_405
             raise PermissionError("Create or Post requests not allowed on this API.")
         pass
 
     #Delete in CRUD
-    async def on_delete(self, request, response):
+    def on_delete(self, request, response):
         if(not "D" in self.allowedMinAccess.keys()):
             response.status = falcon.HTTP_405
             raise PermissionError("Delete requests not allowed on this API.")
         pass
 
-    async def on_delete_collection(self, request, response):
+    def on_delete_collection(self, request, response):
         if(not "D" in self.allowedMinAccess.keys()):
             response.status = falcon.HTTP_405
             raise PermissionError("Delete requests not allowed on this API.")
