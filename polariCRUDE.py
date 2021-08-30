@@ -46,7 +46,7 @@ class polariCRUDE(treeObject):
         #Pass back the minimal permissions to the object allowed for people who
         #have yet to be able to login.
         if(userInfo == None):
-            return {'R':{self.apiObject:"*"}}
+            return {'R':{self.apiObject:"*"}}, {'R':([],{self.apiObject:"*"})}
         #Get the user and compile a permissions dictionary for the object based on
         #the permissions tied to the user.
         else:
@@ -59,7 +59,7 @@ class polariCRUDE(treeObject):
         userAuthInfo = request.auth
         print("request.auth : ", request.auth)
         #Create a list of all 
-        (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(self, userAuthInfo)
+        (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
         #Check to ensure user has at least some access.
         if(not "R" in accessQueryDict):
             response.status = falcon.HTTP_405
@@ -82,7 +82,7 @@ class polariCRUDE(treeObject):
         #Cross analyze requested Instances and allowed instances (according to Access
         #Dictionaries on user) in order to analyze which instances requested are able
         #to be returned, in other words it performs 'viewing access'. 
-        requestedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=requestedQuery )
+        requestedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=accessQueryDict )
         #allowedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=allowedQuery )
         #retrievableInstances = self.instanceSetIntersection(requestedInstances, retrievableInstances)
         #TODO Add functionality to sort retrievableInstances into different sets
@@ -95,11 +95,11 @@ class polariCRUDE(treeObject):
         jsonObj = {}
         try:
             if(requestedInstances != {}):
-                #jsonObj[someObjType] = self.manager.getJSONdictForClass(passedInstances=retrievableInstances)
+                #jsonObj[self.apiObject] = self.manager.getJSONdictForClass(passedInstances=retrievableInstances)
                 #For now we just give everything being requested and don't bother with permissions
-                jsonObj[someObjType] = self.manager.getJSONdictForClass(passedInstances=requestedInstances)
+                jsonObj[self.apiObject] = self.manager.getJSONdictForClass(passedInstances=requestedInstances)
             else:
-                jsonObj[someObjType] = {}
+                jsonObj[self.apiObject] = {}
             response.media = [jsonObj]
             response.status = falcon.HTTP_200
         except Exception as err:
@@ -111,11 +111,6 @@ class polariCRUDE(treeObject):
             #    retry_after=60
             #)
         response.set_header('Powered-By', 'Polari')
-        #if(allObjects == [] or allObjects == None):
-        #    response.status = falcon.HTTP_400
-        #else:
-        #    response.status = falcon.HTTP_200
-        response.context.result = allObjects
 
     def on_get_collection(self, request, response):
         pass
