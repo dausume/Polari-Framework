@@ -18,7 +18,7 @@ from dataStreams import *
 from dataChannels import *
 from managedFiles import *
 from polariCORS import polariCORS
-from polariCRUD import polariCRUD
+from polariCRUDE import polariCRUDE
 from polariAPI import polariAPI
 from polariPermissionSet import polariPermissionSet
 from polariUserGroup import UserGroup
@@ -77,10 +77,20 @@ class polariServer(treeObject):
         #Creates an endpoint for the given manager object for the specific channel object Ex:
         #  https://someURL.com/manager-managerObjectType-(id0:val0, id1:val1, id2:val2, ...)/channel/channelName
         self.uriList = []
-        self.crudObjectsList = []
         objList = [self, self.manager]
         self.serverTouchPointAPI = polariAPI(apiName='', polServer=self, minAccessDict={'R':{"polariAPI":"*","polariCRUD":"*", "polariServer":"*"}}, minPermissionsDict={'R':{"polariAPI":"*","polariCRUD":"*", "polariServer":"*"}}, manager=self.manager)
         self.customAPIsList = [self.serverTouchPointAPI]
+        self.crudeObjectsList = [polariCRUDE(apiObject="polariCRUDE", polServer=self, manager=self.manager)]
+        objNamesList = list(self.manager.objectTypingDict)
+        if(not "polariAPI" in objNamesList):
+            objNamesList.append("polariAPI")
+        if(not "polariCRUDE" in objNamesList):
+            objNamesList.append("polariCRUDE")
+        print(objNamesList)
+        for objType in objNamesList:
+            self.crudeObjectsList.append(polariCRUDE(apiObject=objType, polServer=self, manager=self.manager))
+        
+        
         #mainChannelURI = self.baseURIprefix + 'channel/' + self.serverChannel.name + '/' + self.baseURIpostfix
         #print('Template URI: ', templateURI)
         #self.crudObjectsList.append(polariCRUD(self.serverChannel, manager=self.manager))
