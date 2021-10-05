@@ -133,7 +133,7 @@ class treeObject:
                 if value == None:
                     pass
                 elif(type(value).__name__ == "list" or type(value).__name__ == "polariList"):
-                    #print("Going through list variable assignment for var ", name ," post-init on treeObject using list ", value)
+                    print("Going through list variable assignment for var ", name ," post-init on treeObject using list ", value)
                     #Adding a list of objects
                     for inst in value:
                         accountedObjectType = False

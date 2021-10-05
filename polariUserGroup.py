@@ -1,20 +1,16 @@
 from objectTreeDecorators import *
 class UserGroup(treeObject):
     @treeObjectInit
-    def __init__(self, name, permissionSets=[]):
+    def __init__(self, name, assignedUsers=[], userMembersQuery={}, permissionSets=[]):
         #The Username this user leverages
         self.name = name
         #All permission sets which are granted to users of the group.
         self.permissionSets = permissionSets
-        #The following are auto-generated pseudo-permission sets, which take all of
-        #the defined permission sets and permission sets of sub-groups and compress
-        #them into a single permission set with all of the 
-        self.compressedPseudoPermissionSets = []
         #Users that were directly assigned to the group.
-        self.assignedUsers = []
+        self.assignedUsers = assignedUsers
         #May Define a query which dynamically determines which users are members of the
         #group.
-        self.userMembersFilter = []
+        self.userMembersQuery = userMembersQuery
         #If this User Group should always contains all of the users in a given group,
         #then this is a super-set of that group, while that group is a sub-set
         #of this group, and the group will appear here.
@@ -31,6 +27,11 @@ class UserGroup(treeObject):
         #All permissions applied to this group are passed up to the groups on this
         #variable for their compressedPseudoPermissionSets.
         self.permissionSubGroupOf = []
+        #All Access granted to any of the Groups below are similarly applied
+        #to this Group's access.
+        self.accessSuperGroupOf = []
+        #All Access applied to this group are passed up to the groups on this list.
+        self.accessSubGroupOf = []
 
     #Temporarily transforms the Permission set into a maximum-level Admin user group.
     #Such that all 

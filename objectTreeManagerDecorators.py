@@ -98,8 +98,6 @@ class managerObject:
         if(self.hostSys == None):
             self.hostSys = isoSys(name="newLocalSys", manager=self)
         if(self.hasServer):
-            self.users = []
-            self.userGroups = []
             self.polServer = polariServer(hostSystem=self.hostSys, manager=self)
         if(self.hasDB):
             self.db
@@ -112,7 +110,8 @@ class managerObject:
 
     def __setattr__(self, name, value):
         if(type(value).__name__ == 'list'):
-            #print("converting from list with value ", value, " to a polariList.")
+            if(name == "usersList"):
+                print("converting from list with value ", value, " to a polariList.")
             #Instead of initializing a polariList, we try to just cast the list to be type polariList.
             value = polariList(value)
             value.jumpstart(treeObjInstance=self, varName=name)
@@ -121,7 +120,9 @@ class managerObject:
             #TODO Write functionality to connect with a parent tree when/if manager is assigned.
             super(managerObject, self).__setattr__(name, value)
             return
-        if(not hasattr(self,"complete") or (type(value).__name__ in dataTypesPython and type(value) != list)):
+        if(not hasattr(self,"complete") or (type(value).__name__ in dataTypesPython and type(value) != list and type(value).__name__ != "polariList")):
+            if(name == "usersList"):
+                print("escaping early when setting usersList, type is: ", type(value).__name__)
             super(managerObject, self).__setattr__(name, value)
             return
         if(not self.complete):
@@ -132,7 +133,7 @@ class managerObject:
         #In polyObj 'polyObj.className' potential references exist for this object.
         #Here, we get each variable that is a reference or a list of references to a
         #particular type of object.
-        if type(value) != list:
+        if type(value).__name__ != "list" and type(value).__name__ != "polariList":
             if(value == None or value == []):
                 pass
             else:
@@ -156,7 +157,7 @@ class managerObject:
                     pass
                 elif(valuePath == None):
                     #add the new Branch
-                    #print("Creating branch on manager for instance on variable ", name, " for instance: ", value)
+                    print("Creating branch on manager for instance on variable ", name, " for instance: ", value)
                     newBranch = tuple([newpolyObj.className, ids, value])
                     self.addNewBranch(traversalList=[selfTuple], branchTuple=newBranch)
                     #Make sure the new branch has the current manager and the base as it's origin branch set on it.
@@ -218,41 +219,41 @@ class managerObject:
                         inst.branch = self
                     if(self != inst.manager):
                         inst.manager = self
-        else:
+        #else:
             #print('Setting attribute to a value: ', value)
-            print('Found object: "', value ,'" being assigned to an undeclared reference variable: ', name, 'On object: ', self)
-            newpolyObj = self.getObjectTyping(classObj=value.__class__)
-            managerPolyTyping = self.getObjectTyping(self.__class__)
-            managerPolyTyping.addToObjReferenceDict(referencedClassObj=value.__class__, referenceVarName=name)
-            print('Setting attribute on manager using a new polyTyping: ', newpolyObj.className, '; and set manager\'s new reference dict: ', managerPolyTyping.objectReferencesDict)
-            print(newpolyObj.className, 'object placed on manager ', self,' it\'s referenceDict after allocation is: ', newpolyObj.objectReferencesDict)
+            #print('Found object: "', value ,'" being assigned to an undeclared reference variable: ', name, 'On object: ', self)
+            #newpolyObj = self.getObjectTyping(classObj=value.__class__)
+            #managerPolyTyping = self.getObjectTyping(self.__class__)
+            #managerPolyTyping.addToObjReferenceDict(referencedClassObj=value.__class__, referenceVarName=name)
+            #print('Setting attribute on manager using a new polyTyping: ', newpolyObj.className, '; and set manager\'s new reference dict: ', managerPolyTyping.objectReferencesDict)
+            #print(newpolyObj.className, 'object placed on manager ', self,' it\'s referenceDict after allocation is: ', newpolyObj.objectReferencesDict)
             #if(self.identifiersComplete(value)):
-            ids = self.getInstanceIdentifiers(value)
-            valuePath = self.getTuplePathInObjTree(instanceTuple=tuple([newpolyObj.className, ids, value]))
-            if(valuePath == [selfTuple]):
+            #ids = self.getInstanceIdentifiers(value)
+            #valuePath = self.getTuplePathInObjTree(instanceTuple=tuple([newpolyObj.className, ids, value]))
+            #if(valuePath == [selfTuple]):
                 #print("found an instance already in the objectTree at the correct location:", value)
                 #Do nothing, because the branch is already accounted for.
-                pass
-            elif(valuePath == None):
+            #    pass
+            #elif(valuePath == None):
                 #add the new Branch
                 #print("Creating branch on manager for variable ", name," for instance: ", value)
-                newBranch = tuple([newpolyObj.className, ids, value])
-                self.addNewBranch(traversalList=[selfTuple], branchTuple=newBranch)
+            #    newBranch = tuple([newpolyObj.className, ids, value])
+            #    self.addNewBranch(traversalList=[selfTuple], branchTuple=newBranch)
                 #Make sure the new branch has the current manager and the base as it's origin branch set on it.
-                if(self != value.branch):
-                    value.branch = self
-                if(self != value.manager):
-                    value.manager = self
-            else:
+            #    if(self != value.branch):
+            #        value.branch = self
+            #    if(self != value.manager):
+            #        value.manager = self
+            #else:
                 #add as a duplicate branch
                 #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", value)
-                duplicateBranchTuple = tuple([newpolyObj.className, ids, tuple(valuePath)])
-                self.replaceOriginalTuple(self, originalPath=valuePath, newPath=[selfTuple,duplicateBranchTuple], newTuple=duplicateBranchTuple)
+            #    duplicateBranchTuple = tuple([newpolyObj.className, ids, tuple(valuePath)])
+            #    self.replaceOriginalTuple(self, originalPath=valuePath, newPath=[selfTuple,duplicateBranchTuple], newTuple=duplicateBranchTuple)
                 #Make sure the new branch has the current manager and the base as it's origin branch set on it.
-                if(self != value.branch):
-                    value.branch = self
-                if(self != value.manager):
-                    value.manager = self
+            #    if(self != value.branch):
+            #        value.branch = self
+            #    if(self != value.manager):
+            #        value.manager = self
         #print("Finished setting value of ", name, " to be ", value)
         super(managerObject, self).__setattr__(name, value)
 
@@ -577,6 +578,7 @@ class managerObject:
 
     #{"sampleStringAttribute":{"EQUALS":("id-1234","sampleClassName")),"CONTAINS":("","AND","")}, "sampleRefAttribute":{"IN":["polariID-0", ...]}}
     def getListOfInstancesByAttributes(self, className, attributeQueryDict="*"):
+        print("Calling query using value: ", attributeQueryDict)
         if(not className in self.objectTables.keys()):
             return {}
         allClassInstancesDict = self.objectTables[className]
@@ -589,14 +591,14 @@ class managerObject:
         elif(type(attributeQueryDict).__name__ == "dict"):
             remainingInstances = self.dictAttributeRequirementsForQuery(className=className, queryDictSegment=attributeQueryDict, remainingInstancesDict=remainingInstances)
         else:
-            raise ValueError("attributeQuery value must be of type list or polariList, or a string containing *.")
+            raise ValueError("attributeQuery value must be of type list or polariList, or a string containing *, instead it is ", attributeQueryDict)
         return remainingInstances
 
     #Pass in a query Segment containing a tuple with an AND or OR operator
     #in the middle.
     def listConditionalRequirementsForQuery(self, className, queryListSegment, remainingInstancesDict, comboMethod="AND"):
-        if(comboMethod in ["AND", "OR"]):
-            errMsg = "Attempted to generate query utilizing incorrect value " + comboMethod + " in the first position of a tuple in a Conditional Requirements List, only the values AND & OR are allowed in those positions for a query."
+        if(not comboMethod in ["AND", "OR"]):
+            errMsg = "Attempted to generate query utilizing incorrect value '" + comboMethod + "' in the first position of a tuple in a Conditional Requirements List, only the values AND & OR are allowed in those positions for a query."
             raise ValueError(errMsg)
         tempInstancesDict = None
         ListOfRemainingInstanceDictsForUnion = []
@@ -867,7 +869,7 @@ class managerObject:
     #Traverses the object tree to get a particular branch node by repeatedly accessing branches in-order according to the traversalList, 
     #which effectively acts as a path to the object acting as the branch
     def getBranchNode(self, traversalList):
-        #print('Path passed in: ', traversalList)
+        #print('Path passed in value: ', traversalList)
         branch = self.objectTree
         for tup in traversalList:
             #print("Traversing tuple in path: ", tup)
@@ -1165,6 +1167,8 @@ class managerObject:
         source_remoteEvent = self.makeFile(name='remoteEvents', extension='py', Path=mainDirPath)
         source_managedUserInterface = self.makeFile(name='managedUserInterface', extension='py', Path=mainDirPath)
         source_managedFile = self.makeFile(name='managedFiles', extension='py', Path=mainDirPath)
+        source_polariUser = self.makeFile(name='polariUser', extension='py', Path=mainDirPath)
+        source_polariUserGroups = self.makeFile(name='polariUserGroup', extension='py', Path=mainDirPath)
         #managedApp and browserSourcePage share the same source file.
         source_managedAppANDbrowserSourcePage = self.makeFile(name='managedApp', extension='py', Path=mainDirPath)
         source_managedDatabase = self.makeFile(name='managedDB', extension='py', Path=mainDirPath)
@@ -1174,6 +1178,8 @@ class managerObject:
         #polyTyped Object and variable are both defined in the same source file
         source_polyTypedObject = self.makeFile(name='polyTyping', extension='py', Path=mainDirPath)
         source_polyTypedVars = self.makeFile(name='polyTypedVars', extension='py', Path=mainDirPath)
+        source_polariCRUDE = self.makeFile(name='polariCRUDE', extension='py', Path=mainDirPath)
+        source_polariAPI = self.makeFile(name='polariAPI', extension='py', Path=mainDirPath)
         self_fileInst = inspect.getfile(self.__class__)
         self_completepath = os.path.abspath(self_fileInst)
         self_fileName = self_completepath[self_completepath.rfind('\\')+1:self_completepath.rfind('.')]
@@ -1184,7 +1190,7 @@ class managerObject:
         #print("source_self file path = ", self_path)
         self.objectTyping = [
             polyTypedObject(sourceFiles=[source_self], className=type(self).__name__, identifierVariables = identifierVariables, objectReferencesDict={}, manager=self),
-            polyTypedObject(sourceFiles=[source_polyTypedVars], className='polyTypedVariable', identifierVariables = ['name','polyTypedObj'], objectReferencesDict={'polyTypedObject':['polyTypedVars']}, manager=self),
+            polyTypedObject(sourceFiles=[source_polyTypedVars], className='polyTypedVariable', identifierVariables = ['name','polyTypedObj'], objectReferencesDict={'polyTypedObject':['polyTypedVars']}, manager=self, baseAccessDict={"R":{"polyTypedVariable":"*"}}, basePermDict={"R":{"polyTypedVariable":"*"}}),
             polyTypedObject(sourceFiles=[source_Polari], className='Polari', identifierVariables = ['id'], objectReferencesDict={}, manager=self),
             polyTypedObject(sourceFiles=[source_dataStream], className='dataStream', identifierVariables = ['id'], objectReferencesDict={'managedApp':['dataStreamsToProcess','dataStreamsRequested','dataStreamsAwaitingResponse']}, manager=self),
             polyTypedObject(sourceFiles=[source_remoteEvent], className='remoteEvent', identifierVariables = ['id'], objectReferencesDict={'managedApp':['eventsToProcess','eventsToSend','eventsAwaitingResponse']}, manager=self),
@@ -1195,8 +1201,14 @@ class managerObject:
             polyTypedObject(sourceFiles=[source_managedDatabase], className='managedDatabase', identifierVariables = ['name','Path'], objectReferencesDict={'managedApp':['DB']}, manager=self),
             polyTypedObject(sourceFiles=[source_dataChannel], className='dataChannel', identifierVariables = ['name','Path'], objectReferencesDict={'polariServer':['serverChannel'],'managedApp':['serverChannel','localAppChannel']}, manager=self),
             polyTypedObject(sourceFiles=[source_managedExecutable], className='managedExecutable', identifierVariables = ['name', 'extension','Path'], objectReferencesDict={}, manager=self),
-            polyTypedObject(sourceFiles=[source_polyTypedObject], className='polyTypedObject', identifierVariables = ['className'], objectReferencesDict={self.__class__.__name__:['objectTyping']}, manager=self),
-            polyTypedObject(sourceFiles=[source_polariServer], className='polariServer', identifierVariables = ['name', 'id'], objectReferencesDict={}, manager=self)
+            polyTypedObject(sourceFiles=[source_polyTypedObject], className='polyTypedObject', identifierVariables = ['className'], objectReferencesDict={self.__class__.__name__:['objectTyping']}, manager=self, baseAccessDict={"R":{"polyTypedObject":"*"}}, basePermDict={"R":{"polyTypedObject":"*"}}),
+            polyTypedObject(sourceFiles=[source_polariServer], className='polariServer', identifierVariables = ['name', 'id'], objectReferencesDict={}, manager=self, baseAccessDict={"R":{"polariServer":"*"}}, basePermDict={"R":{"polariServer":"*"}}),
+            polyTypedObject(sourceFiles=[source_polariUser], className='User', identifierVariables = ['id'], objectReferencesDict={self.__class__.__name__:['usersList']}, manager=self, baseAccessDict={"R":{"User":"*"}}, basePermDict={"R":{"User":"*"}}),
+            polyTypedObject(sourceFiles=[source_polariUserGroups], className='UserGroup', identifierVariables = ['id'], objectReferencesDict={self.__class__.__name__:['userGroupsList']}, manager=self, baseAccessDict={"R":{"UserGroup":"*"}}, basePermDict={"R":{"UserGroup":"*"}}),
+            polyTypedObject(sourceFiles=[source_polariAPI], className='polariAPI', identifierVariables = ['id'], objectReferencesDict={"polariServer":['']}, manager=self, baseAccessDict={"R":{"polariAPI":"*"}}, basePermDict={"R":{"polariAPI":"*"}}),
+            polyTypedObject(sourceFiles=[source_polariCRUDE], className='polariCRUDE', identifierVariables = ['id'], objectReferencesDict={"polariServer":['crudeObjectsList']}, manager=self, baseAccessDict={"R":{"polariCRUDE":"*"}}, basePermDict={"R":{"polariCRUDE":"*"}})
+        
+        
         ]
         #Goes through the objectTyping list to make sure that the object
         #that is 'self' was accounted for, adds a default typing if not.

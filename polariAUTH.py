@@ -1,3 +1,5 @@
+import falcon
+
 class polariAuthMiddleware:
 
     async def process_request(self, req, resp):
@@ -23,8 +25,8 @@ class polariAuthMiddleware:
 
             raise falcon.HTTPUnauthorized(title='Authentication token required',
                                           description=description,
-                                          challenges=challenges,
-                                          href='http://polariai.com/auth-docs')
+                                          challenges=challenges
+                                          )
 
     #Confirms the token is valid for the given account.
     def _token_is_valid(self, token, account_id):

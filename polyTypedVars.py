@@ -20,7 +20,7 @@ class polyTypedVariable(treeObject):
         #Accounts for different set-like data types and what may be contained inside.
         if(callable(attributeValue)):
             self.eventsList.append(attributeValue)
-        if(dataType == 'list' or dataType == 'tuple' or dataType == 'dict'):
+        if(dataType == 'list' or dataType == 'tuple' or dataType == 'dict' or dataType == 'polariList'):
             dataType = self.extractSetTyping(varSet=attributeValue)
         elif(not dataType in dataTypesPython and dataType != 'NoneType' and dataType != 'method'):
             #Find the definition of the object for the given manager, and construct based on that.
@@ -64,10 +64,10 @@ class polyTypedVariable(treeObject):
         if(curDepth >= maxDepth):
             return setType + '(?)'
         firstRun = True
-        if(setType == 'list' or setType == 'tuple'):
+        if(setType == 'list' or setType == 'tuple' or setType == 'polariList'):
             for elem in varSet:
                 elemType = type(elem).__name__
-                if(elemType == 'list' or elemType == 'tuple' or elemType == 'dict'):
+                if(elemType == 'list' or elemType == 'tuple' or elemType == 'dict' or setType == 'polariList'):
                     tempString = self.extractSetTyping(varSet=elem,typingString=typingString, curDepth = curDepth + 1, maxDepth=maxDepth)
                 else:
                     tempString = elemType
@@ -77,13 +77,13 @@ class polyTypedVariable(treeObject):
         elif(setType == 'dict'):
             for elem in varSet.keys():
                 elemType = type(elem).__name__
-                if(elemType == 'list' or elemType == 'tuple' or elemType == 'dict'):
+                if(elemType == 'list' or elemType == 'tuple' or elemType == 'dict' or setType == 'polariList'):
                     tempString = self.extractSetTyping(varSet=elem,typingString=typingString, curDepth = curDepth + 1, maxDepth=maxDepth)
                 else:
                     tempString = elemType
                 tempString += ':'
                 elemType = type(varSet[elem]).__name__
-                if(elemType == 'list' or elemType == 'tuple' or elemType == 'dict'):
+                if(elemType == 'list' or elemType == 'tuple' or elemType == 'dict' or setType == 'polariList'):
                     tempString += self.extractSetTyping(varSet=elem,typingString=typingString, curDepth = curDepth + 1, maxDepth=maxDepth)
                 else:
                     tempString += elemType

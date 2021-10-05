@@ -18,15 +18,14 @@ from remoteEvents import *
 from objectTreeDecorators import *
 from polyTypedVars import *
 #from functionalityAnalysis import *
-
-import logging
+import logging, os
 
 #Accounts for data on a class and allows for valid data typing in multiple types,
 #also accounts for the conversion of data types that should be performed when
 #transmitting data across environments and into other programming language contexts.
 class polyTypedObject(treeObject):
     @treeObjectInit
-    def __init__(self, className, manager, objectReferencesDict={}, sourceFiles=[], identifierVariables=[], variableNameList=[]):
+    def __init__(self, className, manager, objectReferencesDict={}, sourceFiles=[], identifierVariables=[], variableNameList=[], baseAccessDict={}, basePermDict={}):
         #if(className == 'polariServer'):
         #    print('Making the polyTyping object for polariServer with manager set as: ', manager)
         self.isTreeObject = None
@@ -68,10 +67,11 @@ class polyTypedObject(treeObject):
         self.variableNameList = variableNameList
         #The polyTypedVariable instances for each of the variables in the class.
         self.polyTypedVars = []
-        #The list of all permission sets which affect access to this object.
-        self.permissionSets = []
-        #Dictionary of all Named Permission Sets
-        self.permissionSetsDict = {}
+        #
+        self.baseAccessDictionary = {}
+        self.basePermissionDictionary = {}
+
+    
 
     def makeDefaultPermissionSets(self):
         #ACCESS PERMISSION SETS
@@ -402,3 +402,37 @@ class polyTypedObject(treeObject):
             logging.warn(msg='Attempting to generate Object typing that already exists '
             + 'for ' + self.className + 'in the context of a ' + (self.manager).__name__
             + ' with the name ' + (self.manager).name)
+
+    def getCreateMethod(self):
+        #compares the absolute paths of this file and the directory where the class is defined
+        #the first character at which the two paths diverge is stored into divIndex
+        definingFile = self.polariSourceFile.name
+        absDirPath = self.polariSourceFile.Path
+        className = self.className
+        if(absDirPath != None and definingFile != None and className != None):
+            curPath =  (os.path.realpath(__file__))[:os.path.realpath(__file__).rfind('\\')]
+            divIndex = 0
+            for charIndex in range( len(absDirPath) ):
+                if(absDirPath[charIndex] != curPath[charIndex]):
+                    divIndex = charIndex
+                elif(charIndex == len(absDirPath)):
+                    divIndex = None
+                divIndex += 1
+            if(divIndex == 0 or divIndex == None):
+                print("Warning: Make sure you enter an Absolute Path to your class's directory and that it lies"
+                + "in the same File System where your Polari is Defined. /n" + " The path entered was: "
+                + absDirPath + "/n Error: Either no Directory Path was given or it was invalid.")
+            elif(divIndex != len(curPath)):
+                print("The path to the file defining the class is not within a subdirectory managable by the Polari./n"
+                + "The Path to the class must begin with: " + curPath + "/nThe Path entered was: " + absDirPath)
+            else: #Eliminating the previous two possibilites means the absDirPath is in the same Dir or a subDir of curDir
+                if(len(absDirPath) > len(curPath)):
+                    sys.path.append(absDirPath[divIndex:]) #Gets the subpath relative to the managedDatabase File
+                moduleImported = __import__(name=definingFile, fromlist=className)
+                ClassInstantiationMethod = getattr(moduleImported, className)
+                return ClassInstantiationMethod
+        else:
+            print("Make sure to enter all three parameters into the makeTableByClass function!  Enter the"
+            +"absolute directory path to the folder of the class to be made into a Database table first, then"
+            + "enter the name of the file (without extension) where the class is defined second, then enter"
+            +"the class name third.")

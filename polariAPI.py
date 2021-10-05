@@ -16,6 +16,8 @@
 
 from objectTreeDecorators import *
 from falcon import falcon
+#Adds the custom HTTP Method event to validation.
+falcon.COMBINED_METHODS += ['EVENT']
 from polariPermissionSet import polariPermissionSet
 from inspect import isclass
 import json
@@ -23,7 +25,7 @@ import json
 #Defines the Create, Read, Update, and Delete Operations for a particular api endpoint designated for a particular dataChannel or polyTypedObject Instance.
 class polariAPI(treeObject):
     @treeObjectInit
-    def __init__(self, apiName, polServer, minAccessDict={}, maxAccessDict={}, minPermissionsDict={}, maxPermissionsDict={}):
+    def __init__(self, apiName, polServer, minAccessDict={}, maxAccessDict={}, minPermissionsDict={}, maxPermissionsDict={},  eventAPI=False, eventObject=None, event=None):
         #The polyTypedObject or dataChannel Instance
         endpointList = polServer.uriList
         if('/' + apiName in endpointList or '\\' + apiName in endpointList):
@@ -58,6 +60,7 @@ class polariAPI(treeObject):
         #Normal Formatting - {'C':{}, 'R':{}, 'U':{}, 'D':{}, 'E':{}}
         self.minPermissionsDict = minPermissionsDict
         self.maxPermissionsDict = maxPermissionsDict
+        #Run this if defining an event API
         if(polServer != None):
             polServer.falconServer.add_route(self.apiName, self)
 
@@ -173,4 +176,10 @@ class polariAPI(treeObject):
         if(not "D" in self.allowedMinAccess.keys()):
             response.status = falcon.HTTP_405
             raise PermissionError("Delete requests not allowed on this API.")
+        pass
+
+    def on_event(self, request, response):
+        if(not "E" in self.allowedMinAccess.keys()):
+            response.status = falcon.HTTP_405
+            raise PermissionError("Event requests not allowed on this API.")
         pass

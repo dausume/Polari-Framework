@@ -16,7 +16,6 @@ class polariList(list):
             for someObjType in objectTyping:
                 if(not someObjType.className in objectTypingDict.keys()):
                     objectTypingDict[someObjType.className] = someObjType
-                
         #print("eval of polariList after treeObjInstance is set: ", self)
 
     #Aside from directly setting the list, other methods of adding and taking away are not traced
@@ -24,16 +23,14 @@ class polariList(list):
         if(type(value).__name__ in dataTypesPython and type(value) != list and type(value).__name__ !="polariList"):
             super().append(value)
             return
-        #if(varName == "objectTyping"):
-        #    if(not value.__class__.__name__ == "polyTypedObject"):
-        #        raise valueError("Attempting to place non-typing object instance into objectTyping list.")
-        #    objectTyping = getattr(self.treeObjInstance, "objectTyping")
-        #    objectTypingDict = getattr(self.treeObjInstance, "objectTypingDict")
-        #   if(not value.className in self.objectTypingDict.keys()):
-        #        objectTypingDict[value.className] = value
-        #    else:
-        #        errMsg = "Attempting to add object typing for type ", value.className," when typing already exists for given object type."
-        #        raise valueError(errMsg)
+        if(self.varName == "objectTyping"):
+            objectTyping = self
+            objectTypingDict = getattr(self.treeObjInstance, "objectTypingDict")
+            if(not value.className in objectTypingDict.keys()):
+                objectTypingDict[value.className] = value
+            else:
+                errMsg = "Attempting to add object typing for type ", value.className," when typing already exists for given object type."
+                print(errMsg)
         #print("Appending to list on object instance ", self.treeObjInstance, " for variable ", self.varName, " with value ", value)
         for parentClass in self.treeObjInstance.__class__.__bases__:
             typeName = parentClass.__name__

@@ -22,8 +22,10 @@ from polariCRUDE import polariCRUDE
 from polariAPI import polariAPI
 from polariPermissionSet import polariPermissionSet
 from polariUserGroup import UserGroup
+from polariUser import User
 from wsgiref import simple_server
 import falcon
+import secrets
 import subprocess
 
 class apiError(Exception):
@@ -38,7 +40,23 @@ class polariServer(treeObject):
     @treeObjectInit
     def __init__(self, name="NEW_SERVER", displayName="NEW_POLARI_SERVER", hostSystem=None, serverChannel=None, serverDataStream=None):
         self.name = name
+        #Creates a random salt for hashing passwords for validating users.
+        #THE VALUES IN THIS DICT SHOULD NOT BE CHANGED OR ALL PASSWORDS WILL BE RESET.
+        #Contains a set of salts that define password hashes for given time periods
+        #or just a * for all time periods.
+        self.serverPasswordSaltDict = {"*":secrets.token_urlsafe(16)}
+        #Temporary Users and Registered Users should be at least equal so that all Users can
+        #login simultaneously if needed, so long as no unaccounted for or malicious people or bots
+        #are attempting to occupy space as temporary Users.
+        #Analysis of the server overall should be made to determine what these limits
+        #should be set as.
+        self.temporaryUsersLimit = 10
+        self.registeredUsersLimit = 10
         self.displayName = displayName
+        #Password requirements
+        self.passwordRequirements = {"min-length":8, "max-length":24, "min-special-chars":1, "min-nums":2}
+        self.publicFrontendKey = None
+        self.privateFrontendKey = None
         self.falconServer = falcon.App(cors_enable=True)
         self.active = False
         #Defines endpoints or mapping to remote endpoints which allow for CRUD access to all objects of the server's manager as well as it's subordinate manager objects.
@@ -65,6 +83,12 @@ class polariServer(treeObject):
         self.secureManagerObjects = []
         #PROTECTED: Grants only read by default.
         self.protectedManagerObjects = [managerType]
+        self.tempUsersList = []
+        self.tempUsersDict = {}
+        self.usersList = [User(username="topadmin", password="topadmin", manager=self.manager)]
+        self.usersDict = {self.usersList[0].username:self.usersList[0]}
+        self.userGroupsList = [UserGroup(name="adminGroup", assignedUsers=[self.usersList[0]], manager=self.manager)]
+        self.userGroupsList = {self.userGroupsList[0].name:self.userGroupsList[0]}
         #PUBLIC: Anyone with access to read all and create by default.
         #anything which someone has created will be granted modify access by default.
         #Secondary permissions grant update based on creators or other criteria.
@@ -78,8 +102,15 @@ class polariServer(treeObject):
         #  https://someURL.com/manager-managerObjectType-(id0:val0, id1:val1, id2:val2, ...)/channel/channelName
         self.uriList = []
         objList = [self, self.manager]
-        self.serverTouchPointAPI = polariAPI(apiName='', polServer=self, minAccessDict={'R':{"polariAPI":"*","polariCRUD":"*", "polariServer":"*"}}, minPermissionsDict={'R':{"polariAPI":"*","polariCRUD":"*", "polariServer":"*"}}, manager=self.manager)
-        self.customAPIsList = [self.serverTouchPointAPI]
+        serverTouchPointAPI = polariAPI(apiName='', polServer=self, minAccessDict={'R':{"polariAPI":"*","polariCRUD":"*", "polariServer":"*"}}, minPermissionsDict={'R':{"polariAPI":"*","polariCRUD":"*", "polariServer":"*"}}, manager=self.manager)
+        #Create User API - Creates an API for the user to temporarily register with until they either login or create their own actual registration.
+        tempRegisterAPI = polariAPI(apiName='tempRegister', polServer=self, minAccessDict={'E':{"polariServer":"*"}}, minPermissionsDict={'E':{"polariServer":"tempRegister"}}, manager=self.manager)
+        #Update temp registration to actual registration
+        registerAPI = polariAPI(apiName='register', polServer=self, minAccessDict={'E':{"polariServer":"*"}}, minPermissionsDict={'E':{"polariServer":"register"}}, manager=self.manager)
+        #Change over to the official registration, transfer over all instances owned by the current temporary registration
+        #to the official one.  Then delete the temporary registration.
+        loginAPI = polariAPI(apiName='login', polServer=self, minAccessDict={'E':{"polariServer":"*"}}, minPermissionsDict={'E':{"polariServer":"login"}}, manager=self.manager)
+        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI]
         self.crudeObjectsList = [polariCRUDE(apiObject="polariCRUDE", polServer=self, manager=self.manager)]
         objNamesList = list(self.manager.objectTypingDict)
         if(not "polariAPI" in objNamesList):
@@ -258,3 +289,45 @@ class polariServer(treeObject):
         serverProcess.terminate()
         serverProcess.wait(timeout=0.2)
         output = subprocess.check_output()
+
+    def tempRegister(self):
+        #First, check if the maximum allowed amount of tempUsers has been reached.
+        #If limit has been reached, return an error saying limit was reached.
+        if(len(self.tempUsersList) > self.temporaryUsersLimit):
+            raise PermissionError("Maximum amount of temporarry users reached for this server.")
+        else:
+            #Else, create the new temporary user and return it's info to the frontend. 
+            newTempUser = User(unregistered=True)
+            self.tempUsersList.append(newTempUser)
+            self.tempUsersDict[newTempUser.id] = newTempUser
+            return newTempUser
+
+    def register(self, tempUserId, newUsername, newPassword):
+        cur_user = self.tempUsersDict[tempUserId]
+        usernames = list(self.usersDict.keys())
+        if(newUsername in usernames):
+            raise ValueError("Username already has associated user.")
+        
+
+    def login(self, tempUserId, username, password):
+        getTempUser = ""
+        transferTempUserData = ""
+
+    def changePassword(self, newPassword):
+        if(len(newPassword) < self.passwordRequirements["min-length"]):
+            raise ValueError("Must have over ", self.passwordRequirements["min-length"], " characters in password.")
+        if(len(newPassword) < self.passwordRequirements["max-length"]):
+            raise ValueError("Must have under ", self.passwordRequirements["max-length"], " characters in password.")
+        specialCharCount = 0
+        numCharCount = 0
+        for someChar in newPassword:
+            if(not someChar.isalnum()):
+                specialCharCount += 1
+            if(someChar.isnumeric()):
+                numCharCount += 1
+        if(specialCharCount < self.passwordRequirements["min-special-chars"]):
+            raise ValueError("Must have over ", self.passwordRequirements["min-special-chars"], " special characters in password.")
+        if(numCharCount < self.passwordRequirements["min-nums"]):
+            raise ValueError("Must have over ", self.passwordRequirements["min-nums"], " numbers in password.")
+
+        
