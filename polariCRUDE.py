@@ -38,10 +38,13 @@ class polariCRUDE(treeObject):
         self.basePermissionDictionaries = []
         #Get the instantiation method for the class, for use in the CREATE method.
         self.CreateMethod = self.objTyping.getCreateMethod()
-        self.CreateParameters = list(inspect.signature(self.CreateMethod).parameters)
+        sig = inspect.signature(self.CreateMethod)
+        params = sig.parameters
+        self.CreateParameters = list(params)
         #Go through each polyTyped variable and get all variables on it.
+        self.validVarsList = []
         for someVarTyping in self.objTyping.polyTypedVars:
-            pass
+            self.validVarsList.append(someVarTyping.name)
         if(polServer != None):
             polServer.falconServer.add_route(self.apiName, self)
 
@@ -164,14 +167,28 @@ class polariCRUDE(treeObject):
         for someData in data:
             print("content type: ",someData.content_type)
             dataSegment = (someData.data).decode("utf-8")
-            #THE FOLLOWING TWO ARE USED IF THE POST CONSISTS OF A SINGULAR DATASET
-            #A dictionary of objects to a list of dictionaries {"obj0":[{"var":"", "instanceQuery":query}]}
+            #THE FOLLOWING IS AN EXAMPLE DATASET, where 'attachmentPoints' resolves to a
+            #specific set of variables attached to specific instances and 'initParamSets'
+            #is a list of keyword parameters which will be passed into the __init__ function
+            #of the given class in order to create a new instance of the class.
+            #{
+            #"attachmentPoints":
+            #   {
+            #   "varSpecification":[{"obj0":["varName0", "varName1",..]}], "obj1":[..], ..}], 
+            #   "instanceQuery":query
+            #   }
+            #,
+            #"initParamSets":
+            #   [
+            #   {"Inst0param0":value, "Inst0param1":value}, {"Inst1param0":value, "Inst1param1":value}, ..
+            #   ]
+            #}
             if(someData.name == "attachmentPoints"):
                 dataSet["attachmentPoints"] = json.loads(dataSegment)
-            if(someData.name == "newInstances"):
-                dataSet["newInstances"] = json.loads(dataSegment)
+            if(someData.name == "initParamSets"):
+                dataSet["initParamSets"] = json.loads(dataSegment)
             #THIS IS USED IF MULTIPLE DATASETS ARE BEING SENT AT ONCE
-            #A list of dataSets where [{"obj0":[{"var":"varName", "instanceQuery":query}]}],"initParams":[{"param0":val0, "param1":val1}]}]
+            #A list of dataSets with format as stated before [{dataSet0},{dataSet1},...]
             if(someData.name == "dataSets"):
                 dataSets = json.loads(dataSegment)
         if(dataSet != {}):
@@ -181,43 +198,65 @@ class polariCRUDE(treeObject):
         tempInstancesList = []
         for someDataSet in dataSets:
             #Take given json entries and create a list of temporary instances from it.
-            for newInst in someDataSet["newInstances"]:
+            for newInst in someDataSet["initParamSets"]:
                 #Use the __init__ funtion for this api's object to create new instances using variables passed.
                 #Add the new instances to the list of temporary instances.
                 #After all instances are created we will run a query operation on them to ensure the user
                 #should be allowed to create them in the given criteria.
-                pass
-            #Resolve queries for attachmentPoints and run user access validation.
-            for someObj in someDataSet["attachmentPoints"].keys():
-                #Get which instances we are allowed to allocate these new instances onto.
-                if(not someObj in allowedUpdatesAccessDict.keys()):
-                    allowedQuery = accessQueryDict["U"][self.apiObject]
-                    allowedUpdatesAccessDict[someObj] = self.manager.getListOfInstancesByAttributes(className=someObj, attributeQueryDict=accessQueryDict )
-                    permissionQuery = permissionQueryDict["U"][self.apiObject]
-                    allowedUpdatesPermissionsDict[someObj] = self.manager.getListOfInstancesByAttributes(className=someObj, attributeQueryDict=permissionQuery )
-                #Resolve the attachment point queries.  Check their resolved instance lists
-                #against the allowedAccess and allowedPermissions query resolutions.
-                #If there are any mismatches, throw an error.
-                for somePointSet in someDataSet["attachmentPoints"][someObj]:
-                    attachmentInstances = self.manager.getListOfInstancesByAttributes(className=someObj, attributeQueryDict=somePointSet["instanceQuery"] )
-                    for id in attachmentInstances.keys():
-                        for newInst in tempInstancesList:
-                            attrRef = getattr(attachmentInstances[id], somePointSet["var"])
-                            attrType = attrRef.__class__.__name__
+                missingParamsList = self.CreateParameters
+                #Validate that the parameters are valid, record parameters that
+                #were not passed in case an error occurs or if they are required.
+                for someParam in newInst.keys():
+                    if(someParam in self.CreateParameters):
+                        missingParamsList.remove(someParam)
+                        #TODO If the variable or class has strict typing or validation
+                        #enabled for it on the PolyTyping, we check the value against
+                        #the polyTypedVar or parameter type enforcement info.
+                    else:
+                        errMsg = "Error: invalid initialization parameter '"+ someParam + "' passed for class " + self.apiObject + ", should only pass one of the following valid parameters: " + str(self.CreateParameters)
+                        raise ValueError(errMsg)
+                #After validating, create the new instance using the given parameters.
+                if("manager" in self.newInst.keys()):
+                    #TODO If manager is defined using an Id, query that manager and
+                    #assign the reference to it as the manager instead.  This is
+                    #used if multiple managers exist on one system or if this manager
+                    #is being used as a relay or intermediary to create on another manager.
+                    raise ValueError("The functionality to create instances remotely or for multiple managers on a system has not been implemented.  Do not include 'manager' in create request, it will be set automatically to the manager hosting the server.")
+                else:
+                    #We assume the manager is the same one hosting the server since
+                    #the instance create request is not specified for another manager.
+                    tempInstancesList.append(self.CreateMethod(**newInst, manager=self.manager))
+            varSpec = someDataSet["attachmentPoints"]["varSpecification"][0]
+            for objName in varSpec.keys():
+                objVars = varSpec[objName]
+                attachmentInstances = self.manager.getListOfInstancesByAttributes(className=objName, attributeQueryDict=someDataSet["attachmentPoints"]["instanceQuery"][objName] )
+                for id in attachmentInstances.keys():
+                    for someVar in objVars:
+                        attrRef = getattr(attachmentInstances[id], someVar)
+                        attrType = attrRef.__class__.__name__
+                        if(tempInstancesList > 1):
+                            if(attrRef == None):
+                                attrRef = tempInstancesList
+                            elif(attrType == "polariList" or attrType == "list"):
+                                for newInst in tempInstancesList:
+                                    attrRef.append(newInst)
+                            else:
+                                raise ValueError("ERROR: Attempting to add a set of values to ")
+                        elif(tempInstancesList == 1):
                             if(attrType == "polariList" or attrType == "list"):
-                                attrRef.append(newInst)
-                            elif(attrRef == None):
-                                attrRef = newInst
+                                attrRef.append(tempInstancesList[0])
                             elif(attrType in self.manager.objectTypingDict.keys()):
                                 #TODO Delete the reference if it is a duplicate, migrate main ref if another 
                                 #reference exists for the instance being replaced, or delete the reference and
                                 #perform a similar action to all referenced nodes dependent on it...
                                 #TEMPORARILY we will just replace it and ignore all that though.
-                                attrRef = newInst
-                            #allocate the reference onto the manager tree.
-                            attrRef.manager = self.manager
-        #With all validation of permissions complete and queries resolved, we go through
-        #the attachment points and place each instance followed by setting it's manager.
+                                attrRef = tempInstancesList[0]
+                            else:
+                                attrRef = tempInstancesList[0]
+                        else:
+                            raise ValueError("Passed a dataSet that did not create any instances.")
+    #With all validation of permissions complete and queries resolved, we go through
+    #the attachment points and place each instance followed by setting it's manager.
 
 
     def on_post_collection(self, request, response):

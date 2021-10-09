@@ -55,6 +55,13 @@ class managedFile(treeObject):
         self.name = name
         self.extension = extension
         self.version = None
+        #If we detect a path in the name, we remove it and overwrite path
+        lastForwardSlash = name.rfind('/')
+        lastBackSlash = name.rfind('\\')
+        if(lastForwardSlash != -1):
+            raise ValueError("Found Forward slash indicating a path was included in name, name should be strictly file name.")
+        if(lastBackSlash != -1):
+            raise ValueError("Found Forward slash indicating a path was included in name, name should be strictly file name.")
         #The path to the directory which contains this file.
         self.Path = Path
         #The URL needed to find this file through the internet

@@ -797,7 +797,12 @@ class managerObject:
             sourceFiles = []
         else:
             dotIndex = classDefiningFile.index(".")
+            #Get final index of forward or backslash, if neither then set index to zero
             lastSlashIndex = classDefiningFile.rfind("/")
+            if(lastSlashIndex == -1):
+                lastSlashIndex = classDefiningFile.rfind("\\")
+            if(lastSlashIndex == -1):
+                lastSlashIndex = 0
             classDefiningFile = classDefiningFile[0:dotIndex]
             fileName = classDefiningFile[lastSlashIndex+1:dotIndex]
             filePath = classDefiningFile[0:lastSlashIndex]
@@ -811,7 +816,7 @@ class managerObject:
             classDefaultTyping = polyTypedObject(manager=self, sourceFiles=sourceFiles, className=classObj.__name__, identifierVariables=['id'])
             #return classDefaultTyping
         if(classInstance != None):
-            if(classInstance.__class__.__name__ != 'list'):
+            if(classInstance.__class__.__name__ != 'list' and classInstance.__class__.__name__ != 'polariList'):
                 classDefaultTyping.analyzeInstance(classInstance)
             else:
                 for inst in classInstance:
@@ -1207,8 +1212,6 @@ class managerObject:
             polyTypedObject(sourceFiles=[source_polariUserGroups], className='UserGroup', identifierVariables = ['id'], objectReferencesDict={self.__class__.__name__:['userGroupsList']}, manager=self, baseAccessDict={"R":{"UserGroup":"*"}}, basePermDict={"R":{"UserGroup":"*"}}),
             polyTypedObject(sourceFiles=[source_polariAPI], className='polariAPI', identifierVariables = ['id'], objectReferencesDict={"polariServer":['']}, manager=self, baseAccessDict={"R":{"polariAPI":"*"}}, basePermDict={"R":{"polariAPI":"*"}}),
             polyTypedObject(sourceFiles=[source_polariCRUDE], className='polariCRUDE', identifierVariables = ['id'], objectReferencesDict={"polariServer":['crudeObjectsList']}, manager=self, baseAccessDict={"R":{"polariCRUDE":"*"}}, basePermDict={"R":{"polariCRUDE":"*"}})
-        
-        
         ]
         #Goes through the objectTyping list to make sure that the object
         #that is 'self' was accounted for, adds a default typing if not.

@@ -412,27 +412,36 @@ class polyTypedObject(treeObject):
         if(absDirPath != None and definingFile != None and className != None):
             curPath =  (os.path.realpath(__file__))[:os.path.realpath(__file__).rfind('\\')]
             divIndex = 0
-            for charIndex in range( len(absDirPath) ):
-                if(absDirPath[charIndex] != curPath[charIndex]):
-                    divIndex = charIndex
-                elif(charIndex == len(absDirPath)):
-                    divIndex = None
-                divIndex += 1
-            if(divIndex == 0 or divIndex == None):
-                print("Warning: Make sure you enter an Absolute Path to your class's directory and that it lies"
-                + "in the same File System where your Polari is Defined. /n" + " The path entered was: "
-                + absDirPath + "/n Error: Either no Directory Path was given or it was invalid.")
-            elif(divIndex != len(curPath)):
-                print("The path to the file defining the class is not within a subdirectory managable by the Polari./n"
-                + "The Path to the class must begin with: " + curPath + "/nThe Path entered was: " + absDirPath)
-            else: #Eliminating the previous two possibilites means the absDirPath is in the same Dir or a subDir of curDir
-                if(len(absDirPath) > len(curPath)):
-                    sys.path.append(absDirPath[divIndex:]) #Gets the subpath relative to the managedDatabase File
+            errMsg = "path to the file not in subdirectory of manager object.  Path to class must begin with: " + str(curPath) + ". Path entered was: " + str(absDirPath)
+            charIndex = 0
+            try:
+                for charIndex in range( len(absDirPath) ):
+                    if(absDirPath[charIndex] == curPath[charIndex]):
+                        if( not (absDirPath[charIndex] == "\\" or absDirPath[charIndex] == "/") and  (curPath[charIndex] == "\\" or curPath[charIndex] == "/") ):
+                            errMsg += " ERROR: discrepency read at index " + str(charIndex) + " base path character is " + curPath[charIndex] + " while file path character is " + absDirPath[charIndex]
+                            raise ValueError(errMsg)
+                    else:
+                        errMsg += " ERROR: discrepency read at index " + str(charIndex) + " base path character is " + curPath[charIndex] + " while file path character is " + absDirPath[charIndex]
+                        raise ValueError(errMsg)
+            except:
+                errMsg += " ERROR: Got exception at index " + str(charIndex)
+                raise ValueError(errMsg)
+            fileSubDirIndex = len(absDirPath)
+            if(len(absDirPath) > len(curPath)):
+                #Gets the subpath relative to the managedDatabase File
+                sys.path.append(absDirPath[fileSubDirIndex:])
+                #Since the directory was adjusted we can now directly import the module from the subdirectory.
                 moduleImported = __import__(name=definingFile, fromlist=className)
-                ClassInstantiationMethod = getattr(moduleImported, className)
+                ClassInstantiationMethod = getattr(moduleImported, "__init__")
+                return ClassInstantiationMethod
+            else:
+                #Since the file is in the base/main directory, we import it directly
+                moduleImported = __import__(name=definingFile, fromlist=className)
+                ClassInstantiationMethod = getattr(moduleImported, "__init__")
                 return ClassInstantiationMethod
         else:
-            print("Make sure to enter all three parameters into the makeTableByClass function!  Enter the"
+            errMsg = "Make sure to enter all three parameters into the makeTableByClass function!  Enter the"
             +"absolute directory path to the folder of the class to be made into a Database table first, then"
             + "enter the name of the file (without extension) where the class is defined second, then enter"
-            +"the class name third.")
+            +"the class name third."
+            raise ValueError(errMsg)
