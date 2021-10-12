@@ -59,8 +59,10 @@ class polariCRUDE(treeObject):
         #Pass back the minimal permissions to the object allowed for people who
         #have yet to be able to login.
         if(userInfo == None):
+            #TODO For testing temporarily just give universal access, else give
+            #minimal access in this case.
             #(self.objTyping.basePermissionsDict, self.objTyping.baseAccessDict)
-            return {'R':{self.apiObject:"*"}, 'E':{self.apiObject:"*"}}, {'R':([],{self.apiObject:"*"}), 'E':([],{self.apiObject:"*"})}
+            return {'C':{self.apiObject:"*"}, 'R':{self.apiObject:"*"}, 'U':{self.apiObject:"*"}, 'D':{self.apiObject:"*"}, 'E':{self.apiObject:"*"}}, {'C':([],{self.apiObject:"*"}),'R':([],{self.apiObject:"*"}),'U':([],{self.apiObject:"*"}), 'D':([],{self.apiObject:"*"}), 'E':([],{self.apiObject:"*"})}
         #Get the user and compile a permissions dictionary for the object based on
         #the permissions tied to the user.
         else:
@@ -169,16 +171,16 @@ class polariCRUDE(treeObject):
         response.status = falcon.HTTP_200
         for instUpdate in massUpdateDataSet:
             instToUpdate = None
-            if(instUpdate.has_key("polariId")):
+            if("polariId" in instUpdate):
                 instToUpdate = self.manager.objectTables[self.apiObject][instUpdate["polariId"]]
-            elif(instUpdate.has_key("compositeId")):
+            elif("compositeId" in instUpdate):
                 #TODO Build out functionality to handle composite Ids.
                 response.status = falcon.HTTP_400
                 raise ValueError("Functionality to handle Composite Ids has not been built out yet.")
             else:
                 response.status = falcon.HTTP_400
                 raise ValueError("Recieved Update request containing instance update with neither a composite or polari Identifier ('polariId' or 'compositeId') value .")
-            if(instUpdate.has_key("updateData")):
+            if("updateData" in instUpdate):
                 updateDict = instUpdate["updateData"]
                 #TODO For now we just allow everything to be set, need to implement
                 #limitation to only allow for variables with polyTypedVar instances
