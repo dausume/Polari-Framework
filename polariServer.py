@@ -88,7 +88,7 @@ class polariServer(treeObject):
         self.usersList = [User(username="topadmin", password="topadmin", manager=self.manager)]
         self.usersDict = {self.usersList[0].username:self.usersList[0]}
         self.userGroupsList = [UserGroup(name="adminGroup", assignedUsers=[self.usersList[0]], manager=self.manager)]
-        self.userGroupsList = {self.userGroupsList[0].name:self.userGroupsList[0]}
+        self.userGroupsDict = {self.userGroupsList[0].name:self.userGroupsList[0]}
         #PUBLIC: Anyone with access to read all and create by default.
         #anything which someone has created will be granted modify access by default.
         #Secondary permissions grant update based on creators or other criteria.

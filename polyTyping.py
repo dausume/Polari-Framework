@@ -17,6 +17,7 @@
 from remoteEvents import *
 from objectTreeDecorators import *
 from polyTypedVars import *
+from inspect import signature
 #from functionalityAnalysis import *
 import logging, os
 
@@ -25,15 +26,47 @@ import logging, os
 #transmitting data across environments and into other programming language contexts.
 class polyTypedObject(treeObject):
     @treeObjectInit
-    def __init__(self, className, manager, objectReferencesDict={}, sourceFiles=[], identifierVariables=[], variableNameList=[], baseAccessDict={}, basePermDict={}):
+    def __init__(self, className, manager, objectReferencesDict={}, sourceFiles=[], identifierVariables=[], variableNameList=[], baseAccessDict={}, basePermDict={}, classDefinition=None, sampleInstances=[], kwRequiredParams=[], kwDefaultParams={}):
         #if(className == 'polariServer'):
         #    print('Making the polyTyping object for polariServer with manager set as: ', manager)
         self.isTreeObject = None
         self.isManagerObject = None
         self.className = className
+        self.kwRequiredParams = []
+        self.kwDefaultParams = []
         #The list of objects that have variables which reference this object, either as a single
         #instance, or as a list of the instances.
         self.objectReferencesDict = objectReferencesDict
+        if(sampleInstances != []):
+            paramsSample =  signature(sampleInstances[0].__class__.__init__)
+            self.kwRequiredParams = []
+            self.kwDefaultParams = []
+            for keywordParam, kwWithvalue in paramsSample.parameters.items():
+                if(str(kwWithvalue).find("=") != -1):
+                    self.kwDefaultParams.append(str(keywordParam))
+                else:
+                    self.kwRequiredParams.append(str(keywordParam))
+            print("params for ",className,": ", paramsSample)
+        elif(classDefinition != None):
+            paramsSample =  signature(classDefinition.__init__)
+            self.kwRequiredParams = []
+            self.kwDefaultParams = []
+            for keywordParam, kwWithvalue in paramsSample.parameters.items():
+                if(str(kwWithvalue).find("=") != -1):
+                    self.kwDefaultParams.append(str(keywordParam))
+                else:
+                    self.kwRequiredParams.append(str(keywordParam))
+        if(kwRequiredParams != []):
+            self.kwRequiredParams = kwRequiredParams
+        if(kwDefaultParams != []):
+            self.kwDefaultParams = kwDefaultParams
+        if(kwRequiredParams == [] and kwDefaultParams == []):
+            self.kwRequiredParams = kwRequiredParams
+            self.kwDefaultParams = kwDefaultParams
+        #A dictionary of required keyword parameters.
+        self.requiredInitKeywordParams = []
+        #A dictionary of keyword parameters with defaults.
+        self.initKeywordParamsWdefaults = {}
         #A list of managed files that defined this class for different languages.
         #print('passed source files: ', sourceFiles)
         self.sourceFiles = sourceFiles
@@ -403,7 +436,7 @@ class polyTypedObject(treeObject):
             + 'for ' + self.className + 'in the context of a ' + (self.manager).__name__
             + ' with the name ' + (self.manager).name)
 
-    def getCreateMethod(self):
+    def getCreateMethod(self, returnTupWithParams=False):
         #compares the absolute paths of this file and the directory where the class is defined
         #the first character at which the two paths diverge is stored into divIndex
         definingFile = self.polariSourceFile.name
@@ -432,12 +465,12 @@ class polyTypedObject(treeObject):
                 sys.path.append(absDirPath[fileSubDirIndex:])
                 #Since the directory was adjusted we can now directly import the module from the subdirectory.
                 moduleImported = __import__(name=definingFile, fromlist=className)
-                ClassInstantiationMethod = getattr(moduleImported, "__init__")
+                ClassInstantiationMethod = getattr(moduleImported, className)
                 return ClassInstantiationMethod
             else:
                 #Since the file is in the base/main directory, we import it directly
                 moduleImported = __import__(name=definingFile, fromlist=className)
-                ClassInstantiationMethod = getattr(moduleImported, "__init__")
+                ClassInstantiationMethod = getattr(moduleImported, className)
                 return ClassInstantiationMethod
         else:
             errMsg = "Make sure to enter all three parameters into the makeTableByClass function!  Enter the"

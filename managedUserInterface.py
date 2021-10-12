@@ -22,7 +22,7 @@ from polariUser import User
 import platform
 
 #An auto-named instance of a User's Interfacing and their saved info on pages navigated through with a given application.
-class managedUI():
+class managedUserInterface():
     def __init__(self, hostApp = None, launchMethod='local'):
         #The User that has been recorded utilizing this User Interface
         self.User = None

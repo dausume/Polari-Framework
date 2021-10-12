@@ -37,10 +37,9 @@ class polariCRUDE(treeObject):
         self.baseAccessDictionaries = []
         self.basePermissionDictionaries = []
         #Get the instantiation method for the class, for use in the CREATE method.
-        self.CreateMethod = self.objTyping.getCreateMethod()
-        sig = inspect.signature(self.CreateMethod)
-        params = sig.parameters
-        self.CreateParameters = list(params)
+        self.CreateMethod  = self.objTyping.getCreateMethod(returnTupWithParams=True)
+        self.CreateDefaultParameters = self.objTyping.kwDefaultParams
+        self.CreateRequiredParameters = self.objTyping.kwRequiredParams
         #Go through each polyTyped variable and get all variables on it.
         self.validVarsList = []
         for someVarTyping in self.objTyping.polyTypedVars:
@@ -146,11 +145,51 @@ class polariCRUDE(treeObject):
             response.status = falcon.HTTP_405
             raise PermissionError("Event requests do not have access to any variables on this object type.")
         data = request.get_media()
+        singularUpdate = {}
+        massUpdateDataSet = []
         for someData in data:
-            print("data segment name: ",someData.name)
-            print("data segment content type: ",someData.content_type)
-            print("data segment: ", someData.data)
             dataSegment = (someData.data).decode("utf-8")
+            #polariId and compositeId are used in the case where you have a single
+            #instance that needs updated and sending either a singular string id
+            #in the format of a singular polariId
+            if(someData.name == "polariId"):
+                singularUpdate["polariId"] = dataSegment
+            if(someData.name == "compositeId"):
+                singularUpdate["compositeId"] = dataSegment
+            #A single dictionary that maps variables to be updated to values they
+            #should be updated to, used together with either a polariId or a
+            #compositeId value.
+            if(someData.name == "updateData"):
+                singularUpdate["updateData"] = json.loads(dataSegment)
+            #A composite of multiple dicts with ids and instance updates paired.
+            if(someData.name == "massUpdateDataSet"):
+                massUpdateDataSet = json.loads(dataSegment)
+        if(singularUpdate != {}):
+            massUpdateDataSet.append(singularUpdate)
+        response.status = falcon.HTTP_200
+        for instUpdate in massUpdateDataSet:
+            instToUpdate = None
+            if(instUpdate.has_key("polariId")):
+                instToUpdate = self.manager.objectTables[self.apiObject][instUpdate["polariId"]]
+            elif(instUpdate.has_key("compositeId")):
+                #TODO Build out functionality to handle composite Ids.
+                response.status = falcon.HTTP_400
+                raise ValueError("Functionality to handle Composite Ids has not been built out yet.")
+            else:
+                response.status = falcon.HTTP_400
+                raise ValueError("Recieved Update request containing instance update with neither a composite or polari Identifier ('polariId' or 'compositeId') value .")
+            if(instUpdate.has_key("updateData")):
+                updateDict = instUpdate["updateData"]
+                #TODO For now we just allow everything to be set, need to implement
+                #limitation to only allow for variables with polyTypedVar instances
+                #accounted for to be added.
+                for someVarName in updateDict.keys():
+                    setattr(instToUpdate, someVarName, updateDict[someVarName])
+            else:
+                response.status = falcon.HTTP_400
+                raise ValueError("Recieved Update request containing a valid instance id, but no updateData to perform the update with.")
+
+            
 
     def on_put_collection(self, request, response):
         pass
@@ -158,7 +197,7 @@ class polariCRUDE(treeObject):
     #Create object instances in CRUDE
     def on_post(self, request, response):
         userAuthInfo = request.auth
-        authUser = request.context.user
+        #authUser = request.context.user
         urlParameters = request.query_string
         (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
         data = request.get_media()
@@ -203,20 +242,22 @@ class polariCRUDE(treeObject):
                 #Add the new instances to the list of temporary instances.
                 #After all instances are created we will run a query operation on them to ensure the user
                 #should be allowed to create them in the given criteria.
-                missingParamsList = self.CreateParameters
+                missingRequiredParamsList = self.CreateRequiredParameters
                 #Validate that the parameters are valid, record parameters that
                 #were not passed in case an error occurs or if they are required.
                 for someParam in newInst.keys():
-                    if(someParam in self.CreateParameters):
-                        missingParamsList.remove(someParam)
+                    if(someParam in self.CreateRequiredParameters):
+                        missingRequiredParamsList.remove(someParam)
                         #TODO If the variable or class has strict typing or validation
                         #enabled for it on the PolyTyping, we check the value against
                         #the polyTypedVar or parameter type enforcement info.
-                    else:
-                        errMsg = "Error: invalid initialization parameter '"+ someParam + "' passed for class " + self.apiObject + ", should only pass one of the following valid parameters: " + str(self.CreateParameters)
+                    elif(not someParam in self.CreateDefaultParameters):
+                        errMsg = "Error: invalid initialization parameter '"+ someParam + "' passed for class " + self.apiObject + ", should only pass one of the following required valid parameters: " + str(self.CreateRequiredParameters) + " or optional default parameters: " + str(self.CreateDefaultParameters)
                         raise ValueError(errMsg)
+                if(len(missingRequiredParamsList) != 0):
+                    errMsg = "Error: Missing required parameters for creation of instances of object type '" + self.apiObject + "' missing required parameters are: " + str(missingRequiredParamsList)
                 #After validating, create the new instance using the given parameters.
-                if("manager" in self.newInst.keys()):
+                if("manager" in newInst.keys()):
                     #TODO If manager is defined using an Id, query that manager and
                     #assign the reference to it as the manager instead.  This is
                     #used if multiple managers exist on one system or if this manager
@@ -229,12 +270,15 @@ class polariCRUDE(treeObject):
             varSpec = someDataSet["attachmentPoints"]["varSpecification"][0]
             for objName in varSpec.keys():
                 objVars = varSpec[objName]
-                attachmentInstances = self.manager.getListOfInstancesByAttributes(className=objName, attributeQueryDict=someDataSet["attachmentPoints"]["instanceQuery"][objName] )
+                targetQuery = someDataSet["attachmentPoints"]["instanceQuery"][0][objName]
+                print("targetQuery: ", targetQuery)
+                attachmentInstances = self.manager.getListOfInstancesByAttributes(className=objName, attributeQueryDict=targetQuery)
+                print("attachmentInstances: ", attachmentInstances)
                 for id in attachmentInstances.keys():
                     for someVar in objVars:
                         attrRef = getattr(attachmentInstances[id], someVar)
                         attrType = attrRef.__class__.__name__
-                        if(tempInstancesList > 1):
+                        if(len(tempInstancesList) > 1):
                             if(attrRef == None):
                                 attrRef = tempInstancesList
                             elif(attrType == "polariList" or attrType == "list"):
@@ -242,7 +286,7 @@ class polariCRUDE(treeObject):
                                     attrRef.append(newInst)
                             else:
                                 raise ValueError("ERROR: Attempting to add a set of values to ")
-                        elif(tempInstancesList == 1):
+                        elif(len(tempInstancesList) == 1):
                             if(attrType == "polariList" or attrType == "list"):
                                 attrRef.append(tempInstancesList[0])
                             elif(attrType in self.manager.objectTypingDict.keys()):
