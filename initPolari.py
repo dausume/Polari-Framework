@@ -13,12 +13,12 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import unittest, os, sys, webbrowser
-from defineLocalSys import *
+from polariNetworking.defineLocalSys import *
 from managedDataComms import *
-from managedExecutables import *
-from definePolari import *
-from managedApp import *
-from managedFolders import *
+from polariFiles.managedExecutables import *
+from polariAI.definePolari import *
+from polariFrontendManagement.managedApp import *
+from polariFiles.managedFolders import *
 
 def OpenInterface():
     #Runs the case where the Polari Systems are running for the first time.

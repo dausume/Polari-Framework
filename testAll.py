@@ -15,13 +15,13 @@
 #Bare minimum tests required to ensure framework segment of the Polari System works.
 #Ensures the following Objects work Properly:
 #Polari, managedFile, managedDatabase, managedExecutable, isoSys
-from managedDB_test import * #managedDatabase
-from managedExecutablesTest import * #managedExecutable
-from managedFoldersTest import * #managedFolder
+from polariDBmanagement.managedDB_test import * #managedDatabase
+from polariFiles.managedExecutablesTest import * #managedExecutable
+from polariFiles.managedFoldersTest import * #managedFolder
 from managedImageTest import * #managedImage
 from managedFileTest import * #managedFile
-from definePolariTest import * #Polari
-from defineLocalSysTest import * #isoSys
+from polariAI.definePolariTest import * #Polari
+from polariNetworking.defineLocalSysTest import * #isoSys
 from managedDataCommsTest import * #dataChannel
 if(__name__=='__main__'):
     test0 = managedDB_testClass()

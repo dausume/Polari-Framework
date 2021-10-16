@@ -13,15 +13,15 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from functools import wraps
-from polyTyping import * 
-from managedFiles import *
-from managedExecutables import *
-from defineLocalSys import isoSys
-from managedDB import *
-from polariServer import polariServer
-#from managedImages import *
-from polariList import polariList
-from dataChannels import *
+from polariDataTyping.polyTyping import * 
+from polariFiles.managedFiles import *
+from polariFiles.managedExecutables import *
+from polariNetworking.defineLocalSys import isoSys
+from polariDBmanagement.managedDB import *
+from polariApiServer.polariServer import polariServer
+#from polariFiles.managedImages import *
+from polariDataTyping.polariList import polariList
+from polariFiles.dataChannels import *
 import types, inspect, base64, json, os
 
 def managerObjectInit(init):
@@ -1167,24 +1167,24 @@ class managerObject:
     #all of their identifiers.
     def primePolyTyping(self, identifierVariables=['id']):
         mainDirPath = os.getcwd()
-        source_Polari = self.makeFile(name='definePolari', extension='py', Path=mainDirPath)
-        source_dataStream = self.makeFile(name='dataStreams', extension='py', Path=mainDirPath)
-        source_remoteEvent = self.makeFile(name='remoteEvents', extension='py', Path=mainDirPath)
-        source_managedUserInterface = self.makeFile(name='managedUserInterface', extension='py', Path=mainDirPath)
-        source_managedFile = self.makeFile(name='managedFiles', extension='py', Path=mainDirPath)
-        source_polariUser = self.makeFile(name='polariUser', extension='py', Path=mainDirPath)
-        source_polariUserGroups = self.makeFile(name='polariUserGroup', extension='py', Path=mainDirPath)
+        source_Polari = self.makeFile(name='definePolari', extension='py', Path=mainDirPath + "\\polariAI")
+        source_dataStream = self.makeFile(name='dataStreams', extension='py', Path=mainDirPath + "\\polariApiServer")
+        source_remoteEvent = self.makeFile(name='remoteEvents', extension='py', Path=mainDirPath + "\\polariApiServer")
+        source_managedUserInterface = self.makeFile(name='managedUserInterface', extension='py', Path=mainDirPath + "\\polariFrontendManagement")
+        source_managedFile = self.makeFile(name='managedFiles', extension='py', Path=mainDirPath + "\\polariFiles")
+        source_polariUser = self.makeFile(name='polariUser', extension='py', Path=mainDirPath + "\\accessControl")
+        source_polariUserGroups = self.makeFile(name='polariUserGroup', extension='py', Path=mainDirPath + "\\accessControl")
         #managedApp and browserSourcePage share the same source file.
-        source_managedAppANDbrowserSourcePage = self.makeFile(name='managedApp', extension='py', Path=mainDirPath)
-        source_managedDatabase = self.makeFile(name='managedDB', extension='py', Path=mainDirPath)
-        source_dataChannel = self.makeFile(name='dataChannels', extension='py', Path=mainDirPath)
-        source_managedExecutable = self.makeFile(name='managedExecutables', extension='py', Path=mainDirPath)
-        source_polariServer = self.makeFile(name='polariServer', extension='py', Path=mainDirPath)
+        source_managedAppANDbrowserSourcePage = self.makeFile(name='managedApp', extension='py', Path=mainDirPath + "\\polariFrontendManagement")
+        source_managedDatabase = self.makeFile(name='managedDB', extension='py', Path=mainDirPath + "\\polariDBmanagement")
+        source_dataChannel = self.makeFile(name='dataChannels', extension='py', Path=mainDirPath + "\\polariFiles")
+        source_managedExecutable = self.makeFile(name='managedExecutables', extension='py', Path=mainDirPath + "\\polariFiles")
+        source_polariServer = self.makeFile(name='polariServer', extension='py', Path=mainDirPath + "\\polariApiServer")
         #polyTyped Object and variable are both defined in the same source file
-        source_polyTypedObject = self.makeFile(name='polyTyping', extension='py', Path=mainDirPath)
-        source_polyTypedVars = self.makeFile(name='polyTypedVars', extension='py', Path=mainDirPath)
-        source_polariCRUDE = self.makeFile(name='polariCRUDE', extension='py', Path=mainDirPath)
-        source_polariAPI = self.makeFile(name='polariAPI', extension='py', Path=mainDirPath)
+        source_polyTypedObject = self.makeFile(name='polyTyping', extension='py', Path=mainDirPath + "\\polariDataTyping")
+        source_polyTypedVars = self.makeFile(name='polyTypedVars', extension='py', Path=mainDirPath + "\\polariDataTyping")
+        source_polariCRUDE = self.makeFile(name='polariCRUDE', extension='py', Path=mainDirPath + "\\polariApiServer")
+        source_polariAPI = self.makeFile(name='polariAPI', extension='py', Path=mainDirPath + "\\polariApiServer")
         self_fileInst = inspect.getfile(self.__class__)
         self_completepath = os.path.abspath(self_fileInst)
         self_fileName = self_completepath[self_completepath.rfind('\\')+1:self_completepath.rfind('.')]

@@ -12,9 +12,9 @@
 
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#from polyTyping import *
+#from polariDataTyping.polyTyping import *
 from functools import wraps
-from polariList import *
+from polariDataTyping.polariList import *
 import types, inspect, base64
 
 
