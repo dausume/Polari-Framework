@@ -13,21 +13,28 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from functools import wraps
-from polyTyping import * 
-from managedFiles import *
-from managedExecutables import *
-from managedDB import *
-#from managedImages import *
-from polariList import polariList
-from dataChannels import *
-import types, inspect, base64
+from polariDataTyping.polyTyping import * 
+from polariFiles.managedFiles import *
+from polariFiles.managedExecutables import *
+from polariNetworking.defineLocalSys import isoSys
+from polariDBmanagement.managedDB import *
+from polariApiServer.polariServer import polariServer
+#from polariFiles.managedImages import *
+from polariDataTyping.polariList import polariList
+from polariFiles.dataChannels import *
+import types, inspect, base64, json, os
 
 def managerObjectInit(init):
     #Note: For objects instantiated using this Decorator, MUST USER KEYWORD ARGUMENTS NOT POSITIONAL, EX: (manager=mngObj, id='base64Id')
     @wraps(init)
     def new_init(self, *args, **keywordargs):
         managerObject.__init__(self, *args, **keywordargs)
-        new_init = init(self, *args, **keywordargs)
+        initSig = inspect.signature(self.__init__)
+        passableKeywargs = {}
+        for param in initSig.parameters:
+            if param in keywordargs:
+                passableKeywargs[param] = keywordargs[param]
+        new_init = init(self, *args, **passableKeywargs)
     return new_init
 
 #Defines a Decorator @managerObject, which allocates all variables and functions necessary for
@@ -38,11 +45,28 @@ class managerObject:
         self.complete = False
         if not 'manager' in keywordargs.keys():
             setattr(self, 'manager', None)
+        if not 'hostSys' in keywordargs.keys():
+            setattr(self, 'hostSys', None)
+        if not 'hasServer' in keywordargs.keys():
+            setattr(self, 'hasServer', False)
+        if not 'hasDB' in keywordargs.keys():
+            setattr(self, 'hasDB', False)
         if not 'objectTyping' in keywordargs.keys():
             setattr(self, 'objectTyping', [])
+        #TODO Plan to phase out objectTyping which requires looping with ObjectTypingDict
+        #which is accessible through the class as a key for each typing object.
+        if not 'objectTypingDict' in keywordargs.keys():
+            setattr(self, 'objectTypingDict', {})
         if not 'objectTree' in keywordargs.keys():
             #print('setting object tree')
             setattr(self, 'objectTree', None)
+        #TODO Plan to add functionality for additional 'flattened' or table-styled
+        #object tree dictionary, which have two layers, the class layer which
+        #indicates a 'table' and then the Id-tuples.  These tables can only hold
+        #object instances which have had all Id fields filled out completely.
+        #FORMAT: {'objectType0':{'polariId0':instance0, 'polariId1':instance1}}
+        if not 'objectTables' in keywordargs.keys():
+            setattr(self, 'objectTables', {})
         if not 'managedFiles' in keywordargs.keys():
             setattr(self, 'managedFiles', [])
         if not 'id' in keywordargs.keys():
@@ -57,13 +81,13 @@ class managerObject:
             setattr(self, 'idList', [])
         if not 'branch' in keywordargs.keys():
             setattr(self, 'branch', self)
-        print(self.idList)
-        print('Assigning idList to ', self, '.')
+        #print(self.idList)
+        #print('Assigning idList to ', self, '.')
         if not 'cloudIdList' in keywordargs.keys():
             setattr(self, 'cloudIdList', [])
         for name in keywordargs.keys():
             #print('In parameters, found attribute ', name, ' with value ', keywordargs[name])
-            if(name=='manager' or name=='branch' or name=='id' or name=='objectTree' or name=='managedFiles' or name=='id' or name=='db' or name=='idList' or name=='cloudIdList' or name == 'subManagers' or name == 'polServer'):
+            if(name=='manager' or name=='branch' or name=='id' or name=='objectTables' or name=='objectTree' or name=='managedFiles' or name=='id' or name=='db' or name=='idList' or name=='cloudIdList' or name == 'subManagers' or name == 'polServer' or name == 'hasServer' or name == 'hostSys'):
                 setattr(self, name, keywordargs[name])
         self.primePolyTyping()
         self.complete = True
@@ -71,20 +95,34 @@ class managerObject:
         self.makeObjectTree()
         if(self.id == None):
             self.makeUniqueIdentifier()
+        if(self.hostSys == None):
+            self.hostSys = isoSys(name="newLocalSys", manager=self)
+        if(self.hasServer):
+            self.polServer = polariServer(hostSystem=self.hostSys, manager=self)
+        if(self.hasDB):
+            self.db
+
+    def __delete__(self, instance):
+        #TODO Go through all polyTyping objects and delete them, close all file references.
+        #WRITE CODE HERE
+        super(self.__class__, self).delete()
         
 
     def __setattr__(self, name, value):
         if(type(value).__name__ == 'list'):
-            print("converting from list with value ", value, " to a polariList.")
+            if(name == "usersList"):
+                print("converting from list with value ", value, " to a polariList.")
             #Instead of initializing a polariList, we try to just cast the list to be type polariList.
             value = polariList(value)
-            value.jumpstart(treeObjInstance=self)
-            print("Set list value to be polariList: ", value)
+            value.jumpstart(treeObjInstance=self, varName=name)
+            #print("Set list value to be polariList: ", value)
         if(name == 'manager'):
             #TODO Write functionality to connect with a parent tree when/if manager is assigned.
             super(managerObject, self).__setattr__(name, value)
             return
-        if(not hasattr(self,"complete") or (type(value).__name__ in dataTypesPython and type(value) != list)):
+        if(not hasattr(self,"complete") or (type(value).__name__ in dataTypesPython and type(value) != list and type(value).__name__ != "polariList")):
+            if(name == "usersList"):
+                print("escaping early when setting usersList, type is: ", type(value).__name__)
             super(managerObject, self).__setattr__(name, value)
             return
         if(not self.complete):
@@ -95,7 +133,7 @@ class managerObject:
         #In polyObj 'polyObj.className' potential references exist for this object.
         #Here, we get each variable that is a reference or a list of references to a
         #particular type of object.
-        if type(value) != list:
+        if type(value).__name__ != "list" and type(value).__name__ != "polariList":
             if(value == None or value == []):
                 pass
             else:
@@ -164,7 +202,7 @@ class managerObject:
                     #print("found an instance already in the objectTree at the correct location:", inst)
                     pass
                 elif instPath == None:
-                    print("Creating branch on manager for instance in list on variable ", name, " for instance: ", inst)
+                    #print("Creating branch on manager for instance in list on variable ", name, " for instance: ", inst)
                     newBranch = tuple([newpolyObj.className, ids, inst])
                     self.addNewBranch(traversalList=[selfTuple], branchTuple=newBranch)
                     #Make sure the new branch has the current manager and the base as it's origin branch set on it.
@@ -181,43 +219,158 @@ class managerObject:
                         inst.branch = self
                     if(self != inst.manager):
                         inst.manager = self
-        else:
+        #else:
             #print('Setting attribute to a value: ', value)
-            print('Found object: "', value ,'" being assigned to an undeclared reference variable: ', name, 'On object: ', self)
-            newpolyObj = self.getObjectTyping(classObj=value.__class__)
-            managerPolyTyping = self.getObjectTyping(self.__class__)
-            managerPolyTyping.addToObjReferenceDict(referencedClassObj=value.__class__, referenceVarName=name)
-            print('Setting attribute on manager using a new polyTyping: ', newpolyObj.className, '; and set manager\'s new reference dict: ', managerPolyTyping.objectReferencesDict)
-            print(newpolyObj.className, 'object placed on manager ', self,' it\'s referenceDict after allocation is: ', newpolyObj.objectReferencesDict)
+            #print('Found object: "', value ,'" being assigned to an undeclared reference variable: ', name, 'On object: ', self)
+            #newpolyObj = self.getObjectTyping(classObj=value.__class__)
+            #managerPolyTyping = self.getObjectTyping(self.__class__)
+            #managerPolyTyping.addToObjReferenceDict(referencedClassObj=value.__class__, referenceVarName=name)
+            #print('Setting attribute on manager using a new polyTyping: ', newpolyObj.className, '; and set manager\'s new reference dict: ', managerPolyTyping.objectReferencesDict)
+            #print(newpolyObj.className, 'object placed on manager ', self,' it\'s referenceDict after allocation is: ', newpolyObj.objectReferencesDict)
             #if(self.identifiersComplete(value)):
-            ids = self.getInstanceIdentifiers(value)
-            valuePath = self.getTuplePathInObjTree(instanceTuple=tuple([newpolyObj.className, ids, value]))
-            if(valuePath == [selfTuple]):
+            #ids = self.getInstanceIdentifiers(value)
+            #valuePath = self.getTuplePathInObjTree(instanceTuple=tuple([newpolyObj.className, ids, value]))
+            #if(valuePath == [selfTuple]):
                 #print("found an instance already in the objectTree at the correct location:", value)
                 #Do nothing, because the branch is already accounted for.
-                pass
-            elif(valuePath == None):
+            #    pass
+            #elif(valuePath == None):
                 #add the new Branch
-                print("Creating branch on manager for variable ", name," for instance: ", value)
-                newBranch = tuple([newpolyObj.className, ids, value])
-                self.addNewBranch(traversalList=[selfTuple], branchTuple=newBranch)
+                #print("Creating branch on manager for variable ", name," for instance: ", value)
+            #    newBranch = tuple([newpolyObj.className, ids, value])
+            #    self.addNewBranch(traversalList=[selfTuple], branchTuple=newBranch)
                 #Make sure the new branch has the current manager and the base as it's origin branch set on it.
-                if(self != value.branch):
-                    value.branch = self
-                if(self != value.manager):
-                    value.manager = self
-            else:
+            #    if(self != value.branch):
+            #        value.branch = self
+            #    if(self != value.manager):
+            #        value.manager = self
+            #else:
                 #add as a duplicate branch
                 #print("Found an instance at a higher level which is now being moved to be a branch on the managed: ", value)
-                duplicateBranchTuple = tuple([newpolyObj.className, ids, tuple(valuePath)])
-                self.replaceOriginalTuple(self, originalPath=valuePath, newPath=[selfTuple,duplicateBranchTuple], newTuple=duplicateBranchTuple)
+            #    duplicateBranchTuple = tuple([newpolyObj.className, ids, tuple(valuePath)])
+            #    self.replaceOriginalTuple(self, originalPath=valuePath, newPath=[selfTuple,duplicateBranchTuple], newTuple=duplicateBranchTuple)
                 #Make sure the new branch has the current manager and the base as it's origin branch set on it.
-                if(self != value.branch):
-                    value.branch = self
-                if(self != value.manager):
-                    value.manager = self
+            #    if(self != value.branch):
+            #        value.branch = self
+            #    if(self != value.manager):
+            #        value.manager = self
         #print("Finished setting value of ", name, " to be ", value)
         super(managerObject, self).__setattr__(name, value)
+
+    #Takes in all information needed to access a class and returns a formatted json string 
+    def getJSONforClass(self, absDirPath = os.path.dirname(os.path.realpath(__file__)), definingFile = os.path.realpath(__file__)[os.path.realpath(__file__).rfind('\\') + 1 : os.path.realpath(__file__).rfind('.')], className = 'testClass', passedInstances = None):
+        classVarDict = self.getJSONdictForClass(absDirPath=absDirPath,definingFile=definingFile,className=className, passedInstances=passedInstances)
+        JSONstring = json.dumps(classVarDict)
+        return JSONstring
+
+    def getObjectSourceDetailsANDvalidateInstances(self, passedInstances):
+        print("Entered passedInstances validation and details gathering, with passedInstances: ", passedInstances)
+        returnDict = {'passedInstances':passedInstances, 'className':None, 'absDirPath':None, 'definingFile':None}
+        #print("Initialized returnDict.")
+        className = None
+        classNames = []
+        for someInst in passedInstances:
+            if(not someInst.__class__.__name__ in classNames):
+                classNames.append(someInst.__class__.__name__)
+        #print("Reached end of first loop.")
+        if(len(classNames)>=1):
+            className = classNames[0]
+            returnDict['className'] = className
+        elif(len(classNames) == 0):
+            return {}
+        else:
+            errMsg = "In \'getJSONdictForClass\' the parameter passedInstances should contain one or more values and all be of one type, instead had list: " + str(classNames)
+            raise ValueError(errMsg)
+        #print("Got past valueError, confirming only one class type in list")
+        #Go through and find correct polyTyping.
+        correctObjectTyping = None
+        for somePolyTyping in self.objectTyping:
+            if(somePolyTyping.className == className):
+                correctObjectTyping = somePolyTyping
+                break
+        if(correctObjectTyping == None):
+            errMsg = "PolyTyping for type " + className + " could not be found!"
+            raise ValueError(errMsg)
+        print("PolyTyping for object type ", className, " is found on PolyTyping instance ", correctObjectTyping)
+        print("The object Typing\'s polariSourceFile is ", correctObjectTyping.polariSourceFile)
+        print("The executable object\'s file name is ", correctObjectTyping.polariSourceFile.name)
+        print("The executable object\'s path is ", correctObjectTyping.polariSourceFile.Path)
+        returnDict['absDirPath'] = correctObjectTyping.polariSourceFile.Path
+        returnDict['definingFile'] = correctObjectTyping.polariSourceFile.name
+        if(returnDict['absDirPath'] == None):
+            raise ValueError("No value found for Path on source file for class "+className)
+        elif(returnDict['absDirPath'] == None):
+            raise ValueError("No value found for file name on source file for class "+className)
+        print("Passing back returnDict.")
+        return returnDict
+
+
+    #Gets all data for a class and returns a Dictionary which is convertable to a json object.
+    def getJSONdictForClass(self, passedInstances, varsLimited=[]):
+        print("Attempting to call passedInstances validation, passedInstances:", passedInstances, " and varsLimited: ", varsLimited)
+        if(type(passedInstances).__name__ == "dict"):
+            passedInstances = list(passedInstances.values())
+        if(len(passedInstances) > 0):
+            objSourceDetailsDict = self.getObjectSourceDetailsANDvalidateInstances(passedInstances=passedInstances)
+            #Path to the Directory the file is in.
+            absDirPath = objSourceDetailsDict['absDirPath']
+            #The name of the file which contains the given class.
+            definingFile = objSourceDetailsDict['definingFile']
+            #The name of the class being retrieved.
+            className = objSourceDetailsDict['className']
+        else:
+            objSourceDetailsDict = {}
+        #
+        varsLimited = varsLimited
+        print("Successfully extracted details.")
+        #If an instance or list of instances of the same type are passed, grabs the class name.
+        if(passedInstances!=None):
+            if(isinstance(passedInstances, list)):
+                if(passedInstances != []):
+                    className = passedInstances[0].__class__.__name__
+                else:
+                    className = passedInstances.__class__.__name__
+            else:
+                className = passedInstances.__class__.__name__
+        #Gives access to the class by importing it and simultaneously passes in the method for instantiating it.
+        #returnedClassInstantiationMethod = getAccessToClass(absDirPath, definingFile, className, True)
+        classVarDict = [
+            {
+                "class":className,
+                #A list of variables which will be excluded from data transmitted for each instance.
+                "varsLimited":varsLimited,
+                "data":[
+                    #Left empty so that instance data can be entered
+                ]
+            }
+        ]
+        #dataEntriesList = classVarDict[0]["data"]
+        #Accounts for the case where a list of instances of the same class are passed into the function
+        if(isinstance(passedInstances, list)):
+            for someInstance in passedInstances:
+                classInstanceDict = {}
+                classInfoDict = someInstance.__dict__
+                #print('Printing Class Info: ' + str(classInfoDict))
+                for classElement in classInfoDict:
+                    if(not callable(classElement) and not classElement in varsLimited):
+                        classInstanceDict[classElement] = None
+                classVarDict[0]["data"].append( self.getJSONclassInstance(someInstance, classInstanceDict) )
+        elif(passedInstances == None):
+            pass
+            #if(passedInstances == None):
+                #classInstance = returnedClassInstantiationMethod()
+                #classInfoDict = classInstance.__dict__
+        else: #Accounts for the case where only a single instance of the class is passed into the function
+            classInstanceDict = {}
+            classInfoDict = passedInstances.__dict__
+            for classElement in classInfoDict:
+                #print('got attribute: ' + classElement)
+                if(not callable(classElement) and not classElement in varsLimited):
+                    classInstanceDict[classElement] = None
+                    #print('not callable attribute: ' + classElement)
+            classVarDict[0]["data"].append( self.getJSONclassInstance(passedInstances, classInstanceDict) )
+        #print('Class Variable Dictionary: ', classVarDict)
+        return classVarDict
 
     #If the Object's PolyTypedObject exists on the given manager object
     def getObjectTyping(self, classObj=None, className=None, classInstance=None ):
@@ -249,6 +402,130 @@ class managerObject:
             else:
                 obj = self.makeDefaultObjectTyping(classObj=classObj)
         return obj
+
+    def getJSONclassInstance(self, passedInstance, classInstanceDict):
+        dataTypesPython = ['str','int','float','complex','list','tuple','range','dict','set','frozenset','bool','bytes','bytearray','memoryview', 'NoneType']
+        print("entered getJSONclassInstance()")
+        for someVariableKey in classInstanceDict.keys():
+            curAttr = getattr(passedInstance, someVariableKey)
+            curAttrType = type(curAttr).__name__
+            #print("adding elem of type ", curAttrType ," with value: ", curAttr)
+            #Handles Cases where particular classes must be converted into a string format.
+            if(curAttrType == 'dateTime'):
+                classInstanceDict[someVariableKey] = curAttr.strftime()
+            elif(curAttrType == 'TextIOWrapper'):
+                classInstanceDict[someVariableKey] = curAttr.name
+            elif(curAttrType == 'bytes' or curAttrType == 'bytearray'):
+                #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
+                classInstanceDict[someVariableKey] = curAttr.decode()
+            elif(curAttrType == 'dict'):
+                classInstanceDict[someVariableKey] = self.convertSetTypeIntoJSONdict(curAttr)
+            elif(curAttrType == 'tuple' or curAttrType == 'list' or curAttrType == 'polariList'):
+                #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
+                classInstanceDict[someVariableKey] = self.convertSetTypeIntoJSONdict(curAttr)
+            elif(inspect.ismethod(curAttr)):
+                #print('found bound method (not adding this) ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
+                errMsg = "Found a class method - " + curAttr + " being set as a key"
+                raise ValueError(errMsg)
+                classInstanceDict[someVariableKey] = "Method-" + curAttr.__name__
+            elif(inspect.isclass(type(curAttr)) and not curAttrType in dataTypesPython):
+                #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
+                #print('found custom class or type ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
+                instIds = ["CLASS-" + curAttrType + "-IDs", self.convertSetTypeIntoJSONdict(passedSet=self.getInstanceIdentifiers(curAttr))]
+                classInstanceDict[someVariableKey] = instIds
+            #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
+            else:
+                #print('Standard type: ', type(getattr(passedInstance, someVariableKey)), getattr(passedInstance, someVariableKey))
+                classInstanceDict[someVariableKey] = getattr(passedInstance, someVariableKey)
+        return classInstanceDict
+
+    #Converts a passed in list, tuple, or python dictionary into a jsonifiable dictionary where the keys are the datatypes in python
+    def convertSetTypeIntoJSONdict(self, passedSet):
+        #print("Entered \'convertSetTypeIntoJSONdict\' for value: ", passedSet)
+        returnVal = None
+        if(type(passedSet).__name__ == 'tuple' or type(passedSet).__name__ == 'list' or type(passedSet).__name__ == 'polariList'):
+            returnVal = []
+            for elem in passedSet:
+                elemType = type(elem).__name__
+                #Handles Cases where particular classes must be converted into a string format.
+                if(elemType == 'dateTime'):
+                    returnVal.append(elem.strftime())
+                elif(elemType == 'TextIOWrapper'):
+                    returnVal.append(elem.name)
+                elif(elemType == 'bytes' or elemType == 'bytearray'):
+                    #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
+                    returnVal.append(elem.decode())
+                elif(elemType == 'tuple' or elemType == 'list' or elemType == 'polariList'):
+                    returnVal.append(self.convertSetTypeIntoJSONdict(passedSet=elem))
+                elif(elemType == 'dict'):
+                    returnVal.append(self.convertSetTypeIntoJSONdict(passedSet=elem))
+                elif(inspect.ismethod(elem)):
+                    #print('found bound method (not adding this) ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
+                    returnVal.append({"__method__":{"name":elem.__name__,"parameterSignature":inspect.signature(elem),"parameterQuery":[],"execute":False}})
+                elif(inspect.isclass(type(elem)) and not elemType in dataTypesPython):
+                    #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
+                    #print('found custom class or type ', elemType, ' with value ', elem, 'in passed set ', passedSet)
+                    instIds = ["CLASS-" + elemType + "-IDs", self.convertSetTypeIntoJSONdict(passedSet=self.getInstanceIdentifiers(elem))]
+                    returnVal.append(instIds)
+                #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
+                else:
+                    #print('Standard type: ', type(getattr(passedInstance, someVariableKey)))
+                    returnVal.append(elem)
+        elif(type(passedSet).__name__ == 'dict'):
+            print("Entered Dict section of parsing...")
+            returnVal = {}
+            convertedKeyMap = {}
+            tupleKeysNumbering = 0
+            classKeyNumbering = 0
+            #Creates a map of old key values - to - valid key values for json.
+            for keyVal in passedSet.keys():
+                #Handles Cases where particular classes must be converted into a string format.
+                if(type(keyVal).__name__ == 'dateTime'):
+                    convertedKeyMap[keyVal] = keyVal.strftime()
+                elif(type(keyVal).__name__ == 'TextIOWrapper'):
+                    convertedKeyMap[keyVal] = keyVal.name
+                elif(type(keyVal).__name__ == 'bytes' or type(keyVal).__name__ == 'bytearray'):
+                    #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
+                    convertedKeyMap[keyVal] = keyVal.decode()
+                elif(type(keyVal).__name__ == 'tuple'):
+                    convertedKeyMap[keyVal] = "TUPLE-KEY-" + str(tupleKeysNumbering)
+                    tupleKeysNumbering += 1
+                elif(inspect.isclass(type(keyVal)) and not type(keyVal).__name__ in dataTypesPython):
+                    #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
+                    #print('found custom class or type ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
+                    convertedKeyMap[keyVal] = "CLASS-KEY-" + type(keyVal).__name__ + "-" + str(classKeyNumbering)
+                    classKeyNumbering += 1
+                #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
+                else:
+                    #print('Standard type: ', type(getattr(passedInstance, someVariableKey)))
+                    convertedKeyMap[keyVal] = keyVal
+            for keyVal in passedSet.keys():
+                correctedKey = convertedKeyMap[keyVal]
+                if("TUPLE-KEY" in convertedKeyMap[keyVal]):
+                    returnVal[convertedKeyMap[keyVal]] = self.convertSetTypeIntoJSONdict(passedSet=keyVal)
+                    correctedKey = correctedKey + "-VALUE"
+                #Handles Cases where particular classes must be converted into a string format.
+                if(type(passedSet[keyVal]).__name__ == 'dateTime'):
+                    returnVal[correctedKey] = passedSet[keyVal].strftime()
+                elif(type(passedSet[keyVal]).__name__ == 'TextIOWrapper'):
+                    returnVal[correctedKey] = passedSet[keyVal].name
+                elif(type(passedSet[keyVal]).__name__ == 'bytes' or type(passedSet[keyVal]).__name__ == 'bytearray'):
+                    #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
+                    returnVal[correctedKey] = passedSet[keyVal].decode()
+                elif(type(passedSet[keyVal]).__name__ == 'tuple' or type(passedSet[keyVal]).__name__ == 'list' or type(passedSet[keyVal]).__name__ == 'dict' or type(passedSet[keyVal]).__name__ == 'polariList'):
+                    returnVal[correctedKey] = self.convertSetTypeIntoJSONdict(passedSet=keyVal)
+                elif(inspect.isclass(type(passedSet[keyVal])) and not type(passedSet[keyVal]).__name__ in dataTypesPython):
+                    #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
+                    #print('found custom class or type ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
+                    returnVal[correctedKey] = type(passedSet[keyVal]).__name__
+                #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
+                else:
+                    #print('Standard type: ', type(getattr(passedInstance, someVariableKey)))
+                    returnVal[keyVal] = keyVal
+        else:
+            ValueError("Passed invalid value into ")
+        returnJSON = [{type(passedSet).__name__:returnVal}]
+        return returnJSON
 
     #
     def getListOfInstancesAtDepth(self, target_depth, depth=0, traversalList=[], source=None):
@@ -298,6 +575,160 @@ class managerObject:
                         if(srcFile.extension == language):
                             return srcFile
         return None
+
+    #{"sampleStringAttribute":{"EQUALS":("id-1234","sampleClassName")),"CONTAINS":("","AND","")}, "sampleRefAttribute":{"IN":["polariID-0", ...]}}
+    def getListOfInstancesByAttributes(self, className, attributeQueryDict="*"):
+        print("Calling query using value: ", attributeQueryDict)
+        if(not className in self.objectTables.keys()):
+            return {}
+        allClassInstancesDict = self.objectTables[className]
+        remainingInstances = allClassInstancesDict
+        eliminatedInstances = {}
+        if(attributeQueryDict == "*"):
+            return allClassInstancesDict
+        elif(type(attributeQueryDict).__name__ == "list" or type(attributeQueryDict).__name__ == "polariList"):
+            remainingInstances = self.listConditionalRequirementsForQuery(className=className, comboMethod="AND",queryListSegment=attributeQueryDict, remainingInstancesDict=remainingInstances)
+        elif(type(attributeQueryDict).__name__ == "dict"):
+            remainingInstances = self.dictAttributeRequirementsForQuery(className=className, queryDictSegment=attributeQueryDict, remainingInstancesDict=remainingInstances)
+        else:
+            raise ValueError("attributeQuery value must be of type list or polariList, or a string containing *, instead it is ", attributeQueryDict)
+        return remainingInstances
+
+    #Pass in a query Segment containing a tuple with an AND or OR operator
+    #in the middle.
+    def listConditionalRequirementsForQuery(self, className, queryListSegment, remainingInstancesDict, comboMethod="AND"):
+        if(not comboMethod in ["AND", "OR"]):
+            errMsg = "Attempted to generate query utilizing incorrect value '" + comboMethod + "' in the first position of a tuple in a Conditional Requirements List, only the values AND & OR are allowed in those positions for a query."
+            raise ValueError(errMsg)
+        tempInstancesDict = None
+        ListOfRemainingInstanceDictsForUnion = []
+        for logicTuple in queryListSegment:
+            if(type(logicTuple).__name__ == "tuple"):
+                if(len(logicTuple) != 2 and logicTuple[0] in ["AND", "OR"]):
+                    #At the base section, we assume it is an AND initially for the given list.
+                    segmentType = type(logicTuple[1]).__name__
+                    if(segmentType == "dict"):
+                        tempInstancesDict = self.dictAttributeRequirementsForQuery(className=className, queryDictSegment=logicTuple[1], remainingInstancesDict=remainingInstancesDict)
+                    elif(segmentType == "polariList" or segmentType == "list"):
+                        tempInstancesDict = self.listConditionalRequirementsForQuery(className=className, comboMethod=logicTuple[0],queryListSegment=logicTuple[1], remainingInstancesDict=remainingInstancesDict)
+                    else:
+                        errMsg = "Found unexpected value '"+ logicTuple[1] +"' of type '"+ segmentType +"' in conditional requirement tuple"
+                        raise ValueError(errMsg)
+                    if(comboMethod == "AND"):
+                        remainingInstancesDict = tempInstancesDict
+                    elif(comboMethod == "OR"):
+                        ListOfRemainingInstanceDictsForUnion.append(tempInstancesDict)
+        #Returns using this method when OR Conditional is being applied.
+        if(comboMethod == "OR"):
+            unionedInstancesDict = {}
+            for partialInstancesDict in ListOfRemainingInstanceDictsForUnion:
+                for someId in partialInstancesDict.keys():
+                    if(not someId in unionedInstancesDict):
+                        unionedInstancesDict[someId] = partialInstancesDict[someId]
+            return unionedInstancesDict
+        #Return using this method when AND Conditional is being applied
+        else:
+            return remainingInstancesDict
+
+
+
+    def dictAttributeRequirementsForQuery(self, className, queryDictSegment, remainingInstancesDict):
+        print("Starting query execution using atributeQueryDict: ", queryDictSegment)
+        attributeQueryDict = queryDictSegment
+        remainingInstances = remainingInstancesDict
+        eliminatedInstances = {}
+        for someAttribute in attributeQueryDict:
+            if("EQUALS" in attributeQueryDict[someAttribute]):
+                querySegment = attributeQueryDict[someAttribute]["EQUALS"]
+                querySegmentTyping = type(querySegment).__name__
+                #print("Entered EQUALS section of Query.  QuerySegment is type ",querySegmentTyping," and has value: ", querySegment)
+                if(querySegmentTyping == "str"):
+                    #print("In str section")
+                    #Scenario where it is expected for attribute of instance
+                    #to be an exact instance of a type with an exact id value.
+                    if(someAttribute == "id"):
+                        #print("in id section")
+                        if(querySegment in self.objectTables[className].keys()):
+                            #print("querySegment found in objectTables")
+                            #Find objects with the given attribute equal
+                            for remainingInstanceId in remainingInstances.keys():
+                            #    print("remaining Id: ", remainingInstanceId)
+                                remainingInstanceMeetsCriteria = False
+                                if(remainingInstanceId == querySegment):
+                                    returnDict = {remainingInstanceId:self.objectTables[className][remainingInstanceId]}
+                                    #print("ReturnDict = ", returnDict)
+                                    return returnDict
+                            #remainingInstanceMeetsCriteria = False
+                            #remainingInstance = self.objectTables[querySegment][remainingInstanceId]
+                            #if(hasattr(remainingInstance, someAttribute)):
+                            #    referencedInstance = getattr(remainingInstance, someAttribute)
+                            #    if(hasattr(referencedInstance, 'id')):
+                            #        if(referencedInstance.Id == querySegment):
+                            #            remainingInstanceMeetsCriteria = True
+                                if(not remainingInstanceMeetsCriteria):
+                                    #add to eliminated instances
+                                    eliminatedInstances[querySegment] = self.objectTables[className][remainingInstanceId]
+                    else:
+                        for remainingInstanceId in remainingInstances.keys():
+                            remainingInstanceMeetsCriteria = False
+                            if(remainingInstanceId != querySegment):
+                                remainingInstanceMeetsCriteria = True
+                        print("finding instances with non-id attribute of type string.")
+                else:
+                    raise ValueError("Entered invalid type into EQUALS section of query.")
+            #Remove eliminated instances from the remaining instances dict.
+            if(len(eliminatedInstances) != 0):
+                for someInstId in eliminatedInstances.keys():
+                    remainingInstances.pop(someInstId)
+                eliminatedInstances = []
+            #
+            if("CONTAINS" in attributeQueryDict[someAttribute]):
+                print("Entered 'contains' segment of query.")
+                querySegment = attributeQueryDict[someAttribute]["CONTAINS"]
+                querySegmentTyping = type(querySegment).__name__
+                if(querySegmentTyping == "str"):
+                    print("In string section of CONTAINS")
+                    #Find objects with the given attribute equal
+                    for remainingInstanceId in remainingInstances.keys():
+                        print("Analyzing for Id ", remainingInstanceId)
+                        remainingInstanceMeetsCriteria = False
+                        remainingInstance = self.objectTables[className][remainingInstanceId]
+                        if(hasattr(remainingInstance, someAttribute)):
+                            print("Found attribute in instance with CONTAINS: ", someAttribute, " with value: ", getattr(remainingInstance, someAttribute))
+                            if(querySegment in getattr(remainingInstance, someAttribute)):
+                                remainingInstanceMeetsCriteria = True
+                        if(not remainingInstanceMeetsCriteria):
+                            #add to eliminated instances
+                            eliminatedInstances[remainingInstanceId] = remainingInstance
+            #Remove eliminated instances from the remaining instances dict.
+            if(len(eliminatedInstances) != 0):
+                for someInstId in eliminatedInstances.keys():
+                    remainingInstances.pop(someInstId)
+                eliminatedInstances = []
+            if("IN" in attributeQueryDict[someAttribute]):
+                print("Entered 'IN' segment of query.")
+                querySegment = attributeQueryDict[someAttribute]["IN"]
+                querySegmentTyping = type(querySegment).__name__
+                print("querySegment type is ", querySegmentTyping, " and it's value is ", querySegment)
+                foundMatch = False
+                if(querySegmentTyping == "list"):
+                    for remainingInstanceId in remainingInstances.keys():
+                        remainingInstanceMeetsCriteria = False
+                        remainingInstance = self.objectTables[className][remainingInstanceId]
+                        if not remainingInstanceId in querySegment:
+                            eliminatedInstances[remainingInstanceId] = remainingInstance
+                            print("Eliminating instances using dict: ", eliminatedInstances)
+                            #Queue Id to be removed from remaining Ids.
+                        else:
+                            print("Found id", remainingInstanceId," in querySegment")
+                #Remove eliminated instances from the remaining instances dict.
+                if(len(eliminatedInstances.keys()) != 0):
+                    for someInstId in eliminatedInstances.keys():
+                        remainingInstances.pop(someInstId)
+                    eliminatedInstances = []
+        print("remainingInstancesDict = ", remainingInstances)
+        return remainingInstances
+
 
     #
     def getListOfClassInstances(self, className, traversalList=[], source=None):
@@ -356,6 +787,7 @@ class managerObject:
                 classDefiningFile = inspect.getfile(classObj)
             else:
                 print("Called \'makeDefaultObjectTyping\' without passing either a class instance or object for reference, no polyTypedObject could be generated.")
+            filePath = os.path.dirname(classDefiningFile)
             pass
         except:
             print('Caught exception for retrieving file, thereby instance of type', classInstance.__class__.__name__ , ' with a value of ', classInstance,' must be a built-in class')
@@ -365,17 +797,26 @@ class managerObject:
             sourceFiles = []
         else:
             dotIndex = classDefiningFile.index(".")
+            #Get final index of forward or backslash, if neither then set index to zero
+            lastSlashIndex = classDefiningFile.rfind("/")
+            if(lastSlashIndex == -1):
+                lastSlashIndex = classDefiningFile.rfind("\\")
+            if(lastSlashIndex == -1):
+                lastSlashIndex = 0
             classDefiningFile = classDefiningFile[0:dotIndex]
-            sourceFiles = [classDefiningFile]
-            print('Class file name: ', classDefiningFile)
+            fileName = classDefiningFile[lastSlashIndex+1:dotIndex]
+            filePath = classDefiningFile[0:lastSlashIndex]
+            pythonSourceFile = self.makeFile(name=fileName, extension='py', Path=filePath)
+            sourceFiles = [pythonSourceFile]
+            #print('Class file name: ', fileName)
         if(classInstance != None):
-            classDefaultTyping = polyTypedObject(manager=self, sourceFiles=sourceFiles, className=classInstance.__class__.__name__, identifierVariables=['id'])
+            classDefaultTyping = polyTypedObject(manager=self, sourceFiles=sourceFiles, className=classInstance.__class__.__name__, identifierVariables=['id'], sampleInstances=[classInstance])
             #return classDefaultTyping
         elif(classObj != None):
-            classDefaultTyping = polyTypedObject(manager=self, sourceFiles=sourceFiles, className=classObj.__name__, identifierVariables=['id'])
+            classDefaultTyping = polyTypedObject(manager=self, sourceFiles=sourceFiles, className=classObj.__name__, identifierVariables=['id'], classDefinition=classObj)
             #return classDefaultTyping
         if(classInstance != None):
-            if(classInstance.__class__.__name__ != 'list'):
+            if(classInstance.__class__.__name__ != 'list' and classInstance.__class__.__name__ != 'polariList'):
                 classDefaultTyping.analyzeInstance(classInstance)
             else:
                 for inst in classInstance:
@@ -397,10 +838,13 @@ class managerObject:
     def getInstanceIdentifiers(self, instance):
         isValid = False
         obj = None
-        for parentObj in instance.__class__.__bases__:
-            #print("Iterated Parent object in getInstanceIdentifiers: ", parentObj.__name__)
-            if(parentObj.__name__ == "treeObject" or parentObj.__name__ == "managerObject" or parentObj.__name__ == "managedFile"):
-                isValid = True
+        if(instance.__class__.__name__ == 'treeObject' or instance.__class__.__name__ == 'managerObject'):
+            isValid = True
+        else:
+            for parentObj in instance.__class__.__bases__:
+                #print("Iterated Parent object in getInstanceIdentifiers: ", parentObj.__name__)
+                if(parentObj.__name__ == "treeObject" or parentObj.__name__ == "managerObject" or parentObj.__name__ == "managedFile"):
+                    isValid = True
         #If it is a valid object then we retrieve the object typing, otherwise we let it fail by not defining obj.
         if(isValid):
             obj = self.getObjectTyping(classInstance=instance)
@@ -430,7 +874,7 @@ class managerObject:
     #Traverses the object tree to get a particular branch node by repeatedly accessing branches in-order according to the traversalList, 
     #which effectively acts as a path to the object acting as the branch
     def getBranchNode(self, traversalList):
-        #print('Path passed in: ', traversalList)
+        #print('Path passed in value: ', traversalList)
         branch = self.objectTree
         for tup in traversalList:
             #print("Traversing tuple in path: ", tup)
@@ -638,10 +1082,14 @@ class managerObject:
     def addNewBranch(self, traversalList, branchTuple=None, instance=None):
         #if(len(traversalList) > 2):
         #    print("Trying to add new branch using traversalList of depth 3!! -> ", traversalList)
+        #else:
+            #print("Encountered instance being added", instance, " which is missing an id.") 
         if(instance != None):
             branchTuple = self.getInstanceTuple(instance)
         elif(branchTuple != None):
             instance = branchTuple[2]
+        if(instance == None):
+            print("Instance passed was none")
         #Overwrites the traversal list in the case where the branch has already been defined.
         if(hasattr(instance, "branch")):
             if(instance.branch != None):
@@ -662,6 +1110,18 @@ class managerObject:
             else:
                 instance.manager = self
                 #TODO write code to delete branch from other manager and copy to this manager.
+        if(hasattr(instance, 'id') and hasattr(self, "objectTables")):
+            if(instance.id != None):
+                key = instance.__class__.__name__
+                if(key in self.objectTables):
+                    self.objectTables[key][instance.id] = instance
+                else:
+                    self.objectTables[key] = {}
+                    self.objectTables[key][instance.id] = instance
+            else:
+                instance.makeUniqueIdentifier()
+                print("New instance id: ", instance.id)
+                print("Adding Instance to tree but it has an id with value None.")
         if(hasattr(instance, "branch") and branchingInstance != None):
             if(instance.branch == traversalList[len(traversalList) - 1]):
                 pass
@@ -706,41 +1166,52 @@ class managerObject:
     #Adds all of the basic objects that are necessary for the application to run, and accounts for
     #all of their identifiers.
     def primePolyTyping(self, identifierVariables=['id']):
-        source_Polari = self.makeFile(name='definePolari', extension='py')
-        source_dataStream = self.makeFile(name='dataStreams', extension='py')
-        source_remoteEvent = self.makeFile(name='remoteEvents', extension='py')
-        source_managedUserInterface = self.makeFile(name='managedUserInterface', extension='py')
-        source_managedFile = self.makeFile(name='managedFiles', extension='py')
+        mainDirPath = os.getcwd()
+        source_Polari = self.makeFile(name='definePolari', extension='py', Path=mainDirPath + "\\polariAI")
+        source_dataStream = self.makeFile(name='dataStreams', extension='py', Path=mainDirPath + "\\polariApiServer")
+        source_remoteEvent = self.makeFile(name='remoteEvents', extension='py', Path=mainDirPath + "\\polariApiServer")
+        source_managedUserInterface = self.makeFile(name='managedUserInterface', extension='py', Path=mainDirPath + "\\polariFrontendManagement")
+        source_managedFile = self.makeFile(name='managedFiles', extension='py', Path=mainDirPath + "\\polariFiles")
+        source_polariUser = self.makeFile(name='polariUser', extension='py', Path=mainDirPath + "\\accessControl")
+        source_polariUserGroups = self.makeFile(name='polariUserGroup', extension='py', Path=mainDirPath + "\\accessControl")
         #managedApp and browserSourcePage share the same source file.
-        source_managedAppANDbrowserSourcePage = self.makeFile(name='managedApp', extension='py')
-        source_managedDatabase = self.makeFile(name='managedDB', extension='py')
-        source_dataChannel = self.makeFile(name='dataChannels', extension='py')
-        source_managedExecutable = self.makeFile(name='managedExecutables', extension='py')
-        source_polariServer = self.makeFile(name='polariServer', extension='py')
+        source_managedAppANDbrowserSourcePage = self.makeFile(name='managedApp', extension='py', Path=mainDirPath + "\\polariFrontendManagement")
+        source_managedDatabase = self.makeFile(name='managedDB', extension='py', Path=mainDirPath + "\\polariDBmanagement")
+        source_dataChannel = self.makeFile(name='dataChannels', extension='py', Path=mainDirPath + "\\polariFiles")
+        source_managedExecutable = self.makeFile(name='managedExecutables', extension='py', Path=mainDirPath + "\\polariFiles")
+        source_polariServer = self.makeFile(name='polariServer', extension='py', Path=mainDirPath + "\\polariApiServer")
         #polyTyped Object and variable are both defined in the same source file
-        source_polyTypedObject = self.makeFile(name='polyTyping', extension='py')
-        source_polyTypedVars = self.makeFile(name='polyTypedVars', extension='py')
-        self_module = inspect.getmodule(self.__class__)
-        self_fileName = (self_module.__file__)[self_module.__file__.rfind('\\')+1:self_module.__file__.rfind('.')]
-        self_path = (self_module.__file__)[:self_module.__file__.rfind('\\')]
+        source_polyTypedObject = self.makeFile(name='polyTyping', extension='py', Path=mainDirPath + "\\polariDataTyping")
+        source_polyTypedVars = self.makeFile(name='polyTypedVars', extension='py', Path=mainDirPath + "\\polariDataTyping")
+        source_polariCRUDE = self.makeFile(name='polariCRUDE', extension='py', Path=mainDirPath + "\\polariApiServer")
+        source_polariAPI = self.makeFile(name='polariAPI', extension='py', Path=mainDirPath + "\\polariApiServer")
+        self_fileInst = inspect.getfile(self.__class__)
+        self_completepath = os.path.abspath(self_fileInst)
+        self_fileName = self_completepath[self_completepath.rfind('\\')+1:self_completepath.rfind('.')]
+        self_path = self_completepath[0:self_completepath.rfind('\\')]
         source_self = self.makeFile(name=self_fileName, extension='py', Path=self_path)
-        print("source_self file name = ", self_fileName)
-        print("source_self file path = ", self_path)
+        #print("source complete path: ", self_completepath)
+        #print("source_self file name = ", self_fileName)
+        #print("source_self file path = ", self_path)
         self.objectTyping = [
             polyTypedObject(sourceFiles=[source_self], className=type(self).__name__, identifierVariables = identifierVariables, objectReferencesDict={}, manager=self),
-            polyTypedObject(sourceFiles=[source_polyTypedVars], className='polyTypedVariable', identifierVariables = ['name','polyTypedObj'], objectReferencesDict={'polyTypedObject':['polyTypedVars']}, manager=self),
-            polyTypedObject(sourceFiles=[source_Polari], className='Polari', identifierVariables = ['id'], objectReferencesDict={}, manager=self),
-            polyTypedObject(sourceFiles=[source_dataStream], className='dataStream', identifierVariables = ['id'], objectReferencesDict={'managedApp':['dataStreamsToProcess','dataStreamsRequested','dataStreamsAwaitingResponse']}, manager=self),
-            polyTypedObject(sourceFiles=[source_remoteEvent], className='remoteEvent', identifierVariables = ['id'], objectReferencesDict={'managedApp':['eventsToProcess','eventsToSend','eventsAwaitingResponse']}, manager=self),
-            polyTypedObject(sourceFiles=[source_managedUserInterface], className='managedUserInterface', identifierVariables = ['id'], objectReferencesDict={'managedApp':['UIs']}, manager=self),
-            polyTypedObject(sourceFiles=[source_managedFile], className='managedFile', identifierVariables = ['name','extension','Path'], objectReferencesDict={'managedApp':['AppFiles']}, manager=self),
-            polyTypedObject(sourceFiles=[source_managedAppANDbrowserSourcePage], className='managedApp', identifierVariables = ['name'], objectReferencesDict={'managedApp':['subApps']}, manager=self),
-            polyTypedObject(sourceFiles=[source_managedAppANDbrowserSourcePage], className='browserSourcePage', identifierVariables = ['name','Path'], objectReferencesDict={'managedApp':['landingSourcePage','sourcePages']}, manager=self),
-            polyTypedObject(sourceFiles=[source_managedDatabase], className='managedDatabase', identifierVariables = ['name','Path'], objectReferencesDict={'managedApp':['DB']}, manager=self),
-            polyTypedObject(sourceFiles=[source_dataChannel], className='dataChannel', identifierVariables = ['name','Path'], objectReferencesDict={'polariServer':['serverChannel'],'managedApp':['serverChannel','localAppChannel']}, manager=self),
-            polyTypedObject(sourceFiles=[source_managedExecutable], className='managedExecutable', identifierVariables = ['name', 'extension','Path'], objectReferencesDict={}, manager=self),
-            polyTypedObject(sourceFiles=[source_polyTypedObject], className='polyTypedObject', identifierVariables = ['className'], objectReferencesDict={self.__class__.__name__:['objectTyping']}, manager=self),
-            polyTypedObject(sourceFiles=[source_polariServer], className='polariServer', identifierVariables = ['name', 'id'], objectReferencesDict={}, manager=self)
+            polyTypedObject(sourceFiles=[source_polyTypedVars], className='polyTypedVariable', identifierVariables = ['name','polyTypedObj'], objectReferencesDict={'polyTypedObject':['polyTypedVars']}, manager=self, baseAccessDict={"R":{"polyTypedVariable":"*"}}, basePermDict={"R":{"polyTypedVariable":"*"}}, kwRequiredParams=[], kwDefaultParams=[]),
+            polyTypedObject(sourceFiles=[source_Polari], className='Polari', identifierVariables = ['id'], objectReferencesDict={}, manager=self, kwRequiredParams=[], kwDefaultParams=[]),
+            polyTypedObject(sourceFiles=[source_dataStream], className='dataStream', identifierVariables = ['id'], objectReferencesDict={'managedApp':['dataStreamsToProcess','dataStreamsRequested','dataStreamsAwaitingResponse']}, manager=self, kwRequiredParams=["source"], kwDefaultParams=["channels", "sinkInstances", "recurring"]),
+            polyTypedObject(sourceFiles=[source_remoteEvent], className='remoteEvent', identifierVariables = ['id'], objectReferencesDict={'managedApp':['eventsToProcess','eventsToSend','eventsAwaitingResponse']}, manager=self, kwRequiredParams=[], kwDefaultParams=["eventName", "source", "sink", "channels"]),
+            polyTypedObject(sourceFiles=[source_managedUserInterface], className='managedUserInterface', identifierVariables = ['id'], objectReferencesDict={'managedApp':['UIs']}, manager=self, kwRequiredParams=[], kwDefaultParams=["hostApp", "launchMethod"]),
+            polyTypedObject(sourceFiles=[source_managedFile], className='managedFile', identifierVariables = ['name','extension','Path'], objectReferencesDict={'managedApp':['AppFiles']}, manager=self, kwRequiredParams=[], kwDefaultParams=["name", "Path", "extension"]),
+            polyTypedObject(sourceFiles=[source_managedAppANDbrowserSourcePage], className='managedApp', identifierVariables = ['name'], objectReferencesDict={'managedApp':['subApps']}, manager=self, kwRequiredParams=[], kwDefaultParams=["name", "displayName", "Path", "manager"]),
+            polyTypedObject(sourceFiles=[source_managedAppANDbrowserSourcePage], className='browserSourcePage', identifierVariables = ['name','Path'], objectReferencesDict={'managedApp':['landingSourcePage','sourcePages']}, manager=self, kwRequiredParams=[], kwDefaultParams=[ "name", "sourceHTMLfile", "supportFiles", "supportPages"]),
+            polyTypedObject(sourceFiles=[source_managedDatabase], className='managedDatabase', identifierVariables = ['name','Path'], objectReferencesDict={'managedApp':['DB']}, manager=self, kwRequiredParams=[], kwDefaultParams=[ "name", "manager", "DBurl", "DBtype", "tables", "inRAM"]),
+            polyTypedObject(sourceFiles=[source_dataChannel], className='dataChannel', identifierVariables = ['name','Path'], objectReferencesDict={'polariServer':['serverChannel'],'managedApp':['serverChannel','localAppChannel']}, manager=self, kwRequiredParams=["manager"], kwDefaultParams=[ "name", "Path"]),
+            polyTypedObject(sourceFiles=[source_managedExecutable], className='managedExecutable', identifierVariables = ['name', 'extension','Path'], objectReferencesDict={}, manager=self, kwRequiredParams=[], kwDefaultParams=["name", "extension", "Path", "manager"]),
+            polyTypedObject(sourceFiles=[source_polyTypedObject], className='polyTypedObject', identifierVariables = ['className'], objectReferencesDict={self.__class__.__name__:['objectTyping']}, manager=self, baseAccessDict={"R":{"polyTypedObject":"*"}}, basePermDict={"R":{"polyTypedObject":"*"}}, kwRequiredParams=["className", "manager"], kwDefaultParams=["objectReferencesDict","sourceFiles","identifierVariables", "variableNameList", "baseAccessDict", "basePermDict", "classDefinition", "sampleInstances", "kwRequiredParams", "kwDefaultParams"]),
+            polyTypedObject(sourceFiles=[source_polariServer], className='polariServer', identifierVariables = ['name', 'id'], objectReferencesDict={}, manager=self, baseAccessDict={"R":{"polariServer":"*"}}, basePermDict={"R":{"polariServer":"*"}}, kwRequiredParams=[], kwDefaultParams=[ "name", "displayName", "hostSystem", "serverChannel", "serverDataStream"]),
+            polyTypedObject(sourceFiles=[source_polariUser], className='User', identifierVariables = ['id'], objectReferencesDict={self.__class__.__name__:['usersList']}, manager=self, baseAccessDict={"R":{"User":"*"}}, basePermDict={"R":{"User":"*"}}, kwRequiredParams=[], kwDefaultParams=[ "username", "password", "unregistered"]),
+            polyTypedObject(sourceFiles=[source_polariUserGroups], className='UserGroup', identifierVariables = ['id'], objectReferencesDict={self.__class__.__name__:['userGroupsList']}, manager=self, baseAccessDict={"R":{"UserGroup":"*"}}, basePermDict={"R":{"UserGroup":"*"}}, kwRequiredParams=["name"], kwDefaultParams=["assignedUsers", "userMembersQuery", "permissionSets"]),
+            polyTypedObject(sourceFiles=[source_polariAPI], className='polariAPI', identifierVariables = ['id'], objectReferencesDict={"polariServer":['']}, manager=self, baseAccessDict={"R":{"polariAPI":"*"}}, basePermDict={"R":{"polariAPI":"*"}}, kwRequiredParams=["apiName", "polServer"], kwDefaultParams=["minAccessDict", "maxAccessDict", "minPermissionsDict", "maxPermissionsDict",  "eventAPI", "eventObject", "event"]),
+            polyTypedObject(sourceFiles=[source_polariCRUDE], className='polariCRUDE', identifierVariables = ['id'], objectReferencesDict={"polariServer":['crudeObjectsList']}, manager=self, baseAccessDict={"R":{"polariCRUDE":"*"}}, basePermDict={"R":{"polariCRUDE":"*"}}, kwRequiredParams=["apiObject", "polServer"], kwDefaultParams=[])
         ]
         #Goes through the objectTyping list to make sure that the object
         #that is 'self' was accounted for, adds a default typing if not.
@@ -751,7 +1222,7 @@ class managerObject:
                 selfIsTyped = True
             if(objTyp.className == 'polyTypedObject'):
                 for typingInst in self.objectTyping:
-                    print("Preparing to analyze instance: ", typingInst)
+                    #print("Preparing to analyze instance: ", typingInst)
                     objTyp.analyzeInstance(typingInst)
                 for typingInst in self.objectTyping:
                     for typedVar in typingInst.polyTypedVars:
@@ -841,7 +1312,7 @@ class managerObject:
     #as well as allowing them to chain criteria as much as desired, allowing maximum freedom.
     #SELECT section - If this section exists, the overall query will return a formatted json dictionary containing all converted objects with the specified variables included.
     #Example complex Object Tree query: queryString=
-    #"[SELECT * FROM testObj WITH { id:(max), testVar:(=None), name:(a%c%), objList:( contains[ FROM secondTestObj WITH { name:(='name') } ] ) } WHERE hasChildren:[ FROM secondTestObj ]")
+    #"[SELECT * FROM testObj WITH { id:(max), testVar:(=None), name:(a%c%), objList:( contains[ secondTestObj WITH { name:(='name') } ] ) } WHERE hasChildren:[ secondTestObj ]")
     #This would return a json dictionary of testObj
     def queryObjectTree(self, queryString): 
         curType = None
