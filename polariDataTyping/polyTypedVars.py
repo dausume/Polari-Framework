@@ -36,7 +36,9 @@ class polyTypedVariable(treeObject):
                     obj.addToObjReferenceDict(referencedClassObj=attributeValue.__class__, referenceVarName=self.name)
                     #print("ADDING to REFERENCE DICTIONARY FROM polyTypedVar initialization on object ", self.polyTypedObj, " for variable ", self.name)
                 else:
-                    print("Found attempt to set non-manager object value on manager.")
+                    varType = attributeValue.__class__.__name__
+                    errMsg = "Found attempt to set non-manager object value of type "+varType+" on manager."
+                    print(errMsg)
             else:
                 if(obj.checkIfManagerObject() or obj.checkIfTreeObject()):
                     #Confirms

@@ -257,6 +257,216 @@ class managerObject:
         #print("Finished setting value of ", name, " to be ", value)
         super(managerObject, self).__setattr__(name, value)
 
+    #Deletes a tree node, deletes all dependent tree nodes with no existing duplicates
+    def deleteTreeNode(self, className, nodePolariId, baseDeleteData=None, deleteData=None, instancesDeleted=[], migratedInstances=[], startDelete=True):
+        if(startDelete == True):
+            instToDelete = self.objectTables[className][nodePolariId]
+            instancesDeleted.append(instToDelete)
+            tupToDelete = self.getInstanceTuple(instToDelete)
+            deletePath = self.getTuplePathInObjTree(tupToDelete)
+            deleteData = (instToDelete, tupToDelete, deletePath)
+            (baseInstToDelete, baseTupToDelete, baseDeletePath) = deleteData
+            baseDeleteData = deleteData
+        else:
+            (baseInstToDelete, baseTupToDelete, baseDeletePath) = baseDeleteData
+            (instToDelete, tupToDelete, deletePath) = deleteData
+        #Get all duplicates and main nodes branching from current main node.
+        pathsList = self.getAllPathsForTupleInObjTree(tupToDelete)
+        #remove current main branch node from the list so we don't immediately delete it.
+        removeIndex = None
+        curIndex = 0
+        for somePath in pathsList:
+            if(somePath[len(baseDeletePath)-1] == tupToDelete):
+                removeIndex = curIndex
+                break
+            else:
+                curIndex += 1
+        if(removeIndex != None):
+            pathsList.remove(removeIndex)
+        else:
+            raise ValueError("Something has gone very wrong... trying to delete node but main node cannot be located, it may have been deleted already?")
+        #Go through all duplicates and delete them
+        for nodePath in pathsList:
+            tempPath = nodePath
+            tempPath.pop()
+            treeBranch = self.getBranchNode(tempPath)
+            #Remove the duplicateNode from the treeBranch
+            treeBranch.remove(nodePath[len(nodePath)-1])
+        #Access the main node
+        treeBranch = self.getBranchNode(baseDeletePath)
+        #
+        duplicates = []
+        mainNodes = []
+        for subBranchTuple in treeBranch.keys():
+            valueType = subBranchTuple[2].__class__.__name__
+            if(valueType == "tuple" or valueType=="NoneType"):
+                duplicates.append(subBranchTuple)
+            else:
+                mainNodes.append(subBranchTuple)
+        #Go through all duplicate nodes and delete them since we know they
+        #should not be migrated.
+        for duplicateKey in duplicates:
+            treeBranch.remove(duplicateKey)
+        #
+        baseDeletePathLength = len(baseDeletePath)
+        #Go through main nodes and see whether they can be migrated outside of
+        #the current sub-tree being deleted.
+        #If they can, migrate them.  If not, delete them and their sub-tree.
+        for mainKey in mainNodes:
+            #Get all paths
+            pathsList = self.getAllPathsForTupleInObjTree(mainKey)
+            #Compare to see if any paths exist outside of baseDeletePath
+            insidePaths = []
+            outsidePaths = []
+            for somePath in pathsList:
+                isOutside = False
+                somePathLength = len(somePath)
+                if(baseDeletePathLength <= somePathLength):
+                    iter = range(0,baseDeletePathLength - 1)
+                    for i in iter:
+                        if(not somePath[i] == baseDeletePath[i]):
+                            isOutside = True
+                            break
+                    if(isOutside):
+                        outsidePaths.append(somePath)
+                    else:
+                        insidePaths.append(somePath)
+                else:
+                    #Since it is lower level than delete path, cannot possibly
+                    #be under the deleted sub-tree, so we migrate the sub-tree.
+                    #Note: Under normal conditions this should never happen because
+                    #main nodes should always exist at lowest path length...
+                    #will put it here just in case though.
+                    outsidePaths.append(somePath)
+            #Delete all duplicates on inside paths
+            for inPath in insidePaths:
+                tempPath = inPath
+                tempPath.pop()
+                inBranch = self.getBranchNode(tempPath)
+                #Remove the duplicateNode from the treeBranch
+                inBranch.remove(inPath[len(inPath)-1])
+            shortestPath = None
+            #If no outside paths exist, the main node and it's sub-tree must be deleted.
+            if(len(outsidePaths) == 0):
+                newTupToDelete = mainKey
+                newInstToDelete = mainKey[2]
+                instancesDeleted.append(newInstToDelete)
+                newDeletePath = self.getTuplePathInObjTree(newTupToDelete)
+                newDeleteData = (newInstToDelete, newTupToDelete, newDeletePath)
+                (instancesDeleted, migratedInstances) = self.deleteTreeNode(className=className, nodePolariId=nodePolariId, baseDeleteData=baseDeleteData, deleteData=newDeleteData, instancesDeleted=instancesDeleted, migratedInstances=migratedInstances, startDelete=False)
+            #If an outside path exists, find the path with shortest length, and migrate to it.
+            else:
+                shortestPath = outsidePaths[0]
+                shortestPathLength = len(shortestPath)
+                for outPath in outsidePaths:
+                    if(len(shortestPath) < shortestPathLength):
+                        shortestPath = outPath
+                        shortestPathLength = len(outPath)
+                migratedInstances = self.migrateTreeNode(originalPath=mainKey,newPath=shortestPath,migratedInstances=migratedInstances)
+        return (instancesDeleted, migratedInstances)
+
+    #Migration of a tree node should only occur as a part of the deletion process,
+    #since the process of deletion can create an irregulariy if not handled.
+    #Under normal circumstances all migrations would be simple migrations since
+    #they happen when a new node is created at a lower path length than it's
+    #current existing main node.
+    def migrateTreeNode(self, originalPath, newPath, migratedInstances, removeOriginal=True):
+        #Get the branch we want to load the new branch onto
+        targetPath = newPath
+        targetPath.pop()
+        originalParentPath = originalPath
+        originalParentPath.pop()
+        originalParentInstance = originalParentPath[len(originalParentPath)-1][2]
+        originalInstance = originalPath[len(originalPath)-1][2]
+        targetBranch = self.getBranchNode(targetPath)
+        #Remove the duplicate being replaced
+        targetBranch.remove(newPath[len(newPath)-1])
+        #Get the original branch that needs to be migrated.
+        originalTuple = originalPath[len(originalPath)-1]
+        originalBranch = self.getBranchNode(originalPath)
+        originalParentBranch = self.getBranchNode(originalParentPath)
+        #Check if the branch being migrated to is at an equal or lower depth than
+        #the current location, if it is we can directly skip the need for a
+        #complex migration process and just move the branch at once.
+        if(len(newPath) <= len(originalPath)):
+            #Directly move the branch over to the new location.
+            targetBranch[originalTuple] = originalBranch
+            #Then remove the node from the previous location on original parent branch.
+            originalParentBranch.remove(originalTuple)
+            if(not removeOriginal):
+                #TODO Instead, ensure it is replaced with a duplicate.
+                self.getDuplicateInstanceTuple(originalTuple[2])
+            else:
+                classType = originalTuple[2].__class__.__name__
+                self.removeInstanceReferences(instanceWithReferences=originalParentInstance, instanceReferenced=originalInstance)
+                #TODO All references to this instance should be removed from the instance
+                #that the parent branch references.
+            #...
+            #Now that it has been successfully migrated and removed from it's
+            #original location, we add it to migrated objects and return it.
+            migratedInstances.append(originalTuple[2])
+        #Now it gets complicated.. first, record what the path shift is.  We will
+        #need that to determine what main nodes, if any, will need to move.
+        else:
+            newPathLength = len(newPath)
+            pathShift = len(originalPath) - newPathLength
+            mainNodes = []
+            for subBranchTuple in originalBranch.keys():
+                valueType = subBranchTuple[2].__class__.__name__
+                #Ignore duplicates and add all main nodes to a list.
+                if(valueType != "tuple" and valueType!="NoneType"):
+                    mainNodes.append(subBranchTuple)
+            #Go through each main node and compare all of their paths to see if any
+            #would be a shorter path than a what simple migration would result in.
+            for someNode in mainNodes:
+                #Get all paths
+                pathsList = self.getAllPathsForTupleInObjTree(someNode)
+                #Check to see if any path shorter than the converted path will exist.
+                shortestPathLength = newPathLength
+                shortestPath = None
+                foundShorterPath = False
+                for somePath in pathsList:
+                    if(len(somePath) < shortestPathLength):
+                        shortestPathLength = len(somePath)
+                        shortestPath = somePath
+                        foundShorterPath = True
+                if(foundShorterPath):
+                    #TODO migrate to the shorter path and replace with duplicate while leaving references.
+                    pass
+                else:
+                    migratedInstances.append(someNode[2])
+                
+    #Removes all references to a given instance from a given instance's variables.
+    def removeInstanceReferences(self, instanceWithReferences, instanceReferenced):
+        #Get polyTyping for instances
+        instanceVars = instanceWithReferences.__dict__
+        instanceReferencedType = instanceReferenced.__class__.__name__
+        instanceReferencedTyping = self.objectTypingDict(instanceReferencedType)
+        variablesWithReferences = instanceReferencedTyping.objectReferencesDict[instanceWithReferences.__class__.__name__]
+        for someVar in variablesWithReferences:
+            if(someVar in instanceVars.keys()):
+                varVal = getattr(instanceWithReferences, someVar)
+                varType = varVal.__class__.__name__
+                if(varType == instanceReferencedType):
+                    if(instanceReferenced == varVal):
+                        setattr(instanceWithReferences,someVar,None)
+                elif(varType == "list" or varType == "polariList"):
+                    indexDict = {}
+                    index = 0
+                    indexCount = 0
+                    for elem in varVal:
+                        elemType = elem.__class__.__name__
+                        if(elemType == instanceReferencedType):
+                            if(instanceReferenced == elem):
+                                indexDict[indexCount] = index
+                    for i in range(0, indexCount):
+                        removeIndex = indexDict[i] - i
+                        varVal.pop(removeIndex)
+                    #After removing all instance matches from the list, we set it.
+                    setattr(instanceWithReferences,someVar,varVal)
+                        
+
+
     #Takes in all information needed to access a class and returns a formatted json string 
     def getJSONforClass(self, absDirPath = os.path.dirname(os.path.realpath(__file__)), definingFile = os.path.realpath(__file__)[os.path.realpath(__file__).rfind('\\') + 1 : os.path.realpath(__file__).rfind('.')], className = 'testClass', passedInstances = None):
         classVarDict = self.getJSONdictForClass(absDirPath=absDirPath,definingFile=definingFile,className=className, passedInstances=passedInstances)
@@ -754,8 +964,7 @@ class managerObject:
             else:
                 for branchTuple in branch.keys():
                     #print('Searching tuple of class: ', branchTuple[0])
-                    if(branchTuple[0] == className):
-                        #print("Found a match for the class ", className, " in the manager object ", self, ", the matched object was ", branchTuple[2])
+                    if(branchTuple[0] == className and branchTuple[2].__class__.__name__ != "tuple"):
                         instanceList.append(branchTuple[2])
                     #else:
                         #print("A non-matching object was found, ", branchTuple[2])
@@ -954,6 +1163,26 @@ class managerObject:
         #    print("Returning non-empty path! - ", path)
         return path
 
+    #Will go through every dictionary in the object tree and return branching depth of the tuple
+    #if the tuple exists within the tree.
+    def getAllPathsForTupleInObjTree(self, instanceTuple, traversalList=[], allPaths=[]):
+        branch = self.getBranchNode(traversalList = traversalList)
+        #Handles the case where no further branches exist, meaning, it is currently on a duplicate Node.
+        if(branch == None):
+            return allPaths
+        #print('Branch to be searched: ', branch)
+        for branchTuple in branch.keys():
+            if branchTuple[0] == instanceTuple[0] and branchTuple[1] == instanceTuple[1]:
+                allPaths.append(traversalList + [branchTuple])
+        for branchTuple in branch.keys():
+            allPaths = self.getAllPathsForTupleInObjTree(traversalList=traversalList+[branchTuple],instanceTuple=instanceTuple, allPaths=allPaths)
+        #if(traversalList == []):
+        #    print('Tuple not found in tree!')
+        #    print(instanceTuple)
+        #if(path != [] and path != None):
+        #    print("Returning non-empty path! - ", path)
+        return allPaths
+
     #Access a single object instance as a node, and checks each typingObject to see what variables
     #that object has which may hold instances of other objects as either a instance or list of
     #instances, then returns all branches seperated into 3 categories "new","old", or "duplicates".
@@ -1144,6 +1373,8 @@ class managerObject:
         if(branchNode.get(branchTuple) == None):
             branchNode[branchTuple] = None
 
+    #Places a duplicate tuple in the node's original location and re-locates the
+    #main node which branches.
     def replaceOriginalTuple(self, originalPath, newPath, newTuple):
         #Get the new branch where this tuple is now going to rest
         newBranch = self.getBranchNode[newPath]
@@ -1222,7 +1453,6 @@ class managerObject:
                 selfIsTyped = True
             if(objTyp.className == 'polyTypedObject'):
                 for typingInst in self.objectTyping:
-                    #print("Preparing to analyze instance: ", typingInst)
                     objTyp.analyzeInstance(typingInst)
                 for typingInst in self.objectTyping:
                     for typedVar in typingInst.polyTypedVars:

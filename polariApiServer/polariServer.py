@@ -101,7 +101,7 @@ class polariServer(treeObject):
         #  https://someURL.com/manager-managerObjectType-(id0:val0, id1:val1, id2:val2, ...)/channel/channelName
         self.uriList = []
         objList = [self, self.manager]
-        serverTouchPointAPI = polariAPI(apiName='', polServer=self, minAccessDict={'R':{"polariAPI":"*","polariCRUD":"*", "polariServer":"*"}}, minPermissionsDict={'R':{"polariAPI":"*","polariCRUD":"*", "polariServer":"*"}}, manager=self.manager)
+        serverTouchPointAPI = polariAPI(apiName='', polServer=self, minAccessDict={'R':{"polariAPI":"*","polariCRUDE":"*", "polariServer":"*", "polyTypedObject":"*", "polyTypedVariable":"*"}}, minPermissionsDict={'R':{"polariAPI":"*","polariCRUD":"*", "polariServer":"*"}}, manager=self.manager)
         #Create User API - Creates an API for the user to temporarily register with until they either login or create their own actual registration.
         tempRegisterAPI = polariAPI(apiName='tempRegister', polServer=self, minAccessDict={'E':{"polariServer":"*"}}, minPermissionsDict={'E':{"polariServer":"tempRegister"}}, manager=self.manager)
         #Update temp registration to actual registration
@@ -118,6 +118,8 @@ class polariServer(treeObject):
             objNamesList.append("polariCRUDE")
         print(objNamesList)
         for objType in objNamesList:
+            typingObj = self.manager.objectTypingDict[objType]
+            typingObj.runAnalysis()
             self.crudeObjectsList.append(polariCRUDE(apiObject=objType, polServer=self, manager=self.manager))
         
         

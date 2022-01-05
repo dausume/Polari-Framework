@@ -313,10 +313,47 @@ class polariCRUDE(treeObject):
         authSession = request.auth
         authUser = request.context.user
         urlParameters = request.query_string
-        #if(self.objType == 'polyTypedObject'):
-            #
-        #elif(self.objType == 'dataChannel'):
-            #
+        (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(authUser)
+        #Check to ensure user has at least some access to events.
+        if(not "D" in accessQueryDict):
+            response.status = falcon.HTTP_405
+            raise PermissionError("Delete requests not allowed at all for this user on this object type.")
+        data = request.get_media()
+        targetInfo = {}
+        event = ""
+        parametersDict = {}
+        for someData in data:
+            print("data segment name: ",someData.name)
+            print("data segment content type: ",someData.content_type)
+            print("data segment: ", someData.data)
+            dataSegment = (someData.data).decode("utf-8")
+            #Find if target can be found using passed variable info.
+            #If the variables passed in do not resolve to exactly one target,
+            #then throw an error.
+            if(someData.name == "targetInstance"):
+                targetInfo = json.loads(dataSegment)
+        allowedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=accessQueryDict )
+        targetResolution = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=targetInfo )
+        targetInstance = None
+        instancesDeleted = None
+        migratedInstances = None
+        #First, check if the target info passed can resolve to a single target.
+        if(targetInfo == {}):
+            raise KeyError("No target Information passed for use in retrieving target.")
+        if(len(targetResolution) == 1):
+            targetId = list(targetResolution.keys())[0]
+            targetInstance = targetResolution[targetId]
+            if(targetId not in allowedInstances.keys()):
+                raise PermissionError("Access Permissions do not allow user to delete the targeted instance.")
+            (instancesDeleted, migratedInstances) = self.manager.deleteTreeNode(className=self.apiObject, nodePolariId=targetId)
+        else:
+            if(len(targetResolution) == 0):
+                raise ValueError("Target did not resolve and could not retrieve any instances.")
+            else:
+                raise ValueError("Target resolved for multiple instances, must resolve to only one.")
+        response.media = {"instancesDeleted":instancesDeleted,"migratedInstances":migratedInstances}
+        #Take the return value and convert it to a format that can be 
+        response.status = falcon.HTTP_200
 
     def on_delete_collection(self, request, response):
         pass

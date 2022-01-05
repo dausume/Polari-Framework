@@ -34,6 +34,7 @@ class polyTypedObject(treeObject):
         self.className = className
         self.kwRequiredParams = []
         self.kwDefaultParams = []
+        self.hasBaseSample = False
         #The list of objects that have variables which reference this object, either as a single
         #instance, or as a list of the instances.
         self.objectReferencesDict = objectReferencesDict
@@ -104,7 +105,11 @@ class polyTypedObject(treeObject):
         self.baseAccessDictionary = {}
         self.basePermissionDictionary = {}
 
-    
+    #Go through each instance and analyze it.
+    def runAnalysis(self):
+        allInstances = self.manager.getListOfClassInstances(self.className)
+        for inst in allInstances:
+            self.analyzeInstance(inst)
 
     def makeDefaultPermissionSets(self):
         #ACCESS PERMISSION SETS
@@ -176,6 +181,7 @@ class polyTypedObject(treeObject):
                 return True
             elif(self.isManagerObject == False):
                 return False
+        #print("Detecting if manager object type.")
         from polariFiles.managedFiles import managedFile
         for srcFile in self.sourceFiles:
             if( issubclass(srcFile.__class__, managedFile) or managedFile == srcFile.__class__):
@@ -186,7 +192,9 @@ class polyTypedObject(treeObject):
                 print("For polyTyping on object \'", self.className, "\' found invalid non-managedFile type for sourcefile: ", srcFile)
                 return False
         moduleImported = self.getCreateMethod()
+        #print("Got create method: ", moduleImported)
         for name, obj in inspect.getmembers(moduleImported):
+            #print("Iterating member - '", name, "' with a value - '", obj)
             if(name == self.className):
                 from objectTreeManagerDecorators import managerObject
                 if( issubclass(obj, managerObject) ):
@@ -226,17 +234,17 @@ class polyTypedObject(treeObject):
     def analyzeInstance(self, pythonClassInstance):
         try:
             classInfoDict = pythonClassInstance.__dict__
+            for someVariableKey in classInfoDict:
+                if(someVariableKey == "polyTypedObj"):
+                    #print("TRYING TO SET TYPE polyTypedObj in dict.. why?!?")
+                    continue
+                if(not callable(classInfoDict[someVariableKey])):
+                    #print('accVar: ' + someVariableKey)
+                    var = getattr(pythonClassInstance, someVariableKey)
+                    #If the var is accounted for, analyze the current value.
+                    self.analyzeVariableValue(pythonClassInstance=pythonClassInstance, varName=someVariableKey, varVal=var)
         except Exception:
             print('Invalid value of type ', type(pythonClassInstance).__name__,' in function analyzeInstance for parameter pythonClassInstance: ', pythonClassInstance)
-        for someVariableKey in classInfoDict:
-            if(someVariableKey == "polyTypedObj"):
-                #print("TRYING TO SET TYPE polyTypedObj in dict.. why?!?")
-                continue
-            if(not callable(classInfoDict[someVariableKey])):
-                #print('accVar: ' + someVariableKey)
-                var = getattr(pythonClassInstance, someVariableKey)
-                #If the var is accounted for, analyze the current value.
-                self.analyzeVariableValue(pythonClassInstance=pythonClassInstance, varName=someVariableKey, varVal=var)
         #print('Showing all polytyped Var for object ' + self.className + ': ', self.polyTypedVars)
 
 
