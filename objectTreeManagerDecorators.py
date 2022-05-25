@@ -53,8 +53,8 @@ class managerObject:
             setattr(self, 'hasDB', False)
         if not 'objectTyping' in keywordargs.keys():
             setattr(self, 'objectTyping', [])
-        #TODO Plan to phase out objectTyping which requires looping with ObjectTypingDict
-        #which is accessible through the class as a key for each typing object.
+        #TODO Plan to phase out access through objectTyping which requires looping with ObjectTypingDict
+        #which is accessible through the class as a key for each typing object. (Need to keep list for API)
         if not 'objectTypingDict' in keywordargs.keys():
             setattr(self, 'objectTypingDict', {})
         if not 'objectTree' in keywordargs.keys():
@@ -101,6 +101,12 @@ class managerObject:
             self.polServer = polariServer(hostSystem=self.hostSys, manager=self)
         if(self.hasDB):
             self.db
+        if(self.__class__.__name__ in self.objectTypingDict):
+            print("Analyzing everything in base of tree")
+            for someClass in self.objectTypingDict.keys():
+                typeToAnalyze = self.objectTypingDict[someClass]
+                typeToAnalyze.runAnalysis()
+                print("Now we see variables:")
 
     def __delete__(self, instance):
         #TODO Go through all polyTyping objects and delete them, close all file references.
@@ -109,6 +115,11 @@ class managerObject:
         
 
     def __setattr__(self, name, value):
+        if(hasattr(self,"objectTypingDict")):
+            if(self.__class__.__name__ in self.objectTypingDict):
+                print("object typing exists in dictionary for ", self.__class__.__name__)
+            else:
+                print("object typing does not exist in dictionary for ", self.__class__.__name__)
         if(type(value).__name__ == 'list'):
             if(name == "usersList"):
                 print("converting from list with value ", value, " to a polariList.")
@@ -602,12 +613,12 @@ class managerObject:
         if className != None:
             print("Attempted to retrieve a polyTypedObject that does not exist \"", className, "\" using it\'s name as a string.  Cannot generate a default polyTypedObject using a passed string, pass either an object instance or the class object \'__class__\' to generate a default polyTypedObject.")
         elif classInstance != None:
-            if(classInstance.__class__.__name__ == 'polyTypedObject' or classInstance.__class__.__name__ == 'polyTypedVar'):
+            if(classInstance.__class__.__name__ == 'polyTypedObject' or classInstance.__class__.__name__ == 'polyTypedVariable'):
                 print('Trying to create typing for polyTyping when it should already exist.')
             else:
                 obj = self.makeDefaultObjectTyping(classInstance=classInstance)
         elif classObj != None:
-            if(classObj.__name__ == 'polyTypedObject' or classObj.__name__ == 'polyTypedVar'):
+            if(classObj.__name__ == 'polyTypedObject' or classObj.__name__ == 'polyTypedVariable'):
                 print('Trying to create typing for polyTyping when it should already exist.')
             else:
                 obj = self.makeDefaultObjectTyping(classObj=classObj)
@@ -615,7 +626,7 @@ class managerObject:
 
     def getJSONclassInstance(self, passedInstance, classInstanceDict):
         dataTypesPython = ['str','int','float','complex','list','tuple','range','dict','set','frozenset','bool','bytes','bytearray','memoryview', 'NoneType']
-        print("entered getJSONclassInstance()")
+        #print("entered getJSONclassInstance()")
         for someVariableKey in classInstanceDict.keys():
             curAttr = getattr(passedInstance, someVariableKey)
             curAttrType = type(curAttr).__name__
@@ -625,6 +636,8 @@ class managerObject:
                 classInstanceDict[someVariableKey] = curAttr.strftime()
             elif(curAttrType == 'TextIOWrapper'):
                 classInstanceDict[someVariableKey] = curAttr.name
+            elif(curAttrType == 'type'):
+                classInstanceDict[someVariableKey] = str(curAttr)
             elif(curAttrType == 'bytes' or curAttrType == 'bytearray'):
                 #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
                 classInstanceDict[someVariableKey] = curAttr.decode()
@@ -641,7 +654,7 @@ class managerObject:
             elif(inspect.isclass(type(curAttr)) and not curAttrType in dataTypesPython):
                 #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
                 #print('found custom class or type ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
-                instIds = ["CLASS-" + curAttrType + "-IDs", self.convertSetTypeIntoJSONdict(passedSet=self.getInstanceIdentifiers(curAttr))]
+                instIds = ["CLASS-" + curAttrType + "-REFERENCE", self.convertSetTypeIntoJSONdict(passedSet=self.getInstanceIdentifiers(curAttr))]
                 classInstanceDict[someVariableKey] = instIds
             #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
             else:
@@ -662,6 +675,8 @@ class managerObject:
                     returnVal.append(elem.strftime())
                 elif(elemType == 'TextIOWrapper'):
                     returnVal.append(elem.name)
+                elif(elemType == 'type'):
+                    returnVal.append(str(elem))
                 elif(elemType == 'bytes' or elemType == 'bytearray'):
                     #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
                     returnVal.append(elem.decode())
@@ -675,25 +690,28 @@ class managerObject:
                 elif(inspect.isclass(type(elem)) and not elemType in dataTypesPython):
                     #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
                     #print('found custom class or type ', elemType, ' with value ', elem, 'in passed set ', passedSet)
-                    instIds = ["CLASS-" + elemType + "-IDs", self.convertSetTypeIntoJSONdict(passedSet=self.getInstanceIdentifiers(elem))]
+                    instIds = ["CLASS-" + elemType + "-REFERENCE", self.convertSetTypeIntoJSONdict(passedSet=self.getInstanceIdentifiers(elem))]
                     returnVal.append(instIds)
                 #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
                 else:
                     #print('Standard type: ', type(getattr(passedInstance, someVariableKey)))
                     returnVal.append(elem)
         elif(type(passedSet).__name__ == 'dict'):
-            print("Entered Dict section of parsing...")
+            #print("Entered Dict section of parsing...")
             returnVal = {}
             convertedKeyMap = {}
             tupleKeysNumbering = 0
             classKeyNumbering = 0
             #Creates a map of old key values - to - valid key values for json.
             for keyVal in passedSet.keys():
+                elemType = type(keyVal).__name__
                 #Handles Cases where particular classes must be converted into a string format.
                 if(type(keyVal).__name__ == 'dateTime'):
                     convertedKeyMap[keyVal] = keyVal.strftime()
                 elif(type(keyVal).__name__ == 'TextIOWrapper'):
                     convertedKeyMap[keyVal] = keyVal.name
+                elif(type(keyVal).__name__ == 'TextIOWrapper'):
+                    convertedKeyMap[keyVal] = str(keyVal)
                 elif(type(keyVal).__name__ == 'bytes' or type(keyVal).__name__ == 'bytearray'):
                     #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
                     convertedKeyMap[keyVal] = keyVal.decode()
@@ -719,6 +737,8 @@ class managerObject:
                     returnVal[correctedKey] = passedSet[keyVal].strftime()
                 elif(type(passedSet[keyVal]).__name__ == 'TextIOWrapper'):
                     returnVal[correctedKey] = passedSet[keyVal].name
+                elif(type(passedSet[keyVal]).__name__ == 'type'):
+                    returnVal[correctedKey] = str(passedSet[keyVal])
                 elif(type(passedSet[keyVal]).__name__ == 'bytes' or type(passedSet[keyVal]).__name__ == 'bytearray'):
                     #print('found byte var ', someVariableKey, ': ', classInstanceDict[someVariableKey])
                     returnVal[correctedKey] = passedSet[keyVal].decode()
@@ -742,19 +762,12 @@ class managerObject:
         #print("In \'getListOfClassInstances\' branch with traveral list : ", traversalList)
         if(source==None):
             source = self
-            print("Source set as: ", self)
-        #else:
-        #    return source.getListOfClassInstances(className=className, traversalList=traversalList, source=source)
         ids = self.getInstanceIdentifiers(source)
-        #print('Ids of Source: ', ids)
-        #print('Class Name of Source: ', source.__class__.__name__)
-        #print('Current Traversal List: ', traversalList)
         sourceTuple = tuple([source.__class__.__name__, ids, source])
         instanceList = []
         tempList = []
         if(traversalList != None):
             branch = self.getBranchNode(traversalList = traversalList)
-            #print('Retrieving Branch for traversal List \"', traversalList, '\" : ', branch)
             #Handles the case for when we are on a duplicate branch.
             if(branch == None):
                 instanceList = []
@@ -789,9 +802,13 @@ class managerObject:
     #{"sampleStringAttribute":{"EQUALS":("id-1234","sampleClassName")),"CONTAINS":("","AND","")}, "sampleRefAttribute":{"IN":["polariID-0", ...]}}
     def getListOfInstancesByAttributes(self, className, attributeQueryDict="*"):
         print("Calling query using value: ", attributeQueryDict)
+        getListResult = self.getListOfClassInstances(className="PolyTypedVariable")
+        print("getListOfClassInstances result : ", getListResult)
         if(not className in self.objectTables.keys()):
+            print("Not found in objecttables", className)
             return {}
         allClassInstancesDict = self.objectTables[className]
+        print("allClassInstancesDict : ",allClassInstancesDict)
         remainingInstances = allClassInstancesDict
         eliminatedInstances = {}
         if(attributeQueryDict == "*"):
@@ -1437,7 +1454,7 @@ class managerObject:
             polyTypedObject(sourceFiles=[source_managedDatabase], className='managedDatabase', identifierVariables = ['name','Path'], objectReferencesDict={'managedApp':['DB']}, manager=self, kwRequiredParams=[], kwDefaultParams=[ "name", "manager", "DBurl", "DBtype", "tables", "inRAM"]),
             polyTypedObject(sourceFiles=[source_dataChannel], className='dataChannel', identifierVariables = ['name','Path'], objectReferencesDict={'polariServer':['serverChannel'],'managedApp':['serverChannel','localAppChannel']}, manager=self, kwRequiredParams=["manager"], kwDefaultParams=[ "name", "Path"]),
             polyTypedObject(sourceFiles=[source_managedExecutable], className='managedExecutable', identifierVariables = ['name', 'extension','Path'], objectReferencesDict={}, manager=self, kwRequiredParams=[], kwDefaultParams=["name", "extension", "Path", "manager"]),
-            polyTypedObject(sourceFiles=[source_polyTypedObject], className='polyTypedObject', identifierVariables = ['className'], objectReferencesDict={self.__class__.__name__:['objectTyping']}, manager=self, baseAccessDict={"R":{"polyTypedObject":"*"}}, basePermDict={"R":{"polyTypedObject":"*"}}, kwRequiredParams=["className", "manager"], kwDefaultParams=["objectReferencesDict","sourceFiles","identifierVariables", "variableNameList", "baseAccessDict", "basePermDict", "classDefinition", "sampleInstances", "kwRequiredParams", "kwDefaultParams"]),
+            polyTypedObject(sourceFiles=[source_polyTypedObject], className='polyTypedObject', identifierVariables = ['className'], objectReferencesDict={self.__class__.__name__:['objectTyping'],'polyTypedVariable': ['polyTypedVars']}, manager=self, baseAccessDict={"R":{"polyTypedObject":"*"}}, basePermDict={"R":{"polyTypedObject":"*"}}, kwRequiredParams=["className", "manager"], kwDefaultParams=["objectReferencesDict","sourceFiles","identifierVariables", "variableNameList", "baseAccessDict", "basePermDict", "classDefinition", "sampleInstances", "kwRequiredParams", "kwDefaultParams"]),
             polyTypedObject(sourceFiles=[source_polariServer], className='polariServer', identifierVariables = ['name', 'id'], objectReferencesDict={}, manager=self, baseAccessDict={"R":{"polariServer":"*"}}, basePermDict={"R":{"polariServer":"*"}}, kwRequiredParams=[], kwDefaultParams=[ "name", "displayName", "hostSystem", "serverChannel", "serverDataStream"]),
             polyTypedObject(sourceFiles=[source_polariUser], className='User', identifierVariables = ['id'], objectReferencesDict={self.__class__.__name__:['usersList']}, manager=self, baseAccessDict={"R":{"User":"*"}}, basePermDict={"R":{"User":"*"}}, kwRequiredParams=[], kwDefaultParams=[ "username", "password", "unregistered"]),
             polyTypedObject(sourceFiles=[source_polariUserGroups], className='UserGroup', identifierVariables = ['id'], objectReferencesDict={self.__class__.__name__:['userGroupsList']}, manager=self, baseAccessDict={"R":{"UserGroup":"*"}}, basePermDict={"R":{"UserGroup":"*"}}, kwRequiredParams=["name"], kwDefaultParams=["assignedUsers", "userMembersQuery", "permissionSets"]),

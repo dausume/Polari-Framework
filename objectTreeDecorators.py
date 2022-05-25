@@ -123,6 +123,7 @@ class treeObject:
         if(self.manager != None and self.branch != None):
             #print("Setting non-standard value on treeObject after manager is set and branch is set.")
             selfPolyObj = self.manager.getObjectTyping(self.__class__)
+            selfPolyObj.analyzeVariableValue(varName=name,varVal=value)
             selfIds = self.manager.getInstanceIdentifiers(value)
             selfTuple = self.manager.getInstanceTuple(self)
             selfPath = self.manager.getTuplePathInObjTree(instanceTuple=selfTuple)
@@ -402,15 +403,15 @@ class treeObject:
                             #print("potential break reason 2: valueInstanceTuple value: ", valueInstanceTuple)
                             #print("potential break reason 3: someValue value: ", someValue)
                             #continue
-                            if(type(someValue).__name__ != "polyTypedVariable"):
-                                #The tuple does not exist anywhere in the tree, so we simply place a new branch.
-                                potentialManager.addNewBranch(traversalList=selfTreePath, branchTuple=valueInstanceTuple)
-                                if(self != someValue.branch):
-                                    #print("Adding self ", self, " to be branch value of child ", someValue)
-                                    someValue.branch = self
-                                if(self != someValue.manager):
-                                    someValue.manager = self.manager
-                                #print("Adding a new tuple to the object tree from a List in managerSet: ", valueInstanceTuple)
+                            #if(type(someValue).__name__ != "polyTypedVariable"):
+                            #The tuple does not exist anywhere in the tree, so we simply place a new branch.
+                            potentialManager.addNewBranch(traversalList=selfTreePath, branchTuple=valueInstanceTuple)
+                            if(self != someValue.branch):
+                                #print("Adding self ", self, " to be branch value of child ", someValue)
+                                someValue.branch = self
+                            if(self != someValue.manager):
+                                someValue.manager = self.manager
+                            #print("Adding a new tuple to the object tree from a List in managerSet: ", valueInstanceTuple)
             #END OF TREE MANAGEMENT FOR TREEOBJECTS IN LISTS OR TUPLES
             #
             #START OF TREE MANAGEMENT FOR TREEOBJECTS DIRECTLY ASSIGNED TO ATTRIBUTES

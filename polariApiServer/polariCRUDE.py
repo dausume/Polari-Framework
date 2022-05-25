@@ -73,7 +73,7 @@ class polariCRUDE(treeObject):
         #Get the authorization data, user data, and potential url parameters, which are both commonly relevant to both cases.
         print("Starting GET method.")
         userAuthInfo = request.auth
-        print("request.auth : ", request.auth)
+        print("request : ", request)
         #Create a list of all 
         (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
         #Check to ensure user has at least some access.
@@ -110,6 +110,7 @@ class polariCRUDE(treeObject):
         print("Got auth, context.user, and queryString data.")
         jsonObj = {}
         try:
+            print("Requested Instances: ", requestedInstances)
             if(requestedInstances != {}):
                 #jsonObj[self.apiObject] = self.manager.getJSONdictForClass(passedInstances=retrievableInstances)
                 #For now we just give everything being requested and don't bother with permissions

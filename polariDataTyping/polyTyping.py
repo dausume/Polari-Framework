@@ -27,8 +27,6 @@ import logging, os, sys, importlib
 class polyTypedObject(treeObject):
     @treeObjectInit
     def __init__(self, className, manager, objectReferencesDict={}, sourceFiles=[], identifierVariables=[], variableNameList=[], baseAccessDict={}, basePermDict={}, classDefinition=None, sampleInstances=[], kwRequiredParams=[], kwDefaultParams={}):
-        #if(className == 'polariServer'):
-        #    print('Making the polyTyping object for polariServer with manager set as: ', manager)
         self.isTreeObject = None
         self.isManagerObject = None
         self.className = className
@@ -101,6 +99,8 @@ class polyTypedObject(treeObject):
         self.variableNameList = variableNameList
         #The polyTypedVariable instances for each of the variables in the class.
         self.polyTypedVars = []
+        #
+        self.polyTypedVarsDict = {}
         #
         self.baseAccessDictionary = {}
         self.basePermissionDictionary = {}
@@ -232,37 +232,31 @@ class polyTypedObject(treeObject):
     #Creates typing for the instance by analyzing it's variables and creating
     #default polyTypedVariables for it.
     def analyzeInstance(self, pythonClassInstance):
+        #print("instance to analyze: ", pythonClassInstance)
         try:
             classInfoDict = pythonClassInstance.__dict__
-            for someVariableKey in classInfoDict:
-                if(someVariableKey == "polyTypedObj"):
-                    #print("TRYING TO SET TYPE polyTypedObj in dict.. why?!?")
-                    continue
-                if(not callable(classInfoDict[someVariableKey])):
-                    #print('accVar: ' + someVariableKey)
-                    var = getattr(pythonClassInstance, someVariableKey)
-                    #If the var is accounted for, analyze the current value.
-                    self.analyzeVariableValue(pythonClassInstance=pythonClassInstance, varName=someVariableKey, varVal=var)
+            for someVariableKey in list(classInfoDict.keys()):
+                var = getattr(pythonClassInstance, someVariableKey)
+                #If the var is accounted for, analyze the current value.
+                if(type(pythonClassInstance).__name__ != "polyTypedVariable" and type(pythonClassInstance).__name__ != "polyTypedObject"):
+                    self.analyzeVariableValue(varName=someVariableKey, varVal=var)
         except Exception:
             print('Invalid value of type ', type(pythonClassInstance).__name__,' in function analyzeInstance for parameter pythonClassInstance: ', pythonClassInstance)
         #print('Showing all polytyped Var for object ' + self.className + ': ', self.polyTypedVars)
 
 
-    def analyzeVariableValue(self, pythonClassInstance, varName, varVal):
-        #print('Analyzing variable ' + varName + ' in class ' + self.className)
-        if(self.polyTypedVars == None):
-            self.polyTypedVars = []
-        numAccVars = len(self.polyTypedVars)
-        foundVar = False
-        for polyVar in self.polyTypedVars:
-            #If the variable is found, account for it on it's typeDicts.
-            if(polyVar.name == varName):
-                foundVar = True
-                break
-        if not foundVar:
-            #print('Adding new polyTypedVar ' + varName)
+    def analyzeVariableValue(self, varName, varVal):
+        print("starting analyzeVariableValue for ", varName, " with value ", varVal)
+        print(self.polyTypedVarsDict)
+        if not varName in list(self.polyTypedVarsDict.keys()):
+            print('Adding new polyTypedVar ' + varName)
             newPolyTypedVar = polyTypedVariable(polyTypedObj=self, attributeName=varName, attributeValue=varVal, manager=self.manager)
+            print("recieved back newPolyTypedVar value : ", newPolyTypedVar)
             (self.polyTypedVars).append(newPolyTypedVar)
+            self.polyTypedVarsDict[varName] = newPolyTypedVar
+        else:
+            (self.polyTypedVarsDict[varName]).analyzeVarValue()
+            
 
     #Uses the Identifiers and the class name
     def makeTypedTable(self):
