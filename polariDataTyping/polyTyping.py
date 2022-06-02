@@ -30,6 +30,13 @@ class polyTypedObject(treeObject):
         self.isTreeObject = None
         self.isManagerObject = None
         self.className = className
+        #Dictionaries for calculating the standard measure of an instance's data occupation,
+        #by tracking the minimum ever recorded value, maximum ever recorded, and re-calculating
+        #a convergence based average every time a value is recorded.
+        self.perInstanceDataCostDictJSON = {"min":None,"max":None, "occurrences":0, "convergingAverage":0}
+        self.perInstanceDataCostDictPython = {"min":None,"max":None, "occurrences":0, "convergingAverage":0}
+        self.perInstanceDataCostDictDB = {"min":None,"max":None, "occurrences":0, "convergingAverage":0}
+        #Parameters that must be passed in to initialize a class of this type.
         self.kwRequiredParams = []
         self.kwDefaultParams = []
         self.hasBaseSample = False
@@ -234,6 +241,22 @@ class polyTypedObject(treeObject):
     def analyzeInstance(self, pythonClassInstance):
         #print("instance to analyze: ", pythonClassInstance)
         try:
+            instSize = sys.getsizeof(pythonClassInstance)
+            if(self.perInstanceDataCostDictPython["occurrences"] == 0):
+                self.perInstanceDataCostDictPython["occurrences"] = 1
+                self.perInstanceDataCostDictPython["min"] = instSize
+                self.perInstanceDataCostDictPython["max"] = instSize
+            else:
+                self.perInstanceDataCostDictPython["occurrences"] += 1
+                valueShift = instSize / self.perInstanceDataCostDictPython["occurrences"]
+                if(self.perInstanceDataCostDictPython["min"] > instSize):
+                    self.perInstanceDataCostDictPython["min"] = instSize
+                elif(self.perInstanceDataCostDictPython["max"] < instSize):
+                    self.perInstanceDataCostDictPython["max"] = instSize
+                if(self.perInstanceDataCostDictPython["convergingAverage"] < instSize):
+                    self.perInstanceDataCostDictPython["convergingAverage"] = self.perInstanceDataCostDictPython["convergingAverage"] + valueShift
+                elif(self.perInstanceDataCostDictPython["convergingAverage"] > instSize):
+                    self.perInstanceDataCostDictPython["convergingAverage"] = self.perInstanceDataCostDictPython["convergingAverage"] - valueShift
             classInfoDict = pythonClassInstance.__dict__
             for someVariableKey in list(classInfoDict.keys()):
                 var = getattr(pythonClassInstance, someVariableKey)
@@ -246,16 +269,15 @@ class polyTypedObject(treeObject):
 
 
     def analyzeVariableValue(self, varName, varVal):
-        print("starting analyzeVariableValue for ", varName, " with value ", varVal)
-        print(self.polyTypedVarsDict)
-        if not varName in list(self.polyTypedVarsDict.keys()):
-            print('Adding new polyTypedVar ' + varName)
-            newPolyTypedVar = polyTypedVariable(polyTypedObj=self, attributeName=varName, attributeValue=varVal, manager=self.manager)
-            print("recieved back newPolyTypedVar value : ", newPolyTypedVar)
-            (self.polyTypedVars).append(newPolyTypedVar)
-            self.polyTypedVarsDict[varName] = newPolyTypedVar
-        else:
-            (self.polyTypedVarsDict[varName]).analyzeVarValue()
+        try:
+            if not varName in list(self.polyTypedVarsDict.keys()):
+                newPolyTypedVar = polyTypedVariable(polyTypedObj=self, attributeName=varName, attributeValue=varVal, manager=self.manager)
+                (self.polyTypedVars).append(newPolyTypedVar)
+                self.polyTypedVarsDict[varName] = newPolyTypedVar
+            else:
+                (self.polyTypedVarsDict[varName]).analyzeVarValue(varVal)
+        except Exception:
+            print("failed to analyze variable with name ", varName, " and value ", varVal)
             
 
     #Uses the Identifiers and the class name

@@ -141,10 +141,10 @@ class treeObject:
                         accountedVariableType = False
                         if(type(inst).__class__.__name__ in polyObj.objectReferencesDict):
                             accountedObjectType = True
-                            print("Class type ", type(inst).__class__.__name__, " accounted for in object typing for ", self.__class__.__name__)
+                            #print("Class type ", type(inst).__class__.__name__, " accounted for in object typing for ", self.__class__.__name__)
                             if(polyObj.objectReferencesDict[type(inst).__class__.__name__]):
                                 accountedVariableType = True
-                                print("Accounted for class type ", inst, " as sole value in variable ", name)
+                                #print("Accounted for class type ", inst, " as sole value in variable ", name)
                         newpolyObj = self.getObjectTyping(classObj=inst.__class__)
                         managerPolyTyping = self.getObjectTyping(self.__class__)
                         if(not accountedVariableType):
@@ -212,10 +212,10 @@ class treeObject:
                     accountedVariableType = False
                     if(type(value).__class__.__name__ in polyObj.objectReferencesDict):
                         accountedObjectType = True
-                        print("Class type ", type(value).__class__.__name__, " accounted for in object typing for ", self.__class__.__name__)
+                        #print("Class type ", type(value).__class__.__name__, " accounted for in object typing for ", self.__class__.__name__)
                         if(polyObj.objectReferencesDict[type(value).__class__.__name__]):
                             accountedVariableType = True
-                            print("Accounted for class type ", value, " as sole value in variable ", name)
+                            #print("Accounted for class type ", value, " as sole value in variable ", name)
                     newpolyObj = self.manager.getObjectTyping(classObj=value.__class__)
                     managerPolyTyping = self.manager.getObjectTyping(self.manager.__class__)
                     if(not accountedVariableType):

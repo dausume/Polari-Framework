@@ -22,7 +22,7 @@ from polariApiServer.polariServer import polariServer
 #from polariFiles.managedImages import *
 from polariDataTyping.polariList import polariList
 from polariFiles.dataChannels import *
-import types, inspect, base64, json, os
+import types, inspect, base64, json, os, time
 
 def managerObjectInit(init):
     #Note: For objects instantiated using this Decorator, MUST USER KEYWORD ARGUMENTS NOT POSITIONAL, EX: (manager=mngObj, id='base64Id')
@@ -102,11 +102,11 @@ class managerObject:
         if(self.hasDB):
             self.db
         if(self.__class__.__name__ in self.objectTypingDict):
-            print("Analyzing everything in base of tree")
+            #print("Analyzing everything in base of tree")
             for someClass in self.objectTypingDict.keys():
                 typeToAnalyze = self.objectTypingDict[someClass]
                 typeToAnalyze.runAnalysis()
-                print("Now we see variables:")
+                #print("Now we see variables:")
 
     def __delete__(self, instance):
         #TODO Go through all polyTyping objects and delete them, close all file references.
@@ -115,11 +115,6 @@ class managerObject:
         
 
     def __setattr__(self, name, value):
-        if(hasattr(self,"objectTypingDict")):
-            if(self.__class__.__name__ in self.objectTypingDict):
-                print("object typing exists in dictionary for ", self.__class__.__name__)
-            else:
-                print("object typing does not exist in dictionary for ", self.__class__.__name__)
         if(type(value).__name__ == 'list'):
             if(name == "usersList"):
                 print("converting from list with value ", value, " to a polariList.")
@@ -152,10 +147,10 @@ class managerObject:
                 accountedVariableType = False
                 if(type(value).__class__.__name__ in polyObj.objectReferencesDict):
                     accountedObjectType = True
-                    print("Class type ", type(value).__class__.__name__, " accounted for in object typing for ", self.__class__.__name__)
+                    #print("Class type ", type(value).__class__.__name__, " accounted for in object typing for ", self.__class__.__name__)
                     if(polyObj.objectReferencesDict[type(value).__class__.__name__]):
                         accountedVariableType = True
-                        print("Accounted for class type ", value, " as sole value in variable ", name)
+                        #print("Accounted for class type ", value, " as sole value in variable ", name)
                 newpolyObj = self.getObjectTyping(classObj=value.__class__)
                 managerPolyTyping = self.getObjectTyping(self.__class__)
                 if(not accountedVariableType):
@@ -168,7 +163,7 @@ class managerObject:
                     pass
                 elif(valuePath == None):
                     #add the new Branch
-                    print("Creating branch on manager for instance on variable ", name, " for instance: ", value)
+                    #print("Creating branch on manager for instance on variable ", name, " for instance: ", value)
                     newBranch = tuple([newpolyObj.className, ids, value])
                     self.addNewBranch(traversalList=[selfTuple], branchTuple=newBranch)
                     #Make sure the new branch has the current manager and the base as it's origin branch set on it.
@@ -187,14 +182,8 @@ class managerObject:
                     if(self != value.manager):
                         value.manager = self
         elif(type(value) == list or type(value).__name__ == "polariList"):
-            print("Accounting for setting elements in list on variable \'", name, "\' on the manager object, with value ", value)
             #Adding a list of objects
             for inst in value:
-                print("accounting for instance in list on manager with value: ", inst)
-                if(inst.__class__.__name__ in dataTypesPython):
-                    print("Skipped inst as a standard type")
-                    continue
-                print("accounting for instance in list on manager with value: ", inst)
                 accountedObjectType = False
                 accountedVariableType = False
                 if(type(inst).__class__.__name__ in polyObj.objectReferencesDict):
@@ -634,6 +623,8 @@ class managerObject:
             #Handles Cases where particular classes must be converted into a string format.
             if(curAttrType == 'dateTime'):
                 classInstanceDict[someVariableKey] = curAttr.strftime()
+            elif(curAttrType == 'struct_time'):
+                classInstanceDict[someVariableKey] = time.strftime('%Y-%m-%dT%H:%M:%SZ',curAttr)
             elif(curAttrType == 'TextIOWrapper'):
                 classInstanceDict[someVariableKey] = curAttr.name
             elif(curAttrType == 'type'):
@@ -651,9 +642,13 @@ class managerObject:
                 errMsg = "Found a class method - " + curAttr + " being set as a key"
                 raise ValueError(errMsg)
                 classInstanceDict[someVariableKey] = "Method-" + curAttr.__name__
+            elif(type(curAttr).__name__ == "App"):
+                classInstanceDict[someVariableKey] = "FALCON-API-APP-REFERENCE"
             elif(inspect.isclass(type(curAttr)) and not curAttrType in dataTypesPython):
                 #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
                 #print('found custom class or type ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
+                if(not type(curAttr).__name__ in self.objectTypingDict.keys()):
+                    raise Exception("invalid type detected : " + type(curAttr).__name__)
                 instIds = ["CLASS-" + curAttrType + "-REFERENCE", self.convertSetTypeIntoJSONdict(passedSet=self.getInstanceIdentifiers(curAttr))]
                 classInstanceDict[someVariableKey] = instIds
             #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
@@ -673,6 +668,8 @@ class managerObject:
                 #Handles Cases where particular classes must be converted into a string format.
                 if(elemType == 'dateTime'):
                     returnVal.append(elem.strftime())
+                elif(elemType == 'struct_time'):
+                    returnVal.append(time.strftime('%Y-%m-%dT%H:%M:%SZ',elem))
                 elif(elemType == 'TextIOWrapper'):
                     returnVal.append(elem.name)
                 elif(elemType == 'type'):
@@ -684,12 +681,16 @@ class managerObject:
                     returnVal.append(self.convertSetTypeIntoJSONdict(passedSet=elem))
                 elif(elemType == 'dict'):
                     returnVal.append(self.convertSetTypeIntoJSONdict(passedSet=elem))
+                elif(elemType == "App"):
+                    returnVal.append("FALCON-API-APP-REFERENCE")
                 elif(inspect.ismethod(elem)):
                     #print('found bound method (not adding this) ', someVariableKey, ': ', getattr(passedInstance, someVariableKey))
                     returnVal.append({"__method__":{"name":elem.__name__,"parameterSignature":inspect.signature(elem),"parameterQuery":[],"execute":False}})
                 elif(inspect.isclass(type(elem)) and not elemType in dataTypesPython):
                     #For now just set the value to be the name of the class, will build functionality to put in list of identifiers as a string. Ex: 'ClassName(id0:val0, id1:val1)'
                     #print('found custom class or type ', elemType, ' with value ', elem, 'in passed set ', passedSet)
+                    if(not type(elem).__name__ in self.objectTypingDict.keys()):
+                        raise Exception("invalid type detected : " + type(elem).__name__)
                     instIds = ["CLASS-" + elemType + "-REFERENCE", self.convertSetTypeIntoJSONdict(passedSet=self.getInstanceIdentifiers(elem))]
                     returnVal.append(instIds)
                 #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
@@ -959,16 +960,11 @@ class managerObject:
 
     #
     def getListOfClassInstances(self, className, traversalList=[], source=None):
-        #print("In \'getListOfClassInstances\' branch with traveral list : ", traversalList)
         if(source==None):
             source = self
-            print("Source set as: ", self)
         #else:
         #    return source.getListOfClassInstances(className=className, traversalList=traversalList, source=source)
         ids = self.getInstanceIdentifiers(source)
-        #print('Ids of Source: ', ids)
-        #print('Class Name of Source: ', source.__class__.__name__)
-        #print('Current Traversal List: ', traversalList)
         sourceTuple = tuple([source.__class__.__name__, ids, source])
         instanceList = []
         tempList = []

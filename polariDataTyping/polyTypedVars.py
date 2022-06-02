@@ -7,11 +7,9 @@ class polyTypedVariable(treeObject):
     @treeObjectInit
     def __init__(self, polyTypedObj=None, attributeName=None, attributeValue=None):
         #The name of the variable in the class
-        print("starting ptv init")
         self.polyTypedObj = polyTypedObj
         self.name = attributeName
         self.analyzeValuesMode = True
-        print("setting manager")
         self.manager = polyTypedObj.manager
         #if(polyTypedObj == 'testObj'):
         #    print('Making testObj on polariServer for variable: ', attributeName)
@@ -19,7 +17,6 @@ class polyTypedVariable(treeObject):
         #the datatype defined for it, and the number of symbols (regardless of type)
         #that must be used in order to define it.
         dataType = type(attributeValue).__name__
-        print("analyze value in init")
         self.typingVariationDict = self.analyzeVarValue(attributeValue)
         self.eventsList = []
         #Accounts for different set-like data types and what may be contained inside.
@@ -151,7 +148,7 @@ class polyTypedVariable(treeObject):
         newValueTypingEntry = "NoneType"
         curAttrType = type(variableValue).__name__
         valueHolder = None
-        #print("adding elem of type ", curAttrType ," with value: ", curAttr)
+        print("adding elem of type ", curAttrType ," with value: ", variableValue)
         #Handles Cases where particular classes must be converted into a string format.
         if(curAttrType == 'dateTime'):
             #All date-time values occupy the same amount of space in db.
@@ -168,7 +165,7 @@ class polyTypedVariable(treeObject):
             valueHolder = variableValue.decode()
             newValueTypingEntry = {"type":"bytearray"}
         elif(curAttrType == 'dict'):
-            classInstanceDict[self.name] = self.convertSetTypeIntoJSONdict(variableValue)
+            newValueTypingEntry = {"type":"dict"}
         elif(curAttrType == 'tuple' or curAttrType == 'list' or curAttrType == 'polariList'):
             newValueTypingEntry = {"type":self.extractSetTyping(varSet=variableValue)}
         elif(inspect.ismethod(variableValue)):
