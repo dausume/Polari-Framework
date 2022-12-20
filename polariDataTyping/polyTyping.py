@@ -27,11 +27,16 @@ import logging, os, sys, importlib
 class polyTypedObject(treeObject):
     @treeObjectInit
     def __init__(self, className, manager, objectReferencesDict={}, sourceFiles=[], identifierVariables=[], variableNameList=[], baseAccessDict={}, basePermDict={}, classDefinition=None, sampleInstances=[], kwRequiredParams=[], kwDefaultParams={}):
-        #if(className == 'polariServer'):
-        #    print('Making the polyTyping object for polariServer with manager set as: ', manager)
         self.isTreeObject = None
         self.isManagerObject = None
         self.className = className
+        #Dictionaries for calculating the standard measure of an instance's data occupation,
+        #by tracking the minimum ever recorded value, maximum ever recorded, and re-calculating
+        #a convergence based average every time a value is recorded.
+        self.perInstanceDataCostDictJSON = {"min":None,"max":None, "occurrences":0, "convergingAverage":0}
+        self.perInstanceDataCostDictPython = {"min":None,"max":None, "occurrences":0, "convergingAverage":0}
+        self.perInstanceDataCostDictDB = {"min":None,"max":None, "occurrences":0, "convergingAverage":0}
+        #Parameters that must be passed in to initialize a class of this type.
         self.kwRequiredParams = []
         self.kwDefaultParams = []
         self.hasBaseSample = False
@@ -101,6 +106,8 @@ class polyTypedObject(treeObject):
         self.variableNameList = variableNameList
         #The polyTypedVariable instances for each of the variables in the class.
         self.polyTypedVars = []
+        #
+        self.polyTypedVarsDict = {}
         #
         self.baseAccessDictionary = {}
         self.basePermissionDictionary = {}
@@ -232,37 +239,46 @@ class polyTypedObject(treeObject):
     #Creates typing for the instance by analyzing it's variables and creating
     #default polyTypedVariables for it.
     def analyzeInstance(self, pythonClassInstance):
+        #print("instance to analyze: ", pythonClassInstance)
         try:
+            instSize = sys.getsizeof(pythonClassInstance)
+            if(self.perInstanceDataCostDictPython["occurrences"] == 0):
+                self.perInstanceDataCostDictPython["occurrences"] = 1
+                self.perInstanceDataCostDictPython["min"] = instSize
+                self.perInstanceDataCostDictPython["max"] = instSize
+            else:
+                self.perInstanceDataCostDictPython["occurrences"] += 1
+                valueShift = instSize / self.perInstanceDataCostDictPython["occurrences"]
+                if(self.perInstanceDataCostDictPython["min"] > instSize):
+                    self.perInstanceDataCostDictPython["min"] = instSize
+                elif(self.perInstanceDataCostDictPython["max"] < instSize):
+                    self.perInstanceDataCostDictPython["max"] = instSize
+                if(self.perInstanceDataCostDictPython["convergingAverage"] < instSize):
+                    self.perInstanceDataCostDictPython["convergingAverage"] = self.perInstanceDataCostDictPython["convergingAverage"] + valueShift
+                elif(self.perInstanceDataCostDictPython["convergingAverage"] > instSize):
+                    self.perInstanceDataCostDictPython["convergingAverage"] = self.perInstanceDataCostDictPython["convergingAverage"] - valueShift
             classInfoDict = pythonClassInstance.__dict__
-            for someVariableKey in classInfoDict:
-                if(someVariableKey == "polyTypedObj"):
-                    #print("TRYING TO SET TYPE polyTypedObj in dict.. why?!?")
-                    continue
-                if(not callable(classInfoDict[someVariableKey])):
-                    #print('accVar: ' + someVariableKey)
-                    var = getattr(pythonClassInstance, someVariableKey)
-                    #If the var is accounted for, analyze the current value.
-                    self.analyzeVariableValue(pythonClassInstance=pythonClassInstance, varName=someVariableKey, varVal=var)
+            for someVariableKey in list(classInfoDict.keys()):
+                var = getattr(pythonClassInstance, someVariableKey)
+                #If the var is accounted for, analyze the current value.
+                if(type(pythonClassInstance).__name__ != "polyTypedVariable" and type(pythonClassInstance).__name__ != "polyTypedObject"):
+                    self.analyzeVariableValue(varName=someVariableKey, varVal=var)
         except Exception:
             print('Invalid value of type ', type(pythonClassInstance).__name__,' in function analyzeInstance for parameter pythonClassInstance: ', pythonClassInstance)
         #print('Showing all polytyped Var for object ' + self.className + ': ', self.polyTypedVars)
 
 
-    def analyzeVariableValue(self, pythonClassInstance, varName, varVal):
-        #print('Analyzing variable ' + varName + ' in class ' + self.className)
-        if(self.polyTypedVars == None):
-            self.polyTypedVars = []
-        numAccVars = len(self.polyTypedVars)
-        foundVar = False
-        for polyVar in self.polyTypedVars:
-            #If the variable is found, account for it on it's typeDicts.
-            if(polyVar.name == varName):
-                foundVar = True
-                break
-        if not foundVar:
-            #print('Adding new polyTypedVar ' + varName)
-            newPolyTypedVar = polyTypedVariable(polyTypedObj=self, attributeName=varName, attributeValue=varVal, manager=self.manager)
-            (self.polyTypedVars).append(newPolyTypedVar)
+    def analyzeVariableValue(self, varName, varVal):
+        try:
+            if not varName in list(self.polyTypedVarsDict.keys()):
+                newPolyTypedVar = polyTypedVariable(polyTypedObj=self, attributeName=varName, attributeValue=varVal, manager=self.manager)
+                (self.polyTypedVars).append(newPolyTypedVar)
+                self.polyTypedVarsDict[varName] = newPolyTypedVar
+            else:
+                (self.polyTypedVarsDict[varName]).analyzeVarValue(varVal)
+        except Exception:
+            print("failed to analyze variable with name ", varName, " and value ", varVal)
+            
 
     #Uses the Identifiers and the class name
     def makeTypedTable(self):

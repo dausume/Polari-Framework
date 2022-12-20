@@ -9,6 +9,7 @@ class polyTypedVariable(treeObject):
         #The name of the variable in the class
         self.polyTypedObj = polyTypedObj
         self.name = attributeName
+        self.analyzeValuesMode = True
         self.manager = polyTypedObj.manager
         #if(polyTypedObj == 'testObj'):
         #    print('Making testObj on polariServer for variable: ', attributeName)
@@ -16,6 +17,7 @@ class polyTypedVariable(treeObject):
         #the datatype defined for it, and the number of symbols (regardless of type)
         #that must be used in order to define it.
         dataType = type(attributeValue).__name__
+        self.typingVariationDict = self.analyzeVarValue(attributeValue)
         self.eventsList = []
         #Accounts for different set-like data types and what may be contained inside.
         if(callable(attributeValue)):
@@ -141,6 +143,45 @@ class polyTypedVariable(treeObject):
                 greatestOccNum = varDict['occurences']
                 sinkTypeDict = varDict
         
+    def analyzeVarValue(self, variableValue):
+        dataTypesPython = ['str','int','float','complex','list','tuple','range','dict','set','frozenset','bool','bytes','bytearray','memoryview', 'NoneType']
+        newValueTypingEntry = "NoneType"
+        curAttrType = type(variableValue).__name__
+        valueHolder = None
+        print("adding elem of type ", curAttrType ," with value: ", variableValue)
+        #Handles Cases where particular classes must be converted into a string format.
+        if(curAttrType == 'dateTime'):
+            #All date-time values occupy the same amount of space in db.
+            newValueTypingEntry = {"type":"dateTime"}
+        elif(curAttrType == 'TextIOWrapper'):
+            #Information about data can be extracted from polariFile objects.
+            newValueTypingEntry = {"type":"TextIOWrapper"}
+        elif(curAttrType == 'bytes'):
+            #Get the number of bytes for more detailed typing.
+            valueHolder = variableValue.decode()
+            newValueTypingEntry = {"type":"bytes"}
+        elif(curAttrType == 'bytearray'):
+            #Get the number of bytes for more detailed typing.
+            valueHolder = variableValue.decode()
+            newValueTypingEntry = {"type":"bytearray"}
+        elif(curAttrType == 'dict'):
+            newValueTypingEntry = {"type":"dict"}
+        elif(curAttrType == 'tuple' or curAttrType == 'list' or curAttrType == 'polariList'):
+            newValueTypingEntry = {"type":self.extractSetTyping(varSet=variableValue)}
+        elif(inspect.ismethod(variableValue)):
+            newValueTypingEntry = {"type":"classmethod(" + variableValue.__name__ + ")"}
+        elif(inspect.isclass(type(variableValue)) and not curAttrType in dataTypesPython):
+            newValueTypingEntry = {"type":"classreference(" + variableValue.__class__.__name__ + ")"}
+        #Other cases are cleared, so it is either good or it is unaccounted for so we should let it throw an error.
+        elif(curAttrType in dataTypesPython):
+            newValueTypingEntry = {"type":curAttrType}
+            if(curAttrType == "int" or curAttrType == "dbl"):
+                newValueTypingEntry["length"] = len(str(variableValue))
+            if(curAttrType == "str"):
+                newValueTypingEntry["length"] = len(curAttrType)
+        else:
+            newValueTypingEntry = "unaccountedType(" + variableValue.__name__ + ")"
+        return newValueTypingEntry
 
     #MAKES A conversionTest Remote Event, which causes the data to be returned in
     #a response after it has been converted and before it has any operations performed
