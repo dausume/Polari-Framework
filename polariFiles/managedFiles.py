@@ -52,16 +52,19 @@ def fileObject(name=None, Path=None, extension=None):
 class managedFile(treeObject):
     @treeObjectInit
     def __init__(self, name=None, Path=None, extension=None):
+        #If we detect a path in the name, we remove it and overwrite path
+        lastForwardSlash = name.rfind('/') + 1
+        lastBackSlash = name.rfind('\\')
+        lastDot = name.rfind('.')
+        if(lastForwardSlash != -1):
+            name = name[lastForwardSlash:]
+        if(lastBackSlash != -1):
+            name = name[lastBackSlash:]
+        if(lastDot != -1):
+            lastDot = name[:lastDot]
         self.name = name
         self.extension = extension
         self.version = None
-        #If we detect a path in the name, we remove it and overwrite path
-        lastForwardSlash = name.rfind('/')
-        lastBackSlash = name.rfind('\\')
-        if(lastForwardSlash != -1):
-            raise ValueError("Found Forward slash indicating a path was included in name, name should be strictly file name.")
-        if(lastBackSlash != -1):
-            raise ValueError("Found Forward slash indicating a path was included in name, name should be strictly file name.")
         #The path to the directory which contains this file.
         self.Path = Path
         #The URL needed to find this file through the internet
@@ -101,6 +104,11 @@ class managedFile(treeObject):
                     self.setExtension('txt')
         else:
             logging.exception(msg='An invalid type was entered as the name of the file.')
+
+    def set_Path(self, Path):
+        if(Path.rfind(".")):
+            Path = Path[:Path.rfind(".")]
+        self.Path = Path
 
     #Returns an instance of a class that is a subclass of Folder, with all variables from the
     #Folder instance carried over.

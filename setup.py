@@ -12,10 +12,27 @@
 
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 #Defines all of the python modules that should be installed prior to running this as an Application
-#builtins
-#PIL
-#pyparsing
-#json
-#sqlite3
-#unittest
+from setuptools import setup
+
+setup(
+    name='polari-framework-node',
+    version='0.1',
+    author='Dustin Etts',
+    author_email='dustinetts@gmail.com',
+    url='https://www.polariai.com',
+    install_requires=[
+        'Pillow',
+        'pyparsing',
+        'unittest2',
+        'psutil',
+        'falcon',
+        'jwt',
+        'svgwrite',
+        'matplotlib'
+    ],
+    packages=[
+        'POLARI-FRAMEWORK',
+    ],
+)

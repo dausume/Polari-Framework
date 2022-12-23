@@ -29,7 +29,7 @@ from polariFrontendManagement.managedApp import *
 from polariFiles.managedFiles import managedFile
 from polariDBmanagement.managedDB import managedDatabase
 from polariFiles.managedFolders import managedFolder
-import os, psutil, flask, json, sqlite3, time, webbrowser
+import os, psutil, json, sqlite3, time, webbrowser
 
 #Statuses which are applicable only towards a Polari and adds on to the 'Statuses'
 #variable defined in the managedFolder module which are also applicable to this object.

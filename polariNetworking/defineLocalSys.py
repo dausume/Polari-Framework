@@ -33,21 +33,25 @@ class isoSys(treeObject):
     def __init__(self, name=None):
         self.name = name
         #Networking Information for the System
+        self.systemType = platform.system()
         self.networkName = platform.node()
         self.IPaddress = socket.gethostname()
         self.domainName = socket.getfqdn()
         #self.internetServiceProvider
+        sysMetrics = None
         #Graphics, Screen, and Monitor information for the system
-        user32 = ctypes.windll.user32
-        user32.SetProcessDPIAware()
-        #Height and width of the main monitor used for the system by default
-        self.mainMonitorPixelWidth = user32.GetSystemMetrics(0)
-        self.mainMonitorPixelHeight = user32.GetSystemMetrics(1)
-        #Height and width of a Virtual Monitor which may be composed of multiple Monitors
-        self.virtualMonitorPixelWidth = user32.GetSystemMetrics(78)
-        self.virtualMonitorPixelHeight = user32.GetSystemMetrics(79)
-        #Gets the number of monitors connected to the system
-        self.NumMonitors = user32.GetSystemMetrics(80)
+        if(self.systemType == 'Windows'):
+            if(ctypes.sizeof(ctypes.c_void_p) == 4):
+                sysMetrics = ctypes.windll.user32
+                #Height and width of the main monitor used for the system by default
+                self.mainMonitorPixelWidth = sysMetrics.GetSystemMetrics(0)
+                self.mainMonitorPixelHeight = sysMetrics.GetSystemMetrics(1)
+                #Height and width of a Virtual Monitor which may be composed of multiple Monitors
+                self.virtualMonitorPixelWidth = sysMetrics.GetSystemMetrics(78)
+                self.virtualMonitorPixelHeight = sysMetrics.GetSystemMetrics(79)
+                sysMetrics.SetProcessDPIAware()
+                #Gets the number of monitors connected to the system
+                self.NumMonitors = sysMetrics.GetSystemMetrics(80)
         #app = QApplication(sys.argv)
         #screen = app.screens()[0]
         #dpi = screen.physicalDotsPerInch()

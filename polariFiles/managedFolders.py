@@ -25,6 +25,8 @@ class managedFolder():
     def __init__(self, name = None, Path = None, manager=None):
         self.name = name
         self.manager = manager
+        #Indicates if the Folder is a part of the basis of polari.
+        self.inPolariPackage = False
         #Assigns the manager of this Folder, whether it be a Polari or an Application.
         self.assignManager(manager)
         #The path for this folder, which is used to access all of it's files and sub-folders.

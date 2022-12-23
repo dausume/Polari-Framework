@@ -463,74 +463,123 @@ class polyTypedObject(treeObject):
     def getCreateMethod(self, returnTupWithParams=False):
         #compares the absolute paths of this file and the directory where the class is defined
         #the first character at which the two paths diverge is stored into divIndex
-        definingFile = self.polariSourceFile.name
-        absDirPath = self.polariSourceFile.Path
+        classFileName = self.polariSourceFile.name
+        print("classFileName")
+        print(classFileName)
+        classDirPath = self.polariSourceFile.Path
+        print("classDirPath")
+        print(classDirPath)
+        classDir = classDirPath
+        if(classDirPath.rfind('.') != -1):
+            classDirPath = classDirPath[:classDirPath.rfind('.')]
+            self.polariSourceFile.Path = classDirPath
+            print("classDirPath after mod")
+            print(classDirPath)
+            lastFS_classDirPath = classDirPath.rfind('/')
+            lastBS_classDirPath = classDirPath.rfind('\\')
+            #Both returned -1 if they are equal, so no slashes were in the string
+            if(lastFS_classDirPath == lastBS_classDirPath):
+                classDir = classDirPath
+            #The last slash detected was a forward slash
+            elif(lastFS_classDirPath > lastBS_classDirPath):
+                classDir = classDirPath[:lastFS_classDirPath]
+            #The last slash detected was a forward slash
+            else:
+                classDir = classDirPath[:lastBS_classDirPath]
+        print("classDir refinement one")
+        print(classDir)
+        lastFS_classDirPath = classDir.rfind('/')
+        lastBS_classDirPath = classDir.rfind('\\')
+        #The last slash detected was a forward slash
+        if(lastFS_classDirPath > lastBS_classDirPath):
+            classDir = classDir[lastFS_classDirPath+1:]
+        #The last slash detected was a forward slash
+        else:
+            classDir = classDir[lastBS_classDirPath+1:]
+        print("classDir refinement two")
+        print(classDir)
         className = self.className
-        if(absDirPath != None and definingFile != None and className != None):
-            curPath =  (os.path.realpath(__file__))[:os.path.realpath(__file__).rfind('\\')]
-            sIndex = curPath.rfind("\\")
+        print("className")
+        print(className)
+        if(classDirPath != None and classFileName != None and className != None):
+            polyTypingPath =  (os.path.realpath(__file__))[:os.path.realpath(__file__).rfind('\\')]
+            print("polyTypingPath")
+            print(polyTypingPath)
+            isForwardSlash = None
+            sIndex = polyTypingPath.rfind("polariDataTyping") - 1
+            polyTypingPath = polyTypingPath[:sIndex]
+            print("polyTypingPath after mod")
+            print(polyTypingPath)
             if(sIndex == -1):
-                sIndex = curPath.rfind("/")
-            curPath = curPath[:sIndex]
+                sIndex = polyTypingPath.rfind("/")
             divIndex = 0
-            errMsg = "path to the file not in subdirectory of manager object.  Path to class must begin with: " + str(curPath) + ". Path entered was: " + str(absDirPath)
+            errMsg = "path to the file not in subdirectory of manager object.  Path to class must begin with: " + str(polyTypingPath) + ". Path entered was: " + str(classDirPath)
             charIndex = 0
             polariFrameworkPackageStartIndex = None
             polariFrameworkPackageEndIndex = None
             discrepencyIndex = None
             try:
-                chars = range(len(absDirPath))
+                chars = range(len(classDirPath))
                 for charIndex in chars:
-                    if(absDirPath[charIndex] == curPath[charIndex]):
-                        if( not (absDirPath[charIndex] == "\\" or absDirPath[charIndex] == "/") and  (curPath[charIndex] == "\\" or curPath[charIndex] == "/") ):
-                            errMsg += " ERROR 0: discrepency read at index " + str(charIndex) + " base path character is " + curPath[charIndex] + " while file path character is " + absDirPath[charIndex]
+                    if(classDirPath[charIndex] == polyTypingPath[charIndex]):
+                        if( not (classDirPath[charIndex] == "\\" or classDirPath[charIndex] == "/") and  (polyTypingPath[charIndex] == "\\" or polyTypingPath[charIndex] == "/") ):
+                            errMsg += " ERROR 0: discrepency read at index " + str(charIndex) + " base path character is " + polyTypingPath[charIndex] + " while file path character is " + classDirPath[charIndex]
                             raise ValueError(errMsg)
                     else:
                         discrepencyIndex = charIndex
                         break
-                    if(charIndex == len(absDirPath) - 1):
+                    if(charIndex == len(classDirPath) - 1):
                         break
-                    if(charIndex == len(curPath) - 1):
+                    if(charIndex == len(polyTypingPath) - 1):
                         break
                 if(discrepencyIndex != 0 and discrepencyIndex != None):
-                    reverseObjPathRange = range(len(absDirPath), 0, -1)
-                    reverseTypingPathRange = range(len(curPath), 0, -1)
+                    reverseObjPathRange = range(len(classDirPath), 0, -1)
+                    reverseTypingPathRange = range(len(polyTypingPath), 0, -1)
                     for someChar in reverseObjPathRange:
                         pass
             except:
                 errMsg += " ERROR 2: Got exception at index " + str(charIndex)
                 raise ValueError(errMsg)
-            if(len(absDirPath) > len(curPath)):
-                relativePath = absDirPath[len(curPath):]
+            print("classDirPath - path to current class")
+            print(classDirPath)
+            polariPackagePath = polyTypingPath[:polyTypingPath.rfind("Polari-Framework") + 16]
+            #If the directory is directly inside the Polari-Framework, skip this part and call it directly
+            print("classDir")
+            print(classDir)
+            #Everything that is not directly defined on the project folder should be analyzed here.
+            if(classDir != "objectTreeManagerDecorators" and classDir != "objectTreeDecorators"):
+                relativePath = classDirPath[len(polyTypingPath):]
+                print("relativePath:  " + relativePath)
                 packageTraversalString = ""
                 packageNameStartIndex = 0
                 packageNameEndIndex = None
                 if(relativePath[0] == "\\" or relativePath[0] == "/"):
                     packageNameStartIndex = 1
-                    relativePathIndexing = range(1, len(absDirPath)-len(curPath)-1)
+                    relativePathIndexing = range(1, len(classDirPath)-len(polyTypingPath)-1)
                 else:
-                    relativePathIndexing = range(len(absDirPath)-len(curPath)-1)
+                    relativePathIndexing = range(len(classDirPath)-len(polyTypingPath)-1)
                 for charIndex in relativePathIndexing:
                     if(relativePath[charIndex] == "\\" or relativePath[charIndex] == "/"):
                         packageNameEndIndex = charIndex - 1
                         curPackage = relativePath[packageNameStartIndex:packageNameEndIndex]
                         packageTraversalString += curPackage + "."
                         packageNameStartIndex = charIndex + 1
-                if(packageNameStartIndex < len(absDirPath)-len(curPath)):
-                    curPackage = relativePath[packageNameStartIndex:len(absDirPath)-len(curPath)]
+                if(packageNameStartIndex < len(classDirPath)-len(polyTypingPath)):
+                    curPackage = relativePath[packageNameStartIndex:len(classDirPath)-len(polyTypingPath)]
                     packageTraversalString += curPackage + "."
                 #Gets the subpath relative to the managedDatabase File
                 #sys.path.append(relativePath)
                 #Since the directory was adjusted we can now directly import the module from the subdirectory.
-                definingPackage = packageTraversalString + definingFile
-                absoluteImport = definingPackage+"."+className
+                #definingPackage = packageTraversalString + classFileName
+                definingPackage = classDir + "." + classFileName
+                absoluteImport = definingPackage+"."+ className
                 moduleImported = importlib.import_module(name=definingPackage)
                 ClassInstantiationMethod = getattr(moduleImported, className)
                 print("instantiation method from package: ", ClassInstantiationMethod)
                 return ClassInstantiationMethod
             else:
                 #Since the file is in the base/main directory, we import it directly
-                moduleImported = __import__(name=definingFile, fromlist=className)
+                moduleImported = __import__(name=classFileName, fromlist=className)
                 ClassInstantiationMethod = getattr(moduleImported, className)
                 return ClassInstantiationMethod
         else:
