@@ -18,7 +18,7 @@ psutil==5.9.4
 pycparser==2.21
 pyparsing==3.0.9
 python-dateutil==2.8.2
-setuptools==65.5.0
+setuptools==65.5.1
 six==1.16.0
 svgwrite==1.4.3
 virtualenv==20.17.1
