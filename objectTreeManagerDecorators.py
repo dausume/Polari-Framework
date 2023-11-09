@@ -101,12 +101,11 @@ class managerObject:
             self.polServer = polariServer(hostSystem=self.hostSys, manager=self)
         if(self.hasDB):
             self.db
+        #Analyzing everything in base of tree
         if(self.__class__.__name__ in self.objectTypingDict):
-            #print("Analyzing everything in base of tree")
             for someClass in self.objectTypingDict.keys():
                 typeToAnalyze = self.objectTypingDict[someClass]
                 typeToAnalyze.runAnalysis()
-                #print("Now we see variables:")
 
     def __delete__(self, instance):
         #TODO Go through all polyTyping objects and delete them, close all file references.
@@ -116,19 +115,15 @@ class managerObject:
 
     def __setattr__(self, name, value):
         if(type(value).__name__ == 'list'):
-            if(name == "usersList"):
-                print("converting from list with value ", value, " to a polariList.")
+            #if name == "usersList" -> converting from list with value ", value, " to a polariList.
             #Instead of initializing a polariList, we try to just cast the list to be type polariList.
             value = polariList(value)
             value.jumpstart(treeObjInstance=self, varName=name)
-            #print("Set list value to be polariList: ", value)
         if(name == 'manager'):
             #TODO Write functionality to connect with a parent tree when/if manager is assigned.
             super(managerObject, self).__setattr__(name, value)
             return
         if(not hasattr(self,"complete") or (type(value).__name__ in dataTypesPython and type(value) != list and type(value).__name__ != "polariList")):
-            if(name == "usersList"):
-                print("escaping early when setting usersList, type is: ", type(value).__name__)
             super(managerObject, self).__setattr__(name, value)
             return
         if(not self.complete):
@@ -188,10 +183,10 @@ class managerObject:
                 accountedVariableType = False
                 if(type(inst).__class__.__name__ in polyObj.objectReferencesDict):
                     accountedObjectType = True
-                    print("Class type ", type(inst).__class__.__name__, " accounted for in object typing for ", self.__class__.__name__)
+                    #Class type, type(inst).__class__.__name__, accounted for in object typing for, self.__class__.__name__
                     if(polyObj.objectReferencesDict[type(inst).__class__.__name__]):
+                        #Accounted for class type, inst, as sole value in variable, name
                         accountedVariableType = True
-                        print("Accounted for class type ", inst, " as sole value in variable ", name)
                 newpolyObj = self.getObjectTyping(classObj=inst.__class__)
                 managerPolyTyping = self.getObjectTyping(self.__class__)
                 if(not accountedVariableType):
