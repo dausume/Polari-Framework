@@ -1,3 +1,12 @@
+import os
+import sys
+
+# Check if the environment variable is set
+container_env = os.environ.get("IN_DOCKER_CONTAINER")
+
+if container_env and container_env.lower() == "true":
+    # If the environment variable is set and indicates it's a Docker container
+    sys.path.insert(0, '/app/vendor')
 from objectTreeManagerDecorators import managerObject
 from wsgiref.simple_server import make_server
 from falcon import falcon

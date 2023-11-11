@@ -15,7 +15,7 @@
 from polariFiles.managedImages import managedImage
 from polariFiles.managedFiles import managedFile
 from polariFiles.dataChannels import *
-from PIL import Image
+#from PIL import Image
 import unittest, logging, os
 
 class managedImage_testClass(unittest.TestCase):

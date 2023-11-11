@@ -13,10 +13,10 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import svgwrite
-from PIL import Image as PILimage
+#from PIL import Image as PILimage
 from polariFiles.managedFiles import *
-from matplotlib import pyplot as plt
-from matplotlib import image as MPLimage
+#from matplotlib import pyplot as plt
+#from matplotlib import image as MPLimage
 
 
 picExtensions = ['svg', 'pil', 'jpg', 'png', 'pdf', 'gif']
@@ -33,11 +33,11 @@ class managedImage(managedFile):
             #The Image formatted into a basic Image numPy Array
             self.imgAry = None
 
-    def getImageArray(self):
-        if(self.extension == 'png' and self.Path != None and self.isRemote == False):
-            self.imgAry = MPLimage.imread(self.Path + '\\' + self.name + '.' + self.extension)
-        elif(self.extension == 'png' and self.Path != None and self.isRemote == True):
-            self.imgAry = MPLimage.imread(self.Path)
+    #def getImageArray(self):
+    #    if(self.extension == 'png' and self.Path != None and self.isRemote == False):
+    #        self.imgAry = MPLimage.imread(self.Path + '\\' + self.name + '.' + self.extension)
+    #    elif(self.extension == 'png' and self.Path != None and self.isRemote == True):
+    #        self.imgAry = MPLimage.imread(self.Path)
 
     def setExtension(self, fileExtension):
         if(fileExtensions.contains(fileExtension)):
