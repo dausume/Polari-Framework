@@ -14,9 +14,9 @@ from falcon import falcon
 if(__name__=='__main__'):
     #Create a basic manager with a polariServer
     localHostedManagerServer = managerObject(hasServer=True)
-    hostport = 3000
+    hostport = int(os.environ.get("BACKEND-APP-PORT", 3000))
     with make_server('', hostport, localHostedManagerServer.polServer.falconServer) as httpd:
-        print('Serving on port 3000.....')
+        print('Serving on port {hostport}.....')
         print('Access base polari api via link -  http://localhost:' + str(hostport) + '/')
         #Serve on localhost until process is killed.
         httpd.serve_forever()
