@@ -30,7 +30,7 @@ setup(
         'falcon',
         'jwt',
         'svgwrite',
-        'matplotlib'
+        #'matplotlib'
     ],
     packages=[
         'POLARI-FRAMEWORK',

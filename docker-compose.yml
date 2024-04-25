@@ -2,13 +2,14 @@
 # If you need more help, visit the Docker compose reference guide at
 # https://docs.docker.com/compose/compose-file/
 
-version: '3'
+version: '3.7'
 
 services:
-  polari-python-backend:
-    image: polari-python-backend:latest
-    context: .
-    dockerfile: Dockerfile
+  polari-framework:
+    image: polari-backend:latest
+    build:
+      context: .
+    restart: always
     ports:
       - "3000:3000"
     volumes:
