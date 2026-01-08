@@ -1,0 +1,137 @@
+# Polari Framework Configuration
+# This is the single source of truth for all configuration
+# The .env file is auto-generated from this YAML - DO NOT edit .env directly
+
+# ==============================================================================
+# SHARED CONFIGURATION
+# Variables used by both Dockerfile AND the Python application
+# ==============================================================================
+shared:
+  # Docker environment detection
+  in_docker_container: true
+
+  # Deployment environment (development, staging, production)
+  deploy_env: development
+
+  # Backend server configuration
+  backend:
+    port: 3000  # Used as BACKEND_APP_PORT in app, PORT in Dockerfile
+    url: localhost
+
+  # Frontend configuration
+  frontend:
+    url: localhost
+    port_local: 4200
+    port_container: 4200
+
+# ==============================================================================
+# DOCKERFILE-SPECIFIC CONFIGURATION
+# Variables only used during Docker image build (not accessed by Python app)
+# ==============================================================================
+dockerfile:
+  # FreeType library configuration (required for image processing)
+  freetype:
+    version: "2.6.1"
+    build_dir: /build/freetype-2.6.1
+
+  # Python pip configuration for build stage
+  pip:
+    timeout: 60
+    max_retries: 5
+
+  # Build paths and settings
+  build:
+    work_dir: /build
+    app_dir: /app
+    venv_path: /opt/venv
+
+# ==============================================================================
+# APPLICATION-SPECIFIC CONFIGURATION
+# Variables only used by the Python application (not by Dockerfile)
+# ==============================================================================
+application:
+  # Database configuration
+  database:
+    type: sqlite
+    # SQLite-specific settings
+    sqlite:
+      path: ./data/polari.db
+      timeout: 5000
+    # PostgreSQL settings (for future use)
+    # postgres:
+    #   host: localhost
+    #   port: 5432
+    #   database: polari
+    #   user: polari_user
+    #   password_env: DB_PASSWORD
+
+  # API Server configuration
+  api:
+    host: "0.0.0.0"
+    enable_cors: true
+    max_request_size: 10485760  # 10MB
+
+  # Logging configuration
+  logging:
+    level: INFO
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    file: ./logs/polari.log
+
+  # Security settings
+  security:
+    secret_key_env: SECRET_KEY  # Read from environment for security
+    session_timeout: 3600  # 1 hour
+
+  # AI Module configuration
+  ai:
+    enabled: true
+    model_path: ./models
+
+  # File management
+  files:
+    upload_dir: ./uploads
+    max_file_size: 52428800  # 50MB
+    allowed_extensions:
+      - pdf
+      - txt
+      - docx
+      - png
+      - jpg
+      - jpeg
+
+# ==============================================================================
+# ENVIRONMENT-SPECIFIC OVERRIDES
+# Use these to override settings for different deployment environments
+# ==============================================================================
+environments:
+  development:
+    shared:
+      deploy_env: development
+    application:
+      logging:
+        level: DEBUG
+      api:
+        enable_cors: true
+
+  production:
+    shared:
+      deploy_env: production
+      in_docker_container: true
+    application:
+      logging:
+        level: WARNING
+      api:
+        enable_cors: false
+      security:
+        session_timeout: 1800  # 30 minutes
+
+  testing:
+    shared:
+      deploy_env: testing
+    application:
+      database:
+        type: sqlite
+        sqlite:
+          path: ./data/test_polari.db
+      logging:
+        level: DEBUG
