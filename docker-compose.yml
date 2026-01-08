@@ -1,19 +1,22 @@
 # Comments are provided throughout this file to help you get started.
 # If you need more help, visit the Docker compose reference guide at
 # https://docs.docker.com/compose/compose-file/
-
-version: '3.7'
-
 services:
-  polari-framework:
-    image: polari-backend:latest
+  backend:
     build:
       context: .
-    restart: always
+    env_file:
+      - .env
+    environment:
+      - FRONTEND_URL=${FRONTEND_URL}
+      - BACKEND_APP_PORT=${BACKEND_LOCALHOST_PORT}
+      - FRONTEND_APP_PORT=${FRONTEND_LOCALHOST_PORT}
+      - FRONTEND_CONTAINER_PORT=${FRONTEND_CONTAINER_PORT}
+    networks:
+      - polari-node-network
     ports:
+      - "${BACKEND_LOCALHOST_PORT}:${BACKEND_CONTAINER_PORT}"
       - "3000:3000"
-    volumes:
-      - .:/app
 
 
 # The commented out section below is an example of how to define a PostgreSQL
@@ -49,3 +52,6 @@ services:
 #   db-password:
 #     file: db/password.txt
 
+networks:
+  polari-node-network:
+    external: true
