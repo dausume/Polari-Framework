@@ -97,8 +97,8 @@ class polariCRUDE(treeObject):
         allowedQuery = accessQueryDict["R"][self.apiObject]
         #Cross analyze requested Instances and allowed instances (according to Access
         #Dictionaries on user) in order to analyze which instances requested are able
-        #to be returned, in other words it performs 'viewing access'. 
-        requestedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=accessQueryDict )
+        #to be returned, in other words it performs 'viewing access'.
+        requestedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=accessQueryDict["R"][self.apiObject] )
         #allowedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=allowedQuery )
         #retrievableInstances = self.instanceSetIntersection(requestedInstances, retrievableInstances)
         #TODO Add functionality to sort retrievableInstances into different sets
@@ -139,14 +139,14 @@ class polariCRUDE(treeObject):
         userAuthInfo = request.auth
         print("request.auth : ", request.auth)
         (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
-        #Check to ensure user has at least some access to events.
+        #Check to ensure user has at least some access to updates.
         if(not "U" in accessQueryDict):
             response.status = falcon.HTTP_405
-            raise PermissionError("Event requests not allowed at all for this user on this object type.")
-        #Determines which events can be accessed.
+            raise PermissionError("Update requests not allowed at all for this user on this object type.")
+        #Determines which variables can be updated.
         if(not "U" in permissionQueryDict):
             response.status = falcon.HTTP_405
-            raise PermissionError("Event requests do not have access to any variables on this object type.")
+            raise PermissionError("Update requests do not have access to any variables on this object type.")
         data = request.get_media()
         singularUpdate = {}
         massUpdateDataSet = []
@@ -245,7 +245,7 @@ class polariCRUDE(treeObject):
                 #Add the new instances to the list of temporary instances.
                 #After all instances are created we will run a query operation on them to ensure the user
                 #should be allowed to create them in the given criteria.
-                missingRequiredParamsList = self.CreateRequiredParameters
+                missingRequiredParamsList = list(self.CreateRequiredParameters)
                 #Validate that the parameters are valid, record parameters that
                 #were not passed in case an error occurs or if they are required.
                 for someParam in newInst.keys():
@@ -259,6 +259,7 @@ class polariCRUDE(treeObject):
                         raise ValueError(errMsg)
                 if(len(missingRequiredParamsList) != 0):
                     errMsg = "Error: Missing required parameters for creation of instances of object type '" + self.apiObject + "' missing required parameters are: " + str(missingRequiredParamsList)
+                    raise ValueError(errMsg)
                 #After validating, create the new instance using the given parameters.
                 if("manager" in newInst.keys()):
                     #TODO If manager is defined using an Id, query that manager and
@@ -311,10 +312,9 @@ class polariCRUDE(treeObject):
 
     #Delete in CRUD
     def on_delete(self, request, response):
-        authSession = request.auth
-        authUser = request.context.user
+        userAuthInfo = request.auth
         urlParameters = request.query_string
-        (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(authUser)
+        (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
         #Check to ensure user has at least some access to events.
         if(not "D" in accessQueryDict):
             response.status = falcon.HTTP_405
@@ -333,7 +333,7 @@ class polariCRUDE(treeObject):
             #then throw an error.
             if(someData.name == "targetInstance"):
                 targetInfo = json.loads(dataSegment)
-        allowedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=accessQueryDict )
+        allowedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=accessQueryDict["D"][self.apiObject] )
         targetResolution = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=targetInfo )
         targetInstance = None
         instancesDeleted = None
@@ -405,7 +405,7 @@ class polariCRUDE(treeObject):
                 parametersDict[someData.name] = dataSegment
         #Get which instances events are allowed to be run on for this user.
         allowedQuery = accessQueryDict["E"][self.apiObject]
-        allowedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=accessQueryDict )
+        allowedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=accessQueryDict["E"][self.apiObject] )
         targetResolution = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=targetInfo )
         targetInstance = None
         #First, check if the target info passed can resolve to a single target.

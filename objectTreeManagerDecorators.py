@@ -256,9 +256,17 @@ class managerObject:
     def deleteTreeNode(self, className, nodePolariId, baseDeleteData=None, deleteData=None, instancesDeleted=[], migratedInstances=[], startDelete=True):
         if(startDelete == True):
             instToDelete = self.objectTables[className][nodePolariId]
-            instancesDeleted.append(instToDelete)
+            instancesDeleted.append(nodePolariId)
             tupToDelete = self.getInstanceTuple(instToDelete)
             deletePath = self.getTuplePathInObjTree(tupToDelete)
+
+            # Handle instances that are in objectTables but not in objectTree
+            # This occurs when instances are created without a branch parameter
+            if(deletePath == None):
+                # Simply remove from objectTables
+                del self.objectTables[className][nodePolariId]
+                return (instancesDeleted, migratedInstances)
+
             deleteData = (instToDelete, tupToDelete, deletePath)
             (baseInstToDelete, baseTupToDelete, baseDeletePath) = deleteData
             baseDeleteData = deleteData
@@ -557,7 +565,7 @@ class managerObject:
                 classInfoDict = someInstance.__dict__
                 #print('Printing Class Info: ' + str(classInfoDict))
                 for classElement in classInfoDict:
-                    if(not callable(classElement) and not classElement in varsLimited):
+                    if(not callable(getattr(someInstance, classElement)) and not classElement in varsLimited):
                         classInstanceDict[classElement] = None
                 classVarDict[0]["data"].append( self.getJSONclassInstance(someInstance, classInstanceDict) )
         elif(passedInstances == None):
@@ -570,7 +578,7 @@ class managerObject:
             classInfoDict = passedInstances.__dict__
             for classElement in classInfoDict:
                 #print('got attribute: ' + classElement)
-                if(not callable(classElement) and not classElement in varsLimited):
+                if(not callable(getattr(passedInstances, classElement)) and not classElement in varsLimited):
                     classInstanceDict[classElement] = None
                     #print('not callable attribute: ' + classElement)
             classVarDict[0]["data"].append( self.getJSONclassInstance(passedInstances, classInstanceDict) )

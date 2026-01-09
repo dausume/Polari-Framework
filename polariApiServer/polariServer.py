@@ -331,4 +331,34 @@ class polariServer(treeObject):
         if(numCharCount < self.passwordRequirements["min-nums"]):
             raise ValueError("Must have over ", self.passwordRequirements["min-nums"], " numbers in password.")
 
-        
+    def registerCRUDEforObjectType(self, objType):
+        """
+        Dynamically register a CRUDE endpoint for an object type.
+        This is useful when object types are registered after server initialization.
+
+        Args:
+            objType: The class name (string) of the object type to register
+
+        Returns:
+            The polariCRUDE instance that was created
+        """
+        if objType not in self.manager.objectTypingDict:
+            raise ValueError(f"Object type '{objType}' not found in manager.objectTypingDict. Register the object type first using manager.getObjectTyping().")
+
+        # Check if CRUDE endpoint already exists for this type
+        for crude in self.crudeObjectsList:
+            if crude.apiObject == objType:
+                print(f"CRUDE endpoint for '{objType}' already exists at {crude.apiName}")
+                return crude
+
+        # Get typing object and run analysis
+        typingObj = self.manager.objectTypingDict[objType]
+        typingObj.runAnalysis()
+
+        # Create new CRUDE endpoint
+        newCRUDE = polariCRUDE(apiObject=objType, polServer=self, manager=self.manager)
+        self.crudeObjectsList.append(newCRUDE)
+
+        print(f"Registered CRUDE endpoint for '{objType}' at {newCRUDE.apiName}")
+        return newCRUDE
+

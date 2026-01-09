@@ -1,0 +1,27 @@
+# Docker Compose configuration for running Polari Framework tests
+#
+# Usage:
+#   docker compose -f docker-compose.test.yml up --build
+#   docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
+#
+# This configuration is separate from the development docker-compose.yml
+# and is specifically designed for running the test suite.
+
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: polari-framework-tests
+    environment:
+      - DEPLOY_ENV=test
+      - IN_DOCKER_CONTAINER=true
+      - PYTHONUNBUFFERED=1
+    # Tests will run and container will exit when complete
+    # Use --abort-on-container-exit flag to stop all containers when tests finish
+    command: python3 run_tests.py
+    # Optional: Mount volume for test results or coverage reports
+    volumes:
+      - ./test-results:/app/test-results:rw
+    # No ports exposed - tests run internally
+    # No network needed unless testing API endpoints externally

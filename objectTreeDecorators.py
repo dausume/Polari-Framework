@@ -61,6 +61,14 @@ class treeObject:
                 setattr(self, name, keywordargs[name])
         if(self.id == None):
             self.makeUniqueIdentifier()
+        # After id is guaranteed to be set, add to objectTables if manager is set
+        if(self.manager != None and self.id != None and hasattr(self.manager, 'objectTables')):
+            key = self.__class__.__name__
+            if(key in self.manager.objectTables):
+                self.manager.objectTables[key][self.id] = self
+            else:
+                self.manager.objectTables[key] = {}
+                self.manager.objectTables[key][self.id] = self
 
     def __setattr__(self, name, value):
         if(type(value).__name__ == 'list'):
@@ -110,6 +118,16 @@ class treeObject:
                         self.managerSet(potentialManager=value)
                         return
                 super(treeObject, self).__setattr__(name, value)
+                # Add instance to objectTables even when branch is None
+                # This ensures instances can be found via API queries
+                if(value != None and hasattr(self, 'id') and self.id != None):
+                    if(hasattr(value, 'objectTables')):
+                        key = self.__class__.__name__
+                        if(key in value.objectTables):
+                            value.objectTables[key][self.id] = self
+                        else:
+                            value.objectTables[key] = {}
+                            value.objectTables[key][self.id] = self
                 return
         elif(self.manager == None or not hasattr(self, 'branch')):
             super(treeObject, self).__setattr__(name, value)
