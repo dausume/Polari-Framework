@@ -71,7 +71,7 @@ class polyTypedVariable(treeObject):
         if(setType == 'list' or setType == 'tuple' or setType == 'polariList'):
             for elem in varSet:
                 elemType = type(elem).__name__
-                if(elemType == 'list' or elemType == 'tuple' or elemType == 'dict' or setType == 'polariList'):
+                if(elemType == 'list' or elemType == 'tuple' or elemType == 'dict' or elemType == 'polariList'):
                     tempString = self.extractSetTyping(varSet=elem,typingString=typingString, curDepth = curDepth + 1, maxDepth=maxDepth)
                 else:
                     tempString = elemType
@@ -81,20 +81,22 @@ class polyTypedVariable(treeObject):
         elif(setType == 'dict'):
             for elem in varSet.keys():
                 elemType = type(elem).__name__
-                if(elemType == 'list' or elemType == 'tuple' or elemType == 'dict' or setType == 'polariList'):
+                if(elemType == 'list' or elemType == 'tuple' or elemType == 'dict' or elemType == 'polariList'):
                     tempString = self.extractSetTyping(varSet=elem,typingString=typingString, curDepth = curDepth + 1, maxDepth=maxDepth)
                 else:
                     tempString = elemType
                 tempString += ':'
                 elemType = type(varSet[elem]).__name__
-                if(elemType == 'list' or elemType == 'tuple' or elemType == 'dict' or setType == 'polariList'):
-                    tempString += self.extractSetTyping(varSet=elem,typingString=typingString, curDepth = curDepth + 1, maxDepth=maxDepth)
+                if(elemType == 'list' or elemType == 'tuple' or elemType == 'dict' or elemType == 'polariList'):
+                    tempString += self.extractSetTyping(varSet=varSet[elem],typingString=typingString, curDepth = curDepth + 1, maxDepth=maxDepth)
                 else:
                     tempString += elemType
                 if(not tempString in typingString):
                     tempString += ','
                     typingString += tempString
-        typingString = typingString[:-1]
+        # Remove trailing comma only if elements were added
+        if(typingString.endswith(',')):
+            typingString = typingString[:-1]
         typingString += ')'
         return typingString
 
@@ -164,9 +166,7 @@ class polyTypedVariable(treeObject):
             #Get the number of bytes for more detailed typing.
             valueHolder = variableValue.decode()
             newValueTypingEntry = {"type":"bytearray"}
-        elif(curAttrType == 'dict'):
-            newValueTypingEntry = {"type":"dict"}
-        elif(curAttrType == 'tuple' or curAttrType == 'list' or curAttrType == 'polariList'):
+        elif(curAttrType == 'dict' or curAttrType == 'tuple' or curAttrType == 'list' or curAttrType == 'polariList'):
             newValueTypingEntry = {"type":self.extractSetTyping(varSet=variableValue)}
         elif(inspect.ismethod(variableValue)):
             newValueTypingEntry = {"type":"classmethod(" + variableValue.__name__ + ")"}
