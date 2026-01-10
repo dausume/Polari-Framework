@@ -71,10 +71,11 @@ class polariCRUDE(treeObject):
     #Read in CRUD
     def on_get(self, request, response):
         #Get the authorization data, user data, and potential url parameters, which are both commonly relevant to both cases.
-        print("Starting GET method.")
+        # Verbose request logging - commented out for cleaner output
+        # print("Starting GET method.")
         userAuthInfo = request.auth
-        print("request : ", request)
-        #Create a list of all 
+        # print("request : ", request)
+        #Create a list of all
         (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
         #Check to ensure user has at least some access.
         if(not "R" in accessQueryDict):
@@ -84,8 +85,8 @@ class polariCRUDE(treeObject):
             response.status = falcon.HTTP_405
             raise PermissionError("Read or Get requests do not have access to any variables on this object type.")
         #authUser = request.context.user
-        print("request.context : ", request.context)
-        print("request.query_string : ", request.query_string)
+        # print("request.context : ", request.context)
+        # print("request.query_string : ", request.query_string)
         #TODO Instead of comparing the sets, make functionality to instead create
         #operators to compare the queries and generate a new query based on their
         #differences.  Then just directly get the instances using the retrievable
@@ -107,10 +108,10 @@ class polariCRUDE(treeObject):
         #Returns a list of tuples [([restricted Vars List],[List Of Instances]), dataSetTuple2, ...]
         #dataSetQueriesList = setOperators.segmentDataSetsByPermissions(retrievableInstances, permissionQueryDict)
         #urlParameters = request.query_string
-        print("Got auth, context.user, and queryString data.")
+        # print("Got auth, context.user, and queryString data.")
         jsonObj = {}
         try:
-            print("Requested Instances: ", requestedInstances)
+            # print("Requested Instances: ", requestedInstances)
             if(requestedInstances != {}):
                 #jsonObj[self.apiObject] = self.manager.getJSONdictForClass(passedInstances=retrievableInstances)
                 #For now we just give everything being requested and don't bother with permissions
@@ -134,10 +135,11 @@ class polariCRUDE(treeObject):
 
     #Update in CRUD
     def on_put(self, request, response):
-        print("In Update API execution segment.")
-        print("Request: ", request)
+        # Verbose request logging - commented out for cleaner output
+        # print("In Update API execution segment.")
+        # print("Request: ", request)
         userAuthInfo = request.auth
-        print("request.auth : ", request.auth)
+        # print("request.auth : ", request.auth)
         (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
         #Check to ensure user has at least some access to updates.
         if(not "U" in accessQueryDict):
@@ -324,9 +326,10 @@ class polariCRUDE(treeObject):
         event = ""
         parametersDict = {}
         for someData in data:
-            print("data segment name: ",someData.name)
-            print("data segment content type: ",someData.content_type)
-            print("data segment: ", someData.data)
+            # Verbose data logging - commented out for cleaner output
+            # print("data segment name: ",someData.name)
+            # print("data segment content type: ",someData.content_type)
+            # print("data segment: ", someData.data)
             dataSegment = (someData.data).decode("utf-8")
             #Find if target can be found using passed variable info.
             #If the variables passed in do not resolve to exactly one target,
@@ -360,10 +363,11 @@ class polariCRUDE(treeObject):
         pass
 
     def on_event(self, request, response):
-        print("In Event API execution segment.")
-        print("Request: ", request)
+        # Verbose request logging - commented out for cleaner output
+        # print("In Event API execution segment.")
+        # print("Request: ", request)
         userAuthInfo = request.auth
-        print("request.auth : ", request.auth)
+        # print("request.auth : ", request.auth)
         (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
         #Check to ensure user has at least some access to events.
         if(not "E" in accessQueryDict):
@@ -378,9 +382,10 @@ class polariCRUDE(treeObject):
         event = ""
         parametersDict = {}
         for someData in data:
-            print("data segment name: ",someData.name)
-            print("data segment content type: ",someData.content_type)
-            print("data segment: ", someData.data)
+            # Verbose data logging - commented out for cleaner output
+            # print("data segment name: ",someData.name)
+            # print("data segment content type: ",someData.content_type)
+            # print("data segment: ", someData.data)
             dataSegment = (someData.data).decode("utf-8")
             #Find if target can be found using passed variable info.
             #If the variables passed in do not resolve to exactly one target,

@@ -464,17 +464,18 @@ class polyTypedObject(treeObject):
         #compares the absolute paths of this file and the directory where the class is defined
         #the first character at which the two paths diverge is stored into divIndex
         classFileName = self.polariSourceFile.name
-        print("classFileName")
-        print(classFileName)
+        # Verbose debug logging - commented out for cleaner output
+        # print("classFileName")
+        # print(classFileName)
         classDirPath = self.polariSourceFile.Path
-        print("classDirPath")
-        print(classDirPath)
+        # print("classDirPath")
+        # print(classDirPath)
         classDir = classDirPath
         if(classDirPath.rfind('.') != -1):
             classDirPath = classDirPath[:classDirPath.rfind('.')]
             self.polariSourceFile.Path = classDirPath
-            print("classDirPath after mod")
-            print(classDirPath)
+            # print("classDirPath after mod")
+            # print(classDirPath)
             lastFS_classDirPath = classDirPath.rfind('/')
             lastBS_classDirPath = classDirPath.rfind('\\')
             #Both returned -1 if they are equal, so no slashes were in the string
@@ -486,8 +487,8 @@ class polyTypedObject(treeObject):
             #The last slash detected was a forward slash
             else:
                 classDir = classDirPath[:lastBS_classDirPath]
-        print("classDir refinement one")
-        print(classDir)
+        # print("classDir refinement one")
+        # print(classDir)
         lastFS_classDirPath = classDir.rfind('/')
         lastBS_classDirPath = classDir.rfind('\\')
         #The last slash detected was a forward slash
@@ -496,20 +497,20 @@ class polyTypedObject(treeObject):
         #The last slash detected was a forward slash
         else:
             classDir = classDir[lastBS_classDirPath+1:]
-        print("classDir refinement two")
-        print(classDir)
+        # print("classDir refinement two")
+        # print(classDir)
         className = self.className
-        print("className")
-        print(className)
+        # print("className")
+        # print(className)
         if(classDirPath != None and classFileName != None and className != None):
             polyTypingPath =  (os.path.realpath(__file__))[:os.path.realpath(__file__).rfind('\\')]
-            print("polyTypingPath")
-            print(polyTypingPath)
+            # print("polyTypingPath")
+            # print(polyTypingPath)
             isForwardSlash = None
             sIndex = polyTypingPath.rfind("polariDataTyping") - 1
             polyTypingPath = polyTypingPath[:sIndex]
-            print("polyTypingPath after mod")
-            print(polyTypingPath)
+            # print("polyTypingPath after mod")
+            # print(polyTypingPath)
             if(sIndex == -1):
                 sIndex = polyTypingPath.rfind("/")
             divIndex = 0
@@ -540,16 +541,16 @@ class polyTypedObject(treeObject):
             except:
                 errMsg += " ERROR 2: Got exception at index " + str(charIndex)
                 raise ValueError(errMsg)
-            print("classDirPath - path to current class")
-            print(classDirPath)
+            # print("classDirPath - path to current class")
+            # print(classDirPath)
             polariPackagePath = polyTypingPath[:polyTypingPath.rfind("Polari-Framework") + 16]
             #If the directory is directly inside the Polari-Framework, skip this part and call it directly
-            print("classDir")
-            print(classDir)
+            # print("classDir")
+            # print(classDir)
             #Everything that is not directly defined on the project folder should be analyzed here.
             if(classDir != "objectTreeManagerDecorators" and classDir != "objectTreeDecorators"):
                 relativePath = classDirPath[len(polyTypingPath):]
-                print("relativePath:  " + relativePath)
+                # print("relativePath:  " + relativePath)
                 packageTraversalString = ""
                 packageNameStartIndex = 0
                 packageNameEndIndex = None
@@ -575,7 +576,7 @@ class polyTypedObject(treeObject):
                 absoluteImport = definingPackage+"."+ className
                 moduleImported = importlib.import_module(name=definingPackage)
                 ClassInstantiationMethod = getattr(moduleImported, className)
-                print("instantiation method from package: ", ClassInstantiationMethod)
+                # print("instantiation method from package: ", ClassInstantiationMethod)
                 return ClassInstantiationMethod
             else:
                 #Since the file is in the base/main directory, we import it directly

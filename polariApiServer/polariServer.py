@@ -116,11 +116,16 @@ class polariServer(treeObject):
             objNamesList.append("polariAPI")
         if(not "polariCRUDE" in objNamesList):
             objNamesList.append("polariCRUDE")
+        print("="*70)
+        print("CRUDE ENDPOINTS BEING CREATED:")
         print(objNamesList)
+        print("="*70)
         for objType in objNamesList:
             typingObj = self.manager.objectTypingDict[objType]
             typingObj.runAnalysis()
-            self.crudeObjectsList.append(polariCRUDE(apiObject=objType, polServer=self, manager=self.manager))
+            newCRUDE = polariCRUDE(apiObject=objType, polServer=self, manager=self.manager)
+            self.crudeObjectsList.append(newCRUDE)
+            print(f"✓ Created CRUDE endpoint: {newCRUDE.apiName} for {objType}")
         
         
         #mainChannelURI = self.baseURIprefix + 'channel/' + self.serverChannel.name + '/' + self.baseURIpostfix

@@ -14,14 +14,23 @@ from wsgiref.simple_server import make_server
 from falcon import falcon
 
 if(__name__=='__main__'):
+    print("="*70)
+    print("POLARI BACKEND SERVER STARTING")
+    print("="*70)
+
     #Create a basic manager with a polariServer
     localHostedManagerServer = managerObject(hasServer=True)
 
     # Get backend port from configuration
     hostport = get_backend_port()
 
+    print("\n" + "="*70)
+    print("✓ SERVER READY - All APIs available")
+    print("="*70)
+    print(f"Serving on port {hostport}")
+    print(f"Base API URL: http://localhost:{hostport}/")
+    print("="*70 + "\n")
+
     with make_server('', hostport, localHostedManagerServer.polServer.falconServer) as httpd:
-        print(f'Serving on port {hostport}.....')
-        print('Access base polari api via link -  http://localhost:' + str(hostport) + '/')
         #Serve on localhost until process is killed.
         httpd.serve_forever()

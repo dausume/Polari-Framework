@@ -150,7 +150,8 @@ class polyTypedVariable(treeObject):
         newValueTypingEntry = "NoneType"
         curAttrType = type(variableValue).__name__
         valueHolder = None
-        print("adding elem of type ", curAttrType ," with value: ", variableValue)
+        # Verbose logging - commented out for cleaner output
+        # print("adding elem of type ", curAttrType ," with value: ", variableValue)
         #Handles Cases where particular classes must be converted into a string format.
         if(curAttrType == 'dateTime'):
             #All date-time values occupy the same amount of space in db.
