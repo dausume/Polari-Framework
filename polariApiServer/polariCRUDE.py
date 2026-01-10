@@ -100,6 +100,7 @@ class polariCRUDE(treeObject):
         #Dictionaries on user) in order to analyze which instances requested are able
         #to be returned, in other words it performs 'viewing access'.
         requestedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=accessQueryDict["R"][self.apiObject] )
+
         #allowedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=allowedQuery )
         #retrievableInstances = self.instanceSetIntersection(requestedInstances, retrievableInstances)
         #TODO Add functionality to sort retrievableInstances into different sets

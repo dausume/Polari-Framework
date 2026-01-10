@@ -19,6 +19,8 @@ from polariFiles.dataChannels import *
 from polariFiles.managedFiles import *
 from polariApiServer.polariCRUDE import polariCRUDE
 from polariApiServer.polariAPI import polariAPI
+from polariApiServer.managerObjectAPI import managerObjectAPI
+from polariApiServer.polyTypedObjectAPI import polyTypedObjectAPI
 from accessControl.polariPermissionSet import polariPermissionSet
 from accessControl.polariUserGroup import UserGroup
 from accessControl.polariUser import User
@@ -109,13 +111,26 @@ class polariServer(treeObject):
         #Change over to the official registration, transfer over all instances owned by the current temporary registration
         #to the official one.  Then delete the temporary registration.
         loginAPI = polariAPI(apiName='login', polServer=self, minAccessDict={'E':{"polariServer":"*"}}, minPermissionsDict={'E':{"polariServer":"login"}}, manager=self.manager)
-        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI]
+
+        # Create custom endpoint for managerObject
+        managerObjectEndpoint = managerObjectAPI(polServer=self, manager=self.manager)
+
+        # Create custom endpoint for polyTypedObject
+        polyTypedObjectEndpoint = polyTypedObjectAPI(polServer=self, manager=self.manager)
+
+        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint]
         self.crudeObjectsList = [polariCRUDE(apiObject="polariCRUDE", polServer=self, manager=self.manager)]
         objNamesList = list(self.manager.objectTypingDict)
         if(not "polariAPI" in objNamesList):
             objNamesList.append("polariAPI")
         if(not "polariCRUDE" in objNamesList):
             objNamesList.append("polariCRUDE")
+
+        # Filter out core system objects that shouldn't have CRUDE endpoints
+        # Note: polyTypedObject needs BOTH CRUDE (for frontend services) AND custom API (for typing-info page)
+        excludedFromCRUDE = ["managerObject"]
+        objNamesList = [obj for obj in objNamesList if obj not in excludedFromCRUDE]
+
         print("="*70)
         print("CRUDE ENDPOINTS BEING CREATED:")
         print(objNamesList)
