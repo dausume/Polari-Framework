@@ -85,8 +85,10 @@ ENV LD_LIBRARY_PATH="$FREETYPE_DIR/builds/unix/:$LD_LIBRARY_PATH"
 # This ensures dependency layers are cached and reused
 COPY . /app
 
-# Expose the port that the application listens on
+# Expose HTTP and HTTPS ports
+# HTTP: 3000 (default), HTTPS: 2096 (Cloudflare-compatible)
 EXPOSE $PORT
+EXPOSE 2096
 
 # Run the application
 CMD ["python3", "initLocalhostPolariServer.py"]

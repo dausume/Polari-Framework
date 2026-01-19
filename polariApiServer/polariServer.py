@@ -29,6 +29,53 @@ import falcon
 import secrets
 import subprocess
 
+# Import configuration loader for CORS origins
+try:
+    from config_loader import config
+    CORS_ORIGINS = config.get('api.cors_origins', ['*'])
+    # If it's a string (from env var), split it
+    if isinstance(CORS_ORIGINS, str):
+        CORS_ORIGINS = [o.strip() for o in CORS_ORIGINS.split(',')]
+except ImportError:
+    # Fallback if config_loader not available
+    CORS_ORIGINS = ['*']
+
+
+class CORSMiddleware:
+    """
+    Custom CORS middleware for Falcon.
+    Handles preflight OPTIONS requests and adds CORS headers to responses.
+    """
+    def __init__(self, allow_origins=None, allow_methods=None, allow_headers=None, allow_credentials=True):
+        self.allow_origins = allow_origins or ['*']
+        self.allow_methods = allow_methods or ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
+        self.allow_headers = allow_headers or ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With']
+        self.allow_credentials = allow_credentials
+
+    def process_request(self, req, resp):
+        # Handle preflight OPTIONS requests
+        if req.method == 'OPTIONS':
+            resp.complete = True
+
+    def process_response(self, req, resp, resource, req_succeeded):
+        origin = req.get_header('Origin')
+
+        # Check if origin is allowed
+        if origin:
+            if '*' in self.allow_origins or origin in self.allow_origins:
+                resp.set_header('Access-Control-Allow-Origin', origin)
+            elif self.allow_origins == ['*']:
+                resp.set_header('Access-Control-Allow-Origin', '*')
+
+        resp.set_header('Access-Control-Allow-Methods', ', '.join(self.allow_methods))
+        resp.set_header('Access-Control-Allow-Headers', ', '.join(self.allow_headers))
+
+        if self.allow_credentials:
+            resp.set_header('Access-Control-Allow-Credentials', 'true')
+
+        # Handle max age for preflight caching
+        resp.set_header('Access-Control-Max-Age', '86400')
+
 class apiError(Exception):
     @staticmethod
     async def handle(ex, req, resp, params):
@@ -58,7 +105,9 @@ class polariServer(treeObject):
         self.passwordRequirements = {"min-length":8, "max-length":24, "min-special-chars":1, "min-nums":2}
         self.publicFrontendKey = None
         self.privateFrontendKey = None
-        self.falconServer = falcon.App(cors_enable=True)
+        # Configure CORS with allowed origins from config
+        cors_middleware = CORSMiddleware(allow_origins=CORS_ORIGINS, allow_credentials=True)
+        self.falconServer = falcon.App(middleware=[cors_middleware])
         self.active = False
         #Defines endpoints or mapping to remote endpoints which allow for CRUD access to all objects of the server's manager as well as it's subordinate manager objects.
         managerIdTuple = self.manager.getInstanceIdentifiers(self.manager)

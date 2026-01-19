@@ -23,6 +23,14 @@ shared:
     url: localhost
     port_local: 4200
     port_container: 4200
+    https_port: 2087  # Cloudflare-compatible HTTPS port
+
+  # SSL/TLS configuration for dev mode
+  ssl:
+    enabled: true  # Set to false to disable HTTPS
+    cert_path: /app/certs/prf-proxy.crt
+    key_path: /app/certs/prf-proxy.key
+    https_port: 2096  # Backend HTTPS port (Cloudflare-compatible)
 
 # ==============================================================================
 # DOCKERFILE-SPECIFIC CONFIGURATION
@@ -70,6 +78,13 @@ application:
     host: "0.0.0.0"
     enable_cors: true
     max_request_size: 10485760  # 10MB
+    # CORS allowed origins - includes suite mode and bare metal ports
+    cors_origins:
+      - "http://localhost:4201"      # Bare metal HTTP
+      - "https://localhost:4201"     # Bare metal HTTPS
+      - "http://localhost:4200"      # Alternate bare metal
+      - "https://localhost:4200"     # Alternate bare metal HTTPS
+      - "https://localhost:2087"     # Suite mode (via pol-dev-proxy)
 
   # Logging configuration
   logging:
