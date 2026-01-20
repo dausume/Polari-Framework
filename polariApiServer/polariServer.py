@@ -21,6 +21,7 @@ from polariApiServer.polariCRUDE import polariCRUDE
 from polariApiServer.polariAPI import polariAPI
 from polariApiServer.managerObjectAPI import managerObjectAPI
 from polariApiServer.polyTypedObjectAPI import polyTypedObjectAPI
+from polariApiServer.classInstanceCountsAPI import classInstanceCountsAPI
 from accessControl.polariPermissionSet import polariPermissionSet
 from accessControl.polariUserGroup import UserGroup
 from accessControl.polariUser import User
@@ -167,7 +168,10 @@ class polariServer(treeObject):
         # Create custom endpoint for polyTypedObject
         polyTypedObjectEndpoint = polyTypedObjectAPI(polServer=self, manager=self.manager)
 
-        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint]
+        # Create custom endpoint for class instance counts (used/unused classes)
+        classInstanceCountsEndpoint = classInstanceCountsAPI(polServer=self, manager=self.manager)
+
+        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint]
         self.crudeObjectsList = [polariCRUDE(apiObject="polariCRUDE", polServer=self, manager=self.manager)]
         objNamesList = list(self.manager.objectTypingDict)
         if(not "polariAPI" in objNamesList):

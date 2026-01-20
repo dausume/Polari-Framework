@@ -136,7 +136,13 @@ environments:
       logging:
         level: WARNING
       api:
-        enable_cors: false
+        enable_cors: true
+        # Production CORS origins - the frontend domains that can access this API
+        cors_origins:
+          - "https://prf.polari-systems.org"        # PRF Frontend (production)
+          - "https://www.prf.polari-systems.org"    # PRF Frontend (www variant)
+          - "https://polari-systems.org"            # Main domain
+          - "https://www.polari-systems.org"        # Main domain (www variant)
       security:
         session_timeout: 1800  # 30 minutes
 
