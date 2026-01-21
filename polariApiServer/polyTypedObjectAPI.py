@@ -41,10 +41,13 @@ class polyTypedObjectAPI(treeObject):
                         for var in typingObj.polyTypedVars:
                             varInfo = {
                                 "name": getattr(var, 'name', 'unknown'),
+                                "pythonTypeDefault": getattr(var, 'pythonTypeDefault', 'str'),
+                                "displayName": getattr(var, 'displayName', getattr(var, 'name', 'unknown')),
                                 "recordedTypes": list(getattr(var, 'recordedTypes', set())),
                                 "recordedFormats": list(getattr(var, 'recordedFormats', set())),
                                 "isPrimary": getattr(var, 'isPrimary', False),
-                                "isIdentifier": getattr(var, 'isIdentifier', False)
+                                "isIdentifier": getattr(var, 'isIdentifier', False),
+                                "isUnique": getattr(var, 'isUnique', False)
                             }
                             varData.append(varInfo)
 

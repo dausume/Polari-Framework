@@ -506,6 +506,13 @@ class managerObject:
             raise ValueError(errMsg)
         print("PolyTyping for object type ", className, " is found on PolyTyping instance ", correctObjectTyping)
         print("The object Typing\'s polariSourceFile is ", correctObjectTyping.polariSourceFile)
+        # Handle dynamic classes that don't have source files
+        if correctObjectTyping.polariSourceFile is None:
+            print("Dynamic class detected - no source file")
+            returnDict['absDirPath'] = None
+            returnDict['definingFile'] = None
+            returnDict['isDynamic'] = True
+            return returnDict
         print("The executable object\'s file name is ", correctObjectTyping.polariSourceFile.name)
         print("The executable object\'s path is ", correctObjectTyping.polariSourceFile.Path)
         returnDict['absDirPath'] = correctObjectTyping.polariSourceFile.Path
@@ -520,22 +527,30 @@ class managerObject:
 
     #Gets all data for a class and returns a Dictionary which is convertable to a json object.
     def getJSONdictForClass(self, passedInstances, varsLimited=[]):
-        print("Attempting to call passedInstances validation, passedInstances:", passedInstances, " and varsLimited: ", varsLimited)
-        if(type(passedInstances).__name__ == "dict"):
-            passedInstances = list(passedInstances.values())
-        if(len(passedInstances) > 0):
-            objSourceDetailsDict = self.getObjectSourceDetailsANDvalidateInstances(passedInstances=passedInstances)
-            #Path to the Directory the file is in.
-            absDirPath = objSourceDetailsDict['absDirPath']
-            #The name of the file which contains the given class.
-            definingFile = objSourceDetailsDict['definingFile']
-            #The name of the class being retrieved.
-            className = objSourceDetailsDict['className']
-        else:
-            objSourceDetailsDict = {}
-        #
-        varsLimited = varsLimited
-        print("Successfully extracted details.")
+        print("[getJSONdictForClass] START - passedInstances:", passedInstances, " varsLimited: ", varsLimited)
+        try:
+            if(type(passedInstances).__name__ == "dict"):
+                passedInstances = list(passedInstances.values())
+            print("[getJSONdictForClass] After dict conversion, passedInstances length:", len(passedInstances))
+            if(len(passedInstances) > 0):
+                objSourceDetailsDict = self.getObjectSourceDetailsANDvalidateInstances(passedInstances=passedInstances)
+                print("[getJSONdictForClass] objSourceDetailsDict:", objSourceDetailsDict)
+                #Path to the Directory the file is in.
+                absDirPath = objSourceDetailsDict.get('absDirPath')
+                #The name of the file which contains the given class.
+                definingFile = objSourceDetailsDict.get('definingFile')
+                #The name of the class being retrieved.
+                className = objSourceDetailsDict.get('className')
+            else:
+                objSourceDetailsDict = {}
+            #
+            varsLimited = varsLimited
+            print("[getJSONdictForClass] Successfully extracted details.")
+        except Exception as e:
+            print("[getJSONdictForClass] ERROR in initial processing:", str(e))
+            import traceback
+            traceback.print_exc()
+            raise
         #If an instance or list of instances of the same type are passed, grabs the class name.
         if(passedInstances!=None):
             if(isinstance(passedInstances, list)):

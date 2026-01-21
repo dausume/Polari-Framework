@@ -43,6 +43,8 @@ class polyTypedObject(treeObject):
         #The list of objects that have variables which reference this object, either as a single
         #instance, or as a list of the instances.
         self.objectReferencesDict = objectReferencesDict
+        #Store the class definition for dynamic classes that don't have source files
+        self.classDefinition = classDefinition
         if(sampleInstances != []):
             paramsSample =  signature(sampleInstances[0].__class__.__init__)
             self.kwRequiredParams = []
@@ -57,7 +59,12 @@ class polyTypedObject(treeObject):
             paramsSample =  signature(classDefinition.__init__)
             self.kwRequiredParams = []
             self.kwDefaultParams = []
+            # Parameters to skip (not actual init parameters)
+            skip_params = {'self', 'args', 'kwargs', 'manager', 'branch', 'id', 'inTree'}
             for keywordParam, kwWithvalue in paramsSample.parameters.items():
+                # Skip special parameters
+                if str(keywordParam) in skip_params:
+                    continue
                 if(str(kwWithvalue).find("=") != -1):
                     self.kwDefaultParams.append(str(keywordParam))
                 else:
@@ -461,6 +468,9 @@ class polyTypedObject(treeObject):
             + ' with the name ' + (self.manager).name)
 
     def getCreateMethod(self, returnTupWithParams=False):
+        # Handle dynamic classes that have classDefinition but no source file
+        if self.classDefinition is not None and self.polariSourceFile is None:
+            return self.classDefinition
         #compares the absolute paths of this file and the directory where the class is defined
         #the first character at which the two paths diverge is stored into divIndex
         classFileName = self.polariSourceFile.name

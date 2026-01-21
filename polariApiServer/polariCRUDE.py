@@ -202,6 +202,7 @@ class polariCRUDE(treeObject):
 
     #Create object instances in CRUDE
     def on_post(self, request, response):
+        print(f"[polariCRUDE] ========== POST request for {self.apiObject} ==========")
         userAuthInfo = request.auth
         #authUser = request.context.user
         urlParameters = request.query_string
@@ -209,9 +210,11 @@ class polariCRUDE(treeObject):
         data = request.get_media()
         dataSets = []
         dataSet = {}
+        print(f"[polariCRUDE] Processing multipart data...")
         for someData in data:
-            print("content type: ",someData.content_type)
+            print(f"[polariCRUDE] Field name: {someData.name}, content type: {someData.content_type}")
             dataSegment = (someData.data).decode("utf-8")
+            print(f"[polariCRUDE] Field value: {dataSegment}")
             #THE FOLLOWING IS AN EXAMPLE DATASET, where 'attachmentPoints' resolves to a
             #specific set of variables attached to specific instances and 'initParamSets'
             #is a list of keyword parameters which will be passed into the __init__ function
@@ -238,12 +241,17 @@ class polariCRUDE(treeObject):
                 dataSets = json.loads(dataSegment)
         if(dataSet != {}):
             dataSets.append(dataSet)
+        print(f"[polariCRUDE] Final dataSets to process: {dataSets}")
+        print(f"[polariCRUDE] CreateRequiredParameters: {self.CreateRequiredParameters}")
+        print(f"[polariCRUDE] CreateDefaultParameters: {self.CreateDefaultParameters}")
         allowedUpdatesAccessDict = {}
         allowedUpdatesPermissionsDict = {}
         tempInstancesList = []
         for someDataSet in dataSets:
             #Take given json entries and create a list of temporary instances from it.
+            print(f"[polariCRUDE] Processing dataSet: {someDataSet}")
             for newInst in someDataSet["initParamSets"]:
+                print(f"[polariCRUDE] Creating instance with params: {newInst}")
                 #Use the __init__ funtion for this api's object to create new instances using variables passed.
                 #Add the new instances to the list of temporary instances.
                 #After all instances are created we will run a query operation on them to ensure the user
@@ -273,7 +281,15 @@ class polariCRUDE(treeObject):
                 else:
                     #We assume the manager is the same one hosting the server since
                     #the instance create request is not specified for another manager.
-                    tempInstancesList.append(self.CreateMethod(**newInst, manager=self.manager))
+                    print(f"[polariCRUDE] Calling CreateMethod with: {newInst}")
+                    print(f"[polariCRUDE] CreateMethod reference: {self.CreateMethod}")
+                    newInstance = self.CreateMethod(**newInst, manager=self.manager)
+                    print(f"[polariCRUDE] Created instance: {newInstance}")
+                    print(f"[polariCRUDE] Instance __dict__: {newInstance.__dict__ if hasattr(newInstance, '__dict__') else 'no __dict__'}")
+                    tempInstancesList.append(newInstance)
+            # attachmentPoints is optional - only process if provided
+            if "attachmentPoints" not in someDataSet:
+                continue
             varSpec = someDataSet["attachmentPoints"]["varSpecification"][0]
             for objName in varSpec.keys():
                 objVars = varSpec[objName]
@@ -306,8 +322,22 @@ class polariCRUDE(treeObject):
                                 attrRef = tempInstancesList[0]
                         else:
                             raise ValueError("Passed a dataSet that did not create any instances.")
-    #With all validation of permissions complete and queries resolved, we go through
-    #the attachment points and place each instance followed by setting it's manager.
+        #With all validation of permissions complete and queries resolved, we return the created instances
+        #Return the created instances in the response
+        if tempInstancesList:
+            response.status = falcon.HTTP_201
+            responseData = self.manager.getJSONdictForClass(passedInstances=tempInstancesList)
+            print(f"[polariCRUDE] Response data from getJSONdictForClass: {responseData}")
+            response.media = {
+                self.apiObject: responseData
+            }
+            print(f"[polariCRUDE] Created {len(tempInstancesList)} instance(s) of {self.apiObject}")
+            print(f"[polariCRUDE] ========== POST complete ==========")
+        else:
+            response.status = falcon.HTTP_200
+            response.media = {self.apiObject: {}}
+            print(f"[polariCRUDE] No instances created")
+            print(f"[polariCRUDE] ========== POST complete (empty) ==========")
 
 
     def on_post_collection(self, request, response):
