@@ -26,7 +26,7 @@ import logging, os, sys, importlib
 #transmitting data across environments and into other programming language contexts.
 class polyTypedObject(treeObject):
     @treeObjectInit
-    def __init__(self, className, manager, objectReferencesDict={}, sourceFiles=[], identifierVariables=[], variableNameList=[], baseAccessDict={}, basePermDict={}, classDefinition=None, sampleInstances=[], kwRequiredParams=[], kwDefaultParams={}):
+    def __init__(self, className, manager, objectReferencesDict={}, sourceFiles=[], identifierVariables=[], variableNameList=[], baseAccessDict={}, basePermDict={}, classDefinition=None, sampleInstances=[], kwRequiredParams=[], kwDefaultParams={}, allowClassEdit=False, isStateSpaceObject=False, excludeFromCRUDE=True):
         self.isTreeObject = None
         self.isManagerObject = None
         self.className = className
@@ -118,6 +118,21 @@ class polyTypedObject(treeObject):
         #
         self.baseAccessDictionary = {}
         self.basePermissionDictionary = {}
+        # Configuration flags for controlling class behavior in the Polari framework.
+        # DEFAULTS ARE SET TO PROTECT CORE FRAMEWORK OBJECTS:
+        # - Baseline/core objects should NOT be editable or have public CRUDE endpoints
+        # - Only classes explicitly created via the /createClass API should be fully accessible
+        #
+        # Whether this class definition can be edited via the API (e.g., adding/removing variables)
+        # Default: False - Core framework classes should only be modified through code/custom endpoints
+        self.allowClassEdit = allowClassEdit
+        # Whether instances of this class are available as State-Space (No-Code) objects
+        # Default: False - Core framework classes are not exposed in No-Code environments
+        self.isStateSpaceObject = isStateSpaceObject
+        # Whether to exclude this class from automatic CRUDE API registration
+        # Default: True - Core framework objects should use custom endpoints to prevent runtime issues
+        # Dynamic classes created via API explicitly set this to False to enable CRUDE access
+        self.excludeFromCRUDE = excludeFromCRUDE
 
     #Go through each instance and analyze it.
     def runAnalysis(self):

@@ -156,6 +156,10 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                 identifiers.append(var['varName'])
 
         # Create polyTypedObject for the new class
+        # Dynamically created classes have different defaults than core framework objects:
+        # - allowClassEdit=True: Users can modify the class definition via API
+        # - isStateSpaceObject=True: Available in No-Code State-Space by default
+        # - excludeFromCRUDE=False: Should have public CRUDE endpoints
         newTyping = polyTypedObject(
             className=className,
             manager=self.manager,
@@ -164,7 +168,10 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             objectReferencesDict={},
             classDefinition=DynamicClass,
             kwRequiredParams=[],
-            kwDefaultParams=list(var_defaults.keys())
+            kwDefaultParams=list(var_defaults.keys()),
+            allowClassEdit=True,
+            isStateSpaceObject=True,
+            excludeFromCRUDE=False
         )
 
         # Populate polyTypedVars from the frontend variable definitions

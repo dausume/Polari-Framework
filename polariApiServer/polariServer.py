@@ -417,10 +417,19 @@ class polariServer(treeObject):
             objType: The class name (string) of the object type to register
 
         Returns:
-            The polariCRUDE instance that was created
+            The polariCRUDE instance that was created, or None if excludeFromCRUDE is True
         """
         if objType not in self.manager.objectTypingDict:
             raise ValueError(f"Object type '{objType}' not found in manager.objectTypingDict. Register the object type first using manager.getObjectTyping().")
+
+        # Get typing object to check configuration flags
+        typingObj = self.manager.objectTypingDict[objType]
+
+        # Check if this object type should be excluded from CRUDE API
+        # Core framework objects may set this to True to prevent runtime issues
+        if hasattr(typingObj, 'excludeFromCRUDE') and typingObj.excludeFromCRUDE:
+            print(f"Object type '{objType}' has excludeFromCRUDE=True, skipping CRUDE endpoint registration")
+            return None
 
         # Check if CRUDE endpoint already exists for this type
         for crude in self.crudeObjectsList:
@@ -428,8 +437,7 @@ class polariServer(treeObject):
                 print(f"CRUDE endpoint for '{objType}' already exists at {crude.apiName}")
                 return crude
 
-        # Get typing object and run analysis
-        typingObj = self.manager.objectTypingDict[objType]
+        # Run analysis on the typing object
         typingObj.runAnalysis()
 
         # Create new CRUDE endpoint

@@ -62,7 +62,18 @@ class polyTypedObjectAPI(treeObject):
                             "python": getattr(typingObj, 'perInstanceDataCostDictPython', {}),
                             "db": getattr(typingObj, 'perInstanceDataCostDictDB', {})
                         },
-                        "objectReferences": getattr(typingObj, 'objectReferencesDict', {})
+                        "objectReferences": getattr(typingObj, 'objectReferencesDict', {}),
+                        # Class configuration flags for UI behavior control
+                        "config": {
+                            # Whether the class definition can be edited via API (add/remove variables, rename)
+                            "allowClassEdit": getattr(typingObj, 'allowClassEdit', False),
+                            # Whether this class is available in No-Code State-Space environments
+                            "isStateSpaceObject": getattr(typingObj, 'isStateSpaceObject', False),
+                            # Whether this class has CRUDE API endpoints (False = has endpoints, True = excluded)
+                            "excludeFromCRUDE": getattr(typingObj, 'excludeFromCRUDE', True),
+                            # Whether this is a dynamically created class (vs core framework class)
+                            "isDynamicClass": getattr(typingObj.classDefinition, '_dynamicClass', False) if typingObj.classDefinition else False
+                        }
                     }
 
             # Match the standard CRUDE response format: [{ "className": { instances } }]

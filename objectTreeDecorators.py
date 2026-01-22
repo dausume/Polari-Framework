@@ -17,6 +17,14 @@ from functools import wraps
 from polariDataTyping.polariList import *
 import types, inspect, base64
 
+# Internal variables that are part of the treeObject framework itself, not user-defined data.
+# These should be excluded from API responses as they are "language-level" infrastructure,
+# not the data being modeled. Also includes any object reference variables that could
+# cause circular serialization issues.
+# NOTE: 'id' is intentionally NOT excluded - it's the instance identifier that clients need
+# for update/delete operations!
+TREE_OBJECT_INTERNAL_VARS = frozenset({'manager', 'branch', 'inTree'})
+
 
 def treeObjectInit(init):
     #Note: For objects instantiated using this Decorator, MUST USER KEYWORD ARGUMENTS NOT POSITIONAL, EX: (manager=mngObj, id='base64Id')

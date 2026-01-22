@@ -13,7 +13,8 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from functools import wraps
-from polariDataTyping.polyTyping import * 
+from polariDataTyping.polyTyping import *
+from objectTreeDecorators import TREE_OBJECT_INTERNAL_VARS
 from polariFiles.managedFiles import *
 from polariFiles.managedExecutables import *
 from polariNetworking.defineLocalSys import isoSys
@@ -528,6 +529,10 @@ class managerObject:
     #Gets all data for a class and returns a Dictionary which is convertable to a json object.
     def getJSONdictForClass(self, passedInstances, varsLimited=[]):
         print("[getJSONdictForClass] START - passedInstances:", passedInstances, " varsLimited: ", varsLimited)
+        # Automatically exclude internal treeObject variables from API responses.
+        # These are framework infrastructure variables, not user-defined data.
+        # Merge any explicitly limited vars with the internal vars set.
+        varsLimited = set(varsLimited) | TREE_OBJECT_INTERNAL_VARS
         try:
             if(type(passedInstances).__name__ == "dict"):
                 passedInstances = list(passedInstances.values())
@@ -544,7 +549,7 @@ class managerObject:
             else:
                 objSourceDetailsDict = {}
             #
-            varsLimited = varsLimited
+            # varsLimited is already set above with internal vars merged
             print("[getJSONdictForClass] Successfully extracted details.")
         except Exception as e:
             print("[getJSONdictForClass] ERROR in initial processing:", str(e))
@@ -566,7 +571,8 @@ class managerObject:
             {
                 "class":className,
                 #A list of variables which will be excluded from data transmitted for each instance.
-                "varsLimited":varsLimited,
+                # Convert set to list for JSON serialization
+                "varsLimited":list(varsLimited),
                 "data":[
                     #Left empty so that instance data can be entered
                 ]
@@ -884,6 +890,12 @@ class managerObject:
         remainingInstances = remainingInstancesDict
         eliminatedInstances = {}
         for someAttribute in attributeQueryDict:
+            # Handle simple value format: {"id": "someValue"} -> treat as EQUALS
+            # This allows frontend to use simplified query format
+            attrValue = attributeQueryDict[someAttribute]
+            if isinstance(attrValue, str):
+                # Convert simple string value to EQUALS format
+                attributeQueryDict[someAttribute] = {"EQUALS": attrValue}
             if("EQUALS" in attributeQueryDict[someAttribute]):
                 querySegment = attributeQueryDict[someAttribute]["EQUALS"]
                 querySegmentTyping = type(querySegment).__name__
