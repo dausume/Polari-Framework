@@ -23,6 +23,7 @@ from polariApiServer.managerObjectAPI import managerObjectAPI
 from polariApiServer.polyTypedObjectAPI import polyTypedObjectAPI
 from polariApiServer.classInstanceCountsAPI import classInstanceCountsAPI
 from polariApiServer.createClassAPI import createClassAPI
+from polariApiServer.stateSpaceAPI import StateSpaceClassesAPI, StateSpaceConfigAPI, StateDefinitionAPI
 from accessControl.polariPermissionSet import polariPermissionSet
 from accessControl.polariUserGroup import UserGroup
 from accessControl.polariUser import User
@@ -175,7 +176,12 @@ class polariServer(treeObject):
         # Create custom endpoint for dynamic class creation
         createClassEndpoint = createClassAPI(polServer=self, manager=self.manager)
 
-        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint]
+        # Create state-space API endpoints for no-code system
+        stateSpaceClassesEndpoint = StateSpaceClassesAPI(polServer=self, manager=self.manager)
+        stateSpaceConfigEndpoint = StateSpaceConfigAPI(polServer=self, manager=self.manager)
+        stateDefinitionEndpoint = StateDefinitionAPI(polServer=self, manager=self.manager)
+
+        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint]
         self.crudeObjectsList = [polariCRUDE(apiObject="polariCRUDE", polServer=self, manager=self.manager)]
         objNamesList = list(self.manager.objectTypingDict)
         if(not "polariAPI" in objNamesList):

@@ -134,6 +134,70 @@ class polyTypedObject(treeObject):
         # Dynamic classes created via API explicitly set this to False to enable CRUDE access
         self.excludeFromCRUDE = excludeFromCRUDE
 
+        # State-Space Configuration (only relevant if isStateSpaceObject is True)
+        # List of methods marked with @stateSpaceEvent decorator
+        self.stateSpaceEventMethods = []
+        # Which fields should be displayed in the state UI (list of variable names)
+        self.stateSpaceDisplayFields = []
+        # Layout configuration for state display: {'fieldName': {'row': 0, 'visible': True}}
+        self.stateSpaceFieldLayout = {}
+        # Default number of fields per row in state display (1 or 2)
+        self.stateSpaceFieldsPerRow = 1
+
+        # If class definition exists and is marked as state-space, extract event methods
+        if classDefinition and isStateSpaceObject:
+            self._extractStateSpaceEvents(classDefinition)
+
+    def _extractStateSpaceEvents(self, classDefinition):
+        """
+        Extract state-space event methods from the class definition.
+        Populates self.stateSpaceEventMethods with metadata from @stateSpaceEvent decorated methods.
+        """
+        try:
+            from polariDataTyping.stateSpaceDecorators import get_state_space_events
+            self.stateSpaceEventMethods = get_state_space_events(classDefinition)
+        except ImportError:
+            print(f"Warning: Could not import stateSpaceDecorators for class {self.className}")
+            self.stateSpaceEventMethods = []
+        except Exception as e:
+            print(f"Warning: Error extracting state-space events for {self.className}: {e}")
+            self.stateSpaceEventMethods = []
+
+    def setStateSpaceDisplayFields(self, fieldNames: list, fieldsPerRow: int = 1):
+        """
+        Configure which fields to display in the state UI and how.
+
+        Args:
+            fieldNames: List of variable names to display
+            fieldsPerRow: Number of fields per row (1 or 2)
+        """
+        self.stateSpaceDisplayFields = fieldNames
+        self.stateSpaceFieldsPerRow = max(1, min(2, fieldsPerRow))  # Clamp to 1 or 2
+
+        # Generate default layout
+        for i, fieldName in enumerate(fieldNames):
+            self.stateSpaceFieldLayout[fieldName] = {
+                'row': i // self.stateSpaceFieldsPerRow,
+                'visible': True
+            }
+
+    def getStateSpaceConfig(self) -> dict:
+        """
+        Get the complete state-space configuration for this class.
+
+        Returns:
+            Dictionary with state-space configuration
+        """
+        return {
+            'className': self.className,
+            'isStateSpaceObject': self.isStateSpaceObject,
+            'eventMethods': self.stateSpaceEventMethods,
+            'displayFields': self.stateSpaceDisplayFields,
+            'fieldLayout': self.stateSpaceFieldLayout,
+            'fieldsPerRow': self.stateSpaceFieldsPerRow,
+            'variables': [v.varName for v in self.polyTypedVars] if self.polyTypedVars else self.variableNameList
+        }
+
     #Go through each instance and analyze it.
     def runAnalysis(self):
         allInstances = self.manager.getListOfClassInstances(self.className)

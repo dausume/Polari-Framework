@@ -51,6 +51,10 @@ class createClassAPI(treeObject):
             displayName = class_def.get('classDisplayName', className)
             variables = class_def.get('variables', [])
             registerCRUDE = class_def.get('registerCRUDE', True)
+            # State-space configuration
+            isStateSpaceObject = class_def.get('isStateSpaceObject', True)  # Default to True for dynamic classes
+            stateSpaceDisplayFields = class_def.get('stateSpaceDisplayFields', [])
+            stateSpaceFieldsPerRow = class_def.get('stateSpaceFieldsPerRow', 1)
 
             # Validate className format (PascalCase, alphanumeric)
             if not className[0].isupper():
@@ -74,7 +78,10 @@ class createClassAPI(treeObject):
                 className=className,
                 displayName=displayName,
                 variables=variables,
-                registerCRUDE=registerCRUDE
+                registerCRUDE=registerCRUDE,
+                isStateSpaceObject=isStateSpaceObject,
+                stateSpaceDisplayFields=stateSpaceDisplayFields,
+                stateSpaceFieldsPerRow=stateSpaceFieldsPerRow
             )
 
             response.status = falcon.HTTP_201
@@ -84,7 +91,8 @@ class createClassAPI(treeObject):
                 'displayName': displayName,
                 'apiEndpoint': f'/{className}',
                 'crudeRegistered': registerCRUDE,
-                'variableCount': len(variables)
+                'variableCount': len(variables),
+                'isStateSpaceObject': isStateSpaceObject
             }
 
         except json.JSONDecodeError:
@@ -98,9 +106,19 @@ class createClassAPI(treeObject):
 
         response.set_header('Powered-By', 'Polari')
 
-    def _createDynamicClass(self, className, displayName, variables, registerCRUDE):
+    def _createDynamicClass(self, className, displayName, variables, registerCRUDE,
+                            isStateSpaceObject=True, stateSpaceDisplayFields=None, stateSpaceFieldsPerRow=1):
         """
         Dynamically creates a new Python class and registers it with the Polari framework.
+
+        Args:
+            className: Name of the class to create
+            displayName: Human-readable display name
+            variables: List of variable definitions
+            registerCRUDE: Whether to register CRUDE endpoints
+            isStateSpaceObject: Whether this class can be used in no-code state-space
+            stateSpaceDisplayFields: Which fields to display in state UI
+            stateSpaceFieldsPerRow: Number of fields per row in state display (1 or 2)
         """
         # Build variable names and defaults
         var_defaults = {}
@@ -158,7 +176,7 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
         # Create polyTypedObject for the new class
         # Dynamically created classes have different defaults than core framework objects:
         # - allowClassEdit=True: Users can modify the class definition via API
-        # - isStateSpaceObject=True: Available in No-Code State-Space by default
+        # - isStateSpaceObject: User-configurable, defaults to True
         # - excludeFromCRUDE=False: Should have public CRUDE endpoints
         newTyping = polyTypedObject(
             className=className,
@@ -170,9 +188,17 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             kwRequiredParams=[],
             kwDefaultParams=list(var_defaults.keys()),
             allowClassEdit=True,
-            isStateSpaceObject=True,
+            isStateSpaceObject=isStateSpaceObject,
             excludeFromCRUDE=False
         )
+
+        # Configure state-space display fields if this is a state-space object
+        if isStateSpaceObject and stateSpaceDisplayFields:
+            newTyping.setStateSpaceDisplayFields(stateSpaceDisplayFields, stateSpaceFieldsPerRow)
+        elif isStateSpaceObject:
+            # Default: show all variables
+            all_var_names = [v.get('varName') for v in variables if v.get('varName')]
+            newTyping.setStateSpaceDisplayFields(all_var_names, stateSpaceFieldsPerRow)
 
         # Populate polyTypedVars from the frontend variable definitions
         # This ensures typing metadata is available even before any instances exist
