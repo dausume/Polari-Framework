@@ -24,6 +24,20 @@ from polariApiServer.polyTypedObjectAPI import polyTypedObjectAPI
 from polariApiServer.classInstanceCountsAPI import classInstanceCountsAPI
 from polariApiServer.createClassAPI import createClassAPI
 from polariApiServer.stateSpaceAPI import StateSpaceClassesAPI, StateSpaceConfigAPI, StateDefinitionAPI
+from polariApiProfiler.apiProfilerAPI import (
+    APIProfilerQueryAPI,
+    APIProfilerMatchAPI,
+    APIProfilerBuildAPI,
+    APIProfilerCreateClassAPI,
+    APIProfilerTemplatesAPI,
+    APIProfilerDetectTypesAPI,
+    APIDomainAPI,
+    APIEndpointAPI,
+    APIEndpointFetchAPI
+)
+from polariApiProfiler.apiProfile import APIProfile
+from polariApiProfiler.apiDomain import APIDomain
+from polariApiProfiler.apiEndpoint import APIEndpoint
 from accessControl.polariPermissionSet import polariPermissionSet
 from accessControl.polariUserGroup import UserGroup
 from accessControl.polariUser import User
@@ -181,7 +195,25 @@ class polariServer(treeObject):
         stateSpaceConfigEndpoint = StateSpaceConfigAPI(polServer=self, manager=self.manager)
         stateDefinitionEndpoint = StateDefinitionAPI(polServer=self, manager=self.manager)
 
-        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint]
+        # Create API Profiler endpoints
+        apiProfilerQueryEndpoint = APIProfilerQueryAPI(polServer=self, manager=self.manager)
+        apiProfilerMatchEndpoint = APIProfilerMatchAPI(polServer=self, manager=self.manager)
+        apiProfilerBuildEndpoint = APIProfilerBuildAPI(polServer=self, manager=self.manager)
+        apiProfilerCreateClassEndpoint = APIProfilerCreateClassAPI(polServer=self, manager=self.manager)
+        apiProfilerTemplatesEndpoint = APIProfilerTemplatesAPI(polServer=self, manager=self.manager)
+        apiProfilerDetectTypesEndpoint = APIProfilerDetectTypesAPI(polServer=self, manager=self.manager)
+
+        # Create API Domain and Endpoint management endpoints
+        apiDomainEndpoint = APIDomainAPI(polServer=self, manager=self.manager)
+        apiEndpointEndpoint = APIEndpointAPI(polServer=self, manager=self.manager)
+        apiEndpointFetchEndpoint = APIEndpointFetchAPI(polServer=self, manager=self.manager)
+
+        # Register APIProfile, APIDomain, and APIEndpoint types for CRUDE operations
+        self.manager.getObjectTyping(classObj=APIProfile)
+        self.manager.getObjectTyping(classObj=APIDomain)
+        self.manager.getObjectTyping(classObj=APIEndpoint)
+
+        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint, apiProfilerQueryEndpoint, apiProfilerMatchEndpoint, apiProfilerBuildEndpoint, apiProfilerCreateClassEndpoint, apiProfilerTemplatesEndpoint, apiProfilerDetectTypesEndpoint, apiDomainEndpoint, apiEndpointEndpoint, apiEndpointFetchEndpoint]
         self.crudeObjectsList = [polariCRUDE(apiObject="polariCRUDE", polServer=self, manager=self.manager)]
         objNamesList = list(self.manager.objectTypingDict)
         if(not "polariAPI" in objNamesList):

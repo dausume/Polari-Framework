@@ -19,7 +19,9 @@ pycparser==2.21
 pyparsing==3.0.9
 python-dateutil==2.8.2
 PyYAML==6.0.1
+requests==2.31.0
 setuptools==69.2.0
 six==1.16.0
 svgwrite==1.4.3
+urllib3==2.1.0
 virtualenv==20.17.1
