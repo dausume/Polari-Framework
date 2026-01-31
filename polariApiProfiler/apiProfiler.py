@@ -388,7 +388,10 @@ class APIProfiler(treeObject):
         """
         display_name = display_name or profile_name
 
-        # Normalize to list for consistent handling
+        # Build field and type signatures using recursive analysis
+        field_signatures, type_signatures = self._analyze_structure_recursive(response_data)
+
+        # Normalize to list for consistent handling of top-level data
         samples = response_data if isinstance(response_data, list) else [response_data]
 
         # Filter to only dict samples (JSON objects)
@@ -397,12 +400,11 @@ class APIProfiler(treeObject):
         if not dict_samples:
             raise ValueError("No valid object samples found in response data")
 
-        # Collect all field names across samples
-        all_fields = set()
-        for sample in dict_samples:
-            all_fields.update(sample.keys())
-
-        field_signatures = sorted(list(all_fields))
+        # Get field names for class creation (from level 0 for objects, level 1 for arrays)
+        if isinstance(response_data, list):
+            class_fields = field_signatures.get(1, [])
+        else:
+            class_fields = field_signatures.get(0, [])
 
         # Create a dynamic class to hold the analyzed structure
         class_name = self._make_class_name(profile_name)
@@ -410,7 +412,7 @@ class APIProfiler(treeObject):
         # Build default values from first sample
         first_sample = dict_samples[0]
         var_defaults = {}
-        for field in field_signatures:
+        for field in class_fields:
             if field in first_sample:
                 var_defaults[field] = self._get_default_for_value(first_sample[field])
             else:
@@ -440,13 +442,20 @@ class APIProfiler(treeObject):
             for field_name, field_value in sample.items():
                 poly_typed_obj.analyzeVariableValue(varName=field_name, varVal=field_value)
 
-        # Create the APIProfile
+        # Calculate totals
+        total_fields = sum(len(fields) for fields in field_signatures.values())
+        total_types = len(type_signatures)
+
+        # Create the APIProfile with new signature format
         profile = APIProfile(
             profileName=profile_name,
             displayName=display_name,
             polyTypedObjectRef=class_name,
             sampleCount=len(dict_samples),
             fieldSignatures=field_signatures,
+            typeSignatures=type_signatures,
+            totalFieldSignatures=total_fields,
+            totalTypeSignatures=total_types,
             manager=self.manager
         )
 
@@ -458,6 +467,104 @@ class APIProfiler(treeObject):
                     self.manager.objectTyping.append(poly_typed_obj)
 
         return (profile, poly_typed_obj)
+
+    def _analyze_structure_recursive(
+        self,
+        data: Any,
+        level: int = 0,
+        field_sigs: Dict[int, List[str]] = None,
+        type_sigs: Dict[int, str] = None,
+        max_depth: int = 10
+    ) -> Tuple[Dict[int, List[str]], Dict[int, str]]:
+        """
+        Recursively analyze data structure to build field and type signatures.
+
+        Args:
+            data: The data to analyze
+            level: Current nesting level (0 = root)
+            field_sigs: Dict to populate with level -> field names
+            type_sigs: Dict to populate with level -> type description
+            max_depth: Maximum recursion depth
+
+        Returns:
+            Tuple of (fieldSignatures, typeSignatures)
+        """
+        if field_sigs is None:
+            field_sigs = {}
+        if type_sigs is None:
+            type_sigs = {}
+
+        if level > max_depth:
+            return (field_sigs, type_sigs)
+
+        if data is None:
+            type_sigs[level] = 'null'
+            return (field_sigs, type_sigs)
+
+        if isinstance(data, dict):
+            type_sigs[level] = 'dict'
+
+            if data:
+                field_names = list(data.keys())
+                if level not in field_sigs:
+                    field_sigs[level] = []
+                for name in field_names:
+                    if name not in field_sigs[level]:
+                        field_sigs[level].append(name)
+
+                # Recursively analyze nested values
+                for key, value in data.items():
+                    self._analyze_structure_recursive(value, level + 1, field_sigs, type_sigs, max_depth)
+
+        elif isinstance(data, list):
+            if not data:
+                type_sigs[level] = 'list'
+                return (field_sigs, type_sigs)
+
+            # Determine item types
+            item_types = set()
+            for item in data[:10]:
+                item_types.add(type(item).__name__)
+
+            if len(item_types) == 1:
+                item_type = list(item_types)[0]
+                type_sigs[level] = f'list[{item_type}]'
+
+                if item_type == 'dict':
+                    # Collect fields from all sampled items
+                    all_fields = set()
+                    for item in data[:10]:
+                        if isinstance(item, dict):
+                            all_fields.update(item.keys())
+
+                    if level + 1 not in field_sigs:
+                        field_sigs[level + 1] = []
+                    for name in all_fields:
+                        if name not in field_sigs[level + 1]:
+                            field_sigs[level + 1].append(name)
+
+                    # Recursively analyze first item's nested values
+                    if data and isinstance(data[0], dict):
+                        for key, value in data[0].items():
+                            self._analyze_structure_recursive(value, level + 2, field_sigs, type_sigs, max_depth)
+
+                elif item_type == 'list' and data[0]:
+                    self._analyze_structure_recursive(data[0], level + 1, field_sigs, type_sigs, max_depth)
+            else:
+                type_sigs[level] = f'list[mixed:{",".join(sorted(item_types))}]'
+
+        elif isinstance(data, bool):
+            type_sigs[level] = 'bool'
+        elif isinstance(data, int):
+            type_sigs[level] = 'int'
+        elif isinstance(data, float):
+            type_sigs[level] = 'float'
+        elif isinstance(data, str):
+            type_sigs[level] = 'str'
+        else:
+            type_sigs[level] = type(data).__name__
+
+        return (field_sigs, type_sigs)
 
     def refine_profile_with_sample(
         self,
@@ -485,14 +592,26 @@ class APIProfiler(treeObject):
         samples = new_sample if isinstance(new_sample, list) else [new_sample]
         dict_samples = [s for s in samples if isinstance(s, dict)]
 
-        # Update field signatures with any new fields
-        current_fields = set(profile.fieldSignatures)
-        for sample in dict_samples:
-            current_fields.update(sample.keys())
+        # Analyze new sample structure and merge with existing signatures
+        new_field_sigs, new_type_sigs = self._analyze_structure_recursive(new_sample)
 
-        profile.fieldSignatures = sorted(list(current_fields))
+        # Merge field signatures - add new fields at each level
+        for level, fields in new_field_sigs.items():
+            if level not in profile.fieldSignatures:
+                profile.fieldSignatures[level] = []
+            for field in fields:
+                if field not in profile.fieldSignatures[level]:
+                    profile.fieldSignatures[level].append(field)
 
-        # Analyze new samples
+        # Merge type signatures - keep existing types, add new levels
+        for level, type_str in new_type_sigs.items():
+            if level not in profile.typeSignatures:
+                profile.typeSignatures[level] = type_str
+
+        # Update totals
+        profile.update_counts()
+
+        # Analyze new samples for polyTypedObject
         for sample in dict_samples:
             for field_name, field_value in sample.items():
                 poly_typed_obj.analyzeVariableValue(varName=field_name, varVal=field_value)
@@ -787,7 +906,9 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                 })
         else:
             # Fallback to field signatures if no polyTypedVars
-            for field in profile.fieldSignatures:
+            # Use all fields from all levels
+            all_fields = profile.get_field_names()
+            for field in all_fields:
                 variables.append({
                     'varName': field,
                     'varType': 'str',  # Default to string

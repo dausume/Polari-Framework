@@ -16,15 +16,66 @@
 """
 Profile Templates - Structural profile definitions for API response matching.
 
-Profiles are matched based on structural signatures:
-- Level 0: Root structure type - {} (object) or [] (array)
-- Level 1: Structural fields - Required fields that identify the format
-- Data Path: Where the actual data records live
+# =============================================================================
+# LEVEL NUMBERING EXPLANATION
+# =============================================================================
+# Levels represent the depth in the JSON structure, counting each structural
+# step (containers, keys, values, array items) as a level increment.
+#
+# Level 0 = the root container itself ({} or [])
+# Level 1 = keys/field names directly inside the root
+# Level 2 = values of those keys (or array items if root is array)
+# Level 3 = if level 2 is an array, the items; if dict, the keys inside
+# Level 4 = keys inside level 3 structures
+# ... and so on
+#
+# Example 1 - Simple object:
+#   {                              <- Level 0 (containerType: dict)
+#     "name": "John",              <- "name" is at Level 1, value "John" is at Level 2
+#     "age": 30                    <- "age" is at Level 1, value 30 is at Level 2
+#   }
+#
+#   - Level 0: containerType = 'dict'
+#   - Level 1: fields = ['name', 'age']
+#
+# Example 2 - GeoJSON:
+#   {                              <- Level 0 (containerType: dict)
+#     "type": "FeatureCollection", <- Level 1 field, Level 2 value
+#     "features": [                <- Level 1 field
+#       {                          <- Level 2 value (array), Level 3 items (dicts)
+#         "type": "Feature",       <- Level 4 field
+#         "geometry": {...},       <- Level 4 field
+#         "properties": {...}      <- Level 4 field
+#       }
+#     ]
+#   }
+#
+#   - Level 0: containerType = 'dict'
+#   - Level 1: fields = ['type', 'features', 'bbox', 'metadata', 'crs']
+#   - Level 2: containerType = 'list' (for features value)
+#   - Level 3: containerType = 'dict' (for array items)
+#   - Level 4: fields = ['type', 'geometry', 'properties', 'id']
+#
+# Example 3 - Uniform array:
+#   [                              <- Level 0 (containerType: list[dict])
+#     {"id": 1, "name": "A"},      <- Level 1 items (dicts)
+#     {"id": 2, "name": "B"}
+#   ]
+#
+#   - Level 0: containerType = 'list[dict]'
+#   - Level 1: containerType = 'dict' (array items)
+#   - Level 2: fields = ['id', 'name']
+#
+# KEY INSIGHT: Fields are always at (parent dict level + 1).
+# For root {}, fields are at level 1.
+# For root [], items are at level 1, and if items are dicts, their fields are at level 2.
+# =============================================================================
 
 Matching logic:
-1. First check Level 0 - eliminates incompatible profiles immediately
-2. Then check Level 1 structural fields - required fields must be present
-3. Calculate confidence based on structural field matches
+1. First check Level 0 type - eliminates incompatible profiles immediately
+2. Check required fields at each level - all must be present for a match
+3. Check optional fields - increase confidence if present
+4. Calculate overall confidence based on type and field matches
 """
 
 from typing import Dict, List, Any, Optional
@@ -34,10 +85,13 @@ from typing import Dict, List, Any, Optional
 # STRUCTURAL FORMAT PROFILES
 # =============================================================================
 # Each profile defines:
-#   - rootType: "object" or "array" (Level 0)
-#   - structuralFields: Dict of field_name -> {"required": bool, "type": str}
-#   - dataPath: JSONPath to the data records (empty string = root)
-#   - level1ExpectedType: What type is expected at Level 1 ("object" or "array")
+#   - typeSignatures: Dict[level, type_string] - expected type at each nesting level
+#   - requiredFieldSignatures: Dict[level, List[field_names]] - fields that MUST be present
+#   - optionalFieldSignatures: Dict[level, List[field_names]] - fields that MAY be present
+#   - dataPath: JSONPath to extract the actual data records (empty string = root)
+#
+# Note: "Level N fields" refers to keys CONTAINED WITHIN the structure at level N,
+# not keys that ARE level N. See module docstring for detailed examples.
 # =============================================================================
 
 FORMAT_PROFILES = {
@@ -48,11 +102,27 @@ FORMAT_PROFILES = {
         'profileName': 'uniformArray',
         'displayName': 'Uniform Object Array',
         'description': 'Array of objects with identical structure - most common REST collection format',
-        'rootType': 'array',  # Level 0 is []
-        'level1ExpectedType': 'object',  # Level 1 items are all {}
-        'structuralFields': {},  # No structural fields at Level 1 - it's just array elements
+        'rootType': 'array',
         'dataPath': '',  # Data is at root
-        'sampleSchema': '[\n  { <field>: <type>, ... },\n  { <field>: <type>, ... },\n  ...\n]'
+        'sampleSchema': '[\n  { <field>: <type>, ... },\n  { <field>: <type>, ... },\n  ...\n]',
+        # Level-based signatures using depth-based numbering:
+        # Level 0 = root array [], Level 1 = array items (dicts), Level 2 = keys inside items
+        'levelSignatures': {
+            0: {
+                'requiredTypes': ['list[dict]'],  # Root is list of dicts
+                'optionalTypes': [],
+                'requiredFields': {},
+                'optionalFields': {}
+            },
+            1: {
+                'requiredTypes': ['dict'],  # Array items are dicts
+                'optionalTypes': [],
+                'requiredFields': {},
+                'optionalFields': {}
+            }
+            # Level 2 fields are dynamic (the object properties) - not predefined
+        },
+        'isTemplate': True
     },
 
     # -------------------------------------------------------------------------
@@ -62,113 +132,333 @@ FORMAT_PROFILES = {
         'profileName': 'polariCrude',
         'displayName': 'Polari CRUDE Response',
         'description': 'Polari standard CRUDE endpoint response format',
-        'rootType': 'object',  # Level 0 is {}
-        'level1ExpectedType': 'mixed',  # Level 1 has string and array
-        'structuralFields': {
-            'class': {'required': True, 'type': 'str', 'description': 'Class name'},
-            'instances': {'required': True, 'type': 'array', 'description': 'Array of instances'}
+        'rootType': 'object',
+        'dataPath': 'instances',
+        'sampleSchema': '{\n  "class": "<ClassName>",\n  "instances": [ {...}, ... ]\n}',
+        # Level-based signatures using depth-based numbering:
+        # Level 0 = root {}, Level 1 = root keys, Level 2 = values (instances is list),
+        # Level 3 = list items (dicts), Level 4 = keys inside items
+        'levelSignatures': {
+            0: {
+                'requiredTypes': ['dict'],
+                'optionalTypes': [],
+                'requiredFields': {},
+                'optionalFields': {}
+            },
+            1: {
+                'requiredTypes': [],  # Level 1 is field names
+                'optionalTypes': [],
+                'requiredFields': {
+                    'class': 'str',           # Class name string
+                    'instances': 'list[dict]' # Array of instance objects
+                },
+                'optionalFields': {}
+            },
+            2: {
+                'requiredTypes': ['str', 'list[dict]'],  # from class and instances values
+                'optionalTypes': [],
+                'requiredFields': {},
+                'optionalFields': {}
+            },
+            3: {
+                'requiredTypes': ['dict'],  # List items are dicts
+                'optionalTypes': [],
+                'requiredFields': {},
+                'optionalFields': {}
+            }
+            # Level 4 fields are dynamic (instance properties)
         },
-        'dataPath': 'instances',  # Data records are in instances array
-        'sampleSchema': '{\n  "class": "<ClassName>",\n  "instances": [ {...}, ... ]\n}'
+        'isTemplate': True
     },
 
     'graphql': {
         'profileName': 'graphql',
         'displayName': 'GraphQL Response',
         'description': 'Standard GraphQL response envelope with data and errors',
-        'rootType': 'object',  # Level 0 is {}
-        'level1ExpectedType': 'mixed',
-        'structuralFields': {
-            'data': {'required': True, 'type': 'object', 'description': 'Query results'},
-            'errors': {'required': False, 'type': 'array', 'description': 'Error list (optional)'}
-        },
+        'rootType': 'object',
         'dataPath': 'data.<queryName>',  # Dynamic - depends on query
-        'sampleSchema': '{\n  "data": { "<query>": [...] },\n  "errors": null\n}'
+        'sampleSchema': '{\n  "data": { "<query>": [...] },\n  "errors": null\n}',
+        # Level 0 = root {}, Level 1 = root keys, Level 2 = values (data is dict)
+        'levelSignatures': {
+            0: {
+                'requiredTypes': ['dict'],
+                'optionalTypes': [],
+                'requiredFields': {},
+                'optionalFields': {}
+            },
+            1: {
+                'requiredTypes': [],  # Level 1 is field names
+                'optionalTypes': [],
+                'requiredFields': {
+                    'data': 'dict'        # Query results object
+                },
+                'optionalFields': {
+                    'errors': 'list',     # Error list (null or array)
+                    'extensions': 'dict'  # GraphQL extensions object
+                }
+            },
+            2: {
+                'requiredTypes': ['dict'],        # from data value
+                'optionalTypes': ['list', 'dict', 'null'],  # from errors, extensions
+                'requiredFields': {},     # Query names are dynamic
+                'optionalFields': {}
+            }
+        },
+        'isTemplate': True
     },
 
     'wrappedResponse': {
         'profileName': 'wrappedResponse',
         'displayName': 'Wrapped Data Response',
-        'description': 'Data nested under "data" key with optional metadata',
-        'rootType': 'object',  # Level 0 is {}
-        'level1ExpectedType': 'mixed',
-        'structuralFields': {
-            'data': {'required': True, 'type': 'array', 'description': 'Array of data records'},
-            'meta': {'required': False, 'type': 'object', 'description': 'Metadata (optional)'},
-            'metadata': {'required': False, 'type': 'object', 'description': 'Metadata alternate name'},
+        'description': 'Data nested under a wrapper key (data, message, result, etc.) with optional status/metadata',
+        'rootType': 'object',
+        'dataPath': 'data',  # Default, but could be message/result/response
+        'sampleSchema': '{\n  "data": [...] | "message": "...",\n  "status": "success"\n}',
+        # Required groups - at least one from each group must be present
+        'requiredGroups': [
+            ['data', 'message', 'result', 'response'],  # Need at least one data wrapper
+        ],
+        # Level 0 = root {}, Level 1 = root keys
+        'levelSignatures': {
+            0: {
+                'requiredTypes': ['dict'],
+                'optionalTypes': [],
+                'requiredFields': {},
+                'optionalFields': {}
+            },
+            1: {
+                'requiredTypes': [],  # Level 1 is field names
+                'optionalTypes': [],
+                'requiredFields': {},  # Uses requiredGroups instead
+                'optionalFields': {
+                    # Data wrapper keys (one should be present via requiredGroups)
+                    'data': 'any',        # Data wrapper (common)
+                    'message': 'any',     # Message/data wrapper
+                    'result': 'any',      # Result wrapper
+                    'response': 'any',    # Response wrapper
+                    # Status/metadata keys
+                    'status': 'str',      # Status indicator
+                    'success': 'bool',    # Success indicator
+                    'meta': 'dict',       # Metadata
+                    'metadata': 'dict'    # Metadata alternate
+                }
+            },
+            2: {
+                'requiredTypes': [],
+                'optionalTypes': ['any', 'str', 'bool', 'dict'],  # Various value types
+                'requiredFields': {},
+                'optionalFields': {}
+            }
         },
-        'dataPath': 'data',
-        'sampleSchema': '{\n  "data": [ {...}, ... ],\n  "meta": { <pagination> }\n}'
+        'isTemplate': True
     },
 
     'paginated': {
         'profileName': 'paginated',
         'displayName': 'Paginated Response',
         'description': 'Paginated list with count and navigation',
-        'rootType': 'object',  # Level 0 is {}
-        'level1ExpectedType': 'mixed',
-        'structuralFields': {
-            # Common pagination patterns - at least one data field required
-            'results': {'required': False, 'type': 'array', 'description': 'Results array'},
-            'items': {'required': False, 'type': 'array', 'description': 'Items array (alt)'},
-            'data': {'required': False, 'type': 'array', 'description': 'Data array (alt)'},
-            'records': {'required': False, 'type': 'array', 'description': 'Records array (alt)'},
-            # Pagination indicators - at least one should be present
-            'count': {'required': False, 'type': 'int', 'description': 'Total count'},
-            'total': {'required': False, 'type': 'int', 'description': 'Total count (alt)'},
-            'page': {'required': False, 'type': 'int', 'description': 'Current page'},
-            'next': {'required': False, 'type': 'str', 'description': 'Next page URL'},
-            'previous': {'required': False, 'type': 'str', 'description': 'Previous page URL'},
-            'offset': {'required': False, 'type': 'int', 'description': 'Offset position'},
-            'limit': {'required': False, 'type': 'int', 'description': 'Page size limit'},
-        },
+        'rootType': 'object',
+        'dataPath': 'results',  # Most common, but could be items/data/records
+        'sampleSchema': '{\n  "results": [ {...}, ... ],\n  "count": <int>,\n  "next": <url|null>\n}',
+        # Required groups - at least one from each group must be present
         'requiredGroups': [
             ['results', 'items', 'data', 'records'],  # Need at least one data array
             ['count', 'total', 'page', 'next', 'offset']  # Need at least one pagination field
         ],
-        'dataPath': 'results',  # Most common, but could be items/data/records
-        'sampleSchema': '{\n  "results": [ {...}, ... ],\n  "count": <int>,\n  "next": <url|null>\n}'
+        # Level 0 = root {}, Level 1 = root keys, Level 2 = values (results is list),
+        # Level 3 = list items (dicts), Level 4 = keys inside items
+        'levelSignatures': {
+            0: {
+                'requiredTypes': ['dict'],
+                'optionalTypes': [],
+                'requiredFields': {},
+                'optionalFields': {}
+            },
+            1: {
+                'requiredTypes': [],  # Level 1 is field names
+                'optionalTypes': [],
+                'requiredFields': {},  # Uses requiredGroups instead
+                'optionalFields': {
+                    # Data array keys (one should be present via requiredGroups)
+                    'results': 'list[dict]',  # Results array
+                    'items': 'list[dict]',    # Items array (alt)
+                    'data': 'list[dict]',     # Data array (alt)
+                    'records': 'list[dict]',  # Records array (alt)
+                    # Pagination indicators (one should be present via requiredGroups)
+                    'count': 'int',       # Total count
+                    'total': 'int',       # Total count (alt)
+                    'page': 'int',        # Current page
+                    'next': 'str|null',   # Next page URL
+                    'previous': 'str|null',  # Previous page URL
+                    'offset': 'int',      # Offset position
+                    'limit': 'int'        # Page size limit
+                }
+            },
+            2: {
+                'requiredTypes': [],
+                'optionalTypes': ['list[dict]', 'int', 'str', 'null'],  # Various value types
+                'requiredFields': {},
+                'optionalFields': {}
+            },
+            3: {
+                'requiredTypes': [],
+                'optionalTypes': ['dict'],  # List items are dicts
+                'requiredFields': {},
+                'optionalFields': {}
+            }
+            # Level 4 fields are dynamic (record properties)
+        },
+        'isTemplate': True
     },
 
     'hal': {
         'profileName': 'hal',
         'displayName': 'HAL+JSON Response',
         'description': 'Hypermedia API Language format with embedded resources',
-        'rootType': 'object',  # Level 0 is {}
-        'level1ExpectedType': 'object',
-        'structuralFields': {
-            '_links': {'required': True, 'type': 'object', 'description': 'Hypermedia links'},
-            '_embedded': {'required': True, 'type': 'object', 'description': 'Embedded resources'}
-        },
+        'rootType': 'object',
         'dataPath': '_embedded.items',  # Common pattern
-        'sampleSchema': '{\n  "_links": { "self": {...} },\n  "_embedded": { "items": [...] }\n}'
+        'sampleSchema': '{\n  "_links": { "self": {...} },\n  "_embedded": { "items": [...] }\n}',
+        # Level 0 = root {}, Level 1 = root keys, Level 2 = values (_embedded is dict),
+        # Level 3 = keys inside _embedded (like "items")
+        'levelSignatures': {
+            0: {
+                'requiredTypes': ['dict'],
+                'optionalTypes': [],
+                'requiredFields': {},
+                'optionalFields': {}
+            },
+            1: {
+                'requiredTypes': [],  # Level 1 is field names
+                'optionalTypes': [],
+                'requiredFields': {
+                    '_links': 'dict',     # Hypermedia links object
+                    '_embedded': 'dict'   # Embedded resources object
+                },
+                'optionalFields': {}
+            },
+            2: {
+                'requiredTypes': ['dict'],  # _links and _embedded values are dicts
+                'optionalTypes': [],
+                'requiredFields': {},
+                'optionalFields': {}
+            },
+            3: {
+                'requiredTypes': [],  # Level 3 is field names inside _links/_embedded
+                'optionalTypes': [],
+                'requiredFields': {},
+                'optionalFields': {
+                    'self': 'dict',       # Self link (in _links)
+                    'items': 'list[dict]' # Embedded items (in _embedded)
+                }
+            },
+            4: {
+                'requiredTypes': [],
+                'optionalTypes': ['dict', 'list[dict]'],  # from self and items values
+                'requiredFields': {},
+                'optionalFields': {}
+            }
+        },
+        'isTemplate': True
     },
 
     'geoJson': {
         'profileName': 'geoJson',
         'displayName': 'GeoJSON FeatureCollection',
         'description': 'Standard GeoJSON format for geographic data',
-        'rootType': 'object',  # Level 0 is {}
-        'level1ExpectedType': 'mixed',
-        'structuralFields': {
-            'type': {'required': True, 'type': 'str', 'expectedValue': 'FeatureCollection'},
-            'features': {'required': True, 'type': 'array', 'description': 'Feature array'}
-        },
+        'rootType': 'object',
         'dataPath': 'features',
-        'sampleSchema': '{\n  "type": "FeatureCollection",\n  "features": [\n    { "geometry": {...}, "properties": {...} }\n  ]\n}'
+        'sampleSchema': '{\n  "type": "FeatureCollection",\n  "features": [\n    { "geometry": {...}, "properties": {...} }\n  ]\n}',
+        # Level-based signatures using depth-based numbering:
+        # Level 0 = root container, Level 1 = root keys, Level 2 = values,
+        # Level 3 = array items, Level 4 = keys inside array items
+        'levelSignatures': {
+            0: {
+                'requiredTypes': ['dict'],  # Root is a dict {}
+                'optionalTypes': [],
+                'requiredFields': {},
+                'optionalFields': {}
+            },
+            1: {
+                'requiredTypes': [],  # Level 1 is field names (keys) - no container type
+                'optionalTypes': [],
+                'requiredFields': {
+                    'type': 'str',        # value should be string "FeatureCollection"
+                    'features': 'list[dict]'  # value should be a list of feature dicts
+                },
+                'optionalFields': {
+                    'bbox': 'list[float]',    # bounding box array of floats
+                    'metadata': 'dict',       # optional metadata object
+                    'crs': 'dict'             # coordinate reference system
+                }
+            },
+            2: {
+                # Level 2 = values of level 1 fields
+                'requiredTypes': ['str', 'list[dict]'],  # from type and features values
+                'optionalTypes': ['list[float]', 'dict'],  # from bbox, metadata, crs values
+                'requiredFields': {},
+                'optionalFields': {}
+            },
+            3: {
+                'requiredTypes': ['dict'],  # List items are dicts (Feature objects)
+                'optionalTypes': [],
+                'requiredFields': {},
+                'optionalFields': {}
+            },
+            4: {
+                'requiredTypes': [],  # Level 4 is field names inside Feature objects
+                'optionalTypes': [],
+                'requiredFields': {
+                    'type': 'str',        # should be "Feature"
+                    'geometry': 'dict',   # geometry object
+                    'properties': 'dict'  # properties object
+                },
+                'optionalFields': {
+                    'id': 'str|int'       # optional feature ID
+                }
+            },
+            5: {
+                # Level 5 = values of level 4 fields (inside Feature objects)
+                'requiredTypes': ['str', 'dict'],  # from type, geometry, properties
+                'optionalTypes': ['str', 'int'],   # from id (can be either)
+                'requiredFields': {},
+                'optionalFields': {}
+            }
+        },
+        'isTemplate': True
     },
 
     'singleObject': {
         'profileName': 'singleObject',
         'displayName': 'Single Object Response',
         'description': 'Single object (not an array) - typically a resource detail endpoint',
-        'rootType': 'object',  # Level 0 is {}
-        'level1ExpectedType': 'mixed',  # Fields can be various types
-        'structuralFields': {
-            'id': {'required': False, 'type': 'str|int', 'description': 'Resource identifier'}
-        },
+        'rootType': 'object',
         'dataPath': '',  # Data is the object itself
-        'sampleSchema': '{\n  "id": <str|int>,\n  <field>: <type>,\n  ...\n}'
+        'sampleSchema': '{\n  "id": <str|int>,\n  <field>: <type>,\n  ...\n}',
+        # Level 0 = root {}, Level 1 = root keys
+        # This is a generic fallback profile - minimal requirements
+        'levelSignatures': {
+            0: {
+                'requiredTypes': ['dict'],
+                'optionalTypes': [],
+                'requiredFields': {},
+                'optionalFields': {}
+            },
+            1: {
+                'requiredTypes': [],  # Level 1 is field names
+                'optionalTypes': [],
+                'requiredFields': {},     # No required fields - generic fallback
+                'optionalFields': {
+                    'id': 'str|int'       # Common but not required
+                }
+            },
+            2: {
+                'requiredTypes': [],
+                'optionalTypes': ['str', 'int'],  # from id value
+                'requiredFields': {},
+                'optionalFields': {}
+            }
+        },
+        'isTemplate': True
     },
 
     # -------------------------------------------------------------------------
@@ -179,12 +469,39 @@ FORMAT_PROFILES = {
         'displayName': 'Polari Success Response',
         'description': 'Polari standard success response',
         'rootType': 'object',
-        'level1ExpectedType': 'mixed',
-        'structuralFields': {
-            'success': {'required': True, 'type': 'bool', 'expectedValue': True}
-        },
         'dataPath': '',
-        'sampleSchema': '{\n  "success": true,\n  ...\n}'
+        'sampleSchema': '{\n  "success": true,\n  ...\n}',
+        # Level 0 = root {}, Level 1 = root keys
+        'levelSignatures': {
+            0: {
+                'requiredTypes': ['dict'],
+                'optionalTypes': [],
+                'requiredFields': {},
+                'optionalFields': {}
+            },
+            1: {
+                'requiredTypes': [],  # Level 1 is field names
+                'optionalTypes': [],
+                'requiredFields': {
+                    'success': 'bool'     # Must be true for success response
+                },
+                'optionalFields': {
+                    'message': 'str',     # Optional success message
+                    'data': 'any'         # Optional response data
+                }
+            },
+            2: {
+                'requiredTypes': ['bool'],  # from success value
+                'optionalTypes': ['str', 'any'],  # from message, data values
+                'requiredFields': {},
+                'optionalFields': {}
+            }
+        },
+        # Expected values for validation (separate from type signatures)
+        'expectedValues': {
+            'success': True
+        },
+        'isTemplate': True
     },
 
     'polariError': {
@@ -192,13 +509,41 @@ FORMAT_PROFILES = {
         'displayName': 'Polari Error Response',
         'description': 'Polari standard error response',
         'rootType': 'object',
-        'level1ExpectedType': 'mixed',
-        'structuralFields': {
-            'success': {'required': True, 'type': 'bool', 'expectedValue': False},
-            'error': {'required': True, 'type': 'str', 'description': 'Error message'}
-        },
         'dataPath': '',
-        'sampleSchema': '{\n  "success": false,\n  "error": "<message>"\n}'
+        'sampleSchema': '{\n  "success": false,\n  "error": "<message>"\n}',
+        # Level 0 = root {}, Level 1 = root keys
+        'levelSignatures': {
+            0: {
+                'requiredTypes': ['dict'],
+                'optionalTypes': [],
+                'requiredFields': {},
+                'optionalFields': {}
+            },
+            1: {
+                'requiredTypes': [],  # Level 1 is field names
+                'optionalTypes': [],
+                'requiredFields': {
+                    'success': 'bool',    # Must be false for error response
+                    'error': 'str'        # Error message
+                },
+                'optionalFields': {
+                    'details': 'any',     # Additional error details
+                    'code': 'str|int',    # Error code
+                    'trace': 'str'        # Stack trace
+                }
+            },
+            2: {
+                'requiredTypes': ['bool', 'str'],  # from success, error values
+                'optionalTypes': ['any', 'str', 'int'],  # from details, code, trace values
+                'requiredFields': {},
+                'optionalFields': {}
+            }
+        },
+        # Expected values for validation (separate from type signatures)
+        'expectedValues': {
+            'success': False
+        },
+        'isTemplate': True
     },
 }
 

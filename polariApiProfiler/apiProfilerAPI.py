@@ -124,17 +124,61 @@ class APIProfilerQueryAPI(treeObject):
             # Build analysis result
             result = {
                 'success': True,
-                'response': api_response,
-                'extractedData': data_to_analyze if data_to_analyze != api_response else None
+                'response': api_response
             }
 
-            # Analyze the response structure
+            # STEP 1: Match against format profiles using FULL response to identify the format
+            # This determines what kind of response we're dealing with (GeoJSON, paginated, etc.)
+            structural_matches = profileTemplates.match_structural_profile(api_response)
+            best_match = structural_matches[0] if structural_matches else None
+
+            # STEP 2: Determine the data path - use matched profile's dataPath,
+            # or user-specified root_path as override
+            detected_data_path = ''
+            if best_match:
+                detected_data_path = best_match.get('dataPath', '')
+
+            # User-specified root_path overrides detected path
+            effective_data_path = root_path if root_path else detected_data_path
+
+            # STEP 3: Extract the actual data records using the effective path
+            data_to_analyze = self.profiler.extract_data_from_path(api_response, effective_data_path)
+
+            if data_to_analyze is None:
+                data_to_analyze = api_response  # Fallback to full response
+                effective_data_path = ''
+
+            result['extractedData'] = data_to_analyze if data_to_analyze != api_response else None
+            result['detectedDataPath'] = detected_data_path
+            result['effectiveDataPath'] = effective_data_path
+
+            # ================================================================
+            # API FORMAT ANALYSIS - Analyze the full response structure
+            # ================================================================
+            format_structure = self.matcher.analyze_structure(api_response)
+            result['formatAnalysis'] = {
+                'description': 'Analysis of the full API response structure',
+                'rootType': format_structure.get('typeSignatures', {}).get(0, 'unknown'),
+                'typeSignatures': format_structure.get('typeSignatures', {}),
+                'fieldSignatures': format_structure.get('fieldSignatures', {}),
+                'totalTypeSignatures': format_structure.get('totalTypeSignatures', 0),
+                'totalFieldSignatures': format_structure.get('totalFieldSignatures', 0),
+                'maxDepth': format_structure.get('maxDepth', 0),
+                'detectedFormat': best_match.get('profileName') if best_match else None,
+                'detectedFormatDisplayName': best_match.get('displayName') if best_match else None,
+                'detectedFormatConfidence': round(best_match.get('confidence', 0) * 100, 1) if best_match else 0,
+                'detectedDataPath': detected_data_path
+            }
+
+            # ================================================================
+            # DATA RECORDS ANALYSIS - Analyze the extracted data records
+            # ================================================================
             if isinstance(data_to_analyze, (dict, list)):
                 samples = data_to_analyze if isinstance(data_to_analyze, list) else [data_to_analyze]
                 dict_samples = [s for s in samples if isinstance(s, dict)]
 
                 if dict_samples:
-                    # Collect field info
+                    # Collect field info from records
                     all_fields = set()
                     for sample in dict_samples:
                         all_fields.update(sample.keys())
@@ -145,16 +189,31 @@ class APIProfilerQueryAPI(treeObject):
                         for key, value in dict_samples[0].items():
                             type_info[key] = type(value).__name__
 
-                    # Use structural matching to suggest profiles
-                    structural_matches = profileTemplates.match_structural_profile(data_to_analyze)
-                    suggested_profiles = [m['profileName'] for m in structural_matches[:3]]
+                    # Analyze the structure of the extracted records
+                    records_structure = self.matcher.analyze_structure(data_to_analyze)
 
+                    result['recordsAnalysis'] = {
+                        'description': 'Analysis of the extracted data records',
+                        'effectiveDataPath': effective_data_path,
+                        'sampleCount': len(dict_samples),
+                        'fieldCount': len(all_fields),
+                        'fields': sorted(list(all_fields)),
+                        'detectedTypes': type_info,
+                        'rootType': records_structure.get('typeSignatures', {}).get(0, 'unknown'),
+                        'typeSignatures': records_structure.get('typeSignatures', {}),
+                        'fieldSignatures': records_structure.get('fieldSignatures', {}),
+                    }
+
+                    # Legacy 'analysis' field for backwards compatibility
+                    suggested_profiles = [m['profileName'] for m in structural_matches[:3]]
                     result['analysis'] = {
                         'sampleCount': len(dict_samples),
                         'fieldCount': len(all_fields),
                         'fields': sorted(list(all_fields)),
                         'detectedTypes': type_info,
-                        'suggestedProfiles': suggested_profiles
+                        'suggestedProfiles': suggested_profiles,
+                        'detectedFormat': best_match.get('profileName') if best_match else None,
+                        'detectedFormatConfidence': best_match.get('confidence', 0) if best_match else 0
                     }
 
                     # Create profile if name provided
@@ -166,27 +225,46 @@ class APIProfilerQueryAPI(treeObject):
                         )
                         profile.apiEndpoint = url
                         profile.httpMethod = method
-                        profile.responseRootPath = root_path
+                        # Store the effective data path (detected from format or user-specified)
+                        profile.responseRootPath = effective_data_path
                         profile.defaultHeaders = headers
+                        # Store the detected format for reference
+                        if best_match:
+                            profile.detectedFormat = best_match.get('profileName', '')
 
                         result['profile'] = profile.to_dict()
 
             # Match against format profiles if requested
             if match_profiles:
-                # Use the new structural matching
-                matches = self.matcher.match_response(data_to_analyze)
-                result['matches'] = [
-                    {
-                        'profileName': m['profileName'],
-                        'displayName': m.get('displayName', m['profileName']),
-                        'confidence': m.get('confidencePercent', round(m['confidence'] * 100, 1)),
-                        'isMatch': m['isMatch'],
-                        'dataPath': m.get('dataPath', ''),
-                        'matchDetails': m.get('matchDetails', {}),
-                        'typeAnalysis': m.get('typeAnalysis', {})
-                    }
-                    for m in matches[:10]  # Top 10 matches
-                ]
+                # Get format profiles with signature info
+                format_profiles = profileTemplates.get_all_format_profiles()
+                profiles_to_match = []
+
+                for name, profile in format_profiles.items():
+                    profile_with_sigs = dict(profile)
+                    # Use typeSignatures and fieldSignatures from template if defined,
+                    # otherwise fall back to building from rootType/structuralFields
+                    if 'typeSignatures' not in profile_with_sigs:
+                        profile_with_sigs['typeSignatures'] = {0: profile.get('rootType', 'object')}
+                    if 'fieldSignatures' not in profile_with_sigs:
+                        structural_fields = profile.get('structuralFields', {})
+                        profile_with_sigs['fieldSignatures'] = {0: list(structural_fields.keys())}
+                    if 'totalFieldSignatures' not in profile_with_sigs:
+                        structural_fields = profile.get('structuralFields', {})
+                        profile_with_sigs['totalFieldSignatures'] = len(structural_fields)
+                    if 'totalTypeSignatures' not in profile_with_sigs:
+                        profile_with_sigs['totalTypeSignatures'] = len(profile_with_sigs.get('typeSignatures', {}))
+                    profile_with_sigs['isTemplate'] = True
+                    profiles_to_match.append(profile_with_sigs)
+
+                # IMPORTANT: Match against the FULL api_response to identify the response FORMAT
+                # (e.g., GeoJSON, paginated, etc.), not the extracted data.
+                # The root_path is for extracting records, not for format identification.
+                result['matches'] = self.matcher.match_response_with_details(
+                    api_response,  # Use full response for format matching
+                    profiles_to_match,
+                    threshold=0.7
+                )[:10]  # Top 10 matches
 
             response.status = falcon.HTTP_200
             response.media = result
@@ -228,13 +306,26 @@ class APIProfilerMatchAPI(treeObject):
             "responseData": {...} or [...],
             "profileNames": ["Profile1", "Profile2"],  // Optional: specific profiles
             "includeTemplates": true,  // Include built-in templates
-            "threshold": 0.7  // Optional confidence threshold
+            "threshold": 0.7,  // Optional confidence threshold
+            "includeSignatureDetails": true  // Include detailed signature match info
         }
 
         Response:
         {
             "success": true,
-            "matches": [...],
+            "matches": [
+                {
+                    "profileName": "...",
+                    "confidence": 85.5,
+                    "isMatch": true,
+                    "typeSignatureMatches": [...],
+                    "fieldSignatureMatches": [...],
+                    "matchedTypeSignatures": 3,
+                    "totalTypeSignatures": 3,
+                    "matchedFieldSignatures": 8,
+                    "totalFieldSignatures": 10
+                }
+            ],
             "summary": {...}
         }
         """
@@ -250,36 +341,70 @@ class APIProfilerMatchAPI(treeObject):
             response_data = req_body['responseData']
             profile_names = req_body.get('profileNames', [])
             include_templates = req_body.get('includeTemplates', True)
-            threshold = req_body.get('threshold')
+            threshold = req_body.get('threshold', 0.7)
+            include_signature_details = req_body.get('includeSignatureDetails', True)
 
             # Collect profiles to match against
-            candidate_profiles = []
+            profiles_to_match = []
 
             # Get stored profiles
             stored_profiles = self.manager.getListOfClassInstances('APIProfile')
+            for p in stored_profiles:
+                if not profile_names or p.profileName in profile_names:
+                    profiles_to_match.append(p.to_dict())
 
-            # Use structural matching - profile_names can filter results
-            matches = self.matcher.match_response(response_data, threshold=threshold)
+            # Include format templates if requested
+            if include_templates:
+                format_profiles = profileTemplates.get_all_format_profiles()
+                for name, profile in format_profiles.items():
+                    if not profile_names or name in profile_names:
+                        # Use typeSignatures and fieldSignatures from template if defined,
+                        # otherwise fall back to building from rootType/structuralFields
+                        profile_with_sigs = dict(profile)
+                        if 'typeSignatures' not in profile_with_sigs:
+                            profile_with_sigs['typeSignatures'] = {0: profile.get('rootType', 'object')}
+                        if 'fieldSignatures' not in profile_with_sigs:
+                            structural_fields = profile.get('structuralFields', {})
+                            profile_with_sigs['fieldSignatures'] = {0: list(structural_fields.keys())}
+                        if 'totalFieldSignatures' not in profile_with_sigs:
+                            structural_fields = profile.get('structuralFields', {})
+                            profile_with_sigs['totalFieldSignatures'] = len(structural_fields)
+                        if 'totalTypeSignatures' not in profile_with_sigs:
+                            profile_with_sigs['totalTypeSignatures'] = len(profile_with_sigs.get('typeSignatures', {}))
+                        profile_with_sigs['isTemplate'] = True
+                        profiles_to_match.append(profile_with_sigs)
 
-            # Filter to specific profiles if requested
-            if profile_names:
-                matches = [m for m in matches if m['profileName'] in profile_names]
+            # Match with detailed signature info
+            if include_signature_details and profiles_to_match:
+                match_results = self.matcher.match_response_with_details(
+                    response_data,
+                    profiles_to_match,
+                    threshold=threshold
+                )
+            else:
+                # Fallback to basic structural matching
+                matches = self.matcher.match_response(response_data, threshold=threshold)
 
-            # Build response
-            match_results = []
-            for m in matches:
-                match_results.append({
-                    'profileName': m['profileName'],
-                    'displayName': m.get('displayName', m['profileName']),
-                    'confidence': m.get('confidencePercent', round(m['confidence'] * 100, 1)),
-                    'isMatch': m['isMatch'],
-                    'threshold': m.get('threshold', threshold),
-                    'dataPath': m.get('dataPath', ''),
-                    'matchDetails': m.get('matchDetails', {}),
-                    'typeAnalysis': m.get('typeAnalysis', {})
-                })
+                # Filter to specific profiles if requested
+                if profile_names:
+                    matches = [m for m in matches if m['profileName'] in profile_names]
 
-            summary = self.matcher.get_match_summary(matches)
+                # Build response
+                match_results = []
+                for m in matches:
+                    match_results.append({
+                        'profileName': m['profileName'],
+                        'displayName': m.get('displayName', m['profileName']),
+                        'confidence': m.get('confidencePercent', round(m['confidence'] * 100, 1)),
+                        'isMatch': m['isMatch'],
+                        'isTemplate': True,
+                        'threshold': m.get('threshold', threshold),
+                        'dataPath': m.get('dataPath', ''),
+                        'matchDetails': m.get('matchDetails', {}),
+                        'typeAnalysis': m.get('typeAnalysis', {})
+                    })
+
+            summary = self.matcher.get_match_summary(match_results)
 
             response.status = falcon.HTTP_200
             response.media = {

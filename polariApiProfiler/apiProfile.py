@@ -47,7 +47,10 @@ class APIProfile(treeObject):
         isTemplate: True for pre-defined/built-in templates
         matchConfidenceThreshold: Minimum confidence score to consider a match
         sampleCount: Number of samples used to build this profile
-        fieldSignatures: Set of field names present in analyzed samples
+        fieldSignatures: Dict mapping nesting level (0, 1, 2, ...) to list of field names at that level
+        typeSignatures: Dict mapping nesting level to the type(s) found at that level
+        totalFieldSignatures: Total count of unique field signatures across all levels
+        totalTypeSignatures: Total count of type signatures across all levels
     """
 
     @treeObjectInit
@@ -67,7 +70,10 @@ class APIProfile(treeObject):
         isTemplate: bool = False,
         matchConfidenceThreshold: float = 0.7,
         sampleCount: int = 0,
-        fieldSignatures: List[str] = None,
+        fieldSignatures: Dict[int, List[str]] = None,
+        typeSignatures: Dict[int, str] = None,
+        totalFieldSignatures: int = 0,
+        totalTypeSignatures: int = 0,
         manager=None,
         **kwargs
     ):
@@ -85,7 +91,14 @@ class APIProfile(treeObject):
         self.isTemplate = isTemplate
         self.matchConfidenceThreshold = max(0.0, min(1.0, matchConfidenceThreshold))
         self.sampleCount = sampleCount
-        self.fieldSignatures = fieldSignatures or []
+        # fieldSignatures: level -> list of field names at that nesting depth
+        # e.g., {0: ['data', 'status'], 1: ['id', 'name', 'value'], 2: ['nested_field']}
+        self.fieldSignatures = fieldSignatures or {}
+        # typeSignatures: level -> type description at that depth
+        # e.g., {0: 'dict', 1: 'list[dict]', 2: 'dict'}
+        self.typeSignatures = typeSignatures or {}
+        self.totalFieldSignatures = totalFieldSignatures
+        self.totalTypeSignatures = totalTypeSignatures
 
         # Track child profiles for multi-type APIs
         self.childProfiles = []
@@ -115,9 +128,12 @@ class APIProfile(treeObject):
         if poly_typed_obj:
             self.polyTypedObjectRef = poly_typed_obj.className
 
-    def get_field_names(self) -> List[str]:
+    def get_field_names(self, level: int = None) -> List[str]:
         """
-        Get the list of field names from the associated polyTypedObject.
+        Get the list of field names from the profile.
+
+        Args:
+            level: Optional nesting level. If None, returns all fields from all levels.
 
         Returns:
             List of field names
@@ -125,7 +141,15 @@ class APIProfile(treeObject):
         pto = self.get_poly_typed_object()
         if pto:
             return [v.name for v in pto.polyTypedVars]
-        return self.fieldSignatures
+
+        if level is not None:
+            return self.fieldSignatures.get(level, [])
+
+        # Return all fields from all levels
+        all_fields = []
+        for fields in self.fieldSignatures.values():
+            all_fields.extend(fields)
+        return all_fields
 
     def get_field_types(self) -> Dict[str, str]:
         """
@@ -139,17 +163,39 @@ class APIProfile(treeObject):
             return {v.name: v.pythonTypeDefault for v in pto.polyTypedVars}
         return {}
 
-    def get_required_fields(self) -> List[str]:
+    def get_type_at_level(self, level: int) -> str:
         """
-        Get fields that are always present (required) based on analysis.
+        Get the type signature at a specific nesting level.
 
-        For now, returns all fields. Could be enhanced to track which fields
-        were present in all samples vs optional fields.
+        Args:
+            level: The nesting level (0 = root)
 
         Returns:
-            List of required field names
+            Type string (e.g., 'dict', 'list', 'list[dict]')
         """
-        return self.fieldSignatures.copy()
+        return self.typeSignatures.get(level, '')
+
+    def get_required_fields(self, level: int = 0) -> List[str]:
+        """
+        Get fields at a specific nesting level.
+
+        Args:
+            level: The nesting level (0 = root)
+
+        Returns:
+            List of field names at that level
+        """
+        return self.fieldSignatures.get(level, []).copy()
+
+    def update_counts(self):
+        """
+        Recalculate totalFieldSignatures and totalTypeSignatures based on current data.
+        """
+        total_fields = 0
+        for fields in self.fieldSignatures.values():
+            total_fields += len(fields)
+        self.totalFieldSignatures = total_fields
+        self.totalTypeSignatures = len(self.typeSignatures)
 
     def add_child_profile(self, child_profile: 'APIProfile'):
         """
@@ -185,6 +231,10 @@ class APIProfile(treeObject):
         Returns:
             Dictionary representation of the profile
         """
+        # Convert fieldSignatures keys to strings for JSON serialization
+        field_sigs_serialized = {str(k): v for k, v in self.fieldSignatures.items()}
+        type_sigs_serialized = {str(k): v for k, v in self.typeSignatures.items()}
+
         return {
             'id': self.id if hasattr(self, 'id') else None,
             'profileName': self.profileName,
@@ -200,7 +250,10 @@ class APIProfile(treeObject):
             'isTemplate': self.isTemplate,
             'matchConfidenceThreshold': self.matchConfidenceThreshold,
             'sampleCount': self.sampleCount,
-            'fieldSignatures': self.fieldSignatures,
+            'fieldSignatures': field_sigs_serialized,
+            'typeSignatures': type_sigs_serialized,
+            'totalFieldSignatures': self.totalFieldSignatures,
+            'totalTypeSignatures': self.totalTypeSignatures,
             'childProfiles': self.childProfiles,
             'fieldTypes': self.get_field_types()
         }
@@ -217,6 +270,17 @@ class APIProfile(treeObject):
         Returns:
             New APIProfile instance
         """
+        # Convert fieldSignatures keys back to integers
+        field_sigs_raw = data.get('fieldSignatures', {})
+        if isinstance(field_sigs_raw, dict):
+            field_sigs = {int(k): v for k, v in field_sigs_raw.items()}
+        else:
+            # Legacy format was a list - convert to level 0
+            field_sigs = {0: field_sigs_raw} if field_sigs_raw else {}
+
+        type_sigs_raw = data.get('typeSignatures', {})
+        type_sigs = {int(k): v for k, v in type_sigs_raw.items()} if isinstance(type_sigs_raw, dict) else {}
+
         return cls(
             profileName=data.get('profileName', ''),
             displayName=data.get('displayName', ''),
@@ -232,7 +296,10 @@ class APIProfile(treeObject):
             isTemplate=data.get('isTemplate', False),
             matchConfidenceThreshold=data.get('matchConfidenceThreshold', 0.7),
             sampleCount=data.get('sampleCount', 0),
-            fieldSignatures=data.get('fieldSignatures', []),
+            fieldSignatures=field_sigs,
+            typeSignatures=type_sigs,
+            totalFieldSignatures=data.get('totalFieldSignatures', 0),
+            totalTypeSignatures=data.get('totalTypeSignatures', 0),
             manager=manager
         )
 
@@ -260,4 +327,4 @@ class APIProfile(treeObject):
         return (len(errors) == 0, errors)
 
     def __repr__(self):
-        return f"APIProfile(profileName='{self.profileName}', endpoint='{self.apiEndpoint}', fields={len(self.fieldSignatures)})"
+        return f"APIProfile(profileName='{self.profileName}', endpoint='{self.apiEndpoint}', levels={len(self.typeSignatures)}, fields={self.totalFieldSignatures})"

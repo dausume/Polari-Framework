@@ -368,6 +368,55 @@ COMMON_DOMAINS = [
         'hostType': 'domain',
         'tags': ['mock', 'test', 'external']
     },
+    # External real APIs
+    {
+        'name': 'usgs-earthquake',
+        'displayName': 'USGS Earthquake API',
+        'description': 'Real-time earthquake data in GeoJSON format - no API key required',
+        'host': 'earthquake.usgs.gov',
+        'port': None,
+        'protocol': 'https',
+        'trustSelfSigned': False,
+        'verifySSL': True,
+        'hostType': 'domain',
+        'tags': ['geojson', 'usgs', 'external', 'real-time']
+    },
+    {
+        'name': 'pokeapi',
+        'displayName': 'PokeAPI',
+        'description': 'Pokemon data API - paginated responses, no API key required',
+        'host': 'pokeapi.co',
+        'port': None,
+        'protocol': 'https',
+        'trustSelfSigned': False,
+        'verifySSL': True,
+        'hostType': 'domain',
+        'tags': ['paginated', 'external', 'test']
+    },
+    {
+        'name': 'dog-ceo',
+        'displayName': 'Dog CEO API',
+        'description': 'Random dog images - wrapped response format',
+        'host': 'dog.ceo',
+        'port': None,
+        'protocol': 'https',
+        'trustSelfSigned': False,
+        'verifySSL': True,
+        'hostType': 'domain',
+        'tags': ['wrapped', 'external', 'test']
+    },
+    {
+        'name': 'rickmorty-api',
+        'displayName': 'Rick and Morty API',
+        'description': 'Rick and Morty character data - paginated responses',
+        'host': 'rickandmortyapi.com',
+        'port': None,
+        'protocol': 'https',
+        'trustSelfSigned': False,
+        'verifySSL': True,
+        'hostType': 'domain',
+        'tags': ['paginated', 'external', 'test']
+    },
     # nip.io for local network access (mirrors production subdomain structure)
     {
         'name': 'nip-io-base',

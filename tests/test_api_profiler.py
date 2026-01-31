@@ -110,9 +110,13 @@ class APIProfilerTypingTestCase(unittest.TestCase):
         self.assertIsNotNone(poly_typed_obj)
         self.assertEqual(poly_typed_obj.className, 'TestUserProfile')
 
-        # Verify field signatures
+        # Verify field signatures (now a dict of level -> fields)
         expected_fields = {'id', 'name', 'email', 'age', 'active', 'tags', 'metadata'}
-        self.assertEqual(set(profile.fieldSignatures), expected_fields)
+        all_fields = profile.get_field_names()  # Gets all fields from all levels
+        self.assertEqual(set(all_fields), expected_fields)
+
+        # Verify totalFieldSignatures count
+        self.assertEqual(profile.totalFieldSignatures, len(expected_fields))
 
         # Verify polyTypedVars were created
         self.assertGreater(len(poly_typed_obj.polyTypedVars), 0)
@@ -123,7 +127,8 @@ class APIProfilerTypingTestCase(unittest.TestCase):
         self.assertIn('age', field_types)
 
         print(f"✓ Profile created: {profile.profileName}")
-        print(f"✓ Fields analyzed: {len(profile.fieldSignatures)}")
+        print(f"✓ Fields analyzed: {profile.totalFieldSignatures}")
+        print(f"✓ Nesting levels: {profile.totalTypeSignatures}")
         print(f"✓ PolyTypedVars created: {len(poly_typed_obj.polyTypedVars)}")
         print(f"✓ Field types: {field_types}")
 
@@ -145,11 +150,12 @@ class APIProfilerTypingTestCase(unittest.TestCase):
         # Should have analyzed all samples
         self.assertEqual(profile.sampleCount, 3)
 
-        # Should include fields from all samples
-        self.assertIn('discount', profile.fieldSignatures)
+        # Should include fields from all samples (check all levels)
+        all_fields = profile.get_field_names()
+        self.assertIn('discount', all_fields)
 
         print(f"✓ Analyzed {profile.sampleCount} samples")
-        print(f"✓ Total fields: {len(profile.fieldSignatures)}")
+        print(f"✓ Total fields: {profile.totalFieldSignatures}")
 
     # ============================================================================
     # TEST 2: Nested structure analysis
@@ -182,9 +188,10 @@ class APIProfilerTypingTestCase(unittest.TestCase):
             profile_name='NestedProfile'
         )
 
-        # Check that nested fields are detected
-        self.assertIn('user', profile.fieldSignatures)
-        self.assertIn('orders', profile.fieldSignatures)
+        # Check that nested fields are detected (at level 0 for root object)
+        level_0_fields = profile.fieldSignatures.get(0, [])
+        self.assertIn('user', level_0_fields)
+        self.assertIn('orders', level_0_fields)
 
         # Check type analysis for nested structures
         field_types = profile.get_field_types()
