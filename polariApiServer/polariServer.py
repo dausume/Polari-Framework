@@ -22,8 +22,10 @@ from polariApiServer.polariAPI import polariAPI
 from polariApiServer.managerObjectAPI import managerObjectAPI
 from polariApiServer.polyTypedObjectAPI import polyTypedObjectAPI
 from polariApiServer.classInstanceCountsAPI import classInstanceCountsAPI
+from polariApiServer.apiDiscoveryAPI import APIDiscoveryAPI
 from polariApiServer.createClassAPI import createClassAPI
 from polariApiServer.stateSpaceAPI import StateSpaceClassesAPI, StateSpaceConfigAPI, StateDefinitionAPI
+from polariApiServer.apiConfigAPI import ApiConfigAPI
 from polariApiProfiler.apiProfilerAPI import (
     APIProfilerQueryAPI,
     APIProfilerMatchAPI,
@@ -187,6 +189,9 @@ class polariServer(treeObject):
         # Create custom endpoint for class instance counts (used/unused classes)
         classInstanceCountsEndpoint = classInstanceCountsAPI(polServer=self, manager=self.manager)
 
+        # Create API discovery endpoint (lists all available endpoints)
+        apiDiscoveryEndpoint = APIDiscoveryAPI(polServer=self, manager=self.manager)
+
         # Create custom endpoint for dynamic class creation
         createClassEndpoint = createClassAPI(polServer=self, manager=self.manager)
 
@@ -208,12 +213,15 @@ class polariServer(treeObject):
         apiEndpointEndpoint = APIEndpointAPI(polServer=self, manager=self.manager)
         apiEndpointFetchEndpoint = APIEndpointFetchAPI(polServer=self, manager=self.manager)
 
+        # Create API Configuration endpoint for viewing/managing CRUDE permissions
+        apiConfigEndpoint = ApiConfigAPI(polServer=self, manager=self.manager)
+
         # Register APIProfile, APIDomain, and APIEndpoint types for CRUDE operations
         self.manager.getObjectTyping(classObj=APIProfile)
         self.manager.getObjectTyping(classObj=APIDomain)
         self.manager.getObjectTyping(classObj=APIEndpoint)
 
-        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint, apiProfilerQueryEndpoint, apiProfilerMatchEndpoint, apiProfilerBuildEndpoint, apiProfilerCreateClassEndpoint, apiProfilerTemplatesEndpoint, apiProfilerDetectTypesEndpoint, apiDomainEndpoint, apiEndpointEndpoint, apiEndpointFetchEndpoint]
+        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint, apiProfilerQueryEndpoint, apiProfilerMatchEndpoint, apiProfilerBuildEndpoint, apiProfilerCreateClassEndpoint, apiProfilerTemplatesEndpoint, apiProfilerDetectTypesEndpoint, apiDomainEndpoint, apiEndpointEndpoint, apiEndpointFetchEndpoint, apiConfigEndpoint]
         self.crudeObjectsList = [polariCRUDE(apiObject="polariCRUDE", polServer=self, manager=self.manager)]
         objNamesList = list(self.manager.objectTypingDict)
         if(not "polariAPI" in objNamesList):

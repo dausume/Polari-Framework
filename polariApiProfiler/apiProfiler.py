@@ -33,7 +33,9 @@ import urllib.request
 import urllib.error
 import ssl
 import socket
+import os
 from datetime import datetime
+from urllib.parse import urlparse
 
 # Try to import requests for better HTTP handling
 try:
@@ -60,6 +62,73 @@ class APIProfiler(treeObject):
         self.lastQueryDebug = {}
         self.requestTimeout = 60  # seconds - increased for slower connections
         self.useRequests = HAS_REQUESTS  # Use requests library if available
+
+        # Load external/internal URL mappings from environment for self-call detection
+        # PRF_API_URL: The external URL clients use (e.g., https://api.prf.10.0.0.102.nip.io)
+        # INTERNAL_API_URL: The internal URL for self-calls (defaults to http://localhost:3000)
+        self.externalApiUrl = os.environ.get('PRF_API_URL', '')
+        self.internalApiUrl = os.environ.get('INTERNAL_API_URL', 'http://localhost:3000')
+
+        # Debug: Log URL configuration on init
+        import sys
+        print(f"[APIProfiler] Initialized with URL rewrite config:", flush=True)
+        print(f"[APIProfiler]   PRF_API_URL (external): '{self.externalApiUrl}'", flush=True)
+        print(f"[APIProfiler]   INTERNAL_API_URL: '{self.internalApiUrl}'", flush=True)
+        sys.stdout.flush()
+
+    def _rewrite_self_url(self, url: str) -> Tuple[str, bool]:
+        """
+        Check if a URL points to this backend's external domain and rewrite it
+        to use the internal URL to avoid hairpin NAT issues in containerized environments.
+
+        Args:
+            url: The URL to potentially rewrite
+
+        Returns:
+            Tuple of (possibly_rewritten_url, was_rewritten)
+        """
+        import sys
+        print(f"[APIProfiler] _rewrite_self_url checking: {url}", flush=True)
+        print(f"[APIProfiler]   against externalApiUrl: '{self.externalApiUrl}'", flush=True)
+        sys.stdout.flush()
+
+        if not self.externalApiUrl:
+            print(f"[APIProfiler]   No external URL configured, skipping rewrite", flush=True)
+            return (url, False)
+
+        # Parse both URLs to compare hosts
+        try:
+            target_parsed = urlparse(url)
+            external_parsed = urlparse(self.externalApiUrl)
+
+            print(f"[APIProfiler]   target netloc: '{target_parsed.netloc}'", flush=True)
+            print(f"[APIProfiler]   external netloc: '{external_parsed.netloc}'", flush=True)
+
+            # Debug: explicit comparison
+            netlocs_match = target_parsed.netloc == external_parsed.netloc
+            print(f"[APIProfiler]   netlocs_match: {netlocs_match}", flush=True)
+            sys.stdout.flush()
+
+            # Check if the target URL's host matches our external API host
+            if netlocs_match:
+                print(f"[APIProfiler]   MATCH! Rewriting to internal URL", flush=True)
+                # Rewrite to use internal URL
+                internal_parsed = urlparse(self.internalApiUrl)
+                rewritten_url = url.replace(
+                    f"{target_parsed.scheme}://{target_parsed.netloc}",
+                    f"{internal_parsed.scheme}://{internal_parsed.netloc}"
+                )
+                print(f"[APIProfiler] Detected self-call, rewriting URL:", flush=True)
+                print(f"[APIProfiler]   External: {url}", flush=True)
+                print(f"[APIProfiler]   Internal: {rewritten_url}", flush=True)
+                sys.stdout.flush()
+                return (rewritten_url, True)
+            else:
+                print(f"[APIProfiler]   No match, not rewriting", flush=True)
+        except Exception as e:
+            print(f"[APIProfiler] URL rewrite check failed: {e}")
+
+        return (url, False)
 
     def _clean_url(self, url: str) -> str:
         """
@@ -125,14 +194,25 @@ class APIProfiler(treeObject):
             If successful, error_message is None
             If failed, parsed_response is None
         """
+        # Debug: Log incoming request
+        import sys
+        print(f"[APIProfiler] query_external_api called with URL: {url}", flush=True)
+        sys.stdout.flush()
+
         # Clean up URL - fix double protocol issues
-        url = self._clean_url(url)
+        original_url = self._clean_url(url)
+
+        # Check if this URL points to our own external domain and rewrite to internal
+        # This avoids hairpin NAT issues when the backend tries to call itself
+        url, was_rewritten = self._rewrite_self_url(original_url)
 
         self.lastQueryUrl = url
         self.lastQueryResponse = None
         self.lastQueryError = ''
         self.lastQueryDebug = {
             'url': url,
+            'original_url': original_url if was_rewritten else None,
+            'url_rewritten': was_rewritten,
             'method': method,
             'timeout': timeout or self.requestTimeout,
             'has_body': body is not None,
@@ -148,8 +228,9 @@ class APIProfiler(treeObject):
         if 'Accept' not in headers:
             headers['Accept'] = 'application/json'
 
-        print(f"[APIProfiler] Querying: {method} {url}")
-        print(f"[APIProfiler] Timeout: {timeout}s, SSL verify: {verify_ssl}")
+        print(f"[APIProfiler] Querying: {method} {url}", flush=True)
+        print(f"[APIProfiler] Timeout: {timeout}s, SSL verify: {verify_ssl}", flush=True)
+        sys.stdout.flush()
 
         # Use requests library if available (better SSL handling)
         if self.useRequests and HAS_REQUESTS:
@@ -186,6 +267,9 @@ class APIProfiler(treeObject):
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
             # Make request
+            import sys
+            print(f"[APIProfiler] About to make requests.request() call...", flush=True)
+            sys.stdout.flush()
             response = requests.request(
                 method=method.upper(),
                 url=url,
@@ -195,11 +279,12 @@ class APIProfiler(treeObject):
                 timeout=timeout,
                 verify=verify_ssl
             )
+            print(f"[APIProfiler] requests.request() returned", flush=True)
 
             self.lastQueryDebug['status_code'] = response.status_code
             self.lastQueryDebug['response_size'] = len(response.content)
 
-            print(f"[APIProfiler] Response: {response.status_code}, size: {len(response.content)} bytes")
+            print(f"[APIProfiler] Response: {response.status_code}, size: {len(response.content)} bytes", flush=True)
 
             # Check for HTTP errors
             if response.status_code >= 400:
@@ -227,25 +312,25 @@ class APIProfiler(treeObject):
             error_msg = f"Request timed out after {timeout} seconds"
             self.lastQueryError = error_msg
             self.lastQueryDebug['error_type'] = 'timeout'
-            print(f"[APIProfiler] ERROR: {error_msg}")
+            print(f"[APIProfiler] ERROR: {error_msg}", flush=True)
             return (None, error_msg)
         except requests.exceptions.SSLError as e:
             error_msg = f"SSL Error: {str(e)}"
             self.lastQueryError = error_msg
             self.lastQueryDebug['error_type'] = 'ssl'
-            print(f"[APIProfiler] ERROR: {error_msg}")
+            print(f"[APIProfiler] ERROR: {error_msg}", flush=True)
             return (None, error_msg)
         except requests.exceptions.ConnectionError as e:
             error_msg = f"Connection Error: {str(e)}"
             self.lastQueryError = error_msg
             self.lastQueryDebug['error_type'] = 'connection'
-            print(f"[APIProfiler] ERROR: {error_msg}")
+            print(f"[APIProfiler] ERROR: {error_msg}", flush=True)
             return (None, error_msg)
         except Exception as e:
             error_msg = f"Request failed: {type(e).__name__}: {str(e)}"
             self.lastQueryError = error_msg
             self.lastQueryDebug['error_type'] = type(e).__name__
-            print(f"[APIProfiler] ERROR: {error_msg}")
+            print(f"[APIProfiler] ERROR: {error_msg}", flush=True)
             return (None, error_msg)
 
     def _query_with_urllib(
@@ -291,7 +376,7 @@ class APIProfiler(treeObject):
                 self.lastQueryDebug['status_code'] = response.status
                 self.lastQueryDebug['response_size'] = len(response_data)
 
-                print(f"[APIProfiler] Response: {response.status}, size: {len(response_data)} bytes")
+                print(f"[APIProfiler] Response: {response.status}, size: {len(response_data)} bytes", flush=True)
 
                 # Try to parse as JSON
                 try:
@@ -307,31 +392,31 @@ class APIProfiler(treeObject):
             error_msg = f"HTTP Error {e.code}: {e.reason}"
             self.lastQueryError = error_msg
             self.lastQueryDebug['error_type'] = 'http'
-            print(f"[APIProfiler] ERROR: {error_msg}")
+            print(f"[APIProfiler] ERROR: {error_msg}", flush=True)
             return (None, error_msg)
         except urllib.error.URLError as e:
             error_msg = f"URL Error: {str(e.reason)}"
             self.lastQueryError = error_msg
             self.lastQueryDebug['error_type'] = 'url'
-            print(f"[APIProfiler] ERROR: {error_msg}")
+            print(f"[APIProfiler] ERROR: {error_msg}", flush=True)
             return (None, error_msg)
         except socket.timeout as e:
             error_msg = f"Request timed out after {timeout} seconds"
             self.lastQueryError = error_msg
             self.lastQueryDebug['error_type'] = 'timeout'
-            print(f"[APIProfiler] ERROR: {error_msg}")
+            print(f"[APIProfiler] ERROR: {error_msg}", flush=True)
             return (None, error_msg)
         except ssl.SSLError as e:
             error_msg = f"SSL Error: {str(e)}"
             self.lastQueryError = error_msg
             self.lastQueryDebug['error_type'] = 'ssl'
-            print(f"[APIProfiler] ERROR: {error_msg}")
+            print(f"[APIProfiler] ERROR: {error_msg}", flush=True)
             return (None, error_msg)
         except Exception as e:
             error_msg = f"Request failed: {type(e).__name__}: {str(e)}"
             self.lastQueryError = error_msg
             self.lastQueryDebug['error_type'] = type(e).__name__
-            print(f"[APIProfiler] ERROR: {error_msg}")
+            print(f"[APIProfiler] ERROR: {error_msg}", flush=True)
             return (None, error_msg)
 
     def extract_data_from_path(self, response: Any, root_path: str = '') -> Any:

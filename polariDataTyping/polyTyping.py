@@ -154,7 +154,7 @@ class polyTypedObject(treeObject):
         Populates self.stateSpaceEventMethods with metadata from @stateSpaceEvent decorated methods.
         """
         try:
-            from polariDataTyping.stateSpaceDecorators import get_state_space_events
+            from polariNoCode.stateSpaceDecorators import get_state_space_events
             self.stateSpaceEventMethods = get_state_space_events(classDefinition)
         except ImportError:
             print(f"Warning: Could not import stateSpaceDecorators for class {self.className}")

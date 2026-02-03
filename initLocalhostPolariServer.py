@@ -13,8 +13,19 @@ if is_in_docker():
     sys.path.insert(0, '/app/vendor')
 
 from objectTreeManagerDecorators import managerObject
-from wsgiref.simple_server import make_server
+from wsgiref.simple_server import make_server, WSGIServer
+from socketserver import ThreadingMixIn
 from falcon import falcon
+
+
+class ThreadingWSGIServer(ThreadingMixIn, WSGIServer):
+    """Multi-threaded WSGI server to handle concurrent requests.
+
+    This is necessary for the API Profiler self-call feature, which makes
+    HTTP requests to the same server. Without threading, the server would
+    deadlock waiting for its own response.
+    """
+    daemon_threads = True
 
 # SSL Configuration - Cloudflare-compatible HTTPS port
 HTTPS_PORT = 2096
@@ -52,17 +63,19 @@ def create_ssl_context():
 
 
 def run_http_server(app, port):
-    """Run HTTP server on specified port."""
-    with make_server('', port, app) as httpd:
+    """Run HTTP server on specified port (multi-threaded)."""
+    with make_server('', port, app, server_class=ThreadingWSGIServer) as httpd:
+        print(f"[HTTP] Multi-threaded server starting on port {port}")
         httpd.serve_forever()
 
 
 def run_https_server(app, port):
-    """Run HTTPS server on specified port with SSL."""
+    """Run HTTPS server on specified port with SSL (multi-threaded)."""
     try:
         context = create_ssl_context()
-        with make_server('', port, app) as httpd:
+        with make_server('', port, app, server_class=ThreadingWSGIServer) as httpd:
             httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+            print(f"[HTTPS] Multi-threaded server starting on port {port}")
             httpd.serve_forever()
     except Exception as e:
         print(f"[HTTPS] Server error: {e}")

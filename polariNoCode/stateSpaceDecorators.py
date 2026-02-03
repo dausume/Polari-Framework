@@ -24,8 +24,12 @@ A state-space event is a method that:
 - Returns a defined output (which becomes output slots)
 - Can be visually connected in the no-code editor
 
+Related modules:
+- polariNoCode.stateDefinition: StateDefinition model for defining how classes appear as states
+- polariApiServer.stateSpaceAPI: REST API endpoints for state-space functionality
+
 Usage:
-    from polariDataTyping.stateSpaceDecorators import stateSpaceEvent
+    from polariNoCode.stateSpaceDecorators import stateSpaceEvent
 
     class OrderProcessor:
         @stateSpaceEvent(

@@ -78,6 +78,10 @@ class APIProfilerQueryAPI(treeObject):
             "matches": [...]  // If matchProfiles is true
         }
         """
+        import sys
+        print(f"[APIProfilerQueryAPI] on_post called", flush=True)
+        sys.stdout.flush()
+
         try:
             raw_data = request.bounded_stream.read()
             req_body = json.loads(raw_data.decode('utf-8'))
@@ -95,6 +99,8 @@ class APIProfilerQueryAPI(treeObject):
             root_path = req_body.get('responseRootPath', '')
             match_profiles = req_body.get('matchProfiles', False)
             profile_name = req_body.get('profileName', '')
+
+            print(f"[APIProfilerQueryAPI] Querying URL: {url}", flush=True)
 
             # Query the external API
             api_response, error = self.profiler.query_external_api(

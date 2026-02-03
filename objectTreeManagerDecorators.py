@@ -505,30 +505,30 @@ class managerObject:
         if(correctObjectTyping == None):
             errMsg = "PolyTyping for type " + className + " could not be found!"
             raise ValueError(errMsg)
-        print("PolyTyping for object type ", className, " is found on PolyTyping instance ", correctObjectTyping)
-        print("The object Typing\'s polariSourceFile is ", correctObjectTyping.polariSourceFile)
+        # print("PolyTyping for object type ", className, " is found on PolyTyping instance ", correctObjectTyping)  # Verbose
+        # print("The object Typing\'s polariSourceFile is ", correctObjectTyping.polariSourceFile)  # Verbose
         # Handle dynamic classes that don't have source files
         if correctObjectTyping.polariSourceFile is None:
-            print("Dynamic class detected - no source file")
+            # print("Dynamic class detected - no source file")  # Verbose
             returnDict['absDirPath'] = None
             returnDict['definingFile'] = None
             returnDict['isDynamic'] = True
             return returnDict
-        print("The executable object\'s file name is ", correctObjectTyping.polariSourceFile.name)
-        print("The executable object\'s path is ", correctObjectTyping.polariSourceFile.Path)
+        # print("The executable object\'s file name is ", correctObjectTyping.polariSourceFile.name)  # Verbose
+        # print("The executable object\'s path is ", correctObjectTyping.polariSourceFile.Path)  # Verbose
         returnDict['absDirPath'] = correctObjectTyping.polariSourceFile.Path
         returnDict['definingFile'] = correctObjectTyping.polariSourceFile.name
         if(returnDict['absDirPath'] == None):
             raise ValueError("No value found for Path on source file for class "+className)
         elif(returnDict['absDirPath'] == None):
             raise ValueError("No value found for file name on source file for class "+className)
-        print("Passing back returnDict.")
+        # print("Passing back returnDict.")  # Verbose
         return returnDict
 
 
     #Gets all data for a class and returns a Dictionary which is convertable to a json object.
     def getJSONdictForClass(self, passedInstances, varsLimited=[]):
-        print("[getJSONdictForClass] START - passedInstances:", passedInstances, " varsLimited: ", varsLimited)
+        # print("[getJSONdictForClass] START - passedInstances:", passedInstances, " varsLimited: ", varsLimited)  # Verbose
         # Automatically exclude internal treeObject variables from API responses.
         # These are framework infrastructure variables, not user-defined data.
         # Merge any explicitly limited vars with the internal vars set.
@@ -536,10 +536,10 @@ class managerObject:
         try:
             if(type(passedInstances).__name__ == "dict"):
                 passedInstances = list(passedInstances.values())
-            print("[getJSONdictForClass] After dict conversion, passedInstances length:", len(passedInstances))
+            # print("[getJSONdictForClass] After dict conversion, passedInstances length:", len(passedInstances))  # Verbose
             if(len(passedInstances) > 0):
                 objSourceDetailsDict = self.getObjectSourceDetailsANDvalidateInstances(passedInstances=passedInstances)
-                print("[getJSONdictForClass] objSourceDetailsDict:", objSourceDetailsDict)
+                # print("[getJSONdictForClass] objSourceDetailsDict:", objSourceDetailsDict)  # Verbose
                 #Path to the Directory the file is in.
                 absDirPath = objSourceDetailsDict.get('absDirPath')
                 #The name of the file which contains the given class.
@@ -550,7 +550,7 @@ class managerObject:
                 objSourceDetailsDict = {}
             #
             # varsLimited is already set above with internal vars merged
-            print("[getJSONdictForClass] Successfully extracted details.")
+            # print("[getJSONdictForClass] Successfully extracted details.")  # Commented out - too verbose
         except Exception as e:
             print("[getJSONdictForClass] ERROR in initial processing:", str(e))
             import traceback

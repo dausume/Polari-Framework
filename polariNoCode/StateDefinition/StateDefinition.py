@@ -22,6 +22,10 @@ can be used as a state in the no-code visual programming interface.
 A single class may have multiple StateDefinitions, each representing a different
 way the class can be used as a state (e.g., different events, different field displays).
 
+Related modules:
+- polariNoCode.stateSpaceDecorators: Decorators for marking methods as state-space events
+- polariApiServer.stateSpaceAPI: REST API endpoints for state-space functionality
+
 Example:
     An "Order" class might have StateDefinitions for:
     - "Process Order" (using the process_order event)
@@ -30,97 +34,9 @@ Example:
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from typing import List, Dict, Optional, Any
-
-
-class SlotDefinition:
-    """
-    Defines an input or output slot for a state in the no-code interface.
-
-    Slots are connection points on states that allow data flow between states.
-    """
-    def __init__(
-        self,
-        name: str,
-        display_name: str,
-        slot_type: str,  # 'input' or 'output'
-        data_type: str = 'any',
-        is_required: bool = True,
-        default_value: Any = None,
-        description: str = ''
-    ):
-        self.name = name
-        self.display_name = display_name
-        self.slot_type = slot_type  # 'input' or 'output'
-        self.data_type = data_type  # Type hint string
-        self.is_required = is_required
-        self.default_value = default_value
-        self.description = description
-
-    def to_dict(self) -> dict:
-        return {
-            'name': self.name,
-            'displayName': self.display_name,
-            'slotType': self.slot_type,
-            'dataType': self.data_type,
-            'isRequired': self.is_required,
-            'defaultValue': self.default_value,
-            'description': self.description
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> 'SlotDefinition':
-        return cls(
-            name=data.get('name', ''),
-            display_name=data.get('displayName', ''),
-            slot_type=data.get('slotType', 'input'),
-            data_type=data.get('dataType', 'any'),
-            is_required=data.get('isRequired', True),
-            default_value=data.get('defaultValue'),
-            description=data.get('description', '')
-        )
-
-
-class FieldDisplay:
-    """
-    Defines how a field is displayed in the state UI.
-    """
-    def __init__(
-        self,
-        field_name: str,
-        display_name: str = '',
-        visible: bool = True,
-        row: int = 0,
-        editable: bool = False,
-        field_type: str = 'text'
-    ):
-        self.field_name = field_name
-        self.display_name = display_name or field_name
-        self.visible = visible
-        self.row = row
-        self.editable = editable
-        self.field_type = field_type  # 'text', 'number', 'boolean', 'select', etc.
-
-    def to_dict(self) -> dict:
-        return {
-            'fieldName': self.field_name,
-            'displayName': self.display_name,
-            'visible': self.visible,
-            'row': self.row,
-            'editable': self.editable,
-            'fieldType': self.field_type
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> 'FieldDisplay':
-        return cls(
-            field_name=data.get('fieldName', ''),
-            display_name=data.get('displayName', ''),
-            visible=data.get('visible', True),
-            row=data.get('row', 0),
-            editable=data.get('editable', False),
-            field_type=data.get('fieldType', 'text')
-        )
+from typing import List
+from polariNoCode.StateDefinition.SlotDefinition import SlotDefinition
+from polariNoCode.StateDefinition.FieldDisplay import FieldDisplay
 
 
 class StateDefinition(treeObject):

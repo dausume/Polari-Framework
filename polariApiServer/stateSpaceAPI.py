@@ -23,7 +23,7 @@ Provides endpoints for:
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from polariDataTyping.stateDefinition import StateDefinition, create_state_definition_from_event
+from polariNoCode.StateDefinition import StateDefinition, create_state_definition_from_event
 import falcon
 import json
 
