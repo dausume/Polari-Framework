@@ -48,6 +48,14 @@ import falcon
 import secrets
 import subprocess
 
+# Import Materials Science module
+try:
+    from polariMaterialsScienceModule import initialize as initialize_materials_science
+    MATERIALS_SCIENCE_AVAILABLE = True
+except ImportError:
+    MATERIALS_SCIENCE_AVAILABLE = False
+    print("[polariServer] Materials Science module not available - skipping")
+
 # Import configuration loader for CORS origins
 try:
     from config_loader import config
@@ -266,6 +274,24 @@ class polariServer(treeObject):
         self.groups = []
         #
         self.serverInstance = None
+
+        # Initialize Materials Science module: register classes + auto-expose CRUDE endpoints
+        if MATERIALS_SCIENCE_AVAILABLE:
+            try:
+                result = initialize_materials_science(
+                    manager=self.manager,
+                    include_seed_data=True
+                )
+                # Auto-register CRUDE endpoints for all module classes
+                for class_name in result['registered_classes']:
+                    try:
+                        self.registerCRUDEforObjectType(class_name)
+                    except Exception:
+                        pass  # Skip classes that can't be CRUDE-registered (framework internals)
+                seed_count = sum(len(v) for v in result['seed_data'].values())
+                print(f"[polariServer] Materials Science initialized: {len(result['registered_classes'])} classes, {seed_count} seed records")
+            except Exception as e:
+                print(f"[polariServer] Warning: Could not initialize Materials Science module: {e}")
 
     #Creates a new sink which operates stictly over a secure local network (Wifi Router)
     def makeNewLocalSink(self, localNetworkedSystemIP, remotePort, managerAPI):
