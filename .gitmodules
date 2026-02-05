@@ -1,0 +1,3 @@
+[submodule "polariMaterialsScienceModule"]
+	path = polariMaterialsScienceModule
+	url = git@github.com:dausume/polari-materials-science-module.git
