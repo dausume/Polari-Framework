@@ -18,6 +18,8 @@ from polariDataTyping.polyTyping import polyTypedObject
 from polariDataTyping.polyTypedVars import polyTypedVariable
 import falcon
 import json
+import sqlite3
+import os
 
 
 class createClassAPI(treeObject):
@@ -254,6 +256,15 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             except Exception as e:
                 print(f"[createClassAPI] Warning: Could not create DB table for {className}: {e}")
 
+        # Persist dynamic class definition to registry table for restore on restart
+        if hasattr(self.manager, 'db') and self.manager.db is not None:
+            try:
+                self._persistClassDefinition(className, displayName, variables,
+                                              registerCRUDE, isStateSpaceObject,
+                                              stateSpaceDisplayFields, stateSpaceFieldsPerRow)
+            except Exception as e:
+                print(f"[createClassAPI] Warning: Could not persist class definition for {className}: {e}")
+
         print(f"[createClassAPI] Created dynamic class: {className} with {len(variables)} variables")
         return newTyping
 
@@ -269,6 +280,166 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             'reference': None
         }
         return type_defaults.get(var_type, '')
+
+    def _persistClassDefinition(self, className, displayName, variables,
+                                 registerCRUDE, isStateSpaceObject,
+                                 stateSpaceDisplayFields, stateSpaceFieldsPerRow):
+        """Save dynamic class definition to _dynamic_class_registry table."""
+        db = self.manager.db
+        dbFilePath = os.path.join(db.Path, db.name + '.db') if db.Path else db.name + '.db'
+        conn = sqlite3.connect(dbFilePath)
+        conn.execute('''CREATE TABLE IF NOT EXISTS _dynamic_class_registry (
+            className TEXT PRIMARY KEY,
+            displayName TEXT,
+            variables TEXT,
+            registerCRUDE INTEGER,
+            isStateSpaceObject INTEGER,
+            stateSpaceDisplayFields TEXT,
+            stateSpaceFieldsPerRow INTEGER
+        )''')
+        conn.execute(
+            'INSERT OR REPLACE INTO _dynamic_class_registry VALUES (?, ?, ?, ?, ?, ?, ?)',
+            (
+                className,
+                displayName,
+                json.dumps(variables),
+                1 if registerCRUDE else 0,
+                1 if isStateSpaceObject else 0,
+                json.dumps(stateSpaceDisplayFields) if stateSpaceDisplayFields else None,
+                stateSpaceFieldsPerRow
+            )
+        )
+        conn.commit()
+        conn.close()
+        print(f"[createClassAPI] Persisted class definition for {className} to registry")
+
+    @staticmethod
+    def restoreDynamicClasses(manager, dbFilePath):
+        """Restore all dynamic class definitions from the registry table.
+
+        Called during restoreFromDatabase() BEFORE the instance restore loop,
+        so that dynamic class tables are recognized as known classes.
+
+        Args:
+            manager: The managerObject
+            dbFilePath: Path to the .db file
+        """
+        conn = sqlite3.connect(dbFilePath)
+        cursor = conn.cursor()
+        # Check if registry table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='_dynamic_class_registry'")
+        if not cursor.fetchone():
+            conn.close()
+            return
+        cursor.execute('SELECT * FROM _dynamic_class_registry')
+        rows = cursor.fetchall()
+        conn.close()
+
+        if not rows:
+            return
+
+        print(f'[DB] Restoring {len(rows)} dynamic class definitions...')
+
+        for row in rows:
+            className, displayName, variablesJson, registerCRUDE, isStateSpaceObject, displayFieldsJson, fieldsPerRow = row
+            # Skip if already registered (shouldn't happen, but safety check)
+            if className in manager.objectTypingDict:
+                print(f'[DB] Dynamic class {className} already registered, skipping')
+                continue
+
+            variables = json.loads(variablesJson) if variablesJson else []
+            stateSpaceDisplayFields = json.loads(displayFieldsJson) if displayFieldsJson else None
+
+            # Re-create the dynamic class using the same logic as _createDynamicClass
+            var_defaults = {}
+            type_defaults = {'str': '', 'int': 0, 'float': 0.0, 'list': [], 'dict': {}, 'bool': False, 'reference': None}
+            for var in variables:
+                var_name = var.get('varName', '')
+                if var_name:
+                    var_defaults[var_name] = type_defaults.get(var.get('varType', 'str'), '')
+
+            base_params = {'id', 'manager', 'branch', 'inTree'}
+            custom_defaults = {k: v for k, v in var_defaults.items() if k not in base_params}
+            param_names = list(custom_defaults.keys())
+
+            param_str = ', '.join([f"{name}={repr(default)}" for name, default in custom_defaults.items()])
+            if param_str:
+                param_str = ', ' + param_str
+
+            body_assignments = '\n'.join([f'    self.{name} = {name}' for name in param_names])
+
+            func_code = f'''
+def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
+    treeObject.__init__(self, manager=manager, branch=branch, id=id)
+{body_assignments}
+'''
+            local_ns = {'treeObject': treeObject}
+            exec(func_code, local_ns)
+            dynamic_init = local_ns['dynamic_init']
+
+            class_attrs = {
+                '__init__': treeObjectInit(dynamic_init),
+                'displayName': displayName,
+                '_dynamicClass': True,
+                '_variableDefinitions': variables
+            }
+
+            DynamicClass = type(className, (treeObject,), class_attrs)
+
+            identifiers = ['id']
+            for var in variables:
+                if var.get('isIdentifier', False) and var.get('varName') not in identifiers:
+                    identifiers.append(var['varName'])
+
+            newTyping = polyTypedObject(
+                className=className,
+                manager=manager,
+                sourceFiles=[],
+                identifierVariables=identifiers,
+                objectReferencesDict={},
+                classDefinition=DynamicClass,
+                kwRequiredParams=[],
+                kwDefaultParams=list(var_defaults.keys()),
+                allowClassEdit=True,
+                isStateSpaceObject=bool(isStateSpaceObject),
+                excludeFromCRUDE=False
+            )
+
+            if bool(isStateSpaceObject) and stateSpaceDisplayFields:
+                newTyping.setStateSpaceDisplayFields(stateSpaceDisplayFields, fieldsPerRow or 1)
+            elif bool(isStateSpaceObject):
+                all_var_names = [v.get('varName') for v in variables if v.get('varName')]
+                newTyping.setStateSpaceDisplayFields(all_var_names, fieldsPerRow or 1)
+
+            for var in variables:
+                var_name = var.get('varName', '')
+                var_type = var.get('varType', 'str')
+                if var_name:
+                    default_value = type_defaults.get(var_type, '')
+                    try:
+                        polyVar = polyTypedVariable(
+                            polyTypedObj=newTyping,
+                            attributeName=var_name,
+                            attributeValue=default_value
+                        )
+                        polyVar.pythonTypeDefault = var_type
+                        polyVar.displayName = var.get('varDisplayName', var_name)
+                        polyVar.isIdentifier = var.get('isIdentifier', False)
+                        polyVar.isUnique = var.get('isUnique', False)
+                        newTyping.polyTypedVars.append(polyVar)
+                        newTyping.polyTypedVarsDict[var_name] = polyVar
+                        newTyping.variableNameList.append(var_name)
+                    except Exception as e:
+                        print(f"[DB] Warning: Could not create polyTypedVariable for {var_name}: {e}")
+
+            if newTyping not in manager.objectTyping:
+                manager.objectTyping.append(newTyping)
+
+            if not hasattr(manager, 'dynamicClasses'):
+                manager.dynamicClasses = {}
+            manager.dynamicClasses[className] = DynamicClass
+
+            print(f'[DB] Restored dynamic class: {className} ({len(variables)} variables)')
 
     def on_get(self, request, response):
         """Return list of dynamically created classes"""

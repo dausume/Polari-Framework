@@ -214,6 +214,22 @@ class managerObject:
 
         print(f'[DB] Found {len(self.db.tables)} tables: {self.db.tables}')
 
+        # Restore dynamic class definitions BEFORE instance restore
+        # so their tables are recognized as known classes
+        dbFilePath = os.path.join(dbPath, dbName + '.db')
+        try:
+            from polariApiServer.createClassAPI import createClassAPI
+            createClassAPI.restoreDynamicClasses(self, dbFilePath)
+            # Register CRUDE endpoints for restored dynamic classes
+            if hasattr(self, 'dynamicClasses') and self.polServer is not None:
+                for dynClassName in self.dynamicClasses:
+                    try:
+                        self.polServer.registerCRUDEforObjectType(dynClassName)
+                    except Exception:
+                        pass
+        except Exception as e:
+            print(f'[DB] Error restoring dynamic classes: {e}')
+
         # Identify seed instance IDs to skip during restore
         seedDbIds = self.identifySeedDBIds()
 
@@ -343,7 +359,7 @@ class managerObject:
                         value = polyTypedObj.deserializeColumnValue(colName, value)
 
                     try:
-                        super(managerObject, instance).__setattr__(colName, value)
+                        object.__setattr__(instance, colName, value)
                     except Exception:
                         pass  # Skip attributes that can't be set directly
 
