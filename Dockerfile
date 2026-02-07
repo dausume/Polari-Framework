@@ -80,10 +80,14 @@ ENV FREETYPE_VERSION=2.6.1
 ENV FREETYPE_DIR=/build/freetype-2.6.1
 ENV FREETYPE_ROOT=$FREETYPE_DIR
 ENV LD_LIBRARY_PATH="$FREETYPE_DIR/builds/unix/:$LD_LIBRARY_PATH"
+ENV PYTHONDONTWRITEBYTECODE=1
 
 # Copy application code LAST (this layer invalidates most often)
 # This ensures dependency layers are cached and reused
 COPY . /app
+
+# Ensure data directory exists for SQLite database (volume mount point)
+RUN mkdir -p /app/data
 
 # Expose HTTP and HTTPS ports
 # HTTP: 3000 (default), HTTPS: 2096 (Cloudflare-compatible)

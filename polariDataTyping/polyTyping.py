@@ -20,6 +20,7 @@ from  polariDataTyping.polyTypedVars import *
 from inspect import signature
 #from polariAnalytics.functionalityAnalysis import *
 import logging, os, sys, importlib
+from polariNetworking.defineLocalSys import isoSys
 
 #Accounts for data on a class and allows for valid data typing in multiple types,
 #also accounts for the conversion of data types that should be performed when
@@ -134,6 +135,11 @@ class polyTypedObject(treeObject):
         # Dynamic classes created via API explicitly set this to False to enable CRUDE access
         self.excludeFromCRUDE = excludeFromCRUDE
 
+        # API Format Configuration -- one-to-one sub-object managing format endpoints.
+        # The tree handles the parent-child relationship when we assign the instance.
+        # Initialized to None; created lazily in runAnalysis() to avoid circular imports.
+        self.apiFormatConfig = None
+
         # State-Space Configuration (only relevant if isStateSpaceObject is True)
         # List of methods marked with @stateSpaceEvent decorator
         self.stateSpaceEventMethods = []
@@ -200,6 +206,10 @@ class polyTypedObject(treeObject):
 
     #Go through each instance and analyze it.
     def runAnalysis(self):
+        # Lazy-initialize ApiFormatConfig sub-object to avoid circular imports
+        if self.apiFormatConfig is None:
+            from polariApiServer.apiFormatConfig import ApiFormatConfig
+            self.apiFormatConfig = ApiFormatConfig(polyTypedObj=self, manager=self.manager)
         allInstances = self.manager.getListOfClassInstances(self.className)
         for inst in allInstances:
             self.analyzeInstance(inst)
@@ -361,10 +371,173 @@ class polyTypedObject(treeObject):
                 (self.polyTypedVars).append(newPolyTypedVar)
                 self.polyTypedVarsDict[varName] = newPolyTypedVar
             else:
-                (self.polyTypedVarsDict[varName]).analyzeVarValue(varVal)
+                typingResult = (self.polyTypedVarsDict[varName]).analyzeVarValue(varVal)
+                (self.polyTypedVarsDict[varName]).updateTypingDicts(typingResult)
         except Exception:
             print("failed to analyze variable with name ", varName, " and value ", varVal)
             
+
+    def serializeTreePath(self, instance):
+        """Serialize an instance's tree path for database storage.
+
+        Uses the manager's tree traversal to get the instance's location in the
+        object tree, then serializes it as a JSON list of [className, identifiersDict]
+        pairs (without live instance references).
+
+        Args:
+            instance: The object instance to get the tree path for
+
+        Returns:
+            JSON string of the tree path, or None if path cannot be determined.
+            Format: [["ManagerClass", {"id": "abc"}], ["ChildClass", {"id": "xyz"}]]
+        """
+        try:
+            import json
+            instanceTuple = self.manager.getInstanceTuple(instance)
+            tuplePath = self.manager.getTuplePathInObjTree(instanceTuple)
+            if tuplePath is None:
+                return None
+            # Serialize: each tuple is (className, identifiersDict, instanceRef)
+            # We only store className and identifiers (no live references)
+            serialized = []
+            for pathEntry in tuplePath:
+                if isinstance(pathEntry, tuple) and len(pathEntry) >= 2:
+                    className = pathEntry[0] if isinstance(pathEntry[0], str) else str(pathEntry[0])
+                    identifiers = pathEntry[1] if isinstance(pathEntry[1], dict) else {}
+                    # Convert identifier values to serializable types
+                    cleanIds = {}
+                    for k, v in identifiers.items():
+                        cleanIds[k] = str(v) if v is not None else None
+                    serialized.append([className, cleanIds])
+            return json.dumps(serialized)
+        except Exception as e:
+            print(f'[DB] Could not serialize tree path for {self.className}: {e}')
+            return None
+
+    def deserializeColumnValue(self, colName, value):
+        """Convert a database column value back to its Python type.
+
+        Uses polyTypedVarsDict to determine if TEXT values need
+        JSON deserialization (for lists, dicts, etc.).
+
+        Args:
+            colName: The column/variable name
+            value: The raw value from SQLite
+
+        Returns:
+            The value converted to its appropriate Python type.
+        """
+        import json
+        if colName not in self.polyTypedVarsDict:
+            return value
+        if value is None:
+            return value
+
+        polyVar = self.polyTypedVarsDict[colName]
+        summary = polyVar.getDeviationSummary()
+        dominantType = summary['dominantType']
+
+        # Types that are JSON-serialized in the DB
+        if isinstance(value, str) and dominantType.startswith(('list(', 'dict(', 'tuple(')):
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                return value
+
+        # Bool stored as NUMERIC (0/1)
+        if dominantType == 'bool' and isinstance(value, (int, float)):
+            return bool(value)
+
+        return value
+
+    def makeTypedTableFromAnalysis(self):
+        """Create a database table using polyTypedVar deviation analysis.
+
+        Reads getDeviationSummary() from each polyTypedVar to build CREATE TABLE
+        with appropriate column types instead of defaulting everything to TEXT.
+
+        - Identifiers → PRIMARY KEY columns
+        - _branch_path TEXT → always included for tree reconstruction
+        - typed/widenable vars → column with dominant SQLite affinity
+        - variant vars → column with dominant affinity + creates variant side table
+        - complex vars → TEXT column (stores tree-reference tuple path)
+        - Skips internal tree vars: manager, branch, inTree
+        """
+        managerDB = self.manager.db
+        if managerDB is None:
+            print(f'[DB] No database available, skipping table for {self.className}')
+            return
+
+        # Internal variables to skip (tree infrastructure, not data)
+        skipVars = {'manager', 'branch', 'inTree', 'complete', 'objectTree',
+                    'objectTables', 'objectTyping', 'objectTypingDict',
+                    'polServer', 'hostSys', 'subManagers', 'db'}
+
+        classElementRows = []
+        variantTables = []
+
+        # Always include _branch_path for tree reconstruction
+        classElementRows.append('_branch_path TEXT')
+
+        # Count identifiers to decide between inline PRIMARY KEY vs composite
+        identifierCols = [v for v in self.identifiers if v in self.polyTypedVarsDict and v not in skipVars]
+        useCompositePK = len(identifierCols) > 1
+
+        # Process each polyTypedVar
+        for varName, polyVar in self.polyTypedVarsDict.items():
+            if varName in skipVars:
+                continue
+
+            summary = polyVar.getDeviationSummary()
+            strategy = summary['schemaStrategy']
+            affinity = summary['sqliteAffinity']
+
+            # Check if this variable is an identifier
+            isIdentifier = varName in self.identifiers
+
+            if isIdentifier:
+                if useCompositePK:
+                    # Multiple identifiers — use table-level PRIMARY KEY constraint later
+                    classElementRows.append(f'{varName} {affinity}')
+                else:
+                    classElementRows.append(f'{varName} {affinity} PRIMARY KEY')
+            elif strategy == 'typed' or strategy == 'widenable':
+                # Simple case: use the dominant affinity directly
+                classElementRows.append(f'{varName} {affinity}')
+            elif strategy == 'variant':
+                # Main table gets dominant affinity column
+                classElementRows.append(f'{varName} {affinity}')
+                # Queue a variant side table for the non-dominant types
+                variantTables.append((varName, polyVar))
+            elif strategy == 'complex':
+                # Too many type variants - store as TEXT (serialized tree-reference)
+                classElementRows.append(f'{varName} TEXT')
+
+        # Add composite PRIMARY KEY constraint if multiple identifiers
+        if useCompositePK and identifierCols:
+            classElementRows.append(f'PRIMARY KEY ({", ".join(identifierCols)})')
+
+        # Create the main table (only if we have columns beyond just _branch_path)
+        if len(classElementRows) <= 1:
+            print(f'[DB] Skipping table for {self.className} — no meaningful columns from analysis')
+            return
+        if classElementRows:
+            managerDB.makeSQLiteTable(tableName=self.className, rowList=classElementRows)
+            if self.className in managerDB.tables:
+                print(f'[DB] Created typed table for {self.className} with {len(classElementRows)} columns')
+            else:
+                print(f'[DB] FAILED to create table for {self.className}', flush=True)
+
+        # Create variant side tables
+        for varName, polyVar in variantTables:
+            variantTableName = f'{self.className}_{varName}_variant'
+            variantRows = [
+                '_parent_id TEXT',
+                f'{varName} TEXT',
+                '_type_name TEXT'
+            ]
+            managerDB.makeSQLiteTable(tableName=variantTableName, rowList=variantRows)
+            print(f'[DB] Created variant table {variantTableName}')
 
     #Uses the Identifiers and the class name
     def makeTypedTable(self):
@@ -372,7 +545,8 @@ class polyTypedObject(treeObject):
         for sourceFile in self.sourceFiles:
             if((sourceFile.extension) == 'py'):
                  pySource = sourceFile
-        ((self.manager).DB).makeTableByClass(absDirPath=sourceFile.Path, definingFile=sourceFile.name)
+        if pySource is not None and self.manager.db is not None:
+            (self.manager.db).makeTableByClass(absDirPath=pySource.Path, definingFile=pySource.name, className=self.className)
 
     def getObjectTyping(self, classObj=None, className=None, classInstance=None ):
         if className != None:
@@ -519,12 +693,16 @@ class polyTypedObject(treeObject):
         
 
     def makeGeneralizedTable(self):
-        managerDB = (self.manager).DB
+        managerDB = self.manager.db
+        if managerDB is None:
+            return
         definingFile = None
-        for sourceFile in sourceFiles:
-            if sourceFile.contains('.py'):
-                definingFile=sourceFile
-        #managerDB.makeTableByClass(absDirPath, definingFile=, className)
+        for sourceFile in self.sourceFiles:
+            if sourceFile.extension == 'py':
+                definingFile = sourceFile
+                break
+        if definingFile is not None:
+            managerDB.makeTableByClass(absDirPath=definingFile.Path, definingFile=definingFile.name, className=self.className)
 
     #First, pull in all of the instances from the json dictionary,
     #and for each instance load them on first as they are pulled from the
@@ -565,34 +743,17 @@ class polyTypedObject(treeObject):
             self.polariSourceFile.Path = classDirPath
             # print("classDirPath after mod")
             # print(classDirPath)
-            lastFS_classDirPath = classDirPath.rfind('/')
-            lastBS_classDirPath = classDirPath.rfind('\\')
-            #Both returned -1 if they are equal, so no slashes were in the string
-            if(lastFS_classDirPath == lastBS_classDirPath):
-                classDir = classDirPath
-            #The last slash detected was a forward slash
-            elif(lastFS_classDirPath > lastBS_classDirPath):
-                classDir = classDirPath[:lastFS_classDirPath]
-            #The last slash detected was a forward slash
-            else:
-                classDir = classDirPath[:lastBS_classDirPath]
+            classDir = isoSys.bootupPathDir(classDirPath) if isoSys.bootupPathDir(classDirPath) else classDirPath
         # print("classDir refinement one")
         # print(classDir)
-        lastFS_classDirPath = classDir.rfind('/')
-        lastBS_classDirPath = classDir.rfind('\\')
-        #The last slash detected was a forward slash
-        if(lastFS_classDirPath > lastBS_classDirPath):
-            classDir = classDir[lastFS_classDirPath+1:]
-        #The last slash detected was a forward slash
-        else:
-            classDir = classDir[lastBS_classDirPath+1:]
+        classDir = os.path.basename(classDir) if os.path.basename(classDir) else classDir
         # print("classDir refinement two")
         # print(classDir)
         className = self.className
         # print("className")
         # print(className)
         if(classDirPath != None and classFileName != None and className != None):
-            polyTypingPath =  (os.path.realpath(__file__))[:os.path.realpath(__file__).rfind('\\')]
+            polyTypingPath = isoSys.bootupPathDir(os.path.realpath(__file__))
             # print("polyTypingPath")
             # print(polyTypingPath)
             isForwardSlash = None
@@ -612,7 +773,7 @@ class polyTypedObject(treeObject):
                 chars = range(len(classDirPath))
                 for charIndex in chars:
                     if(classDirPath[charIndex] == polyTypingPath[charIndex]):
-                        if( not (classDirPath[charIndex] == "\\" or classDirPath[charIndex] == "/") and  (polyTypingPath[charIndex] == "\\" or polyTypingPath[charIndex] == "/") ):
+                        if( not (classDirPath[charIndex] == isoSys.bootupPathSep()) and  (polyTypingPath[charIndex] == isoSys.bootupPathSep()) ):
                             errMsg += " ERROR 0: discrepency read at index " + str(charIndex) + " base path character is " + polyTypingPath[charIndex] + " while file path character is " + classDirPath[charIndex]
                             raise ValueError(errMsg)
                     else:
@@ -643,13 +804,13 @@ class polyTypedObject(treeObject):
                 packageTraversalString = ""
                 packageNameStartIndex = 0
                 packageNameEndIndex = None
-                if(relativePath[0] == "\\" or relativePath[0] == "/"):
+                if(relativePath[0] == isoSys.bootupPathSep()):
                     packageNameStartIndex = 1
                     relativePathIndexing = range(1, len(classDirPath)-len(polyTypingPath)-1)
                 else:
                     relativePathIndexing = range(len(classDirPath)-len(polyTypingPath)-1)
                 for charIndex in relativePathIndexing:
-                    if(relativePath[charIndex] == "\\" or relativePath[charIndex] == "/"):
+                    if(relativePath[charIndex] == isoSys.bootupPathSep()):
                         packageNameEndIndex = charIndex - 1
                         curPackage = relativePath[packageNameStartIndex:packageNameEndIndex]
                         packageTraversalString += curPackage + "."

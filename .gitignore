@@ -1,7 +1,9 @@
 *.json
 *.pyc
+*.db
 */falcon
 *__pycache__
 testDoc.txt
 testDocOne.txt
 testDocTwo.txt
+data/

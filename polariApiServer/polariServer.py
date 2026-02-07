@@ -26,6 +26,9 @@ from polariApiServer.apiDiscoveryAPI import APIDiscoveryAPI
 from polariApiServer.createClassAPI import createClassAPI
 from polariApiServer.stateSpaceAPI import StateSpaceClassesAPI, StateSpaceConfigAPI, StateDefinitionAPI
 from polariApiServer.apiConfigAPI import ApiConfigAPI
+from polariApiServer.apiFormatConfig import ApiFormatConfig
+from polariApiServer.flatJsonAPI import FlatJsonAPI
+from polariApiServer.d3ColumnAPI import D3ColumnAPI
 from polariApiProfiler.apiProfilerAPI import (
     APIProfilerQueryAPI,
     APIProfilerMatchAPI,
@@ -224,12 +227,20 @@ class polariServer(treeObject):
         # Create API Configuration endpoint for viewing/managing CRUDE permissions
         apiConfigEndpoint = ApiConfigAPI(polServer=self, manager=self.manager)
 
-        # Register APIProfile, APIDomain, and APIEndpoint types for CRUDE operations
+        # Register APIProfile, APIDomain, APIEndpoint, and ApiFormatConfig types
         self.manager.getObjectTyping(classObj=APIProfile)
         self.manager.getObjectTyping(classObj=APIDomain)
         self.manager.getObjectTyping(classObj=APIEndpoint)
+        self.manager.getObjectTyping(classObj=ApiFormatConfig)
 
         self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint, apiProfilerQueryEndpoint, apiProfilerMatchEndpoint, apiProfilerBuildEndpoint, apiProfilerCreateClassEndpoint, apiProfilerTemplatesEndpoint, apiProfilerDetectTypesEndpoint, apiDomainEndpoint, apiEndpointEndpoint, apiEndpointFetchEndpoint, apiConfigEndpoint]
+
+        # Populate uriList with custom API endpoints for overlap tracking
+        for api in self.customAPIsList:
+            apiName = getattr(api, 'apiName', '')
+            if apiName and apiName not in self.uriList:
+                self.uriList.append(apiName)
+
         self.crudeObjectsList = [polariCRUDE(apiObject="polariCRUDE", polServer=self, manager=self.manager)]
         objNamesList = list(self.manager.objectTypingDict)
         if(not "polariAPI" in objNamesList):
@@ -251,6 +262,11 @@ class polariServer(treeObject):
             typingObj.runAnalysis()
             newCRUDE = polariCRUDE(apiObject=objType, polServer=self, manager=self.manager)
             self.crudeObjectsList.append(newCRUDE)
+            if newCRUDE.apiName not in self.uriList:
+                self.uriList.append(newCRUDE.apiName)
+            # Set the polariTree endpoint on the ApiFormatConfig if it exists
+            if hasattr(typingObj, 'apiFormatConfig') and typingObj.apiFormatConfig is not None:
+                typingObj.apiFormatConfig.polariTreeEndpoint = newCRUDE.apiName
             print(f"✓ Created CRUDE endpoint: {newCRUDE.apiName} for {objType}")
         
         

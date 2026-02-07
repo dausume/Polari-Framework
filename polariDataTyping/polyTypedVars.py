@@ -1,5 +1,6 @@
 from polariApiServer.remoteEvents import *
 from objectTreeDecorators import *
+from polariDataTyping.dataTypes import pythonTypeToSqliteAffinity
 import logging
 
 
@@ -144,7 +145,7 @@ class polyTypedVariable(treeObject):
             if(varDict['occurences'] > greatestOccNum):
                 greatestOccNum = varDict['occurences']
                 sinkTypeDict = varDict
-        
+        return (sourceTypeDict, sinkTypeDict)
     def analyzeVarValue(self, variableValue):
         dataTypesPython = ['str','int','float','complex','list','tuple','range','dict','set','frozenset','bool','bytes','bytearray','memoryview', 'NoneType']
         newValueTypingEntry = "NoneType"
@@ -183,6 +184,149 @@ class polyTypedVariable(treeObject):
         else:
             newValueTypingEntry = "unaccountedType(" + variableValue.__name__ + ")"
         return newValueTypingEntry
+
+    def updateTypingDicts(self, typingResult):
+        """Update typingDicts with a new analysis result from analyzeVarValue().
+
+        If the type already exists in typingDicts, increments its occurrence count.
+        If it's a new type, appends a new entry.
+
+        Args:
+            typingResult: Dict returned by analyzeVarValue(), e.g. {"type": "str", "length": 5}
+                         or a string like "NoneType" for edge cases.
+
+        Returns:
+            Deviation classification string: 'match', 'widenable', 'variant', or 'complex'
+        """
+        if typingResult is None:
+            return 'match'
+        # Normalize typingResult to get type string
+        if isinstance(typingResult, dict):
+            newType = typingResult.get('type', 'NoneType')
+        elif isinstance(typingResult, str):
+            newType = typingResult
+        else:
+            return 'match'
+
+        # Check if this type already exists in typingDicts
+        for entry in self.typingDicts:
+            if entry['dataType'] == newType:
+                entry['occurences'] += 1
+                return 'match'
+
+        # New type encountered - classify the deviation before adding
+        deviation = self.classifyDeviation(newType)
+
+        # Add new typingDicts entry
+        symbolCount = typingResult.get('length', 0) if isinstance(typingResult, dict) else 0
+        self.typingDicts.append({
+            "language": 'python',
+            "manager": self.typingDicts[0]["manager"] if self.typingDicts else tuple(),
+            "dataType": newType,
+            "symbolCount": symbolCount,
+            "occurences": 1
+        })
+
+        return deviation
+
+    def _getSqliteAffinity(self, pythonTypeName):
+        """Get the SQLite affinity for a Python type name.
+
+        Args:
+            pythonTypeName: String name of the Python type
+
+        Returns:
+            SQLite affinity string
+        """
+        return pythonTypeToSqliteAffinity(pythonTypeName)
+
+    def classifyDeviation(self, newType):
+        """Classify how a new type deviates from existing types.
+
+        Implements three-way decision logic:
+        - 'widenable': same SQLite affinity family (e.g., int with more digits, or int→float).
+                       Just modify the current table column slightly.
+        - 'variant': different affinity family (e.g., int→dict).
+                     Fundamentally different → needs an alternate/variant table.
+        - 'complex': 3+ distinct affinity families already present.
+                     Too many variants → store tree-branch IDs in tuple format.
+
+        Args:
+            newType: String name of the new Python type
+
+        Returns:
+            Classification string: 'match', 'widenable', 'variant', or 'complex'
+        """
+        newAffinity = self._getSqliteAffinity(newType)
+
+        # Collect all existing distinct affinities
+        existingAffinities = set()
+        for entry in self.typingDicts:
+            existingAffinities.add(self._getSqliteAffinity(entry['dataType']))
+
+        # If the new affinity is already represented, it's widenable at worst
+        if newAffinity in existingAffinities:
+            return 'widenable'
+
+        # Adding a new affinity - check how many we'd have
+        totalAffinities = len(existingAffinities | {newAffinity})
+
+        if totalAffinities >= 3:
+            return 'complex'
+        else:
+            return 'variant'
+
+    def getDeviationSummary(self):
+        """Get a summary of the variable's current deviation status.
+
+        Returns:
+            Dict with keys:
+                - dominantType: most common Python type name
+                - dominantAffinity: SQLite affinity of the dominant type
+                - distinctTypeCount: number of distinct Python types seen
+                - distinctAffinityCount: number of distinct SQLite affinities
+                - totalOccurrences: total occurrence count across all types
+                - schemaStrategy: 'typed', 'widenable', 'variant', or 'complex'
+                - sqliteAffinity: the recommended SQLite affinity for column creation
+        """
+        if not self.typingDicts:
+            return {
+                'dominantType': 'NoneType',
+                'dominantAffinity': 'NONE',
+                'distinctTypeCount': 0,
+                'distinctAffinityCount': 0,
+                'totalOccurrences': 0,
+                'schemaStrategy': 'typed',
+                'sqliteAffinity': 'NONE'
+            }
+
+        # Find dominant type (most occurrences)
+        dominantEntry = max(self.typingDicts, key=lambda e: e['occurences'])
+        dominantType = dominantEntry['dataType']
+        dominantAffinity = self._getSqliteAffinity(dominantType)
+
+        # Count distinct types and affinities
+        distinctTypes = set(e['dataType'] for e in self.typingDicts)
+        distinctAffinities = set(self._getSqliteAffinity(e['dataType']) for e in self.typingDicts)
+        totalOccurrences = sum(e['occurences'] for e in self.typingDicts)
+
+        # Determine schema strategy
+        if len(distinctAffinities) == 1:
+            strategy = 'typed' if len(distinctTypes) == 1 else 'widenable'
+        elif len(distinctAffinities) == 2:
+            strategy = 'variant'
+        else:
+            strategy = 'complex'
+
+        return {
+            'dominantType': dominantType,
+            'dominantAffinity': dominantAffinity,
+            'distinctTypeCount': len(distinctTypes),
+            'distinctAffinityCount': len(distinctAffinities),
+            'totalOccurrences': totalOccurrences,
+            'schemaStrategy': strategy,
+            'sqliteAffinity': dominantAffinity
+        }
 
     #MAKES A conversionTest Remote Event, which causes the data to be returned in
     #a response after it has been converted and before it has any operations performed

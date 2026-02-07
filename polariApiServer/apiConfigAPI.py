@@ -50,6 +50,8 @@ class ApiConfigAPI(treeObject):
             polServer.falconServer.add_route(self.apiName, self)
             # Also register the permissions sub-route
             polServer.falconServer.add_route(self.apiName + '/permissions', self, suffix='permissions')
+            # Register the formats sub-route for enabling/disabling API formats
+            polServer.falconServer.add_route(self.apiName + '/formats', self, suffix='formats')
 
     def on_get(self, request, response):
         """
@@ -180,6 +182,19 @@ class ApiConfigAPI(treeObject):
                     # OR the object is only accessible via internal server calls
                     serverAccessOnly = excludeFromCRUDE and not crudeRegistered
 
+                    # API Format Configuration from the ApiFormatConfig sub-object
+                    formatConfig = getattr(typingObj, 'apiFormatConfig', None)
+                    if formatConfig is not None:
+                        # Ensure polariTree endpoint reflects the current CRUDE endpoint
+                        formatConfig.polariTreeEndpoint = crudeEndpoint
+                        apiFormats = formatConfig.toDict()
+                    else:
+                        apiFormats = {
+                            "polariTree": {"enabled": True, "endpoint": crudeEndpoint, "prefix": None, "description": "Complex nested tree format (inter-polari communication)"},
+                            "flatJson": {"enabled": False, "endpoint": None, "prefix": "/flat/", "description": "Traditional flat JSON (standard REST)"},
+                            "d3Column": {"enabled": False, "endpoint": None, "prefix": "/d3/", "description": "Column-oriented series JSON (d3 graphing)"}
+                        }
+
                     objInfo = {
                         "className": className,
                         "displayName": className,  # Could be enhanced with a display name field
@@ -197,6 +212,7 @@ class ApiConfigAPI(treeObject):
                         },
                         "crudeRegistered": crudeRegistered,
                         "crudeEndpoint": crudeEndpoint,
+                        "apiFormats": apiFormats,
                         "permissionSetRefs": [],  # Will be populated below
                         "events": events,  # Event-level permissions
                         "variables": variables
@@ -386,6 +402,179 @@ class ApiConfigAPI(treeObject):
             traceback.print_exc()
 
         response.set_header('Powered-By', 'Polari')
+
+    def on_put_formats(self, request, response):
+        """
+        Enable/disable API formats and customize endpoint prefixes for an object.
+
+        Request body:
+        {
+            "className": "MyClass",
+            "flatJson": true/false,          # optional: enable/disable
+            "d3Column": true/false,          # optional: enable/disable
+            "flatJsonPrefix": "/custom/",    # optional: change prefix
+            "d3ColumnPrefix": "/series/"     # optional: change prefix
+        }
+
+        Endpoint paths are cross-validated against all registered routes
+        to prevent overlaps. Returns HTTP 409 if a conflict is detected.
+        """
+        try:
+            body = request.media
+            className = body.get('className')
+
+            if not className:
+                response.status = falcon.HTTP_400
+                response.media = {"success": False, "error": "className is required"}
+                return
+
+            if className not in self.manager.objectTypingDict:
+                response.status = falcon.HTTP_404
+                response.media = {"success": False, "error": f"Class '{className}' not found"}
+                return
+
+            typingObj = self.manager.objectTypingDict[className]
+            excludeFromCRUDE = getattr(typingObj, 'excludeFromCRUDE', True)
+            allowClassEdit = getattr(typingObj, 'allowClassEdit', False)
+            isBaseObject = excludeFromCRUDE and not allowClassEdit
+
+            if isBaseObject:
+                response.status = falcon.HTTP_403
+                response.media = {"success": False, "error": f"Cannot modify format settings for framework object '{className}'"}
+                return
+
+            # Ensure ApiFormatConfig exists
+            formatConfig = getattr(typingObj, 'apiFormatConfig', None)
+            if formatConfig is None:
+                from polariApiServer.apiFormatConfig import ApiFormatConfig
+                formatConfig = ApiFormatConfig(polyTypedObj=typingObj, manager=self.manager)
+                typingObj.apiFormatConfig = formatConfig
+
+            registeredEndpoints = []
+            unregisteredEndpoints = []
+
+            # Handle prefix changes first (before enabling, so endpoint is built correctly)
+            if 'flatJsonPrefix' in body:
+                newPrefix = body['flatJsonPrefix']
+                if newPrefix:
+                    formatConfig.flatJsonPrefix = newPrefix
+
+            if 'd3ColumnPrefix' in body:
+                newPrefix = body['d3ColumnPrefix']
+                if newPrefix:
+                    formatConfig.d3ColumnPrefix = newPrefix
+
+            # Handle Flat JSON enable/disable
+            if 'flatJson' in body:
+                enableFlat = body['flatJson']
+                if enableFlat and not formatConfig.flatJsonEnabled:
+                    # Build proposed endpoint and validate no overlap
+                    proposedEndpoint = formatConfig.buildEndpoint(formatConfig.flatJsonPrefix)
+                    conflict = self._check_endpoint_overlap(proposedEndpoint, className, 'flatJson')
+                    if conflict:
+                        response.status = falcon.HTTP_409
+                        response.media = {"success": False, "error": conflict}
+                        return
+
+                    # Register the flat JSON endpoint
+                    from polariApiServer.flatJsonAPI import FlatJsonAPI
+                    flatApi = FlatJsonAPI(apiObject=className, polServer=self.polServer, manager=self.manager)
+                    formatConfig.flatJsonEnabled = True
+                    formatConfig.flatJsonEndpoint = flatApi.apiName
+                    # Track in uriList for future overlap checks
+                    if hasattr(self.polServer, 'uriList'):
+                        self.polServer.uriList.append(flatApi.apiName)
+                    registeredEndpoints.append(('flatJson', flatApi.apiName))
+                    print(f"[ApiConfigAPI] Registered Flat JSON endpoint: {flatApi.apiName} for {className}")
+
+                elif not enableFlat and formatConfig.flatJsonEnabled:
+                    # Disable (route stays but handler returns 404)
+                    oldEndpoint = formatConfig.flatJsonEndpoint
+                    formatConfig.flatJsonEnabled = False
+                    if oldEndpoint and hasattr(self.polServer, 'uriList') and oldEndpoint in self.polServer.uriList:
+                        self.polServer.uriList.remove(oldEndpoint)
+                    unregisteredEndpoints.append('flatJson')
+                    print(f"[ApiConfigAPI] Disabled Flat JSON for {className}")
+
+            # Handle D3 Column enable/disable
+            if 'd3Column' in body:
+                enableD3 = body['d3Column']
+                if enableD3 and not formatConfig.d3ColumnEnabled:
+                    proposedEndpoint = formatConfig.buildEndpoint(formatConfig.d3ColumnPrefix)
+                    conflict = self._check_endpoint_overlap(proposedEndpoint, className, 'd3Column')
+                    if conflict:
+                        response.status = falcon.HTTP_409
+                        response.media = {"success": False, "error": conflict}
+                        return
+
+                    from polariApiServer.d3ColumnAPI import D3ColumnAPI
+                    d3Api = D3ColumnAPI(apiObject=className, polServer=self.polServer, manager=self.manager)
+                    formatConfig.d3ColumnEnabled = True
+                    formatConfig.d3ColumnEndpoint = d3Api.apiName
+                    if hasattr(self.polServer, 'uriList'):
+                        self.polServer.uriList.append(d3Api.apiName)
+                    registeredEndpoints.append(('d3Column', d3Api.apiName))
+                    print(f"[ApiConfigAPI] Registered D3 Column endpoint: {d3Api.apiName} for {className}")
+
+                elif not enableD3 and formatConfig.d3ColumnEnabled:
+                    oldEndpoint = formatConfig.d3ColumnEndpoint
+                    formatConfig.d3ColumnEnabled = False
+                    if oldEndpoint and hasattr(self.polServer, 'uriList') and oldEndpoint in self.polServer.uriList:
+                        self.polServer.uriList.remove(oldEndpoint)
+                    unregisteredEndpoints.append('d3Column')
+                    print(f"[ApiConfigAPI] Disabled D3 Column for {className}")
+
+            response.status = falcon.HTTP_200
+            response.media = {
+                "success": True,
+                "message": f"API formats updated for {className}",
+                "registered": registeredEndpoints,
+                "unregistered": unregisteredEndpoints
+            }
+
+        except Exception as err:
+            response.status = falcon.HTTP_500
+            response.media = {"success": False, "error": str(err)}
+            print(f"[ApiConfigAPI] Error in PUT formats: {err}")
+            import traceback
+            traceback.print_exc()
+
+        response.set_header('Powered-By', 'Polari')
+
+    def _check_endpoint_overlap(self, proposedEndpoint, className, formatType):
+        """
+        Cross-validate a proposed endpoint path against all registered routes.
+
+        Returns an error message string if overlap is found, or None if clear.
+        """
+        # Check against polServer.uriList (all registered Falcon routes)
+        if hasattr(self.polServer, 'uriList') and proposedEndpoint in self.polServer.uriList:
+            return (f"Endpoint '{proposedEndpoint}' conflicts with an existing registered route. "
+                    f"Choose a different prefix to avoid overlap.")
+
+        # Check against all ApiFormatConfig endpoints across all object types
+        if hasattr(self.manager, 'objectTypingDict'):
+            for otherClassName, otherTypingObj in self.manager.objectTypingDict.items():
+                otherConfig = getattr(otherTypingObj, 'apiFormatConfig', None)
+                if otherConfig is None:
+                    continue
+                # Skip self for the same format type (we're replacing it)
+                for otherEndpoint in otherConfig.getAllActiveEndpoints():
+                    if otherEndpoint == proposedEndpoint:
+                        # It's a conflict unless it's the same class+format being re-registered
+                        if otherClassName == className:
+                            continue
+                        return (f"Endpoint '{proposedEndpoint}' conflicts with existing endpoint "
+                                f"registered for '{otherClassName}'. Choose a different prefix.")
+
+        # Check against CRUDE endpoints
+        if hasattr(self.polServer, 'crudeObjectsList'):
+            for crudeObj in self.polServer.crudeObjectsList:
+                if getattr(crudeObj, 'apiName', None) == proposedEndpoint:
+                    return (f"Endpoint '{proposedEndpoint}' conflicts with CRUDE endpoint "
+                            f"for '{crudeObj.apiObject}'. Choose a different prefix.")
+
+        return None
 
     def _update_general_permissions(self, typingObj, permissions):
         """Update base access and permission dictionaries on polyTypedObject."""

@@ -23,7 +23,7 @@ from polariApiServer.polariServer import polariServer
 #from polariFiles.managedImages import *
 from polariDataTyping.polariList import polariList
 from polariFiles.dataChannels import *
-import types, inspect, base64, json, os, time
+import types, inspect, base64, json, os, time, sqlite3
 
 def managerObjectInit(init):
     #Note: For objects instantiated using this Decorator, MUST USER KEYWORD ARGUMENTS NOT POSITIONAL, EX: (manager=mngObj, id='base64Id')
@@ -88,7 +88,7 @@ class managerObject:
             setattr(self, 'cloudIdList', [])
         for name in keywordargs.keys():
             #print('In parameters, found attribute ', name, ' with value ', keywordargs[name])
-            if(name=='manager' or name=='branch' or name=='id' or name=='objectTables' or name=='objectTree' or name=='managedFiles' or name=='id' or name=='db' or name=='idList' or name=='cloudIdList' or name == 'subManagers' or name == 'polServer' or name == 'hasServer' or name == 'hostSys'):
+            if(name=='manager' or name=='branch' or name=='id' or name=='objectTables' or name=='objectTree' or name=='managedFiles' or name=='id' or name=='db' or name=='idList' or name=='cloudIdList' or name == 'subManagers' or name == 'polServer' or name == 'hasServer' or name == 'hasDB' or name == 'hostSys'):
                 setattr(self, name, keywordargs[name])
         self.primePolyTyping()
         self.complete = True
@@ -99,14 +99,438 @@ class managerObject:
         if(self.hostSys == None):
             self.hostSys = isoSys(name="newLocalSys", manager=self)
         if(self.hasServer):
+            print(f'[INIT] Creating polariServer...')
             self.polServer = polariServer(hostSystem=self.hostSys, manager=self)
-        if(self.hasDB):
-            self.db
+            print(f'[INIT] polariServer created.')
+        print(f'[INIT] hasDB={self.hasDB}, objectTypingDict has {len(self.objectTypingDict)} entries')
         #Analyzing everything in base of tree
-        if(self.__class__.__name__ in self.objectTypingDict):
+        if(len(self.objectTypingDict) > 0):
+            classKeys = list(self.objectTypingDict.keys())
+            print(f'[INIT] Starting analysis of {len(classKeys)} types...')
+            for idx, someClass in enumerate(classKeys):
+                print(f'[INIT] Analyzing type {idx+1}/{len(classKeys)}: {someClass}', flush=True)
+                typeToAnalyze = self.objectTypingDict[someClass]
+                try:
+                    typeToAnalyze.runAnalysis()
+                    print(f'[INIT] Done analyzing: {someClass}', flush=True)
+                except BaseException as e:
+                    print(f'[Analysis] Error analyzing {someClass}: {type(e).__name__}: {e}', flush=True)
+            print(f'[INIT] Analysis complete.', flush=True)
+        # After tree scaffolding and analysis, jumpstart DB if enabled
+        print(f'[INIT] Pre-DB check: hasDB={self.hasDB}, db={self.db}', flush=True)
+        if(self.hasDB):
+            print(f'[INIT] Calling jumpstartDatabase()...', flush=True)
+            try:
+                self.jumpstartDatabase()
+                print(f'[INIT] jumpstartDatabase() returned.', flush=True)
+            except BaseException as e:
+                print(f'[INIT] jumpstartDatabase() CRASHED: {type(e).__name__}: {e}', flush=True)
+                import traceback
+                traceback.print_exc()
+        else:
+            print(f'[INIT] hasDB is False, skipping database.', flush=True)
+
+    def jumpstartDatabase(self):
+        """Initialize database — restore from existing DB or create fresh.
+
+        Called after tree scaffolding and analysis are complete.
+        Uses the configured database path (config.yaml: application.database.sqlite.path)
+        which defaults to ./data/ — this maps to a Docker volume for persistence.
+        Detects if a .db file already exists on disk:
+        - If yes: restores the object tree from stored data
+        - If no: creates a fresh DB and populates tables from polyTyping
+        """
+        if self.db is not None:
+            print('[DB] Database already initialized')
+            return
+
+        # Read DB path from config, falling back to ./data/
+        try:
+            from config_loader import config
+            configuredPath = config.get('database.sqlite.path', './data/polari.db')
+        except Exception:
+            configuredPath = './data/polari.db'
+
+        # Extract directory and filename from configured path
+        dbDir = os.path.dirname(os.path.abspath(configuredPath))
+        dbName = self.__class__.__name__ + '_DB'
+        dbFilePath = os.path.join(dbDir, dbName + '.db')
+
+        # Ensure the data directory exists (it's a Docker volume mount point)
+        os.makedirs(dbDir, exist_ok=True)
+
+        if os.path.exists(dbFilePath):
+            # Existing DB found — restore object tree from it
+            print(f'[DB] Existing database found at {dbFilePath}, restoring...')
+            self.restoreFromDatabase(dbName, dbDir)
+        else:
+            # No DB — create fresh and jumpstart tables
+            print(f'[DB] Creating fresh database at {dbFilePath}...')
+            self.db = managedDatabase(name=dbName, manager=self)
+            # Re-set manager after construction (managedFile.__init__ clears it)
+            self.db.manager = self
+            self.db.Path = dbDir
+            self.db.extension = 'db'
+            # Create the .db file directly (bypasses createFile's cwd-only logic)
+            import sqlite3 as _sqlite3
+            _conn = _sqlite3.connect(dbFilePath)
+            _conn.close()
+            print(f'[DB] Created database file: {dbFilePath}')
+            tablesCreated = 0
             for someClass in self.objectTypingDict.keys():
                 typeToAnalyze = self.objectTypingDict[someClass]
-                typeToAnalyze.runAnalysis()
+                if typeToAnalyze.polyTypedVarsDict:
+                    try:
+                        typeToAnalyze.makeTypedTableFromAnalysis()
+                        tablesCreated += 1
+                    except Exception as e:
+                        print(f'[DB] Error creating typed table for {someClass}: {e}')
+                elif typeToAnalyze.polariSourceFile is not None:
+                    try:
+                        typeToAnalyze.makeGeneralizedTable()
+                        tablesCreated += 1
+                    except Exception as e:
+                        print(f'[DB] Skipping generalized table for {someClass}: {e}')
+            print(f'[DB] Database jumpstarted with {len(self.db.tables)} tables ({tablesCreated} created)')
+
+    def restoreFromDatabase(self, dbName, dbPath):
+        """Restore object tree from an existing SQLite database.
+
+        Loads all tables, creates instances from stored data,
+        and reconstructs the tree using _branch_path column.
+
+        Args:
+            dbName: Database file name (without .db extension)
+            dbPath: Directory path containing the .db file
+        """
+        import json as jsonLib
+
+        # 1. Connect to existing DB and load table list
+        self.db = managedDatabase(name=dbName, manager=self)
+        # Re-set manager after construction (managedFile.__init__ clears it)
+        self.db.manager = self
+        self.db.Path = dbPath
+        self.db.loadDB_byFile(dbPath)
+
+        print(f'[DB] Found {len(self.db.tables)} tables: {self.db.tables}')
+
+        # Identify seed instance IDs to skip during restore
+        seedDbIds = self.identifySeedDBIds()
+
+        # 2. Load instances from each table
+        restoredInstances = []  # list of (instance, branchPath)
+        totalSeedSkips = 0
+
+        for tableName in self.db.tables:
+            # loadDB_byFile returns tuples like ('tableName',) — extract string
+            tName = tableName[0] if isinstance(tableName, tuple) else tableName
+
+            # Skip variant side tables
+            if '_variant' in tName:
+                continue
+
+            # Check if this table maps to a known class
+            if tName not in self.objectTypingDict:
+                print(f'[DB] Skipping unknown table: {tName}')
+                continue
+
+            polyTypedObj = self.objectTypingDict[tName]
+
+            try:
+                columnNames, dataTuples = self.db.getAllInTable(tName)
+            except Exception as e:
+                print(f'[DB] Error reading table {tName}: {e}')
+                continue
+
+            if not dataTuples:
+                continue
+
+            # Get seed IDs to skip for this class (rows matching runtime instances)
+            seedIdsForClass = seedDbIds.get(tName, set())
+
+            # Get class constructor
+            try:
+                CreateMethod = polyTypedObj.getCreateMethod()
+            except Exception as e:
+                print(f'[DB] Cannot get constructor for {tName}: {e}')
+                continue
+
+            # Inspect constructor to find required args and skip non-restorable classes
+            import inspect
+            try:
+                sig = inspect.signature(CreateMethod)
+            except (ValueError, TypeError):
+                sig = None
+            # Check if constructor requires args we can't supply from DB
+            if sig is not None:
+                nonRestorableArgs = set()
+                for paramName, param in sig.parameters.items():
+                    if paramName == 'self':
+                        continue
+                    if param.default is inspect.Parameter.empty and param.kind not in (
+                        inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD
+                    ):
+                        # Required positional/keyword arg — check if it's in DB columns or is 'manager'
+                        if paramName != 'manager' and paramName not in columnNames:
+                            nonRestorableArgs.add(paramName)
+                if nonRestorableArgs:
+                    print(f'[DB] Skipping {tName}: constructor requires {nonRestorableArgs} (not in DB, re-created at runtime)', flush=True)
+                    continue
+
+            # Find column indices for branch path and identifier
+            branchPathIdx = columnNames.index('_branch_path') if '_branch_path' in columnNames else None
+            idIdx = None
+            idVarName = None
+            for idVar in polyTypedObj.identifiers:
+                if idVar in columnNames:
+                    idIdx = columnNames.index(idVar)
+                    idVarName = idVar
+                    break
+
+            restoreCount = len(dataTuples) - len(seedIdsForClass)
+            if seedIdsForClass:
+                print(f'[DB] {tName}: {len(dataTuples)} rows, skipping {len(seedIdsForClass)} seeds, restoring {restoreCount}', flush=True)
+            elif restoreCount > 0:
+                print(f'[DB] Restoring {restoreCount} instances of {tName}', flush=True)
+
+            for row in dataTuples:
+                # Skip seed instances (matching runtime-created instances)
+                if idIdx is not None and row[idIdx] in seedIdsForClass:
+                    totalSeedSkips += 1
+                    continue
+
+                # Extract branch path
+                branchPath = None
+                if branchPathIdx is not None and row[branchPathIdx]:
+                    try:
+                        branchPath = jsonLib.loads(row[branchPathIdx])
+                    except (jsonLib.JSONDecodeError, TypeError):
+                        pass
+
+                # Build kwargs for constructor from DB data
+                initKwargs = {'manager': self}
+                if idIdx is not None and row[idIdx] is not None:
+                    initKwargs[idVarName] = row[idIdx]
+                # Supply other required positional args from DB row if available
+                if sig is not None:
+                    for paramName, param in sig.parameters.items():
+                        if paramName in ('self', 'manager') or paramName in initKwargs:
+                            continue
+                        if param.default is inspect.Parameter.empty and param.kind not in (
+                            inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD
+                        ):
+                            if paramName in columnNames:
+                                colIdx = columnNames.index(paramName)
+                                initKwargs[paramName] = row[colIdx]
+
+                # Create instance
+                try:
+                    instance = CreateMethod(**initKwargs)
+                except Exception as e:
+                    print(f'[DB] Error creating {tName} instance: {e}', flush=True)
+                    continue
+
+                # Set remaining attributes via direct setattr (bypass tree logic)
+                for i, colName in enumerate(columnNames):
+                    if colName == '_branch_path':
+                        continue
+                    if colName in initKwargs:
+                        continue  # Already set via constructor
+
+                    value = row[i]
+                    if value is not None:
+                        # Deserialize compound types if needed
+                        value = polyTypedObj.deserializeColumnValue(colName, value)
+
+                    try:
+                        super(managerObject, instance).__setattr__(colName, value)
+                    except Exception:
+                        pass  # Skip attributes that can't be set directly
+
+                restoredInstances.append((instance, branchPath))
+
+        # 3. Confirm registration — instances were already registered in
+        # objectTables by treeObjectInit during CreateMethod() above.
+        # Count how many actually made it in.
+        registeredCount = 0
+        for instance, branchPath in restoredInstances:
+            key = instance.__class__.__name__
+            if key in self.objectTables and hasattr(instance, 'id') and instance.id in self.objectTables.get(key, {}):
+                registeredCount += 1
+
+        print(f'[DB] Restored {len(restoredInstances)} instances ({totalSeedSkips} seeds skipped), {registeredCount} registered in objectTables', flush=True)
+
+    def persistTree(self):
+        """Save all instances from objectTables into the database.
+
+        Clears each table first, then re-inserts all current instances.
+        This prevents row duplication for tables without a PRIMARY KEY.
+        """
+        if self.db is None:
+            print('[DB] Cannot persist tree — no database initialized.', flush=True)
+            return
+        dbFilePath = os.path.join(self.db.Path, self.db.name + '.db') if self.db.Path else self.db.name + '.db'
+        savedCount = 0
+        skippedCount = 0
+        errorCount = 0
+        for className, instancesDict in self.objectTables.items():
+            if className not in self.db.tables:
+                skippedCount += len(instancesDict)
+                continue
+            # Clear existing rows before re-persisting to prevent duplicates
+            try:
+                dbConn = sqlite3.connect(dbFilePath)
+                dbConn.execute(f'DELETE FROM {className}')
+                dbConn.commit()
+                dbConn.close()
+            except Exception as e:
+                print(f'[DB] Error clearing table {className}: {e}', flush=True)
+            for instanceId, instance in instancesDict.items():
+                try:
+                    self.db.saveInstanceInDB(instance)
+                    savedCount += 1
+                except Exception as e:
+                    errorCount += 1
+                    print(f'[DB] Error saving {className}(id={instanceId}): {e}', flush=True)
+        print(f'[DB] Persisted {savedCount} instances to database ({skippedCount} skipped — no table, {errorCount} errors)', flush=True)
+
+    def identifySeedDBIds(self):
+        """Identify DB rows that match runtime seed instances by property fingerprinting.
+
+        Compares each DB row's non-ID properties against runtime instances. DB rows
+        matching a runtime instance on >=60% of comparable properties (min 2 matches)
+        are considered seeds. Returns their DB IDs so restore can skip them.
+        """
+        seedIds = {}
+        # Properties to skip during fingerprint comparison:
+        # - Tree infrastructure internals
+        # - Per-boot random/volatile values
+        # - Live object references (different memory address each boot)
+        # - Timestamped metrics
+        internalProps = {
+            '_branch_path', 'manager', 'branch', 'inTree', 'complete',
+            'objectTree', 'objectTables', 'objectTyping', 'objectTypingDict',
+            'polServer', 'hostSys', 'subManagers', 'db',
+            # User: random per boot
+            'sessionSecret', 'sessionCookie', 'sessionJWT',
+            # isoSys: Docker container changes hostname each restart
+            'networkName', 'IPaddress', 'domainName',
+            # isoSys: timestamped memory metrics (contain datetime.now())
+            'availableMainMemoryInBytes', 'percentMainMemoryUsed',
+            'usedMainMemoryInBytes', 'freeMainMemoryInBytes',
+            'swappedOutMemory', 'swappedInMemory',
+            'freeSwapMemoryInBytes', 'usedSwapMemoryInBytes',
+            'SwapMemoryConsumptionVectorInBytesPerVarMilliSeconds',
+            # polariServer: random/volatile per boot
+            'serverPasswordSaltDict', 'falconServer', 'lastCycleTime',
+            'serverInstance', 'publicFrontendKey', 'privateFrontendKey'
+        }
+
+        for className, runtimeInstances in self.objectTables.items():
+            if not runtimeInstances:
+                continue
+            if className not in self.db.tables:
+                continue
+            if className not in self.objectTypingDict:
+                continue
+
+            polyTypedObj = self.objectTypingDict[className]
+
+            try:
+                columnNames, dataTuples = self.db.getAllInTable(className)
+            except Exception:
+                continue
+            if not dataTuples:
+                continue
+
+            # Identifier columns (used for DB row ID extraction, excluded from comparison)
+            idCols = set(polyTypedObj.identifiers)
+            compareCols = [
+                col for col in columnNames
+                if col not in idCols and col not in internalProps
+            ]
+            if not compareCols:
+                continue
+
+            # Find the ID column index for extracting DB row IDs
+            idColName = None
+            idColIdx = None
+            for idVar in polyTypedObj.identifiers:
+                if idVar in columnNames:
+                    idColName = idVar
+                    idColIdx = columnNames.index(idVar)
+                    break
+
+            matchedDbIds = set()
+            # Truthy/falsy string sets for boolean normalization
+            _truthy = {'True', 'true', '1', '1.0'}
+            _falsy = {'False', 'false', '0', '0.0', 'None', 'none', ''}
+
+            for row in dataTuples:
+                rowDict = dict(zip(columnNames, row))
+
+                for instId, instance in runtimeInstances.items():
+                    matchCount = 0
+                    compareCount = 0
+
+                    for col in compareCols:
+                        if not hasattr(instance, col):
+                            continue
+
+                        dbVal = rowDict.get(col)
+                        rtVal = getattr(instance, col)
+
+                        # Skip if both are None/empty — not informative
+                        if (dbVal is None or dbVal == '') and (rtVal is None or rtVal == '' or rtVal == []):
+                            continue
+
+                        compareCount += 1
+
+                        # Try direct equality first
+                        if dbVal == rtVal:
+                            matchCount += 1
+                            continue
+
+                        # JSON-aware comparison: DB stores dicts/lists as JSON strings
+                        # while runtime has Python objects (single vs double quotes)
+                        if isinstance(dbVal, str) and (dbVal.startswith('{') or dbVal.startswith('[')):
+                            try:
+                                dbParsed = json.loads(dbVal)
+                                if dbParsed == rtVal:
+                                    matchCount += 1
+                                    continue
+                            except (json.JSONDecodeError, TypeError):
+                                pass
+
+                        # Normalize booleans: Python True/False vs SQLite 1/0
+                        dbStr = str(dbVal)
+                        rtStr = str(rtVal)
+                        if rtStr == dbStr:
+                            matchCount += 1
+                        elif (rtStr in _truthy and dbStr in _truthy) or (rtStr in _falsy and dbStr in _falsy):
+                            matchCount += 1
+
+                    # Threshold: >=60% match rate. Min matches scales with column count:
+                    # 1-3 comparable columns → require at least 1 match
+                    # 4+ comparable columns → require at least 2 matches
+                    # 0 comparable columns (all empty on both sides) → treat as match
+                    minMatches = 1 if compareCount <= 3 else 2
+                    isSeed = False
+                    if compareCount == 0 and len(compareCols) > 0:
+                        # All properties are empty/None on both sides — structurally identical
+                        isSeed = True
+                    elif compareCount > 0 and matchCount >= minMatches and (matchCount / compareCount) >= 0.6:
+                        isSeed = True
+                    if isSeed:
+                        if idColIdx is not None and rowDict.get(idColName):
+                            matchedDbIds.add(rowDict[idColName])
+                        break  # Row matched a runtime instance, move to next row
+
+            if matchedDbIds:
+                seedIds[className] = matchedDbIds
+                print(f'[DB] Found {len(matchedDbIds)} seed IDs for {className}', flush=True)
+
+        return seedIds
 
     def __delete__(self, instance):
         #TODO Go through all polyTyping objects and delete them, close all file references.
@@ -472,7 +896,7 @@ class managerObject:
 
 
     #Takes in all information needed to access a class and returns a formatted json string 
-    def getJSONforClass(self, absDirPath = os.path.dirname(os.path.realpath(__file__)), definingFile = os.path.realpath(__file__)[os.path.realpath(__file__).rfind('\\') + 1 : os.path.realpath(__file__).rfind('.')], className = 'testClass', passedInstances = None):
+    def getJSONforClass(self, absDirPath = os.path.dirname(os.path.realpath(__file__)), definingFile = isoSys.bootupPathStem(os.path.realpath(__file__)), className = 'testClass', passedInstances = None):
         classVarDict = self.getJSONdictForClass(absDirPath=absDirPath,definingFile=definingFile,className=className, passedInstances=passedInstances)
         JSONstring = json.dumps(classVarDict)
         return JSONstring
@@ -1050,9 +1474,7 @@ class managerObject:
         else:
             dotIndex = classDefiningFile.index(".")
             #Get final index of forward or backslash, if neither then set index to zero
-            lastSlashIndex = classDefiningFile.rfind("/")
-            if(lastSlashIndex == -1):
-                lastSlashIndex = classDefiningFile.rfind("\\")
+            lastSlashIndex = classDefiningFile.rfind(isoSys.bootupPathSep())
             if(lastSlashIndex == -1):
                 lastSlashIndex = 0
             classDefiningFile = classDefiningFile[0:dotIndex]
@@ -1394,12 +1816,12 @@ class managerObject:
                 instance.makeUniqueIdentifier()
                 print("New instance id: ", instance.id)
                 print("Adding Instance to tree but it has an id with value None.")
-        if(hasattr(instance, "branch") and branchingInstance != None):
+        if(hasattr(instance, "branch") and branchingInstance != None and traversalList):
             if(instance.branch == traversalList[len(traversalList) - 1]):
                 pass
             elif(instance.branch == None):
                 instance.branch = traversalList[len(traversalList) - 1]
-        if(traversalList[len(traversalList) - 1] != branchTuple):
+        if(traversalList and traversalList[len(traversalList) - 1] != branchTuple):
             newTraversalList = traversalList + [branchTuple]
         if(traversalList == []):
             #if(type(instance).__name__ == "treeBranchObject"):
@@ -1441,10 +1863,7 @@ class managerObject:
     #all of their identifiers.
     def primePolyTyping(self, identifierVariables=['id']):
         mainDirPath = os.getcwd()
-        if(mainDirPath.rfind("\\")):
-            fileSlash = "\\"
-        elif(mainDirPath.rfind("/")):
-            fileSlash = "/"
+        fileSlash = isoSys.bootupPathSep()
         source_Polari = self.makeFile(name='definePolari', extension='py', Path=mainDirPath + fileSlash + "polariAI")
         source_dataStream = self.makeFile(name='dataStreams', extension='py', Path=mainDirPath + fileSlash + "polariApiServer")
         source_remoteEvent = self.makeFile(name='remoteEvents', extension='py', Path=mainDirPath + fileSlash + "polariApiServer")
@@ -1465,8 +1884,8 @@ class managerObject:
         source_polariAPI = self.makeFile(name='polariAPI', extension='py', Path=mainDirPath + fileSlash + "polariApiServer")
         self_fileInst = inspect.getfile(self.__class__)
         self_completepath = os.path.abspath(self_fileInst)
-        self_fileName = self_completepath[self_completepath.rfind('\\')+1:self_completepath.rfind('.')]
-        self_path = self_completepath[0:self_completepath.rfind('\\')]
+        self_fileName = isoSys.bootupPathStem(self_completepath)
+        self_path = isoSys.bootupPathDir(self_completepath)
         source_self = self.makeFile(name=self_fileName, extension='py', Path=self_path)
         #print("source complete path: ", self_completepath)
         #print("source_self file name = ", self_fileName)

@@ -81,67 +81,68 @@ class managedDatabase(managedFile):
         self.createFile()
 
     def saveInstanceInDB(self, passedInstance):
-        print('saving instance in DB table.. ' + str(type(passedInstance).__name__))
-        if(str(type(passedInstance).__name__) in self.tables):
-            classInfoDict = passedInstance.__dict__
-            commandString = 'INSERT INTO ' + str(type(passedInstance).__name__) + ' ('
-            rowList = []
-            valueList = []
-            #print('Before the loop..')
-            for someVariableKey in classInfoDict.keys():
-                if(not callable(someVariableKey)):
-                    value = getattr(passedInstance, someVariableKey)
-                    #print('Value: ' + str(value))
-                    if(someVariableKey == 'name'):
-                        if(value == None):
-                            logging.warn('Trying to save an un-named class instance.')
-                            return None
-                    if(value != None and value != []):
-                        #print('Recorded Key-Value: ' + str(someVariableKey) + ' - ' + str(value))
-                        rowList.append(someVariableKey)
-                        valueList.append(value)
-            #print('After the loop..')
-            if( len(rowList) > 0 ):
-                #print('Length of rowList greater than one..')
-                i = 0
-                while i < len(rowList) - 1:
-                    commandString += str(rowList[i]) + ', '
-                    i += 1
-                commandString += str(rowList[len(rowList) - 1]) + ') VALUES('
-                i = 0
-                valueTuple = None
-                while i < len(valueList) - 1:
-                    #valueList.append(str(valueList[i]))
-                    commandString += '?, '
-                    i += 1
-                #valueList.append(str(valueList[len(valueList) - 1]))
-                #commandString += str(valueList[len(valueList) - 1])
-                commandString +=  '?);'
-                valueTuple = tuple(valueList)
-                print(valueTuple)
-            else:
-                logging.warn(msg='Instance without values passed!')
-            if(self.Path != None):
-                dbConnection = sqlite3.connect(self.Path + self.name + '.db')
-            else:
-                dbConnection = sqlite3.connect(self.name + '.db')
-            dbCursor = dbConnection.cursor()
+        className = str(type(passedInstance).__name__)
+        if className not in self.tables:
+            return
+        # SQLite-serializable types
+        serializableTypes = (str, int, float, bool, bytes, type(None))
+        # Get actual table columns from the DB schema
+        dbFilePath = os.path.join(self.Path, self.name + '.db') if self.Path else self.name + '.db'
+        dbConnection = sqlite3.connect(dbFilePath)
+        dbCursor = dbConnection.cursor()
+        dbCursor.execute(f"PRAGMA table_info({className})")
+        tableColumns = [col[1] for col in dbCursor.fetchall()]
+        # Collect only attributes that match table columns and are serializable
+        rowList = []
+        valueList = []
+        classInfoDict = passedInstance.__dict__
+        for colName in tableColumns:
+            if colName == '_branch_path':
+                continue  # Handle separately below
+            if colName in classInfoDict:
+                value = classInfoDict[colName]
+                if value is None or value == []:
+                    continue
+                # Convert lists/dicts to JSON strings
+                if isinstance(value, (list, dict)):
+                    import json
+                    value = json.dumps(value, default=str)
+                elif not isinstance(value, serializableTypes):
+                    value = str(value)
+                rowList.append(colName)
+                valueList.append(value)
+        # Add _branch_path if the table supports it
+        if '_branch_path' in tableColumns:
             try:
-                dbCursor.execute(commandString,valueTuple)
-                dbConnection.commit()
-            except:
-                logging.warning(msg='An instance with this name already exists in the DB.')
-            dbConnection.close()
+                if className in self.manager.objectTypingDict:
+                    polyTypedObj = self.manager.objectTypingDict[className]
+                    treePath = polyTypedObj.serializeTreePath(passedInstance)
+                    if treePath is not None:
+                        rowList.append('_branch_path')
+                        valueList.append(treePath)
+            except Exception:
+                pass
+        if len(rowList) == 0:
+            return
+        # Build INSERT OR REPLACE to handle re-persisting on restart
+        placeholders = ', '.join(['?'] * len(rowList))
+        columns = ', '.join(rowList)
+        commandString = f'INSERT OR REPLACE INTO {className} ({columns}) VALUES({placeholders});'
+        valueTuple = tuple(valueList)
+        try:
+            dbCursor.execute(commandString, valueTuple)
+            dbConnection.commit()
+        except Exception as e:
+            print(f'[DB] INSERT failed for {className}: {e}', flush=True)
+        dbConnection.close()
 
     #Returns a List of Two Lists, the first of which contains the class variables, and the
     #second of which is the list of all instances as tuples of the requested class, which have
     #the same order as and are the corresponding values of the first list.
     def getAllInTable(self, tableName):
         commandString = 'SELECT * FROM ' + tableName + ';'
-        if(self.Path != None):
-            dbConnection = sqlite3.connect(self.Path + self.name + '.db')
-        else:
-            dbConnection = sqlite3.connect(self.name + '.db')
+        dbFilePath = os.path.join(self.Path, self.name + '.db') if self.Path else self.name + '.db'
+        dbConnection = sqlite3.connect(dbFilePath)
         dbCursor = dbConnection.cursor()
         print(commandString)
         dbCursor.execute(commandString)
@@ -171,6 +172,10 @@ class managedDatabase(managedFile):
                 if(objTyping.className == className):
                     classTypingObj = objTyping
                     break
+            # If polyTypedVars analysis has been populated, use smart schema generation
+            if classTypingObj is not None and classTypingObj.polyTypedVarsDict:
+                classTypingObj.makeTypedTableFromAnalysis()
+                return
             #The case where no typing information has been entered for the object related to tables
             if(classTypingObj.identifiers == [] and classTypingObj.polyTypedVars == []):
                 for classElement in classInfoDict:
@@ -200,7 +205,8 @@ class managedDatabase(managedFile):
     #Takes in a table name and a list of strings, with each string having (Keyword, data type,
     #special conditions)
     def makeSQLiteTable(self, tableName, rowList):
-        if not self.isRemote and os.path.exists(self.Path + self.name + '.db'):
+        dbFilePath = os.path.join(self.Path, self.name + '.db') if self.Path else self.name + '.db'
+        if not self.isRemote and os.path.exists(dbFilePath):
             commandString = 'CREATE TABLE IF NOT EXISTS ' + tableName + ' ('
             i = 0
             rowCount = len(rowList)
@@ -208,28 +214,31 @@ class managedDatabase(managedFile):
                 commandString = commandString + rowList[i] + ', '
                 i = i + 1
             commandString = commandString + rowList[rowCount - 1] + ');'
-            print(commandString)
-            dbConnection = sqlite3.connect(self.Path + self.name + '.db')
+            dbConnection = sqlite3.connect(dbFilePath)
             dbCursor = dbConnection.cursor()
             try:
                 dbCursor.execute(commandString)
                 dbConnection.commit()
-            except:
-                logging.warn(msg='A table with this name alreaady exists in the Database!')
+                self.tables.append(tableName)
+            except Exception as e:
+                print(f'[DB] CREATE TABLE failed for {tableName}: {e}', flush=True)
+                print(f'[DB] SQL: {commandString}', flush=True)
             dbConnection.close()
-            self.tables.append(tableName)
 
     #Loads the metadata about the database into python by connecting to the already existing database's file
     def loadDB_byFile(self, filePath):
-        if(os.path.exists(filePath + self.name + '.db')):
-            dbConnection = sqlite3.connect(filePath + self.name + '.db')
+        dbFilePath = os.path.join(filePath, self.name + '.db')
+        if(os.path.exists(dbFilePath)):
+            dbConnection = sqlite3.connect(dbFilePath)
             dbCursor = dbConnection.cursor()
             dbCursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-            self.tables = dbCursor.fetchall()
+            # fetchall returns tuples like ('tableName',) — extract plain strings
+            rawTables = dbCursor.fetchall()
+            self.tables = [row[0] if isinstance(row, tuple) else row for row in rawTables]
             dbConnection.commit()
             dbConnection.close()
         else:
-            print("Error: Database file not found at location " + filePath + " cannot load database, dumbass.")
+            print(f"Error: Database file not found at {dbFilePath}")
 
     #Recieves metadata about the database 
     def loadDB_byJSON(self, jsonString):

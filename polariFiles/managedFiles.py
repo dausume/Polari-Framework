@@ -15,6 +15,7 @@
 #from polariAnalytics.functionalityAnalysis import *
 #CANNOT DEFINE as @treeObj on managedFile level, causes recursive imports!!
 from objectTreeDecorators import treeObject, treeObjectInit
+from polariNetworking.defineLocalSys import isoSys
 import logging, os
 #Centralized global variable arrays accounting for the different types of files/file-extensions the system can handle
 #Each individual array accounts for a different type of Object which should be utilized for handling a particular type
@@ -142,7 +143,7 @@ class managedFile(treeObject):
     #Checks the current size in bytes of the file, and stores it in thr fileSize_bytes variable
     def detectFileSize(self):
         if(os.path.exists(self.name + '.' + self.extension) and self.Path != None):
-            self.fileSize_bytes = os.path.getsize(self.Path + '\\' + self.name + '.' + self.extension)
+            self.fileSize_bytes = os.path.getsize(isoSys.bootupPathJoin(self.Path, self.name + '.' + self.extension))
         else:
             logging.error(msg='The directory path of the file must be defined before using this function.')
 
@@ -160,7 +161,7 @@ class managedFile(treeObject):
                     self.fileInstance = open(self.name + '.' + self.extension, mode='x')
                     (self.fileInstance).close()
                 except:
-                    print('Attempted to create file ', self.name, '.', self.extension, ' but failed, likely file already exists.')
+                    print(f"Attempted to create file {self.name}.{self.extension} but failed, likely file already exists.")
             else:
                 logging.warning(msg='Indicated Path lies outside of Current Working Directory, this case is not built out yet.')
         else:
@@ -181,7 +182,7 @@ class managedFile(treeObject):
                 #print('opening file instance: ', self.name + '.' + self.extension)
                 self.fileInstance = open(self.name + '.' + self.extension,'r+')
         except:
-            print('File Instance of file \'', self.name, '.', self.extension, '\' could not be generated.  Either file exists outside of path scope, or it does not exist.')
+            print(f"File Instance of file '{self.name}.{self.extension}' could not be generated. Either file exists outside of path scope, or it does not exist.")
 
     def closeFile(self):
         if(not (self.fileInstance).closed):

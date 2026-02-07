@@ -245,6 +245,15 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             self.polServer.registerCRUDEforObjectType(className)
             print(f"[createClassAPI] Registered CRUDE endpoint for dynamic class: {className}")
 
+        # Create database table for the new class if DB is active
+        if hasattr(self.manager, 'db') and self.manager.db is not None:
+            try:
+                if newTyping.polyTypedVarsDict:
+                    newTyping.makeTypedTableFromAnalysis()
+                    print(f"[createClassAPI] Created DB table for dynamic class: {className}")
+            except Exception as e:
+                print(f"[createClassAPI] Warning: Could not create DB table for {className}: {e}")
+
         print(f"[createClassAPI] Created dynamic class: {className} with {len(variables)} variables")
         return newTyping
 

@@ -20,6 +20,7 @@ import platform
 import ctypes
 import sys
 import time
+import os
 from datetime import datetime
 #from win32.win32api import GetSystemMetrics
 import psutil
@@ -83,6 +84,44 @@ class isoSys(treeObject):
         self.usedSwapMemoryInBytes = (swapMemoryInfo[1], timeStamp)
         self.totalSwapMemoryInBytes = swapMemoryInfo[0]
         self.SwapMemoryConsumptionVectorInBytesPerVarMilliSeconds = (None, 1000) #(0 bytes consumed, over 1000 milliseconds OR 1 second)
+
+    # --- Bootstrapping path utilities ---
+    # These static methods exist for the bootup/bootstrapping phase where modules
+    # are being loaded and source files located before any isoSys instance is available.
+    # They use platform.system() to detect the host OS and delegate to os.path so paths
+    # resolve correctly on Windows, Linux, and macOS.
+
+    @staticmethod
+    def bootupPathSep():
+        """Returns the OS-appropriate path separator for use during bootstrapping."""
+        if platform.system() == 'Windows':
+            return '\\'
+        return '/'
+
+    @staticmethod
+    def bootupPathJoin(*args):
+        """Joins path components using the OS-appropriate separator during bootstrapping."""
+        return os.path.join(*args)
+
+    @staticmethod
+    def bootupPathDir(filepath):
+        """Returns the directory portion of a file path during bootstrapping."""
+        return os.path.dirname(filepath)
+
+    @staticmethod
+    def bootupPathFile(filepath):
+        """Returns the filename (with extension, without directory) from a file path during bootstrapping."""
+        return os.path.basename(filepath)
+
+    @staticmethod
+    def bootupPathSplit(filepath):
+        """Splits a path into (directory, filename) tuple during bootstrapping."""
+        return os.path.split(filepath)
+
+    @staticmethod
+    def bootupPathStem(filepath):
+        """Returns filename without extension from a full path during bootstrapping."""
+        return os.path.splitext(os.path.basename(filepath))[0]
 
     def powerShellCommand(self, commandString, decodeMethod):
         process = subprocess.Popen(['powershell', commandString], stdout=subprocess.PIPE)

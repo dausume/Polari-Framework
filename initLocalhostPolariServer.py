@@ -88,7 +88,12 @@ if(__name__=='__main__'):
     print("="*70)
 
     #Create a basic manager with a polariServer
-    localHostedManagerServer = managerObject(hasServer=True)
+    db_enabled = config.get_bool('database.enabled', True)
+    localHostedManagerServer = managerObject(hasServer=True, hasDB=db_enabled)
+
+    # Persist all initialized instances to database
+    if db_enabled and localHostedManagerServer.db is not None:
+        localHostedManagerServer.persistTree()
 
     # Get backend port from configuration
     http_port = get_backend_port()

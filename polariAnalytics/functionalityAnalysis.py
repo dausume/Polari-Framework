@@ -13,14 +13,15 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import os, json, sqlite3, sys, time, datetime, importlib
+from polariNetworking.defineLocalSys import isoSys
 #Returns the initialization function for a class -> used so that the Polarity can instantiate any Python Classes
 def getAccessToClass(absDirPath, definingFile, className, returnMethod=False):
     #compares the absolute paths of this file and the directory where the class is defined
         #the first character at which the two paths diverge is stored into divIndex
         if(absDirPath != None and definingFile != None and className != None):
-            curPath =  (os.path.realpath(__file__))[:os.path.realpath(__file__).rfind('\\')]
+            curPath = isoSys.bootupPathDir(isoSys.bootupPathDir(os.path.realpath(__file__)))
             divIndex = 0
-            for charIndex in range( len(absDirPath) ):
+            for charIndex in range( min(len(absDirPath), len(curPath)) ):
                 if(absDirPath[charIndex] != curPath[charIndex]):
                     divIndex = charIndex
                 elif(charIndex == len(absDirPath)):
@@ -35,7 +36,7 @@ def getAccessToClass(absDirPath, definingFile, className, returnMethod=False):
                 + "The Path to the class must begin with: " + curPath + "/nThe Path entered was: " + absDirPath)
             else: #Eliminating the previous two possibilites means the absDirPath is in the same Dir or a subDir of curDir
                 if(len(absDirPath) > len(curPath)):
-                    sys.path.append(absDirPath[divIndex:]) #Gets the subpath relative to the managedDatabase File
+                    sys.path.append(absDirPath) #Adds the class's directory to the module search path
                 moduleImported = __import__(name=definingFile, fromlist=className)
                 ClassInstantiationMethod = getattr(moduleImported, className)
                 if(returnMethod):

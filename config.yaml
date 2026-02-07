@@ -60,6 +60,7 @@ dockerfile:
 application:
   # Database configuration
   database:
+    enabled: true   # Set to false to run tree-only (no DB overhead)
     type: sqlite
     # SQLite-specific settings
     sqlite:

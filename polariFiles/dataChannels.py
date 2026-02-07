@@ -17,6 +17,7 @@ from polariAnalytics.functionalityAnalysis import getAccessToClass
 from inspect import isclass, ismethod
 from polariFiles.managedFiles import *
 from objectTreeDecorators import *
+from polariNetworking.defineLocalSys import isoSys
 import os, json, logging, datetime
 
 #A file used to manage JSON for a particular Polari or App.
@@ -438,7 +439,7 @@ class dataChannel(managedFile, treeObject):
 
     #Gets all data for a class and returns a Dictionary which is convertable to a json object.
     def getJSONdictForClass(self, absDirPath = os.path.dirname(os.path.realpath(__file__)),
-                        definingFile = os.path.realpath(__file__)[os.path.realpath(__file__).rfind('\\') + 1 : os.path.realpath(__file__).rfind('.')],
+                        definingFile = isoSys.bootupPathStem(os.path.realpath(__file__)),
                         className = 'testClass', instanceLimit=None, varsLimited=[], passedInstances = None):
         #If an instance or list of instances of the same type are passed, grabs the class name.
         if(passedInstances!=None):
@@ -499,7 +500,7 @@ class dataChannel(managedFile, treeObject):
 
     #Takes in all information needed to access a class and returns a formatted json string 
     def getJSONforClass(self, absDirPath = os.path.dirname(os.path.realpath(__file__)),
-                        definingFile = os.path.realpath(__file__)[os.path.realpath(__file__).rfind('\\') + 1 : os.path.realpath(__file__).rfind('.')],
+                        definingFile = isoSys.bootupPathStem(os.path.realpath(__file__)),
                         className = 'testClass', passedInstances = None):
         classVarDict = self.getJSONdictForClass(absDirPath=absDirPath,definingFile=definingFile,className=className, passedInstances=passedInstances)
         JSONstring = json.dumps(classVarDict)

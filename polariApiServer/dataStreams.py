@@ -15,6 +15,7 @@
 from polariFiles.dataChannels import *
 from objectTreeDecorators import *
 from polariDBmanagement.managedDB import *
+from polariNetworking.defineLocalSys import isoSys
 import logging
 #An object that sends data out from one data source to many data sinks.
 #(A localized API) #Basically -> allows access to active python data in an App or Polari object,
@@ -164,7 +165,7 @@ class dataStream(treeObject):
 
     #Gets all data for a class and returns a Dictionary which is convertable to a json object.
     def getJSONdictForClass(self, absDirPath = os.path.dirname(os.path.realpath(__file__)),
-                        definingFile = os.path.realpath(__file__)[os.path.realpath(__file__).rfind('\\') + 1 : os.path.realpath(__file__).rfind('.')],
+                        definingFile = isoSys.bootupPathStem(os.path.realpath(__file__)),
                         className = 'testClass', instanceLimit=None, varsLimited=[], passedInstances = None):
         #If an instance or list of instances of the same type are passed, grabs the class name.
         print('passedInstances: ', passedInstances)
@@ -179,9 +180,7 @@ class dataStream(treeObject):
                 #print('found object type', polyTypedObj.className)
                 objTyping = polyTypedObj
                 for someFile in polyTypedObj.sourceFiles:
-                    lastSlashIndex = someFile.rfind('\\')
-                    #print(lastSlashIndex)
-                    someFile = someFile[lastSlashIndex + 1:]
+                    someFile = isoSys.bootupPathFile(someFile) if isinstance(someFile, str) else someFile
                     print('found and assigning source file: ', someFile)
                     definingFile = someFile
                     break
@@ -237,7 +236,7 @@ class dataStream(treeObject):
 
     #Takes in all information needed to access a class and returns a formatted json string 
     def getJSONforClass(self, absDirPath = os.path.dirname(os.path.realpath(__file__)),
-                        definingFile = os.path.realpath(__file__)[os.path.realpath(__file__).rfind('\\') + 1 : os.path.realpath(__file__).rfind('.')],
+                        definingFile = isoSys.bootupPathStem(os.path.realpath(__file__)),
                         className = 'testClass', passedInstances = None):
         classVarDict = self.getJSONdictForClass(absDirPath=absDirPath,definingFile=definingFile,className=className, passedInstances=passedInstances)
         JSONstring = json.dumps(classVarDict)

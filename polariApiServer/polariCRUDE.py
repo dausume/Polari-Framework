@@ -191,11 +191,15 @@ class polariCRUDE(treeObject):
                 #accounted for to be added.
                 for someVarName in updateDict.keys():
                     setattr(instToUpdate, someVarName, updateDict[someVarName])
+                # Persist updated instance to database
+                if instToUpdate and hasattr(self.manager, 'db') and self.manager.db is not None:
+                    try:
+                        self.manager.db.saveInstanceInDB(instToUpdate)
+                    except Exception as e:
+                        print(f'[polariCRUDE] DB update-persist failed for {self.apiObject}: {e}')
             else:
                 response.status = falcon.HTTP_400
                 raise ValueError("Recieved Update request containing a valid instance id, but no updateData to perform the update with.")
-
-            
 
     def on_put_collection(self, request, response):
         pass
@@ -323,6 +327,14 @@ class polariCRUDE(treeObject):
                         else:
                             raise ValueError("Passed a dataSet that did not create any instances.")
         #With all validation of permissions complete and queries resolved, we return the created instances
+        # Persist newly created instances to database
+        if tempInstancesList and hasattr(self.manager, 'db') and self.manager.db is not None:
+            for inst in tempInstancesList:
+                try:
+                    self.manager.db.saveInstanceInDB(inst)
+                except Exception as e:
+                    print(f'[polariCRUDE] DB persist failed for {self.apiObject}: {e}')
+
         #Return the created instances in the response
         if tempInstancesList:
             response.status = falcon.HTTP_201
