@@ -26,6 +26,7 @@ from polariApiServer.apiDiscoveryAPI import APIDiscoveryAPI
 from polariApiServer.createClassAPI import createClassAPI
 from polariApiServer.stateSpaceAPI import StateSpaceClassesAPI, StateSpaceConfigAPI, StateDefinitionAPI
 from polariApiServer.apiConfigAPI import ApiConfigAPI
+from polariApiServer.systemInfoAPI import systemInfoAPI
 from polariApiServer.apiFormatConfig import ApiFormatConfig
 from polariApiServer.flatJsonAPI import FlatJsonAPI
 from polariApiServer.d3ColumnAPI import D3ColumnAPI
@@ -227,13 +228,16 @@ class polariServer(treeObject):
         # Create API Configuration endpoint for viewing/managing CRUDE permissions
         apiConfigEndpoint = ApiConfigAPI(polServer=self, manager=self.manager)
 
+        # Create System Info endpoint for diagnostics and resource profiling
+        systemInfoEndpoint = systemInfoAPI(polServer=self, manager=self.manager)
+
         # Register APIProfile, APIDomain, APIEndpoint, and ApiFormatConfig types
         self.manager.getObjectTyping(classObj=APIProfile)
         self.manager.getObjectTyping(classObj=APIDomain)
         self.manager.getObjectTyping(classObj=APIEndpoint)
         self.manager.getObjectTyping(classObj=ApiFormatConfig)
 
-        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint, apiProfilerQueryEndpoint, apiProfilerMatchEndpoint, apiProfilerBuildEndpoint, apiProfilerCreateClassEndpoint, apiProfilerTemplatesEndpoint, apiProfilerDetectTypesEndpoint, apiDomainEndpoint, apiEndpointEndpoint, apiEndpointFetchEndpoint, apiConfigEndpoint]
+        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint, apiProfilerQueryEndpoint, apiProfilerMatchEndpoint, apiProfilerBuildEndpoint, apiProfilerCreateClassEndpoint, apiProfilerTemplatesEndpoint, apiProfilerDetectTypesEndpoint, apiDomainEndpoint, apiEndpointEndpoint, apiEndpointFetchEndpoint, apiConfigEndpoint, systemInfoEndpoint]
 
         # Populate uriList with custom API endpoints for overlap tracking
         for api in self.customAPIsList:

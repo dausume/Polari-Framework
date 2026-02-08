@@ -35,9 +35,15 @@ class isoSys(treeObject):
         self.name = name
         #Networking Information for the System
         self.systemType = platform.system()
-        self.networkName = platform.node()
-        self.IPaddress = socket.gethostname()
-        self.domainName = socket.getfqdn()
+        self.networkName = os.environ.get('HOSTNAME', platform.node())
+        self.domainName = os.environ.get('DOMAINNAME', socket.getfqdn())
+        # Resolve actual IP address from hostname
+        try:
+            self.IPaddress = socket.gethostbyname(socket.gethostname())
+        except socket.gaierror:
+            self.IPaddress = '127.0.0.1'
+        # Detect if networkName looks like a Docker container ID (12-char hex)
+        self.isContainerized = bool(re.fullmatch(r'[0-9a-f]{12,64}', self.networkName))
         #self.internetServiceProvider
         sysMetrics = None
         #Graphics, Screen, and Monitor information for the system
@@ -84,6 +90,21 @@ class isoSys(treeObject):
         self.usedSwapMemoryInBytes = (swapMemoryInfo[1], timeStamp)
         self.totalSwapMemoryInBytes = swapMemoryInfo[0]
         self.SwapMemoryConsumptionVectorInBytesPerVarMilliSeconds = (None, 1000) #(0 bytes consumed, over 1000 milliseconds OR 1 second)
+
+    def refreshMetrics(self):
+        """Re-read current memory, swap, and CPU usage from the host system."""
+        timeStamp = str(datetime.now())
+        mainMemoryInfo = psutil.virtual_memory()
+        self.availableMainMemoryInBytes = (mainMemoryInfo[1], timeStamp)
+        self.percentMainMemoryUsed = (mainMemoryInfo[2], timeStamp)
+        self.usedMainMemoryInBytes = (mainMemoryInfo[3], timeStamp)
+        self.freeMainMemoryInBytes = (mainMemoryInfo[4], timeStamp)
+        swapMemoryInfo = psutil.swap_memory()
+        self.swappedOutMemory = (swapMemoryInfo[4], timeStamp)
+        self.swappedInMemory = (swapMemoryInfo[3], timeStamp)
+        self.freeSwapMemoryInBytes = (swapMemoryInfo[2], timeStamp)
+        self.usedSwapMemoryInBytes = (swapMemoryInfo[1], timeStamp)
+        self.currentCpuPercent = psutil.cpu_percent(interval=0.1)
 
     # --- Bootstrapping path utilities ---
     # These static methods exist for the bootup/bootstrapping phase where modules

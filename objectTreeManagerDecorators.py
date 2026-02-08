@@ -24,6 +24,18 @@ from polariApiServer.polariServer import polariServer
 from polariDataTyping.polariList import polariList
 from polariFiles.dataChannels import *
 import types, inspect, base64, json, os, time, sqlite3
+import psutil
+from datetime import datetime
+
+def _captureResourceCheckpoint():
+    """Capture a snapshot of current system memory for boot profiling."""
+    mem = psutil.virtual_memory()
+    return {
+        "totalMemory": mem.total,
+        "usedMemory": mem.used,
+        "availableMemory": mem.available,
+        "timestamp": str(datetime.now())
+    }
 
 def managerObjectInit(init):
     #Note: For objects instantiated using this Decorator, MUST USER KEYWORD ARGUMENTS NOT POSITIONAL, EX: (manager=mngObj, id='base64Id')
@@ -92,6 +104,11 @@ class managerObject:
                 setattr(self, name, keywordargs[name])
         self.primePolyTyping()
         self.complete = True
+        # Boot resource profiling
+        self.bootResourceBaseline = _captureResourceCheckpoint()
+        self.bootResourcePostTree = None
+        self.bootResourcePostDB = None
+        self.isFreshBoot = False
         #new_init = init(self, *args, **keywordargs)
         self.makeObjectTree()
         if(self.id == None):
@@ -116,6 +133,7 @@ class managerObject:
                 except BaseException as e:
                     print(f'[Analysis] Error analyzing {someClass}: {type(e).__name__}: {e}', flush=True)
             print(f'[INIT] Analysis complete.', flush=True)
+        self.bootResourcePostTree = _captureResourceCheckpoint()
         # After tree scaffolding and analysis, jumpstart DB if enabled
         print(f'[INIT] Pre-DB check: hasDB={self.hasDB}, db={self.db}', flush=True)
         if(self.hasDB):
@@ -162,9 +180,11 @@ class managerObject:
         if os.path.exists(dbFilePath):
             # Existing DB found — restore object tree from it
             print(f'[DB] Existing database found at {dbFilePath}, restoring...')
+            self.isFreshBoot = False
             self.restoreFromDatabase(dbName, dbDir)
         else:
             # No DB — create fresh and jumpstart tables
+            self.isFreshBoot = True
             print(f'[DB] Creating fresh database at {dbFilePath}...')
             self.db = managedDatabase(name=dbName, manager=self)
             # Re-set manager after construction (managedFile.__init__ clears it)
@@ -192,6 +212,7 @@ class managerObject:
                     except Exception as e:
                         print(f'[DB] Skipping generalized table for {someClass}: {e}')
             print(f'[DB] Database jumpstarted with {len(self.db.tables)} tables ({tablesCreated} created)')
+            self.bootResourcePostDB = _captureResourceCheckpoint()
 
     def restoreFromDatabase(self, dbName, dbPath):
         """Restore object tree from an existing SQLite database.

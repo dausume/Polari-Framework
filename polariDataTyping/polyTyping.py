@@ -19,7 +19,7 @@ from objectTreeDecorators import *
 from  polariDataTyping.polyTypedVars import *
 from inspect import signature
 #from polariAnalytics.functionalityAnalysis import *
-import logging, os, sys, importlib
+import logging, os, sys, importlib, json
 from polariNetworking.defineLocalSys import isoSys
 
 #Accounts for data on a class and allows for valid data typing in multiple types,
@@ -332,27 +332,81 @@ class polyTypedObject(treeObject):
         return False
                 
 
+    def _updateDataCostDict(self, costDict, size):
+        """Update a convergent-average data cost dict with a new measurement."""
+        if costDict["occurrences"] == 0:
+            costDict["occurrences"] = 1
+            costDict["min"] = size
+            costDict["max"] = size
+            costDict["convergingAverage"] = size
+        else:
+            costDict["occurrences"] += 1
+            valueShift = size / costDict["occurrences"]
+            if costDict["min"] > size:
+                costDict["min"] = size
+            elif costDict["max"] < size:
+                costDict["max"] = size
+            if costDict["convergingAverage"] < size:
+                costDict["convergingAverage"] = costDict["convergingAverage"] + valueShift
+            elif costDict["convergingAverage"] > size:
+                costDict["convergingAverage"] = costDict["convergingAverage"] - valueShift
+
+    def _estimateDBRowSize(self):
+        """Estimate the SQLite row size in bytes from the polyTypedVars schema.
+
+        Uses the dominant SQLite affinity and symbolCount for each variable
+        to approximate storage cost per row.
+        """
+        affinitySizeDefaults = {
+            'INTEGER': 8, 'REAL': 8, 'NUMERIC': 8,
+            'BLOB': 64, 'NONE': 4
+        }
+        totalBytes = 0
+        for varName, ptVar in self.polyTypedVarsDict.items():
+            summary = ptVar.getDeviationSummary()
+            affinity = summary.get('sqliteAffinity', 'TEXT')
+            if affinity == 'TEXT':
+                # Use average symbolCount from typing dicts
+                avgSymbols = 0
+                totalOcc = 0
+                for td in ptVar.typingDicts:
+                    avgSymbols += td.get('symbolCount', 0) * td.get('occurences', 1)
+                    totalOcc += td.get('occurences', 1)
+                totalBytes += (avgSymbols // max(totalOcc, 1)) + 2  # +2 for TEXT overhead
+            else:
+                totalBytes += affinitySizeDefaults.get(affinity, 16)
+        # Add SQLite row overhead (rowid + header)
+        totalBytes += 12
+        return totalBytes
+
     #Creates typing for the instance by analyzing it's variables and creating
     #default polyTypedVariables for it.
     def analyzeInstance(self, pythonClassInstance):
         #print("instance to analyze: ", pythonClassInstance)
         try:
             instSize = sys.getsizeof(pythonClassInstance)
-            if(self.perInstanceDataCostDictPython["occurrences"] == 0):
-                self.perInstanceDataCostDictPython["occurrences"] = 1
-                self.perInstanceDataCostDictPython["min"] = instSize
-                self.perInstanceDataCostDictPython["max"] = instSize
-            else:
-                self.perInstanceDataCostDictPython["occurrences"] += 1
-                valueShift = instSize / self.perInstanceDataCostDictPython["occurrences"]
-                if(self.perInstanceDataCostDictPython["min"] > instSize):
-                    self.perInstanceDataCostDictPython["min"] = instSize
-                elif(self.perInstanceDataCostDictPython["max"] < instSize):
-                    self.perInstanceDataCostDictPython["max"] = instSize
-                if(self.perInstanceDataCostDictPython["convergingAverage"] < instSize):
-                    self.perInstanceDataCostDictPython["convergingAverage"] = self.perInstanceDataCostDictPython["convergingAverage"] + valueShift
-                elif(self.perInstanceDataCostDictPython["convergingAverage"] > instSize):
-                    self.perInstanceDataCostDictPython["convergingAverage"] = self.perInstanceDataCostDictPython["convergingAverage"] - valueShift
+            self._updateDataCostDict(self.perInstanceDataCostDictPython, instSize)
+
+            # JSON size measurement
+            try:
+                classInfoDict = pythonClassInstance.__dict__
+                jsonSafeDict = {}
+                for k, v in classInfoDict.items():
+                    try:
+                        json.dumps(v)
+                        jsonSafeDict[k] = v
+                    except (TypeError, ValueError):
+                        jsonSafeDict[k] = str(v)
+                jsonSize = len(json.dumps(jsonSafeDict))
+                self._updateDataCostDict(self.perInstanceDataCostDictJSON, jsonSize)
+            except Exception:
+                pass
+
+            # DB row size estimation (based on schema, not per-instance)
+            if self.polyTypedVarsDict:
+                dbSize = self._estimateDBRowSize()
+                self._updateDataCostDict(self.perInstanceDataCostDictDB, dbSize)
+
             classInfoDict = pythonClassInstance.__dict__
             for someVariableKey in list(classInfoDict.keys()):
                 var = getattr(pythonClassInstance, someVariableKey)
