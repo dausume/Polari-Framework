@@ -3,7 +3,7 @@
 # Multi-stage build for optimized image size and faster rebuilds
 # Stage 1: Builder - Install build dependencies and compile packages
 
-FROM python:3.9-alpine AS builder
+FROM python:3.12-alpine AS builder
 
 WORKDIR /build
 
@@ -58,7 +58,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 # Stage 2: Runtime - Minimal image with only runtime dependencies
 
-FROM python:3.9-alpine
+FROM python:3.12-alpine
 
 WORKDIR /app
 

@@ -25,7 +25,6 @@ setup(
     install_requires=[
         'Pillow',
         'pyparsing',
-        'unittest2',
         'psutil',
         'falcon',
         'jwt',
