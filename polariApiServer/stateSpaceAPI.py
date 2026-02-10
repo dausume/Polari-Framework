@@ -114,8 +114,7 @@ class StateSpaceConfigAPI(treeObject):
     def on_put(self, request, response, className):
         """Update state-space configuration for a class"""
         try:
-            raw_data = request.bounded_stream.read()
-            config = json.loads(raw_data.decode('utf-8'))
+            config = request.get_media()
 
             polyTypedObj = self.manager.objectTypingDict.get(className)
 
@@ -206,8 +205,7 @@ class StateDefinitionAPI(treeObject):
     def on_post(self, request, response):
         """Create a new state definition"""
         try:
-            raw_data = request.bounded_stream.read()
-            data = json.loads(raw_data.decode('utf-8'))
+            data = request.get_media()
 
             # Validate required fields
             if not data.get('name'):
@@ -312,8 +310,7 @@ class StateDefinitionAPI(treeObject):
                 }
                 return
 
-            raw_data = request.bounded_stream.read()
-            data = json.loads(raw_data.decode('utf-8'))
+            data = request.get_media()
 
             # Update fields
             if 'displayName' in data:

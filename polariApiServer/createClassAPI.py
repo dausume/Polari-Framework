@@ -38,13 +38,19 @@ class createClassAPI(treeObject):
 
     def on_post(self, request, response):
         """Handle class creation requests"""
+        import sys
+        print(f'[DEBUG-CC] === on_post ENTERED === method={request.method} path={request.path}', flush=True)
+        print(f'[DEBUG-CC] content_length={request.content_length} content_type={request.content_type}', flush=True)
         try:
-            # Parse request body
-            raw_data = request.bounded_stream.read()
-            class_def = json.loads(raw_data.decode('utf-8'))
+            # Parse request body using get_media() (Falcon's built-in JSON parsing)
+            # Note: request.stream.read() hangs with wsgiref in Falcon 4.x
+            print('[DEBUG-CC] calling request.get_media()...', flush=True)
+            class_def = request.get_media()
+            print(f'[DEBUG-CC] get_media() complete, keys={list(class_def.keys())}', flush=True)
 
             # Validate required fields
             if 'className' not in class_def or not class_def['className']:
+                print('[DEBUG-CC] FAIL: className missing', flush=True)
                 response.status = falcon.HTTP_400
                 response.media = {'success': False, 'error': 'className is required'}
                 return
@@ -57,25 +63,30 @@ class createClassAPI(treeObject):
             isStateSpaceObject = class_def.get('isStateSpaceObject', True)  # Default to True for dynamic classes
             stateSpaceDisplayFields = class_def.get('stateSpaceDisplayFields', [])
             stateSpaceFieldsPerRow = class_def.get('stateSpaceFieldsPerRow', 1)
+            print(f'[DEBUG-CC] className={className} vars={len(variables)} registerCRUDE={registerCRUDE}', flush=True)
 
             # Validate className format (PascalCase, alphanumeric)
             if not className[0].isupper():
+                print('[DEBUG-CC] FAIL: className not uppercase', flush=True)
                 response.status = falcon.HTTP_400
                 response.media = {'success': False, 'error': 'className must start with uppercase letter'}
                 return
 
             if not className.replace('_', '').isalnum():
+                print('[DEBUG-CC] FAIL: className not alnum', flush=True)
                 response.status = falcon.HTTP_400
                 response.media = {'success': False, 'error': 'className must be alphanumeric (underscores allowed)'}
                 return
 
             # Check if class already exists
             if className in self.manager.objectTypingDict:
+                print(f'[DEBUG-CC] FAIL: class {className} already exists', flush=True)
                 response.status = falcon.HTTP_409
                 response.media = {'success': False, 'error': f'Class {className} already exists'}
                 return
 
             # Create the dynamic class and register it
+            print(f'[DEBUG-CC] calling _createDynamicClass for {className}...', flush=True)
             result = self._createDynamicClass(
                 className=className,
                 displayName=displayName,
@@ -85,6 +96,7 @@ class createClassAPI(treeObject):
                 stateSpaceDisplayFields=stateSpaceDisplayFields,
                 stateSpaceFieldsPerRow=stateSpaceFieldsPerRow
             )
+            print(f'[DEBUG-CC] _createDynamicClass returned OK for {className}', flush=True)
 
             response.status = falcon.HTTP_201
             response.media = {
@@ -96,11 +108,14 @@ class createClassAPI(treeObject):
                 'variableCount': len(variables),
                 'isStateSpaceObject': isStateSpaceObject
             }
+            print(f'[DEBUG-CC] === on_post SUCCESS === {className} created', flush=True)
 
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            print(f'[DEBUG-CC] EXCEPTION JSONDecodeError: {e}', flush=True)
             response.status = falcon.HTTP_400
             response.media = {'success': False, 'error': 'Invalid JSON in request body'}
         except Exception as e:
+            print(f'[DEBUG-CC] EXCEPTION: {type(e).__name__}: {e}', flush=True)
             response.status = falcon.HTTP_500
             response.media = {'success': False, 'error': str(e)}
             import traceback
@@ -122,12 +137,14 @@ class createClassAPI(treeObject):
             stateSpaceDisplayFields: Which fields to display in state UI
             stateSpaceFieldsPerRow: Number of fields per row in state display (1 or 2)
         """
+        print(f'[DEBUG-CC] _createDynamicClass START: {className}', flush=True)
         # Build variable names and defaults
         var_defaults = {}
         for var in variables:
             var_name = var.get('varName', '')
             if var_name:
                 var_defaults[var_name] = self._getDefaultValue(var.get('varType', 'str'))
+        print(f'[DEBUG-CC] step 1: var_defaults built ({len(var_defaults)} vars)', flush=True)
 
         # Create the dynamic __init__ method with EXPLICIT parameter names
         # This is critical because treeObjectInit filters kwargs based on co_varnames.
@@ -157,6 +174,7 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
         local_ns = {'treeObject': treeObject}
         exec(func_code, local_ns)
         dynamic_init = local_ns['dynamic_init']
+        print(f'[DEBUG-CC] step 2: dynamic __init__ created via exec', flush=True)
 
         # Create class attributes
         class_attrs = {
@@ -168,6 +186,7 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
 
         # Dynamically create the class inheriting from treeObject
         DynamicClass = type(className, (treeObject,), class_attrs)
+        print(f'[DEBUG-CC] step 3: DynamicClass type() created', flush=True)
 
         # Determine identifier variables
         identifiers = ['id']
@@ -180,6 +199,7 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
         # - allowClassEdit=True: Users can modify the class definition via API
         # - isStateSpaceObject: User-configurable, defaults to True
         # - excludeFromCRUDE=False: Should have public CRUDE endpoints
+        print(f'[DEBUG-CC] step 4: creating polyTypedObject...', flush=True)
         newTyping = polyTypedObject(
             className=className,
             manager=self.manager,
@@ -193,6 +213,7 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             isStateSpaceObject=isStateSpaceObject,
             excludeFromCRUDE=False
         )
+        print(f'[DEBUG-CC] step 4: polyTypedObject created OK', flush=True)
 
         # Configure state-space display fields if this is a state-space object
         if isStateSpaceObject and stateSpaceDisplayFields:
@@ -201,6 +222,7 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             # Default: show all variables
             all_var_names = [v.get('varName') for v in variables if v.get('varName')]
             newTyping.setStateSpaceDisplayFields(all_var_names, stateSpaceFieldsPerRow)
+        print(f'[DEBUG-CC] step 5: state-space config set', flush=True)
 
         # Populate polyTypedVars from the frontend variable definitions
         # This ensures typing metadata is available even before any instances exist
@@ -231,11 +253,12 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                 except Exception as e:
                     print(f"[createClassAPI] Warning: Could not create polyTypedVariable for {var_name}: {e}")
 
-        print(f"[createClassAPI] Created {len(newTyping.polyTypedVars)} polyTypedVars for {className}")
+        print(f"[DEBUG-CC] step 6: created {len(newTyping.polyTypedVars)} polyTypedVars for {className}", flush=True)
 
         # Also add to objectTyping list (polyTypedObject only adds to dict)
         if newTyping not in self.manager.objectTyping:
             self.manager.objectTyping.append(newTyping)
+        print(f'[DEBUG-CC] step 7: added to objectTyping list', flush=True)
 
         # Store the dynamic class reference for instantiation
         if not hasattr(self.manager, 'dynamicClasses'):
@@ -244,28 +267,38 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
 
         # Register CRUDE endpoint if requested
         if registerCRUDE and self.polServer:
+            print(f'[DEBUG-CC] step 8: registering CRUDE endpoint...', flush=True)
             self.polServer.registerCRUDEforObjectType(className)
-            print(f"[createClassAPI] Registered CRUDE endpoint for dynamic class: {className}")
+            print(f"[DEBUG-CC] step 8: CRUDE endpoint registered for {className}", flush=True)
+        else:
+            print(f'[DEBUG-CC] step 8: skipping CRUDE (registerCRUDE={registerCRUDE})', flush=True)
 
         # Create database table for the new class if DB is active
         if hasattr(self.manager, 'db') and self.manager.db is not None:
             try:
+                print(f'[DEBUG-CC] step 9: creating DB table...', flush=True)
                 if newTyping.polyTypedVarsDict:
                     newTyping.makeTypedTableFromAnalysis()
-                    print(f"[createClassAPI] Created DB table for dynamic class: {className}")
+                    print(f"[DEBUG-CC] step 9: DB table created for {className}", flush=True)
             except Exception as e:
-                print(f"[createClassAPI] Warning: Could not create DB table for {className}: {e}")
+                print(f"[DEBUG-CC] step 9: WARNING DB table failed: {e}", flush=True)
+        else:
+            print(f'[DEBUG-CC] step 9: no DB active, skipping table creation', flush=True)
 
         # Persist dynamic class definition to registry table for restore on restart
         if hasattr(self.manager, 'db') and self.manager.db is not None:
             try:
+                print(f'[DEBUG-CC] step 10: persisting class definition...', flush=True)
                 self._persistClassDefinition(className, displayName, variables,
                                               registerCRUDE, isStateSpaceObject,
                                               stateSpaceDisplayFields, stateSpaceFieldsPerRow)
+                print(f'[DEBUG-CC] step 10: class definition persisted', flush=True)
             except Exception as e:
-                print(f"[createClassAPI] Warning: Could not persist class definition for {className}: {e}")
+                print(f"[DEBUG-CC] step 10: WARNING persist failed: {e}", flush=True)
+        else:
+            print(f'[DEBUG-CC] step 10: no DB active, skipping persist', flush=True)
 
-        print(f"[createClassAPI] Created dynamic class: {className} with {len(variables)} variables")
+        print(f"[DEBUG-CC] _createDynamicClass COMPLETE: {className} with {len(variables)} variables", flush=True)
         return newTyping
 
     def _getDefaultValue(self, var_type):

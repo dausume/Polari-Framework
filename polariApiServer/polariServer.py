@@ -72,28 +72,14 @@ except ImportError:
     CORS_ORIGINS = ['*']
 
 
-class CORSMiddleware:
-    def __init__(self, allow_origins=None, allow_methods=None, allow_headers=None, allow_credentials=True):
-        self.allow_origins = allow_origins or ['*']
-        self.allow_methods = allow_methods or ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
-        self.allow_headers = allow_headers or ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With']
-        self.allow_credentials = allow_credentials
-
-    def process_request(self, req, resp):
-        if req.method == 'OPTIONS':
-            resp.complete = True
-
+class CORSExtraHeadersMiddleware:
+    """Adds CORS headers that Falcon 4.x built-in CORSMiddleware doesn't cover.
+    Falcon's CORSMiddleware handles Allow-Origin, Allow-Credentials, and OPTIONS preflight.
+    This adds Allow-Headers and Max-Age which are needed for preflight responses.
+    Note: In staging/prod, nginx also sets these headers. Duplicates are tolerated."""
     def process_response(self, req, resp, resource, req_succeeded):
-        origin = req.get_header('Origin')
-        if origin:
-            if '*' in self.allow_origins or origin in self.allow_origins:
-                resp.set_header('Access-Control-Allow-Origin', origin)
-            elif self.allow_origins == ['*']:
-                resp.set_header('Access-Control-Allow-Origin', '*')
-        resp.set_header('Access-Control-Allow-Methods', ', '.join(self.allow_methods))
-        resp.set_header('Access-Control-Allow-Headers', ', '.join(self.allow_headers))
-        if self.allow_credentials:
-            resp.set_header('Access-Control-Allow-Credentials', 'true')
+        resp.set_header('Access-Control-Allow-Headers',
+                        'Content-Type, Authorization, Accept, Origin, X-Requested-With')
         resp.set_header('Access-Control-Max-Age', '86400')
 
 class apiError(Exception):
@@ -125,9 +111,17 @@ class polariServer(treeObject):
         self.passwordRequirements = {"min-length":8, "max-length":24, "min-special-chars":1, "min-nums":2}
         self.publicFrontendKey = None
         self.privateFrontendKey = None
-        # Configure CORS middleware
-        cors_middleware = CORSMiddleware(allow_origins=CORS_ORIGINS, allow_credentials=True)
-        self.falconServer = falcon.App(middleware=[cors_middleware])
+        # Configure CORS: Falcon 4.x built-in handles Origin, Credentials, and OPTIONS preflight.
+        # CORSExtraHeadersMiddleware adds Allow-Headers and Max-Age.
+        # In staging/prod, nginx also handles CORS (including OPTIONS interception).
+        allow_origins = '*' if '*' in CORS_ORIGINS else CORS_ORIGINS
+        allow_creds = '*' if '*' in CORS_ORIGINS else allow_origins
+        self.falconServer = falcon.App(
+            middleware=[
+                falcon.CORSMiddleware(allow_origins=allow_origins, allow_credentials=allow_creds),
+                CORSExtraHeadersMiddleware()
+            ]
+        )
         self.active = False
         #Defines endpoints or mapping to remote endpoints which allow for CRUD access to all objects of the server's manager as well as it's subordinate manager objects.
         managerIdTuple = self.manager.getInstanceIdentifiers(self.manager)

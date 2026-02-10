@@ -83,8 +83,7 @@ class APIProfilerQueryAPI(treeObject):
         sys.stdout.flush()
 
         try:
-            raw_data = request.bounded_stream.read()
-            req_body = json.loads(raw_data.decode('utf-8'))
+            req_body = request.get_media()
 
             # Validate required fields
             if 'url' not in req_body:
@@ -336,8 +335,7 @@ class APIProfilerMatchAPI(treeObject):
         }
         """
         try:
-            raw_data = request.bounded_stream.read()
-            req_body = json.loads(raw_data.decode('utf-8'))
+            req_body = request.get_media()
 
             if 'responseData' not in req_body:
                 response.status = falcon.HTTP_400
@@ -471,8 +469,7 @@ class APIProfilerBuildAPI(treeObject):
         }
         """
         try:
-            raw_data = request.bounded_stream.read()
-            req_body = json.loads(raw_data.decode('utf-8'))
+            req_body = request.get_media()
 
             if 'responseData' not in req_body:
                 response.status = falcon.HTTP_400
@@ -610,8 +607,7 @@ class APIProfilerCreateClassAPI(treeObject):
         }
         """
         try:
-            raw_data = request.bounded_stream.read()
-            req_body = json.loads(raw_data.decode('utf-8'))
+            req_body = request.get_media()
 
             profile = None
 
@@ -784,8 +780,7 @@ class APIProfilerDetectTypesAPI(treeObject):
         }
         """
         try:
-            raw_data = request.bounded_stream.read()
-            req_body = json.loads(raw_data.decode('utf-8'))
+            req_body = request.get_media()
 
             if 'responseData' not in req_body:
                 response.status = falcon.HTTP_400
@@ -935,8 +930,7 @@ class APIDomainAPI(treeObject):
         try:
             from polariApiProfiler.apiDomain import APIDomain
 
-            raw_data = request.bounded_stream.read()
-            req_body = json.loads(raw_data.decode('utf-8'))
+            req_body = request.get_media()
 
             # Validate required fields
             if not req_body.get('name'):
@@ -1006,8 +1000,7 @@ class APIDomainAPI(treeObject):
                 response.media = {'success': False, 'error': 'domain_id is required'}
                 return
 
-            raw_data = request.bounded_stream.read()
-            req_body = json.loads(raw_data.decode('utf-8'))
+            req_body = request.get_media()
 
             # Find existing domain
             domains = self.manager.getListOfClassInstances('APIDomain')
@@ -1229,8 +1222,7 @@ class APIEndpointAPI(treeObject):
         try:
             from polariApiProfiler.apiEndpoint import APIEndpoint
 
-            raw_data = request.bounded_stream.read()
-            req_body = json.loads(raw_data.decode('utf-8'))
+            req_body = request.get_media()
 
             # Validate required fields
             if not req_body.get('name'):
@@ -1300,8 +1292,7 @@ class APIEndpointAPI(treeObject):
                 response.media = {'success': False, 'error': 'endpoint_id is required'}
                 return
 
-            raw_data = request.bounded_stream.read()
-            req_body = json.loads(raw_data.decode('utf-8'))
+            req_body = request.get_media()
 
             # Find existing endpoint
             endpoints = self.manager.getListOfClassInstances('APIEndpoint')
@@ -1434,12 +1425,8 @@ class APIEndpointFetchAPI(treeObject):
 
             # Get endpoint name from URL or body
             if not endpoint_name:
-                raw_data = request.bounded_stream.read()
-                if raw_data:
-                    req_body = json.loads(raw_data.decode('utf-8'))
-                    endpoint_name = req_body.get('endpointName')
-                else:
-                    req_body = {}
+                req_body = request.get_media() or {}
+                endpoint_name = req_body.get('endpointName')
 
                 if not endpoint_name:
                     response.status = falcon.HTTP_400
@@ -1447,8 +1434,7 @@ class APIEndpointFetchAPI(treeObject):
                     return
             else:
                 # Read body for options
-                raw_data = request.bounded_stream.read()
-                req_body = json.loads(raw_data.decode('utf-8')) if raw_data else {}
+                req_body = request.get_media() or {}
 
             # Find the endpoint
             endpoints = self.manager.getListOfClassInstances('APIEndpoint')
