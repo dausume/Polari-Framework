@@ -23,13 +23,10 @@ setup(
     author_email='dustinetts@gmail.com',
     url='https://www.polariai.com',
     install_requires=[
-        'Pillow',
-        'pyparsing',
         'psutil',
         'falcon',
         'jwt',
         'svgwrite',
-        #'matplotlib'
     ],
     packages=[
         'POLARI-FRAMEWORK',
