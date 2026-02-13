@@ -214,6 +214,82 @@ class polyTypedObject(treeObject):
         for inst in allInstances:
             self.analyzeInstance(inst)
 
+    def initializeVarsFromSignature(self):
+        """Populate polyTypedVars from the class constructor signature.
+
+        Inspects ``self.classDefinition.__init__`` and creates a
+        ``polyTypedVariable`` for every parameter.  When the default
+        value clearly indicates a type (``str``, ``int``, ``float``,
+        ``bool``, ``list``, ``dict``) that type is used.  Otherwise
+        the variable is typed as ``'any'`` — a catch-all that signals
+        the concrete type has not yet been determined from live data.
+
+        It is safe to call on a typing that already has some vars —
+        existing entries are skipped.
+
+        Returns:
+            int: The number of *new* polyTypedVariable entries created.
+        """
+        if self.classDefinition is None:
+            return 0
+
+        from inspect import signature, Parameter
+        sig = signature(self.classDefinition.__init__)
+
+        skip_params = {
+            'self', 'args', 'kwargs',
+            'manager', 'branch', 'id', 'inTree',
+        }
+
+        # Types we can confidently infer from a default value
+        determinable_types = {str, int, float, bool, list, dict, tuple, set}
+
+        created = 0
+        for param_name, param in sig.parameters.items():
+            if param_name in skip_params:
+                continue
+            # Already tracked — don't duplicate
+            if param_name in self.polyTypedVarsDict:
+                continue
+
+            # Determine if the default gives us a clear type
+            has_default = param.default is not Parameter.empty
+            default_val = param.default if has_default else None
+            type_is_determinable = has_default and type(default_val) in determinable_types
+
+            # Use the real default when the type is clear; otherwise
+            # pass an empty string as a safe primitive so the
+            # polyTypedVariable constructor doesn't trigger object-ref
+            # lookups, then override the type to 'any' afterwards.
+            seed_value = default_val if type_is_determinable else ''
+
+            try:
+                new_var = polyTypedVariable(
+                    polyTypedObj=self,
+                    attributeName=param_name,
+                    attributeValue=seed_value,
+                    manager=self.manager,
+                )
+
+                # If we couldn't determine the type, mark as 'any'
+                if not type_is_determinable:
+                    new_var.pythonTypeDefault = 'any'
+                    if new_var.typingDicts:
+                        new_var.typingDicts[0]['dataType'] = 'any'
+
+                self.polyTypedVars.append(new_var)
+                self.polyTypedVarsDict[param_name] = new_var
+                created += 1
+            except Exception as e:
+                print(f"[polyTypedObject] initializeVarsFromSignature: "
+                      f"failed for {self.className}.{param_name}: {e}")
+
+        # Also populate the variable name list for downstream consumers
+        if not self.variableNameList:
+            self.variableNameList = list(self.polyTypedVarsDict.keys())
+
+        return created
+
     def makeDefaultPermissionSets(self):
         #ACCESS PERMISSION SETS
         #Allows User to perform GET requests on all existing object instances of this class.
@@ -779,8 +855,9 @@ class polyTypedObject(treeObject):
             + ' with the name ' + (self.manager).name)
 
     def getCreateMethod(self, returnTupWithParams=False):
-        # Handle dynamic classes that have classDefinition but no source file
-        if self.classDefinition is not None and self.polariSourceFile is None:
+        # When classDefinition is already set (registered via classObj),
+        # return it directly — no need to re-import from source file.
+        if self.classDefinition is not None:
             return self.classDefinition
         #compares the absolute paths of this file and the directory where the class is defined
         #the first character at which the two paths diverge is stored into divIndex

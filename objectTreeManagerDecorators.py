@@ -939,7 +939,7 @@ class managerObject:
         return JSONstring
 
     def getObjectSourceDetailsANDvalidateInstances(self, passedInstances):
-        print("Entered passedInstances validation and details gathering, with passedInstances: ", passedInstances)
+        # Avoid printing instance repr which can be expensive or fail
         returnDict = {'passedInstances':passedInstances, 'className':None, 'absDirPath':None, 'definingFile':None}
         #print("Initialized returnDict.")
         className = None
@@ -1287,14 +1287,9 @@ class managerObject:
 
     #{"sampleStringAttribute":{"EQUALS":("id-1234","sampleClassName")),"CONTAINS":("","AND","")}, "sampleRefAttribute":{"IN":["polariID-0", ...]}}
     def getListOfInstancesByAttributes(self, className, attributeQueryDict="*"):
-        print("Calling query using value: ", attributeQueryDict)
-        getListResult = self.getListOfClassInstances(className="PolyTypedVariable")
-        print("getListOfClassInstances result : ", getListResult)
         if(not className in self.objectTables.keys()):
-            print("Not found in objecttables", className)
             return {}
         allClassInstancesDict = self.objectTables[className]
-        print("allClassInstancesDict : ",allClassInstancesDict)
         remainingInstances = allClassInstancesDict
         eliminatedInstances = {}
         if(attributeQueryDict == "*"):

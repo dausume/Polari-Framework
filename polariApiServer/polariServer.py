@@ -26,6 +26,7 @@ from polariApiServer.apiDiscoveryAPI import APIDiscoveryAPI
 from polariApiServer.createClassAPI import createClassAPI
 from polariApiServer.stateSpaceAPI import StateSpaceClassesAPI, StateSpaceConfigAPI, StateDefinitionAPI
 from polariApiServer.apiConfigAPI import ApiConfigAPI
+from polariApiServer.modulesAPI import ModulesAPI
 from polariApiServer.systemInfoAPI import systemInfoAPI
 from polariApiServer.apiFormatConfig import ApiFormatConfig
 from polariApiServer.flatJsonAPI import FlatJsonAPI
@@ -211,6 +212,9 @@ class polariServer(treeObject):
         # Create API Configuration endpoint for viewing/managing CRUDE permissions
         apiConfigEndpoint = ApiConfigAPI(polServer=self, manager=self.manager)
 
+        # Create Module Management endpoint for enabling/disabling modules
+        modulesEndpoint = ModulesAPI(polServer=self, manager=self.manager)
+
         # Create System Info endpoint for diagnostics and resource profiling
         systemInfoEndpoint = systemInfoAPI(polServer=self, manager=self.manager)
 
@@ -279,22 +283,51 @@ class polariServer(treeObject):
         self.serverInstance = None
 
         # Initialize Materials Science module: register classes + auto-expose CRUDE endpoints
-        if MATERIALS_SCIENCE_AVAILABLE:
+        # Gate on configuration - default disabled
+        self._materials_science_classes = []
+        ms_enabled = False
+        try:
+            from config_loader import config as ms_config
+            ms_enabled = ms_config.get('modules.materials_science.enabled', False)
+            if isinstance(ms_enabled, str):
+                ms_enabled = ms_enabled.lower() in ('true', '1', 'yes')
+        except ImportError:
+            pass
+
+        if MATERIALS_SCIENCE_AVAILABLE and ms_enabled:
             try:
+                print("[MS-Module-Load] [polariServer] Materials Science module enabled — beginning initialization")
+                include_seed = True
+                try:
+                    from config_loader import config as seed_config
+                    include_seed = seed_config.get('modules.materials_science.include_seed_data', True)
+                except ImportError:
+                    pass
+                print(f"[MS-Module-Load] [polariServer] objectTypingDict BEFORE init: {len(self.manager.objectTypingDict)} entries")
                 result = initialize_materials_science(
                     manager=self.manager,
-                    include_seed_data=True
+                    include_seed_data=include_seed
                 )
+                print(f"[MS-Module-Load] [polariServer] objectTypingDict AFTER init: {len(self.manager.objectTypingDict)} entries")
+                self._materials_science_classes = list(result['registered_classes'].keys())
                 # Auto-register CRUDE endpoints for all module classes
+                crude_ok = 0
+                crude_fail = 0
                 for class_name in result['registered_classes']:
                     try:
                         self.registerCRUDEforObjectType(class_name)
-                    except Exception:
-                        pass  # Skip classes that can't be CRUDE-registered (framework internals)
+                        crude_ok += 1
+                    except Exception as ce:
+                        crude_fail += 1
+                        print(f"[MS-Module-Load] [polariServer] CRUDE registration failed for {class_name}: {ce}")
                 seed_count = sum(len(v) for v in result['seed_data'].values())
-                print(f"[polariServer] Materials Science initialized: {len(result['registered_classes'])} classes, {seed_count} seed records")
+                print(f"[MS-Module-Load] [polariServer] Init complete: {len(result['registered_classes'])} classes, {crude_ok} CRUDE endpoints, {crude_fail} CRUDE failures, {seed_count} seed records")
             except Exception as e:
-                print(f"[polariServer] Warning: Could not initialize Materials Science module: {e}")
+                print(f"[MS-Module-Load] [polariServer] ERROR: Could not initialize Materials Science module: {e}")
+                import traceback
+                traceback.print_exc()
+        elif not ms_enabled:
+            print("[MS-Module-Load] [polariServer] Materials Science module disabled by configuration")
 
     #Creates a new sink which operates stictly over a secure local network (Wifi Router)
     def makeNewLocalSink(self, localNetworkedSystemIP, remotePort, managerAPI):

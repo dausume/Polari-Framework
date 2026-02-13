@@ -71,10 +71,7 @@ class polariCRUDE(treeObject):
     #Read in CRUD
     def on_get(self, request, response):
         #Get the authorization data, user data, and potential url parameters, which are both commonly relevant to both cases.
-        # Verbose request logging - commented out for cleaner output
-        # print("Starting GET method.")
         userAuthInfo = request.auth
-        # print("request : ", request)
         #Create a list of all
         (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
         #Check to ensure user has at least some access.
@@ -84,37 +81,17 @@ class polariCRUDE(treeObject):
         if(not "R" in permissionQueryDict):
             response.status = falcon.HTTP_405
             raise PermissionError("Read or Get requests do not have access to any variables on this object type.")
-        #authUser = request.context.user
-        # print("request.context : ", request.context)
-        # print("request.query_string : ", request.query_string)
-        #TODO Instead of comparing the sets, make functionality to instead create
-        #operators to compare the queries and generate a new query based on their
-        #differences.  Then just directly get the instances using the retrievable
-        #instances query.
-        #
-        #Get which instances fall under what is being requested.
-        requestedQuery = request.query_string
-        #Get which instances 
-        allowedQuery = accessQueryDict["R"][self.apiObject]
-        #Cross analyze requested Instances and allowed instances (according to Access
-        #Dictionaries on user) in order to analyze which instances requested are able
-        #to be returned, in other words it performs 'viewing access'.
-        requestedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=accessQueryDict["R"][self.apiObject] )
-
-        #allowedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=allowedQuery )
-        #retrievableInstances = self.instanceSetIntersection(requestedInstances, retrievableInstances)
-        #TODO Add functionality to sort retrievableInstances into different sets
-        #of variables with allowed read access.
-        #
-        #Returns a list of tuples [([restricted Vars List],[List Of Instances]), dataSetTuple2, ...]
-        #dataSetQueriesList = setOperators.segmentDataSetsByPermissions(retrievableInstances, permissionQueryDict)
-        #urlParameters = request.query_string
-        # print("Got auth, context.user, and queryString data.")
         jsonObj = {}
         try:
-            # print("Requested Instances: ", requestedInstances)
+            #Get which instances fall under what is being requested.
+            requestedQuery = request.query_string
+            allowedQuery = accessQueryDict["R"][self.apiObject]
+            #Cross analyze requested Instances and allowed instances (according to Access
+            #Dictionaries on user) in order to analyze which instances requested are able
+            #to be returned, in other words it performs 'viewing access'.
+            requestedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=accessQueryDict["R"][self.apiObject] )
+
             if(requestedInstances != {}):
-                #jsonObj[self.apiObject] = self.manager.getJSONdictForClass(passedInstances=retrievableInstances)
                 #For now we just give everything being requested and don't bother with permissions
                 jsonObj[self.apiObject] = self.manager.getJSONdictForClass(passedInstances=requestedInstances)
             else:
@@ -123,12 +100,10 @@ class polariCRUDE(treeObject):
             response.status = falcon.HTTP_200
         except Exception as err:
             response.status = falcon.HTTP_500
-            print(err)
-            #raise falcon.HTTPServiceUnavailable(
-            #    title = 'Service Failure on Manager',
-            #    description = ('Encountered error while trying to get objects on given manager.'),
-            #    retry_after=60
-            #)
+            response.media = {"error": str(err), "class": self.apiObject}
+            print(f"[polariCRUDE] on_get ERROR for {self.apiObject}: {err}")
+            import traceback
+            traceback.print_exc()
         response.set_header('Powered-By', 'Polari')
 
     def on_get_collection(self, request, response):

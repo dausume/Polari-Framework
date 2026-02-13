@@ -195,9 +195,17 @@ class ApiConfigAPI(treeObject):
                             "d3Column": {"enabled": False, "endpoint": None, "prefix": "/d3/", "description": "Column-oriented series JSON (d3 graphing)"}
                         }
 
+                    # Determine source module
+                    source_module = 'framework'  # default
+                    if hasattr(self.polServer, '_materials_science_classes') and className in self.polServer._materials_science_classes:
+                        source_module = 'materials_science'
+                    elif not isBaseObject:
+                        source_module = 'custom'
+
                     objInfo = {
                         "className": className,
                         "displayName": className,  # Could be enhanced with a display name field
+                        "sourceModule": source_module,
                         "isBaseObject": isBaseObject,
                         "isUserCreated": not isBaseObject,
                         "excludeFromCRUDE": excludeFromCRUDE,

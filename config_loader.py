@@ -63,6 +63,7 @@ class ConfigLoader:
         'deploy_env': 'DEPLOY_ENV',
         'in_docker_container': 'IN_DOCKER_CONTAINER',
         'database.enabled': 'DATABASE_ENABLED',
+        'modules.materials_science.enabled': 'MODULE_MATERIALS_SCIENCE_ENABLED',
     }
 
     # Keys that can be modified at runtime (Tier 3)
@@ -77,6 +78,7 @@ class ConfigLoader:
         'connection.retry_interval',
         'connection.max_retry_time',
         'database.enabled',
+        'modules.materials_science.enabled',
     }
 
     def __init__(self, config_file: str = 'config.yaml', environment: Optional[str] = None):

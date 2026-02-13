@@ -98,6 +98,12 @@ application:
     secret_key_env: SECRET_KEY  # Read from environment for security
     session_timeout: 3600  # 1 hour
 
+  # Module configuration
+  modules:
+    materials_science:
+      enabled: false
+      include_seed_data: true
+
   # AI Module configuration
   ai:
     enabled: true
