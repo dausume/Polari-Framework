@@ -71,12 +71,16 @@ class ModulesAPI(treeObject):
                 return
 
             if module_id == 'materials_science':
+                self._last_purge_summary = None
                 self._toggle_materials_science(bool(enabled))
-                response.media = {
+                resp_body = {
                     "success": True,
                     "message": f"Materials Science module {'enabled' if enabled else 'disabled'}",
                     "modules": self._build_module_list()
                 }
+                if self._last_purge_summary is not None:
+                    resp_body["purgeSummary"] = self._last_purge_summary
+                response.media = resp_body
                 response.status = falcon.HTTP_200
             else:
                 response.status = falcon.HTTP_404
@@ -211,10 +215,25 @@ class ModulesAPI(treeObject):
 
             print(f"[MS-Module-Load] [ModulesAPI] Enabled: {len(result['registered_classes'])} classes, {crude_ok} CRUDE ok, {crude_fail} CRUDE fail")
         else:
-            # Disable: clear class list so api-config stops reporting them
-            prev_count = len(getattr(self.polServer, '_materials_science_classes', []))
+            # Disable: purge all data, typing, CRUDE endpoints, and tree entries
+            ms_classes = getattr(self.polServer, '_materials_science_classes', [])
+            purge_summaries = {}
+            total_instances = 0
+            for class_name in ms_classes:
+                try:
+                    result = self.manager.purgeObjectType(class_name)
+                    purge_summaries[class_name] = result
+                    total_instances += result.get('instancesPurged', 0)
+                except Exception as pe:
+                    print(f"[MS-Module-Load] [ModulesAPI] Purge failed for {class_name}: {pe}")
+                    purge_summaries[class_name] = {'error': str(pe)}
             self.polServer._materials_science_classes = []
-            print(f"[MS-Module-Load] [ModulesAPI] Disabled: cleared {prev_count} class entries (CRUDE routes still registered until restart)")
+            self._last_purge_summary = {
+                'classesPurged': len(ms_classes),
+                'instancesPurged': total_instances,
+                'details': purge_summaries
+            }
+            print(f"[MS-Module-Load] [ModulesAPI] Disabled: purged {len(ms_classes)} classes, {total_instances} instances")
 
         # Persist to runtime config so subsequent config.get() calls reflect the change
         config.set_runtime('modules.materials_science.enabled', enabled)

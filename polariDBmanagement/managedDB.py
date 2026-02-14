@@ -225,6 +225,32 @@ class managedDatabase(managedFile):
                 print(f'[DB] SQL: {commandString}', flush=True)
             dbConnection.close()
 
+    def deleteAllFromTable(self, tableName):
+        """Delete all rows from a table."""
+        dbFilePath = os.path.join(self.Path, self.name + '.db') if self.Path else self.name + '.db'
+        try:
+            dbConnection = sqlite3.connect(dbFilePath)
+            dbConnection.execute(f'DELETE FROM {tableName}')
+            dbConnection.commit()
+            dbConnection.close()
+            print(f'[DB] Deleted all rows from {tableName}', flush=True)
+        except Exception as e:
+            print(f'[DB] Error deleting rows from {tableName}: {e}', flush=True)
+
+    def dropTable(self, tableName):
+        """Drop a table from the database and remove it from self.tables."""
+        dbFilePath = os.path.join(self.Path, self.name + '.db') if self.Path else self.name + '.db'
+        try:
+            dbConnection = sqlite3.connect(dbFilePath)
+            dbConnection.execute(f'DROP TABLE IF EXISTS {tableName}')
+            dbConnection.commit()
+            dbConnection.close()
+            if tableName in self.tables:
+                self.tables.remove(tableName)
+            print(f'[DB] Dropped table {tableName}', flush=True)
+        except Exception as e:
+            print(f'[DB] Error dropping table {tableName}: {e}', flush=True)
+
     #Loads the metadata about the database into python by connecting to the already existing database's file
     def loadDB_byFile(self, filePath):
         dbFilePath = os.path.join(filePath, self.name + '.db')

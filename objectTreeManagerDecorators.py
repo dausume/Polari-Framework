@@ -929,10 +929,71 @@ class managerObject:
                         varVal.pop(removeIndex)
                     #After removing all instance matches from the list, we set it.
                     setattr(instanceWithReferences,someVar,varVal)
-                        
 
+    def _removeClassFromTree(self, branch, className):
+        """Recursively remove all tuple keys where key[0] == className from the objectTree."""
+        if not isinstance(branch, dict):
+            return 0
+        removed = 0
+        keysToRemove = [k for k in branch if isinstance(k, tuple) and len(k) > 0 and k[0] == className]
+        for k in keysToRemove:
+            del branch[k]
+            removed += 1
+        for k in list(branch.keys()):
+            if isinstance(branch[k], dict):
+                removed += self._removeClassFromTree(branch[k], className)
+        return removed
 
-    #Takes in all information needed to access a class and returns a formatted json string 
+    def purgeObjectType(self, className):
+        """Cleanly remove all traces of a class: instances, DB table, typing, CRUDE, and tree entries."""
+        summary = {
+            'instancesPurged': 0,
+            'dbTableDropped': False,
+            'typingRemoved': False,
+            'crudeDeactivated': False,
+            'treeEntriesRemoved': 0
+        }
+
+        # 1. Purge instances from objectTables
+        if className in self.objectTables:
+            summary['instancesPurged'] = len(self.objectTables[className])
+            del self.objectTables[className]
+
+        # 2. Purge DB table
+        if self.db is not None and className in self.db.tables:
+            self.db.deleteAllFromTable(className)
+            self.db.dropTable(className)
+            summary['dbTableDropped'] = True
+
+        # 3. Remove typing
+        if className in self.objectTypingDict:
+            typingObj = self.objectTypingDict[className]
+            del self.objectTypingDict[className]
+            if typingObj in self.objectTyping:
+                self.objectTyping.remove(typingObj)
+            summary['typingRemoved'] = True
+
+        # 4. Remove CRUDE endpoint
+        if hasattr(self, 'polServer') and self.polServer is not None:
+            crudeToRemove = None
+            for crude in self.polServer.crudeObjectsList:
+                if crude.apiObject == className:
+                    crudeToRemove = crude
+                    break
+            if crudeToRemove is not None:
+                self.polServer.crudeObjectsList.remove(crudeToRemove)
+                if crudeToRemove.apiName in self.polServer.uriList:
+                    self.polServer.uriList.remove(crudeToRemove.apiName)
+                summary['crudeDeactivated'] = True
+
+        # 5. Remove from objectTree
+        if self.objectTree is not None:
+            summary['treeEntriesRemoved'] = self._removeClassFromTree(self.objectTree, className)
+
+        print(f'[purgeObjectType] Purged {className}: {summary}', flush=True)
+        return summary
+
+    #Takes in all information needed to access a class and returns a formatted json string
     def getJSONforClass(self, absDirPath = os.path.dirname(os.path.realpath(__file__)), definingFile = isoSys.bootupPathStem(os.path.realpath(__file__)), className = 'testClass', passedInstances = None):
         classVarDict = self.getJSONdictForClass(absDirPath=absDirPath,definingFile=definingFile,className=className, passedInstances=passedInstances)
         JSONstring = json.dumps(classVarDict)

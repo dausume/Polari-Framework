@@ -68,8 +68,18 @@ class polariCRUDE(treeObject):
         else:
             return {'R':{self.apiObject:"*"}, 'E':{self.apiObject:"*"}}, {'R':([],{self.apiObject:"*"}), 'E':([],{self.apiObject:"*"})}
 
+    def _guard_purged(self, response):
+        """Return True (and set 404) if this object type has been purged."""
+        if self.apiObject not in self.manager.objectTypingDict:
+            response.status = falcon.HTTP_404
+            response.media = {"error": f"Object type '{self.apiObject}' is not currently registered"}
+            return True
+        return False
+
     #Read in CRUD
     def on_get(self, request, response):
+        if self._guard_purged(response):
+            return
         #Get the authorization data, user data, and potential url parameters, which are both commonly relevant to both cases.
         userAuthInfo = request.auth
         #Create a list of all
@@ -111,6 +121,8 @@ class polariCRUDE(treeObject):
 
     #Update in CRUD
     def on_put(self, request, response):
+        if self._guard_purged(response):
+            return
         # Verbose request logging - commented out for cleaner output
         # print("In Update API execution segment.")
         # print("Request: ", request)
@@ -181,6 +193,8 @@ class polariCRUDE(treeObject):
 
     #Create object instances in CRUDE
     def on_post(self, request, response):
+        if self._guard_purged(response):
+            return
         print(f"[polariCRUDE] ========== POST request for {self.apiObject} ==========")
         userAuthInfo = request.auth
         #authUser = request.context.user
@@ -332,6 +346,8 @@ class polariCRUDE(treeObject):
 
     #Delete in CRUD
     def on_delete(self, request, response):
+        if self._guard_purged(response):
+            return
         userAuthInfo = request.auth
         urlParameters = request.query_string
         (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
@@ -381,6 +397,8 @@ class polariCRUDE(treeObject):
         pass
 
     def on_event(self, request, response):
+        if self._guard_purged(response):
+            return
         # Verbose request logging - commented out for cleaner output
         # print("In Event API execution segment.")
         # print("Request: ", request)
