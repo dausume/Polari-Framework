@@ -27,6 +27,9 @@ from polariApiServer.createClassAPI import createClassAPI
 from polariApiServer.stateSpaceAPI import StateSpaceClassesAPI, StateSpaceConfigAPI, StateDefinitionAPI
 from polariApiServer.apiConfigAPI import ApiConfigAPI
 from polariApiServer.modulesAPI import ModulesAPI
+from polariApiServer.displayDefinition import DisplayDefinition
+from polariApiServer.tableDefinition import TableDefinition
+from polariApiServer.graphDefinition import GraphDefinition
 from polariApiServer.systemInfoAPI import systemInfoAPI
 from polariApiServer.apiFormatConfig import ApiFormatConfig
 from polariApiServer.flatJsonAPI import FlatJsonAPI
@@ -223,6 +226,9 @@ class polariServer(treeObject):
         self.manager.getObjectTyping(classObj=APIDomain)
         self.manager.getObjectTyping(classObj=APIEndpoint)
         self.manager.getObjectTyping(classObj=ApiFormatConfig)
+        self.manager.getObjectTyping(classObj=DisplayDefinition)
+        self.manager.getObjectTyping(classObj=TableDefinition)
+        self.manager.getObjectTyping(classObj=GraphDefinition)
 
         self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint, apiProfilerQueryEndpoint, apiProfilerMatchEndpoint, apiProfilerBuildEndpoint, apiProfilerCreateClassEndpoint, apiProfilerTemplatesEndpoint, apiProfilerDetectTypesEndpoint, apiDomainEndpoint, apiEndpointEndpoint, apiEndpointFetchEndpoint, apiConfigEndpoint, systemInfoEndpoint]
 

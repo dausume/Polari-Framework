@@ -27,7 +27,7 @@ from polariNetworking.defineLocalSys import isoSys
 #transmitting data across environments and into other programming language contexts.
 class polyTypedObject(treeObject):
     @treeObjectInit
-    def __init__(self, className, manager, objectReferencesDict={}, sourceFiles=[], identifierVariables=[], variableNameList=[], baseAccessDict={}, basePermDict={}, classDefinition=None, sampleInstances=[], kwRequiredParams=[], kwDefaultParams={}, allowClassEdit=False, isStateSpaceObject=False, excludeFromCRUDE=True):
+    def __init__(self, className, manager, objectReferencesDict={}, sourceFiles=[], identifierVariables=[], variableNameList=[], baseAccessDict={}, basePermDict={}, classDefinition=None, sampleInstances=[], kwRequiredParams=[], kwDefaultParams=[], allowClassEdit=False, isStateSpaceObject=False, excludeFromCRUDE=True):
         self.isTreeObject = None
         self.isManagerObject = None
         self.className = className
@@ -73,9 +73,6 @@ class polyTypedObject(treeObject):
         if(kwRequiredParams != []):
             self.kwRequiredParams = kwRequiredParams
         if(kwDefaultParams != []):
-            self.kwDefaultParams = kwDefaultParams
-        if(kwRequiredParams == [] and kwDefaultParams == []):
-            self.kwRequiredParams = kwRequiredParams
             self.kwDefaultParams = kwDefaultParams
         #A dictionary of required keyword parameters.
         self.requiredInitKeywordParams = []
