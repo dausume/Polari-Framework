@@ -474,6 +474,191 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
 
             print(f'[DB] Restored dynamic class: {className} ({len(variables)} variables)')
 
+    def on_put(self, request, response):
+        """Handle class edit requests — modify variables of an existing dynamic class"""
+        try:
+            class_def = request.get_media()
+            className = class_def.get('className')
+            if not className:
+                response.status = falcon.HTTP_400
+                response.media = {'success': False, 'error': 'className is required'}
+                return
+
+            # Must exist
+            if className not in self.manager.objectTypingDict:
+                response.status = falcon.HTTP_404
+                response.media = {'success': False, 'error': f'Class {className} not found'}
+                return
+
+            existingTyping = self.manager.objectTypingDict[className]
+
+            # Must be editable
+            if not getattr(existingTyping, 'allowClassEdit', False):
+                response.status = falcon.HTTP_403
+                response.media = {'success': False, 'error': f'Class {className} is not editable'}
+                return
+
+            variables = class_def.get('variables', [])
+            displayName = class_def.get('classDisplayName', getattr(existingTyping.classDefinition, 'displayName', className))
+            isStateSpaceObject = class_def.get('isStateSpaceObject', existingTyping.isStateSpaceObject)
+            stateSpaceDisplayFields = class_def.get('stateSpaceDisplayFields', None)
+            stateSpaceFieldsPerRow = class_def.get('stateSpaceFieldsPerRow', 1)
+
+            # Rebuild class + typing using _editDynamicClass
+            self._editDynamicClass(
+                className=className,
+                displayName=displayName,
+                variables=variables,
+                existingTyping=existingTyping,
+                isStateSpaceObject=isStateSpaceObject,
+                stateSpaceDisplayFields=stateSpaceDisplayFields,
+                stateSpaceFieldsPerRow=stateSpaceFieldsPerRow
+            )
+
+            response.status = falcon.HTTP_200
+            response.media = {
+                'success': True,
+                'className': className,
+                'displayName': displayName,
+                'variableCount': len(variables)
+            }
+        except Exception as e:
+            response.status = falcon.HTTP_500
+            response.media = {'success': False, 'error': str(e)}
+        response.set_header('Powered-By', 'Polari')
+
+    def _editDynamicClass(self, className, displayName, variables, existingTyping,
+                          isStateSpaceObject=True, stateSpaceDisplayFields=None, stateSpaceFieldsPerRow=1):
+        """
+        Edits an existing dynamic class by rebuilding it with new variable definitions.
+        Updates the class definition, typing metadata, and database schema.
+        """
+        print(f'[DEBUG-CC] _editDynamicClass START: {className}', flush=True)
+
+        # Build variable names and defaults
+        var_defaults = {}
+        for var in variables:
+            var_name = var.get('varName', '')
+            if var_name:
+                var_defaults[var_name] = self._getDefaultValue(var.get('varType', 'str'))
+
+        # Create the dynamic __init__ method with EXPLICIT parameter names
+        base_params = {'id', 'manager', 'branch', 'inTree'}
+        custom_defaults = {k: v for k, v in var_defaults.items() if k not in base_params}
+        param_names = list(custom_defaults.keys())
+
+        param_str = ', '.join([f"{name}={repr(default)}" for name, default in custom_defaults.items()])
+        if param_str:
+            param_str = ', ' + param_str
+
+        body_assignments = '\n'.join([f'    self.{name} = {name}' for name in param_names])
+
+        func_code = f'''
+def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
+    treeObject.__init__(self, manager=manager, branch=branch, id=id)
+{body_assignments}
+'''
+        local_ns = {'treeObject': treeObject}
+        exec(func_code, local_ns)
+        dynamic_init = local_ns['dynamic_init']
+
+        # Create new class via type()
+        class_attrs = {
+            '__init__': treeObjectInit(dynamic_init),
+            'displayName': displayName,
+            '_dynamicClass': True,
+            '_variableDefinitions': variables
+        }
+        DynamicClass = type(className, (treeObject,), class_attrs)
+        print(f'[DEBUG-CC] _editDynamicClass: rebuilt DynamicClass for {className}', flush=True)
+
+        # Update existingTyping: classDefinition, polyTypedVars, variableNameList, kwDefaultParams
+        existingTyping.classDefinition = DynamicClass
+        existingTyping.polyTypedVars = []
+        existingTyping.polyTypedVarsDict = {}
+        existingTyping.variableNameList = []
+        existingTyping.kwDefaultParams = list(var_defaults.keys())
+
+        # Determine identifier variables
+        identifiers = ['id']
+        for var in variables:
+            if var.get('isIdentifier', False) and var.get('varName') not in identifiers:
+                identifiers.append(var['varName'])
+        existingTyping.identifierVariables = identifiers
+
+        # Rebuild polyTypedVars from the updated variable definitions
+        for var in variables:
+            var_name = var.get('varName', '')
+            var_type = var.get('varType', 'str')
+            if var_name:
+                default_value = self._getDefaultValue(var_type)
+                try:
+                    polyVar = polyTypedVariable(
+                        polyTypedObj=existingTyping,
+                        attributeName=var_name,
+                        attributeValue=default_value
+                    )
+                    polyVar.pythonTypeDefault = var_type
+                    polyVar.displayName = var.get('varDisplayName', var_name)
+                    polyVar.isIdentifier = var.get('isIdentifier', False)
+                    polyVar.isUnique = var.get('isUnique', False)
+                    existingTyping.polyTypedVars.append(polyVar)
+                    existingTyping.polyTypedVarsDict[var_name] = polyVar
+                    existingTyping.variableNameList.append(var_name)
+                except Exception as e:
+                    print(f"[createClassAPI] Warning: Could not create polyTypedVariable for {var_name}: {e}")
+
+        print(f"[DEBUG-CC] _editDynamicClass: rebuilt {len(existingTyping.polyTypedVars)} polyTypedVars", flush=True)
+
+        # Update state-space configuration
+        existingTyping.isStateSpaceObject = isStateSpaceObject
+        if isStateSpaceObject and stateSpaceDisplayFields:
+            existingTyping.setStateSpaceDisplayFields(stateSpaceDisplayFields, stateSpaceFieldsPerRow)
+        elif isStateSpaceObject:
+            all_var_names = [v.get('varName') for v in variables if v.get('varName')]
+            existingTyping.setStateSpaceDisplayFields(all_var_names, stateSpaceFieldsPerRow)
+
+        # Update dynamic class reference
+        if not hasattr(self.manager, 'dynamicClasses'):
+            self.manager.dynamicClasses = {}
+        self.manager.dynamicClasses[className] = DynamicClass
+
+        # Update SQLite table schema — add new columns for any new variables
+        if hasattr(self.manager, 'db') and self.manager.db is not None:
+            try:
+                db = self.manager.db
+                dbFilePath = os.path.join(db.Path, db.name + '.db') if db.Path else db.name + '.db'
+                conn = sqlite3.connect(dbFilePath)
+                cursor = conn.cursor()
+                # Get existing columns
+                cursor.execute(f'PRAGMA table_info("{className}")')
+                existing_cols = {row[1] for row in cursor.fetchall()}
+                # Add new columns that don't exist yet
+                type_map = {'str': 'TEXT', 'int': 'INTEGER', 'float': 'REAL', 'bool': 'INTEGER',
+                            'list': 'TEXT', 'dict': 'TEXT', 'reference': 'TEXT'}
+                for var in variables:
+                    col_name = var.get('varName', '')
+                    if col_name and col_name not in existing_cols:
+                        col_type = type_map.get(var.get('varType', 'str'), 'TEXT')
+                        cursor.execute(f'ALTER TABLE "{className}" ADD COLUMN "{col_name}" {col_type}')
+                        print(f'[DEBUG-CC] _editDynamicClass: added column {col_name} ({col_type}) to {className}', flush=True)
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                print(f"[DEBUG-CC] _editDynamicClass: WARNING DB schema update failed: {e}", flush=True)
+
+        # Re-persist class definition to registry (INSERT OR REPLACE)
+        if hasattr(self.manager, 'db') and self.manager.db is not None:
+            try:
+                self._persistClassDefinition(className, displayName, variables,
+                                              True, isStateSpaceObject,
+                                              stateSpaceDisplayFields, stateSpaceFieldsPerRow)
+                print(f'[DEBUG-CC] _editDynamicClass: class definition re-persisted', flush=True)
+            except Exception as e:
+                print(f"[DEBUG-CC] _editDynamicClass: WARNING persist failed: {e}", flush=True)
+
+        print(f"[DEBUG-CC] _editDynamicClass COMPLETE: {className} with {len(variables)} variables", flush=True)
+
     def on_get(self, request, response):
         """Return list of dynamically created classes"""
         try:

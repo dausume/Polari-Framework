@@ -30,6 +30,8 @@ from polariApiServer.modulesAPI import ModulesAPI
 from polariApiServer.displayDefinition import DisplayDefinition
 from polariApiServer.tableDefinition import TableDefinition
 from polariApiServer.graphDefinition import GraphDefinition
+from polariApiServer.geoJsonDefinition import GeoJsonDefinition
+from polariApiServer.updateClassConfigAPI import UpdateClassConfigAPI
 from polariApiServer.systemInfoAPI import systemInfoAPI
 from polariApiServer.apiFormatConfig import ApiFormatConfig
 from polariApiServer.flatJsonAPI import FlatJsonAPI
@@ -221,16 +223,43 @@ class polariServer(treeObject):
         # Create System Info endpoint for diagnostics and resource profiling
         systemInfoEndpoint = systemInfoAPI(polServer=self, manager=self.manager)
 
+        # Create endpoint for updating class configuration flags
+        updateClassConfigEndpoint = UpdateClassConfigAPI(polServer=self, manager=self.manager)
+
         # Register APIProfile, APIDomain, APIEndpoint, and ApiFormatConfig types
         self.manager.getObjectTyping(classObj=APIProfile)
         self.manager.getObjectTyping(classObj=APIDomain)
         self.manager.getObjectTyping(classObj=APIEndpoint)
         self.manager.getObjectTyping(classObj=ApiFormatConfig)
-        self.manager.getObjectTyping(classObj=DisplayDefinition)
-        self.manager.getObjectTyping(classObj=TableDefinition)
-        self.manager.getObjectTyping(classObj=GraphDefinition)
+        # Register Definition classes and configure them for CRUDE access.
+        # By default polyTypedObject sets excludeFromCRUDE=True; override for
+        # these data-container classes so the frontend knows CRUDE is available.
+        # Also pre-populate polyTypedVars from the class signature since there
+        # are no instances at startup for runAnalysis() to inspect.
+        defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition]
+        for defClass in defClassList:
+            defTyping = self.manager.getObjectTyping(classObj=defClass)
+            if defTyping is not None:
+                defTyping.excludeFromCRUDE = False
+                defTyping.initializeVarsFromSignature()
+                # Create DB table for this definition class if database is active.
+                # These classes are registered after jumpstartDatabase() runs, so
+                # their tables must be created retroactively.
+                if self.manager.db is not None and defTyping.polyTypedVarsDict:
+                    className = defClass.__name__
+                    if className not in self.manager.db.tables:
+                        try:
+                            defTyping.makeTypedTableFromAnalysis()
+                        except Exception as e:
+                            print(f'[polariServer] DB table creation failed for {className}: {e}')
 
-        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint, apiProfilerQueryEndpoint, apiProfilerMatchEndpoint, apiProfilerBuildEndpoint, apiProfilerCreateClassEndpoint, apiProfilerTemplatesEndpoint, apiProfilerDetectTypesEndpoint, apiDomainEndpoint, apiEndpointEndpoint, apiEndpointFetchEndpoint, apiConfigEndpoint, systemInfoEndpoint]
+        # Restore Definition instances from DB on restart.
+        # restoreFromDatabase() skips these tables because they weren't in
+        # objectTypingDict at that time. Now that they're registered, load
+        # any previously-saved instances.
+        self._restoreDefinitionInstances(defClassList)
+
+        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint, apiProfilerQueryEndpoint, apiProfilerMatchEndpoint, apiProfilerBuildEndpoint, apiProfilerCreateClassEndpoint, apiProfilerTemplatesEndpoint, apiProfilerDetectTypesEndpoint, apiDomainEndpoint, apiEndpointEndpoint, apiEndpointFetchEndpoint, apiConfigEndpoint, systemInfoEndpoint, updateClassConfigEndpoint]
 
         # Populate uriList with custom API endpoints for overlap tracking
         for api in self.customAPIsList:
@@ -521,6 +550,49 @@ class polariServer(treeObject):
             raise ValueError("Must have over ", self.passwordRequirements["min-special-chars"], " special characters in password.")
         if(numCharCount < self.passwordRequirements["min-nums"]):
             raise ValueError("Must have over ", self.passwordRequirements["min-nums"], " numbers in password.")
+
+    def _restoreDefinitionInstances(self, defClassList):
+        """Restore Definition instances (Table/Graph/Display/GeoJson) from DB.
+
+        These classes are registered in objectTypingDict after
+        jumpstartDatabase() → restoreFromDatabase() has already run,
+        so their table rows were skipped during the main restore pass.
+        This method performs a targeted restore for those classes only.
+        """
+        db = self.manager.db
+        if db is None:
+            return
+        import json as jsonLib
+        for defClass in defClassList:
+            className = defClass.__name__
+            if className not in db.tables:
+                continue
+            # Skip if instances already exist (e.g. from another restore path)
+            if className in self.manager.objectTables and self.manager.objectTables[className]:
+                continue
+            try:
+                columnNames, dataTuples = db.getAllInTable(className)
+            except Exception as e:
+                print(f'[polariServer] Error reading table {className}: {e}')
+                continue
+            if not dataTuples:
+                continue
+            restoredCount = 0
+            for row in dataTuples:
+                # Build kwargs from DB columns matching constructor params
+                initKwargs = {'manager': self.manager}
+                for i, colName in enumerate(columnNames):
+                    if colName == '_branch_path':
+                        continue
+                    if row[i] is not None:
+                        initKwargs[colName] = row[i]
+                try:
+                    instance = defClass(**initKwargs)
+                    restoredCount += 1
+                except Exception as e:
+                    print(f'[polariServer] Error restoring {className} instance: {e}')
+            if restoredCount > 0:
+                print(f'[polariServer] Restored {restoredCount} {className} instances from DB')
 
     def registerCRUDEforObjectType(self, objType):
         """
