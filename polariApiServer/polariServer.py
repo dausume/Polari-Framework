@@ -31,6 +31,8 @@ from polariApiServer.displayDefinition import DisplayDefinition
 from polariApiServer.tableDefinition import TableDefinition
 from polariApiServer.graphDefinition import GraphDefinition
 from polariApiServer.geoJsonDefinition import GeoJsonDefinition
+from polariApiServer.tileSourceDefinition import TileSourceDefinition
+from polariApiServer.geocoderDefinition import GeocoderDefinition
 from polariApiServer.updateClassConfigAPI import UpdateClassConfigAPI
 from polariApiServer.systemInfoAPI import systemInfoAPI
 from polariApiServer.apiFormatConfig import ApiFormatConfig
@@ -236,7 +238,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition]
+        defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, TileSourceDefinition, GeocoderDefinition]
         for defClass in defClassList:
             defTyping = self.manager.getObjectTyping(classObj=defClass)
             if defTyping is not None:
