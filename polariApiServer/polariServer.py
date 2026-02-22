@@ -36,8 +36,9 @@ from polariApiServer.geocoderDefinition import GeocoderDefinition
 from polariApiServer.updateClassConfigAPI import UpdateClassConfigAPI
 from polariApiServer.systemInfoAPI import systemInfoAPI
 from polariApiServer.apiFormatConfig import ApiFormatConfig
-from polariApiServer.flatJsonAPI import FlatJsonAPI
-from polariApiServer.d3ColumnAPI import D3ColumnAPI
+from polariApiServer.configuredFormattedAPIs import FlatJsonAPI, D3ColumnAPI, GeoJsonAPI
+from polariApiServer.tileGeneratorAPI import TileGeneratorAPI
+from polariApiServer.objectStorageAPI import ObjectStorageAPI
 from polariApiProfiler.apiProfilerAPI import (
     APIProfilerQueryAPI,
     APIProfilerMatchAPI,
@@ -228,6 +229,12 @@ class polariServer(treeObject):
         # Create endpoint for updating class configuration flags
         updateClassConfigEndpoint = UpdateClassConfigAPI(polServer=self, manager=self.manager)
 
+        # Create Tile Generator endpoint for .mbtiles generation
+        tileGeneratorEndpoint = TileGeneratorAPI(polServer=self, manager=self.manager)
+
+        # Create Object Storage endpoint for MinIO connection management
+        objectStorageEndpoint = ObjectStorageAPI(polServer=self, manager=self.manager)
+
         # Register APIProfile, APIDomain, APIEndpoint, and ApiFormatConfig types
         self.manager.getObjectTyping(classObj=APIProfile)
         self.manager.getObjectTyping(classObj=APIDomain)
@@ -238,30 +245,27 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, TileSourceDefinition, GeocoderDefinition]
-        for defClass in defClassList:
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, TileSourceDefinition, GeocoderDefinition]
+        print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
+        for defClass in self.defClassList:
+            className = defClass.__name__
             defTyping = self.manager.getObjectTyping(classObj=defClass)
             if defTyping is not None:
                 defTyping.excludeFromCRUDE = False
-                defTyping.initializeVarsFromSignature()
-                # Create DB table for this definition class if database is active.
-                # These classes are registered after jumpstartDatabase() runs, so
-                # their tables must be created retroactively.
-                if self.manager.db is not None and defTyping.polyTypedVarsDict:
-                    className = defClass.__name__
-                    if className not in self.manager.db.tables:
-                        try:
-                            defTyping.makeTypedTableFromAnalysis()
-                        except Exception as e:
-                            print(f'[polariServer] DB table creation failed for {className}: {e}')
+                defTyping.isDefinitionClass = True
+                created = defTyping.initializeVarsFromSignature()
+                print(f'[DefInit] {className}: polyTypedVarsDict keys={list(defTyping.polyTypedVarsDict.keys())}, identifiers={defTyping.identifiers}, created={created}', flush=True)
+            else:
+                print(f'[DefInit] {className}: getObjectTyping returned None!', flush=True)
+        # NOTE: DB table creation and instance restoration happen later via
+        # ensureDefinitionTables(), called from managerObject.__init__ AFTER
+        # jumpstartDatabase() completes (self.manager.db is still None here).
 
-        # Restore Definition instances from DB on restart.
-        # restoreFromDatabase() skips these tables because they weren't in
-        # objectTypingDict at that time. Now that they're registered, load
-        # any previously-saved instances.
-        self._restoreDefinitionInstances(defClassList)
+        # NOTE: _autoRegisterMbtilesSources() is called from the manager's
+        # __init__ after jumpstartObjectStore() completes, since object storage
+        # is not yet connected at this point in polariServer.__init__.
 
-        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint, apiProfilerQueryEndpoint, apiProfilerMatchEndpoint, apiProfilerBuildEndpoint, apiProfilerCreateClassEndpoint, apiProfilerTemplatesEndpoint, apiProfilerDetectTypesEndpoint, apiDomainEndpoint, apiEndpointEndpoint, apiEndpointFetchEndpoint, apiConfigEndpoint, systemInfoEndpoint, updateClassConfigEndpoint]
+        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint, apiProfilerQueryEndpoint, apiProfilerMatchEndpoint, apiProfilerBuildEndpoint, apiProfilerCreateClassEndpoint, apiProfilerTemplatesEndpoint, apiProfilerDetectTypesEndpoint, apiDomainEndpoint, apiEndpointEndpoint, apiEndpointFetchEndpoint, apiConfigEndpoint, systemInfoEndpoint, updateClassConfigEndpoint, tileGeneratorEndpoint, objectStorageEndpoint]
 
         # Populate uriList with custom API endpoints for overlap tracking
         for api in self.customAPIsList:
@@ -553,6 +557,80 @@ class polariServer(treeObject):
         if(numCharCount < self.passwordRequirements["min-nums"]):
             raise ValueError("Must have over ", self.passwordRequirements["min-nums"], " numbers in password.")
 
+    def ensureDefinitionTables(self):
+        """Create DB tables for Definition classes and restore saved instances.
+
+        Called from managerObject.__init__ AFTER jumpstartDatabase() completes,
+        because self.manager.db is None when polariServer.__init__ runs.
+        This method:
+        1. Creates missing tables for each Definition class
+        2. Migrates old tables that lack an 'id' column
+        3. Restores previously-saved Definition instances from the DB
+        """
+        db = self.manager.db
+        if db is None:
+            print('[DefInit] ensureDefinitionTables: no database, skipping', flush=True)
+            return
+        print(f'[DefInit] ensureDefinitionTables: db.tables={db.tables}', flush=True)
+        for defClass in self.defClassList:
+            className = defClass.__name__
+            defTyping = self.manager.objectTypingDict.get(className)
+            if defTyping is None:
+                print(f'[DefInit] {className}: not in objectTypingDict, skipping', flush=True)
+                continue
+            if className not in db.tables:
+                if defTyping.polyTypedVarsDict:
+                    print(f'[DefInit] {className}: creating DB table', flush=True)
+                    try:
+                        defTyping.makeTypedTableFromAnalysis()
+                    except Exception as e:
+                        print(f'[DefInit] DB table creation failed for {className}: {e}', flush=True)
+                        import traceback
+                        traceback.print_exc()
+                else:
+                    print(f'[DefInit] {className}: no polyTypedVarsDict, cannot create table', flush=True)
+            else:
+                # Table exists — verify it has an 'id' column
+                self._migrateDefinitionTable(className)
+        print(f'[DefInit] DB tables after ensureDefinitionTables: {db.tables}', flush=True)
+        # Now restore any saved Definition instances
+        self._restoreDefinitionInstances(self.defClassList)
+
+    def _migrateDefinitionTable(self, className):
+        """Check if a Definition table has an 'id' column and recreate it if not.
+
+        Older versions created tables without an 'id' PRIMARY KEY because
+        initializeVarsFromSignature() skipped the 'id' parameter. This
+        method detects the old schema and recreates the table with the
+        correct structure so instances can be properly persisted.
+        """
+        import sqlite3
+        db = self.manager.db
+        if db is None:
+            return
+        try:
+            dbFilePath = os.path.join(db.Path, db.name + '.db') if db.Path else db.name + '.db'
+            conn = sqlite3.connect(dbFilePath)
+            cursor = conn.execute(f"PRAGMA table_info({className})")
+            columns = [row[1] for row in cursor.fetchall()]
+            conn.close()
+            if 'id' not in columns:
+                print(f'[polariServer] Migrating {className} table: adding "id" column (recreating table)', flush=True)
+                # Drop the old table (it has no usable data without IDs)
+                conn = sqlite3.connect(dbFilePath)
+                conn.execute(f'DROP TABLE IF EXISTS {className}')
+                conn.commit()
+                conn.close()
+                # Remove from tables list so makeTypedTableFromAnalysis can recreate
+                if className in db.tables:
+                    db.tables.remove(className)
+                # Recreate with correct schema
+                typingObj = self.manager.objectTypingDict.get(className)
+                if typingObj:
+                    typingObj.makeTypedTableFromAnalysis()
+        except Exception as e:
+            print(f'[polariServer] Migration check failed for {className}: {e}', flush=True)
+
     def _restoreDefinitionInstances(self, defClassList):
         """Restore Definition instances (Table/Graph/Display/GeoJson) from DB.
 
@@ -563,21 +641,27 @@ class polariServer(treeObject):
         """
         db = self.manager.db
         if db is None:
+            print('[DefRestore] No database, skipping restore', flush=True)
             return
         import json as jsonLib
         for defClass in defClassList:
             className = defClass.__name__
             if className not in db.tables:
+                print(f'[DefRestore] {className}: not in db.tables, skipping', flush=True)
                 continue
             # Skip if instances already exist (e.g. from another restore path)
-            if className in self.manager.objectTables and self.manager.objectTables[className]:
+            existing = self.manager.objectTables.get(className, {})
+            if existing:
+                print(f'[DefRestore] {className}: {len(existing)} instances already in objectTables, skipping', flush=True)
                 continue
             try:
                 columnNames, dataTuples = db.getAllInTable(className)
             except Exception as e:
-                print(f'[polariServer] Error reading table {className}: {e}')
+                print(f'[DefRestore] {className}: Error reading table: {e}', flush=True)
                 continue
+            print(f'[DefRestore] {className}: columns={columnNames}, rows={len(dataTuples)}', flush=True)
             if not dataTuples:
+                print(f'[DefRestore] {className}: no rows in DB', flush=True)
                 continue
             restoredCount = 0
             for row in dataTuples:
@@ -588,13 +672,127 @@ class polariServer(treeObject):
                         continue
                     if row[i] is not None:
                         initKwargs[colName] = row[i]
+                print(f'[DefRestore] {className}: restoring with kwargs keys={list(initKwargs.keys())}', flush=True)
                 try:
                     instance = defClass(**initKwargs)
                     restoredCount += 1
+                    print(f'[DefRestore] {className}: restored instance id={getattr(instance, "id", "?")}', flush=True)
                 except Exception as e:
-                    print(f'[polariServer] Error restoring {className} instance: {e}')
+                    print(f'[DefRestore] {className}: Error restoring instance: {e}', flush=True)
+                    import traceback
+                    traceback.print_exc()
             if restoredCount > 0:
-                print(f'[polariServer] Restored {restoredCount} {className} instances from DB')
+                print(f'[DefRestore] Restored {restoredCount} {className} instances from DB', flush=True)
+
+    def _autoRegisterMbtilesSources(self):
+        """Scan MinIO buckets for .mbtiles files and create or update
+        TileSourceDefinition instances so tile-serving works correctly.
+
+        This ensures that previously generated tile sources survive server
+        restarts and that old-format definitions get migrated to the new
+        tileserver-based format with proper bucket/objectName fields.
+        """
+        store = getattr(self.manager, 'objectStore', None)
+        if store is None or not store.connected:
+            print('[polariServer] Auto-register: objectStore not connected, skipping', flush=True)
+            return
+
+        import json as jsonLib
+
+        # Build lookup of existing TileSourceDefinition instances by name
+        existing_by_name = {}
+        ts_table = self.manager.objectTables.get('TileSourceDefinition', {})
+        if isinstance(ts_table, dict):
+            for defId, inst in ts_table.items():
+                existing_by_name[getattr(inst, 'name', '')] = (defId, inst)
+        elif isinstance(ts_table, list):
+            for inst in ts_table:
+                existing_by_name[getattr(inst, 'name', '')] = (getattr(inst, 'polariId', ''), inst)
+
+        print(f'[polariServer] Auto-register: found {len(existing_by_name)} existing TileSourceDefinition(s): {list(existing_by_name.keys())}', flush=True)
+
+        registered = 0
+        updated = 0
+        try:
+            buckets = store.list_buckets()
+            print(f'[polariServer] Auto-register: MinIO buckets: {buckets}', flush=True)
+        except Exception as e:
+            print(f'[polariServer] Auto-register: failed to list buckets: {e}', flush=True)
+            return
+
+        for bucket in buckets:
+            try:
+                objects = store.list_objects(bucket)
+            except Exception:
+                continue
+            for obj in objects:
+                obj_name = obj.get('name', '')
+                if not obj_name.endswith('.mbtiles'):
+                    continue
+                # Derive a readable name from the filename (strip extension)
+                source_name = obj_name.rsplit('.', 1)[0]
+
+                # Build the correct definition JSON
+                new_definition = jsonLib.dumps({
+                    'type': 'vector',
+                    'url': f'/tiles/{source_name}/{{z}}/{{x}}/{{y}}.pbf',
+                    'bucket': bucket,
+                    'objectName': obj_name,
+                    'attribution': 'Generated by Polari Tile Generator',
+                    'tileFormat': 'vector',
+                    'sourceLayer': 'default',
+                    'defaultCenter': None,
+                    'defaultZoom': None
+                })
+
+                if source_name in existing_by_name:
+                    # Check if the existing definition needs updating
+                    defId, inst = existing_by_name[source_name]
+                    old_def_str = getattr(inst, 'definition', '{}')
+                    old_type = getattr(inst, 'type', '')
+                    try:
+                        old_def = jsonLib.loads(old_def_str) if isinstance(old_def_str, str) else old_def_str
+                    except (jsonLib.JSONDecodeError, ValueError):
+                        old_def = {}
+
+                    needs_update = (
+                        old_type != 'tileserver' or
+                        'bucket' not in old_def or
+                        'objectName' not in old_def or
+                        old_def.get('type') != 'vector'
+                    )
+                    print(f'[polariServer] Auto-register: "{source_name}" exists (type={old_type}), needs_update={needs_update}', flush=True)
+                    if needs_update:
+                        print(f'[polariServer] Auto-register: updating "{source_name}" old_def={old_def_str}', flush=True)
+                        inst.type = 'tileserver'
+                        inst.definition = new_definition
+                        if self.manager.db is not None:
+                            try:
+                                self.manager.db.saveInstanceInDB(inst)
+                            except Exception as db_err:
+                                print(f'[polariServer] Auto-register: DB update failed for {source_name}: {db_err}', flush=True)
+                        updated += 1
+                    continue
+
+                # Create new TileSourceDefinition
+                try:
+                    instance = TileSourceDefinition(
+                        name=source_name, type='tileserver',
+                        definition=new_definition, manager=self.manager
+                    )
+                    # Persist to DB if available
+                    if self.manager.db is not None:
+                        try:
+                            self.manager.db.saveInstanceInDB(instance)
+                        except Exception as db_err:
+                            print(f'[polariServer] Auto-register: DB save failed for {source_name}: {db_err}', flush=True)
+                    existing_by_name[source_name] = (getattr(instance, 'polariId', ''), instance)
+                    registered += 1
+                    print(f'[polariServer] Auto-register: created new "{source_name}" in bucket "{bucket}"', flush=True)
+                except Exception as e:
+                    print(f'[polariServer] Auto-register: failed to create TileSourceDefinition for {source_name}: {e}', flush=True)
+
+        print(f'[polariServer] Auto-register complete: {registered} new, {updated} updated', flush=True)
 
     def registerCRUDEforObjectType(self, objType):
         """

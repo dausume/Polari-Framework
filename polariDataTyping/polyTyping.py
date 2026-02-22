@@ -131,6 +131,10 @@ class polyTypedObject(treeObject):
         # Default: True - Core framework objects should use custom endpoints to prevent runtime issues
         # Dynamic classes created via API explicitly set this to False to enable CRUDE access
         self.excludeFromCRUDE = excludeFromCRUDE
+        # Whether this class is a framework Definition class (e.g. TableDefinition,
+        # DisplayDefinition). These need CRUDE endpoints (excludeFromCRUDE=False)
+        # but should still be classified as framework objects in the UI.
+        self.isDefinitionClass = False
 
         # API Format Configuration -- one-to-one sub-object managing format endpoints.
         # The tree handles the parent-child relationship when we assign the instance.
@@ -606,9 +610,21 @@ class polyTypedObject(treeObject):
         # Always include _branch_path for tree reconstruction
         classElementRows.append('_branch_path TEXT')
 
-        # Count identifiers to decide between inline PRIMARY KEY vs composite
-        identifierCols = [v for v in self.identifiers if v in self.polyTypedVarsDict and v not in skipVars]
+        # Count identifiers to decide between inline PRIMARY KEY vs composite.
+        # Include identifiers even if they're not in polyTypedVarsDict (e.g. 'id'
+        # is set by treeObjectInit, not the constructor, so initializeVarsFromSignature
+        # skips it — but it still needs a column in the DB table).
+        identifierCols = [v for v in self.identifiers if v not in skipVars]
         useCompositePK = len(identifierCols) > 1
+
+        # Add identifier columns that are NOT in polyTypedVarsDict
+        # (they won't be processed by the loop below)
+        for ident in identifierCols:
+            if ident not in self.polyTypedVarsDict:
+                if useCompositePK:
+                    classElementRows.append(f'{ident} TEXT')
+                else:
+                    classElementRows.append(f'{ident} TEXT PRIMARY KEY')
 
         # Process each polyTypedVar
         for varName, polyVar in self.polyTypedVarsDict.items():

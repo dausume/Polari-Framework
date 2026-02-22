@@ -20,16 +20,18 @@ A one-to-one configuration sub-object on polyTypedObject that manages
 which API formats are enabled for a given object type, along with their
 customizable endpoint prefixes.
 
-Three format types:
+Four format types:
 - Polari Tree (CRUDE): Always enabled, pulls from in-memory object tree.
   Complex nested format ideal for inter-polari communication.
 - Flat JSON: Opt-in, pulls from database. Traditional single-object
   single-level REST JSON.
 - D3 Column Series: Opt-in, pulls from database. Column-oriented JSON
   for d3 graphing libraries.
+- GeoJSON: Opt-in, pulls from database. GeoJSON FeatureCollection format
+  using GeoJsonDefinition configs for coordinate extraction.
 
-The Flat JSON and D3 Column formats are NOT created by default. They
-represent the 'Real World API' structure for after the tree is collapsed.
+The Flat JSON, D3 Column, and GeoJSON formats are NOT created by default.
+They represent the 'Real World API' structure for after the tree is collapsed.
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
@@ -63,6 +65,11 @@ class ApiFormatConfig(treeObject):
         self.d3ColumnEndpoint = None     # Active endpoint path when enabled
         self.d3ColumnPrefix = '/d3/'     # Customizable prefix
 
+        # GeoJSON format (opt-in, DB-backed, requires GeoJsonDefinition)
+        self.geoJsonEnabled = False
+        self.geoJsonEndpoint = None      # Active endpoint path when enabled
+        self.geoJsonPrefix = '/geojson/' # Customizable prefix
+
     def buildEndpoint(self, prefix):
         """Build a full endpoint path from prefix + className."""
         if not prefix.startswith('/'):
@@ -79,6 +86,8 @@ class ApiFormatConfig(treeObject):
             return self.flatJsonEndpoint
         elif formatType == 'd3Column':
             return self.d3ColumnEndpoint
+        elif formatType == 'geoJson':
+            return self.geoJsonEndpoint
         return None
 
     def getPrefixForFormat(self, formatType):
@@ -87,6 +96,8 @@ class ApiFormatConfig(treeObject):
             return self.flatJsonPrefix
         elif formatType == 'd3Column':
             return self.d3ColumnPrefix
+        elif formatType == 'geoJson':
+            return self.geoJsonPrefix
         return None
 
     def isFormatEnabled(self, formatType):
@@ -97,6 +108,8 @@ class ApiFormatConfig(treeObject):
             return self.flatJsonEnabled
         elif formatType == 'd3Column':
             return self.d3ColumnEnabled
+        elif formatType == 'geoJson':
+            return self.geoJsonEnabled
         return False
 
     def getAllActiveEndpoints(self):
@@ -108,6 +121,8 @@ class ApiFormatConfig(treeObject):
             endpoints.append(self.flatJsonEndpoint)
         if self.d3ColumnEnabled and self.d3ColumnEndpoint:
             endpoints.append(self.d3ColumnEndpoint)
+        if self.geoJsonEnabled and self.geoJsonEndpoint:
+            endpoints.append(self.geoJsonEndpoint)
         return endpoints
 
     def toDict(self):
@@ -130,5 +145,11 @@ class ApiFormatConfig(treeObject):
                 "endpoint": self.d3ColumnEndpoint,
                 "prefix": self.d3ColumnPrefix,
                 "description": "Column-oriented series JSON (d3 graphing)"
+            },
+            "geoJson": {
+                "enabled": self.geoJsonEnabled,
+                "endpoint": self.geoJsonEndpoint,
+                "prefix": self.geoJsonPrefix,
+                "description": "GeoJSON FeatureCollection (maps/spatial data)"
             }
         }

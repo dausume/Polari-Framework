@@ -9,4 +9,6 @@ PyYAML==6.0.2
 requests==2.32.5
 setuptools==70.0.0
 svgwrite==1.4.3
+tippecanoe
+minio==7.2.15
 urllib3==2.6.3

@@ -81,27 +81,34 @@ class managedDatabase(managedFile):
         self.createFile()
 
     def saveInstanceInDB(self, passedInstance):
+        """Persist instance to DB. Returns True on success, False if skipped/failed."""
         className = str(type(passedInstance).__name__)
+        print(f'[DB-Save] saveInstanceInDB called for {className}, tables={self.tables}', flush=True)
         if className not in self.tables:
-            return
+            print(f'[DB-Save] SKIP: {className} not in self.tables', flush=True)
+            return False
         # SQLite-serializable types
         serializableTypes = (str, int, float, bool, bytes, type(None))
         # Get actual table columns from the DB schema
         dbFilePath = os.path.join(self.Path, self.name + '.db') if self.Path else self.name + '.db'
+        print(f'[DB-Save] DB file: {dbFilePath}, exists={os.path.exists(dbFilePath)}', flush=True)
         dbConnection = sqlite3.connect(dbFilePath)
         dbCursor = dbConnection.cursor()
         dbCursor.execute(f"PRAGMA table_info({className})")
         tableColumns = [col[1] for col in dbCursor.fetchall()]
+        print(f'[DB-Save] Table columns for {className}: {tableColumns}', flush=True)
         # Collect only attributes that match table columns and are serializable
         rowList = []
         valueList = []
         classInfoDict = passedInstance.__dict__
+        print(f'[DB-Save] Instance __dict__ keys: {list(classInfoDict.keys())}', flush=True)
         for colName in tableColumns:
             if colName == '_branch_path':
                 continue  # Handle separately below
             if colName in classInfoDict:
                 value = classInfoDict[colName]
                 if value is None or value == []:
+                    print(f'[DB-Save]   {colName}: skipped (None or empty)', flush=True)
                     continue
                 # Convert lists/dicts to JSON strings
                 if isinstance(value, (list, dict)):
@@ -111,6 +118,9 @@ class managedDatabase(managedFile):
                     value = str(value)
                 rowList.append(colName)
                 valueList.append(value)
+                print(f'[DB-Save]   {colName}: {repr(value)[:80]}', flush=True)
+            else:
+                print(f'[DB-Save]   {colName}: NOT in instance __dict__', flush=True)
         # Add _branch_path if the table supports it
         if '_branch_path' in tableColumns:
             try:
@@ -123,18 +133,25 @@ class managedDatabase(managedFile):
             except Exception:
                 pass
         if len(rowList) == 0:
-            return
+            print(f'[DB-Save] SKIP: no columns to save for {className}', flush=True)
+            return False
         # Build INSERT OR REPLACE to handle re-persisting on restart
         placeholders = ', '.join(['?'] * len(rowList))
         columns = ', '.join(rowList)
         commandString = f'INSERT OR REPLACE INTO {className} ({columns}) VALUES({placeholders});'
         valueTuple = tuple(valueList)
+        print(f'[DB-Save] SQL: {commandString}', flush=True)
+        print(f'[DB-Save] Values: {valueTuple[:3]}...', flush=True)
         try:
             dbCursor.execute(commandString, valueTuple)
             dbConnection.commit()
+            print(f'[DB-Save] SUCCESS: saved {className} instance', flush=True)
+            dbConnection.close()
+            return True
         except Exception as e:
-            print(f'[DB] INSERT failed for {className}: {e}', flush=True)
-        dbConnection.close()
+            print(f'[DB-Save] INSERT failed for {className}: {e}', flush=True)
+            dbConnection.close()
+            return False
 
     #Returns a List of Two Lists, the first of which contains the class variables, and the
     #second of which is the list of all instances as tuples of the requested class, which have
@@ -206,6 +223,12 @@ class managedDatabase(managedFile):
     #special conditions)
     def makeSQLiteTable(self, tableName, rowList):
         dbFilePath = os.path.join(self.Path, self.name + '.db') if self.Path else self.name + '.db'
+        if self.isRemote:
+            print(f'[DB] makeSQLiteTable: skipping {tableName} (isRemote={self.isRemote})', flush=True)
+            return
+        if not os.path.exists(dbFilePath):
+            print(f'[DB] makeSQLiteTable: DB file not found at {dbFilePath}, cannot create table {tableName}', flush=True)
+            return
         if not self.isRemote and os.path.exists(dbFilePath):
             commandString = 'CREATE TABLE IF NOT EXISTS ' + tableName + ' ('
             i = 0

@@ -81,7 +81,10 @@ class ApiConfigAPI(treeObject):
 
                     # isBaseObject: Framework objects that shouldn't be modified externally
                     # These have excludeFromCRUDE=True (default) AND allowClassEdit=False (default)
-                    isBaseObject = excludeFromCRUDE and not allowClassEdit
+                    # Definition classes (Table/Display/Graph/GeoJson/TileSource/Geocoder)
+                    # also count as framework objects even though they have CRUDE enabled.
+                    isDefinitionClass = getattr(typingObj, 'isDefinitionClass', False)
+                    isBaseObject = (excludeFromCRUDE and not allowClassEdit) or isDefinitionClass
 
                     # Get variable information with CRUD permissions
                     variables = []
@@ -156,7 +159,16 @@ class ApiConfigAPI(treeObject):
                     # - Server-only objects (no CRUDE endpoint): Read and Events only
                     # - User-created objects with CRUDE endpoint: Full CRUDE access
 
-                    if isBaseObject or not crudeRegistered:
+                    if isDefinitionClass and crudeRegistered:
+                        # Definition classes are framework objects with full CRUDE access
+                        generalCRUDE = {
+                            "create": True,
+                            "read": True,
+                            "update": True,
+                            "delete": True,
+                            "events": True
+                        }
+                    elif isBaseObject or not crudeRegistered:
                         # Framework objects or server-only: Read and Events only
                         generalCRUDE = {
                             "create": False,
@@ -192,7 +204,8 @@ class ApiConfigAPI(treeObject):
                         apiFormats = {
                             "polariTree": {"enabled": True, "endpoint": crudeEndpoint, "prefix": None, "description": "Complex nested tree format (inter-polari communication)"},
                             "flatJson": {"enabled": False, "endpoint": None, "prefix": "/flat/", "description": "Traditional flat JSON (standard REST)"},
-                            "d3Column": {"enabled": False, "endpoint": None, "prefix": "/d3/", "description": "Column-oriented series JSON (d3 graphing)"}
+                            "d3Column": {"enabled": False, "endpoint": None, "prefix": "/d3/", "description": "Column-oriented series JSON (d3 graphing)"},
+                            "geoJson": {"enabled": False, "endpoint": None, "prefix": "/geojson/", "description": "GeoJSON FeatureCollection (maps/spatial data)"}
                         }
 
                     # Determine source module
@@ -207,6 +220,7 @@ class ApiConfigAPI(treeObject):
                         "displayName": className,  # Could be enhanced with a display name field
                         "sourceModule": source_module,
                         "isBaseObject": isBaseObject,
+                        "isDefinitionClass": isDefinitionClass,
                         "isUserCreated": not isBaseObject,
                         "excludeFromCRUDE": excludeFromCRUDE,
                         "allowClassEdit": allowClassEdit,
@@ -355,9 +369,10 @@ class ApiConfigAPI(treeObject):
             typingObj = self.manager.objectTypingDict[className]
             excludeFromCRUDE = getattr(typingObj, 'excludeFromCRUDE', True)
             allowClassEdit = getattr(typingObj, 'allowClassEdit', False)
+            isDefinitionClass = getattr(typingObj, 'isDefinitionClass', False)
             isBaseObject = excludeFromCRUDE and not allowClassEdit
 
-            if isBaseObject:
+            if isBaseObject and not isDefinitionClass:
                 response.status = falcon.HTTP_403
                 response.media = {
                     "success": False,
@@ -444,9 +459,10 @@ class ApiConfigAPI(treeObject):
             typingObj = self.manager.objectTypingDict[className]
             excludeFromCRUDE = getattr(typingObj, 'excludeFromCRUDE', True)
             allowClassEdit = getattr(typingObj, 'allowClassEdit', False)
+            isDefinitionClass = getattr(typingObj, 'isDefinitionClass', False)
             isBaseObject = excludeFromCRUDE and not allowClassEdit
 
-            if isBaseObject:
+            if isBaseObject and not isDefinitionClass:
                 response.status = falcon.HTTP_403
                 response.media = {"success": False, "error": f"Cannot modify format settings for framework object '{className}'"}
                 return
@@ -485,7 +501,7 @@ class ApiConfigAPI(treeObject):
                         return
 
                     # Register the flat JSON endpoint
-                    from polariApiServer.flatJsonAPI import FlatJsonAPI
+                    from polariApiServer.configuredFormattedAPIs import FlatJsonAPI
                     flatApi = FlatJsonAPI(apiObject=className, polServer=self.polServer, manager=self.manager)
                     formatConfig.flatJsonEnabled = True
                     formatConfig.flatJsonEndpoint = flatApi.apiName
@@ -515,7 +531,7 @@ class ApiConfigAPI(treeObject):
                         response.media = {"success": False, "error": conflict}
                         return
 
-                    from polariApiServer.d3ColumnAPI import D3ColumnAPI
+                    from polariApiServer.configuredFormattedAPIs import D3ColumnAPI
                     d3Api = D3ColumnAPI(apiObject=className, polServer=self.polServer, manager=self.manager)
                     formatConfig.d3ColumnEnabled = True
                     formatConfig.d3ColumnEndpoint = d3Api.apiName
@@ -531,6 +547,40 @@ class ApiConfigAPI(treeObject):
                         self.polServer.uriList.remove(oldEndpoint)
                     unregisteredEndpoints.append('d3Column')
                     print(f"[ApiConfigAPI] Disabled D3 Column for {className}")
+
+            # Handle GeoJSON prefix update
+            if 'geoJsonPrefix' in body:
+                newPrefix = body['geoJsonPrefix']
+                if newPrefix:
+                    formatConfig.geoJsonPrefix = newPrefix
+
+            # Handle GeoJSON enable/disable
+            if 'geoJson' in body:
+                enableGeoJson = body['geoJson']
+                if enableGeoJson and not formatConfig.geoJsonEnabled:
+                    proposedEndpoint = formatConfig.buildEndpoint(formatConfig.geoJsonPrefix)
+                    conflict = self._check_endpoint_overlap(proposedEndpoint, className, 'geoJson')
+                    if conflict:
+                        response.status = falcon.HTTP_409
+                        response.media = {"success": False, "error": conflict}
+                        return
+
+                    from polariApiServer.configuredFormattedAPIs import GeoJsonAPI
+                    geoApi = GeoJsonAPI(apiObject=className, polServer=self.polServer, manager=self.manager)
+                    formatConfig.geoJsonEnabled = True
+                    formatConfig.geoJsonEndpoint = geoApi.apiName
+                    if hasattr(self.polServer, 'uriList'):
+                        self.polServer.uriList.append(geoApi.apiName)
+                    registeredEndpoints.append(('geoJson', geoApi.apiName))
+                    print(f"[ApiConfigAPI] Registered GeoJSON endpoint: {geoApi.apiName} for {className}")
+
+                elif not enableGeoJson and formatConfig.geoJsonEnabled:
+                    oldEndpoint = formatConfig.geoJsonEndpoint
+                    formatConfig.geoJsonEnabled = False
+                    if oldEndpoint and hasattr(self.polServer, 'uriList') and oldEndpoint in self.polServer.uriList:
+                        self.polServer.uriList.remove(oldEndpoint)
+                    unregisteredEndpoints.append('geoJson')
+                    print(f"[ApiConfigAPI] Disabled GeoJSON for {className}")
 
             response.status = falcon.HTTP_200
             response.media = {

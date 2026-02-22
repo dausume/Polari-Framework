@@ -63,7 +63,8 @@ FROM python:3.12-alpine
 WORKDIR /app
 
 # Install only runtime dependencies (much smaller than build dependencies)
-RUN apk add --no-cache freetype
+# sqlite-libs and libstdc++ are needed for tippecanoe binary
+RUN apk add --no-cache freetype sqlite-libs libstdc++
 
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv

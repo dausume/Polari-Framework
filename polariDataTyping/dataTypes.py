@@ -5,9 +5,9 @@ standardTypesPython = ['str','int','float','complex','list','tuple','range','dic
 #Potential Object names that should never be used despite no object existing for them.
 reservedObjectNames = ['method-wrapper']
 #Objects that are defined but should not be assessed as a treeObject or managerObject
-ignoredObjectsPython = ['struct_time', 'API', 'App', 'polariList']
+ignoredObjectsPython = ['struct_time', 'API', 'App', 'polariList', 'Minio']
 #An alternative format defining what modules certain ignored objects should be originating from.
-ignoredObjectImports = {'falcon':['API', 'App'], 'time':['struct_time']}
+ignoredObjectImports = {'falcon':['API', 'App'], 'time':['struct_time'], 'minio':['Minio']}
 #A list of all existing types in python, including both object types and standard types.
 dataTypesPython = standardTypesPython + ignoredObjectsPython
 #A list of all standard data types in Javascript for use in converting types.

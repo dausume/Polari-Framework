@@ -64,6 +64,7 @@ class managerObject:
             setattr(self, 'hasServer', False)
         if not 'hasDB' in keywordargs.keys():
             setattr(self, 'hasDB', False)
+        self.objectStore = None
         if not 'objectTyping' in keywordargs.keys():
             setattr(self, 'objectTyping', [])
         #TODO Plan to phase out access through objectTyping which requires looping with ObjectTypingDict
@@ -145,8 +146,76 @@ class managerObject:
                 print(f'[INIT] jumpstartDatabase() CRASHED: {type(e).__name__}: {e}', flush=True)
                 import traceback
                 traceback.print_exc()
+            # Now that DB is initialized, create Definition tables and restore
+            # saved instances. This must happen AFTER jumpstartDatabase() because
+            # self.db is None during polariServer.__init__.
+            if self.db is not None and self.polServer is not None:
+                try:
+                    self.polServer.ensureDefinitionTables()
+                except BaseException as e:
+                    print(f'[INIT] ensureDefinitionTables() CRASHED: {type(e).__name__}: {e}', flush=True)
+                    import traceback
+                    traceback.print_exc()
         else:
             print(f'[INIT] hasDB is False, skipping database.', flush=True)
+        # After DB, attempt object storage connection if configured
+        try:
+            from config_loader import config as _cfg
+            self.hasObjectStore = _cfg.get_bool('object_storage.enabled', False)
+            print(f'[INIT] object_storage.enabled = {self.hasObjectStore} (tier: {_cfg.get_config_tier("object_storage.enabled")})', flush=True)
+        except Exception as e:
+            self.hasObjectStore = False
+            print(f'[INIT] Failed to read object_storage.enabled: {e}', flush=True)
+        if self.hasObjectStore:
+            self.jumpstartObjectStore()
+            # After object storage is connected, auto-register any .mbtiles
+            # files as TileSourceDefinitions (polariServer method).
+            if self.objectStore is not None and self.objectStore.connected and self.polServer is not None:
+                try:
+                    self.polServer._autoRegisterMbtilesSources()
+                except Exception as e:
+                    print(f'[INIT] Auto-register MBTiles failed: {e}', flush=True)
+        else:
+            print(f'[INIT] Object storage disabled, skipping.', flush=True)
+
+    def jumpstartObjectStore(self):
+        """Initialize object storage connection if configured."""
+        if self.objectStore is not None:
+            return
+        try:
+            from config_loader import config
+            endpoint = config.get('object_storage.endpoint', 'pol-file-store:9000')
+            access_key_env = config.get('object_storage.access_key_env', 'MINIO_ACCESS_KEY')
+            secret_key_env = config.get('object_storage.secret_key_env', 'MINIO_SECRET_KEY')
+            access_key = os.environ.get(access_key_env, '')
+            secret_key = os.environ.get(secret_key_env, '')
+            secure = config.get_bool('object_storage.secure', False)
+
+            print(f'[ObjectStore] Config: endpoint={endpoint}, access_key_env={access_key_env}, '
+                  f'secret_key_env={secret_key_env}, secure={secure}', flush=True)
+            print(f'[ObjectStore] Credentials present: access_key={"yes" if access_key else "NO"}, '
+                  f'secret_key={"yes" if secret_key else "NO"}', flush=True)
+
+            if not access_key or not secret_key:
+                print('[ObjectStore] No credentials configured, skipping', flush=True)
+                return
+
+            from polariDBmanagement.managedObjectStore import managedObjectStore
+            print(f'[ObjectStore] Attempting connection to {endpoint}...', flush=True)
+            self.objectStore = managedObjectStore(
+                endpoint=endpoint, access_key=access_key,
+                secret_key=secret_key, secure=secure, manager=self
+            )
+            if self.objectStore.connected:
+                print(f'[ObjectStore] Connected to {endpoint}, buckets: {self.objectStore.buckets}', flush=True)
+            else:
+                print(f'[ObjectStore] Failed to connect to {endpoint}', flush=True)
+                self.objectStore = None
+        except Exception as e:
+            print(f'[ObjectStore] Error initializing: {e}', flush=True)
+            import traceback
+            traceback.print_exc()
+            self.objectStore = None
 
     def jumpstartDatabase(self):
         """Initialize database — restore from existing DB or create fresh.

@@ -100,6 +100,10 @@ class polariCRUDE(treeObject):
             #Dictionaries on user) in order to analyze which instances requested are able
             #to be returned, in other words it performs 'viewing access'.
             requestedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=accessQueryDict["R"][self.apiObject] )
+            # Debug: log Definition class reads to trace persistence
+            _defClasses = {'TableDefinition', 'DisplayDefinition', 'GraphDefinition', 'GeoJsonDefinition', 'TileSourceDefinition', 'GeocoderDefinition'}
+            if self.apiObject in _defClasses:
+                print(f'[CRUDE-GET] {self.apiObject}: objectTables has {len(self.manager.objectTables.get(self.apiObject, {}))} instances, query returned {len(requestedInstances)} instances', flush=True)
 
             if(requestedInstances != {}):
                 #For now we just give everything being requested and don't bother with permissions
@@ -181,9 +185,11 @@ class polariCRUDE(treeObject):
                 # Persist updated instance to database
                 if instToUpdate and hasattr(self.manager, 'db') and self.manager.db is not None:
                     try:
-                        self.manager.db.saveInstanceInDB(instToUpdate)
+                        saved = self.manager.db.saveInstanceInDB(instToUpdate)
+                        if not saved:
+                            print(f'[polariCRUDE] DB update-persist SKIPPED for {self.apiObject} (table missing)', flush=True)
                     except Exception as e:
-                        print(f'[polariCRUDE] DB update-persist failed for {self.apiObject}: {e}')
+                        print(f'[polariCRUDE] DB update-persist FAILED for {self.apiObject}: {e}', flush=True)
             else:
                 response.status = falcon.HTTP_400
                 raise ValueError("Recieved Update request containing a valid instance id, but no updateData to perform the update with.")
@@ -320,9 +326,15 @@ class polariCRUDE(treeObject):
         if tempInstancesList and hasattr(self.manager, 'db') and self.manager.db is not None:
             for inst in tempInstancesList:
                 try:
-                    self.manager.db.saveInstanceInDB(inst)
+                    saved = self.manager.db.saveInstanceInDB(inst)
+                    if saved:
+                        print(f'[polariCRUDE] DB persist SUCCESS for {self.apiObject} id={getattr(inst, "id", "?")}', flush=True)
+                    else:
+                        print(f'[polariCRUDE] DB persist SKIPPED for {self.apiObject} id={getattr(inst, "id", "?")} (table missing or no columns)', flush=True)
                 except Exception as e:
-                    print(f'[polariCRUDE] DB persist failed for {self.apiObject}: {e}')
+                    print(f'[polariCRUDE] DB persist FAILED for {self.apiObject}: {e}', flush=True)
+        elif tempInstancesList:
+            print(f'[polariCRUDE] WARNING: {len(tempInstancesList)} instance(s) created but DB not available!', flush=True)
 
         #Return the created instances in the response
         if tempInstancesList:

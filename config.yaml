@@ -121,6 +121,15 @@ application:
       - jpg
       - jpeg
 
+  # Object Storage (MinIO/S3-compatible) configuration
+  object_storage:
+    enabled: false                  # Set to true to auto-connect at startup
+    endpoint: "pol-file-store:9000" # MinIO/S3 endpoint (hostname:port)
+    access_key_env: MINIO_ACCESS_KEY  # Read from environment for security
+    secret_key_env: MINIO_SECRET_KEY  # Read from environment for security
+    secure: false                   # Use HTTPS for MinIO connection
+    default_bucket: "polari-data"   # Default bucket for general storage
+
 # ==============================================================================
 # ENVIRONMENT-SPECIFIC OVERRIDES
 # Use these to override settings for different deployment environments

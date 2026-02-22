@@ -64,6 +64,10 @@ class ConfigLoader:
         'in_docker_container': 'IN_DOCKER_CONTAINER',
         'database.enabled': 'DATABASE_ENABLED',
         'modules.materials_science.enabled': 'MODULE_MATERIALS_SCIENCE_ENABLED',
+        'object_storage.enabled': 'OBJECT_STORAGE_ENABLED',
+        'object_storage.endpoint': 'MINIO_ENDPOINT',
+        'object_storage.secure': 'MINIO_SECURE',
+        'object_storage.default_bucket': 'MINIO_DEFAULT_BUCKET',
     }
 
     # Keys that can be modified at runtime (Tier 3)
@@ -79,6 +83,10 @@ class ConfigLoader:
         'connection.max_retry_time',
         'database.enabled',
         'modules.materials_science.enabled',
+        'object_storage.enabled',
+        'object_storage.endpoint',
+        'object_storage.secure',
+        'object_storage.default_bucket',
     }
 
     def __init__(self, config_file: str = 'config.yaml', environment: Optional[str] = None):
