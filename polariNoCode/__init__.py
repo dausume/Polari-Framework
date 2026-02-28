@@ -68,6 +68,25 @@ from polariNoCode.StateDefinition import (
     create_state_definition_from_event
 )
 
+# Building block models
+from polariNoCode.StateBuildingBlock import (
+    CodeTemplate,
+    StateBuildingBlock,
+    StateBuildingBlockRegistry,
+)
+
+# Execution trace / debug models
+from polariNoCode.ExecutionTrace import (
+    InstanceContextSnapshot,
+    VariableChange,
+    ObjectChange,
+    ContextDiff,
+    ExecutionStepSnapshot,
+    ExecutionTrace,
+    Breakpoint,
+    DebugSession,
+)
+
 __all__ = [
     # Decorators
     'stateSpaceEvent',
@@ -77,9 +96,22 @@ __all__ = [
     'is_state_space_event',
     'get_event_metadata',
     'STATE_SPACE_EVENT_REGISTRY',
-    # Models
+    # State Definition Models
     'StateDefinition',
     'SlotDefinition',
     'FieldDisplay',
     'create_state_definition_from_event',
+    # Building Block Models
+    'CodeTemplate',
+    'StateBuildingBlock',
+    'StateBuildingBlockRegistry',
+    # Execution Trace / Debug Models
+    'InstanceContextSnapshot',
+    'VariableChange',
+    'ObjectChange',
+    'ContextDiff',
+    'ExecutionStepSnapshot',
+    'ExecutionTrace',
+    'Breakpoint',
+    'DebugSession',
 ]

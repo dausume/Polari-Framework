@@ -33,6 +33,10 @@ from polariApiServer.graphDefinition import GraphDefinition
 from polariApiServer.geoJsonDefinition import GeoJsonDefinition
 from polariApiServer.tileSourceDefinition import TileSourceDefinition
 from polariApiServer.geocoderDefinition import GeocoderDefinition
+from polariApiServer.solutionDefinition import SolutionDefinition
+from polariApiServer.solutionSeedData import SEED_SOLUTIONS
+from polariApiServer.solutionCodeGeneratorAPI import SolutionCodeGeneratorAPI
+from polariApiServer.solutionExecutionAPI import SolutionExecutionAPI
 from polariApiServer.updateClassConfigAPI import UpdateClassConfigAPI
 from polariApiServer.systemInfoAPI import systemInfoAPI
 from polariApiServer.apiFormatConfig import ApiFormatConfig
@@ -235,6 +239,12 @@ class polariServer(treeObject):
         # Create Object Storage endpoint for MinIO connection management
         objectStorageEndpoint = ObjectStorageAPI(polServer=self, manager=self.manager)
 
+        # Create Solution Code Generator endpoint for backend code generation
+        solutionCodeGenEndpoint = SolutionCodeGeneratorAPI(polServer=self, manager=self.manager)
+
+        # Create Solution Execution endpoint for running no-code solutions
+        solutionExecEndpoint = SolutionExecutionAPI(polServer=self, manager=self.manager)
+
         # Register APIProfile, APIDomain, APIEndpoint, and ApiFormatConfig types
         self.manager.getObjectTyping(classObj=APIProfile)
         self.manager.getObjectTyping(classObj=APIDomain)
@@ -245,7 +255,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, TileSourceDefinition, GeocoderDefinition]
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition]
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
         for defClass in self.defClassList:
             className = defClass.__name__
@@ -265,7 +275,7 @@ class polariServer(treeObject):
         # __init__ after jumpstartObjectStore() completes, since object storage
         # is not yet connected at this point in polariServer.__init__.
 
-        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint, apiProfilerQueryEndpoint, apiProfilerMatchEndpoint, apiProfilerBuildEndpoint, apiProfilerCreateClassEndpoint, apiProfilerTemplatesEndpoint, apiProfilerDetectTypesEndpoint, apiDomainEndpoint, apiEndpointEndpoint, apiEndpointFetchEndpoint, apiConfigEndpoint, systemInfoEndpoint, updateClassConfigEndpoint, tileGeneratorEndpoint, objectStorageEndpoint]
+        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint, apiProfilerQueryEndpoint, apiProfilerMatchEndpoint, apiProfilerBuildEndpoint, apiProfilerCreateClassEndpoint, apiProfilerTemplatesEndpoint, apiProfilerDetectTypesEndpoint, apiDomainEndpoint, apiEndpointEndpoint, apiEndpointFetchEndpoint, apiConfigEndpoint, systemInfoEndpoint, updateClassConfigEndpoint, tileGeneratorEndpoint, objectStorageEndpoint, solutionCodeGenEndpoint, solutionExecEndpoint]
 
         # Populate uriList with custom API endpoints for overlap tracking
         for api in self.customAPIsList:
@@ -595,6 +605,8 @@ class polariServer(treeObject):
         print(f'[DefInit] DB tables after ensureDefinitionTables: {db.tables}', flush=True)
         # Now restore any saved Definition instances
         self._restoreDefinitionInstances(self.defClassList)
+        # Seed SolutionDefinition with sample data if the table is empty
+        self._seedSolutionDefinitions()
 
     def _migrateDefinitionTable(self, className):
         """Check if a Definition table has an 'id' column and recreate it if not.
@@ -683,6 +695,37 @@ class polariServer(treeObject):
                     traceback.print_exc()
             if restoredCount > 0:
                 print(f'[DefRestore] Restored {restoredCount} {className} instances from DB', flush=True)
+
+    def _seedSolutionDefinitions(self):
+        """Seed SolutionDefinition with sample solutions if the table is empty.
+
+        This runs once on first startup so the no-code editor has sample data
+        to display without requiring the frontend to push mock data.
+        """
+        typingObj = self.manager.objectTypingDict.get('SolutionDefinition')
+        if typingObj is None:
+            print('[SeedSolutions] SolutionDefinition not in objectTypingDict, skipping', flush=True)
+            return
+        existing = self.manager.objectTables.get('SolutionDefinition', {})
+        existingCount = len(existing) if isinstance(existing, dict) else 0
+        if existingCount > 0:
+            print(f'[SeedSolutions] {existingCount} SolutionDefinition(s) already exist, skipping seed', flush=True)
+            return
+        print(f'[SeedSolutions] No SolutionDefinition instances found, seeding {len(SEED_SOLUTIONS)} sample solutions...', flush=True)
+        for seedData in SEED_SOLUTIONS:
+            try:
+                instance = SolutionDefinition(
+                    name=seedData['name'],
+                    function_name=seedData['function_name'],
+                    target_runtime=seedData['target_runtime'],
+                    definition=seedData['definition'],
+                    manager=self.manager
+                )
+                print(f'[SeedSolutions] Created: {seedData["name"]} (id={getattr(instance, "id", "?")})', flush=True)
+            except Exception as e:
+                print(f'[SeedSolutions] Failed to create {seedData["name"]}: {e}', flush=True)
+                import traceback
+                traceback.print_exc()
 
     def _autoRegisterMbtilesSources(self):
         """Scan MinIO buckets for .mbtiles files and create or update
