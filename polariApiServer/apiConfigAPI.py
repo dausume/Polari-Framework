@@ -582,12 +582,31 @@ class ApiConfigAPI(treeObject):
                     unregisteredEndpoints.append('geoJson')
                     print(f"[ApiConfigAPI] Disabled GeoJSON for {className}")
 
+            # Handle per-format WebSocket notification toggles
+            ws_changes = {}
+            if 'polariTreeWs' in body:
+                formatConfig.polariTreeWsEnabled = bool(body['polariTreeWs'])
+                ws_changes['polariTreeWs'] = formatConfig.polariTreeWsEnabled
+            if 'flatJsonWs' in body:
+                formatConfig.flatJsonWsEnabled = bool(body['flatJsonWs'])
+                ws_changes['flatJsonWs'] = formatConfig.flatJsonWsEnabled
+            if 'd3ColumnWs' in body:
+                formatConfig.d3ColumnWsEnabled = bool(body['d3ColumnWs'])
+                ws_changes['d3ColumnWs'] = formatConfig.d3ColumnWsEnabled
+            if 'geoJsonWs' in body:
+                formatConfig.geoJsonWsEnabled = bool(body['geoJsonWs'])
+                ws_changes['geoJsonWs'] = formatConfig.geoJsonWsEnabled
+
+            if ws_changes:
+                print(f"[ApiConfigAPI] WebSocket notification toggles for {className}: {ws_changes}")
+
             response.status = falcon.HTTP_200
             response.media = {
                 "success": True,
                 "message": f"API formats updated for {className}",
                 "registered": registeredEndpoints,
-                "unregistered": unregisteredEndpoints
+                "unregistered": unregisteredEndpoints,
+                "wsChanges": ws_changes
             }
 
         except Exception as err:

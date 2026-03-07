@@ -95,6 +95,20 @@ if(__name__=='__main__'):
     if db_enabled and localHostedManagerServer.db is not None:
         localHostedManagerServer.persistTree()
 
+    # Start STOMP WebSocket server if enabled
+    ws_enabled = config.get_bool('websocket.enabled', True)
+    ws_port = config.get_int('websocket.port', 3001)
+    if ws_enabled:
+        from polariApiServer.stompWebSocketServer import StompWebSocketServer, set_stomp_server
+        cors_origins = config.get('api.cors_origins', [])
+        stomp_server = StompWebSocketServer(port=ws_port, cors_origins=cors_origins)
+        stomp_server.start()
+        # Store as module-level singleton (not on polariServer instance)
+        # to avoid tree serialization encountering a non-tree object
+        set_stomp_server(stomp_server)
+    else:
+        print("[WS] STOMP WebSocket server disabled by configuration")
+
     # Get backend port from configuration
     http_port = get_backend_port()
 
@@ -108,6 +122,13 @@ if(__name__=='__main__'):
     # Display HTTP access
     print(f"\n[HTTP]  Server running on port {http_port}")
     print(f"        URL: http://localhost:{http_port}/")
+
+    # Display WebSocket status
+    if ws_enabled:
+        print(f"\n[WS]    STOMP WebSocket server on port {ws_port}")
+        print(f"        URL: ws://localhost:{ws_port}/")
+    else:
+        print(f"\n[WS]    STOMP WebSocket server NOT started (disabled)")
 
     # Display HTTPS status
     if ssl_available:

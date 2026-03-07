@@ -70,6 +70,13 @@ class ApiFormatConfig(treeObject):
         self.geoJsonEndpoint = None      # Active endpoint path when enabled
         self.geoJsonPrefix = '/geojson/' # Customizable prefix
 
+        # Per-format WebSocket notification flags
+        # When enabled, CRUDE mutations publish STOMP notifications to subscribed frontends
+        self.polariTreeWsEnabled = False
+        self.flatJsonWsEnabled = False
+        self.d3ColumnWsEnabled = False
+        self.geoJsonWsEnabled = False
+
     def buildEndpoint(self, prefix):
         """Build a full endpoint path from prefix + className."""
         if not prefix.startswith('/'):
@@ -112,6 +119,33 @@ class ApiFormatConfig(treeObject):
             return self.geoJsonEnabled
         return False
 
+    def isWsEnabled(self, formatType):
+        """Check if WebSocket notifications are enabled for a given format type."""
+        if formatType == 'polariTree':
+            return self.polariTreeWsEnabled
+        elif formatType == 'flatJson':
+            return self.flatJsonWsEnabled
+        elif formatType == 'd3Column':
+            return self.d3ColumnWsEnabled
+        elif formatType == 'geoJson':
+            return self.geoJsonWsEnabled
+        return False
+
+    def getActiveWsTopics(self):
+        """Return list of STOMP topic strings for all WS-enabled formats."""
+        if not self.className:
+            return []
+        topics = []
+        if self.polariTreeWsEnabled:
+            topics.append(f'/topic/{self.className}')
+        if self.flatJsonWsEnabled:
+            topics.append(f'/topic/{self.className}/flatJson')
+        if self.d3ColumnWsEnabled:
+            topics.append(f'/topic/{self.className}/d3Column')
+        if self.geoJsonWsEnabled:
+            topics.append(f'/topic/{self.className}/geoJson')
+        return topics
+
     def getAllActiveEndpoints(self):
         """Return a list of all currently active endpoint paths."""
         endpoints = []
@@ -132,24 +166,28 @@ class ApiFormatConfig(treeObject):
                 "enabled": self.polariTreeEnabled,
                 "endpoint": self.polariTreeEndpoint,
                 "prefix": None,
+                "wsEnabled": self.polariTreeWsEnabled,
                 "description": "Complex nested tree format (inter-polari communication)"
             },
             "flatJson": {
                 "enabled": self.flatJsonEnabled,
                 "endpoint": self.flatJsonEndpoint,
                 "prefix": self.flatJsonPrefix,
+                "wsEnabled": self.flatJsonWsEnabled,
                 "description": "Traditional flat JSON (standard REST)"
             },
             "d3Column": {
                 "enabled": self.d3ColumnEnabled,
                 "endpoint": self.d3ColumnEndpoint,
                 "prefix": self.d3ColumnPrefix,
+                "wsEnabled": self.d3ColumnWsEnabled,
                 "description": "Column-oriented series JSON (d3 graphing)"
             },
             "geoJson": {
                 "enabled": self.geoJsonEnabled,
                 "endpoint": self.geoJsonEndpoint,
                 "prefix": self.geoJsonPrefix,
+                "wsEnabled": self.geoJsonWsEnabled,
                 "description": "GeoJSON FeatureCollection (maps/spatial data)"
             }
         }

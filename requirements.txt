@@ -12,3 +12,4 @@ svgwrite==1.4.3
 tippecanoe
 minio==7.2.15
 urllib3==2.6.3
+websockets>=13.0,<14.0

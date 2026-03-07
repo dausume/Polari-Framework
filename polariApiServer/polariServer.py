@@ -34,15 +34,21 @@ from polariApiServer.geoJsonDefinition import GeoJsonDefinition
 from polariApiServer.tileSourceDefinition import TileSourceDefinition
 from polariApiServer.geocoderDefinition import GeocoderDefinition
 from polariApiServer.solutionDefinition import SolutionDefinition
+from polariApiServer.solutionVersion import SolutionVersion
+from polariApiServer.solutionTestCase import SolutionTestCase
+from polariApiServer.executionStepAssertion import ExecutionStepAssertion
+from polariApiServer.solutionProcessLink import SolutionProcessLink
 from polariApiServer.solutionSeedData import SEED_SOLUTIONS
 from polariApiServer.solutionCodeGeneratorAPI import SolutionCodeGeneratorAPI
 from polariApiServer.solutionExecutionAPI import SolutionExecutionAPI
+from polariApiServer.solutionVersionAPI import SolutionVersionAPI
 from polariApiServer.updateClassConfigAPI import UpdateClassConfigAPI
 from polariApiServer.systemInfoAPI import systemInfoAPI
 from polariApiServer.apiFormatConfig import ApiFormatConfig
 from polariApiServer.configuredFormattedAPIs import FlatJsonAPI, D3ColumnAPI, GeoJsonAPI
 from polariApiServer.tileGeneratorAPI import TileGeneratorAPI
 from polariApiServer.objectStorageAPI import ObjectStorageAPI
+from polariApiServer.wsStatusAPI import WsStatusAPI
 from polariApiProfiler.apiProfilerAPI import (
     APIProfilerQueryAPI,
     APIProfilerMatchAPI,
@@ -136,6 +142,13 @@ class polariServer(treeObject):
             ]
         )
         self.active = False
+        # STOMP WebSocket server reference (set after startup in initLocalhostPolariServer)
+        # Declared here during @treeObjectInit so it's a known variable on the tree.
+        # The actual StompWebSocketServer instance is assigned post-init via
+        # object.__setattr__ since it contains non-serializable asyncio internals.
+        # Note: stompServer is stored as a module-level singleton in
+        # stompWebSocketServer.py (not on this instance) to avoid tree
+        # serialization issues — use get_stomp_server() to access it.
         #Defines endpoints or mapping to remote endpoints which allow for CRUD access to all objects of the server's manager as well as it's subordinate manager objects.
         managerIdTuple = self.manager.getInstanceIdentifiers(self.manager)
         self.objectEndpoints = {}
@@ -245,6 +258,12 @@ class polariServer(treeObject):
         # Create Solution Execution endpoint for running no-code solutions
         solutionExecEndpoint = SolutionExecutionAPI(polServer=self, manager=self.manager)
 
+        # Create Solution Version endpoint for atomic version snapshots
+        solutionVersionEndpoint = SolutionVersionAPI(polServer=self, manager=self.manager)
+
+        # Create WebSocket Status endpoint for STOMP server inspection
+        wsStatusEndpoint = WsStatusAPI(polServer=self, manager=self.manager)
+
         # Register APIProfile, APIDomain, APIEndpoint, and ApiFormatConfig types
         self.manager.getObjectTyping(classObj=APIProfile)
         self.manager.getObjectTyping(classObj=APIDomain)
@@ -255,7 +274,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition]
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink]
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
         for defClass in self.defClassList:
             className = defClass.__name__
@@ -275,7 +294,7 @@ class polariServer(treeObject):
         # __init__ after jumpstartObjectStore() completes, since object storage
         # is not yet connected at this point in polariServer.__init__.
 
-        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint, apiProfilerQueryEndpoint, apiProfilerMatchEndpoint, apiProfilerBuildEndpoint, apiProfilerCreateClassEndpoint, apiProfilerTemplatesEndpoint, apiProfilerDetectTypesEndpoint, apiDomainEndpoint, apiEndpointEndpoint, apiEndpointFetchEndpoint, apiConfigEndpoint, systemInfoEndpoint, updateClassConfigEndpoint, tileGeneratorEndpoint, objectStorageEndpoint, solutionCodeGenEndpoint, solutionExecEndpoint]
+        self.customAPIsList = [serverTouchPointAPI, tempRegisterAPI, managerObjectEndpoint, polyTypedObjectEndpoint, classInstanceCountsEndpoint, createClassEndpoint, stateSpaceClassesEndpoint, stateSpaceConfigEndpoint, stateDefinitionEndpoint, apiProfilerQueryEndpoint, apiProfilerMatchEndpoint, apiProfilerBuildEndpoint, apiProfilerCreateClassEndpoint, apiProfilerTemplatesEndpoint, apiProfilerDetectTypesEndpoint, apiDomainEndpoint, apiEndpointEndpoint, apiEndpointFetchEndpoint, apiConfigEndpoint, systemInfoEndpoint, updateClassConfigEndpoint, tileGeneratorEndpoint, objectStorageEndpoint, solutionCodeGenEndpoint, solutionExecEndpoint, solutionVersionEndpoint, wsStatusEndpoint]
 
         # Populate uriList with custom API endpoints for overlap tracking
         for api in self.customAPIsList:

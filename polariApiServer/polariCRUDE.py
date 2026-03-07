@@ -20,6 +20,7 @@ from polariAnalytics.functionalityAnalysis import getAccessToClass
 import json
 import setOperators
 import falcon
+from datetime import datetime, timezone
 
 #Defines the Create, Read, Update, and Delete Operations for a particular api endpoint designated for a particular dataChannel or polyTypedObject Instance.
 class polariCRUDE(treeObject):
@@ -75,6 +76,43 @@ class polariCRUDE(treeObject):
             response.media = {"error": f"Object type '{self.apiObject}' is not currently registered"}
             return True
         return False
+
+    def _notify_ws_subscribers(self, operation, instanceIds=None):
+        """Publish STOMP notifications for WS-enabled formats after a CRUDE mutation.
+
+        Never raises — failures are logged but do not break CRUDE operations.
+        """
+        try:
+            from polariApiServer.stompWebSocketServer import get_stomp_server
+            stompServer = get_stomp_server()
+            if stompServer is None:
+                return
+            formatConfig = getattr(self.objTyping, 'apiFormatConfig', None)
+            if formatConfig is None:
+                return
+
+            notification = {
+                "className": self.apiObject,
+                "operation": operation,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "instanceIds": instanceIds or []
+            }
+
+            # Publish to /topic/{ClassName} if polariTree WS is enabled
+            if formatConfig.polariTreeWsEnabled:
+                notification["formatType"] = "crude"
+                stompServer.publish(f'/topic/{self.apiObject}', notification)
+
+            # Also publish to per-format topics for any WS-enabled format
+            for fmt, enabled in [('flatJson', formatConfig.flatJsonWsEnabled),
+                                 ('d3Column', formatConfig.d3ColumnWsEnabled),
+                                 ('geoJson', formatConfig.geoJsonWsEnabled)]:
+                if enabled:
+                    fmt_notification = dict(notification)
+                    fmt_notification["formatType"] = fmt
+                    stompServer.publish(f'/topic/{self.apiObject}/{fmt}', fmt_notification)
+        except Exception as e:
+            print(f"[polariCRUDE] WS notification error for {self.apiObject}: {e}", flush=True)
 
     #Read in CRUD
     def on_get(self, request, response):
@@ -193,6 +231,12 @@ class polariCRUDE(treeObject):
             else:
                 response.status = falcon.HTTP_400
                 raise ValueError("Recieved Update request containing a valid instance id, but no updateData to perform the update with.")
+        updatedIds = []
+        for instUpdate in massUpdateDataSet:
+            if "polariId" in instUpdate:
+                updatedIds.append(instUpdate["polariId"])
+        if updatedIds:
+            self._notify_ws_subscribers('update', updatedIds)
 
     def on_put_collection(self, request, response):
         pass
@@ -346,6 +390,8 @@ class polariCRUDE(treeObject):
             }
             print(f"[polariCRUDE] Created {len(tempInstancesList)} instance(s) of {self.apiObject}")
             print(f"[polariCRUDE] ========== POST complete ==========")
+            instanceIds = [getattr(inst, 'id', str(inst)) for inst in tempInstancesList]
+            self._notify_ws_subscribers('create', instanceIds)
         else:
             response.status = falcon.HTTP_200
             response.media = {self.apiObject: {}}
@@ -402,8 +448,10 @@ class polariCRUDE(treeObject):
             else:
                 raise ValueError("Target resolved for multiple instances, must resolve to only one.")
         response.media = {"instancesDeleted":instancesDeleted,"migratedInstances":migratedInstances}
-        #Take the return value and convert it to a format that can be 
+        #Take the return value and convert it to a format that can be
         response.status = falcon.HTTP_200
+        deletedIds = [targetId] if targetId else []
+        self._notify_ws_subscribers('delete', deletedIds)
 
     def on_delete_collection(self, request, response):
         pass

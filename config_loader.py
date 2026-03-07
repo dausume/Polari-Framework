@@ -68,6 +68,8 @@ class ConfigLoader:
         'object_storage.endpoint': 'MINIO_ENDPOINT',
         'object_storage.secure': 'MINIO_SECURE',
         'object_storage.default_bucket': 'MINIO_DEFAULT_BUCKET',
+        'websocket.enabled': 'WEBSOCKET_ENABLED',
+        'websocket.port': 'WEBSOCKET_PORT',
     }
 
     # Keys that can be modified at runtime (Tier 3)
@@ -87,6 +89,8 @@ class ConfigLoader:
         'object_storage.endpoint',
         'object_storage.secure',
         'object_storage.default_bucket',
+        'websocket.enabled',
+        'websocket.port',
     }
 
     def __init__(self, config_file: str = 'config.yaml', environment: Optional[str] = None):

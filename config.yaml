@@ -87,6 +87,11 @@ application:
       - "https://localhost:4200"     # Alternate bare metal HTTPS
       - "https://localhost:2087"     # Suite mode (via pol-dev-proxy)
 
+  # WebSocket (STOMP) notification server
+  websocket:
+    enabled: true
+    port: 3001
+
   # Logging configuration
   logging:
     level: INFO
