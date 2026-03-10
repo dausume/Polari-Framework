@@ -285,8 +285,13 @@ class polariCRUDE(treeObject):
         if(dataSet != {}):
             dataSets.append(dataSet)
         print(f"[polariCRUDE] Final dataSets to process: {dataSets}")
-        print(f"[polariCRUDE] CreateRequiredParameters: {self.CreateRequiredParameters}")
-        print(f"[polariCRUDE] CreateDefaultParameters: {self.CreateDefaultParameters}")
+        # Read parameter lists from the live typing object so edits to
+        # dynamic classes (via PUT /createClass) are picked up immediately
+        # instead of using the stale cached references from __init__.
+        currentRequiredParams = self.objTyping.kwRequiredParams
+        currentDefaultParams = self.objTyping.kwDefaultParams
+        print(f"[polariCRUDE] CreateRequiredParameters: {currentRequiredParams}")
+        print(f"[polariCRUDE] CreateDefaultParameters: {currentDefaultParams}")
         allowedUpdatesAccessDict = {}
         allowedUpdatesPermissionsDict = {}
         tempInstancesList = []
@@ -299,17 +304,17 @@ class polariCRUDE(treeObject):
                 #Add the new instances to the list of temporary instances.
                 #After all instances are created we will run a query operation on them to ensure the user
                 #should be allowed to create them in the given criteria.
-                missingRequiredParamsList = list(self.CreateRequiredParameters)
+                missingRequiredParamsList = list(currentRequiredParams)
                 #Validate that the parameters are valid, record parameters that
                 #were not passed in case an error occurs or if they are required.
                 for someParam in newInst.keys():
-                    if(someParam in self.CreateRequiredParameters):
+                    if(someParam in currentRequiredParams):
                         missingRequiredParamsList.remove(someParam)
                         #TODO If the variable or class has strict typing or validation
                         #enabled for it on the PolyTyping, we check the value against
                         #the polyTypedVar or parameter type enforcement info.
-                    elif(not someParam in self.CreateDefaultParameters):
-                        errMsg = "Error: invalid initialization parameter '"+ someParam + "' passed for class " + self.apiObject + ", should only pass one of the following required valid parameters: " + str(self.CreateRequiredParameters) + " or optional default parameters: " + str(self.CreateDefaultParameters)
+                    elif(not someParam in currentDefaultParams):
+                        errMsg = "Error: invalid initialization parameter '"+ someParam + "' passed for class " + self.apiObject + ", should only pass one of the following required valid parameters: " + str(currentRequiredParams) + " or optional default parameters: " + str(currentDefaultParams)
                         raise ValueError(errMsg)
                 if(len(missingRequiredParamsList) != 0):
                     errMsg = "Error: Missing required parameters for creation of instances of object type '" + self.apiObject + "' missing required parameters are: " + str(missingRequiredParamsList)
@@ -324,9 +329,12 @@ class polariCRUDE(treeObject):
                 else:
                     #We assume the manager is the same one hosting the server since
                     #the instance create request is not specified for another manager.
+                    # Re-resolve CreateMethod from the live typing so class edits
+                    # (regenerated __init__) are picked up without server restart.
+                    createMethod = self.objTyping.getCreateMethod(returnTupWithParams=True)
                     print(f"[polariCRUDE] Calling CreateMethod with: {newInst}")
-                    print(f"[polariCRUDE] CreateMethod reference: {self.CreateMethod}")
-                    newInstance = self.CreateMethod(**newInst, manager=self.manager)
+                    print(f"[polariCRUDE] CreateMethod reference: {createMethod}")
+                    newInstance = createMethod(**newInst, manager=self.manager)
                     print(f"[polariCRUDE] Created instance: {newInstance}")
                     print(f"[polariCRUDE] Instance __dict__: {newInstance.__dict__ if hasattr(newInstance, '__dict__') else 'no __dict__'}")
                     tempInstancesList.append(newInstance)

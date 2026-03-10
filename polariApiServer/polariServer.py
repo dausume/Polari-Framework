@@ -31,6 +31,7 @@ from polariApiServer.displayDefinition import DisplayDefinition
 from polariApiServer.tableDefinition import TableDefinition
 from polariApiServer.graphDefinition import GraphDefinition
 from polariApiServer.geoJsonDefinition import GeoJsonDefinition
+from polariApiServer.dataSetDefinition import DataSetDefinition
 from polariApiServer.tileSourceDefinition import TileSourceDefinition
 from polariApiServer.geocoderDefinition import GeocoderDefinition
 from polariApiServer.solutionDefinition import SolutionDefinition
@@ -274,7 +275,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink]
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink]
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
         for defClass in self.defClassList:
             className = defClass.__name__
