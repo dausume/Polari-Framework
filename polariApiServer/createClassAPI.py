@@ -245,6 +245,10 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                     polyVar.displayName = var.get('varDisplayName', var_name)
                     polyVar.isIdentifier = var.get('isIdentifier', False)
                     polyVar.isUnique = var.get('isUnique', False)
+                    # Store reference class name for reference/referenceList types
+                    ref_class = var.get('refClass', None)
+                    if ref_class:
+                        polyVar.refClass = ref_class
 
                     # Add to the polyTypedObject's variable lists
                     newTyping.polyTypedVars.append(polyVar)
@@ -459,6 +463,9 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                         polyVar.displayName = var.get('varDisplayName', var_name)
                         polyVar.isIdentifier = var.get('isIdentifier', False)
                         polyVar.isUnique = var.get('isUnique', False)
+                        ref_class = var.get('refClass', None)
+                        if ref_class:
+                            polyVar.refClass = ref_class
                         newTyping.polyTypedVars.append(polyVar)
                         newTyping.polyTypedVarsDict[var_name] = polyVar
                         newTyping.variableNameList.append(var_name)
@@ -602,6 +609,9 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                     polyVar.displayName = var.get('varDisplayName', var_name)
                     polyVar.isIdentifier = var.get('isIdentifier', False)
                     polyVar.isUnique = var.get('isUnique', False)
+                    ref_class = var.get('refClass', None)
+                    if ref_class:
+                        polyVar.refClass = ref_class
                     existingTyping.polyTypedVars.append(polyVar)
                     existingTyping.polyTypedVarsDict[var_name] = polyVar
                     existingTyping.variableNameList.append(var_name)
