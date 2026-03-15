@@ -134,6 +134,23 @@ class managerObject:
                 except BaseException as e:
                     print(f'[Analysis] Error analyzing {someClass}: {type(e).__name__}: {e}', flush=True)
             print(f'[INIT] Analysis complete.', flush=True)
+        # Build inheritance reverse index: for each class with _polariInheritsFrom,
+        # register this child on each parent's inheritedByClasses list, and validate
+        # that no circular inheritance exists.
+        for someClass in list(self.objectTypingDict.keys()):
+            typing = self.objectTypingDict[someClass]
+            if typing.isMultiInheritanceClass:
+                for parentClassName in typing.getInheritanceParentClassNames():
+                    parentTyping = self.objectTypingDict.get(parentClassName)
+                    if parentTyping is not None:
+                        if someClass not in parentTyping.inheritedByClasses:
+                            parentTyping.inheritedByClasses.append(someClass)
+                    else:
+                        print(f'[INIT] WARNING: {someClass} inherits from {parentClassName} but no typing found for it')
+                try:
+                    typing.validateInheritanceGraph()
+                except ValueError as e:
+                    print(f'[INIT] INHERITANCE ERROR: {e}', flush=True)
         self.bootResourcePostTree = _captureResourceCheckpoint()
         # After tree scaffolding and analysis, jumpstart DB if enabled
         print(f'[INIT] Pre-DB check: hasDB={self.hasDB}, db={self.db}', flush=True)
@@ -782,6 +799,42 @@ class managerObject:
             #        value.manager = self
         #print("Finished setting value of ", name, " to be ", value)
         super(managerObject, self).__setattr__(name, value)
+
+    def getChildInstancesReferencingParent(self, parentClassName, parentId):
+        """Find all child instances across all multi-inheritance child classes that
+        reference a given parent instance.
+
+        Args:
+            parentClassName: The class name of the parent being referenced.
+            parentId: The polari ID of the parent instance.
+
+        Returns:
+            Dict of {childClassName: [childInstance, ...]} for children that
+            reference this parent. Empty dict if no references found.
+        """
+        results = {}
+        parentTyping = self.objectTypingDict.get(parentClassName)
+        if parentTyping is None:
+            return results
+        for childClassName in parentTyping.inheritedByClasses:
+            childTyping = self.objectTypingDict.get(childClassName)
+            if childTyping is None:
+                continue
+            # Find which variable on the child holds the parent reference
+            parentVarNames = [
+                varName for varName, parentCls in childTyping.inheritsFrom.items()
+                if parentCls == parentClassName
+            ]
+            childInstances = self.objectTables.get(childClassName, {})
+            for childId, childInst in childInstances.items():
+                for varName in parentVarNames:
+                    parentRef = getattr(childInst, varName, None)
+                    if parentRef is not None and getattr(parentRef, 'id', None) == parentId:
+                        if childClassName not in results:
+                            results[childClassName] = []
+                        results[childClassName].append(childInst)
+                        break  # Don't double-count same child
+        return results
 
     #Deletes a tree node, deletes all dependent tree nodes with no existing duplicates
     def deleteTreeNode(self, className, nodePolariId, baseDeleteData=None, deleteData=None, instancesDeleted=[], migratedInstances=[], startDelete=True):

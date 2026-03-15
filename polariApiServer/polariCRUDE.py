@@ -146,6 +146,42 @@ class polariCRUDE(treeObject):
             if(requestedInstances != {}):
                 #For now we just give everything being requested and don't bother with permissions
                 jsonObj[self.apiObject] = self.manager.getJSONdictForClass(passedInstances=requestedInstances)
+                # For multi-inheritance classes, resolve parent data into the response.
+                # getJSONdictForClass returns [{"class":..., "data":[{inst_dict}, ...]}].
+                # We inject _parentData into each instance dict in the data array.
+                if self.objTyping.isMultiInheritanceClass:
+                    classDataList = jsonObj[self.apiObject]
+                    if isinstance(classDataList, list) and len(classDataList) > 0:
+                        dataArray = classDataList[0].get('data', [])
+                        for instData in dataArray:
+                            if not isinstance(instData, dict):
+                                continue
+                            instId = instData.get('id')
+                            if instId is None:
+                                continue
+                            inst = requestedInstances.get(instId)
+                            if inst is None:
+                                continue
+                            parentDataDict = {}
+                            for varName, parentClassName in self.objTyping.inheritsFrom.items():
+                                parentInst = getattr(inst, varName, None)
+                                if parentInst is None:
+                                    continue
+                                # parentInst may be a live object or a string ID
+                                # after DB reload. If it's a string, look it up.
+                                if isinstance(parentInst, str):
+                                    parentTables = self.manager.objectTables.get(parentClassName, {})
+                                    parentInst = parentTables.get(parentInst)
+                                    if parentInst is None:
+                                        continue
+                                try:
+                                    parentDataDict[parentClassName] = self.manager.getJSONdictForClass(
+                                        passedInstances=[parentInst]
+                                    )
+                                except Exception as e:
+                                    print(f"[polariCRUDE] Failed to serialize parent {parentClassName} for {self.apiObject}: {e}")
+                            if parentDataDict:
+                                instData['_parentData'] = parentDataDict
             else:
                 jsonObj[self.apiObject] = {}
             response.media = [jsonObj]
@@ -304,10 +340,34 @@ class polariCRUDE(treeObject):
                 #Add the new instances to the list of temporary instances.
                 #After all instances are created we will run a query operation on them to ensure the user
                 #should be allowed to create them in the given criteria.
+                # For multi-inheritance classes, merge _parentRefs into main
+                # params so the orchestrator can find existing parent IDs by
+                # variable name, then remove orchestration-only keys before
+                # parameter validation.
+                inheritanceMetaKeys = {'_parentData', '_parentRefs'}
+                if self.objTyping.isMultiInheritanceClass:
+                    parentRefs = newInst.pop('_parentRefs', {})
+                    for varName, refId in parentRefs.items():
+                        newInst[varName] = refId
+
                 missingRequiredParamsList = list(currentRequiredParams)
+                # For multi-inheritance classes, parent ref vars are populated
+                # by the orchestrator — don't require them in the request.
+                parentVarNames = set()
+                if self.objTyping.isMultiInheritanceClass:
+                    parentVarNames = set(self.objTyping.inheritsFrom.keys())
+                    missingRequiredParamsList = [
+                        p for p in missingRequiredParamsList if p not in parentVarNames
+                    ]
                 #Validate that the parameters are valid, record parameters that
                 #were not passed in case an error occurs or if they are required.
                 for someParam in newInst.keys():
+                    # Skip orchestration-only keys and parent ref vars handled
+                    # by the inheritance orchestrator.
+                    if someParam in inheritanceMetaKeys or someParam in parentVarNames:
+                        if someParam in missingRequiredParamsList:
+                            missingRequiredParamsList.remove(someParam)
+                        continue
                     if(someParam in currentRequiredParams):
                         missingRequiredParamsList.remove(someParam)
                         #TODO If the variable or class has strict typing or validation
@@ -329,12 +389,20 @@ class polariCRUDE(treeObject):
                 else:
                     #We assume the manager is the same one hosting the server since
                     #the instance create request is not specified for another manager.
-                    # Re-resolve CreateMethod from the live typing so class edits
-                    # (regenerated __init__) are picked up without server restart.
-                    createMethod = self.objTyping.getCreateMethod(returnTupWithParams=True)
-                    print(f"[polariCRUDE] Calling CreateMethod with: {newInst}")
-                    print(f"[polariCRUDE] CreateMethod reference: {createMethod}")
-                    newInstance = createMethod(**newInst, manager=self.manager)
+                    # Check if this is a multi-inheritance class requiring orchestrated creation
+                    if self.objTyping.isMultiInheritanceClass:
+                        from polariDataTyping.inheritanceOrchestrator import createWithInheritance
+                        print(f"[polariCRUDE] Multi-inheritance class detected, using orchestrated creation")
+                        print(f"[polariCRUDE] Parent types: {self.objTyping.inheritsFrom}")
+                        newInstance = createWithInheritance(self.manager, self.apiObject, dict(newInst))
+                        print(f"[polariCRUDE] Created multi-inheritance instance: {newInstance}")
+                    else:
+                        # Re-resolve CreateMethod from the live typing so class edits
+                        # (regenerated __init__) are picked up without server restart.
+                        createMethod = self.objTyping.getCreateMethod(returnTupWithParams=True)
+                        print(f"[polariCRUDE] Calling CreateMethod with: {newInst}")
+                        print(f"[polariCRUDE] CreateMethod reference: {createMethod}")
+                        newInstance = createMethod(**newInst, manager=self.manager)
                     print(f"[polariCRUDE] Created instance: {newInstance}")
                     print(f"[polariCRUDE] Instance __dict__: {newInstance.__dict__ if hasattr(newInstance, '__dict__') else 'no __dict__'}")
                     tempInstancesList.append(newInstance)
@@ -449,6 +517,33 @@ class polariCRUDE(treeObject):
             targetInstance = targetResolution[targetId]
             if(targetId not in allowedInstances.keys()):
                 raise PermissionError("Access Permissions do not allow user to delete the targeted instance.")
+            # Check inheritance cascade policy: if this class is a parent to
+            # other multi-inheritance classes, enforce the cascade policy.
+            if self.objTyping.inheritedByClasses:
+                childRefs = self.manager.getChildInstancesReferencingParent(self.apiObject, targetId)
+                if childRefs:
+                    cascade = self.objTyping.inheritanceCascade
+                    if cascade == 'prevent':
+                        childSummary = ', '.join(f'{cls}({len(insts)})' for cls, insts in childRefs.items())
+                        raise ValueError(
+                            f"Cannot delete {self.apiObject} id={targetId}: "
+                            f"referenced by child instances: {childSummary}. "
+                            f"Delete children first or change cascade policy."
+                        )
+                    elif cascade == 'cascade':
+                        for childClassName, childInsts in childRefs.items():
+                            for childInst in childInsts:
+                                childId = getattr(childInst, 'id', None)
+                                if childId:
+                                    self.manager.deleteTreeNode(className=childClassName, nodePolariId=childId)
+                    elif cascade == 'nullify':
+                        for childClassName, childInsts in childRefs.items():
+                            childTyping = self.manager.objectTypingDict.get(childClassName)
+                            if childTyping:
+                                for varName, parentCls in childTyping.inheritsFrom.items():
+                                    if parentCls == self.apiObject:
+                                        for childInst in childInsts:
+                                            setattr(childInst, varName, None)
             (instancesDeleted, migratedInstances) = self.manager.deleteTreeNode(className=self.apiObject, nodePolariId=targetId)
         else:
             if(len(targetResolution) == 0):

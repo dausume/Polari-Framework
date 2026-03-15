@@ -63,7 +63,9 @@ class createClassAPI(treeObject):
             isStateSpaceObject = class_def.get('isStateSpaceObject', True)  # Default to True for dynamic classes
             stateSpaceDisplayFields = class_def.get('stateSpaceDisplayFields', [])
             stateSpaceFieldsPerRow = class_def.get('stateSpaceFieldsPerRow', 1)
-            print(f'[DEBUG-CC] className={className} vars={len(variables)} registerCRUDE={registerCRUDE}', flush=True)
+            # Multiple-inheritance configuration: {varName: parentClassName}
+            inheritsFrom = class_def.get('inheritsFrom', {})
+            print(f'[DEBUG-CC] className={className} vars={len(variables)} registerCRUDE={registerCRUDE} inheritsFrom={inheritsFrom}', flush=True)
 
             # Validate className format (PascalCase, alphanumeric)
             if not className[0].isupper():
@@ -94,7 +96,8 @@ class createClassAPI(treeObject):
                 registerCRUDE=registerCRUDE,
                 isStateSpaceObject=isStateSpaceObject,
                 stateSpaceDisplayFields=stateSpaceDisplayFields,
-                stateSpaceFieldsPerRow=stateSpaceFieldsPerRow
+                stateSpaceFieldsPerRow=stateSpaceFieldsPerRow,
+                inheritsFrom=inheritsFrom
             )
             print(f'[DEBUG-CC] _createDynamicClass returned OK for {className}', flush=True)
 
@@ -124,7 +127,8 @@ class createClassAPI(treeObject):
         response.set_header('Powered-By', 'Polari')
 
     def _createDynamicClass(self, className, displayName, variables, registerCRUDE,
-                            isStateSpaceObject=True, stateSpaceDisplayFields=None, stateSpaceFieldsPerRow=1):
+                            isStateSpaceObject=True, stateSpaceDisplayFields=None, stateSpaceFieldsPerRow=1,
+                            inheritsFrom=None):
         """
         Dynamically creates a new Python class and registers it with the Polari framework.
 
@@ -136,15 +140,30 @@ class createClassAPI(treeObject):
             isStateSpaceObject: Whether this class can be used in no-code state-space
             stateSpaceDisplayFields: Which fields to display in state UI
             stateSpaceFieldsPerRow: Number of fields per row in state display (1 or 2)
+            inheritsFrom: Dict mapping variable names to parent class names for
+                          multi-inheritance, e.g. {'vehicle': 'Vehicle', 'policy': 'InsurancePolicy'}
         """
+        if inheritsFrom is None:
+            inheritsFrom = {}
         print(f'[DEBUG-CC] _createDynamicClass START: {className}', flush=True)
+        # Validate inheritsFrom parent classes exist
+        for varName, parentClassName in inheritsFrom.items():
+            if parentClassName not in self.manager.objectTypingDict:
+                raise ValueError(
+                    f"Parent class '{parentClassName}' (for variable '{varName}') "
+                    f"is not registered. Create or register it before defining '{className}'."
+                )
         # Build variable names and defaults
         var_defaults = {}
         for var in variables:
             var_name = var.get('varName', '')
             if var_name:
                 var_defaults[var_name] = self._getDefaultValue(var.get('varType', 'str'))
-        print(f'[DEBUG-CC] step 1: var_defaults built ({len(var_defaults)} vars)', flush=True)
+        # Add inheritance reference variables (initialized to None)
+        for varName in inheritsFrom:
+            if varName not in var_defaults:
+                var_defaults[varName] = None
+        print(f'[DEBUG-CC] step 1: var_defaults built ({len(var_defaults)} vars, {len(inheritsFrom)} inheritance refs)', flush=True)
 
         # Create the dynamic __init__ method with EXPLICIT parameter names
         # This is critical because treeObjectInit filters kwargs based on co_varnames.
@@ -183,6 +202,9 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             '_dynamicClass': True,
             '_variableDefinitions': variables
         }
+        # Set multi-inheritance declaration if provided
+        if inheritsFrom:
+            class_attrs['_polariInheritsFrom'] = dict(inheritsFrom)
 
         # Dynamically create the class inheriting from treeObject
         DynamicClass = type(className, (treeObject,), class_attrs)
@@ -277,6 +299,19 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
         else:
             print(f'[DEBUG-CC] step 8: skipping CRUDE (registerCRUDE={registerCRUDE})', flush=True)
 
+        # Build inheritance reverse index for newly created class
+        if newTyping.isMultiInheritanceClass:
+            for parentClassName in newTyping.getInheritanceParentClassNames():
+                parentTyping = self.manager.objectTypingDict.get(parentClassName)
+                if parentTyping is not None:
+                    if className not in parentTyping.inheritedByClasses:
+                        parentTyping.inheritedByClasses.append(className)
+            try:
+                newTyping.validateInheritanceGraph()
+            except ValueError as e:
+                print(f'[DEBUG-CC] INHERITANCE ERROR: {e}', flush=True)
+            print(f'[DEBUG-CC] step 8b: inheritance reverse index built for {className}', flush=True)
+
         # Create database table for the new class if DB is active
         if hasattr(self.manager, 'db') and self.manager.db is not None:
             try:
@@ -295,7 +330,8 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                 print(f'[DEBUG-CC] step 10: persisting class definition...', flush=True)
                 self._persistClassDefinition(className, displayName, variables,
                                               registerCRUDE, isStateSpaceObject,
-                                              stateSpaceDisplayFields, stateSpaceFieldsPerRow)
+                                              stateSpaceDisplayFields, stateSpaceFieldsPerRow,
+                                              inheritsFrom=inheritsFrom)
                 print(f'[DEBUG-CC] step 10: class definition persisted', flush=True)
             except Exception as e:
                 print(f"[DEBUG-CC] step 10: WARNING persist failed: {e}", flush=True)
@@ -320,7 +356,8 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
 
     def _persistClassDefinition(self, className, displayName, variables,
                                  registerCRUDE, isStateSpaceObject,
-                                 stateSpaceDisplayFields, stateSpaceFieldsPerRow):
+                                 stateSpaceDisplayFields, stateSpaceFieldsPerRow,
+                                 inheritsFrom=None):
         """Save dynamic class definition to _dynamic_class_registry table."""
         db = self.manager.db
         dbFilePath = os.path.join(db.Path, db.name + '.db') if db.Path else db.name + '.db'
@@ -332,10 +369,11 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             registerCRUDE INTEGER,
             isStateSpaceObject INTEGER,
             stateSpaceDisplayFields TEXT,
-            stateSpaceFieldsPerRow INTEGER
+            stateSpaceFieldsPerRow INTEGER,
+            inheritsFrom TEXT
         )''')
         conn.execute(
-            'INSERT OR REPLACE INTO _dynamic_class_registry VALUES (?, ?, ?, ?, ?, ?, ?)',
+            'INSERT OR REPLACE INTO _dynamic_class_registry VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
             (
                 className,
                 displayName,
@@ -343,7 +381,8 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                 1 if registerCRUDE else 0,
                 1 if isStateSpaceObject else 0,
                 json.dumps(stateSpaceDisplayFields) if stateSpaceDisplayFields else None,
-                stateSpaceFieldsPerRow
+                stateSpaceFieldsPerRow,
+                json.dumps(inheritsFrom) if inheritsFrom else None
             )
         )
         conn.commit()
@@ -378,7 +417,12 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
         print(f'[DB] Restoring {len(rows)} dynamic class definitions...')
 
         for row in rows:
-            className, displayName, variablesJson, registerCRUDE, isStateSpaceObject, displayFieldsJson, fieldsPerRow = row
+            # Handle both old 7-column and new 8-column registry formats
+            if len(row) >= 8:
+                className, displayName, variablesJson, registerCRUDE, isStateSpaceObject, displayFieldsJson, fieldsPerRow, inheritsFromJson = row
+            else:
+                className, displayName, variablesJson, registerCRUDE, isStateSpaceObject, displayFieldsJson, fieldsPerRow = row
+                inheritsFromJson = None
             # Skip if already registered (shouldn't happen, but safety check)
             if className in manager.objectTypingDict:
                 print(f'[DB] Dynamic class {className} already registered, skipping')
@@ -386,6 +430,7 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
 
             variables = json.loads(variablesJson) if variablesJson else []
             stateSpaceDisplayFields = json.loads(displayFieldsJson) if displayFieldsJson else None
+            inheritsFrom = json.loads(inheritsFromJson) if inheritsFromJson else {}
 
             # Re-create the dynamic class using the same logic as _createDynamicClass
             var_defaults = {}
@@ -394,6 +439,10 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                 var_name = var.get('varName', '')
                 if var_name:
                     var_defaults[var_name] = type_defaults.get(var.get('varType', 'str'), '')
+            # Add inheritance reference variables
+            for varName in inheritsFrom:
+                if varName not in var_defaults:
+                    var_defaults[varName] = None
 
             base_params = {'id', 'manager', 'branch', 'inTree'}
             custom_defaults = {k: v for k, v in var_defaults.items() if k not in base_params}
@@ -420,6 +469,8 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                 '_dynamicClass': True,
                 '_variableDefinitions': variables
             }
+            if inheritsFrom:
+                class_attrs['_polariInheritsFrom'] = dict(inheritsFrom)
 
             DynamicClass = type(className, (treeObject,), class_attrs)
 
@@ -479,7 +530,17 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                 manager.dynamicClasses = {}
             manager.dynamicClasses[className] = DynamicClass
 
-            print(f'[DB] Restored dynamic class: {className} ({len(variables)} variables)')
+            # Build inheritance reverse index for restored class
+            if newTyping.isMultiInheritanceClass:
+                for parentClassName in newTyping.getInheritanceParentClassNames():
+                    parentTyping = manager.objectTypingDict.get(parentClassName)
+                    if parentTyping is not None:
+                        if className not in parentTyping.inheritedByClasses:
+                            parentTyping.inheritedByClasses.append(className)
+                    else:
+                        print(f'[DB] WARNING: Restored class {className} inherits from {parentClassName} but parent typing not found yet')
+
+            print(f'[DB] Restored dynamic class: {className} ({len(variables)} variables, inheritsFrom={inheritsFrom})')
 
     def on_put(self, request, response):
         """Handle class edit requests — modify variables of an existing dynamic class"""
@@ -510,6 +571,7 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             isStateSpaceObject = class_def.get('isStateSpaceObject', existingTyping.isStateSpaceObject)
             stateSpaceDisplayFields = class_def.get('stateSpaceDisplayFields', None)
             stateSpaceFieldsPerRow = class_def.get('stateSpaceFieldsPerRow', 1)
+            inheritsFrom = class_def.get('inheritsFrom', existingTyping.inheritsFrom)
 
             # Rebuild class + typing using _editDynamicClass
             self._editDynamicClass(
@@ -519,7 +581,8 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                 existingTyping=existingTyping,
                 isStateSpaceObject=isStateSpaceObject,
                 stateSpaceDisplayFields=stateSpaceDisplayFields,
-                stateSpaceFieldsPerRow=stateSpaceFieldsPerRow
+                stateSpaceFieldsPerRow=stateSpaceFieldsPerRow,
+                inheritsFrom=inheritsFrom
             )
 
             response.status = falcon.HTTP_200
@@ -535,11 +598,14 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
         response.set_header('Powered-By', 'Polari')
 
     def _editDynamicClass(self, className, displayName, variables, existingTyping,
-                          isStateSpaceObject=True, stateSpaceDisplayFields=None, stateSpaceFieldsPerRow=1):
+                          isStateSpaceObject=True, stateSpaceDisplayFields=None, stateSpaceFieldsPerRow=1,
+                          inheritsFrom=None):
         """
         Edits an existing dynamic class by rebuilding it with new variable definitions.
         Updates the class definition, typing metadata, and database schema.
         """
+        if inheritsFrom is None:
+            inheritsFrom = {}
         print(f'[DEBUG-CC] _editDynamicClass START: {className}', flush=True)
 
         # Build variable names and defaults
@@ -548,6 +614,10 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             var_name = var.get('varName', '')
             if var_name:
                 var_defaults[var_name] = self._getDefaultValue(var.get('varType', 'str'))
+        # Add inheritance reference variables
+        for varName in inheritsFrom:
+            if varName not in var_defaults:
+                var_defaults[varName] = None
 
         # Create the dynamic __init__ method with EXPLICIT parameter names
         base_params = {'id', 'manager', 'branch', 'inTree'}
@@ -576,11 +646,26 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             '_dynamicClass': True,
             '_variableDefinitions': variables
         }
+        if inheritsFrom:
+            class_attrs['_polariInheritsFrom'] = dict(inheritsFrom)
         DynamicClass = type(className, (treeObject,), class_attrs)
         print(f'[DEBUG-CC] _editDynamicClass: rebuilt DynamicClass for {className}', flush=True)
 
         # Update existingTyping: classDefinition, polyTypedVars, variableNameList, kwDefaultParams
         existingTyping.classDefinition = DynamicClass
+        # Update inheritance metadata
+        oldParentClasses = set(existingTyping.getInheritanceParentClassNames())
+        existingTyping.inheritsFrom = dict(inheritsFrom)
+        # Remove this class from old parents' inheritedByClasses
+        for oldParentClassName in oldParentClasses:
+            oldParentTyping = self.manager.objectTypingDict.get(oldParentClassName)
+            if oldParentTyping and className in oldParentTyping.inheritedByClasses:
+                oldParentTyping.inheritedByClasses.remove(className)
+        # Add to new parents' inheritedByClasses
+        for parentClassName in existingTyping.getInheritanceParentClassNames():
+            parentTyping = self.manager.objectTypingDict.get(parentClassName)
+            if parentTyping and className not in parentTyping.inheritedByClasses:
+                parentTyping.inheritedByClasses.append(className)
         existingTyping.polyTypedVars = []
         existingTyping.polyTypedVarsDict = {}
         existingTyping.variableNameList = []
@@ -662,7 +747,8 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             try:
                 self._persistClassDefinition(className, displayName, variables,
                                               True, isStateSpaceObject,
-                                              stateSpaceDisplayFields, stateSpaceFieldsPerRow)
+                                              stateSpaceDisplayFields, stateSpaceFieldsPerRow,
+                                              inheritsFrom=inheritsFrom)
                 print(f'[DEBUG-CC] _editDynamicClass: class definition re-persisted', flush=True)
             except Exception as e:
                 print(f"[DEBUG-CC] _editDynamicClass: WARNING persist failed: {e}", flush=True)

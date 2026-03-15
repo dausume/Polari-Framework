@@ -15,7 +15,7 @@
 #from polariDataTyping.polyTyping import *
 from functools import wraps
 from polariDataTyping.polariList import *
-import types, inspect, base64
+import types, inspect, base64, threading
 
 # Internal variables that are part of the treeObject framework itself, not user-defined data.
 # These should be excluded from API responses as they are "language-level" infrastructure,
@@ -44,6 +44,10 @@ def treeObjectInit(init):
 BASE_CHARS = tuple("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
 BASE_DICT = dict((c, v) for v, c in enumerate(BASE_CHARS))
 BASE_LEN = len(BASE_CHARS)
+
+# Lock for thread-safe ID generation (used during parallel parent creation
+# in multi-inheritance orchestration)
+_id_generation_lock = threading.Lock()
 
 #Defines a treeObject, which allocates all variables and functions necessary for
 #an object to be a subordinate object on an Object Tree.
@@ -507,20 +511,18 @@ class treeObject:
             self.id = None
             return
         else:
-            idString = ''
-            for i in range(0,N):
-                num = random.randint(0,63)
-                idString += self.base62Encode(num = num)
-            #print('current object: ', self)
-            #print('Object\'s manager: ', self.manager)
-            #print('manager idList: ', self.manager.idList)
-            if(not idString in self.manager.idList):
-                self.id = idString
-                (self.manager.idList).append(idString)
-                return
-            else:
-                self.id = self.makeUniqueIdentifier(self, N=N+1)
-                return
+            with _id_generation_lock:
+                idString = ''
+                for i in range(0,N):
+                    num = random.randint(0,63)
+                    idString += self.base62Encode(num = num)
+                if(not idString in self.manager.idList):
+                    self.id = idString
+                    (self.manager.idList).append(idString)
+                    return
+                else:
+                    self.id = self.makeUniqueIdentifier(self, N=N+1)
+                    return
 
     # -- This section based on Code shared publically on Stack Overflow put out by 'Sepero' (Thank you sir) --
     #link to source: https://stackoverflow.com/questions/1119722/base-62-conversion

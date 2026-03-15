@@ -151,6 +151,26 @@ class polyTypedObject(treeObject):
         # Default number of fields per row in state display (1 or 2)
         self.stateSpaceFieldsPerRow = 1
 
+        # Multiple-Inheritance via Reference Fields
+        # Maps variable name → parent class name, e.g. {'vehicle': 'Vehicle', 'policy': 'InsurancePolicy'}
+        # The named variables hold live object references; the tree handles nesting automatically.
+        self.inheritsFrom = {}
+        # Reverse index: list of child class names that inherit from this class.
+        # Built by the manager after all typings are primed.
+        self.inheritedByClasses = []
+        # Cascade behavior when deleting a parent that has child references:
+        # 'prevent' (default) = refuse deletion, 'cascade' = delete children, 'nullify' = orphan children
+        self.inheritanceCascade = 'prevent'
+        if classDefinition is not None:
+            if hasattr(classDefinition, '_polariInheritsFrom'):
+                rawInherits = classDefinition._polariInheritsFrom
+                if isinstance(rawInherits, dict):
+                    self.inheritsFrom = dict(rawInherits)
+                else:
+                    print(f"[polyTypedObject] WARNING: _polariInheritsFrom on {className} must be a dict mapping varName -> className, got {type(rawInherits).__name__}")
+            if hasattr(classDefinition, '_inheritanceCascade'):
+                self.inheritanceCascade = classDefinition._inheritanceCascade
+
         # If class definition exists and is marked as state-space, extract event methods
         if classDefinition and isStateSpaceObject:
             self._extractStateSpaceEvents(classDefinition)
@@ -204,6 +224,47 @@ class polyTypedObject(treeObject):
             'fieldsPerRow': self.stateSpaceFieldsPerRow,
             'variables': [v.varName for v in self.polyTypedVars] if self.polyTypedVars else self.variableNameList
         }
+
+    @property
+    def isMultiInheritanceClass(self):
+        """True if this class declares parent types via _polariInheritsFrom."""
+        return len(self.inheritsFrom) > 0
+
+    def getInheritanceParentVarNames(self):
+        """Return list of variable names that hold parent object references."""
+        return list(self.inheritsFrom.keys())
+
+    def getInheritanceParentClassNames(self):
+        """Return list of parent class names this class inherits from."""
+        return list(self.inheritsFrom.values())
+
+    def validateInheritanceGraph(self):
+        """Detect circular inheritance by DFS through the inheritsFrom chains.
+
+        Must be called after all polyTypedObjects are registered on the manager.
+        Raises ValueError if a cycle is detected.
+        """
+        if not self.isMultiInheritanceClass:
+            return True
+        visited = set()
+        stack = set()
+
+        def _dfs(className):
+            if className in stack:
+                cycle = ' -> '.join(list(stack)) + ' -> ' + className
+                raise ValueError(f"[polyTypedObject] Circular inheritance detected: {cycle}")
+            if className in visited:
+                return
+            visited.add(className)
+            stack.add(className)
+            typing = self.manager.objectTypingDict.get(className)
+            if typing and typing.inheritsFrom:
+                for parentClassName in typing.inheritsFrom.values():
+                    _dfs(parentClassName)
+            stack.discard(className)
+
+        _dfs(self.className)
+        return True
 
     #Go through each instance and analyze it.
     def runAnalysis(self):

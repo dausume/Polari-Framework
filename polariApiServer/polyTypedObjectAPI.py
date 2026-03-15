@@ -63,6 +63,7 @@ class polyTypedObjectAPI(treeObject):
                             "db": getattr(typingObj, 'perInstanceDataCostDictDB', {})
                         },
                         "objectReferences": getattr(typingObj, 'objectReferencesDict', {}),
+                        "inheritsFrom": getattr(typingObj, 'inheritsFrom', {}),
                         # Class configuration flags for UI behavior control
                         "config": {
                             # Whether the class definition can be edited via API (add/remove variables, rename)
