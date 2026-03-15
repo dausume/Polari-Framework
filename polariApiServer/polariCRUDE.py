@@ -47,6 +47,8 @@ class polariCRUDE(treeObject):
             self.validVarsList.append(someVarTyping.name)
         if(polServer != None):
             polServer.falconServer.add_route(self.apiName, self)
+            polServer.falconServer.add_route(self.apiName + '/field-profile/{profileName}', self, suffix='field_profile')
+            polServer.falconServer.add_route(self.apiName + '/field-profiles', self, suffix='field_profiles')
 
     #1. Returns an Access Permissions for the given object for the given operation
     #being performed, in the format of a set of different object queries and the
@@ -146,10 +148,9 @@ class polariCRUDE(treeObject):
             if(requestedInstances != {}):
                 #For now we just give everything being requested and don't bother with permissions
                 jsonObj[self.apiObject] = self.manager.getJSONdictForClass(passedInstances=requestedInstances)
-                # For multi-inheritance classes, resolve parent data into the response.
-                # getJSONdictForClass returns [{"class":..., "data":[{inst_dict}, ...]}].
-                # We inject _parentData into each instance dict in the data array.
-                if self.objTyping.isMultiInheritanceClass:
+                # Config-driven reference field resolution using the 'default' field profile
+                defaultProfile = self.objTyping.getFieldProfile('default')
+                if defaultProfile:
                     classDataList = jsonObj[self.apiObject]
                     if isinstance(classDataList, list) and len(classDataList) > 0:
                         dataArray = classDataList[0].get('data', [])
@@ -162,26 +163,14 @@ class polariCRUDE(treeObject):
                             inst = requestedInstances.get(instId)
                             if inst is None:
                                 continue
-                            parentDataDict = {}
-                            for varName, parentClassName in self.objTyping.inheritsFrom.items():
-                                parentInst = getattr(inst, varName, None)
-                                if parentInst is None:
-                                    continue
-                                # parentInst may be a live object or a string ID
-                                # after DB reload. If it's a string, look it up.
-                                if isinstance(parentInst, str):
-                                    parentTables = self.manager.objectTables.get(parentClassName, {})
-                                    parentInst = parentTables.get(parentInst)
-                                    if parentInst is None:
-                                        continue
-                                try:
-                                    parentDataDict[parentClassName] = self.manager.getJSONdictForClass(
-                                        passedInstances=[parentInst]
-                                    )
-                                except Exception as e:
-                                    print(f"[polariCRUDE] Failed to serialize parent {parentClassName} for {self.apiObject}: {e}")
-                            if parentDataDict:
-                                instData['_parentData'] = parentDataDict
+                            try:
+                                resolvedFields = self.manager.resolveConfiguredFields(
+                                    inst, defaultProfile
+                                )
+                                if resolvedFields:
+                                    instData['_resolvedFields'] = resolvedFields
+                            except Exception as e:
+                                print(f"[polariCRUDE] Field resolution error for {self.apiObject} id={instId}: {e}")
             else:
                 jsonObj[self.apiObject] = {}
             response.media = [jsonObj]
@@ -192,6 +181,67 @@ class polariCRUDE(treeObject):
             print(f"[polariCRUDE] on_get ERROR for {self.apiObject}: {err}")
             import traceback
             traceback.print_exc()
+        response.set_header('Powered-By', 'Polari')
+
+    def on_get_field_profile(self, request, response, profileName):
+        """Serve data with a named field profile's reference resolution applied."""
+        if self._guard_purged(response):
+            return
+        profileConfig = self.objTyping.getFieldProfile(profileName)
+        if not profileConfig:
+            response.status = falcon.HTTP_404
+            response.media = {"error": f"Field profile '{profileName}' not found for {self.apiObject}"}
+            return
+        try:
+            userAuthInfo = request.auth
+            (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
+            if "R" not in accessQueryDict:
+                response.status = falcon.HTTP_405
+                response.media = {"error": "Read access not allowed"}
+                return
+            requestedInstances = self.manager.getListOfInstancesByAttributes(
+                className=self.apiObject,
+                attributeQueryDict=accessQueryDict["R"][self.apiObject]
+            )
+            jsonObj = {}
+            if requestedInstances != {}:
+                jsonObj[self.apiObject] = self.manager.getJSONdictForClass(passedInstances=requestedInstances)
+                classDataList = jsonObj[self.apiObject]
+                if isinstance(classDataList, list) and len(classDataList) > 0:
+                    dataArray = classDataList[0].get('data', [])
+                    for instData in dataArray:
+                        if not isinstance(instData, dict):
+                            continue
+                        instId = instData.get('id')
+                        if instId is None:
+                            continue
+                        inst = requestedInstances.get(instId)
+                        if inst is None:
+                            continue
+                        try:
+                            resolvedFields = self.manager.resolveConfiguredFields(inst, profileConfig)
+                            if resolvedFields:
+                                instData['_resolvedFields'] = resolvedFields
+                        except Exception as e:
+                            print(f"[polariCRUDE] Field resolution error for {self.apiObject} id={instId} profile={profileName}: {e}")
+            else:
+                jsonObj[self.apiObject] = {}
+            response.media = [jsonObj]
+            response.status = falcon.HTTP_200
+        except Exception as err:
+            response.status = falcon.HTTP_500
+            response.media = {"error": str(err), "class": self.apiObject}
+            print(f"[polariCRUDE] on_get_field_profile ERROR for {self.apiObject}: {err}")
+            import traceback
+            traceback.print_exc()
+        response.set_header('Powered-By', 'Polari')
+
+    def on_get_field_profiles(self, request, response):
+        """List all field profiles configured on this class."""
+        if self._guard_purged(response):
+            return
+        response.media = {"profiles": self.objTyping.fieldProfiles}
+        response.status = falcon.HTTP_200
         response.set_header('Powered-By', 'Polari')
 
     def on_get_collection(self, request, response):

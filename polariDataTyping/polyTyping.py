@@ -141,6 +141,25 @@ class polyTypedObject(treeObject):
         # Initialized to None; created lazily in runAnalysis() to avoid circular imports.
         self.apiFormatConfig = None
 
+        # Named field profiles: controls which fields from referenced objects
+        # get resolved and embedded in CRUDE GET responses.
+        # Dict keyed by profile name (str):
+        # {
+        #   'profileName': {
+        #       'varName': {
+        #           'targetClass': str,            # referenced class name
+        #           'fields': list[str] | '*',     # which fields to resolve
+        #           'excludeFields': list[str],    # fields to skip when fields='*'
+        #           'source': 'auto' | 'manual',   # how the entry was created
+        #           'nested': dict | None,         # reserved for multi-tier traversal
+        #       },
+        #       ...
+        #   }
+        # }
+        # The 'default' profile is applied on the standard CRUDE GET.
+        # Additional named profiles are accessible via /field-profile/{name}/{ClassName}.
+        self.fieldProfiles = {}
+
         # State-Space Configuration (only relevant if isStateSpaceObject is True)
         # List of methods marked with @stateSpaceEvent decorator
         self.stateSpaceEventMethods = []
@@ -272,9 +291,42 @@ class polyTypedObject(treeObject):
         if self.apiFormatConfig is None:
             from polariApiServer.apiFormatConfig import ApiFormatConfig
             self.apiFormatConfig = ApiFormatConfig(polyTypedObj=self, manager=self.manager)
+        # Auto-populate 'default' field profile for inheritance parent references
+        if self.isMultiInheritanceClass:
+            defaultProfile = self.fieldProfiles.get('default', {})
+            for varName, parentClassName in self.inheritsFrom.items():
+                if varName not in defaultProfile:
+                    defaultProfile[varName] = {
+                        'targetClass': parentClassName,
+                        'fields': '*',
+                        'excludeFields': [],
+                        'source': 'auto',
+                        'nested': None,
+                    }
+            self.fieldProfiles['default'] = defaultProfile
         allInstances = self.manager.getListOfClassInstances(self.className)
         for inst in allInstances:
             self.analyzeInstance(inst)
+
+    def getFieldProfileNames(self):
+        """Returns list of field profile names configured on this class."""
+        return list(self.fieldProfiles.keys())
+
+    def getFieldProfile(self, profileName='default'):
+        """Returns the profile config dict for the given name, or {} if not found."""
+        return self.fieldProfiles.get(profileName, {})
+
+    def setFieldProfileEntry(self, profileName, varName, targetClass, fields='*', excludeFields=None):
+        """Add or update an entry in a named field profile."""
+        if profileName not in self.fieldProfiles:
+            self.fieldProfiles[profileName] = {}
+        self.fieldProfiles[profileName][varName] = {
+            'targetClass': targetClass,
+            'fields': fields,
+            'excludeFields': excludeFields or [],
+            'source': 'manual',
+            'nested': None,
+        }
 
     def initializeVarsFromSignature(self):
         """Populate polyTypedVars from the class constructor signature.

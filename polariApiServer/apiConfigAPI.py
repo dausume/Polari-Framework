@@ -238,7 +238,8 @@ class ApiConfigAPI(treeObject):
                         "permissionSetRefs": [],  # Will be populated below
                         "events": events,  # Event-level permissions
                         "variables": variables,
-                        "inheritsFrom": getattr(typingObj, 'inheritsFrom', {})
+                        "inheritsFrom": getattr(typingObj, 'inheritsFrom', {}),
+                        "fieldProfiles": getattr(typingObj, 'fieldProfiles', {})
                     }
                     result["objects"].append(objInfo)
 

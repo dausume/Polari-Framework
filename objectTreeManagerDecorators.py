@@ -1325,6 +1325,70 @@ class managerObject:
                 classInstanceDict[someVariableKey] = getattr(passedInstance, someVariableKey)
         return classInstanceDict
 
+    def resolveConfiguredFields(self, instance, profileConfig):
+        """Resolve fields from referenced objects based on a field profile config.
+
+        Args:
+            instance: The object instance whose references to resolve.
+            profileConfig: A dict keyed by variable name, each value having
+                'targetClass', 'fields', 'excludeFields' keys.
+
+        Returns:
+            dict: { varName: { fieldName: value, ... }, ... } for all resolved refs.
+        """
+        result = {}
+        jsonPrimitiveTypes = (str, int, float, bool, type(None))
+
+        for varName, config in profileConfig.items():
+            targetClass = config.get('targetClass', '')
+            fields = config.get('fields', '*')
+            excludeFields = set(config.get('excludeFields', []))
+
+            refInst = getattr(instance, varName, None)
+            if refInst is None:
+                continue
+
+            # Handle string IDs (post-DB reload) by looking up in objectTables
+            if isinstance(refInst, str):
+                parentTables = self.objectTables.get(targetClass, {})
+                refInst = parentTables.get(refInst)
+                if refInst is None:
+                    continue
+
+            # Determine field list
+            if fields == '*':
+                targetTyping = self.objectTypingDict.get(targetClass)
+                if targetTyping and hasattr(targetTyping, 'polyTypedVars'):
+                    fieldList = [v.name for v in targetTyping.polyTypedVars]
+                else:
+                    fieldList = [k for k in refInst.__dict__.keys()
+                                 if not k.startswith('_')]
+                fieldList = [f for f in fieldList
+                             if f not in excludeFields and f not in TREE_OBJECT_INTERNAL_VARS]
+            else:
+                fieldList = [f for f in fields if f not in excludeFields]
+
+            # Serialize each field — only include JSON-primitive types
+            resolvedData = {}
+            for fieldName in fieldList:
+                val = getattr(refInst, fieldName, None)
+                if isinstance(val, jsonPrimitiveTypes):
+                    resolvedData[fieldName] = val
+                elif isinstance(val, (list, tuple)):
+                    # Include lists only if all elements are primitives
+                    if all(isinstance(item, jsonPrimitiveTypes) for item in val):
+                        resolvedData[fieldName] = list(val)
+                elif isinstance(val, dict):
+                    # Include dicts only if all values are primitives
+                    if all(isinstance(v, jsonPrimitiveTypes) for v in val.values()):
+                        resolvedData[fieldName] = dict(val)
+                # Skip nested object references to avoid circular issues
+
+            if resolvedData:
+                result[varName] = resolvedData
+
+        return result
+
     #Converts a passed in list, tuple, or python dictionary into a jsonifiable dictionary where the keys are the datatypes in python
     def convertSetTypeIntoJSONdict(self, passedSet):
         #print("Entered \'convertSetTypeIntoJSONdict\' for value: ", passedSet)
