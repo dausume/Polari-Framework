@@ -38,6 +38,9 @@ _pythonToSqliteMap = {
     'memoryview': 'BLOB',
     'dateTime': 'TEXT',
     'TextIOWrapper': 'TEXT',
+    'map_coordinate': 'TEXT',
+    'map_line_segment': 'TEXT',
+    'map_polygon': 'TEXT',
 }
 
 def pythonTypeToSqliteAffinity(pythonTypeName):

@@ -101,8 +101,10 @@ class createClassAPI(treeObject):
             )
             print(f'[DEBUG-CC] _createDynamicClass returned OK for {className}', flush=True)
 
+            warnings = result.get('warnings', []) if isinstance(result, dict) else []
+
             response.status = falcon.HTTP_201
-            response.media = {
+            responseBody = {
                 'success': True,
                 'className': className,
                 'displayName': displayName,
@@ -111,7 +113,10 @@ class createClassAPI(treeObject):
                 'variableCount': len(variables),
                 'isStateSpaceObject': isStateSpaceObject
             }
-            print(f'[DEBUG-CC] === on_post SUCCESS === {className} created', flush=True)
+            if warnings:
+                responseBody['warnings'] = warnings
+            response.media = responseBody
+            print(f'[DEBUG-CC] === on_post SUCCESS === {className} created, {len(warnings)} warning(s)', flush=True)
 
         except json.JSONDecodeError as e:
             print(f'[DEBUG-CC] EXCEPTION JSONDecodeError: {e}', flush=True)
@@ -312,6 +317,9 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                 print(f'[DEBUG-CC] INHERITANCE ERROR: {e}', flush=True)
             print(f'[DEBUG-CC] step 8b: inheritance reverse index built for {className}', flush=True)
 
+        # Track warnings for non-fatal issues to report back to the frontend
+        warnings = []
+
         # Create database table for the new class if DB is active
         if hasattr(self.manager, 'db') and self.manager.db is not None:
             try:
@@ -320,7 +328,9 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                     newTyping.makeTypedTableFromAnalysis()
                     print(f"[DEBUG-CC] step 9: DB table created for {className}", flush=True)
             except Exception as e:
-                print(f"[DEBUG-CC] step 9: WARNING DB table failed: {e}", flush=True)
+                msg = f'Database table creation failed for {className}: {e}'
+                print(f"[DEBUG-CC] step 9: ERROR {msg}", flush=True)
+                warnings.append(msg)
         else:
             print(f'[DEBUG-CC] step 9: no DB active, skipping table creation', flush=True)
 
@@ -334,12 +344,14 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                                               inheritsFrom=inheritsFrom)
                 print(f'[DEBUG-CC] step 10: class definition persisted', flush=True)
             except Exception as e:
-                print(f"[DEBUG-CC] step 10: WARNING persist failed: {e}", flush=True)
+                msg = f'Class created but failed to save to registry — data will not survive restart: {e}'
+                print(f"[DEBUG-CC] step 10: ERROR {msg}", flush=True)
+                warnings.append(msg)
         else:
             print(f'[DEBUG-CC] step 10: no DB active, skipping persist', flush=True)
 
-        print(f"[DEBUG-CC] _createDynamicClass COMPLETE: {className} with {len(variables)} variables", flush=True)
-        return newTyping
+        print(f"[DEBUG-CC] _createDynamicClass COMPLETE: {className} with {len(variables)} variables, {len(warnings)} warning(s)", flush=True)
+        return {'typing': newTyping, 'warnings': warnings}
 
     def _getDefaultValue(self, var_type):
         """Get default value for a variable type"""
@@ -350,7 +362,10 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             'list': [],
             'dict': {},
             'bool': False,
-            'reference': None
+            'reference': None,
+            'map_coordinate': '[]',
+            'map_line_segment': '{}',
+            'map_polygon': '{}'
         }
         return type_defaults.get(var_type, '')
 
@@ -362,16 +377,34 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
         db = self.manager.db
         dbFilePath = os.path.join(db.Path, db.name + '.db') if db.Path else db.name + '.db'
         conn = sqlite3.connect(dbFilePath)
-        conn.execute('''CREATE TABLE IF NOT EXISTS _dynamic_class_registry (
-            className TEXT PRIMARY KEY,
-            displayName TEXT,
-            variables TEXT,
-            registerCRUDE INTEGER,
-            isStateSpaceObject INTEGER,
-            stateSpaceDisplayFields TEXT,
-            stateSpaceFieldsPerRow INTEGER,
-            inheritsFrom TEXT
-        )''')
+        # Ensure registry table exists with the correct schema.
+        # If it exists with a stale column count, rebuild it preserving existing rows.
+        expectedCols = 8
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='_dynamic_class_registry'")
+        if cursor.fetchone():
+            cursor = conn.execute('PRAGMA table_info(_dynamic_class_registry)')
+            colCount = len(cursor.fetchall())
+            if colCount < expectedCols:
+                existing = conn.execute('SELECT * FROM _dynamic_class_registry').fetchall()
+                conn.execute('DROP TABLE _dynamic_class_registry')
+                conn.execute('''CREATE TABLE _dynamic_class_registry (
+                    className TEXT PRIMARY KEY, displayName TEXT, variables TEXT,
+                    registerCRUDE INTEGER, isStateSpaceObject INTEGER,
+                    stateSpaceDisplayFields TEXT, stateSpaceFieldsPerRow INTEGER,
+                    inheritsFrom TEXT
+                )''')
+                for row in existing:
+                    padded = row + (None,) * (expectedCols - len(row))
+                    conn.execute('INSERT INTO _dynamic_class_registry VALUES (?, ?, ?, ?, ?, ?, ?, ?)', padded)
+                conn.commit()
+                print(f'[createClassAPI] Rebuilt _dynamic_class_registry: {colCount} -> {expectedCols} columns, {len(existing)} entries preserved')
+        else:
+            conn.execute('''CREATE TABLE _dynamic_class_registry (
+                className TEXT PRIMARY KEY, displayName TEXT, variables TEXT,
+                registerCRUDE INTEGER, isStateSpaceObject INTEGER,
+                stateSpaceDisplayFields TEXT, stateSpaceFieldsPerRow INTEGER,
+                inheritsFrom TEXT
+            )''')
         conn.execute(
             'INSERT OR REPLACE INTO _dynamic_class_registry VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
             (
@@ -434,7 +467,10 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
 
             # Re-create the dynamic class using the same logic as _createDynamicClass
             var_defaults = {}
-            type_defaults = {'str': '', 'int': 0, 'float': 0.0, 'list': [], 'dict': {}, 'bool': False, 'reference': None}
+            type_defaults = {
+                'str': '', 'int': 0, 'float': 0.0, 'list': [], 'dict': {}, 'bool': False,
+                'reference': None, 'map_coordinate': '[]', 'map_line_segment': '{}', 'map_polygon': '{}'
+            }
             for var in variables:
                 var_name = var.get('varName', '')
                 if var_name:
@@ -541,6 +577,197 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                         print(f'[DB] WARNING: Restored class {className} inherits from {parentClassName} but parent typing not found yet')
 
             print(f'[DB] Restored dynamic class: {className} ({len(variables)} variables, inheritsFrom={inheritsFrom})')
+
+        # Detect orphaned dynamic class tables — tables with data that aren't
+        # in the registry or objectTypingDict. This handles classes created before
+        # the registry was introduced, or whose registry entries were lost.
+        createClassAPI._repairOrphanedDynamicClasses(manager, dbFilePath)
+
+    @staticmethod
+    def _repairOrphanedDynamicClasses(manager, dbFilePath):
+        """Detect DB tables that have data but no registry entry or objectTypingDict entry.
+
+        For each orphan, reconstruct a minimal class definition from the DB schema
+        columns and register it so its data can be restored.
+        """
+        # Known framework/internal table prefixes and names to skip
+        knownFrameworkTables = {
+            '_dynamic_class_registry', 'sqlite_sequence',
+            # Tables that correspond to built-in framework classes
+            # (they'll be in objectTypingDict or are side tables)
+        }
+
+        conn = sqlite3.connect(dbFilePath)
+        cursor = conn.cursor()
+
+        # Get all table names from DB
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        allTables = [row[0] for row in cursor.fetchall()]
+
+        # Get registered class names from registry
+        registeredNames = set()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='_dynamic_class_registry'")
+        if cursor.fetchone():
+            cursor.execute('SELECT className FROM _dynamic_class_registry')
+            registeredNames = {row[0] for row in cursor.fetchall()}
+
+        orphans = []
+        for tableName in allTables:
+            if tableName in knownFrameworkTables:
+                continue
+            if tableName.startswith('_') or '_variant' in tableName:
+                continue
+            if tableName in manager.objectTypingDict:
+                continue
+            if tableName in registeredNames:
+                continue
+            # Check if the table has actual data
+            try:
+                cursor.execute(f'SELECT count(*) FROM "{tableName}"')
+                rowCount = cursor.fetchone()[0]
+            except Exception:
+                continue
+            if rowCount == 0:
+                continue
+            # Get column schema
+            cursor.execute(f'PRAGMA table_info("{tableName}")')
+            columns = [(col[1], col[2]) for col in cursor.fetchall()]
+            orphans.append((tableName, columns, rowCount))
+
+        conn.close()
+
+        if not orphans:
+            return
+
+        print(f'[DB] Found {len(orphans)} orphaned dynamic class tables with data, repairing...')
+
+        type_defaults = {
+            'str': '', 'int': 0, 'float': 0.0, 'list': [], 'dict': {}, 'bool': False,
+            'reference': None, 'map_coordinate': '[]', 'map_line_segment': '{}', 'map_polygon': '{}'
+        }
+        skip_cols = {'_branch_path', 'id'}
+
+        for tableName, columns, rowCount in orphans:
+            # Build variable definitions from DB schema columns
+            variables = []
+            for colName, colType in columns:
+                if colName in skip_cols:
+                    continue
+                # Map SQLite types back to variable types
+                varType = 'str'
+                if colType in ('INTEGER',):
+                    varType = 'int'
+                elif colType in ('REAL',):
+                    varType = 'float'
+                variables.append({
+                    'varName': colName,
+                    'varDisplayName': colName,
+                    'varType': varType,
+                    'isIdentifier': False,
+                    'isUnique': False
+                })
+
+            # Build the dynamic class the same way as the registry restore above
+            var_defaults = {}
+            for var in variables:
+                var_name = var.get('varName', '')
+                if var_name:
+                    var_defaults[var_name] = type_defaults.get(var.get('varType', 'str'), '')
+
+            base_params = {'id', 'manager', 'branch', 'inTree'}
+            custom_defaults = {k: v for k, v in var_defaults.items() if k not in base_params}
+            param_names = list(custom_defaults.keys())
+
+            param_str = ', '.join([f"{name}={repr(default)}" for name, default in custom_defaults.items()])
+            if param_str:
+                param_str = ', ' + param_str
+
+            body_assignments = '\n'.join([f'    self.{name} = {name}' for name in param_names])
+
+            func_code = f'''
+def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
+    treeObject.__init__(self, manager=manager, branch=branch, id=id)
+{body_assignments}
+'''
+            local_ns = {'treeObject': treeObject}
+            try:
+                exec(func_code, local_ns)
+            except Exception as e:
+                print(f'[DB] Failed to reconstruct class {tableName}: {e}')
+                continue
+            dynamic_init = local_ns['dynamic_init']
+
+            class_attrs = {
+                '__init__': treeObjectInit(dynamic_init),
+                'displayName': tableName,
+                '_dynamicClass': True,
+                '_variableDefinitions': variables
+            }
+            DynamicClass = type(tableName, (treeObject,), class_attrs)
+
+            newTyping = polyTypedObject(
+                className=tableName,
+                manager=manager,
+                sourceFiles=[],
+                identifierVariables=['id'],
+                objectReferencesDict={},
+                classDefinition=DynamicClass,
+                kwRequiredParams=[],
+                kwDefaultParams=list(var_defaults.keys()),
+                allowClassEdit=True,
+                isStateSpaceObject=False,
+                excludeFromCRUDE=False
+            )
+
+            for var in variables:
+                var_name = var.get('varName', '')
+                var_type = var.get('varType', 'str')
+                if var_name:
+                    default_value = type_defaults.get(var_type, '')
+                    try:
+                        polyVar = polyTypedVariable(
+                            polyTypedObj=newTyping,
+                            attributeName=var_name,
+                            attributeValue=default_value
+                        )
+                        polyVar.pythonTypeDefault = var_type
+                        polyVar.displayName = var.get('varDisplayName', var_name)
+                        newTyping.polyTypedVars.append(polyVar)
+                        newTyping.polyTypedVarsDict[var_name] = polyVar
+                        newTyping.variableNameList.append(var_name)
+                    except Exception as e:
+                        print(f'[DB] Warning: Could not create polyTypedVariable for {var_name}: {e}')
+
+            if newTyping not in manager.objectTyping:
+                manager.objectTyping.append(newTyping)
+
+            if not hasattr(manager, 'dynamicClasses'):
+                manager.dynamicClasses = {}
+            manager.dynamicClasses[tableName] = DynamicClass
+
+            # Backfill the registry entry so this doesn't need repair next boot
+            try:
+                conn = sqlite3.connect(dbFilePath)
+                conn.execute('''CREATE TABLE IF NOT EXISTS _dynamic_class_registry (
+                    className TEXT PRIMARY KEY,
+                    displayName TEXT,
+                    variables TEXT,
+                    registerCRUDE INTEGER,
+                    isStateSpaceObject INTEGER,
+                    stateSpaceDisplayFields TEXT,
+                    stateSpaceFieldsPerRow INTEGER,
+                    inheritsFrom TEXT
+                )''')
+                conn.execute(
+                    'INSERT OR REPLACE INTO _dynamic_class_registry VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                    (tableName, tableName, json.dumps(variables), 1, 0, None, None, None)
+                )
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                print(f'[DB] Warning: Could not backfill registry for {tableName}: {e}')
+
+            print(f'[DB] Repaired orphaned class: {tableName} ({len(variables)} variables, {rowCount} data rows, registry backfilled)')
 
     def on_put(self, request, response):
         """Handle class edit requests — modify variables of an existing dynamic class"""
