@@ -41,6 +41,12 @@ _pythonToSqliteMap = {
     'map_coordinate': 'TEXT',
     'map_line_segment': 'TEXT',
     'map_polygon': 'TEXT',
+    'date_duration': 'TEXT',
+    'datetime_duration': 'TEXT',
+    'time': 'TEXT',
+    'time_duration': 'TEXT',
+    'precision_time': 'TEXT',
+    'schedule': 'TEXT',
 }
 
 def pythonTypeToSqliteAffinity(pythonTypeName):

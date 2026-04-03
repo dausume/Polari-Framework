@@ -365,7 +365,13 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             'reference': None,
             'map_coordinate': '[]',
             'map_line_segment': '{}',
-            'map_polygon': '{}'
+            'map_polygon': '{}',
+            'date_duration': None,
+            'datetime_duration': None,
+            'time': None,
+            'time_duration': None,
+            'precision_time': None,
+            'schedule': None
         }
         return type_defaults.get(var_type, '')
 
@@ -469,7 +475,8 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             var_defaults = {}
             type_defaults = {
                 'str': '', 'int': 0, 'float': 0.0, 'list': [], 'dict': {}, 'bool': False,
-                'reference': None, 'map_coordinate': '[]', 'map_line_segment': '{}', 'map_polygon': '{}'
+                'reference': None, 'map_coordinate': '[]', 'map_line_segment': '{}', 'map_polygon': '{}',
+                'date_duration': None, 'datetime_duration': None, 'time': None, 'time_duration': None, 'precision_time': None, 'schedule': None
             }
             for var in variables:
                 var_name = var.get('varName', '')
@@ -643,7 +650,8 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
 
         type_defaults = {
             'str': '', 'int': 0, 'float': 0.0, 'list': [], 'dict': {}, 'bool': False,
-            'reference': None, 'map_coordinate': '[]', 'map_line_segment': '{}', 'map_polygon': '{}'
+            'reference': None, 'map_coordinate': '[]', 'map_line_segment': '{}', 'map_polygon': '{}',
+            'date_duration': None, 'datetime_duration': None, 'time': None, 'time_duration': None, 'precision_time': None, 'schedule': None
         }
         skip_cols = {'_branch_path', 'id'}
 
@@ -981,6 +989,134 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                 print(f"[DEBUG-CC] _editDynamicClass: WARNING persist failed: {e}", flush=True)
 
         print(f"[DEBUG-CC] _editDynamicClass COMPLETE: {className} with {len(variables)} variables", flush=True)
+
+    def on_delete(self, request, response):
+        """Handle class deletion requests — delete a dynamically created class and its collateral definitions"""
+        try:
+            class_def = request.get_media()
+            className = class_def.get('className')
+            if not className:
+                response.status = falcon.HTTP_400
+                response.media = {'success': False, 'error': 'className is required'}
+                return
+
+            # Must exist
+            if className not in self.manager.objectTypingDict:
+                response.status = falcon.HTTP_404
+                response.media = {'success': False, 'error': f'Class {className} not found'}
+                return
+
+            existingTyping = self.manager.objectTypingDict[className]
+
+            # Must be a dynamic (user-created) class — framework classes cannot be deleted
+            classDef = existingTyping.classDefinition
+            isDynamic = getattr(classDef, '_dynamicClass', False)
+            if not isDynamic:
+                response.status = falcon.HTTP_403
+                response.media = {
+                    'success': False,
+                    'error': f'Class {className} is a framework class and cannot be deleted. '
+                             f'Only dynamically created classes can be deleted.'
+                }
+                return
+
+            # Must be editable
+            if not getattr(existingTyping, 'allowClassEdit', False):
+                response.status = falcon.HTTP_403
+                response.media = {'success': False, 'error': f'Class {className} is not editable and cannot be deleted'}
+                return
+
+            print(f'[DEBUG-CC] on_delete: deleting class {className}', flush=True)
+
+            # 1. Purge collateral definitions (displays, tables, graphs, geojson, datasets, field profiles, filter chains)
+            collateralSummary = self._purgeCollateralDefinitions(className)
+            print(f'[DEBUG-CC] on_delete: collateral purge complete: {collateralSummary}', flush=True)
+
+            # 2. Clean up inheritance reverse index before purging
+            if existingTyping.isMultiInheritanceClass:
+                for parentClassName in existingTyping.getInheritanceParentClassNames():
+                    parentTyping = self.manager.objectTypingDict.get(parentClassName)
+                    if parentTyping and className in parentTyping.inheritedByClasses:
+                        parentTyping.inheritedByClasses.remove(className)
+
+            # 3. Purge the class itself (instances, DB table, typing, CRUDE, tree entries)
+            purgeSummary = self.manager.purgeObjectType(className)
+            print(f'[DEBUG-CC] on_delete: purgeObjectType complete: {purgeSummary}', flush=True)
+
+            # 4. Remove from dynamicClasses dict
+            if hasattr(self.manager, 'dynamicClasses') and className in self.manager.dynamicClasses:
+                del self.manager.dynamicClasses[className]
+
+            # 5. Remove from _dynamic_class_registry DB table
+            registryRemoved = False
+            if hasattr(self.manager, 'db') and self.manager.db is not None:
+                try:
+                    db = self.manager.db
+                    dbFilePath = os.path.join(db.Path, db.name + '.db') if db.Path else db.name + '.db'
+                    conn = sqlite3.connect(dbFilePath)
+                    conn.execute('DELETE FROM _dynamic_class_registry WHERE className = ?', (className,))
+                    conn.commit()
+                    conn.close()
+                    registryRemoved = True
+                    print(f'[DEBUG-CC] on_delete: removed {className} from _dynamic_class_registry', flush=True)
+                except Exception as e:
+                    print(f'[DEBUG-CC] on_delete: WARNING failed to remove from registry: {e}', flush=True)
+
+            response.status = falcon.HTTP_200
+            response.media = {
+                'success': True,
+                'className': className,
+                'purgeSummary': purgeSummary,
+                'collateralPurged': collateralSummary,
+                'registryRemoved': registryRemoved
+            }
+            print(f'[DEBUG-CC] on_delete: SUCCESS — class {className} fully deleted', flush=True)
+
+        except Exception as e:
+            print(f'[DEBUG-CC] on_delete EXCEPTION: {type(e).__name__}: {e}', flush=True)
+            response.status = falcon.HTTP_500
+            response.media = {'success': False, 'error': str(e)}
+            import traceback
+            traceback.print_exc()
+
+        response.set_header('Powered-By', 'Polari')
+
+    def _purgeCollateralDefinitions(self, className):
+        """Remove all collateral definition objects (displays, tables, graphs, etc.) tied to this class via source_class."""
+        collateralTypes = [
+            'DisplayDefinition',
+            'TableDefinition',
+            'GraphDefinition',
+            'GeoJsonDefinition',
+            'DataSetDefinition',
+            'FieldProfileDefinition',
+            'FilterChainDefinition',
+            'MapPointDefinition',
+        ]
+        summary = {}
+        for defType in collateralTypes:
+            removed = 0
+            if defType in self.manager.objectTables:
+                instances = list(self.manager.objectTables[defType])
+                for inst in instances:
+                    if getattr(inst, 'source_class', None) == className:
+                        self.manager.objectTables[defType].remove(inst)
+                        removed += 1
+                # Also remove from DB if available
+                if removed > 0 and hasattr(self.manager, 'db') and self.manager.db is not None:
+                    try:
+                        db = self.manager.db
+                        if defType in db.tables:
+                            dbFilePath = os.path.join(db.Path, db.name + '.db') if db.Path else db.name + '.db'
+                            conn = sqlite3.connect(dbFilePath)
+                            conn.execute(f'DELETE FROM "{defType}" WHERE source_class = ?', (className,))
+                            conn.commit()
+                            conn.close()
+                    except Exception as e:
+                        print(f'[DEBUG-CC] _purgeCollateralDefinitions: WARNING DB cleanup for {defType} failed: {e}', flush=True)
+            if removed > 0:
+                summary[defType] = removed
+        return summary
 
     def on_get(self, request, response):
         """Return list of dynamically created classes"""

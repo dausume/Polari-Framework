@@ -131,6 +131,10 @@ class polyTypedObject(treeObject):
         # Default: True - Core framework objects should use custom endpoints to prevent runtime issues
         # Dynamic classes created via API explicitly set this to False to enable CRUDE access
         self.excludeFromCRUDE = excludeFromCRUDE
+        # Whether this is a dynamically created class (vs core framework class)
+        # Derived from classDefinition._dynamicClass; stored as an instance attribute
+        # so it gets serialized in CRUDE GET responses for the frontend to consume.
+        self.isDynamicClass = getattr(classDefinition, '_dynamicClass', False) if classDefinition else False
         # Whether this class is a framework Definition class (e.g. TableDefinition,
         # DisplayDefinition). These need CRUDE endpoints (excludeFromCRUDE=False)
         # but should still be classified as framework objects in the UI.
