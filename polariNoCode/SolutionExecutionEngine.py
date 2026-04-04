@@ -510,6 +510,13 @@ class SolutionExecutionEngine:
             # Extract declared input params for documentation
             input_params = field_values.get('inputParams', [])
             result['result'] = f'Entry point with {len(input_params)} parameters'
+            # Log input parameters
+            param_strs = []
+            for p in input_params:
+                p_name = p.get('name', '?')
+                p_val = context.get(p_name, '<not provided>')
+                param_strs.append(f'{p_name}={p_val!r}')
+            log_output.append(f'[{state_name}] Entering with params: {", ".join(param_strs) if param_strs else "(none)"}')
 
         elif state_class == 'VariableAssignment':
             var_name = field_values.get('variableName', '')
@@ -531,6 +538,7 @@ class SolutionExecutionEngine:
                 if var_name.startswith('self.'):
                     context[var_name[5:]] = resolved
                 result['result'] = resolved
+                log_output.append(f'[{state_name}] {var_name} = {resolved!r} (type: {type(resolved).__name__})')
 
         elif state_class == 'ConditionalChain':
             # Frontend stores chain data as 'links' with ValueSourceConfig objects;
@@ -545,7 +553,7 @@ class SolutionExecutionEngine:
                 # Respect per-link logicalOperator for sequential combination
                 link_results = []
                 for link in links:
-                    link_result = self._evaluate_chain_link(link, context)
+                    link_result = self._evaluate_chain_link(link, context, log_output)
                     link_results.append((link_result, link.get('logicalOperator', default_op).upper()))
 
                 # Combine sequentially using each link's logical operator
@@ -569,6 +577,7 @@ class SolutionExecutionEngine:
                 else:
                     result['branch_taken'] = 1
                     result['branch_label'] = 'false'
+                log_output.append(f'[{state_name}] Condition result: {combined} -> branch {result["branch_label"]}')
 
             elif conditions and len(conditions) > 0:
                 # Legacy: evaluate each condition in the chain
@@ -581,6 +590,7 @@ class SolutionExecutionEngine:
                     # No condition matched - take else branch
                     result['branch_taken'] = len(conditions)
                     result['branch_label'] = 'else'
+                log_output.append(f'[{state_name}] Condition result -> branch {result["branch_label"]}')
             elif condition:
                 # Simple if/else
                 if _evaluate_condition(condition, context):
@@ -589,9 +599,11 @@ class SolutionExecutionEngine:
                 else:
                     result['branch_taken'] = 1
                     result['branch_label'] = 'false'
+                log_output.append(f'[{state_name}] Condition result -> branch {result["branch_label"]}')
             else:
                 result['branch_taken'] = 0
                 result['branch_label'] = 'default'
+                log_output.append(f'[{state_name}] No condition defined -> branch default')
 
         elif state_class == 'ForLoop':
             # Capture loop config in context (full loop execution in v2)
@@ -601,10 +613,12 @@ class SolutionExecutionEngine:
             step = _safe_resolve_value(field_values.get('step', '1'), context)
             context[iterator] = start
             result['result'] = {'loop': 'for', 'iterator': iterator, 'start': start, 'end': end, 'step': step}
+            log_output.append(f'[{state_name}] for {iterator} in range({start}, {end}, {step})')
 
         elif state_class == 'WhileLoop':
             condition = field_values.get('condition', '')
             result['result'] = {'loop': 'while', 'condition': str(condition)}
+            log_output.append(f'[{state_name}] while {condition}')
 
         elif state_class == 'ForEachLoop':
             item = field_values.get('item', 'item')
@@ -612,7 +626,9 @@ class SolutionExecutionEngine:
             collection = _safe_resolve_value(collection_str, context)
             if isinstance(collection, (list, tuple)) and len(collection) > 0:
                 context[item] = collection[0]
-            result['result'] = {'loop': 'foreach', 'item': item, 'collection_size': len(collection) if isinstance(collection, (list, tuple)) else 0}
+            coll_size = len(collection) if isinstance(collection, (list, tuple)) else 0
+            result['result'] = {'loop': 'foreach', 'item': item, 'collection_size': coll_size}
+            log_output.append(f'[{state_name}] for each {item} in collection ({coll_size} items)')
 
         elif state_class == 'FunctionCall':
             func_name = field_values.get('functionName', '')
@@ -621,6 +637,7 @@ class SolutionExecutionEngine:
             if result_var:
                 context[result_var] = None  # Placeholder
             result['result'] = f'Called {func_name}'
+            log_output.append(f'[{state_name}] Calling {func_name}() -> {result_var or "(void)"}')
 
         elif state_class in ('ReturnValue', 'ReturnStatement'):
             return_value_str = field_values.get('returnValue', '')
@@ -636,6 +653,7 @@ class SolutionExecutionEngine:
                 resolved = _safe_resolve_value(return_value_str, context)
 
             result['result'] = resolved
+            log_output.append(f'[{state_name}] Returning: {resolved!r} (type: {type(resolved).__name__})')
 
         elif state_class == 'LogOutput':
             msg_template = field_values.get('messageTemplate', '')
@@ -657,13 +675,17 @@ class SolutionExecutionEngine:
             # Resolve operator — frontend sends 'operationType' (e.g. 'add'),
             # legacy sends 'operator' (e.g. '+')
             op_str = field_values.get('operator', field_values.get('operationType', '+'))
+            op_symbol = {
+                'add': '+', 'subtract': '-', 'multiply': '*', 'divide': '/',
+                'modulo': '%', 'power': '**',
+            }.get(op_str, op_str)
             arith_func = ARITHMETIC_OPS.get(op_str, operator.add)
 
             try:
                 computed = arith_func(left_val, right_val)
             except (TypeError, ZeroDivisionError) as e:
                 computed = None
-                log_output.append(f'MathOperation error: {e}')
+                log_output.append(f'[{state_name}] MathOperation error: {e}')
 
             # Determine result variable name — supports 'resultVariable',
             # 'resultFieldPath' (e.g. 'self.sum_result'), and 'resultVariableName'
@@ -683,6 +705,9 @@ class SolutionExecutionEngine:
                     context[result_var[5:]] = computed
 
             result['result'] = computed
+            if computed is not None:
+                display_var = result_var.replace('self.', '') if result_var.startswith('self.') else result_var
+                log_output.append(f'[{state_name}] {display_var} = {left_val!r} {op_symbol} {right_val!r} = {computed!r}')
 
         elif state_class == 'FilterList':
             source_var = field_values.get('sourceVariable', '')
@@ -700,7 +725,7 @@ class SolutionExecutionEngine:
 
         return result
 
-    def _evaluate_chain_link(self, link, context):
+    def _evaluate_chain_link(self, link, context, log_output=None):
         """Evaluate a single ConditionalChain link with ValueSourceConfig support.
 
         A link has:
@@ -708,6 +733,9 @@ class SolutionExecutionEngine:
             conditionType: 'equals', 'greaterThan', etc.
             fieldName / conditionValue: legacy string fields
         """
+        if log_output is None:
+            log_output = []
+
         # Resolve left side — prefer ValueSourceConfig, fall back to legacy
         left_source = link.get('leftSource')
         if left_source and isinstance(left_source, dict) and 'sourceType' in left_source:
@@ -726,15 +754,15 @@ class SolutionExecutionEngine:
         condition_type = link.get('conditionType', 'equals')
         op_func = COMPARISON_OPS.get(condition_type, operator.eq)
 
-        print(f'[ConditionalChain] Evaluating: left={left_val!r} (from {left_source}) '
-              f'{condition_type} right={right_val!r} (from {right_source})')
+        link_display = link.get('displayName', f'{condition_type}')
+        log_output.append(f'  Evaluating: {left_val!r} {condition_type} {right_val!r}')
 
         try:
             result = op_func(left_val, right_val)
-            print(f'[ConditionalChain] Result: {result}')
+            log_output.append(f'  Link result: {result}')
             return result
         except (TypeError, ValueError) as e:
-            print(f'[ConditionalChain] Evaluation error: {e}')
+            log_output.append(f'  Link evaluation error: {e}')
             return False
 
     def _get_next_state(self, current_state, states_by_name, context, branch_taken):

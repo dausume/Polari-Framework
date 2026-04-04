@@ -30,7 +30,6 @@ _ADDITION_TEST_DEFINITION = {
             {"name": "num_b", "displayName": "Number B", "type": "int", "defaultValue": 0, "description": "Second number to add"},
             {"name": "expected_result", "displayName": "Expected Result", "type": "int", "defaultValue": 0, "description": "Expected sum for comparison"},
             {"name": "sum_result", "displayName": "Sum Result", "type": "int", "defaultValue": 0, "description": "Calculated sum of num_a + num_b"},
-            {"name": "comparison_value", "displayName": "Comparison Value", "type": "int", "defaultValue": 0, "description": "Expected value passed through for comparison"},
             {"name": "test_passed", "displayName": "Test Passed", "type": "bool", "defaultValue": False, "description": "Whether the sum matches expected"}
         ],
         "methods": [
@@ -71,16 +70,10 @@ _ADDITION_TEST_DEFINITION = {
             "stateSvgName": "circle",
             "slots": [
                 {
-                    "index": 0, "stateName": "Start", "slotAngularPosition": 30,
+                    "index": 0, "stateName": "Start", "slotAngularPosition": 0,
                     "connectors": [{"id": 1, "sourceSlot": 0, "sinkSlot": 0, "targetStateName": "Compute Sum"}],
                     "isInput": False, "allowOneToMany": True, "allowManyToOne": False,
-                    "label": "To Sum", "passthroughVariableName": "num_a,num_b"
-                },
-                {
-                    "index": 1, "stateName": "Start", "slotAngularPosition": 330,
-                    "connectors": [{"id": 2, "sourceSlot": 1, "sinkSlot": 0, "targetStateName": "Get Expected"}],
-                    "isInput": False, "allowOneToMany": True, "allowManyToOne": False,
-                    "label": "To Expected", "passthroughVariableName": "expected_result"
+                    "label": "Out", "passthroughVariableName": "num_a,num_b,expected_result"
                 }
             ],
             "slotRadius": 5, "backgroundColor": "#4CAF50"
@@ -91,21 +84,24 @@ _ADDITION_TEST_DEFINITION = {
             "index": 1,
             "shapeType": "circle",
             "solutionName": "AdditionTester.test_addition",
-            "stateClass": "VariableAssignment",
-            "boundObjectClass": "VariableAssignment",
+            "stateClass": "MathOperation",
+            "boundObjectClass": "MathOperation",
             "boundObjectFieldValues": {
                 "displayName": "Compute Sum",
-                "variableName": "sum_result",
-                "value": "num_a + num_b",
-                "dataType": "int",
-                "description": "Calculate the sum of the two input numbers"
+                "description": "Calculate the sum of the two input numbers",
+                "operationType": "add",
+                "leftOperand": {"sourceType": "from_input", "inputSlotIndex": 0, "inputVariableName": "num_a"},
+                "rightOperand": {"sourceType": "from_input", "inputSlotIndex": 0, "inputVariableName": "num_b"},
+                "resultTarget": "solution_field",
+                "resultFieldPath": "self.sum_result",
+                "resultVariableName": "sum_result"
             },
             "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": 65,
-            "layerName": "assignment-layer",
-            "stateLocationX": 280, "stateLocationY": 180,
+            "layerName": "math-layer",
+            "stateLocationX": 280, "stateLocationY": 280,
             "stateSvgName": "circle",
             "slots": [
-                {"index": 0, "stateName": "Compute Sum", "slotAngularPosition": 180, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True, "label": "Input"},
+                {"index": 0, "stateName": "Compute Sum", "slotAngularPosition": 180, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True, "label": "num_a, num_b"},
                 {
                     "index": 1, "stateName": "Compute Sum", "slotAngularPosition": 0,
                     "connectors": [{"id": 3, "sourceSlot": 1, "sinkSlot": 0, "targetStateName": "Check Result"}],
@@ -113,42 +109,12 @@ _ADDITION_TEST_DEFINITION = {
                     "label": "sum_result", "passthroughVariableName": "sum_result"
                 }
             ],
-            "slotRadius": 5, "backgroundColor": "#9C27B0"
-        },
-        {
-            "stateName": "Get Expected",
-            "id": "get-expected",
-            "index": 2,
-            "shapeType": "circle",
-            "solutionName": "AdditionTester.test_addition",
-            "stateClass": "VariableAssignment",
-            "boundObjectClass": "VariableAssignment",
-            "boundObjectFieldValues": {
-                "displayName": "Get Expected",
-                "variableName": "comparison_value",
-                "value": "expected_result",
-                "dataType": "int",
-                "description": "Pass through the expected result for comparison"
-            },
-            "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": 65,
-            "layerName": "assignment-layer",
-            "stateLocationX": 280, "stateLocationY": 380,
-            "stateSvgName": "circle",
-            "slots": [
-                {"index": 0, "stateName": "Get Expected", "slotAngularPosition": 180, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True, "label": "Input"},
-                {
-                    "index": 1, "stateName": "Get Expected", "slotAngularPosition": 0,
-                    "connectors": [{"id": 4, "sourceSlot": 1, "sinkSlot": 1, "targetStateName": "Check Result"}],
-                    "isInput": False, "allowOneToMany": True, "allowManyToOne": False,
-                    "label": "comparison_value", "passthroughVariableName": "comparison_value"
-                }
-            ],
-            "slotRadius": 5, "backgroundColor": "#9C27B0"
+            "slotRadius": 5, "backgroundColor": "#FF9800"
         },
         {
             "stateName": "Check Result",
             "id": "check-result",
-            "index": 3,
+            "index": 2,
             "shapeType": "diamond",
             "solutionName": "AdditionTester.test_addition",
             "stateClass": "ConditionalChain",
@@ -160,14 +126,14 @@ _ADDITION_TEST_DEFINITION = {
                 "links": [
                     {
                         "id": "link_check_equality",
-                        "displayName": "sum_result == comparison_value",
+                        "displayName": "sum_result == expected_result",
                         "conditionType": "equals",
                         "logicalOperator": "AND",
                         "isStateSpaceObject": True,
                         "leftSource": {"sourceType": "from_input", "inputSlotIndex": 0, "inputVariableName": "sum_result"},
-                        "rightSource": {"sourceType": "from_input", "inputSlotIndex": 1, "inputVariableName": "comparison_value"},
+                        "rightSource": {"sourceType": "from_input", "inputSlotIndex": 1, "inputVariableName": "expected_result"},
                         "fieldName": "sum_result",
-                        "conditionValue": "comparison_value"
+                        "conditionValue": "expected_result"
                     }
                 ]
             },
@@ -176,17 +142,16 @@ _ADDITION_TEST_DEFINITION = {
             "stateLocationX": 520, "stateLocationY": 280,
             "stateSvgName": "diamond",
             "slots": [
-                {"index": 0, "stateName": "Check Result", "slotAngularPosition": 150, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True, "label": "sum_result", "parameterName": "sum_result", "parameterType": "int"},
-                {"index": 1, "stateName": "Check Result", "slotAngularPosition": 210, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True, "label": "comparison_value", "parameterName": "comparison_value", "parameterType": "int"},
+                {"index": 0, "stateName": "Check Result", "slotAngularPosition": 180, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True, "label": "In"},
                 {
-                    "index": 2, "stateName": "Check Result", "slotAngularPosition": 30,
-                    "connectors": [{"id": 5, "sourceSlot": 2, "sinkSlot": 0, "targetStateName": "Return True"}],
+                    "index": 1, "stateName": "Check Result", "slotAngularPosition": 30,
+                    "connectors": [{"id": 5, "sourceSlot": 1, "sinkSlot": 0, "targetStateName": "Return True"}],
                     "isInput": False, "allowOneToMany": True, "allowManyToOne": False,
                     "label": "True", "color": "#4CAF50"
                 },
                 {
-                    "index": 3, "stateName": "Check Result", "slotAngularPosition": 330,
-                    "connectors": [{"id": 6, "sourceSlot": 3, "sinkSlot": 0, "targetStateName": "Return False"}],
+                    "index": 2, "stateName": "Check Result", "slotAngularPosition": 330,
+                    "connectors": [{"id": 6, "sourceSlot": 2, "sinkSlot": 0, "targetStateName": "Return False"}],
                     "isInput": False, "allowOneToMany": True, "allowManyToOne": False,
                     "label": "False", "color": "#F44336"
                 }
@@ -196,7 +161,7 @@ _ADDITION_TEST_DEFINITION = {
         {
             "stateName": "Return True",
             "id": "return-true",
-            "index": 4,
+            "index": 3,
             "shapeType": "rectangle",
             "solutionName": "AdditionTester.test_addition",
             "stateClass": "ReturnStatement",
@@ -213,7 +178,7 @@ _ADDITION_TEST_DEFINITION = {
         {
             "stateName": "Return False",
             "id": "return-false",
-            "index": 5,
+            "index": 4,
             "shapeType": "rectangle",
             "solutionName": "AdditionTester.test_addition",
             "stateClass": "ReturnStatement",

@@ -33,6 +33,7 @@ PYTHON_TEMPLATES = {
     'AwaitBackendCall': '{resultVariable} = await self.call_solution("{targetSolutionName}")',
     'EmitFrontendEvent': 'self.emit_event("{targetSolutionName}", {eventPayload})',
     'ReactiveTransform': '# Transform: {operator}({expression})',
+    'MathOperation': '{resultVar} = {leftLabel} {opSymbol} {rightLabel}',
 }
 
 TYPESCRIPT_TEMPLATES = {
@@ -55,6 +56,7 @@ TYPESCRIPT_TEMPLATES = {
     'AwaitBackendCall': 'const {resultVariable} = await this.polariService.callSolution("{targetSolutionName}");',
     'EmitFrontendEvent': 'this.polariService.emitEvent("{targetSolutionName}", {eventPayload});',
     'ReactiveTransform': '.pipe({operator}({expression}))',
+    'MathOperation': 'const {resultVar} = {leftLabel} {opSymbol} {rightLabel};',
 }
 
 
@@ -65,8 +67,71 @@ def get_template_map(runtime):
     return PYTHON_TEMPLATES
 
 
+def _resolve_value_source_label(config):
+    """Resolve a ValueSourceConfig dict to a code-friendly label string.
+
+    For from_input/from_source_object: returns the variable name (e.g. 'num_a', 'self.sum_result').
+    For direct_assignment: returns the literal value.
+    Falls back to the config as-is for unknown types.
+    """
+    if not isinstance(config, dict) or 'sourceType' not in config:
+        return str(config) if config is not None else '0'
+
+    source_type = config.get('sourceType', '')
+
+    if source_type == 'from_input':
+        return config.get('inputVariableName', '0')
+    elif source_type == 'from_source_object':
+        return config.get('sourceObjectPath', '0')
+    elif source_type == 'direct_assignment':
+        return str(config.get('directValue', '0'))
+    elif source_type == 'from_field':
+        return config.get('fieldPath', config.get('sourceObjectPath', '0'))
+    elif source_type == 'literal':
+        return str(config.get('literalValue', config.get('directValue', '0')))
+
+    return '0'
+
+
+# Map from operationType names to Python/TS operator symbols
+_MATH_OP_SYMBOLS = {
+    'add': '+', 'subtract': '-', 'multiply': '*', 'divide': '/', 'modulo': '%',
+    '+': '+', '-': '-', '*': '*', '/': '/', '%': '%', '**': '**',
+}
+
+
+def _preprocess_math_operation(field_values):
+    """Pre-process MathOperation field values into template-friendly keys.
+
+    Resolves ValueSourceConfig operands to code labels and maps operationType to a symbol.
+    """
+    processed = dict(field_values) if field_values else {}
+
+    processed['leftLabel'] = _resolve_value_source_label(field_values.get('leftOperand'))
+    processed['rightLabel'] = _resolve_value_source_label(field_values.get('rightOperand'))
+
+    op_type = field_values.get('operationType', field_values.get('operator', 'add'))
+    processed['opSymbol'] = _MATH_OP_SYMBOLS.get(op_type, '+')
+
+    # Determine result variable name
+    result_var = field_values.get('resultVariableName', '')
+    if not result_var:
+        result_var = field_values.get('resultFieldPath', '')
+    if not result_var:
+        result_var = field_values.get('resultVariable', '')
+    if not result_var:
+        result_var = field_values.get('variableName', 'result')
+    processed['resultVar'] = result_var
+
+    return processed
+
+
 def substitute_template(template, field_values, state_class):
     """Substitute field values into a template string."""
+    # Pre-process certain state classes that have structured config
+    if state_class == 'MathOperation':
+        field_values = _preprocess_math_operation(field_values)
+
     result = template
     for key, value in (field_values or {}).items():
         placeholder = '{' + key + '}'
