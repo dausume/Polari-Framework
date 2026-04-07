@@ -140,6 +140,11 @@ class polyTypedObject(treeObject):
         # but should still be classified as framework objects in the UI.
         self.isDefinitionClass = False
 
+        # Module binding: which Polari module this class belongs to (module ID string).
+        # None means no explicit binding (framework class or unbound).
+        # Set automatically when a module registers the class, or changed via updateClassConfig API.
+        self.moduleBinding = None
+
         # API Format Configuration -- one-to-one sub-object managing format endpoints.
         # The tree handles the parent-child relationship when we assign the instance.
         # Initialized to None; created lazily in runAnalysis() to avoid circular imports.

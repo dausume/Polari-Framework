@@ -77,13 +77,8 @@ import falcon
 import secrets
 import subprocess
 
-# Import Materials Science module
-try:
-    from polariMaterialsScienceModule import initialize as initialize_materials_science
-    MATERIALS_SCIENCE_AVAILABLE = True
-except ImportError:
-    MATERIALS_SCIENCE_AVAILABLE = False
-    print("[polariServer] Materials Science module not available - skipping")
+# Dynamic module discovery
+from moduleService.moduleDiscovery import discover_available_modules
 
 # Import configuration loader for CORS origins
 try:
@@ -358,35 +353,66 @@ class polariServer(treeObject):
         #
         self.serverInstance = None
 
-        # Initialize Materials Science module: register classes + auto-expose CRUDE endpoints
-        # Gate on configuration - default disabled
+        # Dynamic module initialization: discover and load all enabled modules
+        self._module_classes = {}  # {module_id: [class_names]}
+        # Backwards compat alias for materials_science specifically
         self._materials_science_classes = []
-        ms_enabled = False
-        try:
-            from config_loader import config as ms_config
-            ms_enabled = ms_config.get('modules.materials_science.enabled', False)
-            if isinstance(ms_enabled, str):
-                ms_enabled = ms_enabled.lower() in ('true', '1', 'yes')
-        except ImportError:
-            pass
 
-        if MATERIALS_SCIENCE_AVAILABLE and ms_enabled:
+        try:
+            from config_loader import config as mod_config
+        except ImportError:
+            mod_config = None
+
+        # Load persisted module state (survives restarts via data volume)
+        from moduleService.moduleState import get_module_enabled
+
+        discovered = discover_available_modules()
+        for module_id, module_info in discovered.items():
+            if not module_info['available']:
+                print(f"[ModuleLoad] {module_id}: not available (import failed), skipping")
+                continue
+
+            # Priority: persisted state file > env vars/config.yaml
+            # get_module_enabled returns None if no persisted state exists,
+            # in which case we fall back to the config system
+            persisted = get_module_enabled(module_id)
+            if persisted is not None:
+                enabled = persisted
+                print(f"[ModuleLoad] {module_id}: enabled={enabled} (from persisted state)")
+            else:
+                enabled = False
+                if mod_config:
+                    enabled = mod_config.get(f'modules.{module_id}.enabled', False)
+                    if isinstance(enabled, str):
+                        enabled = enabled.lower() in ('true', '1', 'yes')
+
+            if not enabled:
+                print(f"[ModuleLoad] {module_id}: disabled")
+                continue
+
             try:
-                print("[MS-Module-Load] [polariServer] Materials Science module enabled — beginning initialization")
+                import importlib
+                mod = importlib.import_module(module_info['package_name'])
                 include_seed = True
-                try:
-                    from config_loader import config as seed_config
-                    include_seed = seed_config.get('modules.materials_science.include_seed_data', True)
-                except ImportError:
-                    pass
-                print(f"[MS-Module-Load] [polariServer] objectTypingDict BEFORE init: {len(self.manager.objectTypingDict)} entries")
-                result = initialize_materials_science(
-                    manager=self.manager,
-                    include_seed_data=include_seed
-                )
-                print(f"[MS-Module-Load] [polariServer] objectTypingDict AFTER init: {len(self.manager.objectTypingDict)} entries")
-                self._materials_science_classes = list(result['registered_classes'].keys())
-                # Auto-register CRUDE endpoints for all module classes
+                if mod_config:
+                    include_seed = mod_config.get(f'modules.{module_id}.include_seed_data', True)
+
+                print(f"[ModuleLoad] {module_id}: initializing ({module_info['package_name']})")
+                result = mod.initialize(manager=self.manager, include_seed_data=include_seed)
+
+                class_names = list(result['registered_classes'].keys())
+                self._module_classes[module_id] = class_names
+
+                # Ensure moduleBinding is set on all classes (even pre-existing ones)
+                for cn in class_names:
+                    typing = self.manager.objectTypingDict.get(cn)
+                    if typing:
+                        typing.moduleBinding = module_id
+
+                # Backwards compat for materials_science
+                if module_id == 'materials_science':
+                    self._materials_science_classes = class_names
+
                 crude_ok = 0
                 crude_fail = 0
                 for class_name in result['registered_classes']:
@@ -395,15 +421,14 @@ class polariServer(treeObject):
                         crude_ok += 1
                     except Exception as ce:
                         crude_fail += 1
-                        print(f"[MS-Module-Load] [polariServer] CRUDE registration failed for {class_name}: {ce}")
+                        print(f"[ModuleLoad] {module_id}: CRUDE failed for {class_name}: {ce}")
+
                 seed_count = sum(len(v) for v in result['seed_data'].values())
-                print(f"[MS-Module-Load] [polariServer] Init complete: {len(result['registered_classes'])} classes, {crude_ok} CRUDE endpoints, {crude_fail} CRUDE failures, {seed_count} seed records")
+                print(f"[ModuleLoad] {module_id}: {len(class_names)} classes, {crude_ok} CRUDE, {seed_count} seed records")
             except Exception as e:
-                print(f"[MS-Module-Load] [polariServer] ERROR: Could not initialize Materials Science module: {e}")
+                print(f"[ModuleLoad] {module_id}: ERROR: {e}")
                 import traceback
                 traceback.print_exc()
-        elif not ms_enabled:
-            print("[MS-Module-Load] [polariServer] Materials Science module disabled by configuration")
 
     #Creates a new sink which operates stictly over a secure local network (Wifi Router)
     def makeNewLocalSink(self, localNetworkedSystemIP, remotePort, managerAPI):

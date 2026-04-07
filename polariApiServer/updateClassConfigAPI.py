@@ -49,19 +49,55 @@ class UpdateClassConfigAPI(treeObject):
             if 'excludeFromCRUDE' in config:
                 polyTypedObj.excludeFromCRUDE = bool(config['excludeFromCRUDE'])
 
+            bind_result = None
+            if 'moduleBinding' in config:
+                val = config['moduleBinding']
+                old_binding = getattr(polyTypedObj, 'moduleBinding', None)
+                # Allow null/empty to unbind
+                polyTypedObj.moduleBinding = val if val else None
+                # Update the module_classes tracking on the server
+                if hasattr(self.polServer, '_module_classes'):
+                    # Remove from old module
+                    for mid, classes in self.polServer._module_classes.items():
+                        if className in classes:
+                            classes.remove(className)
+                    # Add to new module
+                    if val:
+                        if val not in self.polServer._module_classes:
+                            self.polServer._module_classes[val] = []
+                        if className not in self.polServer._module_classes[val]:
+                            self.polServer._module_classes[val].append(className)
+
+                # Write class source file to the module if requested
+                write_to_module = config.get('writeToModule', False)
+                if val and write_to_module:
+                    try:
+                        from moduleService.moduleScaffoldGenerator import bind_class_to_module
+                        bind_result = bind_class_to_module(className, polyTypedObj, val)
+                    except Exception as we:
+                        print(f"[UpdateClassConfig] Warning: Failed to write class to module: {we}")
+                        import traceback
+                        traceback.print_exc()
+                        bind_result = {'error': str(we)}
+
             # Build response config from current state
             response_config = {
                 'isStateSpaceObject': getattr(polyTypedObj, 'isStateSpaceObject', False),
                 'allowClassEdit': getattr(polyTypedObj, 'allowClassEdit', False),
                 'excludeFromCRUDE': getattr(polyTypedObj, 'excludeFromCRUDE', False),
+                'moduleBinding': getattr(polyTypedObj, 'moduleBinding', None),
             }
 
-            response.status = falcon.HTTP_200
-            response.media = {
+            resp = {
                 'success': True,
                 'className': className,
-                'config': response_config
+                'config': response_config,
             }
+            if bind_result:
+                resp['moduleWriteResult'] = bind_result
+
+            response.status = falcon.HTTP_200
+            response.media = resp
 
         except json.JSONDecodeError:
             response.status = falcon.HTTP_400

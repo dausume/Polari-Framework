@@ -73,7 +73,9 @@ class polyTypedObjectAPI(treeObject):
                             # Whether this class has CRUDE API endpoints (False = has endpoints, True = excluded)
                             "excludeFromCRUDE": getattr(typingObj, 'excludeFromCRUDE', True),
                             # Whether this is a dynamically created class (vs core framework class)
-                            "isDynamicClass": getattr(typingObj.classDefinition, '_dynamicClass', False) if typingObj.classDefinition else False
+                            "isDynamicClass": getattr(typingObj.classDefinition, '_dynamicClass', False) if typingObj.classDefinition else False,
+                            # Which Polari module this class belongs to
+                            "moduleBinding": getattr(typingObj, 'moduleBinding', None),
                         }
                     }
 

@@ -123,13 +123,17 @@ class GeoJsonAPI(treeObject):
         if coordinateMode == 'tuple':
             tupleVariable = coordConfig.get('tupleVariable', '')
             tupleOrder = coordConfig.get('tupleOrder', 'lat-lng')
+            inst_id = getattr(instance, 'id', None) or (instance.get('id') if isinstance(instance, dict) else '?')
             if tupleVariable and tupleVariable in instance:
                 tupleVal = instance[tupleVariable]
+                print(f'[GeoJSON _parseCoordinates] Instance {inst_id}: tupleVar={tupleVariable}, raw={tupleVal!r} (type={type(tupleVal).__name__})', flush=True)
                 # Parse tuple value - could be a string representation or actual list
                 if isinstance(tupleVal, str):
                     try:
                         tupleVal = json.loads(tupleVal)
-                    except (json.JSONDecodeError, ValueError):
+                        print(f'[GeoJSON _parseCoordinates] Instance {inst_id}: parsed string to {tupleVal!r}', flush=True)
+                    except (json.JSONDecodeError, ValueError) as e:
+                        print(f'[GeoJSON _parseCoordinates] Instance {inst_id}: JSON parse failed: {e}', flush=True)
                         return None, None
                 if isinstance(tupleVal, (list, tuple)) and len(tupleVal) >= 2:
                     try:
@@ -139,8 +143,14 @@ class GeoJsonAPI(treeObject):
                         else:  # lng-lat
                             lng = float(tupleVal[0])
                             lat = float(tupleVal[1])
-                    except (ValueError, TypeError):
+                        print(f'[GeoJSON _parseCoordinates] Instance {inst_id}: extracted lat={lat}, lng={lng}', flush=True)
+                    except (ValueError, TypeError) as e:
+                        print(f'[GeoJSON _parseCoordinates] Instance {inst_id}: float conversion failed: {e}', flush=True)
                         return None, None
+                else:
+                    print(f'[GeoJSON _parseCoordinates] Instance {inst_id}: tupleVal not a valid list after parse: {tupleVal!r} (isList={isinstance(tupleVal, (list, tuple))})', flush=True)
+            else:
+                print(f'[GeoJSON _parseCoordinates] Instance {inst_id}: tupleVariable={tupleVariable!r} not found in instance keys={list(instance.keys()) if isinstance(instance, dict) else "N/A"}', flush=True)
 
         elif coordinateMode == 'separate':
             latVar = coordConfig.get('latitudeVariable', '')

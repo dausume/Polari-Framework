@@ -1,17 +1,18 @@
 """
 Module Management API
 
-Provides endpoints for viewing and toggling optional modules
-(e.g., Materials Science) at runtime.
+Provides endpoints for viewing, toggling, creating, and seeding optional modules.
 
-GET  /modules       — list all known modules with status
-PUT  /modules       — enable or disable a module
-POST /modules/seed  — load seed data for an enabled module
+GET  /modules        — list all discovered modules with status
+PUT  /modules        — enable or disable a module
+POST /modules/seed   — load seed data for an enabled module
+POST /modules/create — create a new module from a definition
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
 import falcon
 import json
+import importlib
 
 
 class ModulesAPI(treeObject):
@@ -26,12 +27,14 @@ class ModulesAPI(treeObject):
         if polServer is not None:
             polServer.falconServer.add_route(self.apiName, self)
             polServer.falconServer.add_route(self.apiName + '/seed', self, suffix='seed')
+            polServer.falconServer.add_route(self.apiName + '/create', self, suffix='create')
+            polServer.falconServer.add_route(self.apiName + '/{module_id}', self, suffix='detail')
 
     # ------------------------------------------------------------------
     # GET /modules
     # ------------------------------------------------------------------
     def on_get(self, request, response):
-        """Return the list of known optional modules with their status."""
+        """Return the list of discovered modules with their status."""
         try:
             modules = self._build_module_list()
             response.media = {"success": True, "modules": modules}
@@ -39,7 +42,84 @@ class ModulesAPI(treeObject):
         except Exception as err:
             response.status = falcon.HTTP_500
             response.media = {"success": False, "error": str(err)}
-            print(f"[MS-Module-Load] [ModulesAPI] Error in GET: {err}")
+            print(f"[ModulesAPI] Error in GET: {err}")
+            import traceback
+            traceback.print_exc()
+
+        response.set_header('Powered-By', 'Polari')
+
+    # ------------------------------------------------------------------
+    # GET /modules/{module_id}
+    # ------------------------------------------------------------------
+    def on_get_detail(self, request, response, module_id):
+        """Return detailed info for a single module including classes and dependencies."""
+        try:
+            from moduleService.moduleDiscovery import (
+                discover_available_modules, scan_python_imports,
+                detect_cross_module_dependencies
+            )
+
+            discovered = discover_available_modules()
+            if module_id not in discovered:
+                response.status = falcon.HTTP_404
+                response.media = {"success": False, "error": f"Module '{module_id}' not found"}
+                return
+
+            info = discovered[module_id]
+            module_classes = self.polServer._module_classes.get(module_id, [])
+            is_enabled = len(module_classes) > 0
+            # Debug: log class names and their types
+            for i, cn in enumerate(module_classes):
+                print(f"[ModulesAPI] {module_id} class[{i}]: {cn!r} (type={type(cn).__name__})", flush=True)
+
+            # Count instances
+            instance_count = 0
+            if is_enabled:
+                for cn in module_classes:
+                    if cn in self.manager.objectTables:
+                        instance_count += len(self.manager.objectTables[cn])
+
+            # Build class details
+            classes_detail = []
+            if is_enabled:
+                classes_detail = self._get_classes_from_typing(module_classes)
+            else:
+                # For disabled user-created modules, read from metadata
+                classes_detail = self._get_classes_from_metadata(info['dir_path'])
+
+            # Scan Python imports
+            python_deps = scan_python_imports(info['dir_path'])
+
+            # Detect cross-module Polari dependencies
+            polari_deps = []
+            if is_enabled:
+                polari_deps = detect_cross_module_dependencies(
+                    module_id, module_classes,
+                    self.polServer._module_classes, self.manager
+                )
+
+            response.media = {
+                "success": True,
+                "module": {
+                    "id": module_id,
+                    "name": info['display_name'],
+                    "description": info['description'],
+                    "enabled": is_enabled,
+                    "available": info['available'],
+                    "userCreated": info['user_created'],
+                    "classCount": len(module_classes) if is_enabled else len(classes_detail),
+                    "seedInstanceCount": instance_count,
+                    "classes": classes_detail,
+                    "pythonDependencies": python_deps,
+                    "polariDependencies": polari_deps,
+                }
+            }
+            response.status = falcon.HTTP_200
+
+        except Exception as err:
+            response.status = falcon.HTTP_500
+            response.media = {"success": False, "error": str(err)}
+            print(f"[ModulesAPI] Error in GET detail: {err}")
             import traceback
             traceback.print_exc()
 
@@ -49,11 +129,9 @@ class ModulesAPI(treeObject):
     # PUT /modules
     # ------------------------------------------------------------------
     def on_put(self, request, response):
-        """
-        Toggle a module on or off.
+        """Toggle a module on or off.
 
-        Request body:
-            { "moduleId": "materials_science", "enabled": true }
+        Request body: { "moduleId": "<module_id>", "enabled": true/false }
         """
         try:
             body = request.media
@@ -70,26 +148,37 @@ class ModulesAPI(treeObject):
                 response.media = {"success": False, "error": "enabled is required"}
                 return
 
-            if module_id == 'materials_science':
-                self._last_purge_summary = None
-                self._toggle_materials_science(bool(enabled))
-                resp_body = {
-                    "success": True,
-                    "message": f"Materials Science module {'enabled' if enabled else 'disabled'}",
-                    "modules": self._build_module_list()
-                }
-                if self._last_purge_summary is not None:
-                    resp_body["purgeSummary"] = self._last_purge_summary
-                response.media = resp_body
-                response.status = falcon.HTTP_200
-            else:
+            # Verify the module exists
+            from moduleService.moduleDiscovery import discover_available_modules
+            discovered = discover_available_modules()
+            if module_id not in discovered:
                 response.status = falcon.HTTP_404
                 response.media = {"success": False, "error": f"Unknown module: {module_id}"}
+                return
+
+            if not discovered[module_id]['available']:
+                response.status = falcon.HTTP_400
+                response.media = {"success": False, "error": f"Module {module_id} is not available (import failed)"}
+                return
+
+            self._last_purge_summary = None
+            self._toggle_module(module_id, bool(enabled), discovered[module_id])
+
+            display_name = discovered[module_id]['display_name']
+            resp_body = {
+                "success": True,
+                "message": f"{display_name} module {'enabled' if enabled else 'disabled'}",
+                "modules": self._build_module_list()
+            }
+            if self._last_purge_summary is not None:
+                resp_body["purgeSummary"] = self._last_purge_summary
+            response.media = resp_body
+            response.status = falcon.HTTP_200
 
         except Exception as err:
             response.status = falcon.HTTP_500
             response.media = {"success": False, "error": str(err)}
-            print(f"[MS-Module-Load] [ModulesAPI] Error in PUT: {err}")
+            print(f"[ModulesAPI] Error in PUT: {err}")
             import traceback
             traceback.print_exc()
 
@@ -99,11 +188,9 @@ class ModulesAPI(treeObject):
     # POST /modules/seed
     # ------------------------------------------------------------------
     def on_post_seed(self, request, response):
-        """
-        Load seed data for an enabled module.
+        """Load seed data for an enabled module.
 
-        Request body:
-            { "moduleId": "materials_science" }
+        Request body: { "moduleId": "<module_id>" }
         """
         try:
             body = request.media
@@ -114,29 +201,82 @@ class ModulesAPI(treeObject):
                 response.media = {"success": False, "error": "moduleId is required"}
                 return
 
-            if module_id == 'materials_science':
-                ms_classes = getattr(self.polServer, '_materials_science_classes', [])
-                if not ms_classes:
-                    response.status = falcon.HTTP_400
-                    response.media = {"success": False, "error": "Materials Science module must be enabled before loading seed data"}
-                    return
+            module_classes = self.polServer._module_classes.get(module_id, [])
+            if not module_classes:
+                response.status = falcon.HTTP_400
+                response.media = {"success": False, "error": f"Module {module_id} must be enabled before loading seed data"}
+                return
 
-                seed_result = self._seed_materials_science()
-                response.media = {
-                    "success": True,
-                    "message": f"Loaded {seed_result['totalCount']} seed records across {seed_result['classCount']} classes",
-                    "seedResult": seed_result,
-                    "modules": self._build_module_list()
-                }
-                response.status = falcon.HTTP_200
-            else:
-                response.status = falcon.HTTP_404
-                response.media = {"success": False, "error": f"Unknown module: {module_id}"}
+            seed_result = self._seed_module(module_id)
+            response.media = {
+                "success": True,
+                "message": f"Loaded {seed_result['totalCount']} seed records across {seed_result['classCount']} classes",
+                "seedResult": seed_result,
+                "modules": self._build_module_list()
+            }
+            response.status = falcon.HTTP_200
 
         except Exception as err:
             response.status = falcon.HTTP_500
             response.media = {"success": False, "error": str(err)}
-            print(f"[MS-Module-Load] [ModulesAPI] Error in POST /seed: {err}")
+            print(f"[ModulesAPI] Error in POST /seed: {err}")
+            import traceback
+            traceback.print_exc()
+
+        response.set_header('Powered-By', 'Polari')
+
+    # ------------------------------------------------------------------
+    # POST /modules/create
+    # ------------------------------------------------------------------
+    def on_post_create(self, request, response):
+        """Create a new module from a definition.
+
+        Request body: {
+            "name": "My Module",
+            "description": "...",
+            "classes": [
+                {
+                    "className": "MyClass",
+                    "fields": [
+                        {"name": "title", "type": "str"},
+                        {"name": "count", "type": "int"}
+                    ]
+                }
+            ]
+        }
+        """
+        try:
+            body = request.media
+            if not body:
+                response.status = falcon.HTTP_400
+                response.media = {"success": False, "error": "Request body is required"}
+                return
+
+            from moduleService.moduleScaffoldGenerator import scaffold_module
+
+            result = scaffold_module(body)
+
+            # Persist new module as disabled by default
+            from moduleService.moduleState import save_module_state
+            save_module_state(result['module_id'], False)
+
+            response.media = {
+                "success": True,
+                "message": f"Module '{body.get('name', '')}' created successfully",
+                "moduleId": result['module_id'],
+                "packageName": result['package_name'],
+                "classesCreated": result['classes_created'],
+                "modules": self._build_module_list()
+            }
+            response.status = falcon.HTTP_201
+
+        except ValueError as ve:
+            response.status = falcon.HTTP_400
+            response.media = {"success": False, "error": str(ve)}
+        except Exception as err:
+            response.status = falcon.HTTP_500
+            response.media = {"success": False, "error": str(err)}
+            print(f"[ModulesAPI] Error in POST /create: {err}")
             import traceback
             traceback.print_exc()
 
@@ -146,62 +286,70 @@ class ModulesAPI(treeObject):
     # Helpers
     # ------------------------------------------------------------------
     def _build_module_list(self):
-        """Build the list of module descriptors."""
-        # Check availability
-        try:
-            from polariMaterialsScienceModule import initialize as _init_ms
-            ms_available = True
-        except ImportError:
-            ms_available = False
+        """Build the list of module descriptors from dynamic discovery."""
+        from moduleService.moduleDiscovery import discover_available_modules
 
-        ms_classes = getattr(self.polServer, '_materials_science_classes', [])
-        ms_enabled = len(ms_classes) > 0
+        discovered = discover_available_modules()
+        modules = []
 
-        # Count seed data instances in objectTables
-        seed_instance_count = 0
-        if ms_enabled:
-            for cls_name in ms_classes:
-                if cls_name in self.manager.objectTables:
-                    seed_instance_count += len(self.manager.objectTables[cls_name])
+        for module_id, info in discovered.items():
+            module_classes = self.polServer._module_classes.get(module_id, [])
+            is_enabled = len(module_classes) > 0
 
-        return [
-            {
-                "id": "materials_science",
-                "name": "Materials Science",
-                "description": "Material properties, devices, resolutions, and formulations",
-                "enabled": ms_enabled,
-                "available": ms_available,
-                "classCount": len(ms_classes),
-                "seedInstanceCount": seed_instance_count
-            }
-        ]
+            # Count instances in objectTables
+            instance_count = 0
+            if is_enabled:
+                for cls_name in module_classes:
+                    if cls_name in self.manager.objectTables:
+                        instance_count += len(self.manager.objectTables[cls_name])
 
-    def _toggle_materials_science(self, enabled: bool):
-        """Enable or disable the Materials Science module at runtime (classes only, no seed data)."""
+            modules.append({
+                "id": module_id,
+                "name": info['display_name'],
+                "description": info['description'],
+                "enabled": is_enabled,
+                "available": info['available'],
+                "classCount": len(module_classes),
+                "seedInstanceCount": instance_count,
+                "userCreated": info['user_created'],
+            })
+
+        return modules
+
+    def _toggle_module(self, module_id, enabled, module_info):
+        """Enable or disable a module at runtime."""
         from config_loader import config
+        from moduleService.moduleDiscovery import module_id_to_package
 
         if enabled:
             # Already enabled?
-            if getattr(self.polServer, '_materials_science_classes', []):
-                print("[MS-Module-Load] [ModulesAPI] Already enabled, skipping")
+            if self.polServer._module_classes.get(module_id, []):
+                print(f"[ModulesAPI] {module_id} already enabled, skipping")
                 return
 
+            package_name = module_info['package_name']
             try:
-                from polariMaterialsScienceModule import initialize as initialize_materials_science
+                mod = importlib.import_module(package_name)
             except ImportError:
-                raise RuntimeError("Materials Science Python package is not installed")
+                raise RuntimeError(f"Module package '{package_name}' could not be imported")
 
-            print(f"[MS-Module-Load] [ModulesAPI] Enabling Materials Science module via runtime toggle")
-            print(f"[MS-Module-Load] [ModulesAPI] manager.objectTypingDict BEFORE: {len(self.manager.objectTypingDict)} entries")
+            print(f"[ModulesAPI] Enabling {module_id} ({package_name})")
 
             # Only register classes — seed data is loaded separately via POST /modules/seed
-            result = initialize_materials_science(
-                manager=self.manager,
-                include_seed_data=False
-            )
+            result = mod.initialize(manager=self.manager, include_seed_data=False)
 
-            print(f"[MS-Module-Load] [ModulesAPI] manager.objectTypingDict AFTER: {len(self.manager.objectTypingDict)} entries")
-            self.polServer._materials_science_classes = list(result['registered_classes'].keys())
+            class_names = list(result['registered_classes'].keys())
+            self.polServer._module_classes[module_id] = class_names
+
+            # Ensure moduleBinding is set on all classes (even pre-existing ones)
+            for cn in class_names:
+                typing = self.manager.objectTypingDict.get(cn)
+                if typing:
+                    typing.moduleBinding = module_id
+
+            # Backwards compat for materials_science
+            if module_id == 'materials_science':
+                self.polServer._materials_science_classes = class_names
 
             crude_ok = 0
             crude_fail = 0
@@ -211,58 +359,164 @@ class ModulesAPI(treeObject):
                     crude_ok += 1
                 except Exception as ce:
                     crude_fail += 1
-                    print(f"[MS-Module-Load] [ModulesAPI] CRUDE failed for {class_name}: {ce}")
+                    print(f"[ModulesAPI] CRUDE failed for {class_name}: {ce}")
 
-            print(f"[MS-Module-Load] [ModulesAPI] Enabled: {len(result['registered_classes'])} classes, {crude_ok} CRUDE ok, {crude_fail} CRUDE fail")
+            print(f"[ModulesAPI] Enabled {module_id}: {len(class_names)} classes, {crude_ok} CRUDE ok, {crude_fail} CRUDE fail")
         else:
-            # Disable: purge all data, typing, CRUDE endpoints, and tree entries
-            ms_classes = getattr(self.polServer, '_materials_science_classes', [])
+            # Disable: purge all data, typing, CRUDE endpoints
+            module_classes = self.polServer._module_classes.get(module_id, [])
             purge_summaries = {}
             total_instances = 0
-            for class_name in ms_classes:
+            for class_name in module_classes:
                 try:
                     result = self.manager.purgeObjectType(class_name)
                     purge_summaries[class_name] = result
                     total_instances += result.get('instancesPurged', 0)
                 except Exception as pe:
-                    print(f"[MS-Module-Load] [ModulesAPI] Purge failed for {class_name}: {pe}")
+                    print(f"[ModulesAPI] Purge failed for {class_name}: {pe}")
                     purge_summaries[class_name] = {'error': str(pe)}
-            self.polServer._materials_science_classes = []
+
+            self.polServer._module_classes[module_id] = []
+
+            # Backwards compat for materials_science
+            if module_id == 'materials_science':
+                self.polServer._materials_science_classes = []
+
             self._last_purge_summary = {
-                'classesPurged': len(ms_classes),
+                'classesPurged': len(module_classes),
                 'instancesPurged': total_instances,
                 'details': purge_summaries
             }
-            print(f"[MS-Module-Load] [ModulesAPI] Disabled: purged {len(ms_classes)} classes, {total_instances} instances")
+            print(f"[ModulesAPI] Disabled {module_id}: purged {len(module_classes)} classes, {total_instances} instances")
 
-        # Persist to runtime config so subsequent config.get() calls reflect the change
-        config.set_runtime('modules.materials_science.enabled', enabled)
+        # Persist to runtime config (volatile) and state file (survives restarts)
+        config.set_runtime(f'modules.{module_id}.enabled', enabled)
+        from moduleService.moduleState import save_module_state
+        save_module_state(module_id, enabled)
 
-    def _seed_materials_science(self):
-        """Load seed data for the Materials Science module."""
-        from polariMaterialsScienceModule.seedData import seed_initial_data
+    def _seed_module(self, module_id):
+        """Load seed data for a module."""
+        from moduleService.moduleDiscovery import module_id_to_package
 
-        print(f"[MS-Module-Load] [ModulesAPI] Loading seed data...")
-        print(f"[MS-Module-Load] [ModulesAPI] objectTables BEFORE seed: {len(self.manager.objectTables)} class keys")
+        package_name = module_id_to_package(module_id)
+        seed_module = importlib.import_module(f'{package_name}.seedData')
 
-        created = seed_initial_data(manager=self.manager)
+        print(f"[ModulesAPI] Loading seed data for {module_id}...")
+        created = seed_module.seed_initial_data(manager=self.manager)
 
-        print(f"[MS-Module-Load] [ModulesAPI] objectTables AFTER seed: {len(self.manager.objectTables)} class keys")
-
-        # Build result summary
         class_details = {}
         total_count = 0
         for cls_name, instances in created.items():
             class_details[cls_name] = len(instances)
             total_count += len(instances)
-            # Verify they landed in objectTables
-            in_tables = len(self.manager.objectTables.get(cls_name, {}))
-            print(f"[MS-Module-Load] [ModulesAPI]   {cls_name}: {len(instances)} created, {in_tables} in objectTables")
 
-        print(f"[MS-Module-Load] [ModulesAPI] Seed complete: {total_count} total instances")
+        print(f"[ModulesAPI] Seed complete for {module_id}: {total_count} total instances")
 
         return {
             "totalCount": total_count,
             "classCount": len(created),
             "classes": class_details
         }
+
+    def _get_classes_from_typing(self, class_names):
+        """Extract class detail info from the manager's objectTypingDict."""
+        classes_detail = []
+        for class_name in sorted(class_names):
+            # Ensure class_name is a string (guard against corrupted _module_classes)
+            if not isinstance(class_name, str):
+                print(f"[ModulesAPI] WARNING: non-string class name in module class list: {class_name!r} (type={type(class_name).__name__})")
+                continue
+            typing_obj = self.manager.objectTypingDict.get(class_name)
+            if typing_obj is None:
+                classes_detail.append({
+                    "className": str(class_name),
+                    "fields": [],
+                    "referencedBy": [],
+                    "inheritsFrom": [],
+                    "detailsAvailable": False,
+                })
+                continue
+
+            # Extract fields
+            fields = []
+            # Internal vars to exclude from field listing
+            _INTERNAL_VARS = {
+                'manager', 'branch', 'id', 'objectTree', 'objectReferencesDict',
+                'sourceFiles', 'identifiers', 'variableNameList', 'polyTypedVars',
+                'polyTypedVarsDict', 'typingDicts', 'baseAccessDictionary',
+                'basePermissionDictionary', 'eventsList', 'analyzeValuesMode',
+            }
+            vars_dict = getattr(typing_obj, 'polyTypedVarsDict', {})
+            for var_name, var_typing in vars_dict.items():
+                if var_name in _INTERNAL_VARS:
+                    continue
+                type_name = 'any'
+                default_val = ''
+                if hasattr(var_typing, 'pythonTypeDefault'):
+                    raw_type = var_typing.pythonTypeDefault
+                    type_name = str(raw_type) if raw_type is not None else 'any'
+                # polyTypedVariable doesn't have a defaultValue attribute;
+                # pull from the constructor signature instead
+                if hasattr(var_typing, 'defaultValue'):
+                    dv = var_typing.defaultValue
+                    default_val = str(dv) if dv is not None else ''
+                fields.append({
+                    "name": str(var_name),
+                    "type": type_name,
+                    "defaultValue": default_val,
+                })
+
+            # Extract referenced-by classes
+            obj_refs = getattr(typing_obj, 'objectReferencesDict', {})
+            referenced_by = sorted(obj_refs.keys()) if isinstance(obj_refs, dict) else []
+
+            # Extract inheritsFrom - ensure all values are plain strings
+            inherits = getattr(typing_obj, 'inheritsFrom', None)
+            inherits_list = []
+            if inherits and isinstance(inherits, dict):
+                for _var, parent in inherits.items():
+                    if isinstance(parent, str):
+                        inherits_list.append(parent)
+                    elif hasattr(parent, '__name__'):
+                        inherits_list.append(parent.__name__)
+                    else:
+                        inherits_list.append(str(parent))
+
+            # Use typing_obj.className as the authoritative name (always a string)
+            resolved_name = getattr(typing_obj, 'className', None) or class_name
+            classes_detail.append({
+                "className": str(resolved_name),
+                "fields": fields,
+                "referencedBy": referenced_by,
+                "inheritsFrom": inherits_list,
+                "detailsAvailable": True,
+            })
+
+        return classes_detail
+
+    def _get_classes_from_metadata(self, dir_path):
+        """Read class definitions from _module_metadata.json for disabled modules."""
+        import os
+        metadata_path = os.path.join(dir_path, '_module_metadata.json')
+        if not os.path.isfile(metadata_path):
+            return []
+
+        try:
+            with open(metadata_path, 'r') as f:
+                metadata = json.load(f)
+            classes = metadata.get('classes', [])
+            return [
+                {
+                    "className": cls.get('className', ''),
+                    "fields": [
+                        {"name": fl.get('name', ''), "type": fl.get('type', 'str'), "defaultValue": ''}
+                        for fl in cls.get('fields', [])
+                    ],
+                    "referencedBy": [],
+                    "inheritsFrom": [],
+                    "detailsAvailable": False,
+                }
+                for cls in classes
+            ]
+        except Exception:
+            return []

@@ -30,6 +30,7 @@ Usage:
 """
 
 import os
+import re
 import yaml
 import json
 from pathlib import Path
@@ -246,6 +247,13 @@ class ConfigLoader:
             Environment variable value or None if not set
         """
         env_var = self.ENV_VAR_MAPPING.get(key)
+        # Dynamic mapping for module keys: modules.<name>.enabled -> MODULE_<NAME>_ENABLED
+        if not env_var:
+            m = re.match(r'^modules\.(\w+)\.(enabled|include_seed_data)$', key)
+            if m:
+                mod_name = m.group(1).upper()
+                suffix = m.group(2).upper()
+                env_var = f'MODULE_{mod_name}_{suffix}'
         if env_var:
             value = os.environ.get(env_var)
             if value is not None:
@@ -316,7 +324,7 @@ class ConfigLoader:
         Returns:
             True if set successfully, False if key is not runtime-configurable
         """
-        if key not in self.RUNTIME_CONFIGURABLE_KEYS:
+        if key not in self.RUNTIME_CONFIGURABLE_KEYS and not re.match(r'^modules\.\w+\.(enabled|include_seed_data)$', key):
             print(f"[Config] Warning: Key '{key}' is not runtime-configurable")
             return False
 

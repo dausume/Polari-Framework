@@ -208,10 +208,19 @@ class ApiConfigAPI(treeObject):
                             "geoJson": {"enabled": False, "endpoint": None, "prefix": "/geojson/", "description": "GeoJSON FeatureCollection (maps/spatial data)"}
                         }
 
-                    # Determine source module
+                    # Determine source module - check moduleBinding first, then _module_classes
                     source_module = 'framework'  # default
-                    if hasattr(self.polServer, '_materials_science_classes') and className in self.polServer._materials_science_classes:
-                        source_module = 'materials_science'
+                    module_binding = getattr(typingObj, 'moduleBinding', None)
+                    if module_binding:
+                        source_module = module_binding
+                    elif hasattr(self.polServer, '_module_classes'):
+                        for mid, mod_classes in self.polServer._module_classes.items():
+                            if className in mod_classes:
+                                source_module = mid
+                                break
+                        else:
+                            if not isBaseObject:
+                                source_module = 'custom'
                     elif not isBaseObject:
                         source_module = 'custom'
 
@@ -227,6 +236,7 @@ class ApiConfigAPI(treeObject):
                         "isStateSpaceObject": getattr(typingObj, 'isStateSpaceObject', False),
                         "isDynamicClass": getattr(typingObj.classDefinition, '_dynamicClass', False) if typingObj.classDefinition else False,
                         "serverAccessOnly": serverAccessOnly,
+                        "moduleBinding": getattr(typingObj, 'moduleBinding', None),
                         "generalAccess": {
                             "baseAccessDictionary": self._serialize_dict(baseAccessDict),
                             "basePermissionDictionary": self._serialize_dict(basePermDict),
