@@ -1,12 +1,12 @@
 from objectTreeDecorators import treeObject, treeObjectInit
 
 
-class GardenBoundaryPost(treeObject):
+class GardenBoundary(treeObject):
     """
-    GardenBoundaryPost model class.
+    GardenBoundary model class.
 
     Attributes:
-        boundaryPost: str
+        bounds: map_polygon
     """
 
     @treeObjectInit
@@ -14,9 +14,9 @@ class GardenBoundaryPost(treeObject):
                  manager=None,
                  branch=None,
                  id=None,
-                 boundaryPost=''):
+                 bounds='{}'):
         treeObject.__init__(self, manager=manager, branch=branch, id=id)
-        self.boundaryPost = boundaryPost
+        self.bounds = bounds
 
     def __repr__(self):
-        return f"GardenBoundaryPost(id='{self.id}')"
+        return f"GardenBoundary(id='{self.id}')"

@@ -78,7 +78,7 @@ import secrets
 import subprocess
 
 # Dynamic module discovery
-from moduleService.moduleDiscovery import discover_available_modules
+from moduleService.moduleDiscovery import discover_available_modules, apply_metadata_type_overrides
 
 # Import configuration loader for CORS origins
 try:
@@ -408,6 +408,9 @@ class polariServer(treeObject):
                     typing = self.manager.objectTypingDict.get(cn)
                     if typing:
                         typing.moduleBinding = module_id
+
+                # Apply semantic type overrides from metadata (safety net)
+                apply_metadata_type_overrides(module_info['dir_path'], self.manager)
 
                 # Backwards compat for materials_science
                 if module_id == 'materials_science':

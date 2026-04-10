@@ -11,12 +11,17 @@ import json
 import keyword
 from datetime import datetime, timezone
 
-from moduleService.moduleDiscovery import _snake_to_pascal, _pascal_to_snake, _get_framework_root
+from moduleService.moduleDiscovery import _snake_to_pascal, _pascal_to_snake, _get_framework_root, _get_modules_dir
 
 
 # ── Validation ────────────────────────────────────────────────────────────────
 
-ALLOWED_FIELD_TYPES = {'str', 'int', 'float', 'bool', 'list', 'dict'}
+ALLOWED_FIELD_TYPES = {
+    'str', 'int', 'float', 'bool', 'list', 'dict',
+    'map_coordinate', 'map_line_segment', 'map_polygon',
+    'reference', 'date_duration', 'datetime_duration',
+    'time', 'time_duration', 'precision_time', 'schedule',
+}
 
 TYPE_DEFAULTS = {
     'str': "''",
@@ -25,6 +30,24 @@ TYPE_DEFAULTS = {
     'bool': 'False',
     'list': '[]',
     'dict': '{}',
+    'map_coordinate': "'[]'",
+    'map_line_segment': "'{}'",
+    'map_polygon': "'{}'",
+    'reference': 'None',
+    'date_duration': 'None',
+    'datetime_duration': 'None',
+    'time': 'None',
+    'time_duration': 'None',
+    'precision_time': 'None',
+    'schedule': 'None',
+}
+
+# Semantic types whose Python default is a string but should NOT be typed as 'str'.
+# Used by initializeVarsFromSignature override in register files.
+SEMANTIC_TYPES = {
+    'map_coordinate', 'map_line_segment', 'map_polygon',
+    'reference', 'date_duration', 'datetime_duration',
+    'time', 'time_duration', 'precision_time', 'schedule',
 }
 
 
@@ -75,7 +98,7 @@ def validate_module_definition(definition):
         raise ValueError(f'Module name "{name}" cannot be converted to a valid identifier')
 
     # Check for directory collision
-    framework_root = _get_framework_root()
+    framework_root = _get_modules_dir()
     dir_name = 'polari' + pascal_name + 'Module'
     if os.path.exists(os.path.join(framework_root, dir_name)):
         raise ValueError(f'Module directory "{dir_name}" already exists')
@@ -192,6 +215,33 @@ def _generate_register_file(pascal_name, snake_name, classes):
         dict_entries.append(f"        '{cn}': {cn},")
     dict_str = '\n'.join(dict_entries)
 
+    # Build field type overrides for semantic types (map_coordinate, etc.)
+    # These must be applied after initializeVarsFromSignature since it can't infer them.
+    type_override_entries = []
+    for cls in classes:
+        cn = cls['className']
+        fields = cls.get('fields', [])
+        for field in fields:
+            ft = field.get('type', 'str')
+            if ft in SEMANTIC_TYPES:
+                type_override_entries.append(
+                    f"        ('{cn}', '{field['name']}', '{ft}'),"
+                )
+
+    if type_override_entries:
+        overrides_block = "    # Semantic type overrides (types that can't be inferred from defaults)\n"
+        overrides_block += "    _FIELD_TYPE_OVERRIDES = [\n"
+        overrides_block += '\n'.join(type_override_entries)
+        overrides_block += "\n    ]\n"
+        overrides_block += "    for _cls_name, _field_name, _field_type in _FIELD_TYPE_OVERRIDES:\n"
+        overrides_block += "        _typing = manager.objectTypingDict.get(_cls_name)\n"
+        overrides_block += "        if _typing and hasattr(_typing, 'polyTypedVarsDict'):\n"
+        overrides_block += "            _var = _typing.polyTypedVarsDict.get(_field_name)\n"
+        overrides_block += "            if _var:\n"
+        overrides_block += "                _var.pythonTypeDefault = _field_type\n"
+    else:
+        overrides_block = ""
+
     return f'''"""
 Registration for {pascal_name} module.
 
@@ -227,6 +277,7 @@ def register_{snake_name}_defaults(manager=None):
                 typing_obj.moduleBinding = '{snake_name}'
                 typing_obj.initializeVarsFromSignature()
 
+{overrides_block}
     return registered_classes
 '''
 
@@ -328,7 +379,7 @@ def scaffold_module(definition, framework_root=None):
     validate_module_definition(definition)
 
     if framework_root is None:
-        framework_root = _get_framework_root()
+        framework_root = _get_modules_dir()
 
     name = definition['name'].strip()
     description = definition.get('description', '').strip()
@@ -428,11 +479,13 @@ def _extract_fields_from_typing(typing_obj):
         if var_name in skip_vars:
             continue
         type_name = getattr(var_typing, 'pythonTypeDefault', 'str') or 'str'
-        # Normalize complex type strings like 'dict()' or 'list()' to base types
-        base_type = type_name.split('(')[0] if '(' in type_name else type_name
-        if base_type not in ALLOWED_FIELD_TYPES and base_type != 'any':
-            base_type = 'str'
-        fields.append({'name': var_name, 'type': base_type})
+        # Preserve semantic types (map_coordinate, etc.); normalize complex compound types
+        if type_name in ALLOWED_FIELD_TYPES:
+            resolved_type = type_name
+        else:
+            base_type = type_name.split('(')[0] if '(' in type_name else type_name
+            resolved_type = base_type if base_type in ALLOWED_FIELD_TYPES else 'str'
+        fields.append({'name': var_name, 'type': resolved_type})
     return fields
 
 
@@ -471,7 +524,7 @@ def bind_class_to_module(class_name, typing_obj, module_id, framework_root=None)
         ValueError: If the module directory doesn't exist.
     """
     if framework_root is None:
-        framework_root = _get_framework_root()
+        framework_root = _get_modules_dir()
 
     pascal_module = _snake_to_pascal(module_id)
     package_name = 'polari' + pascal_module + 'Module'

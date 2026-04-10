@@ -347,6 +347,10 @@ class ModulesAPI(treeObject):
                 if typing:
                     typing.moduleBinding = module_id
 
+            # Apply semantic type overrides from metadata (safety net)
+            from moduleService.moduleDiscovery import apply_metadata_type_overrides
+            apply_metadata_type_overrides(module_info['dir_path'], self.manager)
+
             # Backwards compat for materials_science
             if module_id == 'materials_science':
                 self.polServer._materials_science_classes = class_names

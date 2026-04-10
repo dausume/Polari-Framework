@@ -6,6 +6,7 @@ Auto-generated Polari module.
 
 from polariAgroForestryModule.plant import Plant
 from polariAgroForestryModule.gardenBoundaryPost import GardenBoundaryPost
+from polariAgroForestryModule.gardenBoundary import GardenBoundary
 
 from polariAgroForestryModule.registerAgroForestryModule import register_agro_forestry_defaults
 from polariAgroForestryModule.seedData import seed_initial_data
@@ -37,6 +38,7 @@ def initialize(manager=None, include_seed_data=False):
 __all__ = [
     'Plant',
     'GardenBoundaryPost',
+    'GardenBoundary',
     'initialize',
     'register_agro_forestry_defaults',
     'seed_initial_data',

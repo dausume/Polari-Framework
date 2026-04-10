@@ -59,6 +59,11 @@ def _get_framework_root():
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def _get_modules_dir():
+    """Get the modules subdirectory where polari*Module packages live."""
+    return os.path.join(_get_framework_root(), 'modules')
+
+
 def discover_available_modules(framework_root=None):
     """Scan the framework root for polari*Module directories.
 
@@ -76,7 +81,12 @@ def discover_available_modules(framework_root=None):
         }
     """
     if framework_root is None:
-        framework_root = _get_framework_root()
+        framework_root = _get_modules_dir()
+
+    # Ensure the modules directory exists
+    if not os.path.isdir(framework_root):
+        os.makedirs(framework_root, exist_ok=True)
+        return {}
 
     modules = {}
 
@@ -139,6 +149,60 @@ def discover_available_modules(framework_root=None):
         }
 
     return modules
+
+
+# ── Semantic Type Overrides ────────────────────────────────────────────────────
+
+# Types whose Python default value doesn't reveal the real semantic type.
+# initializeVarsFromSignature() infers 'str' from '[]' or '{}', losing
+# map_coordinate / map_polygon / map_line_segment.
+_SEMANTIC_TYPES = {
+    'map_coordinate', 'map_line_segment', 'map_polygon',
+    'reference', 'date_duration', 'datetime_duration',
+    'time', 'time_duration', 'precision_time', 'schedule',
+}
+
+
+def apply_metadata_type_overrides(module_dir_path, manager):
+    """Read _module_metadata.json and restore semantic field types on polyTypedVars.
+
+    This is the safety net: even if the register file's _FIELD_TYPE_OVERRIDES
+    block is missing or incomplete, this function will fix the types from the
+    authoritative metadata.
+
+    Args:
+        module_dir_path: Path to the module directory containing _module_metadata.json.
+        manager: The object tree manager (for objectTypingDict access).
+    """
+    metadata_path = os.path.join(module_dir_path, '_module_metadata.json')
+    if not os.path.isfile(metadata_path):
+        return
+
+    try:
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
+    except Exception:
+        return
+
+    classes = metadata.get('classes', [])
+    for cls_def in classes:
+        class_name = cls_def.get('className', '')
+        if not class_name:
+            continue
+
+        typing_obj = manager.objectTypingDict.get(class_name)
+        if typing_obj is None:
+            continue
+
+        vars_dict = getattr(typing_obj, 'polyTypedVarsDict', {})
+        for field_def in cls_def.get('fields', []):
+            field_name = field_def.get('name', '')
+            field_type = field_def.get('type', '')
+            if field_name and field_type in _SEMANTIC_TYPES:
+                var_typing = vars_dict.get(field_name)
+                if var_typing and getattr(var_typing, 'pythonTypeDefault', '') != field_type:
+                    var_typing.pythonTypeDefault = field_type
+                    print(f"[ModuleLoad] Type override: {class_name}.{field_name} -> {field_type}")
 
 
 # ── Dependency Detection ──────────────────────────────────────────────────────

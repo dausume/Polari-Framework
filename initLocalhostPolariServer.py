@@ -12,6 +12,11 @@ if is_in_docker():
     # If running in a Docker container, add vendor path
     sys.path.insert(0, '/app/vendor')
 
+# Add the modules subdirectory to sys.path so polari*Module packages are importable
+_modules_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules')
+if os.path.isdir(_modules_dir) and _modules_dir not in sys.path:
+    sys.path.insert(0, _modules_dir)
+
 from objectTreeManagerDecorators import managerObject
 from wsgiref.simple_server import make_server, WSGIServer
 from socketserver import ThreadingMixIn

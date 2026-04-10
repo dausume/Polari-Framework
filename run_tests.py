@@ -23,8 +23,9 @@ import sys
 import os
 import unittest
 
-# Ensure tests directory is in path
+# Ensure tests directory and modules directory are in path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modules'))
 
 def main():
     """Main test runner"""
