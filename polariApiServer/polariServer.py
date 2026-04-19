@@ -760,12 +760,22 @@ class polariServer(treeObject):
             print('[SeedSolutions] SolutionDefinition not in objectTypingDict, skipping', flush=True)
             return
         existing = self.manager.objectTables.get('SolutionDefinition', {})
-        existingCount = len(existing) if isinstance(existing, dict) else 0
-        if existingCount > 0:
-            print(f'[SeedSolutions] {existingCount} SolutionDefinition(s) already exist, skipping seed', flush=True)
-            return
-        print(f'[SeedSolutions] No SolutionDefinition instances found, seeding {len(SEED_SOLUTIONS)} sample solutions...', flush=True)
+        existingDict = existing if isinstance(existing, dict) else {}
+
+        # Build a set of existing solution names for reconciliation
+        existingNames = set()
+        for objId, obj in existingDict.items():
+            name = getattr(obj, 'name', None)
+            if name:
+                existingNames.add(name)
+
+        seedNames = {s['name'] for s in SEED_SOLUTIONS}
+
+        # Ensure every seed solution exists (create missing ones)
         for seedData in SEED_SOLUTIONS:
+            if seedData['name'] in existingNames:
+                print(f'[SeedSolutions] Already exists: {seedData["name"]}', flush=True)
+                continue
             try:
                 instance = SolutionDefinition(
                     name=seedData['name'],

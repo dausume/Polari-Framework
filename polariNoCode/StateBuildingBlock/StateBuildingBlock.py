@@ -321,6 +321,24 @@ class StateBuildingBlockRegistry:
                 icon='device_hub', color='#4CAF50',
             ),
 
+            StateBuildingBlock(
+                class_name='FormValidation',
+                display_name='Form Validation',
+                description='Introspects a form\'s fields and generates one output slot per field for individual validation logic. Specific to FormSubscription flows.',
+                category='Conditionals',
+                supported_runtimes=['typescript_frontend'],
+                code_templates=[
+                    CodeTemplate('typescript_frontend', '// Validate each form field individually\n{fieldValidationBlocks}'),
+                ],
+                default_input_slots=[{'name': 'formData', 'displayName': 'Form Data', 'slotType': 'input', 'dataType': 'object', 'isRequired': True}],
+                default_output_slots=[
+                    {'name': 'allValid', 'displayName': 'All Valid', 'slotType': 'output', 'dataType': 'boolean', 'isRequired': False},
+                    # Additional per-field output slots are dynamically generated based on formReference
+                ],
+                display_fields=[],
+                icon='checklist', color='#00BCD4',
+            ),
+
             # === Loops ===
             StateBuildingBlock(
                 class_name='ForLoop',
