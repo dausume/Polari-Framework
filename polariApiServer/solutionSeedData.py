@@ -268,15 +268,21 @@ _USER_FORM_DETECT_DEFINITION = {
                 "displayName": "Watch User Form",
                 "description": "Subscribe to the reactive user-profile form value stream (debounced & deduplicated)",
                 "sourceName": "userForm$",
-                "triggerType": "form_subscription"
+                "triggerType": "form_subscription",
+                "formFields": [
+                    {"fieldName": "username", "displayName": "Username", "fieldType": "str", "required": True},
+                    {"fieldName": "email", "displayName": "Email", "fieldType": "str", "required": True},
+                    {"fieldName": "display_name", "displayName": "Display Name", "fieldType": "str", "required": True},
+                    {"fieldName": "bio", "displayName": "Bio", "fieldType": "str", "required": False}
+                ]
             },
-            "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": 70,
-            "layerName": "start-layer", "stateLocationX": 80, "stateLocationY": 320,
+            "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": 100,
+            "layerName": "start-layer", "stateLocationX": 140, "stateLocationY": 320,
             "stateSvgName": "circle",
             "slots": [
                 {
-                    "index": 0, 
-                    "stateName": "Watch User Form", 
+                    "index": 0,
+                    "stateName": "Watch User Form",
                     "slotAngularPosition": 180, 
                     "connectors": [
                         {
@@ -301,97 +307,51 @@ _USER_FORM_DETECT_DEFINITION = {
             "stateClass": "FormValidation", "boundObjectClass": "FormValidation",
             "boundObjectFieldValues": {
                 "displayName": "Validate Fields",
-                "description": "Route each form field to individual validation — generates one output slot per field",
-                "formReference": "userProfileForm",
-                "boundClassName": "User",
+                "description": "Route each form field to individual validation with debounce and per-field validity tracking",
                 "fields": [
-                    {"fieldName": "username", "displayName": "Username", "fieldType": "str", "outputSlotIndex": 1},
-                    {"fieldName": "email", "displayName": "Email", "fieldType": "str", "outputSlotIndex": 2},
-                    {"fieldName": "display_name", "displayName": "Display Name", "fieldType": "str", "outputSlotIndex": 3},
-                    {"fieldName": "bio", "displayName": "Bio", "fieldType": "str", "outputSlotIndex": 4}
+                    {"fieldName": "username", "displayName": "Username", "fieldType": "str", "outputSlotIndex": 2, "enabled": True, "required": True, "debounceMs": 300},
+                    {"fieldName": "email", "displayName": "Email", "fieldType": "str", "outputSlotIndex": 3, "enabled": True, "required": True, "debounceMs": 300},
+                    {"fieldName": "display_name", "displayName": "Display Name", "fieldType": "str", "outputSlotIndex": 4, "enabled": True, "required": True, "debounceMs": 300},
+                    {"fieldName": "bio", "displayName": "Bio", "fieldType": "str", "outputSlotIndex": 5, "enabled": True, "required": False, "debounceMs": 300}
                 ]
             },
-            "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": 65,
-            "layerName": "validation-layer", "stateLocationX": 210, "stateLocationY": 320,
+            "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": 100,
+            "layerName": "validation-layer", "stateLocationX": 400, "stateLocationY": 320,
             "stateSvgName": "circle",
             "slots": [
                 {"index": 0, "stateName": "Validate Fields", "slotAngularPosition": 0, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True, "label": "formData"},
-                {"index": 1, "stateName": "Validate Fields", "slotAngularPosition": 180, "connectors": [{"id": 208, "sourceSlot": 1, "sinkSlot": 0, "targetStateName": "Has Changes?"}], "isInput": False, "allowOneToMany": True, "allowManyToOne": False, "label": "All Valid", "passthroughVariableName": "formData"}
+                {"index": 1, "stateName": "Validate Fields", "slotAngularPosition": 180, "connectors": [{"id": 208, "sourceSlot": 1, "sinkSlot": 0, "targetStateName": "Call Backend Update"}], "isInput": False, "allowOneToMany": True, "allowManyToOne": False, "label": "All Valid", "passthroughVariableName": "formData"},
+                {"index": 2, "stateName": "Validate Fields", "slotAngularPosition": 100, "connectors": [], "isInput": False, "allowOneToMany": True, "allowManyToOne": False, "label": "Username", "passthroughVariableName": "username"},
+                {"index": 3, "stateName": "Validate Fields", "slotAngularPosition": 130, "connectors": [], "isInput": False, "allowOneToMany": True, "allowManyToOne": False, "label": "Email", "passthroughVariableName": "email"},
+                {"index": 4, "stateName": "Validate Fields", "slotAngularPosition": 160, "connectors": [], "isInput": False, "allowOneToMany": True, "allowManyToOne": False, "label": "Display Name", "passthroughVariableName": "display_name"},
+                {"index": 5, "stateName": "Validate Fields", "slotAngularPosition": 190, "connectors": [], "isInput": False, "allowOneToMany": True, "allowManyToOne": False, "label": "Bio", "passthroughVariableName": "bio"}
             ],
             "slotRadius": 5, "backgroundColor": "#00BCD4"
         },
         {
-            "stateName": "Has Changes?", "id": "has-changes", "index": 2,
-            "shapeType": "diamond", "solutionName": "User.detectChanges",
-            "stateClass": "ConditionalChain", "boundObjectClass": "ConditionalChain",
-            "boundObjectFieldValues": {
-                "displayName": "Has Changes?", "description": "Check whether form data differs from the original snapshot",
-                "condition": "JSON.stringify(formData) !== JSON.stringify(this.originalData)",
-                "defaultLogicalOperator": "AND",
-                "links": [{"id": "link_has_changes", "displayName": "formData !== originalData", "conditionType": "not_equals", "logicalOperator": "AND", "isStateSpaceObject": True, "leftSource": {"sourceType": "from_input", "inputSlotIndex": 0, "inputVariableName": "formData"}, "rightSource": {"sourceType": "from_field", "fieldPath": "self.originalData"}, "fieldName": "formData", "conditionValue": "self.originalData"}]
-            },
-            "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": 70,
-            "layerName": "conditional-layer", "stateLocationX": 400, "stateLocationY": 320,
-            "stateSvgName": "diamond",
-            "slots": [
-                {"index": 0, "stateName": "Has Changes?", "slotAngularPosition": 270, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True, "label": "formData", "parameterName": "formData", "parameterType": "object"},
-                {"index": 1, "stateName": "Has Changes?", "slotAngularPosition": 30, "connectors": [{"id": 203, "sourceSlot": 1, "sinkSlot": 0, "targetStateName": "Call Backend Update"}], "isInput": False, "allowOneToMany": True, "allowManyToOne": False, "label": "True", "color": "#4CAF50", "passthroughVariableName": "formData"},
-                {"index": 2, "stateName": "Has Changes?", "slotAngularPosition": 120, "connectors": [{"id": 204, "sourceSlot": 2, "sinkSlot": 0, "targetStateName": "No Changes"}], "isInput": False, "allowOneToMany": True, "allowManyToOne": False, "label": "False", "color": "#F44336"}
-            ],
-            "slotRadius": 5, "backgroundColor": "#4CAF50"
-        },
-        {
-            "stateName": "Call Backend Update", "id": "call-backend-update", "index": 3,
+            "stateName": "Call Backend Update", "id": "call-backend-update", "index": 2,
             "shapeType": "circle", "solutionName": "User.detectChanges",
             "stateClass": "AwaitBackendCall", "boundObjectClass": "AwaitBackendCall",
             "boundObjectFieldValues": {"displayName": "Save to Backend", "targetSolutionName": "User.backend_update", "resultVariable": "saveResult", "description": "Call User.backend_update with the changed form data and await success/failure"},
-            "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": 70,
-            "layerName": "cross-runtime-layer", "stateLocationX": 580, "stateLocationY": 220,
+            "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": 100,
+            "layerName": "cross-runtime-layer", "stateLocationX": 660, "stateLocationY": 320,
             "stateSvgName": "circle",
             "slots": [
                 {"index": 0, "stateName": "Call Backend Update", "slotAngularPosition": 180, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True, "label": "formData"},
-                {"index": 1, "stateName": "Call Backend Update", "slotAngularPosition": 0, "connectors": [{"id": 205, "sourceSlot": 1, "sinkSlot": 0, "targetStateName": "Update Snapshot"}], "isInput": False, "allowOneToMany": True, "allowManyToOne": False, "label": "saveResult", "passthroughVariableName": "saveResult"}
+                {"index": 1, "stateName": "Call Backend Update", "slotAngularPosition": 0, "connectors": [{"id": 205, "sourceSlot": 1, "sinkSlot": 0, "targetStateName": "Done"}], "isInput": False, "allowOneToMany": True, "allowManyToOne": False, "label": "saveResult", "passthroughVariableName": "saveResult"}
             ],
             "slotRadius": 5, "backgroundColor": "#FF5722"
         },
         {
-            "stateName": "Update Snapshot", "id": "update-snapshot", "index": 4,
-            "shapeType": "circle", "solutionName": "User.detectChanges",
-            "stateClass": "VariableAssignment", "boundObjectClass": "VariableAssignment",
-            "boundObjectFieldValues": {"displayName": "Update Snapshot", "variableName": "this.originalData", "value": "{ ...this.formData }", "dataType": "object", "description": "Sync the original-data snapshot with the saved form so subsequent comparisons are clean"},
-            "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": 60,
-            "layerName": "assignment-layer", "stateLocationX": 820, "stateLocationY": 220,
-            "stateSvgName": "circle",
-            "slots": [
-                {"index": 0, "stateName": "Update Snapshot", "slotAngularPosition": 0, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True, "label": "Input"},
-                {"index": 1, "stateName": "Update Snapshot", "slotAngularPosition": 180, "connectors": [{"id": 206, "sourceSlot": 1, "sinkSlot": 0, "targetStateName": "Done"}], "isInput": False, "allowOneToMany": True, "allowManyToOne": False, "label": "Output"}
-            ],
-            "slotRadius": 5, "backgroundColor": "#9C27B0"
-        },
-        {
-            "stateName": "No Changes", "id": "no-changes", "index": 5,
-            "shapeType": "circle", "solutionName": "User.detectChanges",
-            "stateClass": "LogOutput", "boundObjectClass": "LogOutput",
-            "boundObjectFieldValues": {"displayName": "No Changes", "messageTemplate": "Form unchanged — skipping backend call", "logLevel": "debug"},
-            "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": 55,
-            "layerName": "debug-layer", "stateLocationX": 580, "stateLocationY": 440,
-            "stateSvgName": "circle",
-            "slots": [
-                {"index": 0, "stateName": "No Changes", "slotAngularPosition": 180, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True, "label": "Input"},
-                {"index": 1, "stateName": "No Changes", "slotAngularPosition": 0, "connectors": [{"id": 207, "sourceSlot": 1, "sinkSlot": 0, "targetStateName": "Done"}], "isInput": False, "allowOneToMany": True, "allowManyToOne": False, "label": "Output"}
-            ],
-            "slotRadius": 5, "backgroundColor": "#607D8B"
-        },
-        {
-            "stateName": "Done", "id": "done-state", "index": 6,
+            "stateName": "Done", "id": "done-state", "index": 3,
             "shapeType": "rectangle", "solutionName": "User.detectChanges",
             "stateClass": "ReturnStatement", "boundObjectClass": "ReturnStatement",
             "boundObjectFieldValues": {"displayName": "Done", "description": "Change-detection cycle complete", "returnValue": "void"},
             "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": None,
             "stateSvgWidth": 120, "stateSvgHeight": 80, "cornerRadius": 8,
-            "layerName": "end-layer", "stateLocationX": 1040, "stateLocationY": 320,
+            "layerName": "end-layer", "stateLocationX": 900, "stateLocationY": 320,
             "stateSvgName": "rectangle",
-            "slots": [{"index": 0, "stateName": "Done", "slotAngularPosition": 320, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True}],
+            "slots": [{"index": 0, "stateName": "Done", "slotAngularPosition": 180, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True}],
             "slotRadius": 5, "backgroundColor": "#F44336"
         }
     ]
