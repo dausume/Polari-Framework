@@ -34,6 +34,7 @@ from polariApiServer.geoJsonDefinition import GeoJsonDefinition
 from polariApiServer.dataSetDefinition import DataSetDefinition
 from polariApiServer.fieldProfileDefinition import FieldProfileDefinition
 from polariApiServer.filterChainDefinition import FilterChainDefinition
+from polariApiServer.equationDefinition import EquationDefinition
 from polariApiServer.tileSourceDefinition import TileSourceDefinition
 from polariApiServer.geocoderDefinition import GeocoderDefinition
 from polariApiServer.solutionDefinition import SolutionDefinition
@@ -45,8 +46,10 @@ from polariApiServer.mapPointDefinition import MapPointDefinition
 from polariApiServer.mapLineSegmentDefinition import MapLineSegmentDefinition
 from polariApiServer.mapPolygonDefinition import MapPolygonDefinition
 from polariApiServer.solutionSeedData import SEED_SOLUTIONS
+from polariApiServer.equationSeedData import SEED_EQUATIONS
 from polariApiServer.solutionCodeGeneratorAPI import SolutionCodeGeneratorAPI
 from polariApiServer.solutionExecutionAPI import SolutionExecutionAPI
+from polariApiServer.equationExecutionAPI import EquationExecutionAPI
 from polariApiServer.solutionVersionAPI import SolutionVersionAPI
 from polariApiServer.updateClassConfigAPI import UpdateClassConfigAPI
 from polariApiServer.systemInfoAPI import systemInfoAPI
@@ -259,6 +262,9 @@ class polariServer(treeObject):
         # Create Solution Execution endpoint for running no-code solutions
         solutionExecEndpoint = SolutionExecutionAPI(polServer=self, manager=self.manager)
 
+        # Create Equation Execution endpoint for testing / running calculus equations
+        equationExecEndpoint = EquationExecutionAPI(polServer=self, manager=self.manager)
+
         # Create Solution Version endpoint for atomic version snapshots
         solutionVersionEndpoint = SolutionVersionAPI(polServer=self, manager=self.manager)
 
@@ -275,7 +281,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition]
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition]
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
         for defClass in self.defClassList:
             className = defClass.__name__
@@ -660,6 +666,8 @@ class polariServer(treeObject):
         self._restoreDefinitionInstances(self.defClassList)
         # Seed SolutionDefinition with sample data if the table is empty
         self._seedSolutionDefinitions()
+        # Seed EquationDefinition with smoke-test equations if missing
+        self._seedEquationDefinitions()
 
     def _migrateDefinitionTable(self, className):
         """Check if a Definition table has an 'id' column and recreate it if not.
@@ -787,6 +795,40 @@ class polariServer(treeObject):
                 print(f'[SeedSolutions] Created: {seedData["name"]} (id={getattr(instance, "id", "?")})', flush=True)
             except Exception as e:
                 print(f'[SeedSolutions] Failed to create {seedData["name"]}: {e}', flush=True)
+                import traceback
+                traceback.print_exc()
+
+    def _seedEquationDefinitions(self):
+        """Seed EquationDefinition with smoke-test equations if missing.
+
+        Same pattern as _seedSolutionDefinitions: each seed creates a real
+        EquationDefinition row that the frontend Equations page can list and
+        run. Existing rows with matching names are left alone.
+        """
+        typingObj = self.manager.objectTypingDict.get('EquationDefinition')
+        if typingObj is None:
+            print('[SeedEquations] EquationDefinition not in objectTypingDict, skipping', flush=True)
+            return
+
+        existing = self.manager.objectTables.get('EquationDefinition', {})
+        existingDict = existing if isinstance(existing, dict) else {}
+        existingNames = {getattr(obj, 'name', None) for obj in existingDict.values()}
+
+        for seedData in SEED_EQUATIONS:
+            if seedData['name'] in existingNames:
+                print(f'[SeedEquations] Already exists: {seedData["name"]}', flush=True)
+                continue
+            try:
+                instance = EquationDefinition(
+                    name=seedData['name'],
+                    description=seedData.get('description', ''),
+                    source_class=seedData.get('source_class', ''),
+                    definition=seedData['definition'],
+                    manager=self.manager,
+                )
+                print(f'[SeedEquations] Created: {seedData["name"]} (id={getattr(instance, "id", "?")})', flush=True)
+            except Exception as e:
+                print(f'[SeedEquations] Failed to create {seedData["name"]}: {e}', flush=True)
                 import traceback
                 traceback.print_exc()
 

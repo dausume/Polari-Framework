@@ -13,3 +13,9 @@ tippecanoe
 minio==7.2.15
 urllib3==2.6.3
 websockets>=13.0,<14.0
+# Equation / calculus support — see polariNoCode/equation_executor.py
+sympy==1.13.3
+antlr4-python3-runtime==4.11
+numpy==2.1.3
+scipy==1.14.1
+pandas==2.2.3
