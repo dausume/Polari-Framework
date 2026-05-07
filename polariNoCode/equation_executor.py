@@ -66,9 +66,19 @@ OPERATION_TYPES = {
     'series',                        # Taylor / power series expansion
     'ode_solve',                     # symbolic ODE solver (sympy.dsolve)
     'pde_solve',                     # symbolic PDE solver (sympy.pdsolve, limited classes)
+    'evaluate_predicate',            # boolean: substitute + evaluate inequality / comparison
+    'is_identity',                   # boolean: check if LHS == RHS for all symbols
+    'piecewise_evaluate',            # parse \begin{cases}, evaluate matching branch
     'dataseries_derivative',         # numerical derivative on a numeric array (np.gradient)
     'dataseries_integral',           # numerical integral on a numeric array (np.trapz / scipy simpson)
     'dataseries_ode_solve',          # numerical IVP ODE on dataseries (scipy.solve_ivp)
+}
+
+# Operations whose result is a Python bool — must be serialized as JSON
+# `true`/`false` (NOT 1/0). The result formatter checks against this set.
+BOOLEAN_OPERATIONS = {
+    'evaluate_predicate',
+    'is_identity',
 }
 
 
@@ -158,6 +168,11 @@ def _execute_symbolic(
     options: dict[str, Any],
     warnings: list[str],
 ) -> dict[str, Any]:
+    # SymPy's parse_latex does NOT support `\begin{cases}` — bail out to the
+    # piecewise handler BEFORE the upfront whole-expression parse.
+    if operation_type == 'piecewise_evaluate':
+        return _execute_piecewise(latex_expression, variable_bindings, warnings)
+
     expr = _parse_latex_to_sympy(latex_expression)
 
     # Apply scalar variable bindings (literals or LaTeX-string substitutes).
@@ -165,12 +180,14 @@ def _execute_symbolic(
     subs_map = _build_subs_map(expr, variable_bindings)
 
     if operation_type == 'derivative':
-        var = _resolve_variable(expr, options.get('variable') or _first_free_symbol(expr))
+        var_name = _pick_variable_name(bounds, options, expr)
+        var = _resolve_variable(expr, var_name)
         order = int(options.get('order', 1))
         result = diff(expr.subs(subs_map), var, order)
 
     elif operation_type == 'integral_indefinite':
-        var = _resolve_variable(expr, options.get('variable') or _first_free_symbol(expr))
+        var_name = _pick_variable_name(bounds, options, expr)
+        var = _resolve_variable(expr, var_name)
         result = integrate(expr.subs(subs_map), var)
 
     elif operation_type == 'integral_definite':
@@ -201,7 +218,7 @@ def _execute_symbolic(
 
     elif operation_type == 'solve':
         # Treat the expression as = 0 by default; or use lhs-rhs from an Eq.
-        var_name = options.get('variable') or _first_free_symbol(expr)
+        var_name = _pick_variable_name(bounds, options, expr)
         var = _resolve_variable(expr, var_name)
         result = solve(expr.subs(subs_map), var)
         # `solve` returns a list — render as a list of sympy expressions.
@@ -242,9 +259,69 @@ def _execute_symbolic(
         f = _make_function(func_decl)
         result = pdsolve(expr.subs(subs_map), f)
 
+    elif operation_type == 'evaluate_predicate':
+        # Substitute bindings and reduce the relational (>, <, =, etc.) to a Python bool.
+        pred = expr.subs(subs_map)
+        try:
+            simplified = simplify(pred) if hasattr(pred, 'free_symbols') else pred
+            as_bool = bool(simplified)
+        except Exception as e:
+            return _error(f"Could not reduce predicate to a boolean: {e}", warnings=warnings)
+        return _ok_boolean(as_bool, simplified, warnings=warnings)
+
+    elif operation_type == 'is_identity':
+        # Treat the expression as Eq(lhs, rhs); simplify(lhs - rhs) == 0 → identity holds.
+        pred = expr.subs(subs_map)
+        try:
+            if hasattr(pred, 'lhs') and hasattr(pred, 'rhs'):
+                diff_val = simplify(pred.lhs - pred.rhs)
+            else:
+                diff_val = simplify(pred)
+            as_bool = bool(diff_val == 0)
+        except Exception as e:
+            return _error(f"Could not check identity: {e}", warnings=warnings)
+        return _ok_boolean(as_bool, pred, warnings=warnings)
+
     else:
         return _error(f"Operation '{operation_type}' not implemented.")
 
+    return _ok(result, warnings=warnings)
+
+
+def _execute_piecewise(
+    latex_expression: str,
+    variable_bindings: dict[str, Any],
+    warnings: list[str],
+) -> dict[str, Any]:
+    """
+    Piecewise / `\\begin{cases}` evaluation. SymPy's parse_latex doesn't accept
+    the cases environment, so we hand-parse it into a SymPy Piecewise and then
+    substitute bindings to evaluate the matching branch.
+    """
+    piecewise = _parse_cases_to_piecewise(latex_expression)
+    if piecewise is None:
+        return _error("Could not parse a \\begin{cases} block from the expression.")
+    # Build a substitution map from bindings against ALL symbols in the piecewise.
+    subs_map: dict = {}
+    free_symbols_by_name = {str(s): s for s in piecewise.free_symbols}
+    for name, value in (variable_bindings or {}).items():
+        if isinstance(value, (list, tuple, np.ndarray)):
+            continue
+        sym = free_symbols_by_name.get(name) or Symbol(name)
+        if isinstance(value, str):
+            try:
+                subs_map[sym] = _parse_latex_to_sympy(value)
+            except Exception:
+                subs_map[sym] = sympify(value)
+        else:
+            subs_map[sym] = value
+    result = piecewise.subs(subs_map)
+    if hasattr(result, 'free_symbols') and not result.free_symbols:
+        try:
+            num = float(result.evalf())
+            return _ok(result, numeric_override=num, warnings=warnings)
+        except Exception:
+            pass
     return _ok(result, warnings=warnings)
 
 
@@ -383,6 +460,28 @@ def _build_subs_map(expr, variable_bindings: dict[str, Any]) -> dict:
     return subs
 
 
+def _pick_variable_name(bounds, options, expr) -> str:
+    """
+    Resolve which variable an operation acts on.
+
+    The frontend stores the variable in `bounds.variable` (the Operation
+    block writes `Variable to operate on` there for derivative / indefinite
+    integral / solve / etc.). Older callers / external API consumers may
+    instead pass `options.variable`. Both are accepted; bounds takes priority
+    so the UI's selection always wins. Falls back to the first free symbol
+    in the expression so plain `x^2` still works without explicit config.
+    """
+    if bounds and isinstance(bounds, dict):
+        v = bounds.get('variable')
+        if v:
+            return v
+    if options and isinstance(options, dict):
+        v = options.get('variable')
+        if v:
+            return v
+    return _first_free_symbol(expr)
+
+
 def _resolve_variable(expr, var_name: str) -> Symbol:
     if isinstance(var_name, Symbol):
         return var_name
@@ -457,6 +556,74 @@ def _ok_array(arr: np.ndarray, warnings: list[str] | None = None) -> dict:
         'error': None,
         'warnings': warnings or [],
     }
+
+
+def _ok_boolean(value: bool, expr_or_latex: Any, warnings: list[str] | None = None) -> dict:
+    """
+    Result formatter for boolean-output operations (predicate / identity).
+    `result_numeric` is a Python bool (True/False) — JSON-serialized as
+    `true`/`false`, NOT 1/0 — so the frontend renders the right thing.
+    """
+    try:
+        if hasattr(expr_or_latex, 'free_symbols') or hasattr(expr_or_latex, 'lhs'):
+            latex_repr = sympy_latex(expr_or_latex)
+        else:
+            latex_repr = r'\text{True}' if value else r'\text{False}'
+    except Exception:
+        latex_repr = str(value)
+    return {
+        'success': True,
+        'result_latex': latex_repr,
+        'result_numeric': bool(value),
+        'error': None,
+        'warnings': warnings or [],
+    }
+
+
+def _parse_cases_to_piecewise(latex_expression: str):
+    """
+    Parse a `\\begin{cases} ... \\end{cases}` block into a SymPy Piecewise.
+
+    Each row inside the block is `expr & condition \\\\`, where `condition` may be
+    a relational LaTeX expression, optionally wrapped in `\\text{if } ...`, or
+    `\\text{otherwise}` for the default branch. SymPy's `parse_latex` does NOT
+    handle the cases environment natively, hence this manual parser.
+    """
+    import re
+    m = re.search(r'\\begin\{cases\}(.*?)\\end\{cases\}', latex_expression, re.DOTALL)
+    if not m:
+        return None
+    body = m.group(1).strip()
+    rows = re.split(r'\\\\', body)
+    branches: list = []
+    for row in rows:
+        row = row.strip()
+        if not row:
+            continue
+        parts = [p.strip() for p in row.split('&')]
+        if len(parts) == 1:
+            expr_part = parts[0]
+            cond_clean = 'True'
+        else:
+            expr_part, cond_part = parts[0], parts[1]
+            cond_clean = re.sub(r'\\text\{[^}]*\}', '', cond_part).strip()
+            if not cond_clean or 'otherwise' in cond_part.lower():
+                cond_clean = 'True'
+        try:
+            expr_sym = parse_latex(expr_part)
+        except Exception:
+            expr_sym = sympify(expr_part)
+        if cond_clean == 'True':
+            cond_sym = sympy.true
+        else:
+            try:
+                cond_sym = parse_latex(cond_clean)
+            except Exception:
+                cond_sym = sympify(cond_clean)
+        branches.append((expr_sym, cond_sym))
+    if not branches:
+        return None
+    return sympy.Piecewise(*branches)
 
 
 def _ok_scalar(val: float, warnings: list[str] | None = None) -> dict:
