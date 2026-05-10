@@ -709,6 +709,131 @@ class SolutionExecutionEngine:
                 display_var = result_var.replace('self.', '') if result_var.startswith('self.') else result_var
                 log_output.append(f'[{state_name}] {display_var} = {left_val!r} {op_symbol} {right_val!r} = {computed!r}')
 
+        elif state_class == 'CalculusOperation':
+            # Hosts a saved EquationDefinition. The equation declares each
+            # symbol's `defaultSource` (typically a `self.<field>` path on the
+            # equation's `source_class`); the host state may override per-
+            # symbol via its own `bindings` list. Symbols not overridden fall
+            # back to the equation's defaultSource so equations bound to a
+            # specific class (e.g. CalcTester) work without per-state wiring.
+            equation_name = field_values.get('equationName', '') or field_values.get('equationId', '')
+            bindings_list = field_values.get('bindings', []) or []
+            result_target = field_values.get('resultTarget', 'result_variable')
+            result_field_path = field_values.get('resultFieldPath', '')
+            result_var_name = field_values.get('resultVariableName', 'result')
+
+            # Map symbol → host-supplied source (overrides equation default).
+            host_overrides = {}
+            for b in bindings_list:
+                if not isinstance(b, dict):
+                    continue
+                sym = (b.get('symbol') or '').strip()
+                src = b.get('source')
+                if sym and src is not None:
+                    host_overrides[sym] = src
+
+            # Locate the EquationDefinition by name via the manager's object table.
+            eq_definition = None
+            try:
+                if self.manager is not None and hasattr(self.manager, 'objectTables'):
+                    eq_table = self.manager.objectTables.get('EquationDefinition')
+                    if eq_table is not None:
+                        for inst_id, inst in eq_table.items():
+                            if getattr(inst, 'name', None) == equation_name:
+                                eq_definition = inst
+                                break
+            except Exception as e:
+                log_output.append(f'[{state_name}] CalculusOperation: error locating equation `{equation_name}`: {e}')
+
+            computed = None
+            if eq_definition is None:
+                log_output.append(f'[{state_name}] CalculusOperation: equation `{equation_name}` not found.')
+            else:
+                # Parse the stored definition JSON.
+                try:
+                    raw = getattr(eq_definition, 'definition', '') or ''
+                    eq_config = json.loads(raw) if isinstance(raw, str) else (raw or {})
+                except Exception as e:
+                    eq_config = {}
+                    log_output.append(f'[{state_name}] CalculusOperation: failed to parse equation `{equation_name}`: {e}')
+
+                latex_expression = eq_config.get('latexExpression', '')
+                operation_type = eq_config.get('operationType', 'evaluate')
+                bounds = eq_config.get('bounds') or None
+                options = eq_config.get('options') or {}
+                equation_bindings = eq_config.get('variableBindings', []) or []
+
+                # Build runtime bindings: walk equation-declared symbols, prefer
+                # host overrides, fall back to each equation binding's defaultSource.
+                runtime_bindings = {}
+                for eb in equation_bindings:
+                    if not isinstance(eb, dict):
+                        continue
+                    sym = (eb.get('symbol') or '').strip()
+                    if not sym:
+                        continue
+                    src = host_overrides.get(sym, eb.get('defaultSource'))
+                    if src is None:
+                        continue
+                    try:
+                        runtime_bindings[sym] = _resolve_value_source_config(src, context)
+                    except Exception as e:
+                        log_output.append(f'[{state_name}] CalculusOperation: failed to resolve binding `{sym}`: {e}')
+
+                # Pull in any host-only symbols the equation didn't declare
+                # (defensive — usually empty when host matches equation).
+                for sym, src in host_overrides.items():
+                    if sym in runtime_bindings:
+                        continue
+                    try:
+                        runtime_bindings[sym] = _resolve_value_source_config(src, context)
+                    except Exception as e:
+                        log_output.append(f'[{state_name}] CalculusOperation: failed to resolve host binding `{sym}`: {e}')
+
+                try:
+                    from polariNoCode.equation_executor import execute_equation
+                    exec_result = execute_equation(
+                        latex_expression=latex_expression,
+                        operation_type=operation_type,
+                        variable_bindings=runtime_bindings,
+                        bounds=bounds,
+                        options=options,
+                    )
+                    if exec_result.get('success'):
+                        # Prefer the LaTeX result for `equation`-typed targets;
+                        # fall back to the numeric result when no LaTeX was emitted.
+                        computed = exec_result.get('result_latex')
+                        if computed is None:
+                            computed = exec_result.get('result_numeric')
+                        log_output.append(
+                            f'[{state_name}] CalculusOperation `{equation_name}` ('
+                            f'{", ".join(f"{k}={v!r}" for k, v in runtime_bindings.items())}) '
+                            f'→ {computed!r}'
+                        )
+                    else:
+                        err = exec_result.get('error') or 'unknown error'
+                        log_output.append(f'[{state_name}] CalculusOperation `{equation_name}` failed: {err}')
+                except Exception as e:
+                    log_output.append(f'[{state_name}] CalculusOperation `{equation_name}` exception: {e}')
+
+            # Store the computed value into the context using the resultTarget
+            # convention (mirrors MathOperation).
+            if result_target == 'solution_field' and result_field_path:
+                # Path like 'self.result_expression' or 'result_expression'
+                key = result_field_path
+                if key.startswith('self.'):
+                    bare = key[5:]
+                    context[key] = computed
+                    context[bare] = computed
+                else:
+                    context[key] = computed
+                    context[f'self.{key}'] = computed
+            else:
+                if result_var_name:
+                    context[result_var_name] = computed
+
+            result['result'] = computed
+
         elif state_class == 'FilterList':
             source_var = field_values.get('sourceVariable', '')
             result_var = field_values.get('resultVariable', '')

@@ -371,7 +371,10 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             'time': None,
             'time_duration': None,
             'precision_time': None,
-            'schedule': None
+            'schedule': None,
+            # `equation` is a string carrying LaTeX source; rendered + soft-validated
+            # on the frontend via KaTeX. Persisted as plain TEXT.
+            'equation': ''
         }
         return type_defaults.get(var_type, '')
 

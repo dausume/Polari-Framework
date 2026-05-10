@@ -217,8 +217,12 @@ class polariServer(treeObject):
         # Create API discovery endpoint (lists all available endpoints)
         apiDiscoveryEndpoint = APIDiscoveryAPI(polServer=self, manager=self.manager)
 
-        # Create custom endpoint for dynamic class creation
+        # Create custom endpoint for dynamic class creation. Also held on
+        # `self` so the seed loader can call `_createDynamicClass()` directly
+        # to register seeded solution boundClasses (see `_seedBoundClasses`).
+        # The local binding stays so `customAPIsList` below still resolves.
         createClassEndpoint = createClassAPI(polServer=self, manager=self.manager)
+        self.createClassEndpoint = createClassEndpoint
 
         # Create state-space API endpoints for no-code system
         stateSpaceClassesEndpoint = StateSpaceClassesAPI(polServer=self, manager=self.manager)
@@ -664,6 +668,12 @@ class polariServer(treeObject):
         print(f'[DefInit] DB tables after ensureDefinitionTables: {db.tables}', flush=True)
         # Now restore any saved Definition instances
         self._restoreDefinitionInstances(self.defClassList)
+        # Register each seeded solution's `boundClass` as a real Polari class
+        # so it appears in the Class Manager / Class Selector and can be
+        # referenced by Equation bindings. Must run before
+        # `_seedSolutionDefinitions` so the class exists when the solution
+        # row is created.
+        self._seedBoundClasses()
         # Seed SolutionDefinition with sample data if the table is empty
         self._seedSolutionDefinitions()
         # Seed EquationDefinition with smoke-test equations if missing
@@ -756,6 +766,86 @@ class polariServer(treeObject):
                     traceback.print_exc()
             if restoredCount > 0:
                 print(f'[DefRestore] Restored {restoredCount} {className} instances from DB', flush=True)
+
+    def _seedBoundClasses(self):
+        """Register every seeded solution's `boundClass` as a real Polari class.
+
+        Without this, classes like `AdditionTester` / `CalculusTester` that are
+        only declared inside a seed solution's JSON never get a polyTyping
+        entry, never appear in the Class Manager, and can't be referenced by
+        Equation bindings (`from_object` / `from_dataset` need the class to
+        exist in `manager.objectTypingDict` to be selectable).
+
+        Idempotent: classes already registered (whether by a previous boot or
+        a manual `/createClass` POST) are left alone.
+
+        The seed `boundClass` shape uses frontend keys (`name`, `displayName`,
+        `type`); we translate them into the `varName` / `varDisplayName` /
+        `varType` shape `_createDynamicClass` expects. Method declarations on
+        the boundClass are metadata only and intentionally not registered as
+        real Python methods (the no-code editor uses them as labels).
+        """
+        if not getattr(self, 'createClassEndpoint', None):
+            print('[SeedBoundClasses] createClassEndpoint not initialised; skipping', flush=True)
+            return
+
+        registered_in_this_pass = set()
+
+        for seedData in SEED_SOLUTIONS:
+            try:
+                definition_str = seedData.get('definition') or ''
+                if not definition_str:
+                    continue
+                definition = json.loads(definition_str) if isinstance(definition_str, str) else definition_str
+            except Exception as e:
+                print(f"[SeedBoundClasses] Could not parse definition for {seedData.get('name')}: {e}", flush=True)
+                continue
+
+            boundClass = definition.get('boundClass') or {}
+            className = boundClass.get('className', '').strip()
+            if not className:
+                continue
+
+            # Skip if this class is already registered (previous boot, manual
+            # /createClass call, or earlier in this same pass).
+            if className in self.manager.objectTypingDict or className in registered_in_this_pass:
+                continue
+
+            displayName = boundClass.get('displayName') or className
+            seed_fields = boundClass.get('fields') or []
+
+            # Translate frontend field shape → _createDynamicClass variable shape.
+            variables = []
+            for f in seed_fields:
+                fName = f.get('name') or ''
+                if not fName:
+                    continue
+                variables.append({
+                    'varName': fName,
+                    'varDisplayName': f.get('displayName') or fName,
+                    'varType': f.get('type') or 'str',
+                    'isIdentifier': bool(f.get('isIdentifier', False)),
+                    'isUnique': bool(f.get('isUnique', False)),
+                    # `refClass` carries through for reference / referenceList types.
+                    'refClass': f.get('refClass'),
+                })
+
+            try:
+                self.createClassEndpoint._createDynamicClass(
+                    className=className,
+                    displayName=displayName,
+                    variables=variables,
+                    registerCRUDE=True,
+                    isStateSpaceObject=True,
+                    stateSpaceDisplayFields=[v['varName'] for v in variables],
+                    stateSpaceFieldsPerRow=2,
+                )
+                registered_in_this_pass.add(className)
+                print(f'[SeedBoundClasses] Registered: {className} ({len(variables)} fields)', flush=True)
+            except Exception as e:
+                print(f'[SeedBoundClasses] Failed to register {className}: {e}', flush=True)
+                import traceback
+                traceback.print_exc()
 
     def _seedSolutionDefinitions(self):
         """Seed SolutionDefinition with sample solutions if the table is empty.

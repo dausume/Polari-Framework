@@ -47,6 +47,7 @@ _pythonToSqliteMap = {
     'time_duration': 'TEXT',
     'precision_time': 'TEXT',
     'schedule': 'TEXT',
+    'equation': 'TEXT',
 }
 
 def pythonTypeToSqliteAffinity(pythonTypeName):

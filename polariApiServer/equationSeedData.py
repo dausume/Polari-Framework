@@ -26,11 +26,11 @@ Definition JSON shape (see polariApiServer/equationDefinition.py):
 import json
 
 
-def _eq(name, description, latex, operation_type, *, bounds=None, options=None, bindings=None, result_spec=None):
+def _eq(name, description, latex, operation_type, *, bounds=None, options=None, bindings=None, result_spec=None, source_class=''):
     return {
         'name': name,
         'description': description,
-        'source_class': '',
+        'source_class': source_class,
         'definition': json.dumps({
             'latexExpression': latex,
             'operationType': operation_type,
@@ -238,5 +238,64 @@ SEED_EQUATIONS = [
         ],
         options={'dataseries': 'data'},
         result_spec={'type': 'dataseries'},
+    ),
+
+    # ---- CalculusTester support equations ----
+    # Both equations are scoped to the CalculusTester class (`source_class`)
+    # and their bindings carry a `defaultSource` resolving to fields on the
+    # CalcTester instance flowing through the host solution. The CalcTester
+    # solutions then "just work" by inheriting these defaults — no per-state
+    # rewiring needed.
+    _eq(
+        'CalcTester.DerivativeOfExpr',
+        'Differentiate the CalcTester instance\'s `input_expression` field '
+        'with respect to `x`. Bound to the CalculusTester class — `f` resolves '
+        'from `self.input_expression` so any host state running this equation '
+        'against a CalcTester just supplies the instance.',
+        latex=r'f',
+        operation_type='derivative',
+        bounds={'variable': 'x'},
+        source_class='CalculusTester',
+        bindings=[
+            {
+                'symbol': 'f',
+                'potential': {'kind': 'literal', 'valueType': 'str'},
+                'defaultSource': {
+                    'sourceType': 'from_source_object',
+                    'sourceObjectPath': 'self.input_expression',
+                },
+            },
+        ],
+        result_spec={'type': 'expression'},
+    ),
+    _eq(
+        'CalcTester.IntegrateProduct',
+        'Indefinite integral of `input_expression * input_expression_2` with '
+        'respect to `x`. Bound to CalculusTester — `f` and `g` resolve from '
+        'the two equation-typed fields on the instance. Demonstrates a multi-'
+        'potential equation pre-wired to its host class.',
+        latex=r'f \cdot g',
+        operation_type='integral_indefinite',
+        bounds={'variable': 'x'},
+        source_class='CalculusTester',
+        bindings=[
+            {
+                'symbol': 'f',
+                'potential': {'kind': 'literal', 'valueType': 'str'},
+                'defaultSource': {
+                    'sourceType': 'from_source_object',
+                    'sourceObjectPath': 'self.input_expression',
+                },
+            },
+            {
+                'symbol': 'g',
+                'potential': {'kind': 'literal', 'valueType': 'str'},
+                'defaultSource': {
+                    'sourceType': 'from_source_object',
+                    'sourceObjectPath': 'self.input_expression_2',
+                },
+            },
+        ],
+        result_spec={'type': 'expression'},
     ),
 ]

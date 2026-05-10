@@ -504,6 +504,280 @@ _USER_BACKEND_UPDATE_DEFINITION = {
 
 
 # ---------------------------------------------------------------------------
+# Solution 4: CalculusTester.derivative_test
+# ---------------------------------------------------------------------------
+# Demonstrates the equation field type + RunEquation state wired together.
+# A user supplies a LaTeX expression as `input_expression`; the RunEquation
+# state references the `CalcTester.DerivativeOfExpr` equation (which has a
+# single declared `f` potential), binds `f` to `self.input_expression`, and
+# stores the derivative LaTeX into `self.result_expression`.
+#
+# Phase E will add a second solution (`splice_and_integrate`) demonstrating
+# multi-potential equations.
+
+_CALCULUS_TESTER_BOUND_CLASS = {
+    "className": "CalculusTester",
+    "displayName": "Calculus Tester",
+    "description": "Tester object whose fields hold LaTeX equations. Demonstrates the equation field type + RunEquation state.",
+    "pythonImports": [],
+    "fields": [
+        {"name": "input_expression",   "displayName": "Input Expression",   "type": "equation", "defaultValue": "",  "description": "LaTeX expression to operate on (e.g. 2*x or \\sin(x))"},
+        {"name": "input_expression_2", "displayName": "Input Expression 2", "type": "equation", "defaultValue": "",  "description": "Second LaTeX expression (used by multi-potential solutions)"},
+        {"name": "operation_type",     "displayName": "Operation",          "type": "str",      "defaultValue": "derivative", "description": "Which operation to apply (derivative, integral_indefinite, etc.)"},
+        {"name": "variable",           "displayName": "Variable",           "type": "str",      "defaultValue": "x", "description": "Variable to operate on"},
+        {"name": "result_expression",  "displayName": "Result Expression",  "type": "equation", "defaultValue": "",  "description": "Result LaTeX produced by the equation executor"},
+        {"name": "expected_result",    "displayName": "Expected Result",    "type": "equation", "defaultValue": "",  "description": "Optional expected LaTeX, for tester comparison"},
+        {"name": "test_passed",        "displayName": "Test Passed",        "type": "bool",     "defaultValue": False, "description": "Whether the result matched expected_result"}
+    ],
+    "methods": [
+        {
+            "name": "derivative_test",
+            "displayName": "Derivative Test",
+            "parameters": [
+                {"name": "input_expression", "type": "equation", "description": "Formula to differentiate"},
+                {"name": "variable",         "type": "str",      "description": "Variable to differentiate with respect to"}
+            ],
+            "returnType": "equation",
+            "description": "Differentiate the input expression and store the result"
+        },
+        {
+            "name": "splice_and_integrate",
+            "displayName": "Splice & Integrate",
+            "parameters": [
+                {"name": "input_expression",   "type": "equation"},
+                {"name": "input_expression_2", "type": "equation"}
+            ],
+            "returnType": "equation",
+            "description": "Integrate the product of two LaTeX fragments with respect to x"
+        }
+    ]
+}
+
+_CALCULUS_DERIVATIVE_TEST_DEFINITION = {
+    "id": 4,
+    "solutionName": "CalculusTester.derivative_test",
+    "functionName": "derivative_test",
+    "targetRuntime": "python_backend",
+    "xBounds": 1100,
+    "yBounds": 500,
+    "boundClass": _CALCULUS_TESTER_BOUND_CLASS,
+    "stateInstances": [
+        {
+            "stateName": "Start", "id": "start-state", "index": 0,
+            "shapeType": "circle",
+            "solutionName": "CalculusTester.derivative_test",
+            "stateClass": "InitialState", "boundObjectClass": "InitialState",
+            "boundObjectFieldValues": {
+                "displayName": "Start",
+                "description": "Begin derivative test with input parameters",
+                "inputParams": [
+                    {"name": "input_expression", "type": "equation", "description": "Formula to differentiate"},
+                    {"name": "variable",         "type": "str",      "description": "Variable to differentiate with respect to"}
+                ]
+            },
+            "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": 60,
+            "layerName": "start-layer",
+            "stateLocationX": 100, "stateLocationY": 250,
+            "stateSvgName": "circle",
+            "slots": [
+                {
+                    "index": 0, "stateName": "Start", "slotAngularPosition": 0,
+                    "connectors": [{"id": 1, "sourceSlot": 0, "sinkSlot": 0, "targetStateName": "Differentiate"}],
+                    "isInput": False, "allowOneToMany": True, "allowManyToOne": False,
+                    "label": "Out", "passthroughVariableName": "input_expression,variable"
+                }
+            ],
+            "slotRadius": 5, "backgroundColor": "#4CAF50"
+        },
+        {
+            "stateName": "Differentiate", "id": "run-equation", "index": 1,
+            "shapeType": "circle",
+            "solutionName": "CalculusTester.derivative_test",
+            "stateClass": "CalculusOperation", "boundObjectClass": "CalculusOperation",
+            "boundObjectFieldValues": {
+                "displayName": "Differentiate",
+                # Reference the seeded `CalcTester.DerivativeOfExpr` equation
+                # (added in equationSeedData.py). Single potential `f` is
+                # bound to self.input_expression at runtime.
+                "equationId": "",
+                "equationName": "CalcTester.DerivativeOfExpr",
+                "bindings": [
+                    {
+                        "symbol": "f",
+                        "source": {
+                            "sourceType": "from_source_object",
+                            "sourceObjectPath": "self.input_expression"
+                        }
+                    }
+                ],
+                "resultTarget": "solution_field",
+                "resultFieldPath": "result_expression",
+                "resultVariableName": "result_expression"
+            },
+            "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": 75,
+            "layerName": "math-layer",
+            "stateLocationX": 360, "stateLocationY": 250,
+            "stateSvgName": "circle",
+            "slots": [
+                {"index": 0, "stateName": "Differentiate", "slotAngularPosition": 180, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True, "label": "In"},
+                {
+                    "index": 1, "stateName": "Differentiate", "slotAngularPosition": 0,
+                    "connectors": [{"id": 2, "sourceSlot": 1, "sinkSlot": 0, "targetStateName": "Return"}],
+                    "isInput": False, "allowOneToMany": True, "allowManyToOne": False,
+                    "label": "result_expression", "passthroughVariableName": "result_expression"
+                }
+            ],
+            "slotRadius": 5, "backgroundColor": "#FFB74D"
+        },
+        {
+            "stateName": "Return", "id": "return-result", "index": 2,
+            "shapeType": "rectangle",
+            "solutionName": "CalculusTester.derivative_test",
+            "stateClass": "ReturnValue", "boundObjectClass": "ReturnValue",
+            "boundObjectFieldValues": {
+                "displayName": "Return Result",
+                "description": "Return the derivative LaTeX",
+                "returnValueSource": {
+                    "sourceType": "from_source_object",
+                    "sourceObjectPath": "self.result_expression"
+                }
+            },
+            "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": None,
+            "stateSvgWidth": 140, "stateSvgHeight": 80, "cornerRadius": 8,
+            "layerName": "end-layer",
+            "stateLocationX": 640, "stateLocationY": 250,
+            "stateSvgName": "rectangle",
+            "slots": [
+                {"index": 0, "stateName": "Return", "slotAngularPosition": 180, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True}
+            ],
+            "slotRadius": 5, "backgroundColor": "#4CAF50"
+        }
+    ]
+}
+
+
+# ---------------------------------------------------------------------------
+# Solution 5: CalculusTester.splice_and_integrate
+# ---------------------------------------------------------------------------
+# Demonstrates a MULTI-POTENTIAL equation. References
+# `CalcTester.IntegrateProduct` whose LaTeX is `f \cdot g` and which declares
+# two literal-string potentials `f` and `g`. The CalculusOperation overlay
+# auto-renders TWO source-selector slots — the user binds `f` to
+# `self.input_expression` and `g` to `self.input_expression_2`, and the
+# executor's symbol substitution composes the product LaTeX implicitly
+# before integrating. No explicit "splice" state is needed.
+
+_CALCULUS_SPLICE_AND_INTEGRATE_DEFINITION = {
+    "id": 5,
+    "solutionName": "CalculusTester.splice_and_integrate",
+    "functionName": "splice_and_integrate",
+    "targetRuntime": "python_backend",
+    "xBounds": 1100,
+    "yBounds": 500,
+    "boundClass": _CALCULUS_TESTER_BOUND_CLASS,
+    "stateInstances": [
+        {
+            "stateName": "Start", "id": "start-state", "index": 0,
+            "shapeType": "circle",
+            "solutionName": "CalculusTester.splice_and_integrate",
+            "stateClass": "InitialState", "boundObjectClass": "InitialState",
+            "boundObjectFieldValues": {
+                "displayName": "Start",
+                "description": "Begin splice-and-integrate test with two LaTeX fragments",
+                "inputParams": [
+                    {"name": "input_expression",   "type": "equation", "description": "First LaTeX fragment (will be substituted as `f`)"},
+                    {"name": "input_expression_2", "type": "equation", "description": "Second LaTeX fragment (will be substituted as `g`)"}
+                ]
+            },
+            "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": 60,
+            "layerName": "start-layer",
+            "stateLocationX": 100, "stateLocationY": 250,
+            "stateSvgName": "circle",
+            "slots": [
+                {
+                    "index": 0, "stateName": "Start", "slotAngularPosition": 0,
+                    "connectors": [{"id": 1, "sourceSlot": 0, "sinkSlot": 0, "targetStateName": "Integrate Product"}],
+                    "isInput": False, "allowOneToMany": True, "allowManyToOne": False,
+                    "label": "Out", "passthroughVariableName": "input_expression,input_expression_2"
+                }
+            ],
+            "slotRadius": 5, "backgroundColor": "#4CAF50"
+        },
+        {
+            "stateName": "Integrate Product", "id": "run-equation", "index": 1,
+            "shapeType": "circle",
+            "solutionName": "CalculusTester.splice_and_integrate",
+            "stateClass": "CalculusOperation", "boundObjectClass": "CalculusOperation",
+            "boundObjectFieldValues": {
+                "displayName": "Integrate Product",
+                # `CalcTester.IntegrateProduct` declares two potentials (`f`,
+                # `g`) — the overlay renders two source-selector slots, each
+                # of which we wire to a different equation field.
+                "equationId": "",
+                "equationName": "CalcTester.IntegrateProduct",
+                "bindings": [
+                    {
+                        "symbol": "f",
+                        "source": {
+                            "sourceType": "from_source_object",
+                            "sourceObjectPath": "self.input_expression"
+                        }
+                    },
+                    {
+                        "symbol": "g",
+                        "source": {
+                            "sourceType": "from_source_object",
+                            "sourceObjectPath": "self.input_expression_2"
+                        }
+                    }
+                ],
+                "resultTarget": "solution_field",
+                "resultFieldPath": "result_expression",
+                "resultVariableName": "result_expression"
+            },
+            "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": 80,
+            "layerName": "math-layer",
+            "stateLocationX": 380, "stateLocationY": 250,
+            "stateSvgName": "circle",
+            "slots": [
+                {"index": 0, "stateName": "Integrate Product", "slotAngularPosition": 180, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True, "label": "In"},
+                {
+                    "index": 1, "stateName": "Integrate Product", "slotAngularPosition": 0,
+                    "connectors": [{"id": 2, "sourceSlot": 1, "sinkSlot": 0, "targetStateName": "Return"}],
+                    "isInput": False, "allowOneToMany": True, "allowManyToOne": False,
+                    "label": "result_expression", "passthroughVariableName": "result_expression"
+                }
+            ],
+            "slotRadius": 5, "backgroundColor": "#FFB74D"
+        },
+        {
+            "stateName": "Return", "id": "return-result", "index": 2,
+            "shapeType": "rectangle",
+            "solutionName": "CalculusTester.splice_and_integrate",
+            "stateClass": "ReturnValue", "boundObjectClass": "ReturnValue",
+            "boundObjectFieldValues": {
+                "displayName": "Return Result",
+                "description": "Return the integrated product as LaTeX",
+                "returnValueSource": {
+                    "sourceType": "from_source_object",
+                    "sourceObjectPath": "self.result_expression"
+                }
+            },
+            "stateSvgSizeX": None, "stateSvgSizeY": None, "stateSvgRadius": None,
+            "stateSvgWidth": 140, "stateSvgHeight": 80, "cornerRadius": 8,
+            "layerName": "end-layer",
+            "stateLocationX": 660, "stateLocationY": 250,
+            "stateSvgName": "rectangle",
+            "slots": [
+                {"index": 0, "stateName": "Return", "slotAngularPosition": 180, "connectors": [], "isInput": True, "allowOneToMany": False, "allowManyToOne": True}
+            ],
+            "slotRadius": 5, "backgroundColor": "#4CAF50"
+        }
+    ]
+}
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -525,5 +799,17 @@ SEED_SOLUTIONS = [
         "function_name": "backend_update",
         "target_runtime": "python_backend",
         "definition": json.dumps(_USER_BACKEND_UPDATE_DEFINITION),
+    },
+    {
+        "name": "CalculusTester.derivative_test",
+        "function_name": "derivative_test",
+        "target_runtime": "python_backend",
+        "definition": json.dumps(_CALCULUS_DERIVATIVE_TEST_DEFINITION),
+    },
+    {
+        "name": "CalculusTester.splice_and_integrate",
+        "function_name": "splice_and_integrate",
+        "target_runtime": "python_backend",
+        "definition": json.dumps(_CALCULUS_SPLICE_AND_INTEGRATE_DEFINITION),
     },
 ]
