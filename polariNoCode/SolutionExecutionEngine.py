@@ -309,7 +309,15 @@ class SolutionExecutionEngine:
 
     ISOLATION: Deep-clones solution_data before processing.
     Original data is never mutated.
+
+    Optional `manager` reference is used by handlers that need to look
+    up other Polari entities at runtime (e.g. the CalculusOperation
+    handler resolves an EquationDefinition by name through
+    `manager.objectTables['EquationDefinition']`).
     """
+
+    def __init__(self, manager=None):
+        self.manager = manager
 
     def execute(self, solution_data, input_params, config=None, target_runtime='python_backend', instance_fields=None):
         """
@@ -339,6 +347,15 @@ class SolutionExecutionEngine:
         if not state_instances:
             trace.error('No state instances found in solution')
             return trace
+
+        # ===== DEBUG: dump the state-class chain we're about to walk =====
+        # print(f'[ENGINE DEBUG] execute() solution={solution_name!r} '
+        #       f'with {len(state_instances)} states', flush=True)
+        # for s in state_instances:
+        #     print(f'[ENGINE DEBUG]   state {s.get("stateName")!r}: '
+        #           f'stateClass={s.get("stateClass")!r} '
+        #           f'boundObjectClass={s.get("boundObjectClass")!r}', flush=True)
+        # ================================================================
 
         # Sort states by index
         sorted_states = sorted(state_instances, key=lambda s: s.get('index', 0))
@@ -503,6 +520,11 @@ class SolutionExecutionEngine:
             'branch_taken': which branch was taken (for conditionals)
             'branch_label': human-readable label for the branch
         """
+        # ===== TOP-LEVEL DEBUG =====
+        # print(f'[ENGINE DEBUG] _evaluate_state: state_name={state_name!r} state_class={state_class!r}', flush=True)
+        # print(f'[ENGINE DEBUG]   field_values keys={list(field_values.keys())}', flush=True)
+        # ============================
+
         result = {'result': None, 'branch_taken': None, 'branch_label': None}
 
         if state_class in ('InitialState', 'DirectInvocation'):
@@ -722,6 +744,19 @@ class SolutionExecutionEngine:
             result_field_path = field_values.get('resultFieldPath', '')
             result_var_name = field_values.get('resultVariableName', 'result')
 
+            # ===== DEBUG =====
+            # print(f'[CalcOp DEBUG] === Entering state {state_name!r} ===', flush=True)
+            # print(f'[CalcOp DEBUG]   equation_name={equation_name!r}', flush=True)
+            # print(f'[CalcOp DEBUG]   field_values keys={list(field_values.keys())}', flush=True)
+            # print(f'[CalcOp DEBUG]   host bindings_list ({len(bindings_list)}):', flush=True)
+            # for b in bindings_list:
+            #     print(f'[CalcOp DEBUG]     - {b!r}', flush=True)
+            # print(f'[CalcOp DEBUG]   resultTarget={result_target!r} resultFieldPath={result_field_path!r} resultVar={result_var_name!r}', flush=True)
+            # print(f'[CalcOp DEBUG]   context keys={list(context.keys())}', flush=True)
+            # for k in list(context.keys()):
+            #     print(f'[CalcOp DEBUG]     context[{k!r}] = {context[k]!r}', flush=True)
+            # =================
+
             # Map symbol → host-supplied source (overrides equation default).
             host_overrides = {}
             for b in bindings_list:
@@ -731,24 +766,35 @@ class SolutionExecutionEngine:
                 src = b.get('source')
                 if sym and src is not None:
                     host_overrides[sym] = src
+            # print(f'[CalcOp DEBUG]   host_overrides keys={list(host_overrides.keys())}', flush=True)
 
             # Locate the EquationDefinition by name via the manager's object table.
             eq_definition = None
             try:
                 if self.manager is not None and hasattr(self.manager, 'objectTables'):
                     eq_table = self.manager.objectTables.get('EquationDefinition')
+                    # print(f'[CalcOp DEBUG]   EquationDefinition table type={type(eq_table).__name__}', flush=True)
                     if eq_table is not None:
+                        # names_seen = []
                         for inst_id, inst in eq_table.items():
-                            if getattr(inst, 'name', None) == equation_name:
+                            nm = getattr(inst, 'name', None)
+                            # names_seen.append(nm)
+                            if nm == equation_name:
                                 eq_definition = inst
                                 break
+                        # print(f'[CalcOp DEBUG]   names in table: {names_seen}', flush=True)
+                    # else:
+                    #     print('[CalcOp DEBUG]   EquationDefinition table is None', flush=True)
             except Exception as e:
                 log_output.append(f'[{state_name}] CalculusOperation: error locating equation `{equation_name}`: {e}')
+                # print(f'[CalcOp DEBUG]   EXCEPTION locating equation: {e}', flush=True)
 
             computed = None
             if eq_definition is None:
                 log_output.append(f'[{state_name}] CalculusOperation: equation `{equation_name}` not found.')
+                # print(f'[CalcOp DEBUG]   eq_definition is None — equation NOT FOUND', flush=True)
             else:
+                # print(f'[CalcOp DEBUG]   eq_definition found: id={getattr(eq_definition, "id", "?")}', flush=True)
                 # Parse the stored definition JSON.
                 try:
                     raw = getattr(eq_definition, 'definition', '') or ''
@@ -763,6 +809,12 @@ class SolutionExecutionEngine:
                 options = eq_config.get('options') or {}
                 equation_bindings = eq_config.get('variableBindings', []) or []
 
+                # print(f'[CalcOp DEBUG]   latex={latex_expression!r}', flush=True)
+                # print(f'[CalcOp DEBUG]   op={operation_type!r} bounds={bounds!r} options={options!r}', flush=True)
+                # print(f'[CalcOp DEBUG]   equation_bindings ({len(equation_bindings)}):', flush=True)
+                # for eb in equation_bindings:
+                #     print(f'[CalcOp DEBUG]     - {eb!r}', flush=True)
+
                 # Build runtime bindings: walk equation-declared symbols, prefer
                 # host overrides, fall back to each equation binding's defaultSource.
                 runtime_bindings = {}
@@ -773,12 +825,17 @@ class SolutionExecutionEngine:
                     if not sym:
                         continue
                     src = host_overrides.get(sym, eb.get('defaultSource'))
+                    # print(f'[CalcOp DEBUG]   resolving sym={sym!r} from src={src!r}', flush=True)
                     if src is None:
+                        # print(f'[CalcOp DEBUG]     -> src is None, skipping', flush=True)
                         continue
                     try:
-                        runtime_bindings[sym] = _resolve_value_source_config(src, context)
+                        resolved = _resolve_value_source_config(src, context)
+                        runtime_bindings[sym] = resolved
+                        # print(f'[CalcOp DEBUG]     -> resolved {sym!r} = {resolved!r}', flush=True)
                     except Exception as e:
                         log_output.append(f'[{state_name}] CalculusOperation: failed to resolve binding `{sym}`: {e}')
+                        # print(f'[CalcOp DEBUG]     -> EXCEPTION: {e}', flush=True)
 
                 # Pull in any host-only symbols the equation didn't declare
                 # (defensive — usually empty when host matches equation).
@@ -792,6 +849,9 @@ class SolutionExecutionEngine:
 
                 try:
                     from polariNoCode.equation_executor import execute_equation
+                    # print(f'[CalcOp DEBUG]   calling execute_equation('
+                    #       f'latex={latex_expression!r}, op={operation_type!r}, '
+                    #       f'bindings={runtime_bindings!r}, bounds={bounds!r})', flush=True)
                     exec_result = execute_equation(
                         latex_expression=latex_expression,
                         operation_type=operation_type,
@@ -799,6 +859,7 @@ class SolutionExecutionEngine:
                         bounds=bounds,
                         options=options,
                     )
+                    # print(f'[CalcOp DEBUG]   execute_equation returned: {exec_result!r}', flush=True)
                     if exec_result.get('success'):
                         # Prefer the LaTeX result for `equation`-typed targets;
                         # fall back to the numeric result when no LaTeX was emitted.

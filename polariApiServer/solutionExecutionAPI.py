@@ -174,7 +174,7 @@ class SolutionExecutionAPI(treeObject):
             config = StepConfig.from_dict(step_config_data) if step_config_data else StepConfig(mode='step', record_context=True)
 
             # Execute via the engine
-            engine = SolutionExecutionEngine()
+            engine = SolutionExecutionEngine(manager=self.manager)
             trace = engine.execute(solution_data, input_params, config, target_runtime, instance_fields=instance_fields)
 
             # Convert to plain dict before any treeObject interaction
@@ -253,7 +253,7 @@ class SolutionExecutionAPI(treeObject):
 
             # Execute the solution
             config = StepConfig(mode='step', record_context=True)
-            engine = SolutionExecutionEngine()
+            engine = SolutionExecutionEngine(manager=self.manager)
             start_time = time.time()
             trace = engine.execute(solution_data, input_params, config, target_runtime, instance_fields=instance_fields)
             duration_ms = int((time.time() - start_time) * 1000)
@@ -366,7 +366,7 @@ class SolutionExecutionAPI(treeObject):
 
                 # Execute
                 config = StepConfig(mode='step', record_context=True)
-                engine = SolutionExecutionEngine()
+                engine = SolutionExecutionEngine(manager=self.manager)
                 start_time = time.time()
                 trace = engine.execute(solution_data, input_params, config, target_runtime, instance_fields=instance_fields)
                 duration_ms = int((time.time() - start_time) * 1000)
