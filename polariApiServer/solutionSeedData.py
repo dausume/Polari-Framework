@@ -512,18 +512,17 @@ _USER_BACKEND_UPDATE_DEFINITION = {
 # single declared `f` potential), binds `f` to `self.input_expression`, and
 # stores the derivative LaTeX into `self.result_expression`.
 #
-# Phase E will add a second solution (`splice_and_integrate`) demonstrating
+# Phase E will add a second solution (`integrate_product`) demonstrating
 # multi-potential equations.
 
 _CALCULUS_TESTER_BOUND_CLASS = {
     "className": "CalculusTester",
     "displayName": "Calculus Tester",
-    "description": "Tester object whose fields hold LaTeX equations. Demonstrates the equation field type + RunEquation state.",
+    "description": "Tester object whose fields hold LaTeX equations. Demonstrates the equation field type + CalculusOperation state.",
     "pythonImports": [],
     "fields": [
         {"name": "input_expression",   "displayName": "Input Expression",   "type": "equation", "defaultValue": "",  "description": "LaTeX expression to operate on (e.g. 2*x or \\sin(x))"},
         {"name": "input_expression_2", "displayName": "Input Expression 2", "type": "equation", "defaultValue": "",  "description": "Second LaTeX expression (used by multi-potential solutions)"},
-        {"name": "operation_type",     "displayName": "Operation",          "type": "str",      "defaultValue": "derivative", "description": "Which operation to apply (derivative, integral_indefinite, etc.)"},
         {"name": "variable",           "displayName": "Variable",           "type": "str",      "defaultValue": "x", "description": "Variable to operate on"},
         {"name": "result_expression",  "displayName": "Result Expression",  "type": "equation", "defaultValue": "",  "description": "Result LaTeX produced by the equation executor"},
         {"name": "expected_result",    "displayName": "Expected Result",    "type": "equation", "defaultValue": "",  "description": "Optional expected LaTeX, for tester comparison"},
@@ -541,14 +540,14 @@ _CALCULUS_TESTER_BOUND_CLASS = {
             "description": "Differentiate the input expression and store the result"
         },
         {
-            "name": "splice_and_integrate",
-            "displayName": "Splice & Integrate",
+            "name": "integrate_product",
+            "displayName": "Integral of Two Multiplied Functions",
             "parameters": [
                 {"name": "input_expression",   "type": "equation"},
                 {"name": "input_expression_2", "type": "equation"}
             ],
             "returnType": "equation",
-            "description": "Integrate the product of two LaTeX fragments with respect to x"
+            "description": "Indefinite integral of the product of two LaTeX fragments with respect to x"
         }
     ]
 }
@@ -657,7 +656,7 @@ _CALCULUS_DERIVATIVE_TEST_DEFINITION = {
 
 
 # ---------------------------------------------------------------------------
-# Solution 5: CalculusTester.splice_and_integrate
+# Solution 5: CalculusTester.integrate_product
 # ---------------------------------------------------------------------------
 # Demonstrates a MULTI-POTENTIAL equation. References
 # `CalcTester.IntegrateProduct` whose LaTeX is `f \cdot g` and which declares
@@ -667,10 +666,10 @@ _CALCULUS_DERIVATIVE_TEST_DEFINITION = {
 # executor's symbol substitution composes the product LaTeX implicitly
 # before integrating. No explicit "splice" state is needed.
 
-_CALCULUS_SPLICE_AND_INTEGRATE_DEFINITION = {
+_CALCULUS_INTEGRATE_PRODUCT_DEFINITION = {
     "id": 5,
-    "solutionName": "CalculusTester.splice_and_integrate",
-    "functionName": "splice_and_integrate",
+    "solutionName": "CalculusTester.integrate_product",
+    "functionName": "integrate_product",
     "targetRuntime": "python_backend",
     "xBounds": 1100,
     "yBounds": 500,
@@ -679,7 +678,7 @@ _CALCULUS_SPLICE_AND_INTEGRATE_DEFINITION = {
         {
             "stateName": "Start", "id": "start-state", "index": 0,
             "shapeType": "circle",
-            "solutionName": "CalculusTester.splice_and_integrate",
+            "solutionName": "CalculusTester.integrate_product",
             "stateClass": "InitialState", "boundObjectClass": "InitialState",
             "boundObjectFieldValues": {
                 "displayName": "Start",
@@ -706,7 +705,7 @@ _CALCULUS_SPLICE_AND_INTEGRATE_DEFINITION = {
         {
             "stateName": "Integrate Product", "id": "run-equation", "index": 1,
             "shapeType": "circle",
-            "solutionName": "CalculusTester.splice_and_integrate",
+            "solutionName": "CalculusTester.integrate_product",
             "stateClass": "CalculusOperation", "boundObjectClass": "CalculusOperation",
             "boundObjectFieldValues": {
                 "displayName": "Integrate Product",
@@ -753,7 +752,7 @@ _CALCULUS_SPLICE_AND_INTEGRATE_DEFINITION = {
         {
             "stateName": "Return", "id": "return-result", "index": 2,
             "shapeType": "rectangle",
-            "solutionName": "CalculusTester.splice_and_integrate",
+            "solutionName": "CalculusTester.integrate_product",
             "stateClass": "ReturnValue", "boundObjectClass": "ReturnValue",
             "boundObjectFieldValues": {
                 "displayName": "Return Result",
@@ -807,9 +806,9 @@ SEED_SOLUTIONS = [
         "definition": json.dumps(_CALCULUS_DERIVATIVE_TEST_DEFINITION),
     },
     {
-        "name": "CalculusTester.splice_and_integrate",
-        "function_name": "splice_and_integrate",
+        "name": "CalculusTester.integrate_product",
+        "function_name": "integrate_product",
         "target_runtime": "python_backend",
-        "definition": json.dumps(_CALCULUS_SPLICE_AND_INTEGRATE_DEFINITION),
+        "definition": json.dumps(_CALCULUS_INTEGRATE_PRODUCT_DEFINITION),
     },
 ]
