@@ -2,7 +2,10 @@ pip==25.3
 cffi==2.0.0
 cryptography==46.0.4
 falcon==4.2.0
-jwt==1.4.0
+# PyJWT (not the `jwt` package) — needed for PyJWKClient + RS256 JWKS-based
+# verification of Keycloak access tokens. The [crypto] extra pulls in the
+# cryptography backend PyJWT uses for RS256.
+PyJWT[crypto]==2.10.1
 psutil==5.9.8
 pycparser==2.21
 PyYAML==6.0.2

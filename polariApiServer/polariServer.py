@@ -58,6 +58,9 @@ from polariApiServer.configuredFormattedAPIs import FlatJsonAPI, D3ColumnAPI, Ge
 from polariApiServer.tileGeneratorAPI import TileGeneratorAPI
 from polariApiServer.objectStorageAPI import ObjectStorageAPI
 from polariApiServer.wsStatusAPI import WsStatusAPI
+from polariApiServer.authMeAPI import AuthMeAPI, AuthJwksHealthAPI
+from polariApiServer.roleAPI import RoleAPI
+from accessControl.role import Role
 from polariApiProfiler.apiProfilerAPI import (
     APIProfilerQueryAPI,
     APIProfilerMatchAPI,
@@ -75,6 +78,7 @@ from polariApiProfiler.apiEndpoint import APIEndpoint
 from accessControl.polariPermissionSet import polariPermissionSet
 from accessControl.polariUserGroup import UserGroup
 from accessControl.polariUser import User
+from accessControl.auth_middleware import AuthContextMiddleware
 from wsgiref import simple_server
 import falcon
 import secrets
@@ -142,7 +146,11 @@ class polariServer(treeObject):
         self.falconServer = falcon.App(
             middleware=[
                 falcon.CORSMiddleware(allow_origins=allow_origins, allow_credentials=allow_creds),
-                CORSExtraHeadersMiddleware()
+                CORSExtraHeadersMiddleware(),
+                # Populates req.context.user_info / req.context.roles from
+                # the incoming Bearer token. Lenient in Phase 1 — never
+                # rejects, just plumbs identity for downstream gating.
+                AuthContextMiddleware()
             ]
         )
         self.active = False
@@ -275,6 +283,20 @@ class polariServer(treeObject):
         # Create WebSocket Status endpoint for STOMP server inspection
         wsStatusEndpoint = WsStatusAPI(polServer=self, manager=self.manager)
 
+        # Phase-1 auth plumbing: introspection endpoints powering the
+        # Permissions → Auth Diagnostics page. AuthMe returns identity
+        # from the request's Bearer token; AuthJwksHealth reports whether
+        # the backend itself can reach + parse Keycloak's JWKS, so the
+        # UI can tell "JWKS unreachable" apart from "token rejected".
+        authMeEndpoint = AuthMeAPI(polServer=self, manager=self.manager)
+        authJwksHealthEndpoint = AuthJwksHealthAPI(polServer=self, manager=self.manager)
+
+        # Phase-2 permissions: Role tree-object (synced from Keycloak,
+        # role-indexed grants) + per-user effective-permissions endpoint.
+        # The transient user matrix is keyed by `sub` (KC UUID) — no
+        # user PII is ever persisted by the framework.
+        roleEndpoint = RoleAPI(polServer=self, manager=self.manager)
+
         # Register APIProfile, APIDomain, APIEndpoint, and ApiFormatConfig types
         self.manager.getObjectTyping(classObj=APIProfile)
         self.manager.getObjectTyping(classObj=APIDomain)
@@ -285,7 +307,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition]
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role]
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
         for defClass in self.defClassList:
             className = defClass.__name__
