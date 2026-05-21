@@ -61,6 +61,35 @@ from polariApiServer.wsStatusAPI import WsStatusAPI
 from polariApiServer.authMeAPI import AuthMeAPI, AuthJwksHealthAPI
 from polariApiServer.roleAPI import RoleAPI
 from accessControl.role import Role
+# SimSpace abstraction — shared base + 2D-specific Definition classes.
+# 3D classes land in Phase 2 and will be imported here as well.
+from simSpace.sim_space_definition import SimSpaceDefinition
+from simSpace.sim_space_binding_definition import SimSpaceBindingDefinition
+from simSpace.sim_space_api import SimSpaceAPI
+from simSpace2D.shape_2d_definition import Shape2DDefinition
+from simSpace2D.style_2d_definition import Style2DDefinition
+from simSpace2D.seed_data import SEED_SHAPES_2D, SEED_STYLES_2D, SEED_SIM_SPACES_2D
+# 3D Definition classes (Phase 2 — three.js renderer skeleton).
+from simSpace3D.mesh_3d_definition import Mesh3DDefinition
+from simSpace3D.material_3d_definition import Material3DDefinition
+from simSpace3D.seed_data import SEED_MESHES_3D, SEED_MATERIALS_3D, SEED_SIM_SPACES_3D
+# Simulations module — composed *SimState classes + variable metadata
+# + config tie-in + storage predictor.
+from simulations.sim_variable import SimVariable
+from simulations.pendulum_bob_sim_state import PendulumBobSimState
+from simulations.pendulum_string_sim_state import PendulumStringSimState
+from simulations.simulation_definition import SimulationDefinition
+from simulations.simulation_run import SimulationRun
+from simulations.simulation_api import SimulationAPI
+from simulations.seed_data import (
+    SEED_PENDULUM_BOB_ROWS,
+    SEED_PENDULUM_STRING_ROWS,
+    SEED_SIM_VARIABLES,
+    SEED_SIMULATION_DEFINITIONS,
+    SEED_SIMULATION_RUNS,
+    SEED_PENDULUM_SIMSPACES,
+    SEED_PENDULUM_BINDINGS,
+)
 from polariApiProfiler.apiProfilerAPI import (
     APIProfilerQueryAPI,
     APIProfilerMatchAPI,
@@ -297,6 +326,15 @@ class polariServer(treeObject):
         # user PII is ever persisted by the framework.
         roleEndpoint = RoleAPI(polServer=self, manager=self.manager)
 
+        # SimSpace snapshot dispatcher — single URL that compiles either a
+        # 2D or 3D scene based on the definition's dimensionality flag.
+        simSpaceEndpoint = SimSpaceAPI(polServer=self, manager=self.manager)
+
+        # Simulation endpoints — storage prediction + run introspection.
+        # Runtime engine (the part that actually iterates a step function)
+        # lands in the next phase alongside simulation-kind no-code.
+        simulationEndpoint = SimulationAPI(polServer=self, manager=self.manager)
+
         # Register APIProfile, APIDomain, APIEndpoint, and ApiFormatConfig types
         self.manager.getObjectTyping(classObj=APIProfile)
         self.manager.getObjectTyping(classObj=APIDomain)
@@ -307,7 +345,10 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role]
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition,
+            # Simulations
+            SimulationDefinition, SimulationRun, SimVariable,
+            PendulumBobSimState, PendulumStringSimState]
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
         for defClass in self.defClassList:
             className = defClass.__name__
@@ -700,6 +741,12 @@ class polariServer(treeObject):
         self._seedSolutionDefinitions()
         # Seed EquationDefinition with smoke-test equations if missing
         self._seedEquationDefinitions()
+        # Seed SimSpace2D stock library + a demo space
+        self._seedSimSpace2D()
+        # Seed SimSpace3D stock library + a demo space (Phase 2)
+        self._seedSimSpace3D()
+        # Seed simulations module — Pendulum2D demo + its SimSpace + binding
+        self._seedSimulations()
 
     def _migrateDefinitionTable(self, className):
         """Check if a Definition table has an 'id' column and recreate it if not.
@@ -943,6 +990,145 @@ class polariServer(treeObject):
                 print(f'[SeedEquations] Failed to create {seedData["name"]}: {e}', flush=True)
                 import traceback
                 traceback.print_exc()
+
+    def _seedSimSpace2D(self):
+        """Seed the SimSpace 2D library (shapes + styles) and a demo space.
+
+        Same idempotent-by-name pattern as _seedEquationDefinitions. Each
+        of the three seed lists (shapes, styles, sim-spaces) is checked
+        independently so partial-success scenarios are tolerated.
+        """
+        seed_pairs = [
+            ('Shape2DDefinition', Shape2DDefinition, SEED_SHAPES_2D),
+            ('Style2DDefinition', Style2DDefinition, SEED_STYLES_2D),
+            ('SimSpaceDefinition', SimSpaceDefinition, SEED_SIM_SPACES_2D),
+        ]
+        for class_name, cls, seed_list in seed_pairs:
+            typingObj = self.manager.objectTypingDict.get(class_name)
+            if typingObj is None:
+                print(f'[SeedSimSpace2D] {class_name} not in objectTypingDict, skipping', flush=True)
+                continue
+            existing = self.manager.objectTables.get(class_name, {}) or {}
+            existing_by_name = {getattr(o, 'name', None): o for o in existing.values()}
+            for seed in seed_list:
+                if seed.get('name') in existing_by_name:
+                    # Migrate legacy 24x24 styles to the new 40x40 default.
+                    # Safe heuristic: only resize when the row matches the
+                    # *exact* prior defaults (untouched by admins).
+                    if class_name == 'Style2DDefinition':
+                        row = existing_by_name[seed['name']]
+                        if (getattr(row, 'width', None) == 24.0
+                                and getattr(row, 'height', None) == 24.0):
+                            row.width = seed.get('width', 40.0)
+                            row.height = seed.get('height', 40.0)
+                            try:
+                                self.manager.db.saveInstanceInDB(row)
+                                print(f'[SeedSimSpace2D] Resized legacy style "{seed["name"]}" to {row.width}×{row.height}', flush=True)
+                            except Exception:
+                                pass
+                    print(f'[SeedSimSpace2D] {class_name} "{seed["name"]}" exists; skipping', flush=True)
+                    continue
+                try:
+                    cls(**seed, manager=self.manager)
+                    print(f'[SeedSimSpace2D] Created {class_name} "{seed["name"]}"', flush=True)
+                except Exception as e:
+                    print(f'[SeedSimSpace2D] Failed to create {class_name} "{seed.get("name")}": {e}', flush=True)
+                    import traceback
+                    traceback.print_exc()
+
+    def _seedSimSpace3D(self):
+        """Seed SimSpace 3D library (meshes + materials) + a demo 3D space.
+        Same idempotent-by-name pattern as _seedSimSpace2D, plus a small
+        upgrade pass that refreshes legacy demo-3d definitions to the
+        expanded showcase layout (safe: only updates when the row exactly
+        matches the prior seed signature)."""
+        seed_pairs = [
+            ('Mesh3DDefinition', Mesh3DDefinition, SEED_MESHES_3D),
+            ('Material3DDefinition', Material3DDefinition, SEED_MATERIALS_3D),
+            ('SimSpaceDefinition', SimSpaceDefinition, SEED_SIM_SPACES_3D),
+        ]
+        # Old demo-3d description (used as the "untouched" signature). If
+        # the existing demo-3d row still has this verbatim, we treat it
+        # as un-customized and overwrite to the new showcase layout.
+        LEGACY_DEMO_3D_DESCRIPTION = (
+            'Demo SimSpace3D — five primitives arranged in a row. '
+            'Proves the 3D renderer wires up behind the same '
+            'SimSpaceRenderer interface as 2D.'
+        )
+        for class_name, cls, seed_list in seed_pairs:
+            typingObj = self.manager.objectTypingDict.get(class_name)
+            if typingObj is None:
+                print(f'[SeedSimSpace3D] {class_name} not in objectTypingDict, skipping', flush=True)
+                continue
+            existing = self.manager.objectTables.get(class_name, {}) or {}
+            existing_by_name = {getattr(o, 'name', None): o for o in existing.values()}
+            for seed in seed_list:
+                name = seed.get('name')
+                if name in existing_by_name:
+                    row = existing_by_name[name]
+                    # Demo-3d upgrade — only when the row is still the
+                    # legacy showcase (admin hasn't touched description).
+                    if (class_name == 'SimSpaceDefinition'
+                            and name == 'demo-3d'
+                            and getattr(row, 'description', '') == LEGACY_DEMO_3D_DESCRIPTION):
+                        for key in (
+                            'description', 'viewport_json', 'bound_classes_json', 'definition',
+                        ):
+                            if key in seed:
+                                setattr(row, key, seed[key])
+                        try:
+                            self.manager.db.saveInstanceInDB(row)
+                            print(f'[SeedSimSpace3D] Upgraded legacy demo-3d to showcase layout', flush=True)
+                        except Exception:
+                            pass
+                    print(f'[SeedSimSpace3D] {class_name} "{name}" exists; skipping create', flush=True)
+                    continue
+                try:
+                    cls(**seed, manager=self.manager)
+                    print(f'[SeedSimSpace3D] Created {class_name} "{name}"', flush=True)
+                except Exception as e:
+                    print(f'[SeedSimSpace3D] Failed to create {class_name} "{name}": {e}', flush=True)
+                    import traceback
+                    traceback.print_exc()
+
+    def _seedSimulations(self):
+        """Seed the simulations module — pendulum-2d demo end-to-end.
+
+        Idempotent-by-name. Order matters: SimulationDefinition →
+        SimulationRun → *SimState rows → SimVariable metadata → SimSpace
+        + bindings. The two *SimState row streams are keyed by `name`
+        (composite "<run>-<role>-<step>") so standard name-keyed
+        idempotency works for everything; no special path needed.
+        """
+        seed_pairs = [
+            ('SimulationDefinition', SimulationDefinition, SEED_SIMULATION_DEFINITIONS),
+            ('SimulationRun', SimulationRun, SEED_SIMULATION_RUNS),
+            ('PendulumBobSimState', PendulumBobSimState, SEED_PENDULUM_BOB_ROWS),
+            ('PendulumStringSimState', PendulumStringSimState, SEED_PENDULUM_STRING_ROWS),
+            ('SimVariable', SimVariable, SEED_SIM_VARIABLES),
+            ('SimSpaceDefinition', SimSpaceDefinition, SEED_PENDULUM_SIMSPACES),
+            ('SimSpaceBindingDefinition', SimSpaceBindingDefinition, SEED_PENDULUM_BINDINGS),
+        ]
+        for class_name, cls, seed_list in seed_pairs:
+            typingObj = self.manager.objectTypingDict.get(class_name)
+            if typingObj is None:
+                print(f'[SeedSimulations] {class_name} not in objectTypingDict, skipping', flush=True)
+                continue
+            existing = self.manager.objectTables.get(class_name, {}) or {}
+            existing_names = {getattr(o, 'name', None) for o in existing.values()}
+            created = 0
+            for seed in seed_list:
+                if seed.get('name') in existing_names:
+                    continue
+                try:
+                    cls(**seed, manager=self.manager)
+                    created += 1
+                except Exception as e:
+                    print(f'[SeedSimulations] {class_name} "{seed.get("name")}" failed: {e}', flush=True)
+                    import traceback
+                    traceback.print_exc()
+            if created:
+                print(f'[SeedSimulations] Created {created} {class_name} row(s)', flush=True)
 
     def _autoRegisterMbtilesSources(self):
         """Scan MinIO buckets for .mbtiles files and create or update
