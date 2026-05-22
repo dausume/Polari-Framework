@@ -18,6 +18,7 @@ Idempotent: existing rows are left alone (matches the pattern in
 simSpace2D/seed_data.py + simSpace3D/seed_data.py).
 """
 
+import json
 import math
 from datetime import datetime, timezone
 
@@ -230,6 +231,152 @@ SEED_SIM_VARIABLES = [
         'unit': 'N',
         'role': 'diagnostic',
         'description': 'String tension — centripetal + radial-gravity (mg·cos θ + mLω²).',
+    },
+    # Derived (equation-computed) variables. No sim_state_class_name /
+    # field_name — these are produced by SimSpaceEvaluationEquation rows
+    # at snapshot compile time. Unit + precision still live here so the
+    # readout components have one place to read them from.
+    {
+        'name': 'kinetic_energy',
+        'sim_state_class_name': '',
+        'field_name': '',
+        'simulation_definition_name': SIM_DEF_NAME,
+        'unit': 'J',
+        'precision': 3,
+        'role': 'energy',
+        'description': 'Kinetic energy of the bob (½ m L² ω²).',
+    },
+    {
+        'name': 'potential_energy',
+        'sim_state_class_name': '',
+        'field_name': '',
+        'simulation_definition_name': SIM_DEF_NAME,
+        'unit': 'J',
+        'precision': 3,
+        'role': 'energy',
+        'description': 'Potential energy of the bob (m g L (1 − cos θ)).',
+    },
+    {
+        'name': 'total_energy',
+        'sim_state_class_name': '',
+        'field_name': '',
+        'simulation_definition_name': SIM_DEF_NAME,
+        'unit': 'J',
+        'precision': 3,
+        'role': 'energy',
+        'description': 'KE + PE — should stay flat for an energy-stable integrator.',
+    },
+]
+
+
+# EquationDefinitions for the three live readouts. Authored as
+# `evaluate` operations — the executor substitutes bindings then computes.
+def _equation_def(name, description, latex):
+    return {
+        'name': name,
+        'description': description,
+        'source_class': SIM_DEF_NAME,
+        'definition': json.dumps({
+            'latexExpression': latex,
+            'operationType': 'evaluate',
+            'variableBindings': [],   # bindings live on the SimSpaceEvaluationEquation
+            'bounds': None,
+            'options': {},
+            'resultSpec': {'type': 'scalar'},
+        }),
+    }
+
+
+SEED_PENDULUM_EQUATIONS = [
+    _equation_def(
+        name='pendulum-2d.kinetic-energy',
+        description='Kinetic energy of the pendulum bob: ½ m L² ω².',
+        # `\omega` reads as the angular-velocity symbol; bindings on the
+        # SimSpaceEvaluationEquation row will map it to PendulumBobSimState.omega.
+        latex=r'\frac{1}{2} \cdot m \cdot L^{2} \cdot \omega^{2}',
+    ),
+    _equation_def(
+        name='pendulum-2d.potential-energy',
+        description='Potential energy of the pendulum bob: m g L (1 − cos θ).',
+        latex=r'm \cdot g \cdot L \cdot (1 - \cos(\theta))',
+    ),
+    _equation_def(
+        name='pendulum-2d.total-energy',
+        description='Total mechanical energy of the pendulum bob — KE + PE inlined.',
+        latex=(
+            r'\frac{1}{2} \cdot m \cdot L^{2} \cdot \omega^{2} '
+            r'+ m \cdot g \cdot L \cdot (1 - \cos(\theta))'
+        ),
+    ),
+]
+
+
+# SimSpaceEvaluationEquation rows — one per readout overlay on the
+# pendulum-2d-viz scene. The variable bindings here are what glue the
+# equation's symbols to live simulation data; the snapshot compile pass
+# evaluates each at every recorded step.
+def _binding_param(symbol, software_name, param_name):
+    return {
+        'symbol': symbol,
+        'softwareName': software_name,
+        'source': {'kind': 'param', 'name': param_name},
+    }
+
+
+def _binding_sim_state(symbol, software_name, class_name, field):
+    return {
+        'symbol': symbol,
+        'softwareName': software_name,
+        'source': {'kind': 'simState', 'class': class_name, 'field': field},
+    }
+
+
+_PENDULUM_KE_PE_BINDINGS = [
+    _binding_param('m', 'mass', 'mass'),
+    _binding_param('L', 'L', 'L'),
+    _binding_param('g', 'g', 'g'),
+    _binding_sim_state(r'\theta', 'theta', 'PendulumBobSimState', 'theta'),
+    _binding_sim_state(r'\omega', 'omega', 'PendulumBobSimState', 'omega'),
+]
+
+
+SEED_PENDULUM_EVALUATION_EQUATIONS = [
+    {
+        'name': 'pendulum-2d-viz.kinetic-energy',
+        'description': 'Live KE readout — top-right HUD.',
+        'sim_space_ref': 'pendulum-2d-viz',
+        'equation_ref': 'pendulum-2d.kinetic-energy',
+        'variable_bindings_json': json.dumps(_PENDULUM_KE_PE_BINDINGS),
+        'result_variable_ref': 'kinetic_energy',
+        'anchor_kind': 'screen',
+        'anchor_data_json': '{"corner": "top-right"}',
+        'sort_order': 0,
+        'enabled': True,
+    },
+    {
+        'name': 'pendulum-2d-viz.potential-energy',
+        'description': 'Live PE readout — top-right HUD (below KE).',
+        'sim_space_ref': 'pendulum-2d-viz',
+        'equation_ref': 'pendulum-2d.potential-energy',
+        'variable_bindings_json': json.dumps(_PENDULUM_KE_PE_BINDINGS),
+        'result_variable_ref': 'potential_energy',
+        'anchor_kind': 'screen',
+        'anchor_data_json': '{"corner": "top-right"}',
+        'sort_order': 1,
+        'enabled': True,
+    },
+    {
+        'name': 'pendulum-2d-viz.total-energy',
+        'description': 'Live total-energy readout — top-right HUD (below PE). '
+                       'Should hover near 1.31 J for the 30° release.',
+        'sim_space_ref': 'pendulum-2d-viz',
+        'equation_ref': 'pendulum-2d.total-energy',
+        'variable_bindings_json': json.dumps(_PENDULUM_KE_PE_BINDINGS),
+        'result_variable_ref': 'total_energy',
+        'anchor_kind': 'screen',
+        'anchor_data_json': '{"corner": "top-right"}',
+        'sort_order': 2,
+        'enabled': True,
     },
 ]
 

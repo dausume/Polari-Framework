@@ -34,12 +34,16 @@ only wires the route handlers and delegates.
 """
 
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from objectTreeDecorators import treeObject, treeObjectInit
 import falcon
 
 from .compilers import compile_2d, compile_3d
+from simulations.equation_evaluation import (
+    collect_evaluation_metadata,
+    evaluate_at_step,
+)
 
 
 class SimSpaceAPI(treeObject):
@@ -56,6 +60,17 @@ class SimSpaceAPI(treeObject):
             polServer.falconServer.add_route(self.apiName, self)
             polServer.falconServer.add_route(
                 self.apiName + '/{name}/snapshot', self, suffix='snapshot'
+            )
+            # On-demand single-step evaluation. The viewer fires this
+            # (debounced) when the user pauses on a particular scrubber
+            # time; it returns the same metadata shape as the snapshot's
+            # `evaluations`, but with `perStep` carrying exactly one
+            # entry for the requested step. No batch / no caching layer —
+            # the parse-cache inside the evaluator covers the LaTeX
+            # parse cost across repeated stops.
+            polServer.falconServer.add_route(
+                self.apiName + '/{name}/evaluations/at', self,
+                suffix='evaluations_at',
             )
 
     # ------------------------------------------------------------------
@@ -98,6 +113,19 @@ class SimSpaceAPI(treeObject):
             response.media = {'success': False, 'error': f'Snapshot compile failed: {e}'}
             return
 
+        # Equation overlay metadata only — values are computed on-demand
+        # when the user stops on a particular time (the /evaluations/at
+        # endpoint, fired from the viewer with a debounce). Keeps the
+        # snapshot endpoint free of SymPy work and parses each LaTeX at
+        # most once per stop, not 200+ times per snapshot.
+        try:
+            evaluations = collect_evaluation_metadata(
+                self.manager, row, warnings,
+            )
+        except Exception as e:
+            evaluations = []
+            warnings.append(f'Equation metadata pass failed: {e}')
+
         response.media = {
             'success': True,
             'data': {
@@ -105,6 +133,57 @@ class SimSpaceAPI(treeObject):
                 'objects': objects,
                 'connections': connections,
                 'resolvedBindings': resolved_bindings,
+                'evaluations': evaluations,
+                'warnings': warnings,
+            },
+        }
+        response.status = falcon.HTTP_200
+
+    # ------------------------------------------------------------------
+    # GET /api/simspace/{name}/evaluations/at?step=<int> or ?time=<float>
+    # Evaluate every SimSpaceEvaluationEquation in the scene at ONE step.
+    # Fired (debounced) by the viewer when the user pauses on a scrubber
+    # position they're interested in. Cheap — one substitute + numeric
+    # eval per overlay, leveraging the LaTeX parse cache.
+    # ------------------------------------------------------------------
+    def on_get_evaluations_at(self, request, response, name):
+        row = self._find_by_name(name)
+        if row is None:
+            response.status = falcon.HTTP_404
+            response.media = {'success': False, 'error': f'SimSpace "{name}" not found'}
+            return
+        step_param = request.get_param('step')
+        time_param = request.get_param('time')
+        target_step: Optional[int] = None
+        target_time: Optional[float] = None
+        if step_param is not None:
+            try:
+                target_step = int(step_param)
+            except (TypeError, ValueError):
+                response.status = falcon.HTTP_400
+                response.media = {'success': False, 'error': "'step' must be integer."}
+                return
+        elif time_param is not None:
+            try:
+                target_time = float(time_param)
+            except (TypeError, ValueError):
+                response.status = falcon.HTTP_400
+                response.media = {'success': False, 'error': "'time' must be numeric."}
+                return
+        warnings: List[str] = []
+        try:
+            evaluations = evaluate_at_step(
+                self.manager, row, warnings,
+                step=target_step, time_value=target_time,
+            )
+        except Exception as e:
+            response.status = falcon.HTTP_500
+            response.media = {'success': False, 'error': f'Evaluation failed: {e}'}
+            return
+        response.media = {
+            'success': True,
+            'data': {
+                'evaluations': evaluations,
                 'warnings': warnings,
             },
         }
@@ -137,8 +216,12 @@ class SimSpaceAPI(treeObject):
             bound_classes = json.loads(getattr(row, 'bound_classes_json', '') or '[]')
         except (ValueError, TypeError):
             bound_classes = []
+        try:
+            axis_labels = json.loads(getattr(row, 'axis_labels_json', '') or '{}')
+        except (ValueError, TypeError):
+            axis_labels = {}
         return {
-            'id': row.name,  # name is the stable identity
+            'id': row.name,
             'name': row.name,
             'description': getattr(row, 'description', ''),
             'dimensionality': getattr(row, 'dimensionality', '2d'),
@@ -147,4 +230,5 @@ class SimSpaceAPI(treeObject):
             'viewport': viewport,
             'boundClasses': bound_classes,
             'definition': getattr(row, 'definition', '{}'),
+            'axisLabels': axis_labels,
         }

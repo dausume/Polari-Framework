@@ -24,28 +24,41 @@ from objectTreeDecorators import treeObject, treeObjectInit
 
 
 class SimVariable(treeObject):
-    """Per-field metadata about a variable on a *SimState class.
+    """Per-variable metadata for a simulation.
 
-    `name` is a unique identifier — convention is
-    "<SimStateClassName>.<fieldName>" so the row is locatable without
-    a composite key (e.g. "PendulumBobSimState.theta").
+    Two shapes:
+      - *Field-backed* (most common): describes a typed field on a `*SimState`
+        class. `sim_state_class_name` + `field_name` identify the location.
+      - *Derived* (computed by a SimSpaceEvaluationEquation): no class/field —
+        the value is produced by evaluating an EquationDefinition over other
+        SimVariables. Used to give equation outputs (kinetic_energy,
+        potential_energy, …) a stable home for unit + display precision so
+        that downstream consumers (overlay readouts, plots) read those
+        attributes from one place.
+
+    `name` is unique. Convention for field-backed rows is
+    "<SimStateClassName>.<fieldName>"; for derived rows, a short slug
+    matching the equation's output meaning ("kinetic_energy").
     """
 
     @treeObjectInit
     def __init__(
         self,
         name: str = '',
-        # Which *SimState class this variable lives on.
+        # Field-backed rows: which *SimState class this variable lives on.
+        # Empty for derived rows.
         sim_state_class_name: str = '',
-        # The field name on that class (e.g. 'theta', 'omega', 'x').
+        # Field-backed rows: the field name on that class. Empty for derived.
         field_name: str = '',
-        # The SimulationDefinition this variable participates in. Lets
-        # the simulation-detail page list "variables tracked by this
-        # simulation" without scanning every SimState class.
+        # The SimulationDefinition this variable participates in.
         simulation_definition_name: str = '',
         # SI / domain unit string. Free-form for now (e.g. 'radian',
         # 'rad/s', 'm', 'J', 'N'); a future unit catalog can constrain.
         unit: str = '',
+        # Decimal places used when this variable's value is rendered as
+        # a number. 0 = integer rendering; -1 = auto/unspecified (UI
+        # falls back to a sensible default).
+        precision: int = 2,
         # Semantic role for grouping / filtering:
         #   state      — an integrator state variable (theta, omega)
         #   derived    — computed from state vars (x, y from theta)
@@ -61,5 +74,6 @@ class SimVariable(treeObject):
         self.field_name = field_name
         self.simulation_definition_name = simulation_definition_name
         self.unit = unit
+        self.precision = precision
         self.role = role
         self.description = description

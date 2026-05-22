@@ -68,6 +68,18 @@ class SimSpaceDefinition(treeObject):
         # background config, etc. For 3D: Three.js Object3D.toJSON() output.
         # Opaque to the shared layer.
         definition: str = '{}',
+        # JSON-encoded per-axis label override. Shape:
+        # {
+        #   "x": {"kind": "default" | "text" | "latex", "value": "<str>"},
+        #   "y": {...},
+        #   "z": {...}
+        # }
+        # Empty/missing → renders the dimensionality default (X / Y / Z).
+        # 'text' renders the value as plain text; 'latex' renders via KaTeX
+        # so an axis can carry symbolic notation (e.g. \omega, \theta).
+        # Phase-space scenes lean heavily on this — `theta` on X / `omega`
+        # on Y is much clearer as "\theta" / "\omega" than literal X / Y.
+        axis_labels_json: str = '{}',
         manager=None,
     ):
         self.name = name
@@ -78,3 +90,4 @@ class SimSpaceDefinition(treeObject):
         self.viewport_json = viewport_json
         self.bound_classes_json = bound_classes_json
         self.definition = definition
+        self.axis_labels_json = axis_labels_json

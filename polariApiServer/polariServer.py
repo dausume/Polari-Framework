@@ -76,6 +76,7 @@ from simSpace3D.seed_data import SEED_MESHES_3D, SEED_MATERIALS_3D, SEED_SIM_SPA
 # Simulations module — composed *SimState classes + variable metadata
 # + config tie-in + storage predictor.
 from simulations.sim_variable import SimVariable
+from simulations.sim_space_evaluation_equation import SimSpaceEvaluationEquation
 from simulations.pendulum_bob_sim_state import PendulumBobSimState
 from simulations.pendulum_string_sim_state import PendulumStringSimState
 from simulations.simulation_definition import SimulationDefinition
@@ -85,6 +86,8 @@ from simulations.seed_data import (
     SEED_PENDULUM_BOB_ROWS,
     SEED_PENDULUM_STRING_ROWS,
     SEED_SIM_VARIABLES,
+    SEED_PENDULUM_EQUATIONS,
+    SEED_PENDULUM_EVALUATION_EQUATIONS,
     SEED_SIMULATION_DEFINITIONS,
     SEED_SIMULATION_RUNS,
     SEED_PENDULUM_SIMSPACES,
@@ -348,6 +351,7 @@ class polariServer(treeObject):
         self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition,
             # Simulations
             SimulationDefinition, SimulationRun, SimVariable,
+            SimSpaceEvaluationEquation,
             PendulumBobSimState, PendulumStringSimState]
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
         for defClass in self.defClassList:
@@ -1106,8 +1110,10 @@ class polariServer(treeObject):
             ('PendulumBobSimState', PendulumBobSimState, SEED_PENDULUM_BOB_ROWS),
             ('PendulumStringSimState', PendulumStringSimState, SEED_PENDULUM_STRING_ROWS),
             ('SimVariable', SimVariable, SEED_SIM_VARIABLES),
+            ('EquationDefinition', EquationDefinition, SEED_PENDULUM_EQUATIONS),
             ('SimSpaceDefinition', SimSpaceDefinition, SEED_PENDULUM_SIMSPACES),
             ('SimSpaceBindingDefinition', SimSpaceBindingDefinition, SEED_PENDULUM_BINDINGS),
+            ('SimSpaceEvaluationEquation', SimSpaceEvaluationEquation, SEED_PENDULUM_EVALUATION_EQUATIONS),
         ]
         for class_name, cls, seed_list in seed_pairs:
             typingObj = self.manager.objectTypingDict.get(class_name)
