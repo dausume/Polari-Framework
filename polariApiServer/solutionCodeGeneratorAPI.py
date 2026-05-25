@@ -34,6 +34,12 @@ PYTHON_TEMPLATES = {
     'EmitFrontendEvent': 'self.emit_event("{targetSolutionName}", {eventPayload})',
     'ReactiveTransform': '# Transform: {operator}({expression})',
     'MathOperation': '{resultVar} = {leftLabel} {opSymbol} {rightLabel}',
+    # SimStepNextState — canonical end state for simStepComplete /
+    # simStepComposition solutions.
+    'SimStepNextState': '# SimStepNextState ({simStateClassName}) — declares the next-step row',
+    # SimStepContribution — end state for simStepPartial solutions.
+    'SimStepContribution': '# SimStepContribution ({simStateClassName}) — emits sparse field deltas',
+    'SimulationStateStep': '# Simulation step entry — target={simStateClassName}, role={simStepRole}, expected={expectedFields}',
 }
 
 TYPESCRIPT_TEMPLATES = {
@@ -57,6 +63,9 @@ TYPESCRIPT_TEMPLATES = {
     'EmitFrontendEvent': 'this.polariService.emitEvent("{targetSolutionName}", {eventPayload});',
     'ReactiveTransform': '.pipe({operator}({expression}))',
     'MathOperation': 'const {resultVar} = {leftLabel} {opSymbol} {rightLabel};',
+    'SimStepNextState': '// SimStepNextState ({simStateClassName}) — declares the next-step row',
+    'SimStepContribution': '// SimStepContribution ({simStateClassName}) — emits sparse field deltas',
+    'SimulationStateStep': '// Simulation step entry — target={simStateClassName}, role={simStepRole}',
 }
 
 

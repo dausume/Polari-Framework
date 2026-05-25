@@ -77,6 +77,8 @@ from simSpace3D.seed_data import SEED_MESHES_3D, SEED_MATERIALS_3D, SEED_SIM_SPA
 # + config tie-in + storage predictor.
 from simulations.sim_variable import SimVariable
 from simulations.sim_space_evaluation_equation import SimSpaceEvaluationEquation
+from simulations.sim_state_step_binding import SimStateStepBinding
+from simulations.simulation_execution_solution import SimulationExecutionSolution
 from simulations.pendulum_bob_sim_state import PendulumBobSimState
 from simulations.pendulum_string_sim_state import PendulumStringSimState
 from simulations.simulation_definition import SimulationDefinition
@@ -88,6 +90,11 @@ from simulations.seed_data import (
     SEED_SIM_VARIABLES,
     SEED_PENDULUM_EQUATIONS,
     SEED_PENDULUM_EVALUATION_EQUATIONS,
+    SEED_PENDULUM_STEP_BINDINGS,
+    SEED_PENDULUM_STEP_SOLUTIONS,
+    SEED_PENDULUM_STEP_SOLUTION_DEFS,
+    SEED_PENDULUM_STEP_EQUATIONS,
+    SEED_PENDULUM_STEP_TEST_CASES,
     SEED_SIMULATION_DEFINITIONS,
     SEED_SIMULATION_RUNS,
     SEED_PENDULUM_SIMSPACES,
@@ -351,7 +358,8 @@ class polariServer(treeObject):
         self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition,
             # Simulations
             SimulationDefinition, SimulationRun, SimVariable,
-            SimSpaceEvaluationEquation,
+            SimSpaceEvaluationEquation, SimStateStepBinding,
+            SimulationExecutionSolution,
             PendulumBobSimState, PendulumStringSimState]
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
         for defClass in self.defClassList:
@@ -1110,10 +1118,28 @@ class polariServer(treeObject):
             ('PendulumBobSimState', PendulumBobSimState, SEED_PENDULUM_BOB_ROWS),
             ('PendulumStringSimState', PendulumStringSimState, SEED_PENDULUM_STRING_ROWS),
             ('SimVariable', SimVariable, SEED_SIM_VARIABLES),
-            ('EquationDefinition', EquationDefinition, SEED_PENDULUM_EQUATIONS),
+            # Equations: the live-readout set (KE/PE/E_total) PLUS the
+            # per-step math each CalculusOperation references. Must seed
+            # before the SolutionDefinitions that point at them by name.
+            ('EquationDefinition', EquationDefinition,
+             SEED_PENDULUM_EQUATIONS + SEED_PENDULUM_STEP_EQUATIONS),
             ('SimSpaceDefinition', SimSpaceDefinition, SEED_PENDULUM_SIMSPACES),
             ('SimSpaceBindingDefinition', SimSpaceBindingDefinition, SEED_PENDULUM_BINDINGS),
             ('SimSpaceEvaluationEquation', SimSpaceEvaluationEquation, SEED_PENDULUM_EVALUATION_EQUATIONS),
+            # Step solutions: the no-code graphs go in SolutionDefinition
+            # (where the editor sees them), then thin metadata wrappers
+            # in SimulationExecutionSolution tag each one with its
+            # simulation role, then bindings tie each SimState class to
+            # one or more solutions. Order matters: bindings reference
+            # the others by name.
+            ('SolutionDefinition', SolutionDefinition, SEED_PENDULUM_STEP_SOLUTION_DEFS),
+            ('SimulationExecutionSolution', SimulationExecutionSolution, SEED_PENDULUM_STEP_SOLUTIONS),
+            ('SimStateStepBinding', SimStateStepBinding, SEED_PENDULUM_STEP_BINDINGS),
+            # Manual-Process test cases for the step solutions — let the
+            # user verify each step solution's math via the existing
+            # /executeSolutionStepped endpoint without standing up a
+            # full simulation run.
+            ('SolutionTestCase', SolutionTestCase, SEED_PENDULUM_STEP_TEST_CASES),
         ]
         for class_name, cls, seed_list in seed_pairs:
             typingObj = self.manager.objectTypingDict.get(class_name)

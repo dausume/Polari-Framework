@@ -443,13 +443,27 @@ def _unwrap_latex(value: Any) -> Any:
 
 
 def _build_subs_map(expr, variable_bindings: dict[str, Any]) -> dict:
-    """Build a SymPy substitution map from variable_bindings, skipping dataseries."""
+    """Build a SymPy substitution map from variable_bindings, skipping dataseries.
+
+    Key normalization — Greek symbols arrive in the bindings dict as
+    their LaTeX form (e.g. `\\theta`), but `parse_latex` strips the
+    leading backslash so the free symbol's name is plain `theta`. We
+    try the literal key first, then the backslash-stripped variant,
+    then fall back to creating a fresh Symbol (which won't substitute
+    anything but at least doesn't crash). Without this normalization
+    every CalculusOperation that uses Greek-letter bindings would
+    silently fail to substitute.
+    """
     subs: dict = {}
     free_symbols_by_name = {str(s): s for s in expr.free_symbols}
     for name, value in variable_bindings.items():
         if isinstance(value, (list, tuple, np.ndarray)):
-            continue  # dataseries — not substituted into symbolic expressions
-        sym = free_symbols_by_name.get(name) or Symbol(name)
+            continue
+        sym = (
+            free_symbols_by_name.get(name)
+            or (free_symbols_by_name.get(name.lstrip('\\')) if isinstance(name, str) else None)
+            or Symbol(name)
+        )
         if isinstance(value, str):
             try:
                 subs[sym] = _parse_latex_to_sympy(value)

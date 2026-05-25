@@ -100,11 +100,22 @@ class SimSpaceAPI(treeObject):
         dim = getattr(row, 'dimensionality', '2d')
         warnings: List[str] = []
         resolved_bindings: List[Dict] = []
+        # Optional ?run=<run_name> — restrict *SimState rows to one
+        # SimulationRun. Without this, multiple runs in the same scene
+        # would render their rows overlaid. Frontend defaults to the
+        # latest-complete run when no explicit selection.
+        run_filter = request.get_param('run') or None
         try:
             if dim == '2d':
-                objects, connections = compile_2d(self.manager, row, warnings, resolved_bindings)
+                objects, connections = compile_2d(
+                    self.manager, row, warnings, resolved_bindings,
+                    run_filter=run_filter,
+                )
             elif dim == '3d':
-                objects, connections = compile_3d(self.manager, row, warnings, resolved_bindings)
+                objects, connections = compile_3d(
+                    self.manager, row, warnings, resolved_bindings,
+                    run_filter=run_filter,
+                )
             else:
                 objects, connections = [], []
                 warnings.append(f"Unknown dimensionality '{dim}' — returning empty snapshot.")
@@ -135,6 +146,12 @@ class SimSpaceAPI(treeObject):
                 'resolvedBindings': resolved_bindings,
                 'evaluations': evaluations,
                 'warnings': warnings,
+                'activeRunRef': run_filter,
+                # Independent of instance count — derived from the scene's
+                # bound *SimState classes' class-level
+                # `simulation_definition_name` metadata. The run panel
+                # uses this so it stays visible even on a fresh empty run.
+                'participatingSimulations': self._participating_sims_for(row),
             },
         }
         response.status = falcon.HTTP_200
@@ -192,6 +209,36 @@ class SimSpaceAPI(treeObject):
     # ------------------------------------------------------------------
     # Helpers (small enough to keep alongside the routes)
     # ------------------------------------------------------------------
+    def _participating_sims_for(self, scene_row) -> List[str]:
+        """Walk the scene's enabled SimSpaceBindingDefinitions and
+        collect each bound *SimState class's class-level
+        `simulation_definition_name`. Deduped; preserves first-seen
+        order. Independent of instance count — a brand-new live run
+        with zero rows still shows up here so the viewer keeps the
+        run panel visible."""
+        dim = getattr(scene_row, 'dimensionality', '2d')
+        bindings_table = self.manager.objectTables.get('SimSpaceBindingDefinition', {}) or {}
+        seen: List[str] = []
+        for b in bindings_table.values():
+            if getattr(b, 'dimensionality', '') != dim:
+                continue
+            if not getattr(b, 'enabled', False):
+                continue
+            cls_name = getattr(b, 'class_name', '')
+            if not cls_name:
+                continue
+            typing_obj = self.manager.objectTypingDict.get(cls_name)
+            cls = getattr(typing_obj, 'classDefinition', None) if typing_obj else None
+            if cls is None:
+                sample_table = self.manager.objectTables.get(cls_name, {}) or {}
+                for inst in sample_table.values():
+                    cls = inst.__class__
+                    break
+            sim_def_name = getattr(cls, 'simulation_definition_name', '') if cls else ''
+            if sim_def_name and sim_def_name not in seen:
+                seen.append(sim_def_name)
+        return seen
+
     def _find_by_name(self, name: str):
         rows = self.manager.objectTables.get('SimSpaceDefinition', {}) or {}
         for r in rows.values():

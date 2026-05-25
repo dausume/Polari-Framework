@@ -39,16 +39,48 @@ from polariNoCode.ExecutionTrace.ExecutionStepSnapshot import (
 from polariNoCode.stepping import StepConfig, step_checkpoint
 
 
-# State classes that serve as initial entry points
+# State classes that serve as initial entry points. Each one tags a
+# solution with a specific INVOCATION INTENT — generic InitialState,
+# backend-only DirectInvocation, frontend FormSubscription, etc.
+# `SimulationStateStep` marks solutions authored as one timestep of a
+# simulation: the runner expects them to read prev-step *SimState
+# fields + params + dt/step, and to terminate at one of:
+#   - `SimStepNextState` for simStepComplete / simStepComposition
+#     solutions (full next-row producers).
+#   - `SimStepContribution` for simStepPartial solutions (sparse
+#     field-delta payloads merged by the runner).
+# Editor tooling filters on this so the simulation editor only offers
+# valid step solutions when wiring a SimStateStepBinding.
 INITIAL_STATE_CLASSES = {
     'InitialState', 'DirectInvocation', 'FormSubscription',
-    'LogicFlowEntry', 'BackendStateChange'
+    'LogicFlowEntry', 'BackendStateChange',
+    'SimulationStateStep',
 }
 
 # State classes that are terminal (no further traversal)
 TERMINAL_STATE_CLASSES = {
-    'ReturnStatement', 'ReturnValue'
+    'ReturnStatement', 'ReturnValue',
+    # SimStepNextState is the terminator for `simStepComplete` and
+    # `simStepComposition` SimulationStateStep solutions — it declares
+    # the new *SimState row's field values that the SimulationRunner
+    # persists for the current timestep.
+    'SimStepNextState',
+    # SimStepContribution is the terminator for `simStepPartial` step
+    # solutions. Instead of writing the FULL next row, it emits a
+    # sparse `{field → {value, op}}` payload into the context's
+    # `_step_contributions` list. The SimulationRunner reads that list
+    # back out of the trace and either additively merges the payloads
+    # (when no SimStepComposition solution is wired) or surfaces them
+    # to a SimStepComposition solution's context for explicit
+    # composition.
+    'SimStepContribution',
 }
+
+# Sentinel context key the SimStepContribution terminator appends to.
+# Resolution solutions read this same key to access prior partial
+# contributions. The SimulationRunner harvests it after each binding's
+# trace completes so it never leaks across bindings.
+STEP_CONTRIBUTIONS_KEY = '_step_contributions'
 
 # Comparison operators mapping (supports symbols, snake_case, and camelCase)
 COMPARISON_OPS = {
@@ -175,7 +207,87 @@ def _resolve_value_source_config(config, context):
         except (ValueError, TypeError):
             return value
 
+    elif source_type == 'from_latex':
+        # Inline LaTeX expression evaluated against the current context.
+        # Every free symbol in the expression is resolved by looking up
+        # the symbol's name (backslash-stripped) in the context — same
+        # convention the simulation pre-eval pass uses. Lets a
+        # SimStepNextState node carry per-output math without having to
+        # seed a full EquationDefinition for every computation step.
+        latex = config.get('latexExpression', '') or ''
+        if not latex:
+            return None
+        return _evaluate_latex_against_context(latex, context)
+
     return None
+
+
+def _evaluate_latex_against_context(latex_expression, context):
+    """Parse + numeric-evaluate a LaTeX expression with every free
+    symbol resolved from the engine context. Tolerates parse failures
+    (returns None).
+
+    Critical detail: SymPy's `parse_latex` treats multi-letter
+    identifiers (`alpha`, `dt`, `mass`) as products of single-letter
+    symbols (`a*l*p*h*a`, `d*t`, `m*a*s*s`). To keep the no-code
+    authoring experience clean — where the user types
+    `\\omega + alpha \\cdot dt` and means it — we PRE-SUBSTITUTE every
+    multi-letter context key with its numeric value before invoking
+    the parser. Single-letter symbols (`m`, `L`, `g`) and Greek
+    commands (`\\omega`, `\\theta`) flow through to parse_latex and
+    are bound the normal way.
+
+    For full equation operations (derivative, integral, dataseries),
+    use CalculusOperation referencing a saved EquationDefinition.
+    """
+    if not latex_expression:
+        return None
+    try:
+        # Lazy import — keeps the engine module importable in
+        # environments without sympy until from_latex is requested.
+        from polariNoCode.equation_executor import execute_equation
+    except Exception:
+        return None
+
+    # Pre-substitute every multi-letter context key (longest first so
+    # `omega_new` is substituted before `omega`). We also drop the
+    # multi-letter keys into the bindings dict — that handles the
+    # Greek-form path (`\theta` → SymPy free symbol `theta` → resolved
+    # via bindings['theta']) AND the pre-substitution path (bare
+    # `theta` in the source string gets replaced literally) without
+    # the two stepping on each other.
+    import re
+    pre_subbed = latex_expression
+    bindings = {}
+    keys = sorted(
+        [k for k, v in (context or {}).items()
+         if isinstance(k, str) and isinstance(v, (int, float))
+         and not k.startswith('self.')],
+        key=len, reverse=True,
+    )
+    for k in keys:
+        v = context[k]
+        bindings[k] = v
+        if len(k) >= 2 and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', k):
+            # Multi-letter — replace where the name appears bounded
+            # by non-word characters so we don't chew the middle of
+            # other words (or LaTeX commands like \sin / \mathrm).
+            # Excluding `\` in the lookbehind protects `\theta` from
+            # having `theta` substituted under it.
+            pre_subbed = re.sub(
+                rf'(?<![A-Za-z_0-9\\]){re.escape(k)}(?![A-Za-z_0-9])',
+                f'({v})', pre_subbed,
+            )
+
+    result = execute_equation(
+        latex_expression=pre_subbed,
+        operation_type='evaluate',
+        variable_bindings=bindings,
+    )
+    if not result.get('success'):
+        return None
+    numeric = result.get('result_numeric')
+    return numeric
 
 
 def _resolve_context_path(path, context):
@@ -527,18 +639,71 @@ class SolutionExecutionEngine:
 
         result = {'result': None, 'branch_taken': None, 'branch_label': None}
 
-        if state_class in ('InitialState', 'DirectInvocation'):
-            # Sets input params in context (already done by caller)
-            # Extract declared input params for documentation
+        if state_class in ('InitialState', 'DirectInvocation', 'SimulationStateStep'):
+            # Entry-point states — input params have already been merged
+            # into context by the caller. We log what was supplied so the
+            # ExecutionTrace shows the starting state. SimulationStateStep
+            # additionally surfaces its declared `simStateClassName` /
+            # `expectedFields` for the analyst when reviewing the trace.
             input_params = field_values.get('inputParams', [])
-            result['result'] = f'Entry point with {len(input_params)} parameters'
-            # Log input parameters
             param_strs = []
             for p in input_params:
                 p_name = p.get('name', '?')
                 p_val = context.get(p_name, '<not provided>')
                 param_strs.append(f'{p_name}={p_val!r}')
-            log_output.append(f'[{state_name}] Entering with params: {", ".join(param_strs) if param_strs else "(none)"}')
+            if state_class == 'SimulationStateStep':
+                target = field_values.get('simStateClassName', '?')
+                expected = field_values.get('expectedFields', []) or []
+                supplied = [
+                    f'{f}={context.get(f, "<missing>")!r}' for f in expected
+                ]
+                # `simStepRole` is REQUIRED and selects the runner
+                # dispatch mode for this solution:
+                #   simStepComplete    → terminates at SimStepNextState;
+                #                        one per (sim, class). Closed-form
+                #                        full-step solution — no
+                #                        contribution merging.
+                #   simStepPartial     → terminates at SimStepContribution;
+                #                        many per (sim, class). Emits a
+                #                        sparse field-delta payload that
+                #                        the runner aggregates.
+                #   simStepComposition → terminates at SimStepNextState;
+                #                        one per (sim, class). Reads
+                #                        `_step_contributions` + merged
+                #                        baseline to compose the final row
+                #                        when additive merge isn't
+                #                        expressive enough.
+                # Missing/invalid values are a hard error.
+                role_raw = field_values.get('simStepRole')
+                valid_roles = (
+                    'simStepComplete', 'simStepPartial', 'simStepComposition'
+                )
+                if not isinstance(role_raw, str) or not role_raw.strip():
+                    raise ValueError(
+                        f"SimulationStateStep '{state_name}': simStepRole is "
+                        f"required (one of: {' | '.join(valid_roles)})."
+                    )
+                role = role_raw.strip()
+                if role not in valid_roles:
+                    raise ValueError(
+                        f"SimulationStateStep '{state_name}': unknown "
+                        f"simStepRole={role_raw!r}. Expected one of: "
+                        f"{' | '.join(valid_roles)}."
+                    )
+                result['result'] = (
+                    f"Simulation step entry — target={target}, "
+                    f"role={role}, expected={len(expected)} fields"
+                )
+                log_output.append(
+                    f'[{state_name}] (SimulationStateStep target={target} role={role}) '
+                    f'entering with: {", ".join(supplied) if supplied else "(no expectedFields declared)"}'
+                )
+            else:
+                result['result'] = f'Entry point with {len(input_params)} parameters'
+                log_output.append(
+                    f'[{state_name}] Entering with params: '
+                    f'{", ".join(param_strs) if param_strs else "(none)"}'
+                )
 
         elif state_class == 'VariableAssignment':
             var_name = field_values.get('variableName', '')
@@ -861,11 +1026,18 @@ class SolutionExecutionEngine:
                     )
                     # print(f'[CalcOp DEBUG]   execute_equation returned: {exec_result!r}', flush=True)
                     if exec_result.get('success'):
-                        # Prefer the LaTeX result for `equation`-typed targets;
-                        # fall back to the numeric result when no LaTeX was emitted.
-                        computed = exec_result.get('result_latex')
-                        if computed is None:
-                            computed = exec_result.get('result_numeric')
+                        # Prefer the numeric result when present — most
+                        # simulation-step math (theta, omega, energy, …)
+                        # is numeric and downstream states need a number,
+                        # not the string-form of one. Fall back to the
+                        # LaTeX result for symbolic operations
+                        # (derivative / integral / simplify) where the
+                        # output IS the expression itself.
+                        numeric_val = exec_result.get('result_numeric')
+                        if numeric_val is not None:
+                            computed = numeric_val
+                        else:
+                            computed = exec_result.get('result_latex')
                         log_output.append(
                             f'[{state_name}] CalculusOperation `{equation_name}` ('
                             f'{", ".join(f"{k}={v!r}" for k, v in runtime_bindings.items())}) '
@@ -894,6 +1066,130 @@ class SolutionExecutionEngine:
                     context[result_var_name] = computed
 
             result['result'] = computed
+
+        elif state_class == 'SimStepContribution':
+            # Terminator for `simStepPartial` SimulationStateStep
+            # solutions. Emits a sparse `{fieldName → {value, op}}`
+            # payload into the per-trace `_step_contributions` list.
+            # The SimulationRunner harvests this list after the
+            # binding's trace completes, then either:
+            #   - aggregates additively (when no simStepComposition
+            #     solution is wired for the target class), or
+            #   - re-injects the union of all partial payloads into a
+            #     simStepComposition solution's context under the same
+            #     sentinel key, letting the composition graph express
+            #     any non-additive merge it wants.
+            #
+            # Schema mirrors SimStepNextState's `outputMappings` so the
+            # editor can share the same row-builder UI, with one extra
+            # `op` field per mapping:
+            #   {
+            #     'simStateClassName': 'PendulumBobSimState',
+            #     'outputMappings': [
+            #       {'outputFieldName': 'theta',
+            #        'valueSource': {...},
+            #        'op': 'add'},   # set | add | mul | min | max
+            #       ...
+            #     ],
+            #   }
+            target_class = field_values.get('simStateClassName', '') or ''
+            output_mappings = field_values.get('outputMappings', []) or []
+            field_deltas: Dict[str, Any] = {}
+            written: list = []
+            for mapping in output_mappings:
+                if not isinstance(mapping, dict):
+                    continue
+                field_name = mapping.get('outputFieldName', '')
+                if not field_name:
+                    continue
+                value_source = mapping.get('valueSource')
+                if isinstance(value_source, dict) and 'sourceType' in value_source:
+                    resolved = _resolve_value_source_config(value_source, context)
+                else:
+                    resolved = _safe_resolve_value(
+                        mapping.get('literal', ''), context
+                    )
+                op_raw = mapping.get('op')
+                if not isinstance(op_raw, str) or not op_raw.strip():
+                    raise ValueError(
+                        f"SimStepContribution '{state_name}' mapping for "
+                        f"'{field_name}': `op` is required "
+                        f"(set | add | mul | min | max)."
+                    )
+                op = op_raw.strip().lower()
+                if op not in ('set', 'add', 'mul', 'min', 'max'):
+                    raise ValueError(
+                        f"SimStepContribution '{state_name}' mapping for "
+                        f"'{field_name}': unknown op={op_raw!r}. "
+                        f"Expected one of: set | add | mul | min | max."
+                    )
+                field_deltas[field_name] = {'value': resolved, 'op': op}
+                written.append(f'{field_name}{op}={resolved!r}')
+
+            contribution = {
+                'targetClass': target_class,
+                'sourceState': state_name,
+                'fieldDeltas': field_deltas,
+            }
+            existing = context.get(STEP_CONTRIBUTIONS_KEY)
+            if not isinstance(existing, list):
+                existing = []
+            existing.append(contribution)
+            context[STEP_CONTRIBUTIONS_KEY] = existing
+
+            tag = (
+                f'SimStepContribution({target_class})'
+                if target_class else 'SimStepContribution'
+            )
+            result['result'] = (
+                f'{tag} → {len(written)} deltas: {", ".join(written)}'
+                if written else f'{tag}: no outputMappings'
+            )
+            log_output.append(f'[{state_name}] {result["result"]}')
+
+        elif state_class == 'SimStepNextState':
+            # SimStepNextState — terminator for `simStepComplete` and
+            # `simStepComposition` SimulationStateStep solutions.
+            # Declares the new *SimState row's field values for this
+            # timestep. Carries an outputMappings list of
+            # {outputFieldName, valueSource} pairs; each valueSource is
+            # resolved against the current context and written back so
+            # the SimulationRunner can project the final context onto a
+            # new row.
+            #
+            # `simStateClassName` must match the entry's
+            # SimulationStateStep declaration — the editor pairs them
+            # so the analyst can tell at a glance which class a
+            # solution is producing.
+            output_mappings = field_values.get('outputMappings', []) or []
+            target_class = field_values.get('simStateClassName', '')
+            written: list = []
+            for mapping in output_mappings:
+                if not isinstance(mapping, dict):
+                    continue
+                field_name = mapping.get('outputFieldName', '')
+                value_source = mapping.get('valueSource')
+                if not field_name:
+                    continue
+                if isinstance(value_source, dict) and 'sourceType' in value_source:
+                    resolved = _resolve_value_source_config(value_source, context)
+                else:
+                    # Allow a literal-string fallback (rare).
+                    resolved = _safe_resolve_value(
+                        mapping.get('literal', ''), context
+                    )
+                context[field_name] = resolved
+                context[f'self.{field_name}'] = resolved
+                written.append(f'{field_name}={resolved!r}')
+            tag = (
+                f'SimStepNextState({target_class})'
+                if target_class else 'SimStepNextState'
+            )
+            result['result'] = (
+                f'{tag} → {len(written)} fields: {", ".join(written)}'
+                if written else f'{tag}: no outputMappings'
+            )
+            log_output.append(f'[{state_name}] {result["result"]}')
 
         elif state_class == 'FilterList':
             source_var = field_values.get('sourceVariable', '')

@@ -24,6 +24,7 @@ from .common import (
     resolve_resolved_binding,
     read_temporal_value,
     resolve_position_spec,
+    stamp_class_metadata,
 )
 
 
@@ -32,8 +33,10 @@ def compile_3d(
     row,
     warnings: List[str],
     resolved_bindings: List[Dict],
+    run_filter: Optional[str] = None,
 ) -> Tuple[List[Dict], List[Dict]]:
-    """Returns (objects, connections) for a 3D SimSpace snapshot."""
+    """Returns (objects, connections) for a 3D SimSpace snapshot. See
+    compile_2d for the `run_filter` semantics — identical here."""
     objects: List[Dict] = []
     connections: List[Dict] = []
 
@@ -70,6 +73,7 @@ def compile_3d(
         if binding is None or not isinstance(binding, dict):
             warnings.append(f"Binding JSON for {class_name} malformed; skipping.")
             continue
+        stamp_class_metadata(manager, class_name, binding)
 
         override = override_by_class.get(class_name)
         if override is None and not binding.get('defaultVisible', False):
@@ -79,6 +83,15 @@ def compile_3d(
         if not instances:
             warnings.append(f"Class {class_name} bound (3D) but has no instances.")
             continue
+
+        if run_filter:
+            instances = {
+                k: v for k, v in (instances.items() if isinstance(instances, dict) else [])
+                if (not hasattr(v, 'simulation_run_ref')
+                    or getattr(v, 'simulation_run_ref', '') == run_filter)
+            }
+            if not instances:
+                continue
 
         binding_kind = binding.get('kind') or 'object'
         if binding_kind == 'connection':

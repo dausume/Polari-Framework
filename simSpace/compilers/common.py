@@ -73,6 +73,28 @@ def freestanding_id(entry: Dict) -> str:
     return entry.get('id') or f'free-{uuid.uuid4().hex[:8]}'
 
 
+def stamp_class_metadata(manager, class_name: str, binding: Dict) -> None:
+    """Stamp class-level metadata onto a parsed binding dict so
+    `resolve_resolved_binding` can surface it without re-querying the
+    typing system. Currently picks up `simulation_definition_name` —
+    if a binding's class is a `*SimState`, we want the snapshot's
+    resolvedBindings to tell the frontend which simulation it
+    belongs to (so the run panel can list runs without an extra
+    discovery call)."""
+    typing_obj = manager.objectTypingDict.get(class_name)
+    cls = getattr(typing_obj, 'classDefinition', None) if typing_obj else None
+    if cls is None:
+        # Fallback: sample an existing instance for its class. Cheap
+        # when the table has anything; harmless when empty.
+        sample_table = manager.objectTables.get(class_name, {}) or {}
+        for inst in sample_table.values():
+            cls = inst.__class__
+            break
+    sim_def_name = getattr(cls, 'simulation_definition_name', '') if cls else ''
+    if sim_def_name:
+        binding['_simulationDefinitionName'] = sim_def_name
+
+
 def iter_bindings(manager, dimensionality: str):
     """Yield SimSpaceBindingDefinition rows matching `dimensionality`
     and `enabled=True`. Tolerates missing table gracefully."""
@@ -113,6 +135,11 @@ def resolve_resolved_binding(
         # otherwise (frontend hides the scrubber when no resolvedBinding
         # has a temporal entry).
         'temporal': binding.get('temporal') or None,
+        # Class-level simulation_definition_name when the bound class is a
+        # `*SimState` class. Surfaces the participating simulation to the
+        # frontend so the run panel can pick a SimulationRun without an
+        # extra discovery roundtrip.
+        'simulationDefinitionName': binding.get('_simulationDefinitionName'),
     }
 
     if kind == 'connection':

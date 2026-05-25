@@ -25,6 +25,7 @@ from .common import (
     resolve_resolved_binding,
     read_temporal_value,
     resolve_position_spec,
+    stamp_class_metadata,
 )
 
 
@@ -33,8 +34,16 @@ def compile_2d(
     row,
     warnings: List[str],
     resolved_bindings: List[Dict],
+    run_filter: Optional[str] = None,
 ) -> Tuple[List[Dict], List[Dict]]:
-    """Returns (objects, connections) for a 2D SimSpace snapshot."""
+    """Returns (objects, connections) for a 2D SimSpace snapshot.
+
+    `run_filter` (optional) restricts *SimState rows to those whose
+    `simulation_run_ref` matches the given run name. Classes without
+    `simulation_run_ref` (non-SimState bound classes, freestanding) are
+    always emitted. Used by the snapshot endpoint's `?run=<name>` query
+    param so a viewer can show one specific run's data without other
+    runs' rows bleeding through."""
     objects: List[Dict] = []
     connections: List[Dict] = []
 
@@ -67,6 +76,7 @@ def compile_2d(
         if binding is None or not isinstance(binding, dict):
             warnings.append(f"Binding JSON for {class_name} malformed; skipping.")
             continue
+        stamp_class_metadata(manager, class_name, binding)
 
         override = override_by_class.get(class_name)
         if override is None and not binding.get('defaultVisible', False):
@@ -76,6 +86,21 @@ def compile_2d(
         if not instances:
             warnings.append(f"Class {class_name} bound but has no instances.")
             continue
+
+        # Run filter — drop instances whose simulation_run_ref doesn't
+        # match. Classes without a simulation_run_ref attribute fall
+        # through unchanged (the attribute simply isn't there for non-
+        # SimState bound classes, so getattr returns the empty string).
+        if run_filter:
+            instances = {
+                k: v for k, v in (instances.items() if isinstance(instances, dict) else [])
+                if (not hasattr(v, 'simulation_run_ref')
+                    or getattr(v, 'simulation_run_ref', '') == run_filter)
+            }
+            if not instances:
+                # Filtered everything out — quiet (the warning above
+                # already covered the bound-but-no-instances case).
+                continue
 
         binding_kind = binding.get('kind') or 'object'
         if binding_kind == 'connection':
