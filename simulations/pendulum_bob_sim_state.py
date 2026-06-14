@@ -43,6 +43,31 @@ class PendulumBobSimState(treeObject):
     # participating State classes. Not part of the per-row schema.
     simulation_definition_name = 'pendulum-2d'
 
+    # Class-level baseline for the t=0 initial-conditions snapshot.
+    # The SimulationRunner merges these defaults with the
+    # SimulationDefinition's per-class `initial_conditions_overrides_json`
+    # (sim overrides win) when writing the step-0 row.
+    #
+    # 30° release, at rest — the canonical pendulum-2d demo state.
+    # Must include the Cartesian projection (x, y) + energy diagnostic
+    # so the renderer can draw the bob at its actual release position on
+    # the step-0 frame, BEFORE the integrator runs at step-1. Otherwise
+    # the bob renders at the pivot for one frame and then snaps over.
+    #
+    # Values derived from theta = π/6 (30°), omega = 0, L = 1, m = 1,
+    # g = 9.81:
+    #     x = L · sin(π/6)           = 0.5
+    #     y = −L · cos(π/6)          = −0.866…
+    #     KE = ½ m L² ω²             = 0  (released from rest)
+    #     PE = m g L (1 − cos π/6)   = 1.3143…  (above the bottom)
+    default_initial_field_values = {
+        'theta': 0.5235987755982988,  # math.pi / 6
+        'omega': 0.0,
+        'x': 0.5,
+        'y': -0.8660254037844387,
+        'energy_total': 1.3142947181953093,
+    }
+
     @treeObjectInit
     def __init__(
         self,

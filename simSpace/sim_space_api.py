@@ -152,6 +152,13 @@ class SimSpaceAPI(treeObject):
                 # `simulation_definition_name` metadata. The run panel
                 # uses this so it stays visible even on a fresh empty run.
                 'participatingSimulations': self._participating_sims_for(row),
+                # Per-sim config (dt, time_unit) for each participating
+                # SimulationDefinition. Drives the run-panel placeholder
+                # for the dt override input + result-time formatting
+                # without an extra round trip.
+                'simulationDefaultsByName': self._simulation_defaults_for(
+                    self._participating_sims_for(row),
+                ),
             },
         }
         response.status = falcon.HTTP_200
@@ -209,6 +216,31 @@ class SimSpaceAPI(treeObject):
     # ------------------------------------------------------------------
     # Helpers (small enough to keep alongside the routes)
     # ------------------------------------------------------------------
+    def _simulation_defaults_for(self, sim_names: List[str]) -> Dict[str, Dict]:
+        """Look up `time_step_seconds` + `time_unit` per SimulationDefinition.
+        Returned as a dict keyed by sim name so the frontend can pull
+        defaults by the same `simulationDefinitionName` it's already
+        using for the run panel.
+        """
+        out: Dict[str, Dict] = {}
+        if not sim_names:
+            return out
+        sims_table = self.manager.objectTables.get('SimulationDefinition', {}) or {}
+        wanted = set(sim_names)
+        for s in sims_table.values():
+            name = getattr(s, 'name', '')
+            if name not in wanted:
+                continue
+            try:
+                dt = float(getattr(s, 'time_step_seconds', 0.0) or 0.0)
+            except (TypeError, ValueError):
+                dt = 0.0
+            out[name] = {
+                'timeStepSeconds': dt,
+                'timeUnit': getattr(s, 'time_unit', 'second') or 'second',
+            }
+        return out
+
     def _participating_sims_for(self, scene_row) -> List[str]:
         """Walk the scene's enabled SimSpaceBindingDefinitions and
         collect each bound *SimState class's class-level

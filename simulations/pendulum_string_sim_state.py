@@ -43,6 +43,16 @@ class PendulumStringSimState(treeObject):
 
     simulation_definition_name = 'pendulum-2d'
 
+    # Class-level baseline for the t=0 initial-conditions snapshot.
+    # String values at rest with the bob at 30° release: bob_x = L·sin(π/6),
+    # bob_y = −L·cos(π/6), tension = m·g·cos(π/6). The runner merges sim
+    # overrides on top (if any).
+    default_initial_field_values = {
+        'bob_x': 0.5,                  # 1.0 * sin(π/6) = 0.5
+        'bob_y': -0.8660254037844387,  # −1.0 * cos(π/6)
+        'tension': 8.496872802502045,  # 1.0 * 9.81 * cos(π/6)
+    }
+
     @treeObjectInit
     def __init__(
         self,

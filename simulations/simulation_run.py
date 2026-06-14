@@ -60,6 +60,19 @@ class SimulationRun(treeObject):
         error_message: str = '',
         # Optional human label (overrides auto-derived display name).
         label: str = '',
+        # JSON dict keyed BY CLASS NAME of per-class field overrides
+        # specific to THIS RUN. Applied on top of the SimulationDefinition's
+        # `initial_conditions_overrides_json` (per-run wins) when the
+        # runner composes step-0 values. Lets users tweak the starting
+        # state for a one-off run without mutating the saved sim def.
+        # Example: '{"PendulumBobSimState": {"theta": 1.047, "x": 0.866}}'
+        initial_conditions_overrides_json: str = '{}',
+        # Per-run timestep in seconds. Overrides the SimulationDefinition's
+        # `time_step_seconds` when > 0. Lets a single sim def be replayed
+        # at different resolutions (e.g. 1 ms for high-fidelity diagnostic
+        # checks, 100 ms for a quick coarse run) without changing the
+        # canonical config. 0 / unset = fall back to the sim def's value.
+        time_step_seconds: float = 0.0,
         manager=None,
     ):
         self.name = name
@@ -72,3 +85,5 @@ class SimulationRun(treeObject):
         self.last_recorded_step = last_recorded_step
         self.error_message = error_message
         self.label = label
+        self.initial_conditions_overrides_json = initial_conditions_overrides_json
+        self.time_step_seconds = time_step_seconds

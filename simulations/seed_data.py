@@ -114,16 +114,20 @@ SEED_SIMULATION_DEFINITIONS = [
         'description': (
             '2D pendulum reference — 30° initial deflection, no friction. '
             'Composed of PendulumBobSimState (the bob) + PendulumStringSimState '
-            '(the rod). Trajectory is precomputed at seed time; the runtime '
-            'engine will replace it once the simulation no-code lands.'
+            '(the rod). Step solutions are wired via SimulationExecutionSolution '
+            'rows whose simulation_definition_ref points at this row.'
         ),
-        'step_solution_ref': '',  # set when the simulation no-code is authored
+        'participating_sim_state_classes_json': (
+            '["PendulumBobSimState","PendulumStringSimState"]'
+        ),
         'time_step_seconds': DEMO_DT,
         'duration_seconds': DEMO_DURATION,
         'recording_interval_steps': DEMO_RECORDING_INTERVAL,
-        'initial_conditions_json': (
-            f'{{"theta": {DEMO_THETA_0}, "omega": {DEMO_OMEGA_0}}}'
-        ),
+        # Class-level defaults (declared on each *SimState) cover the
+        # 30° release at rest baseline. No sim-level overrides needed
+        # for the canonical demo; left empty to exercise the
+        # "class-defaults-only" code path.
+        'initial_conditions_overrides_json': '{}',
         'parameters_json': (
             f'{{"g": {DEMO_G}, "L": {DEMO_L}, "mass": {DEMO_MASS}}}'
         ),
@@ -660,6 +664,7 @@ def _from_source(path):
 def _step_solution_pair(name, description, target_class, expected_inputs,
                         compute_steps, output_field_to_context,
                         sim_step_role='simStepComplete',
+                        order_index=0, depends_on=None,
                         entry_comment='', terminator_comment=''):
     """Build the three rows a simulation step solution needs:
 
@@ -850,6 +855,9 @@ def _step_solution_pair(name, description, target_class, expected_inputs,
         'solution_definition_ref': name,
         'expected_inputs_json': json.dumps(expected_inputs),
         'expected_outputs_json': json.dumps(list(output_field_to_context.keys())),
+        'order_index': order_index,
+        'depends_on_json': json.dumps(depends_on or []),
+        'enabled': True,
     }
     return solution_def_row, metadata_row, equations
 
@@ -1103,6 +1111,10 @@ _BOB_GRAVITY_SOL_DEF, _BOB_GRAVITY_META, _BOB_GRAVITY_EQUATIONS = _step_solution
     compute_steps=_BOB_GRAVITY_STEPS,
     output_field_to_context=_BOB_GRAVITY_OUTPUT_MAP,
     sim_step_role='simStepPartial',
+    # Partial — runs first within the bob group so its contribution
+    # is merged before the integrator Composition reads alpha_new.
+    order_index=0,
+    depends_on=[],
     entry_comment=(
         "Entry node for the gravity-force Partial.\n\n"
         "The runner invokes this solution once per timestep for the\n"
@@ -1140,6 +1152,10 @@ _BOB_INTEGRATOR_SOL_DEF, _BOB_INTEGRATOR_META, _BOB_INTEGRATOR_EQUATIONS = _step
     compute_steps=_BOB_INTEGRATOR_STEPS,
     output_field_to_context=_BOB_INTEGRATOR_OUTPUT_MAP,
     sim_step_role='simStepComposition',
+    # Composition — runs AFTER the gravity Partial. The runner merges
+    # partials by their `op` semantics before invoking this row.
+    order_index=1,
+    depends_on=[],
     entry_comment=(
         "Entry node for the bob's integrator Composition.\n\n"
         "By the time the runner invokes this solution, every Partial that\n"
@@ -1179,6 +1195,10 @@ _STRING_SOL_DEF, _STRING_META, _STRING_EQUATIONS = _step_solution_pair(
     compute_steps=_STRING_STEPS,
     output_field_to_context=_STRING_OUTPUT_MAP,
     sim_step_role='simStepComplete',
+    # Reads bob's current-step θ/ω, so the string class must wait for
+    # the bob class to commit its new row first.
+    order_index=0,
+    depends_on=['PendulumBobSimState'],
     entry_comment=(
         "Entry node for the string's step solution.\n\n"
         "This binding declares depends_on=['PendulumBobSimState'], so the\n"
@@ -1310,58 +1330,6 @@ SEED_PENDULUM_STEP_TEST_CASES = [
         'expected_return_value': '',
         'expected_status': 'completed',
         'tags': 'simulation,pendulum,smoke',
-    },
-]
-
-
-# SimStateStepBinding rows. Bob is two bindings (Partial + Composition);
-# string is a single Complete. The runner's role-aware dispatch:
-#   PendulumBobSimState:
-#     order=0  bob.gravity-force (Partial)    → emits α += −(g/L) sin θ
-#     order=1  bob.integrator   (Composition) → reads merged α, runs
-#                                               Euler + projections, emits
-#                                               SimStepNextState
-#     Drop additional force Partials here (air drag, driving force, etc.)
-#     at order=0 to compose with gravity without touching the integrator.
-#   PendulumStringSimState:
-#     order=0  string-step (Complete) — single closed-form update.
-SEED_PENDULUM_STEP_BINDINGS = [
-    {
-        'name': f'{SIM_DEF_NAME}.PendulumBobSimState.gravity',
-        'description': (
-            'Gravity-force Partial — contributes −(g/L) sin θ to α. '
-            'Composes additively with any future force Partials.'
-        ),
-        'simulation_definition_ref': SIM_DEF_NAME,
-        'sim_state_class_name': 'PendulumBobSimState',
-        'step_solution_ref': BOB_GRAVITY_SOLUTION_NAME,
-        'depends_on_json': '[]',
-        'enabled': True,
-        'order_index': 0,
-    },
-    {
-        'name': f'{SIM_DEF_NAME}.PendulumBobSimState.integrator',
-        'description': (
-            'Semi-implicit Euler integrator Composition — reads the '
-            'merged α from Partial contributions, advances ω/θ, projects '
-            'x/y, computes energy, emits the next row.'
-        ),
-        'simulation_definition_ref': SIM_DEF_NAME,
-        'sim_state_class_name': 'PendulumBobSimState',
-        'step_solution_ref': BOB_INTEGRATOR_SOLUTION_NAME,
-        'depends_on_json': '[]',
-        'enabled': True,
-        'order_index': 1,
-    },
-    {
-        'name': f'{SIM_DEF_NAME}.PendulumStringSimState',
-        'description': 'Advances the string endpoint + tension. Reads the bob\'s current-step (theta, omega) so it must run after PendulumBobSimState.',
-        'simulation_definition_ref': SIM_DEF_NAME,
-        'sim_state_class_name': 'PendulumStringSimState',
-        'step_solution_ref': STRING_STEP_SOLUTION_NAME,
-        'depends_on_json': '["PendulumBobSimState"]',
-        'enabled': True,
-        'order_index': 0,
     },
 ]
 

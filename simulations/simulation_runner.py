@@ -4,11 +4,23 @@
 @tags @xc:bindings
 
 SimulationRunner — orchestrates per-timestep execution of a
-SimulationRun by composing one no-code solution per participating
-`*SimState` class. Pure orchestration: no state-graph walking, no
-trace bookkeeping, no SymPy. Delegates each binding's step solution to
-the existing `SolutionExecutionEngine`, then maps the resulting
-ExecutionTrace's final context onto a new `*SimState` row.
+SimulationRun. Pure orchestration: no state-graph walking, no trace
+bookkeeping, no SymPy. Delegates each step solution to the existing
+`SolutionExecutionEngine`, then projects the resulting ExecutionTrace's
+final context onto a new `*SimState` row.
+
+Model: a SimulationDefinition lists `participating_sim_state_classes_json`
+(the classes whose rows it advances). For each class, the runner pulls
+every SimulationExecutionSolution row where `simulation_definition_ref`
++ `sim_state_class_name` match and `enabled` is true, sorted by
+`order_index`. Cross-class dependencies live on those rows' union of
+`depends_on_json`, which the runner topo-sorts before executing.
+
+Initial-conditions hybrid model (step=0):
+  * each *SimState class's `default_initial_field_values` (class attr)
+    is the baseline
+  * the SimulationDefinition's `initial_conditions_overrides_json` is
+    a dict keyed BY CLASS NAME of per-class field overrides (sim wins)
 
 The single public entry point is `run_step()` — advance the run by
 exactly one timestep. The proposal layers (`/run` background loop,
@@ -16,10 +28,10 @@ STOMP streaming) wrap this same primitive; if `run_step` works for
 the single-step "is this coherent?" check, the multi-step loop works
 by induction.
 
-Failure model: a single binding's failure aborts the step. Partial
-rows are NOT persisted — either every binding's row lands for the
+Failure model: a single solution's failure aborts the step. Partial
+rows are NOT persisted — either every class's row lands for the
 target step or none of them do. The caller gets a structured error
-listing which binding failed and why; the SimulationRun.status is
+listing which solution failed and why; the SimulationRun.status is
 left untouched (the orchestration layer above decides whether to mark
 it failed).
 
@@ -54,7 +66,7 @@ def run_step(
           'step': int,
           'time': float,
           'rows_by_class': { '<SimStateClass>': {<fields>}, ... },
-          'binding_traces': [ { binding, status, trace_id, error? }, ... ],
+          'solution_traces': [ { solution, status, trace_id, error? }, ... ],
           'warnings': [str, ...],
           'error': str | None,    # set when success=False
         }
@@ -70,60 +82,102 @@ def run_step(
         if target_step is None:
             last = int(getattr(run, 'last_recorded_step', 0) or 0)
             target_step = last + 1 if _has_any_rows_for_run(manager, sim_def, run) else 0
-        dt = float(getattr(sim_def, 'time_step_seconds', 0.01) or 0.01)
+        # Per-run dt overrides the sim def's value when > 0 — lets the
+        # same sim def be replayed at different resolutions per-run.
+        run_dt = float(getattr(run, 'time_step_seconds', 0.0) or 0.0)
+        sim_dt = float(getattr(sim_def, 'time_step_seconds', 0.01) or 0.01)
+        dt = run_dt if run_dt > 0 else sim_dt
         time_value = target_step * dt
 
-        # 3. Gather enabled SimStateStepBindings for this simulation.
-        bindings = _enabled_bindings_for(manager, sim_def, warnings)
-        if not bindings:
+        # 3. Resolve participating *SimState classes from the sim def's
+        #    explicit roster.
+        participating_classes = _participating_classes(sim_def)
+        if not participating_classes:
             return _err(
-                'No enabled SimStateStepBindings for this simulation.',
+                'SimulationDefinition has no participating_sim_state_classes_json.',
                 warnings,
             )
 
-        # 4. Group by SimState class, topo-sort the GROUPS by inter-
-        #    class deps, and within each group order by order_index.
-        ordered_groups = _topo_sort_binding_groups(bindings)
-        if ordered_groups is None:
-            return _err('Cycle in SimStateStepBinding dependencies.', warnings)
+        # 4. For each class, gather enabled SimulationExecutionSolution
+        #    rows targeting it. Empty groups are allowed at step=0 (the
+        #    initial-conditions write doesn't need a solution) but
+        #    warned about at step>=1.
+        solutions_by_class = _solutions_by_class(manager, sim_def, participating_classes)
 
-        # 5. Pre-build common context pieces that don't change per binding.
+        # 5. Topo-sort participating classes by union of solutions' deps.
+        ordered_classes = _topo_sort_classes(participating_classes, solutions_by_class)
+        if ordered_classes is None:
+            return _err('Cycle in cross-class dependencies.', warnings)
+
+        # 6. Pre-build common context pieces that don't change per solution.
         params = _parse_json(getattr(sim_def, 'parameters_json', '{}') or '{}', {})
-        initial_conditions = _parse_json(
-            getattr(sim_def, 'initial_conditions_json', '{}') or '{}', {}
+        sim_overrides = _parse_json(
+            getattr(sim_def, 'initial_conditions_overrides_json', '{}') or '{}', {}
         )
+        if not isinstance(sim_overrides, dict):
+            sim_overrides = {}
+        run_overrides = _parse_json(
+            getattr(run, 'initial_conditions_overrides_json', '{}') or '{}', {}
+        )
+        if not isinstance(run_overrides, dict):
+            run_overrides = {}
 
-        # 6. Execute each binding in order. Collect rows in memory first;
-        #    only persist after all bindings succeed (atomic-per-step).
+        # 7. Execute. Collect rows in memory first; only persist after
+        #    all classes succeed (atomic-per-step).
         engine = SolutionExecutionEngine(manager=manager)
         step_cfg = StepConfig(mode='step', record_context=True)
         deps_outputs: Dict[str, Dict[str, Any]] = {}
         rows_to_persist: List[Tuple[str, Dict[str, Any]]] = []
-        binding_traces: List[Dict[str, Any]] = []
+        solution_traces: List[Dict[str, Any]] = []
 
         # Convention: step=0 is the initial-conditions snapshot. We
         # write it WITHOUT running the engine — there's no "previous
         # step" to integrate from at t=0. The engine kicks in at
-        # step=1 (the first advance). Matches the precomputed-seed
-        # convention where step 0 holds the starting (theta, omega).
+        # step=1 (the first advance).
         if target_step == 0:
-            # Each SimState class participating in the simulation gets
-            # exactly one row with the initial-conditions fields. Even
-            # with multiple bindings per class, the t=0 row is a single
-            # write — the no-code engine doesn't run on step 0.
-            for cls_name, group in ordered_groups:
+            # Gather merged initial conditions per class up front so the
+            # validator (if any) can inspect them before we persist
+            # anything. Validation gates step 0 — a failed verdict aborts
+            # the step with the validator's reason.
+            initial_by_class: Dict[str, Dict[str, Any]] = {}
+            for cls_name in ordered_classes:
+                initial_by_class[cls_name] = _initial_field_values(
+                    manager, cls_name, sim_overrides, run_overrides,
+                )
+
+            verdict = validate_initial_conditions(manager, sim_def, initial_by_class)
+            if verdict['hasValidator']:
+                if verdict['error']:
+                    return _err(
+                        f"Initial-conditions validator failed: {verdict['error']}",
+                        warnings,
+                    )
+                if not verdict['valid']:
+                    return _err(
+                        f"Initial conditions invalid: {verdict['reason']}",
+                        warnings,
+                    )
+                # If the validator returned repairedValues, fold them in
+                # so the persisted step-0 row reflects the corrected
+                # state (e.g. tension recomputed from theta).
+                repaired = verdict.get('repairedValues') or {}
+                if isinstance(repaired, dict):
+                    for cls_name, repairs in repaired.items():
+                        if cls_name in initial_by_class and isinstance(repairs, dict):
+                            initial_by_class[cls_name].update(repairs)
+
+            for cls_name in ordered_classes:
                 new_row_fields = _project_context_onto_class(
-                    initial_conditions, cls_name, manager,
+                    initial_by_class[cls_name], cls_name, manager,
                     target_step, time_value, run,
                 )
                 rows_to_persist.append((cls_name, new_row_fields))
-                for binding in group:
-                    binding_traces.append({
-                        'binding': binding.name,
-                        'simStateClass': cls_name,
-                        'status': 'initial-conditions',
-                        'stepCount': 0,
-                    })
+                solution_traces.append({
+                    'solution': '',
+                    'simStateClass': cls_name,
+                    'status': 'initial-conditions',
+                    'stepCount': 0,
+                })
             rows_by_class: Dict[str, Dict[str, Any]] = {}
             for cls_name, fields in rows_to_persist:
                 _delete_existing_row(manager, run, cls_name, target_step)
@@ -135,40 +189,32 @@ def run_step(
                 'step': target_step,
                 'time': time_value,
                 'rowsByClass': rows_by_class,
-                'bindingTraces': binding_traces,
+                'solutionTraces': solution_traces,
                 'warnings': warnings,
                 'error': None,
             }
 
         # Walk classes in topo order. Per class, classify the group's
-        # bindings into one of three roles:
+        # solutions into one of three roles:
         #
         #   simStepComplete    — monolithic step solution; ends at
-        #                        SimStepNextState. Single-solution-per-
-        #                        class closed-form update path.
+        #                        SimStepNextState.
         #   simStepPartial     — emits a SimStepContribution payload
         #                        (sparse field deltas with per-field
-        #                        ops). Zero-or-more per class; runner
-        #                        aggregates the deltas after each
-        #                        binding's trace.
+        #                        ops). Zero-or-more per class.
         #   simStepComposition — receives `_step_contributions` + the
         #                        already-merged accumulated context;
         #                        ends at SimStepNextState. At most one
-        #                        per class; required when a non-
-        #                        additive composition of partials is
-        #                        needed.
-        #
-        # Modes per group:
-        #   - All Complete bindings: sequential pipeline — each
-        #     binding's final context feeds the next, last context
-        #     projects onto the row.
-        #   - Partial(+Composition) mix: each partial runs against the
-        #     prev-step baseline (NOT the running merge — preserves
-        #     parallel-batch semantics for same-order_index partials).
-        #     After all partials, the merged context is either projected
-        #     directly (no Composition) or handed off to the
-        #     Composition solution.
-        for cls_name, group in ordered_groups:
+        #                        per class.
+        for cls_name in ordered_classes:
+            group = solutions_by_class.get(cls_name, [])
+            if not group:
+                warnings.append(
+                    f"Class '{cls_name}' has no enabled SimulationExecutionSolution rows; "
+                    f"skipping (no new row will be written for this step)."
+                )
+                continue
+
             prev_row = _load_prev_row(
                 manager, run, cls_name, target_step - 1, warnings,
             )
@@ -181,95 +227,84 @@ def run_step(
                 step=target_step,
             )
 
-            # Resolve each binding's role from its solution graph.
-            # `__unset__` marks a binding with an empty step_solution_ref
-            # (the user wired a binding but hasn't authored a solution
-            # yet); those drop into the skip-with-warning path below.
+            # Resolve each solution's role from its no-code graph.
+            # '__unset__' marks a wrapper row whose solution_definition_ref
+            # is empty (scheduled but not yet authored); skip with warning.
             classified: List[Tuple[Any, str, Optional[Dict[str, Any]]]] = []
-            for b in group:
-                sname = getattr(b, 'step_solution_ref', '') or ''
+            for s in group:
+                sname = getattr(s, 'solution_definition_ref', '') or ''
                 if not sname:
-                    classified.append((b, '__unset__', None))
+                    classified.append((s, '__unset__', None))
                     continue
                 sdata = _load_solution_data(manager, sname)
                 if sdata is None:
                     return _err(
-                        f"Binding '{b.name}' references missing "
-                        f"SolutionDefinition '{sname}'.",
+                        f"SimulationExecutionSolution '{getattr(s, 'name', '')}' "
+                        f"references missing SolutionDefinition '{sname}'.",
                         warnings,
                     )
-                classified.append((b, _detect_step_role(sdata), sdata))
+                classified.append((s, _detect_step_role(sdata), sdata))
 
-            partial_bindings = [(b, sdata) for b, role, sdata in classified
-                                if role == 'simStepPartial']
-            composition_bindings = [(b, sdata) for b, role, sdata in classified
-                                    if role == 'simStepComposition']
-            complete_bindings = [(b, sdata) for b, role, sdata in classified
-                                 if role == 'simStepComplete']
+            partial_solutions = [(s, sdata) for s, role, sdata in classified
+                                 if role == 'simStepPartial']
+            composition_solutions = [(s, sdata) for s, role, sdata in classified
+                                     if role == 'simStepComposition']
+            complete_solutions = [(s, sdata) for s, role, sdata in classified
+                                  if role == 'simStepComplete']
 
             # Mixed roles validation. A class can run as ALL-Complete
             # OR Partial(+Composition); never both.
-            if partial_bindings and complete_bindings:
+            if partial_solutions and complete_solutions:
                 return _err(
                     f"Class '{cls_name}' has both Complete and Partial step "
-                    f"solutions wired — pick one mode. Either delete the "
-                    f"Complete binding or convert it to a Partial.",
+                    f"solutions wired — pick one mode.",
                     warnings,
-                    binding_traces=binding_traces,
+                    solution_traces=solution_traces,
                 )
-            if len(composition_bindings) > 1:
+            if len(composition_solutions) > 1:
                 return _err(
-                    f"Class '{cls_name}' has {len(composition_bindings)} "
+                    f"Class '{cls_name}' has {len(composition_solutions)} "
                     f"Composition solutions — only one is allowed per class.",
                     warnings,
-                    binding_traces=binding_traces,
+                    solution_traces=solution_traces,
                 )
-            if composition_bindings and not partial_bindings:
+            if composition_solutions and not partial_solutions:
                 warnings.append(
                     f"Class '{cls_name}' has a Composition solution but no "
-                    f"Partial bindings — it will run with no "
-                    f"`_step_contributions` to merge."
+                    f"Partials — it will run with no `_step_contributions` to merge."
                 )
 
-            # Warn about and record any unset (no step_solution_ref)
-            # bindings up front so the role-aware branches below can
-            # treat their input lists as fully resolved.
-            for b, role, _ in classified:
+            for s, role, _ in classified:
                 if role == '__unset__':
                     warnings.append(
-                        f"Binding '{b.name}': step_solution_ref empty — skipping. "
-                        f"Author a no-code solution and point this binding at it."
+                        f"Solution '{getattr(s, 'name', '')}' has no "
+                        f"solution_definition_ref — skipping."
                     )
-                    binding_traces.append({
-                        'binding': b.name,
+                    solution_traces.append({
+                        'solution': getattr(s, 'name', ''),
                         'simStateClass': cls_name,
                         'status': 'skipped',
-                        'reason': 'no step_solution_ref',
+                        'reason': 'no solution_definition_ref',
                     })
 
             # --- Partial(+Composition) path ------------------------------
-            if partial_bindings:
+            if partial_solutions:
                 contributions: List[Dict[str, Any]] = []
-                for b, sdata in partial_bindings:
+                for s, sdata in partial_solutions:
                     trace = engine.execute(
                         solution_data=sdata,
                         input_params={},
                         config=step_cfg,
                         target_runtime='python_backend',
-                        # Partials read the SAME prev-step baseline.
-                        # Ordering semantics live in the merge step, not
-                        # in chaining contexts (which would defeat the
-                        # "parallel batch" intent of same-order_index
-                        # partials).
                         instance_fields=dict(baseline),
                     )
                     if trace.status != 'completed':
                         err = getattr(trace, 'error_summary', None) or 'engine error'
                         return _err(
-                            f"Partial binding '{b.name}' did not complete: {err}",
+                            f"Partial solution '{getattr(s, 'name', '')}' did not complete: {err}",
                             warnings,
-                            binding_traces=binding_traces + [{
-                                'binding': b.name,
+                            solution_traces=solution_traces + [{
+                                'solution': getattr(s, 'name', ''),
                                 'simStateClass': cls_name,
                                 'role': 'simStepPartial',
                                 'status': trace.status,
@@ -283,14 +318,14 @@ def run_step(
                         contributions.extend(emitted)
                     else:
                         warnings.append(
-                            f"Partial binding '{b.name}': "
+                            f"Partial solution '{getattr(s, 'name', '')}': "
                             f"`_step_contributions` was not a list — ignored."
                         )
-                    binding_traces.append({
-                        'binding': b.name,
+                    solution_traces.append({
+                        'solution': getattr(s, 'name', ''),
                         'simStateClass': cls_name,
                         'role': 'simStepPartial',
-                        'orderIndex': int(getattr(b, 'order_index', 0) or 0),
+                        'orderIndex': int(getattr(s, 'order_index', 0) or 0),
                         'status': 'completed',
                         'contributionsEmitted': len(emitted) if isinstance(emitted, list) else 0,
                         'traceId': getattr(trace, 'execution_id', ''),
@@ -304,11 +339,8 @@ def run_step(
                     warnings=warnings,
                 )
 
-                # Either run the Composition solution to compose the
-                # final row, or use the additively-merged context as
-                # the row directly.
-                if composition_bindings:
-                    comp_b, comp_sdata = composition_bindings[0]
+                if composition_solutions:
+                    comp_s, comp_sdata = composition_solutions[0]
                     comp_fields = dict(merged)
                     comp_fields['_step_contributions'] = contributions
                     trace = engine.execute(
@@ -321,11 +353,11 @@ def run_step(
                     if trace.status != 'completed':
                         err = getattr(trace, 'error_summary', None) or 'engine error'
                         return _err(
-                            f"Composition binding '{comp_b.name}' did not "
+                            f"Composition solution '{getattr(comp_s, 'name', '')}' did not "
                             f"complete: {err}",
                             warnings,
-                            binding_traces=binding_traces + [{
-                                'binding': comp_b.name,
+                            solution_traces=solution_traces + [{
+                                'solution': getattr(comp_s, 'name', ''),
                                 'simStateClass': cls_name,
                                 'role': 'simStepComposition',
                                 'status': trace.status,
@@ -335,8 +367,8 @@ def run_step(
                         )
                     final = _extract_final_context(trace)
                     merged.update(final)
-                    binding_traces.append({
-                        'binding': comp_b.name,
+                    solution_traces.append({
+                        'solution': getattr(comp_s, 'name', ''),
                         'simStateClass': cls_name,
                         'role': 'simStepComposition',
                         'status': 'completed',
@@ -353,14 +385,10 @@ def run_step(
                 continue
 
             # --- Complete-only path --------------------------------------
-            # Multiple Complete bindings still chain sequentially: each
-            # binding's final context feeds the next, last one's context
-            # projects onto the row. Useful for "force calculator →
-            # integrator" pipelines that aren't worth splitting into
-            # Partials.
+            # Multiple Complete solutions still chain sequentially.
             accumulated: Dict[str, Any] = dict(baseline)
             group_had_real_run = False
-            for b, sdata in complete_bindings:
+            for s, sdata in complete_solutions:
                 trace = engine.execute(
                     solution_data=sdata,
                     input_params={},
@@ -371,10 +399,10 @@ def run_step(
                 if trace.status != 'completed':
                     err = getattr(trace, 'error_summary', None) or 'engine error'
                     return _err(
-                        f"Binding '{b.name}' execution did not complete: {err}",
+                        f"Solution '{getattr(s, 'name', '')}' execution did not complete: {err}",
                         warnings,
-                        binding_traces=binding_traces + [{
-                            'binding': b.name,
+                        solution_traces=solution_traces + [{
+                            'solution': getattr(s, 'name', ''),
                             'simStateClass': cls_name,
                             'role': 'simStepComplete',
                             'status': trace.status,
@@ -385,8 +413,8 @@ def run_step(
                 final_context = _extract_final_context(trace)
                 accumulated.update(final_context)
                 group_had_real_run = True
-                binding_traces.append({
-                    'binding': b.name,
+                solution_traces.append({
+                    'solution': getattr(s, 'name', ''),
                     'simStateClass': cls_name,
                     'role': 'simStepComplete',
                     'status': 'completed',
@@ -403,7 +431,7 @@ def run_step(
             deps_outputs[cls_name] = accumulated
             rows_to_persist.append((cls_name, new_row_fields))
 
-        # 7. Atomic persist — wipe any pre-existing rows for this step
+        # 8. Atomic persist — wipe pre-existing rows for this step
         #    (idempotent re-step) and write the new ones.
         rows_by_class: Dict[str, Dict[str, Any]] = {}
         for cls_name, fields in rows_to_persist:
@@ -411,7 +439,7 @@ def run_step(
             _create_row(manager, cls_name, fields)
             rows_by_class[cls_name] = fields
 
-        # 8. Update the SimulationRun's counters.
+        # 9. Update the SimulationRun's counters.
         _bump_run_counters(run, target_step)
 
         return {
@@ -419,7 +447,7 @@ def run_step(
             'step': target_step,
             'time': time_value,
             'rowsByClass': rows_by_class,
-            'bindingTraces': binding_traces,
+            'solutionTraces': solution_traces,
             'warnings': warnings,
             'error': None,
         }
@@ -436,14 +464,14 @@ def run_step(
 def _err(
     msg: str,
     warnings: List[str],
-    binding_traces: Optional[List[Dict[str, Any]]] = None,
+    solution_traces: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     return {
         'success': False,
         'step': None,
         'time': None,
         'rowsByClass': {},
-        'bindingTraces': binding_traces or [],
+        'solutionTraces': solution_traces or [],
         'warnings': warnings,
         'error': msg,
     }
@@ -469,85 +497,80 @@ def _find_simulation_definition(manager, run):
     return None
 
 
-def _has_any_rows_for_run(manager, sim_def, run) -> bool:
-    """True if any SimState class participating in this simulation has
-    at least one row tagged with this run's name."""
-    sim_def_name = getattr(sim_def, 'name', '')
-    bindings = manager.objectTables.get('SimStateStepBinding', {}) or {}
-    for b in bindings.values():
-        if getattr(b, 'simulation_definition_ref', '') != sim_def_name:
-            continue
-        cls_name = getattr(b, 'sim_state_class_name', '')
-        rows = manager.objectTables.get(cls_name, {}) or {}
-        for r in rows.values():
-            if getattr(r, 'simulation_run_ref', '') == getattr(run, 'name', ''):
-                return True
-    return False
+def _participating_classes(sim_def) -> List[str]:
+    raw = getattr(sim_def, 'participating_sim_state_classes_json', '[]') or '[]'
+    parsed = _parse_json(raw, [])
+    if not isinstance(parsed, list):
+        return []
+    return [c for c in parsed if isinstance(c, str) and c]
 
 
-def _enabled_bindings_for(manager, sim_def, warnings: List[str]) -> List:
+def _solutions_by_class(
+    manager,
+    sim_def,
+    participating_classes: List[str],
+) -> Dict[str, List]:
+    """Pull enabled SimulationExecutionSolution rows for this sim_def,
+    grouped by `sim_state_class_name` and sorted internally by
+    `order_index` (then by name as a stable tiebreaker).
+
+    Rows naming a class NOT in the sim's participating roster are
+    ignored — the roster is the source of truth for "what this sim
+    advances."
+    """
     sim_def_name = getattr(sim_def, 'name', '')
-    table = manager.objectTables.get('SimStateStepBinding', {}) or {}
-    out = []
-    for b in table.values():
-        if getattr(b, 'simulation_definition_ref', '') != sim_def_name:
+    participating = set(participating_classes)
+    table = manager.objectTables.get('SimulationExecutionSolution', {}) or {}
+    out: Dict[str, List] = {c: [] for c in participating_classes}
+    for s in table.values():
+        if getattr(s, 'simulation_definition_ref', '') != sim_def_name:
             continue
-        if not getattr(b, 'enabled', True):
+        if not getattr(s, 'enabled', True):
             continue
-        out.append(b)
+        cls = getattr(s, 'sim_state_class_name', '') or ''
+        if cls not in participating:
+            continue
+        out[cls].append(s)
+    for cls in out:
+        out[cls].sort(
+            key=lambda r: (
+                int(getattr(r, 'order_index', 0) or 0),
+                getattr(r, 'name', ''),
+            )
+        )
     return out
 
 
-def _topo_sort_binding_groups(bindings: List) -> Optional[List]:
-    """Group bindings by sim_state_class_name and order the GROUPS by
-    cross-class dependencies. Each group's bindings are themselves
-    ordered by ascending `order_index` (and stable by name as a
-    tiebreaker) so a "force calculator" → "integrator" pipeline runs
-    in the right sequence.
+def _topo_sort_classes(
+    participating_classes: List[str],
+    solutions_by_class: Dict[str, List],
+) -> Optional[List[str]]:
+    """Topologically order the participating classes by the UNION of
+    their solutions' `depends_on_json`. Classes with no solutions still
+    appear in the output (they'll be skipped with a warning during
+    execution; they shouldn't affect topo ordering).
 
-    Returns a list of (cls_name, [binding, ...]) tuples, or None on
-    cycle. Returns an empty list when there are no bindings.
-
-    A binding's depends_on_json names OTHER SimState classes whose
-    current-step values it needs to read. Cycles between classes are
-    fatal (Kahn's algorithm yields fewer items than input).
+    Returns None on cycle.
     """
-    groups: Dict[str, List] = {}
-    deps_union: Dict[str, set] = {}
-    for b in bindings:
-        cls = getattr(b, 'sim_state_class_name', '')
-        if not cls:
-            continue
-        groups.setdefault(cls, []).append(b)
-        deps = _parse_json(getattr(b, 'depends_on_json', '[]') or '[]', [])
-        if not isinstance(deps, list):
-            deps = []
-        # Union the deps across every binding in the same group — if
-        # ANY binding in the group declares the dep, the whole class
-        # group must wait for it.
-        deps_union.setdefault(cls, set()).update(deps)
-
-    # Restrict deps to classes that are themselves grouped here;
-    # external references are ignored (the solution may still read
-    # them but we don't enforce ordering for non-participating classes).
-    for cls in deps_union:
-        deps_union[cls] &= set(groups.keys())
-
-    # Sort each group internally by order_index, then by name.
-    for cls in groups:
-        groups[cls].sort(
-            key=lambda b: (
-                int(getattr(b, 'order_index', 0) or 0),
-                getattr(b, 'name', ''),
+    deps_union: Dict[str, set] = {c: set() for c in participating_classes}
+    participating_set = set(participating_classes)
+    for cls, solutions in solutions_by_class.items():
+        for s in solutions:
+            raw = getattr(s, 'depends_on_json', '[]') or '[]'
+            deps = _parse_json(raw, [])
+            if not isinstance(deps, list):
+                continue
+            deps_union[cls].update(
+                d for d in deps
+                if isinstance(d, str) and d in participating_set and d != cls
             )
-        )
 
-    indegree: Dict[str, int] = {cls: len(deps) for cls, deps in deps_union.items()}
+    indegree: Dict[str, int] = {c: len(d) for c, d in deps_union.items()}
     ready = sorted([c for c, d in indegree.items() if d == 0])
-    ordered: List = []
+    ordered: List[str] = []
     while ready:
         cls = ready.pop(0)
-        ordered.append((cls, groups[cls]))
+        ordered.append(cls)
         for other_cls, other_deps in deps_union.items():
             if cls in other_deps:
                 indegree[other_cls] -= 1
@@ -555,23 +578,165 @@ def _topo_sort_binding_groups(bindings: List) -> Optional[List]:
                     ready.append(other_cls)
         ready.sort()
 
-    if len(ordered) != len(groups):
+    if len(ordered) != len(deps_union):
         return None
     return ordered
 
 
+def _has_any_rows_for_run(manager, sim_def, run) -> bool:
+    """True if any participating *SimState class has at least one row
+    tagged with this run's name."""
+    run_name = getattr(run, 'name', '')
+    for cls_name in _participating_classes(sim_def):
+        rows = manager.objectTables.get(cls_name, {}) or {}
+        for r in rows.values():
+            if getattr(r, 'simulation_run_ref', '') == run_name:
+                return True
+    return False
+
+
+def _initial_field_values(
+    manager,
+    cls_name: str,
+    sim_overrides: Dict[str, Any],
+    run_overrides: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Merge class-level `default_initial_field_values` with the sim's
+    per-class overrides and any per-run overrides.
+
+    Resolution order (later wins):
+      1. class `default_initial_field_values`
+      2. SimulationDefinition.initial_conditions_overrides_json[cls]
+      3. SimulationRun.initial_conditions_overrides_json[cls]
+
+    The per-run layer lets users tweak the starting state for a one-off
+    run without mutating the saved sim def.
+    """
+    out: Dict[str, Any] = {}
+    typing_obj = manager.objectTypingDict.get(cls_name)
+    cls = getattr(typing_obj, 'classDefinition', None) if typing_obj else None
+    defaults = getattr(cls, 'default_initial_field_values', None) if cls else None
+    if isinstance(defaults, dict):
+        out.update(defaults)
+    cls_sim_overrides = sim_overrides.get(cls_name) if isinstance(sim_overrides, dict) else None
+    if isinstance(cls_sim_overrides, dict):
+        out.update(cls_sim_overrides)
+    if isinstance(run_overrides, dict):
+        cls_run_overrides = run_overrides.get(cls_name)
+        if isinstance(cls_run_overrides, dict):
+            out.update(cls_run_overrides)
+    return out
+
+
+def validate_initial_conditions(
+    manager,
+    sim_def,
+    initial_conditions_by_class: Dict[str, Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Run the sim def's `initial_conditions_validator_ref` solution
+    against the proposed initial conditions and return a structured
+    verdict.
+
+    Returns:
+        {
+          'valid':     bool,  # True when no validator OR validator says OK
+          'hasValidator': bool,
+          'reason':    str,   # populated when valid=False
+          'repairedValues': dict[str, dict[str, Any]] | None,
+          'error':     str | None,  # populated when validator execution fails
+        }
+
+    Context passed to the validator:
+      * `<className>.<field>` keys for each participating class's merged
+        initial values (e.g. `PendulumBobSimState.theta`)
+      * `params.<key>` for each entry in `parameters_json`
+      * `participating_classes` — list of class names in this sim
+
+    The validator solution's terminator is expected to be a
+    `ValidationResult` end state with bound `outcome`, `reason`, and
+    optionally `repairedValues` fields.
+    """
+    validator_ref = getattr(sim_def, 'initial_conditions_validator_ref', '') or ''
+    if not validator_ref:
+        return {
+            'valid': True,
+            'hasValidator': False,
+            'reason': '',
+            'repairedValues': None,
+            'error': None,
+        }
+    sdata = _load_solution_data(manager, validator_ref)
+    if sdata is None:
+        return {
+            'valid': False,
+            'hasValidator': True,
+            'reason': '',
+            'repairedValues': None,
+            'error': f"validator solution '{validator_ref}' not found",
+        }
+
+    # Flatten initial conditions into '<class>.<field>' keys + add the
+    # sim's parameters under 'params.<key>'.
+    flat: Dict[str, Any] = {}
+    for cls_name, fields in initial_conditions_by_class.items():
+        if not isinstance(fields, dict):
+            continue
+        for fname, fval in fields.items():
+            flat[f'{cls_name}.{fname}'] = fval
+    params = _parse_json(getattr(sim_def, 'parameters_json', '{}') or '{}', {})
+    if isinstance(params, dict):
+        for k, v in params.items():
+            flat[f'params.{k}'] = v
+    flat['participating_classes'] = list(initial_conditions_by_class.keys())
+
+    engine = SolutionExecutionEngine(manager=manager)
+    step_cfg = StepConfig(mode='step', record_context=True)
+    try:
+        trace = engine.execute(
+            solution_data=sdata,
+            input_params={},
+            config=step_cfg,
+            target_runtime='python_backend',
+            instance_fields=flat,
+        )
+    except Exception as exc:
+        return {
+            'valid': False,
+            'hasValidator': True,
+            'reason': '',
+            'repairedValues': None,
+            'error': f'{type(exc).__name__}: {exc}',
+        }
+    if trace.status != 'completed':
+        err = getattr(trace, 'error_summary', None) or 'engine error'
+        return {
+            'valid': False,
+            'hasValidator': True,
+            'reason': '',
+            'repairedValues': None,
+            'error': str(err),
+        }
+    final = _extract_final_context(trace)
+    outcome = (final.get('outcome') or '').strip().lower()
+    reason = str(final.get('reason') or '').strip()
+    repaired = final.get('repairedValues')
+    if not isinstance(repaired, dict):
+        repaired = None
+    valid = outcome == 'valid'
+    return {
+        'valid': valid,
+        'hasValidator': True,
+        'reason': reason if not valid else '',
+        'repairedValues': repaired,
+        'error': None,
+    }
+
+
 def _load_solution_data(manager, solution_name: str) -> Optional[Dict]:
-    """Resolve a step_solution_ref by name.
-
-    The reference can be either:
-      - A `SolutionDefinition` name (direct — the no-code editor's
-        canonical solutions table)
-      - A `SimulationExecutionSolution` name (metadata wrapper —
-        dereferences to a SolutionDefinition via `solution_definition_ref`)
-
-    Direct SolutionDefinition wins first to avoid an extra hop when
-    bindings point straight at the graph; metadata wrappers are
-    consulted when no SolutionDefinition matches.
+    """Resolve a solution name. Tries SolutionDefinition first, then
+    SimulationExecutionSolution wrapper rows that dereference to one.
+    Direct SolutionDefinition wins to avoid an extra hop when callers
+    point straight at the graph.
     """
     sol_def_table = manager.objectTables.get('SolutionDefinition', {}) or {}
     for inst in sol_def_table.values():
@@ -605,18 +770,6 @@ def _parse_definition(raw: Any) -> Optional[Dict]:
         return None
 
 
-def _initial_pseudo_row(
-    initial_conditions: Dict[str, Any],
-    cls_name: str,
-    manager,
-) -> Dict[str, Any]:
-    """Synthesize a 'previous' row at step=-1 from the simulation's
-    initial_conditions_json. Only the keys named in initial_conditions
-    are populated — the step solution should treat anything else as
-    starting at zero (or its declared default)."""
-    return dict(initial_conditions)
-
-
 def _load_prev_row(
     manager,
     run,
@@ -628,10 +781,7 @@ def _load_prev_row(
     for r in table.values():
         if getattr(r, 'simulation_run_ref', '') != getattr(run, 'name', ''):
             continue
-        # Important: do NOT collapse a legit step=0 with `or -1`. The
-        # `or` short-circuit would treat 0 as falsy and substitute -1,
-        # causing the step-0 row to be invisible to every subsequent
-        # step. Use a sentinel check on the raw value instead.
+        # Important: do NOT collapse a legit step=0 with `or -1`.
         raw = getattr(r, 'step', None)
         try:
             step_val = int(raw) if raw is not None else None
@@ -649,8 +799,7 @@ def _load_prev_row(
 
 def _row_as_dict(row) -> Dict[str, Any]:
     """Snapshot a row's public attributes as a dict. Skips private and
-    framework-injected names so we don't leak them into the engine
-    context."""
+    framework-injected names."""
     skip = {'manager', 'branch', 'inTree', 'polariId'}
     out = {}
     for k, v in vars(row).items():
@@ -668,16 +817,13 @@ def _compose_instance_fields(
     time_value: float,
     step: int,
 ) -> Dict[str, Any]:
-    """Merge order — earliest wins; later overrides. The 'self.*' style
-    paths used by no-code value-source configs flatten over this dict,
-    so we keep top-level names matching field names.
+    """Merge order — earliest wins; later overrides.
 
     Order (later overrides earlier):
       1. prev_row's fields (the previous timestep's outputs)
       2. params (g, L, mass, ...)
       3. deps_outputs values (current-step outputs of dep SimStates)
-      4. step metadata (dt, time, step) — always wins so the solution
-         can't accidentally shadow them with a same-named row field.
+      4. step metadata (dt, time, step) — always wins
     """
     out: Dict[str, Any] = {}
     out.update(prev_row or {})
@@ -690,25 +836,11 @@ def _compose_instance_fields(
     return out
 
 
-def _deps_subset(
-    deps_outputs: Dict[str, Dict[str, Any]],
-    binding,
-) -> Dict[str, Dict[str, Any]]:
-    """Pick only the deps_outputs entries this binding actually declares
-    a dependency on, so cross-talk between unrelated SimStates can't
-    leak via overlapping field names."""
-    declared = _parse_json(getattr(binding, 'depends_on_json', '[]') or '[]', [])
-    if not isinstance(declared, list):
-        return {}
-    return {cls: deps_outputs[cls] for cls in declared if cls in deps_outputs}
-
-
 def _extract_final_context(trace) -> Dict[str, Any]:
-    """Read the variables dict from the trace's last step's
-    context_after, unwrapping each entry. InstanceContextSnapshot
-    stores variables as `{name, type, value, sourceStateName}` wrapped
-    records; the runner needs the raw values, otherwise a wrapped
-    dict gets written to the new *SimState row instead of a number."""
+    """Read the variables dict from the trace's last step's context_after,
+    unwrapping each entry. InstanceContextSnapshot stores variables as
+    `{name, type, value, sourceStateName}` wrapped records; the runner
+    needs the raw values."""
     steps = getattr(trace, 'steps', None) or []
     if not steps:
         return {}
@@ -721,7 +853,6 @@ def _extract_final_context(trace) -> Dict[str, Any]:
         return {}
     out: Dict[str, Any] = {}
     for k, v in variables.items():
-        # Unwrap the snapshot's record shape.
         if isinstance(v, dict) and 'value' in v and 'name' in v:
             out[k] = v.get('value')
         else:
@@ -737,15 +868,10 @@ def _project_context_onto_class(
     time_value: float,
     run,
 ) -> Dict[str, Any]:
-    """Build the kwargs dict for a new `*SimState` row constructor.
-    Picks keys from context that match the class's declared field
-    names, then stamps the row's identity fields (name, run ref, step,
-    time)."""
+    """Build the kwargs dict for a new `*SimState` row constructor."""
     typing_obj = manager.objectTypingDict.get(cls_name)
     field_names = set()
     if typing_obj is not None:
-        # The typing object's polyTypedVarsDict has one entry per declared
-        # field. Fall back to kwDefaultParams when the dict isn't ready.
         ptv_dict = getattr(typing_obj, 'polyTypedVarsDict', {}) or {}
         field_names.update(ptv_dict.keys())
         if not field_names:
@@ -756,8 +882,6 @@ def _project_context_onto_class(
         if not field_names or k in field_names:
             out[k] = v
 
-    # Identity / always-set fields. Overwrite whatever the solution may
-    # have placed in them — the runner is authoritative for these.
     out['name'] = _row_name_for(cls_name, run, step)
     out['simulation_run_ref'] = getattr(run, 'name', '')
     out['step'] = step
@@ -766,16 +890,14 @@ def _project_context_onto_class(
 
 
 def _row_name_for(cls_name: str, run, step: int) -> str:
-    """Composite-name convention matching the precomputed seed:
-    `<run>-<role>-<step>` where role is a lower-case slug derived from
-    the class name (PendulumBobSimState → 'bob'). Stable + unique
-    across all participating SimState classes for one run."""
+    """Composite-name convention: `<run>-<role>-<step>` where role is a
+    lower-case slug derived from the class name (PendulumBobSimState
+    → 'bob')."""
     role = cls_name
     for tail in ('SimState', 'State'):
         if role.endswith(tail):
             role = role[: -len(tail)]
             break
-    # Snake-case the leading class-name (PendulumBob → pendulum-bob).
     role_slug = _to_kebab(role).lower()
     return f"{getattr(run, 'name', '')}-{role_slug}-{step}"
 
@@ -790,8 +912,7 @@ def _to_kebab(camel: str) -> str:
 
 
 def _delete_existing_row(manager, run, cls_name: str, step: int) -> None:
-    """For an idempotent re-step: if a row with the same name (or matching
-    run + step composite key) already exists, drop it from the table."""
+    """Idempotent re-step: drop any row with the same (run, step)."""
     table = manager.objectTables.get(cls_name, {}) or {}
     to_remove = []
     run_name = getattr(run, 'name', '')
@@ -814,14 +935,12 @@ def _delete_existing_row(manager, run, cls_name: str, step: int) -> None:
 
 
 def _create_row(manager, cls_name: str, fields: Dict[str, Any]) -> None:
-    """Instantiate via the typing-recorded class. The @treeObjectInit
-    decorator on every *SimState handles table insertion and DB write."""
+    """Instantiate via the typing-recorded class."""
     typing_obj = manager.objectTypingDict.get(cls_name)
     if typing_obj is None:
         raise RuntimeError(f"Class '{cls_name}' not registered in objectTypingDict.")
     cls = getattr(typing_obj, 'classDefinition', None)
     if cls is None:
-        # Fallback — pull a sample existing row's class.
         table = manager.objectTables.get(cls_name, {}) or {}
         for inst in table.values():
             cls = inst.__class__
@@ -832,9 +951,6 @@ def _create_row(manager, cls_name: str, fields: Dict[str, Any]) -> None:
 
 
 def _bump_run_counters(run, target_step: int) -> None:
-    """Move last_recorded_step forward (never backward — re-stepping an
-    earlier step is allowed but doesn't roll the counter back) and
-    increment recorded_steps when this is a new high-water mark."""
     last = int(getattr(run, 'last_recorded_step', 0) or 0)
     if target_step > last:
         run.last_recorded_step = target_step
@@ -845,31 +961,15 @@ def _bump_run_counters(run, target_step: int) -> None:
 
 
 def _detect_step_role(solution_data: Dict[str, Any]) -> str:
-    """Determine the simStepRole declared by a step solution's entry
-    state. Returns one of:
-        'simStepComplete' | 'simStepPartial' | 'simStepComposition'
-
-    Raises ValueError if the solution has no SimulationStateStep entry
-    state, or if that entry state has no simStepRole declared, or if
-    the declared role is unknown. The runner is authoritative for what
-    a step solution looks like; mis-pointed bindings should fail loudly
-    rather than silently degrading to a default mode.
+    """Determine the simStepRole declared by a step solution's entry state.
+    Returns one of 'simStepComplete' | 'simStepPartial' | 'simStepComposition'.
     """
     if not isinstance(solution_data, dict):
-        raise ValueError(
-            "Solution data is not a dict; cannot detect simStepRole."
-        )
-    # Solutions store their state graph under `stateInstances` (the
-    # canonical key the engine reads from); `states` is the no-code
-    # editor's in-memory shorthand and isn't what gets persisted.
+        raise ValueError("Solution data is not a dict; cannot detect simStepRole.")
     states = solution_data.get('stateInstances') or solution_data.get('states') or []
     if not isinstance(states, list):
-        raise ValueError(
-            "Solution `stateInstances` is not a list."
-        )
-    valid_roles = (
-        'simStepComplete', 'simStepPartial', 'simStepComposition'
-    )
+        raise ValueError("Solution `stateInstances` is not a list.")
+    valid_roles = ('simStepComplete', 'simStepPartial', 'simStepComposition')
     for s in states:
         if not isinstance(s, dict):
             continue
@@ -893,8 +993,7 @@ def _detect_step_role(solution_data: Dict[str, Any]) -> str:
             )
         return role
     raise ValueError(
-        "Step solution has no SimulationStateStep entry state — "
-        "is this binding pointing at the wrong SolutionDefinition?"
+        "Step solution has no SimulationStateStep entry state."
     )
 
 
@@ -907,28 +1006,12 @@ def _apply_step_contributions(
     """Apply a sequence of SimStepContribution payloads onto a baseline
     context dict, producing the merged next-step field map.
 
-    Each contribution has shape:
-        {
-          'targetClass': 'PendulumBobSimState',  # filter
-          'fieldDeltas': {
-            '<fieldName>': {'value': <resolved>, 'op': 'add'|...},
-            ...
-          },
-        }
-
-    Ops applied in ARRIVAL ORDER (which the caller has already sorted
-    by binding `order_index`):
+    Ops applied in ARRIVAL ORDER:
         set : merged[f] = value
         add : merged[f] = (merged[f] or 0) + value
         mul : merged[f] = (merged[f] or 0) * value
-        min : merged[f] = min(merged[f], value)   (skip if merged[f] None)
+        min : merged[f] = min(merged[f], value)
         max : merged[f] = max(merged[f], value)
-
-    Contributions whose targetClass doesn't match are silently
-    skipped — a single graph CAN emit cross-class payloads, but those
-    are aggregated by the SimulationRunner under the OTHER class's
-    group, not here. We surface a warning so the analyst can see it
-    happened.
     """
     merged: Dict[str, Any] = dict(baseline)
     for c in contributions:
@@ -938,8 +1021,7 @@ def _apply_step_contributions(
         if c_target and c_target != target_class:
             warnings.append(
                 f"SimStepContribution targets class '{c_target}' but was "
-                f"emitted under class '{target_class}' group — ignoring "
-                f"(cross-class contribution routing is not yet implemented)."
+                f"emitted under class '{target_class}' group — ignoring."
             )
             continue
         deltas = c.get('fieldDeltas') or {}

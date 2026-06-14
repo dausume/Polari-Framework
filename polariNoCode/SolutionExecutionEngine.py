@@ -50,7 +50,7 @@ from polariNoCode.stepping import StepConfig, step_checkpoint
 #   - `SimStepContribution` for simStepPartial solutions (sparse
 #     field-delta payloads merged by the runner).
 # Editor tooling filters on this so the simulation editor only offers
-# valid step solutions when wiring a SimStateStepBinding.
+# valid step solutions when wiring a SimulationExecutionSolution row.
 INITIAL_STATE_CLASSES = {
     'InitialState', 'DirectInvocation', 'FormSubscription',
     'LogicFlowEntry', 'BackendStateChange',

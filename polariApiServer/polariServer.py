@@ -77,7 +77,6 @@ from simSpace3D.seed_data import SEED_MESHES_3D, SEED_MATERIALS_3D, SEED_SIM_SPA
 # + config tie-in + storage predictor.
 from simulations.sim_variable import SimVariable
 from simulations.sim_space_evaluation_equation import SimSpaceEvaluationEquation
-from simulations.sim_state_step_binding import SimStateStepBinding
 from simulations.simulation_execution_solution import SimulationExecutionSolution
 from simulations.pendulum_bob_sim_state import PendulumBobSimState
 from simulations.pendulum_string_sim_state import PendulumStringSimState
@@ -90,7 +89,6 @@ from simulations.seed_data import (
     SEED_SIM_VARIABLES,
     SEED_PENDULUM_EQUATIONS,
     SEED_PENDULUM_EVALUATION_EQUATIONS,
-    SEED_PENDULUM_STEP_BINDINGS,
     SEED_PENDULUM_STEP_SOLUTIONS,
     SEED_PENDULUM_STEP_SOLUTION_DEFS,
     SEED_PENDULUM_STEP_EQUATIONS,
@@ -358,7 +356,7 @@ class polariServer(treeObject):
         self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition,
             # Simulations
             SimulationDefinition, SimulationRun, SimVariable,
-            SimSpaceEvaluationEquation, SimStateStepBinding,
+            SimSpaceEvaluationEquation,
             SimulationExecutionSolution,
             PendulumBobSimState, PendulumStringSimState]
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
@@ -1129,12 +1127,10 @@ class polariServer(treeObject):
             # Step solutions: the no-code graphs go in SolutionDefinition
             # (where the editor sees them), then thin metadata wrappers
             # in SimulationExecutionSolution tag each one with its
-            # simulation role, then bindings tie each SimState class to
-            # one or more solutions. Order matters: bindings reference
-            # the others by name.
+            # simulation role. Order matters: SimulationExecutionSolution
+            # rows reference the SolutionDefinitions by name.
             ('SolutionDefinition', SolutionDefinition, SEED_PENDULUM_STEP_SOLUTION_DEFS),
             ('SimulationExecutionSolution', SimulationExecutionSolution, SEED_PENDULUM_STEP_SOLUTIONS),
-            ('SimStateStepBinding', SimStateStepBinding, SEED_PENDULUM_STEP_BINDINGS),
             # Manual-Process test cases for the step solutions — let the
             # user verify each step solution's math via the existing
             # /executeSolutionStepped endpoint without standing up a

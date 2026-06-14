@@ -3,17 +3,23 @@
 @module simulations.simulation_definition
 @tags @xc:bindings
 
-SimulationDefinition — the config tie-in that wires a target row class
-to the no-code step-function that generates its rows over time. Today
-the runtime engine isn't wired (Path-A simulation-kind no-code is the
-next phase); this class captures everything the engine will need so
-the schema is stable when the engine arrives.
+SimulationDefinition — a simulation recipe. Names the participating
+*SimState classes, sim-level constants (g, L, mass…), step config (dt,
+duration, recording interval), and any per-class initial-condition
+overrides on top of each class's `default_initial_field_values`.
+
+Step solutions are NOT wired here anymore — every
+SimulationExecutionSolution row that names this sim in
+`simulation_definition_ref` (and a participating class in
+`sim_state_class_name`) is picked up automatically by the runner.
+Ordering + cross-class dependencies live on those solution rows
+(`order_index`, `depends_on_json`).
 
 @consumers
   - polariServer.defClassList
-  - simulations.simulation_api (storage prediction endpoint)
+  - simulations.simulation_runner (binds at run_step time)
+  - simulations.simulation_api (storage prediction, solutions endpoint)
   - simulations.seed_data (the pendulum demo)
-  - (future) simulations.simulation_runner — the execution engine
 @see /OVERLAP_MAP.md
 """
 
@@ -26,10 +32,10 @@ class SimulationDefinition(treeObject):
     Composition: a SimulationDefinition is the recipe; the actual recorded
     rows live across one or more `*SimState` classes that each declare
     `simulation_definition_name = '<this.name>'` as a class attribute.
-    The simulation-detail UI reverse-scans for those classes to list
-    "which sub-systems this simulation tracks." There's no single
-    `target_class_name` because real simulations compose multiple
-    sub-systems (e.g. PendulumBobSimState + PendulumStringSimState).
+    `participating_sim_state_classes_json` makes that membership
+    EXPLICIT (so the runner knows which classes to walk without
+    scanning the whole type registry, and the editor can list them in
+    one place).
     """
 
     @treeObjectInit
@@ -39,10 +45,14 @@ class SimulationDefinition(treeObject):
         # "pendulum-2d", "double-pendulum-chaotic", etc.
         name: str = '',
         description: str = '',
-        # No-code solution name that defines the step function.
-        # Empty when running with a precomputed reference trajectory
-        # (the "ground truth" for visualizing while the engine is built).
-        step_solution_ref: str = '',
+        # JSON-encoded list of *SimState class names this simulation
+        # advances. Explicit roster so the runner can walk it without
+        # reverse-scanning the type registry, and so the editor knows
+        # which classes to surface in the "participating classes"
+        # section. Empty = no participants (the simulation does
+        # nothing).
+        # Example: '["PendulumBobSimState","PendulumStringSimState"]'
+        participating_sim_state_classes_json: str = '[]',
         # Simulation step size in seconds (dt). Each step advances the
         # state by this much sim-time.
         time_step_seconds: float = 0.01,
@@ -54,10 +64,16 @@ class SimulationDefinition(treeObject):
         # {first, current, step-being-computed, last} (4 rows) regardless
         # of N — see storage_predictor.predict_storage for the math.
         recording_interval_steps: int = 10,
-        # JSON dict: initial values for the target class's fields at t=0.
-        # Engine merges these into the first row before iterating.
-        # e.g. {"theta": 0.5236, "omega": 0.0}  (30° initial deflection)
-        initial_conditions_json: str = '{}',
+        # JSON dict, keyed BY CLASS NAME, of per-class initial-condition
+        # OVERRIDES. The runner merges these on top of each class's
+        # `default_initial_field_values` (sim overrides win) when
+        # writing the step-0 row. Empty/missing = use class defaults
+        # straight.
+        # Example:
+        #   '{"PendulumBobSimState": {"theta": 1.047}}'
+        # (override the bob's release angle to 60° while leaving the
+        #  string's defaults untouched.)
+        initial_conditions_overrides_json: str = '{}',
         # JSON dict: simulation constants the step function reads but
         # doesn't update. e.g. {"g": 9.81, "L": 1.0, "mass": 1.0}
         parameters_json: str = '{}',
@@ -68,15 +84,25 @@ class SimulationDefinition(treeObject):
         termination_predicate: str = '',
         # Display unit for the scrubber — matches TimeUnitId on the frontend.
         time_unit: str = 'second',
+        # OPTIONAL: name of a SolutionDefinition whose graph starts with
+        # an `InitialConditionsValidatorEntry` and terminates at a
+        # `ValidationResult`. The runner invokes it before writing the
+        # step=0 row with the merged initial conditions in context
+        # (class defaults + sim overrides + per-run overrides). Empty
+        # string = no validator; step 0 writes unconditionally.
+        # Used by both the runner (gate step 0) and the
+        # `/validate-initial-conditions` endpoint (live UI feedback).
+        initial_conditions_validator_ref: str = '',
         manager=None,
     ):
         self.name = name
         self.description = description
-        self.step_solution_ref = step_solution_ref
+        self.participating_sim_state_classes_json = participating_sim_state_classes_json
         self.time_step_seconds = time_step_seconds
         self.duration_seconds = duration_seconds
         self.recording_interval_steps = recording_interval_steps
-        self.initial_conditions_json = initial_conditions_json
+        self.initial_conditions_overrides_json = initial_conditions_overrides_json
         self.parameters_json = parameters_json
         self.termination_predicate = termination_predicate
         self.time_unit = time_unit
+        self.initial_conditions_validator_ref = initial_conditions_validator_ref

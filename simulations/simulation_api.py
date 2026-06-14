@@ -23,7 +23,7 @@ Simulation-related endpoints:
 """
 
 import json
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from objectTreeDecorators import treeObject, treeObjectInit
 import falcon
@@ -35,10 +35,11 @@ import falcon
 from simulations.simulation_runner import (
     _detect_step_role as detect_step_role,
     _load_solution_data as load_solution_data,
+    _initial_field_values as initial_field_values,
 )
 
 from .storage_predictor import predict_storage
-from .simulation_runner import run_step
+from .simulation_runner import run_step, validate_initial_conditions
 
 
 class SimulationAPI(treeObject):
@@ -60,35 +61,46 @@ class SimulationAPI(treeObject):
             polServer.falconServer.add_route(
                 self.apiName + '/runs/{run_name}/step', self, suffix='step'
             )
+            # Batch run — loops the single-step engine N times in one
+            # request. Body: { steps, timeStepSeconds? }. The optional
+            # dt override updates run.time_step_seconds so subsequent
+            # Step Once calls use the same resolution.
+            polServer.falconServer.add_route(
+                self.apiName + '/runs/{run_name}/run', self, suffix='run'
+            )
             # POST /runs creates a fresh SimulationRun row — handled by
             # on_post_runs on the same `/runs` route as on_get_runs.
-            # Per-simulation roster — bindings + solutions linked to a
-            # SimulationDefinition. Powers the SimSpace editor sidebar's
-            # "Simulation solutions" section (jump-to-editor links).
+            # GET/POST /api/simulations/{sim_ref}/solutions
+            # Lists or creates SimulationExecutionSolution rows for a
+            # SimulationDefinition. Multiple rows per (sim, class) are
+            # allowed; the runner orders them by `order_index` and
+            # chains contexts (Partial → Composition pattern).
             polServer.falconServer.add_route(
                 self.apiName + '/{sim_ref}/solutions', self, suffix='solutions',
             )
-            # POST /api/simulations/{sim_ref}/bindings — create a new
-            # SimStateStepBinding row tying a SolutionDefinition to a
-            # SimState class within this simulation. Multiple bindings
-            # per (sim, class) are allowed; the runner orders them by
-            # `order_index` and chains their contexts.
+            # DELETE /api/simulations/solutions/{solution_name}
             polServer.falconServer.add_route(
-                self.apiName + '/{sim_ref}/bindings', self, suffix='bindings',
-            )
-            # DELETE /api/simulations/bindings/{binding_name}
-            polServer.falconServer.add_route(
-                self.apiName + '/bindings/{binding_name}', self, suffix='binding_one',
+                self.apiName + '/solutions/{solution_name}', self,
+                suffix='solution_one',
             )
             # GET /api/simulations/by-solution/{solution_name} — list
-            # the bindings that reference this SolutionDefinition (or
-            # SimulationExecutionSolution that wraps it). Drives the
-            # no-code editor's SimulationStateStep overlay so users
-            # can see which simulations consume the solution they're
-            # editing.
+            # SimulationExecutionSolution rows that reference this
+            # SolutionDefinition. Drives the no-code editor's
+            # SimulationStateStep overlay so users can see which
+            # simulations consume the solution they're editing.
             polServer.falconServer.add_route(
                 self.apiName + '/by-solution/{solution_name}', self,
                 suffix='by_solution',
+            )
+            # POST /api/simulations/{sim_ref}/validate-initial-conditions
+            # Body: { overrides: { '<class>': { '<field>': <value>, … }, … } }
+            # Runs the sim def's initial_conditions_validator_ref (if any)
+            # against the merged conditions (class defaults + sim
+            # overrides + posted per-run overrides). Drives the live
+            # debounced editor UI feedback.
+            polServer.falconServer.add_route(
+                self.apiName + '/{sim_ref}/validate-initial-conditions',
+                self, suffix='validate_ic',
             )
 
     # ------------------------------------------------------------------
@@ -151,71 +163,141 @@ class SimulationAPI(treeObject):
         response.status = falcon.HTTP_200 if result.get('success') else falcon.HTTP_400
 
     # ------------------------------------------------------------------
+    # POST /api/simulations/runs/{run_name}/run
+    # Body: { steps: <int>, timeStepSeconds?: <float> }
+    # Loops run_step `steps` times. When `timeStepSeconds > 0` is
+    # supplied, the run's dt is updated BEFORE the loop so subsequent
+    # Step Once calls inherit the new resolution.
+    # Aborts on the first failed step; returns counts of committed
+    # steps + the final time.
+    # ------------------------------------------------------------------
+    def on_post_run(self, request, response, run_name):
+        run = self._find_run(run_name)
+        if run is None:
+            response.status = falcon.HTTP_404
+            response.media = {'success': False, 'error': f'SimulationRun "{run_name}" not found'}
+            return
+        try:
+            raw = request.bounded_stream.read()
+            body = json.loads(raw) if raw else {}
+        except Exception:
+            body = {}
+        try:
+            steps = int(body.get('steps') or 0)
+        except (TypeError, ValueError):
+            steps = 0
+        if steps <= 0:
+            response.status = falcon.HTTP_400
+            response.media = {'success': False, 'error': "'steps' must be a positive integer."}
+            return
+        # Optional dt override — updates the SimulationRun row so the
+        # change is sticky across this batch and any subsequent
+        # Step Once calls.
+        if 'timeStepSeconds' in body and body['timeStepSeconds'] is not None:
+            try:
+                new_dt = float(body['timeStepSeconds'])
+                if new_dt > 0:
+                    run.time_step_seconds = new_dt
+            except (TypeError, ValueError):
+                pass
+
+        committed: List[Dict] = []
+        warnings_all: List[str] = []
+        last_result: Optional[Dict] = None
+        for _ in range(steps):
+            result = run_step(self.manager, run)
+            warnings_all.extend(result.get('warnings') or [])
+            if not result.get('success'):
+                response.media = {
+                    'success': False,
+                    'data': {
+                        'committedSteps': len(committed),
+                        'finalStep': committed[-1]['step'] if committed else None,
+                        'finalTime': committed[-1]['time'] if committed else None,
+                        'lastFailedStep': result.get('step'),
+                        'error': result.get('error'),
+                        'warnings': warnings_all,
+                        'committed': committed,
+                    },
+                }
+                response.status = falcon.HTTP_400
+                return
+            committed.append({
+                'step': result.get('step'),
+                'time': result.get('time'),
+            })
+            last_result = result
+        response.media = {
+            'success': True,
+            'data': {
+                'committedSteps': len(committed),
+                'finalStep': committed[-1]['step'] if committed else None,
+                'finalTime': committed[-1]['time'] if committed else None,
+                'warnings': warnings_all,
+                'committed': committed,
+                'lastSolutionTraces': (last_result or {}).get('solutionTraces') or [],
+                'lastRowsByClass': (last_result or {}).get('rowsByClass') or {},
+            },
+        }
+        response.status = falcon.HTTP_200
+
+    # ------------------------------------------------------------------
     # GET /api/simulations/{sim_ref}/solutions
-    # Returns the SimStateStepBindings for a SimulationDefinition,
-    # joined with the SimulationExecutionSolution each one references.
-    # The editor sidebar surfaces this so the analyst can see which
-    # SimState class is wired to which solution and jump to the no-code
-    # editor for any of them.
+    # Returns the SimulationExecutionSolution rows for a
+    # SimulationDefinition, with role detection. The editor sidebar
+    # surfaces this so the analyst can see which SimState class is
+    # wired to which solution and jump to the no-code editor for any
+    # of them.
     # ------------------------------------------------------------------
     def on_get_solutions(self, request, response, sim_ref):
         defs = self.manager.objectTables.get('SimulationDefinition', {}) or {}
-        if not any(getattr(r, 'name', '') == sim_ref for r in defs.values()):
+        sim_def = next((r for r in defs.values() if getattr(r, 'name', '') == sim_ref), None)
+        if sim_def is None:
             response.status = falcon.HTTP_404
             response.media = {'success': False, 'error': f'SimulationDefinition "{sim_ref}" not found.'}
             return
 
-        # Build a name → row map for solutions for the join.
+        # Participating classes from the sim_def roster (NOT a reverse
+        # scan of class-level attributes — the explicit roster is the
+        # source of truth for this sim).
+        roster = self._parse_json_list(
+            getattr(sim_def, 'participating_sim_state_classes_json', '') or '[]'
+        )
+        participating = [c for c in roster if isinstance(c, str)]
+
         sol_table = self.manager.objectTables.get('SimulationExecutionSolution', {}) or {}
-        sols_by_name = {getattr(s, 'name', ''): s for s in sol_table.values()}
-
-        bindings_table = self.manager.objectTables.get('SimStateStepBinding', {}) or {}
         out: List[Dict] = []
-        for b in bindings_table.values():
-            if getattr(b, 'simulation_definition_ref', '') != sim_ref:
+        for s in sol_table.values():
+            if getattr(s, 'simulation_definition_ref', '') != sim_ref:
                 continue
-            step_solution_ref = getattr(b, 'step_solution_ref', '') or ''
-            sol = sols_by_name.get(step_solution_ref) if step_solution_ref else None
-
-            # Detect the step solution's role + reason so the sidebar can
-            # show a coloured pill per binding and the per-class
-            # coordination summary. Detection mirrors what the runner
-            # does at dispatch time, so the editor preview and the
-            # runtime decision can't diverge.
-            role, role_error = self._probe_role(step_solution_ref)
-
+            solution_def_ref = getattr(s, 'solution_definition_ref', '') or ''
+            role, role_error = self._probe_role(solution_def_ref)
             out.append({
-                'bindingName': getattr(b, 'name', ''),
-                'simStateClassName': getattr(b, 'sim_state_class_name', ''),
-                'stepSolutionRef': step_solution_ref,
-                'dependsOn': self._parse_json_list(
-                    getattr(b, 'depends_on_json', '') or '[]'
+                'name': getattr(s, 'name', ''),
+                'description': getattr(s, 'description', ''),
+                'simStateClassName': getattr(s, 'sim_state_class_name', ''),
+                'solutionDefinitionRef': solution_def_ref,
+                'expectedInputs': self._parse_json_list(
+                    getattr(s, 'expected_inputs_json', '') or '[]'
                 ),
-                'enabled': bool(getattr(b, 'enabled', True)),
-                'orderIndex': int(getattr(b, 'order_index', 0) or 0),
-                # Detected simStepRole. `null` when the binding is
-                # unwired or the linked solution doesn't declare a role
-                # the runner would accept — `simStepRoleError` carries
-                # the human-readable detail for the warning UI.
+                'expectedOutputs': self._parse_json_list(
+                    getattr(s, 'expected_outputs_json', '') or '[]'
+                ),
+                'orderIndex': int(getattr(s, 'order_index', 0) or 0),
+                'dependsOn': self._parse_json_list(
+                    getattr(s, 'depends_on_json', '') or '[]'
+                ),
+                'enabled': bool(getattr(s, 'enabled', True)),
+                # Detected simStepRole. `null` when the row is unwired
+                # or the linked solution doesn't declare a role the
+                # runner would accept.
                 'simStepRole': role,
                 'simStepRoleError': role_error,
-                'solution': {
-                    'name': getattr(sol, 'name', ''),
-                    'description': getattr(sol, 'description', ''),
-                    'simStateClassName': getattr(sol, 'sim_state_class_name', ''),
-                    'expectedInputs': self._parse_json_list(
-                        getattr(sol, 'expected_inputs_json', '') or '[]'
-                    ),
-                    'expectedOutputs': self._parse_json_list(
-                        getattr(sol, 'expected_outputs_json', '') or '[]'
-                    ),
-                } if sol is not None else None,
             })
-        out.sort(key=lambda x: (x['simStateClassName'], x['orderIndex'], x['bindingName']))
+        out.sort(key=lambda x: (x['simStateClassName'], x['orderIndex'], x['name']))
 
-        # Also surface the available SolutionDefinitions so the sidebar
-        # can populate the "pick a solution" dropdown when the user adds
-        # a new binding. Cheap — small table.
+        # Available SolutionDefinitions for the "pick a solution"
+        # dropdown.
         sol_def_table = self.manager.objectTables.get('SolutionDefinition', {}) or {}
         available_solutions = sorted(
             [
@@ -228,42 +310,52 @@ class SimulationAPI(treeObject):
             ],
             key=lambda s: s['name'],
         )
-        # The participating SimState classes — derived from class-level
-        # metadata, same logic the SimSpace snapshot uses. Lets the
-        # sidebar offer a class dropdown without an extra roundtrip.
-        sim_state_classes = self._participating_sim_state_classes(sim_ref)
+
+        # Per-class initial-conditions hybrid view: class defaults +
+        # sim-level overrides. Lets the editor render the merged
+        # baseline alongside which side each field came from.
+        sim_overrides = self._parse_json_dict(
+            getattr(sim_def, 'initial_conditions_overrides_json', '') or '{}'
+        )
+        initial_conditions: Dict[str, Dict[str, Any]] = {}
+        for cls_name in participating:
+            class_defaults = self._class_default_initial_values(cls_name)
+            override_values = sim_overrides.get(cls_name) if isinstance(sim_overrides, dict) else {}
+            if not isinstance(override_values, dict):
+                override_values = {}
+            initial_conditions[cls_name] = {
+                'classDefaults': class_defaults,
+                'simOverrides': override_values,
+            }
+
         response.media = {
             'success': True,
             'data': {
-                'bindings': out,
+                'solutions': out,
                 'availableSolutions': available_solutions,
-                'simStateClasses': sim_state_classes,
+                'simStateClasses': participating,
+                'initialConditions': initial_conditions,
             },
         }
         response.status = falcon.HTTP_200
 
-    def _participating_sim_state_classes(self, sim_ref: str) -> List[str]:
-        """All registered class names whose class-level
-        `simulation_definition_name` matches sim_ref. Used by the
-        sidebar's class dropdown when adding a new binding."""
-        out: List[str] = []
-        typing_dict = getattr(self.manager, 'objectTypingDict', {}) or {}
-        for cls_name, typing_obj in typing_dict.items():
-            cls = getattr(typing_obj, 'classDefinition', None)
-            if cls is None:
-                continue
-            if getattr(cls, 'simulation_definition_name', '') == sim_ref:
-                out.append(cls_name)
-        out.sort()
-        return out
+    def _class_default_initial_values(self, cls_name: str) -> Dict[str, Any]:
+        """Read a `*SimState` class's `default_initial_field_values`
+        attribute (used to compose the t=0 row alongside sim
+        overrides)."""
+        typing_obj = (self.manager.objectTypingDict or {}).get(cls_name)
+        cls = getattr(typing_obj, 'classDefinition', None) if typing_obj else None
+        defaults = getattr(cls, 'default_initial_field_values', None) if cls else None
+        return dict(defaults) if isinstance(defaults, dict) else {}
 
     # ------------------------------------------------------------------
-    # POST /api/simulations/{sim_ref}/bindings
-    # Body: { simStateClassName, stepSolutionRef?, orderIndex?,
-    #         dependsOn?, name?, description?, enabled? }
-    # Creates a new SimStateStepBinding row scoped to this simulation.
+    # POST /api/simulations/{sim_ref}/solutions
+    # Body: { simStateClassName, solutionDefinitionRef?, orderIndex?,
+    #         dependsOn?, name?, description?, enabled?,
+    #         expectedInputs?, expectedOutputs? }
+    # Creates a new SimulationExecutionSolution row scoped to this sim.
     # ------------------------------------------------------------------
-    def on_post_bindings(self, request, response, sim_ref):
+    def on_post_solutions(self, request, response, sim_ref):
         defs = self.manager.objectTables.get('SimulationDefinition', {}) or {}
         if not any(getattr(r, 'name', '') == sim_ref for r in defs.values()):
             response.status = falcon.HTTP_404
@@ -279,11 +371,11 @@ class SimulationAPI(treeObject):
             response.status = falcon.HTTP_400
             response.media = {'success': False, 'error': 'simStateClassName is required.'}
             return
+
         # Auto-name when not provided. Pattern matches the seed:
-        # <sim>.<Class>[.<n>] — `n` disambiguates multiple bindings
-        # against the same class.
-        bindings_table = self.manager.objectTables.get('SimStateStepBinding', {}) or {}
-        existing_names = {getattr(r, 'name', '') for r in bindings_table.values()}
+        # <sim>.<Class>[.<n>] — `n` disambiguates multiples per class.
+        sol_table = self.manager.objectTables.get('SimulationExecutionSolution', {}) or {}
+        existing_names = {getattr(r, 'name', '') for r in sol_table.values()}
         name = (body.get('name') or '').strip()
         if not name:
             base = f'{sim_ref}.{sim_state_class_name}'
@@ -294,7 +386,7 @@ class SimulationAPI(treeObject):
                 i += 1
         elif name in existing_names:
             response.status = falcon.HTTP_409
-            response.media = {'success': False, 'error': f'Binding "{name}" already exists.'}
+            response.media = {'success': False, 'error': f'Solution row "{name}" already exists.'}
             return
         depends_on = body.get('dependsOn') or []
         if not isinstance(depends_on, list):
@@ -304,86 +396,121 @@ class SimulationAPI(treeObject):
             order_index = int(order_index) if order_index is not None else 0
         except (TypeError, ValueError):
             order_index = 0
-        from simulations.sim_state_step_binding import SimStateStepBinding as _SSB
+        expected_inputs = body.get('expectedInputs') or []
+        expected_outputs = body.get('expectedOutputs') or []
+        from simulations.simulation_execution_solution import SimulationExecutionSolution as _SES
         try:
-            _SSB(
+            _SES(
                 name=name,
                 description=body.get('description') or '',
                 simulation_definition_ref=sim_ref,
                 sim_state_class_name=sim_state_class_name,
-                step_solution_ref=body.get('stepSolutionRef') or '',
+                solution_definition_ref=body.get('solutionDefinitionRef') or '',
+                expected_inputs_json=json.dumps(expected_inputs),
+                expected_outputs_json=json.dumps(expected_outputs),
+                order_index=order_index,
                 depends_on_json=json.dumps(depends_on),
                 enabled=bool(body.get('enabled', True)),
-                order_index=order_index,
                 manager=self.manager,
             )
         except Exception as e:
             response.status = falcon.HTTP_500
-            response.media = {'success': False, 'error': f'Failed to create binding: {e}'}
+            response.media = {'success': False, 'error': f'Failed to create solution row: {e}'}
             return
         response.media = {'success': True, 'data': {'name': name}}
         response.status = falcon.HTTP_201
 
     # ------------------------------------------------------------------
-    # DELETE /api/simulations/bindings/{binding_name}
+    # DELETE /api/simulations/solutions/{solution_name}
     # ------------------------------------------------------------------
-    def on_delete_binding_one(self, request, response, binding_name):
-        bindings_table = self.manager.objectTables.get('SimStateStepBinding', {}) or {}
+    def on_delete_solution_one(self, request, response, solution_name):
+        sol_table = self.manager.objectTables.get('SimulationExecutionSolution', {}) or {}
         to_remove = None
-        for key, inst in bindings_table.items():
-            if getattr(inst, 'name', '') == binding_name:
+        for key, inst in sol_table.items():
+            if getattr(inst, 'name', '') == solution_name:
                 to_remove = key
                 break
         if to_remove is None:
             response.status = falcon.HTTP_404
-            response.media = {'success': False, 'error': f'Binding "{binding_name}" not found.'}
+            response.media = {'success': False, 'error': f'Solution row "{solution_name}" not found.'}
             return
         try:
-            del bindings_table[to_remove]
+            del sol_table[to_remove]
         except Exception as e:
             response.status = falcon.HTTP_500
-            response.media = {'success': False, 'error': f'Failed to delete binding: {e}'}
+            response.media = {'success': False, 'error': f'Failed to delete solution row: {e}'}
             return
-        response.media = {'success': True, 'data': {'name': binding_name}}
+        response.media = {'success': True, 'data': {'name': solution_name}}
         response.status = falcon.HTTP_200
 
     # ------------------------------------------------------------------
     # GET /api/simulations/by-solution/{solution_name}
-    # Returns every SimStateStepBinding whose step_solution_ref matches
-    # either:
-    #   - the supplied SolutionDefinition name directly, OR
-    #   - a SimulationExecutionSolution name whose
-    #     solution_definition_ref points at this SolutionDefinition.
-    # Lets the no-code editor's initial-state overlay surface "this
-    # solution is used by N simulations" without scanning every
+    # Returns every SimulationExecutionSolution whose
+    # `solution_definition_ref` matches the supplied SolutionDefinition
+    # name. Lets the no-code editor's initial-state overlay surface
+    # "this solution is used by N simulations" without scanning every
     # simulation in turn.
     # ------------------------------------------------------------------
     def on_get_by_solution(self, request, response, solution_name):
-        # Collect the names that effectively reference this solution:
-        # the direct name plus any SimulationExecutionSolution that
-        # wraps it.
-        target_names = {solution_name}
-        sol_def_table = self.manager.objectTables.get('SimulationExecutionSolution', {}) or {}
-        for inst in sol_def_table.values():
-            if getattr(inst, 'solution_definition_ref', '') == solution_name:
-                nm = getattr(inst, 'name', '')
-                if nm:
-                    target_names.add(nm)
-        bindings_table = self.manager.objectTables.get('SimStateStepBinding', {}) or {}
+        sol_table = self.manager.objectTables.get('SimulationExecutionSolution', {}) or {}
         out: List[Dict] = []
-        for b in bindings_table.values():
-            ref = getattr(b, 'step_solution_ref', '')
-            if ref not in target_names:
+        for s in sol_table.values():
+            if getattr(s, 'solution_definition_ref', '') != solution_name:
                 continue
             out.append({
-                'bindingName': getattr(b, 'name', ''),
-                'simulationRef': getattr(b, 'simulation_definition_ref', ''),
-                'simStateClassName': getattr(b, 'sim_state_class_name', ''),
-                'enabled': bool(getattr(b, 'enabled', True)),
-                'orderIndex': int(getattr(b, 'order_index', 0) or 0),
+                'solutionRowName': getattr(s, 'name', ''),
+                'simulationRef': getattr(s, 'simulation_definition_ref', ''),
+                'simStateClassName': getattr(s, 'sim_state_class_name', ''),
+                'enabled': bool(getattr(s, 'enabled', True)),
+                'orderIndex': int(getattr(s, 'order_index', 0) or 0),
             })
-        out.sort(key=lambda x: (x['simulationRef'], x['orderIndex'], x['bindingName']))
+        out.sort(key=lambda x: (x['simulationRef'], x['orderIndex'], x['solutionRowName']))
         response.media = {'success': True, 'data': out}
+        response.status = falcon.HTTP_200
+
+    # ------------------------------------------------------------------
+    # POST /api/simulations/{sim_ref}/validate-initial-conditions
+    # ------------------------------------------------------------------
+    def on_post_validate_ic(self, request, response, sim_ref):
+        defs = self.manager.objectTables.get('SimulationDefinition', {}) or {}
+        sim_def = next((r for r in defs.values() if getattr(r, 'name', '') == sim_ref), None)
+        if sim_def is None:
+            response.status = falcon.HTTP_404
+            response.media = {'success': False, 'error': f'SimulationDefinition "{sim_ref}" not found.'}
+            return
+        try:
+            raw = request.bounded_stream.read()
+            body = json.loads(raw) if raw else {}
+        except Exception:
+            body = {}
+        posted_overrides = body.get('overrides') or {}
+        if not isinstance(posted_overrides, dict):
+            posted_overrides = {}
+
+        sim_overrides = self._parse_json_dict(
+            getattr(sim_def, 'initial_conditions_overrides_json', '') or '{}'
+        )
+        roster = self._parse_json_list(
+            getattr(sim_def, 'participating_sim_state_classes_json', '') or '[]'
+        )
+        participating = [c for c in roster if isinstance(c, str)]
+
+        # Build the merged initial conditions per class — same resolution
+        # order the runner uses at step 0.
+        initial_by_class: Dict[str, Dict[str, Any]] = {}
+        for cls_name in participating:
+            initial_by_class[cls_name] = initial_field_values(
+                self.manager, cls_name, sim_overrides, posted_overrides,
+            )
+
+        verdict = validate_initial_conditions(self.manager, sim_def, initial_by_class)
+        response.media = {
+            'success': True,
+            'data': {
+                **verdict,
+                'mergedInitialConditions': initial_by_class,
+            },
+        }
         response.status = falcon.HTTP_200
 
     @staticmethod
@@ -394,24 +521,32 @@ class SimulationAPI(treeObject):
         except (ValueError, TypeError):
             return []
 
+    @staticmethod
+    def _parse_json_dict(text: str):
+        try:
+            v = json.loads(text)
+            return v if isinstance(v, dict) else {}
+        except (ValueError, TypeError):
+            return {}
+
     def _probe_role(
-        self, step_solution_ref: str
+        self, solution_definition_ref: str
     ) -> "tuple[Optional[str], Optional[str]]":
-        """Resolve a binding's `step_solution_ref` to its declared
-        `simStepRole`. Returns `(role, error)`:
+        """Resolve a SimulationExecutionSolution's `solution_definition_ref`
+        to the declared `simStepRole`. Returns `(role, error)`:
           - `(role, None)` when the role parses cleanly,
-          - `(None, message)` when the binding is unwired, the linked
+          - `(None, message)` when the row is unwired, the linked
             solution is missing, or its SimulationStateStep entry
             doesn't declare a valid role.
         Never raises — the editor sidebar needs to render mixed states
-        of authoring (some bindings wired, others not) without an
+        of authoring (some rows wired, others not) without an
         endpoint failure.
         """
-        if not step_solution_ref:
+        if not solution_definition_ref:
             return None, 'no solution wired'
-        solution_data = load_solution_data(self.manager, step_solution_ref)
+        solution_data = load_solution_data(self.manager, solution_definition_ref)
         if solution_data is None:
-            return None, f"solution '{step_solution_ref}' not found"
+            return None, f"solution '{solution_definition_ref}' not found"
         try:
             return detect_step_role(solution_data), None
         except ValueError as exc:
@@ -484,6 +619,17 @@ class SimulationAPI(treeObject):
             response.status = falcon.HTTP_409
             response.media = {'success': False, 'error': f'SimulationRun "{name}" already exists.'}
             return
+        # Per-run initial-conditions overrides — applied on top of the
+        # sim def's defaults at step 0. Accept either parsed JSON or a
+        # plain dict from the request body.
+        ic_overrides = body.get('initialConditionsOverrides') or {}
+        if not isinstance(ic_overrides, dict):
+            ic_overrides = {}
+        # Per-run dt override. 0 / missing = inherit the sim def's value.
+        try:
+            time_step_seconds = float(body.get('timeStepSeconds') or 0)
+        except (TypeError, ValueError):
+            time_step_seconds = 0.0
         # Find the registered class.
         from simulations.simulation_run import SimulationRun as _SR
         try:
@@ -498,6 +644,8 @@ class SimulationAPI(treeObject):
                 last_recorded_step=0,
                 error_message='',
                 label=body.get('label') or '',
+                initial_conditions_overrides_json=json.dumps(ic_overrides),
+                time_step_seconds=time_step_seconds,
                 manager=self.manager,
             )
         except Exception as e:
