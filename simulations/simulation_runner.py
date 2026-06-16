@@ -170,6 +170,7 @@ def run_step(
                 new_row_fields = _project_context_onto_class(
                     initial_by_class[cls_name], cls_name, manager,
                     target_step, time_value, run,
+                    sim_def=sim_def,
                 )
                 rows_to_persist.append((cls_name, new_row_fields))
                 solution_traces.append({
@@ -379,6 +380,7 @@ def run_step(
 
                 new_row_fields = _project_context_onto_class(
                     merged, cls_name, manager, target_step, time_value, run,
+                    sim_def=sim_def,
                 )
                 deps_outputs[cls_name] = merged
                 rows_to_persist.append((cls_name, new_row_fields))
@@ -427,6 +429,7 @@ def run_step(
 
             new_row_fields = _project_context_onto_class(
                 accumulated, cls_name, manager, target_step, time_value, run,
+                sim_def=sim_def,
             )
             deps_outputs[cls_name] = accumulated
             rows_to_persist.append((cls_name, new_row_fields))
@@ -867,8 +870,20 @@ def _project_context_onto_class(
     step: int,
     time_value: float,
     run,
+    sim_def=None,
 ) -> Dict[str, Any]:
-    """Build the kwargs dict for a new `*SimState` row constructor."""
+    """Build the kwargs dict for a new `*SimState` row constructor.
+
+    Honors the merged class + sim-def + per-run `field_save_policy` —
+    fields whose effective policy resolves to 'derivable' or 'skip'
+    (or that fall outside their per-field interval) are omitted from
+    the kwargs, so the row instance falls back to the constructor's
+    default value (typically 0.0 for floats).
+
+    Identity fields (`name`, `simulation_run_ref`, `step`, `time`) are
+    always stamped regardless of policy — they're framework-owned, not
+    a user-declared part of the schema.
+    """
     typing_obj = manager.objectTypingDict.get(cls_name)
     field_names = set()
     if typing_obj is not None:
@@ -877,16 +892,117 @@ def _project_context_onto_class(
         if not field_names:
             field_names.update(getattr(typing_obj, 'kwDefaultParams', []) or [])
 
+    rules = _effective_field_save_rules(manager, sim_def, run, cls_name)
+
     out: Dict[str, Any] = {}
     for k, v in context.items():
-        if not field_names or k in field_names:
-            out[k] = v
+        if field_names and k not in field_names:
+            continue
+        rule = rules.get(k, {'policy': 'core', 'interval': 0})
+        if not _field_persists_at_step(rule, step):
+            continue
+        out[k] = v
 
     out['name'] = _row_name_for(cls_name, run, step)
     out['simulation_run_ref'] = getattr(run, 'name', '')
     out['step'] = step
     out['time'] = round(time_value, 6)
     return out
+
+
+def _field_save_policy_for(manager, cls_name: str) -> Dict[str, str]:
+    """Read the class-declared `field_save_policy` dict, defaulting
+    each unlisted field to 'core'. Returns an empty dict when the
+    class isn't registered — callers treat absent entries as 'core'."""
+    typing_obj = manager.objectTypingDict.get(cls_name) if manager else None
+    cls = getattr(typing_obj, 'classDefinition', None) if typing_obj else None
+    raw = getattr(cls, 'field_save_policy', None) if cls else None
+    if not isinstance(raw, dict):
+        return {}
+    return {str(k): str(v) for k, v in raw.items() if isinstance(v, str)}
+
+
+def _effective_field_save_rules(
+    manager,
+    sim_def,
+    run,
+    cls_name: str,
+) -> Dict[str, Dict[str, Any]]:
+    """Merge class-level `field_save_policy` with the sim def's and the
+    run's `field_save_overrides_json`. Returns a dict keyed by
+    fieldName of `{policy, interval}`:
+      * policy: 'core' | 'derivable' | 'skip' — final decision
+      * interval: int — per-field recording interval override (0 = use
+        sim def's recording_interval_steps)
+
+    Resolution (later wins):
+      1. class.field_save_policy[field]                (policy only)
+      2. sim_def.field_save_overrides_json[<cls>.<field>]
+      3. run.field_save_overrides_json[<cls>.<field>]
+    """
+    out: Dict[str, Dict[str, Any]] = {}
+    base = _field_save_policy_for(manager, cls_name)
+    for fname, policy in base.items():
+        out[fname] = {'policy': policy, 'interval': 0}
+
+    def _apply(source: Any) -> None:
+        if not isinstance(source, dict):
+            return
+        prefix = f'{cls_name}.'
+        for key, rule in source.items():
+            if not isinstance(key, str) or not key.startswith(prefix):
+                continue
+            fname = key[len(prefix):]
+            if not fname:
+                continue
+            entry = out.setdefault(fname, {'policy': 'core', 'interval': 0})
+            if isinstance(rule, dict):
+                if isinstance(rule.get('policy'), str):
+                    entry['policy'] = rule['policy']
+                try:
+                    iv = int(rule.get('interval') or 0)
+                    if iv > 0:
+                        entry['interval'] = iv
+                except (TypeError, ValueError):
+                    pass
+
+    _apply(_parse_json(
+        getattr(sim_def, 'field_save_overrides_json', '{}') or '{}', {}
+    ))
+    if run is not None:
+        _apply(_parse_json(
+            getattr(run, 'field_save_overrides_json', '{}') or '{}', {}
+        ))
+    return out
+
+
+def _field_persists_at_step(rule: Dict[str, Any], step: int) -> bool:
+    """Apply a single field's effective rule against a target step.
+    'skip' → never; 'derivable' → never (unless an override flipped it
+    to 'core'). 'core' fields with no explicit per-field interval
+    persist on EVERY step — the live runner writes one row per step
+    and we want core fields fully populated in each. A field with an
+    explicit `interval > 1` (Phase B override) gets sparser.
+
+    Important: the sim def's `recording_interval_steps` is NOT used
+    here. That setting is about sampling the run (which rows to
+    persist) — a row-level concern handled elsewhere — not which
+    fields to populate inside an already-being-written row. Conflating
+    the two writes rows with constructor defaults (0.0) on off-interval
+    steps, which looks like the bob snapping back to the pivot.
+    """
+    policy = rule.get('policy', 'core')
+    if policy == 'skip' or policy == 'derivable':
+        return False
+    if step == 0:
+        return True
+    try:
+        interval = int(rule.get('interval') or 0)
+    except (TypeError, ValueError):
+        interval = 0
+    if interval <= 1:
+        return True
+    return (step % interval) == 0
 
 
 def _row_name_for(cls_name: str, run, step: int) -> str:

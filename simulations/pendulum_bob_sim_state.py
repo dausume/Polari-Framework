@@ -68,6 +68,27 @@ class PendulumBobSimState(treeObject):
         'energy_total': 1.3142947181953093,
     }
 
+    # Per-field persistence policy. Two categories the runner respects:
+    #   'core'      — always persisted at every recorded step
+    #   'derivable' — recomputable from core fields; NOT persisted by
+    #                 default. The user can override per-sim or per-run
+    #                 if they need the diagnostic snapshot saved.
+    # Fields not listed here default to 'core' (the safer fallback —
+    # we don't drop what we don't know about).
+    #
+    # x / y / energy_total are all derivable from `theta` (+ params),
+    # but x/y currently STAY core because the SimSpace binding reads
+    # them straight off the row. Flipping x/y to derivable is gated
+    # behind the per-sim override mechanism (Phase B) so users opt in
+    # explicitly when their downstream renderer can recompute them.
+    field_save_policy = {
+        'theta':        'core',
+        'omega':        'core',
+        'x':            'core',
+        'y':            'core',
+        'energy_total': 'derivable',
+    }
+
     @treeObjectInit
     def __init__(
         self,

@@ -53,6 +53,19 @@ class PendulumStringSimState(treeObject):
         'tension': 8.496872802502045,  # 1.0 * 9.81 * cos(π/6)
     }
 
+    # Per-field persistence policy. See PendulumBobSimState for the
+    # full convention; 'core' = always persisted, 'derivable' = skipped
+    # unless a per-sim / per-run override opts it back in. tension is
+    # a pure function of (theta, omega, g, L, mass) from the bob's
+    # state, so it's a textbook derivable. bob_x/bob_y stay core
+    # because the connection-mode binding reads them as the line's
+    # endpoint (same rationale as the bob's x/y).
+    field_save_policy = {
+        'bob_x':   'core',
+        'bob_y':   'core',
+        'tension': 'derivable',
+    }
+
     @treeObjectInit
     def __init__(
         self,

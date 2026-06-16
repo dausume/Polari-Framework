@@ -93,6 +93,19 @@ class SimulationDefinition(treeObject):
         # Used by both the runner (gate step 0) and the
         # `/validate-initial-conditions` endpoint (live UI feedback).
         initial_conditions_validator_ref: str = '',
+        # JSON dict keyed by '<ClassName>.<fieldName>' of per-field save
+        # rules that override the class-level `field_save_policy`. Each
+        # entry: { policy?: 'core'|'derivable'|'skip', interval?: int }.
+        # `policy` overrides the class declaration; `interval` (when >
+        # 0) overrides recording_interval_steps for THIS field only.
+        # `skip` means the field is never persisted regardless of what
+        # the class says (use sparingly — readers may break).
+        # Per-run overrides on SimulationRun.field_save_overrides_json
+        # layer on top of this dict.
+        # Example:
+        #   '{"PendulumBobSimState.x": {"policy": "derivable"},
+        #     "PendulumBobSimState.energy_total": {"policy": "core", "interval": 1}}'
+        field_save_overrides_json: str = '{}',
         manager=None,
     ):
         self.name = name
@@ -106,3 +119,4 @@ class SimulationDefinition(treeObject):
         self.termination_predicate = termination_predicate
         self.time_unit = time_unit
         self.initial_conditions_validator_ref = initial_conditions_validator_ref
+        self.field_save_overrides_json = field_save_overrides_json

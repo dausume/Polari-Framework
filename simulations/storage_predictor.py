@@ -23,7 +23,7 @@ objectTypingDict — keeps this function trivially testable.
 """
 
 import math
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
 # Field-type → estimated bytes. Conservative — covers DB column width
@@ -78,6 +78,206 @@ def estimate_row_bytes(manager, class_name: str) -> int:
         var_type = (getattr(var, 'varType', None) or '').lower()
         total += TYPE_BYTES.get(var_type, TYPE_BYTES['object'])
     return total
+
+
+# Minimum number of samples PolyTyping needs before its measured
+# average is considered statistically meaningful enough to replace the
+# static fallback. Phase A+B+D use statics exclusively; once Phase C
+# starts populating measurements, the predictor will switch on a
+# per-field basis as soon as a field crosses this threshold.
+MEASURED_SAMPLE_THRESHOLD = 10
+
+
+def _per_field_size_estimate(
+    manager,
+    class_name: str,
+    field_name: str,
+) -> Dict[str, Any]:
+    """Return the byte estimate for ONE field on a class, tagged with
+    its source. Shape:
+
+        {
+          'bytes':     int,    # normal-case bytes (average / static)
+          'minBytes':  int,    # best case — same as bytes when source='static'
+          'maxBytes':  int,    # worst case — same as bytes when source='static'
+          'source':    'static' | 'measured-insufficient' | 'measured',
+          'sampleCount': int,  # 0 when no PolyTyping samples exist
+        }
+
+    The 'source' tagging is what lets the UI flag estimates that are
+    based on conservative defaults vs. real measurements collected
+    across prior runs (Phase C — not yet wired). Until Phase C lands,
+    every field returns source='static' with min/max collapsed to the
+    static value.
+    """
+    typing_obj = manager.objectTypingDict.get(class_name) if manager else None
+    static_bytes = TYPE_BYTES['object']
+    var_type = ''
+    if typing_obj is not None:
+        for var in (getattr(typing_obj, 'polyTypedVars', None) or []):
+            if getattr(var, 'name', '') == field_name:
+                var_type = (getattr(var, 'varType', None) or '').lower()
+                static_bytes = TYPE_BYTES.get(var_type, TYPE_BYTES['object'])
+                # Phase C will read measured stats off the polyTypedVariable
+                # here — something like:
+                #   stats = getattr(var, 'byteSampleStats', None)
+                #   if stats and stats.count >= MEASURED_SAMPLE_THRESHOLD:
+                #       return measured(stats)
+                # For now everything's static.
+                break
+    return {
+        'bytes':       static_bytes,
+        'minBytes':    static_bytes,
+        'maxBytes':    static_bytes,
+        'source':      'static',
+        'sampleCount': 0,
+    }
+
+
+def estimate_run_storage(
+    manager,
+    sim_def,
+    run,
+) -> Dict[str, Any]:
+    """Top-level per-run storage estimator. Walks every participating
+    class, applies the merged effective field policy, and returns a
+    breakdown the UI can render.
+
+    Return shape:
+        {
+          'totalSteps': int,
+          'normalCaseBytes': int,
+          'minBytes': int,           # best case
+          'maxBytes': int,           # worst case
+          'normalCaseHuman': str,    # '12.4 MB'
+          'usesStaticEstimates': bool,
+          'perClass': {
+            '<cls>': {
+              'rowOverheadBytes': int,
+              'rowsPersisted': int,
+              'normalCaseBytes': int,
+              'minBytes': int,
+              'maxBytes': int,
+              'fields': {
+                '<field>': {
+                  'policy':       'core' | 'derivable' | 'skip',
+                  'interval':     int,     # 0 = follow sim's recording_interval
+                  'rowsPersisted': int,
+                  'bytes':        int,     # per-row average for this field
+                  'minBytes':     int,
+                  'maxBytes':     int,
+                  'source':       str,
+                  'sampleCount':  int,
+                }
+              }
+            }
+          },
+          'notes': [str, ...],
+        }
+    """
+    # Late imports to avoid circular dependencies (the runner imports
+    # the predictor for its public estimate; we import its helpers).
+    from .simulation_runner import (
+        _participating_classes,
+        _effective_field_save_rules,
+        _field_persists_at_step,
+    )
+    notes: List[str] = []
+    participating = _participating_classes(sim_def)
+    dt = float(getattr(sim_def, 'time_step_seconds', 0.01) or 0.01)
+    if run is not None:
+        run_dt = float(getattr(run, 'time_step_seconds', 0.0) or 0.0)
+        if run_dt > 0:
+            dt = run_dt
+    duration = float(getattr(sim_def, 'duration_seconds', 0.0) or 0.0)
+    if dt <= 0:
+        dt = 0.01
+        notes.append('time_step_seconds was 0; using 0.01s for the estimate.')
+    total_steps = max(1, int(math.ceil(duration / dt))) if duration > 0 else 0
+    default_interval = max(1, int(
+        getattr(sim_def, 'recording_interval_steps', 1) or 1
+    ))
+
+    uses_static_anywhere = False
+    per_class: Dict[str, Dict[str, Any]] = {}
+    grand_normal = 0
+    grand_min = 0
+    grand_max = 0
+    for cls_name in participating:
+        rules = _effective_field_save_rules(manager, sim_def, run, cls_name)
+        typing_obj = manager.objectTypingDict.get(cls_name) if manager else None
+        poly_vars = getattr(typing_obj, 'polyTypedVars', None) or []
+        all_fields = [getattr(v, 'name', '') for v in poly_vars if getattr(v, 'name', '')]
+        cls_normal = 0
+        cls_min = 0
+        cls_max = 0
+        fields_out: Dict[str, Dict[str, Any]] = {}
+        cls_rows_persisted = 0  # max over fields — row overhead counts once per persisted row
+        for fname in all_fields:
+            rule = rules.get(fname, {'policy': 'core', 'interval': 0})
+            policy = rule.get('policy', 'core')
+            interval = int(rule.get('interval') or 0) or default_interval
+            if total_steps == 0:
+                rows_persisted = 0
+            elif policy in ('skip', 'derivable'):
+                rows_persisted = 0
+            else:
+                rows_persisted = max(1, int(math.ceil(total_steps / interval)))
+            if rows_persisted > cls_rows_persisted:
+                cls_rows_persisted = rows_persisted
+            est = _per_field_size_estimate(manager, cls_name, fname)
+            if est['source'] != 'measured':
+                uses_static_anywhere = True
+            field_normal = est['bytes'] * rows_persisted
+            field_min = est['minBytes'] * rows_persisted
+            field_max = est['maxBytes'] * rows_persisted
+            cls_normal += field_normal
+            cls_min += field_min
+            cls_max += field_max
+            fields_out[fname] = {
+                'policy': policy,
+                'interval': interval if interval != default_interval else 0,
+                'rowsPersisted': rows_persisted,
+                'bytes': est['bytes'],
+                'minBytes': est['minBytes'],
+                'maxBytes': est['maxBytes'],
+                'source': est['source'],
+                'sampleCount': est['sampleCount'],
+            }
+        overhead_total = ROW_OVERHEAD_BYTES * cls_rows_persisted
+        cls_normal += overhead_total
+        cls_min += overhead_total
+        cls_max += overhead_total
+        per_class[cls_name] = {
+            'rowOverheadBytes': ROW_OVERHEAD_BYTES,
+            'rowsPersisted': cls_rows_persisted,
+            'normalCaseBytes': cls_normal,
+            'minBytes': cls_min,
+            'maxBytes': cls_max,
+            'fields': fields_out,
+        }
+        grand_normal += cls_normal
+        grand_min += cls_min
+        grand_max += cls_max
+
+    if uses_static_anywhere:
+        notes.append(
+            'Some field sizes are static defaults — no measured samples '
+            'available yet. Numbers will tighten as more runs commit.'
+        )
+
+    return {
+        'totalSteps': total_steps,
+        'normalCaseBytes': grand_normal,
+        'minBytes': grand_min,
+        'maxBytes': grand_max,
+        'normalCaseHuman': _human_bytes(grand_normal),
+        'minCaseHuman': _human_bytes(grand_min),
+        'maxCaseHuman': _human_bytes(grand_max),
+        'usesStaticEstimates': uses_static_anywhere,
+        'perClass': per_class,
+        'notes': notes,
+    }
 
 
 def predict_storage(

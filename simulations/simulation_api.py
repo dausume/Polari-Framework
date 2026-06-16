@@ -38,7 +38,7 @@ from simulations.simulation_runner import (
     _initial_field_values as initial_field_values,
 )
 
-from .storage_predictor import predict_storage
+from .storage_predictor import predict_storage, estimate_run_storage
 from .simulation_runner import run_step, validate_initial_conditions
 
 
@@ -56,6 +56,14 @@ class SimulationAPI(treeObject):
             polServer.falconServer.add_route(
                 self.apiName + '/runs', self, suffix='runs'
             )
+            # Set initial conditions on an already-created run. A run is
+            # created uninitialized (no step 0); this writes the per-run
+            # IC overrides / dt / field-save overrides onto it. Rejected
+            # once the run has a committed step 0 (ICs are then locked).
+            polServer.falconServer.add_route(
+                self.apiName + '/runs/{run_name}/initial-conditions',
+                self, suffix='initial_conditions'
+            )
             # Single-step advancer — the user-facing "is this step
             # coherent?" check. Reuses the no-code engine; never streams.
             polServer.falconServer.add_route(
@@ -67,6 +75,14 @@ class SimulationAPI(treeObject):
             # Step Once calls use the same resolution.
             polServer.falconServer.add_route(
                 self.apiName + '/runs/{run_name}/run', self, suffix='run'
+            )
+            # GET /api/simulations/runs/{run_name}/current-state
+            # Returns the most-recent persisted row per participating
+            # *SimState class so the run panel can show a live "current
+            # values" readout without re-fetching the whole snapshot.
+            polServer.falconServer.add_route(
+                self.apiName + '/runs/{run_name}/current-state',
+                self, suffix='current_state',
             )
             # POST /runs creates a fresh SimulationRun row — handled by
             # on_post_runs on the same `/runs` route as on_get_runs.
@@ -101,6 +117,20 @@ class SimulationAPI(treeObject):
             polServer.falconServer.add_route(
                 self.apiName + '/{sim_ref}/validate-initial-conditions',
                 self, suffix='validate_ic',
+            )
+            # POST /api/simulations/{sim_ref}/storage-estimate
+            # Body: {
+            #   fieldSaveOverrides?: { '<class>.<field>': {policy, interval}, ... },
+            #   timeStepSeconds?: number,
+            # }
+            # Computes per-class + per-field storage estimates against
+            # the posted hypothetical overrides — drives the IC editor's
+            # live "this run will use ~X MB" readout. Source-tagged so
+            # the UI can distinguish static defaults from measured data
+            # (once PolyTyping is collecting samples).
+            polServer.falconServer.add_route(
+                self.apiName + '/{sim_ref}/storage-estimate',
+                self, suffix='storage_estimate',
             )
 
     # ------------------------------------------------------------------
@@ -139,6 +169,55 @@ class SimulationAPI(treeObject):
     # JSON body: {"targetStep": <int>} — defaults to last_recorded_step+1
     # (or 0 if no rows exist yet for this run).
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # POST /api/simulations/runs/{run_name}/initial-conditions
+    # Body: { initialConditionsOverrides?, timeStepSeconds?, fieldSaveOverrides? }
+    # Writes per-run initial conditions onto an existing, uninitialized
+    # run. Once step 0 is committed the ICs are locked and this 409s.
+    # ------------------------------------------------------------------
+    def on_post_initial_conditions(self, request, response, run_name):
+        run = self._find_run(run_name)
+        if run is None:
+            response.status = falcon.HTTP_404
+            response.media = {'success': False, 'error': f'SimulationRun "{run_name}" not found'}
+            return
+        # Locked once a step-0 row exists — ICs are baked into that row.
+        recorded = int(getattr(run, 'recorded_steps', 0) or 0)
+        last_step = int(getattr(run, 'last_recorded_step', 0) or 0)
+        if recorded > 0 or last_step > 0:
+            response.status = falcon.HTTP_409
+            response.media = {
+                'success': False,
+                'error': 'Initial conditions are locked — this run already has a committed step 0.',
+            }
+            return
+        try:
+            raw = request.bounded_stream.read()
+            body = json.loads(raw) if raw else {}
+        except Exception:
+            body = {}
+        ic_overrides = body.get('initialConditionsOverrides') or {}
+        if not isinstance(ic_overrides, dict):
+            ic_overrides = {}
+        field_save_overrides = body.get('fieldSaveOverrides') or {}
+        if not isinstance(field_save_overrides, dict):
+            field_save_overrides = {}
+        try:
+            time_step_seconds = float(body.get('timeStepSeconds') or 0)
+        except (TypeError, ValueError):
+            time_step_seconds = 0.0
+        # Mirror on_post_run's pattern: mutate the in-memory treeObject;
+        # the framework persists the attribute writes.
+        run.initial_conditions_overrides_json = json.dumps(ic_overrides)
+        run.field_save_overrides_json = json.dumps(field_save_overrides)
+        if time_step_seconds > 0:
+            run.time_step_seconds = time_step_seconds
+        response.media = {
+            'success': True,
+            'data': {'name': run_name, 'status': getattr(run, 'status', 'pending')},
+        }
+        response.status = falcon.HTTP_200
+
     def on_post_step(self, request, response, run_name):
         run = self._find_run(run_name)
         if run is None:
@@ -242,6 +321,97 @@ class SimulationAPI(treeObject):
         response.status = falcon.HTTP_200
 
     # ------------------------------------------------------------------
+    # GET /api/simulations/runs/{run_name}/current-state
+    # Latest persisted row per participating *SimState class. Returns:
+    #   {
+    #     step:      <max committed step across classes>,
+    #     time:      <seconds at that step (from the row)>,
+    #     perClass:  { '<cls>': { '<field>': <value>, ..., 'step': N, 'time': T } }
+    #   }
+    # Each class's row is whichever row for this run carries the highest
+    # `step`. Drives the run panel's live current-state readout.
+    # ------------------------------------------------------------------
+    def on_get_current_state(self, request, response, run_name):
+        run = self._find_run(run_name)
+        if run is None:
+            response.status = falcon.HTTP_404
+            response.media = {'success': False, 'error': f'SimulationRun "{run_name}" not found'}
+            return
+        sim_ref = getattr(run, 'simulation_ref', '')
+        defs = self.manager.objectTables.get('SimulationDefinition', {}) or {}
+        sim_def = next((r for r in defs.values() if getattr(r, 'name', '') == sim_ref), None)
+        if sim_def is None:
+            response.media = {
+                'success': True,
+                'data': {'step': None, 'time': None, 'perClass': {}},
+            }
+            response.status = falcon.HTTP_200
+            return
+        # Optional `?step=N` — return the row at exactly that step
+        # instead of the most-recent one. The IC editor uses ?step=0 to
+        # show a locked run's committed initial conditions.
+        target_step = None
+        raw_param = request.get_param('step')
+        if raw_param is not None and raw_param != '':
+            try:
+                target_step = int(raw_param)
+            except (TypeError, ValueError):
+                target_step = None
+        participating = self._parse_json_list(
+            getattr(sim_def, 'participating_sim_state_classes_json', '') or '[]'
+        )
+        per_class: Dict[str, Dict[str, Any]] = {}
+        max_step = -1
+        max_time: Optional[float] = None
+        skip = {'manager', 'branch', 'inTree', 'polariId'}
+        for cls_name in participating:
+            if not isinstance(cls_name, str):
+                continue
+            table = self.manager.objectTables.get(cls_name, {}) or {}
+            best_row = None
+            best_step = -1
+            for inst in table.values():
+                if getattr(inst, 'simulation_run_ref', '') != run_name:
+                    continue
+                raw = getattr(inst, 'step', None)
+                try:
+                    step_val = int(raw) if raw is not None else -1
+                except (TypeError, ValueError):
+                    step_val = -1
+                if target_step is not None:
+                    # Exact-step mode: take the row matching target_step.
+                    if step_val == target_step:
+                        best_step = step_val
+                        best_row = inst
+                        break
+                elif step_val > best_step:
+                    best_step = step_val
+                    best_row = inst
+            if best_row is None:
+                continue
+            row_dict: Dict[str, Any] = {}
+            for k, v in vars(best_row).items():
+                if k.startswith('_') or k in skip:
+                    continue
+                row_dict[k] = v
+            per_class[cls_name] = row_dict
+            if best_step > max_step:
+                max_step = best_step
+                try:
+                    max_time = float(getattr(best_row, 'time', 0.0))
+                except (TypeError, ValueError):
+                    max_time = None
+        response.media = {
+            'success': True,
+            'data': {
+                'step': max_step if max_step >= 0 else None,
+                'time': max_time,
+                'perClass': per_class,
+            },
+        }
+        response.status = falcon.HTTP_200
+
+    # ------------------------------------------------------------------
     # GET /api/simulations/{sim_ref}/solutions
     # Returns the SimulationExecutionSolution rows for a
     # SimulationDefinition, with role detection. The editor sidebar
@@ -328,6 +498,25 @@ class SimulationAPI(treeObject):
                 'simOverrides': override_values,
             }
 
+        # Per-class field-save policies — class declaration +
+        # sim-def-level overrides. Mirrors initialConditions shape so
+        # the editor can render a per-field toggle the same way.
+        field_save_overrides = self._parse_json_dict(
+            getattr(sim_def, 'field_save_overrides_json', '') or '{}'
+        )
+        field_policies: Dict[str, Dict[str, Any]] = {}
+        for cls_name in participating:
+            class_policy = self._class_field_save_policy(cls_name)
+            cls_sim_overrides: Dict[str, Dict[str, Any]] = {}
+            prefix = f'{cls_name}.'
+            for key, rule in field_save_overrides.items():
+                if isinstance(key, str) and key.startswith(prefix) and isinstance(rule, dict):
+                    cls_sim_overrides[key[len(prefix):]] = rule
+            field_policies[cls_name] = {
+                'classDefaults': class_policy,
+                'simOverrides': cls_sim_overrides,
+            }
+
         response.media = {
             'success': True,
             'data': {
@@ -335,6 +524,7 @@ class SimulationAPI(treeObject):
                 'availableSolutions': available_solutions,
                 'simStateClasses': participating,
                 'initialConditions': initial_conditions,
+                'fieldPolicies': field_policies,
             },
         }
         response.status = falcon.HTTP_200
@@ -347,6 +537,17 @@ class SimulationAPI(treeObject):
         cls = getattr(typing_obj, 'classDefinition', None) if typing_obj else None
         defaults = getattr(cls, 'default_initial_field_values', None) if cls else None
         return dict(defaults) if isinstance(defaults, dict) else {}
+
+    def _class_field_save_policy(self, cls_name: str) -> Dict[str, str]:
+        """Read a `*SimState` class's `field_save_policy` attribute.
+        Each value is one of 'core' | 'derivable'; unlisted fields are
+        treated as 'core' by the runner."""
+        typing_obj = (self.manager.objectTypingDict or {}).get(cls_name)
+        cls = getattr(typing_obj, 'classDefinition', None) if typing_obj else None
+        raw = getattr(cls, 'field_save_policy', None) if cls else None
+        if not isinstance(raw, dict):
+            return {}
+        return {str(k): str(v) for k, v in raw.items() if isinstance(v, str)}
 
     # ------------------------------------------------------------------
     # POST /api/simulations/{sim_ref}/solutions
@@ -513,6 +714,51 @@ class SimulationAPI(treeObject):
         }
         response.status = falcon.HTTP_200
 
+    # ------------------------------------------------------------------
+    # POST /api/simulations/{sim_ref}/storage-estimate
+    # Body: { fieldSaveOverrides?, timeStepSeconds? }
+    # Returns per-class + per-field byte estimates against the posted
+    # hypothetical overrides. The IC editor calls this on debounce so
+    # users see how their tweaks affect overall storage before
+    # committing to a run.
+    # ------------------------------------------------------------------
+    def on_post_storage_estimate(self, request, response, sim_ref):
+        defs = self.manager.objectTables.get('SimulationDefinition', {}) or {}
+        sim_def = next((r for r in defs.values() if getattr(r, 'name', '') == sim_ref), None)
+        if sim_def is None:
+            response.status = falcon.HTTP_404
+            response.media = {'success': False, 'error': f'SimulationDefinition "{sim_ref}" not found.'}
+            return
+        try:
+            raw = request.bounded_stream.read()
+            body = json.loads(raw) if raw else {}
+        except Exception:
+            body = {}
+
+        # Build a transient SimulationRun stand-in carrying the posted
+        # overrides so the estimator's resolution pipeline (class →
+        # sim def → run) applies the user's hypotheticals without
+        # mutating any real row.
+        posted_overrides = body.get('fieldSaveOverrides') or {}
+        if not isinstance(posted_overrides, dict):
+            posted_overrides = {}
+        try:
+            posted_dt = float(body.get('timeStepSeconds') or 0)
+        except (TypeError, ValueError):
+            posted_dt = 0.0
+
+        class _TransientRun:
+            pass
+        transient = _TransientRun()
+        transient.name = ''
+        transient.field_save_overrides_json = json.dumps(posted_overrides)
+        transient.initial_conditions_overrides_json = '{}'
+        transient.time_step_seconds = posted_dt
+
+        estimate = estimate_run_storage(self.manager, sim_def, transient)
+        response.media = {'success': True, 'data': estimate}
+        response.status = falcon.HTTP_200
+
     @staticmethod
     def _parse_json_list(text: str):
         try:
@@ -630,6 +876,12 @@ class SimulationAPI(treeObject):
             time_step_seconds = float(body.get('timeStepSeconds') or 0)
         except (TypeError, ValueError):
             time_step_seconds = 0.0
+        # Per-run field-save overrides (Phase B). Layered on top of the
+        # sim def's overrides at runtime; sim def wins over class
+        # declarations; run wins over both.
+        field_save_overrides = body.get('fieldSaveOverrides') or {}
+        if not isinstance(field_save_overrides, dict):
+            field_save_overrides = {}
         # Find the registered class.
         from simulations.simulation_run import SimulationRun as _SR
         try:
@@ -646,6 +898,7 @@ class SimulationAPI(treeObject):
                 label=body.get('label') or '',
                 initial_conditions_overrides_json=json.dumps(ic_overrides),
                 time_step_seconds=time_step_seconds,
+                field_save_overrides_json=json.dumps(field_save_overrides),
                 manager=self.manager,
             )
         except Exception as e:

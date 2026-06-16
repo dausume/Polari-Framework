@@ -73,6 +73,13 @@ class SimulationRun(treeObject):
         # checks, 100 ms for a quick coarse run) without changing the
         # canonical config. 0 / unset = fall back to the sim def's value.
         time_step_seconds: float = 0.0,
+        # JSON dict keyed by '<ClassName>.<fieldName>' of per-field save
+        # rules specific to THIS RUN. Layers on top of the SimulationDefinition's
+        # `field_save_overrides_json` (per-run wins). Same entry shape:
+        #   { policy?: 'core'|'derivable'|'skip', interval?: int }
+        # Lets the user mark fields as core for a one-off diagnostic
+        # run without mutating the saved sim def.
+        field_save_overrides_json: str = '{}',
         manager=None,
     ):
         self.name = name
@@ -87,3 +94,4 @@ class SimulationRun(treeObject):
         self.label = label
         self.initial_conditions_overrides_json = initial_conditions_overrides_json
         self.time_step_seconds = time_step_seconds
+        self.field_save_overrides_json = field_save_overrides_json
