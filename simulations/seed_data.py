@@ -76,6 +76,11 @@ def _compute_pendulum_trajectory():
             # Composite-name pattern: "<run>-<role>-<step>". The role
             # segment ('bob' / 'string') keeps the two streams distinct
             # in the framework's name-keyed storage.
+            # 3D embedding with the default swing-plane normal (0,0,1):
+            #   world = x·normalize(Yup × n) + y·Yup → (x, y, 0).
+            # The pendulum-3d-viz scene reads world_* off these rows. (Live
+            # runs compute world_* via the no-code MatrixEquationOperation
+            # embedding; the seeded demo precomputes it, like x/y.)
             bob_rows.append({
                 'name': f'{SIM_RUN_NAME}-bob-{step}',
                 'simulation_run_ref': SIM_RUN_NAME,
@@ -86,6 +91,8 @@ def _compute_pendulum_trajectory():
                 'x': round(x, 6),
                 'y': round(y, 6),
                 'energy_total': round(ke + pe, 6),
+                'plane_nx': 0.0, 'plane_ny': 0.0, 'plane_nz': 1.0,
+                'world_x': round(x, 6), 'world_y': round(y, 6), 'world_z': 0.0,
             })
             string_rows.append({
                 'name': f'{SIM_RUN_NAME}-string-{step}',
@@ -95,6 +102,8 @@ def _compute_pendulum_trajectory():
                 'bob_x': round(x, 6),
                 'bob_y': round(y, 6),
                 'tension': round(tension, 6),
+                'plane_nx': 0.0, 'plane_ny': 0.0, 'plane_nz': 1.0,
+                'world_x': round(x, 6), 'world_y': round(y, 6), 'world_z': 0.0,
             })
         # Advance state (semi-implicit Euler — energy-stable enough for
         # short reference runs).
@@ -655,10 +664,71 @@ def _calculus_operation(state_name, location_x, location_y, equation_name,
     }
 
 
+def _matrix_equation_operation(state_name, location_x, location_y,
+                               matrix_equation_name, operand_bindings,
+                               result_var, description, index,
+                               next_state, next_connector_id,
+                               coding_comment=''):
+    """One MatrixEquationOperation node — invokes a saved
+    MatrixEquationDefinition by name, binding its operands from the
+    engine context (scalars OR arrays via the 'array' source kind) and
+    storing the array/scalar result in `result_var`. Makes the matrix /
+    vector engine callable from a simulation step (used here for the
+    2D→3D plane embedding: world = x·normalize(Yup×n) + y·Yup)."""
+    return {
+        'stateName': state_name,
+        'id': f'{state_name}-state',
+        'index': index,
+        'shapeType': 'circle',
+        'solutionName': '',
+        'stateClass': 'MatrixEquationOperation',
+        'boundObjectClass': 'MatrixEquationOperation',
+        'boundObjectFieldValues': {
+            'displayName': state_name,
+            'description': description,
+            'matrixEquationName': matrix_equation_name,
+            'operandBindings': operand_bindings,
+            'resultTarget': 'result_variable',
+            'resultFieldPath': '',
+            'resultVariableName': result_var,
+            'codingComment': coding_comment,
+        },
+        'stateSvgRadius': 95,
+        'layerName': 'math-layer',
+        'stateLocationX': location_x,
+        'stateLocationY': location_y,
+        'stateSvgName': 'circle',
+        'backgroundColor': '#9575CD',
+        'slots': [
+            {'index': 0, 'stateName': state_name, 'slotAngularPosition': 180,
+             'connectors': [], 'isInput': True, 'allowOneToMany': False,
+             'allowManyToOne': True, 'label': 'In'},
+            {'index': 1, 'stateName': state_name, 'slotAngularPosition': 0,
+             'connectors': [{'id': next_connector_id, 'sourceSlot': 1, 'sinkSlot': 0,
+                             'targetStateName': next_state}],
+             'isInput': False, 'allowOneToMany': True, 'allowManyToOne': False,
+             'label': result_var, 'passthroughVariableName': result_var},
+        ],
+        'slotRadius': 5,
+    }
+
+
 def _from_source(path):
     """Shorthand for the no-code value-source that reads a context key
     by name. `self.<x>` and bare `<x>` are both resolved by the engine."""
     return {'sourceType': 'from_source_object', 'sourceObjectPath': path}
+
+
+def _element_source(vec_var, index):
+    """Value-source that extracts one component from an array-valued
+    context variable (e.g. world_vec[0])."""
+    return {'sourceType': 'element', 'index': index, 'source': _from_source(vec_var)}
+
+
+def _array_source(elements):
+    """Value-source that builds a vector/array from element sources
+    (each a ValueSourceConfig or a literal)."""
+    return {'sourceType': 'array', 'elements': elements}
 
 
 def _step_solution_pair(name, description, target_class, expected_inputs,
@@ -729,6 +799,26 @@ def _step_solution_pair(name, description, target_class, expected_inputs,
     for i, step in enumerate(compute_steps):
         is_last = (i == len(compute_steps) - 1)
         next_name = end_state_name if is_last else compute_steps[i + 1]['name']
+
+        # A step can be a MatrixEquationOperation (invokes a saved
+        # MatrixEquationDefinition with operands bound from context) instead
+        # of a scalar CalculusOperation. Used for the 2D→3D plane embedding.
+        if step.get('kind') == 'matrixEquation':
+            states.append(_matrix_equation_operation(
+                state_name=step['name'],
+                location_x=160 + spacing_x * (i + 1),
+                location_y=base_y,
+                matrix_equation_name=step['matrixEquationName'],
+                operand_bindings=step['operandBindings'],
+                result_var=step['var'],
+                description=step['description'],
+                index=i + 1,
+                next_state=next_name,
+                next_connector_id=next_connector_id,
+                coding_comment=step.get('comment', ''),
+            ))
+            next_connector_id += 1
+            continue
 
         # Equation name convention: <solution>.<step-var>.
         # Bindings come from the step's `bindings` dict — explicit
@@ -818,8 +908,12 @@ def _step_solution_pair(name, description, target_class, expected_inputs,
                     f"entry for '{field}' should be a bare ctx_var string, "
                     f"not a tuple — only simStepPartial uses (ctx_var, op)."
                 )
+            # A bare string is shorthand for from_source_object; a dict is a
+            # full ValueSourceConfig used verbatim (e.g. an 'element' source
+            # extracting world_vec[0]).
+            value_source = ctx_var if isinstance(ctx_var, dict) else _from_source(ctx_var)
             output_mappings.append(
-                {'outputFieldName': field, 'valueSource': _from_source(ctx_var)}
+                {'outputFieldName': field, 'valueSource': value_source}
             )
         states.append(_next_sim_state(
             state_name=end_state_name,
@@ -1015,6 +1109,35 @@ _BOB_INTEGRATOR_STEPS = [
          "leaking energy and dt is too coarse OR a non-conservative Partial\n"
          "(e.g. drag) is in play."
      )},
+    # 2D→3D embedding (no-code): invoke the `pendulum-embed` matrix equation
+    # to place the bob's 2D (x_new, y_new) into the 3D swing plane defined by
+    # the validated normal n = (plane_nx, plane_ny, plane_nz). Result is the
+    # 3-vector world_vec; the terminator extracts its components into
+    # world_x/y/z. This is what makes a LIVE run animate in 3D (the seeded
+    # demo precomputes the same thing in Python).
+    {'name': 'EmbedWorld3D',
+     'kind': 'matrixEquation',
+     'var': 'world_vec',
+     'matrixEquationName': 'pendulum-embed',
+     'operandBindings': [
+         {'symbol': 'x', 'source': _from_source('self.x_new')},
+         {'symbol': 'y', 'source': _from_source('self.y_new')},
+         {'symbol': 'n', 'source': _array_source([
+             _from_source('self.plane_nx'),
+             _from_source('self.plane_ny'),
+             _from_source('self.plane_nz')])},
+         {'symbol': 'Yup', 'source': _array_source([0, 1, 0])},
+     ],
+     'description': '3D embedding of the bob into the swing plane: '
+                    'world = x·normalize(Yup×n) + y·Yup.',
+     'comment': (
+         "Embeds the 2D pendulum into 3D via the matrix/vector engine —\n"
+         "exercising no-code MatrixEquationOperation + vector ops:\n"
+         "    h     = normalize(Yup × n)   (horizontal swing direction)\n"
+         "    world = x·h + y·Yup          (Yup = (0,1,0) is 'up')\n\n"
+         "n is the swing-plane normal (validated parallel to the ground).\n"
+         "Default n = (0,0,1) ⇒ h = (1,0,0) ⇒ world = (x, y, 0) (X–Y plane)."
+     )},
 ]
 _BOB_INTEGRATOR_OUTPUT_MAP = {
     'theta': 'theta_new',
@@ -1022,6 +1145,14 @@ _BOB_INTEGRATOR_OUTPUT_MAP = {
     'x': 'x_new',
     'y': 'y_new',
     'energy_total': 'energy_total_new',
+    # 3D embedding components (extracted from world_vec) + the swing-plane
+    # normal passed through so it persists for the next step.
+    'world_x': _element_source('world_vec', 0),
+    'world_y': _element_source('world_vec', 1),
+    'world_z': _element_source('world_vec', 2),
+    'plane_nx': 'self.plane_nx',
+    'plane_ny': 'self.plane_ny',
+    'plane_nz': 'self.plane_nz',
 }
 
 
@@ -1091,11 +1222,34 @@ _STRING_STEPS = [
          "Diagnostic only today; a future visualization will use this to\n"
          "drive the rendered string's color/thickness."
      )},
+    # 2D→3D embedding of the string's bob endpoint — same `pendulum-embed`
+    # matrix equation as the bob, fed the string's (bob_x_new, bob_y_new).
+    {'name': 'EmbedStringWorld3D',
+     'kind': 'matrixEquation',
+     'var': 'world_vec',
+     'matrixEquationName': 'pendulum-embed',
+     'operandBindings': [
+         {'symbol': 'x', 'source': _from_source('self.bob_x_new')},
+         {'symbol': 'y', 'source': _from_source('self.bob_y_new')},
+         {'symbol': 'n', 'source': _array_source([
+             _from_source('self.plane_nx'),
+             _from_source('self.plane_ny'),
+             _from_source('self.plane_nz')])},
+         {'symbol': 'Yup', 'source': _array_source([0, 1, 0])},
+     ],
+     'description': '3D embedding of the string endpoint into the swing plane.',
+     'comment': "Mirrors the bob's embedding for the string's bob-endpoint."},
 ]
 _STRING_OUTPUT_MAP = {
     'bob_x': 'bob_x_new',
     'bob_y': 'bob_y_new',
     'tension': 'tension_new',
+    'world_x': _element_source('world_vec', 0),
+    'world_y': _element_source('world_vec', 1),
+    'world_z': _element_source('world_vec', 2),
+    'plane_nx': 'self.plane_nx',
+    'plane_ny': 'self.plane_ny',
+    'plane_nz': 'self.plane_nz',
 }
 
 
@@ -1148,7 +1302,8 @@ _BOB_INTEGRATOR_SOL_DEF, _BOB_INTEGRATOR_META, _BOB_INTEGRATOR_EQUATIONS = _step
         'the next bob row: ω_new → θ_new → projections → energy.'
     ),
     target_class='PendulumBobSimState',
-    expected_inputs=['theta', 'omega', 'alpha_new', 'g', 'L', 'mass', 'dt'],
+    expected_inputs=['theta', 'omega', 'alpha_new', 'g', 'L', 'mass', 'dt',
+                     'plane_nx', 'plane_ny', 'plane_nz'],
     compute_steps=_BOB_INTEGRATOR_STEPS,
     output_field_to_context=_BOB_INTEGRATOR_OUTPUT_MAP,
     sim_step_role='simStepComposition',
@@ -1191,7 +1346,8 @@ _STRING_SOL_DEF, _STRING_META, _STRING_EQUATIONS = _step_solution_pair(
     name=STRING_STEP_SOLUTION_NAME,
     description='Pendulum string endpoint + tension diagnostic; reads the bob\'s current-step θ/ω.',
     target_class='PendulumStringSimState',
-    expected_inputs=['theta', 'omega', 'g', 'L', 'mass'],
+    expected_inputs=['theta', 'omega', 'g', 'L', 'mass',
+                     'plane_nx', 'plane_ny', 'plane_nz'],
     compute_steps=_STRING_STEPS,
     output_field_to_context=_STRING_OUTPUT_MAP,
     sim_step_role='simStepComplete',
@@ -1409,6 +1565,34 @@ SEED_PENDULUM_SIMSPACES = [
             ']}'
         ),
     },
+    {
+        'name': 'pendulum-3d-viz',
+        'description': (
+            '3D visualization of the pendulum-2d simulation. The bob renders '
+            'as a sphere and the string as a rod from the pivot to the bob, '
+            'embedded in a vertical swing plane (default: the X–Y plane). The '
+            'plane orientation is set per run by a normal vector validated '
+            'parallel to the ground. Reuses the same bob/string state — '
+            'world_x/y/z hold the 3D embedding of the 2D (x, y).'
+        ),
+        'dimensionality': '3d',
+        'coordinate_system': 'math',
+        'unit_scale': 1.0,
+        'viewport_json': '{"center": [0, 0, 0], "extent": [1.5, 1.5, 1.5]}',
+        'bound_classes_json': (
+            '['
+            '{"className": "PendulumBobSimState"},'
+            '{"className": "PendulumStringSimState"}'
+            ']'
+        ),
+        # Freestanding pivot sphere at the origin — the string's anchor.
+        'definition': (
+            '{"freestanding": ['
+            '{"id":"pivot","position":[0,0,0],"shapeRef":"sphere","styleRef":"matte-gray",'
+            '"scale":0.06,"label":"Pivot"}'
+            ']}'
+        ),
+    },
 ]
 
 
@@ -1453,6 +1637,51 @@ SEED_PENDULUM_BINDINGS = [
             '"source": {"kind": "constant", "value": [0, 0]},'
             '"target": {"kind": "fields", "fields": {"x": "bob_x", "y": "bob_y"}},'
             '"visual": {"shapeRef": "", "styleRef": "muted"},'
+            '"clickAction": "navigate-to-instance",'
+            '"defaultVisible": true,'
+            '"temporal": {'
+            '  "kind": "time", "field": "time", "unit": "second", "cumulative": false'
+            '}'
+            '}'
+        ),
+    },
+    {
+        'name': 'PendulumBobSimState-3d',
+        'class_name': 'PendulumBobSimState',
+        'dimensionality': '3d',
+        'enabled': True,
+        'binding_json': (
+            '{'
+            '"enabled": true,'
+            '"dimensionality": "3d",'
+            '"kind": "object",'
+            # Fixed X–Y plane: read the bob's 2D x/y directly; z defaults to 0.
+            '"position": {"kind": "fields", "fields": {"x": "x", "y": "y"}},'
+            '"visual": {"shapeRef": "sphere", "styleRef": "matte-blue"},'
+            '"scale": {"kind": "constant", "value": 0.12},'
+            '"clickAction": "navigate-to-instance",'
+            '"defaultVisible": true,'
+            '"temporal": {'
+            '  "kind": "time", "field": "time", "unit": "second", "cumulative": false'
+            '}'
+            '}'
+        ),
+    },
+    {
+        'name': 'PendulumStringSimState-3d',
+        'class_name': 'PendulumStringSimState',
+        'dimensionality': '3d',
+        'enabled': True,
+        'binding_json': (
+            '{'
+            '"enabled": true,'
+            '"dimensionality": "3d",'
+            '"kind": "connection",'
+            # Pivot fixed at the origin; the bob endpoint reads the string\'s
+            # 2D bob_x/bob_y directly (z defaults to 0 — fixed X–Y plane).
+            '"source": {"kind": "constant", "value": [0, 0, 0]},'
+            '"target": {"kind": "fields", "fields": {"x": "bob_x", "y": "bob_y"}},'
+            '"visual": {"styleRef": "metal-steel"},'
             '"clickAction": "navigate-to-instance",'
             '"defaultVisible": true,'
             '"temporal": {'

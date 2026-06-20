@@ -198,11 +198,12 @@ def resolve_position_spec(
         fields = spec.get('fields') or {}
         x_field, y_field = fields.get('x'), fields.get('y')
         z_field = fields.get('z')
-        if not x_field or not y_field or (dim == 3 and not z_field):
+        # x/y are required; z is OPTIONAL in 3D — a 2-field binding embeds a
+        # planar (2D) position into 3D at z = 0. Lets a 3D scene reuse a 2D
+        # sim's x/y directly (e.g. the pendulum, fixed in the X–Y plane).
+        if not x_field or not y_field:
             warnings.append(
-                f"{class_name} binding needs x/y"
-                + ("/z" if dim == 3 else "")
-                + f" field names; skipping instance."
+                f"{class_name} binding needs x/y field names; skipping instance."
             )
             return None
         try:
@@ -210,7 +211,7 @@ def resolve_position_spec(
                 return [
                     float(getattr(inst, x_field, 0) or 0),
                     float(getattr(inst, y_field, 0) or 0),
-                    float(getattr(inst, z_field, 0) or 0),
+                    float(getattr(inst, z_field, 0) or 0) if z_field else 0.0,
                 ]
             return [
                 float(getattr(inst, x_field, 0) or 0),

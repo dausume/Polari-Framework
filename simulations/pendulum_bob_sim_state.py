@@ -66,6 +66,21 @@ class PendulumBobSimState(treeObject):
         'x': 0.5,
         'y': -0.8660254037844387,
         'energy_total': 1.3142947181953093,
+        # --- 3D visualization (pendulum-3d) ---
+        # plane_n* is the normal of the vertical plane the 2D pendulum
+        # swings in — set per-run as an initial condition and validated
+        # parallel to the ground (no vertical/Y component) by the no-code
+        # IC validator. Default (0,0,1) → the canonical X–Y plane.
+        'plane_nx': 0.0,
+        'plane_ny': 0.0,
+        'plane_nz': 1.0,
+        # world_* is the 3D embedding of (x, y) into that plane:
+        #   world = x·normalize(Yup × n) + y·Yup,  Yup = (0,1,0)
+        # Computed live by the no-code embedding (MatrixEquationOperation);
+        # precomputed here for the seeded demo (default normal → x, y, 0).
+        'world_x': 0.5,
+        'world_y': -0.8660254037844387,
+        'world_z': 0.0,
     }
 
     # Per-field persistence policy. Two categories the runner respects:
@@ -87,6 +102,14 @@ class PendulumBobSimState(treeObject):
         'x':            'core',
         'y':            'core',
         'energy_total': 'derivable',
+        # 3D embedding + plane normal — core so the 3D binding reads them
+        # straight off the row (same rationale as x/y).
+        'plane_nx':     'core',
+        'plane_ny':     'core',
+        'plane_nz':     'core',
+        'world_x':      'core',
+        'world_y':      'core',
+        'world_z':      'core',
     }
 
     @treeObjectInit
@@ -113,6 +136,15 @@ class PendulumBobSimState(treeObject):
         # Conservation monitor — flat on a well-behaved integrator,
         # drifts on a poorly-tuned one. Read it to validate the run.
         energy_total: float = 0.0,
+        # Swing-plane normal (per-run IC; validated parallel to ground).
+        plane_nx: float = 0.0,
+        plane_ny: float = 0.0,
+        plane_nz: float = 1.0,
+        # 3D embedding of (x, y) into the swing plane (the 3D binding
+        # reads these directly). Default normal → (x, y, 0).
+        world_x: float = 0.0,
+        world_y: float = 0.0,
+        world_z: float = 0.0,
         manager=None,
     ):
         self.name = name
@@ -124,3 +156,9 @@ class PendulumBobSimState(treeObject):
         self.x = x
         self.y = y
         self.energy_total = energy_total
+        self.plane_nx = plane_nx
+        self.plane_ny = plane_ny
+        self.plane_nz = plane_nz
+        self.world_x = world_x
+        self.world_y = world_y
+        self.world_z = world_z

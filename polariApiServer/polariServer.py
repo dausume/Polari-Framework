@@ -50,6 +50,11 @@ from polariApiServer.equationSeedData import SEED_EQUATIONS
 from polariApiServer.solutionCodeGeneratorAPI import SolutionCodeGeneratorAPI
 from polariApiServer.solutionExecutionAPI import SolutionExecutionAPI
 from polariApiServer.equationExecutionAPI import EquationExecutionAPI
+from matrices.matrix_api import MatrixAPI
+from matrices.matrix_definition import MatrixDefinition
+from matrices.matrix_equation_api import MatrixEquationAPI
+from matrices.matrix_equation_definition import MatrixEquationDefinition
+from matrices.seed_data import SEED_MATRICES, SEED_MATRIX_EQUATIONS
 from polariApiServer.solutionVersionAPI import SolutionVersionAPI
 from polariApiServer.updateClassConfigAPI import UpdateClassConfigAPI
 from polariApiServer.systemInfoAPI import systemInfoAPI
@@ -314,6 +319,14 @@ class polariServer(treeObject):
         # Create Equation Execution endpoint for testing / running calculus equations
         equationExecEndpoint = EquationExecutionAPI(polServer=self, manager=self.manager)
 
+        # Matrix endpoint — evaluate / validate a MatrixDefinition (numeric
+        # resolution, equation-typed elements, matrix-of-matrices composition).
+        matrixEndpoint = MatrixAPI(polServer=self, manager=self.manager)
+
+        # Matrix Equation endpoint — evaluate / validate a
+        # MatrixEquationDefinition (operations over matrices / equations).
+        matrixEquationEndpoint = MatrixEquationAPI(polServer=self, manager=self.manager)
+
         # Create Solution Version endpoint for atomic version snapshots
         solutionVersionEndpoint = SolutionVersionAPI(polServer=self, manager=self.manager)
 
@@ -353,7 +366,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition,
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition,
             # Simulations
             SimulationDefinition, SimulationRun, SimVariable,
             SimSpaceEvaluationEquation,
@@ -751,6 +764,10 @@ class polariServer(treeObject):
         self._seedSolutionDefinitions()
         # Seed EquationDefinition with smoke-test equations if missing
         self._seedEquationDefinitions()
+        # Seed MatrixDefinition with concept-test + element-kind demos
+        self._seedMatrixDefinitions()
+        # Seed MatrixEquationDefinition with one example per math kind
+        self._seedMatrixEquations()
         # Seed SimSpace2D stock library + a demo space
         self._seedSimSpace2D()
         # Seed SimSpace3D stock library + a demo space (Phase 2)
@@ -998,6 +1015,80 @@ class polariServer(treeObject):
                 print(f'[SeedEquations] Created: {seedData["name"]} (id={getattr(instance, "id", "?")})', flush=True)
             except Exception as e:
                 print(f'[SeedEquations] Failed to create {seedData["name"]}: {e}', flush=True)
+                import traceback
+                traceback.print_exc()
+
+    def _seedMatrixDefinitions(self):
+        """Seed MatrixDefinition with concept-test + element-kind demos.
+
+        Same idempotent-by-name pattern as _seedEquationDefinitions. Covers
+        numeric literals, matrix-of-matrices composition, equation-typed
+        elements, elementwise equations, and a matrix_op expression.
+        """
+        typingObj = self.manager.objectTypingDict.get('MatrixDefinition')
+        if typingObj is None:
+            print('[SeedMatrices] MatrixDefinition not in objectTypingDict, skipping', flush=True)
+            return
+
+        existing = self.manager.objectTables.get('MatrixDefinition', {})
+        existingDict = existing if isinstance(existing, dict) else {}
+        existingNames = {getattr(obj, 'name', None) for obj in existingDict.values()}
+
+        for seedData in SEED_MATRICES:
+            if seedData['name'] in existingNames:
+                print(f'[SeedMatrices] Already exists: {seedData["name"]}', flush=True)
+                continue
+            try:
+                MatrixDefinition(
+                    name=seedData['name'],
+                    description=seedData.get('description', ''),
+                    shape_json=seedData['shape_json'],
+                    element_type=seedData['element_type'],
+                    element_matrix_ref=seedData.get('element_matrix_ref', ''),
+                    values_json=seedData['values_json'],
+                    computation_json=seedData['computation_json'],
+                    is_template=seedData.get('is_template', False),
+                    tags=seedData.get('tags', ''),
+                    manager=self.manager,
+                )
+                print(f'[SeedMatrices] Created: {seedData["name"]}', flush=True)
+            except Exception as e:
+                print(f'[SeedMatrices] Failed to create {seedData["name"]}: {e}', flush=True)
+                import traceback
+                traceback.print_exc()
+
+    def _seedMatrixEquations(self):
+        """Seed MatrixEquationDefinition with one example per matrix-math kind.
+
+        Idempotent by name. Operands reference the seeded MatrixDefinitions
+        (and one references another matrix equation, exercising composition).
+        """
+        typingObj = self.manager.objectTypingDict.get('MatrixEquationDefinition')
+        if typingObj is None:
+            print('[SeedMatrixEqs] MatrixEquationDefinition not in objectTypingDict, skipping', flush=True)
+            return
+
+        existing = self.manager.objectTables.get('MatrixEquationDefinition', {})
+        existingDict = existing if isinstance(existing, dict) else {}
+        existingNames = {getattr(obj, 'name', None) for obj in existingDict.values()}
+
+        for seedData in SEED_MATRIX_EQUATIONS:
+            if seedData['name'] in existingNames:
+                print(f'[SeedMatrixEqs] Already exists: {seedData["name"]}', flush=True)
+                continue
+            try:
+                MatrixEquationDefinition(
+                    name=seedData['name'],
+                    description=seedData.get('description', ''),
+                    latex=seedData.get('latex', ''),
+                    operation_json=seedData['operation_json'],
+                    operands_json=seedData['operands_json'],
+                    tags=seedData.get('tags', ''),
+                    manager=self.manager,
+                )
+                print(f'[SeedMatrixEqs] Created: {seedData["name"]}', flush=True)
+            except Exception as e:
+                print(f'[SeedMatrixEqs] Failed to create {seedData["name"]}: {e}', flush=True)
                 import traceback
                 traceback.print_exc()
 

@@ -51,6 +51,17 @@ class PendulumStringSimState(treeObject):
         'bob_x': 0.5,                  # 1.0 * sin(π/6) = 0.5
         'bob_y': -0.8660254037844387,  # −1.0 * cos(π/6)
         'tension': 8.496872802502045,  # 1.0 * 9.81 * cos(π/6)
+        # Swing-plane normal (mirrors the bob's; per-run IC, validated
+        # parallel to ground) so the string can embed its endpoint in 3D.
+        'plane_nx': 0.0,
+        'plane_ny': 0.0,
+        'plane_nz': 1.0,
+        # 3D bob endpoint — the embedding of (bob_x, bob_y) into the swing
+        # plane; the 3D connection binding reads these as the string's
+        # target. Default normal → (bob_x, bob_y, 0).
+        'world_x': 0.5,
+        'world_y': -0.8660254037844387,
+        'world_z': 0.0,
     }
 
     # Per-field persistence policy. See PendulumBobSimState for the
@@ -64,6 +75,12 @@ class PendulumStringSimState(treeObject):
         'bob_x':   'core',
         'bob_y':   'core',
         'tension': 'derivable',
+        'plane_nx': 'core',
+        'plane_ny': 'core',
+        'plane_nz': 'core',
+        'world_x': 'core',
+        'world_y': 'core',
+        'world_z': 'core',
     }
 
     @treeObjectInit
@@ -81,6 +98,14 @@ class PendulumStringSimState(treeObject):
         # String tension in newtons. Centripetal + radial-gravity
         # contribution; sign is positive (the string pulls the bob in).
         tension: float = 0.0,
+        # Swing-plane normal (mirrors the bob).
+        plane_nx: float = 0.0,
+        plane_ny: float = 0.0,
+        plane_nz: float = 1.0,
+        # 3D bob endpoint (embedding of bob_x/bob_y into the swing plane).
+        world_x: float = 0.0,
+        world_y: float = 0.0,
+        world_z: float = 0.0,
         manager=None,
     ):
         self.name = name
@@ -90,3 +115,9 @@ class PendulumStringSimState(treeObject):
         self.bob_x = bob_x
         self.bob_y = bob_y
         self.tension = tension
+        self.plane_nx = plane_nx
+        self.plane_ny = plane_ny
+        self.plane_nz = plane_nz
+        self.world_x = world_x
+        self.world_y = world_y
+        self.world_z = world_z

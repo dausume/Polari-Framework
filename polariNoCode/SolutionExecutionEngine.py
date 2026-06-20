@@ -219,6 +219,29 @@ def _resolve_value_source_config(config, context):
             return None
         return _evaluate_latex_against_context(latex, context)
 
+    elif source_type == 'array':
+        # Build a vector/array from a list of element sources. Each element
+        # is itself a ValueSourceConfig (or a literal). Enables no-code
+        # authoring of vectors, e.g. n = [plane_nx, plane_ny, plane_nz].
+        elements = config.get('elements', []) or []
+        out = []
+        for el in elements:
+            if isinstance(el, dict) and 'sourceType' in el:
+                out.append(_resolve_value_source_config(el, context))
+            else:
+                out.append(el)
+        return out
+
+    elif source_type == 'element':
+        # Extract one component from an array-valued source, e.g. world[0].
+        src = config.get('source')
+        idx = config.get('index', 0)
+        base = _resolve_value_source_config(src, context) if isinstance(src, dict) else src
+        try:
+            return base[int(idx)]
+        except (TypeError, ValueError, IndexError, KeyError):
+            return None
+
     return None
 
 
@@ -1053,6 +1076,79 @@ class SolutionExecutionEngine:
             # convention (mirrors MathOperation).
             if result_target == 'solution_field' and result_field_path:
                 # Path like 'self.result_expression' or 'result_expression'
+                key = result_field_path
+                if key.startswith('self.'):
+                    bare = key[5:]
+                    context[key] = computed
+                    context[bare] = computed
+                else:
+                    context[key] = computed
+                    context[f'self.{key}'] = computed
+            else:
+                if result_var_name:
+                    context[result_var_name] = computed
+
+            result['result'] = computed
+
+        elif state_class == 'MatrixEquationOperation':
+            # Hosts a saved MatrixEquationDefinition — makes the matrix /
+            # vector engine callable from no-code. Operand symbols are bound
+            # from the solution context (scalars OR arrays, via the 'array'
+            # source kind); the result (an array or scalar) is stored back
+            # into the context, where downstream states extract components
+            # via the 'element' source kind.
+            meq_name = field_values.get('matrixEquationName', '') or field_values.get('matrixEquationRef', '')
+            operand_bindings = field_values.get('operandBindings', []) or []
+            result_target = field_values.get('resultTarget', 'result_variable')
+            result_field_path = field_values.get('resultFieldPath', '')
+            result_var_name = field_values.get('resultVariableName', 'result')
+
+            binding_values = {}
+            for b in operand_bindings:
+                if not isinstance(b, dict):
+                    continue
+                sym = (b.get('symbol') or '').strip()
+                src = b.get('source')
+                if not sym or src is None:
+                    continue
+                try:
+                    binding_values[sym] = _resolve_value_source_config(src, context)
+                except Exception as e:
+                    log_output.append(f'[{state_name}] MatrixEquationOperation: failed to resolve operand `{sym}`: {e}')
+
+            meq_def = None
+            try:
+                if self.manager is not None and hasattr(self.manager, 'objectTables'):
+                    tbl = self.manager.objectTables.get('MatrixEquationDefinition')
+                    if tbl is not None:
+                        for _id, inst in tbl.items():
+                            if getattr(inst, 'name', None) == meq_name:
+                                meq_def = inst
+                                break
+            except Exception as e:
+                log_output.append(f'[{state_name}] MatrixEquationOperation: error locating `{meq_name}`: {e}')
+
+            computed = None
+            if meq_def is None:
+                log_output.append(f'[{state_name}] MatrixEquationOperation: matrix equation `{meq_name}` not found.')
+            else:
+                try:
+                    from matrices.matrix_equation_executor import evaluate_equation as _eval_meq
+                    arr = _eval_meq(meq_def, binding_values=binding_values, manager=self.manager)
+                    if hasattr(arr, 'ndim') and arr.ndim == 0:
+                        computed = arr.item()
+                    elif hasattr(arr, 'tolist'):
+                        computed = arr.tolist()
+                    else:
+                        computed = arr
+                    log_output.append(
+                        f'[{state_name}] MatrixEquationOperation `{meq_name}` ('
+                        f'{", ".join(f"{k}={v!r}" for k, v in binding_values.items())}) → {computed!r}'
+                    )
+                except Exception as e:
+                    log_output.append(f'[{state_name}] MatrixEquationOperation `{meq_name}` exception: {e}')
+
+            if result_target == 'solution_field' and result_field_path:
                 key = result_field_path
                 if key.startswith('self.'):
                     bare = key[5:]

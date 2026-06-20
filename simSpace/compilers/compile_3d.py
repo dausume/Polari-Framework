@@ -154,6 +154,13 @@ def _emit_connections(
             'styleRef': scene_style_override or resolve_ref(style_ref_cfg, inst, 'matte-blue'),
             'classRef': {'className': class_name, 'instanceId': inst_id},
         }
+        # Optional rod thickness + mesh — when present the 3D renderer draws
+        # an oriented cylinder between the endpoints instead of a 1px line.
+        thickness = visual.get('thickness')
+        if thickness is not None:
+            conn['thickness'] = thickness
+        if visual.get('shapeRef'):
+            conn['shapeRef'] = visual.get('shapeRef')
         temporal_value = read_temporal_value(inst, binding)
         if temporal_value is not None:
             conn['temporalValue'] = temporal_value
@@ -191,12 +198,39 @@ def _emit_instances(
             'styleRef': scene_style_override or resolve_ref(style_ref_cfg, inst, 'matte-blue'),
             'classRef': {'className': class_name, 'instanceId': inst_id},
         }
+        # Per-binding scale (uniform constant, a uniform field, or per-axis
+        # fields). Lets a binding size a shared mesh (e.g. shrink the unit
+        # sphere to a pendulum bob) without a dedicated mesh per size.
+        scale = _resolve_scale_3d(binding.get('scale'), inst)
+        if scale is not None:
+            obj['scale'] = scale
         # Attach temporal value when bound — feeds the frontend scrubber.
         temporal_value = read_temporal_value(inst, binding)
         if temporal_value is not None:
             obj['temporalValue'] = temporal_value
         out.append(obj)
     return out
+
+
+def _resolve_scale_3d(spec, inst):
+    """Resolve a binding scale spec to a number (uniform) or [sx,sy,sz].
+    Supports {kind:'constant',value}, {kind:'uniform',field}, and
+    {kind:'per-axis',fields:{x,y,z}}. Returns None when unset/unresolvable."""
+    if not isinstance(spec, dict):
+        return None
+    kind = spec.get('kind')
+    try:
+        if kind == 'constant':
+            return float(spec.get('value'))
+        if kind == 'uniform':
+            f = spec.get('field')
+            return float(getattr(inst, f, 1) or 1) if f else None
+        if kind == 'per-axis':
+            fs = spec.get('fields') or {}
+            return [float(getattr(inst, fs.get(a), 1) or 1) for a in ('x', 'y', 'z')]
+    except (TypeError, ValueError):
+        return None
+    return None
 
 
 def _resolve_position_3d(
@@ -211,16 +245,18 @@ def _resolve_position_3d(
     if kind == 'fields':
         fields = pos_cfg.get('fields') or {}
         x_field, y_field, z_field = fields.get('x'), fields.get('y'), fields.get('z')
-        if not x_field or not y_field or not z_field:
+        # x/y required; z OPTIONAL — a 2-field binding places a planar (2D)
+        # position into 3D at z = 0 (e.g. the pendulum, fixed in the X–Y plane).
+        if not x_field or not y_field:
             warnings.append(
-                f"{class_name} 3D binding needs x, y AND z field names; skipping instance."
+                f"{class_name} 3D binding needs x and y field names; skipping instance."
             )
             return None
         try:
             return [
                 float(getattr(inst, x_field, 0) or 0),
                 float(getattr(inst, y_field, 0) or 0),
-                float(getattr(inst, z_field, 0) or 0),
+                float(getattr(inst, z_field, 0) or 0) if z_field else 0.0,
             ]
         except (TypeError, ValueError):
             warnings.append(
