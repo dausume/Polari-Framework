@@ -1655,8 +1655,11 @@ SEED_PENDULUM_BINDINGS = [
             '"enabled": true,'
             '"dimensionality": "3d",'
             '"kind": "object",'
-            # Fixed X–Y plane: read the bob's 2D x/y directly; z defaults to 0.
-            '"position": {"kind": "fields", "fields": {"x": "x", "y": "y"}},'
+            # 3D embedding: read world_x/y/z — the bob (x,y) placed into the
+            # swing plane defined by the (validated-horizontal) normal. The
+            # no-code EmbedWorld3D step computes these live; the seed demo
+            # precomputes them. Default normal (0,0,1) → world = (x, y, 0).
+            '"position": {"kind": "fields", "fields": {"x": "world_x", "y": "world_y", "z": "world_z"}},'
             '"visual": {"shapeRef": "sphere", "styleRef": "matte-blue"},'
             '"scale": {"kind": "constant", "value": 0.12},'
             '"clickAction": "navigate-to-instance",'
@@ -1677,10 +1680,10 @@ SEED_PENDULUM_BINDINGS = [
             '"enabled": true,'
             '"dimensionality": "3d",'
             '"kind": "connection",'
-            # Pivot fixed at the origin; the bob endpoint reads the string\'s
-            # 2D bob_x/bob_y directly (z defaults to 0 — fixed X–Y plane).
+            # Pivot fixed at the origin; the bob endpoint is the 3D embedding
+            # (world_x/y/z) so the string tracks the bob in the swing plane.
             '"source": {"kind": "constant", "value": [0, 0, 0]},'
-            '"target": {"kind": "fields", "fields": {"x": "bob_x", "y": "bob_y"}},'
+            '"target": {"kind": "fields", "fields": {"x": "world_x", "y": "world_y", "z": "world_z"}},'
             '"visual": {"styleRef": "metal-steel"},'
             '"clickAction": "navigate-to-instance",'
             '"defaultVisible": true,'

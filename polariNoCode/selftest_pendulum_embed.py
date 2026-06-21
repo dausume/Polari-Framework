@@ -57,32 +57,39 @@ def main():
     x_new = L * math.sin(theta_new)
     y_new = -L * math.cos(theta_new)
 
-    ctx = {
-        'self.theta': theta, 'self.omega': omega, 'self.alpha_new': alpha_new,
-        'self.dt': dt, 'self.L': L, 'self.g': g, 'self.mass': mass,
-        'self.plane_nx': 0.0, 'self.plane_ny': 0.0, 'self.plane_nz': 1.0,
-        # bare aliases (engine resolves either form)
-        'theta': theta, 'omega': omega, 'alpha_new': alpha_new, 'dt': dt,
-        'L': L, 'g': g, 'mass': mass,
-        'plane_nx': 0.0, 'plane_ny': 0.0, 'plane_nz': 1.0,
-    }
+    def run(normal):
+        nx, ny, nz = normal
+        ctx = {
+            'self.theta': theta, 'self.omega': omega, 'self.alpha_new': alpha_new,
+            'self.dt': dt, 'self.L': L, 'self.g': g, 'self.mass': mass,
+            'self.plane_nx': nx, 'self.plane_ny': ny, 'self.plane_nz': nz,
+            'theta': theta, 'omega': omega, 'alpha_new': alpha_new, 'dt': dt,
+            'L': L, 'g': g, 'mass': mass,
+            'plane_nx': nx, 'plane_ny': ny, 'plane_nz': nz,
+        }
+        engine = SolutionExecutionEngine(manager=_mgr())
+        trace = engine.execute(solution_data=sol, input_params={},
+                               config=StepConfig(mode='step', record_context=True),
+                               target_runtime='python_backend', instance_fields=ctx)
+        return trace, _extract_final_context(trace)
 
-    engine = SolutionExecutionEngine(manager=_mgr())
-    trace = engine.execute(solution_data=sol, input_params={},
-                           config=StepConfig(mode='step', record_context=True),
-                           target_runtime='python_backend', instance_fields=ctx)
-    print('  engine status:', trace.status)
-    final = _extract_final_context(trace)
-
-    # The 2D integrator results (sanity) …
+    # --- default plane (0,0,1) → world = (x, y, 0) ---
+    trace, final = run((0.0, 0.0, 1.0))
+    print('  engine status (default):', trace.status)
     check('x_new (2D)', final.get('x'), x_new)
     check('y_new (2D)', final.get('y'), y_new)
-    # … and the 3D embedding the live step must now produce (default plane).
-    check('world_x = x', final.get('world_x'), x_new)
-    check('world_y = y', final.get('world_y'), y_new)
-    check('world_z = 0', final.get('world_z'), 0.0)
-    # normal passed through
+    check('default world_x = x', final.get('world_x'), x_new)
+    check('default world_y = y', final.get('world_y'), y_new)
+    check('default world_z = 0', final.get('world_z'), 0.0)
     check('plane_nz passthrough', final.get('plane_nz'), 1.0)
+
+    # --- rotated plane: normal (1,0,0) → swing in the Y–Z plane ---
+    #   h = normalize(Yup × n) = normalize((0,1,0)×(1,0,0)) = (0,0,-1)
+    #   world = x·h + y·Yup = (0, y, -x)
+    _, finalR = run((1.0, 0.0, 0.0))
+    check('rotated world_x = 0', finalR.get('world_x'), 0.0)
+    check('rotated world_y = y', finalR.get('world_y'), y_new)
+    check('rotated world_z = -x', finalR.get('world_z'), -x_new)
 
     print()
     n = sum(1 for r in results if r)
