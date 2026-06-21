@@ -135,6 +135,22 @@ SEED_MATERIALS_3D = [
         'emissive': '#fdd835',
         'emissive_intensity': 0.6,
     },
+    {
+        'name': 'arrow-gravity',
+        'description': 'Red — gravity force arrow (Newtonian pendulum).',
+        'material_type': 'standard',
+        'color': '#e53935',
+        'metalness': 0.0,
+        'roughness': 0.6,
+    },
+    {
+        'name': 'arrow-net',
+        'description': 'Green — net force arrow (Newtonian pendulum).',
+        'material_type': 'standard',
+        'color': '#43a047',
+        'metalness': 0.0,
+        'roughness': 0.6,
+    },
 ]
 
 SEED_SIM_SPACES_3D = [

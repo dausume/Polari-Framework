@@ -246,4 +246,86 @@ SEED_MATRIX_EQUATIONS = [
         r'\mathbf{R}_1\mathbf{R}_2',
         {'kind': 'matmul', 'a': 'R1', 'b': 'R2'},
         {'R1': _MREF('rot-45'), 'R2': _MREF('rot-45')}, 'graphics,rotation,composite'),
+
+    # ----------------------------------------------------------------------
+    # Newtonian pendulum — vector/matrix calculus for the 3D step solution.
+    # All operands are RUNTIME bindings supplied by the MatrixEquationOperation
+    # no-code states from the solution context. Pivot is the origin, so the
+    # rod constraint reduces to normalize(p) (no pivot subtraction). Scalars
+    # arrive np.asarray'd to 0-d arrays, so pure-scalar outputs (ke/pe/speed)
+    # wrap in np.array([...]) → a length-1 vector the solution element-extracts
+    # to a clean np.float64.
+    # ----------------------------------------------------------------------
+    _eq('newton-accel', 'Newton 2nd law: a = F_applied / m.',
+        r'\mathbf{a} = \mathbf{F}/m',
+        {'kind': 'expr', 'expr': 'f / m'},
+        {'f': 'f', 'm': 'm'}, 'newtonian-pendulum,vector,force'),
+
+    _eq('newton-vel-step', 'Semi-implicit Euler velocity update: v + a·dt.',
+        r'\mathbf{v}_1 = \mathbf{v} + \mathbf{a}\,dt',
+        {'kind': 'expr', 'expr': 'v + a * dt'},
+        {'v': 'v', 'a': 'a', 'dt': 'dt'}, 'newtonian-pendulum,vector,integrate'),
+
+    _eq('newton-pos-step', 'Position update (uses the just-updated velocity): p + v·dt.',
+        r'\mathbf{p}_1 = \mathbf{p} + \mathbf{v}_1\,dt',
+        {'kind': 'expr', 'expr': 'p + v * dt'},
+        {'p': 'p', 'v': 'v', 'dt': 'dt'}, 'newtonian-pendulum,vector,integrate'),
+
+    _eq('newton-rhat', 'Rod direction (unit), pivot at origin: n̂ = normalize(p).',
+        r'\hat{\mathbf{n}} = \mathbf{p}/\lVert\mathbf{p}\rVert',
+        {'kind': 'expr', 'expr': 'normalize(p)'},
+        {'p': 'p'}, 'newtonian-pendulum,vector,constraint'),
+
+    _eq('newton-constrain-pos', 'Rigid-rod position projection: p ← L·n̂ (pivot=origin).',
+        r'\mathbf{p}_c = L\,\hat{\mathbf{n}}',
+        {'kind': 'expr', 'expr': 'L * rhat'},
+        {'L': 'L', 'rhat': 'rhat'}, 'newtonian-pendulum,vector,constraint'),
+
+    _eq('newton-constrain-vel', 'Remove radial velocity (stay on the rod): v − (v·n̂)n̂.',
+        r'\mathbf{v}_c = \mathbf{v} - (\mathbf{v}\cdot\hat{\mathbf{n}})\hat{\mathbf{n}}',
+        {'kind': 'expr', 'expr': 'v - (v @ rhat) * rhat'},
+        {'v': 'v', 'rhat': 'rhat'}, 'newtonian-pendulum,vector,constraint'),
+
+    _eq('newton-tension',
+        'Rigid-rod tension force (SIGNED — bilateral, can push or pull): '
+        'F_T = −(F_applied·n̂ + m|v|²/L)·n̂.',
+        r'\mathbf{F}_T = -\left(\mathbf{F}\cdot\hat{\mathbf{n}} + \tfrac{m\lVert\mathbf{v}\rVert^2}{L}\right)\hat{\mathbf{n}}',
+        {'kind': 'expr', 'expr': '-((f @ rhat) + m * (v @ v) / L) * rhat'},
+        {'f': 'f', 'rhat': 'rhat', 'm': 'm', 'v': 'v', 'L': 'L'},
+        'newtonian-pendulum,vector,tension'),
+
+    _eq('newton-net-force', 'Net force on the bob: F_net = F_applied + F_tension.',
+        r'\mathbf{F}_{net} = \mathbf{F} + \mathbf{F}_T',
+        {'kind': 'expr', 'expr': 'f + t'},
+        {'f': 'f', 't': 't'}, 'newtonian-pendulum,vector,force'),
+
+    _eq('newton-grav-force', 'Gravity force vector: F_g = m·g·(0,−1,0).',
+        r'\mathbf{F}_g = m\,g\,(0,-1,0)',
+        {'kind': 'expr', 'expr': 'm * g * d'},
+        {'m': 'm', 'g': 'g', 'd': 'd'}, 'newtonian-pendulum,vector,gravity'),
+
+    _eq('newton-ke', 'Kinetic energy KE = ½m|v|² (length-1 vector for clean extraction).',
+        r'KE = \tfrac{1}{2}m\lVert\mathbf{v}\rVert^2',
+        {'kind': 'expr', 'expr': 'np.array([0.5 * m * (v @ v)])'},
+        {'m': 'm', 'v': 'v'}, 'newtonian-pendulum,energy'),
+
+    _eq('newton-pe', 'Potential energy PE = m·g·(p_y − pivot_y + L), height above the bottom.',
+        r'PE = m\,g\,(p_y + L)',
+        {'kind': 'expr', 'expr': 'np.array([m * g * (p[1] + L)])'},
+        {'m': 'm', 'g': 'g', 'p': 'p', 'L': 'L'}, 'newtonian-pendulum,energy'),
+
+    _eq('newton-etot', 'Total mechanical energy E = KE + PE (conservation monitor).',
+        r'E = KE + PE',
+        {'kind': 'expr', 'expr': 'ke + pe'},
+        {'ke': 'ke', 'pe': 'pe'}, 'newtonian-pendulum,energy'),
+
+    _eq('newton-speed', 'Bob speed |v| (length-1 vector for clean extraction).',
+        r'\lVert\mathbf{v}\rVert',
+        {'kind': 'expr', 'expr': 'np.array([norm(v)])'},
+        {'v': 'v'}, 'newtonian-pendulum,energy'),
+
+    _eq('newton-arrow-tip', 'Force-arrow tip: p + viz_scale·F (3D visualization).',
+        r'\mathbf{tip} = \mathbf{p} + k\,\mathbf{F}',
+        {'kind': 'expr', 'expr': 'p + k * f'},
+        {'p': 'p', 'k': 'k', 'f': 'f'}, 'newtonian-pendulum,visualization'),
 ]
