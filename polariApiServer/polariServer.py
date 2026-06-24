@@ -88,8 +88,6 @@ from simulations.pendulum_string_sim_state import PendulumStringSimState
 from simulations.newtonian_pendulum_bob_sim_state import NewtonianPendulumBobSimState
 from simulations.newtonian_pendulum_viz_states import (
     NewtonianPendulumRodSimState,
-    NewtonianPendulumGravityVectorSimState,
-    NewtonianPendulumNetVectorSimState,
 )
 from simulations.simulation_definition import SimulationDefinition
 from simulations.simulation_run import SimulationRun
@@ -108,10 +106,13 @@ from simulations.seed_data import (
     SEED_SIMULATION_RUNS,
     SEED_PENDULUM_SIMSPACES,
     SEED_PENDULUM_BINDINGS,
+)
+# Importing newtonian_pendulum_seed registers the Newtonian sim into the
+# SEED_PENDULUM_* lists above (it extends them in place) and provides the
+# step-0 IC row seeds. Keep this AFTER the seed_data import.
+from simulations.newtonian_pendulum_seed import (
     SEED_NEWTON_BOB_ROWS,
     SEED_NEWTON_ROD_ROWS,
-    SEED_NEWTON_GRAV_ROWS,
-    SEED_NEWTON_NET_ROWS,
 )
 from polariApiProfiler.apiProfilerAPI import (
     APIProfilerQueryAPI,
@@ -382,8 +383,7 @@ class polariServer(treeObject):
             SimSpaceEvaluationEquation,
             SimulationExecutionSolution,
             PendulumBobSimState, PendulumStringSimState,
-            NewtonianPendulumBobSimState, NewtonianPendulumRodSimState,
-            NewtonianPendulumGravityVectorSimState, NewtonianPendulumNetVectorSimState]
+            NewtonianPendulumBobSimState, NewtonianPendulumRodSimState]
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
         for defClass in self.defClassList:
             className = defClass.__name__
@@ -1222,8 +1222,6 @@ class polariServer(treeObject):
             # produced live by the runner via the no-code vector solutions.
             ('NewtonianPendulumBobSimState', NewtonianPendulumBobSimState, SEED_NEWTON_BOB_ROWS),
             ('NewtonianPendulumRodSimState', NewtonianPendulumRodSimState, SEED_NEWTON_ROD_ROWS),
-            ('NewtonianPendulumGravityVectorSimState', NewtonianPendulumGravityVectorSimState, SEED_NEWTON_GRAV_ROWS),
-            ('NewtonianPendulumNetVectorSimState', NewtonianPendulumNetVectorSimState, SEED_NEWTON_NET_ROWS),
             ('SimVariable', SimVariable, SEED_SIM_VARIABLES),
             # Equations: the live-readout set (KE/PE/E_total) PLUS the
             # per-step math each CalculusOperation references. Must seed

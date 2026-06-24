@@ -323,9 +323,4 @@ SEED_MATRIX_EQUATIONS = [
         r'\lVert\mathbf{v}\rVert',
         {'kind': 'expr', 'expr': 'np.array([norm(v)])'},
         {'v': 'v'}, 'newtonian-pendulum,energy'),
-
-    _eq('newton-arrow-tip', 'Force-arrow tip: p + viz_scale·F (3D visualization).',
-        r'\mathbf{tip} = \mathbf{p} + k\,\mathbf{F}',
-        {'kind': 'expr', 'expr': 'p + k * f'},
-        {'p': 'p', 'k': 'k', 'f': 'f'}, 'newtonian-pendulum,visualization'),
 ]

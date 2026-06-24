@@ -55,7 +55,7 @@ def main():
 
     row = SimpleNamespace(**scene)
     warnings, resolved = [], []
-    objects, connections = compile_3d(_mgr(), row, warnings, resolved, run_filter=None)
+    objects, connections, _vectors = compile_3d(_mgr(), row, warnings, resolved, run_filter=None)
 
     spheres = [o for o in objects if o.get('shapeRef') == 'sphere']
     bobs = [o for o in objects if o.get('classRef', {}).get('className') == 'PendulumBobSimState']

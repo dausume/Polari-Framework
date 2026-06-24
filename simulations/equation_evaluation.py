@@ -87,6 +87,7 @@ def evaluate_at_step(
     *,
     step: Optional[int] = None,
     time_value: Optional[float] = None,
+    run_filter: Optional[str] = None,
 ) -> List[Dict]:
     """Evaluate every SimSpaceEvaluationEquation scoped to this scene at
     ONE specific simulation step (or time). Returns one perStep entry
@@ -98,12 +99,19 @@ def evaluate_at_step(
     latest recorded step whose time is ≤ the requested value is used.
     When neither is set, the earliest recorded step wins (the initial
     frame).
+
+    `run_filter` scopes the row scan to a single SimulationRun — it MUST
+    mirror the snapshot/renderer's `?run=`, otherwise rows from a stale
+    run (e.g. a pre-fix frozen run left in the DB) sharing the same step
+    index can clobber the live run's values and pin every readout to that
+    stale state while the run-scoped renderer shows the correct motion.
     """
     return _collect_evaluations(
         manager, sim_space_row, warnings,
         include_perstep=True,
         target_step=step,
         target_time=time_value,
+        run_filter=run_filter,
     )
 
 
@@ -115,6 +123,7 @@ def _collect_evaluations(
     include_perstep: bool,
     target_step: Optional[int] = None,
     target_time: Optional[float] = None,
+    run_filter: Optional[str] = None,
 ) -> List[Dict]:
     sim_space_name = getattr(sim_space_row, 'name', '')
     if not sim_space_name:
@@ -207,6 +216,7 @@ def _collect_evaluations(
         rows_by_step = _intersect_rows_by_step(
             manager, sim_state_classes, warnings,
             evaluation_name=ev_row.name,
+            run_filter=run_filter,
         )
 
         # On-demand pass — pick ONE row matching the requested step or
@@ -452,22 +462,51 @@ def _resolve_simulation_definition(
     return None
 
 
-def _intersect_rows_by_step(
+def _row_matches_run(inst, run_filter: Optional[str]) -> bool:
+    """Run-scope predicate, identical to compile_2d/compile_3d's filter: a
+    row passes when no run is requested, when it carries no
+    `simulation_run_ref` attribute at all (freestanding / legacy data), or
+    when that ref equals the requested run. Keeping this byte-for-byte the
+    same as the renderer guarantees the live readouts evaluate over exactly
+    the rows the renderer draws — never a different (or empty) set."""
+    if not run_filter:
+        return True
+    return (not hasattr(inst, 'simulation_run_ref')
+            or getattr(inst, 'simulation_run_ref', '') == run_filter)
+
+
+def _dominant_run(manager, sim_state_classes: List[str]) -> Optional[str]:
+    """The `simulation_run_ref` with the most recorded rows across the
+    referenced classes, or None when no row carries a ref (single implicit
+    run). Used to pick ONE run when the requested run matched nothing, so a
+    stale run can't interleave with the live one by step index."""
+    counts: Dict[str, int] = {}
+    for cls_name in sim_state_classes:
+        table = manager.objectTables.get(cls_name, {}) or {}
+        for inst in table.values():
+            ref = getattr(inst, 'simulation_run_ref', None)
+            if ref:
+                counts[ref] = counts.get(ref, 0) + 1
+    if not counts:
+        return None
+    return max(counts.items(), key=lambda kv: kv[1])[0]
+
+
+def _scan_rows_by_step(
     manager,
     sim_state_classes: List[str],
-    warnings: List[str],
-    evaluation_name: str,
+    run_filter: Optional[str],
 ) -> List:
-    """Find every (step, time, {class: row}) tuple where ALL referenced
-    simState classes have a row. Returns an ordered list sorted by step."""
-    if not sim_state_classes:
-        return []
-
+    """Intersected (step, time, {class: row}) tuples for ONE run scope —
+    every step where all referenced classes have a row passing
+    `_row_matches_run`. Empty when no such step exists."""
     per_class_rows: Dict[str, Dict[int, Any]] = {}
     for cls_name in sim_state_classes:
         table = manager.objectTables.get(cls_name, {}) or {}
         per_class_rows[cls_name] = {}
         for inst in table.values():
+            if not _row_matches_run(inst, run_filter):
+                continue
             step = getattr(inst, 'step', None)
             if step is None:
                 continue
@@ -477,19 +516,10 @@ def _intersect_rows_by_step(
                 continue
             per_class_rows[cls_name][step_int] = inst
 
-    if not per_class_rows:
-        return []
-
-    # Intersect step sets.
     step_sets = [set(rows.keys()) for rows in per_class_rows.values()]
     if not step_sets:
         return []
     intersected = sorted(set.intersection(*step_sets))
-    if not intersected:
-        warnings.append(
-            f"SimSpaceEvaluationEquation '{evaluation_name}' has no steps "
-            f"common to all referenced simState classes."
-        )
 
     out: List = []
     for step in intersected:
@@ -500,6 +530,59 @@ def _intersect_rows_by_step(
         time_value = float(getattr(first_row, 'time', 0.0) or 0.0)
         out.append((step, time_value, class_to_row))
     return out
+
+
+def _intersect_rows_by_step(
+    manager,
+    sim_state_classes: List[str],
+    warnings: List[str],
+    evaluation_name: str,
+    run_filter: Optional[str] = None,
+) -> List:
+    """Per-step rows for the evaluation, scoped to a single run. Tiered so a
+    readout is NEVER blank while any rows exist — a stale-run mismatch
+    degrades gracefully instead of zeroing everything out:
+
+      1. the requested run (mirrors the renderer's `?run=`);
+      2. else the dominant (most-populated) single run — keeps a stale run's
+         rows from interleaving with the live one by step index;
+      3. else all rows, unscoped — last resort, strictly better than blank.
+    """
+    if not sim_state_classes:
+        return []
+
+    # Tier 1 — the run the viewer is rendering. When none is requested, skip
+    # straight to the dominant run so we don't interleave runs by step.
+    if run_filter:
+        rows = _scan_rows_by_step(manager, sim_state_classes, run_filter)
+        if rows:
+            return rows
+
+    # Tier 2 — a single consistent run.
+    dom = _dominant_run(manager, sim_state_classes)
+    if dom:
+        rows = _scan_rows_by_step(manager, sim_state_classes, dom)
+        if rows:
+            if run_filter and dom != run_filter:
+                warnings.append(
+                    f"SimSpaceEvaluationEquation '{evaluation_name}': no rows for "
+                    f"run '{run_filter}'; evaluated against '{dom}' instead."
+                )
+            return rows
+
+    # Tier 3 — unscoped. Only blank when the classes genuinely share no step.
+    rows = _scan_rows_by_step(manager, sim_state_classes, None)
+    if not rows:
+        warnings.append(
+            f"SimSpaceEvaluationEquation '{evaluation_name}' has no steps "
+            f"common to all referenced simState classes."
+        )
+    elif run_filter:
+        warnings.append(
+            f"SimSpaceEvaluationEquation '{evaluation_name}': no rows for "
+            f"run '{run_filter}'; evaluated against all runs."
+        )
+    return rows
 
 
 def _build_symbol_values(

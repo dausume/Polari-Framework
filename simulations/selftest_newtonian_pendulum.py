@@ -24,10 +24,12 @@ from types import SimpleNamespace
 import numpy as np
 
 from simSpace.compilers.compile_3d import compile_3d
-from simulations.seed_data import (
-    SEED_PENDULUM_SIMSPACES, SEED_PENDULUM_BINDINGS,
+from simulations.seed_data import SEED_PENDULUM_SIMSPACES, SEED_PENDULUM_BINDINGS
+# Importing newtonian_pendulum_seed also extends the SEED_PENDULUM_* lists above
+# in place, so the Newtonian scene/bindings are present when the compile check
+# reads them.
+from simulations.newtonian_pendulum_seed import (
     SEED_NEWTON_BOB_ROWS, SEED_NEWTON_ROD_ROWS,
-    SEED_NEWTON_GRAV_ROWS, SEED_NEWTON_NET_ROWS,
     _NEWTON_G, _NEWTON_L, _NEWTON_MASS, _NEWTON_DT, _NEWTON_DURATION,
 )
 
@@ -112,8 +114,6 @@ def _mgr():
     m.objectTables = {
         'NewtonianPendulumBobSimState': _ns_rows(SEED_NEWTON_BOB_ROWS),
         'NewtonianPendulumRodSimState': _ns_rows(SEED_NEWTON_ROD_ROWS),
-        'NewtonianPendulumGravityVectorSimState': _ns_rows(SEED_NEWTON_GRAV_ROWS),
-        'NewtonianPendulumNetVectorSimState': _ns_rows(SEED_NEWTON_NET_ROWS),
         'SimSpaceBindingDefinition': {
             b['name']: SimpleNamespace(**b) for b in SEED_PENDULUM_BINDINGS
         },
@@ -130,7 +130,7 @@ def _compile():
         return
     row = SimpleNamespace(**scene)
     warnings, resolved = [], []
-    objects, connections = compile_3d(_mgr(), row, warnings, resolved, run_filter=None)
+    objects, connections, vectors = compile_3d(_mgr(), row, warnings, resolved, run_filter=None)
 
     bobs = [o for o in objects
             if o.get('classRef', {}).get('className') == 'NewtonianPendulumBobSimState']
@@ -142,12 +142,27 @@ def _compile():
     check('bob sized to metric radius (scale ≈ 0.16)',
           bobs and abs((bobs[0].get('scale') or 0) - 0.16) < 1e-6,
           f'scale={bobs[0].get("scale") if bobs else None}')
-    # rod + gravity arrow + net arrow = 3 connections.
-    styles = sorted(c.get('styleRef') for c in connections)
-    check('three connections emitted (rod + 2 force arrows)',
-          len(connections) == 3, f'count={len(connections)} styles={styles}')
-    check('force arrows carry distinct color styleRefs',
-          'arrow-gravity' in styles and 'arrow-net' in styles, f'styles={styles}')
+    # The rod is the ONLY connection now (the force arrows are State-Projection
+    # vectors, not connections).
+    conn_styles = sorted(c.get('styleRef') for c in connections)
+    check('one connection emitted (the rod)',
+          len(connections) == 1 and conn_styles == ['metal-steel'],
+          f'count={len(connections)} styles={conn_styles}')
+    # Two State-Projection force arrows on the bob: gravity (red) + net (green).
+    vec_styles = sorted(v.get('styleRef') for v in vectors)
+    check('two State-Projection vectors emitted (gravity + net)',
+          len(vectors) == 2, f'count={len(vectors)} styles={vec_styles}')
+    check('force vectors carry distinct color styleRefs',
+          'arrow-gravity' in vec_styles and 'arrow-net' in vec_styles,
+          f'styles={vec_styles}')
+    # Each arrow originates at the bob and carries the right force vector.
+    grav = next((v for v in vectors if v.get('styleRef') == 'arrow-gravity'), None)
+    check('gravity vector starts at the bob, points down (fgrav=(0,−9.81,0))',
+          grav is not None
+          and abs(grav['origin'][0] - 0.5) < 1e-3
+          and abs(grav['origin'][1] + 0.8660254) < 1e-3
+          and abs(grav['vec'][1] + 9.81) < 1e-3 and abs(grav['vec'][0]) < 1e-6,
+          f'grav={grav}')
     if warnings:
         print('  warnings:', warnings[:5])
 

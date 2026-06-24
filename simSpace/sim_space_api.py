@@ -105,6 +105,8 @@ class SimSpaceAPI(treeObject):
         # would render their rows overlaid. Frontend defaults to the
         # latest-complete run when no explicit selection.
         run_filter = request.get_param('run') or None
+        # State-Projection arrows (3D only for now); 2D leaves it empty.
+        vectors: List[Dict] = []
         try:
             if dim == '2d':
                 objects, connections = compile_2d(
@@ -112,7 +114,7 @@ class SimSpaceAPI(treeObject):
                     run_filter=run_filter,
                 )
             elif dim == '3d':
-                objects, connections = compile_3d(
+                objects, connections, vectors = compile_3d(
                     self.manager, row, warnings, resolved_bindings,
                     run_filter=run_filter,
                 )
@@ -143,6 +145,7 @@ class SimSpaceAPI(treeObject):
                 'definition': self._row_to_payload(row),
                 'objects': objects,
                 'connections': connections,
+                'vectors': vectors,
                 'resolvedBindings': resolved_bindings,
                 'evaluations': evaluations,
                 'warnings': warnings,
@@ -178,6 +181,10 @@ class SimSpaceAPI(treeObject):
             return
         step_param = request.get_param('step')
         time_param = request.get_param('time')
+        # Scope the evaluation to the SAME run the viewer is rendering
+        # (snapshot's `?run=`). Without it, a stale run's rows can pin the
+        # readouts to frozen values while the renderer shows the live run.
+        run_filter = request.get_param('run') or None
         target_step: Optional[int] = None
         target_time: Optional[float] = None
         if step_param is not None:
@@ -199,6 +206,7 @@ class SimSpaceAPI(treeObject):
             evaluations = evaluate_at_step(
                 self.manager, row, warnings,
                 step=target_step, time_value=target_time,
+                run_filter=run_filter,
             )
         except Exception as e:
             response.status = falcon.HTTP_500

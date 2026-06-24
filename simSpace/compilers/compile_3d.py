@@ -34,11 +34,14 @@ def compile_3d(
     warnings: List[str],
     resolved_bindings: List[Dict],
     run_filter: Optional[str] = None,
-) -> Tuple[List[Dict], List[Dict]]:
-    """Returns (objects, connections) for a 3D SimSpace snapshot. See
-    compile_2d for the `run_filter` semantics — identical here."""
+) -> Tuple[List[Dict], List[Dict], List[Dict]]:
+    """Returns (objects, connections, vectors) for a 3D SimSpace snapshot.
+    `vectors` are State-Projection arrows (viz-only projections of a real
+    state's internal vector fields). See compile_2d for the `run_filter`
+    semantics — identical here."""
     objects: List[Dict] = []
     connections: List[Dict] = []
+    vectors: List[Dict] = []
 
     # 1. Freestanding meshes from the definition blob.
     blob = parse_json_safe(getattr(row, 'definition', '') or '{}', {})
@@ -105,6 +108,18 @@ def compile_3d(
                         class_name, binding, override, len(emitted_conns),
                     )
                 )
+        elif binding_kind == 'vector':
+            emitted_vecs = _emit_vectors(
+                class_name, instances, binding,
+                getattr(binding_row, 'name', class_name), override, warnings,
+            )
+            vectors.extend(emitted_vecs)
+            if emitted_vecs:
+                resolved_bindings.append(
+                    resolve_resolved_binding(
+                        class_name, binding, override, len(emitted_vecs),
+                    )
+                )
         else:
             emitted = _emit_instances(class_name, instances, binding, override, warnings)
             objects.extend(emitted)
@@ -113,7 +128,7 @@ def compile_3d(
                     resolve_resolved_binding(class_name, binding, override, len(emitted))
                 )
 
-    return objects, connections
+    return objects, connections, vectors
 
 
 def _emit_connections(
@@ -165,6 +180,75 @@ def _emit_connections(
         if temporal_value is not None:
             conn['temporalValue'] = temporal_value
         out.append(conn)
+    return out
+
+
+def _emit_vectors(
+    class_name: str,
+    instances: Dict,
+    binding: Dict,
+    binding_name: str,
+    override: Optional[Dict],
+    warnings: List[str],
+) -> List[Dict]:
+    """Emit one State-Projection arrow per class instance per a 3D
+    `vector`-kind binding: an arrow from `origin` (a point field-set) along
+    `vector` (a free vector field-set), scaled. Viz-only — it reads the real
+    state's own fields (e.g. the bob's fgrav/fnet) and owns NO simulation
+    logic, so no companion *SimState class, rows, or dependency chain.
+
+    `origin` and `vector` reuse the same field-set resolver positions use —
+    a vector is just three resolved numbers, no pivot. The stable `key`
+    (bindingName:instanceId) lets the renderer reuse one ArrowHelper per
+    projection across scrubber frames, and distinguishes two vector bindings
+    on the SAME class (e.g. gravity vs net on the bob), which would collide
+    on a class:instance id."""
+    origin_cfg = binding.get('origin') or {}
+    vector_cfg = binding.get('vector') or {}
+    if not origin_cfg or not vector_cfg:
+        warnings.append(
+            f"{class_name} vector binding missing origin/vector spec; skipping."
+        )
+        return []
+
+    visual = binding.get('visual') or {}
+    style_ref_cfg = visual.get('styleRef') or 'matte-blue'
+    scene_style_override = override.get('overrideStyleRef') if override else None
+    try:
+        scale = float(binding.get('scale', 1.0) or 1.0)
+        head_scale = float(binding.get('headScale', 0.18) or 0.18)
+        min_length = float(binding.get('minLength', 0.0) or 0.0)
+    except (TypeError, ValueError):
+        scale, head_scale, min_length = 1.0, 0.18, 0.0
+
+    out: List[Dict] = []
+    iter_instances = instances.values() if isinstance(instances, dict) else instances
+    for inst in iter_instances:
+        origin = _resolve_position_3d(class_name, inst, origin_cfg, warnings)
+        vec = _resolve_position_3d(class_name, inst, vector_cfg, warnings)
+        if origin is None or vec is None:
+            continue
+        # Skip degenerate arrows — a zero/near-zero vector has no direction to
+        # draw, and below `minLength` (post-scale) the user asked us not to.
+        mag = (vec[0] ** 2 + vec[1] ** 2 + vec[2] ** 2) ** 0.5
+        if mag * scale < max(min_length, 1e-9):
+            continue
+        inst_id = instance_id(inst)
+        v: Dict = {
+            'kind': 'vector',
+            'key': f'{binding_name}:{inst_id}',
+            'id': f'{binding_name}:{inst_id}',
+            'origin': origin,
+            'vec': vec,
+            'scale': scale,
+            'headScale': head_scale,
+            'styleRef': scene_style_override or resolve_ref(style_ref_cfg, inst, 'matte-blue'),
+            'classRef': {'className': class_name, 'instanceId': inst_id},
+        }
+        temporal_value = read_temporal_value(inst, binding)
+        if temporal_value is not None:
+            v['temporalValue'] = temporal_value
+        out.append(v)
     return out
 
 
