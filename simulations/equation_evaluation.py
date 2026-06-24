@@ -227,6 +227,20 @@ def _collect_evaluations(
             rows_by_step, target_step=target_step, target_time=target_time,
         )
 
+        # [EVALDBG] Which rows did we find for this run, and which did we pick?
+        # If rows_by_step spans steps 0..N but we always pick step 0, the
+        # target_time/scrubber is the problem; if rows_by_step is just [0], the
+        # runner-written rows aren't being matched (run-filter / step field).
+        try:
+            _steps = [r[0] for r in rows_by_step]
+            print(f"[EVALDBG] '{getattr(ev_row, 'name', '?')}' run={run_filter} "
+                  f"target_step={target_step} target_time={target_time} "
+                  f"classes={sim_state_classes} rows_by_step={len(rows_by_step)} "
+                  f"steps={_steps[:3]}..{_steps[-3:]} picked={[(r[0], r[1]) for r in target_rows]}",
+                  flush=True)
+        except Exception:
+            pass
+
         per_step: List[Dict] = []
         for step, time_value, class_to_row in target_rows:
             symbol_values, resolution_error = _build_symbol_values(

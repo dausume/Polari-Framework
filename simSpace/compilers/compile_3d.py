@@ -113,6 +113,17 @@ def compile_3d(
                 class_name, instances, binding,
                 getattr(binding_row, 'name', class_name), override, warnings,
             )
+            # [VECDBG-BE] per vector binding: how many rows did we see vs emit?
+            # instances=0 -> run-filter/rows; emitted<instances -> degenerate or
+            # origin/vector field resolution dropping them.
+            try:
+                _ni = len(instances) if hasattr(instances, '__len__') else -1
+                print(f"[VECDBG-BE] vector binding '{getattr(binding_row, 'name', '?')}' "
+                      f"class={class_name} instances={_ni} run_filter={run_filter} "
+                      f"emitted={len(emitted_vecs)} sample={emitted_vecs[0] if emitted_vecs else None}",
+                      flush=True)
+            except Exception:
+                pass
             vectors.extend(emitted_vecs)
             if emitted_vecs:
                 resolved_bindings.append(
