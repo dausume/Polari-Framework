@@ -132,6 +132,24 @@ class SimulationAPI(treeObject):
                 self.apiName + '/{sim_ref}/storage-estimate',
                 self, suffix='storage_estimate',
             )
+            # GET /api/simulations/runs/{run_name}/series
+            #   ?class=<SimStateClass>&fields=a,b,c
+            #   &stepFrom=&stepTo=&sinceStep=
+            # Per-run timeseries for graphs-over-time (generic CRUDE can't
+            # filter by run/step). Row filter is the SHARED run scope, so a
+            # coupled run's series can read its source runs' classes.
+            polServer.falconServer.add_route(
+                self.apiName + '/runs/{run_name}/series', self, suffix='series',
+            )
+            # POST /api/simulations/multi-scale/{msim_name}/stages/{stage_key}/gate
+            # Body: { run: '<run name>' }. Evaluates the stage's no-code
+            # gate solution over the run's results (same engine flow as the
+            # IC validator) and resolves the stage's `derive` map — drives
+            # the multi-scale page's progression stepper.
+            polServer.falconServer.add_route(
+                self.apiName + '/multi-scale/{msim_name}/stages/{stage_key}/gate',
+                self, suffix='stage_gate',
+            )
 
     # ------------------------------------------------------------------
     # POST /api/simulations/predict-storage
@@ -409,6 +427,82 @@ class SimulationAPI(treeObject):
                 'perClass': per_class,
             },
         }
+        response.status = falcon.HTTP_200
+
+    # ------------------------------------------------------------------
+    # GET /api/simulations/runs/{run_name}/series
+    # ------------------------------------------------------------------
+    def on_get_series(self, request, response, run_name):
+        run = self._find_run(run_name)
+        if run is None:
+            response.status = falcon.HTTP_404
+            response.media = {'success': False, 'error': f'SimulationRun "{run_name}" not found'}
+            return
+        class_name = request.get_param('class') or ''
+        if not class_name:
+            response.status = falcon.HTTP_400
+            response.media = {'success': False, 'error': "'class' query param is required."}
+            return
+        fields_raw = request.get_param('fields') or ''
+        fields = [f.strip() for f in fields_raw.split(',') if f.strip()]
+
+        def _int_param(name):
+            raw = request.get_param(name)
+            if raw is None or raw == '':
+                return None
+            try:
+                return int(raw)
+            except (TypeError, ValueError):
+                return None
+
+        from simulations.simulation_series import build_series
+        try:
+            data = build_series(
+                self.manager, run_name, class_name, fields,
+                step_from=_int_param('stepFrom'),
+                step_to=_int_param('stepTo'),
+                since_step=_int_param('sinceStep'),
+            )
+        except Exception as e:
+            response.status = falcon.HTTP_500
+            response.media = {'success': False, 'error': f'Series build failed: {e}'}
+            return
+        response.media = {'success': True, 'data': data}
+        response.status = falcon.HTTP_200
+
+    # ------------------------------------------------------------------
+    # POST /api/simulations/multi-scale/{msim_name}/stages/{stage_key}/gate
+    # ------------------------------------------------------------------
+    def on_post_stage_gate(self, request, response, msim_name, stage_key):
+        from simulations.multi_scale_stages import (
+            apply_derive, evaluate_stage_gate, find_stage,
+        )
+        table = self.manager.objectTables.get('MultiScaleSimulationDefinition', {}) or {}
+        msim = next((r for r in table.values() if getattr(r, 'name', '') == msim_name), None)
+        if msim is None:
+            response.status = falcon.HTTP_404
+            response.media = {'success': False,
+                              'error': f'MultiScaleSimulationDefinition "{msim_name}" not found'}
+            return
+        stage = find_stage(msim, stage_key)
+        if stage is None:
+            response.status = falcon.HTTP_404
+            response.media = {'success': False,
+                              'error': f'Stage "{stage_key}" not found on "{msim_name}"'}
+            return
+        try:
+            body = request.media or {}
+        except Exception:
+            body = {}
+        run_name = body.get('run') or ''
+        run = self._find_run(run_name)
+        if run is None:
+            response.status = falcon.HTTP_404
+            response.media = {'success': False, 'error': f'SimulationRun "{run_name}" not found'}
+            return
+        verdict = evaluate_stage_gate(self.manager, stage, run)
+        verdict['deriveResolved'] = apply_derive(stage, verdict.get('derivedValues') or {})
+        response.media = {'success': True, 'data': verdict}
         response.status = falcon.HTTP_200
 
     # ------------------------------------------------------------------

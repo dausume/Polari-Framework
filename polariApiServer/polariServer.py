@@ -126,6 +126,17 @@ from simulations.wind_field_seed import (
     SEED_NEWTON_WIND_ROD_ROWS,
     SEED_SIMULATION_COUPLINGS,
 )
+# Multi-Scale Simulation Page objects: the tying definition (spaces +
+# couplings + stages + panels) and configured IC interfaces. Keep AFTER
+# the wind seed (the demo references the wind coupling by name).
+from simulations.multi_scale_simulation_definition import MultiScaleSimulationDefinition
+from simulations.initial_condition_interface_definition import (
+    InitialConditionInterfaceDefinition,
+)
+from simulations.multi_scale_seed import (
+    SEED_MULTI_SCALE_SIMS,
+    SEED_IC_INTERFACES,
+)
 from polariApiProfiler.apiProfilerAPI import (
     APIProfilerQueryAPI,
     APIProfilerMatchAPI,
@@ -394,6 +405,7 @@ class polariServer(treeObject):
             SimulationDefinition, SimulationRun, SimVariable,
             SimSpaceEvaluationEquation,
             SimulationExecutionSolution, SimulationCouplingDefinition,
+            MultiScaleSimulationDefinition, InitialConditionInterfaceDefinition,
             PendulumBobSimState, PendulumStringSimState,
             NewtonianPendulumBobSimState, NewtonianPendulumRodSimState,
             WindFieldGridState]
@@ -1243,6 +1255,12 @@ class polariServer(treeObject):
             ('WindFieldGridState', WindFieldGridState, SEED_WIND_GRID_ROWS),
             ('SimulationCouplingDefinition', SimulationCouplingDefinition,
              SEED_SIMULATION_COUPLINGS),
+            # Multi-Scale Simulation Page: the "Pendulum in Wind" demo +
+            # the bob-material IC interface.
+            ('MultiScaleSimulationDefinition', MultiScaleSimulationDefinition,
+             SEED_MULTI_SCALE_SIMS),
+            ('InitialConditionInterfaceDefinition', InitialConditionInterfaceDefinition,
+             SEED_IC_INTERFACES),
             ('SimVariable', SimVariable, SEED_SIM_VARIABLES),
             # Equations: the live-readout set (KE/PE/E_total) PLUS the
             # per-step math each CalculusOperation references. Must seed
