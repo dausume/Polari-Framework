@@ -184,7 +184,7 @@ def run_step(
                 _delete_existing_row(manager, run, cls_name, target_step)
                 _create_row(manager, cls_name, fields)
                 rows_by_class[cls_name] = fields
-            _bump_run_counters(run, target_step)
+            _bump_run_counters(manager, run, target_step)
             return {
                 'success': True,
                 'step': target_step,
@@ -443,7 +443,7 @@ def run_step(
             rows_by_class[cls_name] = fields
 
         # 9. Update the SimulationRun's counters.
-        _bump_run_counters(run, target_step)
+        _bump_run_counters(manager, run, target_step)
 
         return {
             'success': True,
@@ -1051,7 +1051,16 @@ def _delete_existing_row(manager, run, cls_name: str, step: int) -> None:
 
 
 def _create_row(manager, cls_name: str, fields: Dict[str, Any]) -> None:
-    """Instantiate via the typing-recorded class."""
+    """Instantiate via the typing-recorded class AND persist it through the
+    object-tree standard path.
+
+    Constructing a treeObject only registers it in the manager's in-memory
+    `objectTables` (see objectTreeDecorators.__init__) — it does NOT write to
+    the DB. Every standard create path (e.g. polariCRUDE) follows construction
+    with `manager.db.saveInstanceInDB(inst)`; the runner must do the same or
+    stepped rows live only in memory and are lost on restart / invisible to any
+    DB-backed tooling.
+    """
     typing_obj = manager.objectTypingDict.get(cls_name)
     if typing_obj is None:
         raise RuntimeError(f"Class '{cls_name}' not registered in objectTypingDict.")
@@ -1063,10 +1072,14 @@ def _create_row(manager, cls_name: str, fields: Dict[str, Any]) -> None:
             break
     if cls is None:
         raise RuntimeError(f"Cannot resolve constructor for class '{cls_name}'.")
-    cls(**fields, manager=manager)
+    inst = cls(**fields, manager=manager)
+    # Persist to the DB via the standard object-tree call (mirrors polariCRUDE).
+    db = getattr(manager, 'db', None)
+    if db is not None:
+        db.saveInstanceInDB(inst)
 
 
-def _bump_run_counters(run, target_step: int) -> None:
+def _bump_run_counters(manager, run, target_step: int) -> None:
     last = int(getattr(run, 'last_recorded_step', 0) or 0)
     if target_step > last:
         run.last_recorded_step = target_step
@@ -1074,6 +1087,11 @@ def _bump_run_counters(run, target_step: int) -> None:
             run.recorded_steps = int(getattr(run, 'recorded_steps', 0) or 0) + 1
         except (TypeError, ValueError):
             run.recorded_steps = 1
+        # Persist the counter mutation through the standard object-tree path,
+        # so a restart doesn't revert the run to step 0 while its rows persist.
+        db = getattr(manager, 'db', None)
+        if db is not None:
+            db.saveInstanceInDB(run)
 
 
 def _detect_step_role(solution_data: Dict[str, Any]) -> str:

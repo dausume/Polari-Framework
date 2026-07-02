@@ -40,6 +40,7 @@ from objectTreeDecorators import treeObject, treeObjectInit
 import falcon
 
 from .compilers import compile_2d, compile_3d
+from .compilers.common import load_bound_overrides
 from simulations.equation_evaluation import (
     collect_evaluation_metadata,
     evaluate_at_step,
@@ -250,13 +251,22 @@ class SimSpaceAPI(treeObject):
         return out
 
     def _participating_sims_for(self, scene_row) -> List[str]:
-        """Walk the scene's enabled SimSpaceBindingDefinitions and
-        collect each bound *SimState class's class-level
-        `simulation_definition_name`. Deduped; preserves first-seen
-        order. Independent of instance count — a brand-new live run
-        with zero rows still shows up here so the viewer keeps the
-        run panel visible."""
+        """Walk the scene's bound *SimState classes and collect each
+        class-level `simulation_definition_name`. Deduped; preserves
+        first-seen order. Independent of instance count — a brand-new
+        live run with zero rows still shows up here so the viewer keeps
+        the run panel visible.
+
+        Scoped to THIS scene's `bound_classes_json`. SimSpaceBindingDefinitions
+        are global per (class_name, dimensionality), not per-scene, so without
+        this scope a scene inherits EVERY same-dimension binding's simulation —
+        e.g. the 3D newtonian scene picking up the `defaultVisible` 3D bindings
+        of the 2D pendulum and (first-seen) defaulting its whole run panel /
+        play / eval scope to `pendulum-2d`, which starves the newtonian run.
+        When a scene declares no bound classes we fall back to all enabled
+        bindings of the dimension (legacy behavior)."""
         dim = getattr(scene_row, 'dimensionality', '2d')
+        scene_classes = set(load_bound_overrides(scene_row, []).keys())
         bindings_table = self.manager.objectTables.get('SimSpaceBindingDefinition', {}) or {}
         seen: List[str] = []
         for b in bindings_table.values():
@@ -266,6 +276,9 @@ class SimSpaceAPI(treeObject):
                 continue
             cls_name = getattr(b, 'class_name', '')
             if not cls_name:
+                continue
+            # Scope to the scene's declared bound classes (when it declares any).
+            if scene_classes and cls_name not in scene_classes:
                 continue
             typing_obj = self.manager.objectTypingDict.get(cls_name)
             cls = getattr(typing_obj, 'classDefinition', None) if typing_obj else None

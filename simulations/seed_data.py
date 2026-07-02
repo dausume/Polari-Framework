@@ -735,7 +735,8 @@ def _step_solution_pair(name, description, target_class, expected_inputs,
                         compute_steps, output_field_to_context,
                         sim_step_role='simStepComplete',
                         order_index=0, depends_on=None,
-                        entry_comment='', terminator_comment=''):
+                        entry_comment='', terminator_comment='',
+                        sim_def_ref=SIM_DEF_NAME):
     """Build the three rows a simulation step solution needs:
 
       1. N `EquationDefinition` rows — one per math step in the chain.
@@ -944,7 +945,7 @@ def _step_solution_pair(name, description, target_class, expected_inputs,
     metadata_row = {
         'name': name,
         'description': description,
-        'simulation_definition_ref': SIM_DEF_NAME,
+        'simulation_definition_ref': sim_def_ref,
         'sim_state_class_name': target_class,
         'solution_definition_ref': name,
         'expected_inputs_json': json.dumps(expected_inputs),

@@ -209,11 +209,16 @@ def _emit_vectors(
     logic, so no companion *SimState class, rows, or dependency chain.
 
     `origin` and `vector` reuse the same field-set resolver positions use —
-    a vector is just three resolved numbers, no pivot. The stable `key`
-    (bindingName:instanceId) lets the renderer reuse one ArrowHelper per
-    projection across scrubber frames, and distinguishes two vector bindings
-    on the SAME class (e.g. gravity vs net on the bob), which would collide
-    on a class:instance id."""
+    a vector is just three resolved numbers, no pivot.
+
+    `key` is `bindingName:className` — deliberately STABLE across timesteps.
+    For temporal SimState projections each step is a distinct row (a distinct
+    instanceId), so keying on instanceId would mint a fresh key every step and
+    the frontend's collapse-by-key would keep them all → a trail of arrows.
+    Keying on className instead collapses to one arrow per projection that the
+    scrubber just repositions (mirrors how objects collapse by className), while
+    `binding_name` keeps two projections on the SAME class distinct (gravity vs
+    net). `id`/`classRef.instanceId` stay per-row for click-to-navigate."""
     origin_cfg = binding.get('origin') or {}
     vector_cfg = binding.get('vector') or {}
     if not origin_cfg or not vector_cfg:
@@ -247,7 +252,7 @@ def _emit_vectors(
         inst_id = instance_id(inst)
         v: Dict = {
             'kind': 'vector',
-            'key': f'{binding_name}:{inst_id}',
+            'key': f'{binding_name}:{class_name}',
             'id': f'{binding_name}:{inst_id}',
             'origin': origin,
             'vec': vec,

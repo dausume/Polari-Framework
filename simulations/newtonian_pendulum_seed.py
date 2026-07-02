@@ -206,6 +206,7 @@ _NB_GRAV_DEF, _NB_GRAV_META, _NB_GRAV_EQ = _step_solution_pair(
     compute_steps=_NEWTON_GRAVITY_STEPS,
     output_field_to_context=_NEWTON_GRAVITY_OUTPUT_MAP,
     sim_step_role='simStepPartial', order_index=0, depends_on=[],
+    sim_def_ref=NEWTON_SIM_DEF,
 )
 _NB_INT_DEF, _NB_INT_META, _NB_INT_EQ = _step_solution_pair(
     name=f'{NEWTON_SIM_DEF}.bob.integrator',
@@ -219,6 +220,7 @@ _NB_INT_DEF, _NB_INT_META, _NB_INT_EQ = _step_solution_pair(
     compute_steps=_NEWTON_INTEGRATOR_STEPS,
     output_field_to_context=_NEWTON_INTEGRATOR_OUTPUT_MAP,
     sim_step_role='simStepComposition', order_index=1, depends_on=[],
+    sim_def_ref=NEWTON_SIM_DEF,
 )
 _NB_ROD_DEF, _NB_ROD_META, _NB_ROD_EQ = _step_solution_pair(
     name=f'{NEWTON_SIM_DEF}.rod.step',
@@ -230,6 +232,7 @@ _NB_ROD_DEF, _NB_ROD_META, _NB_ROD_EQ = _step_solution_pair(
         'bob_z': _element_source('p_c', 2),
     },
     sim_step_role='simStepComplete', order_index=0, depends_on=[_NB],
+    sim_def_ref=NEWTON_SIM_DEF,
 )
 
 
