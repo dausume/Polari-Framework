@@ -150,6 +150,16 @@ class SimulationAPI(treeObject):
                 self.apiName + '/multi-scale/{msim_name}/stages/{stage_key}/gate',
                 self, suffix='stage_gate',
             )
+            # POST /api/simulations/multi-scale/{msim_name}/stages/{stage_key}/search
+            # Body: { batchSize?: int }. Advances the stage's SOLUTION
+            # SEARCH by one batch: multiple candidate parameter points
+            # attempted (each an ordinary run with per-run parameter
+            # overrides), gate-judged, first valid solution wins.
+            # Stateless/resumable — repeat calls continue the search.
+            polServer.falconServer.add_route(
+                self.apiName + '/multi-scale/{msim_name}/stages/{stage_key}/search',
+                self, suffix='stage_search',
+            )
 
     # ------------------------------------------------------------------
     # POST /api/simulations/predict-storage
@@ -511,6 +521,46 @@ class SimulationAPI(treeObject):
         verdict['deriveResolved'] = apply_derive(stage, verdict.get('derivedValues') or {})
         response.media = {'success': True, 'data': verdict}
         response.status = falcon.HTTP_200
+
+    # ------------------------------------------------------------------
+    # POST /api/simulations/multi-scale/{msim_name}/stages/{stage_key}/search
+    # ------------------------------------------------------------------
+    def on_post_stage_search(self, request, response, msim_name, stage_key):
+        from simulations.multi_scale_stages import apply_derive, find_stage
+        from simulations.multi_scale_search import run_stage_search
+        table = self.manager.objectTables.get('MultiScaleSimulationDefinition', {}) or {}
+        msim = next((r for r in table.values() if getattr(r, 'name', '') == msim_name), None)
+        if msim is None:
+            response.status = falcon.HTTP_404
+            response.media = {'success': False,
+                              'error': f'MultiScaleSimulationDefinition "{msim_name}" not found'}
+            return
+        stage = find_stage(msim, stage_key)
+        if stage is None:
+            response.status = falcon.HTTP_404
+            response.media = {'success': False,
+                              'error': f'Stage "{stage_key}" not found on "{msim_name}"'}
+            return
+        if not (stage.get('search') or {}).get('candidates'):
+            response.status = falcon.HTTP_400
+            response.media = {'success': False,
+                              'error': f'Stage "{stage_key}" declares no solution search '
+                                       f'(search.candidates).'}
+            return
+        try:
+            body = request.media or {}
+        except Exception:
+            body = {}
+        try:
+            batch_size = int(body.get('batchSize') or 0) or None
+        except (TypeError, ValueError):
+            batch_size = None
+        report = run_stage_search(self.manager, msim_name, stage, batch_size)
+        if report.get('winner'):
+            report['deriveResolved'] = apply_derive(
+                stage, report['winner'].get('derivedValues') or {})
+        response.media = {'success': report.get('error') is None, 'data': report}
+        response.status = falcon.HTTP_200 if report.get('error') is None else falcon.HTTP_400
 
     # ------------------------------------------------------------------
     # GET /api/simulations/{sim_ref}/solutions

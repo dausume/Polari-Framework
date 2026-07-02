@@ -18,6 +18,13 @@ from simulations.multi_scale_stages import (
     flatten_stage_results,
     parse_stages,
 )
+import simulations.multi_scale_search as _search_mod
+import simulations.simulation_runner as _runner_mod
+from simulations.multi_scale_search import (
+    attempt_run_name,
+    generate_candidates,
+    run_stage_search,
+)
 from simulations.multi_scale_seed import (
     SEED_MULTI_SCALE_SIMS, SEED_IC_INTERFACES, SEED_MSIM_GRAPHS,
     MSIM_NAME, IC_MATERIAL_PICKER,
@@ -229,10 +236,101 @@ def _seeds():
           and ic['name'] == IC_MATERIAL_PICKER)
 
 
+def _search():
+    print('\nMulti-scale page — solution search (multiple attempts per stage)\n')
+
+    grid = generate_candidates({'candidates': {'kind': 'grid', 'parameters': {
+        'temperature': {'from': 250, 'to': 350, 'steps': 3},
+        'pressure': {'from': 1, 'to': 100, 'steps': 2},
+    }}})
+    check('grid candidates: cartesian product, ordered',
+          len(grid) == 6 and grid[0] == {'pressure': 1.0, 'temperature': 250.0}
+          and grid[-1] == {'pressure': 100.0, 'temperature': 350.0},
+          f'n={len(grid)}')
+    mid = generate_candidates({'candidates': {'kind': 'grid', 'parameters': {
+        't': {'from': 10, 'to': 20, 'steps': 1}}}})
+    check('single-step axis uses the midpoint', mid == [{'t': 15.0}])
+    lst = generate_candidates({'candidates': {'kind': 'list',
+                                              'values': [{'a': 1}, {'a': 2}]}})
+    check('list candidates pass through', lst == [{'a': 1}, {'a': 2}])
+    try:
+        generate_candidates({'candidates': {'kind': 'solver'}})
+        solver_raises = False
+    except ValueError:
+        solver_raises = True
+    check('solver kind is loudly not-implemented (reserved)', solver_raises)
+
+    # Orchestrator with a stubbed runner + attempt factory (the real
+    # engine path is exercised live once a searchable stage exists).
+    def _search_manager(steps_per_attempt=3):
+        sim_def = SimpleNamespace(name='mat-sim', time_step_seconds=0.01,
+                                  duration_seconds=0.05)
+        m = SimpleNamespace(objectTables={
+            'SimulationDefinition': {'mat-sim': sim_def},
+            'SimulationRun': {},
+        })
+        return m
+
+    def _fake_create(manager, name, sim_ref, candidate, stage, msim_name):
+        run = SimpleNamespace(name=name, simulation_ref=sim_ref,
+                              last_recorded_step=0,
+                              parameter_overrides_json=json.dumps(candidate))
+        manager.objectTables['SimulationRun'][name] = run
+        return run
+
+    def _fake_run_step(manager, run, target_step=None, _pull_chain=None):
+        run.last_recorded_step = int(run.last_recorded_step) + 1
+        return {'success': True, 'step': run.last_recorded_step, 'error': None}
+
+    real_create = _search_mod._create_attempt_run
+    real_run_step = _runner_mod.run_step
+    _search_mod._create_attempt_run = _fake_create
+    _runner_mod.run_step = _fake_run_step
+    try:
+        # ACHIEVED: a gateless stage with no derive completes once run →
+        # the FIRST candidate wins and the rest are never attempted.
+        stage = {'key': 's', 'kind': 'runToCompletion', 'simulationRef': 'mat-sim',
+                 'search': {'candidates': {'kind': 'list',
+                                           'values': [{'t': 1}, {'t': 2}, {'t': 3}]},
+                            'stepsPerAttempt': 3, 'batchSize': 4}}
+        m = _search_manager()
+        report = run_stage_search(m, 'demo', stage)
+        check('first valid solution wins and short-circuits the search',
+              report['achieved'] and report['winner']['candidate'] == {'t': 1}
+              and report['attempts'][1]['reason'] == 'not attempted yet',
+              f"winner={report['winner']['run'] if report['winner'] else None}")
+        check('attempt runs carry the candidate as parameter overrides',
+              json.loads(m.objectTables['SimulationRun'][
+                  attempt_run_name('demo', 's', 0)].parameter_overrides_json)
+              == {'t': 1})
+
+        # EXHAUSTED with data: derive-source stage without a gate can
+        # NEVER complete → every attempt records the reason.
+        stage_x = dict(stage, derive={'params': {'x.m': 'ball_mass'}})
+        m = _search_manager()
+        r1 = run_stage_search(m, 'demo', stage_x, batch_size=2)
+        check('batching bounds work per call (2 of 3 attempted)',
+              not r1['achieved'] and r1['attempted'] == 2
+              and r1['advancedThisCall'] == 2)
+        r2 = run_stage_search(m, 'demo', stage_x, batch_size=2)
+        check('search is stateless/resumable (second call finishes it)',
+              r2['attempted'] == 3 and r2['exhausted']
+              and all('not defined' in a['reason'] for a in r2['attempts']),
+              f"attempted={r2['attempted']}")
+        check('exhausted report carries every attempt (the disabled-choice '
+              'reason AND data)',
+              len(r2['attempts']) == 3
+              and all(a['candidate'] for a in r2['attempts']))
+    finally:
+        _search_mod._create_attempt_run = real_create
+        _runner_mod.run_step = real_run_step
+
+
 if __name__ == '__main__':
     _series()
     _stages()
     _seeds()
+    _search()
     total, passed = len(results), sum(results)
     print(f'\n{passed}/{total} checks passed')
     raise SystemExit(0 if passed == total else 1)
