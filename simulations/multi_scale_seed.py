@@ -91,28 +91,32 @@ SEED_MSIM_GRAPHS = [
         'description': 'Total/kinetic/potential energy of the bob over time — '
                        'watch the wind do (negative) work vs the vacuum run.',
         'source_class': _NB,
-        'definition': json.dumps({
+        # Wrapped {graphConfig: {...}} form — what the frontend's
+        # NamedGraphConfig.fromBackend expects, so the Graphs editor
+        # pages read these seeds too (the msim graph panel normalizes
+        # both shapes, but only this one round-trips through the editor).
+        'definition': json.dumps({'graphConfig': {
             'renderStyle': 'lineY',
             'xDimension': 'time',
             'yDimensions': ['energy_total', 'ke', 'pe'],
-            'seriesColors': {},
+            'seriesColors': [],
             'options': {'legend': True},
             'aggregation': None,
-        }),
+        }}),
     },
     {
         'name': 'msim-wind-force',
         'description': 'Sampled wind drag components on the bob over time — '
                        'zero until the first evolved wind step is sampleable.',
         'source_class': _NB,
-        'definition': json.dumps({
+        'definition': json.dumps({'graphConfig': {
             'renderStyle': 'lineY',
             'xDimension': 'time',
             'yDimensions': ['fwind_x', 'fwind_y', 'fwind_z'],
-            'seriesColors': {},
+            'seriesColors': [],
             'options': {'legend': True},
             'aggregation': None,
-        }),
+        }}),
     },
 ]
 
