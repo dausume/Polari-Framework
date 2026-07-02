@@ -136,6 +136,7 @@ SEED_MULTI_SCALE_SIMS = [{
             'key': 'pendulum-in-wind',
             'label': 'Pendulum swinging in wind',
             'kind': 'coStep',
+            'intent': 'observe',
             'primarySimulationRef': NEWTON_SIM_DEF,
             'couplingRefs': ['wind-to-newtonian-pendulum'],
         },

@@ -45,6 +45,15 @@ class SimulationDefinition(treeObject):
         # "pendulum-2d", "double-pendulum-chaotic", etc.
         name: str = '',
         description: str = '',
+        # What this simulation is FOR, declared first — it drives the
+        # per-intent required-definitions checklist in the authoring
+        # wizard and constrains where the space can plug into a
+        # multi-scale composition (see simulations.simulation_intents):
+        #   observe | search | feasibility | optimize | calibrate |
+        #   validate | sensitivity | compare
+        # A stage using this sim declares its own role-intent, checked
+        # for compatibility against this declaration.
+        intent: str = 'observe',
         # JSON-encoded list of *SimState class names this simulation
         # advances. Explicit roster so the runner can walk it without
         # reverse-scanning the type registry, and so the editor knows
@@ -110,6 +119,7 @@ class SimulationDefinition(treeObject):
     ):
         self.name = name
         self.description = description
+        self.intent = intent
         self.participating_sim_state_classes_json = participating_sim_state_classes_json
         self.time_step_seconds = time_step_seconds
         self.duration_seconds = duration_seconds

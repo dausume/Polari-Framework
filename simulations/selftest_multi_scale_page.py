@@ -236,6 +236,77 @@ def _seeds():
           and ic['name'] == IC_MATERIAL_PICKER)
 
 
+def _intents():
+    print('\nMulti-scale page — intents taxonomy + composition coherence\n')
+    from simulations.simulation_intents import (
+        INTENTS, PRODUCT_BEARING, intents_catalog, validate_composition,
+    )
+    cat = intents_catalog()
+    check('taxonomy has all 8 intents with checklists',
+          len(INTENTS) == 8
+          and all(i['requires'] and i['produces'] and i['plugPoints']
+                  for i in INTENTS.values()))
+    check('product-bearing set matches the design',
+          set(PRODUCT_BEARING) ==
+          {'search', 'feasibility', 'optimize', 'calibrate'}
+          and set(cat['continuous']) == {'observe'})
+
+    def _mgr(stages, members=('mat-sim',), couplings=()):
+        sims = {
+            'mat-sim': SimpleNamespace(name='mat-sim', intent='observe'),
+            'obs-sim': SimpleNamespace(name='obs-sim', intent='observe'),
+        }
+        return SimpleNamespace(objectTables={
+            'SimulationDefinition': sims,
+            'SimulationCouplingDefinition': {},
+        }), SimpleNamespace(
+            member_simulation_refs_json=json.dumps(list(members)),
+            coupling_refs_json=json.dumps(list(couplings)),
+            stages_json=json.dumps(stages),
+        )
+
+    # Coherent demo-shaped composition → no errors.
+    m, msim = _mgr([{'key': 's', 'kind': 'coStep', 'intent': 'observe',
+                     'primarySimulationRef': 'obs-sim'}],
+                   members=('mat-sim', 'obs-sim'))
+    check('coherent composition validates clean',
+          validate_composition(m, msim) == [])
+
+    # Rule: derive source must be product-bearing.
+    m, msim = _mgr([{'key': 's', 'kind': 'runToCompletion',
+                     'intent': 'observe', 'simulationRef': 'mat-sim',
+                     'derive': {'params': {'x.m': 'ball_mass'}}}])
+    f = validate_composition(m, msim)
+    check('observe stage with a derive map is rejected (must be '
+          'product-bearing)',
+          any(x['level'] == 'error' and 'does not produce a solution'
+              in x['message'] for x in f))
+
+    # Rule: search intent needs candidates or at least a gate.
+    m, msim = _mgr([{'key': 's', 'kind': 'runToCompletion',
+                     'intent': 'search', 'simulationRef': 'mat-sim'}])
+    f = validate_composition(m, msim)
+    check('search stage without candidates or gate is rejected',
+          any('neither candidates' in x['message'] for x in f))
+
+    # Rule: compare can never be causal.
+    m, msim = _mgr([{'key': 's', 'kind': 'coStep', 'intent': 'compare',
+                     'primarySimulationRef': 'mat-sim'}])
+    f = validate_composition(m, msim)
+    check('compare stage is rejected (never a causal member)',
+          any('causally independent' in x['message'] for x in f))
+
+    # Rule: missing refs are errors, in plain language.
+    m, msim = _mgr([{'key': 's', 'kind': 'coStep', 'intent': 'observe',
+                     'primarySimulationRef': 'ghost-sim'}],
+                   members=('mat-sim', 'ghost-member'),
+                   couplings=('ghost-coupling',))
+    f = validate_composition(m, msim)
+    check('missing member/sim/coupling references are all reported',
+          sum(1 for x in f if x['level'] == 'error') >= 3,
+          f'findings={len(f)}')
+
+
 def _search():
     print('\nMulti-scale page — solution search (multiple attempts per stage)\n')
 
@@ -330,6 +401,7 @@ if __name__ == '__main__':
     _series()
     _stages()
     _seeds()
+    _intents()
     _search()
     total, passed = len(results), sum(results)
     print(f'\n{passed}/{total} checks passed')

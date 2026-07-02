@@ -160,6 +160,19 @@ class SimulationAPI(treeObject):
                 self.apiName + '/multi-scale/{msim_name}/stages/{stage_key}/search',
                 self, suffix='stage_search',
             )
+            # GET /api/simulations/intents — the simulation-intents
+            # taxonomy (what each intent requires/produces and where it
+            # plugs in). Drives the authoring wizard's first question.
+            polServer.falconServer.add_route(
+                self.apiName + '/intents', self, suffix='intents',
+            )
+            # POST /api/simulations/multi-scale/{msim_name}/validate-composition
+            # Checks the composition against the intent coherence rules;
+            # returns plain-language findings (errors + warnings).
+            polServer.falconServer.add_route(
+                self.apiName + '/multi-scale/{msim_name}/validate-composition',
+                self, suffix='validate_composition',
+            )
 
     # ------------------------------------------------------------------
     # POST /api/simulations/predict-storage
@@ -561,6 +574,36 @@ class SimulationAPI(treeObject):
                 stage, report['winner'].get('derivedValues') or {})
         response.media = {'success': report.get('error') is None, 'data': report}
         response.status = falcon.HTTP_200 if report.get('error') is None else falcon.HTTP_400
+
+    # ------------------------------------------------------------------
+    # GET /api/simulations/intents
+    # ------------------------------------------------------------------
+    def on_get_intents(self, request, response):
+        from simulations.simulation_intents import intents_catalog
+        response.media = {'success': True, 'data': intents_catalog()}
+        response.status = falcon.HTTP_200
+
+    # ------------------------------------------------------------------
+    # POST /api/simulations/multi-scale/{msim_name}/validate-composition
+    # ------------------------------------------------------------------
+    def on_post_validate_composition(self, request, response, msim_name):
+        from simulations.simulation_intents import validate_composition
+        table = self.manager.objectTables.get('MultiScaleSimulationDefinition', {}) or {}
+        msim = next((r for r in table.values() if getattr(r, 'name', '') == msim_name), None)
+        if msim is None:
+            response.status = falcon.HTTP_404
+            response.media = {'success': False,
+                              'error': f'MultiScaleSimulationDefinition "{msim_name}" not found'}
+            return
+        findings = validate_composition(self.manager, msim)
+        response.media = {
+            'success': True,
+            'data': {
+                'coherent': not any(f['level'] == 'error' for f in findings),
+                'findings': findings,
+            },
+        }
+        response.status = falcon.HTTP_200
 
     # ------------------------------------------------------------------
     # GET /api/simulations/{sim_ref}/solutions
