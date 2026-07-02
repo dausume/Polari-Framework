@@ -123,6 +123,14 @@ def _stages():
           v0['complete'] is False and v1['complete'] is True
           and v0['hasGate'] is False)
 
+    # "Defined AND achieved": a first-principles stage (one later stages
+    # derive from) is NEVER complete without a gate, even after running.
+    stage_fp = dict(stage, derive={'params': {'x.mass': 'ball_mass'}})
+    v_fp = evaluate_stage_gate(m, stage_fp, ran)
+    check('derive-source stage without a gate is incomplete (condition '
+          'must be DEFINED, not just run)',
+          v_fp['complete'] is False and 'not defined' in v_fp['reason'])
+
     # Missing gate solution → structured error, never a crash.
     stage_bad = dict(stage, gate={'solutionRef': 'does-not-exist'})
     m_bad = SimpleNamespace(objectTables={

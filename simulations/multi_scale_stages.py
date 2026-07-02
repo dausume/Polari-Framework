@@ -79,6 +79,23 @@ def evaluate_stage_gate(manager, stage: Dict[str, Any], run) -> Dict[str, Any]:
     gate_ref = gate.get('solutionRef') or ''
     last_step = int(getattr(run, 'last_recorded_step', 0) or 0)
     if not gate_ref:
+        # THE "defined AND achieved" rule: a stage that later stages
+        # derive from (it has a `derive` map) is a FIRST-PRINCIPLES
+        # stage — its valid-solution condition must be DEFINED (a gate
+        # solution authored) and ACHIEVED (that gate passing on a real
+        # run) before downstream initial conditions are legitimate.
+        # Merely having run is not enough.
+        if stage.get('derive'):
+            return {
+                'complete': False,
+                'hasGate': False,
+                'reason': ('This stage feeds later stages\' initial '
+                           'conditions, but its valid-solution condition '
+                           '(gate) is not defined yet. Author a gate '
+                           'solution in the no-code editor first.'),
+                'derivedValues': None,
+                'error': None,
+            }
         return {
             'complete': last_step > 0,
             'hasGate': False,
