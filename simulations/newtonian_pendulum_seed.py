@@ -80,10 +80,15 @@ _n_rod_cs = 2.0 * _NEWTON_ROD_RADIUS * _NEWTON_L
 _NEWTON_PARAMS = {
     'g': _NEWTON_G, 'L': _NEWTON_L, 'mass': _NEWTON_MASS,
     'bob_radius': _NEWTON_BOB_RADIUS, 'rod_radius': _NEWTON_ROD_RADIUS,
-    # Dormant geometry (ready for wind/buoyancy).
+    # Geometry (bob_cross_section is ACTIVE now — the wind drag Partial
+    # reads it; the rest stays ready for buoyancy / rod drag).
     'bob_surface_area': _n_bob_sa, 'bob_volume': _n_bob_vol,
     'bob_cross_section': _n_bob_cs,
     'rod_lateral_area': _n_rod_lat, 'rod_cross_section': _n_rod_cs,
+    # Aerodynamics for the wind drag Partial (wind_field_seed):
+    # F = wind_on · ½·ρ·C_d·A·|w−v|·(w−v). Sphere C_d ≈ 0.47; sea-level air.
+    'air_density': 1.225,
+    'drag_coefficient': 0.47,
     # Visualization: metres of arrow length per Newton of force.
     'viz_force_scale': _NEWTON_VIZ_FORCE_SCALE,
 }

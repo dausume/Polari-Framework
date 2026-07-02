@@ -74,6 +74,7 @@ class NewtonianPendulumBobSimState(treeObject):
         'fgrav_x': 0.0, 'fgrav_y': -9.81, 'fgrav_z': 0.0,
         'ftens_x': -4.247855, 'ftens_y': 7.357275, 'ftens_z': 0.0,
         'fnet_x': -4.247855, 'fnet_y': -2.452725, 'fnet_z': 0.0,
+        'fwind_x': 0.0, 'fwind_y': 0.0, 'fwind_z': 0.0,
         # Energies — DERIVED quantities, shown for conservation checking.
         'speed': 0.0,
         'ke': 0.0,
@@ -104,6 +105,9 @@ class NewtonianPendulumBobSimState(treeObject):
         'fgrav_x': 'core', 'fgrav_y': 'core', 'fgrav_z': 'core',
         'ftens_x': 'core', 'ftens_y': 'core', 'ftens_z': 'core',
         'fnet_x': 'core', 'fnet_y': 'core', 'fnet_z': 'core',
+        # Sampled wind drag force (the wind Partial `set`s these each
+        # step; zero on an uncoupled/vacuum run) — drives the wind arrow.
+        'fwind_x': 'core', 'fwind_y': 'core', 'fwind_z': 'core',
         'speed': 'core',
         'ke': 'core',
         'pe': 'core',
@@ -138,6 +142,9 @@ class NewtonianPendulumBobSimState(treeObject):
         fnet_x: float = 0.0,
         fnet_y: float = 0.0,
         fnet_z: float = 0.0,
+        fwind_x: float = 0.0,
+        fwind_y: float = 0.0,
+        fwind_z: float = 0.0,
         # --- derived energies (J) ---
         speed: float = 0.0,
         ke: float = 0.0,
@@ -167,6 +174,9 @@ class NewtonianPendulumBobSimState(treeObject):
         self.fnet_x = fnet_x
         self.fnet_y = fnet_y
         self.fnet_z = fnet_z
+        self.fwind_x = fwind_x
+        self.fwind_y = fwind_y
+        self.fwind_z = fwind_z
         self.speed = speed
         self.ke = ke
         self.pe = pe

@@ -33,6 +33,8 @@ from typing import Any, Dict, List, Optional
 import sympy
 from sympy.parsing.latex import parse_latex
 
+from simulations.run_scope import resolve_run_scope, row_in_run_scope
+
 # Per-process LaTeX-expression cache. `parse_latex` is the dominant cost
 # of the snapshot pre-evaluation; re-parsing the same expression for
 # every step turns a sub-second pass into a tens-of-seconds blocker.
@@ -226,20 +228,6 @@ def _collect_evaluations(
         target_rows = _pick_target_row(
             rows_by_step, target_step=target_step, target_time=target_time,
         )
-
-        # [EVALDBG] Which rows did we find for this run, and which did we pick?
-        # If rows_by_step spans steps 0..N but we always pick step 0, the
-        # target_time/scrubber is the problem; if rows_by_step is just [0], the
-        # runner-written rows aren't being matched (run-filter / step field).
-        try:
-            _steps = [r[0] for r in rows_by_step]
-            print(f"[EVALDBG] '{getattr(ev_row, 'name', '?')}' run={run_filter} "
-                  f"target_step={target_step} target_time={target_time} "
-                  f"classes={sim_state_classes} rows_by_step={len(rows_by_step)} "
-                  f"steps={_steps[:3]}..{_steps[-3:]} picked={[(r[0], r[1]) for r in target_rows]}",
-                  flush=True)
-        except Exception:
-            pass
 
         per_step: List[Dict] = []
         for step, time_value, class_to_row in target_rows:
@@ -476,17 +464,11 @@ def _resolve_simulation_definition(
     return None
 
 
-def _row_matches_run(inst, run_filter: Optional[str]) -> bool:
-    """Run-scope predicate, identical to compile_2d/compile_3d's filter: a
-    row passes when no run is requested, when it carries no
-    `simulation_run_ref` attribute at all (freestanding / legacy data), or
-    when that ref equals the requested run. Keeping this byte-for-byte the
-    same as the renderer guarantees the live readouts evaluate over exactly
-    the rows the renderer draws — never a different (or empty) set."""
-    if not run_filter:
-        return True
-    return (not hasattr(inst, 'simulation_run_ref')
-            or getattr(inst, 'simulation_run_ref', '') == run_filter)
+# Run-scope predicate: shared with compile_2d/compile_3d via
+# simulations.run_scope (one import instead of three byte-identical
+# copies), so the live readouts evaluate over exactly the rows the
+# renderer draws — never a different (or empty) set. The scope is the
+# requested run PLUS its coupled source runs.
 
 
 def _dominant_run(manager, sim_state_classes: List[str]) -> Optional[str]:
@@ -513,13 +495,14 @@ def _scan_rows_by_step(
 ) -> List:
     """Intersected (step, time, {class: row}) tuples for ONE run scope —
     every step where all referenced classes have a row passing
-    `_row_matches_run`. Empty when no such step exists."""
+    `row_in_run_scope`. Empty when no such step exists."""
+    scope = resolve_run_scope(manager, run_filter)
     per_class_rows: Dict[str, Dict[int, Any]] = {}
     for cls_name in sim_state_classes:
         table = manager.objectTables.get(cls_name, {}) or {}
         per_class_rows[cls_name] = {}
         for inst in table.values():
-            if not _row_matches_run(inst, run_filter):
+            if not row_in_run_scope(inst, scope):
                 continue
             step = getattr(inst, 'step', None)
             if step is None:

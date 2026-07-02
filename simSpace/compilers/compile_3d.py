@@ -26,6 +26,8 @@ from .common import (
     resolve_position_spec,
     stamp_class_metadata,
 )
+from .field_projection import emit_field_3d
+from simulations.run_scope import resolve_run_scope, row_in_run_scope
 
 
 def compile_3d(
@@ -69,6 +71,11 @@ def compile_3d(
     # 2. Scene-level boundClasses overrides.
     override_by_class = load_bound_overrides(row, warnings)
 
+    # Run scope: the requested run PLUS its coupled source runs (e.g. a
+    # wind-forced pendulum run's wind-field run) — resolved once, shared
+    # predicate with compile_2d + equation_evaluation (they MUST agree).
+    run_scope = resolve_run_scope(manager, run_filter)
+
     # 3. Walk SimSpaceBindingDefinition rows for dimensionality='3d'.
     for binding_row in iter_bindings(manager, '3d'):
         class_name = getattr(binding_row, 'class_name', '')
@@ -90,8 +97,7 @@ def compile_3d(
         if run_filter:
             instances = {
                 k: v for k, v in (instances.items() if isinstance(instances, dict) else [])
-                if (not hasattr(v, 'simulation_run_ref')
-                    or getattr(v, 'simulation_run_ref', '') == run_filter)
+                if row_in_run_scope(v, run_scope)
             }
             if not instances:
                 continue
@@ -113,22 +119,26 @@ def compile_3d(
                 class_name, instances, binding,
                 getattr(binding_row, 'name', class_name), override, warnings,
             )
-            # [VECDBG-BE] per vector binding: how many rows did we see vs emit?
-            # instances=0 -> run-filter/rows; emitted<instances -> degenerate or
-            # origin/vector field resolution dropping them.
-            try:
-                _ni = len(instances) if hasattr(instances, '__len__') else -1
-                print(f"[VECDBG-BE] vector binding '{getattr(binding_row, 'name', '?')}' "
-                      f"class={class_name} instances={_ni} run_filter={run_filter} "
-                      f"emitted={len(emitted_vecs)} sample={emitted_vecs[0] if emitted_vecs else None}",
-                      flush=True)
-            except Exception:
-                pass
             vectors.extend(emitted_vecs)
             if emitted_vecs:
                 resolved_bindings.append(
                     resolve_resolved_binding(
                         class_name, binding, override, len(emitted_vecs),
+                    )
+                )
+        elif binding_kind == 'field':
+            # Matrix-valued field row → per-cell arrows (same snapshot
+            # `vectors` channel; per-cell stable keys + scrub-safe
+            # sparsity live in the emitter).
+            emitted_field = emit_field_3d(
+                class_name, instances, binding,
+                getattr(binding_row, 'name', class_name), override, warnings,
+            )
+            vectors.extend(emitted_field)
+            if emitted_field:
+                resolved_bindings.append(
+                    resolve_resolved_binding(
+                        class_name, binding, override, len(emitted_field),
                     )
                 )
         else:

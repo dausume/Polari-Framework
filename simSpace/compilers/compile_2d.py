@@ -27,6 +27,7 @@ from .common import (
     resolve_position_spec,
     stamp_class_metadata,
 )
+from simulations.run_scope import resolve_run_scope, row_in_run_scope
 
 
 def compile_2d(
@@ -69,6 +70,11 @@ def compile_2d(
     # 2. Scene-level boundClasses overrides.
     override_by_class = load_bound_overrides(row, warnings)
 
+    # Run scope: the requested run PLUS its coupled source runs —
+    # resolved once, shared predicate with compile_3d +
+    # equation_evaluation (they MUST agree).
+    run_scope = resolve_run_scope(manager, run_filter)
+
     # 3. Walk SimSpaceBindingDefinition rows.
     for binding_row in iter_bindings(manager, '2d'):
         class_name = getattr(binding_row, 'class_name', '')
@@ -87,15 +93,14 @@ def compile_2d(
             warnings.append(f"Class {class_name} bound but has no instances.")
             continue
 
-        # Run filter — drop instances whose simulation_run_ref doesn't
-        # match. Classes without a simulation_run_ref attribute fall
-        # through unchanged (the attribute simply isn't there for non-
-        # SimState bound classes, so getattr returns the empty string).
+        # Run filter — drop instances outside the run scope (the run
+        # itself + its coupled source runs). Classes without a
+        # simulation_run_ref attribute fall through unchanged (the
+        # attribute simply isn't there for non-SimState bound classes).
         if run_filter:
             instances = {
                 k: v for k, v in (instances.items() if isinstance(instances, dict) else [])
-                if (not hasattr(v, 'simulation_run_ref')
-                    or getattr(v, 'simulation_run_ref', '') == run_filter)
+                if row_in_run_scope(v, run_scope)
             }
             if not instances:
                 # Filtered everything out — quiet (the warning above

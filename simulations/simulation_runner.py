@@ -46,12 +46,14 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from polariNoCode.SolutionExecutionEngine import SolutionExecutionEngine
 from polariNoCode.stepping import StepConfig
+from simulations.simulation_coupling import apply_couplings
 
 
 def run_step(
     manager,
     run,
     target_step: Optional[int] = None,
+    _pull_chain: Optional[frozenset] = None,
 ) -> Dict[str, Any]:
     """Advance a SimulationRun by exactly one timestep.
 
@@ -59,6 +61,11 @@ def run_step(
     rows have been written yet). Passing it explicitly lets a caller
     re-run a step idempotently (the runner will delete existing rows
     for that step before re-emitting).
+
+    `_pull_chain` is internal: the set of run names currently being
+    advanced up-stack when this call is a coupling's lazy pull (see
+    simulations.simulation_coupling). It guards against coupling cycles;
+    external callers leave it unset.
 
     Returns:
         {
@@ -226,6 +233,18 @@ def run_step(
                 dt=dt,
                 time_value=time_value,
                 step=target_step,
+            )
+
+            # Cross-simulation couplings: lazy-pull each coupled source
+            # run to cover this step's time, sample its field, and inject
+            # the values (or the coupling's defaults) into the baseline.
+            # Soft-fail — a coupling that can't sample warns and leaves
+            # its defaults; the step itself still runs.
+            apply_couplings(
+                manager, run, sim_def, cls_name, baseline, time_value,
+                warnings,
+                pull_chain=(_pull_chain
+                            or frozenset({getattr(run, 'name', '')})),
             )
 
             # Resolve each solution's role from its no-code graph.

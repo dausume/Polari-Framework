@@ -151,6 +151,15 @@ SEED_MATERIALS_3D = [
         'metalness': 0.0,
         'roughness': 0.6,
     },
+    {
+        'name': 'arrow-wind',
+        'description': 'Cyan — wind: the sparse field cells and the sampled '
+                       'drag force on the bob (wind-field coupling).',
+        'material_type': 'standard',
+        'color': '#29b6f6',
+        'metalness': 0.0,
+        'roughness': 0.6,
+    },
 ]
 
 SEED_SIM_SPACES_3D = [

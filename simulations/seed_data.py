@@ -885,9 +885,14 @@ def _step_solution_pair(name, description, target_class, expected_inputs,
                     f"entry for '{field}' must be a (ctx_var, op) tuple; "
                     f"got {spec!r}."
                 )
+            # Like the Complete/Composition path below: a bare string is
+            # shorthand for from_source_object; a dict is a full
+            # ValueSourceConfig used verbatim (e.g. an 'element' source
+            # extracting one component of a computed force vector).
+            value_source = ctx_var if isinstance(ctx_var, dict) else _from_source(ctx_var)
             contribution_mappings.append({
                 'outputFieldName': field,
-                'valueSource': _from_source(ctx_var),
+                'valueSource': value_source,
                 'op': op,
             })
         states.append(_sim_step_contribution_terminator(

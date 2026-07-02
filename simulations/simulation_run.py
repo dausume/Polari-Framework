@@ -80,6 +80,14 @@ class SimulationRun(treeObject):
         # Lets the user mark fields as core for a one-off diagnostic
         # run without mutating the saved sim def.
         field_save_overrides_json: str = '{}',
+        # JSON dict {source_sim_name: source_run_name} pairing THIS run
+        # with the source runs feeding its SimulationCouplingDefinitions
+        # (e.g. {"wind-field-3d": "wind-field-run"}). The runner's
+        # coupling pre-pass lazy-pulls + samples those runs; the snapshot
+        # / evaluation run scope (simulations.run_scope) also includes
+        # them so coupled rows render in the same scene. Empty = an
+        # UNCOUPLED run — couplings inject their declared defaults.
+        coupled_run_refs_json: str = '{}',
         manager=None,
     ):
         self.name = name
@@ -95,3 +103,4 @@ class SimulationRun(treeObject):
         self.initial_conditions_overrides_json = initial_conditions_overrides_json
         self.time_step_seconds = time_step_seconds
         self.field_save_overrides_json = field_save_overrides_json
+        self.coupled_run_refs_json = coupled_run_refs_json

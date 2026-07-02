@@ -242,6 +242,34 @@ def _resolve_value_source_config(config, context):
         except (TypeError, ValueError, IndexError, KeyError):
             return None
 
+    elif source_type == 'json_decode':
+        # Parse a JSON-string source into its value. The read half of
+        # MATRIX-VALUED STATE FIELDS: a *SimState field like `cells_json`
+        # (an N×M matrix serialized per the `*_json` TEXT convention)
+        # becomes a nested list that MatrixEquationOperation operands
+        # np.asarray directly. Non-string values pass through untouched
+        # (already decoded); malformed JSON resolves to None.
+        src = config.get('source')
+        base = _resolve_value_source_config(src, context) if isinstance(src, dict) else src
+        if not isinstance(base, str):
+            return base
+        try:
+            return json.loads(base)
+        except (ValueError, TypeError):
+            return None
+
+    elif source_type == 'json_encode':
+        # Serialize a source's value to a JSON string — the write half of
+        # matrix-valued state fields (a computed matrix lands in context as
+        # a nested list via .tolist(); this maps it back onto a `*_json`
+        # TEXT field in a SimStepNextState output mapping).
+        src = config.get('source')
+        base = _resolve_value_source_config(src, context) if isinstance(src, dict) else src
+        try:
+            return json.dumps(base)
+        except (ValueError, TypeError):
+            return None
+
     return None
 
 

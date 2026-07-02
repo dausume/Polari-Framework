@@ -114,6 +114,18 @@ from simulations.newtonian_pendulum_seed import (
     SEED_NEWTON_BOB_ROWS,
     SEED_NEWTON_ROD_ROWS,
 )
+# Wind-field space + its coupling into the Newtonian pendulum (the first
+# multi-scale composition). Extends the SEED_PENDULUM_* lists AND the
+# matrices SEED_MATRIX_EQUATIONS in place — keep AFTER newtonian_pendulum_seed
+# (it mutates the newtonian scene's bound classes).
+from simulations.wind_field_grid_sim_state import WindFieldGridState
+from simulations.simulation_coupling_definition import SimulationCouplingDefinition
+from simulations.wind_field_seed import (
+    SEED_WIND_GRID_ROWS,
+    SEED_NEWTON_WIND_BOB_ROWS,
+    SEED_NEWTON_WIND_ROD_ROWS,
+    SEED_SIMULATION_COUPLINGS,
+)
 from polariApiProfiler.apiProfilerAPI import (
     APIProfilerQueryAPI,
     APIProfilerMatchAPI,
@@ -381,9 +393,10 @@ class polariServer(treeObject):
             # Simulations
             SimulationDefinition, SimulationRun, SimVariable,
             SimSpaceEvaluationEquation,
-            SimulationExecutionSolution,
+            SimulationExecutionSolution, SimulationCouplingDefinition,
             PendulumBobSimState, PendulumStringSimState,
-            NewtonianPendulumBobSimState, NewtonianPendulumRodSimState]
+            NewtonianPendulumBobSimState, NewtonianPendulumRodSimState,
+            WindFieldGridState]
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
         for defClass in self.defClassList:
             className = defClass.__name__
@@ -1220,8 +1233,16 @@ class polariServer(treeObject):
             ('PendulumStringSimState', PendulumStringSimState, SEED_PENDULUM_STRING_ROWS),
             # Newtonian pendulum — seed only the step-0 IC rows; steps 1+ are
             # produced live by the runner via the no-code vector solutions.
-            ('NewtonianPendulumBobSimState', NewtonianPendulumBobSimState, SEED_NEWTON_BOB_ROWS),
-            ('NewtonianPendulumRodSimState', NewtonianPendulumRodSimState, SEED_NEWTON_ROD_ROWS),
+            # The *_WIND_* rows are the coupled (wind-forced) run's step-0 ICs.
+            ('NewtonianPendulumBobSimState', NewtonianPendulumBobSimState,
+             SEED_NEWTON_BOB_ROWS + SEED_NEWTON_WIND_BOB_ROWS),
+            ('NewtonianPendulumRodSimState', NewtonianPendulumRodSimState,
+             SEED_NEWTON_ROD_ROWS + SEED_NEWTON_WIND_ROD_ROWS),
+            # Wind-field space: step-0 grid row + the cross-simulation
+            # coupling that feeds the pendulum's wind Partial.
+            ('WindFieldGridState', WindFieldGridState, SEED_WIND_GRID_ROWS),
+            ('SimulationCouplingDefinition', SimulationCouplingDefinition,
+             SEED_SIMULATION_COUPLINGS),
             ('SimVariable', SimVariable, SEED_SIM_VARIABLES),
             # Equations: the live-readout set (KE/PE/E_total) PLUS the
             # per-step math each CalculusOperation references. Must seed
