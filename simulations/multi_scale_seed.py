@@ -81,6 +81,41 @@ SEED_IC_INTERFACES = [{
     'enabled': True,
 }]
 
+# Demo graphs-over-time for the page's graph panels (Phase 3). GraphDefinition
+# rows are normally frontend-authored; seeding these two gives the demo page
+# live charts out of the box. `definition` matches the frontend
+# GraphConfigData shape (renderStyle / xDimension / yDimensions / options).
+SEED_MSIM_GRAPHS = [
+    {
+        'name': 'msim-pendulum-energy',
+        'description': 'Total/kinetic/potential energy of the bob over time — '
+                       'watch the wind do (negative) work vs the vacuum run.',
+        'source_class': _NB,
+        'definition': json.dumps({
+            'renderStyle': 'lineY',
+            'xDimension': 'time',
+            'yDimensions': ['energy_total', 'ke', 'pe'],
+            'seriesColors': {},
+            'options': {'legend': True},
+            'aggregation': None,
+        }),
+    },
+    {
+        'name': 'msim-wind-force',
+        'description': 'Sampled wind drag components on the bob over time — '
+                       'zero until the first evolved wind step is sampleable.',
+        'source_class': _NB,
+        'definition': json.dumps({
+            'renderStyle': 'lineY',
+            'xDimension': 'time',
+            'yDimensions': ['fwind_x', 'fwind_y', 'fwind_z'],
+            'seriesColors': {},
+            'options': {'legend': True},
+            'aggregation': None,
+        }),
+    },
+]
+
 SEED_MULTI_SCALE_SIMS = [{
     'name': MSIM_NAME,
     'description': (
@@ -103,6 +138,10 @@ SEED_MULTI_SCALE_SIMS = [{
     ]),
     'panels_json': json.dumps([
         {'kind': 'scene', 'simSpaceRef': 'newtonian-pendulum-viz', 'run': 'primary'},
+        {'kind': 'graph', 'graphRef': 'msim-pendulum-energy',
+         'sourceClass': _NB, 'runs': ['primary', 'compare']},
+        {'kind': 'graph', 'graphRef': 'msim-wind-force',
+         'sourceClass': _NB, 'runs': ['primary']},
         {'kind': 'ic', 'icInterfaceRef': IC_MATERIAL_PICKER},
     ]),
     'display_ref': '',

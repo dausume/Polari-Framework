@@ -80,6 +80,14 @@ class SimulationRun(treeObject):
         # Lets the user mark fields as core for a one-off diagnostic
         # run without mutating the saved sim def.
         field_save_overrides_json: str = '{}',
+        # JSON dict of per-run PARAMETER overrides, layered over the
+        # SimulationDefinition's parameters_json (per-run wins) when the
+        # runner builds each step's context. This is how configured IC
+        # interfaces (e.g. the bob material picker) give one run a
+        # different mass/geometry without mutating the saved sim def —
+        # and how a precondition stage's derived outputs flow into a
+        # later stage's run. Example: '{"mass": 16.84, "bob_radius": 0.08}'
+        parameter_overrides_json: str = '{}',
         # JSON dict {source_sim_name: source_run_name} pairing THIS run
         # with the source runs feeding its SimulationCouplingDefinitions
         # (e.g. {"wind-field-3d": "wind-field-run"}). The runner's
@@ -103,4 +111,5 @@ class SimulationRun(treeObject):
         self.initial_conditions_overrides_json = initial_conditions_overrides_json
         self.time_step_seconds = time_step_seconds
         self.field_save_overrides_json = field_save_overrides_json
+        self.parameter_overrides_json = parameter_overrides_json
         self.coupled_run_refs_json = coupled_run_refs_json

@@ -224,10 +224,17 @@ class SimulationAPI(treeObject):
             time_step_seconds = float(body.get('timeStepSeconds') or 0)
         except (TypeError, ValueError):
             time_step_seconds = 0.0
+        # Per-run PARAMETER overrides (layered over the sim def's
+        # parameters_json by the runner) — the channel configured IC
+        # interfaces (material picker) and stage `derive` outputs use.
+        param_overrides = body.get('parameterOverrides') or {}
+        if not isinstance(param_overrides, dict):
+            param_overrides = {}
         # Mirror on_post_run's pattern: mutate the in-memory treeObject;
         # the framework persists the attribute writes.
         run.initial_conditions_overrides_json = json.dumps(ic_overrides)
         run.field_save_overrides_json = json.dumps(field_save_overrides)
+        run.parameter_overrides_json = json.dumps(param_overrides)
         if time_step_seconds > 0:
             run.time_step_seconds = time_step_seconds
         response.media = {
@@ -781,6 +788,10 @@ class SimulationAPI(treeObject):
         posted_overrides = body.get('overrides') or {}
         if not isinstance(posted_overrides, dict):
             posted_overrides = {}
+        # Optional parameter overrides — validated exactly as they'll run.
+        posted_params = body.get('parameterOverrides') or {}
+        if not isinstance(posted_params, dict):
+            posted_params = {}
 
         sim_overrides = self._parse_json_dict(
             getattr(sim_def, 'initial_conditions_overrides_json', '') or '{}'
@@ -798,7 +809,10 @@ class SimulationAPI(treeObject):
                 self.manager, cls_name, sim_overrides, posted_overrides,
             )
 
-        verdict = validate_initial_conditions(self.manager, sim_def, initial_by_class)
+        verdict = validate_initial_conditions(
+            self.manager, sim_def, initial_by_class,
+            param_overrides=posted_params,
+        )
         response.media = {
             'success': True,
             'data': {
@@ -920,6 +934,11 @@ class SimulationAPI(treeObject):
                 'lastRecordedStep': getattr(r, 'last_recorded_step', 0),
                 'label': getattr(r, 'label', ''),
                 'errorMessage': getattr(r, 'error_message', ''),
+                # {source_sim: source_run} — non-empty means this run is a
+                # COUPLED run (multi-scale); the page defaults to one.
+                'coupledRunRefs': self._parse_json_dict(
+                    getattr(r, 'coupled_run_refs_json', '') or '{}'
+                ),
             })
         out.sort(key=lambda x: x['startedAt'] or x['name'], reverse=True)
         response.media = {'success': True, 'data': out}
@@ -976,6 +995,16 @@ class SimulationAPI(treeObject):
         field_save_overrides = body.get('fieldSaveOverrides') or {}
         if not isinstance(field_save_overrides, dict):
             field_save_overrides = {}
+        # Per-run parameter overrides (material picker / stage derive).
+        param_overrides = body.get('parameterOverrides') or {}
+        if not isinstance(param_overrides, dict):
+            param_overrides = {}
+        # Coupled source runs {source_sim: source_run} — a new run of a
+        # multi-scale sim must name its sources or it runs uncoupled
+        # (defaults). The page passes the template run's pairing through.
+        coupled_run_refs = body.get('coupledRunRefs') or {}
+        if not isinstance(coupled_run_refs, dict):
+            coupled_run_refs = {}
         # Find the registered class.
         from simulations.simulation_run import SimulationRun as _SR
         try:
@@ -993,6 +1022,8 @@ class SimulationAPI(treeObject):
                 initial_conditions_overrides_json=json.dumps(ic_overrides),
                 time_step_seconds=time_step_seconds,
                 field_save_overrides_json=json.dumps(field_save_overrides),
+                parameter_overrides_json=json.dumps(param_overrides),
+                coupled_run_refs_json=json.dumps(coupled_run_refs),
                 manager=self.manager,
             )
         except Exception as e:

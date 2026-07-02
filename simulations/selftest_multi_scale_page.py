@@ -19,7 +19,8 @@ from simulations.multi_scale_stages import (
     parse_stages,
 )
 from simulations.multi_scale_seed import (
-    SEED_MULTI_SCALE_SIMS, SEED_IC_INTERFACES, MSIM_NAME, IC_MATERIAL_PICKER,
+    SEED_MULTI_SCALE_SIMS, SEED_IC_INTERFACES, SEED_MSIM_GRAPHS,
+    MSIM_NAME, IC_MATERIAL_PICKER,
 )
 from simulations.seed_data import (
     SEED_SIMULATION_DEFINITIONS, SEED_SIMULATION_RUNS, SEED_PENDULUM_SIMSPACES,
@@ -185,6 +186,7 @@ def _seeds():
     coupling_names = {c['name'] for c in SEED_SIMULATION_COUPLINGS}
     scene_names = {s['name'] for s in SEED_PENDULUM_SIMSPACES}
     ic_names = {i['name'] for i in SEED_IC_INTERFACES}
+    graph_names = {g['name'] for g in SEED_MSIM_GRAPHS}
 
     check('demo members reference seeded SimulationDefinitions',
           set(members) <= sim_names, f'members={members}')
@@ -192,10 +194,15 @@ def _seeds():
           set(couplings) <= coupling_names)
     check('primary sim is a member',
           msim['primary_simulation_ref'] in members)
-    check('panel refs resolve (scene + IC interface)',
+    check('panel refs resolve (scene + graphs + IC interface)',
           all((p['kind'] != 'scene' or p['simSpaceRef'] in scene_names)
+              and (p['kind'] != 'graph' or p['graphRef'] in graph_names)
               and (p['kind'] != 'ic' or p['icInterfaceRef'] in ic_names)
-              for p in panels), f'panels={panels}')
+              for p in panels), f'panels={[p["kind"] for p in panels]}')
+    check('graph seeds: y-fields are real bob row fields',
+          all(f in ('energy_total', 'ke', 'pe', 'fwind_x', 'fwind_y', 'fwind_z')
+              for g in SEED_MSIM_GRAPHS
+              for f in json.loads(g['definition'])['yDimensions']))
     check('comparison runs reference seeded runs',
           set(compare.get('runs', [])) <= run_names)
 

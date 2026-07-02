@@ -136,6 +136,7 @@ from simulations.initial_condition_interface_definition import (
 from simulations.multi_scale_seed import (
     SEED_MULTI_SCALE_SIMS,
     SEED_IC_INTERFACES,
+    SEED_MSIM_GRAPHS,
 )
 from polariApiProfiler.apiProfilerAPI import (
     APIProfilerQueryAPI,
@@ -1261,6 +1262,8 @@ class polariServer(treeObject):
              SEED_MULTI_SCALE_SIMS),
             ('InitialConditionInterfaceDefinition', InitialConditionInterfaceDefinition,
              SEED_IC_INTERFACES),
+            # Demo graphs-over-time for the multi-scale page's graph panels.
+            ('GraphDefinition', GraphDefinition, SEED_MSIM_GRAPHS),
             ('SimVariable', SimVariable, SEED_SIM_VARIABLES),
             # Equations: the live-readout set (KE/PE/E_total) PLUS the
             # per-step math each CalculusOperation references. Must seed

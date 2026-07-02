@@ -117,7 +117,17 @@ def run_step(
             return _err('Cycle in cross-class dependencies.', warnings)
 
         # 6. Pre-build common context pieces that don't change per solution.
+        # Per-run parameter overrides layer over the sim def's parameters
+        # (per-run wins) — how one run gets e.g. a different bob mass
+        # from a configured IC interface without touching the sim def.
         params = _parse_json(getattr(sim_def, 'parameters_json', '{}') or '{}', {})
+        if not isinstance(params, dict):
+            params = {}
+        run_params = _parse_json(
+            getattr(run, 'parameter_overrides_json', '{}') or '{}', {}
+        )
+        if isinstance(run_params, dict) and run_params:
+            params = {**params, **run_params}
         sim_overrides = _parse_json(
             getattr(sim_def, 'initial_conditions_overrides_json', '{}') or '{}', {}
         )
@@ -152,7 +162,10 @@ def run_step(
                     manager, cls_name, sim_overrides, run_overrides,
                 )
 
-            verdict = validate_initial_conditions(manager, sim_def, initial_by_class)
+            verdict = validate_initial_conditions(
+                manager, sim_def, initial_by_class,
+                param_overrides=run_params if isinstance(run_params, dict) else None,
+            )
             if verdict['hasValidator']:
                 if verdict['error']:
                     return _err(
@@ -654,6 +667,7 @@ def validate_initial_conditions(
     manager,
     sim_def,
     initial_conditions_by_class: Dict[str, Dict[str, Any]],
+    param_overrides: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Run the sim def's `initial_conditions_validator_ref` solution
     against the proposed initial conditions and return a structured
@@ -707,6 +721,10 @@ def validate_initial_conditions(
             flat[f'{cls_name}.{fname}'] = fval
     params = _parse_json(getattr(sim_def, 'parameters_json', '{}') or '{}', {})
     if isinstance(params, dict):
+        # Per-run parameter overrides (e.g. a material picker's mass)
+        # participate in validation exactly as they will in the run.
+        if isinstance(param_overrides, dict) and param_overrides:
+            params = {**params, **param_overrides}
         for k, v in params.items():
             flat[f'params.{k}'] = v
     flat['participating_classes'] = list(initial_conditions_by_class.keys())
