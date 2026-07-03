@@ -76,6 +76,8 @@ class StateBuildingBlock:
         icon='',
         color='',
         is_built_in=True,
+        execution_status='real',
+        execution_note='',
     ):
         self.class_name = class_name
         self.display_name = display_name
@@ -89,6 +91,13 @@ class StateBuildingBlock:
         self.icon = icon
         self.color = color
         self.is_built_in = is_built_in
+        # HONESTY TAG (P1): what actually happens when the engine hits
+        # this node — 'real' (fully executes), 'stub' (recognized but
+        # incomplete), 'authoring-only' (no engine handler yet; the
+        # editor can author it but it no-ops at runtime). Surfaced in
+        # the editor palette so nobody authors silent no-ops.
+        self.execution_status = execution_status
+        self.execution_note = execution_note
 
     def get_template(self, runtime):
         """Return the template string for *runtime*, or None."""
@@ -115,6 +124,8 @@ class StateBuildingBlock:
             'icon': self.icon,
             'color': self.color,
             'isBuiltIn': self.is_built_in,
+            'executionStatus': self.execution_status,
+            'executionNote': self.execution_note,
         }
 
     @classmethod
@@ -136,6 +147,8 @@ class StateBuildingBlock:
             icon=data.get('icon', ''),
             color=data.get('color', ''),
             is_built_in=data.get('isBuiltIn', True),
+            execution_status=data.get('executionStatus', 'real'),
+            execution_note=data.get('executionNote', ''),
         )
 
 
@@ -337,6 +350,8 @@ class StateBuildingBlockRegistry:
                 ],
                 display_fields=[],
                 icon='checklist', color='#00BCD4',
+                execution_status='authoring-only',
+                execution_note='No engine handler yet - arrives with the display event/validation bridge (P4).',
             ),
 
             # === Loops ===
@@ -351,7 +366,7 @@ class StateBuildingBlockRegistry:
                     CodeTemplate('typescript_frontend', 'for (let {iterator} = {start}; {iterator} < {end}; {iterator} += {step}) {\n    {body}\n}'),
                 ],
                 default_input_slots=[{'name': 'input', 'displayName': 'Input', 'slotType': 'input', 'dataType': 'any', 'isRequired': True}],
-                default_output_slots=[{'name': 'output', 'displayName': 'Output', 'slotType': 'output', 'dataType': 'any', 'isRequired': False}],
+                default_output_slots=[{'name': 'body', 'displayName': 'Body', 'slotType': 'output', 'dataType': 'any', 'isRequired': False}, {'name': 'done', 'displayName': 'Done', 'slotType': 'output', 'dataType': 'any', 'isRequired': False}],
                 display_fields=[],
                 icon='loop', color='#2196F3',
             ),
@@ -366,7 +381,7 @@ class StateBuildingBlockRegistry:
                     CodeTemplate('typescript_frontend', 'while ({condition}) {\n    {body}\n}'),
                 ],
                 default_input_slots=[{'name': 'input', 'displayName': 'Input', 'slotType': 'input', 'dataType': 'any', 'isRequired': True}],
-                default_output_slots=[{'name': 'output', 'displayName': 'Output', 'slotType': 'output', 'dataType': 'any', 'isRequired': False}],
+                default_output_slots=[{'name': 'body', 'displayName': 'Body', 'slotType': 'output', 'dataType': 'any', 'isRequired': False}, {'name': 'done', 'displayName': 'Done', 'slotType': 'output', 'dataType': 'any', 'isRequired': False}],
                 display_fields=[],
                 icon='refresh', color='#2196F3',
             ),
@@ -381,7 +396,7 @@ class StateBuildingBlockRegistry:
                     CodeTemplate('typescript_frontend', 'for (const {item} of {collection}) {\n    {body}\n}'),
                 ],
                 default_input_slots=[{'name': 'collection', 'displayName': 'Collection', 'slotType': 'input', 'dataType': 'array', 'isRequired': True}],
-                default_output_slots=[{'name': 'output', 'displayName': 'Output', 'slotType': 'output', 'dataType': 'any', 'isRequired': False}],
+                default_output_slots=[{'name': 'body', 'displayName': 'Body', 'slotType': 'output', 'dataType': 'any', 'isRequired': False}, {'name': 'done', 'displayName': 'Done', 'slotType': 'output', 'dataType': 'any', 'isRequired': False}],
                 display_fields=[],
                 icon='format_list_numbered', color='#2196F3',
             ),
@@ -416,6 +431,8 @@ class StateBuildingBlockRegistry:
                 default_output_slots=[{'name': 'output', 'displayName': 'Output', 'slotType': 'output', 'dataType': 'any', 'isRequired': False}],
                 display_fields=[],
                 icon='functions', color='#9C27B0',
+                execution_status='stub',
+                execution_note='Recognized but does not invoke anything - SolutionInvocation arrives in P3.',
             ),
             StateBuildingBlock(
                 class_name='FilterList',
@@ -510,6 +527,8 @@ class StateBuildingBlockRegistry:
                 default_output_slots=[{'name': 'output$', 'displayName': 'Transformed Stream', 'slotType': 'output', 'dataType': 'Observable', 'isRequired': False}],
                 display_fields=[],
                 icon='transform', color='#E91E63',
+                execution_status='authoring-only',
+                execution_note='Frontend-runtime node - arrives with the frontend execution runtime (P5).',
             ),
 
             # === Cross-Runtime ===
@@ -526,6 +545,23 @@ class StateBuildingBlockRegistry:
                 default_output_slots=[{'name': 'result', 'displayName': 'Backend Response', 'slotType': 'output', 'dataType': 'any', 'isRequired': False}],
                 display_fields=[],
                 icon='cloud_download', color='#FF5722',
+                execution_status='authoring-only',
+                execution_note='No engine handler yet - solution composition arrives in P3/P5.',
+            ),
+            StateBuildingBlock(
+                class_name='CollectionOperation',
+                display_name='Collection Operation',
+                description='Get/set/append/measure items in a dict or list variable',
+                category='Data',
+                supported_runtimes=[],
+                code_templates=[
+                    CodeTemplate('python_backend', '{result} = {target}[{key}]  # or mutation per operationType'),
+                    CodeTemplate('typescript_frontend', 'const {result} = {target}[{key}]; // or mutation per operationType'),
+                ],
+                default_input_slots=[{'name': 'input', 'displayName': 'Input', 'slotType': 'input', 'dataType': 'any', 'isRequired': True}],
+                default_output_slots=[{'name': 'output', 'displayName': 'Output', 'slotType': 'output', 'dataType': 'any', 'isRequired': False}],
+                display_fields=[],
+                icon='dataset', color='#00BCD4',
             ),
             StateBuildingBlock(
                 class_name='EmitFrontendEvent',
@@ -540,6 +576,8 @@ class StateBuildingBlockRegistry:
                 default_output_slots=[],
                 display_fields=[],
                 icon='cloud_upload', color='#FF5722',
+                execution_status='authoring-only',
+                execution_note='No engine handler yet - arrives with the frontend event bridge (P4/P5).',
             ),
         ]
 

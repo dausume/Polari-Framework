@@ -55,6 +55,11 @@ INITIAL_STATE_CLASSES = {
     'InitialState', 'DirectInvocation', 'FormSubscription',
     'LogicFlowEntry', 'BackendStateChange',
     'SimulationStateStep',
+    # Validator entry — the graph the IC validator / stage-gate flow
+    # executes starts here (was authorable in the editor but missing
+    # from this set, so those solutions errored with "No initial state
+    # found" — the P1 contract fix).
+    'InitialConditionsValidatorEntry',
 }
 
 # State classes that are terminal (no further traversal)
@@ -74,7 +79,24 @@ TERMINAL_STATE_CLASSES = {
     # to a SimStepComposition solution's context for explicit
     # composition.
     'SimStepContribution',
+    # ValidationResult terminates validator/gate graphs: it binds its
+    # configured outcome / reason / derived values into the final
+    # context, which validate_initial_conditions and
+    # evaluate_stage_gate read back out (P1 — previously authorable
+    # but unregistered, so verdicts were silently lost).
+    'ValidationResult',
+    # EmitEvent terminates event-emitting graphs: the resolved payload
+    # lands in the context's `_emitted_events` list (shape below) for
+    # the display/event bridge to consume.
+    'EmitEvent',
 }
+
+# Sentinel context key EmitEvent appends to. Each entry is
+#   { 'name': <event name>, 'payload': {<key>: <resolved value>, ...},
+#     'sourceState': <state name> }
+# Consumers (the display event bridge, tests, callers of
+# _extract_final_context) read the list off the final context.
+EMITTED_EVENTS_KEY = '_emitted_events'
 
 # Sentinel context key the SimStepContribution terminator appends to.
 # Resolution solutions read this same key to access prior partial
@@ -465,6 +487,135 @@ def _evaluate_condition(condition_data, context):
         return False
 
 
+DEFAULT_LOOP_BUDGET = 10_000
+
+
+def _loop_frame_for(loop_stack, state_name):
+    """The active frame for this loop node, or None on first entry."""
+    for frame in reversed(loop_stack):
+        if frame['name'] == state_name:
+            return frame
+    return None
+
+
+def _loop_budget(field_values):
+    try:
+        budget = int(field_values.get('maxIterations') or 0)
+    except (TypeError, ValueError):
+        budget = 0
+    return budget if budget > 0 else DEFAULT_LOOP_BUDGET
+
+
+def _check_loop_budget(frame, state_name):
+    if frame['iterations'] > frame['budget']:
+        raise ValueError(
+            f"Loop '{state_name}' exceeded its iteration budget "
+            f"({frame['budget']}). If this many iterations is intended, "
+            f"raise maxIterations on the loop node."
+        )
+
+
+def _coerce_number(value, default):
+    """Best-effort numeric coercion for loop bounds (int preferred)."""
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, (int, float)):
+        return value
+    try:
+        f = float(value)
+        return int(f) if f == int(f) else f
+    except (TypeError, ValueError):
+        return default
+
+
+def _resolve_collection(source_var, field_values, context):
+    """Resolve a list source: a context variable name, a
+    ValueSourceConfig under 'sourceValue', or a literal."""
+    raw = field_values.get('sourceValue')
+    if isinstance(raw, dict) and 'sourceType' in raw:
+        resolved = _resolve_value_source_config(raw, context)
+    elif source_var:
+        resolved = _safe_resolve_value(source_var, context)
+    else:
+        resolved = []
+    if isinstance(resolved, tuple):
+        resolved = list(resolved)
+    return resolved if isinstance(resolved, list) else []
+
+
+class _scoped_vars:
+    """Temporarily bind loop/element variables in the flat context,
+    restoring (or removing) them afterwards so element bindings never
+    leak into later states."""
+
+    def __init__(self, context, names):
+        self.context = context
+        self.names = names
+        self.saved = {}
+
+    def __enter__(self):
+        sentinel = object()
+        self._sentinel = sentinel
+        for n in self.names:
+            self.saved[n] = self.context.get(n, sentinel)
+
+        def set_var(name, value):
+            self.context[name] = value
+        return set_var
+
+    def __exit__(self, exc_type, exc, tb):
+        for n, old in self.saved.items():
+            if old is self._sentinel:
+                self.context.pop(n, None)
+            else:
+                self.context[n] = old
+        return False
+
+
+def _collection_operation(context, op, target_var, key, value, state_name):
+    """Basic dict/list verbs over a context variable."""
+    target = context.get(target_var)
+    if op == 'dictSet':
+        if not isinstance(target, dict):
+            target = {}
+            context[target_var] = target
+        target[key] = value
+        return target
+    if op == 'dictGet':
+        return target.get(key) if isinstance(target, dict) else None
+    if op == 'dictKeys':
+        return list(target.keys()) if isinstance(target, dict) else []
+    if op == 'dictDelete':
+        if isinstance(target, dict):
+            target.pop(key, None)
+        return target
+    if op == 'listAppend':
+        if not isinstance(target, list):
+            target = []
+            context[target_var] = target
+        target.append(value)
+        return target
+    if op == 'listGet':
+        try:
+            return target[int(key)] if isinstance(target, list) else None
+        except (IndexError, TypeError, ValueError):
+            return None
+    if op == 'listSet':
+        if isinstance(target, list):
+            try:
+                target[int(key)] = value
+            except (IndexError, TypeError, ValueError):
+                pass
+        return target
+    if op == 'listLength':
+        return len(target) if isinstance(target, (list, dict, str)) else 0
+    raise ValueError(
+        f"'{state_name}': unknown collection operation {op!r}. Expected "
+        f"one of: dictGet, dictSet, dictKeys, dictDelete, listAppend, "
+        f"listGet, listSet, listLength."
+    )
+
+
 class SolutionExecutionEngine:
     """
     Walks the state graph from initial state, evaluating operations,
@@ -549,10 +700,30 @@ class SolutionExecutionEngine:
         if input_params:
             context.update(input_params)
 
-        # Walk the state graph
+        # Walk the state graph.
+        #
+        # LOOP FRAMES: real iteration lives here, not in hand-wired
+        # back-edges. When a loop node (ForLoop/WhileLoop/ForEachLoop)
+        # decides to iterate, execution enters its BODY (output slot 0);
+        # when the body path ends — either at a node with no outgoing
+        # connector (auto-return) or via an explicit connector back to
+        # the loop node — the loop node re-evaluates. When the loop is
+        # done it exits via output slot 1 ("done"). BreakStatement jumps
+        # to the innermost loop's done-slot; ContinueStatement jumps back
+        # to the innermost loop node. Each frame carries an iteration
+        # budget (node's maxIterations, default 10 000) with a plain-
+        # language error on exhaustion.
+        #
+        # BOUNDED-BUT-LARGE, honestly: the global visit cap below is a
+        # backstop against runaway graphs, not a semantic limit. True
+        # unbounded execution is intentionally not offered — with
+        # per-loop budgets + this backstop the engine is Turing complete
+        # for any computation that fits the budgets, which is the same
+        # practical deal every real machine makes with finite memory.
         current_state = initial_state
         step_index = 0
-        max_steps = 1000  # Safety limit to prevent infinite loops
+        max_steps = 200_000  # Global visit backstop (see note above)
+        loop_stack = []      # Innermost frame last
         trace_collector = []
 
         try:
@@ -581,13 +752,16 @@ class SolutionExecutionEngine:
                 status = 'completed'
 
                 # Evaluate the state's operation
+                loop_action = None
                 try:
                     result = self._evaluate_state(
-                        state_class, field_values, context, state_name, log_output
+                        state_class, field_values, context, state_name, log_output,
+                        loop_stack=loop_stack,
                     )
                     execution_result = result.get('result')
                     branch_taken = result.get('branch_taken')
                     branch_label = result.get('branch_label')
+                    loop_action = result.get('loop_action')
                 except Exception as e:
                     execution_error = str(e)
                     status = 'errored'
@@ -637,10 +811,41 @@ class SolutionExecutionEngine:
                     trace.complete(execution_result)
                     return trace
 
-                # Determine next state via connector traversal
-                next_state = self._get_next_state(
-                    current_state, states_by_name, context, branch_taken
-                )
+                # Determine next state. Loop actions route explicitly;
+                # everything else follows connectors as before.
+                if loop_action == 'body':
+                    # Enter the loop body (slot 0). An empty body loops
+                    # straight back to the loop node (budget-guarded).
+                    next_state = self._slot_target(
+                        current_state, states_by_name, 0
+                    ) or current_state
+                elif loop_action == 'exit':
+                    # The loop handler already popped its frame; leave
+                    # via the done-slot (slot 1). A missing done
+                    # connector falls through to the dead-end rule so
+                    # an enclosing loop resumes (or execution ends).
+                    next_state = self._slot_target(
+                        current_state, states_by_name, 1
+                    )
+                elif loop_action == 'break':
+                    frame = loop_stack.pop()
+                    loop_node = states_by_name.get(frame['name'])
+                    next_state = (
+                        self._slot_target(loop_node, states_by_name, 1)
+                        if loop_node else None
+                    )
+                elif loop_action == 'continue':
+                    next_state = states_by_name.get(loop_stack[-1]['name'])
+                else:
+                    next_state = self._get_next_state(
+                        current_state, states_by_name, context, branch_taken
+                    )
+
+                # Dead-end rule: a body path that simply ends returns to
+                # the innermost active loop for its next iteration.
+                if next_state is None and loop_stack:
+                    next_state = states_by_name.get(loop_stack[-1]['name'])
+
                 current_state = next_state
                 step_index += 1
 
@@ -674,7 +879,8 @@ class SolutionExecutionEngine:
             }
         return variables
 
-    def _evaluate_state(self, state_class, field_values, context, state_name, log_output):
+    def _evaluate_state(self, state_class, field_values, context, state_name,
+                        log_output, loop_stack=None):
         """
         Evaluate a state's operation, modifying context as needed.
 
@@ -682,15 +888,22 @@ class SolutionExecutionEngine:
             'result': the execution result value (if any)
             'branch_taken': which branch was taken (for conditionals)
             'branch_label': human-readable label for the branch
+            'loop_action': 'body' | 'exit' | 'break' | 'continue' when a
+                loop/break/continue node routed execution (None otherwise)
         """
+        if loop_stack is None:
+            loop_stack = []
         # ===== TOP-LEVEL DEBUG =====
         # print(f'[ENGINE DEBUG] _evaluate_state: state_name={state_name!r} state_class={state_class!r}', flush=True)
         # print(f'[ENGINE DEBUG]   field_values keys={list(field_values.keys())}', flush=True)
         # ============================
 
-        result = {'result': None, 'branch_taken': None, 'branch_label': None}
+        result = {'result': None, 'branch_taken': None, 'branch_label': None,
+                  'loop_action': None}
 
-        if state_class in ('InitialState', 'DirectInvocation', 'SimulationStateStep'):
+        if state_class in ('InitialState', 'DirectInvocation', 'SimulationStateStep',
+                           'FormSubscription', 'LogicFlowEntry',
+                           'BackendStateChange', 'InitialConditionsValidatorEntry'):
             # Entry-point states — input params have already been merged
             # into context by the caller. We log what was supplied so the
             # ExecutionTrace shows the starting state. SimulationStateStep
@@ -844,29 +1057,164 @@ class SolutionExecutionEngine:
                 log_output.append(f'[{state_name}] No condition defined -> branch default')
 
         elif state_class == 'ForLoop':
-            # Capture loop config in context (full loop execution in v2)
-            iterator = field_values.get('iterator', 'i')
-            start = _safe_resolve_value(field_values.get('start', '0'), context)
-            end = _safe_resolve_value(field_values.get('end', '10'), context)
-            step = _safe_resolve_value(field_values.get('step', '1'), context)
-            context[iterator] = start
-            result['result'] = {'loop': 'for', 'iterator': iterator, 'start': start, 'end': end, 'step': step}
-            log_output.append(f'[{state_name}] for {iterator} in range({start}, {end}, {step})')
+            # Real indexed loop. Editor fields: iteratorVariable/
+            # startValue/endValue/stepValue/maxIterations (legacy names
+            # iterator/start/end/step accepted). Range semantics match
+            # Python's range(): end is EXCLUSIVE; negative steps count
+            # down. Body = output slot 0, done = output slot 1.
+            iterator = (field_values.get('iteratorVariable')
+                        or field_values.get('iterator') or 'i')
+            frame = _loop_frame_for(loop_stack, state_name)
+            if frame is None:
+                start = _coerce_number(_safe_resolve_value(
+                    field_values.get('startValue',
+                                     field_values.get('start', 0)), context), 0)
+                end = _coerce_number(_safe_resolve_value(
+                    field_values.get('endValue',
+                                     field_values.get('end', 10)), context), 10)
+                step = _coerce_number(_safe_resolve_value(
+                    field_values.get('stepValue',
+                                     field_values.get('step', 1)), context), 1)
+                if step == 0:
+                    raise ValueError(
+                        f"Loop '{state_name}': step is 0 — the loop would "
+                        f"never advance. Use a positive or negative step."
+                    )
+                frame = {
+                    'name': state_name, 'kind': 'for', 'current': start,
+                    'end': end, 'step': step, 'iterations': 0,
+                    'budget': _loop_budget(field_values),
+                }
+                loop_stack.append(frame)
+            else:
+                frame['current'] += frame['step']
+            cont = ((frame['step'] > 0 and frame['current'] < frame['end'])
+                    or (frame['step'] < 0 and frame['current'] > frame['end']))
+            if cont:
+                frame['iterations'] += 1
+                _check_loop_budget(frame, state_name)
+                context[iterator] = frame['current']
+                result['loop_action'] = 'body'
+                result['result'] = {'loop': 'for', 'iterator': iterator,
+                                    'value': frame['current'],
+                                    'iteration': frame['iterations']}
+                log_output.append(
+                    f'[{state_name}] iteration {frame["iterations"]}: '
+                    f'{iterator} = {frame["current"]}'
+                )
+            else:
+                loop_stack.remove(frame)
+                result['loop_action'] = 'exit'
+                result['result'] = {'loop': 'for', 'completed': True,
+                                    'iterations': frame['iterations']}
+                log_output.append(
+                    f'[{state_name}] done after {frame["iterations"]} iterations'
+                )
 
         elif state_class == 'WhileLoop':
+            # Real condition loop. `condition` accepts a ConditionalChain
+            # dict (links), a legacy condition dict, or a plain string
+            # like "x < 10". Body = slot 0, done = slot 1.
             condition = field_values.get('condition', '')
-            result['result'] = {'loop': 'while', 'condition': str(condition)}
-            log_output.append(f'[{state_name}] while {condition}')
+            frame = _loop_frame_for(loop_stack, state_name)
+            if frame is None:
+                frame = {'name': state_name, 'kind': 'while',
+                         'iterations': 0, 'budget': _loop_budget(field_values)}
+                loop_stack.append(frame)
+            cond_ok = self._evaluate_condition_any(condition, context, log_output)
+            if cond_ok:
+                frame['iterations'] += 1
+                _check_loop_budget(frame, state_name)
+                result['loop_action'] = 'body'
+                result['result'] = {'loop': 'while',
+                                    'iteration': frame['iterations']}
+                log_output.append(
+                    f'[{state_name}] condition true — iteration '
+                    f'{frame["iterations"]}'
+                )
+            else:
+                loop_stack.remove(frame)
+                result['loop_action'] = 'exit'
+                result['result'] = {'loop': 'while', 'completed': True,
+                                    'iterations': frame['iterations']}
+                log_output.append(
+                    f'[{state_name}] condition false — done after '
+                    f'{frame["iterations"]} iterations'
+                )
 
         elif state_class == 'ForEachLoop':
-            item = field_values.get('item', 'item')
-            collection_str = field_values.get('collection', '[]')
-            collection = _safe_resolve_value(collection_str, context)
-            if isinstance(collection, (list, tuple)) and len(collection) > 0:
-                context[item] = collection[0]
-            coll_size = len(collection) if isinstance(collection, (list, tuple)) else 0
-            result['result'] = {'loop': 'foreach', 'item': item, 'collection_size': coll_size}
-            log_output.append(f'[{state_name}] for each {item} in collection ({coll_size} items)')
+            # Real collection loop. `collection` may be a context variable
+            # name, a ValueSourceConfig, or a JSON literal; the element
+            # lands in `item` (editor: itemVariable) and its position in
+            # `indexVariable` (default '<item>_index').
+            item = (field_values.get('itemVariable')
+                    or field_values.get('item') or 'item')
+            index_var = field_values.get('indexVariable') or f'{item}_index'
+            frame = _loop_frame_for(loop_stack, state_name)
+            if frame is None:
+                raw = field_values.get('collection', '[]')
+                if isinstance(raw, dict) and 'sourceType' in raw:
+                    collection = _resolve_value_source_config(raw, context)
+                else:
+                    collection = _safe_resolve_value(raw, context)
+                if not isinstance(collection, (list, tuple)):
+                    log_output.append(
+                        f'[{state_name}] collection is not a list '
+                        f'({type(collection).__name__}) — treating as empty.'
+                    )
+                    collection = []
+                frame = {'name': state_name, 'kind': 'foreach',
+                         'items': list(collection), 'index': 0,
+                         'iterations': 0, 'budget': _loop_budget(field_values)}
+                loop_stack.append(frame)
+            else:
+                frame['index'] += 1
+            if frame['index'] < len(frame['items']):
+                frame['iterations'] += 1
+                _check_loop_budget(frame, state_name)
+                context[item] = frame['items'][frame['index']]
+                context[index_var] = frame['index']
+                result['loop_action'] = 'body'
+                result['result'] = {'loop': 'foreach', 'index': frame['index'],
+                                    'item': context[item]}
+                log_output.append(
+                    f'[{state_name}] item {frame["index"] + 1}/'
+                    f'{len(frame["items"])}: {item} = {context[item]!r}'
+                )
+            else:
+                loop_stack.remove(frame)
+                result['loop_action'] = 'exit'
+                result['result'] = {'loop': 'foreach', 'completed': True,
+                                    'iterations': frame['iterations']}
+                log_output.append(
+                    f'[{state_name}] done after {len(frame["items"])} items'
+                )
+
+        elif state_class == 'BreakStatement':
+            if not loop_stack:
+                raise ValueError(
+                    f"'{state_name}': Break used outside of a loop — there "
+                    f"is no loop to break out of."
+                )
+            result['loop_action'] = 'break'
+            result['result'] = f'break out of {loop_stack[-1]["name"]}'
+            log_output.append(
+                f'[{state_name}] breaking out of loop '
+                f'\'{loop_stack[-1]["name"]}\''
+            )
+
+        elif state_class == 'ContinueStatement':
+            if not loop_stack:
+                raise ValueError(
+                    f"'{state_name}': Continue used outside of a loop — "
+                    f"there is no loop to continue."
+                )
+            result['loop_action'] = 'continue'
+            result['result'] = f'continue loop {loop_stack[-1]["name"]}'
+            log_output.append(
+                f'[{state_name}] continuing loop '
+                f'\'{loop_stack[-1]["name"]}\''
+            )
 
         elif state_class == 'FunctionCall':
             func_name = field_values.get('functionName', '')
@@ -1316,14 +1664,169 @@ class SolutionExecutionEngine:
             log_output.append(f'[{state_name}] {result["result"]}')
 
         elif state_class == 'FilterList':
+            # Real filtering: each element is bound to `itemVariable`
+            # (default 'x') and kept when the condition holds. Condition
+            # accepts the same shapes WhileLoop does.
             source_var = field_values.get('sourceVariable', '')
             result_var = field_values.get('resultVariable', '')
-            filter_condition = field_values.get('filterCondition', {})
-            source = context.get(source_var, [])
-            # Basic filtering - pass through for now
+            item_var = field_values.get('itemVariable', 'x')
+            condition = (field_values.get('filterCondition')
+                         or field_values.get('condition') or {})
+            source = _resolve_collection(source_var, field_values, context)
+            kept = []
+            with _scoped_vars(context, [item_var]) as set_var:
+                for el in source:
+                    set_var(item_var, el)
+                    if self._evaluate_condition_any(condition, context, None):
+                        kept.append(el)
             if result_var:
-                context[result_var] = source
-            result['result'] = f'Filtered {len(source) if isinstance(source, list) else 0} items'
+                context[result_var] = kept
+            result['result'] = kept
+            log_output.append(
+                f'[{state_name}] kept {len(kept)} of {len(source)} items'
+                + (f' -> {result_var}' if result_var else '')
+            )
+
+        elif state_class == 'MapList':
+            # Transform each element: bind to `itemVariable` (default
+            # 'x'), evaluate `valueSource` (a ValueSourceConfig — incl.
+            # from_latex for real math) or `expression` (simple
+            # space-separated "left op right" arithmetic, e.g. "x * x").
+            source_var = field_values.get('sourceVariable', '')
+            result_var = field_values.get('resultVariable', '')
+            item_var = field_values.get('itemVariable', 'x')
+            source = _resolve_collection(source_var, field_values, context)
+            mapped = []
+            with _scoped_vars(context, [item_var]) as set_var:
+                for el in source:
+                    set_var(item_var, el)
+                    mapped.append(self._eval_element_expression(
+                        field_values, context, item_var))
+            if result_var:
+                context[result_var] = mapped
+            result['result'] = mapped
+            log_output.append(
+                f'[{state_name}] mapped {len(mapped)} items'
+                + (f' -> {result_var}' if result_var else '')
+            )
+
+        elif state_class == 'ReduceList':
+            # Fold the list: `accumulatorVariable` (default 'acc') starts
+            # at `initialValue`, each element binds to `itemVariable`,
+            # and the expression/valueSource computes the next
+            # accumulator.
+            source_var = field_values.get('sourceVariable', '')
+            result_var = field_values.get('resultVariable', '')
+            item_var = field_values.get('itemVariable', 'x')
+            acc_var = field_values.get('accumulatorVariable', 'acc')
+            initial = _safe_resolve_value(
+                field_values.get('initialValue', 0), context)
+            source = _resolve_collection(source_var, field_values, context)
+            acc = initial
+            with _scoped_vars(context, [item_var, acc_var]) as set_var:
+                for el in source:
+                    set_var(item_var, el)
+                    set_var(acc_var, acc)
+                    acc = self._eval_element_expression(
+                        field_values, context, item_var)
+            if result_var:
+                context[result_var] = acc
+            result['result'] = acc
+            log_output.append(
+                f'[{state_name}] reduced {len(source)} items to {acc!r}'
+                + (f' -> {result_var}' if result_var else '')
+            )
+
+        elif state_class == 'CollectionOperation':
+            # Basic dict/list mutation — the missing collection verbs.
+            # operationType: dictGet | dictSet | dictKeys | dictDelete |
+            # listAppend | listGet | listSet | listLength.
+            op = field_values.get('operationType', '')
+            target_var = field_values.get('targetVariable', '')
+            key = _safe_resolve_value(field_values.get('key', ''), context)
+            raw_value = field_values.get('value', None)
+            if isinstance(raw_value, dict) and 'sourceType' in raw_value:
+                value = _resolve_value_source_config(raw_value, context)
+            else:
+                value = _safe_resolve_value(raw_value, context)
+            result_var = field_values.get('resultVariable', '')
+            out = _collection_operation(
+                context, op, target_var, key, value, state_name)
+            if result_var:
+                context[result_var] = out
+            result['result'] = out
+            log_output.append(f'[{state_name}] {op} on {target_var!r} -> {out!r}')
+
+        elif state_class == 'ValidationResult':
+            # Terminal for validator/gate graphs — binds the verdict into
+            # the final context, exactly the contract
+            # validate_initial_conditions / evaluate_stage_gate read:
+            # outcome ('valid'|'complete'|'pass' passes; numeric
+            # `complete` fallback also honored), reason, derivedValues /
+            # repairedValues, plus free-form outputMappings.
+            def _resolve_flexible(raw):
+                if isinstance(raw, dict) and 'sourceType' in raw:
+                    return _resolve_value_source_config(raw, context)
+                return _safe_resolve_value(raw, context)
+
+            wrote = []
+            for key in ('outcome', 'reason', 'complete'):
+                if key in field_values:
+                    context[key] = _resolve_flexible(field_values[key])
+                    wrote.append(key)
+            for key in ('derivedValues', 'repairedValues'):
+                mapping = field_values.get(key)
+                if isinstance(mapping, dict) and 'sourceType' not in mapping:
+                    context[key] = {
+                        k: _resolve_flexible(v) for k, v in mapping.items()
+                    }
+                    wrote.append(key)
+                elif mapping is not None:
+                    context[key] = _resolve_flexible(mapping)
+                    wrote.append(key)
+            for mapping in field_values.get('outputMappings', []) or []:
+                if not isinstance(mapping, dict):
+                    continue
+                out_name = mapping.get('outputFieldName', '')
+                if out_name:
+                    context[out_name] = _resolve_value_source_config(
+                        mapping.get('valueSource'), context)
+                    wrote.append(out_name)
+            result['result'] = context.get('outcome', context.get('complete'))
+            log_output.append(
+                f'[{state_name}] validation verdict bound: '
+                f'{", ".join(wrote) if wrote else "(nothing configured)"}'
+            )
+
+        elif state_class == 'EmitEvent':
+            # Terminal for event-emitting graphs — the resolved payload
+            # lands in context[EMITTED_EVENTS_KEY] (shape documented at
+            # the constant) for the display/event bridge to consume.
+            event_name = (field_values.get('eventName')
+                          or field_values.get('name') or state_name)
+            payload = {}
+            raw_payload = field_values.get('payload')
+            if isinstance(raw_payload, dict) and 'sourceType' not in raw_payload:
+                for k, v in raw_payload.items():
+                    if isinstance(v, dict) and 'sourceType' in v:
+                        payload[k] = _resolve_value_source_config(v, context)
+                    else:
+                        payload[k] = _safe_resolve_value(v, context)
+            for mapping in field_values.get('payloadMappings', []) or []:
+                if not isinstance(mapping, dict):
+                    continue
+                out_name = mapping.get('outputFieldName', '')
+                if out_name:
+                    payload[out_name] = _resolve_value_source_config(
+                        mapping.get('valueSource'), context)
+            event = {'name': event_name, 'payload': payload,
+                     'sourceState': state_name}
+            context.setdefault(EMITTED_EVENTS_KEY, []).append(event)
+            result['result'] = event
+            log_output.append(
+                f'[{state_name}] emitted event {event_name!r} with '
+                f'{len(payload)} payload field(s)'
+            )
 
         else:
             # Pass-through for unhandled types
@@ -1370,6 +1873,86 @@ class SolutionExecutionEngine:
         except (TypeError, ValueError) as e:
             log_output.append(f'  Link evaluation error: {e}')
             return False
+
+    def _evaluate_condition_any(self, condition, context, log_output=None):
+        """Evaluate any condition shape the editor produces:
+        - a ConditionalChain-style dict with 'links' (ValueSourceConfig
+          operands) — combined with each link's logicalOperator;
+        - a legacy condition dict (leftOperand/operator/rightOperand or
+          compound 'conditions');
+        - a plain string: either "left op right" (spaced, symbol
+          operators) or a bare variable evaluated for truthiness.
+        """
+        if log_output is None:
+            log_output = []
+        if isinstance(condition, dict) and condition.get('links'):
+            links = condition['links']
+            default_op = condition.get('defaultLogicalOperator', 'AND').upper()
+            combined = None
+            prev_op = default_op
+            for link in links:
+                link_result = self._evaluate_chain_link(link, context, log_output)
+                if combined is None:
+                    combined = link_result
+                else:
+                    if prev_op == 'OR':
+                        combined = combined or link_result
+                    elif prev_op == 'NOT':
+                        combined = combined and (not link_result)
+                    elif prev_op == 'XOR':
+                        combined = combined ^ link_result
+                    else:
+                        combined = combined and link_result
+                prev_op = link.get('logicalOperator', default_op).upper()
+            return bool(combined)
+        if isinstance(condition, dict):
+            return _evaluate_condition(condition, context)
+        if isinstance(condition, str) and condition.strip():
+            parts = condition.split()
+            if len(parts) == 3 and parts[1] in COMPARISON_OPS:
+                left = _safe_resolve_value(parts[0], context)
+                right = _safe_resolve_value(parts[2], context)
+                try:
+                    return bool(COMPARISON_OPS[parts[1]](left, right))
+                except (TypeError, ValueError):
+                    return False
+            return bool(_safe_resolve_value(condition, context))
+        return False
+
+    def _eval_element_expression(self, field_values, context, item_var):
+        """Per-element expression for Map/Reduce: a `valueSource`
+        (ValueSourceConfig — including from_latex for real math) or an
+        `expression` string, either "left op right" (spaced, arithmetic
+        symbol/name operators) or a single resolvable term."""
+        value_source = field_values.get('valueSource')
+        if isinstance(value_source, dict) and 'sourceType' in value_source:
+            return _resolve_value_source_config(value_source, context)
+        expression = str(field_values.get('expression', item_var)).strip()
+        parts = expression.split()
+        if len(parts) == 3 and parts[1] in ARITHMETIC_OPS:
+            left = _safe_resolve_value(parts[0], context)
+            right = _safe_resolve_value(parts[2], context)
+            try:
+                return ARITHMETIC_OPS[parts[1]](left, right)
+            except (TypeError, ZeroDivisionError):
+                return None
+        return _safe_resolve_value(expression, context)
+
+    def _slot_target(self, state, states_by_name, slot_index):
+        """The state a given OUTPUT slot's first connector points to
+        (slot 0 = loop body, slot 1 = loop done). None when the slot or
+        its connector is absent."""
+        if not state:
+            return None
+        output_slots = [s for s in state.get('slots', [])
+                        if not s.get('isInput', False)]
+        if slot_index >= len(output_slots):
+            return None
+        for conn in output_slots[slot_index].get('connectors', []):
+            target_name = conn.get('targetStateName')
+            if target_name and target_name in states_by_name:
+                return states_by_name[target_name]
+        return None
 
     def _get_next_state(self, current_state, states_by_name, context, branch_taken):
         """
