@@ -42,11 +42,13 @@ it failed).
 """
 
 import json
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from polariNoCode.SolutionExecutionEngine import SolutionExecutionEngine
 from polariNoCode.stepping import StepConfig
 from simulations.simulation_coupling import apply_couplings
+from simulations.step_cost_tracker import track_step
 
 
 def run_step(
@@ -79,6 +81,7 @@ def run_step(
         }
     """
     warnings: List[str] = []
+    _t0 = time.perf_counter()  # step-cost instrumentation (see track_step)
     try:
         # 1. Find the SimulationDefinition the run belongs to.
         sim_def = _find_simulation_definition(manager, run)
@@ -476,6 +479,12 @@ def run_step(
 
         # 9. Update the SimulationRun's counters.
         _bump_run_counters(manager, run, target_step)
+
+        # 10. Measure what this step actually cost (wall-time + persisted
+        #     bytes) into the sim's StepCostProfile. Failure-isolated by
+        #     contract — the observer never kills the observed step.
+        track_step(manager, run, sim_def, rows_by_class, target_step,
+                   time.perf_counter() - _t0)
 
         return {
             'success': True,

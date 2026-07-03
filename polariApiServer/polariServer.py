@@ -143,6 +143,9 @@ from simulations.multi_scale_seed import (
     SEED_IC_INTERFACES,
     SEED_MSIM_GRAPHS,
 )
+# Resource-aware simulation: measured per-step cost profiles (created
+# lazily by the runner's step-cost tracker — no seed rows).
+from simulations.step_cost_profile import StepCostProfile
 from polariApiProfiler.apiProfilerAPI import (
     APIProfilerQueryAPI,
     APIProfilerMatchAPI,
@@ -412,6 +415,7 @@ class polariServer(treeObject):
             SimSpaceEvaluationEquation,
             SimulationExecutionSolution, SimulationCouplingDefinition,
             MultiScaleSimulationDefinition, InitialConditionInterfaceDefinition,
+            StepCostProfile,
             PendulumBobSimState, PendulumStringSimState,
             NewtonianPendulumBobSimState, NewtonianPendulumRodSimState,
             WindFieldGridState, MaterialCondensationState]

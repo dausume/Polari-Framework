@@ -173,6 +173,28 @@ class SimulationAPI(treeObject):
                 self.apiName + '/multi-scale/{msim_name}/validate-composition',
                 self, suffix='validate_composition',
             )
+            # GET /api/simulations/resources — the machine's memory/disk
+            # budget (container-aware). Feeds the run controls' live
+            # resource readout.
+            polServer.falconServer.add_route(
+                self.apiName + '/resources', self, suffix='resources',
+            )
+            # POST /api/simulations/runs/{run_name}/project
+            # Body: { steps }. Projects steps x measured average step
+            # cost (StepCostProfile; static estimate before measurements)
+            # against the budget — Dustin's "this would nearly drain your
+            # memory" detection, BEFORE running.
+            polServer.falconServer.add_route(
+                self.apiName + '/runs/{run_name}/project',
+                self, suffix='project',
+            )
+            # GET /api/simulations/{sim_ref}/resource-suggestions —
+            # ranked, one-click-appliable data-saving proposals from the
+            # sim's MEASURED per-field sizes.
+            polServer.falconServer.add_route(
+                self.apiName + '/{sim_ref}/resource-suggestions',
+                self, suffix='resource_suggestions',
+            )
 
     # ------------------------------------------------------------------
     # POST /api/simulations/predict-storage
@@ -328,6 +350,43 @@ class SimulationAPI(treeObject):
             except (TypeError, ValueError):
                 pass
 
+        # RESOURCE GUARD — project this batch against the machine's
+        # budget BEFORE running (Dustin's rule: detect "this would
+        # nearly drain your memory" up front). The projection rides on
+        # every response; a critical projection REFUSES unless the
+        # caller explicitly overrides.
+        projection = None
+        try:
+            from simulations.resource_monitor import project_run
+            from simulations.resource_suggestions import suggestions_for
+            sim_def_for_run = self._find_sim_def(getattr(run, 'simulation_ref', ''))
+            if sim_def_for_run is not None:
+                projection = project_run(self.manager, run, sim_def_for_run, steps)
+        except Exception as e:
+            print(f'[Resources] projection skipped: {e}', flush=True)
+        if projection and projection.get('level') == 'critical' \
+                and not body.get('overrideResourceWarning'):
+            try:
+                suggestions = suggestions_for(
+                    self.manager, getattr(run, 'simulation_ref', ''))
+            except Exception:
+                suggestions = []
+            response.media = {
+                'success': False,
+                'error': projection.get('message'),
+                'data': {
+                    'refusedByResourceGuard': True,
+                    'projection': projection,
+                    'suggestions': suggestions,
+                    'howToProceed': ('Reduce the steps, apply a suggestion '
+                                     '(per-run field save overrides), or '
+                                     'resend with overrideResourceWarning: '
+                                     'true to run anyway.'),
+                },
+            }
+            response.status = falcon.HTTP_409
+            return
+
         committed: List[Dict] = []
         warnings_all: List[str] = []
         last_result: Optional[Dict] = None
@@ -364,7 +423,71 @@ class SimulationAPI(treeObject):
                 'committed': committed,
                 'lastSolutionTraces': (last_result or {}).get('solutionTraces') or [],
                 'lastRowsByClass': (last_result or {}).get('rowsByClass') or {},
+                # Always attached: what this batch was projected to cost
+                # (level 'warning' proceeds but the UI should surface it).
+                'resourceProjection': projection,
             },
+        }
+        response.status = falcon.HTTP_200
+
+    def _find_sim_def(self, sim_ref: str):
+        defs = self.manager.objectTables.get('SimulationDefinition', {}) or {}
+        return next((r for r in defs.values()
+                     if getattr(r, 'name', '') == sim_ref), None)
+
+    # ------------------------------------------------------------------
+    # GET /api/simulations/resources
+    # ------------------------------------------------------------------
+    def on_get_resources(self, request, response):
+        from simulations.resource_monitor import system_resources
+        response.media = {'success': True, 'data': system_resources()}
+        response.status = falcon.HTTP_200
+
+    # ------------------------------------------------------------------
+    # POST /api/simulations/runs/{run_name}/project
+    # ------------------------------------------------------------------
+    def on_post_project(self, request, response, run_name):
+        from simulations.resource_monitor import project_run
+        run = self._find_run(run_name)
+        if run is None:
+            response.status = falcon.HTTP_404
+            response.media = {'success': False, 'error': f'SimulationRun "{run_name}" not found'}
+            return
+        sim_def = self._find_sim_def(getattr(run, 'simulation_ref', ''))
+        if sim_def is None:
+            response.status = falcon.HTTP_404
+            response.media = {'success': False,
+                              'error': 'Run has no resolvable SimulationDefinition.'}
+            return
+        try:
+            body = request.media or {}
+        except Exception:
+            body = {}
+        try:
+            steps = int(body.get('steps') or 0)
+        except (TypeError, ValueError):
+            steps = 0
+        if steps <= 0:
+            response.status = falcon.HTTP_400
+            response.media = {'success': False, 'error': "'steps' must be a positive integer."}
+            return
+        projection = project_run(self.manager, run, sim_def, steps)
+        response.media = {'success': True, 'data': projection}
+        response.status = falcon.HTTP_200
+
+    # ------------------------------------------------------------------
+    # GET /api/simulations/{sim_ref}/resource-suggestions
+    # ------------------------------------------------------------------
+    def on_get_resource_suggestions(self, request, response, sim_ref):
+        from simulations.resource_suggestions import suggestions_for
+        if self._find_sim_def(sim_ref) is None:
+            response.status = falcon.HTTP_404
+            response.media = {'success': False,
+                              'error': f'SimulationDefinition "{sim_ref}" not found.'}
+            return
+        response.media = {
+            'success': True,
+            'data': {'suggestions': suggestions_for(self.manager, sim_ref)},
         }
         response.status = falcon.HTTP_200
 
