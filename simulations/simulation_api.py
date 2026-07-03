@@ -568,7 +568,16 @@ class SimulationAPI(treeObject):
             batch_size = int(body.get('batchSize') or 0) or None
         except (TypeError, ValueError):
             batch_size = None
-        report = run_stage_search(self.manager, msim_name, stage, batch_size)
+        # Substance-specific searches: fixedParams merge into every
+        # candidate (substance identity); attemptTag namespaces the
+        # attempt runs so each substance's search resumes independently.
+        fixed_params = body.get('fixedParams') or {}
+        if not isinstance(fixed_params, dict):
+            fixed_params = {}
+        attempt_tag = str(body.get('attemptTag') or '')
+        report = run_stage_search(self.manager, msim_name, stage, batch_size,
+                                  fixed_params=fixed_params,
+                                  attempt_tag=attempt_tag)
         if report.get('winner'):
             report['deriveResolved'] = apply_derive(
                 stage, report['winner'].get('derivedValues') or {})

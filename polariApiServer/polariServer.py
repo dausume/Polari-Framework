@@ -126,6 +126,11 @@ from simulations.wind_field_seed import (
     SEED_NEWTON_WIND_ROD_ROWS,
     SEED_SIMULATION_COUPLINGS,
 )
+# Material condensation space (Milestone B) — the first-principles stage:
+# search T/P until the substance condenses into a solid ball; the gate
+# derives the ball's properties into the pendulum's initial conditions.
+from simulations.material_condensation_state import MaterialCondensationState
+from simulations.material_space_seed import SEED_MATERIAL_ROWS
 # Multi-Scale Simulation Page objects: the tying definition (spaces +
 # couplings + stages + panels) and configured IC interfaces. Keep AFTER
 # the wind seed (the demo references the wind coupling by name).
@@ -409,7 +414,7 @@ class polariServer(treeObject):
             MultiScaleSimulationDefinition, InitialConditionInterfaceDefinition,
             PendulumBobSimState, PendulumStringSimState,
             NewtonianPendulumBobSimState, NewtonianPendulumRodSimState,
-            WindFieldGridState]
+            WindFieldGridState, MaterialCondensationState]
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
         for defClass in self.defClassList:
             className = defClass.__name__
@@ -1254,6 +1259,10 @@ class polariServer(treeObject):
             # Wind-field space: step-0 grid row + the cross-simulation
             # coupling that feeds the pendulum's wind Partial.
             ('WindFieldGridState', WindFieldGridState, SEED_WIND_GRID_ROWS),
+            # Material condensation space: step-0 baseline row (the search's
+            # attempt runs write their own step-0 rows at run time).
+            ('MaterialCondensationState', MaterialCondensationState,
+             SEED_MATERIAL_ROWS),
             ('SimulationCouplingDefinition', SimulationCouplingDefinition,
              SEED_SIMULATION_COUPLINGS),
             # Multi-Scale Simulation Page: the "Pendulum in Wind" demo +

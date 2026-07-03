@@ -38,6 +38,7 @@ the last left off; nothing extra to persist or clean up.
 """
 
 import math
+import re
 from typing import Any, Dict, List, Optional
 
 from simulations.multi_scale_stages import evaluate_stage_gate
@@ -93,7 +94,19 @@ def generate_candidates(search_cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
                      f"(grid | list; 'solver' is not implemented yet)")
 
 
-def attempt_run_name(msim_name: str, stage_key: str, index: int) -> str:
+def sanitize_tag(tag: str) -> str:
+    """Attempt tags become run-name segments: lowercase [a-z0-9-] only."""
+    return re.sub(r'[^a-z0-9-]', '', str(tag or '').lower())
+
+
+def attempt_run_name(msim_name: str, stage_key: str, index: int,
+                     tag: str = '') -> str:
+    """Attempt runs are ordinary named runs. A TAG (e.g. the substance —
+    'wax', 'water-ice') keeps different fixedParams searches in separate,
+    independently-resumable attempt sets."""
+    tag = sanitize_tag(tag)
+    if tag:
+        return f'{msim_name}-{stage_key}-{tag}-attempt-{index}'
     return f'{msim_name}-{stage_key}-attempt-{index}'
 
 
@@ -102,8 +115,16 @@ def run_stage_search(
     msim_name: str,
     stage: Dict[str, Any],
     batch_size: Optional[int] = None,
+    fixed_params: Optional[Dict[str, Any]] = None,
+    attempt_tag: str = '',
 ) -> Dict[str, Any]:
     """Advance a stage's solution search by one batch and report status.
+
+    `fixed_params` are merged into EVERY candidate's parameter overrides
+    (candidates win on key conflicts — fixed params are the substance's
+    identity, candidates are the searched process point). `attempt_tag`
+    namespaces the attempt runs so per-substance searches stay separate
+    and separately resumable.
 
     Returns:
         {
@@ -139,12 +160,13 @@ def run_stage_search(
 
     from simulations.simulation_runner import run_step
 
+    fixed = fixed_params if isinstance(fixed_params, dict) else {}
     attempts: List[Dict[str, Any]] = []
     winner = None
     advanced = 0
     attempted = 0
     for idx, candidate in enumerate(candidates):
-        name = attempt_run_name(msim_name, stage_key, idx)
+        name = attempt_run_name(msim_name, stage_key, idx, attempt_tag)
         run = _find_by_name(manager, 'SimulationRun', name)
         entry: Dict[str, Any] = {
             'run': name, 'candidate': candidate, 'stepped': 0,
@@ -159,18 +181,23 @@ def run_stage_search(
         if winner is None and advanced < batch:
             did_work = False
             if run is None:
-                run = _create_attempt_run(manager, name, sim_ref, candidate,
+                run = _create_attempt_run(manager, name, sim_ref,
+                                          {**fixed, **candidate},
                                           stage, msim_name)
                 if run is None:
                     entry['error'] = 'failed to create attempt run'
                     advanced += 1
                     continue
                 did_work = True
-            steps_needed = target_steps - int(
-                getattr(run, 'last_recorded_step', 0) or 0)
-            if steps_needed > 0:
+            # Step until the run actually REACHES the target (the step-0
+            # initial-conditions write doesn't advance last_recorded_step,
+            # so a fixed-count loop under-steps a fresh run by one).
+            if int(getattr(run, 'last_recorded_step', 0) or 0) < target_steps:
                 did_work = True
-                for _ in range(steps_needed):
+                guard = 0
+                while (int(getattr(run, 'last_recorded_step', 0) or 0)
+                       < target_steps and guard <= target_steps + 2):
+                    guard += 1
                     result = run_step(manager, run)
                     if not result.get('success'):
                         entry['error'] = result.get('error')

@@ -25,6 +25,10 @@ from simulations.newtonian_pendulum_seed import (
     _NEWTON_BOB_RADIUS,
 )
 from simulations.wind_field_seed import WIND_SIM_DEF
+# Importing the material seed registers the material-condensation space +
+# the solid-ball-achievable gate into the shared seed lists (Milestone B —
+# the first-principles stage this composition's stage 1 references).
+from simulations.material_space_seed import MATERIAL_SIM_DEF, GATE_SOLUTION
 
 MSIM_NAME = 'pendulum-in-wind'
 IC_MATERIAL_PICKER = 'bob-material-picker'
@@ -32,42 +36,65 @@ IC_MATERIAL_PICKER = 'bob-material-picker'
 # Preset masses = density × sphere volume at the demo bob radius, so a
 # material choice is a REAL mass the wind visibly acts against (ice sways
 # in the gusts; lead barely notices — same wind, same geometry).
+#
+# Milestone B: each choice is now a SUBSTANCE carrying its physical
+# identity (`substanceParams` — melting line + density behavior) that the
+# material-condensation space uses as the search's fixedParams to PROVE a
+# solid ball is possible and derive its real properties. The setParams
+# presets remain as the direct channel until the frontend wires
+# choice → substance search (both channels coexist).
 _BOB_VOLUME = (4.0 / 3.0) * math.pi * _NEWTON_BOB_RADIUS ** 3
 _MATERIALS = [
-    ('ice',   'Ice ball',   917.0),
-    ('oak',   'Oak ball',   700.0),
-    ('steel', 'Steel ball', 7850.0),
-    ('lead',  'Lead ball',  11340.0),
+    # (key, label, density kg/m^3, substanceParams)
+    ('paraffin-wax', 'Paraffin wax ball', 900.0, {
+        'melt_temp_ref': 327.0, 'melt_slope_k_per_pa': 2.5e-7,
+        'density_solid_ref': 900.0, 'thermal_expansion': 8e-4,
+        'density_ref_temp': 293.15,
+    }),
+    ('water-ice', 'Water-ice ball', 917.0, {
+        # Ice melts UNDER pressure — the slope is negative (skate-blade
+        # physics), so high-pressure candidates can fail where low do not.
+        'melt_temp_ref': 273.15, 'melt_slope_k_per_pa': -7.4e-8,
+        'density_solid_ref': 917.0, 'thermal_expansion': 1.5e-4,
+        'density_ref_temp': 263.15,
+    }),
+    ('lead', 'Lead ball', 11340.0, {
+        'melt_temp_ref': 600.6, 'melt_slope_k_per_pa': 7.9e-8,
+        'density_solid_ref': 11340.0, 'thermal_expansion': 8.7e-5,
+        'density_ref_temp': 293.15,
+    }),
 ]
 
 SEED_IC_INTERFACES = [{
     'name': IC_MATERIAL_PICKER,
     'description': (
-        'Pick what the pendulum bob is made of. Each material sets the '
-        'bob\'s real mass (density x volume at the fixed 8 cm radius), so '
-        'the wind\'s effect changes physically: light materials get pushed '
-        'around, heavy ones barely react. Selections re-validate the '
-        'initial conditions automatically. When the material space lands '
-        '(Milestone B), these hand-authored choices are replaced by real '
-        'Material objects gated by the condensation-precondition '
-        'simulation - same interface, generated choices.'
+        'Pick what the pendulum bob is made of. Each choice is a real '
+        'SUBSTANCE: the material space searches temperature/pressure for '
+        'conditions where it condenses into a solid ball, proves it is '
+        'possible, and derives the ball\'s real mass and size for the '
+        'pendulum\'s initial conditions. Light materials get pushed around '
+        'by the wind; heavy ones barely react. Selections re-validate the '
+        'initial conditions automatically.'
     ),
     'target_simulation_ref': NEWTON_SIM_DEF,
     'target_class_name': _NB,
     'interface_kind': 'choicePreset',
     'config_json': json.dumps({
         'label': 'Bob material',
+        # The composition + stage whose solution search proves a choice.
+        'provingStage': {'msim': MSIM_NAME, 'stageKey': 'material-precondition'},
         'choices': [
             {
                 'key': key,
                 'label': label,
                 'description': f'density {density:g} kg/m^3',
+                'substanceParams': substance,
                 'setParams': {
                     'mass': round(density * _BOB_VOLUME, 4),
                     'bob_radius': _NEWTON_BOB_RADIUS,
                 },
             }
-            for key, label, density in _MATERIALS
+            for key, label, density, substance in _MATERIALS
         ],
         # Recomputed from the chosen bundle before validation (frontend
         # evaluates these simple expressions) so downstream physics —
@@ -144,10 +171,46 @@ SEED_MULTI_SCALE_SIMS = [{
         'timescale, lazy-pulled). Drive the pendulum run; the wind advances '
         'itself. Compare against the vacuum run to SEE the coupling.'
     ),
-    'member_simulation_refs_json': json.dumps([NEWTON_SIM_DEF, WIND_SIM_DEF]),
+    'member_simulation_refs_json': json.dumps(
+        [MATERIAL_SIM_DEF, NEWTON_SIM_DEF, WIND_SIM_DEF]),
     'coupling_refs_json': json.dumps(['wind-to-newtonian-pendulum']),
     'primary_simulation_ref': NEWTON_SIM_DEF,
     'stages_json': json.dumps([
+        # Stage 1 — THE FIRST-PRINCIPLES STAGE (Milestone B): search
+        # temperature/pressure candidates until the substance provably
+        # condenses into a solid ball; the gate reports the ball's
+        # properties, which `derive` sends into the pendulum's params.
+        # Substance identity arrives per-search as fixedParams (see the
+        # bob-material-picker's per-choice substanceParams).
+        {
+            'key': 'material-precondition',
+            'label': 'Prove a solid ball is possible',
+            'kind': 'runToCompletion',
+            'intent': 'search',
+            'simulationRef': MATERIAL_SIM_DEF,
+            'gate': {
+                'solutionRef': GATE_SOLUTION,
+                'failReason': ('No solid phase at the tried temperature/'
+                               'pressure — the ball would be liquid.'),
+            },
+            'derive': {
+                'params': {
+                    f'{NEWTON_SIM_DEF}.mass': 'ball_mass',
+                    f'{NEWTON_SIM_DEF}.bob_radius': 'ball_radius',
+                },
+            },
+            'search': {
+                'candidates': {
+                    'kind': 'grid',
+                    'parameters': {
+                        'target_temp': {'from': 260.0, 'to': 340.0, 'steps': 5},
+                        'pressure_pa': {'from': 50000.0, 'to': 200000.0, 'steps': 2},
+                    },
+                },
+                'stepsPerAttempt': 20,
+                'batchSize': 5,
+            },
+        },
         {
             'key': 'pendulum-in-wind',
             'label': 'Pendulum swinging in wind',

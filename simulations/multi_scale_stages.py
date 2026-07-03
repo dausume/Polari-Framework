@@ -23,10 +23,14 @@ already know. `derive` then maps the gate's outputs (e.g. proven
 ball_mass/ball_radius) onto later stages' parameters/ICs.
 
 Gate solution contract (terminal context):
-  * outcome — 'valid' | 'complete' | 'pass' → gate passes (any other
-    value, or absent → not yet complete)
+  * outcome — 'valid' | 'complete' | 'pass' → gate passes. When outcome
+    is ABSENT, the evaluator falls back to the NUMERIC truthiness of
+    `complete` (int/float/single-element list — e.g. a phase flag lifted
+    straight off a state row), so simple gates need no text plumbing.
   * reason  — human-readable explanation (surfaced verbatim in the
-    stage stepper; write it for a non-specialist)
+    stage stepper; write it for a non-specialist). When the gate fails
+    without one, the stage's `gate.failReason` is used, else a plain
+    default.
   * derivedValues — optional dict of named outputs; when absent, the
     whole final context serves as the output namespace for `derive`.
 
@@ -137,20 +141,41 @@ def evaluate_stage_gate(manager, stage: Dict[str, Any], run) -> Dict[str, Any]:
 
     final = _extract_final_context(trace)
     outcome = (str(final.get('outcome') or '')).strip().lower()
-    complete = outcome in GATE_PASS_OUTCOMES
+    if outcome:
+        complete = outcome in GATE_PASS_OUTCOMES
+    else:
+        # Numeric fallback: gates that lift a flag straight off a state
+        # row (e.g. phase_solid) declare no textual outcome.
+        complete = _truthy_numeric(final.get('complete'))
     derived = final.get('derivedValues')
     if not isinstance(derived, dict):
         # Whole final context doubles as the output namespace, so simple
         # gates don't need an explicit derivedValues mapping node.
         derived = {k: v for k, v in final.items()
                    if k not in ('outcome', 'reason')}
+    reason = str(final.get('reason') or '').strip()
+    if not complete and not reason:
+        reason = (gate.get('failReason')
+                  or 'The condition evaluated as not met (complete=0).')
     return {
         'complete': complete,
         'hasGate': True,
-        'reason': str(final.get('reason') or '').strip(),
+        'reason': reason,
         'derivedValues': derived,
         'error': None,
     }
+
+
+def _truthy_numeric(value) -> bool:
+    """Numeric truthiness for gate verdicts: accepts int/float (and
+    numpy-ish things float() understands) plus a single-element
+    list/tuple wrapping one. None / non-numeric / 0 → False."""
+    if isinstance(value, (list, tuple)) and len(value) == 1:
+        value = value[0]
+    try:
+        return float(value) != 0.0
+    except (TypeError, ValueError):
+        return False
 
 
 def flatten_stage_results(manager, stage: Dict[str, Any], run) -> Dict[str, Any]:

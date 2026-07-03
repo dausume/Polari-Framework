@@ -87,7 +87,25 @@ def step_checkpoint(step_index, state_name, state_class, context,
         record['timing'] = {'wall_time': time.perf_counter()}
 
     if not config or config.record_context:
-        record['context_snapshot'] = copy.deepcopy(context)
+        # A checkpoint must never kill the execution it observes. Some
+        # context values can be un-deepcopy-able (anything holding a live
+        # OS resource — 'cannot pickle socket' class of failures); fall
+        # back to per-key copies and stringify the offenders, logging
+        # which keys they were so the source can be fixed.
+        try:
+            record['context_snapshot'] = copy.deepcopy(context)
+        except Exception:
+            snapshot = {}
+            bad_keys = []
+            for k, v in context.items():
+                try:
+                    snapshot[k] = copy.deepcopy(v)
+                except Exception:
+                    snapshot[k] = f'<uncopyable {type(v).__name__}>'
+                    bad_keys.append(f'{k}={type(v).__name__}')
+            record['context_snapshot'] = snapshot
+            print(f'[stepping] WARN uncopyable context values at state '
+                  f'{state_name!r}: {", ".join(bad_keys)}', flush=True)
 
     if config and config.custom_tags:
         record['custom_tags'] = config.custom_tags

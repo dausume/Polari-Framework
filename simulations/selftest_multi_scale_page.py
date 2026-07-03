@@ -113,8 +113,14 @@ def _stages():
     print('\nMulti-scale page — stage/gate model\n')
     msim = SimpleNamespace(**SEED_MULTI_SCALE_SIMS[0])
     stages = parse_stages(msim)
-    check('demo stages parse (single coStep stage)',
-          len(stages) == 1 and stages[0]['kind'] == 'coStep')
+    check('demo stages parse (material precondition -> coStep pendulum)',
+          len(stages) == 2
+          and stages[0]['kind'] == 'runToCompletion'
+          and stages[0]['key'] == 'material-precondition'
+          and stages[0].get('gate', {}).get('solutionRef')
+          and stages[0].get('search', {}).get('candidates')
+          and stages[0].get('derive', {}).get('params')
+          and stages[1]['kind'] == 'coStep')
     check('find_stage resolves by key',
           find_stage(msim, 'pendulum-in-wind') is not None
           and find_stage(msim, 'nope') is None)
@@ -225,12 +231,18 @@ def _seeds():
     ic = SEED_IC_INTERFACES[0]
     cfg = json.loads(ic['config_json'])
     vol = (4.0 / 3.0) * math.pi * _NEWTON_BOB_RADIUS ** 3
-    ice = next(c for c in cfg['choices'] if c['key'] == 'ice')
+    ice = next(c for c in cfg['choices'] if c['key'] == 'water-ice')
     lead = next(c for c in cfg['choices'] if c['key'] == 'lead')
     check('material choices carry real density-derived masses',
           abs(ice['setParams']['mass'] - 917.0 * vol) < 1e-3
           and abs(lead['setParams']['mass'] - 11340.0 * vol) < 1e-3,
           f"ice={ice['setParams']['mass']}kg lead={lead['setParams']['mass']}kg")
+    check('choices are SUBSTANCES (substanceParams + proving stage wired)',
+          all('substanceParams' in c and 'melt_temp_ref' in c['substanceParams']
+              for c in cfg['choices'])
+          and cfg.get('provingStage', {}).get('stageKey') == 'material-precondition'
+          and ice['substanceParams']['melt_slope_k_per_pa'] < 0,
+          'ice melting-line slope is negative (pressure melts it)')
     check('derived geometry params configured for the wind drag',
           'bob_cross_section' in cfg['derivedParams'])
     check('demo names stable', msim['name'] == MSIM_NAME
