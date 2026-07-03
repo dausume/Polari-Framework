@@ -59,6 +59,22 @@ class CodeTemplate:
         )
 
 
+# Node classes only the Python engine can execute (SymPy/numpy math,
+# instance persistence, simulation-runner nodes). MIRROR of the frontend
+# partition in solution-engine/capability.ts and
+# state-space-class-registry.ts (BACKEND_ONLY_RUNTIME_CLASSES) — change
+# all three together.
+BACKEND_ONLY_RUNTIME_CLASSES = {
+    'CalculusOperation',        # SymPy equations
+    'MatrixEquationOperation',  # numpy matrix engine
+    'StateChangeCommit',        # persists instances via the manager/DB
+    'SimulationStateStep',      # simulation-runner entry
+    'SimStepNextState',         # simulation-runner terminators
+    'SimStepContribution',
+    'BackendStateChange',       # backend-trust entry intent
+}
+
+
 class StateBuildingBlock:
     """Defines a building block with code templates for the no-code system."""
 
@@ -78,6 +94,7 @@ class StateBuildingBlock:
         is_built_in=True,
         execution_status='real',
         execution_note='',
+        runtime_capability=None,
     ):
         self.class_name = class_name
         self.display_name = display_name
@@ -98,6 +115,24 @@ class StateBuildingBlock:
         # the editor palette so nobody authors silent no-ops.
         self.execution_status = execution_status
         self.execution_note = execution_note
+        # RUNTIME-CAPABILITY TAG (P5): which engine(s) can execute this
+        # node — the truth the display-solution-runner partitions on.
+        #   'client-and-backend' — the Python engine AND the TypeScript
+        #       mirror (polari-platform-angular solution-engine/)
+        #       interpret it identically (parity-vector enforced)
+        #   'backend-only'       — Python engine only (SymPy/numpy/DB/
+        #       simulation-runner nodes)
+        #   'authoring-only'     — no engine handler anywhere yet
+        # Derived when not declared: authoring-only stays authoring-only;
+        # known backend-only classes tag themselves; the rest run on both.
+        if runtime_capability is None:
+            if execution_status == 'authoring-only':
+                runtime_capability = 'authoring-only'
+            elif class_name in BACKEND_ONLY_RUNTIME_CLASSES:
+                runtime_capability = 'backend-only'
+            else:
+                runtime_capability = 'client-and-backend'
+        self.runtime_capability = runtime_capability
 
     def get_template(self, runtime):
         """Return the template string for *runtime*, or None."""
@@ -126,6 +161,7 @@ class StateBuildingBlock:
             'isBuiltIn': self.is_built_in,
             'executionStatus': self.execution_status,
             'executionNote': self.execution_note,
+            'runtimeCapability': self.runtime_capability,
         }
 
     @classmethod
@@ -149,6 +185,7 @@ class StateBuildingBlock:
             is_built_in=data.get('isBuiltIn', True),
             execution_status=data.get('executionStatus', 'real'),
             execution_note=data.get('executionNote', ''),
+            runtime_capability=data.get('runtimeCapability'),
         )
 
 
@@ -567,7 +604,7 @@ class StateBuildingBlockRegistry:
                 display_name='Await Backend Call',
                 description='Call a backend Python solution and await response',
                 category='Cross-Runtime',
-                supported_runtimes=['typescript_frontend'],
+                supported_runtimes=['typescript_frontend', 'python_backend'],
                 code_templates=[
                     CodeTemplate('typescript_frontend', "const {resultVariable} = await this.polariService.executeSolution('{targetSolutionName}', params);"),
                 ],
@@ -575,8 +612,12 @@ class StateBuildingBlockRegistry:
                 default_output_slots=[{'name': 'result', 'displayName': 'Backend Response', 'slotType': 'output', 'dataType': 'any', 'isRequired': False}],
                 display_fields=[],
                 icon='cloud_download', color='#FF5722',
-                execution_status='authoring-only',
-                execution_note='No engine handler yet - solution composition arrives in P3/P5.',
+                execution_status='real',
+                execution_note=('The explicit cross-runtime bridge (P5): from a '
+                                'client-executing solution it ships one named '
+                                'solution to the backend engine (inputMappings '
+                                'out, resultBindings back); on the backend '
+                                'engine it is an in-process invocation.'),
             ),
             StateBuildingBlock(
                 class_name='CollectionOperation',

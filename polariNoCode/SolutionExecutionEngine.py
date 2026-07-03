@@ -1482,6 +1482,33 @@ class SolutionExecutionEngine:
             )
             result['child_execution'] = summary
 
+        elif state_class == 'AwaitBackendCall':
+            # The explicit cross-runtime bridge. From a CLIENT-executing
+            # graph this node ships one named solution to the backend
+            # engine over HTTP. Here — already ON the backend — the
+            # "backend call" is simply an in-process invocation with the
+            # same input-mapping / result-binding semantics, so a graph
+            # authored for the client runs unchanged on the backend.
+            normalized = dict(field_values)
+            normalized['solutionRef'] = (
+                field_values.get('solutionRef')
+                or field_values.get('solutionName')
+                or field_values.get('backendSolution') or ''
+            )
+            log_output.append(
+                f'[{state_name}] backend-side await: running '
+                f'\'{normalized["solutionRef"]}\' in-process (no bridge '
+                f'needed — this engine IS the backend)'
+            )
+            summary = self._invoke_solution(
+                normalized, context, state_name, log_output,
+            )
+            result['result'] = (
+                f"{summary['solutionName']} -> {summary['status']} "
+                f"({summary['stepCount']} steps)"
+            )
+            result['child_execution'] = summary
+
         elif state_class == 'FunctionCall':
             # RETIRED (authoring-only): superseded by SolutionInvocation,
             # which actually invokes another solution with a contract.

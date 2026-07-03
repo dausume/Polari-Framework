@@ -84,18 +84,26 @@ class SolutionExecutionAPI(treeObject):
                 response.media = {'success': False, 'error': f'Solution "{solution_name}" not found'}
                 return
 
-            # Phase 1: Generate code (execution engine to come later)
+            # CODEGEN IS A REFERENCE VIEW, NOT AN EXECUTION PATH (P5).
+            # The configuration is the artifact: the stored definition is
+            # interpreted directly by the Python engine
+            # (/executeSolutionStepped) and by its TypeScript mirror in
+            # the browser. The code returned here is generated for
+            # human reading only and is NEVER executed by either engine.
             generated_code = generate_code_from_solution(solution_data, target_runtime)
 
-            # Generate code
             response.status = falcon.HTTP_200
             response.media = {
                 'success': True,
                 'solutionName': solution_name,
                 'targetRuntime': target_runtime,
-                'status': 'code_generated',
+                'status': 'reference_code_generated',
                 'generatedCode': generated_code,
-                'message': 'Code generated successfully.'
+                'executed': False,
+                'message': ('Reference code generated — NOT executed. Solutions '
+                            'run as stored configuration: use '
+                            '/executeSolutionStepped (backend engine) or the '
+                            'in-browser client engine.')
             }
 
         except Exception as e:
