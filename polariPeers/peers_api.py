@@ -91,6 +91,14 @@ class PeersAPI(treeObject):
                 suffix='peer_simulations')
             polServer.falconServer.add_route(
                 '/api/modules', self, suffix='modules')
+            # Static segments outrank the {module_name} template in
+            # falcon's router, so these three resolve correctly.
+            polServer.falconServer.add_route(
+                '/api/modules/suggested', self, suffix='modules_suggested')
+            polServer.falconServer.add_route(
+                '/api/modules/export', self, suffix='modules_export')
+            polServer.falconServer.add_route(
+                '/api/modules/install', self, suffix='modules_install')
             polServer.falconServer.add_route(
                 '/api/modules/{module_name}', self, suffix='module_one')
 
@@ -226,9 +234,9 @@ class PeersAPI(treeObject):
             response.media = {
                 'success': False,
                 'error': (f'No module named "{module_name}" on this '
-                          f'instance. (The module exporter/loader arrives '
-                          f'with Track 3 — this registry and API are its '
-                          f'handshake skeleton.)'),
+                          f'instance. Export one from live content '
+                          f'(POST /api/modules/export) or install one '
+                          f'from a peer (POST /api/modules/install).'),
             }
             return
         bundle_raw = getattr(row, 'bundle_json', '') or ''
@@ -243,6 +251,136 @@ class PeersAPI(treeObject):
             },
         }
         response.status = falcon.HTTP_200
+
+    # ------------------------------------------------------------------
+    # GET /api/modules/suggested — the natural module partition of this
+    # instance's live content (suggestions; the export scope is the knob).
+    # ------------------------------------------------------------------
+    def on_get_modules_suggested(self, request, response):
+        from polariPeers.module_exporter import suggest_module_scopes
+        scopes = suggest_module_scopes(self.manager)
+        response.media = {
+            'success': True,
+            'data': {
+                'scopes': scopes,
+                'note': ('These are suggested module boundaries for the '
+                         'content currently on this instance. Export any of '
+                         'them by name (POST /api/modules/export '
+                         '{"name": ...}) or pass your own scope.'),
+            },
+        }
+        response.status = falcon.HTTP_200
+
+    # ------------------------------------------------------------------
+    # POST /api/modules/export — {name: <suggested>} or {scope: {...}}.
+    # Exports live content as a bundle and registers it as installed
+    # (it IS installed — it's this instance's live content).
+    # ------------------------------------------------------------------
+    def on_post_modules_export(self, request, response):
+        from polariPeers.module_exporter import (
+            export_module, suggest_module_scopes)
+        from polariPeers.module_loader import register_bundle
+        try:
+            body = request.media or {}
+        except Exception:
+            body = {}
+        scope = body.get('scope')
+        if not scope and body.get('name'):
+            scope = next((s for s in suggest_module_scopes(self.manager)
+                          if s['name'] == body['name']), None)
+            if scope is None:
+                response.status = falcon.HTTP_404
+                response.media = {
+                    'success': False,
+                    'error': (f'"{body["name"]}" is not a suggested module '
+                              f'here — see GET /api/modules/suggested, or '
+                              f'pass a full scope.'),
+                }
+                return
+        if not isinstance(scope, dict) or not scope.get('name'):
+            response.status = falcon.HTTP_400
+            response.media = {'success': False,
+                              'error': "Pass {'name': <suggested module>} "
+                                       "or {'scope': {...}} with a name."}
+            return
+        try:
+            bundle = export_module(self.manager, scope)
+            manifest = register_bundle(self.manager, bundle,
+                                       source_kind='local',
+                                       source_ref='exported-from-live')
+        except Exception as exc:
+            response.status = falcon.HTTP_500
+            response.media = {'success': False,
+                              'error': f'Export failed: {exc}'}
+            return
+        response.media = {
+            'success': True,
+            'data': {
+                'manifest': manifest,
+                'note': (f'Module "{manifest["name"]}" exported from live '
+                         f'content and registered. Peers can now fetch it '
+                         f'via GET /api/modules/{manifest["name"]}.'),
+            },
+        }
+        response.status = falcon.HTTP_201
+
+    # ------------------------------------------------------------------
+    # POST /api/modules/install — {bundle: {...}} or
+    # {source: {kind: 'peer', peer: <name>, module: <name>}} (+ dryRun).
+    # ------------------------------------------------------------------
+    def on_post_modules_install(self, request, response):
+        from polariPeers.module_loader import import_bundle
+        try:
+            body = request.media or {}
+        except Exception:
+            body = {}
+        dry_run = bool(body.get('dryRun'))
+        bundle = body.get('bundle')
+        source_kind, source_ref = 'file', 'inline'
+        if bundle is None:
+            source = body.get('source') or {}
+            if source.get('kind') != 'peer':
+                response.status = falcon.HTTP_400
+                response.media = {
+                    'success': False,
+                    'error': "Pass {'bundle': {...}} or "
+                             "{'source': {'kind': 'peer', 'peer': ..., "
+                             "'module': ...}}."}
+                return
+            peer = self._find_peer(source.get('peer') or '')
+            if peer is None:
+                response.status = falcon.HTTP_404
+                response.media = {
+                    'success': False,
+                    'error': f'Peer "{source.get("peer")}" is not '
+                             f'registered here.'}
+                return
+            base = getattr(peer, 'base_url', '')
+            module_name = source.get('module') or ''
+            payload = _http_get_json(f'{base}/api/modules/{module_name}')
+            if '_error' in payload:
+                response.status = falcon.HTTP_502
+                response.media = {'success': False,
+                                  'error': f'Peer unreachable: '
+                                           f'{payload["_error"]}'}
+                return
+            bundle = (payload.get('data') or {}).get('bundle')
+            if not bundle:
+                response.status = falcon.HTTP_404
+                response.media = {
+                    'success': False,
+                    'error': (f'Peer "{source.get("peer")}" has no bundle '
+                              f'for module "{module_name}" (it may not have '
+                              f'exported it yet).')}
+                return
+            source_kind = 'peer'
+            source_ref = f'{source.get("peer")}:{module_name}'
+        report = import_bundle(self.manager, bundle, dry_run=dry_run,
+                               source_kind=source_kind,
+                               source_ref=source_ref)
+        response.media = {'success': not report['errors'], 'data': report}
+        response.status = (falcon.HTTP_200 if not report['errors']
+                           else falcon.HTTP_400)
 
     # ------------------------------------------------------------------
     # Helpers

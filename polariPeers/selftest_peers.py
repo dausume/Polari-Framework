@@ -173,8 +173,10 @@ def main():
           and resp.media['data']['version'] == 'abc123')
     resp = _Resp()
     api.on_get_module_one(_req(), resp, 'nope')
-    check('missing module -> clear Track-3 404',
-          resp.status.startswith('404') and 'Track 3' in resp.media['error'])
+    check('missing module -> clear 404 pointing at export/install',
+          resp.status.startswith('404')
+          and 'export' in resp.media['error'].lower()
+          and 'install' in resp.media['error'].lower())
 
     # CRUDE envelope parser edge cases.
     check('crude parser tolerates junk',
