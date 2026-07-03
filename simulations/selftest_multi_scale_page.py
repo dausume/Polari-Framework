@@ -215,7 +215,8 @@ def _seeds():
               and (p['kind'] != 'ic' or p['icInterfaceRef'] in ic_names)
               for p in panels), f'panels={[p["kind"] for p in panels]}')
     check('graph seeds: wrapped graphConfig form with real bob row fields',
-          all(f in ('energy_total', 'ke', 'pe', 'fwind_x', 'fwind_y', 'fwind_z')
+          all(f in ('energy_total', 'ke', 'pe', 'fwind_x', 'fwind_y', 'fwind_z',
+                    'pz', 'vz')
               for g in SEED_MSIM_GRAPHS
               for f in json.loads(g['definition'])['graphConfig']['yDimensions']))
     check('comparison runs reference seeded runs',
