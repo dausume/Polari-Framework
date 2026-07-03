@@ -248,6 +248,26 @@ class managedDatabase(managedFile):
                 print(f'[DB] SQL: {commandString}', flush=True)
             dbConnection.close()
 
+    def deleteRowsWhere(self, tableName, column, value):
+        """Delete rows where `column` equals `value`. Returns the number of
+        rows removed, or -1 when the table/DB is unavailable."""
+        if tableName not in self.tables:
+            return -1
+        dbFilePath = os.path.join(self.Path, self.name + '.db') if self.Path else self.name + '.db'
+        try:
+            dbConnection = sqlite3.connect(dbFilePath)
+            cursor = dbConnection.execute(
+                f'DELETE FROM {tableName} WHERE {column} = ?', (value,))
+            dbConnection.commit()
+            deleted = cursor.rowcount
+            dbConnection.close()
+            print(f'[DB] Deleted {deleted} row(s) from {tableName} '
+                  f'where {column}={value!r}', flush=True)
+            return deleted
+        except Exception as e:
+            print(f'[DB] deleteRowsWhere failed for {tableName}: {e}', flush=True)
+            return -1
+
     def deleteAllFromTable(self, tableName):
         """Delete all rows from a table."""
         dbFilePath = os.path.join(self.Path, self.name + '.db') if self.Path else self.name + '.db'

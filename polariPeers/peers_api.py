@@ -7,7 +7,15 @@ Peers + Modules API — the twin-Polari handshake surface.
 
 Endpoints:
   GET  /api/peers                     — known peers, live-pinged
-  POST /api/peers/register            — {name, baseUrl, token}; shared-token gated
+  POST /api/peers/register            — {name, baseUrl, token}; gated by a
+                                        PER-CHILD agreement token (see
+                                        polariPeers.agreements_api); the old
+                                        shared token remains as a DEPRECATED
+                                        fallback knob
+                                        (POLARI_SHARED_TOKEN_FALLBACK,
+                                        default on during the transition)
+  POST /api/peers/autoconfig          — run role auto-config now (returns
+                                        the evidence-logged report)
   GET  /api/peers/ping                — THIS instance's identity (+ moduleCount)
   GET  /api/peers/{peer_name}/simulations
                                       — probe a peer's SimulationDefinitions
@@ -85,6 +93,8 @@ class PeersAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/peers/register', self, suffix='register')
             polServer.falconServer.add_route(
+                '/api/peers/autoconfig', self, suffix='autoconfig')
+            polServer.falconServer.add_route(
                 '/api/peers/ping', self, suffix='ping')
             polServer.falconServer.add_route(
                 '/api/peers/{peer_name}/simulations', self,
@@ -129,29 +139,37 @@ class PeersAPI(treeObject):
         response.status = falcon.HTTP_200
 
     # ------------------------------------------------------------------
-    # POST /api/peers/register — shared-token gated upsert.
+    # POST /api/peers/register — per-child agreement-token gated upsert.
+    # The shared env token survives as a DEPRECATED fallback knob during
+    # the transition (POLARI_SHARED_TOKEN_FALLBACK; default on).
     # ------------------------------------------------------------------
     def on_post_register(self, request, response):
         try:
             body = request.media or {}
         except Exception:
             body = {}
-        expected = peer_token()
-        if not expected:
-            response.status = falcon.HTTP_403
-            response.media = {
-                'success': False,
-                'error': ('This instance has no peer token configured '
-                          '(POLARI_PEER_TOKEN or /app/data/peer_token) — '
-                          'peer registration is disabled.'),
-            }
-            return
-        if (body.get('token') or '') != expected:
-            response.status = falcon.HTTP_403
-            response.media = {'success': False, 'error': 'Invalid peer token.'}
-            return
         name = (body.get('name') or '').strip()
         base_url = (body.get('baseUrl') or '').strip().rstrip('/')
+        presented = body.get('token') or ''
+        from polariPeers.agreements_api import find_agreement_for_token
+        agreement = find_agreement_for_token(self.manager, name, presented)
+        if agreement is None:
+            shared = peer_token()
+            fallback_on = (os.environ.get('POLARI_SHARED_TOKEN_FALLBACK')
+                           or 'true').lower() in ('1', 'true', 'yes')
+            if not (fallback_on and shared and presented == shared):
+                response.status = falcon.HTTP_403
+                response.media = {
+                    'success': False,
+                    'error': ('No approved PeerAgreement matches this token. '
+                              'Send a join request first (POST '
+                              '/api/peers/join-request) and register with '
+                              'the per-child token it delivers.'),
+                }
+                return
+            print(f'[Peers] DEPRECATED: "{name}" registered via the shared '
+                  f'env token. Prefer the PeerAgreement flow; disable this '
+                  f'path with POLARI_SHARED_TOKEN_FALLBACK=false.', flush=True)
         if not name or not base_url:
             response.status = falcon.HTTP_400
             response.media = {'success': False,
@@ -168,6 +186,29 @@ class PeersAPI(treeObject):
         response.media = {'success': True,
                           'data': {'name': name, 'baseUrl': base_url}}
         response.status = falcon.HTTP_201
+
+    # ------------------------------------------------------------------
+    # POST /api/peers/autoconfig — run the detect→claim→discover→role
+    # pipeline on demand (same code the first-boot hook runs). Body may
+    # pass {"myBaseUrl": ...} to override POLARI_PUBLIC_BASE_URL.
+    # ------------------------------------------------------------------
+    def on_post_autoconfig(self, request, response):
+        try:
+            body = request.media or {}
+        except Exception:
+            body = {}
+        from polariPeers.role_autoconfig import auto_configure
+        try:
+            report = auto_configure(self.manager,
+                                    my_base_url=(body.get('myBaseUrl') or ''),
+                                    parent_url=(body.get('parentUrl') or ''))
+        except Exception as exc:
+            response.status = falcon.HTTP_500
+            response.media = {'success': False,
+                              'error': f'Auto-config failed: {exc}'}
+            return
+        response.media = {'success': True, 'data': report}
+        response.status = falcon.HTTP_200
 
     # ------------------------------------------------------------------
     # GET /api/peers/ping — this instance's identity.

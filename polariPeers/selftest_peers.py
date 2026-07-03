@@ -100,9 +100,9 @@ def main():
     resp3 = _Resp()
     api2.on_post_register(_req({'name': 'b', 'baseUrl': 'http://n:1',
                                 'token': ''}), resp3)
-    check('no token configured -> registration disabled 403',
+    check('no agreement + no shared token -> 403 pointing at join-request',
           resp3.status.startswith('403')
-          and 'no peer token' in resp3.media['error'])
+          and 'join-request' in resp3.media['error'])
 
     # Ping payload shape.
     api = _api(modules=[SimpleNamespace(name='m1')], sims=3)

@@ -150,6 +150,9 @@ from simulations.step_cost_profile import StepCostProfile
 from polariPeers.peer_node import PeerNode
 from polariPeers.polari_module import PolariModule
 from polariPeers.peers_api import PeersAPI
+# Mesh convergence Phase 1: bilateral admission agreements.
+from polariPeers.peer_agreement import PeerAgreement
+from polariPeers.agreements_api import AgreementsAPI
 from polariApiProfiler.apiProfilerAPI import (
     APIProfilerQueryAPI,
     APIProfilerMatchAPI,
@@ -407,6 +410,11 @@ class polariServer(treeObject):
         # shared token, probe each other's simulations and modules.
         peersEndpoint = PeersAPI(polServer=self, manager=self.manager)
 
+        # Admission agreements — join-request → pending PeerAgreement →
+        # explicit approve/deny → per-child scoped revocable token
+        # (mesh convergence ruling; replaces the shared token).
+        agreementsEndpoint = AgreementsAPI(polServer=self, manager=self.manager)
+
         # Register APIProfile, APIDomain, APIEndpoint, and ApiFormatConfig types
         self.manager.getObjectTyping(classObj=APIProfile)
         self.manager.getObjectTyping(classObj=APIDomain)
@@ -424,8 +432,9 @@ class polariServer(treeObject):
             SimulationExecutionSolution, SimulationCouplingDefinition,
             MultiScaleSimulationDefinition, InitialConditionInterfaceDefinition,
             StepCostProfile,
-            # Node integration (twin-Polari): peers + module registry.
-            PeerNode, PolariModule,
+            # Node integration (twin-Polari): peers + module registry +
+            # admission agreements (mesh convergence Phase 1).
+            PeerNode, PolariModule, PeerAgreement,
             PendulumBobSimState, PendulumStringSimState,
             NewtonianPendulumBobSimState, NewtonianPendulumRodSimState,
             WindFieldGridState, MaterialCondensationState]

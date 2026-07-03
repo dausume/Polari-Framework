@@ -100,6 +100,24 @@ if(__name__=='__main__'):
     if db_enabled and localHostedManagerServer.db is not None:
         localHostedManagerServer.persistTree()
 
+    # First-boot mesh role auto-config (mesh convergence Phase 1).
+    # Runs in a delayed daemon thread so the API is already serving when
+    # probes/join requests fire. Idempotent + graceful: unmeshed with no
+    # discovery evidence is a logged no-op. Knob: POLARI_MESH_AUTOCONFIG
+    # (default on; set 'false' to skip entirely).
+    if (os.environ.get('POLARI_MESH_AUTOCONFIG') or 'true').lower() \
+            in ('1', 'true', 'yes'):
+        def _mesh_autoconfig():
+            import time
+            time.sleep(8)  # let the HTTP server come up first
+            try:
+                from polariPeers.role_autoconfig import auto_configure
+                auto_configure(localHostedManagerServer)
+            except Exception as exc:
+                print(f'[RoleAutoConfig] first-boot run failed (non-fatal): '
+                      f'{exc}', flush=True)
+        threading.Thread(target=_mesh_autoconfig, daemon=True).start()
+
     # Start STOMP WebSocket server if enabled
     ws_enabled = config.get_bool('websocket.enabled', True)
     ws_port = config.get_int('websocket.port', 3001)
