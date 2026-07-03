@@ -89,14 +89,35 @@ TERMINAL_STATE_CLASSES = {
     # lands in the context's `_emitted_events` list (shape below) for
     # the display/event bridge to consume.
     'EmitEvent',
+    # EmitFrontendEvent is EmitEvent with channel='frontend' — the
+    # execution response carries it out and the client-side display
+    # event bus (displayEvents$) dispatches it to subscribers (P4).
+    'EmitFrontendEvent',
 }
 
 # Sentinel context key EmitEvent appends to. Each entry is
 #   { 'name': <event name>, 'payload': {<key>: <resolved value>, ...},
-#     'sourceState': <state name> }
+#     'sourceState': <state name>, 'channel': 'backend' | 'frontend' }
 # Consumers (the display event bridge, tests, callers of
-# _extract_final_context) read the list off the final context.
+# _extract_final_context) read the list off the final context. Events
+# with channel='frontend' are dispatched on the client's displayEvents$
+# bus by the display-solution-runner after execution.
 EMITTED_EVENTS_KEY = '_emitted_events'
+
+# Sentinel context keys the FormValidation handler writes:
+#   FORM_VALIDATION_KEY  — {fieldName: {'valid': bool, 'errors': [str]}}
+#   'form_valid'         — overall bool
+#   '_invalid_fields'    — [fieldName, ...] in field order
+# StateChangeCommit appends {'className', 'instance', 'fields'} records:
+FORM_VALIDATION_KEY = '_form_validation'
+COMMITTED_CHANGES_KEY = '_committed_changes'
+
+# State classes whose handler picks the outgoing branch via
+# result['branch_taken'] (an index into the node's OUTPUT slots).
+# FormValidation differs from ConditionalChain in overflow behavior:
+# an unusable branch ENDS traversal instead of falling back to the last
+# slot — an invalid form must never proceed down "All Valid".
+BRANCHING_STATE_CLASSES = {'ConditionalChain', 'FormValidation'}
 
 # Maximum SolutionInvocation nesting depth. Recursion is ALLOWED (a
 # solution may invoke itself — the factorial pattern), so the chain may
@@ -2073,12 +2094,260 @@ class SolutionExecutionEngine:
                     payload[out_name] = _resolve_value_source_config(
                         mapping.get('valueSource'), context)
             event = {'name': event_name, 'payload': payload,
-                     'sourceState': state_name}
+                     'sourceState': state_name, 'channel': 'backend'}
             context.setdefault(EMITTED_EVENTS_KEY, []).append(event)
             result['result'] = event
             log_output.append(
                 f'[{state_name}] emitted event {event_name!r} with '
                 f'{len(payload)} payload field(s)'
+            )
+
+        elif state_class == 'EmitFrontendEvent':
+            # EmitEvent's frontend twin: identical resolution, but the
+            # event is tagged channel='frontend' so the execution
+            # response's consumer (the display-solution-runner) dispatches
+            # it on the client displayEvents$ bus. The engine itself does
+            # no client dispatch — it can't; it records intent.
+            event_name = (field_values.get('eventName')
+                          or field_values.get('name') or state_name)
+            payload = {}
+            raw_payload = field_values.get('payload')
+            if isinstance(raw_payload, dict) and 'sourceType' not in raw_payload:
+                for k, v in raw_payload.items():
+                    if isinstance(v, dict) and 'sourceType' in v:
+                        payload[k] = _resolve_value_source_config(v, context)
+                    else:
+                        payload[k] = _safe_resolve_value(v, context)
+            for mapping in field_values.get('payloadMappings', []) or []:
+                if not isinstance(mapping, dict):
+                    continue
+                out_name = mapping.get('outputFieldName', '')
+                if out_name:
+                    payload[out_name] = _resolve_value_source_config(
+                        mapping.get('valueSource'), context)
+            event = {'name': event_name, 'payload': payload,
+                     'sourceState': state_name, 'channel': 'frontend'}
+            context.setdefault(EMITTED_EVENTS_KEY, []).append(event)
+            result['result'] = event
+            log_output.append(
+                f'[{state_name}] emitted FRONTEND event {event_name!r} with '
+                f'{len(payload)} payload field(s)'
+            )
+
+        elif state_class == 'FormValidation':
+            # REAL per-field validation with BRANCHING (P4 — previously a
+            # silent pass-through that let invalid forms proceed ungated
+            # down the "All Valid" slot).
+            #
+            # Config: fields = [{fieldName, displayName, fieldType,
+            #   required, enabled, minValue?, maxValue?, minLength?,
+            #   maxLength?, pattern?/regex?}]. Values are read from
+            # context (the submitted form payload arrives as the entry's
+            # input params). Client-side concerns in the config
+            # (debounceMs) are ignored here — they belong to the display
+            # bridge.
+            #
+            # Writes: FORM_VALIDATION_KEY per-field verdicts,
+            # 'form_valid', '_invalid_fields'.
+            # Branches (indices into OUTPUT slots): valid → 0 (the
+            # "All Valid" slot by convention); invalid → the FIRST
+            # invalid field's own output slot when the graph wires one
+            # (per-field slots are the authored pattern), else 1 when a
+            # generic invalid slot exists, else traversal ENDS (see
+            # _get_next_state — no fallback to "All Valid", ever).
+            fields_cfg = [f for f in (field_values.get('fields') or [])
+                          if isinstance(f, dict) and f.get('enabled', True)]
+            verdicts = {}
+            invalid_fields = []
+            for f in fields_cfg:
+                fname = f.get('fieldName', '')
+                if not fname:
+                    continue
+                label = f.get('displayName') or fname
+                value = context.get(fname)
+                errors = []
+                missing = value is None or (isinstance(value, str)
+                                            and value.strip() == '')
+                if missing:
+                    if f.get('required', False):
+                        errors.append(f'{label} is required.')
+                else:
+                    ftype = (f.get('fieldType') or '').lower()
+                    num_val = None
+                    if ftype in ('int', 'integer'):
+                        try:
+                            num_val = int(str(value))
+                        except (TypeError, ValueError):
+                            errors.append(f'{label} must be a whole number.')
+                    elif ftype in ('float', 'number', 'num'):
+                        try:
+                            num_val = float(str(value))
+                        except (TypeError, ValueError):
+                            errors.append(f'{label} must be a number.')
+                    elif ftype in ('bool', 'boolean'):
+                        if not isinstance(value, bool) and str(value).lower() \
+                                not in ('true', 'false', '0', '1'):
+                            errors.append(f'{label} must be true or false.')
+                    if num_val is not None:
+                        if 'minValue' in f and f['minValue'] is not None \
+                                and num_val < f['minValue']:
+                            errors.append(
+                                f"{label} must be at least {f['minValue']}.")
+                        if 'maxValue' in f and f['maxValue'] is not None \
+                                and num_val > f['maxValue']:
+                            errors.append(
+                                f"{label} must be at most {f['maxValue']}.")
+                    if isinstance(value, str):
+                        if f.get('minLength') and len(value) < f['minLength']:
+                            errors.append(
+                                f"{label} must be at least "
+                                f"{f['minLength']} characters.")
+                        if f.get('maxLength') and len(value) > f['maxLength']:
+                            errors.append(
+                                f"{label} must be at most "
+                                f"{f['maxLength']} characters.")
+                        pattern = f.get('pattern') or f.get('regex')
+                        if pattern:
+                            import re as _re
+                            try:
+                                if not _re.search(pattern, value):
+                                    errors.append(
+                                        f'{label} does not match the '
+                                        f'expected format.')
+                            except _re.error:
+                                errors.append(
+                                    f'{label} has an invalid validation '
+                                    f'pattern (fix the rule in the editor).')
+                verdicts[fname] = {'valid': not errors, 'errors': errors}
+                if errors:
+                    invalid_fields.append(fname)
+
+            form_valid = not invalid_fields
+            context[FORM_VALIDATION_KEY] = verdicts
+            context['form_valid'] = form_valid
+            context['_invalid_fields'] = invalid_fields
+            result['result'] = form_valid
+
+            # Routing happens in _get_next_state (it owns the slots):
+            # valid → the first output slot ("All Valid"); invalid → the
+            # first invalid field's own wired slot, else a wired generic
+            # second slot, else traversal ENDS. branch_taken here is
+            # informational for the trace.
+            if form_valid:
+                result['branch_taken'] = 0
+                result['branch_label'] = 'All Valid'
+                log_output.append(
+                    f'[{state_name}] all {len(fields_cfg)} field(s) valid '
+                    f'— proceeding down "All Valid"'
+                )
+            else:
+                result['branch_taken'] = 1
+                result['branch_label'] = 'Invalid'
+                first_errs = verdicts[invalid_fields[0]]['errors']
+                log_output.append(
+                    f'[{state_name}] validation FAILED for '
+                    f'{", ".join(invalid_fields)} — '
+                    f'{first_errs[0] if first_errs else "invalid"}'
+                )
+
+        elif state_class == 'StateChangeCommit':
+            # Persist field changes onto an EXISTING instance through the
+            # standard object-tree path (attribute writes +
+            # saveInstanceInDB — mirrors polariCRUDE / the runner).
+            # PERMISSION-BLIND for now: the P6 auth/authz nodes add
+            # identity + permission checks; until then treat like any
+            # backend-trusted mutation. Scope: changeType 'update' only
+            # ('create'/'delete' arrive with the data-access node family).
+            # NOT terminal — commits and continues if wired onward;
+            # traversal ends naturally when no output connector exists.
+            #
+            # Config: targetClassName, instanceRef (value-source dict or
+            # literal name/id string), fieldMappings [{fieldName,
+            # valueSource}] and/or fields {name: source|literal}. Legacy
+            # thin config (targetFieldName only) maps that single context
+            # var onto the instance field of the same name.
+            change_type = (field_values.get('changeType') or 'update').lower()
+            if change_type != 'update':
+                raise ValueError(
+                    f"StateChangeCommit '{state_name}': changeType "
+                    f"'{change_type}' is not supported yet — only 'update' "
+                    f"of an existing instance. Create/delete arrive with "
+                    f"the data-access nodes."
+                )
+            target_cls = (field_values.get('targetClassName') or '').strip()
+            if not target_cls:
+                raise ValueError(
+                    f"StateChangeCommit '{state_name}': targetClassName is "
+                    f"required — which class's instance should be updated?"
+                )
+            ref_cfg = field_values.get('instanceRef')
+            if isinstance(ref_cfg, dict) and 'sourceType' in ref_cfg:
+                inst_ref = _resolve_value_source_config(ref_cfg, context)
+            else:
+                inst_ref = _safe_resolve_value(ref_cfg, context) \
+                    if ref_cfg is not None else None
+            if inst_ref is None:
+                raise ValueError(
+                    f"StateChangeCommit '{state_name}': instanceRef did not "
+                    f"resolve — which instance should be updated?"
+                )
+            inst_ref = str(inst_ref)
+
+            table = {}
+            if self.manager is not None and hasattr(self.manager, 'objectTables'):
+                table = self.manager.objectTables.get(target_cls, {}) or {}
+            target = None
+            for inst in table.values():
+                if str(getattr(inst, 'name', '')) == inst_ref \
+                        or str(getattr(inst, 'id', '')) == inst_ref \
+                        or str(getattr(inst, 'polariId', '')) == inst_ref:
+                    target = inst
+                    break
+            if target is None:
+                raise ValueError(
+                    f"StateChangeCommit '{state_name}': no {target_cls} "
+                    f"instance matching '{inst_ref}' was found."
+                )
+
+            # Gather the field writes.
+            writes = {}
+            for mapping in field_values.get('fieldMappings', []) or []:
+                if not isinstance(mapping, dict):
+                    continue
+                fname = mapping.get('fieldName') or mapping.get('outputFieldName')
+                if fname:
+                    writes[fname] = _resolve_value_source_config(
+                        mapping.get('valueSource'), context)
+            raw_fields = field_values.get('fields')
+            if isinstance(raw_fields, dict) and 'sourceType' not in raw_fields:
+                for k, v in raw_fields.items():
+                    if isinstance(v, dict) and 'sourceType' in v:
+                        writes[k] = _resolve_value_source_config(v, context)
+                    else:
+                        writes[k] = _safe_resolve_value(v, context)
+            legacy = field_values.get('targetFieldName')
+            if legacy and not writes:
+                writes[legacy] = context.get(legacy)
+            if not writes:
+                raise ValueError(
+                    f"StateChangeCommit '{state_name}': nothing to commit — "
+                    f"configure fieldMappings (or fields) with at least one "
+                    f"field."
+                )
+
+            for k, v in writes.items():
+                setattr(target, k, v)
+            db = getattr(self.manager, 'db', None) if self.manager else None
+            if db is not None and hasattr(db, 'saveInstanceInDB'):
+                db.saveInstanceInDB(target)
+            committed = {'className': target_cls, 'instance': inst_ref,
+                         'fields': dict(writes)}
+            context.setdefault(COMMITTED_CHANGES_KEY, []).append(committed)
+            result['result'] = committed
+            log_output.append(
+                f'[{state_name}] committed {len(writes)} field(s) onto '
+                f'{target_cls} "{inst_ref}": '
+                f'{", ".join(f"{k}={v!r}" for k, v in writes.items())}'
             )
 
         else:
@@ -2221,6 +2490,53 @@ class SolutionExecutionEngine:
         output_slots = [s for s in slots if not s.get('isInput', False)]
 
         if not output_slots:
+            return None
+
+        if state_class == 'FormValidation':
+            # Verdict-driven routing (the handler wrote form_valid /
+            # _invalid_fields into context). CRITICAL INVARIANT: an
+            # invalid form NEVER proceeds down "All Valid" — when no
+            # invalid branch is wired, traversal ends and the verdict
+            # lives in the context/result.
+            def _follow(slot):
+                for conn in slot.get('connectors', []) or []:
+                    target_name = conn.get('targetStateName')
+                    if target_name and target_name in states_by_name:
+                        return states_by_name.get(target_name)
+                return None
+
+            if bool(context.get('form_valid')):
+                # First output slot = "All Valid" by convention.
+                return _follow(output_slots[0]) if output_slots else None
+
+            fields_cfg = (current_state.get('boundObjectFieldValues', {})
+                          or {}).get('fields', []) or []
+            slot_by_abs_index = {s.get('index'): s for s in output_slots}
+            # Per-field routing: the first invalid field whose declared
+            # outputSlotIndex is wired wins (the authored seed pattern).
+            for fname in context.get('_invalid_fields') or []:
+                f_cfg = next((f for f in fields_cfg
+                              if isinstance(f, dict)
+                              and f.get('fieldName') == fname), None)
+                if not f_cfg:
+                    continue
+                slot = slot_by_abs_index.get(f_cfg.get('outputSlotIndex'))
+                if slot and slot.get('connectors'):
+                    nxt = _follow(slot)
+                    if nxt is not None:
+                        return nxt
+            # Generic invalid slot convention: the SECOND output slot —
+            # but ONLY for the simple Valid/Invalid shape (no per-field
+            # outputSlotIndex declared anywhere). With per-field slots
+            # declared, an unwired invalid field must NOT route down some
+            # other field's slot. Never fall back further.
+            has_per_field_slots = any(
+                isinstance(f, dict) and f.get('outputSlotIndex') is not None
+                for f in fields_cfg
+            )
+            if (not has_per_field_slots and len(output_slots) > 1
+                    and output_slots[1].get('connectors')):
+                return _follow(output_slots[1])
             return None
 
         if state_class == 'ConditionalChain' and branch_taken is not None:

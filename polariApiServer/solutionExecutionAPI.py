@@ -186,6 +186,10 @@ class SolutionExecutionAPI(treeObject):
                 'solutionName': solution_name,
                 'targetRuntime': target_runtime,
                 'trace': trace_dict,
+                # Distilled outcome for display consumers (forms/buttons):
+                # validation verdicts, emitted events, committed changes —
+                # so the client doesn't dig through step contexts.
+                'displaySummary': self._display_summary(trace),
             }
 
         except Exception as e:
@@ -195,6 +199,55 @@ class SolutionExecutionAPI(treeObject):
             traceback.print_exc()
 
         response.set_header('Powered-By', 'Polari')
+
+    @staticmethod
+    def _display_summary(trace):
+        """Distill the final context into what a display consumer needs:
+        overall status + return value, form validation verdicts, emitted
+        events (the frontend-channel ones get dispatched on the client's
+        displayEvents$ bus), and committed state changes. Never raises —
+        a summary failure must not break an execution response."""
+        summary = {
+            'status': getattr(trace, 'status', 'unknown'),
+            'finalReturnValue': getattr(trace, 'final_return_value', None),
+            'formValid': None,
+            'validation': None,
+            'invalidFields': [],
+            'events': [],
+            'committed': [],
+        }
+        try:
+            steps = getattr(trace, 'steps', None) or []
+            if not steps:
+                return summary
+            context_after = getattr(steps[-1], 'context_after', None)
+            variables = getattr(context_after, 'variables', None)
+            if not isinstance(variables, dict):
+                return summary
+
+            def _unwrap(v):
+                if isinstance(v, dict) and 'value' in v and 'name' in v:
+                    return v.get('value')
+                return v
+
+            final = {k: _unwrap(v) for k, v in variables.items()}
+            if 'form_valid' in final:
+                summary['formValid'] = bool(final.get('form_valid'))
+            validation = final.get('_form_validation')
+            if isinstance(validation, dict):
+                summary['validation'] = validation
+            invalid = final.get('_invalid_fields')
+            if isinstance(invalid, list):
+                summary['invalidFields'] = invalid
+            events = final.get('_emitted_events')
+            if isinstance(events, list):
+                summary['events'] = events
+            committed = final.get('_committed_changes')
+            if isinstance(committed, list):
+                summary['committed'] = committed
+        except Exception:
+            pass
+        return summary
 
     def on_post_test_case(self, request, response):
         """Run a single test case with its assertions against a solution."""

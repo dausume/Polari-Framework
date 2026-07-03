@@ -339,7 +339,7 @@ class StateBuildingBlockRegistry:
                 display_name='Form Validation',
                 description='Introspects a form\'s fields and generates one output slot per field for individual validation logic. Specific to FormSubscription flows.',
                 category='Conditionals',
-                supported_runtimes=['typescript_frontend'],
+                supported_runtimes=['python_backend', 'typescript_frontend'],
                 code_templates=[
                     CodeTemplate('typescript_frontend', '// Validate each form field individually\n{fieldValidationBlocks}'),
                 ],
@@ -350,8 +350,15 @@ class StateBuildingBlockRegistry:
                 ],
                 display_fields=[],
                 icon='checklist', color='#00BCD4',
-                execution_status='authoring-only',
-                execution_note='No engine handler yet - arrives with the display event/validation bridge (P4).',
+                execution_status='real',
+                execution_note=('Validates per-field rules (required/type/range/'
+                                'length/pattern) and BRANCHES: valid -> the '
+                                '"All Valid" slot; invalid -> the first invalid '
+                                "field's own wired slot (or a wired generic "
+                                'second slot in the simple two-slot shape). '
+                                'With no invalid branch wired the flow ends '
+                                'with the verdict in context — an invalid form '
+                                'never proceeds down "All Valid".'),
             ),
 
             # === Loops ===
@@ -599,8 +606,45 @@ class StateBuildingBlockRegistry:
                 default_output_slots=[],
                 display_fields=[],
                 icon='cloud_upload', color='#FF5722',
-                execution_status='authoring-only',
-                execution_note='No engine handler yet - arrives with the frontend event bridge (P4/P5).',
+                execution_status='real',
+                execution_note=("Terminal. Records the event with "
+                                "channel='frontend' in _emitted_events; the "
+                                "execution response carries it out and the "
+                                "client's displayEvents$ bus dispatches it to "
+                                "subscribers (true client-side execution "
+                                "arrives with P5)."),
+            ),
+
+            # === Display state persistence (P4) ===
+            StateBuildingBlock(
+                class_name='StateChangeCommit',
+                display_name='Commit State Change',
+                description=('Persist field changes onto an EXISTING instance '
+                             'through the standard object-tree path. Commits '
+                             'and continues when wired onward; the flow ends '
+                             'naturally when nothing follows.'),
+                category='End States',
+                supported_runtimes=['python_backend'],
+                code_templates=[
+                    CodeTemplate('python_backend',
+                                 '# Commit {targetClassName} "{instanceRef}" field updates'),
+                ],
+                default_input_slots=[{'name': 'input', 'displayName': 'Input',
+                                      'slotType': 'input', 'dataType': 'object',
+                                      'isRequired': True}],
+                default_output_slots=[{'name': 'committed',
+                                       'displayName': 'Committed',
+                                       'slotType': 'output', 'dataType': 'object',
+                                       'isRequired': False}],
+                display_fields=[],
+                icon='save', color='#4CAF50',
+                execution_status='real',
+                execution_note=("Updates an existing instance's fields "
+                                '(targetClassName + instanceRef + '
+                                'fieldMappings) and persists via '
+                                'saveInstanceInDB. PERMISSION-BLIND until the '
+                                'auth/authz nodes land (P6); create/delete '
+                                'arrive with the data-access node family.'),
             ),
         ]
 
