@@ -1,0 +1,165 @@
+{
+ "name": "conditional-true",
+ "description": "ConditionalChain routes the true branch.",
+ "solutions": [
+  {
+   "name": "v-cond",
+   "targetRuntime": "typescript_frontend",
+   "definition": {
+    "solutionName": "v-cond",
+    "stateInstances": [
+     {
+      "stateName": "Start",
+      "stateClass": "InitialState",
+      "index": 0,
+      "boundObjectFieldValues": {
+       "inputParams": [
+        {
+         "name": "flag"
+        }
+       ]
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Check"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Check",
+      "stateClass": "ConditionalChain",
+      "index": 1,
+      "boundObjectFieldValues": {
+       "conditions": [
+        {
+         "leftOperand": "flag",
+         "operator": "isTrue",
+         "rightOperand": "",
+         "label": "yes"
+        }
+       ]
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Yes"
+         }
+        ]
+       },
+       {
+        "isInput": false,
+        "index": 2,
+        "connectors": [
+         {
+          "targetStateName": "No"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Yes",
+      "stateClass": "VariableAssignment",
+      "index": 2,
+      "boundObjectFieldValues": {
+       "variableName": "path",
+       "value": "\"yes\""
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Ret"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "No",
+      "stateClass": "VariableAssignment",
+      "index": 3,
+      "boundObjectFieldValues": {
+       "variableName": "path",
+       "value": "\"no\""
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Ret"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Ret",
+      "stateClass": "ReturnValue",
+      "index": 4,
+      "boundObjectFieldValues": {
+       "returnValueSource": "variable",
+       "variableName": "path"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "entry": "v-cond",
+ "inputParams": {
+  "flag": true
+ },
+ "expect": {
+  "status": "completed",
+  "finalReturnValue": "yes",
+  "context": {
+   "path": "yes"
+  }
+ }
+}

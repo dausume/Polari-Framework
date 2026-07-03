@@ -1,0 +1,124 @@
+{
+ "name": "loop-budget-error",
+ "description": "ForLoop over budget errors plainly.",
+ "solutions": [
+  {
+   "name": "v-budget",
+   "targetRuntime": "typescript_frontend",
+   "definition": {
+    "solutionName": "v-budget",
+    "stateInstances": [
+     {
+      "stateName": "Start",
+      "stateClass": "InitialState",
+      "index": 0,
+      "boundObjectFieldValues": {},
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Loop"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Loop",
+      "stateClass": "ForLoop",
+      "index": 1,
+      "boundObjectFieldValues": {
+       "iteratorVariable": "i",
+       "startValue": 0,
+       "endValue": 100,
+       "stepValue": 1,
+       "maxIterations": 5
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Noop"
+         }
+        ]
+       },
+       {
+        "isInput": false,
+        "index": 2,
+        "connectors": [
+         {
+          "targetStateName": "Ret"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Noop",
+      "stateClass": "VariableAssignment",
+      "index": 2,
+      "boundObjectFieldValues": {
+       "variableName": "tick",
+       "value": "i"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     },
+     {
+      "stateName": "Ret",
+      "stateClass": "ReturnValue",
+      "index": 3,
+      "boundObjectFieldValues": {
+       "returnValue": "done"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "entry": "v-budget",
+ "inputParams": {},
+ "expect": {
+  "status": "errored",
+  "errorContains": [
+   "exceeded its iteration budget (5)",
+   "raise maxIterations on the loop node"
+  ]
+ }
+}

@@ -1,0 +1,148 @@
+{
+ "name": "while-countdown",
+ "description": "While x > 0 decrements to 0.",
+ "solutions": [
+  {
+   "name": "v-while",
+   "targetRuntime": "typescript_frontend",
+   "definition": {
+    "solutionName": "v-while",
+    "stateInstances": [
+     {
+      "stateName": "Start",
+      "stateClass": "InitialState",
+      "index": 0,
+      "boundObjectFieldValues": {},
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "InitX"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "InitX",
+      "stateClass": "VariableAssignment",
+      "index": 1,
+      "boundObjectFieldValues": {
+       "variableName": "x",
+       "value": "5"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Loop"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Loop",
+      "stateClass": "WhileLoop",
+      "index": 2,
+      "boundObjectFieldValues": {
+       "condition": "x > 0"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Dec"
+         }
+        ]
+       },
+       {
+        "isInput": false,
+        "index": 2,
+        "connectors": [
+         {
+          "targetStateName": "Ret"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Dec",
+      "stateClass": "MathOperation",
+      "index": 3,
+      "boundObjectFieldValues": {
+       "leftOperand": "x",
+       "rightOperand": "1",
+       "operator": "subtract",
+       "resultVariable": "x"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     },
+     {
+      "stateName": "Ret",
+      "stateClass": "ReturnValue",
+      "index": 4,
+      "boundObjectFieldValues": {
+       "returnValueSource": "variable",
+       "variableName": "x"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "entry": "v-while",
+ "inputParams": {},
+ "expect": {
+  "status": "completed",
+  "finalReturnValue": 0,
+  "context": {
+   "x": 0
+  }
+ }
+}

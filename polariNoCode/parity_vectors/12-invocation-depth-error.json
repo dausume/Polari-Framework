@@ -1,0 +1,94 @@
+{
+ "name": "invocation-depth-error",
+ "description": "Missing base case fails plainly at depth 16.",
+ "solutions": [
+  {
+   "name": "vec-norec",
+   "targetRuntime": "typescript_frontend",
+   "definition": {
+    "solutionName": "vec-norec",
+    "stateInstances": [
+     {
+      "stateName": "Entry",
+      "stateClass": "LogicFlowEntry",
+      "index": 0,
+      "boundObjectFieldValues": {
+       "inputParams": []
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Recur"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Recur",
+      "stateClass": "SolutionInvocation",
+      "index": 1,
+      "boundObjectFieldValues": {
+       "solutionRef": "vec-norec",
+       "inputMappings": [],
+       "resultBindings": []
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Ret"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Ret",
+      "stateClass": "ReturnValue",
+      "index": 2,
+      "boundObjectFieldValues": {
+       "returnValue": "unreachable"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "entry": "vec-norec",
+ "inputParams": {},
+ "expect": {
+  "status": "errored",
+  "errorContains": [
+   "call nesting exceeded 16 levels",
+   "make sure the base case is reachable"
+  ]
+ }
+}

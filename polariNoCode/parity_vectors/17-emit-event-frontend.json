@@ -1,0 +1,81 @@
+{
+ "name": "emit-event-frontend",
+ "description": "EmitFrontendEvent terminal, frontend channel.",
+ "solutions": [
+  {
+   "name": "v-femit",
+   "targetRuntime": "typescript_frontend",
+   "definition": {
+    "solutionName": "v-femit",
+    "stateInstances": [
+     {
+      "stateName": "Start",
+      "stateClass": "InitialState",
+      "index": 0,
+      "boundObjectFieldValues": {},
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Emit"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Emit",
+      "stateClass": "EmitFrontendEvent",
+      "index": 1,
+      "boundObjectFieldValues": {
+       "eventName": "ping",
+       "payloadMappings": [
+        {
+         "outputFieldName": "n",
+         "valueSource": {
+          "sourceType": "direct_assignment",
+          "directValue": "7",
+          "directValueType": "int"
+         }
+        }
+       ]
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "entry": "v-femit",
+ "inputParams": {},
+ "expect": {
+  "status": "completed",
+  "events": [
+   {
+    "name": "ping",
+    "channel": "frontend",
+    "payload": {
+     "n": 7
+    }
+   }
+  ]
+ }
+}

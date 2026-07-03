@@ -1,0 +1,105 @@
+{
+ "name": "validation-result-binding",
+ "description": "ValidationResult binds verdict + derived.",
+ "solutions": [
+  {
+   "name": "v-verdict",
+   "targetRuntime": "typescript_frontend",
+   "definition": {
+    "solutionName": "v-verdict",
+    "stateInstances": [
+     {
+      "stateName": "Entry",
+      "stateClass": "InitialConditionsValidatorEntry",
+      "index": 0,
+      "boundObjectFieldValues": {},
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Ball"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Ball",
+      "stateClass": "VariableAssignment",
+      "index": 1,
+      "boundObjectFieldValues": {
+       "variableName": "ball",
+       "value": "2.5"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Verdict"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Verdict",
+      "stateClass": "ValidationResult",
+      "index": 2,
+      "boundObjectFieldValues": {
+       "complete": {
+        "sourceType": "direct_assignment",
+        "directValue": "1",
+        "directValueType": "int"
+       },
+       "reason": "\"looks good\"",
+       "derivedValues": {
+        "ball_mass": {
+         "sourceType": "from_source_object",
+         "sourceObjectPath": "ball"
+        }
+       }
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "entry": "v-verdict",
+ "inputParams": {},
+ "expect": {
+  "status": "completed",
+  "context": {
+   "complete": 1,
+   "reason": "looks good",
+   "derivedValues": {
+    "ball_mass": 2.5
+   }
+  }
+ }
+}

@@ -1,4 +1,7 @@
 *.json
+# The shared engine-parity vectors ARE source (both engines' contract) —
+# exempt them from the blanket *.json ignore.
+!polariNoCode/parity_vectors/*.json
 *.pyc
 *.db
 */falcon

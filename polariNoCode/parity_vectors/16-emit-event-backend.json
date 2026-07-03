@@ -1,0 +1,80 @@
+{
+ "name": "emit-event-backend",
+ "description": "EmitEvent terminal, backend channel.",
+ "solutions": [
+  {
+   "name": "v-emit",
+   "targetRuntime": "typescript_frontend",
+   "definition": {
+    "solutionName": "v-emit",
+    "stateInstances": [
+     {
+      "stateName": "Start",
+      "stateClass": "InitialState",
+      "index": 0,
+      "boundObjectFieldValues": {},
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Emit"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Emit",
+      "stateClass": "EmitEvent",
+      "index": 1,
+      "boundObjectFieldValues": {
+       "eventName": "refreshDisplay",
+       "payload": {
+        "count": {
+         "sourceType": "direct_assignment",
+         "directValue": "3",
+         "directValueType": "int"
+        },
+        "tag": "\"demo\""
+       }
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "entry": "v-emit",
+ "inputParams": {},
+ "expect": {
+  "status": "completed",
+  "events": [
+   {
+    "name": "refreshDisplay",
+    "channel": "backend",
+    "payload": {
+     "count": 3,
+     "tag": "demo"
+    }
+   }
+  ]
+ }
+}

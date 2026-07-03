@@ -1,0 +1,193 @@
+{
+ "name": "collections-chain",
+ "description": "Filter >5, square, sum = 330.",
+ "solutions": [
+  {
+   "name": "v-collections",
+   "targetRuntime": "typescript_frontend",
+   "definition": {
+    "solutionName": "v-collections",
+    "stateInstances": [
+     {
+      "stateName": "Start",
+      "stateClass": "InitialState",
+      "index": 0,
+      "boundObjectFieldValues": {},
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "InitN"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "InitN",
+      "stateClass": "VariableAssignment",
+      "index": 1,
+      "boundObjectFieldValues": {
+       "variableName": "nums",
+       "value": "[1,2,3,4,5,6,7,8,9,10]"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Filt"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Filt",
+      "stateClass": "FilterList",
+      "index": 2,
+      "boundObjectFieldValues": {
+       "sourceVariable": "nums",
+       "resultVariable": "big",
+       "itemVariable": "x",
+       "filterCondition": "x > 5"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Sq"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Sq",
+      "stateClass": "MapList",
+      "index": 3,
+      "boundObjectFieldValues": {
+       "sourceVariable": "big",
+       "resultVariable": "squares",
+       "itemVariable": "x",
+       "expression": "x * x"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Sum"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Sum",
+      "stateClass": "ReduceList",
+      "index": 4,
+      "boundObjectFieldValues": {
+       "sourceVariable": "squares",
+       "resultVariable": "total",
+       "itemVariable": "x",
+       "accumulatorVariable": "acc",
+       "initialValue": 0,
+       "expression": "acc + x"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Ret"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Ret",
+      "stateClass": "ReturnValue",
+      "index": 5,
+      "boundObjectFieldValues": {
+       "returnValueSource": "variable",
+       "variableName": "total"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "entry": "v-collections",
+ "inputParams": {},
+ "expect": {
+  "status": "completed",
+  "finalReturnValue": 330,
+  "context": {
+   "big": [
+    6,
+    7,
+    8,
+    9,
+    10
+   ],
+   "squares": [
+    36,
+    49,
+    64,
+    81,
+    100
+   ],
+   "total": 330
+  },
+  "contextAbsent": [
+   "x",
+   "acc"
+  ]
+ }
+}

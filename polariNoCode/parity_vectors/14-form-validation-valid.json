@@ -1,0 +1,144 @@
+{
+ "name": "form-validation-valid",
+ "description": "Valid input proceeds down All Valid.",
+ "solutions": [
+  {
+   "name": "v-form",
+   "targetRuntime": "typescript_frontend",
+   "definition": {
+    "solutionName": "v-form",
+    "stateInstances": [
+     {
+      "stateName": "Entry",
+      "stateClass": "FormSubscription",
+      "index": 0,
+      "boundObjectFieldValues": {
+       "inputParams": [
+        {
+         "name": "note"
+        },
+        {
+         "name": "priority"
+        }
+       ]
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Validate"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Validate",
+      "stateClass": "FormValidation",
+      "index": 1,
+      "boundObjectFieldValues": {
+       "fields": [
+        {
+         "fieldName": "note",
+         "displayName": "Note",
+         "fieldType": "str",
+         "required": true
+        },
+        {
+         "fieldName": "priority",
+         "displayName": "Priority",
+         "fieldType": "int",
+         "required": true,
+         "minValue": 0,
+         "maxValue": 10
+        }
+       ]
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Save"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Save",
+      "stateClass": "VariableAssignment",
+      "index": 2,
+      "boundObjectFieldValues": {
+       "variableName": "saved",
+       "value": "true"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Ret"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Ret",
+      "stateClass": "ReturnValue",
+      "index": 3,
+      "boundObjectFieldValues": {
+       "returnValue": "\"ok\""
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "entry": "v-form",
+ "inputParams": {
+  "note": "hello",
+  "priority": 3
+ },
+ "expect": {
+  "status": "completed",
+  "finalReturnValue": "ok",
+  "context": {
+   "form_valid": true,
+   "saved": true,
+   "_invalid_fields": []
+  }
+ }
+}

@@ -1,0 +1,209 @@
+{
+ "name": "break-exits-loop",
+ "description": "Break at i>3 leaves total=6.",
+ "solutions": [
+  {
+   "name": "v-break",
+   "targetRuntime": "typescript_frontend",
+   "definition": {
+    "solutionName": "v-break",
+    "stateInstances": [
+     {
+      "stateName": "Start",
+      "stateClass": "InitialState",
+      "index": 0,
+      "boundObjectFieldValues": {},
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "InitT"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "InitT",
+      "stateClass": "VariableAssignment",
+      "index": 1,
+      "boundObjectFieldValues": {
+       "variableName": "total",
+       "value": "0"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Loop"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Loop",
+      "stateClass": "ForLoop",
+      "index": 2,
+      "boundObjectFieldValues": {
+       "iteratorVariable": "i",
+       "startValue": 1,
+       "endValue": 100,
+       "stepValue": 1
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Check"
+         }
+        ]
+       },
+       {
+        "isInput": false,
+        "index": 2,
+        "connectors": [
+         {
+          "targetStateName": "Ret"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Check",
+      "stateClass": "ConditionalChain",
+      "index": 3,
+      "boundObjectFieldValues": {
+       "conditions": [
+        {
+         "leftOperand": "i",
+         "operator": ">",
+         "rightOperand": "3",
+         "label": "past"
+        }
+       ]
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Stop"
+         }
+        ]
+       },
+       {
+        "isInput": false,
+        "index": 2,
+        "connectors": [
+         {
+          "targetStateName": "Add"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Stop",
+      "stateClass": "BreakStatement",
+      "index": 4,
+      "boundObjectFieldValues": {},
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     },
+     {
+      "stateName": "Add",
+      "stateClass": "MathOperation",
+      "index": 5,
+      "boundObjectFieldValues": {
+       "leftOperand": "total",
+       "rightOperand": "i",
+       "operator": "add",
+       "resultVariable": "total"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     },
+     {
+      "stateName": "Ret",
+      "stateClass": "ReturnValue",
+      "index": 6,
+      "boundObjectFieldValues": {
+       "returnValueSource": "variable",
+       "variableName": "total"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "entry": "v-break",
+ "inputParams": {},
+ "expect": {
+  "status": "completed",
+  "finalReturnValue": 6,
+  "context": {
+   "total": 6
+  }
+ }
+}

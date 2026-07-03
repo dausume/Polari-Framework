@@ -1,0 +1,238 @@
+{
+ "name": "invocation-factorial",
+ "description": "Self-invoking factorial(5)=120.",
+ "solutions": [
+  {
+   "name": "vec-fact",
+   "targetRuntime": "typescript_frontend",
+   "definition": {
+    "solutionName": "vec-fact",
+    "stateInstances": [
+     {
+      "stateName": "Entry",
+      "stateClass": "LogicFlowEntry",
+      "index": 0,
+      "boundObjectFieldValues": {
+       "inputParams": [
+        {
+         "name": "n"
+        }
+       ]
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Base"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Base",
+      "stateClass": "ConditionalChain",
+      "index": 1,
+      "boundObjectFieldValues": {
+       "conditions": [
+        {
+         "leftOperand": "n",
+         "operator": "<=",
+         "rightOperand": "1",
+         "label": "base"
+        }
+       ]
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "RetOne"
+         }
+        ]
+       },
+       {
+        "isInput": false,
+        "index": 2,
+        "connectors": [
+         {
+          "targetStateName": "Dec"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "RetOne",
+      "stateClass": "ReturnValue",
+      "index": 2,
+      "boundObjectFieldValues": {
+       "returnValue": "1"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     },
+     {
+      "stateName": "Dec",
+      "stateClass": "MathOperation",
+      "index": 3,
+      "boundObjectFieldValues": {
+       "leftOperand": "n",
+       "rightOperand": "1",
+       "operator": "subtract",
+       "resultVariable": "nm1"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Recur"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Recur",
+      "stateClass": "SolutionInvocation",
+      "index": 4,
+      "boundObjectFieldValues": {
+       "solutionRef": "vec-fact",
+       "inputMappings": [
+        {
+         "param": "n",
+         "valueSource": {
+          "sourceType": "from_source_object",
+          "sourceObjectPath": "nm1"
+         }
+        }
+       ],
+       "resultBindings": [
+        {
+         "output": "return",
+         "contextVar": "sub"
+        }
+       ]
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Mul"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Mul",
+      "stateClass": "MathOperation",
+      "index": 5,
+      "boundObjectFieldValues": {
+       "leftOperand": "n",
+       "rightOperand": "sub",
+       "operator": "multiply",
+       "resultVariable": "res"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Ret"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Ret",
+      "stateClass": "ReturnValue",
+      "index": 6,
+      "boundObjectFieldValues": {
+       "returnValueSource": "variable",
+       "variableName": "res"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     }
+    ]
+   },
+   "contractJson": {
+    "inputs": [
+     {
+      "name": "n",
+      "required": true
+     }
+    ],
+    "returns": [
+     {
+      "name": "return"
+     }
+    ]
+   }
+  }
+ ],
+ "entry": "vec-fact",
+ "inputParams": {
+  "n": 5
+ },
+ "expect": {
+  "status": "completed",
+  "finalReturnValue": 120
+ }
+}

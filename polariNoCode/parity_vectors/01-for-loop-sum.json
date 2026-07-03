@@ -1,0 +1,152 @@
+{
+ "name": "for-loop-sum",
+ "description": "ForLoop 1..11 accumulates 55; iterator persists.",
+ "solutions": [
+  {
+   "name": "v-for-sum",
+   "targetRuntime": "typescript_frontend",
+   "definition": {
+    "solutionName": "v-for-sum",
+    "stateInstances": [
+     {
+      "stateName": "Start",
+      "stateClass": "InitialState",
+      "index": 0,
+      "boundObjectFieldValues": {},
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "InitSum"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "InitSum",
+      "stateClass": "VariableAssignment",
+      "index": 1,
+      "boundObjectFieldValues": {
+       "variableName": "sum",
+       "value": "0"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Loop"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Loop",
+      "stateClass": "ForLoop",
+      "index": 2,
+      "boundObjectFieldValues": {
+       "iteratorVariable": "i",
+       "startValue": 1,
+       "endValue": 11,
+       "stepValue": 1
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Add"
+         }
+        ]
+       },
+       {
+        "isInput": false,
+        "index": 2,
+        "connectors": [
+         {
+          "targetStateName": "Ret"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Add",
+      "stateClass": "MathOperation",
+      "index": 3,
+      "boundObjectFieldValues": {
+       "leftOperand": "sum",
+       "rightOperand": "i",
+       "operator": "add",
+       "resultVariable": "sum"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     },
+     {
+      "stateName": "Ret",
+      "stateClass": "ReturnValue",
+      "index": 4,
+      "boundObjectFieldValues": {
+       "returnValueSource": "variable",
+       "variableName": "sum"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "entry": "v-for-sum",
+ "inputParams": {},
+ "expect": {
+  "status": "completed",
+  "finalReturnValue": 55,
+  "context": {
+   "sum": 55,
+   "i": 10
+  }
+ }
+}

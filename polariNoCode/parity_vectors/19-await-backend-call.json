@@ -1,0 +1,234 @@
+{
+ "name": "await-backend-call",
+ "description": "Client graph awaits a backend solution.",
+ "solutions": [
+  {
+   "name": "vec-square",
+   "targetRuntime": "typescript_frontend",
+   "definition": {
+    "solutionName": "vec-square",
+    "stateInstances": [
+     {
+      "stateName": "Entry",
+      "stateClass": "LogicFlowEntry",
+      "index": 0,
+      "boundObjectFieldValues": {
+       "inputParams": [
+        {
+         "name": "n"
+        }
+       ]
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Sq"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Sq",
+      "stateClass": "MathOperation",
+      "index": 1,
+      "boundObjectFieldValues": {
+       "leftOperand": "n",
+       "rightOperand": "n",
+       "operator": "multiply",
+       "resultVariable": "m"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Ret"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Ret",
+      "stateClass": "ReturnValue",
+      "index": 2,
+      "boundObjectFieldValues": {
+       "returnValueSource": "variable",
+       "variableName": "m"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     }
+    ]
+   },
+   "contractJson": {
+    "inputs": [
+     {
+      "name": "n",
+      "required": true
+     }
+    ],
+    "returns": [
+     {
+      "name": "return"
+     }
+    ],
+    "executionRights": "invoker",
+    "description": "Squares a number."
+   }
+  },
+  {
+   "name": "v-await",
+   "targetRuntime": "typescript_frontend",
+   "definition": {
+    "solutionName": "v-await",
+    "stateInstances": [
+     {
+      "stateName": "Start",
+      "stateClass": "InitialState",
+      "index": 0,
+      "boundObjectFieldValues": {},
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Await"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Await",
+      "stateClass": "AwaitBackendCall",
+      "index": 1,
+      "boundObjectFieldValues": {
+       "solutionRef": "vec-square",
+       "inputMappings": [
+        {
+         "param": "n",
+         "valueSource": {
+          "sourceType": "direct_assignment",
+          "directValue": "6",
+          "directValueType": "int"
+         }
+        }
+       ],
+       "resultBindings": [
+        {
+         "output": "return",
+         "contextVar": "sq"
+        }
+       ]
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Inc"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Inc",
+      "stateClass": "MathOperation",
+      "index": 2,
+      "boundObjectFieldValues": {
+       "leftOperand": "sq",
+       "rightOperand": "1",
+       "operator": "add",
+       "resultVariable": "out"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": [
+         {
+          "targetStateName": "Ret"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "stateName": "Ret",
+      "stateClass": "ReturnValue",
+      "index": 3,
+      "boundObjectFieldValues": {
+       "returnValueSource": "variable",
+       "variableName": "out"
+      },
+      "slots": [
+       {
+        "isInput": true,
+        "index": 0,
+        "connectors": []
+       },
+       {
+        "isInput": false,
+        "index": 1,
+        "connectors": []
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ],
+ "entry": "v-await",
+ "inputParams": {},
+ "expect": {
+  "status": "completed",
+  "finalReturnValue": 37,
+  "context": {
+   "sq": 36
+  }
+ }
+}
