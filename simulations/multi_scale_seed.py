@@ -118,6 +118,22 @@ SEED_MSIM_GRAPHS = [
             'aggregation': None,
         }}),
     },
+    {
+        'name': 'msim-out-of-plane',
+        'description': ('Out-of-plane motion: pz (position) and vz (velocity) '
+                        'over time. In vacuum both are exactly zero; under '
+                        'wind the bob leaves its swing plane and wobbles '
+                        'through it — a true 3D spherical pendulum.'),
+        'source_class': _NB,
+        'definition': json.dumps({'graphConfig': {
+            'renderStyle': 'lineY',
+            'xDimension': 'time',
+            'yDimensions': ['pz', 'vz'],
+            'seriesColors': [],
+            'options': {'legend': True},
+            'aggregation': None,
+        }}),
+    },
 ]
 
 SEED_MULTI_SCALE_SIMS = [{
@@ -142,12 +158,14 @@ SEED_MULTI_SCALE_SIMS = [{
         },
     ]),
     'panels_json': json.dumps([
+        {'kind': 'ic', 'icInterfaceRef': IC_MATERIAL_PICKER},
         {'kind': 'scene', 'simSpaceRef': 'newtonian-pendulum-viz', 'run': 'primary'},
+        {'kind': 'graph', 'graphRef': 'msim-out-of-plane',
+         'sourceClass': _NB, 'runs': ['primary', 'compare']},
         {'kind': 'graph', 'graphRef': 'msim-pendulum-energy',
          'sourceClass': _NB, 'runs': ['primary', 'compare']},
         {'kind': 'graph', 'graphRef': 'msim-wind-force',
          'sourceClass': _NB, 'runs': ['primary']},
-        {'kind': 'ic', 'icInterfaceRef': IC_MATERIAL_PICKER},
     ]),
     'display_ref': '',
     'compare_run_policy_json': json.dumps({
