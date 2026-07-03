@@ -283,6 +283,7 @@ class ExecutionStepSnapshot:
         enclosing_loop_state_name=None,
         hit_breakpoint=False,
         log_output=None,
+        child_execution=None,
     ):
         self.snapshot_id = snapshot_id
         self.step_index = step_index
@@ -305,6 +306,13 @@ class ExecutionStepSnapshot:
         self.enclosing_loop_state_name = enclosing_loop_state_name
         self.hit_breakpoint = hit_breakpoint
         self.log_output = log_output or []
+        # SolutionInvocation steps carry a SUMMARY of the nested child
+        # execution (linked by executionId), so the stepping UI can show
+        # "ran solution X: completed in N steps" without inlining the
+        # child's steps into this trace's step array:
+        #   { "executionId", "solutionName", "status", "stepCount",
+        #     "finalReturnValue"?, "error"? }
+        self.child_execution = child_execution
 
     def to_dict(self):
         d = {
@@ -354,6 +362,8 @@ class ExecutionStepSnapshot:
             d['enclosingLoopStateName'] = self.enclosing_loop_state_name
         if self.log_output:
             d['logOutput'] = self.log_output
+        if self.child_execution is not None:
+            d['childExecution'] = self.child_execution
         return d
 
     @classmethod
@@ -392,4 +402,5 @@ class ExecutionStepSnapshot:
             enclosing_loop_state_name=data.get('enclosingLoopStateName'),
             hit_breakpoint=data.get('hitBreakpoint', False),
             log_output=data.get('logOutput', []),
+            child_execution=data.get('childExecution'),
         )

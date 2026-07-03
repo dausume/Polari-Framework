@@ -431,8 +431,31 @@ class StateBuildingBlockRegistry:
                 default_output_slots=[{'name': 'output', 'displayName': 'Output', 'slotType': 'output', 'dataType': 'any', 'isRequired': False}],
                 display_fields=[],
                 icon='functions', color='#9C27B0',
-                execution_status='stub',
-                execution_note='Recognized but does not invoke anything - SolutionInvocation arrives in P3.',
+                execution_status='authoring-only',
+                execution_note='Retired legacy node - it never invokes anything '
+                               '(sets its result variable to None and says so in '
+                               'the trace). Use Solution Invocation instead.',
+            ),
+            StateBuildingBlock(
+                class_name='SolutionInvocation',
+                display_name='Solution Invocation',
+                description='Run another solution as a single reusable step: map '
+                            'inputs from this context, run it in isolation, bind '
+                            'its outputs back. The invoked solution\'s contract '
+                            '(inputs/returns) is the whole interface — its '
+                            'internals stay its own. Recursion allowed '
+                            '(depth-guarded).',
+                category='Data',
+                supported_runtimes=[],
+                code_templates=[
+                    CodeTemplate('python_backend', '{result} = invoke_solution({solutionRef}, {inputs})'),
+                    CodeTemplate('typescript_frontend', 'const {result} = await invokeSolution({solutionRef}, {inputs});'),
+                ],
+                default_input_slots=[{'name': 'input', 'displayName': 'Input', 'slotType': 'input', 'dataType': 'any', 'isRequired': True}],
+                default_output_slots=[{'name': 'output', 'displayName': 'Output', 'slotType': 'output', 'dataType': 'any', 'isRequired': False}],
+                display_fields=['solutionRef'],
+                icon='account_tree', color='#3F51B5',
+                execution_status='real',
             ),
             StateBuildingBlock(
                 class_name='FilterList',

@@ -98,6 +98,14 @@ TERMINAL_STATE_CLASSES = {
 # _extract_final_context) read the list off the final context.
 EMITTED_EVENTS_KEY = '_emitted_events'
 
+# Maximum SolutionInvocation nesting depth. Recursion is ALLOWED (a
+# solution may invoke itself — the factorial pattern), so the chain may
+# repeat names; this cap is what turns an infinite recursion (missing
+# base case) into a plain-language error instead of a hang. 16 levels is
+# generous for composed logic while keeping worst-case nested traces
+# manageable.
+MAX_INVOCATION_DEPTH = 16
+
 # Sentinel context key the SimStepContribution terminator appends to.
 # Resolution solutions read this same key to access prior partial
 # contributions. The SimulationRunner harvests it after each binding's
@@ -633,7 +641,7 @@ class SolutionExecutionEngine:
     def __init__(self, manager=None):
         self.manager = manager
 
-    def execute(self, solution_data, input_params, config=None, target_runtime='python_backend', instance_fields=None):
+    def execute(self, solution_data, input_params, config=None, target_runtime='python_backend', instance_fields=None, _invocation_chain=()):
         """
         Execute a solution by walking its state graph.
 
@@ -643,6 +651,10 @@ class SolutionExecutionEngine:
             config: Optional StepConfig for controlling step behavior
             target_runtime: 'python_backend' or 'typescript_frontend'
             instance_fields: Optional dict of instance field values (merged before input_params)
+            _invocation_chain: internal — tuple of solution names already
+                on the call stack when this execution is a nested
+                SolutionInvocation. Drives the depth guard; external
+                callers leave it unset.
 
         Returns:
             ExecutionTrace with full step snapshots
@@ -650,10 +662,18 @@ class SolutionExecutionEngine:
         if config is None:
             config = StepConfig(mode='step', record_context=True)
 
+        # The invocation chain this execution sits on (self included once
+        # the handler pushes the callee). Stored per-execution; nested
+        # invocations create a FRESH engine instance, so a caller's chain
+        # is never clobbered by its callee.
+        self._invocation_chain = tuple(_invocation_chain)
+        self._step_config = config
+
         # ISOLATION: Deep-clone solution_data
         solution_data = copy.deepcopy(solution_data)
 
         solution_name = solution_data.get('solutionName', 'untitled')
+        self._solution_name = solution_name
         execution_id = _generate_execution_id()
         trace = ExecutionTrace(execution_id, solution_name, target_runtime)
 
@@ -753,6 +773,7 @@ class SolutionExecutionEngine:
 
                 # Evaluate the state's operation
                 loop_action = None
+                child_execution = None
                 try:
                     result = self._evaluate_state(
                         state_class, field_values, context, state_name, log_output,
@@ -762,6 +783,7 @@ class SolutionExecutionEngine:
                     branch_taken = result.get('branch_taken')
                     branch_label = result.get('branch_label')
                     loop_action = result.get('loop_action')
+                    child_execution = result.get('child_execution')
                 except Exception as e:
                     execution_error = str(e)
                     status = 'errored'
@@ -798,6 +820,7 @@ class SolutionExecutionEngine:
                     branch_taken=branch_taken,
                     branch_label=branch_label,
                     log_output=log_output,
+                    child_execution=child_execution,
                 )
                 trace.add_step(snapshot)
 
@@ -859,6 +882,210 @@ class SolutionExecutionEngine:
             trace.error(str(e))
 
         return trace
+
+    # ------------------------------------------------------------------
+    # SolutionInvocation — solution-as-state composition
+    # ------------------------------------------------------------------
+
+    def _invoke_solution(self, field_values, context, state_name, log_output):
+        """Run another SolutionDefinition as a nested execution and bind
+        its outputs back into the caller's context.
+
+        Node config:
+            solutionRef:    name of the callee SolutionDefinition
+            inputMappings:  [{param, valueSource}] — caller-side value
+                            sources resolved into the callee's inputs
+            resultBindings: [{output, contextVar}] — callee outputs bound
+                            into caller context. output 'return' is the
+                            callee's ReturnValue; any other name reads
+                            the callee's final context (so terminals
+                            like ValidationResult expose named outputs).
+
+        Returns the child-execution SUMMARY dict for the trace snapshot.
+        Raises ValueError with plain-language messages on: missing
+        callee, contract violations, depth exhaustion, child failure.
+        """
+        callee_name = (field_values.get('solutionRef')
+                       or field_values.get('solutionName') or '').strip()
+        if not callee_name:
+            raise ValueError(
+                f"SolutionInvocation '{state_name}': no solutionRef "
+                f"configured — pick which solution to invoke."
+            )
+
+        # Depth guard. Recursion is allowed; this is what turns a missing
+        # base case into a readable error instead of a hang.
+        chain = getattr(self, '_invocation_chain', ())
+        caller_name = getattr(self, '_solution_name', '(caller)')
+        if len(chain) >= MAX_INVOCATION_DEPTH:
+            path = ' -> '.join(chain + (caller_name, callee_name))
+            raise ValueError(
+                f"SolutionInvocation '{state_name}': call nesting exceeded "
+                f"{MAX_INVOCATION_DEPTH} levels ({path}). If this is "
+                f"recursion, make sure the base case is reachable; if the "
+                f"nesting is intentional, flatten some of the chain."
+            )
+
+        row = self._load_solution_row(callee_name)
+        if row is None:
+            raise ValueError(
+                f"SolutionInvocation '{state_name}': solution "
+                f"'{callee_name}' was not found."
+            )
+        try:
+            child_data = json.loads(getattr(row, 'definition', '{}') or '{}')
+        except (ValueError, TypeError):
+            child_data = None
+        if not isinstance(child_data, dict) or not child_data.get('stateInstances'):
+            raise ValueError(
+                f"SolutionInvocation '{state_name}': solution "
+                f"'{callee_name}' has no executable definition."
+            )
+
+        # Resolve the caller-side inputs.
+        child_inputs = {}
+        for m in (field_values.get('inputMappings') or []):
+            if not isinstance(m, dict):
+                continue
+            param = (m.get('param') or '').strip()
+            if not param:
+                continue
+            src = m.get('valueSource')
+            child_inputs[param] = (
+                _resolve_value_source_config(src, context)
+                if isinstance(src, dict) else src
+            )
+
+        # Contract validation (only what the callee declares).
+        try:
+            contract = json.loads(getattr(row, 'contract_json', '{}') or '{}')
+        except (ValueError, TypeError):
+            contract = {}
+        declared_inputs = contract.get('inputs') or []
+        missing = [
+            i.get('name') for i in declared_inputs
+            if isinstance(i, dict) and i.get('required')
+            and child_inputs.get(i.get('name')) is None
+        ]
+        if missing:
+            desc = contract.get('description') or ''
+            raise ValueError(
+                f"SolutionInvocation '{state_name}': solution "
+                f"'{callee_name}' requires input(s) {missing} that were "
+                f"not provided (or resolved to nothing). "
+                + (f"It describes itself as: {desc}" if desc else
+                   "Map each required input in the invocation's settings.")
+            )
+        if declared_inputs:
+            declared_names = {
+                i.get('name') for i in declared_inputs if isinstance(i, dict)
+            }
+            for extra in set(child_inputs) - declared_names:
+                log_output.append(
+                    f"[{state_name}] note: input '{extra}' is not in "
+                    f"'{callee_name}'s contract — passed through anyway."
+                )
+
+        rights = (contract.get('executionRights') or 'invoker')
+        # Declarative for now (see SolutionDefinition.contract_json) —
+        # recorded in the trace so intent is visible before enforcement
+        # arrives with the auth/authz node family.
+        log_output.append(
+            f"[{state_name}] invoking '{callee_name}' "
+            f"(depth {len(chain) + 1}, rights: {rights}) with "
+            f"{sorted(child_inputs.keys())}"
+        )
+
+        # Fresh engine, fresh context (ONLY the mapped inputs) — the
+        # abstraction boundary. The callee never sees caller variables.
+        child_engine = SolutionExecutionEngine(manager=self.manager)
+        child_runtime = getattr(row, 'target_runtime', '') or 'python_backend'
+        child_trace = child_engine.execute(
+            child_data,
+            input_params=dict(child_inputs),
+            config=getattr(self, '_step_config', None),
+            target_runtime=child_runtime,
+            _invocation_chain=chain + (caller_name,),
+        )
+
+        if child_trace.status != 'completed':
+            raise ValueError(
+                f"SolutionInvocation '{state_name}': solution "
+                f"'{callee_name}' failed: "
+                f"{child_trace.error_summary or 'unknown engine error'}"
+            )
+
+        # Bind outputs back into the CALLER's context.
+        child_outputs = self._extract_child_outputs(child_trace)
+        for b in (field_values.get('resultBindings') or []):
+            if not isinstance(b, dict):
+                continue
+            output = (b.get('output') or 'return').strip()
+            var = (b.get('contextVar') or '').strip()
+            if not var:
+                continue
+            if output == 'return':
+                value = child_trace.final_return_value
+            elif output in child_outputs:
+                value = child_outputs[output]
+            else:
+                log_output.append(
+                    f"[{state_name}] note: '{callee_name}' produced no "
+                    f"output named '{output}' — '{var}' set to None. "
+                    f"Available: {sorted(child_outputs.keys())[:12]}"
+                )
+                value = None
+            context[var] = value
+            log_output.append(f'[{state_name}] {var} = {value!r} (from {output})')
+
+        log_output.append(
+            f"[{state_name}] '{callee_name}' completed in "
+            f"{len(child_trace.steps)} steps"
+        )
+
+        summary = {
+            'executionId': child_trace.execution_id,
+            'solutionName': callee_name,
+            'status': child_trace.status,
+            'stepCount': len(child_trace.steps),
+        }
+        try:
+            json.dumps(child_trace.final_return_value)
+            summary['finalReturnValue'] = child_trace.final_return_value
+        except (TypeError, ValueError):
+            summary['finalReturnValue'] = str(child_trace.final_return_value)
+        return summary
+
+    def _load_solution_row(self, solution_name):
+        """The callee SolutionDefinition row, by name (same lookup the
+        gate/validator flows use)."""
+        if self.manager is None or not hasattr(self.manager, 'objectTables'):
+            return None
+        table = self.manager.objectTables.get('SolutionDefinition', {}) or {}
+        for inst in table.values():
+            if getattr(inst, 'name', '') == solution_name:
+                return inst
+        return None
+
+    @staticmethod
+    def _extract_child_outputs(child_trace):
+        """The callee's final context as {name: value} — its NAMED
+        outputs. Mirrors the unwrap the SimulationRunner uses on traces
+        (variables stored as {name, type, value, ...} records)."""
+        steps = getattr(child_trace, 'steps', None) or []
+        if not steps:
+            return {}
+        context_after = getattr(steps[-1], 'context_after', None)
+        variables = getattr(context_after, 'variables', None)
+        if not isinstance(variables, dict):
+            return {}
+        out = {}
+        for k, v in variables.items():
+            if isinstance(v, dict) and 'value' in v and 'name' in v:
+                out[k] = v.get('value')
+            else:
+                out[k] = v
+        return out
 
     def _snapshot_variables(self, context, state_name):
         """Create a serializable snapshot of the current context variables."""
@@ -1216,14 +1443,40 @@ class SolutionExecutionEngine:
                 f'\'{loop_stack[-1]["name"]}\''
             )
 
+        elif state_class == 'SolutionInvocation':
+            # THE composition primitive: run another SolutionDefinition as
+            # a single reusable state (Dustin's "re-wrap a solution into a
+            # more generic state"). The callee runs in a FRESH context
+            # seeded ONLY with the mapped inputs — no caller-context
+            # leakage; the contract is the whole interface. Outputs bind
+            # back per resultBindings. Recursion is allowed; depth is
+            # guarded (MAX_INVOCATION_DEPTH) so a missing base case fails
+            # in plain language instead of hanging.
+            summary = self._invoke_solution(
+                field_values, context, state_name, log_output,
+            )
+            result['result'] = (
+                f"{summary['solutionName']} -> {summary['status']} "
+                f"({summary['stepCount']} steps)"
+            )
+            result['child_execution'] = summary
+
         elif state_class == 'FunctionCall':
+            # RETIRED (authoring-only): superseded by SolutionInvocation,
+            # which actually invokes another solution with a contract.
+            # Kept recognizable so legacy graphs don't error, but it does
+            # nothing and says so in the trace.
             func_name = field_values.get('functionName', '')
             result_var = field_values.get('resultVariableName', '')
-            # Record the call (actual invocation in v2)
             if result_var:
                 context[result_var] = None  # Placeholder
-            result['result'] = f'Called {func_name}'
-            log_output.append(f'[{state_name}] Calling {func_name}() -> {result_var or "(void)"}')
+            result['result'] = f'FunctionCall is not executable (use SolutionInvocation)'
+            log_output.append(
+                f'[{state_name}] FunctionCall "{func_name}" is an authoring-only '
+                f'legacy node and did NOT run. Use a SolutionInvocation node to '
+                f'call solution logic; {result_var or "(no result var)"} was set '
+                f'to None.'
+            )
 
         elif state_class in ('ReturnValue', 'ReturnStatement'):
             return_value_str = field_values.get('returnValue', '')
