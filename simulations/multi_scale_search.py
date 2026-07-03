@@ -121,8 +121,15 @@ def run_stage_search(
     attempt_tag: str = '',
     execution_backend: Optional[str] = None,
     max_workers: Optional[int] = None,
+    dask_scheduler: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Advance a stage's solution search by one batch and report status.
+
+    `dask_scheduler` (dask backend only; default POLARI_DASK_SCHEDULER
+    env): address of an existing distributed scheduler — the cross-
+    instance path (workers on ANY Polari joined to that scheduler
+    execute this search's attempts; the report's `workerSplit` shows
+    where tasks actually ran).
 
     `fixed_params` are merged into EVERY candidate's parameter overrides
     (candidates win on key conflicts — fixed params are the substance's
@@ -192,6 +199,7 @@ def run_stage_search(
         return _run_search_parallel(
             manager, msim_name, stage, sim_def, candidates, target_steps,
             batch, fixed, attempt_tag, backend, max_workers, report_warnings,
+            dask_scheduler,
         )
 
     attempts: List[Dict[str, Any]] = []
@@ -274,6 +282,7 @@ def run_stage_search(
             remaining=len(candidates) - attempted,
             winner=winner,
         ),
+        'workerSplit': None,
         'error': None,
     }
 
@@ -286,6 +295,7 @@ def run_stage_search(
 def _run_search_parallel(
     manager, msim_name, stage, sim_def, candidates, target_steps, batch,
     fixed, attempt_tag, backend, max_workers, report_warnings,
+    dask_scheduler=None,
 ) -> Dict[str, Any]:
     """Same report shape + winner semantics as the serial loop, but FRESH
     candidates in this batch execute as pure tasks on the chosen backend.
@@ -364,6 +374,7 @@ def _run_search_parallel(
                           'derivedValues': verdict.get('derivedValues')}
 
     # Pass 3 — fresh candidates, PURE + PARALLEL, within remaining budget.
+    attribution: Dict[str, Any] = {}
     take = [] if winner is not None else fresh[:max(0, batch - advanced)]
     if take:
         base = build_attempt_base(manager, stage, sim_def)
@@ -375,7 +386,9 @@ def _run_search_parallel(
             specs.append({**base, 'params': merged})
         try:
             results = parallel_map(execute_attempt_pure, specs,
-                                   backend=backend, max_workers=max_workers)
+                                   backend=backend, max_workers=max_workers,
+                                   scheduler_address=dask_scheduler,
+                                   attribution_out=attribution)
         except ExecutionBackendError as exc:
             report = _err(str(exc))
             report['attempts'] = attempts
@@ -442,6 +455,9 @@ def _run_search_parallel(
         'backend': backend,
         'warnings': report_warnings,
         'parallelHint': None,
+        # Where tasks actually executed (dask only) — e.g. across two
+        # Polari instances' workers: {'a-worker': 6, 'b-worker': 4}.
+        'workerSplit': attribution.get('workerSplit') or None,
         'error': None,
     }
 
@@ -480,11 +496,17 @@ def _parallel_hint(manager, sim_ref: str, target_steps: int,
     est = avg * target_steps * remaining
     if est <= 10.0:
         return None
+    import os as _os
+    scheduler = _os.environ.get('POLARI_DASK_SCHEDULER') or ''
+    tail = (f"set executionBackend to 'dask' to spread them across the "
+            f"connected instances' workers (scheduler {scheduler}), or "
+            f"'processes' to parallelize on this instance alone."
+            if scheduler else
+            "set executionBackend to 'processes' (or 'dask') on this "
+            "search to try several at once.")
     return (f"The remaining {remaining} candidates would take roughly "
             f"{est:.0f}s at this simulation's measured ~{avg * 1000:.0f} ms "
-            f"per step. These attempts are independent — set "
-            f"executionBackend to 'processes' (or 'dask') on this search "
-            f"to try several at once.")
+            f"per step. These attempts are independent — {tail}")
 
 
 # ---------------------------------------------------------------------------
@@ -497,7 +519,7 @@ def _err(msg: str) -> Dict[str, Any]:
         'achieved': False, 'winner': None, 'exhausted': False,
         'totalCandidates': 0, 'attempted': 0, 'advancedThisCall': 0,
         'attempts': [], 'backend': 'serial', 'warnings': [],
-        'parallelHint': None, 'error': msg,
+        'parallelHint': None, 'workerSplit': None, 'error': msg,
     }
 
 

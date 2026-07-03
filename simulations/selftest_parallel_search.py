@@ -170,7 +170,7 @@ def _backends():
 
     real_dask = _backend_mod._dask_client
 
-    def _no_dask(n):
+    def _no_dask(n, scheduler_address=None):
         raise ExecutionBackendError(
             "Dask is not installed on this backend. Enable it with: "
             "pip install 'dask[distributed]'")
@@ -184,6 +184,33 @@ def _backends():
         _backend_mod._dask_client = real_dask
     check('missing dask yields a structured how-to-enable error',
           dask_err is not None and 'pip install' in dask_err)
+
+    # Scheduler-address plumbing (the cross-instance path): the address
+    # reaches _dask_client from the param, and from the env default.
+    import os as _os
+    seen = []
+
+    def _capture(n, scheduler_address=None):
+        seen.append(scheduler_address)
+        raise ExecutionBackendError('stop here — plumbing test only')
+    _backend_mod._dask_client = _capture
+    try:
+        try:
+            parallel_map(execute_attempt_pure, specs[:1], backend='dask',
+                         scheduler_address='tcp://prf-dask-scheduler:8786')
+        except ExecutionBackendError:
+            pass
+        _os.environ['POLARI_DASK_SCHEDULER'] = 'tcp://env-sched:8786'
+        try:
+            parallel_map(execute_attempt_pure, specs[:1], backend='dask')
+        except ExecutionBackendError:
+            pass
+    finally:
+        _os.environ.pop('POLARI_DASK_SCHEDULER', None)
+        _backend_mod._dask_client = real_dask
+    check('scheduler address flows from the param and the env default',
+          seen == ['tcp://prf-dask-scheduler:8786', 'tcp://env-sched:8786'],
+          f'seen={seen}')
 
 
 def _orchestrator():
@@ -262,6 +289,20 @@ def _orchestrator():
               'measured evidence',
               hint is not None and 'executionBackend' in hint
               and '16s' in hint, f'hint={hint!r}')
+        # With a scheduler configured, the hint mentions the
+        # cross-instance option (knobs-and-suggestions: evidence + knob).
+        import os as _os
+        _os.environ['POLARI_DASK_SCHEDULER'] = 'tcp://prf-dask-scheduler:8786'
+        try:
+            hint_x = _search_mod._parallel_hint(
+                m_hint, MATERIAL_SIM_DEF, target_steps=20, remaining=8,
+                winner=None)
+        finally:
+            _os.environ.pop('POLARI_DASK_SCHEDULER', None)
+        check('parallelHint mentions cross-instance workers when a '
+              'scheduler is configured',
+              hint_x is not None and 'instances' in hint_x
+              and 'prf-dask-scheduler' in hint_x, f'hint={hint_x!r}')
     finally:
         _search_mod._create_attempt_run = real_create
         _runner_mod._create_row = real_row

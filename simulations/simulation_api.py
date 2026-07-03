@@ -706,11 +706,16 @@ class SimulationAPI(treeObject):
             max_workers = int(body.get('maxWorkers') or 0) or None
         except (TypeError, ValueError):
             max_workers = None
+        # Cross-instance dask: address of an existing distributed
+        # scheduler (e.g. tcp://prf-dask-scheduler:8786). Omitted =
+        # POLARI_DASK_SCHEDULER env, else a local cluster.
+        dask_scheduler = str(body.get('daskScheduler') or '') or None
         report = run_stage_search(self.manager, msim_name, stage, batch_size,
                                   fixed_params=fixed_params,
                                   attempt_tag=attempt_tag,
                                   execution_backend=execution_backend,
-                                  max_workers=max_workers)
+                                  max_workers=max_workers,
+                                  dask_scheduler=dask_scheduler)
         if report.get('winner'):
             report['deriveResolved'] = apply_derive(
                 stage, report['winner'].get('derivedValues') or {})
