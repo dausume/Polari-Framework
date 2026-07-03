@@ -146,6 +146,10 @@ from simulations.multi_scale_seed import (
 # Resource-aware simulation: measured per-step cost profiles (created
 # lazily by the runner's step-cost tracker — no seed rows).
 from simulations.step_cost_profile import StepCostProfile
+# Peer + module handshake (twin-Polari / node integration).
+from polariPeers.peer_node import PeerNode
+from polariPeers.polari_module import PolariModule
+from polariPeers.peers_api import PeersAPI
 from polariApiProfiler.apiProfilerAPI import (
     APIProfilerQueryAPI,
     APIProfilerMatchAPI,
@@ -399,6 +403,10 @@ class polariServer(treeObject):
         # lands in the next phase alongside simulation-kind no-code.
         simulationEndpoint = SimulationAPI(polServer=self, manager=self.manager)
 
+        # Peer + module handshake — twin-Polari instances register with a
+        # shared token, probe each other's simulations and modules.
+        peersEndpoint = PeersAPI(polServer=self, manager=self.manager)
+
         # Register APIProfile, APIDomain, APIEndpoint, and ApiFormatConfig types
         self.manager.getObjectTyping(classObj=APIProfile)
         self.manager.getObjectTyping(classObj=APIDomain)
@@ -416,6 +424,8 @@ class polariServer(treeObject):
             SimulationExecutionSolution, SimulationCouplingDefinition,
             MultiScaleSimulationDefinition, InitialConditionInterfaceDefinition,
             StepCostProfile,
+            # Node integration (twin-Polari): peers + module registry.
+            PeerNode, PolariModule,
             PendulumBobSimState, PendulumStringSimState,
             NewtonianPendulumBobSimState, NewtonianPendulumRodSimState,
             WindFieldGridState, MaterialCondensationState]
