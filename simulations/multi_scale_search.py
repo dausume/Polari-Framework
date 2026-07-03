@@ -41,6 +41,8 @@ import math
 import re
 from typing import Any, Dict, List, Optional
 
+from simulations.attempt_task import build_attempt_base, execute_attempt_pure
+from simulations.execution_backend import ExecutionBackendError, parallel_map
 from simulations.multi_scale_stages import evaluate_stage_gate
 from simulations.simulation_runner import _parse_json
 
@@ -117,6 +119,8 @@ def run_stage_search(
     batch_size: Optional[int] = None,
     fixed_params: Optional[Dict[str, Any]] = None,
     attempt_tag: str = '',
+    execution_backend: Optional[str] = None,
+    max_workers: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Advance a stage's solution search by one batch and report status.
 
@@ -125,6 +129,15 @@ def run_stage_search(
     identity, candidates are the searched process point). `attempt_tag`
     namespaces the attempt runs so per-substance searches stay separate
     and separately resumable.
+
+    `execution_backend` ('serial' | 'processes' | 'dask'): how FRESH
+    candidates in this batch execute. None = the stage's
+    search.executionBackend, else serial. Parallel backends run attempts
+    as PURE tasks (simulations.attempt_task) — no shared manager — and
+    materialize the results (attempt run + final row per class) back
+    in-process, so gates/series/scrubber see ordinary (sparse: final
+    step only) runs. Coupled simulations fall back to serial with a
+    warning — pure attempts cannot do live cross-run reads.
 
     Returns:
         {
@@ -136,6 +149,9 @@ def run_stage_search(
           'advancedThisCall': int,
           'attempts': [ {run, candidate, stepped, complete, reason,
                          error} ... ],    # ALL candidates, in order
+          'backend': str,                 # what actually executed
+          'warnings': [str, ...],
+          'parallelHint': str | None,     # knob-pointing suggestion
           'error': str | None,
         }
     """
@@ -161,6 +177,23 @@ def run_stage_search(
     from simulations.simulation_runner import run_step
 
     fixed = fixed_params if isinstance(fixed_params, dict) else {}
+    report_warnings: List[str] = []
+    backend = str(execution_backend or search_cfg.get('executionBackend')
+                  or 'serial').strip().lower()
+    if backend != 'serial' and _sim_is_coupled(manager, sim_ref, search_cfg):
+        report_warnings.append(
+            f"Simulation '{sim_ref}' participates in couplings — parallel "
+            f"attempts need a pure (uncoupled) simulation, so this search "
+            f"runs serially."
+        )
+        backend = 'serial'
+
+    if backend != 'serial':
+        return _run_search_parallel(
+            manager, msim_name, stage, sim_def, candidates, target_steps,
+            batch, fixed, attempt_tag, backend, max_workers, report_warnings,
+        )
+
     attempts: List[Dict[str, Any]] = []
     winner = None
     advanced = 0
@@ -234,8 +267,224 @@ def run_stage_search(
         'attempted': attempted,
         'advancedThisCall': advanced,
         'attempts': attempts,
+        'backend': 'serial',
+        'warnings': report_warnings,
+        'parallelHint': _parallel_hint(
+            manager, sim_ref, target_steps,
+            remaining=len(candidates) - attempted,
+            winner=winner,
+        ),
         'error': None,
     }
+
+
+# ---------------------------------------------------------------------------
+# Parallel execution path (pure attempts in workers, materialized back)
+# ---------------------------------------------------------------------------
+
+
+def _run_search_parallel(
+    manager, msim_name, stage, sim_def, candidates, target_steps, batch,
+    fixed, attempt_tag, backend, max_workers, report_warnings,
+) -> Dict[str, Any]:
+    """Same report shape + winner semantics as the serial loop, but FRESH
+    candidates in this batch execute as pure tasks on the chosen backend.
+    Existing runs are reconciled/gated exactly as in serial (under-stepped
+    ones are finished serially — they are partial in-process investments).
+    Each pure result is materialized as an ordinary attempt run holding
+    its FINAL row per class (that sparseness is the point of an attempt);
+    a pure winner is confirmed in-process before it counts."""
+    from simulations.simulation_runner import (
+        run_step, _bump_run_counters, _create_row, _row_name_for,
+    )
+    sim_ref = stage.get('simulationRef') or ''
+    stage_key = stage.get('key') or ''
+    dt = float(getattr(sim_def, 'time_step_seconds', 0.01) or 0.01)
+
+    attempts: List[Dict[str, Any]] = []
+    runs_by_idx: Dict[int, Any] = {}
+    winner = None
+    advanced = 0
+    attempted = 0
+    understepped: List[int] = []
+    fresh: List[int] = []
+
+    # Pass 1 — reconcile what already exists (no stepping budget spent).
+    for idx, candidate in enumerate(candidates):
+        name = attempt_run_name(msim_name, stage_key, idx, attempt_tag)
+        run = _find_by_name(manager, 'SimulationRun', name)
+        runs_by_idx[idx] = run
+        entry: Dict[str, Any] = {
+            'run': name, 'candidate': candidate, 'stepped': 0,
+            'complete': False, 'reason': '', 'error': None,
+        }
+        attempts.append(entry)
+        if run is None:
+            entry['reason'] = 'not attempted yet'
+            fresh.append(idx)
+            continue
+        entry['stepped'] = int(getattr(run, 'last_recorded_step', 0) or 0)
+        if entry['stepped'] >= target_steps:
+            attempted += 1
+            verdict = evaluate_stage_gate(manager, stage, run)
+            entry['complete'] = bool(verdict.get('complete'))
+            entry['reason'] = verdict.get('reason') or ''
+            entry['error'] = verdict.get('error')
+            if entry['complete'] and winner is None:
+                winner = {'run': name, 'candidate': candidate,
+                          'derivedValues': verdict.get('derivedValues')}
+        else:
+            entry['reason'] = (f"in progress ({entry['stepped']}/"
+                               f"{target_steps} steps)")
+            understepped.append(idx)
+
+    # Pass 2 — finish under-stepped existing runs serially (budget-bound).
+    for idx in understepped:
+        if winner is not None or advanced >= batch:
+            break
+        run = runs_by_idx[idx]
+        entry = attempts[idx]
+        advanced += 1
+        guard = 0
+        while (int(getattr(run, 'last_recorded_step', 0) or 0) < target_steps
+               and guard <= target_steps + 2):
+            guard += 1
+            result = run_step(manager, run)
+            if not result.get('success'):
+                entry['error'] = result.get('error')
+                break
+        entry['stepped'] = int(getattr(run, 'last_recorded_step', 0) or 0)
+        if entry['stepped'] >= target_steps:
+            attempted += 1
+            verdict = evaluate_stage_gate(manager, stage, run)
+            entry['complete'] = bool(verdict.get('complete'))
+            entry['reason'] = verdict.get('reason') or ''
+            if entry['complete'] and winner is None:
+                winner = {'run': entry['run'], 'candidate': entry['candidate'],
+                          'derivedValues': verdict.get('derivedValues')}
+
+    # Pass 3 — fresh candidates, PURE + PARALLEL, within remaining budget.
+    take = [] if winner is not None else fresh[:max(0, batch - advanced)]
+    if take:
+        base = build_attempt_base(manager, stage, sim_def)
+        specs = []
+        for idx in take:
+            merged = dict(base['baseParams'])
+            merged.update(fixed)
+            merged.update(candidates[idx])
+            specs.append({**base, 'params': merged})
+        try:
+            results = parallel_map(execute_attempt_pure, specs,
+                                   backend=backend, max_workers=max_workers)
+        except ExecutionBackendError as exc:
+            report = _err(str(exc))
+            report['attempts'] = attempts
+            report['totalCandidates'] = len(candidates)
+            report['attempted'] = attempted
+            report['backend'] = backend
+            report['warnings'] = report_warnings
+            return report
+
+        for idx, res in zip(take, results):
+            entry = attempts[idx]
+            advanced += 1
+            run = _create_attempt_run(
+                manager, entry['run'], sim_ref,
+                {**fixed, **candidates[idx]}, stage, msim_name)
+            if run is None:
+                entry['error'] = 'failed to create attempt run'
+                continue
+            if res.get('error'):
+                entry['error'] = res['error']
+                entry['reason'] = 'attempt failed'
+                continue
+            # Materialize the pure result: the FINAL row per class, named
+            # and tagged like any runner-written row.
+            for cls_name, fields in (res.get('rowsByClass') or {}).items():
+                row = dict(fields)
+                row['name'] = _row_name_for(cls_name, run, target_steps)
+                row['simulation_run_ref'] = entry['run']
+                row['step'] = target_steps
+                row['time'] = round(target_steps * dt, 6)
+                _create_row(manager, cls_name, row)
+            _bump_run_counters(manager, run, target_steps)
+            entry['stepped'] = target_steps
+            attempted += 1
+            entry['complete'] = bool(res.get('gateComplete'))
+            entry['reason'] = res.get('gateReason') or ''
+            if entry['complete'] and winner is None:
+                # Belt and braces: a pure winner must also pass the
+                # in-process gate over its materialized rows.
+                verdict = evaluate_stage_gate(manager, stage, run)
+                if verdict.get('complete'):
+                    winner = {'run': entry['run'],
+                              'candidate': candidates[idx],
+                              'derivedValues': verdict.get('derivedValues')}
+                else:
+                    entry['complete'] = False
+                    entry['reason'] = (verdict.get('reason')
+                                       or entry['reason'])
+                    report_warnings.append(
+                        f"Pure attempt '{entry['run']}' passed its gate but "
+                        f"the in-process check disagreed — trusting the "
+                        f"in-process verdict."
+                    )
+
+    exhausted = winner is None and attempted >= len(candidates)
+    return {
+        'achieved': winner is not None,
+        'winner': winner,
+        'exhausted': exhausted,
+        'totalCandidates': len(candidates),
+        'attempted': attempted,
+        'advancedThisCall': advanced,
+        'attempts': attempts,
+        'backend': backend,
+        'warnings': report_warnings,
+        'parallelHint': None,
+        'error': None,
+    }
+
+
+def _sim_is_coupled(manager, sim_ref: str, search_cfg: Dict[str, Any]) -> bool:
+    """True when the sim participates in any enabled coupling (either
+    side) or the search itself declares coupled source runs — pure
+    attempts cannot do live cross-run reads."""
+    if (search_cfg or {}).get('coupledRunRefs'):
+        return True
+    table = manager.objectTables.get('SimulationCouplingDefinition', {}) or {}
+    for c in table.values():
+        if not getattr(c, 'enabled', True):
+            continue
+        if sim_ref in (getattr(c, 'source_simulation_ref', ''),
+                       getattr(c, 'target_simulation_ref', '')):
+            return True
+    return False
+
+
+def _parallel_hint(manager, sim_ref: str, target_steps: int,
+                   remaining: int, winner) -> Optional[str]:
+    """Knobs-and-suggestions: when the measured step cost says the rest
+    of a serial search will take a while, point at the executionBackend
+    knob with the evidence. Never auto-applies."""
+    if winner is not None or remaining <= 0:
+        return None
+    profile = _find_by_name(manager, 'StepCostProfile',
+                            f'{sim_ref}-cost-profile')
+    if profile is None:
+        return None
+    try:
+        avg = float(getattr(profile, 'avg_step_seconds', 0.0) or 0.0)
+    except (TypeError, ValueError):
+        return None
+    est = avg * target_steps * remaining
+    if est <= 10.0:
+        return None
+    return (f"The remaining {remaining} candidates would take roughly "
+            f"{est:.0f}s at this simulation's measured ~{avg * 1000:.0f} ms "
+            f"per step. These attempts are independent — set "
+            f"executionBackend to 'processes' (or 'dask') on this search "
+            f"to try several at once.")
 
 
 # ---------------------------------------------------------------------------
@@ -247,7 +496,8 @@ def _err(msg: str) -> Dict[str, Any]:
     return {
         'achieved': False, 'winner': None, 'exhausted': False,
         'totalCandidates': 0, 'attempted': 0, 'advancedThisCall': 0,
-        'attempts': [], 'error': msg,
+        'attempts': [], 'backend': 'serial', 'warnings': [],
+        'parallelHint': None, 'error': msg,
     }
 
 

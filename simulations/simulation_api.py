@@ -698,9 +698,19 @@ class SimulationAPI(treeObject):
         if not isinstance(fixed_params, dict):
             fixed_params = {}
         attempt_tag = str(body.get('attemptTag') or '')
+        # Parallel attempts (DISTRIBUTED_COMPUTE_PLAN track 1): fresh
+        # candidates run as pure tasks on the chosen backend. Omitted =
+        # the stage's search.executionBackend default, else serial.
+        execution_backend = body.get('executionBackend') or None
+        try:
+            max_workers = int(body.get('maxWorkers') or 0) or None
+        except (TypeError, ValueError):
+            max_workers = None
         report = run_stage_search(self.manager, msim_name, stage, batch_size,
                                   fixed_params=fixed_params,
-                                  attempt_tag=attempt_tag)
+                                  attempt_tag=attempt_tag,
+                                  execution_backend=execution_backend,
+                                  max_workers=max_workers)
         if report.get('winner'):
             report['deriveResolved'] = apply_derive(
                 stage, report['winner'].get('derivedValues') or {})
