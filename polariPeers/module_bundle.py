@@ -47,7 +47,10 @@ _PARAM_SKIP = ('self', 'manager')
 # *SimState row classes and load right after SimulationRun.
 CLASS_LOAD_ORDER: List[str] = [
     'Mesh3DDefinition',
+    # Textures BEFORE materials — materials reference them.
+    'Texture3DDefinition',
     'Material3DDefinition',
+    'MaterialPhaseAppearance',
     'MatrixDefinition',
     'MatrixEquationDefinition',
     'EquationDefinition',
@@ -64,6 +67,8 @@ CLASS_LOAD_ORDER: List[str] = [
     'InitialConditionInterfaceDefinition',
     'SimulationCouplingDefinition',
     'MultiScaleSimulationDefinition',
+    # Displays reference graphs/scenes/components — last.
+    'DisplayDefinition',
 ]
 
 

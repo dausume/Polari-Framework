@@ -32,7 +32,10 @@ from simulations.multi_scale_seed import (
     SEED_MULTI_SCALE_SIMS, SEED_IC_INTERFACES, SEED_MSIM_GRAPHS,
 )
 from matrices.seed_data import SEED_MATRICES, SEED_MATRIX_EQUATIONS
-from simSpace3D.seed_data import SEED_MATERIALS_3D, SEED_MESHES_3D
+from simSpace3D.seed_data import (
+    SEED_MATERIALS_3D, SEED_MESHES_3D,
+    SEED_TEXTURES_3D, SEED_MATERIAL_PHASE_APPEARANCES,
+)
 
 # The real classes — the source manager's typing registry mirrors live.
 from simulations.simulation_definition import SimulationDefinition
@@ -60,6 +63,8 @@ from simSpace.sim_space_definition import SimSpaceDefinition
 from simSpace.sim_space_binding_definition import SimSpaceBindingDefinition
 from simSpace3D.material_3d_definition import Material3DDefinition
 from simSpace3D.mesh_3d_definition import Mesh3DDefinition
+from simSpace3D.texture_3d_definition import Texture3DDefinition
+from simSpace3D.material_phase_appearance import MaterialPhaseAppearance
 from polariPeers.polari_module import PolariModule
 
 from polariPeers.module_bundle import (
@@ -101,6 +106,8 @@ _CLASSES = {
     'SimSpaceBindingDefinition': SimSpaceBindingDefinition,
     'Material3DDefinition': Material3DDefinition,
     'Mesh3DDefinition': Mesh3DDefinition,
+    'Texture3DDefinition': Texture3DDefinition,
+    'MaterialPhaseAppearance': MaterialPhaseAppearance,
     'PolariModule': PolariModule,
 }
 
@@ -118,6 +125,8 @@ _SEED_TABLES = {
     'SolutionTestCase': SEED_PENDULUM_STEP_TEST_CASES,
     'Material3DDefinition': SEED_MATERIALS_3D,
     'Mesh3DDefinition': SEED_MESHES_3D,
+    'Texture3DDefinition': SEED_TEXTURES_3D,
+    'MaterialPhaseAppearance': SEED_MATERIAL_PHASE_APPEARANCES,
     'WindFieldGridState': SEED_WIND_GRID_ROWS,
     'MaterialCondensationState': SEED_MATERIAL_ROWS,
     'NewtonianPendulumBobSimState': SEED_NEWTON_BOB_ROWS + SEED_NEWTON_WIND_BOB_ROWS,
@@ -183,9 +192,10 @@ def _exporter():
 
     scopes = suggest_module_scopes(m)
     by_name = {s['name']: s for s in scopes}
-    check('suggested scopes: the natural 4-way partition',
+    check('suggested scopes: the natural partition + the experience module',
           set(by_name) == {'pendulum-core', 'wind-space', 'material-space',
-                           'pendulum-in-wind-composition'},
+                           'pendulum-in-wind-composition',
+                           'solid-materials-selection-module'},
           f'scopes={sorted(by_name)}')
     check('composition depends on the three space modules',
           set(by_name['pendulum-in-wind-composition']['dependsOn'])
@@ -234,6 +244,35 @@ def _exporter():
     check('composition still REQUIRES the coupled classes',
           {'NewtonianPendulumBobSimState', 'WindFieldGridState'}
           <= set(comp['manifest']['requiredClasses']))
+
+    # The solid-materials-selection EXPERIENCE module: sim + gate +
+    # scenes + appearances + textures + graphs, all in one bundle.
+    selection = _export(m, 'solid-materials-selection-module')
+    check('selection module: sim + gate + both scenes',
+          'material-condensation' in _names(selection, 'SimulationDefinition')
+          and 'solid-ball-achievable' in _names(selection, 'SolutionDefinition')
+          and {'material-condensation-viz', 'solid-material-selector'}
+          <= _names(selection, 'SimSpaceDefinition'))
+    check('selection module: appearance rows per substance',
+          _names(selection, 'MaterialPhaseAppearance')
+          == {'wax-phases', 'ice-phases', 'lead-phases'})
+    check('selection module: phase materials from binding maps AND '
+          'appearance rows',
+          {'wax-solid', 'wax-liquid', 'ice-solid', 'water-liquid',
+           'lead-solid', 'lead-liquid'}
+          <= _names(selection, 'Material3DDefinition'))
+    check('selection module: textures follow their materials',
+          {'wax-noise', 'frost-noise', 'brushed-stripes'}
+          <= _names(selection, 'Texture3DDefinition'))
+    check('selection module: explainability graphs ride along',
+          {'msim-material-temperature', 'msim-material-phase',
+           'msim-material-density'} <= _names(selection, 'GraphDefinition'))
+    from polariPeers.module_bundle import load_order_for
+    order = load_order_for(list(selection['objects'].keys()))
+    check('load order: textures before materials, appearances after',
+          order.index('Texture3DDefinition')
+          < order.index('Material3DDefinition')
+          < order.index('MaterialPhaseAppearance'))
     return m, wind, comp
 
 

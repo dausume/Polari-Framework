@@ -54,18 +54,12 @@ from polariPeers.module_bundle import (
 def export_module(manager, scope: Dict[str, Any]) -> Dict[str, Any]:
     """Export the closure of `scope` as a bundle."""
     walker = _ClosureWalker(manager)
-    for sim in scope.get('simulations') or []:
-        walker.walk_simulation(sim)
-    if scope.get('msim'):
-        walker.walk_msim(scope['msim'])
+    _walk_scope(walker, scope)
 
     # Subtract dependency modules' closures so bundles stay disjoint.
     for dep_scope in scope.get('excludeClosureOf') or []:
         dep = _ClosureWalker(manager)
-        for sim in dep_scope.get('simulations') or []:
-            dep.walk_simulation(sim)
-        if dep_scope.get('msim'):
-            dep.walk_msim(dep_scope['msim'])
+        _walk_scope(dep, dep_scope)
         walker.subtract(dep)
 
     objects, required = walker.serialized()
@@ -76,6 +70,27 @@ def export_module(manager, scope: Dict[str, Any]) -> Dict[str, Any]:
         depends_on=list(scope.get('dependsOn') or []),
         objects=objects,
     )
+
+
+def _walk_scope(walker: '_ClosureWalker', scope: Dict[str, Any]) -> None:
+    """Walk every root kind a scope may declare. Beyond sim/msim roots,
+    scopes can name explicit roots the reference graph can't reach from
+    a sim alone: gate SOLUTIONS (referenced by msim stages, not by the
+    sim), standalone SCENES (e.g. a selection space with no bound
+    classes), IC INTERFACES (whose choices tie to appearance rows), and
+    DISPLAYS."""
+    for sim in scope.get('simulations') or []:
+        walker.walk_simulation(sim)
+    if scope.get('msim'):
+        walker.walk_msim(scope['msim'])
+    for sol in scope.get('solutions') or []:
+        walker.walk_solution(sol)
+    for scene in scope.get('scenes') or []:
+        walker._walk_scene(scene)
+    for ic in scope.get('icInterfaces') or []:
+        walker.walk_ic_interface(ic)
+    for display in scope.get('displays') or []:
+        walker._add_by_name('DisplayDefinition', display)
 
 
 def suggest_module_scopes(manager) -> List[Dict[str, Any]]:
@@ -102,12 +117,16 @@ def suggest_module_scopes(manager) -> List[Dict[str, Any]]:
                            'field sampling.',
             'simulations': ['wind-field-3d'], 'dependsOn': [],
         })
+    scenes = {getattr(r, 'name', '') for r in
+              (manager.objectTables.get('SimSpaceDefinition', {}) or {}).values()}
     if 'material-condensation' in sims:
         out.append({
             'name': 'material-space',
             'description': 'The first-principles materials space: condensation '
                            'search, the solid-ball gate.',
-            'simulations': ['material-condensation'], 'dependsOn': [],
+            'simulations': ['material-condensation'],
+            'solutions': ['solid-ball-achievable'],
+            'dependsOn': [],
         })
     if 'pendulum-in-wind' in msims:
         deps = [s for s in out]
@@ -122,6 +141,25 @@ def suggest_module_scopes(manager) -> List[Dict[str, Any]]:
                 {k: v for k, v in d.items() if k in ('simulations', 'msim')}
                 for d in deps
             ],
+        })
+    # A self-contained EXPERIENCE module (appended after the composition
+    # so the space-partition dependency computation above stays exact —
+    # this one deliberately overlaps material-space).
+    if 'material-condensation' in sims and 'solid-material-selector' in scenes:
+        out.append({
+            'name': 'solid-materials-selection-module',
+            'description': (
+                'The solid-materials selection experience: the condensation '
+                'space + gate, the phase-appearance scene (ball solidifying '
+                'live), the fixed-camera 3D material selection space with '
+                'per-substance textures/appearances, the material picker, '
+                'and the explainability graphs.'
+            ),
+            'simulations': ['material-condensation'],
+            'solutions': ['solid-ball-achievable'],
+            'scenes': ['material-condensation-viz', 'solid-material-selector'],
+            'icInterfaces': ['bob-material-picker'],
+            'dependsOn': [],
         })
     return out
 
@@ -236,17 +274,43 @@ class _ClosureWalker:
             if panel.get('graphRef'):
                 self._add_by_name('GraphDefinition', panel['graphRef'])
             if panel.get('icInterfaceRef'):
-                ic = self._add_by_name('InitialConditionInterfaceDefinition',
-                                       panel['icInterfaceRef'])
-                if ic is not None and getattr(ic, 'target_class_name', ''):
-                    self.required.add(getattr(ic, 'target_class_name'))
+                self.walk_ic_interface(panel['icInterfaceRef'])
             if panel.get('simSpaceRef'):
                 self._walk_scene(panel['simSpaceRef'])
+            if panel.get('displayId'):
+                self._add_by_name('DisplayDefinition', panel['displayId'])
+        if getattr(msim, 'display_ref', ''):
+            self._add_by_name('DisplayDefinition',
+                              getattr(msim, 'display_ref'))
         for stage in _parse(getattr(msim, 'stages_json', '') or '[]', []):
             if not isinstance(stage, dict):
                 continue
             gate = (stage.get('gate') or {}).get('solutionRef', '')
             self.walk_solution(gate)
+
+    def walk_ic_interface(self, ic_name: str) -> None:
+        """IC interface + the appearance rows its substances wear: each
+        choice key ties to MaterialPhaseAppearance rows (substance_ref),
+        whose materials (map values + default) + their textures follow."""
+        ic = self._add_by_name('InitialConditionInterfaceDefinition', ic_name)
+        if ic is None:
+            return
+        if getattr(ic, 'target_class_name', ''):
+            self.required.add(getattr(ic, 'target_class_name'))
+        config = _parse(getattr(ic, 'config_json', '') or '{}', {})
+        choice_keys = {c.get('key') for c in (config.get('choices') or [])
+                       if isinstance(c, dict)}
+        for row in self._table('MaterialPhaseAppearance').values():
+            if getattr(row, 'substance_ref', '') not in choice_keys:
+                continue
+            self._add('MaterialPhaseAppearance', row)
+            appearance_map = _parse(
+                getattr(row, 'appearance_map_json', '') or '{}', {})
+            refs = set(appearance_map.values()) \
+                if isinstance(appearance_map, dict) else set()
+            refs.add(getattr(row, 'default_material_ref', '') or '')
+            for ref in refs - {''}:
+                self._add_material(str(ref))
 
     def walk_solution(self, solution_name: str) -> None:
         if not solution_name or solution_name in self._seen_solutions:
@@ -310,8 +374,8 @@ class _ClosureWalker:
         blob = _parse(getattr(scene, 'definition', '') or '{}', {})
         for entry in (blob.get('freestanding') or []) if isinstance(blob, dict) else []:
             if isinstance(entry, dict):
-                style_refs.add(str(entry.get('styleRef') or ''))
-                shape_refs.add(str(entry.get('shapeRef') or ''))
+                style_refs |= _visual_refs(entry.get('styleRef'))
+                shape_refs |= _visual_refs(entry.get('shapeRef'))
         bound = _parse(getattr(scene, 'bound_classes_json', '') or '[]', [])
         scene_classes = {e.get('className') for e in bound if isinstance(e, dict)}
         wanted = scene_classes if limit_classes is None \
@@ -323,17 +387,24 @@ class _ClosureWalker:
             self.required.add(getattr(b, 'class_name', ''))
             binding = _parse(getattr(b, 'binding_json', '') or '{}', {})
             visual = binding.get('visual') or {} if isinstance(binding, dict) else {}
-            style_refs.add(str(visual.get('styleRef') or ''))
-            shape_refs.add(str(visual.get('shapeRef') or ''))
+            style_refs |= _visual_refs(visual.get('styleRef'))
+            shape_refs |= _visual_refs(visual.get('shapeRef'))
         for ev in self._table('SimSpaceEvaluationEquation').values():
             if getattr(ev, 'sim_space_ref', '') == scene_name:
                 self._add('SimSpaceEvaluationEquation', ev)
                 self._add_by_name('EquationDefinition',
                                   getattr(ev, 'equation_ref', '') or '')
         for ref in style_refs - {''}:
-            self._add_by_name('Material3DDefinition', ref)
+            self._add_material(ref)
         for ref in shape_refs - {''}:
             self._add_by_name('Mesh3DDefinition', ref)
+
+    def _add_material(self, ref: str) -> None:
+        """A material + the texture it references (map_texture_ref)."""
+        material = self._add_by_name('Material3DDefinition', ref)
+        if material is not None and getattr(material, 'map_texture_ref', ''):
+            self._add_by_name('Texture3DDefinition',
+                              getattr(material, 'map_texture_ref'))
 
     # -- output ---------------------------------------------------------------
 
@@ -393,3 +464,20 @@ def _parse(text: str, default: Any) -> Any:
         return json.loads(text) if text else default
     except (ValueError, TypeError):
         return default
+
+
+def _visual_refs(cfg: Any) -> Set[str]:
+    """Every library name a binding's shape/style spec can reference:
+    a bare string, or the per-phase {fromField, map, default} form
+    (map VALUES + default are the refs; the field name is not)."""
+    if isinstance(cfg, str):
+        return {cfg}
+    if isinstance(cfg, dict):
+        refs: Set[str] = set()
+        value_map = cfg.get('map')
+        if isinstance(value_map, dict):
+            refs.update(str(v) for v in value_map.values())
+        if cfg.get('default'):
+            refs.add(str(cfg['default']))
+        return refs
+    return set()
