@@ -22,7 +22,8 @@ from types import SimpleNamespace
 from simSpace.compilers.common import resolve_ref
 from simSpace.compilers.compile_3d import compile_3d, _resolve_scale_3d
 from simulations.material_space_scene_seed import (
-    MATERIAL_SCENE, _MATERIAL_SIMSPACE, _MATERIAL_BINDINGS,
+    MATERIAL_SCENE, SELECTOR_SCENE,
+    _MATERIAL_SIMSPACE, _MATERIAL_BINDINGS, _SELECTOR_SIMSPACE,
 )
 from simSpace3D.seed_data import (
     SEED_MATERIALS_3D, SEED_TEXTURES_3D, SEED_MATERIAL_PHASE_APPEARANCES,
@@ -176,10 +177,41 @@ def _seed_coherence():
           _MATERIAL_SIMSPACE['name'] == MATERIAL_SCENE == 'material-condensation-viz')
 
 
+def _selector_scene():
+    print('\nsolid-material-selector — the fixed-camera selection space\n')
+    camera = json.loads(_SELECTOR_SIMSPACE['camera_json'])
+    check('camera is FIXED with an explicit pose',
+          camera['mode'] == 'fixed'
+          and len(camera['position']) == 3 and len(camera['target']) == 3)
+    scene_row = SimpleNamespace(**_SELECTOR_SIMSPACE)
+    warnings, resolved = [], []
+    objects, _c, _v = compile_3d(_mgr([]), scene_row, warnings, resolved,
+                                 run_filter=None)
+    balls = {o['id']: o for o in objects if o['id'].startswith('choice-')}
+    check('one selectable preview ball per substance',
+          set(balls) == {'choice-paraffin-wax', 'choice-water-ice',
+                         'choice-lead'})
+    check('preview balls wear their SOLID-phase materials',
+          balls['choice-paraffin-wax']['styleRef'] == 'wax-solid'
+          and balls['choice-water-ice']['styleRef'] == 'ice-solid'
+          and balls['choice-lead']['styleRef'] == 'lead-solid')
+    from simulations.multi_scale_seed import SEED_MULTI_SCALE_SIMS
+    panels = json.loads(SEED_MULTI_SCALE_SIMS[0]['panels_json'])
+    selector = next(p for p in panels if p['kind'] == 'selector')
+    check('selector panel items match the scene object ids',
+          {i['objectId'] for i in selector['items']} == set(balls)
+          and selector['simSpaceRef'] == SELECTOR_SCENE)
+    ic = next(p for p in panels if p['kind'] == 'ic')
+    check('IC picker follows the selector via the shared context key',
+          ic.get('followContextKey') == selector.get('contextKey')
+          == 'selectedMaterialKey')
+
+
 def main():
     _resolve_ref_variant()
     _scale_variant()
     _scene_compile()
+    _selector_scene()
     _seed_coherence()
     total, passed = len(results), sum(results)
     print(f'\n{passed}/{total} checks passed')

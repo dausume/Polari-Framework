@@ -85,5 +85,69 @@ _MATERIAL_BINDINGS = [
     },
 ]
 
+# ---------------------------------------------------------------------------
+# The SOLID-MATERIAL SELECTOR scene (Phase C) — a fixed-camera SELECTION
+# SPACE: one preview ball per picker substance, each wearing its SOLID-
+# phase material (what you'd get if the proof succeeds). Pure config:
+# adding a material = one freestanding entry + its appearance row.
+# The sim-space-selector component anchors choice overlays on these
+# objects' projected shell rects and publishes clicks into the display
+# selection context.
+# ---------------------------------------------------------------------------
+
+SELECTOR_SCENE = 'solid-material-selector'
+
+
+def _selector_ball(index, substance_ref, label):
+    """One selectable preview ball, spaced along X, wearing the
+    substance's SOLID-phase material (from its appearance row)."""
+    row = next(r for r in SEED_MATERIAL_PHASE_APPEARANCES
+               if r['substance_ref'] == substance_ref)
+    solid_material = json.loads(row['appearance_map_json']).get('1') \
+        or row['default_material_ref']
+    return {
+        'id': f'choice-{substance_ref}',
+        'position': [(index - 1) * 0.35, 0.0, 0.0],
+        'shapeRef': 'sphere',
+        'styleRef': solid_material,
+        'scale': 0.24,
+        'label': label,
+    }
+
+
+_SELECTOR_SIMSPACE = {
+    'name': SELECTOR_SCENE,
+    'description': (
+        'Material selection space — pick what the ball is made of by '
+        'clicking it. Each preview ball wears its substance\'s SOLID-phase '
+        'look; the badge above it carries the proof verdict, and its popup '
+        'shows the tried temperature/pressure conditions. Fixed camera: '
+        'a selection shelf, not a navigable scene.'
+    ),
+    'dimensionality': '3d',
+    'coordinate_system': 'math',
+    'unit_scale': 1.0,
+    'viewport_json': '{"center": [0, 0, 0], "extent": [0.7, 0.35, 0.35]}',
+    'camera_json': json.dumps({
+        'mode': 'fixed',
+        'position': [0.0, 0.35, 1.05],
+        'target': [0.0, 0.0, 0.0],
+        'up': [0, 1, 0],
+        'projection': 'perspective',
+        'fov': 45,
+    }),
+    'bound_classes_json': '[]',
+    'definition': json.dumps({'freestanding': [
+        _selector_ball(0, 'paraffin-wax', 'Paraffin wax'),
+        _selector_ball(1, 'water-ice', 'Water ice'),
+        _selector_ball(2, 'lead', 'Lead'),
+        # A shelf under the balls for spatial grounding.
+        {'id': 'selector-shelf', 'position': [0, -0.16, 0],
+         'shapeRef': 'cube', 'styleRef': 'matte-gray',
+         'scale': [1.15, 0.03, 0.4], 'label': 'Shelf'},
+    ]}),
+}
+
 SEED_PENDULUM_SIMSPACES.append(_MATERIAL_SIMSPACE)
+SEED_PENDULUM_SIMSPACES.append(_SELECTOR_SIMSPACE)
 SEED_PENDULUM_BINDINGS.extend(_MATERIAL_BINDINGS)

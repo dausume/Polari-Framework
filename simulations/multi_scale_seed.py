@@ -30,8 +30,9 @@ from simulations.wind_field_seed import WIND_SIM_DEF
 # the first-principles stage this composition's stage 1 references).
 from simulations.material_space_seed import MATERIAL_SIM_DEF, GATE_SOLUTION
 # Importing the scene seed registers the material-condensation-viz 3D
-# scene + phase-appearance binding (Phase B of solid-materials-selection).
-from simulations.material_space_scene_seed import MATERIAL_SCENE
+# scene + phase-appearance binding (Phase B) and the fixed-camera
+# solid-material-selector selection space (Phase C).
+from simulations.material_space_scene_seed import MATERIAL_SCENE, SELECTOR_SCENE
 
 MSIM_NAME = 'pendulum-in-wind'
 IC_MATERIAL_PICKER = 'bob-material-picker'
@@ -277,7 +278,26 @@ SEED_MULTI_SCALE_SIMS = [{
         },
     ]),
     'panels_json': json.dumps([
-        {'kind': 'ic', 'icInterfaceRef': IC_MATERIAL_PICKER},
+        # The 3D material selection space (Phase C): click a preview
+        # ball to choose the substance; the picker below follows via the
+        # shared display-context key and runs the proof. Items are pure
+        # config — objectId matches the scene's freestanding ids.
+        {
+            'kind': 'selector',
+            'simSpaceRef': SELECTOR_SCENE,
+            'stageKey': 'material-precondition',
+            'contextKey': 'selectedMaterialKey',
+            'items': [
+                {'key': key, 'label': label,
+                 'objectId': f'choice-{key}',
+                 'description': f'density {density:g} kg/m^3 — melts at '
+                                f'{substance["melt_temp_ref"]:g} K',
+                 'overlayRef': 'material-choice', 'popup': True}
+                for key, label, density, substance in _MATERIALS
+            ],
+        },
+        {'kind': 'ic', 'icInterfaceRef': IC_MATERIAL_PICKER,
+         'followContextKey': 'selectedMaterialKey'},
         # Explainability (all show* flags are knobs; body is editable
         # config — the panel augments it with LIVE facts read from this
         # msim's own stage config so the text cannot drift from behavior).
