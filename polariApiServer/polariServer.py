@@ -89,6 +89,14 @@ from materialsScience.chemical_element_definition import ChemicalElementDefiniti
 from materialsScience.periodic_table_seed import (
     SEED_CHEMICAL_ELEMENTS, SEED_PERIODIC_DISPLAYS,
 )
+# Materials basis: one identity per material + explicit per-scale
+# definitions (bridges the legacy module's three unlinked roots).
+from materialsScience.materials_basis import (
+    MaterialsScienceMaterial, MaterialScaleDefinition,
+)
+from materialsScience.materials_basis_seed import (
+    SEED_MS_MATERIALS, SEED_MS_SCALE_DEFINITIONS,
+)
 # Simulations module — composed *SimState classes + variable metadata
 # + config tie-in + storage predictor.
 from simulations.sim_variable import SimVariable
@@ -436,7 +444,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition,
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition,
             # Simulations
             SimulationDefinition, SimulationRun, SimVariable,
             SimSpaceEvaluationEquation,
@@ -871,27 +879,19 @@ class polariServer(treeObject):
         method detects the old schema and recreates the table with the
         correct structure so instances can be properly persisted.
         """
-        import sqlite3
         db = self.manager.db
         if db is None:
             return
         try:
-            dbFilePath = os.path.join(db.Path, db.name + '.db') if db.Path else db.name + '.db'
-            conn = sqlite3.connect(dbFilePath)
-            cursor = conn.execute(f"PRAGMA table_info({className})")
-            columns = [row[1] for row in cursor.fetchall()]
+            conn = db.adapter.connect()
+            columns = db.adapter.tableColumns(conn, className)
             conn.close()
             if 'id' not in columns:
                 print(f'[polariServer] Migrating {className} table: adding "id" column (recreating table)', flush=True)
-                # Drop the old table (it has no usable data without IDs)
-                conn = sqlite3.connect(dbFilePath)
-                conn.execute(f'DROP TABLE IF EXISTS {className}')
-                conn.commit()
-                conn.close()
-                # Remove from tables list so makeTypedTableFromAnalysis can recreate
-                if className in db.tables:
-                    db.tables.remove(className)
-                # Recreate with correct schema
+                # Drop the old table (it has no usable data without IDs) —
+                # dropTable also removes it from db.tables so
+                # makeTypedTableFromAnalysis can recreate it.
+                db.dropTable(className)
                 typingObj = self.manager.objectTypingDict.get(className)
                 if typingObj:
                     typingObj.makeTypedTableFromAnalysis()
@@ -1244,6 +1244,11 @@ class polariServer(treeObject):
             ('ChemicalElementDefinition', ChemicalElementDefinition,
              SEED_CHEMICAL_ELEMENTS),
             ('DisplayDefinition', DisplayDefinition, SEED_PERIODIC_DISPLAYS),
+            # Materials basis — identities before their scale rows.
+            ('MaterialsScienceMaterial', MaterialsScienceMaterial,
+             SEED_MS_MATERIALS),
+            ('MaterialScaleDefinition', MaterialScaleDefinition,
+             SEED_MS_SCALE_DEFINITIONS),
         ]
         # Old demo-3d description (used as the "untouched" signature). If
         # the existing demo-3d row still has this verbatim, we treat it
