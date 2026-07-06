@@ -168,6 +168,9 @@ from simulations.step_cost_profile import StepCostProfile
 # Peer + module handshake (twin-Polari / node integration).
 from polariPeers.peer_node import PeerNode
 from polariPeers.polari_module import PolariModule
+from polariPeers.module_source_config import (
+    ModuleSourceConfig, SEED_MODULE_SOURCE_CONFIGS,
+)
 from polariPeers.peers_api import PeersAPI
 # Mesh convergence Phase 1: bilateral admission agreements.
 from polariPeers.peer_agreement import PeerAgreement
@@ -434,6 +437,12 @@ class polariServer(treeObject):
         from materialsScience.scale_execution_api import ScaleExecutionAPI
         msciEndpoint = ScaleExecutionAPI(polServer=self, manager=self.manager)
 
+        # Modules as projects: configured module code folders, fetched
+        # by explicit selection (or per-row auto_fetch knob at boot).
+        from polariPeers.module_projects_api import ModuleProjectsAPI
+        moduleProjectsEndpoint = ModuleProjectsAPI(
+            polServer=self, manager=self.manager)
+
         # Admission agreements — join-request → pending PeerAgreement →
         # explicit approve/deny → per-child scoped revocable token
         # (mesh convergence ruling; replaces the shared token).
@@ -458,7 +467,7 @@ class polariServer(treeObject):
             StepCostProfile,
             # Node integration (twin-Polari): peers + module registry +
             # admission agreements (mesh convergence Phase 1).
-            PeerNode, PolariModule, PeerAgreement,
+            PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PendulumBobSimState, PendulumStringSimState,
             NewtonianPendulumBobSimState, NewtonianPendulumRodSimState,
             WindFieldGridState, MaterialCondensationState]
@@ -875,6 +884,14 @@ class polariServer(treeObject):
         self._seedSimSpace3D()
         # Seed simulations module — Pendulum2D demo + its SimSpace + binding
         self._seedSimulations()
+        # Modules-as-projects boot hook: materialize ONLY rows whose
+        # auto_fetch knob is on; everything else surfaces as suggestions.
+        try:
+            from polariPeers.module_fetcher import auto_fetch_configured
+            for result in auto_fetch_configured(self.manager):
+                print(f'[ModuleProjects] auto-fetch: {result}', flush=True)
+        except Exception as e:
+            print(f'[ModuleProjects] auto-fetch skipped: {e}', flush=True)
 
     def _migrateDefinitionTable(self, className):
         """Check if a Definition table has an 'id' column and recreate it if not.
@@ -1254,6 +1271,9 @@ class polariServer(treeObject):
              SEED_MS_MATERIALS),
             ('MaterialScaleDefinition', MaterialScaleDefinition,
              SEED_MS_SCALE_DEFINITIONS),
+            # Modules-as-projects: the in-tree module, config-tracked.
+            ('ModuleSourceConfig', ModuleSourceConfig,
+             SEED_MODULE_SOURCE_CONFIGS),
         ]
         # Old demo-3d description (used as the "untouched" signature). If
         # the existing demo-3d row still has this verbatim, we treat it
