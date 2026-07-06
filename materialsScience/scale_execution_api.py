@@ -90,8 +90,17 @@ class ScaleExecutionAPI(treeObject):
             return
         knobNames = ('maxAdditives', 'loadingStep', 'perAdditiveCap',
                      'maxTotalLoad', 'stopPolicy', 'continueAfterWinner',
-                     'maxCandidates')
+                     'maxCandidates', 'process', 'base_material_name',
+                     'thermal_knobs')
         knobs = {k: body[k] for k in knobNames if k in body}
+        if knobs.get('process'):
+            # The no-volatiles gate reads ThermalProcessingProfile rows
+            # (seeded from Dustin's Base Wax Properties notes).
+            from materialsScience.thermal_windows import profiles_from_rows
+            table = (self.manager.objectTables or {}).get(
+                'ThermalProcessingProfile', {})
+            rows = table.values() if isinstance(table, dict) else table
+            knobs['thermal_profiles'] = profiles_from_rows(rows)
         result = search_for_profile(profileId, baseProperties, **knobs)
         if not result.get('ok'):
             response.status = '422 Unprocessable Entity'

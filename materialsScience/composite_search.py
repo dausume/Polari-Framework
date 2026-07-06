@@ -78,12 +78,20 @@ def predictable_properties(effects):
                    if e.get('effectPerWeightPercent')})
 
 
+def thermal_name(additive):
+    """Map an additive row to its ThermalProcessingProfile name
+    ('Carnauba Wax' -> 'carnauba-wax')."""
+    return str(additive.get('name', '')).strip().lower().replace(' ', '-')
+
+
 def search_composites(base_properties, targets, additives, effects,
                       compatibilizers=(),
                       maxAdditives=2, loadingStep=5.0,
                       perAdditiveCap=20.0, maxTotalLoad=30.0,
                       stopPolicy='exhaustive', continueAfterWinner=True,
-                      maxCandidates=20000):
+                      maxCandidates=20000,
+                      base_material_name='', thermal_profiles=None,
+                      process=None, thermal_knobs=None):
     """Grid search over formulations of a base + up to maxAdditives.
 
     base_properties: {prop: value} — MANUALLY ENTERED (echoed into
@@ -96,6 +104,13 @@ def search_composites(base_properties, targets, additives, effects,
     stopPolicy 'first-winner'|'exhaustive', continueAfterWinner (only
     read for first-winner), maxCandidates (hard sweep cap — hit is
     reported, never silent).
+
+    Thermal gate (Dustin's no-volatiles rule, thermal_windows.py):
+    pass process='3d-print'|'cnc-machine' + thermal_profiles (from
+    ThermalProcessingProfile rows) + base_material_name; combos whose
+    processing window is empty/unknown carry a 'thermal-window'
+    violation and can never be winners. thermal_knobs forwards
+    marginC/minWindowWidthC/shopTempC/frictionMarginC.
 
     Returns {'ranked': [...], 'winners': [...], 'evaluated', 'sweepCapped',
     'assumptions', 'predictableProperties'} — ranked by (meets, score).
@@ -124,6 +139,28 @@ def search_composites(base_properties, targets, additives, effects,
         f'linear blend model (level-0 rules of mixtures)',
     ]
 
+    thermalGate = None
+    if process is not None:
+        from materialsScience.thermal_windows import (
+            machinable_verdict, printable_verdict,
+        )
+        gateFn = (printable_verdict if process == '3d-print'
+                  else machinable_verdict if process == 'cnc-machine'
+                  else None)
+        if gateFn is None:
+            raise ValueError(
+                f"unknown process '{process}' (3d-print | cnc-machine)")
+        profiles = thermal_profiles or {}
+        knobs = thermal_knobs or {}
+        assumptions.append(
+            f"thermal gate '{process}' active (no-volatiles rule, "
+            f"profiles from Dustin's Base Wax Properties notes)")
+
+        def thermalGate(combo):
+            names = ([base_material_name] if base_material_name else []) \
+                + [thermal_name(a) for a in combo]
+            return gateFn(names, profiles, **knobs)
+
     evaluated = 0
     sweepCapped = False
     ranked = []
@@ -135,6 +172,9 @@ def search_composites(base_properties, targets, additives, effects,
         for combo in itertools.combinations(usable, count):
             if done:
                 break
+            # The thermal window depends on WHICH materials are present,
+            # not their fractions — gate once per combo.
+            thermalVerdict = thermalGate(combo) if thermalGate else None
             for weights in itertools.product(loadings, repeat=count):
                 if sum(weights) > maxTotalLoad + 1e-9:
                     continue
@@ -164,11 +204,24 @@ def search_composites(base_properties, targets, additives, effects,
                     'predicted': prediction['predicted'],
                     'meets': verdict['meets'],
                     'score': verdict['score'],
-                    'violations': verdict['violations'],
+                    'violations': list(verdict['violations']),
                     'unpredicted': verdict['unpredicted'],
                 }
+                if thermalVerdict is not None:
+                    candidate['thermal'] = thermalVerdict
+                    if not thermalVerdict['ok']:
+                        candidate['meets'] = False
+                        candidate['violations'].append({
+                            'type': 'thermal-window',
+                            'process': thermalVerdict['process'],
+                            'detail': thermalVerdict.get(
+                                'refusal',
+                                'missing thermal profiles: '
+                                + ', '.join(thermalVerdict.get(
+                                    'missingProfiles', []))),
+                        })
                 ranked.append(candidate)
-                if verdict['meets']:
+                if candidate['meets']:
                     winners.append(candidate)
                     if stopPolicy == 'first-winner' \
                             and not continueAfterWinner:

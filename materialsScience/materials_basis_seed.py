@@ -53,6 +53,24 @@ SEED_MS_MATERIALS = [
         'element_symbols_json': '["C", "H"]',
     },
     {
+        'name': 'candelilla-wax',
+        'display_name': 'Candelilla Wax',
+        'description': 'Hard shrub wax (Euphorbia cerifera) — inherent '
+                       'fine crystal morphology per Dustin\'s notes; NOT '
+                       'in the legacy raw-material seeds (no bridge yet).',
+        'material_kind': 'pure',
+        'element_symbols_json': '["C", "H", "O"]',
+    },
+    {
+        'name': 'coconut-wax',
+        'display_name': 'Coconut Wax',
+        'description': 'Soft hydrogenated coconut-oil wax — lowest melt '
+                       'range of the noted bases (35-38C).',
+        'material_kind': 'pure',
+        'raw_material_name': 'Coconut Wax',
+        'element_symbols_json': '["C", "H", "O"]',
+    },
+    {
         'name': 'beeswax-carnauba-blend',
         'display_name': 'Beeswax–Carnauba Blend',
         'description': 'Demonstration mixture: beeswax base hardened '
