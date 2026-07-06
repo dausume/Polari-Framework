@@ -320,6 +320,10 @@ class SimSpaceAPI(treeObject):
             axis_labels = json.loads(getattr(row, 'axis_labels_json', '') or '{}')
         except (ValueError, TypeError):
             axis_labels = {}
+        try:
+            camera = json.loads(getattr(row, 'camera_json', '') or 'null')
+        except (ValueError, TypeError):
+            camera = None
         return {
             'id': row.name,
             'name': row.name,
@@ -331,4 +335,5 @@ class SimSpaceAPI(treeObject):
             'boundClasses': bound_classes,
             'definition': getattr(row, 'definition', '{}'),
             'axisLabels': axis_labels,
+            'camera': camera,
         }

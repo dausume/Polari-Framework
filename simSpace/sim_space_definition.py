@@ -80,6 +80,16 @@ class SimSpaceDefinition(treeObject):
         # Phase-space scenes lean heavily on this — `theta` on X / `omega`
         # on Y is much clearer as "\theta" / "\omega" than literal X / Y.
         axis_labels_json: str = '{}',
+        # JSON-encoded camera config (3D scenes). Shape:
+        # {"mode": "fixed" | "orbit", "position": [x,y,z],
+        #  "target": [x,y,z], "up": [x,y,z],
+        #  "projection": "perspective" | "orthographic", "fov": 50}
+        # Empty → today's behavior (orbit controls, initial framing from
+        # viewport_json). mode='fixed' locks the camera — the config for
+        # SELECTION SPACES, where stable framing beats free navigation.
+        # NOTE (migration): added 2026-07-06; existing volumes gain the
+        # column via the boot schema sync.
+        camera_json: str = '',
         manager=None,
     ):
         self.name = name
@@ -91,3 +101,4 @@ class SimSpaceDefinition(treeObject):
         self.bound_classes_json = bound_classes_json
         self.definition = definition
         self.axis_labels_json = axis_labels_json
+        self.camera_json = camera_json
