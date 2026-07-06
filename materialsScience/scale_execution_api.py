@@ -13,6 +13,9 @@ self-registering falcon routes):
   POST /api/msci/gates/check             {"material": ..., "levels": [..],
                                          "acceptPartial": bool} →
                                          require_scale_levels verdict
+  POST /api/msci/composites/search       {"profileId": ...,
+                                         "baseProperties": {...},
+                                         ...knobs} → ranked candidates
 """
 
 import json
@@ -38,6 +41,8 @@ class ScaleExecutionAPI(treeObject):
                 suffix='execute')
             polServer.falconServer.add_route(
                 '/api/msci/gates/check', self, suffix='gates')
+            polServer.falconServer.add_route(
+                '/api/msci/composites/search', self, suffix='composites')
 
     def on_get_capability(self, request, response):
         response.media = {
@@ -70,3 +75,24 @@ class ScaleExecutionAPI(treeObject):
         response.media = require_scale_levels(
             self.manager, material, levels,
             accept_partial=bool(body.get('acceptPartial', False)))
+
+    def on_post_composites(self, request, response):
+        from materialsScience.composite_search import search_for_profile
+        body = json.load(request.bounded_stream)
+        profileId = body.get('profileId', '')
+        baseProperties = body.get('baseProperties', {})
+        if not profileId or not isinstance(baseProperties, dict):
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': "'profileId' and 'baseProperties' "
+                                       "(dict, manually entered values) "
+                                       "are required"}
+            return
+        knobNames = ('maxAdditives', 'loadingStep', 'perAdditiveCap',
+                     'maxTotalLoad', 'stopPolicy', 'continueAfterWinner',
+                     'maxCandidates')
+        knobs = {k: body[k] for k in knobNames if k in body}
+        result = search_for_profile(profileId, baseProperties, **knobs)
+        if not result.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = result
