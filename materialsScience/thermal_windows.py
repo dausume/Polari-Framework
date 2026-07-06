@@ -44,6 +44,11 @@ class ThermalProcessingProfile(treeObject):
         # Melt-flow estimate (prose — ranges + at-temperature, verbatim
         # from the notes; parsed later if the search needs it).
         mfi_note: str = '',
+        # False for particulate fillers (grog, clays, graphite…): they
+        # DISPERSE in the melt and never themselves melt, so they don't
+        # raise the melt-through temperature — but their volatile limit
+        # (if any) still caps the window.
+        melts: bool = True,
         provenance_note: str = '',
         manager=None,
     ):
@@ -53,6 +58,7 @@ class ThermalProcessingProfile(treeObject):
         self.smoke_low_c = smoke_low_c
         self.smoke_high_c = smoke_high_c
         self.mfi_note = mfi_note
+        self.melts = melts
         self.provenance_note = provenance_note
 
 
@@ -80,6 +86,40 @@ SEED_THERMAL_PROFILES = [
      'provenance_note': _NOTES},
 ]
 
+_LIT = ('LITERATURE-TYPICAL value entered by Claude 2026-07-06 — NOT '
+        'from Dustin\'s notebook; verify/replace (veto anytime).')
+_INERT = ('Particulate filler: thermally inert far above wax-processing '
+          'temperatures; melts=False (disperses, never melts). ' + _LIT)
+
+#: Fillers + organics Dustin's notes don't cover. Minerals are inert
+#: (smoke set at 400C — far above any wax window, so they never govern);
+#: organics carry real literature onsets, lecithin's LOW one included.
+SEED_THERMAL_PROFILES += [
+    {'name': name, 'melt_low_c': 0.0, 'melt_high_c': 0.0,
+     'smoke_low_c': 400.0, 'smoke_high_c': 400.0,
+     'melts': False, 'provenance_note': _INERT}
+    for name in ('grog-(1-um)', 'grog-(3-um)', 'grog-(6-um)',
+                 'kaolinite-clay', 'calcium-bentonite-clay',
+                 'graphite-powder', 'diatomaceous-earth',
+                 'attapulgite-clay', 'illite-clay', 'silica-flour',
+                 'chalk-(calcium-carbonate)')
+] + [
+    {'name': 'soy-wax', 'melt_low_c': 45.0, 'melt_high_c': 55.0,
+     'smoke_low_c': 230.0, 'smoke_high_c': 230.0,
+     'provenance_note': _LIT},
+    {'name': 'stearin', 'melt_low_c': 55.0, 'melt_high_c': 70.0,
+     'smoke_low_c': 230.0, 'smoke_high_c': 230.0,
+     'provenance_note': _LIT},
+    {'name': 'soy-lecithin', 'melt_low_c': 40.0, 'melt_high_c': 60.0,
+     'smoke_low_c': 120.0, 'smoke_high_c': 160.0,
+     'provenance_note': 'Degrades EARLY — the low onset genuinely closes '
+                        'windows above ~100C. ' + _LIT},
+    {'name': 'cork-flour', 'melt_low_c': 0.0, 'melt_high_c': 0.0,
+     'smoke_low_c': 200.0, 'smoke_high_c': 250.0, 'melts': False,
+     'provenance_note': 'Organic particulate (disperses, never melts); '
+                        'thermal degradation onset ~200C. ' + _LIT},
+]
+
 
 def profiles_from_rows(rows):
     """{material name: profile dict} from seed dicts or tree rows."""
@@ -92,6 +132,8 @@ def profiles_from_rows(rows):
             'meltHighC': float(get('melt_high_c', 0.0)),
             'smokeLowC': float(get('smoke_low_c', 0.0)),
             'smokeHighC': float(get('smoke_high_c', 0.0)),
+            'melts': bool(get('melts', True)
+                          if get('melts', True) is not None else True),
         }
     return profiles
 
@@ -109,7 +151,15 @@ def processing_window(componentNames, profiles, marginC=20.0):
     if not known:
         return {'ok': False, 'missingProfiles': missing,
                 'error': 'no thermal profiles for any component'}
-    meltGov = max(known, key=lambda n: profiles[n]['meltHighC'])
+    # Only components that MELT govern the melt-through temperature —
+    # particulate fillers disperse in the carrier melt. Every component
+    # still contributes its volatile limit.
+    melting = [n for n in known if profiles[n].get('melts', True)]
+    if not melting:
+        return {'ok': False, 'missingProfiles': missing,
+                'error': 'no meltable component — nothing to carry the '
+                         'fillers (add a wax/resin base)'}
+    meltGov = max(melting, key=lambda n: profiles[n]['meltHighC'])
     limGov = min(known, key=lambda n: profiles[n]['smokeLowC'])
     meltThrough = profiles[meltGov]['meltHighC']
     volatileLimit = profiles[limGov]['smokeLowC'] - float(marginC)
@@ -158,10 +208,13 @@ def machinable_verdict(componentNames, profiles, shopTempC=25.0,
     plus a cutting-friction margin (the blend must not smear)."""
     missing = [n for n in componentNames if n not in profiles]
     known = [n for n in componentNames if n in profiles]
-    softest = min(known, key=lambda n: profiles[n]['meltLowC']) \
-        if known else None
+    # Fillers (melts=False) are rigid particulates — only meltable
+    # components can soften and smear.
+    meltable = [n for n in known if profiles[n].get('melts', True)]
+    softest = min(meltable, key=lambda n: profiles[n]['meltLowC']) \
+        if meltable else None
     required = float(shopTempC) + float(frictionMarginC)
-    ok = bool(known) and not missing \
+    ok = softest is not None and not missing \
         and profiles[softest]['meltLowC'] >= required
     verdict = {
         'ok': ok, 'process': 'cnc-machine',
@@ -170,6 +223,9 @@ def machinable_verdict(componentNames, profiles, shopTempC=25.0,
         'softestMeltLowC': profiles[softest]['meltLowC'] if softest else None,
         'missingProfiles': missing,
     }
+    if softest is None and known:
+        verdict['refusal'] = ('no meltable binder among the components — '
+                              'loose filler is not a machinable stock')
     if softest and not ok and not missing:
         verdict['refusal'] = (
             f"'{softest}' starts melting at "

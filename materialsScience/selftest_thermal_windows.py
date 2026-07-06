@@ -37,15 +37,23 @@ PROFILES = profiles_from_rows(SEED_THERMAL_PROFILES)
 
 def test_note_data():
     print('[note data encoded faithfully]')
-    check('four base waxes profiled', len(PROFILES) == 4)
+    noteRows = [r for r in SEED_THERMAL_PROFILES
+                if 'IMG_2823' in r['provenance_note']]
+    litRows = [r for r in SEED_THERMAL_PROFILES
+               if 'LITERATURE-TYPICAL' in r['provenance_note']]
+    check('four notebook waxes + literature fills (all quantified '
+          'additives covered)', len(noteRows) == 4 and len(litRows) >= 12)
     check('beeswax melt 62-64, smoke 204',
           PROFILES['beeswax'] == {'meltLowC': 62.0, 'meltHighC': 64.0,
-                                  'smokeLowC': 204.0, 'smokeHighC': 204.0})
+                                  'smokeLowC': 204.0, 'smokeHighC': 204.0,
+                                  'melts': True})
     check('carnauba smoke range 200-220 keeps the LOW end as the limit',
           PROFILES['carnauba-wax']['smokeLowC'] == 200.0)
-    check('provenance names the notebook pages', all(
-        'IMG_2823' in row['provenance_note']
-        for row in SEED_THERMAL_PROFILES))
+    check('every non-notebook value is labeled vetoable', all(
+        'NOT' in r['provenance_note'] for r in litRows))
+    check('fillers are melts=False; notebook waxes melt', all(
+        not PROFILES[n]['melts'] for n in PROFILES
+        if 'grog' in n or 'clay' in n) and PROFILES['beeswax']['melts'])
 
 
 def test_windows():
@@ -60,9 +68,21 @@ def test_windows():
           and blend['meltGovernedBy'] == 'carnauba-wax'
           and blend['limitedBy'] == 'carnauba-wax')
 
-    allFour = processing_window(list(PROFILES), PROFILES)
+    waxes = ['beeswax', 'candelilla-wax', 'carnauba-wax', 'coconut-wax']
+    allFour = processing_window(waxes, PROFILES)
     check('all-wax window still open [86, 180]',
           allFour['ok'] and allFour['windowC'] == [86.0, 180.0])
+
+    filled = processing_window(['beeswax', 'grog-(6-um)'], PROFILES)
+    check('inert filler does not raise melt-through (melts=False)',
+          filled['windowC'] == [64.0, 184.0]
+          and filled['meltGovernedBy'] == 'beeswax')
+    lecithin = processing_window(['beeswax', 'soy-lecithin'], PROFILES)
+    check('lecithin honestly caps the window at 100C',
+          lecithin['windowC'] == [64.0, 100.0]
+          and lecithin['limitedBy'] == 'soy-lecithin')
+    check('filler-only stock refused (no meltable binder)',
+          processing_window(['grog-(6-um)'], PROFILES)['ok'] is False)
 
     # A hypothetical low-smoke component closes the window.
     withVolatile = dict(PROFILES)
