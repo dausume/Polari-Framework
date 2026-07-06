@@ -242,11 +242,45 @@ class managedDatabase(managedFile):
             try:
                 dbCursor.execute(commandString)
                 dbConnection.commit()
-                self.tables.append(tableName)
+                if tableName not in self.tables:
+                    self.tables.append(tableName)
+                self._syncTableColumns(dbCursor, tableName, rowList)
+                dbConnection.commit()
             except Exception as e:
                 print(f'[DB] CREATE TABLE failed for {tableName}: {e}', flush=True)
                 print(f'[DB] SQL: {commandString}', flush=True)
             dbConnection.close()
+
+    def _syncTableColumns(self, dbCursor, tableName, rowList):
+        """Add columns the class declares but an existing table lacks.
+
+        CREATE TABLE IF NOT EXISTS never alters an existing table, so a
+        class that gains a field after a volume was created would have
+        that field silently dropped by saveInstanceInDB (which only
+        writes columns present in the schema). Mirrors the ALTER TABLE
+        path createClassAPI already uses for dynamic classes. Old rows
+        read back NULL for the new column and fall back to the field
+        default on load.
+        """
+        dbCursor.execute(f'PRAGMA table_info({tableName})')
+        existingColumns = {col[1] for col in dbCursor.fetchall()}
+        for row in rowList:
+            parts = row.split()
+            if len(parts) < 2:
+                continue
+            colName, colType = parts[0], parts[1]
+            if colName in existingColumns:
+                continue
+            # A KEY-constrained column can't gain its constraint via ADD
+            # COLUMN; it is added as a plain column so values are kept.
+            try:
+                dbCursor.execute(
+                    f'ALTER TABLE {tableName} ADD COLUMN {colName} {colType}')
+                print(f'[DB] Schema sync: added column {tableName}.{colName} '
+                      f'({colType})', flush=True)
+            except Exception as e:
+                print(f'[DB] Schema sync: could not add {tableName}.{colName}:'
+                      f' {e}', flush=True)
 
     def deleteRowsWhere(self, tableName, column, value):
         """Delete rows where `column` equals `value`. Returns the number of

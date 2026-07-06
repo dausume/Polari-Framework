@@ -94,9 +94,10 @@ def _sim_def(manager):
 
 # --- test seams: attempt-run creation + row writing on the fake manager ---
 
-def _fake_create_attempt_run(manager, name, sim_ref, candidate, stage, msim):
+def _fake_create_attempt_run(manager, name, sim_ref, candidate, stage, msim,
+                             label=''):
     run = SimpleNamespace(
-        name=name, simulation_ref=sim_ref, status='pending',
+        name=name, simulation_ref=sim_ref, status='pending', label=label,
         last_recorded_step=0, time_step_seconds=0.0,
         parameter_overrides_json=json.dumps(candidate),
         coupled_run_refs_json='{}',

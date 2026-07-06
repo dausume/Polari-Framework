@@ -17,6 +17,11 @@ pressure-shifted melting line (Clausius-Clapeyron-flavored):
     rho(T) = density_solid_ref * (1 - thermal_expansion * (T - T_ref))
     ball_mass = rho * (4/3) * pi * ball_radius_target^3
 
+The melting line T_m(P) is ALSO persisted per step as `melt_temp` so
+graphs can plot temperature against it and show the solidification
+crossing as data (the graph engine has no reference-line feature —
+the melt line is a computed state field, per the explainability plan).
+
 All of it is authored as no-code MatrixEquationOperations (see
 material_space_seed). SUBSTANCE parameters (melt_temp_ref, slope,
 density, expansion) and PROCESS parameters (target_temp, pressure_pa —
@@ -50,8 +55,14 @@ class MaterialCondensationState(treeObject):
 
     # t=0: the sample starts at ambient temperature, phase/density/ball
     # not yet evaluated (the first step computes them).
+    # NOTE (migration): `melt_temp` was added 2026-07-05. Existing DB
+    # volumes gain the column at boot via managedDB._syncTableColumns
+    # (ALTER TABLE ADD COLUMN); pre-upgrade rows read back NULL → the
+    # field default (0.0), so the melt-line series simply starts at the
+    # first post-upgrade step.
     default_initial_field_values = {
         'temperature': 293.15,
+        'melt_temp': 0.0,
         'phase_solid': 0.0,
         'density': 0.0,
         'ball_mass': 0.0,
@@ -62,6 +73,7 @@ class MaterialCondensationState(treeObject):
     # read by the gate + downstream derive — all core.
     field_save_policy = {
         'temperature': 'core',
+        'melt_temp': 'core',
         'phase_solid': 'core',
         'density': 'core',
         'ball_mass': 'core',
@@ -77,6 +89,10 @@ class MaterialCondensationState(treeObject):
         time: float = 0.0,
         # Sample temperature (K) — relaxes toward the candidate target.
         temperature: float = 293.15,
+        # The pressure-shifted melting line T_m(P) (K) at this step's
+        # process pressure — persisted so graphs can plot the sample
+        # temperature against it and show the solidification crossing.
+        melt_temp: float = 0.0,
         # 1.0 when the sample is below the pressure-shifted melting line
         # (solid), else 0.0. THE quantity the stage gate proves.
         phase_solid: float = 0.0,
@@ -92,6 +108,7 @@ class MaterialCondensationState(treeObject):
         self.step = step
         self.time = time
         self.temperature = temperature
+        self.melt_temp = melt_temp
         self.phase_solid = phase_solid
         self.density = density
         self.ball_mass = ball_mass

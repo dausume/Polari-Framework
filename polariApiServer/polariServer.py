@@ -817,6 +817,17 @@ class polariServer(treeObject):
             else:
                 # Table exists — verify it has an 'id' column
                 self._migrateDefinitionTable(className)
+                # ...and ALTER-in any columns the class gained since this
+                # volume was created (fields added to a persisted class
+                # used to be silently dropped by saveInstanceInDB).
+                # makeTypedTableFromAnalysis is idempotent: CREATE TABLE
+                # IF NOT EXISTS + managedDB._syncTableColumns.
+                if defTyping.polyTypedVarsDict:
+                    try:
+                        defTyping.makeTypedTableFromAnalysis()
+                    except Exception as e:
+                        print(f'[DefInit] column sync failed for '
+                              f'{className}: {e}', flush=True)
         print(f'[DefInit] DB tables after ensureDefinitionTables: {db.tables}', flush=True)
         # Now restore any saved Definition instances
         self._restoreDefinitionInstances(self.defClassList)

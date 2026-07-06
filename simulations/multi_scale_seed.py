@@ -6,11 +6,11 @@ demo MultiScaleSimulationDefinition plus the bob-material
 InitialConditionInterfaceDefinition, so the page works out of the box
 against the already-seeded pendulum + wind spaces and their coupling.
 
-The demo's stages_json is a single coStep stage (the live coupled
-stepping proven in Milestone A). The material-precondition
-runToCompletion stage is added when the material space lands (Milestone
-B) — the schema supports it now; only the stage entry and its gate
-solution will be new content, not new machinery.
+The demo's stages_json: the material-precondition runToCompletion stage
+(Milestone B, landed — searches temperature/pressure until the chosen
+substance provably condenses into a solid ball, then derives the ball's
+properties into the pendulum) followed by the coStep pendulum-in-wind
+stage (the live coupled stepping proven in Milestone A).
 
 Same registration pattern as the other sim seeds: polariServer imports
 this module and wires the SEED_* lists into seed_pairs.
@@ -32,6 +32,7 @@ from simulations.material_space_seed import MATERIAL_SIM_DEF, GATE_SOLUTION
 
 MSIM_NAME = 'pendulum-in-wind'
 IC_MATERIAL_PICKER = 'bob-material-picker'
+_MC = 'MaterialCondensationState'
 
 # Preset masses = density × sphere volume at the demo bob radius, so a
 # material choice is a REAL mass the wind visibly acts against (ice sways
@@ -127,7 +128,7 @@ SEED_MSIM_GRAPHS = [
             'xDimension': 'time',
             'yDimensions': ['energy_total', 'ke', 'pe'],
             'seriesColors': [],
-            'options': {'legend': True},
+            'options': {'legend': True, 'xLabel': 'time (s)', 'yLabel': 'energy (J)'},
             'aggregation': None,
         }}),
     },
@@ -141,7 +142,59 @@ SEED_MSIM_GRAPHS = [
             'xDimension': 'time',
             'yDimensions': ['fwind_x', 'fwind_y', 'fwind_z'],
             'seriesColors': [],
-            'options': {'legend': True},
+            'options': {'legend': True, 'xLabel': 'time (s)', 'yLabel': 'force (N)'},
+            'aggregation': None,
+        }}),
+    },
+    # --- Material-condensation stage graphs (explainability): plot the
+    # precondition stage's per-step physics so "prove a solid ball" is
+    # visible as data, not just a PROVEN/IMPOSSIBLE verdict. The melt
+    # line is itself a computed state field (melt_temp) because the
+    # graph engine has no reference-line feature — the crossing IS data.
+    {
+        'name': 'msim-material-temperature',
+        'description': ('The sample cooling toward the chamber target vs the '
+                        'pressure-shifted melting line T_m(P). The ball is '
+                        'solid exactly while temperature is below the line — '
+                        'the crossing is the moment of solidification.'),
+        'source_class': _MC,
+        'definition': json.dumps({'graphConfig': {
+            'renderStyle': 'lineY',
+            'xDimension': 'time',
+            'yDimensions': ['temperature', 'melt_temp'],
+            'seriesColors': [],
+            'options': {'legend': True, 'xLabel': 'time (s)', 'yLabel': 'temperature (K)'},
+            'aggregation': None,
+        }}),
+    },
+    {
+        'name': 'msim-material-phase',
+        'description': ('Solid-phase flag over time: 0 while the sample would '
+                        'be liquid, 1 once it condenses solid. The stage gate '
+                        'passes when the final step is 1.'),
+        'source_class': _MC,
+        'definition': json.dumps({'graphConfig': {
+            'renderStyle': 'lineY',
+            'xDimension': 'time',
+            'yDimensions': ['phase_solid'],
+            'seriesColors': [],
+            'options': {'legend': True, 'xLabel': 'time (s)', 'yLabel': 'phase (1 = solid, 0 = liquid)'},
+            'aggregation': None,
+        }}),
+    },
+    {
+        'name': 'msim-material-density',
+        'description': ('Density at the current temperature (thermal '
+                        'expansion) and the mass of the target ball it '
+                        'implies — the values the pendulum inherits when the '
+                        'gate proves the ball.'),
+        'source_class': _MC,
+        'definition': json.dumps({'graphConfig': {
+            'renderStyle': 'lineY',
+            'xDimension': 'time',
+            'yDimensions': ['density', 'ball_mass'],
+            'seriesColors': [],
+            'options': {'legend': True, 'xLabel': 'time (s)', 'yLabel': 'density (kg/m³) · ball mass (kg)'},
             'aggregation': None,
         }}),
     },
@@ -157,7 +210,7 @@ SEED_MSIM_GRAPHS = [
             'xDimension': 'time',
             'yDimensions': ['pz', 'vz'],
             'seriesColors': [],
-            'options': {'legend': True},
+            'options': {'legend': True, 'xLabel': 'time (s)', 'yLabel': 'position pz (m) · velocity vz (m/s)'},
             'aggregation': None,
         }}),
     },
@@ -222,6 +275,50 @@ SEED_MULTI_SCALE_SIMS = [{
     ]),
     'panels_json': json.dumps([
         {'kind': 'ic', 'icInterfaceRef': IC_MATERIAL_PICKER},
+        # Explainability (all show* flags are knobs; body is editable
+        # config — the panel augments it with LIVE facts read from this
+        # msim's own stage config so the text cannot drift from behavior).
+        {
+            'kind': 'explainer',
+            'stageKey': 'material-precondition',
+            'title': 'How the material stage works',
+            'body': (
+                'Before the pendulum can swing, the composition must prove '
+                'its bob can exist. The chosen substance is held at a '
+                'candidate temperature and pressure; its temperature relaxes '
+                'toward the chamber target (Newtonian cooling) and is checked '
+                'each step against the pressure-shifted melting line '
+                'T_m(P) = T_ref + s·(P − 101325). If the sample ends below '
+                'the line it has condensed into a SOLID ball; the gate then '
+                'reports the ball\'s real mass, radius and density, and those '
+                'flow into the pendulum\'s initial conditions. If no tried '
+                'condition produces a solid, that material is impossible for '
+                'this pendulum — the search shows every condition it tried '
+                'and why each failed.'
+            ),
+            'showSearchSpace': True,
+            'showGate': True,
+            'showDerive': True,
+            'showConditionMap': True,
+            'showMeltLine': True,
+        },
+        # Material graphs are FAMILY panels: the same graph pivoted
+        # across the picker's materials — per-material tabs + an
+        # all-materials comparison chart (one series per material; the
+        # y-space is coherent by construction: same class, same fields).
+        {'kind': 'graph', 'graphRef': 'msim-material-temperature',
+         'sourceClass': _MC, 'runs': ['stage:material-precondition'],
+         'family': {'icInterfaceRef': IC_MATERIAL_PICKER,
+                    'stageKey': 'material-precondition'}},
+        {'kind': 'graph', 'graphRef': 'msim-material-phase',
+         'sourceClass': _MC, 'runs': ['stage:material-precondition'],
+         'family': {'icInterfaceRef': IC_MATERIAL_PICKER,
+                    'stageKey': 'material-precondition'}},
+        {'kind': 'graph', 'graphRef': 'msim-material-density',
+         'sourceClass': _MC, 'runs': ['stage:material-precondition'],
+         'family': {'icInterfaceRef': IC_MATERIAL_PICKER,
+                    'stageKey': 'material-precondition',
+                    'combineFields': ['density']}},
         {'kind': 'scene', 'simSpaceRef': 'newtonian-pendulum-viz', 'run': 'primary'},
         {'kind': 'graph', 'graphRef': 'msim-out-of-plane',
          'sourceClass': _NB, 'runs': ['primary', 'compare']},

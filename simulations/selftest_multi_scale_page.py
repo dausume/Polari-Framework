@@ -29,6 +29,7 @@ from simulations.multi_scale_seed import (
     SEED_MULTI_SCALE_SIMS, SEED_IC_INTERFACES, SEED_MSIM_GRAPHS,
     MSIM_NAME, IC_MATERIAL_PICKER,
 )
+from simulations.newtonian_pendulum_seed import _NB
 from simulations.seed_data import (
     SEED_SIMULATION_DEFINITIONS, SEED_SIMULATION_RUNS, SEED_PENDULUM_SIMSPACES,
 )
@@ -220,13 +221,41 @@ def _seeds():
               and (p['kind'] != 'graph' or p['graphRef'] in graph_names)
               and (p['kind'] != 'ic' or p['icInterfaceRef'] in ic_names)
               for p in panels), f'panels={[p["kind"] for p in panels]}')
-    check('graph seeds: wrapped graphConfig form with real bob row fields',
-          all(f in ('energy_total', 'ke', 'pe', 'fwind_x', 'fwind_y', 'fwind_z',
-                    'pz', 'vz')
+    _graph_fields_by_class = {
+        _NB: ('energy_total', 'ke', 'pe', 'fwind_x', 'fwind_y', 'fwind_z',
+              'pz', 'vz'),
+        'MaterialCondensationState': ('temperature', 'melt_temp',
+                                      'phase_solid', 'density', 'ball_mass'),
+    }
+    check('graph seeds: wrapped graphConfig form with real row fields '
+          'of their source class',
+          all(f in _graph_fields_by_class[g['source_class']]
               for g in SEED_MSIM_GRAPHS
               for f in json.loads(g['definition'])['graphConfig']['yDimensions']))
     check('comparison runs reference seeded runs',
           set(compare.get('runs', [])) <= run_names)
+
+    # Explainability panels (Phase A): the explainer must point at a real
+    # stage and carry its narrative; every panel run token must be
+    # 'primary', 'compare', a seeded run name, or 'stage:<real stage key>'.
+    stage_keys = {s['key'] for s in json.loads(msim['stages_json'])}
+    explainers = [p for p in panels if p['kind'] == 'explainer']
+    check('explainer panel targets a real stage and carries a narrative',
+          len(explainers) == 1
+          and explainers[0]['stageKey'] in stage_keys
+          and explainers[0].get('title') and explainers[0].get('body'),
+          f"stageKey={explainers[0]['stageKey'] if explainers else None}")
+
+    def _run_token_ok(token):
+        if token in ('primary', 'compare') or token in run_names:
+            return True
+        return (token.startswith('stage:')
+                and token.split(':', 1)[1] in stage_keys)
+    panel_tokens = [t for p in panels
+                    for t in (p.get('runs') or [p.get('run')]) if t]
+    check('panel run tokens are primary/compare/seeded-run/stage:<key>',
+          all(_run_token_ok(t) for t in panel_tokens),
+          f'tokens={sorted(set(panel_tokens))}')
 
     ic = SEED_IC_INTERFACES[0]
     cfg = json.loads(ic['config_json'])
@@ -355,9 +384,10 @@ def _search():
         })
         return m
 
-    def _fake_create(manager, name, sim_ref, candidate, stage, msim_name):
+    def _fake_create(manager, name, sim_ref, candidate, stage, msim_name,
+                     label=''):
         run = SimpleNamespace(name=name, simulation_ref=sim_ref,
-                              last_recorded_step=0,
+                              last_recorded_step=0, label=label,
                               parameter_overrides_json=json.dumps(candidate))
         manager.objectTables['SimulationRun'][name] = run
         return run
@@ -387,6 +417,24 @@ def _search():
               json.loads(m.objectTables['SimulationRun'][
                   attempt_run_name('demo', 's', 0)].parameter_overrides_json)
               == {'t': 1})
+
+        # FIND MORE SOLUTIONS: the per-call knob sweeps past the winner
+        # and accumulates every valid solution; winner stays the FIRST.
+        m = _search_manager()
+        r_more = run_stage_search(m, 'demo', stage,
+                                  continue_after_winner=True)
+        check('continueAfterWinner sweeps on and accumulates all winners',
+              r_more['achieved'] and len(r_more['winners']) == 3
+              and r_more['winner'] == r_more['winners'][0]
+              and r_more['searchComplete'],
+              f"winners={[w['candidate'] for w in r_more['winners']]}")
+        # Same effect as standing stage config: search.stopPolicy knob.
+        stage_ex = dict(stage, search={**stage['search'],
+                                       'stopPolicy': 'exhaustive'})
+        m = _search_manager()
+        r_ex = run_stage_search(m, 'demo', stage_ex)
+        check("search.stopPolicy 'exhaustive' keeps sweeping by config",
+              len(r_ex['winners']) == 3 and r_ex['searchComplete'])
 
         # EXHAUSTED with data: derive-source stage without a gate can
         # NEVER complete → every attempt records the reason.

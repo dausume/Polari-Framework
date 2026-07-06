@@ -88,6 +88,18 @@ SEED_MATRIX_EQUATIONS.extend([
         {'t': 't', 'tt': 'tt', 'cr': 'cr', 'dt': 'dt'},
         'material-condensation,thermal'),
 
+    _eq('material-melt-line',
+        'The pressure-shifted melting line the phase check compares '
+        'against: T_m(P) = T_m,ref + slope*(P - 101325). Constant per '
+        'process point, but persisted per step (melt_temp) so graphs can '
+        'plot the sample temperature against it and show the '
+        'solidification crossing as data.',
+        r'T_m(P) = T_{m,ref} + s\,(P - P_{ref})',
+        {'kind': 'expr',
+         'expr': 'np.array([tm_ref + slope * (p - 101325.0)])'},
+        {'tm_ref': 'tm_ref', 'slope': 'slope', 'p': 'p'},
+        'material-condensation,phase'),
+
     _eq('material-phase-check',
         'Solid-phase check against the pressure-shifted melting line: '
         '1 when T < T_m(P) = T_m,ref + slope*(P - 101325). The comparison '
@@ -137,6 +149,11 @@ _MATERIAL_STEPS = [
                ('cr', _from_source('self.cool_rate')),
                ('dt', _from_source('self.dt'))],
               "T' = T + (target - T)(1 - exp(-k dt))"),
+    _mat_step('MeltLine', 'tm_now', 'material-melt-line',
+              [('tm_ref', _from_source('self.melt_temp_ref')),
+               ('slope', _from_source('self.melt_slope_k_per_pa')),
+               ('p', _from_source('self.pressure_pa'))],
+              'T_m(P) = T_m,ref + s (P - P_ref)'),
     _mat_step('PhaseCheck', 'solid_flag', 'material-phase-check',
               [('t', _element_source('t_new', 0)),
                ('tm_ref', _from_source('self.melt_temp_ref')),
@@ -157,6 +174,7 @@ _MATERIAL_STEPS = [
 
 _MATERIAL_OUTPUT_MAP = {
     'temperature': _element_source('t_new', 0),
+    'melt_temp': _element_source('tm_now', 0),
     'phase_solid': _element_source('solid_flag', 0),
     'density': _element_source('rho_now', 0),
     'ball_mass': _element_source('m_ball', 0),

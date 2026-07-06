@@ -122,8 +122,21 @@ def run_stage_search(
     execution_backend: Optional[str] = None,
     max_workers: Optional[int] = None,
     dask_scheduler: Optional[str] = None,
+    continue_after_winner: bool = False,
 ) -> Dict[str, Any]:
     """Advance a stage's solution search by one batch and report status.
+
+    STOP POLICY: by default the search short-circuits on the first valid
+    solution (`winner`). Two knobs continue PAST it and accumulate every
+    valid solution into `winners`:
+      - per-call: `continue_after_winner=True` (API `continueAfterWinner`)
+        — the "find more solutions" ask; each call attempts another batch
+        even though a winner exists;
+      - per-stage config: `search.stopPolicy = 'exhaustive'` (default
+        'firstValid') — every call keeps sweeping until all candidates
+        are attempted.
+    `winner` stays the FIRST valid solution either way (the one derive
+    flows consume); `searchComplete` reports when no candidates remain.
 
     `dask_scheduler` (dask backend only; default POLARI_DASK_SCHEDULER
     env): address of an existing distributed scheduler — the cross-
@@ -149,7 +162,9 @@ def run_stage_search(
     Returns:
         {
           'achieved': bool,
-          'winner': {run, candidate, derivedValues} | None,
+          'winner': {run, candidate, derivedValues} | None,   # the FIRST
+          'winners': [ {run, candidate, derivedValues} ... ], # ALL so far
+          'searchComplete': bool,        # every candidate attempted
           'exhausted': bool,
           'totalCandidates': int,
           'attempted': int,               # runs stepped to target so far
@@ -184,6 +199,11 @@ def run_stage_search(
     from simulations.simulation_runner import run_step
 
     fixed = fixed_params if isinstance(fixed_params, dict) else {}
+    # Keep sweeping past a winner when asked per-call or configured
+    # per-stage (search.stopPolicy knob).
+    continue_search = bool(continue_after_winner) or (
+        str(search_cfg.get('stopPolicy') or '').strip().lower()
+        == 'exhaustive')
     report_warnings: List[str] = []
     backend = str(execution_backend or search_cfg.get('executionBackend')
                   or 'serial').strip().lower()
@@ -199,10 +219,11 @@ def run_stage_search(
         return _run_search_parallel(
             manager, msim_name, stage, sim_def, candidates, target_steps,
             batch, fixed, attempt_tag, backend, max_workers, report_warnings,
-            dask_scheduler,
+            dask_scheduler, continue_search=continue_search,
         )
 
     attempts: List[Dict[str, Any]] = []
+    winners: List[Dict[str, Any]] = []
     winner = None
     advanced = 0
     attempted = 0
@@ -215,16 +236,19 @@ def run_stage_search(
         }
         attempts.append(entry)
 
-        # Advance this candidate only while the batch allows and no
-        # winner exists yet (first-valid short-circuits the rest). One
-        # batch slot = one candidate worked on this call (created and/or
+        # Advance this candidate only while the batch allows and, under
+        # the default stop policy, no winner exists yet (first-valid
+        # short-circuits the rest; continue_search sweeps on). One batch
+        # slot = one candidate worked on this call (created and/or
         # stepped to its target).
-        if winner is None and advanced < batch:
+        if (winner is None or continue_search) and advanced < batch:
             did_work = False
             if run is None:
-                run = _create_attempt_run(manager, name, sim_ref,
-                                          {**fixed, **candidate},
-                                          stage, msim_name)
+                run = _create_attempt_run(
+                    manager, name, sim_ref, {**fixed, **candidate},
+                    stage, msim_name,
+                    label=attempt_run_label(candidate, attempt_tag, idx,
+                                            sim_ref))
                 if run is None:
                     entry['error'] = 'failed to create attempt run'
                     advanced += 1
@@ -256,12 +280,14 @@ def run_stage_search(
             entry['complete'] = bool(verdict.get('complete'))
             entry['reason'] = verdict.get('reason') or ''
             entry['error'] = entry['error'] or verdict.get('error')
-            if entry['complete'] and winner is None:
-                winner = {
+            if entry['complete']:
+                winners.append({
                     'run': name,
                     'candidate': candidate,
                     'derivedValues': verdict.get('derivedValues'),
-                }
+                })
+                if winner is None:
+                    winner = winners[0]
         elif not entry['reason']:
             entry['reason'] = (f"in progress ({entry['stepped']}/"
                                f"{target_steps} steps)")
@@ -270,6 +296,8 @@ def run_stage_search(
     return {
         'achieved': winner is not None,
         'winner': winner,
+        'winners': winners,
+        'searchComplete': attempted >= len(candidates),
         'exhausted': exhausted,
         'totalCandidates': len(candidates),
         'attempted': attempted,
@@ -295,7 +323,7 @@ def run_stage_search(
 def _run_search_parallel(
     manager, msim_name, stage, sim_def, candidates, target_steps, batch,
     fixed, attempt_tag, backend, max_workers, report_warnings,
-    dask_scheduler=None,
+    dask_scheduler=None, continue_search=False,
 ) -> Dict[str, Any]:
     """Same report shape + winner semantics as the serial loop, but FRESH
     candidates in this batch execute as pure tasks on the chosen backend.
@@ -313,6 +341,7 @@ def _run_search_parallel(
 
     attempts: List[Dict[str, Any]] = []
     runs_by_idx: Dict[int, Any] = {}
+    winners: List[Dict[str, Any]] = []
     winner = None
     advanced = 0
     attempted = 0
@@ -340,9 +369,11 @@ def _run_search_parallel(
             entry['complete'] = bool(verdict.get('complete'))
             entry['reason'] = verdict.get('reason') or ''
             entry['error'] = verdict.get('error')
-            if entry['complete'] and winner is None:
-                winner = {'run': name, 'candidate': candidate,
-                          'derivedValues': verdict.get('derivedValues')}
+            if entry['complete']:
+                winners.append({'run': name, 'candidate': candidate,
+                                'derivedValues': verdict.get('derivedValues')})
+                if winner is None:
+                    winner = winners[0]
         else:
             entry['reason'] = (f"in progress ({entry['stepped']}/"
                                f"{target_steps} steps)")
@@ -350,7 +381,7 @@ def _run_search_parallel(
 
     # Pass 2 — finish under-stepped existing runs serially (budget-bound).
     for idx in understepped:
-        if winner is not None or advanced >= batch:
+        if (winner is not None and not continue_search) or advanced >= batch:
             break
         run = runs_by_idx[idx]
         entry = attempts[idx]
@@ -369,13 +400,17 @@ def _run_search_parallel(
             verdict = evaluate_stage_gate(manager, stage, run)
             entry['complete'] = bool(verdict.get('complete'))
             entry['reason'] = verdict.get('reason') or ''
-            if entry['complete'] and winner is None:
-                winner = {'run': entry['run'], 'candidate': entry['candidate'],
-                          'derivedValues': verdict.get('derivedValues')}
+            if entry['complete']:
+                winners.append({'run': entry['run'],
+                                'candidate': entry['candidate'],
+                                'derivedValues': verdict.get('derivedValues')})
+                if winner is None:
+                    winner = winners[0]
 
     # Pass 3 — fresh candidates, PURE + PARALLEL, within remaining budget.
     attribution: Dict[str, Any] = {}
-    take = [] if winner is not None else fresh[:max(0, batch - advanced)]
+    take = ([] if (winner is not None and not continue_search)
+            else fresh[:max(0, batch - advanced)])
     if take:
         base = build_attempt_base(manager, stage, sim_def)
         specs = []
@@ -403,7 +438,9 @@ def _run_search_parallel(
             advanced += 1
             run = _create_attempt_run(
                 manager, entry['run'], sim_ref,
-                {**fixed, **candidates[idx]}, stage, msim_name)
+                {**fixed, **candidates[idx]}, stage, msim_name,
+                label=attempt_run_label(candidates[idx], attempt_tag, idx,
+                                        sim_ref))
             if run is None:
                 entry['error'] = 'failed to create attempt run'
                 continue
@@ -425,14 +462,17 @@ def _run_search_parallel(
             attempted += 1
             entry['complete'] = bool(res.get('gateComplete'))
             entry['reason'] = res.get('gateReason') or ''
-            if entry['complete'] and winner is None:
+            if entry['complete']:
                 # Belt and braces: a pure winner must also pass the
                 # in-process gate over its materialized rows.
                 verdict = evaluate_stage_gate(manager, stage, run)
                 if verdict.get('complete'):
-                    winner = {'run': entry['run'],
-                              'candidate': candidates[idx],
-                              'derivedValues': verdict.get('derivedValues')}
+                    winners.append({'run': entry['run'],
+                                    'candidate': candidates[idx],
+                                    'derivedValues':
+                                        verdict.get('derivedValues')})
+                    if winner is None:
+                        winner = winners[0]
                 else:
                     entry['complete'] = False
                     entry['reason'] = (verdict.get('reason')
@@ -447,6 +487,8 @@ def _run_search_parallel(
     return {
         'achieved': winner is not None,
         'winner': winner,
+        'winners': winners,
+        'searchComplete': attempted >= len(candidates),
         'exhausted': exhausted,
         'totalCandidates': len(candidates),
         'attempted': attempted,
@@ -549,13 +591,52 @@ def _target_steps(search_cfg: Dict[str, Any], sim_def) -> int:
         return 1
 
 
+def _human_param(key: str, value: Any) -> str:
+    """A candidate parameter as a person would say it. Known physical
+    parameters get real-world units (and a relatable second unit);
+    anything else falls back to key=value — the search machinery stays
+    generic, only the WORDING is physics-aware."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return f'{key}={value}'
+    if key == 'target_temp':
+        return f'held at {v:g} K ({v - 273.15:.0f} °C)'
+    if key == 'pressure_pa':
+        return f'under {v / 1000.0:g} kPa ({v / 101325.0:.2f} atm)'
+    return f'{key}={v:g}'
+
+
+def _human_tag(tag: str) -> str:
+    """'paraffin-wax' → 'Paraffin wax' — the tag is the substance key."""
+    words = re.sub(r'[-_]+', ' ', str(tag or '')).strip()
+    return (words[:1].upper() + words[1:]) if words else ''
+
+
+def attempt_run_label(candidate: Dict[str, Any], attempt_tag: str,
+                      attempt_index: int, sim_ref: str) -> str:
+    """The run label a HUMAN reads in run pickers and graph legends:
+    'Paraffin wax — held at 260 K (-13 °C), under 50 kPa (0.49 atm)
+    — attempt 1' beats the machine name."""
+    subject = _human_tag(attempt_tag) or sim_ref
+    conditions = ', '.join(
+        _human_param(k, v) for k, v in sorted(candidate.items()))
+    parts = [subject]
+    if conditions:
+        parts.append(conditions)
+    parts.append(f'attempt {attempt_index + 1}')
+    return ' — '.join(parts)
+
+
 def _create_attempt_run(manager, name: str, sim_ref: str,
                         candidate: Dict[str, Any], stage: Dict[str, Any],
-                        msim_name: str):
+                        msim_name: str, label: str = ''):
     """One candidate = one ordinary SimulationRun carrying the candidate's
-    parameter point as per-run overrides. Coupled sources pass through
-    when the stage's search declares them (rare for a first-principles
-    space, but the channel exists)."""
+    parameter point as per-run overrides (`candidate` arrives MERGED with
+    the search's fixedParams — pass the human `label` built from the pure
+    candidate, see attempt_run_label). Coupled sources pass through when
+    the stage's search declares them (rare for a first-principles space,
+    but the channel exists)."""
     import json as _json
     from simulations.simulation_run import SimulationRun
     search_cfg = stage.get('search') or {}
@@ -565,8 +646,8 @@ def _create_attempt_run(manager, name: str, sim_ref: str,
             name=name,
             simulation_ref=sim_ref,
             status='pending',
-            label=(f'{msim_name} / {stage.get("key", "")} — solution '
-                   f'attempt: {candidate}'),
+            label=label or (f'{msim_name} / {stage.get("key", "")} — '
+                            f'solution attempt'),
             parameter_overrides_json=_json.dumps(candidate),
             coupled_run_refs_json=_json.dumps(
                 coupled if isinstance(coupled, dict) else {}),

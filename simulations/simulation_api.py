@@ -710,12 +710,16 @@ class SimulationAPI(treeObject):
         # scheduler (e.g. tcp://prf-dask-scheduler:8786). Omitted =
         # POLARI_DASK_SCHEDULER env, else a local cluster.
         dask_scheduler = str(body.get('daskScheduler') or '') or None
+        # "Find more solutions": keep sweeping past an existing winner,
+        # accumulating every valid solution into report.winners.
+        continue_after_winner = bool(body.get('continueAfterWinner'))
         report = run_stage_search(self.manager, msim_name, stage, batch_size,
                                   fixed_params=fixed_params,
                                   attempt_tag=attempt_tag,
                                   execution_backend=execution_backend,
                                   max_workers=max_workers,
-                                  dask_scheduler=dask_scheduler)
+                                  dask_scheduler=dask_scheduler,
+                                  continue_after_winner=continue_after_winner)
         if report.get('winner'):
             report['deriveResolved'] = apply_derive(
                 stage, report['winner'].get('derivedValues') or {})

@@ -35,10 +35,13 @@ from matrices.matrix_equation_executor import evaluate_equation
 from simulations.multi_scale_stages import evaluate_stage_gate
 import simulations.multi_scale_search as _search_mod
 import simulations.simulation_runner as _runner_mod
-from simulations.multi_scale_search import attempt_run_name, run_stage_search
+from simulations.multi_scale_search import (
+    attempt_run_name, attempt_run_label, run_stage_search,
+)
 from simulations.material_space_seed import (
     _MATERIAL_PARAMS, GATE_SOLUTION, MATERIAL_SIM_DEF,
     _GATE_SOLUTION_DEF, SEED_MATERIAL_ROWS,
+    _MATERIAL_STEPS, _MATERIAL_OUTPUT_MAP,
 )
 from simulations.multi_scale_seed import SEED_MULTI_SCALE_SIMS
 from simulations.newtonian_pendulum_seed import _NEWTON_PARAMS
@@ -81,6 +84,21 @@ def _equations():
     check('wax: solid below its melt line, liquid above',
           phase(300.0, 327.0, 2.5e-7, 101325.0) == 1.0
           and phase(340.0, 327.0, 2.5e-7, 101325.0) == 0.0)
+
+    # melt_temp (the persisted melt line): the equation must agree with
+    # the analytic line AND with the phase check on both of its sides —
+    # the graphs plot temperature against THIS field, so a drift here
+    # would draw a crossing that contradicts phase_solid.
+    def melt_line(tm_ref, slope, pres):
+        return float(evaluate_equation(_eq_def('material-melt-line'), {
+            'tm_ref': tm_ref, 'slope': slope, 'p': pres})[0])
+    tm_hi = melt_line(327.0, 2.5e-7, 2.0e5)
+    check('melt line matches the analytic pressure shift',
+          abs(tm_hi - (327.0 + 2.5e-7 * (2.0e5 - 101325.0))) < 1e-9,
+          f'T_m(200 kPa)={tm_hi:.6f} K')
+    check('phase check flips exactly at the persisted melt line',
+          phase(tm_hi - 0.01, 327.0, 2.5e-7, 2.0e5) == 1.0
+          and phase(tm_hi + 0.01, 327.0, 2.5e-7, 2.0e5) == 0.0)
     # Water-ice at -0.5 C: solid at 1 atm; at ~70 MPa the NEGATIVE slope
     # drops the melt line ~5 K below it → pressure melts the ice.
     check('water-ice: pressure MELTS it (negative Clausius slope)',
@@ -185,11 +203,26 @@ def _search_ext():
           'demo-s-waterice-attempt-2'
           and attempt_run_name('demo', 's', 1) == 'demo-s-attempt-1')
 
+    # Human labels: what a person reads in run pickers and graph titles.
+    wax_label = attempt_run_label(
+        {'target_temp': 260.0, 'pressure_pa': 50000.0}, 'paraffin-wax', 0,
+        'material-condensation')
+    check('attempt labels read like the real world (substance + units)',
+          wax_label.startswith('Paraffin wax — ')
+          and '260 K (-13 °C)' in wax_label
+          and '50 kPa (0.49 atm)' in wax_label
+          and wax_label.endswith('attempt 1'),
+          f'label={wax_label!r}')
+    check('untagged/unknown-param labels stay generic but honest',
+          attempt_run_label({'zeta': 2.0}, '', 4, 'my-sim')
+          == 'my-sim — zeta=2 — attempt 5')
+
     created = {}
 
-    def _fake_create(manager, name, sim_ref, candidate, stage, msim_name):
+    def _fake_create(manager, name, sim_ref, candidate, stage, msim_name,
+                     label=''):
         run = SimpleNamespace(name=name, simulation_ref=sim_ref,
-                              last_recorded_step=0,
+                              last_recorded_step=0, label=label,
                               parameter_overrides_json=json.dumps(candidate))
         manager.objectTables['SimulationRun'][name] = run
         created[name] = candidate
@@ -235,6 +268,10 @@ def _search_ext():
 
 def _seeds():
     print('\nMaterial space — seed wiring\n')
+    step_names = [s['name'] for s in _MATERIAL_STEPS]
+    check('MeltLine step runs in the step solution and writes melt_temp',
+          'MeltLine' in step_names and 'melt_temp' in _MATERIAL_OUTPUT_MAP,
+          f'steps={step_names}')
     sim_names = {d['name'] for d in SEED_SIMULATION_DEFINITIONS}
     mat_def = next(d for d in SEED_SIMULATION_DEFINITIONS
                    if d['name'] == MATERIAL_SIM_DEF)
