@@ -55,6 +55,11 @@ def predict_formulation_properties(components, effects, base_properties=None):
         for eff in effectsByAdditive.get(materialId, []):
             prop = eff['propertyName']
             perPercent = float(eff.get('effectPerWeightPercent', 0.0) or 0.0)
+            if perPercent == 0.0:
+                # Unquantified effect rows (intent-only seeds) must not
+                # count as predictions — a phantom zero-delta would let
+                # score_against_targets treat the property as known.
+                continue
             delta = weight * perPercent
             predicted[prop] = predicted.get(prop, 0.0) + delta
             contributions.setdefault(prop, []).append({
