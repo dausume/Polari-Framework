@@ -43,6 +43,8 @@ class ScaleExecutionAPI(treeObject):
                 '/api/msci/gates/check', self, suffix='gates')
             polServer.falconServer.add_route(
                 '/api/msci/composites/search', self, suffix='composites')
+            polServer.falconServer.add_route(
+                '/api/msci/composites/refine', self, suffix='refine')
 
     def on_get_capability(self, request, response):
         response.media = {
@@ -104,4 +106,48 @@ class ScaleExecutionAPI(treeObject):
         result = search_for_profile(profileId, baseProperties, **knobs)
         if not result.get('ok'):
             response.status = '422 Unprocessable Entity'
+        response.media = result
+
+    def on_post_refine(self, request, response):
+        """Batch-incremental refinement toward a profile's targets —
+        returns the inspectable trajectory + gap analysis."""
+        from materialsScience.batch_refine import refine_formulation
+        from materialsScience.composite_search import (
+            load_legacy_seed_data, normalize_targets,
+        )
+        body = json.load(request.bounded_stream)
+        profileId = body.get('profileId', '')
+        baseProperties = body.get('baseProperties', {})
+        if not profileId or not isinstance(baseProperties, dict):
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': "'profileId' and 'baseProperties' "
+                                       "are required"}
+            return
+        data = load_legacy_seed_data()
+        targetRows = [t for t in data['targets']
+                      if t['profileId'] == profileId]
+        if not targetRows:
+            response.status = '422 Unprocessable Entity'
+            response.media = {
+                'ok': False,
+                'error': f"no PropertyTargets for profile '{profileId}'",
+                'knownProfiles': sorted(
+                    {t['profileId'] for t in data['targets']})}
+            return
+        knobNames = ('start_components', 'loadingStep', 'minLoadingStep',
+                     'perAdditiveCap', 'maxTotalLoad', 'maxBatches',
+                     'process', 'base_material_name', 'thermal_knobs')
+        knobs = {k: body[k] for k in knobNames if k in body}
+        if knobs.get('process'):
+            from materialsScience.thermal_windows import profiles_from_rows
+            table = (self.manager.objectTables or {}).get(
+                'ThermalProcessingProfile', {})
+            rows = table.values() if isinstance(table, dict) else table
+            knobs['thermal_profiles'] = profiles_from_rows(rows)
+        result = refine_formulation(
+            baseProperties, normalize_targets(targetRows),
+            data['additives'], data['effects'], **knobs)
+        result['ok'] = True
+        result['profileId'] = profileId
         response.media = result

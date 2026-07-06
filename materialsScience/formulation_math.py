@@ -118,6 +118,11 @@ def score_against_targets(predicted, targets):
     per-target closeness: 1.0 inside the optimum range / at the
     optimum, decaying with relative distance. Unpredicted targets score
     0 and are listed in 'unpredicted' (honest, not assumed-met).
+
+    'meets' additionally requires every RANGE-defined target to be IN
+    its band (inBand) — respecting hard bounds alone is not hitting the
+    target. Optimum-only targets guide the score but don't gate meets
+    (exact equality would be unreachable).
     """
     violations, perTarget, unpredicted = [], [], []
     weightTotal, weightedScore = 0.0, 0.0
@@ -143,26 +148,46 @@ def score_against_targets(predicted, targets):
         rangeMin = target.get('optimumRangeMin')
         rangeMax = target.get('optimumRangeMax')
         optimum = target.get('optimumValue')
-        if rangeMin is not None and rangeMax is not None \
-                and float(rangeMin) <= value <= float(rangeMax):
-            closeness = 1.0
-        elif optimum is not None and float(optimum) != 0:
-            closeness = max(
-                0.0, 1.0 - abs(value - float(optimum)) / abs(float(optimum)))
-        elif optimum is not None:
-            closeness = 1.0 if value == 0 else 0.0
-        elif rangeMin is not None or rangeMax is not None:
+        inBand = None
+        if rangeMin is not None and rangeMax is not None:
+            inBand = bool(float(rangeMin) <= value <= float(rangeMax))
+        # Distance scale for the closeness gradient: the hard-bound
+        # span when both bounds exist (keeps a usable gradient across
+        # the whole feasible region — a tiny optimum must not flatten
+        # the landscape for the batch stepper), else |optimum|/edge.
+        wanted = (float(optimum) if optimum is not None
+                  else float(rangeMin) if rangeMin is not None
+                  else float(rangeMax) if rangeMax is not None else None)
+        scaleCandidates = []
+        if hardMin is not None and hardMax is not None \
+                and float(hardMax) > float(hardMin):
+            scaleCandidates.append(float(hardMax) - float(hardMin))
+        if wanted is not None:
+            for bound in (hardMin, hardMax):
+                if bound is not None and float(bound) != wanted:
+                    scaleCandidates.append(abs(float(bound) - wanted))
+        if optimum is not None and float(optimum) != 0:
+            scaleCandidates.append(abs(float(optimum)))
+        if rangeMin is not None or rangeMax is not None:
             edge = float(rangeMin if rangeMin is not None else rangeMax)
-            closeness = (max(0.0, 1.0 - abs(value - edge) / abs(edge))
-                         if edge != 0 else (1.0 if value == 0 else 0.0))
+            if edge != 0:
+                scaleCandidates.append(abs(edge))
+        scale = max(scaleCandidates) if scaleCandidates else 0.0
+        if inBand:
+            closeness = 1.0
+        elif wanted is None or scale == 0.0:
+            closeness = 1.0 if (wanted is not None and value == wanted) \
+                else 0.0
         else:
-            closeness = 0.0
+            closeness = max(0.0, 1.0 - abs(value - wanted) / scale)
         weightedScore += weight * closeness
         perTarget.append({'propertyName': prop, 'value': value,
-                          'closeness': closeness, 'weight': weight})
+                          'closeness': closeness, 'weight': weight,
+                          'inBand': inBand})
 
+    outOfBand = [t for t in perTarget if t['inBand'] is False]
     return {
-        'meets': not violations and not unpredicted,
+        'meets': not violations and not unpredicted and not outOfBand,
         'score': (weightedScore / weightTotal) if weightTotal else 0.0,
         'violations': violations,
         'unpredicted': unpredicted,
