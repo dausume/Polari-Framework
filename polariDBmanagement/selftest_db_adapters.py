@@ -82,31 +82,39 @@ def test_mariadb_sqlgen():
         'name TEXT PRIMARY KEY', 'count INTEGER', 'ratio REAL',
         'payload BLOB', 'score NUMERIC',
     ])
-    check('PK TEXT -> VARCHAR(255)', rows[0] == 'name VARCHAR(255) PRIMARY KEY')
-    check('INTEGER -> BIGINT', rows[1] == 'count BIGINT')
-    check('REAL -> DOUBLE', rows[2] == 'ratio DOUBLE')
-    check('BLOB -> LONGBLOB', rows[3] == 'payload LONGBLOB')
-    check('NUMERIC -> DOUBLE', rows[4] == 'score DOUBLE')
+    check('PK TEXT -> VARCHAR(255)',
+          rows[0] == '`name` VARCHAR(255) PRIMARY KEY')
+    check('INTEGER -> BIGINT', rows[1] == '`count` BIGINT')
+    check('REAL -> DOUBLE', rows[2] == '`ratio` DOUBLE')
+    check('BLOB -> LONGBLOB', rows[3] == '`payload` LONGBLOB')
+    check('NUMERIC -> DOUBLE', rows[4] == '`score` DOUBLE')
 
     # sqlite's typeless NONE affinity (live-found on managerObject:
     # 'objectStore NONE' + 'id NONE PRIMARY KEY' failed on MariaDB 11)
     noneRows = adapter.translateColumnDefs(
         ['objectStore NONE', 'id NONE PRIMARY KEY'])
-    check('NONE -> TEXT', noneRows[0] == 'objectStore TEXT')
+    check('NONE -> TEXT', noneRows[0] == '`objectStore` TEXT')
     check('PK NONE -> VARCHAR(255)',
-          noneRows[1] == 'id VARCHAR(255) PRIMARY KEY')
+          noneRows[1] == '`id` VARCHAR(255) PRIMARY KEY')
+
+    # Reserved-word column names must come out runnable ('precision'
+    # live-found on SimVariable)
+    reserved = adapter.translateColumnDefs(['precision INTEGER'])
+    check('reserved word backticked', reserved[0] == '`precision` BIGINT')
 
     composite = adapter.translateColumnDefs([
         '_branch_path TEXT', 'a TEXT', 'b TEXT', 'PRIMARY KEY (a, b)'])
     check('composite PK columns -> VARCHAR(255)',
-          composite[1] == 'a VARCHAR(255)' and composite[2] == 'b VARCHAR(255)')
-    check('table-level PK constraint preserved',
-          composite[3] == 'PRIMARY KEY (a, b)')
-    check('non-PK TEXT stays TEXT', composite[0] == '_branch_path TEXT')
+          composite[1] == '`a` VARCHAR(255)'
+          and composite[2] == '`b` VARCHAR(255)')
+    check('table-level PK constraint quoted',
+          composite[3] == 'PRIMARY KEY (`a`, `b`)')
+    check('non-PK TEXT stays TEXT', composite[0] == '`_branch_path` TEXT')
 
-    sql = adapter.replaceSQL('demo', ['a', 'b'])
-    check('replaceSQL uses REPLACE INTO + %s',
-          sql.startswith('REPLACE INTO demo') and '%s, %s' in sql)
+    sql = adapter.replaceSQL('demo', ['a', 'precision'])
+    check('replaceSQL uses REPLACE INTO + %s + backticks',
+          sql.startswith('REPLACE INTO `demo`') and '%s, %s' in sql
+          and '`precision`' in sql)
     check('quoteIdent backticks', adapter.quoteIdent('x') == '`x`')
     check('placeholder %s', adapter.placeholder == '%s')
 

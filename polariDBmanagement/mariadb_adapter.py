@@ -121,6 +121,18 @@ class MariaDBAdapter(DBAdapter):
                 'ORDER BY ordinal_position', (self.database, tableName))
             return [row[0] for row in cursor.fetchall()]
 
+    def replaceSQL(self, tableName, columns):
+        # Backtick every identifier — column names sqlite tolerates are
+        # MariaDB reserved words ('precision' live-found on SimVariable).
+        ph = ', '.join([self.placeholder] * len(columns))
+        cols = ', '.join(self.quoteIdent(c) for c in columns)
+        return (f'REPLACE INTO {self.quoteIdent(tableName)} ({cols}) '
+                f'VALUES({ph});')
+
+    def addColumnSQL(self, tableName, colName, colType):
+        return (f'ALTER TABLE {self.quoteIdent(tableName)} ADD COLUMN '
+                f'{self.quoteIdent(colName)} {colType}')
+
     def tableColumnDefs(self, conn, tableName):
         with conn.cursor() as cursor:
             cursor.execute(
@@ -150,8 +162,11 @@ class MariaDBAdapter(DBAdapter):
         translated = []
         for row in rowList:
             stripped = row.strip()
-            if re.match(r'(?i)^PRIMARY KEY\s*\(', stripped):
-                translated.append(stripped)
+            constraint = re.match(r'(?i)^PRIMARY KEY\s*\(([^)]*)\)', stripped)
+            if constraint:
+                cols = ', '.join(self.quoteIdent(c.strip())
+                                 for c in constraint.group(1).split(','))
+                translated.append(f'PRIMARY KEY ({cols})')
                 continue
             parts = stripped.split()
             if len(parts) < 2:
@@ -163,6 +178,8 @@ class MariaDBAdapter(DBAdapter):
                 colType = 'VARCHAR(255)'
             else:
                 colType = _AFFINITY_MAP.get(colType, colType)
-            translated.append(
-                f'{colName} {colType}{(" " + rest) if rest else ""}')
+            # Backtick the name — sqlite-legal names can be MariaDB
+            # reserved words ('precision' live-found on SimVariable).
+            translated.append(f'{self.quoteIdent(colName)} {colType}'
+                              f'{(" " + rest) if rest else ""}')
         return translated

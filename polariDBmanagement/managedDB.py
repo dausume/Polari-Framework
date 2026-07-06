@@ -282,7 +282,9 @@ class managedDatabase(managedFile):
             parts = row.split()
             if len(parts) < 2:
                 continue
-            colName, colType = parts[0], parts[1]
+            # rowList may be dialect-translated — names can arrive
+            # quoted (`x` / "x"); compare and re-quote canonically.
+            colName, colType = parts[0].strip('`"'), parts[1]
             if colName in existingColumns or colName.upper() == 'PRIMARY':
                 continue
             # A KEY-constrained column can't gain its constraint via ADD
