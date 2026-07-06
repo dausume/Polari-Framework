@@ -429,6 +429,11 @@ class polariServer(treeObject):
         # shared token, probe each other's simulations and modules.
         peersEndpoint = PeersAPI(polServer=self, manager=self.manager)
 
+        # Materials basis: engine capability + scale-definition execution
+        # + scale-presence gates (FEM/DFT via local libs or msci-engines).
+        from materialsScience.scale_execution_api import ScaleExecutionAPI
+        msciEndpoint = ScaleExecutionAPI(polServer=self, manager=self.manager)
+
         # Admission agreements — join-request → pending PeerAgreement →
         # explicit approve/deny → per-child scoped revocable token
         # (mesh convergence ruling; replaces the shared token).

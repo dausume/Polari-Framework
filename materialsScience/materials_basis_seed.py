@@ -97,6 +97,46 @@ SEED_MS_SCALE_DEFINITIONS = [
                  'space (solid-ball-achievable).',
     },
     {
+        # EXECUTABLE level-1 definition: run it (POST /api/msci/
+        # scale-definitions/execute) and the FEM result lands in
+        # parameters_json['result'], status partial→defined. k=0.25
+        # W/m·K is beeswax's literature-order conductivity; geometry is
+        # the engine's unit-square demo slab (honest note below).
+        'name': 'beeswax@L1',
+        'material_name': 'beeswax',
+        'scale_level': 1, 'scale_category': 'continuum',
+        'definition_class': 'EngineComputation', 'definition_ref': '',
+        'status': 'partial',
+        'derived_from_name': 'beeswax@L0',
+        'derivation_method': 'homogenized',
+        'parameters_json': '{"engine": "fem.conduction", "inputs": '
+                           '{"thermalConductivity": 0.25, '
+                           '"heatSource": 1.0, "refine": 4}}',
+        'notes': 'partial until executed; unit-square demo slab, not a '
+                 'part geometry — proves the level-1 engine path.',
+    },
+    {
+        # EXECUTABLE level-4 definition: molecular DFT on a SHORT-ALKANE
+        # REPRESENTATIVE FRAGMENT (propane) — honest stand-in; real
+        # paraffin chains (C20+) come once basis-set strategy is chosen.
+        'name': 'paraffin-wax@L4',
+        'material_name': 'paraffin-wax',
+        'scale_level': 4, 'scale_category': 'quantum',
+        'definition_class': 'EngineComputation', 'definition_ref': '',
+        'status': 'partial',
+        'derivation_method': 'dft-parameterized',
+        'parameters_json': '{"engine": "dft.molecular-energy", "inputs": '
+                           '{"atoms": "C 0 0 0; C 1.54 0 0; C 2.31 1.33 0; '
+                           'H -0.63 0.88 0; H -0.63 -0.88 0; '
+                           'H -0.36 -0.9 -0.5; H 1.9 -0.5 0.88; '
+                           'H 1.9 -0.5 -0.88; H 3.37 1.1 0; '
+                           'H 2.1 1.9 0.88; H 2.1 1.9 -0.88", '
+                           '"basis": "6-31g", "xc": "b3lyp"}}',
+        'notes': 'partial until executed; propane fragment as a '
+                 'representative short alkane, NOT the full paraffin '
+                 'chain.',
+    },
+    {
         # Derived definition with explicit lineage — the cross-scale
         # link machinery in miniature (level 0 → level 0 mixing).
         'name': 'beeswax-carnauba-blend@L0',

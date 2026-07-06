@@ -74,8 +74,9 @@ def test_presence_and_gates():
     manager = _fake_manager()
 
     profile = scale_profile(manager, 'beeswax')
-    check('beeswax defined at L0 only',
-          profile['defined'] == [0] and profile['missing'] == [1, 2, 3, 4])
+    check('beeswax: L0 defined, L1 partial (executable seed), rest missing',
+          profile['defined'] == [0] and profile['partial'] == [1]
+          and profile['missing'] == [2, 3, 4])
 
     blend = scale_profile(manager, 'beeswax-carnauba-blend')
     check("partial rows aren't 'defined'",
