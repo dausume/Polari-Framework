@@ -28,6 +28,9 @@ _AFFINITY_MAP = {
     'REAL': 'DOUBLE',
     'INTEGER': 'BIGINT',
     'BLOB': 'LONGBLOB',
+    # sqlite's typeless affinity (columns whose analysis found no
+    # dominant type) — MariaDB has no equivalent; store as TEXT.
+    'NONE': 'TEXT',
 }
 
 
@@ -156,7 +159,7 @@ class MariaDBAdapter(DBAdapter):
                 continue
             colName, colType = parts[0], parts[1].upper()
             rest = ' '.join(parts[2:])
-            if colName in pkColumns and colType in ('TEXT', 'BLOB'):
+            if colName in pkColumns and colType in ('TEXT', 'BLOB', 'NONE'):
                 colType = 'VARCHAR(255)'
             else:
                 colType = _AFFINITY_MAP.get(colType, colType)

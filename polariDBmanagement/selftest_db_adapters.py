@@ -88,6 +88,14 @@ def test_mariadb_sqlgen():
     check('BLOB -> LONGBLOB', rows[3] == 'payload LONGBLOB')
     check('NUMERIC -> DOUBLE', rows[4] == 'score DOUBLE')
 
+    # sqlite's typeless NONE affinity (live-found on managerObject:
+    # 'objectStore NONE' + 'id NONE PRIMARY KEY' failed on MariaDB 11)
+    noneRows = adapter.translateColumnDefs(
+        ['objectStore NONE', 'id NONE PRIMARY KEY'])
+    check('NONE -> TEXT', noneRows[0] == 'objectStore TEXT')
+    check('PK NONE -> VARCHAR(255)',
+          noneRows[1] == 'id VARCHAR(255) PRIMARY KEY')
+
     composite = adapter.translateColumnDefs([
         '_branch_path TEXT', 'a TEXT', 'b TEXT', 'PRIMARY KEY (a, b)'])
     check('composite PK columns -> VARCHAR(255)',
