@@ -139,7 +139,23 @@ _SELECTOR_SIMSPACE = {
     'bound_classes_json': '[]',
     # freestandingOnly: a curated selection shelf — no class bindings
     # (otherwise every defaultVisible 3D binding's rows pour in).
-    'definition': json.dumps({'freestandingOnly': True, 'freestanding': [
+    # screenProfiles: desktop config is the baseline; a phone-width host
+    # re-arranges the row into a 2+1 stack (fixed-camera auto-fit then
+    # zooms to whatever arrangement is active).
+    'definition': json.dumps({
+        'freestandingOnly': True,
+        'screenProfiles': [{
+            'name': 'phone', 'maxWidth': 560,
+            'camera': {'fitMargin': 1.25},
+            'objectOverrides': {
+                'choice-paraffin-wax': {'position': [-0.2, 0.14, 0]},
+                'choice-water-ice': {'position': [0.2, 0.14, 0]},
+                'choice-lead': {'position': [0.0, -0.2, 0]},
+                'selector-shelf': {'position': [0, -0.38, 0],
+                                   'scale': [0.7, 0.03, 0.4]},
+            },
+        }],
+        'freestanding': [
         _selector_ball(0, 'paraffin-wax', 'Paraffin wax'),
         _selector_ball(1, 'water-ice', 'Water ice'),
         _selector_ball(2, 'lead', 'Lead'),

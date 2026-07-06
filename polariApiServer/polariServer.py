@@ -83,6 +83,12 @@ from simSpace3D.seed_data import (
     SEED_MESHES_3D, SEED_MATERIALS_3D, SEED_SIM_SPACES_3D,
     SEED_TEXTURES_3D, SEED_MATERIAL_PHASE_APPEARANCES,
 )
+# Materials Science: chemical elements + the periodic-table selection
+# space (importing the seed module extends the shared 3D lists).
+from materialsScience.chemical_element_definition import ChemicalElementDefinition
+from materialsScience.periodic_table_seed import (
+    SEED_CHEMICAL_ELEMENTS, SEED_PERIODIC_DISPLAYS,
+)
 # Simulations module — composed *SimState classes + variable metadata
 # + config tie-in + storage predictor.
 from simulations.sim_variable import SimVariable
@@ -430,7 +436,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance,
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition,
             # Simulations
             SimulationDefinition, SimulationRun, SimVariable,
             SimSpaceEvaluationEquation,
@@ -1233,6 +1239,11 @@ class polariServer(treeObject):
             ('MaterialPhaseAppearance', MaterialPhaseAppearance,
              SEED_MATERIAL_PHASE_APPEARANCES),
             ('SimSpaceDefinition', SimSpaceDefinition, SEED_SIM_SPACES_3D),
+            # Materials Science: the periodic table as objects + its
+            # selection-space demo page.
+            ('ChemicalElementDefinition', ChemicalElementDefinition,
+             SEED_CHEMICAL_ELEMENTS),
+            ('DisplayDefinition', DisplayDefinition, SEED_PERIODIC_DISPLAYS),
         ]
         # Old demo-3d description (used as the "untouched" signature). If
         # the existing demo-3d row still has this verbatim, we treat it
