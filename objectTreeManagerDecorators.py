@@ -258,30 +258,31 @@ class managerObject:
         # Extract directory and filename from configured path
         dbDir = os.path.dirname(os.path.abspath(configuredPath))
         dbName = self.__class__.__name__ + '_DB'
-        dbFilePath = os.path.join(dbDir, dbName + '.db')
 
         # Ensure the data directory exists (it's a Docker volume mount point)
         os.makedirs(dbDir, exist_ok=True)
 
-        if os.path.exists(dbFilePath):
+        # Existence is the adapter's call: a .db file for sqlite, a
+        # non-empty schema for mariadb (database.type / DATABASE_TYPE).
+        from polariDBmanagement.db_adapter import make_adapter
+        bootAdapter = make_adapter(dbName=dbName, dbDir=dbDir)
+
+        if bootAdapter.databaseExists():
             # Existing DB found — restore object tree from it
-            print(f'[DB] Existing database found at {dbFilePath}, restoring...')
+            print(f'[DB] Existing {bootAdapter.dialect} database found, restoring...')
             self.isFreshBoot = False
             self.restoreFromDatabase(dbName, dbDir)
         else:
             # No DB — create fresh and jumpstart tables
             self.isFreshBoot = True
-            print(f'[DB] Creating fresh database at {dbFilePath}...')
+            print(f'[DB] Creating fresh {bootAdapter.dialect} database ({dbName})...')
             self.db = managedDatabase(name=dbName, manager=self)
             # Re-set manager after construction (managedFile.__init__ clears it)
             self.db.manager = self
             self.db.Path = dbDir
             self.db.extension = 'db'
-            # Create the .db file directly (bypasses createFile's cwd-only logic)
-            import sqlite3 as _sqlite3
-            _conn = _sqlite3.connect(dbFilePath)
-            _conn.close()
-            print(f'[DB] Created database file: {dbFilePath}')
+            self.db.adapter.ensureDatabase()
+            print(f'[DB] Created {self.db.adapter.dialect} database: {dbName}')
             tablesCreated = 0
             for someClass in self.objectTypingDict.keys():
                 typeToAnalyze = self.objectTypingDict[someClass]
@@ -492,7 +493,6 @@ class managerObject:
         if self.db is None:
             print('[DB] Cannot persist tree — no database initialized.', flush=True)
             return
-        dbFilePath = os.path.join(self.db.Path, self.db.name + '.db') if self.db.Path else self.db.name + '.db'
         savedCount = 0
         skippedCount = 0
         errorCount = 0
@@ -501,13 +501,7 @@ class managerObject:
                 skippedCount += len(instancesDict)
                 continue
             # Clear existing rows before re-persisting to prevent duplicates
-            try:
-                dbConn = sqlite3.connect(dbFilePath)
-                dbConn.execute(f'DELETE FROM {className}')
-                dbConn.commit()
-                dbConn.close()
-            except Exception as e:
-                print(f'[DB] Error clearing table {className}: {e}', flush=True)
+            self.db.deleteAllFromTable(className)
             for instanceId, instance in instancesDict.items():
                 try:
                     self.db.saveInstanceInDB(instance)

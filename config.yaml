@@ -61,18 +61,28 @@ application:
   # Database configuration
   database:
     enabled: true   # Set to false to run tree-only (no DB overhead)
+    # Object-DB dialect: sqlite (file-backed, lightweight) | mariadb.
+    # Env override: DATABASE_TYPE.
     type: sqlite
     # SQLite-specific settings
     sqlite:
       path: ./data/polari.db
       timeout: 5000
-    # PostgreSQL settings (for future use)
-    # postgres:
-    #   host: localhost
-    #   port: 5432
-    #   database: polari
-    #   user: polari_user
-    #   password_env: DB_PASSWORD
+    # MariaDB settings (used when type: mariadb; password comes from
+    # env MARIADB_PASSWORD only — never YAML)
+    mariadb:
+      host: prf-mariadb
+      port: 3306
+      database: polari_objects
+      user: polari
+    # Table-cache tier (KeyDB, redis-protocol). backend: none | keydb.
+    # Env overrides: CACHE_BACKEND / KEYDB_HOST / KEYDB_PORT /
+    # CACHE_TTL_SECONDS; password from env KEYDB_PASSWORD only.
+    cache:
+      backend: none
+      host: prf-keydb
+      port: 6379
+      ttl_seconds: 300
 
   # API Server configuration
   api:

@@ -24,6 +24,9 @@ from polariFiles.dataChannels import *
 from sqlite3 import Error
 import os, json, sqlite3, sys
 
+from polariDBmanagement.db_adapter import make_adapter
+from polariDBmanagement.keydb_cache import get_cache
+
 DBtypesList = ['Polari', 'App', 'Test']
 DBstatuses = ['UnInitialized Tables', 'Finalized DB']
 
@@ -39,6 +42,21 @@ class managedDatabase(managedFile):
             self.tables = tables
             self.DBstatus = ['UnInitialized DB']
             self.isRemote = None
+
+    @property
+    def adapter(self):
+        """Dialect adapter (sqlite | mariadb, per database.type). Lazy so
+        it picks up Path/name set after construction; cached per DB."""
+        cached = self.__dict__.get('_adapter')
+        if cached is None:
+            cached = make_adapter(dbName=self.name, dbDir=self.Path)
+            self.__dict__['_adapter'] = cached
+        return cached
+
+    @property
+    def cache(self):
+        """Table cache (no-op unless CACHE_BACKEND=keydb)."""
+        return get_cache()
 
     def setExtension(self, fileExtension):
         if(fileExtensions.__contains__(fileExtension)):
@@ -87,15 +105,12 @@ class managedDatabase(managedFile):
         if className not in self.tables:
             print(f'[DB-Save] SKIP: {className} not in self.tables', flush=True)
             return False
-        # SQLite-serializable types
+        # DB-serializable types
         serializableTypes = (str, int, float, bool, bytes, type(None))
         # Get actual table columns from the DB schema
-        dbFilePath = os.path.join(self.Path, self.name + '.db') if self.Path else self.name + '.db'
-        print(f'[DB-Save] DB file: {dbFilePath}, exists={os.path.exists(dbFilePath)}', flush=True)
-        dbConnection = sqlite3.connect(dbFilePath)
+        dbConnection = self.adapter.connect()
         dbCursor = dbConnection.cursor()
-        dbCursor.execute(f"PRAGMA table_info({className})")
-        tableColumns = [col[1] for col in dbCursor.fetchall()]
+        tableColumns = self.adapter.tableColumns(dbConnection, className)
         print(f'[DB-Save] Table columns for {className}: {tableColumns}', flush=True)
         # Collect only attributes that match table columns and are serializable
         rowList = []
@@ -135,10 +150,8 @@ class managedDatabase(managedFile):
         if len(rowList) == 0:
             print(f'[DB-Save] SKIP: no columns to save for {className}', flush=True)
             return False
-        # Build INSERT OR REPLACE to handle re-persisting on restart
-        placeholders = ', '.join(['?'] * len(rowList))
-        columns = ', '.join(rowList)
-        commandString = f'INSERT OR REPLACE INTO {className} ({columns}) VALUES({placeholders});'
+        # Upsert-by-primary-key to handle re-persisting on restart
+        commandString = self.adapter.replaceSQL(className, rowList)
         valueTuple = tuple(valueList)
         print(f'[DB-Save] SQL: {commandString}', flush=True)
         print(f'[DB-Save] Values: {valueTuple[:3]}...', flush=True)
@@ -147,6 +160,7 @@ class managedDatabase(managedFile):
             dbConnection.commit()
             print(f'[DB-Save] SUCCESS: saved {className} instance', flush=True)
             dbConnection.close()
+            self.cache.invalidateTable(self.name, className)
             return True
         except Exception as e:
             print(f'[DB-Save] INSERT failed for {className}: {e}', flush=True)
@@ -157,9 +171,11 @@ class managedDatabase(managedFile):
     #second of which is the list of all instances as tuples of the requested class, which have
     #the same order as and are the corresponding values of the first list.
     def getAllInTable(self, tableName):
+        cached = self.cache.getTable(self.name, tableName)
+        if cached is not None:
+            return cached
         commandString = 'SELECT * FROM ' + tableName + ';'
-        dbFilePath = os.path.join(self.Path, self.name + '.db') if self.Path else self.name + '.db'
-        dbConnection = sqlite3.connect(dbFilePath)
+        dbConnection = self.adapter.connect()
         dbCursor = dbConnection.cursor()
         print(commandString)
         dbCursor.execute(commandString)
@@ -171,6 +187,7 @@ class managedDatabase(managedFile):
         tempList = [columnNames, dataSets]
         dataSets = tuple(tempList)
         dbConnection.close()
+        self.cache.setTable(self.name, tableName, columnNames, dataSets[1])
         return dataSets
 
     #Uses a Directory Path and file name together with a class name to import a specific class
@@ -222,36 +239,32 @@ class managedDatabase(managedFile):
     #Takes in a table name and a list of strings, with each string having (Keyword, data type,
     #special conditions)
     def makeSQLiteTable(self, tableName, rowList):
-        dbFilePath = os.path.join(self.Path, self.name + '.db') if self.Path else self.name + '.db'
+        # Name kept for its many call sites — the adapter translates the
+        # sqlite-affinity column defs into whichever dialect is active.
         if self.isRemote:
             print(f'[DB] makeSQLiteTable: skipping {tableName} (isRemote={self.isRemote})', flush=True)
             return
-        if not os.path.exists(dbFilePath):
-            print(f'[DB] makeSQLiteTable: DB file not found at {dbFilePath}, cannot create table {tableName}', flush=True)
+        if not self.adapter.databaseExists() and self.adapter.dialect == 'sqlite':
+            print(f'[DB] makeSQLiteTable: database not found, cannot create table {tableName}', flush=True)
             return
-        if not self.isRemote and os.path.exists(dbFilePath):
-            commandString = 'CREATE TABLE IF NOT EXISTS ' + tableName + ' ('
-            i = 0
-            rowCount = len(rowList)
-            while(i < rowCount - 1):
-                commandString = commandString + rowList[i] + ', '
-                i = i + 1
-            commandString = commandString + rowList[rowCount - 1] + ');'
-            dbConnection = sqlite3.connect(dbFilePath)
-            dbCursor = dbConnection.cursor()
-            try:
-                dbCursor.execute(commandString)
-                dbConnection.commit()
-                if tableName not in self.tables:
-                    self.tables.append(tableName)
-                self._syncTableColumns(dbCursor, tableName, rowList)
-                dbConnection.commit()
-            except Exception as e:
-                print(f'[DB] CREATE TABLE failed for {tableName}: {e}', flush=True)
-                print(f'[DB] SQL: {commandString}', flush=True)
-            dbConnection.close()
+        translatedRows = self.adapter.translateColumnDefs(rowList)
+        commandString = ('CREATE TABLE IF NOT EXISTS ' + tableName + ' ('
+                         + ', '.join(translatedRows) + ');')
+        dbConnection = self.adapter.connect()
+        dbCursor = dbConnection.cursor()
+        try:
+            dbCursor.execute(commandString)
+            dbConnection.commit()
+            if tableName not in self.tables:
+                self.tables.append(tableName)
+            self._syncTableColumns(dbConnection, tableName, translatedRows)
+            dbConnection.commit()
+        except Exception as e:
+            print(f'[DB] CREATE TABLE failed for {tableName}: {e}', flush=True)
+            print(f'[DB] SQL: {commandString}', flush=True)
+        dbConnection.close()
 
-    def _syncTableColumns(self, dbCursor, tableName, rowList):
+    def _syncTableColumns(self, dbConnection, tableName, rowList):
         """Add columns the class declares but an existing table lacks.
 
         CREATE TABLE IF NOT EXISTS never alters an existing table, so a
@@ -262,20 +275,21 @@ class managedDatabase(managedFile):
         read back NULL for the new column and fall back to the field
         default on load.
         """
-        dbCursor.execute(f'PRAGMA table_info({tableName})')
-        existingColumns = {col[1] for col in dbCursor.fetchall()}
+        existingColumns = set(
+            self.adapter.tableColumns(dbConnection, tableName))
+        dbCursor = dbConnection.cursor()
         for row in rowList:
             parts = row.split()
             if len(parts) < 2:
                 continue
             colName, colType = parts[0], parts[1]
-            if colName in existingColumns:
+            if colName in existingColumns or colName.upper() == 'PRIMARY':
                 continue
             # A KEY-constrained column can't gain its constraint via ADD
             # COLUMN; it is added as a plain column so values are kept.
             try:
                 dbCursor.execute(
-                    f'ALTER TABLE {tableName} ADD COLUMN {colName} {colType}')
+                    self.adapter.addColumnSQL(tableName, colName, colType))
                 print(f'[DB] Schema sync: added column {tableName}.{colName} '
                       f'({colType})', flush=True)
             except Exception as e:
@@ -285,16 +299,20 @@ class managedDatabase(managedFile):
     def deleteRowsWhere(self, tableName, column, value):
         """Delete rows where `column` equals `value`. Returns the number of
         rows removed, or -1 when the table/DB is unavailable."""
-        if tableName not in self.tables:
+        # Internal tables (e.g. _dynamic_class_registry) are created
+        # directly and never enter self.tables — don't gate those.
+        if tableName not in self.tables and not tableName.startswith('_'):
             return -1
-        dbFilePath = os.path.join(self.Path, self.name + '.db') if self.Path else self.name + '.db'
         try:
-            dbConnection = sqlite3.connect(dbFilePath)
-            cursor = dbConnection.execute(
-                f'DELETE FROM {tableName} WHERE {column} = ?', (value,))
+            dbConnection = self.adapter.connect()
+            cursor = dbConnection.cursor()
+            cursor.execute(
+                f'DELETE FROM {tableName} WHERE {column} = '
+                f'{self.adapter.placeholder}', (value,))
             dbConnection.commit()
             deleted = cursor.rowcount
             dbConnection.close()
+            self.cache.invalidateTable(self.name, tableName)
             print(f'[DB] Deleted {deleted} row(s) from {tableName} '
                   f'where {column}={value!r}', flush=True)
             return deleted
@@ -304,44 +322,38 @@ class managedDatabase(managedFile):
 
     def deleteAllFromTable(self, tableName):
         """Delete all rows from a table."""
-        dbFilePath = os.path.join(self.Path, self.name + '.db') if self.Path else self.name + '.db'
         try:
-            dbConnection = sqlite3.connect(dbFilePath)
-            dbConnection.execute(f'DELETE FROM {tableName}')
+            dbConnection = self.adapter.connect()
+            dbConnection.cursor().execute(f'DELETE FROM {tableName}')
             dbConnection.commit()
             dbConnection.close()
+            self.cache.invalidateTable(self.name, tableName)
             print(f'[DB] Deleted all rows from {tableName}', flush=True)
         except Exception as e:
             print(f'[DB] Error deleting rows from {tableName}: {e}', flush=True)
 
     def dropTable(self, tableName):
         """Drop a table from the database and remove it from self.tables."""
-        dbFilePath = os.path.join(self.Path, self.name + '.db') if self.Path else self.name + '.db'
         try:
-            dbConnection = sqlite3.connect(dbFilePath)
-            dbConnection.execute(f'DROP TABLE IF EXISTS {tableName}')
+            dbConnection = self.adapter.connect()
+            dbConnection.cursor().execute(f'DROP TABLE IF EXISTS {tableName}')
             dbConnection.commit()
             dbConnection.close()
             if tableName in self.tables:
                 self.tables.remove(tableName)
+            self.cache.invalidateTable(self.name, tableName)
             print(f'[DB] Dropped table {tableName}', flush=True)
         except Exception as e:
             print(f'[DB] Error dropping table {tableName}: {e}', flush=True)
 
-    #Loads the metadata about the database into python by connecting to the already existing database's file
+    #Loads the metadata about the database into python by connecting to the already existing database
     def loadDB_byFile(self, filePath):
-        dbFilePath = os.path.join(filePath, self.name + '.db')
-        if(os.path.exists(dbFilePath)):
-            dbConnection = sqlite3.connect(dbFilePath)
-            dbCursor = dbConnection.cursor()
-            dbCursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-            # fetchall returns tuples like ('tableName',) — extract plain strings
-            rawTables = dbCursor.fetchall()
-            self.tables = [row[0] if isinstance(row, tuple) else row for row in rawTables]
-            dbConnection.commit()
+        if(self.adapter.databaseExists()):
+            dbConnection = self.adapter.connect()
+            self.tables = list(self.adapter.listTables(dbConnection))
             dbConnection.close()
         else:
-            print(f"Error: Database file not found at {dbFilePath}")
+            print(f"Error: Database not found ({self.adapter.dialect}: {self.name})")
 
     #Recieves metadata about the database 
     def loadDB_byJSON(self, jsonString):

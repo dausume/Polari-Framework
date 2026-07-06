@@ -21,6 +21,19 @@ import json
 import sqlite3
 import os
 
+# Registry schema in sqlite-affinity form — each DB adapter translates
+# these for its own dialect (see polariDBmanagement/db_adapter.py).
+_DYNAMIC_REGISTRY_COLUMNS = [
+    'className TEXT PRIMARY KEY',
+    'displayName TEXT',
+    'variables TEXT',
+    'registerCRUDE INTEGER',
+    'isStateSpaceObject INTEGER',
+    'stateSpaceDisplayFields TEXT',
+    'stateSpaceFieldsPerRow INTEGER',
+    'inheritsFrom TEXT',
+]
+
 
 class createClassAPI(treeObject):
     """
@@ -384,38 +397,35 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                                  inheritsFrom=None):
         """Save dynamic class definition to _dynamic_class_registry table."""
         db = self.manager.db
-        dbFilePath = os.path.join(db.Path, db.name + '.db') if db.Path else db.name + '.db'
-        conn = sqlite3.connect(dbFilePath)
+        adapter = db.adapter
+        conn = adapter.connect()
+        cursor = conn.cursor()
         # Ensure registry table exists with the correct schema.
         # If it exists with a stale column count, rebuild it preserving existing rows.
         expectedCols = 8
-        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='_dynamic_class_registry'")
-        if cursor.fetchone():
-            cursor = conn.execute('PRAGMA table_info(_dynamic_class_registry)')
-            colCount = len(cursor.fetchall())
+        registryDDL = ('CREATE TABLE _dynamic_class_registry ('
+                       + ', '.join(adapter.translateColumnDefs(
+                           _DYNAMIC_REGISTRY_COLUMNS)) + ')')
+        ph8 = ', '.join([adapter.placeholder] * expectedCols)
+        if adapter.tableExists(conn, '_dynamic_class_registry'):
+            colCount = len(adapter.tableColumns(conn, '_dynamic_class_registry'))
             if colCount < expectedCols:
-                existing = conn.execute('SELECT * FROM _dynamic_class_registry').fetchall()
-                conn.execute('DROP TABLE _dynamic_class_registry')
-                conn.execute('''CREATE TABLE _dynamic_class_registry (
-                    className TEXT PRIMARY KEY, displayName TEXT, variables TEXT,
-                    registerCRUDE INTEGER, isStateSpaceObject INTEGER,
-                    stateSpaceDisplayFields TEXT, stateSpaceFieldsPerRow INTEGER,
-                    inheritsFrom TEXT
-                )''')
+                cursor.execute('SELECT * FROM _dynamic_class_registry')
+                existing = cursor.fetchall()
+                cursor.execute('DROP TABLE _dynamic_class_registry')
+                cursor.execute(registryDDL)
                 for row in existing:
-                    padded = row + (None,) * (expectedCols - len(row))
-                    conn.execute('INSERT INTO _dynamic_class_registry VALUES (?, ?, ?, ?, ?, ?, ?, ?)', padded)
+                    padded = tuple(row) + (None,) * (expectedCols - len(row))
+                    cursor.execute(
+                        f'INSERT INTO _dynamic_class_registry VALUES ({ph8})',
+                        padded)
                 conn.commit()
                 print(f'[createClassAPI] Rebuilt _dynamic_class_registry: {colCount} -> {expectedCols} columns, {len(existing)} entries preserved')
         else:
-            conn.execute('''CREATE TABLE _dynamic_class_registry (
-                className TEXT PRIMARY KEY, displayName TEXT, variables TEXT,
-                registerCRUDE INTEGER, isStateSpaceObject INTEGER,
-                stateSpaceDisplayFields TEXT, stateSpaceFieldsPerRow INTEGER,
-                inheritsFrom TEXT
-            )''')
-        conn.execute(
-            'INSERT OR REPLACE INTO _dynamic_class_registry VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            cursor.execute(registryDDL)
+        cursor.execute(
+            adapter.replaceSQL('_dynamic_class_registry',
+                               [c.split()[0] for c in _DYNAMIC_REGISTRY_COLUMNS]),
             (
                 className,
                 displayName,
@@ -429,6 +439,7 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
         )
         conn.commit()
         conn.close()
+        db.cache.invalidateTable(db.name, '_dynamic_class_registry')
         print(f"[createClassAPI] Persisted class definition for {className} to registry")
 
     @staticmethod
@@ -440,13 +451,14 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
 
         Args:
             manager: The managerObject
-            dbFilePath: Path to the .db file
+            dbFilePath: Legacy .db path (unused — the manager's DB adapter
+                decides the actual backend)
         """
-        conn = sqlite3.connect(dbFilePath)
+        adapter = manager.db.adapter
+        conn = adapter.connect()
         cursor = conn.cursor()
         # Check if registry table exists
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='_dynamic_class_registry'")
-        if not cursor.fetchone():
+        if not adapter.tableExists(conn, '_dynamic_class_registry'):
             conn.close()
             return
         cursor.execute('SELECT * FROM _dynamic_class_registry')
@@ -607,17 +619,16 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             # (they'll be in objectTypingDict or are side tables)
         }
 
-        conn = sqlite3.connect(dbFilePath)
+        adapter = manager.db.adapter
+        conn = adapter.connect()
         cursor = conn.cursor()
 
         # Get all table names from DB
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        allTables = [row[0] for row in cursor.fetchall()]
+        allTables = adapter.listTables(conn)
 
         # Get registered class names from registry
         registeredNames = set()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='_dynamic_class_registry'")
-        if cursor.fetchone():
+        if adapter.tableExists(conn, '_dynamic_class_registry'):
             cursor.execute('SELECT className FROM _dynamic_class_registry')
             registeredNames = {row[0] for row in cursor.fetchall()}
 
@@ -633,15 +644,15 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                 continue
             # Check if the table has actual data
             try:
-                cursor.execute(f'SELECT count(*) FROM "{tableName}"')
+                cursor.execute(
+                    f'SELECT count(*) FROM {adapter.quoteIdent(tableName)}')
                 rowCount = cursor.fetchone()[0]
             except Exception:
                 continue
             if rowCount == 0:
                 continue
             # Get column schema
-            cursor.execute(f'PRAGMA table_info("{tableName}")')
-            columns = [(col[1], col[2]) for col in cursor.fetchall()]
+            columns = adapter.tableColumnDefs(conn, tableName)
             orphans.append((tableName, columns, rowCount))
 
         conn.close()
@@ -758,23 +769,22 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
 
             # Backfill the registry entry so this doesn't need repair next boot
             try:
-                conn = sqlite3.connect(dbFilePath)
-                conn.execute('''CREATE TABLE IF NOT EXISTS _dynamic_class_registry (
-                    className TEXT PRIMARY KEY,
-                    displayName TEXT,
-                    variables TEXT,
-                    registerCRUDE INTEGER,
-                    isStateSpaceObject INTEGER,
-                    stateSpaceDisplayFields TEXT,
-                    stateSpaceFieldsPerRow INTEGER,
-                    inheritsFrom TEXT
-                )''')
-                conn.execute(
-                    'INSERT OR REPLACE INTO _dynamic_class_registry VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                conn = adapter.connect()
+                cursor = conn.cursor()
+                cursor.execute(
+                    'CREATE TABLE IF NOT EXISTS _dynamic_class_registry ('
+                    + ', '.join(adapter.translateColumnDefs(
+                        _DYNAMIC_REGISTRY_COLUMNS)) + ')')
+                cursor.execute(
+                    adapter.replaceSQL(
+                        '_dynamic_class_registry',
+                        [c.split()[0] for c in _DYNAMIC_REGISTRY_COLUMNS]),
                     (tableName, tableName, json.dumps(variables), 1, 0, None, None, None)
                 )
                 conn.commit()
                 conn.close()
+                manager.db.cache.invalidateTable(
+                    manager.db.name, '_dynamic_class_registry')
             except Exception as e:
                 print(f'[DB] Warning: Could not backfill registry for {tableName}: {e}')
 
@@ -956,27 +966,32 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             self.manager.dynamicClasses = {}
         self.manager.dynamicClasses[className] = DynamicClass
 
-        # Update SQLite table schema — add new columns for any new variables
+        # Update DB table schema — add new columns for any new variables
         if hasattr(self.manager, 'db') and self.manager.db is not None:
             try:
                 db = self.manager.db
-                dbFilePath = os.path.join(db.Path, db.name + '.db') if db.Path else db.name + '.db'
-                conn = sqlite3.connect(dbFilePath)
+                adapter = db.adapter
+                conn = adapter.connect()
                 cursor = conn.cursor()
-                # Get existing columns
-                cursor.execute(f'PRAGMA table_info("{className}")')
-                existing_cols = {row[1] for row in cursor.fetchall()}
-                # Add new columns that don't exist yet
+                existing_cols = set(adapter.tableColumns(conn, className))
+                # Add new columns that don't exist yet (sqlite affinities;
+                # the adapter translates for other dialects)
                 type_map = {'str': 'TEXT', 'int': 'INTEGER', 'float': 'REAL', 'bool': 'INTEGER',
                             'list': 'TEXT', 'dict': 'TEXT', 'reference': 'TEXT'}
                 for var in variables:
                     col_name = var.get('varName', '')
                     if col_name and col_name not in existing_cols:
-                        col_type = type_map.get(var.get('varType', 'str'), 'TEXT')
-                        cursor.execute(f'ALTER TABLE "{className}" ADD COLUMN "{col_name}" {col_type}')
+                        col_type = adapter.translateColumnDefs(
+                            [f'{col_name} '
+                             f'{type_map.get(var.get("varType", "str"), "TEXT")}']
+                        )[0].split(None, 1)[1]
+                        cursor.execute(
+                            f'ALTER TABLE {adapter.quoteIdent(className)} ADD '
+                            f'COLUMN {adapter.quoteIdent(col_name)} {col_type}')
                         print(f'[DEBUG-CC] _editDynamicClass: added column {col_name} ({col_type}) to {className}', flush=True)
                 conn.commit()
                 conn.close()
+                db.cache.invalidateTable(db.name, className)
             except Exception as e:
                 print(f"[DEBUG-CC] _editDynamicClass: WARNING DB schema update failed: {e}", flush=True)
 
@@ -1055,11 +1070,8 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
             if hasattr(self.manager, 'db') and self.manager.db is not None:
                 try:
                     db = self.manager.db
-                    dbFilePath = os.path.join(db.Path, db.name + '.db') if db.Path else db.name + '.db'
-                    conn = sqlite3.connect(dbFilePath)
-                    conn.execute('DELETE FROM _dynamic_class_registry WHERE className = ?', (className,))
-                    conn.commit()
-                    conn.close()
+                    db.deleteRowsWhere(
+                        '_dynamic_class_registry', 'className', className)
                     registryRemoved = True
                     print(f'[DEBUG-CC] on_delete: removed {className} from _dynamic_class_registry', flush=True)
                 except Exception as e:
@@ -1110,11 +1122,7 @@ def dynamic_init(self, manager=None, branch=None, id=None{param_str}):
                     try:
                         db = self.manager.db
                         if defType in db.tables:
-                            dbFilePath = os.path.join(db.Path, db.name + '.db') if db.Path else db.name + '.db'
-                            conn = sqlite3.connect(dbFilePath)
-                            conn.execute(f'DELETE FROM "{defType}" WHERE source_class = ?', (className,))
-                            conn.commit()
-                            conn.close()
+                            db.deleteRowsWhere(defType, 'source_class', className)
                     except Exception as e:
                         print(f'[DEBUG-CC] _purgeCollateralDefinitions: WARNING DB cleanup for {defType} failed: {e}', flush=True)
             if removed > 0:
