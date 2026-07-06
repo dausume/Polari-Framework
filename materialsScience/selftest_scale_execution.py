@@ -89,6 +89,28 @@ def test_fem_execution_end_to_end():
         manager, 'beeswax@L1')['ok'])
 
 
+def test_homogenization_execution():
+    print('[homogenization execution — msci-4]')
+    check('registry has fem.effective-conductivity',
+          'fem.effective-conductivity' in ENGINE_REGISTRY)
+    manager = _manager()
+    verdict = execute_scale_definition(manager, 'beeswax-carnauba-blend@L1')
+    check('blend@L1 executes', verdict['ok'])
+    if verdict['ok']:
+        result = verdict['result']
+        check('k_eff within Voigt/Reuss bounds', result['withinBounds'])
+        check('k_eff between constituent conductivities',
+              0.25 < result['effectiveK'] < 0.30)
+        row = manager.objectTables['MaterialScaleDefinition'][
+            'beeswax-carnauba-blend@L1']
+        check('lineage preserved after execution',
+              row.derived_from_name == 'beeswax-carnauba-blend@L0'
+              and row.derivation_method == 'homogenized')
+    from materialsScience.engines.fem_engine import effective_conductivity
+    bad = effective_conductivity(1.0, 1.0, 0.8)
+    check('volume fraction bound enforced', bad['ok'] is False)
+
+
 def test_dft_execution_paths():
     print('[dft execution — refusal passthrough or real run]')
     manager = _manager()
@@ -112,6 +134,7 @@ def test_dft_execution_paths():
 def main():
     test_registry_and_refusals()
     test_fem_execution_end_to_end()
+    test_homogenization_execution()
     test_dft_execution_paths()
     print(f'\n{PASS} passed, {FAIL} failed')
     return 1 if FAIL else 0

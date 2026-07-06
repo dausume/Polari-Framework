@@ -137,6 +137,25 @@ SEED_MS_SCALE_DEFINITIONS = [
                  'chain.',
     },
     {
+        # EXECUTABLE level-1 homogenization of the blend: numerical
+        # effective conductivity of carnauba inclusions (k≈0.30) in a
+        # beeswax matrix (k≈0.25) at 20% volume — the rigorous sibling
+        # of the algebraic L0 rules-of-mixtures row below, with lineage.
+        'name': 'beeswax-carnauba-blend@L1',
+        'material_name': 'beeswax-carnauba-blend',
+        'scale_level': 1, 'scale_category': 'continuum',
+        'definition_class': 'EngineComputation', 'definition_ref': '',
+        'status': 'partial',
+        'derived_from_name': 'beeswax-carnauba-blend@L0',
+        'derivation_method': 'homogenized',
+        'parameters_json': '{"engine": "fem.effective-conductivity", '
+                           '"inputs": {"matrixK": 0.25, '
+                           '"inclusionK": 0.30, '
+                           '"volumeFraction": 0.2}}',
+        'notes': 'partial until executed; 2D unit-cell with circular '
+                 'inclusion — literature-order wax conductivities.',
+    },
+    {
         # Derived definition with explicit lineage — the cross-scale
         # link machinery in miniature (level 0 → level 0 mixing).
         'name': 'beeswax-carnauba-blend@L0',

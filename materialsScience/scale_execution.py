@@ -40,6 +40,12 @@ ENGINE_REGISTRY = {
         xc=inputs.get('xc', 'b3lyp'),
         charge=int(inputs.get('charge', 0)),
         spin=int(inputs.get('spin', 0))),
+    'fem.effective-conductivity': lambda inputs:
+        fem_engine.effective_conductivity(
+            matrix_k=float(inputs.get('matrixK', 0.0)),
+            inclusion_k=float(inputs.get('inclusionK', 0.0)),
+            volume_fraction=float(inputs.get('volumeFraction', 0.0)),
+            refine=int(inputs.get('refine', 5))),
 }
 
 

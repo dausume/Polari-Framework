@@ -80,7 +80,7 @@ def test_presence_and_gates():
 
     blend = scale_profile(manager, 'beeswax-carnauba-blend')
     check("partial rows aren't 'defined'",
-          blend['defined'] == [] and blend['partial'] == [0])
+          blend['defined'] == [] and blend['partial'] == [0, 1])
 
     gate = require_scale_levels(manager, 'beeswax', [0])
     check('L0 gate passes for beeswax', gate['ok'])
