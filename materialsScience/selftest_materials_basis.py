@@ -49,7 +49,8 @@ def _fake_manager():
 def test_seeds():
     print('[seeds]')
     names = [m['name'] for m in SEED_MS_MATERIALS]
-    check('5 material identities', len(names) == 5)
+    check('7 material identities (msci-9 added candelilla + coconut)',
+          len(names) == 7)
     check('names unique', len(set(names)) == len(names))
     check('waxes bridge RawMaterial rows', all(
         m.get('raw_material_name') for m in SEED_MS_MATERIALS
