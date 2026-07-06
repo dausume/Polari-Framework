@@ -29,6 +29,9 @@ from simulations.wind_field_seed import WIND_SIM_DEF
 # the solid-ball-achievable gate into the shared seed lists (Milestone B —
 # the first-principles stage this composition's stage 1 references).
 from simulations.material_space_seed import MATERIAL_SIM_DEF, GATE_SOLUTION
+# Importing the scene seed registers the material-condensation-viz 3D
+# scene + phase-appearance binding (Phase B of solid-materials-selection).
+from simulations.material_space_scene_seed import MATERIAL_SCENE
 
 MSIM_NAME = 'pendulum-in-wind'
 IC_MATERIAL_PICKER = 'bob-material-picker'
@@ -319,6 +322,10 @@ SEED_MULTI_SCALE_SIMS = [{
          'family': {'icInterfaceRef': IC_MATERIAL_PICKER,
                     'stageKey': 'material-precondition',
                     'combineFields': ['density']}},
+        # The condensation ball itself — appearance follows the phase,
+        # size follows the proven ball_radius (Phase B).
+        {'kind': 'scene', 'simSpaceRef': MATERIAL_SCENE,
+         'run': 'stage:material-precondition'},
         {'kind': 'scene', 'simSpaceRef': 'newtonian-pendulum-viz', 'run': 'primary'},
         {'kind': 'graph', 'graphRef': 'msim-out-of-plane',
          'sourceClass': _NB, 'runs': ['primary', 'compare']},

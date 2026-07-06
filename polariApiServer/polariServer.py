@@ -77,7 +77,12 @@ from simSpace2D.seed_data import SEED_SHAPES_2D, SEED_STYLES_2D, SEED_SIM_SPACES
 # 3D Definition classes (Phase 2 — three.js renderer skeleton).
 from simSpace3D.mesh_3d_definition import Mesh3DDefinition
 from simSpace3D.material_3d_definition import Material3DDefinition
-from simSpace3D.seed_data import SEED_MESHES_3D, SEED_MATERIALS_3D, SEED_SIM_SPACES_3D
+from simSpace3D.texture_3d_definition import Texture3DDefinition
+from simSpace3D.material_phase_appearance import MaterialPhaseAppearance
+from simSpace3D.seed_data import (
+    SEED_MESHES_3D, SEED_MATERIALS_3D, SEED_SIM_SPACES_3D,
+    SEED_TEXTURES_3D, SEED_MATERIAL_PHASE_APPEARANCES,
+)
 # Simulations module — composed *SimState classes + variable metadata
 # + config tie-in + storage predictor.
 from simulations.sim_variable import SimVariable
@@ -425,7 +430,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition,
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance,
             # Simulations
             SimulationDefinition, SimulationRun, SimVariable,
             SimSpaceEvaluationEquation,
@@ -1222,7 +1227,11 @@ class polariServer(treeObject):
         matches the prior seed signature)."""
         seed_pairs = [
             ('Mesh3DDefinition', Mesh3DDefinition, SEED_MESHES_3D),
+            # Textures BEFORE materials — materials reference them.
+            ('Texture3DDefinition', Texture3DDefinition, SEED_TEXTURES_3D),
             ('Material3DDefinition', Material3DDefinition, SEED_MATERIALS_3D),
+            ('MaterialPhaseAppearance', MaterialPhaseAppearance,
+             SEED_MATERIAL_PHASE_APPEARANCES),
             ('SimSpaceDefinition', SimSpaceDefinition, SEED_SIM_SPACES_3D),
         ]
         # Old demo-3d description (used as the "untouched" signature). If

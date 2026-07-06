@@ -160,6 +160,139 @@ SEED_MATERIALS_3D = [
         'metalness': 0.0,
         'roughness': 0.6,
     },
+    # --- Per-material-phase appearances (solid-materials-selection):
+    # one solid + one liquid look per picker substance. Physical
+    # materials map to TEXTURED SURFACES, not meshes — the solid looks
+    # carry a procedural texture; liquids read as translucent color.
+    {
+        'name': 'wax-solid',
+        'description': 'Paraffin wax, solidified — waxy off-white with a '
+                       'subtle surface noise.',
+        'material_type': 'standard',
+        'color': '#f3ecd8',
+        'metalness': 0.0,
+        'roughness': 0.75,
+        'map_texture_ref': 'wax-noise',
+    },
+    {
+        'name': 'wax-liquid',
+        'description': 'Paraffin wax, molten — translucent amber.',
+        'material_type': 'standard',
+        'color': '#e8b84a',
+        'metalness': 0.0,
+        'roughness': 0.25,
+        'opacity': 0.55,
+        'transparent': True,
+    },
+    {
+        'name': 'ice-solid',
+        'description': 'Water ice — glassy pale blue with frost noise.',
+        'material_type': 'standard',
+        'color': '#d7ecf7',
+        'metalness': 0.0,
+        'roughness': 0.2,
+        'map_texture_ref': 'frost-noise',
+    },
+    {
+        'name': 'water-liquid',
+        'description': 'Liquid water — translucent blue.',
+        'material_type': 'standard',
+        'color': '#4fa8d8',
+        'metalness': 0.0,
+        'roughness': 0.1,
+        'opacity': 0.5,
+        'transparent': True,
+    },
+    {
+        'name': 'lead-solid',
+        'description': 'Solid lead — dull dark metal with brushed stripes.',
+        'material_type': 'standard',
+        'color': '#5a5f66',
+        'metalness': 0.85,
+        'roughness': 0.55,
+        'map_texture_ref': 'brushed-stripes',
+    },
+    {
+        'name': 'lead-liquid',
+        'description': 'Molten lead — hot metallic glow.',
+        'material_type': 'standard',
+        'color': '#8a7f6a',
+        'emissive': '#ff6d00',
+        'emissive_intensity': 0.35,
+        'metalness': 0.7,
+        'roughness': 0.3,
+    },
+]
+
+# 3D-applicable textures (procedural-first — canvas-generated, so they
+# are pure config and export cleanly in module bundles; 'image' source
+# via the file store is the follow-up knob).
+SEED_TEXTURES_3D = [
+    {
+        'name': 'wax-noise',
+        'description': 'Subtle warm noise — waxy surface irregularity.',
+        'source': 'procedural',
+        'procedural_kind': 'noise',
+        'procedural_params_json': '{"colorA": "#f3ecd8", "colorB": "#e4d9bd", '
+                                  '"scale": 24, "seed": 7}',
+        'repeat_u': 2.0, 'repeat_v': 2.0,
+    },
+    {
+        'name': 'frost-noise',
+        'description': 'Fine cool noise — frosted ice surface.',
+        'source': 'procedural',
+        'procedural_kind': 'noise',
+        'procedural_params_json': '{"colorA": "#e8f4fb", "colorB": "#c8e2f0", '
+                                  '"scale": 40, "seed": 13}',
+        'repeat_u': 3.0, 'repeat_v': 3.0,
+    },
+    {
+        'name': 'brushed-stripes',
+        'description': 'Fine directional stripes — brushed metal.',
+        'source': 'procedural',
+        'procedural_kind': 'stripes',
+        'procedural_params_json': '{"colorA": "#6a6f76", "colorB": "#565b62", '
+                                  '"stripes": 48}',
+        'repeat_u': 1.0, 'repeat_v': 1.0,
+    },
+    {
+        'name': 'checker-debug',
+        'description': 'High-contrast checkerboard — UV debugging.',
+        'source': 'procedural',
+        'procedural_kind': 'checker',
+        'procedural_params_json': '{"colorA": "#ffffff", "colorB": "#222222", '
+                                  '"cells": 8}',
+    },
+]
+
+# Per-substance phase→appearance rows (the object-level home of "what
+# does this material look like per phase"; scene bindings compose their
+# inline styleRef maps FROM these via binding_style_map()).
+SEED_MATERIAL_PHASE_APPEARANCES = [
+    {
+        'name': 'wax-phases',
+        'description': 'Paraffin wax: solid → wax-solid, molten → wax-liquid.',
+        'substance_ref': 'paraffin-wax',
+        'phase_field': 'phase_solid',
+        'appearance_map_json': '{"1": "wax-solid", "0": "wax-liquid"}',
+        'default_material_ref': 'wax-liquid',
+    },
+    {
+        'name': 'ice-phases',
+        'description': 'Water ice: frozen → ice-solid, melted → water-liquid.',
+        'substance_ref': 'water-ice',
+        'phase_field': 'phase_solid',
+        'appearance_map_json': '{"1": "ice-solid", "0": "water-liquid"}',
+        'default_material_ref': 'water-liquid',
+    },
+    {
+        'name': 'lead-phases',
+        'description': 'Lead: solid → lead-solid, molten → lead-liquid.',
+        'substance_ref': 'lead',
+        'phase_field': 'phase_solid',
+        'appearance_map_json': '{"1": "lead-solid", "0": "lead-liquid"}',
+        'default_material_ref': 'lead-liquid',
+    },
 ]
 
 SEED_SIM_SPACES_3D = [

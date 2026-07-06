@@ -30,14 +30,38 @@ def resolve_ref(cfg: Any, inst: Any, default: str) -> str:
     """Resolve a shape/style/mesh/material reference:
       - bare string → use that name
       - {fromField: <fieldName>} → read the named field on `inst`
+      - {fromField: <fieldName>, map: {<value>: <ref>}, default: <ref>}
+        → read the field, look its VALUE up in the map (the per-phase
+        appearance primitive: e.g. phase_solid 1.0 → 'wax-solid').
+        Numeric field values match either their str form or their
+        int-str form ('1.0' matches a '1' key), so binary flags map
+        cleanly.
       - anything else → fall back to `default`
     """
     if isinstance(cfg, str):
         return cfg or default
     if isinstance(cfg, dict) and 'fromField' in cfg:
         v = getattr(inst, cfg['fromField'], None)
+        value_map = cfg.get('map')
+        if isinstance(value_map, dict):
+            fallback = cfg.get('default') or default
+            if v is None:
+                return fallback
+            if str(v) in value_map:
+                return str(value_map[str(v)]) or fallback
+            try:
+                f = float(v)
+                # Only integral values normalize ('1.0' → '1'); a 0.5
+                # must NOT silently truncate onto the '0' key.
+                if f.is_integer() and str(int(f)) in value_map:
+                    return str(value_map[str(int(f))]) or fallback
+            except (TypeError, ValueError):
+                pass
+            return fallback
         return str(v) if v else default
     return default
+
+
 
 
 def instance_id(inst: Any) -> str:

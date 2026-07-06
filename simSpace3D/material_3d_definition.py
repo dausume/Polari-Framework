@@ -3,9 +3,10 @@
 @module simSpace3D.material_3d_definition
 @tags @xc:render-3d, @xc:bindings
 
-A reusable 3D material. Phase 2 covers MeshStandardMaterial parameters
-only — emissive PBR, no textures yet. Textures + GLTF materials come
-in a later phase via Texture3DDefinition + GLTFLoader integration.
+A reusable 3D material: MeshStandardMaterial parameters (emissive PBR)
+plus an optional albedo TEXTURE via `map_texture_ref` →
+Texture3DDefinition (procedural-first; image/GLTF materials remain the
+follow-up knob).
 
 @consumers
   - polariServer.defClassList
@@ -43,6 +44,11 @@ class Material3DDefinition(treeObject):
         flat_shading: bool = False,
         # Wireframe debug mode.
         wireframe: bool = False,
+        # Optional albedo/color map: a Texture3DDefinition name ('' =
+        # untextured — plain PBR color, the pre-texture behavior).
+        # NOTE (migration): added 2026-07-06; existing volumes gain the
+        # column via the boot schema sync (managedDB._syncTableColumns).
+        map_texture_ref: str = '',
         manager=None,
     ):
         self.name = name
@@ -58,3 +64,4 @@ class Material3DDefinition(treeObject):
         self.double_sided = double_sided
         self.flat_shading = flat_shading
         self.wireframe = wireframe
+        self.map_texture_ref = map_texture_ref

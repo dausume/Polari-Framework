@@ -324,8 +324,11 @@ def _emit_instances(
 
 def _resolve_scale_3d(spec, inst):
     """Resolve a binding scale spec to a number (uniform) or [sx,sy,sz].
-    Supports {kind:'constant',value}, {kind:'uniform',field}, and
-    {kind:'per-axis',fields:{x,y,z}}. Returns None when unset/unresolvable."""
+    Supports {kind:'constant',value}, {kind:'uniform',field[,factor]},
+    and {kind:'per-axis',fields:{x,y,z}}. Returns None when unset/
+    unresolvable. `factor` multiplies a field-driven uniform scale —
+    e.g. a RADIUS field sizing the shared unit sphere (r=0.5) uses
+    factor 2 so the rendered radius equals the field's metric value."""
     if not isinstance(spec, dict):
         return None
     kind = spec.get('kind')
@@ -334,7 +337,15 @@ def _resolve_scale_3d(spec, inst):
             return float(spec.get('value'))
         if kind == 'uniform':
             f = spec.get('field')
-            return float(getattr(inst, f, 1) or 1) if f else None
+            if not f:
+                return None
+            factor = float(spec.get('factor', 1.0) or 1.0)
+            raw = getattr(inst, f, None)
+            if raw is None:
+                return None
+            # A genuine 0 stays 0 (e.g. ball_radius before the first
+            # step: no ball exists yet, so nothing should render).
+            return float(raw) * factor
         if kind == 'per-axis':
             fs = spec.get('fields') or {}
             return [float(getattr(inst, fs.get(a), 1) or 1) for a in ('x', 'y', 'z')]
@@ -378,4 +389,12 @@ def _resolve_position_3d(
         raw = getattr(inst, vec_field, None) if vec_field else None
         if isinstance(raw, (list, tuple)) and len(raw) >= 3:
             return [float(raw[0] or 0), float(raw[1] or 0), float(raw[2] or 0)]
+    if kind == 'constant':
+        val = pos_cfg.get('value') or []
+        if isinstance(val, (list, tuple)) and len(val) >= 3:
+            try:
+                return [float(val[0] or 0), float(val[1] or 0),
+                        float(val[2] or 0)]
+            except (TypeError, ValueError):
+                pass
     return [0.0, 0.0, 0.0]
