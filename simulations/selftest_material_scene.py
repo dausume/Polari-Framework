@@ -185,9 +185,16 @@ def _selector_scene():
           and len(camera['position']) == 3 and len(camera['target']) == 3)
     scene_row = SimpleNamespace(**_SELECTOR_SIMSPACE)
     warnings, resolved = [], []
-    objects, _c, _v = compile_3d(_mgr([]), scene_row, warnings, resolved,
-                                 run_filter=None)
+    # Rows present in the manager to PROVE freestandingOnly keeps them
+    # out: a selection shelf is curated config, not a data view.
+    objects, _c, _v = compile_3d(
+        _mgr([_mc_row(0, 0.0, 0.0, 0.08)]), scene_row, warnings, resolved,
+        run_filter=None)
     balls = {o['id']: o for o in objects if o['id'].startswith('choice-')}
+    check('freestandingOnly: ONLY the curated shelf renders (no class '
+          'bindings pour in)',
+          len(objects) == 4 and not resolved,
+          f'count={len(objects)}')
     check('one selectable preview ball per substance',
           set(balls) == {'choice-paraffin-wax', 'choice-water-ice',
                          'choice-lead'})

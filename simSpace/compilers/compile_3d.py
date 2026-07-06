@@ -68,6 +68,13 @@ def compile_3d(
             'userData': entry.get('userData'),
         })
 
+    # Scene knob: freestandingOnly scenes render ONLY their baked
+    # definition blob — no class bindings at all (selection spaces are
+    # curated shelves, not data views; without this every defaultVisible
+    # binding's rows would pour in).
+    if blob.get('freestandingOnly'):
+        return objects, connections, vectors
+
     # 2. Scene-level boundClasses overrides.
     override_by_class = load_bound_overrides(row, warnings)
 

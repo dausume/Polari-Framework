@@ -137,7 +137,9 @@ _SELECTOR_SIMSPACE = {
         'fov': 45,
     }),
     'bound_classes_json': '[]',
-    'definition': json.dumps({'freestanding': [
+    # freestandingOnly: a curated selection shelf — no class bindings
+    # (otherwise every defaultVisible 3D binding's rows pour in).
+    'definition': json.dumps({'freestandingOnly': True, 'freestanding': [
         _selector_ball(0, 'paraffin-wax', 'Paraffin wax'),
         _selector_ball(1, 'water-ice', 'Water ice'),
         _selector_ball(2, 'lead', 'Lead'),
