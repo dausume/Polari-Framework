@@ -59,9 +59,11 @@ def test_note_data():
               'meltLowC': 100.0, 'meltHighC': 150.0,
               'smokeLowC': 215.0, 'smokeHighC': 215.0, 'melts': True})
     rosinBlend = processing_window(['beeswax', 'pine-rosin'], PROFILES)
-    check('rosin governs melt-through: beeswax+rosin window [150, 195]',
-          rosinBlend['windowC'] == [150.0, 195.0]
-          and rosinBlend['meltGovernedBy'] == 'pine-rosin')
+    check('beeswax+rosin: rosin governs melt-through (150), beeswax the '
+          'volatile limit (204-20) -> window [150, 184]',
+          rosinBlend['windowC'] == [150.0, 184.0]
+          and rosinBlend['meltGovernedBy'] == 'pine-rosin'
+          and rosinBlend['limitedBy'] == 'beeswax')
 
 
 def test_windows():
