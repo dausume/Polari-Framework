@@ -104,6 +104,13 @@ SEED_THERMAL_PROFILES += [
                  'attapulgite-clay', 'illite-clay', 'silica-flour',
                  'chalk-(calcium-carbonate)')
 ] + [
+    {'name': 'pine-rosin', 'melt_low_c': 100.0, 'melt_high_c': 150.0,
+     'smoke_low_c': 215.0, 'smoke_high_c': 215.0,
+     'provenance_note': 'Dustin, dictated 2026-07-06: smoking point '
+                        '215C, melting between 100C and 150C. The '
+                        'amorphous crystal disruptor from his morphology '
+                        'notes — governs melt-through in any wax blend '
+                        '(window [150, 215-margin]).'},
     {'name': 'soy-wax', 'melt_low_c': 45.0, 'melt_high_c': 55.0,
      'smoke_low_c': 230.0, 'smoke_high_c': 230.0,
      'provenance_note': _LIT},

@@ -54,6 +54,14 @@ def test_note_data():
     check('fillers are melts=False; notebook waxes melt', all(
         not PROFILES[n]['melts'] for n in PROFILES
         if 'grog' in n or 'clay' in n) and PROFILES['beeswax']['melts'])
+    check('pine rosin (Dustin 2026-07-06): melt 100-150, smoke 215',
+          PROFILES['pine-rosin'] == {
+              'meltLowC': 100.0, 'meltHighC': 150.0,
+              'smokeLowC': 215.0, 'smokeHighC': 215.0, 'melts': True})
+    rosinBlend = processing_window(['beeswax', 'pine-rosin'], PROFILES)
+    check('rosin governs melt-through: beeswax+rosin window [150, 195]',
+          rosinBlend['windowC'] == [150.0, 195.0]
+          and rosinBlend['meltGovernedBy'] == 'pine-rosin')
 
 
 def test_windows():
