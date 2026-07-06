@@ -29,11 +29,13 @@ def check(label, condition):
 def test_seed_loading():
     print('[legacy seed loading]')
     data = load_legacy_seed_data()
-    check('28 additives', len(data['additives']) == 28)
-    check('62 effects', len(data['effects']) == 62)
+    check('31 additives (EVA/PE-wax/microwax added 2026-07-06)',
+          len(data['additives']) == 31)
+    check('69 effects', len(data['effects']) == 69)
     props = predictable_properties(data['effects'])
-    check('predictable properties are the quantified four',
-          props == ['FlexuralModulus', 'ShrinkageRate',
+    check('hardness + adhesion now predictable (Dustin worksheet)',
+          props == ['FlexuralModulus', 'LayerAdhesionStrength',
+                    'ShoreHardness', 'ShrinkageRate',
                     'ThermalConductivity', 'Viscosity'])
     normalized = normalize_targets(
         [t for t in data['targets']
@@ -100,10 +102,10 @@ def test_honest_mvw_run():
         base_properties={'ShrinkageRate': 3.0, 'FlexuralModulus': 40.0})
     check('profile search runs', result['ok'])
     best = result['ranked'][0]
-    check('4 targets honestly unpredicted (seed data gap)',
+    check('2 targets still honestly unpredicted (down from 4 after the '
+          'effect worksheet)',
           sorted(best['unpredicted']) == [
-              'AirSolidificationRate', 'ExtrusionPressure',
-              'LayerAdhesionStrength', 'ShoreHardness'])
+              'AirSolidificationRate', 'ExtrusionPressure'])
     check('nothing meets while data is missing',
           len(result['winners']) == 0)
     check('but ranking still orders by predictable score',

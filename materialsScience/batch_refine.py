@@ -55,6 +55,12 @@ def _neighbors(components, additives, loadingStep, perAdditiveCap,
     current = {c['materialId']: c['weightPercent'] for c in components}
     total = sum(current.values())
     moves = []
+    # Seeded maxLoadingPercent (typical-loading ranges) caps each
+    # additive; the perAdditiveCap knob is the ceiling either way.
+    caps = {a['id']: min(float(a.get('maxLoadingPercent') or 0.0)
+                         or float(perAdditiveCap),
+                         float(perAdditiveCap))
+            for a in additives}
 
     def asComponents(loadings):
         return [{'materialId': mid, 'weightPercent': round(w, 6)}
@@ -63,7 +69,7 @@ def _neighbors(components, additives, loadingStep, perAdditiveCap,
     for mid in current:
         up = dict(current)
         up[mid] = current[mid] + loadingStep
-        if up[mid] <= perAdditiveCap + 1e-9 \
+        if up[mid] <= caps.get(mid, perAdditiveCap) + 1e-9 \
                 and total + loadingStep <= maxTotalLoad + 1e-9:
             moves.append(('increase ' + mid, asComponents(up)))
         down = dict(current)

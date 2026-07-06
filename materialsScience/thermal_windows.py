@@ -121,6 +121,16 @@ SEED_THERMAL_PROFILES += [
      'smoke_low_c': 120.0, 'smoke_high_c': 160.0,
      'provenance_note': 'Degrades EARLY — the low onset genuinely closes '
                         'windows above ~100C. ' + _LIT},
+    {'name': 'ethylene-vinyl-acetate-(eva)', 'melt_low_c': 75.0,
+     'melt_high_c': 95.0, 'smoke_low_c': 210.0, 'smoke_high_c': 230.0,
+     'provenance_note': 'EVA deacetylation (acetic-acid volatiles) '
+                        'onsets ~210-230C — a real window cap. ' + _LIT},
+    {'name': 'polyethylene-wax-(low-mw)', 'melt_low_c': 85.0,
+     'melt_high_c': 110.0, 'smoke_low_c': 250.0, 'smoke_high_c': 250.0,
+     'provenance_note': _LIT},
+    {'name': 'microcrystalline-wax-(heavy)', 'melt_low_c': 60.0,
+     'melt_high_c': 90.0, 'smoke_low_c': 250.0, 'smoke_high_c': 260.0,
+     'provenance_note': _LIT},
     {'name': 'cork-flour', 'melt_low_c': 0.0, 'melt_high_c': 0.0,
      'smoke_low_c': 200.0, 'smoke_high_c': 250.0, 'melts': False,
      'provenance_note': 'Organic particulate (disperses, never melts); '

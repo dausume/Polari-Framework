@@ -125,17 +125,24 @@ def search_composites(base_properties, targets, additives, effects,
     compatibilizerId = (compatibilizers[0]['id']
                         if compatibilizers else None)
 
-    loadings = []
     step = float(loadingStep)
-    current = step
-    while current <= perAdditiveCap + 1e-9:
-        loadings.append(round(current, 6))
-        current += step
+
+    def loadingsFor(additive):
+        # A seeded maxLoadingPercent (Dustin's typical-loading ranges)
+        # caps that additive; the perAdditiveCap knob is the fallback.
+        cap = float(additive.get('maxLoadingPercent') or 0.0) \
+            or float(perAdditiveCap)
+        cap = min(cap, float(perAdditiveCap))
+        loadings, current = [], step
+        while current <= cap + 1e-9:
+            loadings.append(round(current, 6))
+            current += step
+        return loadings
 
     assumptions = [
         f'base properties manually supplied: {sorted(base_properties)}',
-        f'perAdditiveCap={perAdditiveCap} wt% stands in for '
-        f'maxLoadingPercent (absent from the seed rows)',
+        f'perAdditiveCap={perAdditiveCap} wt% fallback; seeded '
+        f'maxLoadingPercent caps apply where present',
         f'linear blend model (level-0 rules of mixtures)',
     ]
 
@@ -175,7 +182,8 @@ def search_composites(base_properties, targets, additives, effects,
             # The thermal window depends on WHICH materials are present,
             # not their fractions — gate once per combo.
             thermalVerdict = thermalGate(combo) if thermalGate else None
-            for weights in itertools.product(loadings, repeat=count):
+            for weights in itertools.product(
+                    *[loadingsFor(a) for a in combo]):
                 if sum(weights) > maxTotalLoad + 1e-9:
                     continue
                 if evaluated >= maxCandidates:
