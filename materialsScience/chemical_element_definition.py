@@ -28,10 +28,11 @@ class ChemicalElementDefinition(treeObject):
         symbol: str = '',
         element_name: str = '',
         atomic_number: int = 0,
-        # Standard-table placement (group 1-18; lanthanides/actinides
+        # Standard-table placement (group_number 1-18 — 'group' is an SQL
+        # reserved word, hence the suffix; lanthanides/actinides
         # carry their nominal group 3 — display_row/display_col below
         # give the visual f-block position).
-        group: int = 0,
+        group_number: int = 0,
         period: int = 0,
         display_row: float = 0.0,
         display_col: float = 0.0,
@@ -49,7 +50,7 @@ class ChemicalElementDefinition(treeObject):
         self.symbol = symbol
         self.element_name = element_name
         self.atomic_number = atomic_number
-        self.group = group
+        self.group_number = group_number
         self.period = period
         self.display_row = display_row
         self.display_col = display_col

@@ -73,7 +73,7 @@ for z, symbol, element_name, group, period, code, mass in ELEMENTS:
         'symbol': symbol,
         'element_name': element_name,
         'atomic_number': z,
-        'group': group,
+        'group_number': group,
         'period': period,
         'display_row': row,
         'display_col': col,
