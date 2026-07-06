@@ -212,6 +212,25 @@ def test_engines():
     else:
         check('pw.x present (execution layer up)', True)
 
+    # Molecular layer: local pyscf OR delegation to the engines worker.
+    check('capability reports molecular layer', 'molecularLayer' in dftCap)
+    if dftCap['molecularLayer']['available']:
+        h2 = dft_engine.molecular_energy('H 0 0 0; H 0 0 0.74',
+                                         basis='sto-3g', xc='lda')
+        check('molecular energy runs (H2)', h2['ok'] and h2['converged'])
+        check('H2 energy physically sane (-1.3 < E < -0.8 Ha)',
+              -1.3 < h2['totalEnergyHa'] < -0.8)
+    else:
+        result = dft_engine.molecular_energy('H 0 0 0; H 0 0 0.74')
+        check('molecular refusal carries the worker knob',
+              result['ok'] is False
+              and 'MSCI_ENGINES_URL' in result['suggestion']['knob'])
+    from materialsScience.engines.remote import remote_post, engines_url
+    if not engines_url():
+        refusal = remote_post('/dft/molecular-energy', {})
+        check('remote_post refuses honestly when unset',
+              refusal['ok'] is False and refusal['suggestion']['action'])
+
 
 def main():
     test_seeds()

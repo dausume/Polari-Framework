@@ -28,10 +28,29 @@ def capability():
     report = {
         'structureLayer': {'available': False, 'library': 'ase',
                            'version': ''},
+        'molecularLayer': {'available': False, 'library': 'pyscf',
+                           'via': ''},
         'executionLayer': {'available': False, 'binary': 'pw.x',
                            'pseudoDir': os.environ.get('ESPRESSO_PSEUDO', '')},
         'suggestions': [],
     }
+    try:
+        import pyscf
+        report['molecularLayer']['available'] = True
+        report['molecularLayer']['via'] = f'local pyscf {pyscf.__version__}'
+    except Exception:
+        from materialsScience.engines.remote import (
+            remote_capability, unavailable_suggestion)
+        remote = remote_capability()
+        pyscfRemote = (remote or {}).get('engines', {}).get('pyscf', {})
+        if pyscfRemote.get('available'):
+            report['molecularLayer']['available'] = True
+            report['molecularLayer']['via'] = (
+                f"msci-engines worker (pyscf {pyscfRemote.get('version')})")
+        else:
+            report['suggestions'].append(unavailable_suggestion(
+                'pyscf is not importable here (Alpine base image) and no '
+                'reachable msci-engines worker is configured.'))
     try:
         import ase
         report['structureLayer']['available'] = True
@@ -102,6 +121,38 @@ def build_bulk_structure(symbol, crystal=None, lattice_a=None):
         'electronCount': int(sum(atomic_numbers[a.symbol] for a in atoms)),
         'cellVolume': float(atoms.get_volume()),
     }
+
+
+def molecular_energy(atoms, basis='6-31g', xc='b3lyp', charge=0, spin=0):
+    """Molecular DFT total energy — the wax-chemistry workhorse.
+
+    atoms: pyscf geometry string ('C 0 0 0; H 0 0 1.09; ...').
+
+    Engine ladder (each a knob, refusals honest): local pyscf when the
+    image has it (Debian workers), else the msci-engines worker via
+    MSCI_ENGINES_URL, else a refusal carrying the exact knob to turn.
+    """
+    try:
+        from pyscf import gto, dft as pyscf_dft
+        mol = gto.M(atom=atoms, basis=basis, charge=charge, spin=spin,
+                    verbose=0)
+        mf = pyscf_dft.RKS(mol)
+        mf.xc = xc
+        energy = mf.kernel()
+        return {'ok': True, 'engine': 'pyscf(local)',
+                'totalEnergyHa': float(energy),
+                'converged': bool(mf.converged), 'basis': basis, 'xc': xc,
+                'atomCount': mol.natm,
+                'electronCount': int(mol.nelectron)}
+    except ImportError:
+        pass   # Alpine base image — delegate to the engines worker
+    except Exception as e:
+        return {'ok': False, 'error': f'pyscf failed: {e}'}
+
+    from materialsScience.engines.remote import remote_post
+    return remote_post('/dft/molecular-energy', {
+        'atoms': atoms, 'basis': basis, 'xc': xc,
+        'charge': charge, 'spin': spin})
 
 
 def total_energy(symbol, crystal=None, lattice_a=None, ecutwfc=30.0,
