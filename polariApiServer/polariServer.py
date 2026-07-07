@@ -101,6 +101,18 @@ from materialsScience.materials_basis_seed import (
 from materialsScience.thermal_windows import (
     ThermalProcessingProfile, SEED_THERMAL_PROFILES,
 )
+# Formulation searches as OBJECTS (object-coherence: the wax derivation
+# is configurable/runnable at these rows, not just API knobs).
+from materialsScience.formulation_search_definition import (
+    FormulationSearchDefinition,
+)
+from materialsScience.formulation_search_run import FormulationSearchRun
+from materialsScience.formulation_candidate_result import (
+    FormulationCandidateResult,
+)
+from materialsScience.formulation_search_seed import (
+    SEED_FORMULATION_SEARCHES,
+)
 # Simulations module — composed *SimState classes + variable metadata
 # + config tie-in + storage predictor.
 from simulations.sim_variable import SimVariable
@@ -454,6 +466,15 @@ class polariServer(treeObject):
         from simulations.profile_api import ProfileAPI
         profileEndpoint = ProfileAPI(polServer=self, manager=self.manager)
 
+        # Formulation searches as objects: run / list runs / promote
+        # winners (Track C lineage). Separate module keeps
+        # ScaleExecutionAPI at size.
+        from materialsScience.formulation_search_api import (
+            FormulationSearchAPI,
+        )
+        formulationEndpoint = FormulationSearchAPI(
+            polServer=self, manager=self.manager)
+
         # Modules as projects: configured module code folders, fetched
         # by explicit selection (or per-row auto_fetch knob at boot).
         from polariPeers.module_projects_api import ModuleProjectsAPI
@@ -485,6 +506,8 @@ class polariServer(treeObject):
             StepCostProfile,
             # Node integration (twin-Polari): peers + module registry +
             # admission agreements (mesh convergence Phase 1).
+            FormulationSearchDefinition, FormulationSearchRun,
+            FormulationCandidateResult,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PendulumBobSimState, PendulumStringSimState,
             NewtonianPendulumBobSimState, NewtonianPendulumRodSimState,
@@ -1295,6 +1318,9 @@ class polariServer(treeObject):
             # Thermal windows from the Base Wax Properties notes.
             ('ThermalProcessingProfile', ThermalProcessingProfile,
              SEED_THERMAL_PROFILES),
+            # The MVW wax derivation as a configurable search object.
+            ('FormulationSearchDefinition', FormulationSearchDefinition,
+             SEED_FORMULATION_SEARCHES),
         ]
         # Old demo-3d description (used as the "untouched" signature). If
         # the existing demo-3d row still has this verbatim, we treat it
