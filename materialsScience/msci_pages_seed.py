@@ -54,6 +54,68 @@ SEED_MSCI_PAGE_DISPLAYS = [
         }]}),
     },
     {
+        'name': 'fem-models',
+        'description': (
+            'The FEM simulation interface: configure finite-element '
+            'problems the way FEM tools structure them — physics, '
+            'domain and geometry, per-region materials (bindable to '
+            'live object rows), boundary conditions, mesh, solver, '
+            'results. Unsupported choices stay visible and say why.'
+        ),
+        'source_class': 'FEMModelDefinition',
+        'isPage': True,
+        'pageRoute': 'fem-models',
+        'linkedSolutions': '[]',
+        'definition': json.dumps({'rows': [{
+            'index': 0, 'rowSegments': 12, 'minRowHeight': 480,
+            'maxRowHeight': 0, 'autoHeight': True, 'cssClass': '',
+            'items': [{
+                'id': 'fem-models-item', 'index': 0,
+                'type': 'component', 'rowSegmentsUsed': 12,
+                'gridColumnStart': None,
+                'title': 'FEM models — configure and solve',
+                'visible': True, 'collapsed': False, 'cssClass': '',
+                'componentProps': {
+                    'componentName': 'fem-model-config',
+                    'inputs': {'defaultModelRef':
+                               'wax-thermal-continuum'},
+                },
+                'item': None, 'nestedRows': [],
+            }],
+        }]}),
+    },
+    {
+        'name': 'dft-models',
+        'description': (
+            'The DFT simulation interface: configure electronic-'
+            'structure calculations the way DFT tools structure their '
+            'inputs — calculation type, structure (molecule or bulk), '
+            'method (basis, XC functional, charge/spin), accuracy '
+            '(cutoff, k-points), results. Capability-gated honestly.'
+        ),
+        'source_class': 'DFTModelDefinition',
+        'isPage': True,
+        'pageRoute': 'dft-models',
+        'linkedSolutions': '[]',
+        'definition': json.dumps({'rows': [{
+            'index': 0, 'rowSegments': 12, 'minRowHeight': 480,
+            'maxRowHeight': 0, 'autoHeight': True, 'cssClass': '',
+            'items': [{
+                'id': 'dft-models-item', 'index': 0,
+                'type': 'component', 'rowSegmentsUsed': 12,
+                'gridColumnStart': None,
+                'title': 'DFT models — configure and compute',
+                'visible': True, 'collapsed': False, 'cssClass': '',
+                'componentProps': {
+                    'componentName': 'dft-model-config',
+                    'inputs': {'defaultModelRef':
+                               'paraffin-quantum-energy'},
+                },
+                'item': None, 'nestedRows': [],
+            }],
+        }]}),
+    },
+    {
         'name': 'formulation-search',
         'description': (
             'The formulation-search workbench: configure a '

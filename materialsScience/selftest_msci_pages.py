@@ -25,6 +25,8 @@ _results = []
 REGISTERED_COMPONENTS = {
     'materials-basis-browser',
     'formulation-search-workbench',
+    'fem-model-config',
+    'dft-model-config',
 }
 
 
@@ -44,8 +46,9 @@ def _component_names(page):
 if __name__ == '__main__':
     print('\nMaterials-science pages\n')
     names = [p['name'] for p in SEED_MSCI_PAGE_DISPLAYS]
-    check('both pages seeded',
-          names == ['materials-basis', 'formulation-search'])
+    check('all four msci pages seeded',
+          names == ['materials-basis', 'fem-models', 'dft-models',
+                    'formulation-search'])
     for page in SEED_MSCI_PAGE_DISPLAYS:
         json.loads(page['definition'])
     check('page definitions parse', True)
@@ -60,11 +63,19 @@ if __name__ == '__main__':
               for n in _component_names(p)}
     check('hosted componentNames match the registered set',
           hosted == REGISTERED_COMPONENTS, f'hosted={sorted(hosted)}')
-    wb = json.loads(SEED_MSCI_PAGE_DISPLAYS[1]['definition'])
+    by_name = {p['name']: p for p in SEED_MSCI_PAGE_DISPLAYS}
+    wb = json.loads(by_name['formulation-search']['definition'])
     wb_inputs = wb['rows'][0]['items'][0]['componentProps']['inputs']
     check('workbench defaults to the seeded search definition',
           wb_inputs['defaultSearchRef']
           == SEED_FORMULATION_SEARCHES[0]['name'])
+    fem = json.loads(by_name['fem-models']['definition'])
+    dft = json.loads(by_name['dft-models']['definition'])
+    check('model pages default to the seeded proof models',
+          fem['rows'][0]['items'][0]['componentProps']['inputs']
+          ['defaultModelRef'] == 'wax-thermal-continuum'
+          and dft['rows'][0]['items'][0]['componentProps']['inputs']
+          ['defaultModelRef'] == 'paraffin-quantum-energy')
 
     total, passed = len(_results), sum(_results)
     print(f'\n{passed}/{total} checks passed')
