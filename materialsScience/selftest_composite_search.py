@@ -117,10 +117,44 @@ def test_honest_mvw_run():
           and 'profile-min-viable-wax-filament' in missing['knownProfiles'])
 
 
+def test_sourcing_policy():
+    print('[sourcing policy — fossil-free-local default, reference '
+          'opt-in (Dustin 2026-07-06)]')
+    base = {'ShrinkageRate': 3.0, 'ShoreHardness': 10.0,
+            'LayerAdhesionStrength': 0.15, 'FlexuralModulus': 40.0}
+    strict = search_for_profile('profile-min-viable-wax-filament', base,
+                                maxAdditives=1)
+    check('default policy excludes the 3 fossil references',
+          sorted(strict['excludedBySourcingPolicy']) == [
+              'Ethylene-Vinyl Acetate (EVA)',
+              'Microcrystalline Wax (Heavy)',
+              'Polyethylene Wax (Low MW)'])
+    check('no fossil additive in any strict candidate', all(
+        'eva' not in c['materialId'] and 'pe-wax' not in c['materialId']
+        and 'microcrystalline' not in c['materialId']
+        for cand in strict['ranked'] for c in cand['components']))
+    check('exclusion declared in assumptions',
+          any('fossil-derived reference' in a
+              for a in strict['assumptions']))
+
+    reference = search_for_profile('profile-min-viable-wax-filament',
+                                   base, maxAdditives=1,
+                                   sourcingPolicy='any')
+    check("'any' keeps the references for benchmark runs",
+          reference['excludedBySourcingPolicy'] == [])
+    try:
+        search_for_profile('profile-min-viable-wax-filament', base,
+                           sourcingPolicy='typo')
+        check('unknown policy rejected', False)
+    except ValueError:
+        check('unknown policy rejected', True)
+
+
 def main():
     test_seed_loading()
     test_winnable_search()
     test_honest_mvw_run()
+    test_sourcing_policy()
     print(f'\n{PASS} passed, {FAIL} failed')
     return 1 if FAIL else 0
 

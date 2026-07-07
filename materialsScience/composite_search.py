@@ -53,7 +53,42 @@ def load_legacy_seed_data(dataDir=None):
         'profiles': read('targetMaterialProfiles.json'),
         'targets': read('propertyTargets.json'),
         'compatibilizers': read('compatibilizers.json'),
+        'raws': read('rawMaterials.json'),
     }
+
+
+#: RawMaterial.materialType values that mean fossil-fuel-derived — kept
+#: in the seeds as REFERENCE/benchmark materials (Dustin 2026-07-06:
+#: "useful so keep it but do a stricter profile as well"); the stricter
+#: sourcing policy excludes them from candidate formulations.
+FOSSIL_DERIVED_TYPES = {'polymer', 'synthetic-wax', 'petroleum-wax'}
+
+
+def sourcing_class(additive, rawsById):
+    """'fossil-derived' | 'natural-local' for an additive row."""
+    raw = rawsById.get(additive.get('rawMaterialId', ''), {})
+    return ('fossil-derived'
+            if raw.get('materialType') in FOSSIL_DERIVED_TYPES
+            else 'natural-local')
+
+
+def apply_sourcing_policy(additives, raws, sourcingPolicy):
+    """(usable additives, excluded names) under the policy knob:
+    'fossil-free-local' (the goal — DEFAULT) | 'any' (reference/
+    benchmark runs, synthetics included)."""
+    if sourcingPolicy == 'any':
+        return list(additives), []
+    if sourcingPolicy != 'fossil-free-local':
+        raise ValueError("sourcingPolicy must be 'fossil-free-local' "
+                         "| 'any'")
+    rawsById = {r['id']: r for r in raws}
+    kept, excluded = [], []
+    for additive in additives:
+        if sourcing_class(additive, rawsById) == 'fossil-derived':
+            excluded.append(additive['name'])
+        else:
+            kept.append(additive)
+    return kept, excluded
 
 
 def normalize_targets(targetRows):
@@ -91,7 +126,8 @@ def search_composites(base_properties, targets, additives, effects,
                       stopPolicy='exhaustive', continueAfterWinner=True,
                       maxCandidates=20000,
                       base_material_name='', thermal_profiles=None,
-                      process=None, thermal_knobs=None):
+                      process=None, thermal_knobs=None,
+                      raws=(), sourcingPolicy='fossil-free-local'):
     """Grid search over formulations of a base + up to maxAdditives.
 
     base_properties: {prop: value} — MANUALLY ENTERED (echoed into
@@ -122,6 +158,8 @@ def search_composites(base_properties, targets, additives, effects,
     quantifiedAdditiveIds = {e['additiveId'] for e in effects
                              if e.get('effectPerWeightPercent')}
     usable = [a for a in additives if a['id'] in quantifiedAdditiveIds]
+    usable, excludedBySourcing = apply_sourcing_policy(
+        usable, raws, sourcingPolicy)
     compatibilizerId = (compatibilizers[0]['id']
                         if compatibilizers else None)
 
@@ -144,6 +182,9 @@ def search_composites(base_properties, targets, additives, effects,
         f'perAdditiveCap={perAdditiveCap} wt% fallback; seeded '
         f'maxLoadingPercent caps apply where present',
         f'linear blend model (level-0 rules of mixtures)',
+        f"sourcingPolicy={sourcingPolicy}"
+        + (f" — excluded fossil-derived reference materials: "
+           f"{excludedBySourcing}" if excludedBySourcing else ''),
     ]
 
     thermalGate = None
@@ -243,6 +284,8 @@ def search_composites(base_properties, targets, additives, effects,
         'evaluated': evaluated,
         'sweepCapped': sweepCapped,
         'assumptions': assumptions,
+        'sourcingPolicy': sourcingPolicy,
+        'excludedBySourcingPolicy': excludedBySourcing,
         'predictableProperties': predictable_properties(effects),
     }
 
@@ -262,7 +305,7 @@ def search_for_profile(profileId, base_properties, seedData=None,
     result = search_composites(
         base_properties, normalize_targets(targetRows),
         data['additives'], data['effects'], data['compatibilizers'],
-        **knobs)
+        raws=data['raws'], **knobs)
     result['ok'] = True
     result['profileId'] = profileId
     return result

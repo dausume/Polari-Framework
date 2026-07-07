@@ -95,7 +95,8 @@ def refine_formulation(base_properties, targets, additives, effects,
                        perAdditiveCap=20.0, maxTotalLoad=30.0,
                        maxBatches=40, thermal_profiles=None,
                        process=None, base_material_name='',
-                       thermal_knobs=None):
+                       thermal_knobs=None,
+                       raws=(), sourcingPolicy='fossil-free-local'):
     """Batch-incremental stepping with ADAPTIVE increments. Returns
     {'outcome': 'met'|'converged'|'batch-limit', 'best', 'trajectory',
     'batches', 'gapAnalysis'}.
@@ -131,6 +132,9 @@ def refine_formulation(base_properties, targets, additives, effects,
     quantified = {e['additiveId'] for e in effects
                   if e.get('effectPerWeightPercent')}
     usable = [a for a in additives if a['id'] in quantified]
+    from materialsScience.composite_search import apply_sourcing_policy
+    usable, excludedBySourcing = apply_sourcing_policy(
+        usable, raws, sourcingPolicy)
 
     if minLoadingStep is None:
         minLoadingStep = loadingStep / 8.0
@@ -184,6 +188,8 @@ def refine_formulation(base_properties, targets, additives, effects,
         'best': current,
         'trajectory': trajectory,
         'batches': trajectory[-1]['batch'],
+        'sourcingPolicy': sourcingPolicy,
+        'excludedBySourcingPolicy': excludedBySourcing,
         'gapAnalysis': gap_analysis(current, targets, effects),
     }
 

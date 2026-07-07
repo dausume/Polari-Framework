@@ -93,7 +93,7 @@ class ScaleExecutionAPI(treeObject):
         knobNames = ('maxAdditives', 'loadingStep', 'perAdditiveCap',
                      'maxTotalLoad', 'stopPolicy', 'continueAfterWinner',
                      'maxCandidates', 'process', 'base_material_name',
-                     'thermal_knobs')
+                     'thermal_knobs', 'sourcingPolicy')
         knobs = {k: body[k] for k in knobNames if k in body}
         if knobs.get('process'):
             # The no-volatiles gate reads ThermalProcessingProfile rows
@@ -137,8 +137,10 @@ class ScaleExecutionAPI(treeObject):
             return
         knobNames = ('start_components', 'loadingStep', 'minLoadingStep',
                      'perAdditiveCap', 'maxTotalLoad', 'maxBatches',
-                     'process', 'base_material_name', 'thermal_knobs')
+                     'process', 'base_material_name', 'thermal_knobs',
+                     'sourcingPolicy')
         knobs = {k: body[k] for k in knobNames if k in body}
+        knobs['raws'] = data['raws']
         if knobs.get('process'):
             from materialsScience.thermal_windows import profiles_from_rows
             table = (self.manager.objectTables or {}).get(
