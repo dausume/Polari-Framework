@@ -208,9 +208,13 @@ def apply_metadata_type_overrides(module_dir_path, manager):
 # ── Dependency Detection ──────────────────────────────────────────────────────
 
 # Framework-internal import prefixes to exclude from Python dependency detection
+# (these are polari BOUNDARIES, not pip packages — their edges are
+# tracked separately by module_dependency_tracker.scan_boundary_imports).
 _FRAMEWORK_PREFIXES = (
     'polari', 'objectTree', 'setOperators', 'config_loader',
     'moduleService', 'treeObject',
+    'materialsScience', 'simulations', 'simSpace', 'matrices',
+    'accessControl',
 )
 
 # Fallback stdlib set for Python < 3.10

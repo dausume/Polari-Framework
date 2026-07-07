@@ -221,6 +221,9 @@ from polariPeers.polari_module import PolariModule
 from polariPeers.module_source_config import (
     ModuleSourceConfig, SEED_MODULE_SOURCE_CONFIGS,
 )
+# Dependency edges (python libs + polari boundaries) as persisted,
+# inspectable rows (msci-21).
+from polariPeers.polari_module_dependency import PolariModuleDependency
 from polariPeers.peers_api import PeersAPI
 # Mesh convergence Phase 1: bilateral admission agreements.
 from polariPeers.peer_agreement import PeerAgreement
@@ -514,6 +517,13 @@ class polariServer(treeObject):
         moduleProjectsEndpoint = ModuleProjectsAPI(
             polServer=self, manager=self.manager)
 
+        # Boundary + dependency tracking: the coherent-module map,
+        # python requires-trees, persisted dependency rows, and the
+        # union-resolve install knob (msci-21).
+        from polariPeers.module_dependency_api import ModuleDependencyAPI
+        moduleDependencyEndpoint = ModuleDependencyAPI(
+            polServer=self, manager=self.manager)
+
         # Admission agreements — join-request → pending PeerAgreement →
         # explicit approve/deny → per-child scoped revocable token
         # (mesh convergence ruling; replaces the shared token).
@@ -543,6 +553,7 @@ class polariServer(treeObject):
             FormulationCandidateResult,
             EngineModelTemplate, FEMModelDefinition, DFTModelDefinition,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
+            PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
             NewtonianPendulumBobSimState, NewtonianPendulumRodSimState,
             WindFieldGridState, MaterialCondensationState]
