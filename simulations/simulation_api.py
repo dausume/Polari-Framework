@@ -670,13 +670,28 @@ class SimulationAPI(treeObject):
                            key=lambda r: getattr(r, 'name', ''),
                            default=None)
             if frun is None:
-                response.status = falcon.HTTP_404
-                response.media = {
-                    'success': False,
-                    'error': ('no FormulationSearchRun found for stage '
-                              f'"{stage_key}"'
-                              + (f' named "{run_name}"' if run_name
-                                 else ' — run the search first'))}
+                if run_name:
+                    # A specific run was asked for and doesn't exist —
+                    # that IS an error.
+                    response.status = falcon.HTTP_404
+                    response.media = {
+                        'success': False,
+                        'error': ('no FormulationSearchRun named '
+                                  f'"{run_name}" for stage "{stage_key}"')}
+                    return
+                # No run yet is a STATE, not an HTTP error: the honest
+                # verdict is simply "not complete — run the search".
+                response.media = {'success': True, 'data': {
+                    'complete': False,
+                    'hasGate': False,
+                    'reason': 'The formulation search has not run yet — '
+                              'run it from this stage (or the '
+                              'formulation-search page).',
+                    'derivedValues': None,
+                    'error': None,
+                    'deriveResolved': {'params': {}, 'fields': {}},
+                }}
+                response.status = falcon.HTTP_200
                 return
             verdict = evaluate_formulation_gate(self.manager, stage, frun)
             verdict['deriveResolved'] = apply_derive(

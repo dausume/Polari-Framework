@@ -387,8 +387,9 @@ def _persist_run(manager, definition, mode, attempt_tag, *, status,
         started_at=started, finished_at=_now(),
         error=report.get('error', ''),
         manager=manager)
+    cand_rows = []
     for rank, cand in enumerate(to_persist, start=1):
-        FormulationCandidateResult(
+        cand_rows.append(FormulationCandidateResult(
             name=f'{run_name}-cand-{rank}',
             run_ref=run_name, rank=rank,
             components_json=json.dumps(cand.get('components', [])),
@@ -408,9 +409,15 @@ def _persist_run(manager, definition, mode, attempt_tag, *, status,
                                      'dftEvidenceSuggestions')
                                  else 'none'}}),
             is_winner=json.dumps(cand.get('components')) in winner_ids,
-            manager=manager)
+            manager=manager))
+    # Explicitly write BOTH the run row and every candidate row — a row
+    # only survives a backend restart if saveInstanceInDB ran for it
+    # (run-2's candidate was lost live because only the run was saved;
+    # run-1's survived only because the PROMOTION flow saved it).
     try:
         manager.db.saveInstanceInDB(run)
+        for row in cand_rows:
+            manager.db.saveInstanceInDB(row)
     except Exception:
         pass
     report['persistedCandidates'] = len(to_persist)
