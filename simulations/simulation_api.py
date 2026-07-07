@@ -648,6 +648,42 @@ class SimulationAPI(treeObject):
         except Exception:
             body = {}
         run_name = body.get('run') or ''
+        # formulationSearch stages gate over a FormulationSearchRun row
+        # (their runs are formulation runs, not SimulationRuns). The
+        # newest run for the stage's search is used when none is named.
+        if stage.get('kind') == 'formulationSearch':
+            from materialsScience.formulation_stage import (
+                evaluate_formulation_gate,
+            )
+            ftable = self.manager.objectTables.get(
+                'FormulationSearchRun', {}) or {}
+            frows = list(ftable.values()) if isinstance(ftable, dict) \
+                else list(ftable)
+            if run_name:
+                frun = next((r for r in frows
+                             if getattr(r, 'name', '') == run_name), None)
+            else:
+                search_ref = stage.get('formulationSearchRef') or ''
+                candidates = [r for r in frows
+                              if getattr(r, 'search_ref', '') == search_ref]
+                frun = max(candidates,
+                           key=lambda r: getattr(r, 'name', ''),
+                           default=None)
+            if frun is None:
+                response.status = falcon.HTTP_404
+                response.media = {
+                    'success': False,
+                    'error': ('no FormulationSearchRun found for stage '
+                              f'"{stage_key}"'
+                              + (f' named "{run_name}"' if run_name
+                                 else ' — run the search first'))}
+                return
+            verdict = evaluate_formulation_gate(self.manager, stage, frun)
+            verdict['deriveResolved'] = apply_derive(
+                stage, verdict.get('derivedValues') or {})
+            response.media = {'success': True, 'data': verdict}
+            response.status = falcon.HTTP_200
+            return
         run = self._find_run(run_name)
         if run is None:
             response.status = falcon.HTTP_404
@@ -677,16 +713,35 @@ class SimulationAPI(treeObject):
             response.media = {'success': False,
                               'error': f'Stage "{stage_key}" not found on "{msim_name}"'}
             return
+        try:
+            body = request.media or {}
+        except Exception:
+            body = {}
+        # formulationSearch stages drive a FormulationSearchDefinition
+        # instead of SimulationRun stepping; the executor reshapes its
+        # report into this endpoint's exact contract (lazy import, same
+        # style as the rest of this module).
+        if stage.get('kind') == 'formulationSearch':
+            from materialsScience.formulation_stage import (
+                run_formulation_stage,
+            )
+            report = run_formulation_stage(
+                self.manager, msim_name, stage, body)
+            if report.get('winner'):
+                report['deriveResolved'] = apply_derive(
+                    stage, report['winner'].get('derivedValues') or {})
+            response.media = {'success': report.get('error') is None,
+                              'data': report}
+            response.status = (falcon.HTTP_200
+                               if report.get('error') is None
+                               else falcon.HTTP_400)
+            return
         if not (stage.get('search') or {}).get('candidates'):
             response.status = falcon.HTTP_400
             response.media = {'success': False,
                               'error': f'Stage "{stage_key}" declares no solution search '
                                        f'(search.candidates).'}
             return
-        try:
-            body = request.media or {}
-        except Exception:
-            body = {}
         try:
             batch_size = int(body.get('batchSize') or 0) or None
         except (TypeError, ValueError):

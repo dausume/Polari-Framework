@@ -113,6 +113,11 @@ from materialsScience.formulation_candidate_result import (
 from materialsScience.formulation_search_seed import (
     SEED_FORMULATION_SEARCHES,
 )
+# The wax derivation as a multi-scale simulation (formulationSearch
+# stage over the seeded search definition).
+from materialsScience.wax_derivation_seed import (
+    SEED_WAX_DERIVATION_MSIMS,
+)
 # Simulations module — composed *SimState classes + variable metadata
 # + config tie-in + storage predictor.
 from simulations.sim_variable import SimVariable
@@ -1402,7 +1407,7 @@ class polariServer(treeObject):
             ('MultiScaleSimulationProfile', MultiScaleSimulationProfile,
              SEED_MSIM_PROFILES),
             ('MultiScaleSimulationDefinition', MultiScaleSimulationDefinition,
-             SEED_MULTI_SCALE_SIMS),
+             SEED_MULTI_SCALE_SIMS + SEED_WAX_DERIVATION_MSIMS),
             ('InitialConditionInterfaceDefinition', InitialConditionInterfaceDefinition,
              SEED_IC_INTERFACES),
             # Demo graphs-over-time for the multi-scale page's graph panels.

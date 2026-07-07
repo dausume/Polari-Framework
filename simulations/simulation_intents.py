@@ -179,14 +179,16 @@ def validate_composition(manager, msim) -> List[Dict[str, str]]:
                 f'{", ".join(PRODUCT_BEARING)}.')
 
         # Rule: search-family intents need a candidate space (or at
-        # least a gate for a single-shot search).
+        # least a gate for a single-shot search). A formulationSearch
+        # stage's candidate space IS its FormulationSearchDefinition.
         if stage_intent in ('search', 'feasibility', 'optimize'):
             if not (stage.get('search') or {}).get('candidates') \
-                    and not (stage.get('gate') or {}).get('solutionRef'):
+                    and not (stage.get('gate') or {}).get('solutionRef') \
+                    and not stage.get('formulationSearchRef'):
                 err(f'Stage "{key}" has intent "{stage_intent}" but '
-                    f'defines neither candidates to try (search.candidates) '
-                    f'nor a valid-solution condition (gate). Define at '
-                    f'least the gate.')
+                    f'defines neither candidates to try (search.candidates '
+                    f'or formulationSearchRef) nor a valid-solution '
+                    f'condition (gate). Define at least the gate.')
 
         # Rule: co-stepping needs a continuous simulation.
         if stage.get('kind') == 'coStep':

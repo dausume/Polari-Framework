@@ -130,7 +130,10 @@ SEED_MSIM_PROFILES = [
                        'stages'}},
             {'key': 'evidence-attachment', 'label':
              "Attach scale evidence to the winners' scale definitions",
-             'kind': 'runToCompletion', 'intent': 'verify',
+             # 'validate' per the intents taxonomy. Optional: a member
+             # may instead surface evidence via the search run's DFT
+             # suggestions (conformance reports the note honestly).
+             'kind': 'runToCompletion', 'intent': 'validate',
              'required': False,
              'slots': {'gate': 'scale-presence check over the winner '
                        'components'}},

@@ -108,6 +108,18 @@ def evaluate_stage_gate(manager, stage: Dict[str, Any], run) -> Dict[str, Any]:
             'error': None,
         }
 
+    flat = flatten_stage_results(manager, stage, run)
+    return evaluate_gate_over_fields(manager, stage, flat)
+
+
+def evaluate_gate_over_fields(manager, stage: Dict[str, Any],
+                              flat: Dict[str, Any]) -> Dict[str, Any]:
+    """The gate execution seam behind evaluate_stage_gate, reusable by
+    any stage kind that can flatten its results into `<ns>.<field>`
+    keys (e.g. the formulationSearch stage flattens candidate
+    properties instead of SimState rows). Same verdict contract."""
+    gate = stage.get('gate') or {}
+    gate_ref = gate.get('solutionRef') or ''
     sdata = _load_solution_data(manager, gate_ref)
     if sdata is None:
         return {
@@ -116,7 +128,6 @@ def evaluate_stage_gate(manager, stage: Dict[str, Any], run) -> Dict[str, Any]:
             'error': f"gate solution '{gate_ref}' not found",
         }
 
-    flat = flatten_stage_results(manager, stage, run)
     engine = SolutionExecutionEngine(manager=manager)
     try:
         trace = engine.execute(
