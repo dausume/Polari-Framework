@@ -55,9 +55,10 @@ def test_registry_and_refusals():
     check('unknown row refuses',
           execute_scale_definition(manager, 'nope')['ok'] is False)
     verdict = execute_scale_definition(manager, 'beeswax@L0')
-    check('non-EngineComputation row refuses',
-          verdict['ok'] is False and 'not an EngineComputation'
-          in verdict['error'])
+    check('non-executable row refuses naming the executable classes',
+          verdict['ok'] is False and 'not an executable row'
+          in verdict['error']
+          and 'EngineComputation' in verdict['error'])
     row = manager.objectTables['MaterialScaleDefinition']['beeswax@L1']
     row.parameters_json = json.dumps({'engine': 'not-real', 'inputs': {}})
     verdict = execute_scale_definition(manager, 'beeswax@L1')

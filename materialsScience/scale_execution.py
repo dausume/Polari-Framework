@@ -46,6 +46,22 @@ ENGINE_REGISTRY = {
             inclusion_k=float(inputs.get('inclusionK', 0.0)),
             volume_fraction=float(inputs.get('volumeFraction', 0.0)),
             refine=int(inputs.get('refine', 5))),
+    # The remaining dft_engine surfaces, registered for uniformity so
+    # every engine function is template-addressable. Both are
+    # capability-gated and refuse honestly when their layer is absent
+    # (bulk-structure needs ASE only; total-energy needs pw.x/WITH_QE).
+    'dft.bulk-structure': lambda inputs: dft_engine.build_bulk_structure(
+        symbol=inputs.get('symbol', ''),
+        crystal=inputs.get('crystal') or None,
+        lattice_a=(float(inputs['latticeA'])
+                   if inputs.get('latticeA') else None)),
+    'dft.total-energy': lambda inputs: dft_engine.total_energy(
+        symbol=inputs.get('symbol', ''),
+        crystal=inputs.get('crystal') or None,
+        lattice_a=(float(inputs['latticeA'])
+                   if inputs.get('latticeA') else None),
+        ecutwfc=float(inputs.get('ecutwfc', 30.0)),
+        kpts=tuple(int(k) for k in inputs.get('kpts', (3, 3, 3)))),
 }
 
 
@@ -69,12 +85,46 @@ def execute_scale_definition(manager, name):
     if row is None:
         return {'ok': False, 'name': name,
                 'error': f"no MaterialScaleDefinition named '{name}'"}
-    if getattr(row, 'definition_class', '') != 'EngineComputation':
+    definition_class = getattr(row, 'definition_class', '')
+    if definition_class in ('FEMModelDefinition', 'DFTModelDefinition'):
+        # A scale level backed by a configured model definition: run it
+        # through the model executor, then store the result on THIS row
+        # exactly like an EngineComputation (scale_presence gates and
+        # the existing UI see no difference).
+        from materialsScience.model_execution import execute_model
+        model_report = execute_model(
+            manager, getattr(row, 'definition_ref', ''))
+        if not model_report.get('ok'):
+            return {'ok': False, 'name': name, **{
+                k: v for k, v in model_report.items()
+                if k not in ('ok',)}}
+        try:
+            params = json.loads(
+                getattr(row, 'parameters_json', '{}') or '{}')
+        except Exception:
+            params = {}
+        params['result'] = model_report.get('result', {})
+        params['engine'] = model_report.get('engine', '')
+        row.parameters_json = json.dumps(params)
+        if getattr(row, 'status', '') == 'partial':
+            row.status = 'defined'
+        try:
+            manager.db.saveInstanceInDB(row)
+            persisted = True
+        except Exception:
+            persisted = False
+        return {'ok': True, 'name': name,
+                'engine': model_report.get('engine', ''),
+                'model': model_report.get('model', ''),
+                'result': model_report.get('result', {}),
+                'status': getattr(row, 'status', ''),
+                'persisted': persisted}
+    if definition_class != 'EngineComputation':
         return {'ok': False, 'name': name,
-                'error': f"'{name}' is not an EngineComputation row "
-                         f"(definition_class="
-                         f"'{getattr(row, 'definition_class', '')}') — only "
-                         "engine-backed definitions are executable."}
+                'error': f"'{name}' is not an executable row "
+                         f"(definition_class='{definition_class}') — "
+                         "EngineComputation, FEMModelDefinition, and "
+                         "DFTModelDefinition rows are executable."}
     try:
         params = json.loads(getattr(row, 'parameters_json', '{}') or '{}')
     except Exception as e:

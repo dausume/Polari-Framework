@@ -120,6 +120,14 @@ from materialsScience.wax_derivation_seed import (
 )
 # The materials-basis + formulation-search DisplayDefinition pages.
 from materialsScience.msci_pages_seed import SEED_MSCI_PAGE_DISPLAYS
+# The engine-model layer: the FEM/DFT catalog + the specialized
+# domain-shaped model definitions (msci-15).
+from materialsScience.engine_model_template import EngineModelTemplate
+from materialsScience.fem_model_definition import FEMModelDefinition
+from materialsScience.dft_model_definition import DFTModelDefinition
+from materialsScience.engine_model_seed import (
+    SEED_DFT_MODELS, SEED_ENGINE_MODEL_TEMPLATES, SEED_FEM_MODELS,
+)
 # Simulations module — composed *SimState classes + variable metadata
 # + config tie-in + storage predictor.
 from simulations.sim_variable import SimVariable
@@ -482,6 +490,12 @@ class polariServer(treeObject):
         formulationEndpoint = FormulationSearchAPI(
             polServer=self, manager=self.manager)
 
+        # Engine-model layer: the FEM/DFT catalog + model definition
+        # validate/execute endpoints (msci-15).
+        from materialsScience.engine_model_api import EngineModelAPI
+        engineModelEndpoint = EngineModelAPI(
+            polServer=self, manager=self.manager)
+
         # Modules as projects: configured module code folders, fetched
         # by explicit selection (or per-row auto_fetch knob at boot).
         from polariPeers.module_projects_api import ModuleProjectsAPI
@@ -515,6 +529,7 @@ class polariServer(treeObject):
             # admission agreements (mesh convergence Phase 1).
             FormulationSearchDefinition, FormulationSearchRun,
             FormulationCandidateResult,
+            EngineModelTemplate, FEMModelDefinition, DFTModelDefinition,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PendulumBobSimState, PendulumStringSimState,
             NewtonianPendulumBobSimState, NewtonianPendulumRodSimState,
@@ -1329,6 +1344,12 @@ class polariServer(treeObject):
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
+            # Engine-model layer: the catalog before the models that
+            # reference it.
+            ('EngineModelTemplate', EngineModelTemplate,
+             SEED_ENGINE_MODEL_TEMPLATES),
+            ('FEMModelDefinition', FEMModelDefinition, SEED_FEM_MODELS),
+            ('DFTModelDefinition', DFTModelDefinition, SEED_DFT_MODELS),
         ]
         # Old demo-3d description (used as the "untouched" signature). If
         # the existing demo-3d row still has this verbatim, we treat it
