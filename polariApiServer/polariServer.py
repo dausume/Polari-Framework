@@ -118,6 +118,8 @@ from materialsScience.formulation_search_seed import (
 from materialsScience.wax_derivation_seed import (
     SEED_WAX_DERIVATION_MSIMS,
 )
+# The materials-basis + formulation-search DisplayDefinition pages.
+from materialsScience.msci_pages_seed import SEED_MSCI_PAGE_DISPLAYS
 # Simulations module — composed *SimState classes + variable metadata
 # + config tie-in + storage predictor.
 from simulations.sim_variable import SimVariable
@@ -1311,7 +1313,8 @@ class polariServer(treeObject):
             # selection-space demo page.
             ('ChemicalElementDefinition', ChemicalElementDefinition,
              SEED_CHEMICAL_ELEMENTS),
-            ('DisplayDefinition', DisplayDefinition, SEED_PERIODIC_DISPLAYS),
+            ('DisplayDefinition', DisplayDefinition,
+             SEED_PERIODIC_DISPLAYS + SEED_MSCI_PAGE_DISPLAYS),
             # Materials basis — identities before their scale rows.
             ('MaterialsScienceMaterial', MaterialsScienceMaterial,
              SEED_MS_MATERIALS),
