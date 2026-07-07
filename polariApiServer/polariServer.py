@@ -166,6 +166,13 @@ from simulations.multi_scale_seed import (
     SEED_IC_INTERFACES,
     SEED_MSIM_GRAPHS,
 )
+# Multi-scale FAMILIES: the profile object naming what a class of msims
+# has in common (scale levels, stage shapes, fidelity ladder, panel
+# roster) + conformance checking. Declarative naming, never codegen.
+from simulations.multi_scale_simulation_profile import (
+    MultiScaleSimulationProfile,
+)
+from simulations.multi_scale_profile_seed import SEED_MSIM_PROFILES
 # Resource-aware simulation: measured per-step cost profiles (created
 # lazily by the runner's step-cost tracker — no seed rows).
 from simulations.step_cost_profile import StepCostProfile
@@ -441,6 +448,12 @@ class polariServer(treeObject):
         from materialsScience.scale_execution_api import ScaleExecutionAPI
         msciEndpoint = ScaleExecutionAPI(polServer=self, manager=self.manager)
 
+        # Multi-scale family conformance (profile_ref → slot-by-slot
+        # findings + suggestions; separate module keeps SimulationAPI
+        # at size).
+        from simulations.profile_api import ProfileAPI
+        profileEndpoint = ProfileAPI(polServer=self, manager=self.manager)
+
         # Modules as projects: configured module code folders, fetched
         # by explicit selection (or per-row auto_fetch knob at boot).
         from polariPeers.module_projects_api import ModuleProjectsAPI
@@ -467,7 +480,8 @@ class polariServer(treeObject):
             SimulationDefinition, SimulationRun, SimVariable,
             SimSpaceEvaluationEquation,
             SimulationExecutionSolution, SimulationCouplingDefinition,
-            MultiScaleSimulationDefinition, InitialConditionInterfaceDefinition,
+            MultiScaleSimulationDefinition, MultiScaleSimulationProfile,
+            InitialConditionInterfaceDefinition,
             StepCostProfile,
             # Node integration (twin-Polari): peers + module registry +
             # admission agreements (mesh convergence Phase 1).
@@ -1356,8 +1370,11 @@ class polariServer(treeObject):
              SEED_MATERIAL_ROWS),
             ('SimulationCouplingDefinition', SimulationCouplingDefinition,
              SEED_SIMULATION_COUPLINGS),
-            # Multi-Scale Simulation Page: the "Pendulum in Wind" demo +
-            # the bob-material IC interface.
+            # Multi-scale FAMILIES first (msims reference them by
+            # profile_ref), then the "Pendulum in Wind" demo + the
+            # bob-material IC interface.
+            ('MultiScaleSimulationProfile', MultiScaleSimulationProfile,
+             SEED_MSIM_PROFILES),
             ('MultiScaleSimulationDefinition', MultiScaleSimulationDefinition,
              SEED_MULTI_SCALE_SIMS),
             ('InitialConditionInterfaceDefinition', InitialConditionInterfaceDefinition,

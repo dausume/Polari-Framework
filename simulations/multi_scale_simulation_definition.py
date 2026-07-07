@@ -87,6 +87,11 @@ class MultiScaleSimulationDefinition(treeObject):
         display_ref: str = '',
         # How comparison (non-coupled) runs are kept in tune.
         compare_run_policy_json: str = '{}',
+        # Optional: the MultiScaleSimulationProfile (family) this msim
+        # instantiates — declarative naming + conformance checking,
+        # never codegen. Empty = no declared family (an honest gap the
+        # conformance endpoint reports, not an error).
+        profile_ref: str = '',
         enabled: bool = True,
         manager=None,
     ):
@@ -99,4 +104,5 @@ class MultiScaleSimulationDefinition(treeObject):
         self.panels_json = panels_json
         self.display_ref = display_ref
         self.compare_run_policy_json = compare_run_policy_json
+        self.profile_ref = profile_ref
         self.enabled = enabled

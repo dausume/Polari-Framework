@@ -222,6 +222,9 @@ SEED_MSIM_GRAPHS = [
 
 SEED_MULTI_SCALE_SIMS = [{
     'name': MSIM_NAME,
+    # The family this msim instantiates (multi_scale_profile_seed) —
+    # the retrofit proof that the profile abstraction generalizes.
+    'profile_ref': 'pendulum-in-wind',
     'description': (
         'The Milestone-A demo as a configured multi-scale simulation: the '
         'Newtonian pendulum coupled to the wind-field space (10x coarser '
@@ -399,28 +402,39 @@ def _panel_shape_sig(panels_json):
 
 
 def upgrade_msim_rows(manager):
-    """Refresh untouched MultiScaleSimulationDefinition rows' panels_json
-    from the current seeds (shape-signature guarded, see module note)."""
+    """Refresh untouched MultiScaleSimulationDefinition rows from the
+    current seeds:
+      - panels_json (shape-signature guarded, see module note);
+      - profile_ref, filled ONLY when the row has none (a family
+        declaration is additive — an admin-set family is never
+        overwritten)."""
     table = manager.objectTables.get('MultiScaleSimulationDefinition', {}) or {}
     rows_by_name = {getattr(r, 'name', None): r for r in table.values()}
     for seed in SEED_MULTI_SCALE_SIMS:
         row = rows_by_name.get(seed.get('name'))
         if row is None:
             continue
+        changed = []
+        seed_profile = seed.get('profile_ref') or ''
+        if seed_profile and not (getattr(row, 'profile_ref', '') or ''):
+            row.profile_ref = seed_profile
+            changed.append(f'profile_ref={seed_profile}')
         seed_panels = seed.get('panels_json') or '[]'
         row_panels = getattr(row, 'panels_json', '') or '[]'
-        if row_panels == seed_panels:
+        if row_panels != seed_panels:
+            row_sig = _panel_shape_sig(row_panels)
+            if row_sig is None or row_sig != _panel_shape_sig(seed_panels):
+                print(f'[SeedSimulations] msim "{seed.get("name")}" panels '
+                      'customized; leaving as-is (upgrade skipped)', flush=True)
+            else:
+                row.panels_json = seed_panels
+                changed.append('panels_json (layout unchanged, knobs refreshed)')
+        if not changed:
             continue
-        row_sig = _panel_shape_sig(row_panels)
-        if row_sig is None or row_sig != _panel_shape_sig(seed_panels):
-            print(f'[SeedSimulations] msim "{seed.get("name")}" panels customized; '
-                  'leaving as-is (upgrade skipped)', flush=True)
-            continue
-        row.panels_json = seed_panels
         try:
             manager.db.saveInstanceInDB(row)
-            print(f'[SeedSimulations] Upgraded msim "{seed.get("name")}" panels_json '
-                  '(layout unchanged, knobs refreshed)', flush=True)
+            print(f'[SeedSimulations] Upgraded msim "{seed.get("name")}": '
+                  + '; '.join(changed), flush=True)
         except Exception as e:
-            print(f'[SeedSimulations] msim "{seed.get("name")}" upgrade save failed: {e}',
-                  flush=True)
+            print(f'[SeedSimulations] msim "{seed.get("name")}" upgrade save '
+                  f'failed: {e}', flush=True)
