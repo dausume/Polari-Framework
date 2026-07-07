@@ -648,6 +648,41 @@ class SimulationAPI(treeObject):
         except Exception:
             body = {}
         run_name = body.get('run') or ''
+        # engineModel stages gate over the model row's persisted last
+        # result; subModel stages re-check the child's stage gates
+        # read-only. Neither uses SimulationRun rows.
+        if stage.get('kind') == 'engineModel':
+            from simulations.engine_model_stage import (
+                evaluate_engine_model_gate,
+            )
+            from materialsScience.model_execution import find_model
+            model, _ = find_model(self.manager,
+                                  stage.get('modelRef', ''))
+            if model is None:
+                response.status = falcon.HTTP_404
+                response.media = {
+                    'success': False,
+                    'error': ('no model definition named '
+                              f'"{stage.get("modelRef", "")}" for '
+                              f'stage "{stage_key}"')}
+                return
+            verdict = evaluate_engine_model_gate(self.manager, stage,
+                                                 model)
+            verdict['deriveResolved'] = apply_derive(
+                stage, verdict.get('derivedValues') or {})
+            response.media = {'success': True, 'data': verdict}
+            response.status = falcon.HTTP_200
+            return
+        if stage.get('kind') == 'subModel':
+            from simulations.sub_model_stage import (
+                evaluate_sub_model_gate,
+            )
+            verdict = evaluate_sub_model_gate(self.manager, stage)
+            verdict['deriveResolved'] = apply_derive(
+                stage, verdict.get('derivedValues') or {})
+            response.media = {'success': True, 'data': verdict}
+            response.status = falcon.HTTP_200
+            return
         # formulationSearch stages gate over a FormulationSearchRun row
         # (their runs are formulation runs, not SimulationRuns). The
         # newest run for the stage's search is used when none is named.
@@ -732,16 +767,32 @@ class SimulationAPI(treeObject):
             body = request.media or {}
         except Exception:
             body = {}
-        # formulationSearch stages drive a FormulationSearchDefinition
-        # instead of SimulationRun stepping; the executor reshapes its
-        # report into this endpoint's exact contract (lazy import, same
-        # style as the rest of this module).
-        if stage.get('kind') == 'formulationSearch':
-            from materialsScience.formulation_stage import (
-                run_formulation_stage,
-            )
-            report = run_formulation_stage(
-                self.manager, msim_name, stage, body)
+        # Non-stepping stage kinds each have their own executor that
+        # reshapes into this endpoint's exact contract (lazy imports,
+        # same style as the rest of this module): formulationSearch
+        # drives a FormulationSearchDefinition, engineModel executes a
+        # configured FEM/DFT model definition, subModel runs a NESTED
+        # msim (recursive composition).
+        _kind = stage.get('kind')
+        if _kind in ('formulationSearch', 'engineModel', 'subModel'):
+            if _kind == 'formulationSearch':
+                from materialsScience.formulation_stage import (
+                    run_formulation_stage,
+                )
+                report = run_formulation_stage(
+                    self.manager, msim_name, stage, body)
+            elif _kind == 'engineModel':
+                from simulations.engine_model_stage import (
+                    run_engine_model_stage,
+                )
+                report = run_engine_model_stage(
+                    self.manager, msim_name, stage, body, msim=msim)
+            else:
+                from simulations.sub_model_stage import (
+                    run_sub_model_stage,
+                )
+                report = run_sub_model_stage(
+                    self.manager, msim_name, stage, body)
             if report.get('winner'):
                 report['deriveResolved'] = apply_derive(
                     stage, report['winner'].get('derivedValues') or {})

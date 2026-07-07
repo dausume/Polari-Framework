@@ -152,8 +152,12 @@ def validate_composition(manager, msim) -> List[Dict[str, str]]:
     stages = parse_stages(msim)
     for stage in stages:
         key = stage.get('key', '?')
-        stage_intent = stage.get('intent') or (
-            'observe' if stage.get('kind') == 'coStep' else 'search')
+        # Kind-aware default intent: coStep watches; an engine solve
+        # produces calibrated parameters; everything else searches.
+        _default_intent = {'coStep': 'observe',
+                           'engineModel': 'calibrate'}
+        stage_intent = stage.get('intent') or _default_intent.get(
+            stage.get('kind'), 'search')
         if stage_intent not in VALID_INTENTS:
             err(f'Stage "{key}": unknown intent "{stage_intent}". '
                 f'Valid intents: {", ".join(VALID_INTENTS)}.')
@@ -180,15 +184,48 @@ def validate_composition(manager, msim) -> List[Dict[str, str]]:
 
         # Rule: search-family intents need a candidate space (or at
         # least a gate for a single-shot search). A formulationSearch
-        # stage's candidate space IS its FormulationSearchDefinition.
+        # stage's candidate space IS its FormulationSearchDefinition;
+        # an engineModel stage's is its model definition; a subModel
+        # stage's is the nested msim.
         if stage_intent in ('search', 'feasibility', 'optimize'):
             if not (stage.get('search') or {}).get('candidates') \
                     and not (stage.get('gate') or {}).get('solutionRef') \
-                    and not stage.get('formulationSearchRef'):
+                    and not stage.get('formulationSearchRef') \
+                    and not stage.get('modelRef') \
+                    and not stage.get('msimRef'):
                 err(f'Stage "{key}" has intent "{stage_intent}" but '
-                    f'defines neither candidates to try (search.candidates '
-                    f'or formulationSearchRef) nor a valid-solution '
-                    f'condition (gate). Define at least the gate.')
+                    f'defines neither candidates to try (search.candidates, '
+                    f'formulationSearchRef, modelRef, or msimRef) nor a '
+                    f'valid-solution condition (gate). Define at least '
+                    f'the gate.')
+
+        # Typed refs for the new stage kinds — the named objects must
+        # exist (same spirit as the member-simulation check).
+        if stage.get('kind') == 'engineModel':
+            model_ref = stage.get('modelRef') or ''
+            model_row = None
+            for cls in ('FEMModelDefinition', 'DFTModelDefinition'):
+                table = (manager.objectTables or {}).get(cls, {}) or {}
+                rows = table.values() if isinstance(table, dict) \
+                    else table
+                model_row = next(
+                    (r for r in rows
+                     if getattr(r, 'name', '') == model_ref), None)
+                if model_row is not None:
+                    break
+            if model_row is None:
+                err(f'Stage "{key}" references model "{model_ref}", '
+                    f'which does not exist (FEMModelDefinition / '
+                    f'DFTModelDefinition).')
+        if stage.get('kind') == 'subModel':
+            child_ref = stage.get('msimRef') or ''
+            table = (manager.objectTables or {}).get(
+                'MultiScaleSimulationDefinition', {}) or {}
+            rows = table.values() if isinstance(table, dict) else table
+            if not any(getattr(r, 'name', '') == child_ref
+                       for r in rows):
+                err(f'Stage "{key}" nests multi-scale simulation '
+                    f'"{child_ref}", which does not exist.')
 
         # Rule: co-stepping needs a continuous simulation.
         if stage.get('kind') == 'coStep':
@@ -231,5 +268,37 @@ def validate_composition(manager, msim) -> List[Dict[str, str]]:
                 warn(f'Coupling "{cname}"\'s {side} simulation "{ref}" is '
                      f'not a member of this composition — add it to the '
                      f'members list so its runs and scenes are managed here.')
+
+    # Rule: sub-model nesting must be acyclic — a multiscale model may
+    # not (transitively) contain itself. Static DFS over every msim's
+    # subModel stages.
+    msim_rows = {
+        getattr(r, 'name', ''): r
+        for r in (manager.objectTables.get(
+            'MultiScaleSimulationDefinition', {}) or {}).values()
+    }
+    this_name = getattr(msim, 'name', '')
+    msim_rows.setdefault(this_name, msim)
+
+    def _children(name):
+        row = msim_rows.get(name)
+        if row is None:
+            return []
+        return [s.get('msimRef') for s in parse_stages(row)
+                if s.get('kind') == 'subModel' and s.get('msimRef')]
+
+    def _find_cycle(name, path):
+        for child in _children(name):
+            if child in path:
+                return path[path.index(child):] + [child]
+            found = _find_cycle(child, path + [child])
+            if found:
+                return found
+        return None
+
+    cycle = _find_cycle(this_name, [this_name])
+    if cycle:
+        err('Sub-model cycle: ' + ' -> '.join(cycle) + ' — a '
+            'multiscale model cannot (transitively) contain itself.')
 
     return findings
