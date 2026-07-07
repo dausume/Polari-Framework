@@ -1407,6 +1407,15 @@ class polariServer(treeObject):
             if created:
                 print(f'[SeedSimulations] Created {created} {class_name} row(s)', flush=True)
 
+        # Config-knob upgrade pass: refresh untouched msim rows' config
+        # blobs from the current seeds (shape-signature guarded — any
+        # admin add/remove/reorder of panels/stages is respected).
+        try:
+            from simulations.multi_scale_seed import upgrade_msim_rows
+            upgrade_msim_rows(self.manager)
+        except Exception as e:
+            print(f'[SeedSimulations] msim upgrade pass failed: {e}', flush=True)
+
     def _autoRegisterMbtilesSources(self):
         """Scan MinIO buckets for .mbtiles files and create or update
         TileSourceDefinition instances so tile-serving works correctly.

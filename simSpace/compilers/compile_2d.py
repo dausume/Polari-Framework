@@ -108,9 +108,11 @@ def compile_2d(
                 continue
 
         binding_kind = binding.get('kind') or 'object'
+        binding_name = getattr(binding_row, 'name', '') or class_name
         if binding_kind == 'connection':
             emitted_conns = _emit_connections(
                 class_name, instances, binding, override, warnings, dim=2,
+                binding_name=binding_name,
             )
             connections.extend(emitted_conns)
             if emitted_conns:
@@ -120,7 +122,8 @@ def compile_2d(
                     )
                 )
         else:
-            emitted = _emit_instances(class_name, instances, binding, override, warnings)
+            emitted = _emit_instances(class_name, instances, binding, override, warnings,
+                                      binding_name=binding_name)
             objects.extend(emitted)
             if emitted:
                 resolved_bindings.append(
@@ -137,10 +140,13 @@ def _emit_connections(
     override: Optional[Dict],
     warnings: List[str],
     dim: int,
+    binding_name: str = '',
 ) -> List[Dict]:
     """Emit one SimSpaceConnection per class instance per a connection-mode
     binding. Source/target are resolved through the shared position-spec
-    helper, so endpoints can be per-row fields, vec3 fields, or constants."""
+    helper, so endpoints can be per-row fields, vec3 fields, or constants.
+    `binding_name` rides through userData so the frontend can keep two
+    bindings on the SAME class on distinct render tracks."""
     source_spec = binding.get('source')
     target_spec = binding.get('target')
     if not source_spec or not target_spec:
@@ -168,6 +174,8 @@ def _emit_connections(
             'styleRef': scene_style_override or resolve_ref(style_ref_cfg, inst, 'default'),
             'classRef': {'className': class_name, 'instanceId': inst_id},
         }
+        if binding_name:
+            conn['userData'] = {'bindingName': binding_name}
         temporal_value = read_temporal_value(inst, binding)
         if temporal_value is not None:
             conn['temporalValue'] = temporal_value
@@ -181,8 +189,11 @@ def _emit_instances(
     binding: Dict,
     override: Optional[Dict],
     warnings: List[str],
+    binding_name: str = '',
 ) -> List[Dict]:
-    """Emit one SimSpaceObject per class instance per the 2D binding."""
+    """Emit one SimSpaceObject per class instance per the 2D binding.
+    `binding_name` rides through userData so the frontend can keep two
+    bindings on the SAME class on distinct render tracks."""
     out: List[Dict] = []
     pos_cfg = binding.get('position') or {}
     visual = binding.get('visual') or {}
@@ -205,6 +216,8 @@ def _emit_instances(
             'styleRef': scene_style_override or resolve_ref(style_ref_cfg, inst, 'default'),
             'classRef': {'className': class_name, 'instanceId': inst_id},
         }
+        if binding_name:
+            obj['userData'] = {'bindingName': binding_name}
         # Attach the temporal value when the binding declares one — the
         # frontend scrubber filters visible objects by this field.
         temporal_value = read_temporal_value(inst, binding)

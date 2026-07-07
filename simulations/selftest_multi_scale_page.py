@@ -277,6 +277,39 @@ def _seeds():
     check('demo names stable', msim['name'] == MSIM_NAME
           and ic['name'] == IC_MATERIAL_PICKER)
 
+    # Reveal gating (visual-fix pass): the condensation scene panel is
+    # disclosure-gated on its stage's activity — before any run it is
+    # just the empty chamber plate, which reads as noise (or a broken
+    # pivot) in the selection context.
+    cond_scenes = [p for p in panels
+                   if p['kind'] == 'scene' and p.get('run', '').startswith('stage:')]
+    check('condensation scene panel carries a stageActivity reveal knob',
+          len(cond_scenes) == 1
+          and cond_scenes[0].get('reveal', {}).get('when') == 'stageActivity'
+          and cond_scenes[0]['reveal'].get('stageKey') == 'material-precondition'
+          and bool(cond_scenes[0]['reveal'].get('label')),
+          f"reveal={cond_scenes[0].get('reveal') if cond_scenes else None}")
+    check('primary pendulum scene panel is NOT reveal-gated',
+          all('reveal' not in p for p in panels
+              if p['kind'] == 'scene' and p.get('run') == 'primary'))
+
+    # Upgrade pass: shape signature tolerates knob edits, rejects
+    # add/remove/reorder.
+    from simulations.multi_scale_seed import _panel_shape_sig
+    seed_panels_json = msim['panels_json']
+    reknobbed = json.loads(seed_panels_json)
+    reknobbed[-1]['someNewKnob'] = True
+    reordered = list(json.loads(seed_panels_json))
+    reordered.append(reordered.pop(0))
+    check('panel shape signature: knob edits keep it equal',
+          _panel_shape_sig(json.dumps(reknobbed))
+          == _panel_shape_sig(seed_panels_json))
+    check('panel shape signature: reorder changes it',
+          _panel_shape_sig(json.dumps(reordered))
+          != _panel_shape_sig(seed_panels_json))
+    check('panel shape signature: unparseable JSON is None (skip upgrade)',
+          _panel_shape_sig('{nope') is None)
+
 
 def _intents():
     print('\nMulti-scale page — intents taxonomy + composition coherence\n')

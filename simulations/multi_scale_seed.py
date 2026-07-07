@@ -343,9 +343,17 @@ SEED_MULTI_SCALE_SIMS = [{
                     'stageKey': 'material-precondition',
                     'combineFields': ['density']}},
         # The condensation ball itself — appearance follows the phase,
-        # size follows the proven ball_radius (Phase B).
+        # size follows the proven ball_radius (Phase B). Revealed only
+        # once the precondition stage has actually run: before that the
+        # scene is just the empty chamber plate, which reads as noise
+        # (or worse, a broken pivot) next to the selection balls. The
+        # disclosure is a knob — the user can always expand it by hand.
         {'kind': 'scene', 'simSpaceRef': MATERIAL_SCENE,
-         'run': 'stage:material-precondition'},
+         'run': 'stage:material-precondition',
+         'reveal': {'when': 'stageActivity',
+                    'stageKey': 'material-precondition',
+                    'label': 'Condensation chamber (fills in when the '
+                             'material proof search runs)'}},
         {'kind': 'scene', 'simSpaceRef': 'newtonian-pendulum-viz', 'run': 'primary'},
         {'kind': 'graph', 'graphRef': 'msim-out-of-plane',
          'sourceClass': _NB, 'runs': ['primary', 'compare']},
@@ -361,3 +369,58 @@ SEED_MULTI_SCALE_SIMS = [{
     }),
     'enabled': True,
 }]
+
+
+# ---------------------------------------------------------------------
+# Config-knob upgrade pass (idempotent-by-name leaves existing rows
+# alone, so knob additions to a seed's config blobs — e.g. a panel's
+# `reveal` disclosure — would never reach a volume seeded earlier).
+# A row is refreshed ONLY when its panel shape signature (the ordered
+# (kind, ref) sequence) still matches the seed's: adding/removing/
+# reordering panels in Configure mode changes the signature, so admin
+# customizations are never clobbered — only knob-level drift inside an
+# untouched layout is healed.
+# ---------------------------------------------------------------------
+
+def _panel_shape_sig(panels_json):
+    """Ordered (kind, primary-ref) sequence of a panels_json blob — the
+    layout identity knob edits don't change. None on unparseable JSON."""
+    try:
+        panels = json.loads(panels_json or '[]')
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(panels, list):
+        return None
+    return [
+        (p.get('kind'), p.get('simSpaceRef') or p.get('graphRef')
+         or p.get('icInterfaceRef') or '')
+        for p in panels if isinstance(p, dict)
+    ]
+
+
+def upgrade_msim_rows(manager):
+    """Refresh untouched MultiScaleSimulationDefinition rows' panels_json
+    from the current seeds (shape-signature guarded, see module note)."""
+    table = manager.objectTables.get('MultiScaleSimulationDefinition', {}) or {}
+    rows_by_name = {getattr(r, 'name', None): r for r in table.values()}
+    for seed in SEED_MULTI_SCALE_SIMS:
+        row = rows_by_name.get(seed.get('name'))
+        if row is None:
+            continue
+        seed_panels = seed.get('panels_json') or '[]'
+        row_panels = getattr(row, 'panels_json', '') or '[]'
+        if row_panels == seed_panels:
+            continue
+        row_sig = _panel_shape_sig(row_panels)
+        if row_sig is None or row_sig != _panel_shape_sig(seed_panels):
+            print(f'[SeedSimulations] msim "{seed.get("name")}" panels customized; '
+                  'leaving as-is (upgrade skipped)', flush=True)
+            continue
+        row.panels_json = seed_panels
+        try:
+            manager.db.saveInstanceInDB(row)
+            print(f'[SeedSimulations] Upgraded msim "{seed.get("name")}" panels_json '
+                  '(layout unchanged, knobs refreshed)', flush=True)
+        except Exception as e:
+            print(f'[SeedSimulations] msim "{seed.get("name")}" upgrade save failed: {e}',
+                  flush=True)
