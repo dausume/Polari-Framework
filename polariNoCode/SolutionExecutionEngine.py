@@ -1840,6 +1840,110 @@ class SolutionExecutionEngine:
 
             result['result'] = computed
 
+        elif state_class == 'EngineModelOperation':
+            # Hosts a configured FEM/DFT model definition (msci-15) —
+            # makes the physics/chemistry engines callable from no-code,
+            # so custom logic can compute a model's inputs, run a real
+            # solve, and keep computing on its outputs.
+            #
+            # inputBindings feed the model's stageDerived bindings: each
+            # {'symbol', 'source'} resolves through the solution context
+            # and lands in the model's stage_context under `symbol` —
+            # symbols must therefore match the model's stageDerived keys
+            # ('<stage>.<key>'). Models bound purely by value/objectRef
+            # need no inputBindings at all.
+            #
+            # Outputs: every result key is written into the context as
+            # 'model.<key>'; resultKeyMap entries {'resultKey',
+            # 'contextVar'} additionally copy chosen keys to friendly
+            # variables; the shared resultTarget convention stores the
+            # whole result dict like every other operation.
+            model_ref = (field_values.get('modelRef', '')
+                         or field_values.get('modelName', ''))
+            input_bindings = field_values.get('inputBindings', []) or []
+            result_key_map = field_values.get('resultKeyMap', []) or []
+            result_target = field_values.get('resultTarget',
+                                             'result_variable')
+            result_field_path = field_values.get('resultFieldPath', '')
+            result_var_name = field_values.get('resultVariableName',
+                                               'model_result')
+
+            stage_context = {}
+            for b in input_bindings:
+                if not isinstance(b, dict):
+                    continue
+                sym = (b.get('symbol') or '').strip()
+                src = b.get('source')
+                if not sym or src is None:
+                    continue
+                try:
+                    stage_context[sym] = _resolve_value_source_config(
+                        src, context)
+                except Exception as e:
+                    log_output.append(
+                        f'[{state_name}] EngineModelOperation: failed '
+                        f'to resolve input `{sym}`: {e}')
+
+            computed = None
+            if not model_ref:
+                log_output.append(
+                    f'[{state_name}] EngineModelOperation: no modelRef '
+                    'configured.')
+            else:
+                try:
+                    from materialsScience.model_execution import (
+                        execute_model,
+                    )
+                    report = execute_model(
+                        self.manager, model_ref,
+                        stage_context=stage_context or None)
+                except Exception as e:
+                    report = {'ok': False, 'error': str(e)}
+                if report.get('ok'):
+                    computed = report.get('result', {})
+                    for k, v in computed.items():
+                        context[f'model.{k}'] = v
+                    for m in result_key_map:
+                        if not isinstance(m, dict):
+                            continue
+                        rk = m.get('resultKey', '')
+                        cv = m.get('contextVar', '')
+                        if rk and cv:
+                            if rk in computed:
+                                context[cv] = computed[rk]
+                            else:
+                                log_output.append(
+                                    f'[{state_name}] EngineModelOperation'
+                                    f': result has no key `{rk}` '
+                                    f'(available: '
+                                    f'{sorted(computed)[:8]})')
+                    log_output.append(
+                        f'[{state_name}] EngineModelOperation '
+                        f'`{model_ref}` via {report.get("engine", "?")}'
+                        f' → {sorted(computed)[:6]}')
+                else:
+                    bits = [report.get('error', 'engine refused')]
+                    for refusal in report.get('refusals', []) or []:
+                        bits.append(refusal.get('error', ''))
+                    log_output.append(
+                        f'[{state_name}] EngineModelOperation '
+                        f'`{model_ref}` refused: '
+                        f'{"; ".join(b for b in bits if b)}')
+
+            if result_target == 'solution_field' and result_field_path:
+                key = result_field_path
+                if key.startswith('self.'):
+                    context[key] = computed
+                    context[key[5:]] = computed
+                else:
+                    context[key] = computed
+                    context[f'self.{key}'] = computed
+            else:
+                if result_var_name:
+                    context[result_var_name] = computed
+
+            result['result'] = computed
+
         elif state_class == 'SimStepContribution':
             # Terminator for `simStepPartial` SimulationStateStep
             # solutions. Emits a sparse `{fieldName → {value, op}}`
