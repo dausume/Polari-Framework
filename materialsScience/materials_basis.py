@@ -46,6 +46,26 @@ DERIVATION_METHODS = (
 )
 
 
+#: The material CATEGORY vocabulary (msci-22) — the primary role a
+#: material plays in composite-building; finer navigation lives in
+#: free-form tags. A material with several roles picks its PRIMARY
+#: category and tags the rest.
+MATERIAL_CATEGORIES = {
+    'matrix': 'Host/binder phases composites are built IN '
+              '(waxes, geopolymer, sol-gel silica, epoxies)',
+    'filler': 'Functional/reinforcement phases composites are built '
+              'WITH (ferrite, CNT, grog, fibers)',
+    'nanoparticle': 'Nanoscale filler particles (LASiS FeOx/SiOx/'
+                    'CuOx/C)',
+    'structural': 'Bulk structural/refractory materials used as-is '
+                  '(alumina, silicon, sintered ceramics)',
+    'composite': 'Named matrix+filler combinations with their own '
+                 'identity (ferrite-ceramic, geopolymer-ferrite)',
+    'elemental': 'Element/compound reference materials '
+                 '(silicon as a substance)',
+}
+
+
 class MaterialsScienceMaterial(treeObject):
     """One material identity, bridging the three legacy roots."""
 
@@ -58,6 +78,12 @@ class MaterialsScienceMaterial(treeObject):
         description: str = '',
         # 'pure' | 'mixture' | 'composite' | 'reference'
         material_kind: str = 'pure',
+        # Primary role per MATERIAL_CATEGORIES ('' = uncategorized —
+        # an honest gap the browser surfaces, not an error).
+        category: str = '',
+        # Free-form navigation tags, JSON list of kebab-case strings
+        # ('["magnetic", "refractory", "fossil-free"]').
+        tags_json: str = '[]',
         # Bridges into the legacy roots (loose ids/names, '' = no link):
         # modules/.../material.py Material.id
         legacy_material_id: str = '',
@@ -76,6 +102,8 @@ class MaterialsScienceMaterial(treeObject):
         self.display_name = display_name
         self.description = description
         self.material_kind = material_kind
+        self.category = category
+        self.tags_json = tags_json
         self.legacy_material_id = legacy_material_id
         self.raw_material_name = raw_material_name
         self.reference_material_name = reference_material_name

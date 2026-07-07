@@ -1522,6 +1522,14 @@ class polariServer(treeObject):
         except Exception as e:
             print(f'[SeedSimulations] profile upgrade pass failed: {e}',
                   flush=True)
+        try:
+            from materialsScience.standard_materials_seed import (
+                upgrade_material_category_rows,
+            )
+            upgrade_material_category_rows(self.manager)
+        except Exception as e:
+            print(f'[SeedSimulations] material category pass failed: '
+                  f'{e}', flush=True)
 
     def _autoRegisterMbtilesSources(self):
         """Scan MinIO buckets for .mbtiles files and create or update

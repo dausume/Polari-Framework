@@ -34,6 +34,8 @@ _REGISTRY_INPUT_KEYS = {
     'fem.conduction': {'thermalConductivity', 'heatSource', 'refine'},
     'fem.effective-conductivity': {'matrixK', 'inclusionK',
                                    'volumeFraction', 'refine'},
+    'fem.effective-permeability': {'matrixMu', 'inclusionMu',
+                                   'volumeFraction', 'refine'},
     'dft.molecular-energy': {'atoms', 'basis', 'xc', 'charge', 'spin'},
     'dft.bulk-structure': {'symbol', 'crystal', 'latticeA'},
     'dft.total-energy': {'symbol', 'crystal', 'latticeA', 'ecutwfc',
@@ -143,6 +145,69 @@ SEED_ENGINE_MODEL_TEMPLATES = [
         'capability_requirements_json': json.dumps(['fem']),
         'notes': 'wt% is often used as vol% upstream — flag that '
                  'assumption wherever the caller does it.',
+        'enabled': True,
+    },
+    {
+        'name': 'fem-effective-permeability',
+        'display_name': 'FEM — 2-phase effective permeability '
+                        '(magnetostatic homogenization)',
+        'description': (
+            'Effective RELATIVE PERMEABILITY of a 2-phase unit cell '
+            '(magnetic filler in a non/weakly-magnetic matrix) via the '
+            'k <-> mu Laplace analogy: magnetostatic scalar-potential '
+            'transport is the SAME equation as steady conduction, so '
+            'the Maxwell-Garnett-validated homogenization engine '
+            'computes it — outputs named in mu so the analogy is '
+            'explicit. For SOFT magnetic fillers (flux guides, tuned '
+            'magnetic structures); HARD-magnet remanence/coercivity '
+            'are hysteresis quantities this engine does NOT model.'
+        ),
+        'engine_kind': 'fem', 'engine_key': 'fem.effective-permeability',
+        'parameter_schema_json': _schema([
+            {'section': 'materials', 'key': 'matrixMu', 'type': 'number',
+             'unit': 'mu_r', 'required': True, 'min': 1e-9,
+             'description': 'matrix relative permeability (~1 for '
+                            'ceramics/polymers/geopolymer/silica)'},
+            {'section': 'materials', 'key': 'inclusionMu',
+             'type': 'number', 'unit': 'mu_r', 'required': True,
+             'min': 1e-9,
+             'description': 'filler relative permeability (soft '
+                            'ferrites: hundreds-thousands)'},
+            {'section': 'domain', 'key': 'volumeFraction',
+             'type': 'number', 'required': True, 'min': 1e-9, 'max': 0.6,
+             'description': 'filler volume fraction — engine-'
+                            'constrained to (0, 0.6)'},
+            {'section': 'mesh', 'key': 'refine', 'type': 'integer',
+             'required': False, 'default': 5, 'min': 1, 'max': 8,
+             'description': 'unit-cell mesh refinement level'},
+        ]),
+        'section_map_json': json.dumps({
+            'matrixMu': 'materials.matrix.relativePermeability',
+            'inclusionMu': 'materials.inclusion.relativePermeability',
+            'volumeFraction': 'domain.inclusion.volumeFraction',
+            'refine': 'mesh.refine',
+        }),
+        'outputs_json': json.dumps([
+            {'key': 'effectiveMu', 'type': 'number', 'unit': 'mu_r',
+             'description': 'homogenized effective relative '
+                            'permeability'},
+            {'key': 'voigtBoundMu', 'type': 'number', 'unit': 'mu_r',
+             'description': 'upper (parallel) mixing bound'},
+            {'key': 'reussBoundMu', 'type': 'number', 'unit': 'mu_r',
+             'description': 'lower (series) mixing bound'},
+            {'key': 'withinBounds', 'type': 'boolean',
+             'description': 'sanity: mu_eff inside the bounds'},
+            {'key': 'actualVolumeFraction', 'type': 'number',
+             'description': 'meshed filler fraction actually used'},
+            {'key': 'elements', 'type': 'integer',
+             'description': 'mesh element count'},
+        ]),
+        'cost_class': 'moderate',
+        'capability_requirements_json': json.dumps(['fem']),
+        'notes': 'Scalar Laplace analogy — valid for linear '
+                 'magnetostatics well below saturation; hysteresis, '
+                 'remanence, and saturation are OUT of scope (said '
+                 'here, not silently wrong).',
         'enabled': True,
     },
     {

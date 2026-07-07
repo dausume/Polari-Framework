@@ -889,3 +889,469 @@ SEED_STANDARD_SCALE_DEFINITIONS += [
                  'honest gap for the BLCNC work.',
     },
 ]
+
+
+# ---------------------------------------------------------------------
+# msci-22: categories + tags (ONE navigation vocabulary home) and the
+# ferrite composite family.
+# ---------------------------------------------------------------------
+
+#: material name -> (category, tags). Stamped onto BOTH seed lists at
+#: import time and onto existing live rows (fill-when-empty) by
+#: upgrade_material_category_rows.
+MATERIAL_CATEGORY_TAGS = {
+    # waxes — matrices for the printable/machinable composites
+    'beeswax': ('matrix', ['wax', 'bio-sourced', 'fossil-free',
+                           'printable']),
+    'carnauba-wax': ('matrix', ['wax', 'bio-sourced', 'fossil-free',
+                                'hardener']),
+    'soy-wax': ('matrix', ['wax', 'bio-sourced', 'fossil-free']),
+    'candelilla-wax': ('matrix', ['wax', 'bio-sourced', 'fossil-free']),
+    'coconut-wax': ('matrix', ['wax', 'bio-sourced', 'fossil-free']),
+    'paraffin-wax': ('matrix', ['wax', 'fossil-derived',
+                                'reference-benchmark']),
+    'beeswax-carnauba-blend': ('composite', ['wax', 'fossil-free',
+                                             'homogenized']),
+    # msci-20 families
+    'sol-gel-silica': ('matrix', ['sol-gel', 'porous', 'binder',
+                                  'thermal-insulator']),
+    'geopolymer': ('matrix', ['binder', 'low-co2', 'refractory-'
+                              'candidate', 'alkali-activated']),
+    'alumina-ceramic': ('structural', ['ceramic', 'refractory',
+                                       'electrical-insulator', 'hard']),
+    'carbon-nanotube': ('filler', ['nanomaterial', 'anisotropic',
+                                   'conductive', 'reinforcement']),
+    'n-doped-carbon-nanotube': ('filler', ['nanomaterial', 'doped',
+                                           'n-type', 'catalytic']),
+    'silicon': ('elemental', ['semiconductor', 'crystalline']),
+    'feox-nanoparticle': ('nanoparticle', ['magnetic', 'ferrite',
+                                           'laser-absorber', 'lasis',
+                                           'blcnc']),
+    'siox-nanoparticle': ('nanoparticle', ['laser-absorber',
+                                           'wavelength-tuned', 'lasis',
+                                           'blcnc']),
+    'cuox-nanoparticle': ('nanoparticle', ['laser-absorber',
+                                           'wavelength-tuned', 'lasis',
+                                           'blcnc']),
+    'c-nanoparticle': ('nanoparticle', ['laser-absorber', 'broadband',
+                                        'lasis', 'blcnc']),
+    'nanoparticle-wax-composite': ('composite', ['wax', 'blcnc',
+                                                 'laser-melt',
+                                                 'thin-film']),
+    # msci-22 ferrite family
+    'ferrite': ('filler', ['magnetic', 'ferrite', 'ceramic-magnet',
+                           'soft-and-hard-grades']),
+    'ferrite-ceramic': ('composite', ['magnetic', 'ferrite', 'ceramic',
+                                      'ceramic-magnet']),
+    'geopolymer-ferrite': ('composite', ['magnetic', 'ferrite',
+                                         'geopolymer', 'low-co2',
+                                         'feasibility-study',
+                                         'magnetic-structure-part']),
+    'sol-gel-ferrite': ('composite', ['magnetic', 'ferrite', 'sol-gel',
+                                      'feasibility-study',
+                                      'magnetic-structure-part']),
+    'alumina-geopolymer': ('composite', ['refractory', 'geopolymer',
+                                         'alumina', 'firebrick-'
+                                         'candidate',
+                                         'feasibility-study']),
+}
+
+
+def _stamp_categories(seed_list):
+    for seed in seed_list:
+        entry = MATERIAL_CATEGORY_TAGS.get(seed.get('name'))
+        if entry and not seed.get('category'):
+            seed['category'] = entry[0]
+            seed['tags_json'] = json.dumps(entry[1])
+
+
+def upgrade_material_category_rows(manager):
+    """Fill category/tags on EXISTING MaterialsScienceMaterial rows
+    when empty (additive-only — an admin-set category is never
+    overwritten)."""
+    table = (getattr(manager, 'objectTables', None) or {}).get(
+        'MaterialsScienceMaterial', {}) or {}
+    updated = 0
+    for row in (table.values() if isinstance(table, dict) else table):
+        entry = MATERIAL_CATEGORY_TAGS.get(getattr(row, 'name', ''))
+        if entry and not (getattr(row, 'category', '') or ''):
+            row.category = entry[0]
+            row.tags_json = json.dumps(entry[1])
+            try:
+                manager.db.saveInstanceInDB(row)
+                updated += 1
+            except Exception:
+                pass
+    if updated:
+        print(f'[SeedSimulations] Categorized {updated} existing '
+              'material row(s)', flush=True)
+
+
+# ---------------------------------------------------------------------
+# The ferrite family (msci-22): the magnetic filler + its three matrix
+# pairings (ceramic / geopolymer / sol-gel) and the firebrick pairing.
+# Magnetics via the k<->mu Laplace analogy (fem.effective-permeability
+# — linear magnetostatics, NOT hysteresis; stated on every row).
+# ---------------------------------------------------------------------
+
+SEED_STANDARD_MATERIALS += [
+    {
+        'name': 'ferrite',
+        'display_name': 'Ferrite (iron-oxide ceramic magnetics)',
+        'description': (
+            'The ferrite family: SOFT spinel grades (MnZn/NiZn — high '
+            'permeability flux guides, transformer cores) and HARD '
+            'hexaferrite grades (Sr/Ba hexaferrite — the ceramic '
+            'permanent magnets). The composites below pair ferrite '
+            'FILLER with different matrices to explore ceramic-magnet '
+            'equivalents and tuned magnetic structures.'
+        ),
+        'material_kind': 'pure',
+        'element_symbols_json': '["Fe", "O", "Sr", "Mn", "Zn"]',
+        'provenance_id': PROV,
+        'notes': 'Soft vs hard grades differ in EVERYTHING magnetic; '
+                 'rows carry both, models use the soft-grade '
+                 'permeability (the linear quantity our engine can '
+                 'honestly compute).',
+    },
+    {
+        'name': 'ferrite-ceramic',
+        'display_name': 'Ferrite-Ceramic (ceramic magnet composite)',
+        'description': (
+            'Ferrite filler in a ceramic matrix — the sintered/bonded '
+            'ceramic-magnet reference the geopolymer and sol-gel '
+            'pairings are measured against.'
+        ),
+        'material_kind': 'composite',
+        'element_symbols_json': '["Fe", "O", "Al"]',
+        'provenance_id': PROV,
+        'notes': 'Commercial sintered ferrite magnets are ~100% '
+                 'hexaferrite; this identity models the BONDED/'
+                 'composite form where matrix fraction is a knob.',
+    },
+    {
+        'name': 'geopolymer-ferrite',
+        'display_name': 'Geopolymer-Ferrite (feasibility study)',
+        'description': (
+            'Ferrite filler in a geopolymer matrix — CAN a low-CO2, '
+            'ambient-cured geopolymer replace the sintered ceramic in '
+            'magnet-adjacent parts? A building part for tuned '
+            'magnetic structures alongside sol-gel-ferrite.'
+        ),
+        'material_kind': 'composite',
+        'element_symbols_json': '["Fe", "O", "Si", "Al", "Na"]',
+        'provenance_id': PROV,
+        'notes': 'Feasibility hinges on achievable filler loading, '
+                 'cure compatibility with ferrite surfaces, and '
+                 'moisture behavior — the L1 model bounds ONLY the '
+                 'linear permeability side.',
+    },
+    {
+        'name': 'sol-gel-ferrite',
+        'display_name': 'Sol-Gel-Ferrite (feasibility study)',
+        'description': (
+            'Ferrite filler in a sol-gel silica matrix — the fine-'
+            'featured, low-temperature magnetic part: with '
+            'geopolymer-ferrite as the bulk part, the two make a '
+            'parts-wise toolkit for theoretically tuned magnetic '
+            'structures (different mu_eff per part, assembled).'
+        ),
+        'material_kind': 'composite',
+        'element_symbols_json': '["Fe", "O", "Si"]',
+        'provenance_id': PROV,
+        'notes': 'Sol-gel routes also make ferrite-SiO2 nanocomposites '
+                 'directly (in-gel precipitation) — a later synthesis '
+                 'row; this identity is the particle-filled gel.',
+    },
+    {
+        'name': 'alumina-geopolymer',
+        'display_name': 'Alumina-Geopolymer (firebrick feasibility)',
+        'description': (
+            'Alumina filler in a geopolymer matrix — IS a firebrick-'
+            'like refractory achievable without firing? Geopolymers '
+            'hold to ~800-1200 C (literature) and alumina filler '
+            'raises refractoriness and conductivity.'
+        ),
+        'material_kind': 'composite',
+        'element_symbols_json': '["Al", "O", "Si", "Na"]',
+        'provenance_id': PROV,
+        'notes': 'The L1 model bounds thermal conductivity; the real '
+                 'firebrick questions (hot strength, thermal shock, '
+                 'phase changes above 900 C) need measurements.',
+    },
+]
+
+_FERRITE_BC = json.dumps([
+    {'boundary': 'x-faces', 'type': 'dirichlet',
+     'value': 'unit potential difference (magnetic scalar potential '
+              'under the k<->mu analogy)'}])
+
+SEED_STANDARD_FEM_MODELS += [
+    {
+        'name': 'ferrite-ceramic-permeability',
+        'display_name': 'Ferrite-ceramic — effective permeability',
+        'description': (
+            'Soft-ferrite filler (mu_r=800, MnZn literature-order) in '
+            'a ceramic matrix (mu_r=1) at 40 vol% — the bonded '
+            'ceramic-magnet reference bound. Linear magnetostatics '
+            'via the k<->mu analogy; hysteresis/remanence out of '
+            'scope (stated).'
+        ),
+        'physics_ref': 'fem-effective-permeability',
+        'domain_json': json.dumps({
+            'shape': 'unit-square',
+            'inclusion': {'shape': 'circle', 'volumeFraction': 0.40}}),
+        'materials_json': json.dumps({
+            'matrix': {'relativePermeability': 1.0},
+            'inclusion': {'relativePermeability': 800.0}}),
+        'boundary_conditions_json': _FERRITE_BC,
+        'source_terms_json': '{}',
+        'mesh_json': json.dumps({'refine': 5}),
+        'solver_json': '{}',
+        'notes': f'{PROV}: literature-order soft-ferrite mu_r.',
+        'enabled': True,
+    },
+    {
+        'name': 'geopolymer-ferrite-permeability',
+        'display_name': 'Geopolymer-ferrite — effective permeability',
+        'description': (
+            'Soft-ferrite filler (mu_r=800) in a geopolymer matrix '
+            '(mu_r=1) at 35 vol% — the geopolymer feasibility bound, '
+            'directly comparable against ferrite-ceramic at its '
+            'fraction.'
+        ),
+        'physics_ref': 'fem-effective-permeability',
+        'domain_json': json.dumps({
+            'shape': 'unit-square',
+            'inclusion': {'shape': 'circle', 'volumeFraction': 0.35}}),
+        'materials_json': json.dumps({
+            'matrix': {'relativePermeability': 1.0},
+            'inclusion': {'relativePermeability': 800.0}}),
+        'boundary_conditions_json': _FERRITE_BC,
+        'source_terms_json': '{}',
+        'mesh_json': json.dumps({'refine': 5}),
+        'solver_json': '{}',
+        'notes': f'{PROV}.',
+        'enabled': True,
+    },
+    {
+        'name': 'solgel-ferrite-permeability',
+        'display_name': 'Sol-gel-ferrite — effective permeability',
+        'description': (
+            'Soft-ferrite filler (mu_r=800) in a sol-gel silica '
+            'matrix (mu_r=1) at 25 vol% — the fine-featured magnetic '
+            'part of the tuned-structure toolkit.'
+        ),
+        'physics_ref': 'fem-effective-permeability',
+        'domain_json': json.dumps({
+            'shape': 'unit-square',
+            'inclusion': {'shape': 'circle', 'volumeFraction': 0.25}}),
+        'materials_json': json.dumps({
+            'matrix': {'relativePermeability': 1.0},
+            'inclusion': {'relativePermeability': 800.0}}),
+        'boundary_conditions_json': _FERRITE_BC,
+        'source_terms_json': '{}',
+        'mesh_json': json.dumps({'refine': 5}),
+        'solver_json': '{}',
+        'notes': f'{PROV}.',
+        'enabled': True,
+    },
+    {
+        'name': 'alumina-geopolymer-thermal',
+        'display_name': 'Alumina-geopolymer — effective conductivity '
+                        '(firebrick bound)',
+        'description': (
+            'Alumina filler (k=30 W/m*K) in a geopolymer matrix '
+            '(k=0.95) at 40 vol% — the firebrick-candidate thermal '
+            'bound (firebricks WANT moderate conductivity + high '
+            'refractoriness; hot strength needs measurement).'
+        ),
+        'physics_ref': 'fem-effective-conductivity',
+        'domain_json': json.dumps({
+            'shape': 'unit-square',
+            'inclusion': {'shape': 'circle', 'volumeFraction': 0.40}}),
+        'materials_json': json.dumps({
+            'matrix': {'thermalConductivity': 0.95},
+            'inclusion': {'thermalConductivity': 30.0}}),
+        'boundary_conditions_json': json.dumps([
+            {'boundary': 'x-faces', 'type': 'dirichlet',
+             'value': 'unit temperature difference'}]),
+        'source_terms_json': '{}',
+        'mesh_json': json.dumps({'refine': 5}),
+        'solver_json': '{}',
+        'notes': f'{PROV}.',
+        'enabled': True,
+    },
+]
+
+SEED_STANDARD_SCALE_DEFINITIONS += [
+    {
+        'name': 'ferrite@L0',
+        'material_name': 'ferrite',
+        'scale_level': 0, 'scale_category': 'experimental',
+        'definition_class': 'MeasuredProperties', 'definition_ref': '',
+        'status': 'partial', 'derivation_method': 'literature',
+        'parameters_json': json.dumps({
+            'softGrades': {
+                'examples': ['MnZn', 'NiZn'],
+                'relativePermeability': [500, 15000],
+                'saturation_T': [0.3, 0.5],
+                'curieTemperature_C': [120, 300],
+                'use': 'flux guides, cores — the LINEAR quantity our '
+                       'permeability models use',
+            },
+            'hardGrades': {
+                'examples': ['SrFe12O19', 'BaFe12O19'],
+                'remanence_T': [0.2, 0.43],
+                'coercivity_kAm': [150, 350],
+                'BHmax_kJm3': [8, 40],
+                'curieTemperature_C': 450,
+                'use': 'ceramic permanent magnets — hysteresis '
+                       'quantities our engine does NOT model (honest '
+                       'scope line)',
+            },
+            'density_gcm3': [4.8, 5.2],
+        }),
+        'provenance_id': PROV,
+        'notes': 'Both grade families on one row; models pick the '
+                 'soft-grade mu_r explicitly.',
+    },
+    {
+        'name': 'ferrite@L4',
+        'material_name': 'ferrite',
+        'scale_level': 4, 'scale_category': 'quantum',
+        'definition_class': 'Planned', 'definition_ref': '',
+        'status': 'planned', 'derivation_method': 'dft-parameterized',
+        'parameters_json': '{}',
+        'provenance_id': PROV,
+        'notes': 'Spinel/hexaferrite unit cells need periodic '
+                 'SPIN-POLARIZED DFT — beyond dft-total-energy even '
+                 'with WITH_QE (magnetism needs spin treatment); the '
+                 'honest far gap.',
+    },
+    {
+        'name': 'ferrite-ceramic@L0',
+        'material_name': 'ferrite-ceramic',
+        'scale_level': 0, 'scale_category': 'experimental',
+        'definition_class': 'MeasuredProperties', 'definition_ref': '',
+        'status': 'partial', 'derivation_method': 'literature',
+        'parameters_json': json.dumps({
+            'form': 'bonded/composite ceramic magnet (matrix fraction '
+                    'is the knob; sintered commercial magnets are '
+                    '~100% hexaferrite)',
+            'density_gcm3': [3.5, 4.9],
+            'serviceTemperature_C': [250, 450],
+        }),
+        'provenance_id': PROV, 'notes': '',
+    },
+    {
+        'name': 'ferrite-ceramic@L1',
+        'material_name': 'ferrite-ceramic',
+        'scale_level': 1, 'scale_category': 'continuum',
+        'definition_class': 'FEMModelDefinition',
+        'definition_ref': 'ferrite-ceramic-permeability',
+        'status': 'partial',
+        'derived_from_name': 'ferrite@L0',
+        'derivation_method': 'homogenized',
+        'parameters_json': '{}',
+        'provenance_id': PROV,
+        'notes': 'Executable permeability bound (partial until run).',
+    },
+    {
+        'name': 'geopolymer-ferrite@L0',
+        'material_name': 'geopolymer-ferrite',
+        'scale_level': 0, 'scale_category': 'experimental',
+        'definition_class': 'MeasuredProperties', 'definition_ref': '',
+        'status': 'partial', 'derivation_method': 'literature',
+        'parameters_json': json.dumps({
+            'feasibilityQuestion': 'can ambient-cured geopolymer '
+                                   'replace sintered ceramic in '
+                                   'magnet-adjacent parts?',
+            'openVariables': ['max ferrite loading before workability '
+                              'loss', 'cure chemistry vs ferrite '
+                              'surfaces', 'moisture/aging effects on '
+                              'magnetics'],
+        }),
+        'provenance_id': PROV, 'notes': '',
+    },
+    {
+        'name': 'geopolymer-ferrite@L1',
+        'material_name': 'geopolymer-ferrite',
+        'scale_level': 1, 'scale_category': 'continuum',
+        'definition_class': 'FEMModelDefinition',
+        'definition_ref': 'geopolymer-ferrite-permeability',
+        'status': 'partial',
+        'derived_from_name': 'geopolymer@L0',
+        'derivation_method': 'homogenized',
+        'parameters_json': '{}',
+        'provenance_id': PROV,
+        'notes': 'Executable permeability bound — compare directly '
+                 'against ferrite-ceramic@L1.',
+    },
+    {
+        'name': 'sol-gel-ferrite@L0',
+        'material_name': 'sol-gel-ferrite',
+        'scale_level': 0, 'scale_category': 'experimental',
+        'definition_class': 'MeasuredProperties', 'definition_ref': '',
+        'status': 'partial', 'derivation_method': 'literature',
+        'parameters_json': json.dumps({
+            'role': 'fine-featured magnetic part of the tuned-'
+                    'structure toolkit (with geopolymer-ferrite as '
+                    'the bulk part)',
+            'openVariables': ['particle dispersion in the gel',
+                              'drying shrinkage around filler',
+                              'max loading before gel fracture'],
+        }),
+        'provenance_id': PROV, 'notes': '',
+    },
+    {
+        'name': 'sol-gel-ferrite@L1',
+        'material_name': 'sol-gel-ferrite',
+        'scale_level': 1, 'scale_category': 'continuum',
+        'definition_class': 'FEMModelDefinition',
+        'definition_ref': 'solgel-ferrite-permeability',
+        'status': 'partial',
+        'derived_from_name': 'sol-gel-silica@L0',
+        'derivation_method': 'homogenized',
+        'parameters_json': '{}',
+        'provenance_id': PROV,
+        'notes': 'Executable permeability bound (partial until run).',
+    },
+    {
+        'name': 'alumina-geopolymer@L0',
+        'material_name': 'alumina-geopolymer',
+        'scale_level': 0, 'scale_category': 'experimental',
+        'definition_class': 'MeasuredProperties', 'definition_ref': '',
+        'status': 'partial', 'derivation_method': 'literature',
+        'parameters_json': json.dumps({
+            'feasibilityQuestion': 'firebrick-like refractory without '
+                                   'firing?',
+            'geopolymerServiceLimit_C': [800, 1200],
+            'firebrickReference': {'k_WmK': [1.0, 1.5],
+                                   'service_C': [1200, 1500]},
+            'openVariables': ['hot strength', 'thermal shock cycles',
+                              'phase changes above 900 C'],
+        }),
+        'provenance_id': PROV, 'notes': '',
+    },
+    {
+        'name': 'alumina-geopolymer@L1',
+        'material_name': 'alumina-geopolymer',
+        'scale_level': 1, 'scale_category': 'continuum',
+        'definition_class': 'FEMModelDefinition',
+        'definition_ref': 'alumina-geopolymer-thermal',
+        'status': 'partial',
+        'derived_from_name': 'geopolymer@L0',
+        'derivation_method': 'homogenized',
+        'parameters_json': '{}',
+        'provenance_id': PROV,
+        'notes': 'Executable thermal bound vs the firebrick reference '
+                 'band (partial until run).',
+    },
+]
+
+# Stamp categories/tags onto BOTH seed lists (this module's and the
+# original basis seeds) — one vocabulary home.
+from materialsScience.materials_basis_seed import SEED_MS_MATERIALS
+_stamp_categories(SEED_MS_MATERIALS)
+_stamp_categories(SEED_STANDARD_MATERIALS)

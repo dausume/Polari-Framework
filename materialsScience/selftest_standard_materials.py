@@ -92,8 +92,11 @@ def _coherence():
                 'carbon-nanotube', 'n-doped-carbon-nanotube',
                 'silicon', 'feox-nanoparticle', 'siox-nanoparticle',
                 'cuox-nanoparticle', 'c-nanoparticle',
-                'nanoparticle-wax-composite'}
-    check('all 11 identities seeded', names == expected,
+                'nanoparticle-wax-composite',
+                # msci-22 ferrite family
+                'ferrite', 'ferrite-ceramic', 'geopolymer-ferrite',
+                'sol-gel-ferrite', 'alumina-geopolymer'}
+    check('all 16 identities seeded', names == expected,
           f'diff={names ^ expected}')
     check('every scale row belongs to a seeded identity',
           all(r['material_name'] in names
@@ -134,9 +137,14 @@ def _lineage_and_honesty():
     check('doped CNT L0 derives from pristine CNT L0',
           rows['n-doped-carbon-nanotube@L0']['derived_from_name']
           == 'carbon-nanotube@L0')
-    check('every executable L1 derives from its L0',
-          all(rows[n]['derived_from_name'] == n.replace('@L1', '@L0')
-              for n in rows if n.endswith('@L1')))
+    # msci-20 rows derive from their OWN L0; msci-22 composite rows
+    # derive from their MATRIX's L0 (the composite may have no own-L0
+    # measurement yet — the matrix lineage is the honest parent).
+    check('every executable L1 derives from an L0 row '
+          '(its own or its matrix\'s)',
+          all((rows[n]['derived_from_name'] or '').endswith('@L0')
+              for n in rows if n.endswith('@L1')),
+          f"parents={[(n, rows[n]['derived_from_name']) for n in rows if n.endswith('@L1')]}")
     planned = [r for r in SEED_STANDARD_SCALE_DEFINITIONS
                if r['status'] == 'planned']
     check('planned rows say what earning them takes',
@@ -214,11 +222,99 @@ def _validation_and_execution():
               True)
 
 
+
+
+def _msci22_categories_and_ferrite():
+    print('\nmsci-22: categories/tags + the ferrite family\n')
+    from materialsScience.standard_materials_seed import (
+        MATERIAL_CATEGORY_TAGS, upgrade_material_category_rows,
+    )
+    from materialsScience.materials_basis import MATERIAL_CATEGORIES
+    from materialsScience.materials_basis_seed import SEED_MS_MATERIALS
+
+    all_seeds = SEED_MS_MATERIALS + SEED_STANDARD_MATERIALS
+    check('every seeded material is categorized + tagged',
+          all(s.get('category') and s.get('tags_json')
+              for s in all_seeds),
+          f"uncategorized={[s['name'] for s in all_seeds if not s.get('category')]}")
+    check('every category is in the declared vocabulary',
+          all(s['category'] in MATERIAL_CATEGORIES for s in all_seeds))
+    check('the ferrite family is present + categorized',
+          {'ferrite', 'ferrite-ceramic', 'geopolymer-ferrite',
+           'sol-gel-ferrite', 'alumina-geopolymer'}
+          <= {s['name'] for s in SEED_STANDARD_MATERIALS})
+    check("magnetic navigation tag on every magnetic part",
+          all('magnetic' in json.loads(s['tags_json'])
+              for s in SEED_STANDARD_MATERIALS
+              if s['name'] in ('ferrite', 'ferrite-ceramic',
+                               'geopolymer-ferrite', 'sol-gel-ferrite')))
+    # Fill-when-empty upgrade: empty rows filled, set rows untouched.
+    mgr = _StubManager()
+    empty = SimpleNamespace(name='beeswax', category='', tags_json='[]')
+    custom = SimpleNamespace(name='geopolymer', category='my-own',
+                             tags_json='["mine"]')
+    mgr.add('MaterialsScienceMaterial', empty)
+    mgr.add('MaterialsScienceMaterial', custom)
+    upgrade_material_category_rows(mgr)
+    check('upgrade fills empty rows, never overwrites set ones',
+          empty.category == 'matrix' and custom.category == 'my-own')
+
+    rows = {r['name']: r for r in SEED_STANDARD_SCALE_DEFINITIONS}
+    ferrite0 = json.loads(rows['ferrite@L0']['parameters_json'])
+    check('ferrite L0 carries BOTH grade families with the honest '
+          'hysteresis scope line',
+          'softGrades' in ferrite0 and 'hardGrades' in ferrite0
+          and 'NOT model' in ferrite0['hardGrades']['use'])
+    check('ferrite L4 planned row names the spin-polarized gap',
+          'SPIN-POLARIZED' in rows['ferrite@L4']['notes'])
+    check('composite L1 rows derive from their MATRIX L0 rows',
+          rows['geopolymer-ferrite@L1']['derived_from_name']
+          == 'geopolymer@L0'
+          and rows['sol-gel-ferrite@L1']['derived_from_name']
+          == 'sol-gel-silica@L0'
+          and rows['alumina-geopolymer@L1']['derived_from_name']
+          == 'geopolymer@L0')
+
+    # The k<->mu analogy executes honestly with renamed outputs.
+    if _has_skfem():
+        mgr2 = _mgr()
+        for name in ('ferrite-ceramic-permeability',
+                     'geopolymer-ferrite-permeability',
+                     'solgel-ferrite-permeability'):
+            report = execute_model(mgr2, name)
+            result = report.get('result') or {}
+            check(f'{name} executes with mu-named outputs',
+                  report.get('ok')
+                  and 'effectiveMu' in result
+                  and 'effectiveK' not in result
+                  and 'analogy' in result,
+                  f"mu_eff={result.get('effectiveMu')}")
+        r_ceramic = execute_model(
+            mgr2, 'ferrite-ceramic-permeability')['result']['effectiveMu']
+        r_geo = execute_model(
+            mgr2, 'geopolymer-ferrite-permeability')['result']['effectiveMu']
+        r_gel = execute_model(
+            mgr2, 'solgel-ferrite-permeability')['result']['effectiveMu']
+        check('the parts-wise mu ladder orders by filler fraction '
+              '(ceramic 40% > geopolymer 35% > sol-gel 25%)',
+              r_ceramic > r_geo > r_gel > 1.0,
+              f'{r_ceramic:.3f} > {r_geo:.3f} > {r_gel:.3f}')
+        fire = execute_model(mgr2, 'alumina-geopolymer-thermal')
+        check('alumina-geopolymer thermal bound executes',
+              fire.get('ok')
+              and 0.95 < fire['result']['effectiveK'] < 30.0,
+              f"k_eff={fire['result'].get('effectiveK'):.3f}")
+    else:
+        check('permeability executions skipped honestly (no scikit-fem)',
+              True)
+
+
 if __name__ == '__main__':
     _coherence()
     _lineage_and_honesty()
     _fragments()
     _validation_and_execution()
+    _msci22_categories_and_ferrite()
     total, passed = len(_results), sum(_results)
     print(f'\n{passed}/{total} checks passed')
     raise SystemExit(0 if passed == total else 1)

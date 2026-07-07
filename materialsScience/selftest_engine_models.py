@@ -118,8 +118,8 @@ def _has_pyscf():
 def _seeds():
     print('\nCatalog seeds\n')
     names = [t['name'] for t in SEED_ENGINE_MODEL_TEMPLATES]
-    check('5 templates cover every ENGINE_REGISTRY entry',
-          len(names) == 5 and
+    check('6 templates cover every ENGINE_REGISTRY entry',
+          len(names) == 6 and
           {t['engine_key'] for t in SEED_ENGINE_MODEL_TEMPLATES}
           == set(ENGINE_REGISTRY), f'names={names}')
     check('every schema entry carries a section',

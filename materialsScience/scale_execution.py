@@ -28,6 +28,28 @@ import json
 
 from materialsScience.engines import dft_engine, fem_engine
 
+
+def _permeability_from_conductivity(result):
+    """The k <-> mu Laplace analogy (msci-22): magnetostatic effective
+    permeability of a 2-phase composite satisfies the SAME scalar
+    Laplace/transport equation the validated thermal homogenization
+    solves — only the symbol changes. Rename the outputs honestly so a
+    permeability result never masquerades as a conductivity."""
+    if not result.get('ok'):
+        return result
+    renamed = {'ok': True,
+               'effectiveMu': result.get('effectiveK'),
+               'voigtBoundMu': result.get('voigtBound'),
+               'reussBoundMu': result.get('reussBound'),
+               'withinBounds': result.get('withinBounds'),
+               'actualVolumeFraction': result.get(
+                   'actualVolumeFraction'),
+               'elements': result.get('elements'),
+               'analogy': 'scalar Laplace transport: mu <-> k (same '
+                          'engine as fem.effective-conductivity)'}
+    return renamed
+
+
 #: registry key -> callable(dict inputs) -> result dict with 'ok'
 ENGINE_REGISTRY = {
     'fem.conduction': lambda inputs: fem_engine.solve_steady_conduction(
@@ -46,6 +68,16 @@ ENGINE_REGISTRY = {
             inclusion_k=float(inputs.get('inclusionK', 0.0)),
             volume_fraction=float(inputs.get('volumeFraction', 0.0)),
             refine=int(inputs.get('refine', 5))),
+    # Magnetostatics via the k<->mu Laplace analogy (msci-22): the SAME
+    # validated homogenization solve computes effective RELATIVE
+    # PERMEABILITY of a 2-phase magnetic composite; outputs renamed so
+    # the analogy is explicit, never silent.
+    'fem.effective-permeability': lambda inputs:
+        _permeability_from_conductivity(fem_engine.effective_conductivity(
+            matrix_k=float(inputs.get('matrixMu', 0.0)),
+            inclusion_k=float(inputs.get('inclusionMu', 0.0)),
+            volume_fraction=float(inputs.get('volumeFraction', 0.0)),
+            refine=int(inputs.get('refine', 5)))),
     # The remaining dft_engine surfaces, registered for uniformity so
     # every engine function is template-addressable. Both are
     # capability-gated and refuse honestly when their layer is absent
