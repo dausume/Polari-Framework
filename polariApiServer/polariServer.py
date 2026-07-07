@@ -133,6 +133,13 @@ from materialsScience.dft_model_definition import DFTModelDefinition
 from materialsScience.engine_model_seed import (
     SEED_DFT_MODELS, SEED_ENGINE_MODEL_TEMPLATES, SEED_FEM_MODELS,
 )
+# Standard material families (sol-gel / geopolymer / alumina / CNT /
+# N-doped CNT) as coherent identities + piecemeal scale rows, with
+# executable levels backed by configured FEM/DFT models (msci-20).
+from materialsScience.standard_materials_seed import (
+    SEED_STANDARD_DFT_MODELS, SEED_STANDARD_FEM_MODELS,
+    SEED_STANDARD_MATERIALS, SEED_STANDARD_SCALE_DEFINITIONS,
+)
 # Simulations module — composed *SimState classes + variable metadata
 # + config tie-in + storage predictor.
 from simulations.sim_variable import SimVariable
@@ -1337,9 +1344,10 @@ class polariServer(treeObject):
              SEED_PERIODIC_DISPLAYS + SEED_MSCI_PAGE_DISPLAYS),
             # Materials basis — identities before their scale rows.
             ('MaterialsScienceMaterial', MaterialsScienceMaterial,
-             SEED_MS_MATERIALS),
+             SEED_MS_MATERIALS + SEED_STANDARD_MATERIALS),
             ('MaterialScaleDefinition', MaterialScaleDefinition,
-             SEED_MS_SCALE_DEFINITIONS),
+             SEED_MS_SCALE_DEFINITIONS
+             + SEED_STANDARD_SCALE_DEFINITIONS),
             # Modules-as-projects: the in-tree module, config-tracked.
             ('ModuleSourceConfig', ModuleSourceConfig,
              SEED_MODULE_SOURCE_CONFIGS),
@@ -1353,8 +1361,10 @@ class polariServer(treeObject):
             # reference it.
             ('EngineModelTemplate', EngineModelTemplate,
              SEED_ENGINE_MODEL_TEMPLATES),
-            ('FEMModelDefinition', FEMModelDefinition, SEED_FEM_MODELS),
-            ('DFTModelDefinition', DFTModelDefinition, SEED_DFT_MODELS),
+            ('FEMModelDefinition', FEMModelDefinition,
+             SEED_FEM_MODELS + SEED_STANDARD_FEM_MODELS),
+            ('DFTModelDefinition', DFTModelDefinition,
+             SEED_DFT_MODELS + SEED_STANDARD_DFT_MODELS),
         ]
         # Old demo-3d description (used as the "untouched" signature). If
         # the existing demo-3d row still has this verbatim, we treat it
