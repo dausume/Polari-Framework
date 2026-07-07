@@ -118,6 +118,11 @@ from materialsScience.formulation_search_seed import (
 from materialsScience.wax_derivation_seed import (
     SEED_WAX_DERIVATION_MSIMS,
 )
+# The recursive composition: wax-multiscale nests wax-derivation as a
+# sub-model + the two configured FEM/DFT model definitions (msci-19).
+from materialsScience.wax_multiscale_seed import (
+    SEED_WAX_MULTISCALE_MSIMS,
+)
 # The materials-basis + formulation-search DisplayDefinition pages.
 from materialsScience.msci_pages_seed import SEED_MSCI_PAGE_DISPLAYS
 # The engine-model layer: the FEM/DFT catalog + the specialized
@@ -1431,7 +1436,8 @@ class polariServer(treeObject):
             ('MultiScaleSimulationProfile', MultiScaleSimulationProfile,
              SEED_MSIM_PROFILES),
             ('MultiScaleSimulationDefinition', MultiScaleSimulationDefinition,
-             SEED_MULTI_SCALE_SIMS + SEED_WAX_DERIVATION_MSIMS),
+             SEED_MULTI_SCALE_SIMS + SEED_WAX_DERIVATION_MSIMS
+             + SEED_WAX_MULTISCALE_MSIMS),
             ('InitialConditionInterfaceDefinition', InitialConditionInterfaceDefinition,
              SEED_IC_INTERFACES),
             # Demo graphs-over-time for the multi-scale page's graph panels.
@@ -1479,14 +1485,22 @@ class polariServer(treeObject):
             if created:
                 print(f'[SeedSimulations] Created {created} {class_name} row(s)', flush=True)
 
-        # Config-knob upgrade pass: refresh untouched msim rows' config
-        # blobs from the current seeds (shape-signature guarded — any
-        # admin add/remove/reorder of panels/stages is respected).
+        # Config-knob upgrade passes: refresh untouched msim rows'
+        # panels (shape-signature guarded) and untouched profile rows'
+        # blobs (description-match guarded) from the current seeds.
         try:
             from simulations.multi_scale_seed import upgrade_msim_rows
             upgrade_msim_rows(self.manager)
         except Exception as e:
             print(f'[SeedSimulations] msim upgrade pass failed: {e}', flush=True)
+        try:
+            from simulations.multi_scale_profile_seed import (
+                upgrade_profile_rows,
+            )
+            upgrade_profile_rows(self.manager)
+        except Exception as e:
+            print(f'[SeedSimulations] profile upgrade pass failed: {e}',
+                  flush=True)
 
     def _autoRegisterMbtilesSources(self):
         """Scan MinIO buckets for .mbtiles files and create or update

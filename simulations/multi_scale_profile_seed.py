@@ -121,8 +121,12 @@ SEED_MSIM_PROFILES = [
         'stage_templates_json': json.dumps([
             {'key': 'formulation-screening', 'label':
              'Screen candidate formulations against property targets',
+             # Optional since msci-19: a member may screen DIRECTLY
+             # (this template) or by NESTING a derivation msim (the
+             # sub-derivation template below) — conformance v1 has no
+             # recursive descent, so either shape satisfies the family.
              'kind': 'formulationSearch', 'intent': 'search',
-             'required': True,
+             'required': False,
              'slots': {'formulationSearchRef': 'the FormulationSearchDefinition '
                        'carrying targets + knobs + sourcing policy',
                        'gate': 'optional no-code verdict over the winner',
@@ -137,21 +141,49 @@ SEED_MSIM_PROFILES = [
              'required': False,
              'slots': {'gate': 'scale-presence check over the winner '
                        'components'}},
+            # msci-16/19: the abstracted-component stage shapes.
+            {'key': 'sub-derivation', 'label':
+             'Run a whole derivation msim as a nested component',
+             'kind': 'subModel', 'intent': 'search', 'required': False,
+             'slots': {'msimRef': 'the nested '
+                       'MultiScaleSimulationDefinition',
+                       'derive': "the child's derived values -> later "
+                       'stages'}},
+            {'key': 'continuum-verification', 'label':
+             'One-shot FEM solve over a configured model definition',
+             'kind': 'engineModel', 'intent': 'calibrate',
+             'required': False,
+             'slots': {'modelRef': 'the FEMModelDefinition',
+                       'derive': 'model outputs -> later stages'}},
+            {'key': 'quantum-evidence', 'label':
+             'One-shot DFT calculation over a configured model '
+             'definition',
+             'kind': 'engineModel', 'intent': 'validate',
+             'required': False,
+             'slots': {'modelRef': 'the DFTModelDefinition'}},
         ]),
         'fidelity_ladder_json': json.dumps([
+            # 'templates' names the EngineModelTemplate catalog rows
+            # that implement each rung (msci-15) — the ladder is now
+            # template-referencing, not just engine-key-referencing.
             {'rung': 1, 'level': 'experimental',
-             'engines': ['rules-of-mixtures'],
+             'engines': ['rules-of-mixtures'], 'templates': [],
              'costClass': 'cheap', 'purpose': 'screening'},
             {'rung': 2, 'level': 'continuum',
              'engines': [_FEM_HOMOG, _FEM_CONDUCTION],
+             'templates': ['fem-effective-conductivity',
+                           'fem-steady-conduction'],
              'costClass': 'moderate', 'purpose': 'verification'},
             {'rung': 3, 'level': 'quantum',
              'engines': [_DFT_ENERGY],
+             'templates': ['dft-molecular-energy', 'dft-bulk-structure',
+                           'dft-total-energy'],
              'costClass': 'expensive', 'purpose': 'evidence'},
         ]),
         'panel_roster_json': json.dumps([
             {'kind': 'formulationSearch', 'slot': 'configure/run the search, '
-             'winners + trajectory', 'required': True},
+             'winners + trajectory (optional: a nested derivation '
+             'carries its own)', 'required': False},
             {'kind': 'explainer', 'slot': 'the staged-fidelity story',
              'required': True},
             {'kind': 'graph', 'slot': 'refinement trajectory over batches',
@@ -172,3 +204,40 @@ SEED_MSIM_PROFILES = [
         'enabled': True,
     },
 ]
+
+
+def upgrade_profile_rows(manager):
+    """Config-knob upgrade for UNTOUCHED profile rows (the msim-row
+    upgrade's sibling): profiles are reference data — when a live row's
+    description still matches its seed verbatim (the admin hasn't made
+    it theirs), refresh the config blobs so template/ladder additions
+    reach existing volumes. A customized description = hands off."""
+    table = (getattr(manager, 'objectTables', None) or {}).get(
+        'MultiScaleSimulationProfile', {}) or {}
+    rows_by_name = {getattr(r, 'name', None): r for r in (
+        table.values() if isinstance(table, dict) else table)}
+    blob_fields = ('scale_levels_json', 'stage_templates_json',
+                   'fidelity_ladder_json', 'panel_roster_json',
+                   'coupling_shapes_json', 'default_search_policy_json')
+    for seed in SEED_MSIM_PROFILES:
+        row = rows_by_name.get(seed.get('name'))
+        if row is None:
+            continue
+        if (getattr(row, 'description', '') or '') != seed['description']:
+            print(f'[SeedSimulations] profile "{seed.get("name")}" '
+                  'description customized; upgrade skipped', flush=True)
+            continue
+        changed = [f for f in blob_fields
+                   if (getattr(row, f, '') or '') != seed.get(f, '')]
+        if not changed:
+            continue
+        for f in changed:
+            setattr(row, f, seed.get(f, ''))
+        try:
+            manager.db.saveInstanceInDB(row)
+            print(f'[SeedSimulations] Upgraded profile '
+                  f'"{seed.get("name")}": {", ".join(changed)}',
+                  flush=True)
+        except Exception as e:
+            print(f'[SeedSimulations] profile "{seed.get("name")}" '
+                  f'upgrade save failed: {e}', flush=True)

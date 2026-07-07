@@ -190,4 +190,22 @@ SEED_MS_SCALE_DEFINITIONS = [
         'notes': 'partial: fractions chosen for the worked example, not '
                  'yet target-searched.',
     },
+    {
+        # A scale level BACKED BY A CONFIGURED MODEL DEFINITION
+        # (msci-19): executing this row runs the wax-thermal-continuum
+        # FEMModelDefinition (whose inputs are object-bound) and stores
+        # the result here — levels-by-component, the third executable
+        # definition_class after EngineComputation.
+        'name': 'beeswax-carnauba-blend@L1c',
+        'material_name': 'beeswax-carnauba-blend',
+        'scale_level': 1, 'scale_category': 'continuum',
+        'definition_class': 'FEMModelDefinition',
+        'definition_ref': 'wax-thermal-continuum',
+        'status': 'partial',
+        'derived_from_name': 'beeswax-carnauba-blend@L0',
+        'derivation_method': 'homogenized',
+        'parameters_json': '{}',
+        'notes': 'partial until executed; the configured-model sibling '
+                 'of the inline @L1 EngineComputation row.',
+    },
 ]
