@@ -101,6 +101,11 @@ from materialsScience.materials_basis_seed import (
 from materialsScience.thermal_windows import (
     ThermalProcessingProfile, SEED_THERMAL_PROFILES,
 )
+# Property meanings: what each material property IS + how it moves per
+# scenario, as editable rows the detail view reads (msci-28).
+from materialsScience.property_meanings import (
+    MaterialPropertyMeaning, SEED_PROPERTY_MEANINGS,
+)
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -496,6 +501,12 @@ class polariServer(treeObject):
         presenceEndpoint = ScalePresenceAPI(
             polServer=self, manager=self.manager)
 
+        # Per-material detail: properties + meanings + scenario context
+        # + per-level rows behind the material detail view (msci-28).
+        from materialsScience.material_detail_api import MaterialDetailAPI
+        materialDetailEndpoint = MaterialDetailAPI(
+            polServer=self, manager=self.manager)
+
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
         # at size).
@@ -558,6 +569,7 @@ class polariServer(treeObject):
             FormulationSearchDefinition, FormulationSearchRun,
             FormulationCandidateResult,
             EngineModelTemplate, FEMModelDefinition, DFTModelDefinition,
+            MaterialPropertyMeaning,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1371,6 +1383,9 @@ class polariServer(treeObject):
             # Thermal windows from the Base Wax Properties notes.
             ('ThermalProcessingProfile', ThermalProcessingProfile,
              SEED_THERMAL_PROFILES),
+            # Property meanings the material detail view explains with.
+            ('MaterialPropertyMeaning', MaterialPropertyMeaning,
+             SEED_PROPERTY_MEANINGS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
