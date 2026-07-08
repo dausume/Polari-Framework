@@ -382,6 +382,8 @@ SEED_SCORE_GROUPS = [
         'group_type': 'political',
         'member_concept_names_json': json.dumps(
             ['member-labor-alice', 'member-labor-bob']),
+        'member_contributor_names_json': json.dumps(
+            ['demo-labor-lobby']),
         'description': 'Two aligned worldviews — exercises consensus '
                        'and aligned-weighting classifications.',
     },
@@ -391,6 +393,8 @@ SEED_SCORE_GROUPS = [
         'group_type': 'professional',
         'member_concept_names_json': json.dumps(
             ['member-labor-carol', 'member-labor-dan']),
+        'member_contributor_names_json': json.dumps(
+            ['demo-research-group']),
         'description': 'Split stance on minimum-wage (carol +, dan −) '
                        '— exercises the divisive classification.',
     },

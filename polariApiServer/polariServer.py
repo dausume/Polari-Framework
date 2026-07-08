@@ -148,6 +148,8 @@ from scoring.media_accuracy import (
     AccuracyPolicy, FactualClaim, SEED_ACCURACY_POLICIES,
     SEED_FACTUAL_CLAIMS, SEED_MEDIA_OUTLETS,
 )
+# scr-16: per-group bias reads (bands are editable rows).
+from scoring.group_bias import BiasPolicy, SEED_BIAS_POLICIES
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -622,7 +624,7 @@ class polariServer(treeObject):
             ScoreAssertion, AssertionValidityVote, MediaEvidence,
             EvidencePolicy, Contributor, PolicyVote,
             WorldviewElection, WorldviewBallot,
-            FactualClaim, AccuracyPolicy,
+            FactualClaim, AccuracyPolicy, BiasPolicy,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1479,6 +1481,8 @@ class polariServer(treeObject):
             ('AccuracyPolicy', AccuracyPolicy,
              SEED_ACCURACY_POLICIES),
             ('FactualClaim', FactualClaim, SEED_FACTUAL_CLAIMS),
+            # scr-16: bias bands as editable rows.
+            ('BiasPolicy', BiasPolicy, SEED_BIAS_POLICIES),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),

@@ -426,6 +426,8 @@ SEED_ASSEMBLY_GROUPS = [{
     'member_concept_names_json': json.dumps(
         ['member-labor-alice', 'member-labor-bob',
          'member-labor-carol', 'member-labor-dan']),
+    'member_contributor_names_json': json.dumps(
+        ['demo-citizen-jane']),
     'description': 'All four demo worldviews — the scr-8 election '
                    'derives member weights for this group.',
 }]

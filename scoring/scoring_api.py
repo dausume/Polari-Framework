@@ -47,6 +47,12 @@ scr-6 (politicians + votes):
                                           create knobs never default
                                           on
 
+scr-16 (per-group bias):
+  GET  /api/scoring/groups/{name}/bias    stance skew vs consensus,
+                                          assertion one-sidedness,
+                                          vote-alignment read,
+                                          source quality
+
 scr-15 (media accuracy):
   GET  /api/scoring/claims/{name}/check     one claim vs the data
                                           (banded relative error;
@@ -83,6 +89,7 @@ from scoring.data_ingestion import ingest_from_class, ingest_records
 from scoring.group_aggregation import (
     aggregate_group, all_groups_consensus, compare_groups,
 )
+from scoring.group_bias import group_bias_report
 from scoring.media_accuracy import check_claim, outlet_accuracy
 from scoring.policy_scoring import score_policy
 from scoring.policy_votes import ingest_votes_from_class
@@ -149,6 +156,9 @@ class ScoringAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/scoring/ingest-votes', self,
                 suffix='ingest_votes')
+            polServer.falconServer.add_route(
+                '/api/scoring/groups/{name}/bias', self,
+                suffix='group_bias')
             polServer.falconServer.add_route(
                 '/api/scoring/claims/{name}/check', self,
                 suffix='claim_check')
@@ -332,6 +342,16 @@ class ScoringAPI(treeObject):
             self.manager, name, concept,
             policy_name=request.get_param('policy') or '',
             timeframe_context=request.get_param('timeframe') or '')
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_group_bias(self, request, response, name):
+        report = group_bias_report(
+            self.manager, name,
+            policy_name=request.get_param('policy') or '',
+            agreement_policy=request.get_param('agreementPolicy')
+            or '')
         if not report.get('ok'):
             response.status = '404 Not Found'
         response.media = report
