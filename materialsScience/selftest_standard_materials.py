@@ -95,8 +95,11 @@ def _coherence():
                 'nanoparticle-wax-composite',
                 # msci-22 ferrite family
                 'ferrite', 'ferrite-ceramic', 'geopolymer-ferrite',
-                'sol-gel-ferrite', 'alumina-geopolymer'}
-    check('all 16 identities seeded', names == expected,
+                'sol-gel-ferrite', 'alumina-geopolymer',
+                # msci-23 printable magnetics + semiconductor study
+                'wax-ferrite', 'b-doped-carbon-nanotube',
+                'cnt-semiconductor-composite'}
+    check('all 19 identities seeded', names == expected,
           f'diff={names ^ expected}')
     check('every scale row belongs to a seeded identity',
           all(r['material_name'] in names
@@ -309,12 +312,85 @@ def _msci22_categories_and_ferrite():
               True)
 
 
+
+
+def _msci23_semiconductor_and_waxferrite():
+    print('\nmsci-23: wax-ferrite + percolation + p/i/n fragments\n')
+    from materialsScience.engines.transport_engine import (
+        percolation_conductivity,
+    )
+    # The physics the FEM homogenizer cannot see: the threshold jump.
+    below = percolation_conductivity(1e-13, 1e6, 0.001, 0.005, 2.0)
+    above = percolation_conductivity(1e-13, 1e6, 0.02, 0.005, 2.0)
+    check('below threshold: composite conducts like the matrix',
+          below['ok'] and below['regime'] == 'below-threshold'
+          and below['effectiveSigma'] < 1e-12)
+    check('above threshold: orders-of-magnitude jump '
+          '(insulator -> conductor)',
+          above['ok'] and above['regime'] == 'above-threshold'
+          and above['effectiveSigma'] / below['effectiveSigma'] > 1e10,
+          f"gain={above['conductivityGain']:.3g}")
+    check('percolation refuses non-conductive-filler setups honestly',
+          not percolation_conductivity(1.0, 0.5, 0.1)['ok'])
+    check('validity line travels with every result',
+          'ANALYSIS' in above['validity'])
+
+    models = {m['name']: m for m in SEED_STANDARD_DFT_MODELS}
+    bora = json.loads(
+        models['p-doped-cnt-fragment-energy']['structure_json'])['atoms']
+    atoms = [a.split()[0] for a in bora.split(';')]
+    check('borabenzene fragment: C5H5B — exactly one CH -> B '
+          '(the p-type mirror of pyridine)',
+          atoms.count('C') == 5 and atoms.count('B') == 1
+          and atoms.count('H') == 5)
+
+    rows = {r['name']: r for r in SEED_STANDARD_SCALE_DEFINITIONS}
+    check('p-doped tube L4 derives from the pristine tube L4 '
+          '(same lineage rule as the n-doped tube)',
+          rows['b-doped-carbon-nanotube@L4']['derived_from_name']
+          == 'carbon-nanotube@L4')
+    frame = json.loads(
+        rows['cnt-semiconductor-composite@L4']['parameters_json'])
+    check('the p/i/n analysis frame names all three fragment models '
+          'and the honest device-level gap',
+          len(frame['series']) == 3 and 'transport engine'
+          in frame['gap'])
+    check('one percolation row per medium, matrix-lineaged',
+          rows['cnt-semiconductor-composite@L1-wax']
+          ['derived_from_name'] == 'beeswax@L0'
+          and rows['cnt-semiconductor-composite@L1-geopolymer']
+          ['derived_from_name'] == 'geopolymer@L0'
+          and rows['cnt-semiconductor-composite@L1-solgel']
+          ['derived_from_name'] == 'sol-gel-silica@L0')
+
+    if _has_skfem():
+        mgr = _mgr()
+        wax_ferrite = execute_model(mgr, 'wax-ferrite-permeability')
+        check('wax-ferrite (printable, 30%) slots into the mu ladder '
+              'between sol-gel (25%) and geopolymer (35%)',
+              wax_ferrite.get('ok')
+              and 1.714 < wax_ferrite['result']['effectiveMu'] < 2.196,
+              f"mu_eff={wax_ferrite['result'].get('effectiveMu'):.4f}")
+    # Percolation models execute regardless (pure python engine).
+    mgr2 = _mgr()
+    for name, sigma_m in (('cnt-wax-percolation', 1e-13),
+                          ('cnt-geopolymer-percolation', 1e-7),
+                          ('cnt-solgel-percolation', 1e-12)):
+        report = execute_model(mgr2, name)
+        res = report.get('result') or {}
+        check(f'{name} executes above threshold',
+              report.get('ok') and res.get('regime') == 'above-threshold'
+              and res.get('effectiveSigma', 0) > sigma_m * 1e6,
+              f"sigma_eff={res.get('effectiveSigma'):.3g} S/m")
+
+
 if __name__ == '__main__':
     _coherence()
     _lineage_and_honesty()
     _fragments()
     _validation_and_execution()
     _msci22_categories_and_ferrite()
+    _msci23_semiconductor_and_waxferrite()
     total, passed = len(_results), sum(_results)
     print(f'\n{passed}/{total} checks passed')
     raise SystemExit(0 if passed == total else 1)

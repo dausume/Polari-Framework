@@ -36,6 +36,9 @@ _REGISTRY_INPUT_KEYS = {
                                    'volumeFraction', 'refine'},
     'fem.effective-permeability': {'matrixMu', 'inclusionMu',
                                    'volumeFraction', 'refine'},
+    'analytic.percolation-conductivity': {
+        'matrixSigma', 'fillerSigma', 'volumeFraction',
+        'percolationThreshold', 'transportExponent'},
     'dft.molecular-energy': {'atoms', 'basis', 'xc', 'charge', 'spin'},
     'dft.bulk-structure': {'symbol', 'crystal', 'latticeA'},
     'dft.total-energy': {'symbol', 'crystal', 'latticeA', 'ecutwfc',
@@ -211,6 +214,74 @@ SEED_ENGINE_MODEL_TEMPLATES = [
         'enabled': True,
     },
     {
+        'name': 'percolation-conductivity',
+        'display_name': 'Percolation — conductive-filler composite '
+                        'conductivity',
+        'description': (
+            'Effective ELECTRICAL conductivity across the percolation '
+            'transition: below the threshold the composite conducts '
+            'like the matrix (isolated filler — the FEM homogenization '
+            'regime, confirmed at 1e19 contrast); above it the '
+            'connected filler network follows the classical power law '
+            'sigma_f*((vf-vf_c)/(1-vf_c))^t. THE model for CNT and '
+            'conductive-nanoparticle composites, where homogenization '
+            'is blind to the threshold. Pure python, always available.'
+        ),
+        'engine_kind': 'fem', 'engine_key':
+            'analytic.percolation-conductivity',
+        'parameter_schema_json': _schema([
+            {'section': 'materials', 'key': 'matrixSigma',
+             'type': 'number', 'unit': 'S/m', 'required': True,
+             'min': 1e-30,
+             'description': 'matrix electrical conductivity'},
+            {'section': 'materials', 'key': 'fillerSigma',
+             'type': 'number', 'unit': 'S/m', 'required': True,
+             'min': 1e-30,
+             'description': 'filler electrical conductivity (CNT '
+                            'axial ~1e6)'},
+            {'section': 'domain', 'key': 'volumeFraction',
+             'type': 'number', 'required': True, 'min': 1e-9,
+             'max': 0.999,
+             'description': 'filler volume fraction'},
+            {'section': 'domain', 'key': 'percolationThreshold',
+             'type': 'number', 'required': False, 'default': 0.005,
+             'min': 1e-9, 'max': 0.999,
+             'description': 'vf_c — high-aspect CNTs percolate at '
+                            '0.0005-0.01 (literature)'},
+            {'section': 'solver', 'key': 'transportExponent',
+             'type': 'number', 'required': False, 'default': 2.0,
+             'min': 0.5, 'max': 4.0,
+             'description': 't — ~1.3 (2D) to ~2-3 (3D networks)'},
+        ]),
+        'section_map_json': json.dumps({
+            'matrixSigma': 'materials.matrix.electricalConductivity',
+            'fillerSigma': 'materials.inclusion.electricalConductivity',
+            'volumeFraction': 'domain.inclusion.volumeFraction',
+            'percolationThreshold': 'domain.inclusion.'
+                                    'percolationThreshold',
+            'transportExponent': 'solver.transportExponent',
+        }),
+        'outputs_json': json.dumps([
+            {'key': 'effectiveSigma', 'type': 'number', 'unit': 'S/m',
+             'description': 'effective electrical conductivity'},
+            {'key': 'regime', 'type': 'string',
+             'description': 'below-threshold | above-threshold'},
+            {'key': 'onsetMargin', 'type': 'number',
+             'description': 'vf - vf_c (negative = insulating side)'},
+            {'key': 'conductivityGain', 'type': 'number',
+             'description': 'sigma_eff / sigma_matrix'},
+            {'key': 'validity', 'type': 'string',
+             'description': 'the honesty line — order-of-magnitude '
+                            'analysis, not a measurement'},
+        ]),
+        'cost_class': 'cheap',
+        'capability_requirements_json': '[]',
+        'notes': 'Classical percolation is an idealization — interface '
+                 'resistance, waviness, and dispersion shift real '
+                 'values; the validity line travels with every result.',
+        'enabled': True,
+    },
+    {
         'name': 'dft-molecular-energy',
         'display_name': 'DFT — molecular SCF energy',
         'description': (
@@ -256,6 +327,17 @@ SEED_ENGINE_MODEL_TEMPLATES = [
             {'key': 'atomCount', 'type': 'integer', 'description': ''},
             {'key': 'electronCount', 'type': 'integer',
              'description': ''},
+            # Frontier orbitals (msci-23) — the donor/acceptor
+            # evidence for semiconductor bias analysis.
+            {'key': 'homoEv', 'type': 'number', 'unit': 'eV',
+             'description': 'highest occupied Kohn-Sham level (n-type '
+                            'dopants raise it)'},
+            {'key': 'lumoEv', 'type': 'number', 'unit': 'eV',
+             'description': 'lowest unoccupied Kohn-Sham level '
+                            '(p-type dopants lower it)'},
+            {'key': 'gapEv', 'type': 'number', 'unit': 'eV',
+             'description': 'HOMO-LUMO gap (approximate frontier '
+                            'levels, not measured IP/EA)'},
         ]),
         'cost_class': 'expensive',
         'capability_requirements_json': json.dumps(

@@ -139,11 +139,13 @@ def molecular_energy(atoms, basis='6-31g', xc='b3lyp', charge=0, spin=0):
         mf = pyscf_dft.RKS(mol)
         mf.xc = xc
         energy = mf.kernel()
-        return {'ok': True, 'engine': 'pyscf(local)',
-                'totalEnergyHa': float(energy),
-                'converged': bool(mf.converged), 'basis': basis, 'xc': xc,
-                'atomCount': mol.natm,
-                'electronCount': int(mol.nelectron)}
+        result = {'ok': True, 'engine': 'pyscf(local)',
+                  'totalEnergyHa': float(energy),
+                  'converged': bool(mf.converged), 'basis': basis,
+                  'xc': xc, 'atomCount': mol.natm,
+                  'electronCount': int(mol.nelectron)}
+        result.update(frontier_orbitals_from_scf(mf))
+        return result
     except ImportError:
         pass   # Alpine base image — delegate to the engines worker
     except Exception as e:
@@ -153,6 +155,35 @@ def molecular_energy(atoms, basis='6-31g', xc='b3lyp', charge=0, spin=0):
     return remote_post('/dft/molecular-energy', {
         'atoms': atoms, 'basis': basis, 'xc': xc,
         'charge': charge, 'spin': spin})
+
+
+_HA_TO_EV = 27.211386245988
+
+
+def frontier_orbitals_from_scf(mf):
+    """HOMO/LUMO/gap in eV from a converged SCF (msci-23) — the
+    donor/acceptor evidence the semiconductor 'bias-property' analysis
+    reads: n-type dopants raise the HOMO (donor states), p-type
+    dopants lower the LUMO (acceptor states). Kohn-Sham orbital
+    energies — approximate frontier levels, not measured IP/EA (the
+    note travels with the numbers). Shared by the local ladder rung
+    and the msci-engines worker service."""
+    try:
+        occupied = [float(e) for e, o in zip(mf.mo_energy, mf.mo_occ)
+                    if o > 0]
+        virtual = [float(e) for e, o in zip(mf.mo_energy, mf.mo_occ)
+                   if o == 0]
+        if not occupied or not virtual:
+            return {}
+        homo = max(occupied) * _HA_TO_EV
+        lumo = min(virtual) * _HA_TO_EV
+        return {'homoEv': homo, 'lumoEv': lumo, 'gapEv': lumo - homo,
+                'frontierNote': 'Kohn-Sham orbital energies — '
+                                'approximate frontier levels for '
+                                'donor/acceptor comparison, not '
+                                'measured IP/EA'}
+    except Exception:
+        return {}
 
 
 def total_energy(symbol, crystal=None, lattice_a=None, ecutwfc=30.0,

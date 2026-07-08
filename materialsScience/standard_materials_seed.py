@@ -1355,3 +1355,344 @@ SEED_STANDARD_SCALE_DEFINITIONS += [
 from materialsScience.materials_basis_seed import SEED_MS_MATERIALS
 _stamp_categories(SEED_MS_MATERIALS)
 _stamp_categories(SEED_STANDARD_MATERIALS)
+
+
+# ---------------------------------------------------------------------
+# msci-23: wax-ferrite (the PRINTABLE magnetic part) + the CNT
+# semiconductor exploration (p/n-doped tubes in the mediums:
+# percolation conductivity + frontier-orbital bias evidence).
+# ---------------------------------------------------------------------
+
+# Idealized borabenzene: the benzene hexagon with one CH -> B (the
+# p-type mirror of pyridine's CH -> N). Free borabenzene is a reactive
+# species — as a LATTICE-SUBSTITUTION stand-in that is fine and stated.
+_BORABENZENE = ('B 1.397 0 0; C 0.6985 1.2098 0; C -0.6985 1.2098 0; '
+                'C -1.397 0 0; C -0.6985 -1.2098 0; '
+                'C 0.6985 -1.2098 0; H 1.2405 2.1486 0; '
+                'H -1.2405 2.1486 0; H -2.481 0 0; '
+                'H -1.2405 -2.1486 0; H 1.2405 -2.1486 0')
+
+MATERIAL_CATEGORY_TAGS.update({
+    'wax-ferrite': ('composite', ['magnetic', 'ferrite', 'wax',
+                                  'printable', 'fossil-free',
+                                  'magnetic-structure-part']),
+    'b-doped-carbon-nanotube': ('filler', ['nanomaterial', 'doped',
+                                           'p-type', 'semiconductor']),
+    'cnt-semiconductor-composite': ('composite', ['semiconductor',
+                                                  'percolation',
+                                                  'cnt', 'p-type',
+                                                  'n-type',
+                                                  'feasibility-study']),
+})
+
+SEED_STANDARD_MATERIALS += [
+    {
+        'name': 'wax-ferrite',
+        'display_name': 'Wax-Ferrite (printable magnetic composite)',
+        'description': (
+            'Soft-ferrite filler in a wax matrix — the PRINTABLE '
+            'member of the tuned-magnetic-structure toolkit: shapeable '
+            'through the MVW print path (thermal windows apply to the '
+            'wax matrix), lowest-temperature processing of the four '
+            'ferrite pairings.'
+        ),
+        'material_kind': 'composite',
+        'element_symbols_json': '["C", "H", "O", "Fe"]',
+        'provenance_id': PROV,
+        'notes': 'Bonded-magnet analog (commercial: NdFeB/ferrite in '
+                 'nylon); wax matrix trades strength for '
+                 'printability + reworkability.',
+    },
+    {
+        'name': 'b-doped-carbon-nanotube',
+        'display_name': 'B-Doped Carbon Nanotube (p-type)',
+        'description': (
+            'Carbon nanotube with substitutional BORON — the p-type '
+            'mirror of the nitrogen-doped tube: electron-deficient B '
+            'sites lower the acceptor levels. With the pristine and '
+            'N-doped tubes this completes the p/i/n fragment series '
+            'the semiconductor analysis compares.'
+        ),
+        'material_kind': 'pure',
+        'element_symbols_json': '["C", "B"]',
+        'provenance_id': PROV,
+        'notes': 'Typical B content 1-5 at% (literature); fragment '
+                 'stand-in is borabenzene (one CH -> B).',
+    },
+    {
+        'name': 'cnt-semiconductor-composite',
+        'display_name': 'CNT Semiconductor Composite (p/i/n in matrix)',
+        'description': (
+            'Pristine, N-doped (n), and B-doped (p) carbon nanotubes '
+            'embedded in the insulating mediums (wax / geopolymer / '
+            'sol-gel silica) — analyzed for semiconductor use via two '
+            'computable quantities: PERCOLATION conductivity (the '
+            'network-formation threshold that decides conductor vs '
+            'insulator per medium and loading) and FRONTIER-ORBITAL '
+            'bias evidence (HOMO/LUMO shifts of the p/i/n fragment '
+            'series — donor vs acceptor character).'
+        ),
+        'material_kind': 'composite',
+        'element_symbols_json': '["C", "N", "B", "H", "O", "Si", "Al"]',
+        'provenance_id': PROV,
+        'notes': 'Device-level bias behavior (junctions, transport '
+                 'under field) needs an engine beyond frontier '
+                 'orbitals — named as the honest gap on the L4 rows.',
+    },
+]
+
+SEED_STANDARD_FEM_MODELS += [
+    {
+        'name': 'wax-ferrite-permeability',
+        'display_name': 'Wax-ferrite — effective permeability',
+        'description': (
+            'Soft-ferrite filler (mu_r=800) in a beeswax-order matrix '
+            '(mu_r=1) at 30 vol% — the printable rung of the '
+            'tuned-magnetic-structure ladder (between sol-gel 25% and '
+            'geopolymer 35% at these seeds).'
+        ),
+        'physics_ref': 'fem-effective-permeability',
+        'domain_json': json.dumps({
+            'shape': 'unit-square',
+            'inclusion': {'shape': 'circle', 'volumeFraction': 0.30}}),
+        'materials_json': json.dumps({
+            'matrix': {'relativePermeability': 1.0},
+            'inclusion': {'relativePermeability': 800.0}}),
+        'boundary_conditions_json': _FERRITE_BC,
+        'source_terms_json': '{}',
+        'mesh_json': json.dumps({'refine': 5}),
+        'solver_json': '{}',
+        'notes': f'{PROV}; wax thermal windows govern processing '
+                 '(30 vol% ferrite also shifts melt rheology — '
+                 'unmodeled, stated).',
+        'enabled': True,
+    },
+]
+
+# CNT percolation models: same tube (axial sigma ~1e6 S/m), three
+# mediums with literature-order matrix conductivities. vf 2 vol% —
+# ABOVE the high-aspect-ratio threshold (0.5 vol% seed default), so
+# the seeds land in the conducting regime; vf is the knob to sweep.
+_CNT_PERC = [
+    ('cnt-wax-percolation', 'wax', 1e-13,
+     'paraffin/beeswax-order insulator'),
+    ('cnt-geopolymer-percolation', 'geopolymer', 1e-7,
+     'dry geopolymer (ionic conduction rises steeply with moisture — '
+     'stated)'),
+    ('cnt-solgel-percolation', 'sol-gel silica', 1e-12,
+     'dried xerogel'),
+]
+for _name, _medium, _sigma_m, _medium_note in _CNT_PERC:
+    SEED_STANDARD_FEM_MODELS.append({
+        'name': _name,
+        'display_name': f'CNT in {_medium} — percolation conductivity',
+        'description': (
+            f'Carbon nanotubes (axial sigma 1e6 S/m) in {_medium} '
+            f'(sigma {_sigma_m:g} S/m — {_medium_note}) at 2 vol%, '
+            'threshold 0.5 vol% (high-aspect-ratio literature range '
+            '0.05-1 vol%), t=2. Sweep volumeFraction across the '
+            'threshold to see the insulator->conductor transition '
+            'per medium.'
+        ),
+        'physics_ref': 'percolation-conductivity',
+        'domain_json': json.dumps({
+            'inclusion': {'volumeFraction': 0.02,
+                          'percolationThreshold': 0.005}}),
+        'materials_json': json.dumps({
+            'matrix': {'electricalConductivity': _sigma_m},
+            'inclusion': {'electricalConductivity': 1e6}}),
+        'boundary_conditions_json': '[]',
+        'source_terms_json': '{}',
+        'mesh_json': '{}',
+        'solver_json': json.dumps({'transportExponent': 2.0}),
+        'notes': f'{PROV}: doped tubes (p/n) keep metallic-order '
+                 'axial conductivity — the same percolation model '
+                 'serves all three tube variants; doping matters for '
+                 'the FRONTIER/bias analysis, not the network '
+                 'threshold.',
+        'enabled': True,
+    })
+
+SEED_STANDARD_DFT_MODELS += [
+    {
+        'name': 'p-doped-cnt-fragment-energy',
+        'display_name': 'B-doped CNT fragment — molecular SCF energy '
+                        '+ frontier orbitals',
+        'description': (
+            'Borabenzene (C5H5B — one ring CH substituted by B) as '
+            'the minimal P-TYPE-doped wall fragment: compare its '
+            'LUMO against benzene (pristine) and pyridine (n) — '
+            'acceptor character shows as a LOWERED lumoEv, donor '
+            'character (pyridine) as a RAISED homoEv. Free '
+            'borabenzene is a reactive species; as a lattice-'
+            'substitution stand-in that is fine (stated).'
+        ),
+        'calculation_ref': 'dft-molecular-energy',
+        'structure_json': json.dumps({'kind': 'molecule',
+                                      'atoms': _BORABENZENE}),
+        'method_json': json.dumps({'basis': '6-31g', 'xc': 'b3lyp',
+                                   'charge': 0, 'spin': 0}),
+        'accuracy_json': '{}',
+        'notes': f'{PROV}: idealized hexagon geometry; the p/i/n '
+                 'series = this row + cnt-fragment-energy + '
+                 'doped-cnt-fragment-energy.',
+        'enabled': True,
+    },
+]
+
+SEED_STANDARD_SCALE_DEFINITIONS += [
+    # ---- wax-ferrite --------------------------------------------------
+    {
+        'name': 'wax-ferrite@L0',
+        'material_name': 'wax-ferrite',
+        'scale_level': 0, 'scale_category': 'experimental',
+        'definition_class': 'MeasuredProperties', 'definition_ref': '',
+        'status': 'partial', 'derivation_method': 'literature',
+        'parameters_json': json.dumps({
+            'role': 'the PRINTABLE part of the tuned-magnetic-'
+                    'structure toolkit (lowest-temperature '
+                    'processing; MVW thermal windows apply)',
+            'bondedMagnetReference': 'commercial bonded magnets: '
+                                     'ferrite/NdFeB in nylon or '
+                                     'rubber, 50-65 vol%',
+            'openVariables': ['max ferrite loading before print '
+                              'rheology fails', 'settling during '
+                              'melt', 'field-alignment during '
+                              'solidification (anisotropic parts!)'],
+        }),
+        'provenance_id': PROV, 'notes': '',
+    },
+    {
+        'name': 'wax-ferrite@L1',
+        'material_name': 'wax-ferrite',
+        'scale_level': 1, 'scale_category': 'continuum',
+        'definition_class': 'FEMModelDefinition',
+        'definition_ref': 'wax-ferrite-permeability',
+        'status': 'partial',
+        'derived_from_name': 'beeswax@L0',
+        'derivation_method': 'homogenized',
+        'parameters_json': '{}',
+        'provenance_id': PROV,
+        'notes': 'Executable permeability bound (partial until run).',
+    },
+    # ---- p-type tube ---------------------------------------------------
+    {
+        'name': 'b-doped-carbon-nanotube@L0',
+        'material_name': 'b-doped-carbon-nanotube',
+        'scale_level': 0, 'scale_category': 'experimental',
+        'definition_class': 'MeasuredProperties', 'definition_ref': '',
+        'status': 'partial',
+        'derived_from_name': 'carbon-nanotube@L0',
+        'derivation_method': 'literature',
+        'parameters_json': json.dumps({
+            'boronContent_atPct': [1, 5],
+            'electronicCharacter': 'p-type vs pristine (acceptor '
+                                   'states — electron-deficient B)',
+            'note': 'axial conductivity stays metallic-order; doping '
+                    'shifts the FRONTIER levels, not the percolation '
+                    'story',
+        }),
+        'provenance_id': PROV, 'notes': '',
+    },
+    {
+        'name': 'b-doped-carbon-nanotube@L4',
+        'material_name': 'b-doped-carbon-nanotube',
+        'scale_level': 4, 'scale_category': 'quantum',
+        'definition_class': 'DFTModelDefinition',
+        'definition_ref': 'p-doped-cnt-fragment-energy',
+        'status': 'partial',
+        'derived_from_name': 'carbon-nanotube@L4',
+        'derivation_method': 'dft-parameterized',
+        'parameters_json': '{}',
+        'provenance_id': PROV,
+        'notes': 'Executable: borabenzene p-fragment, comparable '
+                 'against benzene (i) and pyridine (n).',
+    },
+    # ---- the semiconductor composite (percolation rows per medium) ----
+    {
+        'name': 'cnt-semiconductor-composite@L0',
+        'material_name': 'cnt-semiconductor-composite',
+        'scale_level': 0, 'scale_category': 'experimental',
+        'definition_class': 'AnalysisFrame', 'definition_ref': '',
+        'status': 'partial', 'derivation_method': 'literature',
+        'parameters_json': json.dumps({
+            'question': 'which (tube, medium, loading) combinations '
+                        'behave as usable semiconductor materials?',
+            'computableNow': [
+                'percolation conductivity per medium/loading (the '
+                'insulator->conductor threshold)',
+                'frontier-orbital p/i/n shifts (donor/acceptor bias '
+                'evidence via homoEv/lumoEv)'],
+            'notComputableYet': [
+                'junction/diode I-V behavior (needs device-level '
+                'transport — NEGF or drift-diffusion engine)',
+                'field-effect mobility in the matrix'],
+        }),
+        'provenance_id': PROV, 'notes': '',
+    },
+    {
+        'name': 'cnt-semiconductor-composite@L1-wax',
+        'material_name': 'cnt-semiconductor-composite',
+        'scale_level': 1, 'scale_category': 'continuum',
+        'definition_class': 'FEMModelDefinition',
+        'definition_ref': 'cnt-wax-percolation',
+        'status': 'partial',
+        'derived_from_name': 'beeswax@L0',
+        'derivation_method': 'homogenized',
+        'parameters_json': '{}',
+        'provenance_id': PROV,
+        'notes': 'Executable percolation conductivity in the wax '
+                 'medium (variant-suffixed row name — one row per '
+                 'medium).',
+    },
+    {
+        'name': 'cnt-semiconductor-composite@L1-geopolymer',
+        'material_name': 'cnt-semiconductor-composite',
+        'scale_level': 1, 'scale_category': 'continuum',
+        'definition_class': 'FEMModelDefinition',
+        'definition_ref': 'cnt-geopolymer-percolation',
+        'status': 'partial',
+        'derived_from_name': 'geopolymer@L0',
+        'derivation_method': 'homogenized',
+        'parameters_json': '{}',
+        'provenance_id': PROV,
+        'notes': 'Executable percolation conductivity in the '
+                 'geopolymer medium.',
+    },
+    {
+        'name': 'cnt-semiconductor-composite@L1-solgel',
+        'material_name': 'cnt-semiconductor-composite',
+        'scale_level': 1, 'scale_category': 'continuum',
+        'definition_class': 'FEMModelDefinition',
+        'definition_ref': 'cnt-solgel-percolation',
+        'status': 'partial',
+        'derived_from_name': 'sol-gel-silica@L0',
+        'derivation_method': 'homogenized',
+        'parameters_json': '{}',
+        'provenance_id': PROV,
+        'notes': 'Executable percolation conductivity in the sol-gel '
+                 'medium.',
+    },
+    {
+        'name': 'cnt-semiconductor-composite@L4',
+        'material_name': 'cnt-semiconductor-composite',
+        'scale_level': 4, 'scale_category': 'quantum',
+        'definition_class': 'AnalysisFrame', 'definition_ref': '',
+        'status': 'partial', 'derivation_method': 'dft-parameterized',
+        'parameters_json': json.dumps({
+            'series': ['cnt-fragment-energy (i)',
+                       'doped-cnt-fragment-energy (n)',
+                       'p-doped-cnt-fragment-energy (p)'],
+            'read': 'run all three; n-character = raised homoEv vs '
+                    'benzene, p-character = lowered lumoEv vs '
+                    'benzene; gapEv per fragment',
+            'gap': 'junction-level bias behavior needs a transport '
+                   'engine (honest boundary of this analysis)',
+        }),
+        'provenance_id': PROV,
+        'notes': 'The p/i/n frontier-orbital comparison frame — the '
+                 'three referenced DFT models are the executables.',
+    },
+]
+
+_stamp_categories(SEED_STANDARD_MATERIALS)

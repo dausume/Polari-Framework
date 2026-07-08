@@ -27,6 +27,7 @@ refusals pass through their suggestions untouched.
 import json
 
 from materialsScience.engines import dft_engine, fem_engine
+from materialsScience.engines import transport_engine
 
 
 def _permeability_from_conductivity(result):
@@ -78,6 +79,18 @@ ENGINE_REGISTRY = {
             inclusion_k=float(inputs.get('inclusionMu', 0.0)),
             volume_fraction=float(inputs.get('volumeFraction', 0.0)),
             refine=int(inputs.get('refine', 5)))),
+    # Percolation (msci-23): the conductive-filler regime continuum
+    # homogenization cannot see — classical power law, pure python,
+    # always available. For CNT/conductive-particle composites.
+    'analytic.percolation-conductivity': lambda inputs:
+        transport_engine.percolation_conductivity(
+            matrix_sigma=float(inputs.get('matrixSigma', 0.0)),
+            filler_sigma=float(inputs.get('fillerSigma', 0.0)),
+            volume_fraction=float(inputs.get('volumeFraction', 0.0)),
+            percolation_threshold=float(
+                inputs.get('percolationThreshold', 0.005)),
+            transport_exponent=float(
+                inputs.get('transportExponent', 2.0))),
     # The remaining dft_engine surfaces, registered for uniformity so
     # every engine function is template-addressable. Both are
     # capability-gated and refuse honestly when their layer is absent
