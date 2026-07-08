@@ -45,13 +45,13 @@ def _mgr(with_beeswax_result=True):
         'ScoreSubject': _rows(SEED_SCORE_SUBJECTS),
         'ContextualizedValue': _rows(SEED_CONTEXTUALIZED_VALUES),
         'ScoreConcept': _rows(SEED_SCORE_CONCEPTS),
+        'FEMModelDefinition': {},
         'MaterialScaleDefinition': {},
     }
     if with_beeswax_result:
-        tables['MaterialScaleDefinition'] = {0: SimpleNamespace(
-            name='beeswax@L1',
-            parameters_json='{"engine": "fem.effective-conductivity",'
-                            ' "result": {"effectiveK": 0.2593}}')}
+        tables['FEMModelDefinition'] = {0: SimpleNamespace(
+            name='wax-thermal-continuum',
+            last_result_json='{"effectiveK": 0.2593}')}
     return SimpleNamespace(objectTables=tables)
 
 
@@ -121,7 +121,7 @@ if __name__ == '__main__':
           not bee['termsMissing']
           and abs(bee['breakdown'][0]['raw'] - 0.2593) < 1e-9)
     check('objectRef source travels in the breakdown',
-          'MaterialScaleDefinition/beeswax@L1'
+          'FEMModelDefinition/wax-thermal-continuum'
           in bee['breakdown'][0]['source'])
     car = subjects['carnauba-material']
     check('carnauba honestly missing (no executed L1 row)',

@@ -178,8 +178,9 @@ SEED_CONTEXTUALIZED_VALUES = [
     for term, value in data.items()
 ] + [
     {
-        # THE arbitrary-data seam, live: the raw value is the stored
-        # FEM homogenization result on the beeswax@L1 scale row.
+        # THE arbitrary-data seam, live: the raw value is the FEM
+        # homogenization result persisted ON the wax-thermal-continuum
+        # model row (msci-15: results live on the model).
         'name': 'thermal-conductivity@beeswax',
         'term_name': 'thermal-conductivity-score',
         'subject_name': 'beeswax-material',
@@ -187,11 +188,11 @@ SEED_CONTEXTUALIZED_VALUES = [
         'pre_normalized_value': None,
         'data_ref_json': json.dumps(
             {'kind': 'objectRef',
-             'className': 'MaterialScaleDefinition',
-             'name': 'beeswax@L1',
-             'path': 'parameters_json.result.effectiveK'}),
-        'source': 'objectRef → beeswax@L1 FEM result (resolved live '
-                  'at scoring time)',
+             'className': 'FEMModelDefinition',
+             'name': 'wax-thermal-continuum',
+             'path': 'last_result_json.effectiveK'}),
+        'source': 'objectRef → wax-thermal-continuum FEM result '
+                  '(resolved live at scoring time)',
         'provenance_id': 'msci FEM homogenization',
     },
     {
