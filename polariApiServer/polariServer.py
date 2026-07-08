@@ -178,6 +178,13 @@ from aquaponics.plant_seed import SEED_PLANTS, SEED_PLANT_PARTS
 # aqp-5: full atmospheric conditions + plant<->air gas exchange.
 from aquaponics.atmosphere_basis import AtmosphereDefinition
 from aquaponics.atmosphere_seed import SEED_ATMOSPHERES
+# aqp-6: bound pot systems + environmental-impact/survival synthesis +
+# the scoring bridge (systems ranked through the context-scoring engine).
+from aquaponics.pot_system import PotSystemDefinition
+from aquaponics.pot_system_seed import (
+    SEED_AQP_CONTEXTUALIZED_VALUES, SEED_AQP_SCORE_CONCEPTS,
+    SEED_AQP_SCORE_SUBJECTS, SEED_AQP_SCORE_TERMS, SEED_POT_SYSTEMS,
+)
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -601,6 +608,10 @@ class polariServer(treeObject):
         from aquaponics.atmosphere_api import AquaponicsAtmosphereAPI
         aquaponicsAtmosphereEndpoint = AquaponicsAtmosphereAPI(
             polServer=self, manager=self.manager)
+        # Aquaponics: bound pot systems — survival + impact (aqp-6).
+        from aquaponics.pot_system_api import AquaponicsSystemAPI
+        aquaponicsSystemEndpoint = AquaponicsSystemAPI(
+            polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -675,7 +686,7 @@ class polariServer(treeObject):
             PotDefinition, PotHole,
             NutrientSpecies, NutrientProfile, SoilDefinition,
             WaterDefinition, PlantDefinition, PlantPart,
-            AtmosphereDefinition,
+            AtmosphereDefinition, PotSystemDefinition,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1497,14 +1508,18 @@ class polariServer(treeObject):
             # Context-based scoring: terms/contexts/subjects before the
             # values and concepts that reference them.
             ('ScoreTerm', ScoreTerm,
-             SEED_SCORE_TERMS + SEED_COST_TERMS),
+             SEED_SCORE_TERMS + SEED_COST_TERMS
+             + SEED_AQP_SCORE_TERMS),
             ('ScoreContext', ScoreContext, SEED_SCORE_CONTEXTS),
             ('ScoreSubject', ScoreSubject,
              SEED_SCORE_SUBJECTS + SEED_POLICY_SUBJECTS
-             + SEED_POLITICIAN_SUBJECTS + SEED_MEDIA_OUTLETS),
+             + SEED_POLITICIAN_SUBJECTS + SEED_MEDIA_OUTLETS
+             + SEED_AQP_SCORE_SUBJECTS),
             ('ContextualizedValue', ContextualizedValue,
-             SEED_CONTEXTUALIZED_VALUES),
-            ('ScoreConcept', ScoreConcept, SEED_SCORE_CONCEPTS),
+             SEED_CONTEXTUALIZED_VALUES
+             + SEED_AQP_CONTEXTUALIZED_VALUES),
+            ('ScoreConcept', ScoreConcept,
+             SEED_SCORE_CONCEPTS + SEED_AQP_SCORE_CONCEPTS),
             # Groups + the editable agreement-classification bands
             # (concepts first — groups reference member concepts).
             ('ScoreGroup', ScoreGroup,
@@ -1559,6 +1574,10 @@ class polariServer(treeObject):
             # aqp-5: atmospheric environments.
             ('AtmosphereDefinition', AtmosphereDefinition,
              SEED_ATMOSPHERES),
+            # aqp-6: bound pot systems (the scoring rows above bind to
+            # these via objectRef into impact_result_json).
+            ('PotSystemDefinition', PotSystemDefinition,
+             SEED_POT_SYSTEMS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
