@@ -83,7 +83,7 @@ class ScoringAPI(treeObject):
 
     def on_post_ingest(self, request, response):
         try:
-            payload = json.loads(request.stream.read() or b'{}')
+            payload = json.load(request.bounded_stream)
         except Exception as e:
             response.status = '400 Bad Request'
             response.media = {'ok': False,
