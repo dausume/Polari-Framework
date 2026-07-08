@@ -38,6 +38,8 @@ SEED_SCORE_TERMS = [
         'is_positive': True,
         'normalization_json': json.dumps(
             {'method': 'min-max', 'min': 0.0, 'max': 22.9}),
+        'temporal_json': json.dumps(
+            {'nature': 'stock', 'resample': 'mean'}),
         'provenance_id': _SCORECARD_PROV,
     },
     {
@@ -49,6 +51,8 @@ SEED_SCORE_TERMS = [
         'is_positive': True,
         'normalization_json': json.dumps(
             {'method': 'min-max', 'min': 54.5, 'max': 70.1}),
+        'temporal_json': json.dumps(
+            {'nature': 'stock', 'resample': 'mean'}),
         'provenance_id': _SCORECARD_PROV,
     },
     {
@@ -60,6 +64,8 @@ SEED_SCORE_TERMS = [
         'is_positive': True,
         'normalization_json': json.dumps(
             {'method': 'min-max', 'min': 7.25, 'max': 17.50}),
+        'temporal_json': json.dumps(
+            {'nature': 'stock', 'resample': 'last'}),
         'provenance_id': _SCORECARD_PROV,
     },
     {
@@ -72,6 +78,8 @@ SEED_SCORE_TERMS = [
         'is_positive': False,
         'normalization_json': json.dumps(
             {'method': 'min-max', 'min': 5.0, 'max': 15.0}),
+        'temporal_json': json.dumps(
+            {'nature': 'stock', 'resample': 'mean'}),
         'provenance_id': _SCORECARD_PROV,
     },
     {
@@ -101,6 +109,20 @@ SEED_SCORE_CONTEXTS = [
         'value_json': json.dumps(
             {'start': '2022-01-01', 'end': '2022-12-31'}),
     },
+] + [
+    {
+        # Quarterly frames nest under the year (parent_name) — the
+        # time hierarchy works exactly like the location one.
+        'name': f'q{i}-2022', 'display_name': f'Q{i} 2022',
+        'context_type': 'timeframe',
+        'parent_name': 'year-2022',
+        'value_json': json.dumps({'start': start, 'end': end}),
+    }
+    for i, (start, end) in enumerate([
+        ('2022-01-01', '2022-03-31'), ('2022-04-01', '2022-06-30'),
+        ('2022-07-01', '2022-09-30'), ('2022-10-01', '2022-12-31'),
+    ], start=1)
+] + [
     {
         'name': 'country-usa', 'display_name': 'USA',
         'context_type': 'location',
@@ -185,6 +207,24 @@ SEED_CONTEXTUALIZED_VALUES = [
     }
     for state, data in _STATE_DATA.items()
     for term, value in data.items()
+] + [
+    {
+        # Quarterly LFPR series for texas (scr-4 demo): the yearly
+        # value stays authoritative for year-2022 requests (full
+        # cover); these serve quarter-specific frames and prove
+        # coexisting scales — their day-weighted mean reproduces the
+        # yearly 63.2 to within rounding.
+        'name': f'labor-force-participation-rate@texas-q{i}-2022',
+        'term_name': 'labor-force-participation-rate',
+        'subject_name': 'texas',
+        'context_names_json': json.dumps(
+            ['state-texas', f'q{i}-2022']),
+        'pre_normalized_value': value,
+        'source': 'quarterly demo series',
+        'provenance_id': 'scr-4 demo — quarterly decomposition of '
+                         'the 2022 sample value',
+    }
+    for i, value in enumerate([62.8, 63.0, 63.4, 63.6], start=1)
 ] + [
     {
         # THE arbitrary-data seam, live: the raw value is the FEM

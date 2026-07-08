@@ -83,6 +83,11 @@ class ScoreTerm(treeObject):
         # breakdown always shows which spec produced a normalized
         # value.
         normalization_json: str = '{"method": "min-max-auto"}',
+        # Temporal semantics (JSON): {"nature": "stock"|"flow"|
+        # "event", "resample": "mean"|"sum"|"nearest"|"last"|"count"}
+        # — how values of this metric may be combined across
+        # timeframes. Undeclared + combination needed = refusal.
+        temporal_json: str = '{}',
         # Loose links to related/opposing terms (JSON name lists).
         equivalent_terms_json: str = '[]',
         competitive_terms_json: str = '[]',
@@ -99,6 +104,7 @@ class ScoreTerm(treeObject):
         self.unit = unit
         self.is_positive = is_positive
         self.normalization_json = normalization_json
+        self.temporal_json = temporal_json
         self.equivalent_terms_json = equivalent_terms_json
         self.competitive_terms_json = competitive_terms_json
         self.source = source

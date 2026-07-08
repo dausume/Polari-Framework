@@ -373,6 +373,122 @@ if __name__ == '__main__':
           'normalizes to 0',
           wage['isPositive'] is False and wage['normalized'] == 0.0)
 
+    print('\ntime-specific scoring (scr-4)')
+    from scoring.timeframes import parse_frame, timeframe_specificity
+
+    def _concept(mgr, name, term, required, time_policy=''):
+        mgr.objectTables['ScoreConcept'][f'fix-{name}'] = \
+            SimpleNamespace(
+                name=name, display_name=name, subject_kind='state',
+                subject_names_json='["texas"]',
+                term_weights_json=_json.dumps(
+                    [{'term': term, 'weight': 1}]),
+                required_context_names_json=_json.dumps(required),
+                aggregation='weighted-mean', levelize=False,
+                time_policy_json=time_policy)
+
+    def _ctx(mgr, name, start, end):
+        mgr.objectTables['ScoreContext'][f'fix-{name}'] = \
+            SimpleNamespace(name=name, display_name=name,
+                            context_type='timeframe', parent_name='',
+                            value_json=_json.dumps(
+                                {'start': start, 'end': end}))
+
+    def _lfpr(subjects):
+        return next(b for b in subjects[0]['breakdown'])
+
+    check('quarter frames grade more specific than the year',
+          timeframe_specificity(parse_frame(
+              '{"start": "2022-04-01", "end": "2022-06-30"}')) == 7
+          and timeframe_specificity(parse_frame(
+              '{"start": "2022-01-01", "end": "2022-12-31"}')) == 6)
+
+    mgr = _mgr()
+    check('parity guard: yearly full-cover still wins for texas '
+          '(quarterly rows present)',
+          abs({s['subject']: s for s in score_concept(
+              mgr, 'labor-quality')['subjects']}['texas'][
+                  'initialScore'] - EXPECTED['texas']) < 1e-4)
+
+    _concept(mgr, 'fix-q2', 'labor-force-participation-rate',
+             ['q2-2022'])
+    entry = _lfpr(score_concept(mgr, 'fix-q2')['subjects'])
+    check('quarter-specific request serves the quarter directly '
+          '(63.0)', entry['found'] and entry['raw'] == 63.0)
+
+    # Remove the yearly texas LFPR row: the year must now be SERVED
+    # by combining the quarters (day-weighted mean).
+    mgr2 = _mgr()
+    mgr2.objectTables['ContextualizedValue'] = {
+        k: v for k, v in
+        mgr2.objectTables['ContextualizedValue'].items()
+        if getattr(v, 'name', '')
+        != 'labor-force-participation-rate@texas-2022'}
+    _concept(mgr2, 'fix-year', 'labor-force-participation-rate',
+             ['year-2022'])
+    entry = _lfpr(score_concept(mgr2, 'fix-year')['subjects'])
+    expected_mean = (62.8 * 90 + 63.0 * 91 + 63.4 * 92
+                     + 63.6 * 92) / 365
+    check('coexisting scales: quarters combine day-weighted to serve '
+          'the year',
+          entry['found'] and abs(entry['raw'] - expected_mean) < 1e-3
+          and entry['derived'] == 'time-weighted-mean'
+          and len(entry['fromRows']) == 4,
+          f"raw {entry.get('raw')}")
+
+    # Undeclared temporal nature -> refusal naming the knob.
+    mgr3 = _mgr()
+    mgr3.objectTables['ContextualizedValue'] = \
+        mgr2.objectTables['ContextualizedValue']
+    for row in mgr3.objectTables['ScoreTerm'].values():
+        if getattr(row, 'name', '') \
+                == 'labor-force-participation-rate':
+            row.temporal_json = '{}'
+    _concept(mgr3, 'fix-undeclared',
+             'labor-force-participation-rate', ['year-2022'])
+    entry = _lfpr(score_concept(mgr3, 'fix-undeclared')['subjects'])
+    check('combining without declared temporal nature refused w/ '
+          'the knob',
+          not entry['found'] and 'temporal' in entry['error']
+          and entry['suggestion']['knob'] == 'ScoreTerm.temporal_json')
+
+    # Gap interpolation between measured frames, labeled.
+    mgr4 = _mgr()
+    _ctx(mgr4, 'q2-2023', '2023-04-01', '2023-06-30')
+    mgr4.objectTables['ContextualizedValue']['fix-q4-2023'] = \
+        SimpleNamespace(
+            name='lfpr@texas-q4-2023',
+            term_name='labor-force-participation-rate',
+            subject_name='texas',
+            context_names_json='["state-texas", "q4-2023"]',
+            pre_normalized_value=64.4, data_ref_json='',
+            provenance_id='fixture')
+    _ctx(mgr4, 'q4-2023', '2023-10-01', '2023-12-31')
+    _concept(mgr4, 'fix-interp', 'labor-force-participation-rate',
+             ['q2-2023'])
+    entry = _lfpr(score_concept(mgr4, 'fix-interp')['subjects'])
+    check('gap interpolates between neighboring frames, LABELED',
+          entry['found'] and abs(entry['raw'] - 64.0) < 0.05
+          and entry['derived'] == 'interpolated'
+          and len(entry['fromRows']) == 2,
+          f"raw {entry.get('raw')}")
+
+    # Beyond the measured range: refusal, then the explicit knob.
+    mgr5 = _mgr()
+    _ctx(mgr5, 'year-2025', '2025-01-01', '2025-12-31')
+    _concept(mgr5, 'fix-extrap', 'labor-force-participation-rate',
+             ['year-2025'])
+    entry = _lfpr(score_concept(mgr5, 'fix-extrap')['subjects'])
+    check('extrapolation refused by default, frontier named',
+          not entry['found'] and 'extrapolation'
+          in entry['error'] and entry.get('frontierRow'))
+    _concept(mgr5, 'fix-extrap-on',
+             'labor-force-participation-rate', ['year-2025'],
+             time_policy='{"allowExtrapolation": true}')
+    entry = _lfpr(score_concept(mgr5, 'fix-extrap-on')['subjects'])
+    check('explicit allowExtrapolation serves nearest, LABELED',
+          entry['found'] and entry['derived'] == 'extrapolated-nearest')
+
     print('\nhonest errors')
     bad = score_concept(_mgr(), 'no-such-concept')
     check('unknown concept named + known list',

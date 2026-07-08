@@ -52,6 +52,11 @@ class ScoreConcept(treeObject):
         # Scale scores to the best subject = 100 (the scorecard's
         # levelization) — an explicit knob, not silent behavior.
         levelize: bool = True,
+        # Time knobs (JSON): {"allowInterpolation": true,
+        # "allowExtrapolation": false} — whether gap values may be
+        # interpolated (always labeled) and whether frames beyond the
+        # measured range may be served at all.
+        time_policy_json: str = '',
         provenance_id: str = '',
         notes: str = '',
         manager=None,
@@ -65,5 +70,6 @@ class ScoreConcept(treeObject):
         self.required_context_names_json = required_context_names_json
         self.aggregation = aggregation
         self.levelize = levelize
+        self.time_policy_json = time_policy_json
         self.provenance_id = provenance_id
         self.notes = notes

@@ -27,6 +27,11 @@ from materialsScience.component_binding import resolve_binding
 from scoring.scoring_basis import (
     CONTEXT_TYPES, LOCATION_SPECIFICITY,
 )
+from scoring.timeframes import (
+    combine_over_frame, duration_days, frame_of_context,
+    interpolate_at, overlap_days, term_temporal,
+    timeframe_specificity,
+)
 
 AGGREGATION_NOTE = (
     'weighted-mean = sum(weight x normalized) / sum(all weights); '
@@ -59,13 +64,17 @@ def _parse(text, fallback):
 
 def context_specificity(context_row):
     """Scorecard idiom: the most specific matching value wins.
-    Location granularity dominates; other types use their base rank."""
+    Location granularity dominates; timeframes grade by duration
+    (shorter = more specific); other types use their base rank."""
     ctype = getattr(context_row, 'context_type', 'custom')
     base = CONTEXT_TYPES.get(ctype, 1)
     if ctype == 'location':
         value = _parse(getattr(context_row, 'value_json', '{}'), '{}')
         return LOCATION_SPECIFICITY.get(
             value.get('granularity', ''), base)
+    if ctype == 'timeframe':
+        frame = frame_of_context(context_row)
+        return timeframe_specificity(frame) if frame else base
     return base
 
 
@@ -179,6 +188,140 @@ def select_value(values, required_contexts, contexts_by_name):
     return candidates[0][1]
 
 
+def _value_frame(value_row, contexts_by_name):
+    """A value's most specific timeframe among its held contexts."""
+    held = _parse(getattr(value_row, 'context_names_json', '[]'), '[]')
+    frames = []
+    for name in held:
+        ctx = contexts_by_name.get(name)
+        frame = frame_of_context(ctx) if ctx is not None else None
+        if frame:
+            frames.append(frame)
+    if not frames:
+        return None
+    return min(frames, key=duration_days)
+
+
+def resolve_value_over_time(manager, values, required, contexts_by_name,
+                            term, time_policy):
+    """(ok, raw, meta) for one (term, subject) under the required
+    contexts — the time-aware path (Dustin 2026-07-08: frames
+    'coexisting and overlapping and interpolating').
+
+    No required timeframe → the plain most-specific pick. With one:
+    a single full-cover value wins (most specific); partial covers
+    combine per the term's declared temporal nature (labeled, with
+    coverage); a gap interpolates (stocks only, labeled, knob-gated);
+    beyond the measured range refuses unless extrapolation is
+    explicitly allowed."""
+    # The TIME dimension matches by FRAME, not by name — a quarterly
+    # value can serve a yearly request (combination) or a neighboring
+    # frame (interpolation) that no name/ancestor chain would match.
+    target, non_time = None, []
+    for name in (required or []):
+        ctx = contexts_by_name.get(name)
+        frame = frame_of_context(ctx) if ctx is not None else None
+        if frame and target is None:
+            target = frame
+        elif frame:
+            pass  # one target frame per evaluation (first wins)
+        else:
+            non_time.append(name)
+
+    if target is None:
+        chosen = select_value(values, required, contexts_by_name)
+        if chosen is None:
+            return False, None, {'error': 'no value under the '
+                                          'required contexts'}
+        ok, raw, meta = resolve_raw_value(manager, chosen)
+        if not ok:
+            return False, None, meta
+        return True, raw, {**meta,
+                           'valueRow': getattr(chosen, 'name', ''),
+                           'provenance':
+                           getattr(chosen, 'provenance_id', '')}
+
+    # Candidates satisfy the NON-time requirements (hierarchy applies
+    # there); their own frames drive cover/combination/interpolation.
+    candidates = []
+    for row in values:
+        held = set(_parse(getattr(row, 'context_names_json', '[]'),
+                          '[]'))
+        if set(non_time) <= expand_contexts(held, contexts_by_name):
+            candidates.append(row)
+    samples, full_cover = [], []
+    for row in candidates:
+        frame = _value_frame(row, contexts_by_name)
+        if frame is None:
+            continue
+        ok, raw, _ = resolve_raw_value(manager, row)
+        if not ok:
+            continue
+        name = getattr(row, 'name', '')
+        samples.append((frame, raw, name))
+        if overlap_days(frame, target) == duration_days(target):
+            full_cover.append((frame, raw, row))
+    if full_cover:
+        frame, raw, row = min(full_cover,
+                              key=lambda s: duration_days(s[0]))
+        return True, raw, {'source': 'stored',
+                           'valueRow': getattr(row, 'name', ''),
+                           'provenance':
+                           getattr(row, 'provenance_id', '')}
+    if not samples:
+        return False, None, {'error': 'no value under the required '
+                                      'contexts'}
+
+    nature, rule = term_temporal(term)
+    if rule is None:
+        return False, None, {
+            'error': f"combining timeframes for "
+                     f"'{getattr(term, 'name', '?')}' needs its "
+                     'temporal nature declared',
+            'suggestion': {'knob': 'ScoreTerm.temporal_json',
+                           'action': "set {'nature': 'stock'|'flow'|"
+                                     "'event'} so the engine knows "
+                                     'how this metric resamples'}}
+    overlapping = [s for s in samples if overlap_days(s[0], target)]
+    if overlapping:
+        ok, raw, meta = combine_over_frame(samples, target, rule)
+        if not ok:
+            return False, None, meta
+        return True, raw, {**meta, 'source':
+                           f"derived: {meta['derived']} over "
+                           f"{len(meta['fromRows'])} rows "
+                           f"(coverage {meta['coverage']})"}
+    if not time_policy.get('allowInterpolation', True):
+        return False, None, {
+            'error': 'no value overlaps the frame and interpolation '
+                     'is disabled on this concept',
+            'suggestion': {'knob': 'time_policy_json.'
+                                   'allowInterpolation',
+                           'action': 'enable it, or ingest a value '
+                                     'covering the frame'}}
+    if nature != 'stock':
+        return False, None, {
+            'error': f"gap interpolation only applies to 'stock' "
+                     f"metrics (this term is '{nature}')"}
+    ok, raw, meta = interpolate_at(samples, target)
+    if not ok and time_policy.get('allowExtrapolation', False) \
+            and 'extrapolation' in meta.get('error', ''):
+        frame, raw2, name = min(
+            samples, key=lambda s: min(
+                abs((s[0][0] - target[1]).days),
+                abs((target[0] - s[0][1]).days)))
+        return True, raw2, {'derived': 'extrapolated-nearest',
+                            'fromRows': [name],
+                            'source': 'derived: extrapolated-nearest '
+                                      '(explicitly allowed)'}
+    if not ok:
+        return False, None, meta
+    return True, raw, {**meta, 'source':
+                       f"derived: interpolated between "
+                       f"{' and '.join(meta['fromRows'])} "
+                       f"(fraction {meta['fraction']})"}
+
+
 def score_concept(manager, concept_name, _path=()):
     """The full pipeline for one concept: per-subject breakdowns +
     (knob-gated) levelized comparison.
@@ -246,6 +389,10 @@ def score_concept(manager, concept_name, _path=()):
             child_reports[child_name] = score_concept(
                 manager, child_name, _path + (concept_name,))
 
+    time_policy = _parse(
+        getattr(concept, 'time_policy_json', ''),
+        '{"allowInterpolation": true, "allowExtrapolation": false}')
+
     raw_cache, pools = {}, {}
     for entry in term_weights:
         if entry.get('concept'):
@@ -253,24 +400,12 @@ def score_concept(manager, concept_name, _path=()):
         term_key = entry.get('term', '')
         for subject in picked:
             sname = getattr(subject, 'name', '')
-            chosen = select_value(
-                values_by_key.get((term_key, sname), []),
-                required, contexts)
-            if chosen is None:
-                raw_cache[(term_key, sname)] = (
-                    False, None, {'error': 'no value under the '
-                                           'required contexts'})
-                continue
-            ok, raw, meta = resolve_raw_value(manager, chosen)
-            raw_cache[(term_key, sname)] = (ok, raw, meta) if ok else \
-                (False, None, meta)
+            ok, raw, meta = resolve_value_over_time(
+                manager, values_by_key.get((term_key, sname), []),
+                required, contexts, terms.get(term_key), time_policy)
+            raw_cache[(term_key, sname)] = (ok, raw, meta)
             if ok:
                 pools.setdefault(term_key, []).append(raw)
-                raw_cache[(term_key, sname)] = (
-                    True, raw, {**meta, 'valueRow':
-                                getattr(chosen, 'name', ''),
-                                'provenance':
-                                getattr(chosen, 'provenance_id', '')})
 
     total_weight = sum(e.get('weight', 0) for e in term_weights) or 1
     results = []
@@ -359,7 +494,9 @@ def score_concept(manager, concept_name, _path=()):
                 'normalization': applied,
                 'found': True,
                 **{k: v for k, v in (meta or {}).items()
-                   if k in ('source', 'valueRow', 'provenance')},
+                   if k in ('source', 'valueRow', 'provenance',
+                            'derived', 'fromRows', 'coverage',
+                            'fraction')},
             })
         initial = weighted_sum / total_weight
         results.append({
