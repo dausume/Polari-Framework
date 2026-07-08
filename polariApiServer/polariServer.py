@@ -171,6 +171,10 @@ from aquaponics.media_seed import (
     SEED_NUTRIENT_PROFILES, SEED_NUTRIENT_SPECIES, SEED_SOILS,
     SEED_WATERS,
 )
+# aqp-4: per-part plant profiles (permanent structure + carbon/nutrient
+# capture + CO2/O2 flux).
+from aquaponics.plant_basis import PlantDefinition, PlantPart
+from aquaponics.plant_seed import SEED_PLANTS, SEED_PLANT_PARTS
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -586,6 +590,10 @@ class polariServer(treeObject):
         from aquaponics.media_api import AquaponicsMediaAPI
         aquaponicsMediaEndpoint = AquaponicsMediaAPI(
             polServer=self, manager=self.manager)
+        # Aquaponics: per-part plant capture + budget (aqp-4).
+        from aquaponics.plant_api import AquaponicsPlantAPI
+        aquaponicsPlantEndpoint = AquaponicsPlantAPI(
+            polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -659,7 +667,7 @@ class polariServer(treeObject):
             CostCategory, SurvivalCostProfile,
             PotDefinition, PotHole,
             NutrientSpecies, NutrientProfile, SoilDefinition,
-            WaterDefinition,
+            WaterDefinition, PlantDefinition, PlantPart,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1537,6 +1545,9 @@ class polariServer(treeObject):
              SEED_NUTRIENT_PROFILES),
             ('SoilDefinition', SoilDefinition, SEED_SOILS),
             ('WaterDefinition', WaterDefinition, SEED_WATERS),
+            # aqp-4: plants before their parts (parts reference plant).
+            ('PlantDefinition', PlantDefinition, SEED_PLANTS),
+            ('PlantPart', PlantPart, SEED_PLANT_PARTS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
