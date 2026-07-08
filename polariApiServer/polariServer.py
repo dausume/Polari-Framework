@@ -163,6 +163,14 @@ from aquaponics.pot_materials_seed import (
     SEED_POT_MATERIALS, SEED_POT_PROPERTY_MEANINGS,
     SEED_POT_SCALE_DEFINITIONS,
 )
+# aqp-2: multiscale soil + water + nutrient profiles.
+from aquaponics.growth_media import (
+    NutrientProfile, NutrientSpecies, SoilDefinition, WaterDefinition,
+)
+from aquaponics.media_seed import (
+    SEED_NUTRIENT_PROFILES, SEED_NUTRIENT_SPECIES, SEED_SOILS,
+    SEED_WATERS,
+)
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -574,6 +582,10 @@ class polariServer(treeObject):
         from aquaponics.pot_api import AquaponicsPotAPI
         aquaponicsPotEndpoint = AquaponicsPotAPI(
             polServer=self, manager=self.manager)
+        # Aquaponics: soil / water / nutrient-profile analysis (aqp-2).
+        from aquaponics.media_api import AquaponicsMediaAPI
+        aquaponicsMediaEndpoint = AquaponicsMediaAPI(
+            polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -646,6 +658,8 @@ class polariServer(treeObject):
             FactualClaim, AccuracyPolicy, BiasPolicy,
             CostCategory, SurvivalCostProfile,
             PotDefinition, PotHole,
+            NutrientSpecies, NutrientProfile, SoilDefinition,
+            WaterDefinition,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1515,6 +1529,14 @@ class polariServer(treeObject):
             # before holes — holes reference their pot).
             ('PotDefinition', PotDefinition, SEED_POTS),
             ('PotHole', PotHole, SEED_POT_HOLES),
+            # aqp-2: species vocab before profiles; soils/waters
+            # reference profiles.
+            ('NutrientSpecies', NutrientSpecies,
+             SEED_NUTRIENT_SPECIES),
+            ('NutrientProfile', NutrientProfile,
+             SEED_NUTRIENT_PROFILES),
+            ('SoilDefinition', SoilDefinition, SEED_SOILS),
+            ('WaterDefinition', WaterDefinition, SEED_WATERS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
