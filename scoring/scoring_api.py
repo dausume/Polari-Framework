@@ -47,6 +47,17 @@ scr-6 (politicians + votes):
                                           create knobs never default
                                           on
 
+scr-12a (survival costs):
+  GET  /api/scoring/survival/walkthrough  the wizard, generated from
+                                          the editable CostCategory
+                                          vocabulary
+  POST /api/scoring/survival/submit       one household month →
+                                          profile + engine-native
+                                          values (gaps honest)
+  GET  /api/scoring/survival/report?location=…[&month=…]
+                                          area stats + subtotals by
+                                          kind (pseudo-tax share)
+
 scr-16 (per-group bias):
   GET  /api/scoring/groups/{name}/bias    stance skew vs consensus,
                                           assertion one-sidedness,
@@ -97,6 +108,9 @@ from scoring.politician_scoring import cohort_report, politician_score
 from scoring.scoring_engine import score_concept
 from scoring.specificity import (
     check_concept_specificity, suggest_critical_contexts,
+)
+from scoring.survival_costs import (
+    submit_survival_profile, survival_report, survival_walkthrough,
 )
 from scoring.worldview_elections import apply_election, tally_election
 
@@ -159,6 +173,15 @@ class ScoringAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/scoring/groups/{name}/bias', self,
                 suffix='group_bias')
+            polServer.falconServer.add_route(
+                '/api/scoring/survival/walkthrough', self,
+                suffix='survival_walkthrough')
+            polServer.falconServer.add_route(
+                '/api/scoring/survival/submit', self,
+                suffix='survival_submit')
+            polServer.falconServer.add_route(
+                '/api/scoring/survival/report', self,
+                suffix='survival_report')
             polServer.falconServer.add_route(
                 '/api/scoring/claims/{name}/check', self,
                 suffix='claim_check')
@@ -342,6 +365,39 @@ class ScoringAPI(treeObject):
             self.manager, name, concept,
             policy_name=request.get_param('policy') or '',
             timeframe_context=request.get_param('timeframe') or '')
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_survival_walkthrough(self, request, response):
+        report = survival_walkthrough(self.manager)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_post_survival_submit(self, request, response):
+        try:
+            payload = json.load(request.bounded_stream)
+        except Exception as e:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': f'bad JSON payload: {e}'}
+            return
+        result = submit_survival_profile(self.manager, payload)
+        if not result.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = result
+
+    def on_get_survival_report(self, request, response):
+        location = request.get_param('location') or ''
+        if not location:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': "query param 'location' is "
+                                       'required'}
+            return
+        report = survival_report(
+            self.manager, location, request.get_param('month') or '')
         if not report.get('ok'):
             response.status = '404 Not Found'
         response.media = report

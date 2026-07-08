@@ -150,6 +150,11 @@ from scoring.media_accuracy import (
 )
 # scr-16: per-group bias reads (bands are editable rows).
 from scoring.group_bias import BiasPolicy, SEED_BIAS_POLICIES
+# scr-12a: survival-cost walkthrough (categories ARE the wizard).
+from scoring.survival_costs import (
+    CostCategory, SEED_COST_CATEGORIES, SEED_COST_TERMS,
+    SEED_SURVIVAL_PROFILES, SurvivalCostProfile,
+)
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -625,6 +630,7 @@ class polariServer(treeObject):
             EvidencePolicy, Contributor, PolicyVote,
             WorldviewElection, WorldviewBallot,
             FactualClaim, AccuracyPolicy, BiasPolicy,
+            CostCategory, SurvivalCostProfile,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1443,7 +1449,8 @@ class polariServer(treeObject):
              SEED_PROPERTY_MEANINGS),
             # Context-based scoring: terms/contexts/subjects before the
             # values and concepts that reference them.
-            ('ScoreTerm', ScoreTerm, SEED_SCORE_TERMS),
+            ('ScoreTerm', ScoreTerm,
+             SEED_SCORE_TERMS + SEED_COST_TERMS),
             ('ScoreContext', ScoreContext, SEED_SCORE_CONTEXTS),
             ('ScoreSubject', ScoreSubject,
              SEED_SCORE_SUBJECTS + SEED_POLICY_SUBJECTS
@@ -1483,6 +1490,10 @@ class polariServer(treeObject):
             ('FactualClaim', FactualClaim, SEED_FACTUAL_CLAIMS),
             # scr-16: bias bands as editable rows.
             ('BiasPolicy', BiasPolicy, SEED_BIAS_POLICIES),
+            # scr-12a: the walkthrough vocabulary + demo households.
+            ('CostCategory', CostCategory, SEED_COST_CATEGORIES),
+            ('SurvivalCostProfile', SurvivalCostProfile,
+             SEED_SURVIVAL_PROFILES),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
