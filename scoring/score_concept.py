@@ -52,6 +52,10 @@ class ScoreConcept(treeObject):
         # Scale scores to the best subject = 100 (the scorecard's
         # levelization) — an explicit knob, not silent behavior.
         levelize: bool = True,
+        # Generic-intent vocabulary (JSON list) — the abstraction seam
+        # (scr-5): assertions of generic intent match concepts through
+        # these tags; suggestions only, never auto-bound.
+        abstract_tags_json: str = '[]',
         # Time knobs (JSON): {"allowInterpolation": true,
         # "allowExtrapolation": false} — whether gap values may be
         # interpolated (always labeled) and whether frames beyond the
@@ -70,6 +74,7 @@ class ScoreConcept(treeObject):
         self.required_context_names_json = required_context_names_json
         self.aggregation = aggregation
         self.levelize = levelize
+        self.abstract_tags_json = abstract_tags_json
         self.time_policy_json = time_policy_json
         self.provenance_id = provenance_id
         self.notes = notes

@@ -91,6 +91,11 @@ class ScoreTerm(treeObject):
         # Loose links to related/opposing terms (JSON name lists).
         equivalent_terms_json: str = '[]',
         competitive_terms_json: str = '[]',
+        # Generic-intent vocabulary this metric belongs to (JSON list,
+        # e.g. ["wages", "labor-conditions"]) — the abstraction seam:
+        # assertions of generic intent match terms through these tags
+        # (scr-5), suggestions only, never auto-bound.
+        abstract_tags_json: str = '[]',
         source: str = '',
         provenance_id: str = '',
         notes: str = '',
@@ -107,6 +112,7 @@ class ScoreTerm(treeObject):
         self.temporal_json = temporal_json
         self.equivalent_terms_json = equivalent_terms_json
         self.competitive_terms_json = competitive_terms_json
+        self.abstract_tags_json = abstract_tags_json
         self.source = source
         self.provenance_id = provenance_id
         self.notes = notes
@@ -196,6 +202,11 @@ class ContextualizedValue(treeObject):
         normalization_json: str = '',
         source: str = '',
         provenance_id: str = '',
+        # Contributor row (scoring.contributors) that supplied this
+        # value — individuals and orgs are TRACKABLE for research
+        # contributions (or pseudonymous by their contributor row's
+        # own knob); '' = unattributed, honestly.
+        contributed_by: str = '',
         notes: str = '',
         manager=None,
     ):
@@ -208,4 +219,5 @@ class ContextualizedValue(treeObject):
         self.normalization_json = normalization_json
         self.source = source
         self.provenance_id = provenance_id
+        self.contributed_by = contributed_by
         self.notes = notes

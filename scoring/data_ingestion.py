@@ -155,6 +155,7 @@ def ingest_records(manager, payload):
             row.pre_normalized_value = value
             row.source = payload.get('source', '')
             row.provenance_id = payload.get('provenance', '')
+            row.contributed_by = payload.get('contributed_by', '')
             _persist(manager, row)
             updated.append(name)
             continue
@@ -164,6 +165,7 @@ def ingest_records(manager, payload):
             pre_normalized_value=value,
             source=payload.get('source', 'ingested records'),
             provenance_id=payload.get('provenance', ''),
+            contributed_by=payload.get('contributed_by', ''),
             manager=manager)
         created.append(name)
 

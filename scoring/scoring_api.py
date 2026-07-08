@@ -20,9 +20,28 @@ self-registering falcon routes):
                                           (create_missing_subjects /
                                           overwrite) never default on
 
-Pure reads — score definitions are edited through standard CRUDE on
-ScoreTerm / ScoreContext / ScoreSubject / ContextualizedValue /
-ScoreConcept rows (object-coherence: the score IS its objects).
+scr-5 (assertions + policy accountability):
+  GET  /api/scoring/policies/{name}/score?concept=…   assertion-
+                                          weighted policy score
+  GET  /api/scoring/assertions[?subject=…]            list
+  GET  /api/scoring/assertions/{name}/suggestions     abstraction
+                                          matching (suggestions only)
+  GET  /api/scoring/assertions/{name}/validity        vote tally +
+                                          suggested transition
+  POST /api/scoring/assertions/{name}/transition      lifecycle move
+                                          {to, by, note} — validated,
+                                          history-appended
+  GET  /api/scoring/concepts/{name}/specificity       conformance
+                                          findings
+  GET  /api/scoring/concepts/{name}/critical-contexts variance-scan
+                                          suggestions
+  GET  /api/scoring/contributors/{name}/record        track record
+
+Pure reads (plus the two explicit POSTs) — score definitions are
+edited through standard CRUDE on ScoreTerm / ScoreContext /
+ScoreSubject / ContextualizedValue / ScoreConcept / ScoreAssertion /
+MediaEvidence / Contributor rows (object-coherence: the score IS its
+objects).
 
 @consumers
   - scoring-home frontend component
@@ -32,11 +51,18 @@ ScoreConcept rows (object-coherence: the score IS its objects).
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
+from scoring.abstraction import suggest_scores_for_assertion
+from scoring.assertions import tally_validity, transition_assertion
+from scoring.contributors import contributor_record
 from scoring.data_ingestion import ingest_from_class, ingest_records
 from scoring.group_aggregation import (
     aggregate_group, all_groups_consensus, compare_groups,
 )
+from scoring.policy_scoring import score_policy
 from scoring.scoring_engine import score_concept
+from scoring.specificity import (
+    check_concept_specificity, suggest_critical_contexts,
+)
 
 
 class ScoringAPI(treeObject):
@@ -62,6 +88,29 @@ class ScoringAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/scoring/groups/{name}/aggregate', self,
                 suffix='aggregate')
+            polServer.falconServer.add_route(
+                '/api/scoring/policies/{name}/score', self,
+                suffix='policy_score')
+            polServer.falconServer.add_route(
+                '/api/scoring/assertions', self, suffix='assertions')
+            polServer.falconServer.add_route(
+                '/api/scoring/assertions/{name}/suggestions', self,
+                suffix='suggestions')
+            polServer.falconServer.add_route(
+                '/api/scoring/assertions/{name}/validity', self,
+                suffix='validity')
+            polServer.falconServer.add_route(
+                '/api/scoring/assertions/{name}/transition', self,
+                suffix='transition')
+            polServer.falconServer.add_route(
+                '/api/scoring/concepts/{name}/specificity', self,
+                suffix='specificity')
+            polServer.falconServer.add_route(
+                '/api/scoring/concepts/{name}/critical-contexts',
+                self, suffix='critical_contexts')
+            polServer.falconServer.add_route(
+                '/api/scoring/contributors/{name}/record', self,
+                suffix='contributor_record')
 
     def on_get_concepts(self, request, response):
         table = (self.manager.objectTables or {}).get('ScoreConcept', {})
@@ -107,6 +156,103 @@ class ScoringAPI(treeObject):
         if not result.get('ok'):
             response.status = '422 Unprocessable Entity'
         response.media = result
+
+    def on_get_policy_score(self, request, response, name):
+        concept = request.get_param('concept') or ''
+        if not concept:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': "query param 'concept' is "
+                                       'required'}
+            return
+        statuses = tuple((request.get_param('statuses')
+                          or 'confirmed').split(','))
+        report = score_policy(
+            self.manager, name, concept, include_statuses=statuses,
+            evidence_policy=request.get_param('evidencePolicy') or '')
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_assertions(self, request, response):
+        subject = request.get_param('subject') or ''
+        table = (self.manager.objectTables or {}).get(
+            'ScoreAssertion', {})
+        rows = table.values() if isinstance(table, dict) else table
+        out = []
+        for row in rows:
+            if subject and getattr(row, 'subject_name', '') != subject:
+                continue
+            def loads(attr, fallback='null'):
+                try:
+                    return json.loads(
+                        getattr(row, attr, '') or fallback)
+                except Exception:
+                    return None
+            out.append({
+                'name': getattr(row, 'name', ''),
+                'displayName': getattr(row, 'display_name', ''),
+                'subject': getattr(row, 'subject_name', ''),
+                'span': loads('span_json'),
+                'intent': getattr(row, 'intent', ''),
+                'type': getattr(row, 'assertion_type', ''),
+                'direction': getattr(row, 'direction', ''),
+                'strength': getattr(row, 'strength', None),
+                'conceptName': getattr(row, 'concept_name', ''),
+                'termName': getattr(row, 'term_name', ''),
+                'dependsOn': getattr(row, 'depends_on_subject', ''),
+                'evidence': loads('evidence_names_json', '[]'),
+                'assertedBy': getattr(row, 'asserted_by', ''),
+                'status': getattr(row, 'status', ''),
+                'statusHistory': loads('status_history_json', '[]'),
+            })
+        response.media = {'ok': True, 'assertions': out}
+
+    def on_get_suggestions(self, request, response, name):
+        report = suggest_scores_for_assertion(self.manager, name)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_validity(self, request, response, name):
+        report = tally_validity(
+            self.manager, name, request.get_param('policy') or '')
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_post_transition(self, request, response, name):
+        try:
+            payload = json.load(request.bounded_stream)
+        except Exception as e:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': f'bad JSON payload: {e}'}
+            return
+        result = transition_assertion(
+            self.manager, name, payload.get('to', ''),
+            by=payload.get('by', ''), note=payload.get('note', ''))
+        if not result.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = result
+
+    def on_get_specificity(self, request, response, name):
+        report = check_concept_specificity(self.manager, name)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_critical_contexts(self, request, response, name):
+        report = suggest_critical_contexts(self.manager, name)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_contributor_record(self, request, response, name):
+        report = contributor_record(self.manager, name)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
 
     def on_get_aggregate(self, request, response, name):
         report = aggregate_group(

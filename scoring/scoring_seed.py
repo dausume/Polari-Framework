@@ -40,6 +40,8 @@ SEED_SCORE_TERMS = [
             {'method': 'min-max', 'min': 0.0, 'max': 22.9}),
         'temporal_json': json.dumps(
             {'nature': 'stock', 'resample': 'mean'}),
+        'abstract_tags_json': json.dumps(
+            ['unions', 'labor-conditions', 'worker-power']),
         'provenance_id': _SCORECARD_PROV,
     },
     {
@@ -53,6 +55,8 @@ SEED_SCORE_TERMS = [
             {'method': 'min-max', 'min': 54.5, 'max': 70.1}),
         'temporal_json': json.dumps(
             {'nature': 'stock', 'resample': 'mean'}),
+        'abstract_tags_json': json.dumps(
+            ['employment', 'labor-conditions']),
         'provenance_id': _SCORECARD_PROV,
     },
     {
@@ -66,6 +70,8 @@ SEED_SCORE_TERMS = [
             {'method': 'min-max', 'min': 7.25, 'max': 17.50}),
         'temporal_json': json.dumps(
             {'nature': 'stock', 'resample': 'last'}),
+        'abstract_tags_json': json.dumps(
+            ['wages', 'income', 'labor-conditions']),
         'provenance_id': _SCORECARD_PROV,
     },
     {
@@ -80,6 +86,8 @@ SEED_SCORE_TERMS = [
             {'method': 'min-max', 'min': 5.0, 'max': 15.0}),
         'temporal_json': json.dumps(
             {'nature': 'stock', 'resample': 'mean'}),
+        'abstract_tags_json': json.dumps(
+            ['poverty', 'wages', 'labor-conditions']),
         'provenance_id': _SCORECARD_PROV,
     },
     {
@@ -284,6 +292,8 @@ SEED_SCORE_CONCEPTS = [
         'required_context_names_json': json.dumps(['year-2022']),
         'aggregation': 'weighted-mean',
         'levelize': True,
+        'abstract_tags_json': json.dumps(
+            ['labor-conditions', 'workers', 'employment']),
         'provenance_id': _SCORECARD_PROV,
     },
     {

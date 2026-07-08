@@ -121,6 +121,18 @@ from scoring.scoring_seed import (
     SEED_SCORE_CONTEXTS, SEED_SCORE_GROUPS, SEED_SCORE_SUBJECTS,
     SEED_SCORE_TERMS,
 )
+# scr-5: assertions bind policy text to concepts; evidence carries
+# graded proof; contributors make individuals/orgs/lobbies trackable
+# (or pseudonymous) accountable identities.
+from scoring.assertions import AssertionValidityVote, ScoreAssertion
+from scoring.contributors import Contributor, SEED_CONTRIBUTORS
+from scoring.evidence import (
+    EvidencePolicy, MediaEvidence, SEED_EVIDENCE_POLICIES,
+)
+from scoring.assertion_seed import (
+    SEED_MEDIA_EVIDENCE, SEED_POLICY_SUBJECTS, SEED_SCORE_ASSERTIONS,
+    SEED_VALIDITY_VOTES,
+)
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -592,6 +604,8 @@ class polariServer(treeObject):
             MaterialPropertyMeaning,
             ScoreTerm, ScoreContext, ScoreSubject, ContextualizedValue,
             ScoreConcept, ScoreGroup, AgreementPolicy,
+            ScoreAssertion, AssertionValidityVote, MediaEvidence,
+            EvidencePolicy, Contributor,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1412,7 +1426,8 @@ class polariServer(treeObject):
             # values and concepts that reference them.
             ('ScoreTerm', ScoreTerm, SEED_SCORE_TERMS),
             ('ScoreContext', ScoreContext, SEED_SCORE_CONTEXTS),
-            ('ScoreSubject', ScoreSubject, SEED_SCORE_SUBJECTS),
+            ('ScoreSubject', ScoreSubject,
+             SEED_SCORE_SUBJECTS + SEED_POLICY_SUBJECTS),
             ('ContextualizedValue', ContextualizedValue,
              SEED_CONTEXTUALIZED_VALUES),
             ('ScoreConcept', ScoreConcept, SEED_SCORE_CONCEPTS),
@@ -1421,6 +1436,16 @@ class polariServer(treeObject):
             ('ScoreGroup', ScoreGroup, SEED_SCORE_GROUPS),
             ('AgreementPolicy', AgreementPolicy,
              SEED_AGREEMENT_POLICIES),
+            # scr-5: contributors before the evidence/assertions that
+            # cite them; evidence before assertions.
+            ('Contributor', Contributor, SEED_CONTRIBUTORS),
+            ('EvidencePolicy', EvidencePolicy,
+             SEED_EVIDENCE_POLICIES),
+            ('MediaEvidence', MediaEvidence, SEED_MEDIA_EVIDENCE),
+            ('ScoreAssertion', ScoreAssertion,
+             SEED_SCORE_ASSERTIONS),
+            ('AssertionValidityVote', AssertionValidityVote,
+             SEED_VALIDITY_VOTES),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
