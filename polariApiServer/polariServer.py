@@ -138,6 +138,11 @@ from scoring.policy_votes import (
     PolicyVote, SEED_COHORT_GROUPS, SEED_POLICY_VOTES,
     SEED_POLITICIAN_SUBJECTS,
 )
+# scr-8: worldview elections → vote-derived group member weights.
+from scoring.worldview_elections import (
+    SEED_ASSEMBLY_GROUPS, SEED_WORLDVIEW_BALLOTS,
+    SEED_WORLDVIEW_ELECTIONS, WorldviewBallot, WorldviewElection,
+)
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -611,6 +616,7 @@ class polariServer(treeObject):
             ScoreConcept, ScoreGroup, AgreementPolicy,
             ScoreAssertion, AssertionValidityVote, MediaEvidence,
             EvidencePolicy, Contributor, PolicyVote,
+            WorldviewElection, WorldviewBallot,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1440,7 +1446,8 @@ class polariServer(treeObject):
             # Groups + the editable agreement-classification bands
             # (concepts first — groups reference member concepts).
             ('ScoreGroup', ScoreGroup,
-             SEED_SCORE_GROUPS + SEED_COHORT_GROUPS),
+             SEED_SCORE_GROUPS + SEED_COHORT_GROUPS
+             + SEED_ASSEMBLY_GROUPS),
             ('AgreementPolicy', AgreementPolicy,
              SEED_AGREEMENT_POLICIES),
             # scr-5: contributors before the evidence/assertions that
@@ -1456,6 +1463,12 @@ class polariServer(treeObject):
             # scr-6: votes after the politician/policy subjects they
             # reference.
             ('PolicyVote', PolicyVote, SEED_POLICY_VOTES),
+            # scr-8: elections after the groups/worldviews they run
+            # over; ballots after their election.
+            ('WorldviewElection', WorldviewElection,
+             SEED_WORLDVIEW_ELECTIONS),
+            ('WorldviewBallot', WorldviewBallot,
+             SEED_WORLDVIEW_BALLOTS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),

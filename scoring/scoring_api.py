@@ -47,6 +47,15 @@ scr-6 (politicians + votes):
                                           create knobs never default
                                           on
 
+scr-8 (worldview elections):
+  GET  /api/scoring/elections/{name}/tally   mode-specific counts,
+                                          winners, derived weights,
+                                          refused ballots by name
+  POST /api/scoring/elections/{name}/apply   CLOSED election →
+                                          vote-derived member weights
+                                          on its group (provenance-
+                                          stamped; open = refusal)
+
 Pure reads (plus the two explicit POSTs) — score definitions are
 edited through standard CRUDE on ScoreTerm / ScoreContext /
 ScoreSubject / ContextualizedValue / ScoreConcept / ScoreAssertion /
@@ -75,6 +84,7 @@ from scoring.scoring_engine import score_concept
 from scoring.specificity import (
     check_concept_specificity, suggest_critical_contexts,
 )
+from scoring.worldview_elections import apply_election, tally_election
 
 
 class ScoringAPI(treeObject):
@@ -132,6 +142,12 @@ class ScoringAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/scoring/ingest-votes', self,
                 suffix='ingest_votes')
+            polServer.falconServer.add_route(
+                '/api/scoring/elections/{name}/tally', self,
+                suffix='election_tally')
+            polServer.falconServer.add_route(
+                '/api/scoring/elections/{name}/apply', self,
+                suffix='election_apply')
 
     def on_get_concepts(self, request, response):
         table = (self.manager.objectTables or {}).get('ScoreConcept', {})
@@ -306,6 +322,18 @@ class ScoringAPI(treeObject):
         if not report.get('ok'):
             response.status = '404 Not Found'
         response.media = report
+
+    def on_get_election_tally(self, request, response, name):
+        report = tally_election(self.manager, name)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_post_election_apply(self, request, response, name):
+        result = apply_election(self.manager, name)
+        if not result.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = result
 
     def on_post_ingest_votes(self, request, response):
         try:

@@ -88,9 +88,15 @@ def _resolve_policy(manager, policy_name):
     return policy, None
 
 
-def _aggregate_members(manager, member_names, policy):
+def _aggregate_members(manager, member_names, policy,
+                       member_weights=None):
     """The shared core: per-term agreement classification + the
-    aggregate definition over a list of member concept names."""
+    aggregate definition over a list of member concept names.
+
+    member_weights ({name: weight}, scr-8): a member's voice counts
+    its weight instead of 1 — vote-derived weights make an elected
+    definition. None/empty = every member weighs 1 (exact scr-3
+    behavior). Zero-weight members resolve but carry no voice."""
     concepts = _by_name(manager, 'ScoreConcept')
     terms = _by_name(manager, 'ScoreTerm')
     bands = policy_bands(policy)
@@ -107,36 +113,50 @@ def _aggregate_members(manager, member_names, policy):
             'ok': False,
             'error': 'no member concepts resolved',
             'missingMembers': missing_members}
+    weights = {name: max(0.0, float((member_weights or {}).get(
+        name, 1.0))) for name, _ in members}
+    total = sum(weights.values())
+    if total <= 0:
+        return None, {
+            'ok': False,
+            'error': 'every member weight is zero — no voices left',
+            'suggestion': {'knob': 'ScoreGroup.member_weights_json',
+                           'action': 'give at least one member a '
+                                     'positive weight'}}
 
-    total = len(members)
     keys = sorted({k for _, d in members for k in d})
     term_reports, definition = [], {}
     agreement_num, agreement_den = 0.0, 0.0
     for key in keys:
-        holders = [(name, d[key]) for name, d in members if key in d]
+        holders = [(name, d[key]) for name, d in members
+                   if key in d and weights[name] > 0]
+        if not holders:
+            continue  # held only by voiceless members
+        holder_w = sum(weights[n] for n, _ in holders)
         positive = [n for n, e in holders if e['stance'] > 0]
         negative = [n for n, e in holders if e['stance'] < 0]
-        dominant_count = max(len(positive), len(negative))
-        dominant_fraction = dominant_count / len(holders)
+        positive_w = sum(weights[n] for n in positive)
+        negative_w = sum(weights[n] for n in negative)
+        dominant_fraction = max(positive_w, negative_w) / holder_w
         # An exact tie is a SPLIT — the group takes no side, and its
         # aggregate definition carries stance 0 for this term.
-        if len(positive) == len(negative):
+        if positive_w == negative_w:
             dominant_stance = 'split'
-        elif len(positive) > len(negative):
+        elif positive_w > negative_w:
             dominant_stance = 'positive'
         else:
             dominant_stance = 'negative'
         direction_label = classify_max(
             dominant_fraction, bands['direction'])
 
-        shares = [e['share'] for _, e in holders]
-        mean_share = sum(shares) / len(shares)
-        mad = (sum(abs(s - mean_share) for s in shares)
-               / len(shares))
+        mean_share = sum(
+            weights[n] * e['share'] for n, e in holders) / holder_w
+        mad = sum(weights[n] * abs(e['share'] - mean_share)
+                  for n, e in holders) / holder_w
         spread = (mad / mean_share) if mean_share > 0 else 0.0
         weight_label = classify_max(spread, bands['weight'])
 
-        participation = len(holders) / total
+        participation = holder_w / total
         agreement_num += dominant_fraction * participation
         agreement_den += participation
 
@@ -167,7 +187,11 @@ def _aggregate_members(manager, member_names, policy):
         'ok': True,
         'members': [n for n, _ in members],
         'missingMembers': missing_members,
-        'memberCount': total,
+        'memberCount': len(members),
+        'weighted': bool(member_weights),
+        'memberWeights': {n: round(w, 6)
+                          for n, w in weights.items()}
+        if member_weights else None,
         'policy': getattr(policy, 'name', ''),
         'terms': term_reports,
         'definition': definition,
@@ -190,13 +214,19 @@ def aggregate_group(manager, group_name, policy_name=''):
         return refusal
     member_names = _parse(
         getattr(group, 'member_concept_names_json', '[]'), '[]')
-    report, refusal = _aggregate_members(manager, member_names, policy)
+    member_weights = _parse(
+        getattr(group, 'member_weights_json', ''), 'null')
+    report, refusal = _aggregate_members(
+        manager, member_names, policy,
+        member_weights if isinstance(member_weights, dict) else None)
     if refusal:
         return {**refusal, 'group': group_name}
     return {**report, 'group': group_name,
             'displayName': getattr(group, 'display_name', '')
             or group_name,
-            'groupType': getattr(group, 'group_type', '')}
+            'groupType': getattr(group, 'group_type', ''),
+            'weightsProvenance':
+            getattr(group, 'weights_provenance', '') or None}
 
 
 def all_groups_consensus(manager, policy_name=''):
