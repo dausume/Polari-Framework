@@ -36,6 +36,9 @@ AGGREGATION_NOTE = (
     'by term count instead — a known divergence, not copied.'
 )
 
+#: Nesting depth cap (matches the msim subModel cap, msci-16 idiom).
+MAX_NESTING_DEPTH = 8
+
 
 def _rows(manager, class_name):
     table = (manager.objectTables or {}).get(class_name, {})
@@ -138,16 +141,33 @@ def resolve_raw_value(manager, value_row):
                      f"'{value}' ({type(value).__name__})"}
 
 
+def expand_contexts(held, contexts_by_name):
+    """A held context satisfies its ANCESTORS too (a value measured
+    for state-california counts for country-usa) — the hierarchy is
+    functional, not decorative. Cycle-safe, capped."""
+    expanded = set(held)
+    for name in held:
+        node, hops = contexts_by_name.get(name), 0
+        while node is not None and hops < 16:
+            parent = getattr(node, 'parent_name', '')
+            if not parent or parent in expanded:
+                break
+            expanded.add(parent)
+            node = contexts_by_name.get(parent)
+            hops += 1
+    return expanded
+
+
 def select_value(values, required_contexts, contexts_by_name):
     """Among a (term, subject)'s values, the one matching every
-    required context, most specific first. Honest None when nothing
-    matches."""
+    required context (directly or through the context hierarchy),
+    most specific first. Honest None when nothing matches."""
     required = set(required_contexts or [])
     candidates = []
     for row in values:
         held = set(_parse(getattr(row, 'context_names_json', '[]'),
                           '[]'))
-        if not required <= held:
+        if not required <= expand_contexts(held, contexts_by_name):
             continue
         specificity = sum(
             context_specificity(contexts_by_name[c])
@@ -159,9 +179,26 @@ def select_value(values, required_contexts, contexts_by_name):
     return candidates[0][1]
 
 
-def score_concept(manager, concept_name):
+def score_concept(manager, concept_name, _path=()):
     """The full pipeline for one concept: per-subject breakdowns +
-    (knob-gated) levelized comparison."""
+    (knob-gated) levelized comparison.
+
+    Concepts NEST: a term_weights entry {'concept': <name>, 'weight':
+    w} scores the child concept per subject and uses its initialScore
+    (already 0-1) as the normalized value. Cycles refuse naming the
+    path; depth caps at MAX_NESTING_DEPTH (the msci-16 subModel
+    idiom). A broken child entry is an honest absence on the parent,
+    never a crash."""
+    if concept_name in _path:
+        cycle = ' → '.join(_path + (concept_name,))
+        return {'ok': False,
+                'error': f'concept nesting cycle refused: {cycle}',
+                'cyclePath': list(_path + (concept_name,))}
+    if len(_path) >= MAX_NESTING_DEPTH:
+        return {'ok': False,
+                'error': f'concept nesting deeper than '
+                         f'{MAX_NESTING_DEPTH} refused '
+                         f'(path: {" → ".join(_path)})'}
     concepts = _by_name(manager, 'ScoreConcept')
     concept = concepts.get(concept_name)
     if concept is None:
@@ -200,8 +237,19 @@ def score_concept(manager, concept_name):
                getattr(row, 'subject_name', ''))
         values_by_key.setdefault(key, []).append(row)
 
+    # Nested concepts: each unique child scored ONCE, subjects looked
+    # up per parent subject afterwards.
+    child_reports = {}
+    for entry in term_weights:
+        child_name = entry.get('concept', '')
+        if child_name and child_name not in child_reports:
+            child_reports[child_name] = score_concept(
+                manager, child_name, _path + (concept_name,))
+
     raw_cache, pools = {}, {}
     for entry in term_weights:
+        if entry.get('concept'):
+            continue
         term_key = entry.get('term', '')
         for subject in picked:
             sname = getattr(subject, 'name', '')
@@ -230,8 +278,45 @@ def score_concept(manager, concept_name):
         sname = getattr(subject, 'name', '')
         breakdown, weighted_sum, missing = [], 0.0, []
         for entry in term_weights:
-            term_key = entry.get('term', '')
             weight = entry.get('weight', 0)
+            child_name = entry.get('concept', '')
+            if child_name:
+                child = child_reports.get(child_name) or {}
+                if not child.get('ok'):
+                    missing.append(child_name)
+                    breakdown.append({
+                        'concept': child_name, 'kind': 'concept',
+                        'weight': weight, 'found': False,
+                        'error': child.get(
+                            'error', 'child concept failed')})
+                    continue
+                scored = next(
+                    (s for s in child['subjects']
+                     if s['subject'] == sname), None)
+                if scored is None:
+                    missing.append(child_name)
+                    breakdown.append({
+                        'concept': child_name, 'kind': 'concept',
+                        'weight': weight, 'found': False,
+                        'error': f"child concept '{child_name}' did "
+                                 f"not score subject '{sname}'"})
+                    continue
+                normalized = scored['initialScore']
+                weighted = normalized * weight
+                weighted_sum += weighted
+                breakdown.append({
+                    'concept': child_name, 'kind': 'concept',
+                    'label': child.get('displayName', child_name),
+                    'weight': weight,
+                    'normalized': round(normalized, 6),
+                    'weighted': round(weighted, 6),
+                    'found': True,
+                    'source': f"nested concept '{child_name}' "
+                              '(initialScore, already 0-1)',
+                    'childTermsMissing': scored['termsMissing'],
+                })
+                continue
+            term_key = entry.get('term', '')
             term = terms.get(term_key)
             if term is None:
                 missing.append(term_key)
@@ -302,5 +387,6 @@ def score_concept(manager, concept_name):
         'totalWeight': total_weight,
         'requiredContexts': required,
         'levelized': levelize,
+        'nestedConcepts': sorted(child_reports),
         'subjects': results,
     }

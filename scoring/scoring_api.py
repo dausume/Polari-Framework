@@ -11,7 +11,14 @@ self-registering falcon routes):
                                           subjects, contexts)
   GET /api/scoring/concepts/{name}/score  the full pipeline: ranked
                                           subjects w/ per-term
-                                          breakdowns, absences named
+                                          breakdowns (nested concepts
+                                          included), absences named
+  POST /api/scoring/ingest                real data-series ingestion:
+                                          explicit records, or ANY
+                                          object class via a field
+                                          mapping; honesty knobs
+                                          (create_missing_subjects /
+                                          overwrite) never default on
 
 Pure reads — score definitions are edited through standard CRUDE on
 ScoreTerm / ScoreContext / ScoreSubject / ContextualizedValue /
@@ -25,6 +32,7 @@ ScoreConcept rows (object-coherence: the score IS its objects).
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
+from scoring.data_ingestion import ingest_from_class, ingest_records
 from scoring.scoring_engine import score_concept
 
 
@@ -41,6 +49,8 @@ class ScoringAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/scoring/concepts/{name}/score', self,
                 suffix='score')
+            polServer.falconServer.add_route(
+                '/api/scoring/ingest', self, suffix='ingest')
 
     def on_get_concepts(self, request, response):
         table = (self.manager.objectTables or {}).get('ScoreConcept', {})
@@ -70,3 +80,19 @@ class ScoringAPI(treeObject):
         if not report.get('ok'):
             response.status = '404 Not Found'
         response.media = report
+
+    def on_post_ingest(self, request, response):
+        try:
+            payload = json.loads(request.stream.read() or b'{}')
+        except Exception as e:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': f'bad JSON payload: {e}'}
+            return
+        if payload.get('source_class'):
+            result = ingest_from_class(self.manager, payload)
+        else:
+            result = ingest_records(self.manager, payload)
+        if not result.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = result

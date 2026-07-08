@@ -101,10 +101,19 @@ SEED_SCORE_CONTEXTS = [
         'value_json': json.dumps(
             {'start': '2022-01-01', 'end': '2022-12-31'}),
     },
+    {
+        'name': 'country-usa', 'display_name': 'USA',
+        'context_type': 'location',
+        'value_json': json.dumps(
+            {'granularity': 'country', 'country': 'USA'}),
+    },
 ] + [
     {
+        # parent_name makes the hierarchy FUNCTIONAL: a value held
+        # under a state satisfies a required country-usa context.
         'name': f'state-{key}', 'display_name': label,
         'context_type': 'location',
+        'parent_name': 'country-usa',
         'value_json': json.dumps(
             {'granularity': 'state', 'state': label,
              'country': 'USA'}),
@@ -236,6 +245,24 @@ SEED_SCORE_CONCEPTS = [
         'aggregation': 'weighted-mean',
         'levelize': True,
         'provenance_id': _SCORECARD_PROV,
+    },
+    {
+        'name': 'nested-labor-demo',
+        'display_name': 'Nested Labor (composition demo)',
+        'description': 'Scores nest inside scores: the whole '
+                       'labor-quality concept rides as ONE weighted '
+                       'entry (its 0-1 initialScore) next to a plain '
+                       'term — the composition seam for complicated '
+                       'accountability concepts.',
+        'subject_kind': 'state',
+        'term_weights_json': json.dumps([
+            {'concept': 'labor-quality', 'weight': 3},
+            {'term': 'minimum-wage', 'weight': 1},
+        ]),
+        'required_context_names_json': '[]',
+        'aggregation': 'weighted-mean',
+        'levelize': True,
+        'provenance_id': 'demo',
     },
     {
         'name': 'demo-material-conductivity',

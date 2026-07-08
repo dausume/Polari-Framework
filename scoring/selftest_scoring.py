@@ -146,6 +146,140 @@ if __name__ == '__main__':
           chosen is specific)
     check('required context not held -> no match',
           select_value([broad], ['state-texas'], contexts) is None)
+    check('hierarchy is functional: state value satisfies required '
+          'country-usa via parent chain',
+          select_value([specific], ['country-usa'], contexts)
+          is specific)
+    check('hierarchy does not invent downward matches (country value '
+          'never satisfies a required state)',
+          select_value(
+              [SimpleNamespace(context_names_json='["country-usa"]')],
+              ['state-california'], contexts) is None)
+
+    print('\nnesting (scores inside scores)')
+    report = score_concept(_mgr(), 'nested-labor-demo')
+    by_name = {s['subject']: s for s in report['subjects']}
+    # parent initial = (3*child_initial + 1*wage_normalized) / 4
+    expected_dc = (3 * 0.924732 + 1 * 1.0) / 4
+    check('nested parity: DC = (3*labor + 1*wage)/4',
+          abs(by_name['washington-dc']['initialScore']
+              - expected_dc) < 1e-4,
+          f"got {by_name['washington-dc']['initialScore']}")
+    expected_al = (3 * 0.114809 + 1 * 0.0) / 4
+    check('nested parity: Alabama',
+          abs(by_name['alabama']['initialScore'] - expected_al) < 1e-4)
+    entry = by_name['washington-dc']['breakdown'][0]
+    check("concept entry kind='concept' w/ child initialScore as "
+          'normalized',
+          entry.get('kind') == 'concept'
+          and abs(entry['normalized'] - 0.924732) < 1e-4
+          and entry['childTermsMissing'] == [])
+    check('nestedConcepts named on the report',
+          report['nestedConcepts'] == ['labor-quality'])
+
+    mgr = _mgr()
+    mgr.objectTables['ScoreConcept'][99] = SimpleNamespace(
+        name='ouroboros', display_name='Ouroboros',
+        subject_kind='state', subject_names_json='["texas"]',
+        term_weights_json='[{"concept": "ouroboros", "weight": 1}]',
+        required_context_names_json='[]',
+        aggregation='weighted-mean', levelize=False)
+    report = score_concept(mgr, 'ouroboros')
+    entry = report['subjects'][0]['breakdown'][0]
+    check('self-nesting cycle refused, named in the entry',
+          report['ok'] and not entry['found']
+          and 'cycle' in entry['error'])
+
+    print('\ningestion (records + any-class series)')
+    import scoring.data_ingestion as ingestion_mod
+
+    def _factory(class_name, mgr):
+        def make(manager=None, **fields):
+            row = SimpleNamespace(**fields)
+            table = mgr.objectTables.setdefault(class_name, {})
+            table[f'ing-{len(table)}'] = row
+            return row
+        return make
+
+    mgr = _mgr()
+    orig = (ingestion_mod.ContextualizedValue, ingestion_mod.ScoreSubject)
+    ingestion_mod.ContextualizedValue = _factory(
+        'ContextualizedValue', mgr)
+    ingestion_mod.ScoreSubject = _factory('ScoreSubject', mgr)
+    try:
+        from scoring.data_ingestion import (
+            ingest_from_class, ingest_records,
+        )
+        bad = ingestion_mod.ingest_records(mgr, {
+            'term': 'rainfall', 'records': [{'subject': 'x',
+                                             'value': 1}]})
+        check('unknown term refused naming the ScoreTerm knob',
+              not bad['ok'] and bad['suggestion']['knob'] == 'ScoreTerm')
+        bad = ingestion_mod.ingest_records(mgr, {
+            'term': 'minimum-wage',
+            'records': [{'subject': 'Oregon', 'value': 14.2}]})
+        check('unknown subject refused w/ wouldCreate + the knob',
+              not bad['ok'] and bad['wouldCreate'] == ['oregon']
+              and bad['suggestion']['knob']
+              == 'create_missing_subjects')
+        bad = ingestion_mod.ingest_records(mgr, {
+            'term': 'minimum-wage', 'contexts': ['year-2099'],
+            'records': [{'subject': 'texas', 'value': 7.25}]})
+        check('unknown context refused (contexts never auto-invented)',
+              not bad['ok'] and 'year-2099' in bad['error'])
+        result = ingestion_mod.ingest_records(mgr, {
+            'term': 'minimum-wage', 'subject_kind': 'state',
+            'contexts': ['year-2022'],
+            'create_missing_subjects': True,
+            'records': [{'subject': 'Oregon', 'value': 14.2}]})
+        check('create_missing_subjects knob creates subject + value',
+              result['ok'] and result['createdSubjects'] == ['oregon']
+              and len(result['created']) == 1)
+        again = ingestion_mod.ingest_records(mgr, {
+            'term': 'minimum-wage', 'contexts': ['year-2022'],
+            'records': [{'subject': 'Oregon', 'value': 15.0}]})
+        check('re-ingest skips existing rows (idempotent by name)',
+              again['ok'] and again['skipped'] == result['created']
+              and not again['created'])
+        forced = ingestion_mod.ingest_records(mgr, {
+            'term': 'minimum-wage', 'contexts': ['year-2022'],
+            'overwrite': True,
+            'records': [{'subject': 'Oregon', 'value': 15.0}]})
+        check('overwrite knob updates explicitly',
+              forced['ok'] and forced['updated'] == result['created'])
+
+        mgr.objectTables['WeatherStation'] = {
+            0: SimpleNamespace(name='st-tx', state='texas',
+                               rainfall=32.1),
+            1: SimpleNamespace(name='st-ca', state='california',
+                               rainfall=18.4),
+            2: SimpleNamespace(name='st-broken', state=None,
+                               rainfall=None),
+        }
+        mgr.objectTables['ScoreTerm'][99] = SimpleNamespace(
+            name='rainfall', display_name='Rainfall',
+            is_positive=True, unit='in/yr',
+            normalization_json='{"method": "min-max-auto"}')
+        result = ingestion_mod.ingest_from_class(mgr, {
+            'term': 'rainfall', 'source_class': 'WeatherStation',
+            'mapping': {'subjectField': 'state',
+                        'valueField': 'rainfall'}})
+        check('ANY class as a data series (2 values from '
+              'WeatherStation rows)',
+              result['ok'] and len(result['created']) == 2
+              and result['rowsRead'] == 3)
+        check('unusable rows reported, not silently dropped',
+              any('st-broken' in str(r.get('row', ''))
+                  for r in result['refused']))
+        bad = ingestion_mod.ingest_from_class(mgr, {
+            'term': 'rainfall', 'source_class': 'NoSuchClass',
+            'mapping': {'subjectField': 'a', 'valueField': 'b'}})
+        check('unknown class refused w/ classes that have rows',
+              not bad['ok'] and 'WeatherStation'
+              in bad['classesWithRows'])
+    finally:
+        ingestion_mod.ContextualizedValue = orig[0]
+        ingestion_mod.ScoreSubject = orig[1]
 
     print('\nhonest errors')
     bad = score_concept(_mgr(), 'no-such-concept')
