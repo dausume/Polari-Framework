@@ -155,6 +155,14 @@ from scoring.survival_costs import (
     CostCategory, SEED_COST_CATEGORIES, SEED_COST_TERMS,
     SEED_SURVIVAL_PROFILES, SurvivalCostProfile,
 )
+# Aquaponics module (aqp-1): self-watering pot geometry as first-class
+# objects + waterproof pot materials (ceramic/geopolymer).
+from aquaponics.pot_basis import PotDefinition, PotHole
+from aquaponics.pot_seed import SEED_POTS, SEED_POT_HOLES
+from aquaponics.pot_materials_seed import (
+    SEED_POT_MATERIALS, SEED_POT_PROPERTY_MEANINGS,
+    SEED_POT_SCALE_DEFINITIONS,
+)
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -561,6 +569,12 @@ class polariServer(treeObject):
         from scoring.scoring_api import ScoringAPI
         scoringEndpoint = ScoringAPI(polServer=self, manager=self.manager)
 
+        # Aquaponics: self-watering pot geometry validation + hole
+        # generation (aqp-1).
+        from aquaponics.pot_api import AquaponicsPotAPI
+        aquaponicsPotEndpoint = AquaponicsPotAPI(
+            polServer=self, manager=self.manager)
+
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
         # at size).
@@ -631,6 +645,7 @@ class polariServer(treeObject):
             WorldviewElection, WorldviewBallot,
             FactualClaim, AccuracyPolicy, BiasPolicy,
             CostCategory, SurvivalCostProfile,
+            PotDefinition, PotHole,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1434,10 +1449,12 @@ class polariServer(treeObject):
              SEED_PERIODIC_DISPLAYS + SEED_MSCI_PAGE_DISPLAYS),
             # Materials basis — identities before their scale rows.
             ('MaterialsScienceMaterial', MaterialsScienceMaterial,
-             SEED_MS_MATERIALS + SEED_STANDARD_MATERIALS),
+             SEED_MS_MATERIALS + SEED_STANDARD_MATERIALS
+             + SEED_POT_MATERIALS),
             ('MaterialScaleDefinition', MaterialScaleDefinition,
              SEED_MS_SCALE_DEFINITIONS
-             + SEED_STANDARD_SCALE_DEFINITIONS),
+             + SEED_STANDARD_SCALE_DEFINITIONS
+             + SEED_POT_SCALE_DEFINITIONS),
             # Modules-as-projects: the in-tree module, config-tracked.
             ('ModuleSourceConfig', ModuleSourceConfig,
              SEED_MODULE_SOURCE_CONFIGS),
@@ -1446,7 +1463,7 @@ class polariServer(treeObject):
              SEED_THERMAL_PROFILES),
             # Property meanings the material detail view explains with.
             ('MaterialPropertyMeaning', MaterialPropertyMeaning,
-             SEED_PROPERTY_MEANINGS),
+             SEED_PROPERTY_MEANINGS + SEED_POT_PROPERTY_MEANINGS),
             # Context-based scoring: terms/contexts/subjects before the
             # values and concepts that reference them.
             ('ScoreTerm', ScoreTerm,
@@ -1494,6 +1511,10 @@ class polariServer(treeObject):
             ('CostCategory', CostCategory, SEED_COST_CATEGORIES),
             ('SurvivalCostProfile', SurvivalCostProfile,
              SEED_SURVIVAL_PROFILES),
+            # aqp-1: self-watering pots + their side holes (pots
+            # before holes — holes reference their pot).
+            ('PotDefinition', PotDefinition, SEED_POTS),
+            ('PotHole', PotHole, SEED_POT_HOLES),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
