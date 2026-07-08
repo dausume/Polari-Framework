@@ -19,7 +19,11 @@ Pure functions over manager.objectTables — no I/O, easily testable.
 @see /OVERLAP_MAP.md
 """
 
-from materialsScience.materials_basis import SCALE_LEVELS
+import json
+
+from materialsScience.materials_basis import (
+    SCALE_LEVELS, SCALE_LEVEL_DETAILS,
+)
 
 
 def _scale_rows(manager, material_name):
@@ -100,3 +104,115 @@ def require_scale_levels(manager, material_name, levels,
         'blocking': blocking,
         'suggestions': suggestions,
     }
+
+
+def _material_rows(manager):
+    table = (manager.objectTables or {}).get(
+        'MaterialsScienceMaterial', {})
+    rows = table.values() if isinstance(table, dict) else table
+    return sorted(rows, key=lambda r: getattr(r, 'name', ''))
+
+
+def _row_summary(row):
+    """The page-facing view of one scale row — enough to render a cell
+    without another fetch."""
+    params = {}
+    try:
+        params = json.loads(getattr(row, 'parameters_json', '{}') or '{}')
+    except Exception:
+        pass
+    return {
+        'name': getattr(row, 'name', ''),
+        'status': getattr(row, 'status', ''),
+        'derivationMethod': getattr(row, 'derivation_method', ''),
+        'derivedFrom': getattr(row, 'derived_from_name', ''),
+        'definitionClass': getattr(row, 'definition_class', ''),
+        'definitionRef': getattr(row, 'definition_ref', ''),
+        'hasResult': bool(params.get('result')),
+        'provenance': getattr(row, 'provenance_id', ''),
+        'notes': getattr(row, 'notes', ''),
+    }
+
+
+def presence_matrix(manager):
+    """The full accountability matrix: every material identity x every
+    scale level, with absence as first-class data.
+
+    {'levels': [{'level', 'name', 'lengthRange', 'methods', 'earnedBy',
+                 'engines', 'defined', 'partial', 'missing'}  (counts)],
+     'materials': [{'name', 'displayName', 'category', 'tags',
+                    'presence': {'<level>': {'status':
+                        'defined'|'partial'|'missing', 'rows': [...]}}}]}
+
+    'planned' rows count as missing (declared intent is not a
+    definition) but their rows still travel so the pages can show WHAT
+    was declared and what earning it takes.
+    """
+    materials = []
+    counts = {lvl: {'defined': 0, 'partial': 0, 'missing': 0}
+              for lvl in SCALE_LEVELS}
+    for mat in _material_rows(manager):
+        name = getattr(mat, 'name', '')
+        profile = scale_profile(manager, name)
+        presence = {}
+        for level in SCALE_LEVELS:
+            if level in profile['defined']:
+                status = 'defined'
+            elif level in profile['partial']:
+                status = 'partial'
+            else:
+                status = 'missing'
+            counts[level][status] += 1
+            presence[str(level)] = {
+                'status': status,
+                'rows': [_row_summary(r)
+                         for r in profile['levels'].get(level, [])],
+            }
+        try:
+            tags = json.loads(getattr(mat, 'tags_json', '[]') or '[]')
+        except Exception:
+            tags = []
+        materials.append({
+            'name': name,
+            'displayName': getattr(mat, 'display_name', '') or name,
+            'category': getattr(mat, 'category', ''),
+            'tags': tags,
+            'presence': presence,
+        })
+    levels = []
+    for level, detail in sorted(SCALE_LEVEL_DETAILS.items()):
+        levels.append({'level': level, **detail, **counts[level]})
+    return {'levels': levels, 'materials': materials}
+
+
+def level_accountability(manager, level):
+    """One level's page data: who is defined here (with their rows),
+    who is partial, and — the accountability half — who is MISSING,
+    each absence carrying the require_scale_levels suggestion (evidence
+    + knob + action, never auto-applied).
+    """
+    level = int(level)
+    if level not in SCALE_LEVELS:
+        return {'ok': False,
+                'error': f'no scale level {level} — levels are '
+                         f'{sorted(SCALE_LEVELS)}'}
+    defined, partial, missing = [], [], []
+    for mat in _material_rows(manager):
+        name = getattr(mat, 'name', '')
+        profile = scale_profile(manager, name)
+        entry = {'material': name,
+                 'displayName': getattr(mat, 'display_name', '') or name,
+                 'category': getattr(mat, 'category', ''),
+                 'rows': [_row_summary(r)
+                          for r in profile['levels'].get(level, [])]}
+        if level in profile['defined']:
+            defined.append(entry)
+        elif level in profile['partial']:
+            partial.append(entry)
+        else:
+            verdict = require_scale_levels(manager, name, [level])
+            entry['suggestion'] = (verdict['suggestions'] or [None])[0]
+            missing.append(entry)
+    return {'ok': True, 'level': level,
+            'detail': SCALE_LEVEL_DETAILS[level],
+            'defined': defined, 'partial': partial, 'missing': missing}

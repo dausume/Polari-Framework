@@ -27,6 +27,8 @@ REGISTERED_COMPONENTS = {
     'formulation-search-workbench',
     'fem-model-config',
     'dft-model-config',
+    'materials-home',
+    'material-level-page',
 }
 
 
@@ -46,9 +48,12 @@ def _component_names(page):
 if __name__ == '__main__':
     print('\nMaterials-science pages\n')
     names = [p['name'] for p in SEED_MSCI_PAGE_DISPLAYS]
-    check('all four msci pages seeded',
-          names == ['materials-basis', 'fem-models', 'dft-models',
-                    'formulation-search'])
+    check('all ten msci pages seeded (home + 4 tools + 5 levels)',
+          names == ['materials', 'materials-basis', 'fem-models',
+                    'dft-models', 'formulation-search',
+                    'materials-level-0', 'materials-level-1',
+                    'materials-level-2', 'materials-level-3',
+                    'materials-level-4'], f'names={names}')
     for page in SEED_MSCI_PAGE_DISPLAYS:
         json.loads(page['definition'])
     check('page definitions parse', True)
@@ -76,6 +81,19 @@ if __name__ == '__main__':
           ['defaultModelRef'] == 'wax-thermal-continuum'
           and dft['rows'][0]['items'][0]['componentProps']['inputs']
           ['defaultModelRef'] == 'paraffin-quantum-energy')
+    from materialsScience.materials_basis import SCALE_LEVEL_DETAILS
+    check('one level page per SCALE_LEVEL_DETAILS entry, level wired '
+          'as the component input',
+          all(json.loads(by_name[f'materials-level-{lvl}']['definition'])
+              ['rows'][0]['items'][0]['componentProps']['inputs']
+              ['level'] == lvl for lvl in SCALE_LEVEL_DETAILS))
+    check('level-page descriptions carry the taxonomy (name + range), '
+          'generated not hand-copied',
+          all(SCALE_LEVEL_DETAILS[lvl]['name']
+              in by_name[f'materials-level-{lvl}']['description']
+              and SCALE_LEVEL_DETAILS[lvl]['lengthRange']
+              in by_name[f'materials-level-{lvl}']['description']
+              for lvl in SCALE_LEVEL_DETAILS))
 
     total, passed = len(_results), sum(_results)
     print(f'\n{passed}/{total} checks passed')

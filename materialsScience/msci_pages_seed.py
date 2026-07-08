@@ -21,7 +21,39 @@ only the wiring, no data.
 
 import json
 
+from materialsScience.materials_basis import SCALE_LEVEL_DETAILS
+
 SEED_MSCI_PAGE_DISPLAYS = [
+    {
+        'name': 'materials',
+        'description': (
+            'The Materials home: every material identity x every scale '
+            'level (experimental -> quantum) as an accountability '
+            'matrix — where each material IS defined, where it is '
+            'partial, and where it is honestly missing — with per-level '
+            'pages and the materials-science tools one click away.'
+        ),
+        'source_class': 'MaterialsScienceMaterial',
+        'isPage': True,
+        'pageRoute': 'materials',
+        'linkedSolutions': '[]',
+        'definition': json.dumps({'rows': [{
+            'index': 0, 'rowSegments': 12, 'minRowHeight': 480,
+            'maxRowHeight': 0, 'autoHeight': True, 'cssClass': '',
+            'items': [{
+                'id': 'materials-home-item', 'index': 0,
+                'type': 'component', 'rowSegmentsUsed': 12,
+                'gridColumnStart': None,
+                'title': 'Materials — definition levels 0-4',
+                'visible': True, 'collapsed': False, 'cssClass': '',
+                'componentProps': {
+                    'componentName': 'materials-home',
+                    'inputs': {},
+                },
+                'item': None, 'nestedRows': [],
+            }],
+        }]}),
+    },
     {
         'name': 'materials-basis',
         'description': (
@@ -150,3 +182,41 @@ SEED_MSCI_PAGE_DISPLAYS = [
         }]}),
     },
 ]
+
+# One page per scale level (msci-24) — generated from the SAME
+# SCALE_LEVEL_DETAILS the presence API reads, so the pages and the
+# taxonomy cannot drift apart. Each page hosts material-level-page
+# with the level as its only input; the component fetches the level's
+# defined/partial/missing accountability itself.
+for _level, _detail in sorted(SCALE_LEVEL_DETAILS.items()):
+    SEED_MSCI_PAGE_DISPLAYS.append({
+        'name': f'materials-level-{_level}',
+        'description': (
+            f"Scale level {_level} — {_detail['name']} "
+            f"({_detail['lengthRange']}; {_detail['methods']}). Which "
+            f"materials are defined at this level, which are partial, "
+            f"and which are missing — every absence carries what "
+            f"earning the level takes."
+        ),
+        'source_class': 'MaterialScaleDefinition',
+        'isPage': True,
+        'pageRoute': f'materials-level-{_level}',
+        'linkedSolutions': '[]',
+        'definition': json.dumps({'rows': [{
+            'index': 0, 'rowSegments': 12, 'minRowHeight': 480,
+            'maxRowHeight': 0, 'autoHeight': True, 'cssClass': '',
+            'items': [{
+                'id': f'materials-level-{_level}-item', 'index': 0,
+                'type': 'component', 'rowSegmentsUsed': 12,
+                'gridColumnStart': None,
+                'title': (f"Level {_level} — {_detail['name']} "
+                          f"({_detail['lengthRange']})"),
+                'visible': True, 'collapsed': False, 'cssClass': '',
+                'componentProps': {
+                    'componentName': 'material-level-page',
+                    'inputs': {'level': _level},
+                },
+                'item': None, 'nestedRows': [],
+            }],
+        }]}),
+    })

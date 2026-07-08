@@ -45,6 +45,45 @@ DERIVATION_METHODS = (
     'dft-parameterized', 'literature',
 )
 
+#: Per-level detail for the level PAGES (msci-24) — the one home for
+#: what each scale level MEANS, its length range, the methods that earn
+#: a definition there, and what an honest definition at that level
+#: carries. SCALE_LEVELS above stays the terse name map; this is the
+#: page-facing elaboration of the same taxonomy.
+SCALE_LEVEL_DETAILS = {
+    0: {'name': 'experimental', 'lengthRange': 'mm–m',
+        'methods': 'measured properties / rules-of-mixtures',
+        'earnedBy': 'a measurement (with instrument + conditions) or a '
+                    'literature value with provenance, stored as '
+                    'parameters on the @L0 row',
+        'engines': []},
+    1: {'name': 'continuum', 'lengthRange': 'µm–mm',
+        'methods': 'finite-element homogenization / continuum solves',
+        'earnedBy': 'an executable FEM model (or EngineComputation) '
+                    'whose result is stored on the @L1 row, with '
+                    'lineage back to the L0 inputs it consumed',
+        'engines': ['fem.effective-conductivity',
+                    'fem.effective-permeability', 'fem.conduction',
+                    'analytic.percolation-conductivity']},
+    2: {'name': 'mesoscale', 'lengthRange': 'nm–µm',
+        'methods': 'coarse-grained MD / dissipative particle dynamics',
+        'earnedBy': 'a CGMD/DPD model — no mesoscale engine is wired '
+                    'yet, so every L2 row is honestly planned',
+        'engines': []},
+    3: {'name': 'atomistic', 'lengthRange': 'Å–nm',
+        'methods': 'molecular dynamics',
+        'earnedBy': 'an MD model — no atomistic engine is wired yet, '
+                    'so every L3 row is honestly planned',
+        'engines': []},
+    4: {'name': 'quantum', 'lengthRange': 'Å',
+        'methods': 'density functional theory',
+        'earnedBy': 'an executable DFT model (fragment or bulk) whose '
+                    'result is stored on the @L4 row, with the '
+                    'fragment-vs-real-material caveat stated',
+        'engines': ['dft.molecular-energy', 'dft.bulk-structure',
+                    'dft.total-energy']},
+}
+
 
 #: The material CATEGORY vocabulary (msci-22) — the primary role a
 #: material plays in composite-building; finer navigation lives in

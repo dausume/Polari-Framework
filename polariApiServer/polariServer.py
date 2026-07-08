@@ -490,6 +490,12 @@ class polariServer(treeObject):
         from materialsScience.scale_execution_api import ScaleExecutionAPI
         msciEndpoint = ScaleExecutionAPI(polServer=self, manager=self.manager)
 
+        # Scale-presence accountability: the materials x levels matrix
+        # + per-level defined/partial/missing pages (msci-24).
+        from materialsScience.scale_presence_api import ScalePresenceAPI
+        presenceEndpoint = ScalePresenceAPI(
+            polServer=self, manager=self.manager)
+
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
         # at size).
