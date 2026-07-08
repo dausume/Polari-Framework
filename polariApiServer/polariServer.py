@@ -143,6 +143,11 @@ from scoring.worldview_elections import (
     SEED_ASSEMBLY_GROUPS, SEED_WORLDVIEW_BALLOTS,
     SEED_WORLDVIEW_ELECTIONS, WorldviewBallot, WorldviewElection,
 )
+# scr-15: media outlets held accountable for accuracy to the data.
+from scoring.media_accuracy import (
+    AccuracyPolicy, FactualClaim, SEED_ACCURACY_POLICIES,
+    SEED_FACTUAL_CLAIMS, SEED_MEDIA_OUTLETS,
+)
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -617,6 +622,7 @@ class polariServer(treeObject):
             ScoreAssertion, AssertionValidityVote, MediaEvidence,
             EvidencePolicy, Contributor, PolicyVote,
             WorldviewElection, WorldviewBallot,
+            FactualClaim, AccuracyPolicy,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1439,7 +1445,7 @@ class polariServer(treeObject):
             ('ScoreContext', ScoreContext, SEED_SCORE_CONTEXTS),
             ('ScoreSubject', ScoreSubject,
              SEED_SCORE_SUBJECTS + SEED_POLICY_SUBJECTS
-             + SEED_POLITICIAN_SUBJECTS),
+             + SEED_POLITICIAN_SUBJECTS + SEED_MEDIA_OUTLETS),
             ('ContextualizedValue', ContextualizedValue,
              SEED_CONTEXTUALIZED_VALUES),
             ('ScoreConcept', ScoreConcept, SEED_SCORE_CONCEPTS),
@@ -1469,6 +1475,10 @@ class polariServer(treeObject):
              SEED_WORLDVIEW_ELECTIONS),
             ('WorldviewBallot', WorldviewBallot,
              SEED_WORLDVIEW_BALLOTS),
+            # scr-15: claims after the outlets/terms they reference.
+            ('AccuracyPolicy', AccuracyPolicy,
+             SEED_ACCURACY_POLICIES),
+            ('FactualClaim', FactualClaim, SEED_FACTUAL_CLAIMS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),

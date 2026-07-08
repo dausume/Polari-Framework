@@ -58,6 +58,10 @@ class MediaEvidence(treeObject):
         evidence_grade: str = 'secondhand',
         # Contributor name (scoring.contributors).
         submitted_by: str = '',
+        # ScoreSubject name (kind 'media-outlet') that PUBLISHED this
+        # item — ties every cited article to an accountable outlet
+        # (scr-15); '' = not outlet-published (official records…).
+        outlet_name: str = '',
         provenance_id: str = '',
         notes: str = '',
         manager=None,
@@ -72,6 +76,7 @@ class MediaEvidence(treeObject):
         self.captured_date = captured_date
         self.evidence_grade = evidence_grade
         self.submitted_by = submitted_by
+        self.outlet_name = outlet_name
         self.provenance_id = provenance_id
         self.notes = notes
 

@@ -72,6 +72,7 @@ SEED_MEDIA_EVIDENCE = [
         'captured_date': '2024-03-20',
         'evidence_grade': 'contemporaneous-report',
         'submitted_by': 'demo-citizen-jane',
+        'outlet_name': 'demo-signal-times',
         'provenance_id': 'demo news article',
     },
     {

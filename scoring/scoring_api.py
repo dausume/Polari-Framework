@@ -47,6 +47,12 @@ scr-6 (politicians + votes):
                                           create knobs never default
                                           on
 
+scr-15 (media accuracy):
+  GET  /api/scoring/claims/{name}/check     one claim vs the data
+                                          (banded relative error;
+                                          'unverifiable' honest)
+  GET  /api/scoring/outlets/{name}/accuracy outlet accuracy record
+
 scr-8 (worldview elections):
   GET  /api/scoring/elections/{name}/tally   mode-specific counts,
                                           winners, derived weights,
@@ -77,6 +83,7 @@ from scoring.data_ingestion import ingest_from_class, ingest_records
 from scoring.group_aggregation import (
     aggregate_group, all_groups_consensus, compare_groups,
 )
+from scoring.media_accuracy import check_claim, outlet_accuracy
 from scoring.policy_scoring import score_policy
 from scoring.policy_votes import ingest_votes_from_class
 from scoring.politician_scoring import cohort_report, politician_score
@@ -142,6 +149,12 @@ class ScoringAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/scoring/ingest-votes', self,
                 suffix='ingest_votes')
+            polServer.falconServer.add_route(
+                '/api/scoring/claims/{name}/check', self,
+                suffix='claim_check')
+            polServer.falconServer.add_route(
+                '/api/scoring/outlets/{name}/accuracy', self,
+                suffix='outlet_accuracy')
             polServer.falconServer.add_route(
                 '/api/scoring/elections/{name}/tally', self,
                 suffix='election_tally')
@@ -319,6 +332,20 @@ class ScoringAPI(treeObject):
             self.manager, name, concept,
             policy_name=request.get_param('policy') or '',
             timeframe_context=request.get_param('timeframe') or '')
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_claim_check(self, request, response, name):
+        report = check_claim(
+            self.manager, name, request.get_param('policy') or '')
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_outlet_accuracy(self, request, response, name):
+        report = outlet_accuracy(
+            self.manager, name, request.get_param('policy') or '')
         if not report.get('ok'):
             response.status = '404 Not Found'
         response.media = report
