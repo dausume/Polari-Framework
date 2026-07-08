@@ -98,7 +98,9 @@ def _detail_row(row):
 def _result_properties(levels, meanings):
     """Scalar values inside stored engine results → property entries
     (the computed half of 'what are its properties')."""
-    skip = {'ok'}
+    # Engine/run metadata is not a material property — it stays
+    # visible in the level row's parameters, not the property list.
+    skip = {'ok', 'engine', 'basis', 'xc'}
     entries = []
     for level in levels:
         for row in level['rows']:

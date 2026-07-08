@@ -106,6 +106,16 @@ from materialsScience.thermal_windows import (
 from materialsScience.property_meanings import (
     MaterialPropertyMeaning, SEED_PROPERTY_MEANINGS,
 )
+# Context-based scoring: the Political Scorecard's term/context/weight
+# system generalized over arbitrary Polari data (scr-1).
+from scoring.scoring_basis import (
+    ContextualizedValue, ScoreContext, ScoreSubject, ScoreTerm,
+)
+from scoring.score_concept import ScoreConcept
+from scoring.scoring_seed import (
+    SEED_CONTEXTUALIZED_VALUES, SEED_SCORE_CONCEPTS,
+    SEED_SCORE_CONTEXTS, SEED_SCORE_SUBJECTS, SEED_SCORE_TERMS,
+)
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -507,6 +517,11 @@ class polariServer(treeObject):
         materialDetailEndpoint = MaterialDetailAPI(
             polServer=self, manager=self.manager)
 
+        # Context-based scoring: concept list + the scoring pipeline
+        # (normalize -> context-match -> weight -> levelize) (scr-1).
+        from scoring.scoring_api import ScoringAPI
+        scoringEndpoint = ScoringAPI(polServer=self, manager=self.manager)
+
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
         # at size).
@@ -570,6 +585,8 @@ class polariServer(treeObject):
             FormulationCandidateResult,
             EngineModelTemplate, FEMModelDefinition, DFTModelDefinition,
             MaterialPropertyMeaning,
+            ScoreTerm, ScoreContext, ScoreSubject, ContextualizedValue,
+            ScoreConcept,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1386,6 +1403,14 @@ class polariServer(treeObject):
             # Property meanings the material detail view explains with.
             ('MaterialPropertyMeaning', MaterialPropertyMeaning,
              SEED_PROPERTY_MEANINGS),
+            # Context-based scoring: terms/contexts/subjects before the
+            # values and concepts that reference them.
+            ('ScoreTerm', ScoreTerm, SEED_SCORE_TERMS),
+            ('ScoreContext', ScoreContext, SEED_SCORE_CONTEXTS),
+            ('ScoreSubject', ScoreSubject, SEED_SCORE_SUBJECTS),
+            ('ContextualizedValue', ContextualizedValue,
+             SEED_CONTEXTUALIZED_VALUES),
+            ('ScoreConcept', ScoreConcept, SEED_SCORE_CONCEPTS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
