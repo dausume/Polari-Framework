@@ -175,6 +175,9 @@ from aquaponics.media_seed import (
 # capture + CO2/O2 flux).
 from aquaponics.plant_basis import PlantDefinition, PlantPart
 from aquaponics.plant_seed import SEED_PLANTS, SEED_PLANT_PARTS
+# aqp-5: full atmospheric conditions + plant<->air gas exchange.
+from aquaponics.atmosphere_basis import AtmosphereDefinition
+from aquaponics.atmosphere_seed import SEED_ATMOSPHERES
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -594,6 +597,10 @@ class polariServer(treeObject):
         from aquaponics.plant_api import AquaponicsPlantAPI
         aquaponicsPlantEndpoint = AquaponicsPlantAPI(
             polServer=self, manager=self.manager)
+        # Aquaponics: atmospheric conditions + gas exchange (aqp-5).
+        from aquaponics.atmosphere_api import AquaponicsAtmosphereAPI
+        aquaponicsAtmosphereEndpoint = AquaponicsAtmosphereAPI(
+            polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -668,6 +675,7 @@ class polariServer(treeObject):
             PotDefinition, PotHole,
             NutrientSpecies, NutrientProfile, SoilDefinition,
             WaterDefinition, PlantDefinition, PlantPart,
+            AtmosphereDefinition,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1548,6 +1556,9 @@ class polariServer(treeObject):
             # aqp-4: plants before their parts (parts reference plant).
             ('PlantDefinition', PlantDefinition, SEED_PLANTS),
             ('PlantPart', PlantPart, SEED_PLANT_PARTS),
+            # aqp-5: atmospheric environments.
+            ('AtmosphereDefinition', AtmosphereDefinition,
+             SEED_ATMOSPHERES),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
