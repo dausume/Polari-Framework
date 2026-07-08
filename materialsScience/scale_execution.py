@@ -27,6 +27,7 @@ refusals pass through their suggestions untouched.
 import json
 
 from materialsScience.engines import dft_engine, fem_engine
+from materialsScience.engines import md_engine, meso_engine
 from materialsScience.engines import transport_engine
 
 
