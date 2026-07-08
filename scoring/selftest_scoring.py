@@ -18,9 +18,16 @@ from types import SimpleNamespace
 from scoring.scoring_engine import (
     normalize_value, score_concept, select_value,
 )
+from scoring.agreement_policy import (
+    SEED_AGREEMENT_POLICIES, classify_max,
+)
+from scoring.group_aggregation import (
+    aggregate_group, all_groups_consensus, compare_groups,
+)
 from scoring.scoring_seed import (
     SEED_CONTEXTUALIZED_VALUES, SEED_SCORE_CONCEPTS,
-    SEED_SCORE_CONTEXTS, SEED_SCORE_SUBJECTS, SEED_SCORE_TERMS,
+    SEED_SCORE_CONTEXTS, SEED_SCORE_GROUPS, SEED_SCORE_SUBJECTS,
+    SEED_SCORE_TERMS,
 )
 
 PASS, FAIL = '\033[0;32mPASS\033[0m', '\033[0;31mFAIL\033[0m'
@@ -45,6 +52,8 @@ def _mgr(with_beeswax_result=True):
         'ScoreSubject': _rows(SEED_SCORE_SUBJECTS),
         'ContextualizedValue': _rows(SEED_CONTEXTUALIZED_VALUES),
         'ScoreConcept': _rows(SEED_SCORE_CONCEPTS),
+        'ScoreGroup': _rows(SEED_SCORE_GROUPS),
+        'AgreementPolicy': _rows(SEED_AGREEMENT_POLICIES),
         'FEMModelDefinition': {},
         'MaterialScaleDefinition': {},
     }
@@ -281,10 +290,105 @@ if __name__ == '__main__':
         ingestion_mod.ContextualizedValue = orig[0]
         ingestion_mod.ScoreSubject = orig[1]
 
+    print("\nagreement bands (Dustin's settings, classify_max)")
+    import json as _json
+    bands = _json.loads(
+        SEED_AGREEMENT_POLICIES[0]['direction_bands_json'])
+    for value, label in ((0.5, 'divisive'), (0.6, 'slight-majority'),
+                         (0.75, 'large-majority'),
+                         (0.9, 'near-consensus'), (1.0, 'consensus')):
+        check(f'{value} -> {label}',
+              classify_max(value, bands) == label,
+              classify_max(value, bands))
+
+    print('\ngroup aggregation')
+    mgr = _mgr()
+    political = aggregate_group(mgr, 'demo-political-group')
+    terms_pol = {t['key']: t for t in political['terms']}
+    check('political group: minimum-wage consensus (2/2 positive)',
+          terms_pol['minimum-wage']['directionClass'] == 'consensus'
+          and terms_pol['minimum-wage']['dominantFraction'] == 1.0)
+    check('political group: aligned weighting on minimum-wage '
+          '(identical shares)',
+          terms_pol['minimum-wage']['weightClass']
+          == 'aligned-weighting'
+          and terms_pol['minimum-wage']['weightShareSpread'] == 0.0)
+
+    professional = aggregate_group(mgr, 'demo-professional-group')
+    terms_pro = {t['key']: t for t in professional['terms']}
+    check('professional group: minimum-wage DIVISIVE (carol + / '
+          'dan −, 50/50)',
+          terms_pro['minimum-wage']['directionClass'] == 'divisive'
+          and terms_pro['minimum-wage']['negativeMembers']
+          == ['member-labor-dan'])
+    check('evidence numbers travel with the label',
+          terms_pro['minimum-wage']['dominantFraction'] == 0.5
+          and terms_pro['minimum-wage']['holders'] == 2)
+
+    consensus = all_groups_consensus(mgr)
+    terms_all = {t['key']: t for t in consensus['terms']}
+    check('all-groups consensus: 4 members, minimum-wage '
+          'large-majority (3/4)',
+          consensus['memberCount'] == 4
+          and terms_all['minimum-wage']['dominantFraction'] == 0.75
+          and terms_all['minimum-wage']['directionClass']
+          == 'large-majority')
+    check('unsplit terms reach consensus in the union',
+          terms_all['union-participation']['directionClass']
+          == 'consensus')
+    check('agreementIndex present',
+          0.0 < consensus['agreementIndex'] <= 1.0,
+          str(consensus['agreementIndex']))
+
+    compared = compare_groups(
+        mgr, ['demo-political-group', 'demo-professional-group'])
+    pair = compared['pairs'][0]
+    check('group comparison classified via similarity bands',
+          compared['ok'] and pair['similarityClass'] in (
+              'shared-definition', 'broadly-aligned',
+              'partially-aligned', 'divergent'),
+          f"{pair['similarity']} -> {pair['similarityClass']}")
+    check('biggest disagreement named: minimum-wage (stance flip)',
+          pair['topDisagreements'][0]['key'] == 'minimum-wage')
+
+    # Settings are SETTINGS: a different policy reclassifies.
+    mgr.objectTables['AgreementPolicy'][9] = SimpleNamespace(
+        name='everything-is-fine',
+        direction_bands_json='[{"label": "fine", "max": 1.0}]',
+        weight_bands_json='[{"label": "fine", "max": 10.0}]',
+        similarity_bands_json='[{"label": "fine", "min": -1.0}]')
+    relaxed = aggregate_group(
+        mgr, 'demo-professional-group', 'everything-is-fine')
+    check('editing the policy changes the classification (knob, '
+          'not code)',
+          {t['key']: t for t in relaxed['terms']}[
+              'minimum-wage']['directionClass'] == 'fine')
+
+    print('\nper-entry stance (isPositive override)')
+    dan = score_concept(mgr, 'member-labor-dan')
+    dc = {s['subject']: s for s in dan['subjects']}['washington-dc']
+    wage = next(b for b in dc['breakdown']
+                if b.get('term') == 'minimum-wage')
+    check("dan's inverted minimum-wage: DC ($17.50, best) "
+          'normalizes to 0',
+          wage['isPositive'] is False and wage['normalized'] == 0.0)
+
     print('\nhonest errors')
     bad = score_concept(_mgr(), 'no-such-concept')
     check('unknown concept named + known list',
           not bad['ok'] and 'labor-quality' in bad['knownConcepts'])
+    bad = aggregate_group(_mgr(), 'no-such-group')
+    check('unknown group named + known groups',
+          not bad['ok'] and 'demo-political-group'
+          in bad['knownGroups'])
+    bad = aggregate_group(_mgr(), 'demo-political-group',
+                          'no-such-policy')
+    check('unknown policy refused w/ the AgreementPolicy knob',
+          not bad['ok']
+          and bad['suggestion']['knob'] == 'AgreementPolicy')
+    bad = compare_groups(_mgr(), ['demo-political-group'])
+    check('compare needs two groups',
+          not bad['ok'] and 'two group names' in bad['error'])
 
     failed = _results.count(False)
     print(f'\n{len(_results) - failed}/{len(_results)} checks passed\n')

@@ -333,9 +333,13 @@ def score_concept(manager, concept_name, _path=()):
                 continue
             spec = _parse(getattr(term, 'normalization_json', ''),
                           '{"method": "min-max-auto"}')
+            # Stance is per-ENTRY when given (a concept may hold a
+            # term good that another holds bad — the scorecard's
+            # per-ballot isPositive; feeds group divisiveness).
+            is_positive = bool(entry.get(
+                'isPositive', getattr(term, 'is_positive', True)))
             nok, normalized, applied = normalize_value(
-                raw, spec, bool(getattr(term, 'is_positive', True)),
-                pools.get(term_key, []))
+                raw, spec, is_positive, pools.get(term_key, []))
             if not nok:
                 missing.append(term_key)
                 breakdown.append({'term': term_key, 'weight': weight,
@@ -348,7 +352,7 @@ def score_concept(manager, concept_name, _path=()):
                 'term': term_key,
                 'label': getattr(term, 'display_name', term_key),
                 'weight': weight,
-                'isPositive': bool(getattr(term, 'is_positive', True)),
+                'isPositive': is_positive,
                 'raw': raw, 'unit': getattr(term, 'unit', ''),
                 'normalized': round(normalized, 6),
                 'weighted': round(weighted, 6),

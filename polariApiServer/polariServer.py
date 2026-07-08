@@ -112,9 +112,14 @@ from scoring.scoring_basis import (
     ContextualizedValue, ScoreContext, ScoreSubject, ScoreTerm,
 )
 from scoring.score_concept import ScoreConcept
+from scoring.score_group import ScoreGroup
+from scoring.agreement_policy import (
+    AgreementPolicy, SEED_AGREEMENT_POLICIES,
+)
 from scoring.scoring_seed import (
     SEED_CONTEXTUALIZED_VALUES, SEED_SCORE_CONCEPTS,
-    SEED_SCORE_CONTEXTS, SEED_SCORE_SUBJECTS, SEED_SCORE_TERMS,
+    SEED_SCORE_CONTEXTS, SEED_SCORE_GROUPS, SEED_SCORE_SUBJECTS,
+    SEED_SCORE_TERMS,
 )
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
@@ -586,7 +591,7 @@ class polariServer(treeObject):
             EngineModelTemplate, FEMModelDefinition, DFTModelDefinition,
             MaterialPropertyMeaning,
             ScoreTerm, ScoreContext, ScoreSubject, ContextualizedValue,
-            ScoreConcept,
+            ScoreConcept, ScoreGroup, AgreementPolicy,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1411,6 +1416,11 @@ class polariServer(treeObject):
             ('ContextualizedValue', ContextualizedValue,
              SEED_CONTEXTUALIZED_VALUES),
             ('ScoreConcept', ScoreConcept, SEED_SCORE_CONCEPTS),
+            # Groups + the editable agreement-classification bands
+            # (concepts first — groups reference member concepts).
+            ('ScoreGroup', ScoreGroup, SEED_SCORE_GROUPS),
+            ('AgreementPolicy', AgreementPolicy,
+             SEED_AGREEMENT_POLICIES),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),

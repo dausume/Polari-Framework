@@ -264,6 +264,47 @@ SEED_SCORE_CONCEPTS = [
         'levelize': True,
         'provenance_id': 'demo',
     },
+] + [
+    {
+        # Demo member WORLDVIEWS (scr-3): four people's definitions of
+        # labor quality — same terms, different weights, and one
+        # opposite stance (dan holds minimum-wage NEGATIVE via the
+        # per-entry isPositive override) so the demo groups exercise
+        # divisive vs consensus classification honestly.
+        'name': f'member-labor-{who}',
+        'display_name': f'Labor worldview — {who.title()}',
+        'description': f'Demo member worldview ({who}).',
+        'subject_kind': 'state',
+        'term_weights_json': json.dumps(weights),
+        'required_context_names_json': json.dumps(['year-2022']),
+        'aggregation': 'weighted-mean',
+        'levelize': False,
+        'provenance_id': 'demo worldview member',
+    }
+    for who, weights in {
+        'alice': [
+            {'term': 'union-participation', 'weight': 5},
+            {'term': 'labor-force-participation-rate', 'weight': 2},
+            {'term': 'minimum-wage', 'weight': 8},
+            {'term': 'impoverished-workforce', 'weight': 6}],
+        'bob': [
+            {'term': 'union-participation', 'weight': 6},
+            {'term': 'labor-force-participation-rate', 'weight': 2},
+            {'term': 'minimum-wage', 'weight': 8},
+            {'term': 'impoverished-workforce', 'weight': 5}],
+        'carol': [
+            {'term': 'union-participation', 'weight': 2},
+            {'term': 'labor-force-participation-rate', 'weight': 1},
+            {'term': 'minimum-wage', 'weight': 9},
+            {'term': 'impoverished-workforce', 'weight': 2}],
+        'dan': [
+            {'term': 'union-participation', 'weight': 1},
+            {'term': 'labor-force-participation-rate', 'weight': 3},
+            {'term': 'minimum-wage', 'weight': 7,
+             'isPositive': False},
+            {'term': 'impoverished-workforce', 'weight': 3}],
+    }.items()
+] + [
     {
         'name': 'demo-material-conductivity',
         'display_name': 'Material Conductivity (arbitrary-data demo)',
@@ -281,5 +322,26 @@ SEED_SCORE_CONCEPTS = [
         'aggregation': 'weighted-mean',
         'levelize': False,
         'provenance_id': 'demo',
+    },
+]
+
+SEED_SCORE_GROUPS = [
+    {
+        'name': 'demo-political-group',
+        'display_name': 'Demo Political Group',
+        'group_type': 'political',
+        'member_concept_names_json': json.dumps(
+            ['member-labor-alice', 'member-labor-bob']),
+        'description': 'Two aligned worldviews — exercises consensus '
+                       'and aligned-weighting classifications.',
+    },
+    {
+        'name': 'demo-professional-group',
+        'display_name': 'Demo Professional Group',
+        'group_type': 'professional',
+        'member_concept_names_json': json.dumps(
+            ['member-labor-carol', 'member-labor-dan']),
+        'description': 'Split stance on minimum-wage (carol +, dan −) '
+                       '— exercises the divisive classification.',
     },
 ]

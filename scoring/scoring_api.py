@@ -33,6 +33,9 @@ import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 from scoring.data_ingestion import ingest_from_class, ingest_records
+from scoring.group_aggregation import (
+    aggregate_group, all_groups_consensus, compare_groups,
+)
 from scoring.scoring_engine import score_concept
 
 
@@ -51,6 +54,14 @@ class ScoringAPI(treeObject):
                 suffix='score')
             polServer.falconServer.add_route(
                 '/api/scoring/ingest', self, suffix='ingest')
+            polServer.falconServer.add_route(
+                '/api/scoring/groups/consensus', self,
+                suffix='consensus')
+            polServer.falconServer.add_route(
+                '/api/scoring/groups/compare', self, suffix='compare')
+            polServer.falconServer.add_route(
+                '/api/scoring/groups/{name}/aggregate', self,
+                suffix='aggregate')
 
     def on_get_concepts(self, request, response):
         table = (self.manager.objectTables or {}).get('ScoreConcept', {})
@@ -96,3 +107,32 @@ class ScoringAPI(treeObject):
         if not result.get('ok'):
             response.status = '422 Unprocessable Entity'
         response.media = result
+
+    def on_get_aggregate(self, request, response, name):
+        report = aggregate_group(
+            self.manager, name, request.get_param('policy') or '')
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_consensus(self, request, response):
+        report = all_groups_consensus(
+            self.manager, request.get_param('policy') or '')
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_post_compare(self, request, response):
+        try:
+            payload = json.load(request.bounded_stream)
+        except Exception as e:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': f'bad JSON payload: {e}'}
+            return
+        report = compare_groups(
+            self.manager, payload.get('names', []),
+            payload.get('policy', ''))
+        if not report.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = report
