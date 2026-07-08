@@ -133,6 +133,11 @@ from scoring.assertion_seed import (
     SEED_MEDIA_EVIDENCE, SEED_POLICY_SUBJECTS, SEED_SCORE_ASSERTIONS,
     SEED_VALIDITY_VOTES,
 )
+# scr-6: politician voting records → vote-weighted politician scores.
+from scoring.policy_votes import (
+    PolicyVote, SEED_COHORT_GROUPS, SEED_POLICY_VOTES,
+    SEED_POLITICIAN_SUBJECTS,
+)
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -605,7 +610,7 @@ class polariServer(treeObject):
             ScoreTerm, ScoreContext, ScoreSubject, ContextualizedValue,
             ScoreConcept, ScoreGroup, AgreementPolicy,
             ScoreAssertion, AssertionValidityVote, MediaEvidence,
-            EvidencePolicy, Contributor,
+            EvidencePolicy, Contributor, PolicyVote,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1427,13 +1432,15 @@ class polariServer(treeObject):
             ('ScoreTerm', ScoreTerm, SEED_SCORE_TERMS),
             ('ScoreContext', ScoreContext, SEED_SCORE_CONTEXTS),
             ('ScoreSubject', ScoreSubject,
-             SEED_SCORE_SUBJECTS + SEED_POLICY_SUBJECTS),
+             SEED_SCORE_SUBJECTS + SEED_POLICY_SUBJECTS
+             + SEED_POLITICIAN_SUBJECTS),
             ('ContextualizedValue', ContextualizedValue,
              SEED_CONTEXTUALIZED_VALUES),
             ('ScoreConcept', ScoreConcept, SEED_SCORE_CONCEPTS),
             # Groups + the editable agreement-classification bands
             # (concepts first — groups reference member concepts).
-            ('ScoreGroup', ScoreGroup, SEED_SCORE_GROUPS),
+            ('ScoreGroup', ScoreGroup,
+             SEED_SCORE_GROUPS + SEED_COHORT_GROUPS),
             ('AgreementPolicy', AgreementPolicy,
              SEED_AGREEMENT_POLICIES),
             # scr-5: contributors before the evidence/assertions that
@@ -1446,6 +1453,9 @@ class polariServer(treeObject):
              SEED_SCORE_ASSERTIONS),
             ('AssertionValidityVote', AssertionValidityVote,
              SEED_VALIDITY_VOTES),
+            # scr-6: votes after the politician/policy subjects they
+            # reference.
+            ('PolicyVote', PolicyVote, SEED_POLICY_VOTES),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),

@@ -37,6 +37,16 @@ scr-5 (assertions + policy accountability):
                                           suggestions
   GET  /api/scoring/contributors/{name}/record        track record
 
+scr-6 (politicians + votes):
+  GET  /api/scoring/politicians/{name}/score?concept=…[&timeframe=…]
+                                          vote-weighted concept score
+  GET  /api/scoring/cohorts/{name}/report?concept=…   cohort scores +
+                                          per-policy vote cohesion
+  POST /api/scoring/ingest-votes          any class (api-profiler
+                                          output) → PolicyVote rows;
+                                          create knobs never default
+                                          on
+
 Pure reads (plus the two explicit POSTs) — score definitions are
 edited through standard CRUDE on ScoreTerm / ScoreContext /
 ScoreSubject / ContextualizedValue / ScoreConcept / ScoreAssertion /
@@ -59,6 +69,8 @@ from scoring.group_aggregation import (
     aggregate_group, all_groups_consensus, compare_groups,
 )
 from scoring.policy_scoring import score_policy
+from scoring.policy_votes import ingest_votes_from_class
+from scoring.politician_scoring import cohort_report, politician_score
 from scoring.scoring_engine import score_concept
 from scoring.specificity import (
     check_concept_specificity, suggest_critical_contexts,
@@ -111,6 +123,15 @@ class ScoringAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/scoring/contributors/{name}/record', self,
                 suffix='contributor_record')
+            polServer.falconServer.add_route(
+                '/api/scoring/politicians/{name}/score', self,
+                suffix='politician_score')
+            polServer.falconServer.add_route(
+                '/api/scoring/cohorts/{name}/report', self,
+                suffix='cohort_report')
+            polServer.falconServer.add_route(
+                '/api/scoring/ingest-votes', self,
+                suffix='ingest_votes')
 
     def on_get_concepts(self, request, response):
         table = (self.manager.objectTables or {}).get('ScoreConcept', {})
@@ -253,6 +274,51 @@ class ScoringAPI(treeObject):
         if not report.get('ok'):
             response.status = '404 Not Found'
         response.media = report
+
+    def on_get_politician_score(self, request, response, name):
+        concept = request.get_param('concept') or ''
+        if not concept:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': "query param 'concept' is "
+                                       'required'}
+            return
+        report = politician_score(
+            self.manager, name, concept,
+            timeframe_context=request.get_param('timeframe') or '',
+            evidence_policy=request.get_param('evidencePolicy') or '')
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_cohort_report(self, request, response, name):
+        concept = request.get_param('concept') or ''
+        if not concept:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': "query param 'concept' is "
+                                       'required'}
+            return
+        report = cohort_report(
+            self.manager, name, concept,
+            policy_name=request.get_param('policy') or '',
+            timeframe_context=request.get_param('timeframe') or '')
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_post_ingest_votes(self, request, response):
+        try:
+            payload = json.load(request.bounded_stream)
+        except Exception as e:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': f'bad JSON payload: {e}'}
+            return
+        result = ingest_votes_from_class(self.manager, payload)
+        if not result.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = result
 
     def on_get_aggregate(self, request, response, name):
         report = aggregate_group(

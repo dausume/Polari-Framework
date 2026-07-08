@@ -35,6 +35,11 @@ class ScoreGroup(treeObject):
         group_type: str = 'custom',
         # JSON list of ScoreConcept names — each member's definition.
         member_concept_names_json: str = '[]',
+        # JSON list of ScoreSubject names — SUBJECT cohorts (scr-6:
+        # a party's politicians, a committee) for cohort reads over
+        # votes/scores. A group may hold worldview members, subject
+        # members, or both.
+        member_subject_names_json: str = '[]',
         description: str = '',
         notes: str = '',
         manager=None,
@@ -43,5 +48,6 @@ class ScoreGroup(treeObject):
         self.display_name = display_name
         self.group_type = group_type
         self.member_concept_names_json = member_concept_names_json
+        self.member_subject_names_json = member_subject_names_json
         self.description = description
         self.notes = notes
