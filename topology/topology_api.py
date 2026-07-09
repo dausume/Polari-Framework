@@ -261,7 +261,7 @@ class TopologyAPI(treeObject):
                 manager=self.manager)
         else:
             target.state = 'enabled'
-            self._save(target)
+        self._save(target)
         resolve = resolve_edges(self.manager, name)
         for edge in self._table('ModuleDependencyEdge').values():
             if getattr(edge, 'topology_name', '') == name:
@@ -291,6 +291,7 @@ class TopologyAPI(treeObject):
             modules_json=json.dumps(payload.get('modules', [])),
             source=payload.get('source', 'pol topology report'),
             manager=self.manager)
+        self._save(row)
         response.media = {'ok': True,
                           'observation': getattr(row, 'name', ''),
                           'topology': name}
@@ -306,7 +307,7 @@ class TopologyAPI(treeObject):
         created = []
         for class_name, row in plan['creates']:
             cls = CLASS_MAP[class_name]
-            cls(**row, manager=self.manager)
+            self._save(cls(**row, manager=self.manager))
             created.append({'class': class_name,
                             'name': row.get('name', '')})
         topo = (payload.get('topology') or {}).get('name', '')

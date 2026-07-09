@@ -63,6 +63,23 @@ INTERCONNECT_KEYS = (
     'scorecard-api-seam',
 )
 
+#: Compose/swarm service LABELS -> registry kinds, for observation
+#: matching (mirror of registry.sh's ALIASES + DASK_MSCI mapping —
+#: compose service names differ per bundle file).
+SERVICE_LABEL_ALIASES = {
+    'backend': 'prf-backend',
+    'frontend': 'prf-frontend',
+    'backend-b': 'prf-backend-b',
+    'frontend-b': 'prf-frontend-b',
+    'keydb-b': 'prf-keydb-b',
+    'dask-scheduler': 'prf-dask',
+    'dask-worker-a': 'prf-dask',
+    'dask-worker-b': 'prf-dask',
+    'dask-worker': 'prf-dask',
+    'msci-engines': 'prf-msci-engines',
+    'remote-worker': 'prf-msci-engines',
+}
+
 #: The 19 registry service kinds (pol-build/registry/services.yml:93).
 KNOWN_SERVICE_KINDS = (
     'pol-mariadb', 'pol-keycloak', 'pol-file-store', 'pol-proxy',

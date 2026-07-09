@@ -24,7 +24,7 @@ import json
 
 from topology.topology_constants import (
     DB_BACKENDS, ENV_TIERS, INTERCONNECT_KEYS, KNOWN_SERVICE_KINDS,
-    ORCHESTRATION_TARGETS,
+    ORCHESTRATION_TARGETS, SERVICE_LABEL_ALIASES,
 )
 
 
@@ -367,14 +367,36 @@ def _latest_observations(manager, topology_name):
     return latest
 
 
+def _observed_entries(obs):
+    """Normalize one observation's services to (name, kinds) pairs.
+
+    Entries may be plain names or reporter dicts {name, service,
+    state, image}. The compose/swarm service LABEL resolves to a
+    registry kind (directly or via SERVICE_LABEL_ALIASES); the raw
+    container name stays as a substring fallback."""
+    entries = []
+    for s in _loads(obs, 'services_json', []):
+        if isinstance(s, dict):
+            name = s.get('name', '')
+            label = s.get('service', '')
+        else:
+            name, label = str(s), ''
+        kinds = set()
+        if label in KNOWN_SERVICE_KINDS:
+            kinds.add(label)
+        if label in SERVICE_LABEL_ALIASES:
+            kinds.add(SERVICE_LABEL_ALIASES[label])
+        entries.append((name, kinds))
+    return entries
+
+
 def drift_report(manager, topology_name):
     """Desired vs latest observations. Every row carries the
     suggested `pol` command (suggestion, never auto-run).
 
-    Matching is by service-kind substring against observed service
-    names (compose containers carry project prefixes/suffixes, e.g.
-    'polari-rf-node-prf-backend-1' — honest v1; the reporter
-    normalizes names it can)."""
+    Matching prefers the reporter's compose/swarm service labels
+    (exact kind or alias); container-name substring is the fallback
+    for label-less observations."""
     instances = _scoped(manager, 'InstanceDefinition', topology_name)
     if not instances:
         return {'ok': False,
@@ -397,11 +419,10 @@ def drift_report(manager, topology_name):
                             'compared',
                 'suggestedCommand': 'pol topology report'})
             continue
-        observed = [
-            (s.get('name', '') if isinstance(s, dict) else str(s))
-            for s in _loads(obs, 'services_json', [])]
+        observed = _observed_entries(obs)
         for kind in kinds:
-            if not any(kind in name for name in observed):
+            if not any(kind in okinds or kind in name
+                       for name, okinds in observed):
                 rows.append({
                     'kind': 'missing-service', 'subject': iname,
                     'machine': machine, 'serviceKind': kind,
@@ -410,11 +431,9 @@ def drift_report(manager, topology_name):
                                 f'{getattr(obs, "observed_at", "")}',
                     'suggestedCommand': 'pol topology apply --plan'})
     for machine, obs in latest.items():
-        observed = [
-            (s.get('name', '') if isinstance(s, dict) else str(s))
-            for s in _loads(obs, 'services_json', [])]
-        for name in observed:
-            if not any(kind in name for kind in desired_kinds):
+        for name, okinds in _observed_entries(obs):
+            if not (okinds & desired_kinds) and not any(
+                    kind in name for kind in desired_kinds):
                 rows.append({
                     'kind': 'unexpected-service', 'subject': name,
                     'machine': machine,

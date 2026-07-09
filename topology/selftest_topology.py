@@ -64,19 +64,27 @@ def _observation(node, services, stamp='2026-07-09T00:00:00+00:00'):
         source='selftest')
 
 
-#: What the staging-a host actually runs (container-style names —
-#: drift matching is by kind substring).
+#: What the staging-a host ACTUALLY runs (real container names +
+#: compose/swarm service labels from `docker ps` 2026-07-09) — the
+#: aliased names (backend-b, dask-worker-a, msci-engines) exercise
+#: the SERVICE_LABEL_ALIASES matching; plain-string entries exercise
+#: the substring fallback.
 FULL_STAGING_SERVICES = [
-    'polari-suite-pol-mariadb-1', 'polari-suite-pol-keycloak-1',
-    'polari-suite-pol-file-store-1', 'polari-suite-pol-proxy-1',
-    'polari-suite-psc-redis-1', 'polari-suite-psc-backend-1',
-    'polari-suite-psc-frontend-1',
-    'polari-rf-node-prf-backend-1', 'polari-rf-node-prf-frontend-1',
-    'polari-rf-node-prf-mariadb-1', 'polari-rf-node-prf-keycloak-1',
-    'polari-rf-node-prf-file-store-1', 'polari-rf-node-prf-proxy-1',
-    'twin-b-prf-backend-b-1', 'twin-b-prf-frontend-b-1',
-    'twin-b-prf-keydb-b-1', 'dask-prf-dask-1',
-    'polari-engines_prf-msci-engines',
+    {'name': 'pol-mariadb', 'service': 'pol-mariadb'},
+    {'name': 'pol-keycloak', 'service': 'pol-keycloak'},
+    {'name': 'pol-file-store', 'service': 'pol-file-store'},
+    {'name': 'pol-proxy', 'service': 'pol-proxy'},
+    {'name': 'psc-redis', 'service': 'psc-redis'},
+    {'name': 'psc-backend', 'service': 'psc-backend'},
+    {'name': 'psc-frontend', 'service': 'psc-frontend'},
+    'prf-backend', 'prf-frontend',
+    {'name': 'prf-b-backend', 'service': 'backend-b'},
+    {'name': 'prf-b-frontend', 'service': 'frontend-b'},
+    {'name': 'prf-b-keydb', 'service': 'keydb-b'},
+    {'name': 'prf-dask-scheduler', 'service': 'dask-scheduler'},
+    {'name': 'prf-a-dask-worker', 'service': 'dask-worker-a'},
+    {'name': 'polari-engines_msci-engines.1.2mfrjud',
+     'service': 'msci-engines'},
 ]
 
 
@@ -99,8 +107,8 @@ if __name__ == '__main__':
     print('== suite: graph payload ==')
     graph = graph_payload(mgr, 'staging-a')
     check('graph ok', graph.get('ok'))
-    check('graph carries 5 instances',
-          len(graph.get('instances', [])) == 5)
+    check('graph carries 6 instances',
+          len(graph.get('instances', [])) == 6)
     check('graph carries 3 machines',
           len(graph.get('machines', [])) == 3)
     check('graph carries 8 assignments',
@@ -220,7 +228,7 @@ if __name__ == '__main__':
     check('no observations => every instance unobserved',
           report['inDrift'] and all(
               r['kind'] == 'unobserved' for r in report['rows'])
-          and len(report['rows']) == 5)
+          and len(report['rows']) == 6)
     check('unobserved rows suggest pol topology report',
           all(r['suggestedCommand'] == 'pol topology report'
               for r in report['rows']))
@@ -230,7 +238,7 @@ if __name__ == '__main__':
     check('full observation => no drift',
           not report['inDrift'], json.dumps(report['rows']))
     partial = [s for s in FULL_STAGING_SERVICES
-               if 'msci-engines' not in s]
+               if 'msci-engines' not in json.dumps(s)]
     partial.append('rogue-miner-1')
     mgr.objectTables['TopologyObservation']['later'] = _observation(
         'staging-a', partial, stamp='2026-07-09T01:00:00+00:00')
@@ -266,7 +274,7 @@ if __name__ == '__main__':
     plan = merge_topology_doc(empty, doc)
     check('merge into empty manager creates everything',
           plan.get('ok') and len(plan['creates']) == (
-              1 + 1 + 5 + 8 + 2 + 12) and not plan['skips'])
+              1 + 1 + 6 + 8 + 2 + 12) and not plan['skips'])
     for class_name, row in plan['creates']:
         empty.objectTables[class_name][row['name']] = (
             types.SimpleNamespace(**row))
@@ -277,7 +285,7 @@ if __name__ == '__main__':
     plan = merge_topology_doc(mgr, doc)
     check('merge into seeded manager skips everything (idempotent)',
           plan.get('ok') and not plan['creates']
-          and len(plan['skips']) == 29)
+          and len(plan['skips']) == 30)
     check('non-package document refused honestly',
           not merge_topology_doc(mgr, {'kind': 'nope'}).get('ok'))
     check('wrong schema_version refused honestly',

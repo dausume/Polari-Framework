@@ -105,8 +105,7 @@ SEED_INSTANCE_DEFINITIONS = [
         'name': 'prf-a',
         'kind': 'prf',
         'service_kinds_json': json.dumps([
-            'prf-backend', 'prf-frontend', 'prf-mariadb',
-            'prf-keycloak', 'prf-file-store', 'prf-proxy']),
+            'prf-backend', 'prf-frontend']),
         'replicas': 1,
         'env_tier': 'staging',
         'machine_name': 'staging-a',
@@ -114,7 +113,10 @@ SEED_INSTANCE_DEFINITIONS = [
         'image_tag': 'staging',
         'orchestration_target': 'compose',
         'topology_name': 'staging-a',
-        'notes': 'The CORE Polari instance (research framework). '
+        'notes': 'The CORE Polari instance (research framework). In '
+                 'the combined suite it shares the shared-infra '
+                 'pol-* services; standalone rf-node bundles add '
+                 'prf-mariadb/prf-keycloak/prf-file-store/prf-proxy. '
                  'db_backend flips to mariadb+keydb via the dbcombo '
                  'overlay (`pol db`).',
     },
@@ -122,7 +124,22 @@ SEED_INSTANCE_DEFINITIONS = [
         'name': 'psc-a',
         'kind': 'psc',
         'service_kinds_json': json.dumps([
-            'psc-backend', 'psc-frontend', 'psc-redis',
+            'psc-backend', 'psc-frontend', 'psc-redis']),
+        'replicas': 1,
+        'env_tier': 'staging',
+        'machine_name': 'staging-a',
+        'db_backend': 'mariadb',
+        'image_tag': 'staging',
+        'orchestration_target': 'compose',
+        'topology_name': 'staging-a',
+        'notes': 'Political Scorecard instance (backend/frontend/'
+                 'redis); its mariadb/keycloak/minio live on '
+                 'shared-infra.',
+    },
+    {
+        'name': 'shared-infra',
+        'kind': 'infra',
+        'service_kinds_json': json.dumps([
             'pol-mariadb', 'pol-keycloak', 'pol-file-store',
             'pol-proxy']),
         'replicas': 1,
@@ -132,8 +149,9 @@ SEED_INSTANCE_DEFINITIONS = [
         'image_tag': 'staging',
         'orchestration_target': 'compose',
         'topology_name': 'staging-a',
-        'notes': 'Political Scorecard instance + the shared pol-* '
-                 'infra (mariadb/keycloak/minio/proxy).',
+        'notes': 'The combined suite\'s shared infrastructure: '
+                 'mariadb + keycloak + minio + the TLS-terminating '
+                 'nginx proxy.',
     },
     {
         'name': 'prf-b',
@@ -284,7 +302,7 @@ SEED_SERVICE_CONNECTIONS = [
     {'name': 'psc-backend->pol-keycloak:keycloak-client-secrets',
      'interconnect_key': 'keycloak-client-secrets',
      'from_kind': 'psc-backend', 'to_kind': 'pol-keycloak',
-     'from_instance_name': 'psc-a', 'to_instance_name': 'psc-a',
+     'from_instance_name': 'psc-a', 'to_instance_name': 'shared-infra',
      'artifact': 'pol-keycloak/keycloak-admin.env',
      'topology_name': 'staging-a',
      'notes': 'psc service-account -> keycloak admin API.'},
@@ -298,7 +316,7 @@ SEED_SERVICE_CONNECTIONS = [
     {'name': 'psc-backend->pol-mariadb:db-credentials',
      'interconnect_key': 'db-credentials',
      'from_kind': 'psc-backend', 'to_kind': 'pol-mariadb',
-     'from_instance_name': 'psc-a', 'to_instance_name': 'psc-a',
+     'from_instance_name': 'psc-a', 'to_instance_name': 'shared-infra',
      'artifact': 'pol-mariadb/mariadb.env',
      'topology_name': 'staging-a',
      'notes': 'psc-scorecard-server DB user, volume-baked.'},
@@ -320,7 +338,7 @@ SEED_SERVICE_CONNECTIONS = [
     {'name': 'pol-proxy->psc-frontend:nginx-proxy-config',
      'interconnect_key': 'nginx-proxy-config',
      'from_kind': 'pol-proxy', 'to_kind': 'psc-frontend',
-     'from_instance_name': 'psc-a', 'to_instance_name': 'psc-a',
+     'from_instance_name': 'shared-infra', 'to_instance_name': 'psc-a',
      'artifact': '.generated/nginx.staging.conf (suite)',
      'topology_name': 'staging-a',
      'notes': 'suite-side subdomain routing + TLS termination.'},
