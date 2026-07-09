@@ -194,6 +194,9 @@ from aquaponics.vermicompost_seed import (
     SEED_ENRICH_SCORE_CONCEPTS, SEED_ENRICH_SCORE_SUBJECTS,
     SEED_ENRICH_SCORE_TERMS, SEED_VERMICOMPOST_PROFILES,
 )
+# Aquaponics per-part plant growth / growth-failure (aqp-8).
+from aquaponics.plant_growth_basis import PlantGrowthModel
+from aquaponics.plant_growth_seed import SEED_PLANT_GROWTH_MODELS
 # Topology orchestration (top-1): the swarm/compose topology as
 # object-tree data — machines, instances, module assignments +
 # dependency edges, typed connections, desired vs observed state.
@@ -650,6 +653,11 @@ class polariServer(treeObject):
         from aquaponics.vermicompost_api import AquaponicsCompostAPI
         aquaponicsCompostEndpoint = AquaponicsCompostAPI(
             polServer=self, manager=self.manager)
+        # Aquaponics: per-part plant growth / failure + volume
+        # interactions — grow / interactions (aqp-8).
+        from aquaponics.plant_growth_api import AquaponicsPlantGrowthAPI
+        aquaponicsPlantGrowthEndpoint = AquaponicsPlantGrowthAPI(
+            polServer=self, manager=self.manager)
 
         # Topology orchestration: graph/validate/assign/drift/observe
         # + portable package export/import (top-1).
@@ -737,7 +745,7 @@ class polariServer(treeObject):
             WaterDefinition, PlantDefinition, PlantPart,
             AtmosphereDefinition, PotSystemDefinition,
             CompostBinDefinition, VermicompostProfile,
-            CompostLoopDefinition,
+            CompostLoopDefinition, PlantGrowthModel,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -1644,6 +1652,10 @@ class polariServer(treeObject):
              SEED_COMPOST_BINS),
             ('CompostLoopDefinition', CompostLoopDefinition,
              SEED_COMPOST_LOOPS),
+            # aqp-8: per-part growth models (reference PlantPart rows
+            # seeded above).
+            ('PlantGrowthModel', PlantGrowthModel,
+             SEED_PLANT_GROWTH_MODELS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
