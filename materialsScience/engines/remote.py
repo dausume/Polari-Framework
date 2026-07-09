@@ -26,8 +26,12 @@ def engines_url():
 
 
 def _module_for_path(path):
-    """Engine paths name their module: /dft/* -> materialsScience.dft."""
+    """Engine paths name their module: /dft/* -> materialsScience.dft.
+    /darcy/* (aqp-3 hydraulics) rides the fem assignment — same worker,
+    same scikit-fem stack."""
     seg = path.lstrip('/').split('/', 1)[0]
+    if seg == 'darcy':
+        return 'materialsScience.fem'
     return f'materialsScience.{seg}' if seg in ('dft', 'fem') else ''
 
 

@@ -631,6 +631,11 @@ class polariServer(treeObject):
         from aquaponics.pot_system_api import AquaponicsSystemAPI
         aquaponicsSystemEndpoint = AquaponicsSystemAPI(
             polServer=self, manager=self.manager)
+        # Aquaponics: Darcy pot hydraulics — drains-by-gravity +
+        # head field, fidelity ladder fem->reservoir (aqp-3).
+        from aquaponics.hydraulics_api import AquaponicsHydraulicsAPI
+        aquaponicsHydraulicsEndpoint = AquaponicsHydraulicsAPI(
+            polServer=self, manager=self.manager)
 
         # Topology orchestration: graph/validate/assign/drift/observe
         # + portable package export/import (top-1).

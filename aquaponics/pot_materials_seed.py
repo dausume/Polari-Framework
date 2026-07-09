@@ -131,8 +131,11 @@ SEED_POT_PROPERTY_MEANINGS = [
                    'effectivePermeability already in the vocabulary.',
         'scenario_context': 'Near 1e-20 m^2 = effectively waterproof; '
                             'a fired-but-unglazed body is orders of '
-                            'magnitude higher. Sets seepage loss '
-                            'through the wall in the aqp-3 hydraulics.',
+                            'magnitude higher. Wall values remain L0 '
+                            'priors, but the SOIL flow they bound is '
+                            'now COMPUTED: GET /api/aquaponics/pots/'
+                            '{name}/drains (aqp-3 Darcy engine) '
+                            'returns the solved rate + fidelity.',
         'aliases_json': json.dumps(
             ['hydraulic_permeability', 'darcyPermeability',
              'waterPermeability', 'k_hydraulic']),
