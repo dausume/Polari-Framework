@@ -55,6 +55,41 @@ python3 -m unittest tests.test_crude_api.CRUDEAPITestCase.test_01_create_single_
 
 ## Test Coverage
 
+### Broad capability suite (added 2026-07-09)
+
+New unittest modules giving cross-cutting coverage beyond CRUDE. All run
+in-process (falcon.testing / duck-typed managers) — no live server, no DB
+seed. Run the whole new set:
+
+```bash
+docker exec -w /app prf-backend python3 -m unittest \
+  tests.test_mathshapes tests.test_modules_smoke tests.test_object_tree \
+  tests.test_api_contracts tests.test_createclass_api -v
+```
+
+- **`test_mathshapes.py`** — math-defined shapes shape-1..4 analysis:
+  quadric classify (sphere/ellipsoid/cylinder/cone), analytic vs
+  grid-sampled volume, CSG difference < base, point inside/outside,
+  surface sampling; shape-2 modify (dependent-CSG volume drop) + tower
+  geometry; shape-4 tower growth forecast (fits/dwarfed/refusal).
+- **`test_modules_smoke.py`** — auto-discovers every `*_seed.py` in the
+  framework, imports it, and validates each `SEED_*` list (importable,
+  non-empty, unique non-blank names). A cheap regression net over the
+  whole data layer.
+- **`test_object_tree.py`** — treeObject/@treeObjectInit + managerObject:
+  typing registration, instance→table, field preservation, instance
+  counts, unique ids, and a class defined AT RUNTIME (the createClass
+  essence) getting its own table.
+- **`test_api_contracts.py`** — a module API (MathShapesAPI) wired into a
+  real in-process Falcon app, asserting the JSON contract for catalogue /
+  properties / classify / evaluate / 404.
+- **`test_createclass_api.py`** — the `/createClass` no-code flow: mint a
+  typed class at runtime, duplicate→409, lowercase→400, missing name→400.
+
+Note: `test_crude_api.py` has pre-existing failures in the CRUDE-HTTP
+registration path (unrelated to the above); the new suites avoid that
+path deliberately.
+
 ### CRUDE API Tests (`test_crude_api.py`)
 
 Comprehensive tests for all CRUDE operations:
