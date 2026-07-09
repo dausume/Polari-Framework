@@ -206,6 +206,9 @@ from nutrition.nutrient_seed import (
 from nutrition.person_basis import PersonProfile
 from nutrition.household_basis import HouseholdProfile
 from nutrition.person_seed import SEED_HOUSEHOLDS, SEED_PERSONS
+# Nutrition: plant harvest -> meal-nutrient yield (nut-2).
+from nutrition.food_basis import FoodItem, NutrientContent
+from nutrition.food_seed import SEED_FOOD_ITEMS, SEED_NUTRIENT_CONTENTS
 # Topology orchestration (top-1): the swarm/compose topology as
 # object-tree data — machines, instances, module assignments +
 # dependency edges, typed connections, desired vs observed state.
@@ -672,6 +675,11 @@ class polariServer(treeObject):
         from nutrition.nutrition_api import NutritionAPI
         nutritionEndpoint = NutritionAPI(
             polServer=self, manager=self.manager)
+        # Nutrition: plant harvest -> meal-nutrient yield, closing the
+        # self-watering-pot grow loop (nut-2).
+        from nutrition.food_api import NutritionFoodAPI
+        nutritionFoodEndpoint = NutritionFoodAPI(
+            polServer=self, manager=self.manager)
 
         # Topology orchestration: graph/validate/assign/drift/observe
         # + portable package export/import (top-1).
@@ -760,9 +768,9 @@ class polariServer(treeObject):
             AtmosphereDefinition, PotSystemDefinition,
             CompostBinDefinition, VermicompostProfile,
             CompostLoopDefinition, PlantGrowthModel,
-            # Nutrition (nut-1/3/4).
+            # Nutrition (nut-1/3/4 + nut-2 foods).
             DietaryNutrient, NutrientReference, PersonProfile,
-            HouseholdProfile,
+            HouseholdProfile, FoodItem, NutrientContent,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -1681,6 +1689,10 @@ class polariServer(treeObject):
              SEED_NUTRIENT_REFERENCES),
             ('PersonProfile', PersonProfile, SEED_PERSONS),
             ('HouseholdProfile', HouseholdProfile, SEED_HOUSEHOLDS),
+            # nut-2: foods before their per-nutrient contents.
+            ('FoodItem', FoodItem, SEED_FOOD_ITEMS),
+            ('NutrientContent', NutrientContent,
+             SEED_NUTRIENT_CONTENTS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
