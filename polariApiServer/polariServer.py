@@ -234,6 +234,14 @@ from microalgae.reactor_seed import (
 # Integrated excess-source + reactor loops (algae-2).
 from microalgae.integrated_basis import IntegratedLoopDefinition
 from microalgae.integrated_seed import SEED_INTEGRATED_LOOPS
+# Biomining / bioextraction specialized aquaponic variants (biomine-1).
+from biomining.biomining_basis import (
+    BioextractionAgent, BiomineralProduct, BiomineSystemDefinition,
+)
+from biomining.biomining_seed import (
+    SEED_BIOEXTRACTION_AGENTS, SEED_BIOMINERAL_PRODUCTS,
+    SEED_BIOMINE_SYSTEMS,
+)
 # Topology orchestration (top-1): the swarm/compose topology as
 # object-tree data — machines, instances, module assignments +
 # dependency edges, typed connections, desired vs observed state.
@@ -720,6 +728,11 @@ class polariServer(treeObject):
         from microalgae.reactor_api import MicroalgaeReactorAPI
         microalgaeReactorEndpoint = MicroalgaeReactorAPI(
             polServer=self, manager=self.manager)
+        # Biomining: element extraction + refinement + nutrient recovery
+        # specialized aquaponic variants (biomine-1).
+        from biomining.biomining_api import BiomineAPI
+        biomineEndpoint = BiomineAPI(
+            polServer=self, manager=self.manager)
 
         # Topology orchestration: graph/validate/assign/drift/observe
         # + portable package export/import (top-1).
@@ -818,6 +831,9 @@ class polariServer(treeObject):
             TankSubstrateDefinition,
             # Microalgae reactors + integrated loops (algae-1/2).
             AlgaeStrain, AlgaeReactorDefinition, IntegratedLoopDefinition,
+            # Biomining / bioextraction variants (biomine-1).
+            BioextractionAgent, BiomineralProduct,
+            BiomineSystemDefinition,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -1759,6 +1775,14 @@ class polariServer(treeObject):
             # algae-2: integrated loops (after tanks + reactors exist).
             ('IntegratedLoopDefinition', IntegratedLoopDefinition,
              SEED_INTEGRATED_LOOPS),
+            # biomine-1: agents + products before the systems that use
+            # them.
+            ('BioextractionAgent', BioextractionAgent,
+             SEED_BIOEXTRACTION_AGENTS),
+            ('BiomineralProduct', BiomineralProduct,
+             SEED_BIOMINERAL_PRODUCTS),
+            ('BiomineSystemDefinition', BiomineSystemDefinition,
+             SEED_BIOMINE_SYSTEMS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
