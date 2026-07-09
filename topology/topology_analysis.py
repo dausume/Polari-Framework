@@ -442,6 +442,55 @@ def drift_report(manager, topology_name):
                     'suggestedCommand':
                         'add it to an InstanceDefinition (Topology '
                         'tab) or stop it on the node — your call'})
+    rows.extend(suggest_reallocations(manager, topology_name))
     return {'ok': True, 'topology': topology_name,
             'observedNodes': sorted(latest.keys()),
             'inDrift': bool(rows), 'rows': rows}
+
+
+def suggest_reallocations(manager, topology_name):
+    """Evidence-bearing reallocation SUGGESTIONS (top-8) for degraded
+    dependency edges — one-click via the named `pol allocate`
+    command, never auto-applied.
+
+    An edge goes 'degraded' when provider routing exhausted every
+    live candidate (provider_registry stamps the tried-list as
+    evidence). The suggestion offers the enabled alternatives, or
+    starting the configured provider when it is the only one."""
+    rows = []
+    enabled = {}
+    for asg in _scoped(manager, 'ModuleAssignment', topology_name):
+        if getattr(asg, 'state', '') == 'enabled':
+            enabled.setdefault(
+                getattr(asg, 'module_name', ''), []).append(
+                getattr(asg, 'instance_name', ''))
+    for edge in _scoped(manager, 'ModuleDependencyEdge',
+                        topology_name):
+        if getattr(edge, 'status', '') != 'degraded':
+            continue
+        module = getattr(edge, 'depends_on_module', '')
+        provider = getattr(edge, 'provider_instance_name', '')
+        alternatives = sorted(i for i in enabled.get(module, [])
+                              if i != provider)
+        evidence = _loads(edge, 'evidence_json', [])
+        if alternatives:
+            command = f'pol allocate {module} {alternatives[0]}'
+            why = (f'provider "{provider}" is unreachable; '
+                   f'"{module}" is also enabled on '
+                   f'{alternatives} — moving the edge there is '
+                   'one command')
+        else:
+            command = 'pol topology apply --plan'
+            why = (f'provider "{provider}" is unreachable and no '
+                   f'alternative instance carries "{module}" — '
+                   'bring the provider back up, or '
+                   f'`pol allocate {module} <instance>` to place '
+                   'it elsewhere first')
+        rows.append({
+            'kind': 'reallocation-suggested',
+            'subject': getattr(edge, 'name', ''),
+            'machine': '',
+            'evidence': (f'{why}. Routing evidence: '
+                         f'{json.dumps(evidence)[:400]}'),
+            'suggestedCommand': command})
+    return rows

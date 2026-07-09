@@ -256,6 +256,45 @@ if __name__ == '__main__':
           len(unexpected) == 1
           and unexpected[0]['subject'] == 'rogue-miner-1')
 
+    print('== suite: reallocation suggestions (top-8) ==')
+    mgr = _mgr()
+    fem_edge = mgr.objectTables['ModuleDependencyEdge'][
+        'materialsScience.multiscale@prf-a->materialsScience.fem']
+    fem_edge.status = 'degraded'
+    fem_edge.evidence_json = json.dumps(
+        [{'routing': 'all candidates failed',
+          'tried': [{'instance': 'engines',
+                     'why': 'http://x:9500 unreachable'}]}])
+    mgr.objectTables['TopologyObservation']['full'] = _observation(
+        'staging-a', FULL_STAGING_SERVICES)
+    report = drift_report(mgr, 'staging-a')
+    realloc = [r for r in report['rows']
+               if r['kind'] == 'reallocation-suggested']
+    check('degraded edge yields exactly one suggestion',
+          len(realloc) == 1)
+    check('no alternative => suggests apply --plan + names allocate',
+          realloc and 'apply --plan' in realloc[0]['suggestedCommand']
+          and 'pol allocate' in realloc[0]['evidence'])
+    mgr.objectTables['ModuleAssignment'][
+        'materialsScience.fem@prf-dask'] = types.SimpleNamespace(
+        name='materialsScience.fem@prf-dask',
+        module_name='materialsScience.fem',
+        instance_name='prf-dask', state='enabled',
+        topology_name='staging-a', notes='')
+    report = drift_report(mgr, 'staging-a')
+    realloc = [r for r in report['rows']
+               if r['kind'] == 'reallocation-suggested']
+    check('live alternative => one-click pol allocate suggestion',
+          realloc and realloc[0]['suggestedCommand']
+          == 'pol allocate materialsScience.fem prf-dask')
+    check('suggestion carries the routing evidence',
+          realloc and 'unreachable' in realloc[0]['evidence'])
+    fem_edge.status = 'resolved'
+    report = drift_report(mgr, 'staging-a')
+    check('resolved edges suggest nothing',
+          not [r for r in report['rows']
+               if r['kind'] == 'reallocation-suggested'])
+
     print('== suite: portable package round trip ==')
     mgr = _mgr()
     exported = export_topology(mgr, 'staging-a')
