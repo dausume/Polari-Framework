@@ -221,6 +221,8 @@ from mathshapes.shape_seed import SEED_MATH_SHAPES
 # Aquaponic tower: vertical stack of math-defined pots (shape-2).
 from mathshapes.tower_basis import AquaponicTowerDefinition
 from mathshapes.tower_seed import SEED_TOWERS
+# CAD import/export via cad-engines worker + MinIO (shape-3).
+from mathshapes.cad_basis import ImportedCadObject
 # Tanks: freshwater + saltwater ecosystem simulation — alternate
 # nutrient source (tank-1).
 from tanks.tank_basis import (
@@ -753,9 +755,14 @@ class polariServer(treeObject):
         from mathshapes.shape_api import MathShapesAPI
         mathShapesEndpoint = MathShapesAPI(
             polServer=self, manager=self.manager)
-        # Aquaponic towers: stacked math-defined pots (shape-2).
+        # Aquaponic towers: stacked math-defined pots (shape-2) +
+        # growth forecast (shape-4).
         from mathshapes.tower_api import AquaponicTowerAPI
         aquaponicTowerEndpoint = AquaponicTowerAPI(
+            polServer=self, manager=self.manager)
+        # CAD import/export via cad-engines worker + MinIO (shape-3).
+        from mathshapes.cad_api import CadImportAPI
+        cadImportEndpoint = CadImportAPI(
             polServer=self, manager=self.manager)
         # Tanks: freshwater + saltwater ecosystem nutrient balance +
         # harvest yield (the alternate nutrient source, tank-1).
@@ -878,6 +885,8 @@ class polariServer(treeObject):
             MathShapeDefinition,
             # Aquaponic tower: stacked math-defined pots (shape-2).
             AquaponicTowerDefinition,
+            # CAD imports via cad-engines worker + MinIO (shape-3).
+            ImportedCadObject,
             # Tanks: freshwater + saltwater ecosystem (tank-1/2).
             TankDefinition, AquacultureSpecies, TankSystemDefinition,
             TankSubstrateDefinition,
