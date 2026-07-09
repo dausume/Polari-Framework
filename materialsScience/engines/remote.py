@@ -36,15 +36,16 @@ def engines_url_for(path=''):
     url = engines_url()
     if url:
         return url
-    module = _module_for_path(path)
-    if module:
-        try:
-            from topology.provider_registry import resolve_provider
-            resolved = resolve_provider(module)
-            if resolved.get('ok'):
-                return resolved['url'].rstrip('/')
-        except Exception:
-            pass  # registry absent/uninitialized -> fall through
+    # non-module paths (/capability) ride the dft assignment — the
+    # worker is ONE service providing both engine modules
+    module = _module_for_path(path) or 'materialsScience.dft'
+    try:
+        from topology.provider_registry import resolve_provider
+        resolved = resolve_provider(module)
+        if resolved.get('ok'):
+            return resolved['url'].rstrip('/')
+    except Exception:
+        pass  # registry absent/uninitialized -> fall through
     return ''
 
 
