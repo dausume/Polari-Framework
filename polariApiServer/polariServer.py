@@ -231,6 +231,9 @@ from microalgae.reactor_basis import AlgaeStrain, AlgaeReactorDefinition
 from microalgae.reactor_seed import (
     SEED_ALGAE_REACTORS, SEED_ALGAE_STRAINS,
 )
+# Integrated excess-source + reactor loops (algae-2).
+from microalgae.integrated_basis import IntegratedLoopDefinition
+from microalgae.integrated_seed import SEED_INTEGRATED_LOOPS
 # Topology orchestration (top-1): the swarm/compose topology as
 # object-tree data — machines, instances, module assignments +
 # dependency edges, typed connections, desired vs observed state.
@@ -813,8 +816,8 @@ class polariServer(treeObject):
             # Tanks: freshwater + saltwater ecosystem (tank-1/2).
             TankDefinition, AquacultureSpecies, TankSystemDefinition,
             TankSubstrateDefinition,
-            # Microalgae reactors — decarbonization (algae-1).
-            AlgaeStrain, AlgaeReactorDefinition,
+            # Microalgae reactors + integrated loops (algae-1/2).
+            AlgaeStrain, AlgaeReactorDefinition, IntegratedLoopDefinition,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -1753,6 +1756,9 @@ class polariServer(treeObject):
             ('AlgaeStrain', AlgaeStrain, SEED_ALGAE_STRAINS),
             ('AlgaeReactorDefinition', AlgaeReactorDefinition,
              SEED_ALGAE_REACTORS),
+            # algae-2: integrated loops (after tanks + reactors exist).
+            ('IntegratedLoopDefinition', IntegratedLoopDefinition,
+             SEED_INTEGRATED_LOOPS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),

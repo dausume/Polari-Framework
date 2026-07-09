@@ -16,6 +16,10 @@ HTTP surface for algae-1 microalgae reactors:
         CO2 fixed + biomass over the period (caveated if not sustainable).
   GET /api/microalgae/recommend?kind=tank&system=<name>
         would a reactor HELP this system (spare N to consume + CO2)?
+  GET /api/microalgae/loops
+        the integrated excess-source + reactor loops (algae-2).
+  GET /api/microalgae/loops/{name}/balance
+        the chained balance + resilience verdict for a loop.
 
 Strains / reactors are edited through CRUDE (object-coherence).
 
@@ -51,6 +55,11 @@ class MicroalgaeReactorAPI(treeObject):
                 suffix='decarbonization')
             polServer.falconServer.add_route(
                 '/api/microalgae/recommend', self, suffix='recommend')
+            polServer.falconServer.add_route(
+                '/api/microalgae/loops', self, suffix='loops')
+            polServer.falconServer.add_route(
+                '/api/microalgae/loops/{name}/balance', self,
+                suffix='loopbalance')
 
     def _rows(self, class_name):
         table = (self.manager.objectTables or {}).get(class_name, {})
@@ -100,3 +109,17 @@ class MicroalgaeReactorAPI(treeObject):
             response.media = {'ok': False, 'error': "'system' is required"}
             return
         response.media = recommend_reactor_for(self.manager, kind, system)
+
+    def on_get_loops(self, request, response):
+        out = [{'name': getattr(loop, 'name', ''),
+                'displayName': getattr(loop, 'display_name', ''),
+                'designMode': getattr(loop, 'design_mode', '')}
+               for loop in self._rows('IntegratedLoopDefinition')]
+        response.media = {'ok': True, 'loops': out, 'count': len(out)}
+
+    def on_get_loopbalance(self, request, response, name):
+        from microalgae.integrated_analysis import chained_balance
+        result = chained_balance(self.manager, name)
+        if not result.get('ok'):
+            response.status = '404 Not Found'
+        response.media = result

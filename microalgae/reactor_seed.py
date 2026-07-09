@@ -79,6 +79,19 @@ SEED_ALGAE_REACTORS = [
      'target_density_fraction': 0.5,
      'harvest_fraction': 0.35, 'harvest_period_days': 1.0,
      'provenance_id': 'algae-1 sustainable/tank'},
+    # Small "polish" reactor sized to a modest surplus (~160 mg N/day) —
+    # the reactor-first resilient loop's consumer (algae-2).
+    {'name': 'polish-reactor',
+     'display_name': 'Chlorella polish reactor (small)',
+     'strain_name': 'chlorella-vulgaris', 'water_type': 'salt',
+     'volume_l': 4.0, 'light_intensity': 0.8,
+     'co2_supply_mode': 'injected', 'co2_injection_g_per_day': 6.0,
+     'coupled_system_name': 'saltwater-modest-surplus',
+     'coupled_system_kind': 'tank',
+     'nutrient_draw_cap_mg_n_per_day': 200.0,
+     'target_density_fraction': 0.5,
+     'harvest_fraction': 0.35, 'harvest_period_days': 1.0,
+     'provenance_id': 'algae-2 polish'},
     # Collapse risk: coupled to the already-BALANCED food forest, which
     # has no nutrient surplus — the reactor would deplete it.
     {'name': 'oversized-foodforest-reactor',

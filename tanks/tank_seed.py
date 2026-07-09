@@ -191,6 +191,23 @@ SEED_TANK_SYSTEMS = [
      'species_stock_json': json.dumps({
          'anchovies': 20, 'sardines': 15, 'trochus-snails': 4}),
      'provenance_id': 'tank-1 imbalanced'},
+    # Modest-surplus saltwater: the balanced forest + a few extra fish
+    # → a small designed nitrogen surplus (~+160 mg N/day) for an algae
+    # reactor to consume resiliently (algae-2 reactor-first demo).
+    {'name': 'saltwater-modest-surplus',
+     'display_name': 'Saltwater modest-surplus (reactor-ready)',
+     'description': 'Balanced forest with a small designed N surplus '
+                    'sized for one polish algae reactor.',
+     'water_type': 'salt',
+     'tank_names_json': json.dumps(['saltwater-tank-1',
+                                    'saltwater-tank-2']),
+     'species_stock_json': json.dumps({
+         'sea-lettuce': 8, 'red-ogo': 6, 'dulse': 2, 'chaetomorpha': 2,
+         'scallops': 4, 'mussels': 6, 'tiger-tail-cucumber': 2,
+         'cerith-snails': 10, 'trochus-snails': 6,
+         'skunk-cleaner-shrimp': 4, 'pacific-white-shrimp': 6,
+         'anchovies': 13, 'sardines': 6}),
+     'provenance_id': 'tank-1 modest-surplus'},
     # Freshwater basic.
     {'name': 'freshwater-basic',
      'display_name': 'Freshwater basic system',
