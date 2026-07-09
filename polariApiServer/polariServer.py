@@ -197,6 +197,15 @@ from aquaponics.vermicompost_seed import (
 # Aquaponics per-part plant growth / growth-failure (aqp-8).
 from aquaponics.plant_growth_basis import PlantGrowthModel
 from aquaponics.plant_growth_seed import SEED_PLANT_GROWTH_MODELS
+# Nutrition: dietary-nutrient vocab + person + household profiling
+# (nut-1/3/4).
+from nutrition.nutrient_basis import DietaryNutrient, NutrientReference
+from nutrition.nutrient_seed import (
+    SEED_DIETARY_NUTRIENTS, SEED_NUTRIENT_REFERENCES,
+)
+from nutrition.person_basis import PersonProfile
+from nutrition.household_basis import HouseholdProfile
+from nutrition.person_seed import SEED_HOUSEHOLDS, SEED_PERSONS
 # Topology orchestration (top-1): the swarm/compose topology as
 # object-tree data — machines, instances, module assignments +
 # dependency edges, typed connections, desired vs observed state.
@@ -658,6 +667,11 @@ class polariServer(treeObject):
         from aquaponics.plant_growth_api import AquaponicsPlantGrowthAPI
         aquaponicsPlantGrowthEndpoint = AquaponicsPlantGrowthAPI(
             polServer=self, manager=self.manager)
+        # Nutrition: dietary-nutrient vocab + person BMR/needs +
+        # household demand aggregation (nut-1/3/4).
+        from nutrition.nutrition_api import NutritionAPI
+        nutritionEndpoint = NutritionAPI(
+            polServer=self, manager=self.manager)
 
         # Topology orchestration: graph/validate/assign/drift/observe
         # + portable package export/import (top-1).
@@ -746,6 +760,9 @@ class polariServer(treeObject):
             AtmosphereDefinition, PotSystemDefinition,
             CompostBinDefinition, VermicompostProfile,
             CompostLoopDefinition, PlantGrowthModel,
+            # Nutrition (nut-1/3/4).
+            DietaryNutrient, NutrientReference, PersonProfile,
+            HouseholdProfile,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -1656,6 +1673,14 @@ class polariServer(treeObject):
             # seeded above).
             ('PlantGrowthModel', PlantGrowthModel,
              SEED_PLANT_GROWTH_MODELS),
+            # nut-1/3/4: nutrient vocab before references; persons
+            # before the household that lists them.
+            ('DietaryNutrient', DietaryNutrient,
+             SEED_DIETARY_NUTRIENTS),
+            ('NutrientReference', NutrientReference,
+             SEED_NUTRIENT_REFERENCES),
+            ('PersonProfile', PersonProfile, SEED_PERSONS),
+            ('HouseholdProfile', HouseholdProfile, SEED_HOUSEHOLDS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
