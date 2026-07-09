@@ -35,18 +35,23 @@ Three treeObjects (auto-CRUDE + persisted — object-coherence):
 from objectTreeDecorators import treeObject, treeObjectInit
 
 AGENT_TYPES = ('bacteria', 'algae', 'fungi', 'biofilm')
-#: Bio-extraction mechanisms.
+#: Bio-extraction mechanisms. 'biosynthesis' = fermentation-produced
+#: organic ligands (tartrate, glycine) rather than element capture.
 MECHANISMS = ('bioaccumulation', 'biosorption', 'bioleaching',
-              'biomineralization', 'bioprecipitation')
+              'biomineralization', 'bioprecipitation', 'biosynthesis')
 #: The specialized-aquaponic variants (Dustin's biomining kinds).
+#: 'optical-dielectric' = fully-bio-derivable dielectric crystals/glass
+#: for precision laser control (KDP/Rochelle/silica/ZnO...).
 BIOMINE_VARIANTS = ('iron-ferrite', 'steel-feedstock',
                     'carbon-nanotube', 'nutrient-recovery',
-                    'trace-metal')
+                    'trace-metal', 'optical-dielectric')
 #: Where the target element comes from.
 SOURCE_KINDS = ('tank', 'reactor', 'aquaponics', 'feedstock')
 PRODUCT_KINDS = ('ferrite-magnet', 'steel-feedstock',
                  'carbon-nanotube-feedstock', 'recovered-nutrient',
-                 'metal-powder')
+                 'metal-powder', 'electro-optic-crystal',
+                 'optical-glass', 'coating-dielectric',
+                 'birefringent-crystal', 'ir-window')
 
 
 class BioextractionAgent(treeObject):

@@ -242,6 +242,14 @@ from biomining.biomining_seed import (
     SEED_BIOEXTRACTION_AGENTS, SEED_BIOMINERAL_PRODUCTS,
     SEED_BIOMINE_SYSTEMS,
 )
+# Fully-bio optical-dielectric biomining variants (dielectric-optics-1).
+from biomining.optical_seed import (
+    SEED_OPTICAL_AGENTS, SEED_OPTICAL_BIOMINE_SYSTEMS,
+    SEED_OPTICAL_PRODUCTS,
+)
+from materialsScience.dielectric_optics_seed import (
+    SEED_DIELECTRIC_MATERIALS, SEED_DIELECTRIC_PROPERTY_MEANINGS,
+)
 # Topology orchestration (top-1): the swarm/compose topology as
 # object-tree data — machines, instances, module assignments +
 # dependency edges, typed connections, desired vs observed state.
@@ -1643,7 +1651,7 @@ class polariServer(treeObject):
             # Materials basis — identities before their scale rows.
             ('MaterialsScienceMaterial', MaterialsScienceMaterial,
              SEED_MS_MATERIALS + SEED_STANDARD_MATERIALS
-             + SEED_POT_MATERIALS),
+             + SEED_POT_MATERIALS + SEED_DIELECTRIC_MATERIALS),
             ('MaterialScaleDefinition', MaterialScaleDefinition,
              SEED_MS_SCALE_DEFINITIONS
              + SEED_STANDARD_SCALE_DEFINITIONS
@@ -1656,7 +1664,8 @@ class polariServer(treeObject):
              SEED_THERMAL_PROFILES),
             # Property meanings the material detail view explains with.
             ('MaterialPropertyMeaning', MaterialPropertyMeaning,
-             SEED_PROPERTY_MEANINGS + SEED_POT_PROPERTY_MEANINGS),
+             SEED_PROPERTY_MEANINGS + SEED_POT_PROPERTY_MEANINGS
+             + SEED_DIELECTRIC_PROPERTY_MEANINGS),
             # Context-based scoring: terms/contexts/subjects before the
             # values and concepts that reference them.
             ('ScoreTerm', ScoreTerm,
@@ -1775,14 +1784,14 @@ class polariServer(treeObject):
             # algae-2: integrated loops (after tanks + reactors exist).
             ('IntegratedLoopDefinition', IntegratedLoopDefinition,
              SEED_INTEGRATED_LOOPS),
-            # biomine-1: agents + products before the systems that use
-            # them.
+            # biomine-1 (+ optical-dielectric): agents + products before
+            # the systems that use them.
             ('BioextractionAgent', BioextractionAgent,
-             SEED_BIOEXTRACTION_AGENTS),
+             SEED_BIOEXTRACTION_AGENTS + SEED_OPTICAL_AGENTS),
             ('BiomineralProduct', BiomineralProduct,
-             SEED_BIOMINERAL_PRODUCTS),
+             SEED_BIOMINERAL_PRODUCTS + SEED_OPTICAL_PRODUCTS),
             ('BiomineSystemDefinition', BiomineSystemDefinition,
-             SEED_BIOMINE_SYSTEMS),
+             SEED_BIOMINE_SYSTEMS + SEED_OPTICAL_BIOMINE_SYSTEMS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),

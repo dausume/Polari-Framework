@@ -23,6 +23,13 @@ from biomining.biomining_seed import (
     SEED_BIOEXTRACTION_AGENTS, SEED_BIOMINERAL_PRODUCTS,
     SEED_BIOMINE_SYSTEMS,
 )
+from biomining.optical_seed import (
+    SEED_OPTICAL_AGENTS, SEED_OPTICAL_BIOMINE_SYSTEMS,
+    SEED_OPTICAL_PRODUCTS,
+)
+from materialsScience.dielectric_optics_seed import (
+    SEED_DIELECTRIC_MATERIALS, SEED_DIELECTRIC_PROPERTY_MEANINGS,
+)
 
 PASS, FAIL = '\033[0;32mPASS\033[0m', '\033[0;31mFAIL\033[0m'
 _results = []
@@ -38,16 +45,21 @@ def _rows(seed_list):
     return {i: SimpleNamespace(**r) for i, r in enumerate(seed_list)}
 
 
-# Stand-in for the real materialsScience rows the products link to.
-MATERIALS = [{'name': 'ferrite'}, {'name': 'carbon-nanotube'}]
+# Stand-in for the real materialsScience rows the products link to
+# (ferrite + CNT for biomine-1; the dielectric rows for the optical set).
+MATERIALS = ([{'name': 'ferrite'}, {'name': 'carbon-nanotube'}]
+             + SEED_DIELECTRIC_MATERIALS)
 
 
 def _mgr(systems=None):
     return SimpleNamespace(objectTables={
-        'BioextractionAgent': _rows(SEED_BIOEXTRACTION_AGENTS),
-        'BiomineralProduct': _rows(SEED_BIOMINERAL_PRODUCTS),
+        'BioextractionAgent': _rows(
+            SEED_BIOEXTRACTION_AGENTS + SEED_OPTICAL_AGENTS),
+        'BiomineralProduct': _rows(
+            SEED_BIOMINERAL_PRODUCTS + SEED_OPTICAL_PRODUCTS),
         'BiomineSystemDefinition': _rows(
-            systems if systems is not None else SEED_BIOMINE_SYSTEMS),
+            systems if systems is not None
+            else SEED_BIOMINE_SYSTEMS + SEED_OPTICAL_BIOMINE_SYSTEMS),
         'MaterialsScienceMaterial': _rows(MATERIALS),
     })
 
@@ -117,6 +129,51 @@ if __name__ == '__main__':
     check('non-recovery variant refuses transfer',
           not recovery_transfer(manager,
                                 'iron-ferrite-biomine').get('ok'))
+
+    print('optical-dielectric variants (fully bio-derivable)')
+    # Every optical product's material_ref must resolve to a seeded
+    # dielectric material.
+    dielectric_names = {m['name'] for m in SEED_DIELECTRIC_MATERIALS}
+    refs = {p['material_ref'] for p in SEED_OPTICAL_PRODUCTS}
+    check('every optical product links a real dielectric material',
+          refs <= dielectric_names,
+          extra=str(sorted(refs - dielectric_names)))
+    # KDP electro-optic chain: K + phosphate -> KDP crystal.
+    kdp = extraction_yield(manager, 'kdp-electro-optic-biomine',
+                           days=30.0)
+    check('KDP biomine yields crystal + links kdp-electro-optic',
+          kdp['ok'] and kdp['refinedProductMgPerDay'] > 0
+          and kdp['product'] == 'kdp-crystal')
+    kfp = refinement_pathway(manager, 'kdp-crystal')
+    check('KDP pathway resolves to the kdp-electro-optic material',
+          kfp['materialResolved']
+          and kfp['materialRef'] == 'kdp-electro-optic')
+    # Rochelle salt: wine tartar + potash + salt (fully community-common).
+    rs = refinement_pathway(manager, 'rochelle-salt-crystal')
+    check('Rochelle salt links rochelle-salt material + names solution '
+          'growth',
+          rs['materialResolved']
+          and any('solution' in s for s in rs['steps']))
+    # Bio-silica -> fused silica.
+    fs = refinement_pathway(manager, 'fused-silica-optic')
+    check('fused-silica links bio-fused-silica material',
+          fs['materialResolved']
+          and fs['materialRef'] == 'bio-fused-silica')
+    # ZnO high-index coating partner.
+    zn = refinement_pathway(manager, 'zinc-oxide-coating')
+    check('ZnO coating links bio-zinc-oxide material',
+          zn['materialResolved'] and zn['materialRef'] == 'bio-zinc-oxide')
+    # All optical variants carry the optical-dielectric variant tag.
+    check('all optical systems are the optical-dielectric variant',
+          all(s['variant'] == 'optical-dielectric'
+              for s in SEED_OPTICAL_BIOMINE_SYSTEMS))
+    # Dielectric property vocabulary present.
+    meaning_names = {m['name'] for m in SEED_DIELECTRIC_PROPERTY_MEANINGS}
+    check('dielectric property meanings defined (permittivity/EO/index/'
+          'loss/piezo)',
+          {'relativePermittivity', 'electroOpticCoefficient',
+           'refractiveIndex', 'opticalLoss',
+           'piezoelectricCoefficient'} <= meaning_names)
 
     print('honest refusals')
     check('unknown system refuses',
