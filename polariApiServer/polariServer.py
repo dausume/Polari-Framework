@@ -215,6 +215,14 @@ from plant_morphology.organ_basis import OrganModel, RootSystemModel
 from plant_morphology.morphology_seed import (
     SEED_ORGAN_MODELS, SEED_ROOT_MODELS,
 )
+# Tanks: freshwater + saltwater ecosystem simulation — alternate
+# nutrient source (tank-1).
+from tanks.tank_basis import (
+    AquacultureSpecies, TankDefinition, TankSystemDefinition,
+)
+from tanks.tank_seed import (
+    SEED_AQUACULTURE_SPECIES, SEED_TANK_SYSTEMS, SEED_TANKS,
+)
 # Topology orchestration (top-1): the swarm/compose topology as
 # object-tree data — machines, instances, module assignments +
 # dependency edges, typed connections, desired vs observed state.
@@ -691,6 +699,11 @@ class polariServer(treeObject):
         from plant_morphology.morphology_api import PlantMorphologyAPI
         plantMorphologyEndpoint = PlantMorphologyAPI(
             polServer=self, manager=self.manager)
+        # Tanks: freshwater + saltwater ecosystem nutrient balance +
+        # harvest yield (the alternate nutrient source, tank-1).
+        from tanks.tank_api import TankSystemAPI
+        tankSystemEndpoint = TankSystemAPI(
+            polServer=self, manager=self.manager)
 
         # Topology orchestration: graph/validate/assign/drift/observe
         # + portable package export/import (top-1).
@@ -784,6 +797,8 @@ class polariServer(treeObject):
             HouseholdProfile, FoodItem, NutrientContent,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
+            # Tanks: freshwater + saltwater ecosystem (tank-1).
+            TankDefinition, AquacultureSpecies, TankSystemDefinition,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -1709,6 +1724,12 @@ class polariServer(treeObject):
             # morph-1: 3D organ + root stand-in models.
             ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
+            # tank-1: species + tanks before the systems that stock them.
+            ('AquacultureSpecies', AquacultureSpecies,
+             SEED_AQUACULTURE_SPECIES),
+            ('TankDefinition', TankDefinition, SEED_TANKS),
+            ('TankSystemDefinition', TankSystemDefinition,
+             SEED_TANK_SYSTEMS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
