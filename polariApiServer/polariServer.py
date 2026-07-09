@@ -185,6 +185,15 @@ from aquaponics.pot_system_seed import (
     SEED_AQP_CONTEXTUALIZED_VALUES, SEED_AQP_SCORE_CONCEPTS,
     SEED_AQP_SCORE_SUBJECTS, SEED_AQP_SCORE_TERMS, SEED_POT_SYSTEMS,
 )
+# Aquaponics worm-compost enrichment loop (aqp-7).
+from aquaponics.vermicompost import (
+    CompostBinDefinition, CompostLoopDefinition, VermicompostProfile,
+)
+from aquaponics.vermicompost_seed import (
+    SEED_COMPOST_BINS, SEED_COMPOST_LOOPS, SEED_ENRICH_CONTEXTUALIZED_VALUES,
+    SEED_ENRICH_SCORE_CONCEPTS, SEED_ENRICH_SCORE_SUBJECTS,
+    SEED_ENRICH_SCORE_TERMS, SEED_VERMICOMPOST_PROFILES,
+)
 # Topology orchestration (top-1): the swarm/compose topology as
 # object-tree data — machines, instances, module assignments +
 # dependency edges, typed connections, desired vs observed state.
@@ -636,6 +645,11 @@ class polariServer(treeObject):
         from aquaponics.hydraulics_api import AquaponicsHydraulicsAPI
         aquaponicsHydraulicsEndpoint = AquaponicsHydraulicsAPI(
             polServer=self, manager=self.manager)
+        # Aquaponics: worm-compost enrichment loop — release /
+        # simulate / compare-modes / enriched-water (aqp-7).
+        from aquaponics.vermicompost_api import AquaponicsCompostAPI
+        aquaponicsCompostEndpoint = AquaponicsCompostAPI(
+            polServer=self, manager=self.manager)
 
         # Topology orchestration: graph/validate/assign/drift/observe
         # + portable package export/import (top-1).
@@ -722,6 +736,8 @@ class polariServer(treeObject):
             NutrientSpecies, NutrientProfile, SoilDefinition,
             WaterDefinition, PlantDefinition, PlantPart,
             AtmosphereDefinition, PotSystemDefinition,
+            CompostBinDefinition, VermicompostProfile,
+            CompostLoopDefinition,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -1549,17 +1565,19 @@ class polariServer(treeObject):
             # values and concepts that reference them.
             ('ScoreTerm', ScoreTerm,
              SEED_SCORE_TERMS + SEED_COST_TERMS
-             + SEED_AQP_SCORE_TERMS),
+             + SEED_AQP_SCORE_TERMS + SEED_ENRICH_SCORE_TERMS),
             ('ScoreContext', ScoreContext, SEED_SCORE_CONTEXTS),
             ('ScoreSubject', ScoreSubject,
              SEED_SCORE_SUBJECTS + SEED_POLICY_SUBJECTS
              + SEED_POLITICIAN_SUBJECTS + SEED_MEDIA_OUTLETS
-             + SEED_AQP_SCORE_SUBJECTS),
+             + SEED_AQP_SCORE_SUBJECTS + SEED_ENRICH_SCORE_SUBJECTS),
             ('ContextualizedValue', ContextualizedValue,
              SEED_CONTEXTUALIZED_VALUES
-             + SEED_AQP_CONTEXTUALIZED_VALUES),
+             + SEED_AQP_CONTEXTUALIZED_VALUES
+             + SEED_ENRICH_CONTEXTUALIZED_VALUES),
             ('ScoreConcept', ScoreConcept,
-             SEED_SCORE_CONCEPTS + SEED_AQP_SCORE_CONCEPTS),
+             SEED_SCORE_CONCEPTS + SEED_AQP_SCORE_CONCEPTS
+             + SEED_ENRICH_SCORE_CONCEPTS),
             # Groups + the editable agreement-classification bands
             # (concepts first — groups reference member concepts).
             ('ScoreGroup', ScoreGroup,
@@ -1618,6 +1636,14 @@ class polariServer(treeObject):
             # these via objectRef into impact_result_json).
             ('PotSystemDefinition', PotSystemDefinition,
              SEED_POT_SYSTEMS),
+            # aqp-7: worm-compost — profiles + bins before the loops
+            # (loops reference the bin + pot system).
+            ('VermicompostProfile', VermicompostProfile,
+             SEED_VERMICOMPOST_PROFILES),
+            ('CompostBinDefinition', CompostBinDefinition,
+             SEED_COMPOST_BINS),
+            ('CompostLoopDefinition', CompostLoopDefinition,
+             SEED_COMPOST_LOOPS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
