@@ -225,6 +225,12 @@ from tanks.tank_seed import (
     SEED_AQUACULTURE_SPECIES, SEED_TANK_SUBSTRATES, SEED_TANK_SYSTEMS,
     SEED_TANKS,
 )
+# Microalgae photobioreactors — the decarbonization route, coupled
+# sustainably to aquaponics / tanks / hydroponics (algae-1).
+from microalgae.reactor_basis import AlgaeStrain, AlgaeReactorDefinition
+from microalgae.reactor_seed import (
+    SEED_ALGAE_REACTORS, SEED_ALGAE_STRAINS,
+)
 # Topology orchestration (top-1): the swarm/compose topology as
 # object-tree data — machines, instances, module assignments +
 # dependency edges, typed connections, desired vs observed state.
@@ -706,6 +712,11 @@ class polariServer(treeObject):
         from tanks.tank_api import TankSystemAPI
         tankSystemEndpoint = TankSystemAPI(
             polServer=self, manager=self.manager)
+        # Microalgae reactors: sustainability (no-collapse) + CO2
+        # decarbonization coupled to a parent system (algae-1).
+        from microalgae.reactor_api import MicroalgaeReactorAPI
+        microalgaeReactorEndpoint = MicroalgaeReactorAPI(
+            polServer=self, manager=self.manager)
 
         # Topology orchestration: graph/validate/assign/drift/observe
         # + portable package export/import (top-1).
@@ -802,6 +813,8 @@ class polariServer(treeObject):
             # Tanks: freshwater + saltwater ecosystem (tank-1/2).
             TankDefinition, AquacultureSpecies, TankSystemDefinition,
             TankSubstrateDefinition,
+            # Microalgae reactors — decarbonization (algae-1).
+            AlgaeStrain, AlgaeReactorDefinition,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -1736,6 +1749,10 @@ class polariServer(treeObject):
             ('TankDefinition', TankDefinition, SEED_TANKS),
             ('TankSystemDefinition', TankSystemDefinition,
              SEED_TANK_SYSTEMS),
+            # algae-1: strains before the reactors that use them.
+            ('AlgaeStrain', AlgaeStrain, SEED_ALGAE_STRAINS),
+            ('AlgaeReactorDefinition', AlgaeReactorDefinition,
+             SEED_ALGAE_REACTORS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
