@@ -209,6 +209,12 @@ from nutrition.person_seed import SEED_HOUSEHOLDS, SEED_PERSONS
 # Nutrition: plant harvest -> meal-nutrient yield (nut-2).
 from nutrition.food_basis import FoodItem, NutrientContent
 from nutrition.food_seed import SEED_FOOD_ITEMS, SEED_NUTRIENT_CONTENTS
+# Plant morphology: 3D organ + root stand-in models + confinement
+# (morph-1).
+from plant_morphology.organ_basis import OrganModel, RootSystemModel
+from plant_morphology.morphology_seed import (
+    SEED_ORGAN_MODELS, SEED_ROOT_MODELS,
+)
 # Topology orchestration (top-1): the swarm/compose topology as
 # object-tree data — machines, instances, module assignments +
 # dependency edges, typed connections, desired vs observed state.
@@ -680,6 +686,11 @@ class polariServer(treeObject):
         from nutrition.food_api import NutritionFoodAPI
         nutritionFoodEndpoint = NutritionFoodAPI(
             polServer=self, manager=self.manager)
+        # Plant morphology: 3D organ/root stand-ins + confinement /
+        # dwarfing assessment (morph-1).
+        from plant_morphology.morphology_api import PlantMorphologyAPI
+        plantMorphologyEndpoint = PlantMorphologyAPI(
+            polServer=self, manager=self.manager)
 
         # Topology orchestration: graph/validate/assign/drift/observe
         # + portable package export/import (top-1).
@@ -771,6 +782,8 @@ class polariServer(treeObject):
             # Nutrition (nut-1/3/4 + nut-2 foods).
             DietaryNutrient, NutrientReference, PersonProfile,
             HouseholdProfile, FoodItem, NutrientContent,
+            # Plant morphology 3D stand-ins (morph-1).
+            OrganModel, RootSystemModel,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -1693,6 +1706,9 @@ class polariServer(treeObject):
             ('FoodItem', FoodItem, SEED_FOOD_ITEMS),
             ('NutrientContent', NutrientContent,
              SEED_NUTRIENT_CONTENTS),
+            # morph-1: 3D organ + root stand-in models.
+            ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
+            ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
