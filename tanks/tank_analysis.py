@@ -76,6 +76,44 @@ def _stock(manager, system):
     return out
 
 
+def _substrate_summary(manager, system):
+    """Aggregate the substrate beds across the system's tanks: total
+    anaerobic denitrification (mg N/day removed), buffering presence,
+    mean biofiltration. Bare-bottom tanks contribute nothing."""
+    tanks = _parse(getattr(system, 'tank_names_json', '[]'), '[]')
+    denit = 0.0
+    buffering = False
+    biofilt = []
+    beds = []
+    for tank_name in tanks:
+        tank = _named(manager, 'TankDefinition', tank_name)
+        if tank is None:
+            continue
+        sub_name = getattr(tank, 'substrate_name', '')
+        volume_l = _f(tank, 'substrate_volume_l', 0.0)
+        if not sub_name or volume_l <= 0:
+            continue
+        sub = _named(manager, 'TankSubstrateDefinition', sub_name)
+        if sub is None:
+            continue
+        rate = _f(sub, 'denitrification_mg_n_per_l_per_day', 0.0)
+        denit += rate * volume_l
+        buffering = buffering or bool(getattr(sub, 'buffers_ph', False))
+        biofilt.append(_f(sub, 'biofiltration_capacity', 0.0))
+        beds.append({'tank': tank_name, 'substrate': sub_name,
+                     'volumeL': round(volume_l, 1),
+                     'denitrificationMgNPerDay': round(rate * volume_l, 2),
+                     'buffersPh': bool(getattr(sub, 'buffers_ph', False)),
+                     'supportsAnaerobicLayer':
+                         bool(getattr(sub, 'supports_anaerobic_layer',
+                                      False))})
+    return {'totalDenitrificationMgNPerDay': round(denit, 2),
+            'buffering': buffering,
+            'meanBiofiltration': round(
+                sum(biofilt) / len(biofilt), 3) if biofilt else 0.0,
+            'beds': beds}
+
+
 def nutrient_balance(manager, system_name):
     """Net N/P flux + detritus load + role coverage for the ecosystem."""
     system = _named(manager, 'TankSystemDefinition', system_name)
@@ -105,6 +143,10 @@ def nutrient_balance(manager, system_name):
         roles_present.update(_parse(getattr(sp, 'roles_json', '[]'),
                                     '[]'))
 
+    # Substrate anaerobic denitrification removes nitrate (mg N/day).
+    substrate = _substrate_summary(manager, system)
+    net_n -= substrate['totalDenitrificationMgNPerDay']
+
     total_count = sum(c for _, c in stock)
     band = BALANCE_BAND_MG * max(1.0, total_count / 10.0)
     n_balanced = abs(net_n) <= band
@@ -113,10 +155,11 @@ def nutrient_balance(manager, system_name):
 
     if net_n > band:
         n_verdict = ('nitrogen ACCUMULATING — add macroalgae (nutrient '
-                     'regulators) or harvest/export more')
+                     'regulators), more substrate denitrification, or '
+                     'harvest/export more')
     elif net_n < -band:
-        n_verdict = ('nitrogen DEPLETING — algae outpace inputs; add '
-                     'fish/replenishers or reduce algae')
+        n_verdict = ('nitrogen DEPLETING — algae + substrate outpace '
+                     'inputs; add fish/replenishers or reduce algae')
     else:
         n_verdict = 'nitrogen balanced'
 
@@ -127,6 +170,11 @@ def nutrient_balance(manager, system_name):
         'netPhosphorusMgPerDay': round(net_p, 2),
         'nitrogenAddedMgPerDay': round(added_n, 2),
         'nitrogenRemovedMgPerDay': round(removed_n, 2),
+        'substrateDenitrificationMgNPerDay':
+            substrate['totalDenitrificationMgNPerDay'],
+        'substrateBuffering': substrate['buffering'],
+        'substrateMeanBiofiltration': substrate['meanBiofiltration'],
+        'substrateBeds': substrate['beds'],
         'detritusRemovedMgPerDay': round(detritus, 2),
         'balanceBandMg': round(band, 1),
         'nitrogenBalanced': n_balanced,

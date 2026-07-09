@@ -44,7 +44,16 @@ TANK_ROLES = ('general', 'macroalgae', 'filter-feeder', 'plankton',
 SPECIES_ROLES = ('nutrient-regulator', 'filter-feeder', 'detritus-eater',
                  'glass-cleaner', 'nutrient-replenisher',
                  'substrate-oxygenator', 'macroalgae-food',
-                 'starch-producer', 'protein-source')
+                 'starch-producer', 'protein-source',
+                 'nuisance-algae-consumer', 'cleaner')
+
+#: Substrate ("soil") families for tanks — a distinct category from the
+#: aquaponics SoilDefinition (that models a pot growing medium; this
+#: models a submerged aquarium bed with buffering + biofiltration +
+#: anaerobic denitrification).
+SUBSTRATE_KINDS = ('live-aragonite-sand', 'live-rock-rubble',
+                   'aquasoil', 'inert-gravel', 'biochar-sand',
+                   'marine-mud', 'planted-sand')
 
 
 class TankDefinition(treeObject):
@@ -65,6 +74,11 @@ class TankDefinition(treeObject):
         temperature_c: float = 22.0,
         # Connector bore (in) — >=3in for sardine/anchovy schools.
         connector_diameter_in: float = 3.0,
+        # The substrate bed (a TankSubstrateDefinition by name) + how
+        # much of it (litres) — sets the tank's denitrification +
+        # buffering contribution. '' / 0 = a bare-bottom tank.
+        substrate_name: str = '',
+        substrate_volume_l: float = 0.0,
         provenance_id: str = '',
         notes: str = '',
         manager=None,
@@ -76,6 +90,72 @@ class TankDefinition(treeObject):
         self.role = role
         self.temperature_c = temperature_c
         self.connector_diameter_in = connector_diameter_in
+        self.substrate_name = substrate_name
+        self.substrate_volume_l = substrate_volume_l
+        self.provenance_id = provenance_id
+        self.notes = notes
+
+
+class TankSubstrateDefinition(treeObject):
+    """A tank substrate ("soil") — the NEW soil category for freshwater
+    + saltwater tanks (distinct from the aquaponics pot SoilDefinition).
+
+    Models the submerged bed: pH/alkalinity BUFFERING (saltwater
+    aragonite holds Ca + carbonate hardness), nutrient STORAGE/RELEASE
+    (aquasoil leaches nutrients; CEC-like), aerobic BIOFILTRATION in the
+    upper layer, and anaerobic DENITRIFICATION deeper down (the spec's
+    substrate-oxygenation idea — an oxygenated top over an anaerobic
+    core that removes nitrate as N2). Every value is a flagged prior."""
+
+    @treeObjectInit
+    def __init__(
+        self,
+        # kebab-case unique key ('live-aragonite-sand').
+        name: str = '',
+        display_name: str = '',
+        # WATER_TYPES entry — a substrate is fresh OR salt.
+        water_type: str = 'salt',
+        # SUBSTRATE_KINDS entry.
+        kind: str = 'live-aragonite-sand',
+        grain_size_mm: float = 1.0,
+        # Does it buffer pH / hold alkalinity (aragonite, marine mud)?
+        buffers_ph: bool = False,
+        target_ph: float = 0.0,
+        # Alkalinity contribution (dKH-ish, relative) — buffering
+        # strength; 0 = inert.
+        alkalinity_contribution: float = 0.0,
+        # Nutrient storage capacity (CEC-like, relative 0-1).
+        nutrient_storage: float = 0.0,
+        # Does it LEACH nutrients into the water early (aquasoil)?
+        releases_nutrients: bool = False,
+        # Aerobic biofiltration capacity (0-1) — nitrifying surface.
+        biofiltration_capacity: float = 0.3,
+        # Anaerobic denitrification: nitrate-N removed per L of bed per
+        # day (mg) in the deeper anaerobic layer.
+        denitrification_mg_n_per_l_per_day: float = 0.0,
+        # Keeps an oxygenated top over an anaerobic core (prevents the
+        # smelly anoxic upper zone while allowing deep decomposition).
+        supports_anaerobic_layer: bool = False,
+        is_prior: bool = True,
+        provenance_id: str = '',
+        notes: str = '',
+        manager=None,
+    ):
+        self.name = name
+        self.display_name = display_name
+        self.water_type = water_type
+        self.kind = kind
+        self.grain_size_mm = grain_size_mm
+        self.buffers_ph = buffers_ph
+        self.target_ph = target_ph
+        self.alkalinity_contribution = alkalinity_contribution
+        self.nutrient_storage = nutrient_storage
+        self.releases_nutrients = releases_nutrients
+        self.biofiltration_capacity = biofiltration_capacity
+        self.denitrification_mg_n_per_l_per_day = \
+            denitrification_mg_n_per_l_per_day
+        self.supports_anaerobic_layer = supports_anaerobic_layer
+        self.is_prior = is_prior
         self.provenance_id = provenance_id
         self.notes = notes
 

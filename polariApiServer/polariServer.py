@@ -218,10 +218,12 @@ from plant_morphology.morphology_seed import (
 # Tanks: freshwater + saltwater ecosystem simulation — alternate
 # nutrient source (tank-1).
 from tanks.tank_basis import (
-    AquacultureSpecies, TankDefinition, TankSystemDefinition,
+    AquacultureSpecies, TankDefinition, TankSubstrateDefinition,
+    TankSystemDefinition,
 )
 from tanks.tank_seed import (
-    SEED_AQUACULTURE_SPECIES, SEED_TANK_SYSTEMS, SEED_TANKS,
+    SEED_AQUACULTURE_SPECIES, SEED_TANK_SUBSTRATES, SEED_TANK_SYSTEMS,
+    SEED_TANKS,
 )
 # Topology orchestration (top-1): the swarm/compose topology as
 # object-tree data — machines, instances, module assignments +
@@ -797,8 +799,9 @@ class polariServer(treeObject):
             HouseholdProfile, FoodItem, NutrientContent,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
-            # Tanks: freshwater + saltwater ecosystem (tank-1).
+            # Tanks: freshwater + saltwater ecosystem (tank-1/2).
             TankDefinition, AquacultureSpecies, TankSystemDefinition,
+            TankSubstrateDefinition,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -1724,9 +1727,12 @@ class polariServer(treeObject):
             # morph-1: 3D organ + root stand-in models.
             ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
-            # tank-1: species + tanks before the systems that stock them.
+            # tank-1/2: species + substrates before tanks (tanks
+            # reference a substrate); tanks before the systems.
             ('AquacultureSpecies', AquacultureSpecies,
              SEED_AQUACULTURE_SPECIES),
+            ('TankSubstrateDefinition', TankSubstrateDefinition,
+             SEED_TANK_SUBSTRATES),
             ('TankDefinition', TankDefinition, SEED_TANKS),
             ('TankSystemDefinition', TankSystemDefinition,
              SEED_TANK_SYSTEMS),

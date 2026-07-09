@@ -20,7 +20,8 @@ from tanks.tank_analysis import (
     harvest_yield, nutrient_balance, regulate_suggestions,
 )
 from tanks.tank_seed import (
-    SEED_AQUACULTURE_SPECIES, SEED_TANK_SYSTEMS, SEED_TANKS,
+    SEED_AQUACULTURE_SPECIES, SEED_TANK_SUBSTRATES, SEED_TANK_SYSTEMS,
+    SEED_TANKS,
 )
 
 PASS, FAIL = '\033[0;32mPASS\033[0m', '\033[0;31mFAIL\033[0m'
@@ -41,6 +42,7 @@ def _mgr():
     return SimpleNamespace(objectTables={
         'AquacultureSpecies': _rows(SEED_AQUACULTURE_SPECIES),
         'TankDefinition': _rows(SEED_TANKS),
+        'TankSubstrateDefinition': _rows(SEED_TANK_SUBSTRATES),
         'TankSystemDefinition': _rows(SEED_TANK_SYSTEMS),
     })
 
@@ -61,6 +63,46 @@ if __name__ == '__main__':
     check('system reports self-regulating', bal['selfRegulating'])
     check('detritus removal positive (self-cleaning crew)',
           bal['detritusRemovedMgPerDay'] > 0)
+
+    print('shrimp for cleaning + extra macroalgae included')
+    species_names = {s['name'] for s in SEED_AQUACULTURE_SPECIES}
+    check('cleaner shrimp present (salt + fresh)',
+          {'skunk-cleaner-shrimp', 'pacific-white-shrimp',
+           'amano-shrimp', 'cherry-shrimp'} <= species_names)
+    check('extra macroalgae present (chaetomorpha + hornwort)',
+          {'chaetomorpha', 'hornwort'} <= species_names)
+    check('cleaner role stocked in the balanced system',
+          'cleaner' in bal['rolesPresent'])
+
+    print('NEW substrate ("soil") category')
+    check('substrate contributes anaerobic denitrification',
+          bal['substrateDenitrificationMgNPerDay'] > 0)
+    check('substrate buffering reported (aragonite/live rock)',
+          bal['substrateBuffering'] is True)
+    check('per-bed substrate breakdown present',
+          len(bal['substrateBeds']) == 2
+          and all(b['denitrificationMgNPerDay'] > 0
+                  for b in bal['substrateBeds']))
+    salt_subs = [s for s in SEED_TANK_SUBSTRATES
+                 if s['water_type'] == 'salt']
+    fresh_subs = [s for s in SEED_TANK_SUBSTRATES
+                  if s['water_type'] == 'fresh']
+    check('substrate category has both salt + fresh soils',
+          len(salt_subs) >= 2 and len(fresh_subs) >= 2)
+    # Denitrification should push net N more negative than species alone.
+    bare = SimpleNamespace(objectTables={
+        'AquacultureSpecies': _rows(SEED_AQUACULTURE_SPECIES),
+        'TankDefinition': _rows([
+            dict(t, substrate_name='', substrate_volume_l=0.0)
+            for t in SEED_TANKS]),
+        'TankSubstrateDefinition': _rows(SEED_TANK_SUBSTRATES),
+        'TankSystemDefinition': _rows(SEED_TANK_SYSTEMS)})
+    bare_bal = nutrient_balance(bare, 'saltwater-food-forest')
+    check('removing the substrate raises net nitrogen (denitrification '
+          'was helping)',
+          bare_bal['netNitrogenMgPerDay']
+          > bal['netNitrogenMgPerDay']
+          and bare_bal['substrateDenitrificationMgNPerDay'] == 0)
 
     print('fish-heavy imbalanced system')
     fh = nutrient_balance(manager, 'saltwater-fish-heavy')

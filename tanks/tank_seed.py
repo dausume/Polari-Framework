@@ -68,6 +68,17 @@ SEED_AQUACULTURE_SPECIES = [
         0.0, 0.0, 15.0, 0.0, {}),
     _sp('trochus-snails', 'Trochus Snails', 'salt',
         ['glass-cleaner'], True, False, 0.0, 0.0, 12.0, 0.0, {}),
+    # --- extra macroalgae (refugium nutrient regulator) ---
+    _sp('chaetomorpha', 'Chaetomorpha (refugium algae)', 'salt',
+        ['nutrient-regulator', 'macroalgae-food'], False, False,
+        -30.0, -5.0, 0.0, 0.0, {}),
+    # --- shrimp for CLEANING (+ Pacific White for protein) ---
+    _sp('skunk-cleaner-shrimp', 'Skunk Cleaner Shrimp', 'salt',
+        ['cleaner', 'detritus-eater', 'nuisance-algae-consumer'],
+        False, False, 0.0, 0.0, 20.0, 0.0, {}),
+    _sp('pacific-white-shrimp', 'Pacific White Shrimp', 'salt',
+        ['protein-source', 'detritus-eater', 'cleaner'], True, False,
+        3.0, 0.5, 30.0, 40.0, {'protein': 20.0}),
     # --- nutrient replenishers (fish — add N/P; protein + oil) ---
     _sp('anchovies', 'Anchovies', 'salt',
         ['nutrient-replenisher', 'protein-source'], True, False,
@@ -75,7 +86,16 @@ SEED_AQUACULTURE_SPECIES = [
     _sp('sardines', 'Sardines', 'salt',
         ['nutrient-replenisher', 'protein-source'], True, False,
         40.0, 7.0, 0.0, 25.0, _FISH),
-    # --- freshwater set (minimal) ---
+    # --- freshwater set ---
+    _sp('hornwort', 'Hornwort', 'fresh',
+        ['nutrient-regulator', 'substrate-oxygenator'], False, False,
+        -25.0, -4.0, 0.0, 0.0, {}),
+    _sp('amano-shrimp', 'Amano Shrimp (algae cleaner)', 'fresh',
+        ['cleaner', 'detritus-eater', 'nuisance-algae-consumer'],
+        False, False, 0.0, 0.0, 18.0, 0.0, {}),
+    _sp('cherry-shrimp', 'Cherry Shrimp (cleaner)', 'fresh',
+        ['cleaner', 'detritus-eater'], True, False,
+        0.0, 0.0, 10.0, 1.0, {'protein': 18.0}),
     _sp('duckweed', 'Duckweed', 'fresh',
         ['nutrient-regulator', 'protein-source'], True, False,
         -18.0, -3.0, 0.0, 20.0, {'protein': 8.0}),
@@ -91,15 +111,57 @@ SEED_AQUACULTURE_SPECIES = [
         45.0, 8.0, 0.0, 120.0, _FISH),
 ]
 
+# The NEW tank-substrate ("soil") category — fresh + salt beds.
+SEED_TANK_SUBSTRATES = [
+    # Saltwater beds.
+    {'name': 'live-aragonite-sand',
+     'display_name': 'Live aragonite sand', 'water_type': 'salt',
+     'kind': 'live-aragonite-sand', 'grain_size_mm': 1.0,
+     'buffers_ph': True, 'target_ph': 8.2,
+     'alkalinity_contribution': 8.0, 'nutrient_storage': 0.2,
+     'releases_nutrients': False, 'biofiltration_capacity': 0.5,
+     'denitrification_mg_n_per_l_per_day': 3.0,
+     'supports_anaerobic_layer': True, 'provenance_id': 'tank-2'},
+    {'name': 'live-rock-rubble', 'display_name': 'Live rock rubble',
+     'water_type': 'salt', 'kind': 'live-rock-rubble',
+     'grain_size_mm': 15.0, 'buffers_ph': True, 'target_ph': 8.1,
+     'alkalinity_contribution': 4.0, 'nutrient_storage': 0.1,
+     'biofiltration_capacity': 0.8,
+     'denitrification_mg_n_per_l_per_day': 5.0,
+     'supports_anaerobic_layer': True, 'provenance_id': 'tank-2'},
+    {'name': 'saltwater-biochar-sand',
+     'display_name': 'Biochar-sand (marine)', 'water_type': 'salt',
+     'kind': 'biochar-sand', 'grain_size_mm': 1.5,
+     'nutrient_storage': 0.3, 'biofiltration_capacity': 0.6,
+     'denitrification_mg_n_per_l_per_day': 2.0,
+     'supports_anaerobic_layer': True, 'provenance_id': 'tank-2'},
+    # Freshwater beds.
+    {'name': 'planted-aquasoil', 'display_name': 'Planted aquasoil',
+     'water_type': 'fresh', 'kind': 'aquasoil', 'grain_size_mm': 3.0,
+     'buffers_ph': True, 'target_ph': 6.5,
+     'nutrient_storage': 0.7, 'releases_nutrients': True,
+     'biofiltration_capacity': 0.4,
+     'denitrification_mg_n_per_l_per_day': 1.5,
+     'supports_anaerobic_layer': True, 'provenance_id': 'tank-2'},
+    {'name': 'inert-gravel', 'display_name': 'Inert gravel',
+     'water_type': 'fresh', 'kind': 'inert-gravel',
+     'grain_size_mm': 4.0, 'biofiltration_capacity': 0.2,
+     'denitrification_mg_n_per_l_per_day': 0.5,
+     'provenance_id': 'tank-2'},
+]
+
 SEED_TANKS = [
     {'name': 'saltwater-tank-1', 'display_name': 'Saltwater tank 1',
      'water_type': 'salt', 'volume_gal': 30.0, 'role': 'general',
+     'substrate_name': 'live-aragonite-sand', 'substrate_volume_l': 15.0,
      'provenance_id': 'tank-1'},
     {'name': 'saltwater-tank-2', 'display_name': 'Saltwater tank 2',
      'water_type': 'salt', 'volume_gal': 30.0, 'role': 'macroalgae',
+     'substrate_name': 'live-rock-rubble', 'substrate_volume_l': 10.0,
      'provenance_id': 'tank-1'},
     {'name': 'freshwater-tank-1', 'display_name': 'Freshwater tank 1',
      'water_type': 'fresh', 'volume_gal': 30.0, 'role': 'general',
+     'substrate_name': 'planted-aquasoil', 'substrate_volume_l': 12.0,
      'provenance_id': 'tank-1'},
 ]
 
@@ -113,9 +175,10 @@ SEED_TANK_SYSTEMS = [
      'tank_names_json': json.dumps(['saltwater-tank-1',
                                     'saltwater-tank-2']),
      'species_stock_json': json.dumps({
-         'sea-lettuce': 8, 'red-ogo': 6, 'dulse': 2,
+         'sea-lettuce': 8, 'red-ogo': 6, 'dulse': 2, 'chaetomorpha': 2,
          'scallops': 4, 'mussels': 6, 'tiger-tail-cucumber': 2,
          'cerith-snails': 10, 'trochus-snails': 6,
+         'skunk-cleaner-shrimp': 4, 'pacific-white-shrimp': 6,
          'anchovies': 6, 'sardines': 4}),
      'provenance_id': 'tank-1 balanced'},
     # Fish-heavy: nitrogen accumulates, no nutrient-regulator role.
@@ -135,7 +198,8 @@ SEED_TANK_SYSTEMS = [
      'water_type': 'fresh',
      'tank_names_json': json.dumps(['freshwater-tank-1']),
      'species_stock_json': json.dumps({
-         'duckweed': 30, 'water-hyacinth': 8, 'freshwater-snails': 12,
-         'freshwater-mussels': 6, 'tilapia': 6}),
+         'duckweed': 30, 'water-hyacinth': 8, 'hornwort': 10,
+         'freshwater-snails': 12, 'freshwater-mussels': 6,
+         'amano-shrimp': 15, 'cherry-shrimp': 20, 'tilapia': 6}),
      'provenance_id': 'tank-1 freshwater'},
 ]

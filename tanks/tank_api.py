@@ -5,6 +5,8 @@
 
 HTTP surface for tank-1 ecosystem simulation:
 
+  GET /api/tanks/substrates
+        every TankSubstrateDefinition (the fresh/salt soil category).
   GET /api/tanks/systems
         every TankSystemDefinition + water type + stock size.
   GET /api/tanks/systems/{name}/balance
@@ -39,6 +41,8 @@ class TankSystemAPI(treeObject):
         self.apiName = '/api/tanks'
         if polServer is not None:
             polServer.falconServer.add_route(
+                '/api/tanks/substrates', self, suffix='substrates')
+            polServer.falconServer.add_route(
                 '/api/tanks/systems', self, suffix='systems')
             polServer.falconServer.add_route(
                 '/api/tanks/systems/{name}/balance', self,
@@ -53,6 +57,24 @@ class TankSystemAPI(treeObject):
         table = (self.manager.objectTables or {}).get(class_name, {})
         return list(table.values()) if isinstance(table, dict) \
             else list(table)
+
+    def on_get_substrates(self, request, response):
+        out = []
+        for s in self._rows('TankSubstrateDefinition'):
+            out.append({
+                'name': getattr(s, 'name', ''),
+                'displayName': getattr(s, 'display_name', ''),
+                'waterType': getattr(s, 'water_type', ''),
+                'kind': getattr(s, 'kind', ''),
+                'buffersPh': bool(getattr(s, 'buffers_ph', False)),
+                'denitrificationMgNPerLPerDay':
+                    getattr(s, 'denitrification_mg_n_per_l_per_day', 0),
+                'biofiltrationCapacity':
+                    getattr(s, 'biofiltration_capacity', 0),
+                'supportsAnaerobicLayer':
+                    bool(getattr(s, 'supports_anaerobic_layer', False))})
+        response.media = {'ok': True, 'substrates': out,
+                          'count': len(out)}
 
     def on_get_systems(self, request, response):
         out = []
