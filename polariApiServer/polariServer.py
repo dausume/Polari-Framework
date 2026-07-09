@@ -185,6 +185,25 @@ from aquaponics.pot_system_seed import (
     SEED_AQP_CONTEXTUALIZED_VALUES, SEED_AQP_SCORE_CONCEPTS,
     SEED_AQP_SCORE_SUBJECTS, SEED_AQP_SCORE_TERMS, SEED_POT_SYSTEMS,
 )
+# Topology orchestration (top-1): the swarm/compose topology as
+# object-tree data — machines, instances, module assignments +
+# dependency edges, typed connections, desired vs observed state.
+from topology.topology_basis import (
+    InstanceDefinition, OrchestrationTarget, PolariNodeMachine,
+)
+from topology.topology_modules import (
+    ModuleAssignment, ModuleDependencyEdge,
+)
+from topology.topology_links import ServiceConnection
+from topology.topology_state import (
+    TopologyDefinition, TopologyObservation,
+)
+from topology.topology_seed import (
+    SEED_INSTANCE_DEFINITIONS, SEED_MODULE_ASSIGNMENTS,
+    SEED_MODULE_DEPENDENCY_EDGES, SEED_NODE_MACHINES,
+    SEED_ORCHESTRATION_TARGETS, SEED_SERVICE_CONNECTIONS,
+    SEED_TOPOLOGY_DEFINITIONS,
+)
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -613,6 +632,12 @@ class polariServer(treeObject):
         aquaponicsSystemEndpoint = AquaponicsSystemAPI(
             polServer=self, manager=self.manager)
 
+        # Topology orchestration: graph/validate/assign/drift/observe
+        # + portable package export/import (top-1).
+        from topology.topology_api import TopologyAPI
+        topologyEndpoint = TopologyAPI(
+            polServer=self, manager=self.manager)
+
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
         # at size).
@@ -687,6 +712,11 @@ class polariServer(treeObject):
             NutrientSpecies, NutrientProfile, SoilDefinition,
             WaterDefinition, PlantDefinition, PlantPart,
             AtmosphereDefinition, PotSystemDefinition,
+            # Topology orchestration (top-1).
+            PolariNodeMachine, OrchestrationTarget,
+            InstanceDefinition, ModuleAssignment,
+            ModuleDependencyEdge, ServiceConnection,
+            TopologyDefinition, TopologyObservation,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1589,6 +1619,25 @@ class polariServer(treeObject):
              SEED_FEM_MODELS + SEED_STANDARD_FEM_MODELS),
             ('DFTModelDefinition', DFTModelDefinition,
              SEED_DFT_MODELS + SEED_STANDARD_DFT_MODELS),
+            # Topology orchestration (top-1): machines + targets
+            # before the definition; the definition before the
+            # instances; instances before assignments/edges/
+            # connections that reference them. Observations are
+            # NEVER seeded — observed state is reported.
+            ('PolariNodeMachine', PolariNodeMachine,
+             SEED_NODE_MACHINES),
+            ('OrchestrationTarget', OrchestrationTarget,
+             SEED_ORCHESTRATION_TARGETS),
+            ('TopologyDefinition', TopologyDefinition,
+             SEED_TOPOLOGY_DEFINITIONS),
+            ('InstanceDefinition', InstanceDefinition,
+             SEED_INSTANCE_DEFINITIONS),
+            ('ModuleAssignment', ModuleAssignment,
+             SEED_MODULE_ASSIGNMENTS),
+            ('ModuleDependencyEdge', ModuleDependencyEdge,
+             SEED_MODULE_DEPENDENCY_EDGES),
+            ('ServiceConnection', ServiceConnection,
+             SEED_SERVICE_CONNECTIONS),
         ]
         # Old demo-3d description (used as the "untouched" signature). If
         # the existing demo-3d row still has this verbatim, we treat it
