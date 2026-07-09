@@ -7,9 +7,13 @@ Delegation to the msci-engines worker (docker-compose.msci-engines.yml)
 — the Debian container holding the compiled-extension science stack
 (pyscf, pymatgen, sfepy) the Alpine backend image cannot pip.
 
-One knob: MSCI_ENGINES_URL (e.g. http://prf-msci-engines:9500). Unset
-means no remote — callers get an honest refusal carrying the exact knob.
-Never raises: unreachable workers degrade to {'ok': False, suggestion}.
+Resolution ladder (top-7): the MSCI_ENGINES_URL knob ALWAYS wins when
+set (e.g. http://prf-msci-engines:9500); unset, the topology's
+provider registry resolves a LIVE provider from ModuleAssignment /
+ModuleDependencyEdge rows (auto-pick among live providers only — it
+never changes configuration). Nothing resolvable -> honest refusal
+carrying both knobs. Never raises: unreachable workers degrade to
+{'ok': False, suggestion}.
 """
 
 import json
@@ -21,20 +25,46 @@ def engines_url():
     return os.environ.get('MSCI_ENGINES_URL', '').rstrip('/')
 
 
+def _module_for_path(path):
+    """Engine paths name their module: /dft/* -> materialsScience.dft."""
+    seg = path.lstrip('/').split('/', 1)[0]
+    return f'materialsScience.{seg}' if seg in ('dft', 'fem') else ''
+
+
+def engines_url_for(path=''):
+    """The ladder: env knob, then topology-resolved provider, else ''."""
+    url = engines_url()
+    if url:
+        return url
+    module = _module_for_path(path)
+    if module:
+        try:
+            from topology.provider_registry import resolve_provider
+            resolved = resolve_provider(module)
+            if resolved.get('ok'):
+                return resolved['url'].rstrip('/')
+        except Exception:
+            pass  # registry absent/uninitialized -> fall through
+    return ''
+
+
 def unavailable_suggestion(evidence):
     return {
         'evidence': evidence,
-        'knob': 'MSCI_ENGINES_URL env var + the msci-engines worker',
+        'knob': "MSCI_ENGINES_URL env var, or the topology's engines "
+                'provider (ModuleAssignment rows)',
         'action': 'docker compose -p msci-engines -f '
                   'docker-compose.msci-engines.yml up -d --build, then set '
                   'MSCI_ENGINES_URL=http://prf-msci-engines:9500 on the '
-                  'backend (both are on polari-link).',
+                  'backend (both are on polari-link) — or keep the engines '
+                  'instance running in the topology (pol topology diff; '
+                  'pol allocate materialsScience.fem <instance>).',
     }
 
 
 def remote_capability(timeout=5):
     """The worker's /capability report, or None when unset/unreachable."""
-    url = engines_url()
+    url = engines_url_for('/capability')
     if not url:
         return None
     try:
@@ -47,11 +77,12 @@ def remote_capability(timeout=5):
 
 def remote_post(path, payload, timeout=300):
     """POST JSON to the worker; {'ok': False, suggestion} when it can't."""
-    url = engines_url()
+    url = engines_url_for(path)
     if not url:
         return {'ok': False, 'error': 'no engines worker configured',
                 'suggestion': unavailable_suggestion(
-                    'MSCI_ENGINES_URL is unset on this backend.')}
+                    'MSCI_ENGINES_URL is unset on this backend and the '
+                    'topology resolves no reachable provider.')}
     request = urllib.request.Request(
         f'{url}{path}', data=json.dumps(payload).encode(),
         headers={'Content-Type': 'application/json'}, method='POST')

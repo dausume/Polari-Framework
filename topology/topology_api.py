@@ -68,6 +68,8 @@ class TopologyAPI(treeObject):
             add('/api/topology/observe', self, suffix='observe')
             add('/api/topology/export', self, suffix='export')
             add('/api/topology/import', self, suffix='import_doc')
+            add('/api/topology/machine', self, suffix='machine')
+            add('/api/topology/instance', self, suffix='instance')
 
     # ---- helpers ----------------------------------------------------
 
@@ -295,6 +297,47 @@ class TopologyAPI(treeObject):
         response.media = {'ok': True,
                           'observation': getattr(row, 'name', ''),
                           'topology': name}
+
+    _MACHINE_FIELDS = ('ssh_alias', 'arch', 'mem_gb', 'roles_json',
+                       'swarm_role', 'repo_dir', 'source', 'notes')
+    _INSTANCE_FIELDS = ('kind', 'service_kinds_json', 'replicas',
+                        'env_tier', 'machine_name',
+                        'placement_constraint', 'db_backend',
+                        'image_tag', 'orchestration_target',
+                        'topology_name', 'notes')
+
+    def _upsert(self, request, response, class_name, fields,
+                required_note):
+        """Field-level upsert-by-name (the CLI's row-write seam for
+        `pol swarm join` / `pol allocate`)."""
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        name = (payload or {}).get('name', '')
+        if not name:
+            return self._refuse(
+                response, f'payload needs {{name{required_note}}}')
+        row = self._find(class_name, name)
+        created = row is None
+        updates = {k: payload[k] for k in fields if k in payload}
+        if created:
+            cls = CLASS_MAP[class_name]
+            row = cls(name=name, **updates, manager=self.manager)
+        else:
+            for k, v in updates.items():
+                setattr(row, k, v)
+        self._save(row)
+        response.media = {'ok': True, 'name': name,
+                          'created': created,
+                          'updated': sorted(updates)}
+
+    def on_post_machine(self, request, response):
+        self._upsert(request, response, 'PolariNodeMachine',
+                     self._MACHINE_FIELDS, ', swarm_role, ...')
+
+    def on_post_instance(self, request, response):
+        self._upsert(request, response, 'InstanceDefinition',
+                     self._INSTANCE_FIELDS, ', machine_name, ...')
 
     def on_post_import_doc(self, request, response):
         """Apply a portable package (idempotent-by-name upsert)."""

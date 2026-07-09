@@ -293,6 +293,52 @@ if __name__ == '__main__':
               'kind': 'polari-topology-package',
               'schema_version': '99'}).get('ok'))
 
+    print('== suite: provider routing (top-7) ==')
+    from topology import provider_registry as preg
+    import os as _os
+    _os.environ['LOCAL_IP'] = '192.168.0.210'
+    mgr = _mgr()
+    preg.set_manager(mgr)
+    alive = lambda url: True
+    dead = lambda url: False
+    resolved = preg.resolve_provider('materialsScience.fem',
+                                     probe=alive)
+    check('routing resolves fem to the engines instance',
+          resolved.get('ok')
+          and resolved['instance'] == 'engines'
+          and resolved['url'] == 'http://192.168.0.210:9500')
+    fem_edge = mgr.objectTables['ModuleDependencyEdge'][
+        'materialsScience.multiscale@prf-a->materialsScience.fem']
+    check('live pick stamps routing evidence on the edge',
+          fem_edge.status == 'resolved'
+          and 'live' in fem_edge.evidence_json)
+    preg._PROBE_CACHE.clear()
+    refused = preg.resolve_provider('materialsScience.fem',
+                                    probe=dead)
+    check('all-dead providers refuse with knob + action',
+          not refused.get('ok')
+          and 'pol ' in refused['suggestion']['action']
+          and refused['suggestion']['knob'])
+    check('dead providers mark the edge degraded',
+          fem_edge.status == 'degraded'
+          and 'failed' in fem_edge.evidence_json)
+    check('unassigned module refuses naming pol allocate',
+          'pol allocate' in preg.resolve_provider(
+              'materialsScience.md', probe=alive
+          )['suggestion']['action'])
+    preg.set_manager(None)
+    check('uninitialized registry refuses honestly',
+          not preg.resolve_provider('materialsScience.fem',
+                                    probe=alive).get('ok'))
+    # the engines_url_for ladder: env knob wins over topology
+    preg.set_manager(mgr)
+    preg._PROBE_CACHE.clear()
+    from materialsScience.engines.remote import engines_url_for
+    _os.environ['MSCI_ENGINES_URL'] = 'http://knob:9999'
+    check('explicit env knob beats topology routing',
+          engines_url_for('/dft/x') == 'http://knob:9999')
+    del _os.environ['MSCI_ENGINES_URL']
+
     failed = sum(1 for _, ok in _results if not ok)
     print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
     raise SystemExit(1 if failed else 0)

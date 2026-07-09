@@ -637,6 +637,11 @@ class polariServer(treeObject):
         from topology.topology_api import TopologyAPI
         topologyEndpoint = TopologyAPI(
             polServer=self, manager=self.manager)
+        # Provider routing (top-7): module delegation resolves its
+        # provider from the topology rows when no explicit URL knob
+        # is set (see materialsScience.engines.remote's ladder).
+        from topology.provider_registry import set_manager
+        set_manager(self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
