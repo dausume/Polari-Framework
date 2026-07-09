@@ -215,6 +215,9 @@ from plant_morphology.organ_basis import OrganModel, RootSystemModel
 from plant_morphology.morphology_seed import (
     SEED_ORGAN_MODELS, SEED_ROOT_MODELS,
 )
+# Math-defined shapes: quadric/primitive/CSG geometry core (shape-1).
+from mathshapes.shape_basis import MathShapeDefinition
+from mathshapes.shape_seed import SEED_MATH_SHAPES
 # Tanks: freshwater + saltwater ecosystem simulation — alternate
 # nutrient source (tank-1).
 from tanks.tank_basis import (
@@ -742,6 +745,10 @@ class polariServer(treeObject):
         from plant_morphology.morphology_api import PlantMorphologyAPI
         plantMorphologyEndpoint = PlantMorphologyAPI(
             polServer=self, manager=self.manager)
+        # Math-defined shapes: quadric/primitive/CSG geometry (shape-1).
+        from mathshapes.shape_api import MathShapesAPI
+        mathShapesEndpoint = MathShapesAPI(
+            polServer=self, manager=self.manager)
         # Tanks: freshwater + saltwater ecosystem nutrient balance +
         # harvest yield (the alternate nutrient source, tank-1).
         from tanks.tank_api import TankSystemAPI
@@ -859,6 +866,8 @@ class polariServer(treeObject):
             HouseholdProfile, FoodItem, NutrientContent,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
+            # Math-defined shapes: quadric/primitive/CSG (shape-1).
+            MathShapeDefinition,
             # Tanks: freshwater + saltwater ecosystem (tank-1/2).
             TankDefinition, AquacultureSpecies, TankSystemDefinition,
             TankSubstrateDefinition,
@@ -1798,6 +1807,8 @@ class polariServer(treeObject):
             # morph-1: 3D organ + root stand-in models.
             ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
+            # shape-1: math-defined shapes (quadric/primitive/CSG).
+            ('MathShapeDefinition', MathShapeDefinition, SEED_MATH_SHAPES),
             # tank-1/2: species + substrates before tanks (tanks
             # reference a substrate); tanks before the systems.
             ('AquacultureSpecies', AquacultureSpecies,
