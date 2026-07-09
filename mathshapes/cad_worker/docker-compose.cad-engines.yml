@@ -1,0 +1,36 @@
+# ==============================================================================
+# docker-compose.cad-engines.yml — the CAD import/export worker
+# ==============================================================================
+# Debian container with trimesh (baseline STL/OBJ/GLTF + three.js JSON) and
+# FreeCAD optional (WITH_FREECAD=1 → FCStd + STEP). Joins polari-link so any
+# instance reaches it at http://prf-cad-engines:9600 — set CAD_ENGINES_URL
+# on a backend to let mathshapes/cad_remote delegate imports/exports.
+#
+# Baseline:  docker compose -p cad-engines -f docker-compose.cad-engines.yml up -d --build
+# +FreeCAD:  docker compose -p cad-engines -f docker-compose.cad-engines.yml build \
+#              --build-arg WITH_FREECAD=1 cad-engines && \
+#            docker compose -p cad-engines -f docker-compose.cad-engines.yml up -d
+#
+# Swarm (a worker device): build/push the image, then
+#   docker service create --name prf-cad-engines --network polari-link \
+#     --constraint 'node.hostname==<worker>' -p 9600:9600 prf-cad-engines:staging
+# ==============================================================================
+
+networks:
+  polari-link:
+    external: true
+
+services:
+  cad-engines:
+    build:
+      context: .
+      args:
+        WITH_FREECAD: ${WITH_FREECAD:-0}
+    image: prf-cad-engines:staging
+    container_name: prf-cad-engines
+    restart: unless-stopped
+    networks:
+      - polari-link
+    ports:
+      - "9600:9600"        # host-published: remote/worker machines reach it
+    mem_limit: 2g

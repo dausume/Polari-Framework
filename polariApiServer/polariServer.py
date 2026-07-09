@@ -218,6 +218,8 @@ from plant_morphology.morphology_seed import (
 # Math-defined shapes: quadric/primitive/CSG geometry core (shape-1).
 from mathshapes.shape_basis import MathShapeDefinition
 from mathshapes.shape_seed import SEED_MATH_SHAPES
+# CAD import/export via cad-engines worker + MinIO (shape-3).
+from mathshapes.cad_basis import ImportedCadObject
 # Tanks: freshwater + saltwater ecosystem simulation — alternate
 # nutrient source (tank-1).
 from tanks.tank_basis import (
@@ -749,6 +751,10 @@ class polariServer(treeObject):
         from mathshapes.shape_api import MathShapesAPI
         mathShapesEndpoint = MathShapesAPI(
             polServer=self, manager=self.manager)
+        # CAD import/export via cad-engines worker + MinIO (shape-3).
+        from mathshapes.cad_api import CadImportAPI
+        cadImportEndpoint = CadImportAPI(
+            polServer=self, manager=self.manager)
         # Tanks: freshwater + saltwater ecosystem nutrient balance +
         # harvest yield (the alternate nutrient source, tank-1).
         from tanks.tank_api import TankSystemAPI
@@ -868,6 +874,8 @@ class polariServer(treeObject):
             OrganModel, RootSystemModel,
             # Math-defined shapes: quadric/primitive/CSG (shape-1).
             MathShapeDefinition,
+            # CAD imports via cad-engines worker + MinIO (shape-3).
+            ImportedCadObject,
             # Tanks: freshwater + saltwater ecosystem (tank-1/2).
             TankDefinition, AquacultureSpecies, TankSystemDefinition,
             TankSubstrateDefinition,
