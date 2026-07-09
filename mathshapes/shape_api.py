@@ -26,6 +26,7 @@ from objectTreeDecorators import treeObject, treeObjectInit
 from mathshapes.shape_analysis import (
     evaluate_point, quadric_classify, sample_surface, shape_properties,
 )
+from mathshapes.shape_modify import modify_parameter
 
 
 class MathShapesAPI(treeObject):
@@ -46,6 +47,8 @@ class MathShapesAPI(treeObject):
                 '/api/shapes/{name}/surface', self, suffix='surface')
             polServer.falconServer.add_route(
                 '/api/shapes/{name}/classify', self, suffix='classify')
+            polServer.falconServer.add_route(
+                '/api/shapes/{name}/modify', self, suffix='modify')
 
     def _shapes(self):
         table = (getattr(self.manager, 'objectTables', None) or {}).get(
@@ -109,6 +112,19 @@ class MathShapesAPI(treeObject):
 
     def on_get_classify(self, request, response, name):
         result = quadric_classify(self.manager, name)
+        if not result.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = result
+
+    def on_post_modify(self, request, response, name):
+        body = request.media or {}
+        param = body.get('param')
+        if not param or 'value' not in body:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': 'body needs {param, value}'}
+            return
+        result = modify_parameter(self.manager, name, param, body['value'])
         if not result.get('ok'):
             response.status = '400 Bad Request'
         response.media = result

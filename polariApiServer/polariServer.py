@@ -218,6 +218,9 @@ from plant_morphology.morphology_seed import (
 # Math-defined shapes: quadric/primitive/CSG geometry core (shape-1).
 from mathshapes.shape_basis import MathShapeDefinition
 from mathshapes.shape_seed import SEED_MATH_SHAPES
+# Aquaponic tower: vertical stack of math-defined pots (shape-2).
+from mathshapes.tower_basis import AquaponicTowerDefinition
+from mathshapes.tower_seed import SEED_TOWERS
 # Tanks: freshwater + saltwater ecosystem simulation — alternate
 # nutrient source (tank-1).
 from tanks.tank_basis import (
@@ -745,9 +748,14 @@ class polariServer(treeObject):
         from plant_morphology.morphology_api import PlantMorphologyAPI
         plantMorphologyEndpoint = PlantMorphologyAPI(
             polServer=self, manager=self.manager)
-        # Math-defined shapes: quadric/primitive/CSG geometry (shape-1).
+        # Math-defined shapes: quadric/primitive/CSG geometry (shape-1)
+        # + parametric modification (shape-2, POST /modify).
         from mathshapes.shape_api import MathShapesAPI
         mathShapesEndpoint = MathShapesAPI(
+            polServer=self, manager=self.manager)
+        # Aquaponic towers: stacked math-defined pots (shape-2).
+        from mathshapes.tower_api import AquaponicTowerAPI
+        aquaponicTowerEndpoint = AquaponicTowerAPI(
             polServer=self, manager=self.manager)
         # Tanks: freshwater + saltwater ecosystem nutrient balance +
         # harvest yield (the alternate nutrient source, tank-1).
@@ -868,6 +876,8 @@ class polariServer(treeObject):
             OrganModel, RootSystemModel,
             # Math-defined shapes: quadric/primitive/CSG (shape-1).
             MathShapeDefinition,
+            # Aquaponic tower: stacked math-defined pots (shape-2).
+            AquaponicTowerDefinition,
             # Tanks: freshwater + saltwater ecosystem (tank-1/2).
             TankDefinition, AquacultureSpecies, TankSystemDefinition,
             TankSubstrateDefinition,
@@ -1809,6 +1819,9 @@ class polariServer(treeObject):
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
             # shape-1: math-defined shapes (quadric/primitive/CSG).
             ('MathShapeDefinition', MathShapeDefinition, SEED_MATH_SHAPES),
+            # shape-2: aquaponic towers (reference math-defined pots).
+            ('AquaponicTowerDefinition', AquaponicTowerDefinition,
+             SEED_TOWERS),
             # tank-1/2: species + substrates before tanks (tanks
             # reference a substrate); tanks before the systems.
             ('AquacultureSpecies', AquacultureSpecies,
