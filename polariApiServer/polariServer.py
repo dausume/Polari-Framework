@@ -257,6 +257,15 @@ from biomining.alloy_seed import (
 from materialsScience.bio_alloys_seed import (
     SEED_BIO_ALLOY_MATERIALS, SEED_BIO_ALLOY_PROPERTY_MEANINGS,
 )
+# Bio wax sources (wax-1) + the unifying supply-chain ledger (chain-1).
+from waxsupply.wax_basis import WaxSourceDefinition
+from waxsupply.wax_seed import SEED_WAX_SOURCES
+from supplychain.chain_basis import (
+    SupplyChainDefinition, SupplyFlow, SupplyNode,
+)
+from supplychain.chain_seed import (
+    SEED_SUPPLY_CHAINS, SEED_SUPPLY_FLOWS, SEED_SUPPLY_NODES,
+)
 # Topology orchestration (top-1): the swarm/compose topology as
 # object-tree data — machines, instances, module assignments +
 # dependency edges, typed connections, desired vs observed state.
@@ -748,6 +757,15 @@ class polariServer(treeObject):
         from biomining.biomining_api import BiomineAPI
         biomineEndpoint = BiomineAPI(
             polServer=self, manager=self.manager)
+        # Wax sources for molds/masks (wax-1).
+        from waxsupply.wax_api import WaxSupplyAPI
+        waxSupplyEndpoint = WaxSupplyAPI(
+            polServer=self, manager=self.manager)
+        # The unifying bio supply-chain ledger — materials + food +
+        # carbon accounting (chain-1).
+        from supplychain.chain_api import SupplyChainAPI
+        supplyChainEndpoint = SupplyChainAPI(
+            polServer=self, manager=self.manager)
 
         # Topology orchestration: graph/validate/assign/drift/observe
         # + portable package export/import (top-1).
@@ -849,6 +867,9 @@ class polariServer(treeObject):
             # Biomining / bioextraction variants (biomine-1).
             BioextractionAgent, BiomineralProduct,
             BiomineSystemDefinition,
+            # Wax sources (wax-1) + supply-chain ledger (chain-1).
+            WaxSourceDefinition, SupplyNode, SupplyFlow,
+            SupplyChainDefinition,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -1804,6 +1825,14 @@ class polariServer(treeObject):
             ('BiomineSystemDefinition', BiomineSystemDefinition,
              SEED_BIOMINE_SYSTEMS + SEED_OPTICAL_BIOMINE_SYSTEMS
              + SEED_ALLOY_BIOMINE_SYSTEMS),
+            # wax-1: bio wax sources for molds / electronic masks.
+            ('WaxSourceDefinition', WaxSourceDefinition,
+             SEED_WAX_SOURCES),
+            # chain-1: nodes + flows before the chain that binds them.
+            ('SupplyNode', SupplyNode, SEED_SUPPLY_NODES),
+            ('SupplyFlow', SupplyFlow, SEED_SUPPLY_FLOWS),
+            ('SupplyChainDefinition', SupplyChainDefinition,
+             SEED_SUPPLY_CHAINS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
