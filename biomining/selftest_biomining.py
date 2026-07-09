@@ -30,6 +30,10 @@ from biomining.optical_seed import (
 from materialsScience.dielectric_optics_seed import (
     SEED_DIELECTRIC_MATERIALS, SEED_DIELECTRIC_PROPERTY_MEANINGS,
 )
+from biomining.alloy_seed import (
+    SEED_ALLOY_AGENTS, SEED_ALLOY_BIOMINE_SYSTEMS, SEED_ALLOY_PRODUCTS,
+)
+from materialsScience.bio_alloys_seed import SEED_BIO_ALLOY_MATERIALS
 
 PASS, FAIL = '\033[0;32mPASS\033[0m', '\033[0;31mFAIL\033[0m'
 _results = []
@@ -48,18 +52,21 @@ def _rows(seed_list):
 # Stand-in for the real materialsScience rows the products link to
 # (ferrite + CNT for biomine-1; the dielectric rows for the optical set).
 MATERIALS = ([{'name': 'ferrite'}, {'name': 'carbon-nanotube'}]
-             + SEED_DIELECTRIC_MATERIALS)
+             + SEED_DIELECTRIC_MATERIALS + SEED_BIO_ALLOY_MATERIALS)
 
 
 def _mgr(systems=None):
     return SimpleNamespace(objectTables={
         'BioextractionAgent': _rows(
-            SEED_BIOEXTRACTION_AGENTS + SEED_OPTICAL_AGENTS),
+            SEED_BIOEXTRACTION_AGENTS + SEED_OPTICAL_AGENTS
+            + SEED_ALLOY_AGENTS),
         'BiomineralProduct': _rows(
-            SEED_BIOMINERAL_PRODUCTS + SEED_OPTICAL_PRODUCTS),
+            SEED_BIOMINERAL_PRODUCTS + SEED_OPTICAL_PRODUCTS
+            + SEED_ALLOY_PRODUCTS),
         'BiomineSystemDefinition': _rows(
             systems if systems is not None
-            else SEED_BIOMINE_SYSTEMS + SEED_OPTICAL_BIOMINE_SYSTEMS),
+            else SEED_BIOMINE_SYSTEMS + SEED_OPTICAL_BIOMINE_SYSTEMS
+            + SEED_ALLOY_BIOMINE_SYSTEMS),
         'MaterialsScienceMaterial': _rows(MATERIALS),
     })
 
@@ -174,6 +181,50 @@ if __name__ == '__main__':
           {'relativePermittivity', 'electroOpticCoefficient',
            'refractiveIndex', 'opticalLoss',
            'piezoelectricCoefficient'} <= meaning_names)
+
+    print('bio ferrous alloys — Ni phytomining + galvanized bio-steel')
+    # Nickel hyperaccumulator is a PLANT agent (phytomining).
+    ni_agent = next(a for a in SEED_ALLOY_AGENTS
+                    if a['name'] == 'nickel-hyperaccumulator-plant')
+    check('nickel agent is a plant hyperaccumulator targeting Ni',
+          ni_agent['agent_type'] == 'plant'
+          and ni_agent['target_element'] == 'Ni')
+    ny = extraction_yield(manager, 'nickel-phytomining-biomine',
+                          days=30.0)
+    check('nickel phytomining yields nickel-bio-ore',
+          ny['ok'] and ny['product'] == 'nickel-bio-ore'
+          and ny['refinedProductMgPerDay'] > 0)
+    np = refinement_pathway(manager, 'nickel-bio-ore')
+    check('nickel pathway resolves to the nickel-metal material',
+          np['materialResolved'] and np['materialRef'] == 'nickel-metal')
+    # Galvanized/phosphated steel resolves + carries its honest envelope.
+    gy = extraction_yield(manager,
+                          'corrosion-resistant-steel-biomine', days=30.0)
+    check('galvanized steel biomine yields coated steel',
+          gy['ok'] and gy['product'] == 'galvanized-phosphated-steel')
+    gp = refinement_pathway(manager, 'galvanized-phosphated-steel')
+    check('galvanized steel links galvanized-bio-steel + names zinc + '
+          'phosphate steps',
+          gp['materialResolved']
+          and gp['materialRef'] == 'galvanized-bio-steel'
+          and any('galvanize' in s for s in gp['steps'])
+          and any('phosphate' in s for s in gp['steps']))
+    # The material carries the honest application envelope.
+    galv_mat = next(m for m in SEED_BIO_ALLOY_MATERIALS
+                    if m['name'] == 'galvanized-bio-steel')
+    check('galvanized material flags NOT-for-food/immersion envelope',
+          'NOT for' in galv_mat['notes']
+          and 'food' in galv_mat['notes'])
+    # Stainless is recorded as an honest gated gap (Cr), not built.
+    stainless = next(m for m in SEED_BIO_ALLOY_MATERIALS
+                     if m['name'] == 'stainless-steel')
+    check('stainless material flagged gated-on-chromium',
+          'gated' in stainless['tags_json']
+          and 'CHROMIUM' in stainless['notes'])
+    check('no biomine SYSTEM builds stainless (disregarded for now)',
+          all('stainless' not in s.get('product_name', '')
+              for s in (SEED_BIOMINE_SYSTEMS + SEED_OPTICAL_BIOMINE_SYSTEMS
+                        + SEED_ALLOY_BIOMINE_SYSTEMS)))
 
     print('honest refusals')
     check('unknown system refuses',

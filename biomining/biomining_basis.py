@@ -34,7 +34,7 @@ Three treeObjects (auto-CRUDE + persisted — object-coherence):
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-AGENT_TYPES = ('bacteria', 'algae', 'fungi', 'biofilm')
+AGENT_TYPES = ('bacteria', 'algae', 'fungi', 'biofilm', 'plant')
 #: Bio-extraction mechanisms. 'biosynthesis' = fermentation-produced
 #: organic ligands (tartrate, glycine) rather than element capture.
 MECHANISMS = ('bioaccumulation', 'biosorption', 'bioleaching',
@@ -51,7 +51,8 @@ PRODUCT_KINDS = ('ferrite-magnet', 'steel-feedstock',
                  'carbon-nanotube-feedstock', 'recovered-nutrient',
                  'metal-powder', 'electro-optic-crystal',
                  'optical-glass', 'coating-dielectric',
-                 'birefringent-crystal', 'ir-window')
+                 'birefringent-crystal', 'ir-window',
+                 'nickel-metal', 'coated-steel')
 
 
 class BioextractionAgent(treeObject):
