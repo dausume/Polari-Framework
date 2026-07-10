@@ -135,6 +135,22 @@ _PYRIDINE = ('N 1.397 0 0; C 0.6985 1.2098 0; C -0.6985 1.2098 0; '
              'H 1.2405 2.1486 0; H -1.2405 2.1486 0; H -2.481 0 0; '
              'H -1.2405 -2.1486 0; H 1.2405 -2.1486 0')
 
+# Community n-doping candidate fragments (same hexagon idiom):
+_BENZENE_RING = ('C 1.397 0 0; C 0.6985 1.2098 0; C -0.6985 1.2098 0; '
+                 'C -1.397 0 0; C -0.6985 -1.2098 0; C 0.6985 -1.2098 0')
+_PHOSPHININE = ('P 1.397 0 0; C 0.6985 1.2098 0; C -0.6985 1.2098 0; '
+                'C -1.397 0 0; C -0.6985 -1.2098 0; C 0.6985 -1.2098 0; '
+                'H 1.2405 2.1486 0; H -1.2405 2.1486 0; H -2.481 0 0; '
+                'H -1.2405 -2.1486 0; H 1.2405 -2.1486 0')
+_ANILINE = (_BENZENE_RING + '; '
+            'N 2.797 0 0; H 3.387 0.81 0; H 3.387 -0.81 0; '
+            'H 1.2405 2.1486 0; H -1.2405 2.1486 0; H -2.481 0 0; '
+            'H -1.2405 -2.1486 0; H 1.2405 -2.1486 0')
+_K_BENZENE = (_BENZENE_RING + '; '
+              'H 2.481 0 0; H 1.2405 2.1486 0; H -1.2405 2.1486 0; '
+              'H -2.481 0 0; H -1.2405 -2.1486 0; H 1.2405 -2.1486 0; '
+              'K 0 0 2.8')
+
 SEED_STANDARD_FEM_MODELS = [
     {
         'name': 'solgel-porous-silica',
@@ -281,6 +297,72 @@ SEED_STANDARD_DFT_MODELS = [
         'accuracy_json': '{}',
         'notes': f'{PROV}: idealized hexagon geometry (real pyridine '
                  'ring is slightly distorted) — stand-in energy only.',
+        'enabled': True,
+    },
+    # ------------------------------------------------------------------
+    # COMMUNITY n-DOPING CANDIDATES (Dustin 2026-07-10): dopants an
+    # arbitrary local community can actually source. Same idealized
+    # hexagon idiom as pyridine — directly comparable frontier shifts.
+    # ------------------------------------------------------------------
+    {
+        'name': 'phos-doped-cnt-fragment-energy',
+        'display_name': 'P-doped CNT fragment (phosphinine stand-in)',
+        'description': (
+            'Phosphinine (C5H5P) as the minimal phosphorus-doped '
+            'stand-in. COMMUNITY SOURCE: bone ash (calcium '
+            'phosphate), struvite recovered from urine (the biomining '
+            'P-recovery pathway), or phosphate fertilizer.'
+        ),
+        'calculation_ref': 'dft-molecular-energy',
+        'structure_json': json.dumps({'kind': 'molecule',
+                                      'atoms': _PHOSPHININE}),
+        'method_json': json.dumps({'basis': '6-31g', 'xc': 'b3lyp',
+                                   'charge': 0, 'spin': 0}),
+        'accuracy_json': '{}',
+        'notes': f'{PROV}: idealized hexagon with P at the N position '
+                 '(real P-C bonds ~1.73 A distort the ring — '
+                 'stand-in energy only).',
+        'enabled': True,
+    },
+    {
+        'name': 'amine-doped-cnt-fragment-energy',
+        'display_name': 'Amine-functionalized CNT fragment (aniline '
+                        'stand-in)',
+        'description': (
+            'Aniline (C6H5-NH2): the amine lone pair as a surface '
+            'charge-transfer DONOR — the practical low-tech n-doping '
+            'route (adsorbed/grafted amines). COMMUNITY SOURCE: '
+            'ammonia / urea chemistry (fertilizer, urine-derived).'
+        ),
+        'calculation_ref': 'dft-molecular-energy',
+        'structure_json': json.dumps({'kind': 'molecule',
+                                      'atoms': _ANILINE}),
+        'method_json': json.dumps({'basis': '6-31g', 'xc': 'b3lyp',
+                                   'charge': 0, 'spin': 0}),
+        'accuracy_json': '{}',
+        'notes': f'{PROV}: idealized planar geometry (real aniline '
+                 'NH2 is pyramidal) — stand-in energy only.',
+        'enabled': True,
+    },
+    {
+        'name': 'potash-doped-cnt-fragment-energy',
+        'display_name': 'K-adsorbed CNT fragment (potash stand-in)',
+        'description': (
+            'Benzene + a potassium adatom 2.8 A above the ring '
+            'center: alkali surface charge transfer, the classic '
+            'intercalation-style electron donor. COMMUNITY SOURCE: '
+            'potash leached from hardwood ash — the most universally '
+            'available reagent there is.'
+        ),
+        'calculation_ref': 'dft-molecular-energy',
+        'structure_json': json.dumps({'kind': 'molecule',
+                                      'atoms': _K_BENZENE}),
+        'method_json': json.dumps({'basis': '6-31g', 'xc': 'b3lyp',
+                                   'charge': 0, 'spin': 1}),
+        'accuracy_json': '{}',
+        'notes': f'{PROV}: open-shell doublet (odd electron — the '
+                 'donated one); UKS. Idealized geometry, stand-in '
+                 'energy only.',
         'enabled': True,
     },
 ]

@@ -81,6 +81,17 @@ SEED_SEMICONDUCTOR_PROFILES = [
     {'name': 'cnt-p-doped', 'material': 'b-doped-carbon-nanotube',
      'variant': 'p', 'sim_model': 'p-doped-cnt-fragment-energy',
      'reference_model': 'cnt-fragment-energy'},
+    # Community n-doping candidates (all CLAIM n — the validator
+    # judges each against its executed sim):
+    {'name': 'cnt-phosphorus-doped', 'material': 'carbon-nanotube',
+     'variant': 'n', 'sim_model': 'phos-doped-cnt-fragment-energy',
+     'reference_model': 'cnt-fragment-energy'},
+    {'name': 'cnt-amine-doped', 'material': 'carbon-nanotube',
+     'variant': 'n', 'sim_model': 'amine-doped-cnt-fragment-energy',
+     'reference_model': 'cnt-fragment-energy'},
+    {'name': 'cnt-potash-doped', 'material': 'carbon-nanotube',
+     'variant': 'n', 'sim_model': 'potash-doped-cnt-fragment-energy',
+     'reference_model': 'cnt-fragment-energy'},
 ]
 
 

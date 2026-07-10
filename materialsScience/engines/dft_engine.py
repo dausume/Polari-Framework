@@ -136,7 +136,9 @@ def molecular_energy(atoms, basis='6-31g', xc='b3lyp', charge=0, spin=0):
         from pyscf import gto, dft as pyscf_dft
         mol = gto.M(atom=atoms, basis=basis, charge=charge, spin=spin,
                     verbose=0)
-        mf = pyscf_dft.RKS(mol)
+        # Open-shell fragments (odd electron count — e.g. an alkali
+        # adatom donor) need unrestricted KS; closed shells keep RKS.
+        mf = (pyscf_dft.UKS(mol) if spin else pyscf_dft.RKS(mol))
         mf.xc = xc
         energy = mf.kernel()
         result = {'ok': True, 'engine': 'pyscf(local)',
@@ -169,9 +171,12 @@ def frontier_orbitals_from_scf(mf):
     note travels with the numbers). Shared by the local ladder rung
     and the msci-engines worker service."""
     try:
-        occupied = [float(e) for e, o in zip(mf.mo_energy, mf.mo_occ)
+        import numpy as _np
+        energies = _np.asarray(mf.mo_energy).ravel()
+        occupations = _np.asarray(mf.mo_occ).ravel()
+        occupied = [float(e) for e, o in zip(energies, occupations)
                     if o > 0]
-        virtual = [float(e) for e, o in zip(mf.mo_energy, mf.mo_occ)
+        virtual = [float(e) for e, o in zip(energies, occupations)
                    if o == 0]
         if not occupied or not virtual:
             return {}
