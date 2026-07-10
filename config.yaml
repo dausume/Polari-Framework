@@ -102,6 +102,13 @@ application:
     enabled: true
     port: 3001
 
+  # gRPC serving sidecar (grpcbridge/grpc_server.py) — serves ONLY
+  # classes with an enabled+current GrpcExposure row (the per-class
+  # knob); the server itself is infrastructure, like the STOMP sidecar.
+  grpc:
+    enabled: true
+    port: 3002
+
   # Logging configuration
   logging:
     level: INFO

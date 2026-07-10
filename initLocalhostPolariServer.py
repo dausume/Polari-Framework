@@ -132,6 +132,21 @@ if(__name__=='__main__'):
     else:
         print("[WS] STOMP WebSocket server disabled by configuration")
 
+    # Start the gRPC serving sidecar if enabled (grpc-2) — same idiom
+    # as the STOMP sidecar: module-level singleton, next to falcon.
+    # Serves ONLY classes with an enabled+current GrpcExposure row.
+    grpc_enabled = config.get_bool('grpc.enabled', True)
+    grpc_port = config.get_int('grpc.port', 3002)
+    if grpc_enabled:
+        from grpcbridge.grpc_server import (PolariGrpcServer,
+                                            set_grpc_server)
+        grpc_server = PolariGrpcServer(localHostedManagerServer,
+                                       port=grpc_port)
+        grpc_server.start()
+        set_grpc_server(grpc_server)
+    else:
+        print("[gRPC] Server disabled by configuration")
+
     # Get backend port from configuration
     http_port = get_backend_port()
 
@@ -152,6 +167,14 @@ if(__name__=='__main__'):
         print(f"        URL: ws://localhost:{ws_port}/")
     else:
         print(f"\n[WS]    STOMP WebSocket server NOT started (disabled)")
+
+    # Display gRPC status
+    if grpc_enabled:
+        print(f"\n[gRPC]  Object-sync server on port {grpc_port}")
+        print(f"        Serves enabled GrpcExposure classes "
+              f"(reflection on)")
+    else:
+        print(f"\n[gRPC]  Server NOT started (disabled)")
 
     # Display HTTPS status
     if ssl_available:

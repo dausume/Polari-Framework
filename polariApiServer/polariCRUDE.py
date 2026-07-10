@@ -80,39 +80,18 @@ class polariCRUDE(treeObject):
         return False
 
     def _notify_ws_subscribers(self, operation, instanceIds=None):
-        """Publish STOMP notifications for WS-enabled formats after a CRUDE mutation.
+        """Publish change notifications after a CRUDE mutation via the
+        transport MUX (grpcbridge.transport_mux): STOMP by default —
+        byte-identical topics + payloads to the historical direct
+        path — and/or gRPC Watch/Commands streams when the class's
+        GrpcExposure transport_preference knob says so.
 
         Never raises — failures are logged but do not break CRUDE operations.
         """
         try:
-            from polariApiServer.stompWebSocketServer import get_stomp_server
-            stompServer = get_stomp_server()
-            if stompServer is None:
-                return
-            formatConfig = getattr(self.objTyping, 'apiFormatConfig', None)
-            if formatConfig is None:
-                return
-
-            notification = {
-                "className": self.apiObject,
-                "operation": operation,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "instanceIds": instanceIds or []
-            }
-
-            # Publish to /topic/{ClassName} if polariTree WS is enabled
-            if formatConfig.polariTreeWsEnabled:
-                notification["formatType"] = "crude"
-                stompServer.publish(f'/topic/{self.apiObject}', notification)
-
-            # Also publish to per-format topics for any WS-enabled format
-            for fmt, enabled in [('flatJson', formatConfig.flatJsonWsEnabled),
-                                 ('d3Column', formatConfig.d3ColumnWsEnabled),
-                                 ('geoJson', formatConfig.geoJsonWsEnabled)]:
-                if enabled:
-                    fmt_notification = dict(notification)
-                    fmt_notification["formatType"] = fmt
-                    stompServer.publish(f'/topic/{self.apiObject}/{fmt}', fmt_notification)
+            from grpcbridge.transport_mux import publish_crude_change
+            publish_crude_change(self.manager, self.apiObject,
+                                 operation, instanceIds or [])
         except Exception as e:
             print(f"[polariCRUDE] WS notification error for {self.apiObject}: {e}", flush=True)
 

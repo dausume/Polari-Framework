@@ -340,8 +340,20 @@ def generate_contract(manager, class_name, reason='initial',
             'versionRow': version_row}
 
 
+def _refresh_serving():
+    """Tell the serving sidecar (grpc-2) the exposure set changed.
+    Failure-isolated + lazy: a knob act never breaks on a missing or
+    stopped server, and this module stays importable without grpcio."""
+    try:
+        from grpcbridge.grpc_server import refresh_grpc_runtime
+        refresh_grpc_runtime()
+    except Exception:
+        pass
+
+
 def exposure_action(manager, class_name, action,
-                    exposure_factory=None, version_factory=None):
+                    exposure_factory=None, version_factory=None,
+                    transport=None):
     """The knob acts: enable | disable | regenerate | set-transport.
     All human/API-initiated; the system only ever suggests."""
     from polariDataTyping.schema_stability import is_stabilized
@@ -374,6 +386,7 @@ def exposure_action(manager, class_name, action,
                 return report
         exposure.enabled = True
         _save_row(manager, exposure)
+        _refresh_serving()
         return {'ok': True, 'class': class_name, 'enabled': True,
                 'contractStatus': exposure.contract_status,
                 'version': exposure.proto_version,
@@ -388,16 +401,30 @@ def exposure_action(manager, class_name, action,
     if action == 'disable':
         exposure.enabled = False
         _save_row(manager, exposure)
+        _refresh_serving()
         return {'ok': True, 'class': class_name, 'enabled': False}
 
     if action == 'regenerate':
-        return generate_contract(manager, class_name,
-                                 reason='manual-regenerate',
-                                 exposure=exposure,
-                                 version_factory=version_factory)
+        report = generate_contract(manager, class_name,
+                                   reason='manual-regenerate',
+                                   exposure=exposure,
+                                   version_factory=version_factory)
+        if report.get('ok'):
+            _refresh_serving()
+        return report
+
+    if action == 'set-transport':
+        if transport not in ('stomp', 'grpc', 'both'):
+            return _refusal(
+                f'set-transport needs "transport" of stomp | grpc | '
+                f'both (got {transport!r})', class_name)
+        exposure.transport_preference = transport
+        _save_row(manager, exposure)
+        return {'ok': True, 'class': class_name,
+                'transportPreference': transport}
 
     return _refusal(f'unknown action "{action}" (enable | disable | '
-                    'regenerate)', class_name)
+                    'regenerate | set-transport)', class_name)
 
 
 def mark_exposures_stale(manager, class_name, reason=''):
@@ -414,6 +441,7 @@ def mark_exposures_stale(manager, class_name, reason=''):
     prior = getattr(exposure, 'notes', '') or ''
     exposure.notes = f'{prior} | {note}'.strip(' |')
     _save_row(manager, exposure)
+    _refresh_serving()  # the gate shut — serving must stop NOW
     return True
 
 

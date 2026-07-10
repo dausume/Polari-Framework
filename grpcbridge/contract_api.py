@@ -78,7 +78,9 @@ class GrpcContractsAPI(treeObject):
         if err:
             return self._refuse(response, err)
         report = exposure_action(self.manager, class_name,
-                                 (payload or {}).get('action', ''))
+                                 (payload or {}).get('action', ''),
+                                 transport=(payload or {})
+                                 .get('transport'))
         if not report.get('ok'):
             response.status = '400 Bad Request'
         # rows don't serialize — return summaries only

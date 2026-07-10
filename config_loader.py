@@ -80,6 +80,8 @@ class ConfigLoader:
         'object_storage.default_bucket': 'MINIO_DEFAULT_BUCKET',
         'websocket.enabled': 'WEBSOCKET_ENABLED',
         'websocket.port': 'WEBSOCKET_PORT',
+        'grpc.enabled': 'GRPC_ENABLED',
+        'grpc.port': 'GRPC_PORT',
     }
 
     # Keys that can be modified at runtime (Tier 3)
@@ -101,6 +103,8 @@ class ConfigLoader:
         'object_storage.default_bucket',
         'websocket.enabled',
         'websocket.port',
+        'grpc.enabled',
+        'grpc.port',
     }
 
     def __init__(self, config_file: str = 'config.yaml', environment: Optional[str] = None):
