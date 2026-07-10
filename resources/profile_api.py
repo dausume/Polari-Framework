@@ -38,6 +38,7 @@ class ResourceProfilesAPI(treeObject):
                 suffix='classify')
             add('/api/resources/engine-profile', self,
                 suffix='engine_profile')
+            add('/api/resources/measure', self, suffix='measure')
 
     def _payload(self, request):
         try:
@@ -112,4 +113,21 @@ class ResourceProfilesAPI(treeObject):
             response.media = report
             return
         report['profile'] = profile_dict(report['profile'])
+        response.media = report
+
+    def on_post_measure(self, request, response):
+        """res-3: measure what CAN be measured for a subject —
+        {subject, url?} — measured overrides declared, honest
+        absence for the rest."""
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        subject = (payload or {}).get('subject', '')
+        if not subject:
+            return self._refuse(response, 'payload needs {subject}')
+        from resources.profile_measure import measure_subject
+        report = measure_subject(
+            self.manager, subject, url=(payload or {}).get('url', ''))
+        if not report.get('ok'):
+            response.status = '409 Conflict'
         response.media = report

@@ -100,12 +100,27 @@ class systemInfoAPI(treeObject):
                 "postDB": getattr(self.manager, 'bootResourcePostDB', None)
             }
 
+            # res-3: this process's resident/peak RSS (measured RAM).
+            process = {}
+            try:
+                with open('/proc/self/status') as f:
+                    for line in f:
+                        if line.startswith(('VmRSS', 'VmHWM')):
+                            key = ('residentMb'
+                                   if line.startswith('VmRSS')
+                                   else 'peakMb')
+                            process[key] = round(
+                                int(line.split()[1]) / 1024.0, 1)
+            except (OSError, ValueError, IndexError):
+                pass
+
             systemInfo = {
                 "platform": platform,
                 "cpu": cpu,
                 "memory": memory,
                 "disk": disk,
                 "swap": swap,
+                "process": process,
                 "bootProfile": bootProfile
             }
 
