@@ -238,15 +238,26 @@ def main():
         'sol-gel-silica@L0': _factory(
             name='sol-gel-silica@L0',
             material_name='sol-gel-silica',
-            parameters_json=json.dumps(
-                {'relativePermittivity': 4.0}))}
+            parameters_json=json.dumps({'relativePermittivity': {
+                'value': 3.9, 'frequency_hz': 1e6,
+                'temperature_c': 25,
+                'measurement_method': 'literature',
+                'confidence': 'medium'}}))}
     pfet_probe.dielectric_material = 'sol-gel-silica'
     dd.derive_device(mgr2, pfet_probe, executor=_fet_executor)
     findings = dv.validate_transistor(mgr2, pfet_probe)
-    check('validator: permittivity material row -> dielectric pass '
-          '-> valid-semiconductor-device',
-          dv._verdict(findings) == 'valid-semiconductor-device',
+    check('validator: structured permittivity record -> dielectric '
+          'pass with measurement context in evidence -> fully valid',
+          dv._verdict(findings) == 'valid-semiconductor-device'
+          and any('confidence medium' in f['evidence']
+                  for f in findings
+                  if f['criterion'] == 'dielectric-sourced'),
           str(findings)[:300])
+    prov = json.loads(pfet_probe.provenance_json)
+    check('derive: measurement context rides device provenance',
+          prov['dielectric']['measurementContext']
+          .get('frequency_hz') == 1e6
+          and prov['dielectric']['epsilonR'] == 3.9)
 
     pfet = _device(name='cnt-pfet-inverter', device_type='pfet',
                    semiconductor_profile='cnt-p-doped',

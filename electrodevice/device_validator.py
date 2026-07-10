@@ -219,11 +219,27 @@ def validate_transistor(manager, device):
              'how': 'shorter/wider channel; re-derive'}))
     prov = json.loads(getattr(device, 'provenance_json', '{}')
                       or '{}')
-    eps_src = prov.get('dielectric', {}).get('source', '')
+    dielectric = prov.get('dielectric', {})
+    eps_src = dielectric.get('source', '')
+    context = dielectric.get('measurementContext') or {}
     if eps_src == 'material-row':
-        findings.append(_finding(
-            'dielectric-sourced', 'pass',
-            'gate epsilon_r from a material property row'))
+        detail = (f"eps_r {dielectric.get('epsilonR')} @ "
+                  f"{context.get('frequency_hz', '?')} Hz, "
+                  f"{context.get('temperature_c', '?')} C, method "
+                  f"{context.get('measurement_method', '?')}, "
+                  f"confidence {context.get('confidence', '?')}")
+        if context.get('confidence') == 'low':
+            findings.append(_finding(
+                'dielectric-sourced', 'warn',
+                f'material row present but LOW confidence — {detail}',
+                {'knob': 'the material property row',
+                 'how': 'a direct measurement or a higher-confidence '
+                        'source'}))
+        else:
+            findings.append(_finding(
+                'dielectric-sourced', 'pass',
+                f'gate epsilon_r from a material property row — '
+                f'{detail}'))
     else:
         findings.append(_finding(
             'dielectric-sourced', 'warn',

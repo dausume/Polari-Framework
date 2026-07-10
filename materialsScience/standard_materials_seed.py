@@ -391,7 +391,17 @@ SEED_STANDARD_SCALE_DEFINITIONS = [
             # of Sol-Gel Silica Glasses'; 'Recent Advances in Sol-Gel
             # Synthesis of Monolithic Silica...' — processing sets
             # density/porosity and therefore eps_r).
-            'relativePermittivity': 4.0,
+            # Structured property record (Dustin's schema
+            # 2026-07-10): value + measurement context + confidence
+            # travel together — the consumer and the validator read
+            # the context, not just the number.
+            'relativePermittivity': {
+                'value': 3.9,
+                'frequency_hz': 1e6,
+                'temperature_c': 25,
+                'measurement_method': 'literature',
+                'confidence': 'medium',
+            },
             'relativePermittivityDensified': [3.8, 4.5],
             'relativePermittivityPorous': [2.0, 4.0],
             'relativePermittivityNote':

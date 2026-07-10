@@ -153,8 +153,8 @@ def _derive_transistor(manager, device, executor):
                                'how': 'a smaller-gap variant, or '
                                       'raise the rail'}}
     kp = 1.0 / (r_on * (VDD_REF - abs(vto)))
-    eps_r, eps_src = _dielectric_epsilon(manager,
-                                         device.dielectric_material)
+    eps_r, eps_src, eps_context = _dielectric_epsilon(
+        manager, device.dielectric_material)
     provenance = {
         'channelSim': device.sim_model,
         'engine': report.get('engine', ''),
@@ -172,6 +172,7 @@ def _derive_transistor(manager, device, executor):
         },
         'dielectric': {'material': device.dielectric_material,
                        'epsilonR': eps_r, 'source': eps_src,
+                       'measurementContext': eps_context,
                        'thickness_m': device.dielectric_thickness_m},
         'simValidity': result.get('validity', ''),
         'profileHonesty': json.loads(
@@ -193,9 +194,12 @@ def _derive_transistor(manager, device, executor):
 
 
 def _dielectric_epsilon(manager, material_name):
-    """Gate epsilon_r: prefer a material property row; fall back to
-    the literature value LABELED as such (the validator flags it —
-    the data gap stays visible)."""
+    """Gate epsilon_r from a material property row — structured
+    records ({value, frequency_hz, temperature_c, measurement_method,
+    confidence}) return their measurement CONTEXT alongside the
+    number so it rides device provenance and the validator can grade
+    confidence. Falls back to a LABELED literature constant (the
+    validator flags it — the data gap stays visible)."""
     try:
         tables = getattr(manager, 'objectTables', None) or {}
         for row in (tables.get('MaterialScaleDefinition')
@@ -208,14 +212,17 @@ def _dielectric_epsilon(manager, material_name):
                         'epsilonR'):
                 if key in props:
                     value = props[key]
+                    context = {}
                     if isinstance(value, dict):
+                        context = {k: v for k, v in value.items()
+                                   if k != 'value'}
                         value = value.get('value')
                     if isinstance(value, (list, tuple)):
                         value = sum(value) / len(value)
-                    return float(value), 'material-row'
+                    return float(value), 'material-row', context
     except Exception:
         pass
-    return 3.9, 'literature-fallback (fused silica ~3.9)'
+    return 3.9, 'literature-fallback (fused silica ~3.9)', {}
 
 
 def render_card(device):
