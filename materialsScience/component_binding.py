@@ -120,6 +120,11 @@ def resolve_binding(manager, value, stage_context=None
     if kind == 'value':
         return True, value.get('value'), None
     if kind == 'objectRef':
+        if 'authority' in value:
+            # xsim-1: authority-carrying refs ride the ONE resolution
+            # ladder; bare refs keep the untouched local path below.
+            from polariRefs.resolver import resolve_ref_value
+            return resolve_ref_value(manager, value, stage_context)
         class_name = value.get('className', '')
         row_name = value.get('name', '')
         path = value.get('path', '')
