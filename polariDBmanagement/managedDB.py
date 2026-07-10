@@ -148,8 +148,11 @@ class managedDatabase(managedFile):
         classInfoDict = passedInstance.__dict__
         print(f'[DB-Save] Instance __dict__ keys: {list(classInfoDict.keys())}', flush=True)
         for colName in tableColumns:
-            if colName == '_branch_path':
-                continue  # Handle separately below
+            if colName in ('_branch_path', '_instance_id'):
+                continue  # handled separately below — a reloaded
+                # instance carries _instance_id as a plain attribute,
+                # but the CURRENT scope is authoritative (and it must
+                # never be emitted twice)
             if colName in classInfoDict:
                 value = classInfoDict[colName]
                 if value is None or value == []:
@@ -225,6 +228,13 @@ class managedDatabase(managedFile):
     def _handleSaveMismatch(self, className, rowList, valueList, error):
         """The smooth OOPS handler around schema_stability. Returns
         True when the adapted retry landed the write."""
+        if className in ('SchemaStabilityProfile',
+                         'SchemaDeviationEvent'):
+            # never record events ABOUT the event/profile classes —
+            # a failing meta-save must not cascade into more saves
+            print(f'[DB-Save] meta-class {className} save failed; '
+                  'not tracked (no cascade)', flush=True)
+            return False
         try:
             from polariDataTyping.schema_stability import (
                 handle_save_mismatch,

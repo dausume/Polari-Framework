@@ -496,13 +496,16 @@ class managerObject:
         savedCount = 0
         skippedCount = 0
         errorCount = 0
-        for className, instancesDict in self.objectTables.items():
+        # snapshot both levels: saves can CREATE rows mid-iteration
+        # (schema-stability profiles/events are treeObjects born
+        # inside saveInstanceInDB hooks)
+        for className, instancesDict in list(self.objectTables.items()):
             if className not in self.db.tables:
                 skippedCount += len(instancesDict)
                 continue
             # Clear existing rows before re-persisting to prevent duplicates
             self.db.deleteAllFromTable(className)
-            for instanceId, instance in instancesDict.items():
+            for instanceId, instance in list(instancesDict.items()):
                 try:
                     self.db.saveInstanceInDB(instance)
                     savedCount += 1
