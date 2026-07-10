@@ -330,6 +330,11 @@ def main():
           0.40 < u11 < 0.48
           and ph.ultimate_efficiency(3.3) < u11
           and ph.ultimate_efficiency(0.3) < u11, str(u11))
+    sq13 = ph.detailed_balance_efficiency(1.3)
+    check('solar: detailed-balance (SQ) limit ~31% at 1.3 eV — '
+          'BELOW single-junction physical limits, unlike ultimate',
+          0.28 < sq13 < 0.33 and sq13 < u11
+          and ph.detailed_balance_efficiency(2.1) < sq13, str(sq13))
     stack = _factory(
         name='panel', absorber_candidates_json=json.dumps([
             {'name': 'cu2o', 'gapRecord': {'value': 2.1}},
@@ -340,11 +345,13 @@ def main():
         provenance_json='{}')
     mgr2.objectTables['SolarLayerDefinition'] = {}
     rep = ph.optimize_stack(mgr2, stack, executor=photo_exec)
-    check('solar: optimizer ranks pyrite (0.95 eV) above Cu2O above '
-          'ZnO on ultimate efficiency',
+    check('solar: optimizer ranks by the SQ limit (pyrite > Cu2O > '
+          'ZnO) and reports BOTH ceilings',
           rep['ok'] and rep['chosen'] == 'pyrite'
           and [c['candidate'] for c in rep['ranking']]
-          == ['pyrite', 'cu2o', 'zno'])
+          == ['pyrite', 'cu2o', 'zno']
+          and all(c['sqLimit'] < c['ultimateEfficiency']
+                  for c in rep['ranking']))
 
     passed = sum(1 for _, ok in _results if ok)
     print(f'\n{passed}/{len(_results)} checks passed')

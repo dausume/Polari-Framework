@@ -170,6 +170,64 @@ def ultimate_efficiency(gap_ev, t_sun_k=5778.0, points=4000):
     return (gap_ev * n) / p if p > 0 else 0.0
 
 
+OMEGA_SUN = 6.87e-5   # sr — the sun's solid angle, unconcentrated
+KT_CELL_EV = 0.025852  # 300 K
+
+
+def _photon_integral(gap_ev, kt):
+    """N(Eg,T) = int_Eg E^2/(exp(E/kT)-1) dE. Numeric for the hot
+    (solar) side; Boltzmann-analytic for the cold side (exp(-Eg/kTc)
+    underflows numeric grids)."""
+    if gap_ev / kt > 30.0:
+        x = gap_ev / kt
+        return math.exp(-x) * kt * (gap_ev ** 2 + 2 * gap_ev * kt
+                                    + 2 * kt ** 2)
+    n = 0.0
+    e_hi = gap_ev + 40.0 * kt
+    points = 4000
+    de = (e_hi - gap_ev) / points
+    for i in range(points):
+        e = gap_ev + (i + 0.5) * de
+        n += (e ** 2) / (math.exp(e / kt) - 1.0) * de
+    return n
+
+
+def detailed_balance_efficiency(gap_ev, t_sun_k=5778.0,
+                                t_cell_k=300.0):
+    """The single-junction Shockley-Queisser limit, unconcentrated:
+    J_sc from the solar solid angle, radiative dark current from the
+    300 K cell emitting into the hemisphere, max-power point scanned.
+    Peaks ~31%% near 1.2-1.3 eV for a 5778 K blackbody sun (the
+    commonly quoted 33.7%% uses the AM1.5G spectrum)."""
+    if gap_ev <= 0:
+        return 0.0
+    kt_s = 8.617333262e-5 * t_sun_k
+    kt_c = 8.617333262e-5 * t_cell_k
+    j_sc = OMEGA_SUN * _photon_integral(gap_ev, kt_s)
+    j_0 = math.pi * _photon_integral(gap_ev, kt_c)
+    if j_0 <= 0 or j_sc <= 0:
+        return 0.0
+    # P_in: full solar power through the same solid angle
+    kt = kt_s
+    p_in = 0.0
+    points = 4000
+    e_hi = 30.0 * kt
+    de = e_hi / points
+    for i in range(1, points):
+        e = i * de
+        p_in += (e ** 3) / (math.exp(e / kt) - 1.0) * de
+    p_in *= OMEGA_SUN
+    v_oc = kt_c * math.log(j_sc / j_0 + 1.0)
+    best = 0.0
+    for i in range(1, 2000):
+        v = v_oc * i / 2000.0
+        j = j_sc - j_0 * (math.exp(v / kt_c) - 1.0)
+        if j <= 0:
+            break
+        best = max(best, j * v)
+    return best / p_in
+
+
 def optimize_stack(manager, stack, executor=None):
     """Rank absorber candidates by ultimate efficiency, stamp the
     winner, and state the loss ladder honestly."""
@@ -186,6 +244,8 @@ def optimize_stack(manager, stack, executor=None):
             skipped.append({'candidate': cand.get('name'), **prov})
             continue
         ranked.append({'candidate': cand['name'], 'gapEv': gap,
+                       'sqLimit':
+                           round(detailed_balance_efficiency(gap), 4),
                        'ultimateEfficiency':
                            round(ultimate_efficiency(gap), 4),
                        'absorptionEdge_nm':
@@ -195,7 +255,10 @@ def optimize_stack(manager, stack, executor=None):
     if not ranked:
         return {'ok': False, 'error': 'every candidate refused',
                 'skipped': skipped}
-    ranked.sort(key=lambda c: -c['ultimateEfficiency'])
+    # Rank by the DETAILED-BALANCE limit — the physical single-
+    # junction ceiling; 'ultimate' stays visible as the pre-detailed-
+    # balance bound it is (Dustin's 43%%-vs-limits challenge).
+    ranked.sort(key=lambda c: -c['sqLimit'])
     best = ranked[0]
     layers = sorted(
         (r for r in _rows(manager, 'SolarLayerDefinition').values()
@@ -203,23 +266,27 @@ def optimize_stack(manager, stack, executor=None):
         key=lambda r: int(getattr(r, 'position', 0)))
     stack.chosen_absorber = best['candidate']
     stack.chosen_gap_ev = best['gapEv']
-    stack.ultimate_efficiency = best['ultimateEfficiency']
+    stack.ultimate_efficiency = best['sqLimit']
     stack.derived_at = _now()
     stack.provenance_json = json.dumps({
         'ranking': ranked, 'skipped': skipped,
-        'model': 'blackbody 5778K ultimate efficiency u(Eg) = '
-                 'Eg*N(E>Eg)/P — the CEILING before '
-                 'Shockley-Queisser radiative losses (~-10 pts), '
-                 'transport/recombination, reflection, and '
-                 'community-grade processing; realistic homemade '
-                 'Cu2O cells are ~1%, dye cells a few %. The ladder '
-                 'is stated so the ceiling is never mistaken for a '
-                 'promise.',
+        'model': 'RANKED BY the detailed-balance (Shockley-'
+                 'Queisser) single-junction limit, 5778K blackbody '
+                 'sun, unconcentrated, 300K cell, radiative-only '
+                 'dark current — the PHYSICAL ceiling (~31% peak '
+                 'near 1.2-1.3 eV; AM1.5G gives the familiar '
+                 '33.7%). ultimateEfficiency is also reported: SQ '
+                 'their own pre-detailed-balance bound (~44% peak) '
+                 '— NOT a panel efficiency. Below both: transport/'
+                 'recombination, reflection, and community-grade '
+                 'processing; realistic homemade Cu2O ~1%, dye '
+                 'cells a few %.',
     })
     _save(manager, stack)
     return {'ok': True, 'stack': stack.name,
             'chosen': best['candidate'],
             'gapEv': best['gapEv'],
+            'sqLimit': best['sqLimit'],
             'ultimateEfficiency': best['ultimateEfficiency'],
             'ranking': [{k: v for k, v in c.items()
                          if k != 'provenance'} for c in ranked],
