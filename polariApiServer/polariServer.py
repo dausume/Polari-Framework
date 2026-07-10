@@ -1971,12 +1971,26 @@ class polariServer(treeObject):
         # (ssh_alias=='' convention) so the topology is resource-aware
         # from boot — fills the historical `mem_gb: 0.0` gap.
         try:
-            from resources.node_resources import refresh_local_machine
+            from resources.node_resources import (
+                fetch_remote_specs, refresh_local_machine,
+            )
             report = refresh_local_machine(self.manager)
             print(f'[NodeResources] local self-observation: {report}',
                   flush=True)
+            # Remote nodes with a system_info_url knob are observed at
+            # boot too (an observation, not a configuration change) —
+            # staging is stateless, so the inventory re-fills itself.
+            for row in list((self.manager.objectTables.get(
+                    'PolariNodeMachine') or {}).values()):
+                if getattr(row, 'system_info_url', ''):
+                    remote = fetch_remote_specs(
+                        self.manager, getattr(row, 'name', ''))
+                    print(f'[NodeResources] remote observation '
+                          f'{getattr(row, "name", "")}: '
+                          f'ok={remote.get("ok")} '
+                          f'{remote.get("error", "")}', flush=True)
         except Exception as e:
-            print(f'[NodeResources] local self-observation failed: {e}',
+            print(f'[NodeResources] boot observation failed: {e}',
                   flush=True)
         # res-2: fill est_row_bytes on seeded data profiles from the
         # storage predictor (declared seeds carry 0 = not yet derived).

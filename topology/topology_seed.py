@@ -41,7 +41,13 @@ SEED_NODE_MACHINES = [
         'swarm_role': 'none',
         'repo_dir': '~/polari-suite',
         'source': 'nodes.yml',
-        'notes': '6-core i5 / 7.6G; also runs the Isle-Mesh project.',
+        # res-1 knob: prf-cad-engines is PINNED here
+        # (node.hostname==dustin-etts-mesh-core), so its /system-info
+        # reports THIS host. Routing mesh serves it on the core IP.
+        'system_info_url': 'http://192.168.0.210:9600',
+        'notes': '6-core i5 / 7.6G; also runs the Isle-Mesh project. '
+                 'system_info_url -> the cad-engines service pinned '
+                 'here.',
     },
     {
         'name': 'lightweight',
@@ -52,8 +58,12 @@ SEED_NODE_MACHINES = [
         'swarm_role': 'none',
         'repo_dir': '~/polari-suite',
         'source': 'nodes.yml',
+        # res-1 knob: polari-engines_msci-engines is PINNED here
+        # (node.labels.polari.machine==lightweight).
+        'system_info_url': 'http://192.168.0.210:9500',
         'notes': 'N95 4-core / 7.5G; suspend disabled 2026-07-08 — '
-                 'safe headless target.',
+                 'safe headless target. system_info_url -> the '
+                 'msci-engines service pinned here.',
     },
 ]
 

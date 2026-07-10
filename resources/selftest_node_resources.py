@@ -150,6 +150,7 @@ def main():
 
     # --- remote pull ---------------------------------------------------
     isle = mgr.objectTables['PolariNodeMachine']['isle-core']
+    isle.system_info_url = ''  # seed carries the knob; test without it
     no_url = fetch_remote_specs(mgr, 'isle-core')
     check('remote pull without the knob: refused, names the knob',
           not no_url.get('ok')
