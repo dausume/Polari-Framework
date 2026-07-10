@@ -310,6 +310,8 @@ from grpcbridge.contract_basis import (
 # Polari Hardware Bridge (grpc-j1): generatable Java bridge apps —
 # simulation-first, per-bridge knob rows.
 from grpcbridge.java_bridge_basis import HardwareBridgeDefinition
+# hwsim-1: hardware rig digital twins (Renode firmware streams here).
+from grpcbridge.hwsim_basis import SimRigState, SEED_SIM_RIGS
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -963,6 +965,8 @@ class polariServer(treeObject):
             GrpcExposure, ProtoContractVersion,
             # Polari Hardware Bridge definitions (grpc-j1).
             HardwareBridgeDefinition,
+            # Hardware rig digital twins (hwsim-1).
+            SimRigState,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1776,6 +1780,9 @@ class polariServer(treeObject):
             # Modules-as-projects: the in-tree module, config-tracked.
             ('ModuleSourceConfig', ModuleSourceConfig,
              SEED_MODULE_SOURCE_CONFIGS),
+            # hwsim-1: the Renode rig twin exists from boot so its
+            # schema can stabilize before the first telemetry frame.
+            ('SimRigState', SimRigState, SEED_SIM_RIGS),
             # Thermal windows from the Base Wax Properties notes.
             ('ThermalProcessingProfile', ThermalProcessingProfile,
              SEED_THERMAL_PROFILES),

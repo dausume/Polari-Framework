@@ -1,0 +1,12 @@
+:name: polari-hwsim-1
+:description: Renode twin of the Polari renode-rig — real firmware on a simulated STM32F4, USART2 exposed as a host pty for the Polari Hardware Bridge's serial seam.
+
+mach create "renode-rig"
+machine LoadPlatformDescription @platforms/boards/stm32f4_discovery-kit.repl
+
+emulation CreateUartPtyTerminal "rigpty" "/tmp/renode-rig-uart" true
+connector Connect sysbus.usart2 rigpty
+
+sysbus LoadELF @firmware/firmware.elf
+
+start

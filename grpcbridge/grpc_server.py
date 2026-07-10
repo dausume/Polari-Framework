@@ -434,6 +434,18 @@ if HAS_GRPC:
         if rows is None:
             raise ValueError(f'class "{cls}" has no object table')
         inst = rows.get(pid) if pid else None
+
+        def _narrowed(target, name, value):
+            # Python bools stabilize as TEXT, so contracts carry them
+            # as 'True'/'False' strings; narrow back to the trusted
+            # bool on the way in — otherwise every hardware push
+            # OOPSes the schema it is honestly conforming to.
+            if (isinstance(value, str)
+                    and isinstance(getattr(target, name, None), bool)
+                    and value in ('True', 'False')):
+                return value == 'True'
+            return value
+
         if inst is None and not pid and values.get('name'):
             # Many stabilization snapshots don't carry the polari id
             # (it isn't a typed field) — fall back to the framework's
@@ -449,7 +461,7 @@ if HAS_GRPC:
             for name, value in values.items():
                 if name == 'id':
                     continue
-                setattr(inst, name, value)
+                setattr(inst, name, _narrowed(inst, name, value))
             operation = 'update'
         else:
             typing = (getattr(manager, 'objectTypingDict', None)
@@ -464,7 +476,7 @@ if HAS_GRPC:
             for name, value in values.items():
                 if name == 'id':
                     continue
-                setattr(inst, name, value)
+                setattr(inst, name, _narrowed(inst, name, value))
             if pid and pid != generated_id:
                 # Re-key to the pushed identity (the device names its
                 # row) BEFORE first save, so table key == id.

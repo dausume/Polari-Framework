@@ -39,6 +39,8 @@ class GrpcContractsAPI(treeObject):
                 suffix='exposure')
             add('/api/grpc/exposures/{class_name}/proto', self,
                 suffix='proto')
+            add('/api/grpc/exposures/{class_name}/c-header', self,
+                suffix='c_header')
 
     def _payload(self, request):
         try:
@@ -87,6 +89,43 @@ class GrpcContractsAPI(treeObject):
         report.pop('exposure', None)
         report.pop('versionRow', None)
         response.media = report
+
+    def on_get_c_header(self, request, response, class_name):
+        """grpc-j3: the firmware-side C twin of the CURRENT contract,
+        generated from the SAME field_map as the .proto and the Java
+        codec. Per-class on purpose — firmware only ever downloads
+        the classes it needs to know (?msg_type=N matches the class's
+        position in its bridge definition, default 1)."""
+        exposure = get_exposure(self.manager, class_name)
+        if exposure is None or not getattr(exposure, 'proto_version', 0):
+            return self._refuse(
+                response,
+                f'no contract generated for "{class_name}" yet — '
+                'enable the exposure first', '404 Not Found')
+        wanted = int(getattr(exposure, 'proto_version', 0) or 0)
+        field_map = None
+        for row in get_versions(self.manager, class_name):
+            if int(getattr(row, 'version', 0) or 0) == wanted:
+                try:
+                    field_map = json.loads(
+                        getattr(row, 'field_map_json', '{}') or '{}')
+                except Exception:
+                    field_map = None
+                break
+        if not field_map:
+            return self._refuse(
+                response,
+                f'contract v{wanted} ledger row for "{class_name}" '
+                'is missing its field map', '404 Not Found')
+        try:
+            msg_type = int(request.params.get('msg_type', '1'))
+        except (TypeError, ValueError):
+            msg_type = 1
+        from grpcbridge.c_twin import render_c_header
+        response.content_type = 'text/plain; charset=utf-8'
+        response.text = render_c_header(
+            class_name, field_map, msg_type, version=wanted,
+            contract_hash=getattr(exposure, 'contract_hash', ''))
 
     def on_get_proto(self, request, response, class_name):
         """The generated .proto, text/plain (download)."""
