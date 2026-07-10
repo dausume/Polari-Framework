@@ -12,11 +12,20 @@ cd "$(dirname "$0")"
 
 BASE="${1:-https://api.prf.192.168.0.210.nip.io}"
 
-echo "== fetching SimRigState C twin from $BASE =="
+echo "== fetching per-class C twins + FPGA defines from $BASE =="
 curl -skf "$BASE/api/grpc/exposures/SimRigState/c-header?msg_type=1" \
     -o simrigstate_packets.h
 grep -q 'SIMRIGSTATE_MSG_TYPE' simrigstate_packets.h \
     || { echo "header fetch failed (exposure enabled?)"; exit 1; }
+curl -skf \
+    "$BASE/api/grpc/exposures/FpgaRegisterState/c-header?msg_type=2" \
+    -o fpgaregisterstate_packets.h
+grep -q 'FPGAREGISTERSTATE_MSG_TYPE' fpgaregisterstate_packets.h \
+    || { echo "FpgaRegisterState header fetch failed"; exit 1; }
+curl -skf "$BASE/api/hw/registermaps/hardware-runtime/c-defines" \
+    -o hardware_runtime_regs.h
+grep -q 'FPGA_BASE' hardware_runtime_regs.h \
+    || { echo "register-map defines fetch failed"; exit 1; }
 
 echo "== compiling =="
 arm-none-eabi-gcc \

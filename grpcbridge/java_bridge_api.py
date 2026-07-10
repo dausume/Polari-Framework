@@ -151,6 +151,17 @@ class HardwareBridgeAPI(treeObject):
         action = (payload or {}).get('action', '')
         if action == 'configure':
             changed = {}
+            if 'classes' in payload:
+                classes = payload['classes']
+                if (not isinstance(classes, list) or not classes
+                        or not all(isinstance(c, str)
+                                   for c in classes)):
+                    return self._refuse(
+                        response,
+                        'classes must be a non-empty ordered list of '
+                        'class names (order defines msg_type)')
+                bridge.exposed_classes_json = json.dumps(classes)
+                changed['classes'] = classes
             for key, attr, cast in (
                     ('source', 'source', str),
                     ('serialDevice', 'serial_device', str),

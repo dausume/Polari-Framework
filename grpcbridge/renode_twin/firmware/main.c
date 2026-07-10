@@ -19,7 +19,15 @@
 #include <stdint.h>
 #include <string.h>
 
+/* Big enough for every class this rig speaks (headers each derive
+ * their own bound; the shared rx parser needs the max). */
+#define POLARI_RX_PAYLOAD_MAX 256u
+
 #include "simrigstate_packets.h"
+#include "fpgaregisterstate_packets.h"
+/* hwsim-3: the FPGA register map twin — offsets generated from the
+ * SAME RegisterDefinition rows the Verilog came from. */
+#include "hardware_runtime_regs.h"
 
 /* ---- STM32F4 registers (only what this firmware needs) ---------- */
 #define REG(a) (*(volatile uint32_t *)(a))
@@ -92,19 +100,22 @@ static void tick_poll(void)
 int main(void)
 {
     SimRigState_t state;
+    FpgaRegisterState_t fstate;
     polari_rx_t rx;
-    uint8_t payload[SIMRIGSTATE_PAYLOAD_MAX];
-    uint8_t wire[POLARI_HEADER_LEN + SIMRIGSTATE_PAYLOAD_MAX + 4u];
+    uint8_t payload[POLARI_RX_PAYLOAD_MAX];
+    uint8_t wire[POLARI_HEADER_LEN + POLARI_RX_PAYLOAD_MAX + 4u];
     uint32_t seq = 0u, next_ms = 0u, phase;
 
     uart_init();
     tick_init();
 
     memset(&state, 0, sizeof state);
+    memset(&fstate, 0, sizeof fstate);
     memset(&rx, 0, sizeof rx);
     strcpy(state.name, "renode-rig");   /* Push match key upstream */
     strcpy(state.status, "boot");
     state.led_on = 0u;
+    strcpy(fstate.name, "renode-rig-fpga");
 
     for (;;) {
         uint8_t b;
@@ -113,14 +124,30 @@ int main(void)
         /* Down: apply commands (actuators only; identity + sensors
          * remain the firmware's own truth). */
         while (uart_recv(&b)) {
-            if (polari_rx_feed(&rx, b)
-                && rx.msg_type == SIMRIGSTATE_MSG_TYPE) {
+            if (!polari_rx_feed(&rx, b))
+                continue;
+            if (rx.msg_type == SIMRIGSTATE_MSG_TYPE) {
                 SimRigState_t cmd;
                 if (SimRigState_decode(rx.payload, rx.payload_len,
                                        &cmd) == 0) {
                     state.pwm_duty = cmd.pwm_duty;
                     state.led_on = cmd.led_on;  /* real 1-byte bool */
                     strcpy(state.status, "commanded");
+                }
+            } else if (rx.msg_type == FPGAREGISTERSTATE_MSG_TYPE) {
+                /* Polari programs the FPGA: rw registers written
+                 * straight into the (verilated) silicon; telemetry
+                 * reads them back from the hardware, not from RAM. */
+                FpgaRegisterState_t cmd;
+                if (FpgaRegisterState_decode(rx.payload,
+                                             rx.payload_len,
+                                             &cmd) == 0) {
+                    FPGA_REG(FPGA_COMMANDS_OFFSET) =
+                        (uint32_t)cmd.commands;
+                    FPGA_REG(FPGA_CONFIG_OFFSET) =
+                        (uint32_t)cmd.config;
+                    FPGA_REG(FPGA_MODE_MUX_OFFSET) =
+                        (uint32_t)cmd.mode_mux;
                 }
             }
         }
@@ -138,6 +165,24 @@ int main(void)
             uart_send(wire, polari_packet_encode(
                 wire, SIMRIGSTATE_MSG_TYPE, DEVICE_ID, seq++,
                 payload, SimRigState_encode(&state, payload)));
+
+            /* The FPGA twin: every field read from the silicon —
+             * rw values prove write-through, STATUS carries the
+             * heartbeat + the MUX-selected input byte. */
+            fstate.device_id =
+                (int64_t)FPGA_REG(FPGA_DEVICE_ID_OFFSET);
+            fstate.version =
+                (int64_t)FPGA_REG(FPGA_VERSION_OFFSET);
+            fstate.status = (int64_t)FPGA_REG(FPGA_STATUS_OFFSET);
+            fstate.faults = (int64_t)FPGA_REG(FPGA_FAULTS_OFFSET);
+            fstate.commands =
+                (int64_t)FPGA_REG(FPGA_COMMANDS_OFFSET);
+            fstate.config = (int64_t)FPGA_REG(FPGA_CONFIG_OFFSET);
+            fstate.mode_mux =
+                (int64_t)FPGA_REG(FPGA_MODE_MUX_OFFSET);
+            uart_send(wire, polari_packet_encode(
+                wire, FPGAREGISTERSTATE_MSG_TYPE, DEVICE_ID, seq++,
+                payload, FpgaRegisterState_encode(&fstate, payload)));
         }
     }
 }

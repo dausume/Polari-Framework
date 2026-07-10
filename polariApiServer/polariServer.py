@@ -312,6 +312,12 @@ from grpcbridge.contract_basis import (
 from grpcbridge.java_bridge_basis import HardwareBridgeDefinition
 # hwsim-1: hardware rig digital twins (Renode firmware streams here).
 from grpcbridge.hwsim_basis import SimRigState, SEED_SIM_RIGS
+# hwsim-3: FPGA register maps as DATA (every register = a knob row;
+# Verilog/C/testbench artifacts generate FROM the rows).
+from hwfpga.fpga_basis import (
+    FpgaRegisterState, RegisterDefinition, RegisterMapDefinition,
+    SEED_FPGA_STATES, SEED_REGISTER_MAPS, SEED_REGISTERS,
+)
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -853,6 +859,11 @@ class polariServer(treeObject):
         from grpcbridge.java_bridge_api import HardwareBridgeAPI
         hardwareBridgeEndpoint = HardwareBridgeAPI(
             polServer=self, manager=self.manager)
+        # FPGA register maps (hwsim-3): catalogue + generated
+        # Verilog/C/testbench artifacts, all FROM the knob rows.
+        from hwfpga.fpga_api import FpgaRegisterMapAPI
+        fpgaRegisterMapEndpoint = FpgaRegisterMapAPI(
+            polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -967,6 +978,9 @@ class polariServer(treeObject):
             HardwareBridgeDefinition,
             # Hardware rig digital twins (hwsim-1).
             SimRigState,
+            # FPGA register maps as data + FPGA twin (hwsim-3).
+            RegisterMapDefinition, RegisterDefinition,
+            FpgaRegisterState,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1783,6 +1797,14 @@ class polariServer(treeObject):
             # hwsim-1: the Renode rig twin exists from boot so its
             # schema can stabilize before the first telemetry frame.
             ('SimRigState', SimRigState, SEED_SIM_RIGS),
+            # hwsim-3: the Hardware Runtime register map — maps
+            # before their registers (registers name their map).
+            ('RegisterMapDefinition', RegisterMapDefinition,
+             SEED_REGISTER_MAPS),
+            ('RegisterDefinition', RegisterDefinition,
+             SEED_REGISTERS),
+            ('FpgaRegisterState', FpgaRegisterState,
+             SEED_FPGA_STATES),
             # Thermal windows from the Base Wax Properties notes.
             ('ThermalProcessingProfile', ThermalProcessingProfile,
              SEED_THERMAL_PROFILES),

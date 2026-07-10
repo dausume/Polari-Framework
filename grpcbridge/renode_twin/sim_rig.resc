@@ -4,6 +4,12 @@
 mach create "renode-rig"
 machine LoadPlatformDescription @platforms/boards/stm32f4_discovery-kit.repl
 
+# hwsim-3: the verilated Polari register block (REAL Verilog logic,
+# generated from the RegisterMapDefinition rows) on the external
+# bus, where a physical FPGA would sit. Co-simulated over socket.
+machine LoadPlatformDescriptionFromString "fpga: CoSimulated.CoSimulatedPeripheral @ sysbus <0x70000000, +0x100> { frequency: 100000000; limitBuffer: 100000; timeout: 10000 }"
+fpga SimulationFilePathLinux @fpga/libVtop.so
+
 emulation CreateUartPtyTerminal "rigpty" "/tmp/renode-rig-uart" true
 connector Connect sysbus.usart2 rigpty
 
