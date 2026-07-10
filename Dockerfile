@@ -64,7 +64,10 @@ WORKDIR /app
 
 # Install only runtime dependencies (much smaller than build dependencies)
 # sqlite-libs and libstdc++ are needed for tippecanoe binary
-RUN apk add --no-cache freetype sqlite-libs libstdc++
+# ngspice: the electrodevice circuit engine (materials -> SPICE
+# ladder) rides in-backend like scikit-fem — capability-honest if
+# the package ever goes missing.
+RUN apk add --no-cache freetype sqlite-libs libstdc++ ngspice
 
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv

@@ -320,6 +320,11 @@ from hwfpga.fpga_basis import (
 )
 # The 4x4 LED demo grid (driver knob: fpga | mcu profiles).
 from hwfpga.led_basis import LedMatrix4x4State, SEED_LED_MATRICES
+# Material-derived electronic devices (materials -> SPICE ladder).
+from electrodevice.device_basis import (
+    CircuitRunResult, ElectronicDeviceDefinition, SpiceModelCard,
+    SEED_DEVICES,
+)
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -866,6 +871,11 @@ class polariServer(treeObject):
         from hwfpga.fpga_api import FpgaRegisterMapAPI
         fpgaRegisterMapEndpoint = FpgaRegisterMapAPI(
             polServer=self, manager=self.manager)
+        # Material-derived electronic devices (derive from msci sims,
+        # SPICE cards, ngspice circuit tests).
+        from electrodevice.device_api import ElectroDeviceAPI
+        electroDeviceEndpoint = ElectroDeviceAPI(
+            polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -983,6 +993,9 @@ class polariServer(treeObject):
             # FPGA register maps as data + FPGA twin (hwsim-3).
             RegisterMapDefinition, RegisterDefinition,
             FpgaRegisterState, LedMatrix4x4State,
+            # Material-derived devices + SPICE cards + circuit runs.
+            ElectronicDeviceDefinition, SpiceModelCard,
+            CircuitRunResult,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1809,6 +1822,8 @@ class polariServer(treeObject):
              SEED_FPGA_STATES),
             ('LedMatrix4x4State', LedMatrix4x4State,
              SEED_LED_MATRICES),
+            ('ElectronicDeviceDefinition', ElectronicDeviceDefinition,
+             SEED_DEVICES),
             # Thermal windows from the Base Wax Properties notes.
             ('ThermalProcessingProfile', ThermalProcessingProfile,
              SEED_THERMAL_PROFILES),
