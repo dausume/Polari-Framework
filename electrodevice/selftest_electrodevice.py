@@ -299,6 +299,53 @@ def main():
           'the eps_r measurement frequency)',
           'EXCEEDS' in ana['frequencyContextNote'])
 
+    # --- photo: tuning ladder + orientation + solar optimizer --------
+    from electrodevice import photo_derive as ph
+    gaps = {'a': 6.9, 'b': 4.8, 'c': 3.3, 'd': 2.76, 'e': 2.1}
+    def photo_exec(mgr_, name):
+        return {'ok': True, 'engine': 'fake',
+                'result': {'gapEv': gaps[name],
+                           'frontierNote': 'KS approx'}}
+    absorber = _factory(
+        name='blue-sensor', target_wavelength_nm=450.0,
+        candidates_json=json.dumps(
+            [{'name': k + '-frag', 'simModel': k} for k in gaps]),
+        orientation='aligned', polarization_angle_deg=0.0,
+        chosen_candidate='', chosen_gap_ev=0.0,
+        absorption_edge_nm=0.0, match_error_nm=0.0,
+        orientation_factor=0.0, derived_at='', provenance_json='{}')
+    rep = ph.tune_absorber(mgr2, absorber, executor=photo_exec)
+    check('photo: tune picks the gap whose edge best matches 450 nm '
+          '(2.76 eV -> 449 nm)',
+          rep['ok'] and rep['chosen'] == 'd-frag'
+          and abs(rep['absorptionEdge_nm'] - 449.2) < 1)
+    check('photo: aligned orientation couples cos^2(0)=1; random '
+          'averages 1/3',
+          rep['orientationFactor'] == 1.0
+          and abs(ph.orientation_factor('random', 0) - 1 / 3) < 1e-9)
+
+    u11 = ph.ultimate_efficiency(1.1)
+    check('solar: blackbody ultimate efficiency peaks near 1.1 eV '
+          '(~0.44) and falls off both ways',
+          0.40 < u11 < 0.48
+          and ph.ultimate_efficiency(3.3) < u11
+          and ph.ultimate_efficiency(0.3) < u11, str(u11))
+    stack = _factory(
+        name='panel', absorber_candidates_json=json.dumps([
+            {'name': 'cu2o', 'gapRecord': {'value': 2.1}},
+            {'name': 'pyrite', 'gapRecord': {'value': 0.95}},
+            {'name': 'zno', 'gapRecord': {'value': 3.3}}]),
+        chosen_absorber='', chosen_gap_ev=0.0,
+        ultimate_efficiency=0.0, derived_at='',
+        provenance_json='{}')
+    mgr2.objectTables['SolarLayerDefinition'] = {}
+    rep = ph.optimize_stack(mgr2, stack, executor=photo_exec)
+    check('solar: optimizer ranks pyrite (0.95 eV) above Cu2O above '
+          'ZnO on ultimate efficiency',
+          rep['ok'] and rep['chosen'] == 'pyrite'
+          and [c['candidate'] for c in rep['ranking']]
+          == ['pyrite', 'cu2o', 'zno'])
+
     passed = sum(1 for _, ok in _results if ok)
     print(f'\n{passed}/{len(_results)} checks passed')
     return 0 if passed == len(_results) else 1

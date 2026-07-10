@@ -329,6 +329,11 @@ from electrodevice.semiconductor import (
     SemiconductorProfile, SEED_SEMICONDUCTOR_PROFILES,
 )
 from electrodevice.device_validator import DeviceValidationReport
+from electrodevice.photo_basis import (
+    PhotoAbsorberDefinition, SolarLayerDefinition,
+    SolarStackDefinition, SEED_PHOTO_ABSORBERS, SEED_SOLAR_LAYERS,
+    SEED_SOLAR_STACKS,
+)
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -1000,7 +1005,8 @@ class polariServer(treeObject):
             # Material-derived devices + SPICE cards + circuit runs.
             ElectronicDeviceDefinition, SpiceModelCard,
             CircuitRunResult, SemiconductorProfile,
-            DeviceValidationReport,
+            DeviceValidationReport, PhotoAbsorberDefinition,
+            SolarStackDefinition, SolarLayerDefinition,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1831,6 +1837,12 @@ class polariServer(treeObject):
              SEED_DEVICES),
             ('SemiconductorProfile', SemiconductorProfile,
              SEED_SEMICONDUCTOR_PROFILES),
+            ('PhotoAbsorberDefinition', PhotoAbsorberDefinition,
+             SEED_PHOTO_ABSORBERS),
+            ('SolarStackDefinition', SolarStackDefinition,
+             SEED_SOLAR_STACKS),
+            ('SolarLayerDefinition', SolarLayerDefinition,
+             SEED_SOLAR_LAYERS),
             # Thermal windows from the Base Wax Properties notes.
             ('ThermalProcessingProfile', ThermalProcessingProfile,
              SEED_THERMAL_PROFILES),

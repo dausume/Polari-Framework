@@ -163,6 +163,29 @@ _NAPHTHALENE = _NAPH_RING + '; ' + _NAPH_H
 _N_NAPHTHALENE = ('N 0 0.705 0; ' + _NAPH_RING.split('; ', 1)[1]
                   + '; ' + _NAPH_H)
 
+
+def _acene(n_rings):
+    """Idealized linear acene geometry (bond 1.40, C-H ~1.09):
+    columns j=0..2n at x=1.2125j; even columns y=+-0.705 (bridgeheads
+    when interior), odd columns y=+-1.405 (always CH); end even
+    columns get diagonal H."""
+    parts = []
+    for j in range(2 * n_rings + 1):
+        x = round(1.2125 * j, 4)
+        y = 0.705 if j % 2 == 0 else 1.405
+        parts += [f'C {x} {y} 0', f'C {x} -{y} 0']
+    for j in range(1, 2 * n_rings + 1, 2):
+        x = round(1.2125 * j, 4)
+        parts += [f'H {x} 2.495 0', f'H {x} -2.495 0']
+    xe = round(1.2125 * 2 * n_rings, 4)
+    parts += ['H -0.942 1.253 0', 'H -0.942 -1.253 0',
+              f'H {xe + 0.942} 1.253 0', f'H {xe + 0.942} -1.253 0']
+    return '; '.join(parts)
+
+
+_ACENE3 = _acene(3)
+_ACENE4 = _acene(4)
+
 SEED_STANDARD_FEM_MODELS = [
     {
         'name': 'solgel-porous-silica',
@@ -424,6 +447,48 @@ SEED_STANDARD_DFT_MODELS = [
         'notes': f'{PROV}: open-shell doublet (the donated pi '
                  'electron); UKS. Idealized geometry, stand-in '
                  'energy only.',
+        'enabled': True,
+    },
+    # ------------------------------------------------------------------
+    # The ACENE LADDER (photodevice, Dustin 2026-07-10): fragment SIZE
+    # and SHAPE tune the pi gap — the linear acene series closes the
+    # gap ring by ring, which is exactly the 'nanoparticle shape and
+    # composition' tuning knob for a wavelength-matched photo-absorber
+    # (absorption edge ~ 1240/gap nm).
+    # ------------------------------------------------------------------
+    {
+        'name': 'acene3-fragment-energy',
+        'display_name': 'Anthracene fragment (3-ring acene)',
+        'description': ('Linear 3-ring acene: the pi gap one rung '
+                        'below naphthalene — near-UV/violet edge.'),
+        'calculation_ref': 'dft-molecular-energy',
+        'structure_json': json.dumps({'kind': 'molecule',
+                                      'atoms': _ACENE3}),
+        'method_json': json.dumps({'basis': '6-31g', 'xc': 'b3lyp',
+                                   'charge': 0, 'spin': 0}),
+        'accuracy_json': '{}',
+        'notes': f'{PROV}: idealized fused-hexagon lattice — '
+                 'stand-in energy only.',
+        'enabled': True,
+    },
+    {
+        'name': 'acene4-fragment-energy',
+        'display_name': 'Tetracene fragment (4-ring acene)',
+        'description': ('Linear 4-ring acene: the pi gap tuned into '
+                        'the BLUE — the blue-laser-matched absorber '
+                        'candidate.'),
+        'calculation_ref': 'dft-molecular-energy',
+        'structure_json': json.dumps({'kind': 'molecule',
+                                      'atoms': _ACENE4}),
+        # 3-21g: the 30-atom fragment at 6-31g OOMs the 1GB
+        # lightweight engines worker — the smaller basis keeps the
+        # ladder runnable there; cross-basis gap comparison is a
+        # stated caveat, not hidden.
+        'method_json': json.dumps({'basis': '3-21g', 'xc': 'b3lyp',
+                                   'charge': 0, 'spin': 0}),
+        'accuracy_json': '{}',
+        'notes': f'{PROV}: idealized fused-hexagon lattice — '
+                 'stand-in energy only.',
         'enabled': True,
     },
 ]

@@ -47,6 +47,10 @@ class ElectroDeviceAPI(treeObject):
                 suffix='semiconductors')
             add('/api/electrodevice/semiconductors/{name}', self,
                 suffix='semiconductor')
+            add('/api/electrodevice/photo/{name}', self,
+                suffix='photo')
+            add('/api/electrodevice/solar/{name}', self,
+                suffix='solar')
 
     def _refuse(self, response, error, status='400 Bad Request'):
         response.status = status
@@ -215,6 +219,52 @@ class ElectroDeviceAPI(treeObject):
         return self._refuse(response,
                             f'unknown action "{action}" (derive | '
                             'validate)')
+
+    def on_post_photo(self, request, response, name):
+        """{action: tune} — run the candidate ladder, pick the
+        best absorption-edge match for the target wavelength."""
+        try:
+            raw = request.bounded_stream.read()
+            payload = json.loads(raw) if raw else {}
+        except Exception as e:
+            return self._refuse(response, f'bad JSON payload: {e}')
+        from electrodevice.photo_derive import (get_absorber,
+                                                tune_absorber)
+        absorber = get_absorber(self.manager, name)
+        if absorber is None:
+            return self._refuse(response, f'no absorber "{name}"',
+                                '404 Not Found')
+        if payload.get('action') != 'tune':
+            return self._refuse(response, 'action must be "tune"')
+        if payload.get('targetWavelengthNm'):
+            absorber.target_wavelength_nm = float(
+                payload['targetWavelengthNm'])
+        report = tune_absorber(self.manager, absorber)
+        if not report.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = report
+
+    def on_post_solar(self, request, response, name):
+        """{action: optimize} — rank absorbers by blackbody
+        ultimate efficiency, stamp the stack."""
+        try:
+            raw = request.bounded_stream.read()
+            payload = json.loads(raw) if raw else {}
+        except Exception as e:
+            return self._refuse(response, f'bad JSON payload: {e}')
+        from electrodevice.photo_derive import (get_stack,
+                                                optimize_stack)
+        stack = get_stack(self.manager, name)
+        if stack is None:
+            return self._refuse(response, f'no stack "{name}"',
+                                '404 Not Found')
+        if payload.get('action') != 'optimize':
+            return self._refuse(response, 'action must be '
+                                          '"optimize"')
+        report = optimize_stack(self.manager, stack)
+        if not report.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = report
 
     def on_get_card(self, request, response, name):
         device = get_device(self.manager, name)
