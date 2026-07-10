@@ -293,6 +293,10 @@ from topology.topology_seed import (
     SEED_ORCHESTRATION_TARGETS, SEED_SERVICE_CONNECTIONS,
     SEED_TOPOLOGY_DEFINITIONS,
 )
+# Resource profiles (res-2): each module/engine's floor, scalability,
+# character, and storage-tier recommendation — the admission basis.
+from resources.profile_basis import ModuleResourceProfile
+from resources.profile_seed import SEED_MODULE_RESOURCE_PROFILES
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -805,6 +809,11 @@ class polariServer(treeObject):
         from resources.node_resources_api import NodeResourcesAPI
         nodeResourcesEndpoint = NodeResourcesAPI(
             polServer=self, manager=self.manager)
+        # Module/engine resource profiles (res-2): floor + scalability
+        # + character + storage tier; declared now, measured in res-3.
+        from resources.profile_api import ResourceProfilesAPI
+        resourceProfilesEndpoint = ResourceProfilesAPI(
+            polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -909,6 +918,8 @@ class polariServer(treeObject):
             InstanceDefinition, ModuleAssignment,
             ModuleDependencyEdge, ServiceConnection,
             TopologyDefinition, TopologyObservation,
+            # Resource profiles (res-2).
+            ModuleResourceProfile,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1902,6 +1913,10 @@ class polariServer(treeObject):
              SEED_MODULE_DEPENDENCY_EDGES),
             ('ServiceConnection', ServiceConnection,
              SEED_SERVICE_CONNECTIONS),
+            # Resource profiles (res-2): declared floors/scalability
+            # for known subjects; res-3 measurement overrides.
+            ('ModuleResourceProfile', ModuleResourceProfile,
+             SEED_MODULE_RESOURCE_PROFILES),
         ]
         # Old demo-3d description (used as the "untouched" signature). If
         # the existing demo-3d row still has this verbatim, we treat it
@@ -1956,6 +1971,36 @@ class polariServer(treeObject):
                   flush=True)
         except Exception as e:
             print(f'[NodeResources] local self-observation failed: {e}',
+                  flush=True)
+        # res-2: fill est_row_bytes on seeded data profiles from the
+        # storage predictor (declared seeds carry 0 = not yet derived).
+        try:
+            from resources.profile_analysis import (
+                classify_module, estimate_module_row_bytes,
+            )
+            for row in list((self.manager.objectTables.get(
+                    'ModuleResourceProfile') or {}).values()):
+                if (getattr(row, 'subject_kind', '') == 'module'
+                        and getattr(row, 'character', '') == 'data'
+                        and not getattr(row, 'est_row_bytes', 0)):
+                    verdict = classify_module(
+                        self.manager, getattr(row, 'subject_name', ''))
+                    est, est_class = estimate_module_row_bytes(
+                        self.manager, verdict['dataClasses'])
+                    if est:
+                        row.est_row_bytes = est
+                        row.provenance_id = (
+                            f'{getattr(row, "provenance_id", "")}; '
+                            f'est_row_bytes from {est_class}')
+                        try:
+                            self.manager.db.saveInstanceInDB(row)
+                        except Exception:
+                            pass
+                        print(f'[ResourceProfiles] {row.subject_name}: '
+                              f'est_row_bytes={est} ({est_class})',
+                              flush=True)
+        except Exception as e:
+            print(f'[ResourceProfiles] est_row_bytes fill failed: {e}',
                   flush=True)
 
     def _seedSimulations(self):

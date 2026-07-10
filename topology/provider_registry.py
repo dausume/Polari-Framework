@@ -41,7 +41,7 @@ MANAGER = None
 #: Service kind -> published port (registry mirror idiom; the swarm
 #: routing mesh publishes these on EVERY swarm node, so the manager's
 #: LOCAL_IP reaches a task wherever placement put it).
-PROVIDER_PORTS = {'prf-msci-engines': 9500}
+PROVIDER_PORTS = {'prf-msci-engines': 9500, 'prf-cad-engines': 9600}
 
 #: Reachability cache: url -> (checked_at, alive). Keeps per-call
 #: probing off the hot path.
