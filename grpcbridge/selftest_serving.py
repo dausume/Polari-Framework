@@ -82,6 +82,7 @@ class Widget:
     def __init__(self, manager=None):
         _widget_seq[0] += 1
         self.id = f'widget-gen-{_widget_seq[0]}'
+        self.name = ''
         self.count = 0
         self.active = False
         self.ratio = 0.0
@@ -92,6 +93,8 @@ class Widget:
 SNAPSHOT = {
     'id': {'dominantType': 'str', 'dominantAffinity': 'TEXT',
            'schemaStrategy': 'typed'},
+    'name': {'dominantType': 'str', 'dominantAffinity': 'TEXT',
+             'schemaStrategy': 'typed'},
     'count': {'dominantType': 'int', 'dominantAffinity': 'INTEGER',
               'schemaStrategy': 'typed'},
     'active': {'dominantType': 'bool', 'dominantAffinity': 'INTEGER',
@@ -298,6 +301,18 @@ def main():
     got = {next(watch_stream).instance_ids[0] for _ in range(2)}
     check('pushed frames fan out to Watch subscribers',
           got == {'w1', 'hw-7'})
+
+    # id-less frame: identity falls back to the `name` convention
+    # (live stabilization snapshots often don't carry the polari id)
+    mgr.objectTables['Widget']['w2'].name = 'rig-two'
+    rows_before = len(mgr.objectTables['Widget'])
+    summary = push(iter([WidgetMsg(name='rig-two', count=77)]),
+                   timeout=5)
+    check('id-less Push matches by name (updates, never multiplies '
+          'rows)',
+          summary.applied == 1
+          and mgr.objectTables['Widget']['w2'].count == 77
+          and len(mgr.objectTables['Widget']) == rows_before)
     try:
         next(cmd_stream)
         check('pushed telemetry does NOT echo down the Commands '

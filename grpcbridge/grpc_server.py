@@ -434,6 +434,17 @@ if HAS_GRPC:
         if rows is None:
             raise ValueError(f'class "{cls}" has no object table')
         inst = rows.get(pid) if pid else None
+        if inst is None and not pid and values.get('name'):
+            # Many stabilization snapshots don't carry the polari id
+            # (it isn't a typed field) — fall back to the framework's
+            # `name` unique-key convention so repeated telemetry
+            # frames UPDATE their row instead of multiplying rows.
+            wanted = str(values['name'])
+            for row in rows.values():
+                if str(getattr(row, 'name', '')) == wanted:
+                    inst = row
+                    pid = str(getattr(row, 'id', '') or '')
+                    break
         if inst is not None:
             for name, value in values.items():
                 if name == 'id':
