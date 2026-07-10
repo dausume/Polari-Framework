@@ -386,6 +386,22 @@ SEED_STANDARD_SCALE_DEFINITIONS = [
             'thermalConductivityXerogel_WmK': [0.3, 0.5],
             'thermalConductivityAerogel_WmK': [0.013, 0.02],
             'typicalGelationTime_h': [1, 48],
+            # Dielectric constant (Dustin 2026-07-10, lit. refs:
+            # Chandrashekhar & Shafer (IBM), 'Dielectric Properties
+            # of Sol-Gel Silica Glasses'; 'Recent Advances in Sol-Gel
+            # Synthesis of Monolithic Silica...' — processing sets
+            # density/porosity and therefore eps_r).
+            'relativePermittivity': 4.0,
+            'relativePermittivityDensified': [3.8, 4.5],
+            'relativePermittivityPorous': [2.0, 4.0],
+            'relativePermittivityNote':
+                'densified sol-gel ~ fused silica (3.8); porous gels '
+                '2-4 (porosity is the knob); early undensified gels '
+                'can measure >6 from residual hydroxyls/solvents — a '
+                'processing artifact, not intrinsic',
+            'relativePermittivityCitation':
+                'Chandrashekhar & Shafer (IBM), Dielectric Properties '
+                'of Sol-Gel Silica Glasses',
         }),
         'provenance_id': PROV,
         'notes': 'Literature-typical ranges; porosity is the master '

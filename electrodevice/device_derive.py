@@ -202,7 +202,7 @@ def _dielectric_epsilon(manager, material_name):
                     or {}).values():
             if getattr(row, 'material_name', '') != material_name:
                 continue
-            props = json.loads(getattr(row, 'properties_json', '{}')
+            props = json.loads(getattr(row, 'parameters_json', '{}')
                                or '{}')
             for key in ('relativePermittivity', 'dielectricConstant',
                         'epsilonR'):
@@ -210,6 +210,8 @@ def _dielectric_epsilon(manager, material_name):
                     value = props[key]
                     if isinstance(value, dict):
                         value = value.get('value')
+                    if isinstance(value, (list, tuple)):
+                        value = sum(value) / len(value)
                     return float(value), 'material-row'
     except Exception:
         pass

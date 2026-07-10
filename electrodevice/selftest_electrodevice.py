@@ -232,6 +232,22 @@ def main():
                   and f['status'] == 'warn' for f in findings),
           str(findings)[:300])
 
+    # With a real permittivity material row (Chandrashekhar & Shafer
+    # data), the dielectric warn is EARNED away -> fully valid.
+    mgr2.objectTables['MaterialScaleDefinition'] = {
+        'sol-gel-silica@L0': _factory(
+            name='sol-gel-silica@L0',
+            material_name='sol-gel-silica',
+            parameters_json=json.dumps(
+                {'relativePermittivity': 4.0}))}
+    pfet_probe.dielectric_material = 'sol-gel-silica'
+    dd.derive_device(mgr2, pfet_probe, executor=_fet_executor)
+    findings = dv.validate_transistor(mgr2, pfet_probe)
+    check('validator: permittivity material row -> dielectric pass '
+          '-> valid-semiconductor-device',
+          dv._verdict(findings) == 'valid-semiconductor-device',
+          str(findings)[:300])
+
     pfet = _device(name='cnt-pfet-inverter', device_type='pfet',
                    semiconductor_profile='cnt-p-doped',
                    dielectric_material='bio-fused-silica',

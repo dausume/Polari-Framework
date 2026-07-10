@@ -47,7 +47,7 @@ class ElectronicDeviceDefinition(treeObject):
         # SemiconductorProfile supplies gap/carrier type, and the
         # gate stack (sol-gel dielectric).
         semiconductor_profile: str = '',
-        dielectric_material: str = 'bio-fused-silica',
+        dielectric_material: str = 'sol-gel-silica',
         dielectric_thickness_m: float = 1e-7,
         # Derived at the last 'derive' act (never hand-set):
         sigma_s_per_m: float = 0.0,
@@ -149,7 +149,7 @@ SEED_DEVICES = [
     # frontier-orbital profiles. Short fat channel = switch-grade Ron.
     {'name': 'cnt-nfet-led-switch', 'device_type': 'nfet',
      'sim_model': 'cnt-solgel-percolation',
-     'semiconductor_profile': 'cnt-n-doped',
+     'semiconductor_profile': 'cnt-potash-doped',
      'length_m': 2e-5, 'cross_section_m2': 1.4e-8,
      'notes': 'Low-side LED switch + inverter pull-down.'},
     {'name': 'cnt-pfet-inverter', 'device_type': 'pfet',
