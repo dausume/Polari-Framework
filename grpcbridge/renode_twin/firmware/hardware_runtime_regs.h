@@ -14,5 +14,6 @@
 #define FPGA_COMMANDS_OFFSET 0x0010u  /* rw: Command word from the MCU / Polari. */
 #define FPGA_CONFIG_OFFSET 0x0020u  /* rw: Configuration word. */
 #define FPGA_MODE_MUX_OFFSET 0x0024u  /* rw: Input-source select (a real multiplexer): bit0 0=sim counter, 1=hardware input pins. */
+#define FPGA_LED_MATRIX_OFFSET 0x0030u  /* rw: 4x4 LED matrix: bit(row*4+col) lights LED (row, col); the low 16 bits drive pins. */
 
 #endif

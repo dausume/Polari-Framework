@@ -74,7 +74,7 @@ class FpgaRegisterMapAPI(treeObject):
         registers = map_registers(self.manager, map_name)
         renderers = {
             'verilog': lambda: render_core(map_row, registers),
-            'sim-top': render_sim_top,
+            'sim-top': lambda: render_sim_top(registers),
             'sim-harness': render_sim_main,
             'c-defines': lambda: render_c_defines(map_row, registers),
             'testbench': lambda: render_testbench(registers),

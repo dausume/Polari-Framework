@@ -25,6 +25,7 @@
 
 #include "simrigstate_packets.h"
 #include "fpgaregisterstate_packets.h"
+#include "ledmatrix4x4state_packets.h"
 /* hwsim-3: the FPGA register map twin — offsets generated from the
  * SAME RegisterDefinition rows the Verilog came from. */
 #include "hardware_runtime_regs.h"
@@ -101,6 +102,9 @@ int main(void)
 {
     SimRigState_t state;
     FpgaRegisterState_t fstate;
+    LedMatrix4x4State_t led;
+    uint32_t led_ram = 0u;   /* the MCU-driver grid state */
+    uint8_t fpga_present;
     polari_rx_t rx;
     uint8_t payload[POLARI_RX_PAYLOAD_MAX];
     uint8_t wire[POLARI_HEADER_LEN + POLARI_RX_PAYLOAD_MAX + 4u];
@@ -116,6 +120,14 @@ int main(void)
     strcpy(state.status, "boot");
     state.led_on = 0u;
     strcpy(fstate.name, "renode-rig-fpga");
+    memset(&led, 0, sizeof led);
+    strcpy(led.name, "renode-led-grid");
+    strcpy(led.driver, "mcu");
+    led.width = 4; led.height = 4;
+    /* Probe once: an absent FPGA (mcu-only scene) reads 0 — the rig
+     * then honestly skips FPGA telemetry and refuses driver=fpga. */
+    fpga_present = (FPGA_REG(FPGA_DEVICE_ID_OFFSET)
+                    == FPGA_DEVICE_ID_VALUE);
 
     for (;;) {
         uint8_t b;
@@ -133,6 +145,24 @@ int main(void)
                     state.pwm_duty = cmd.pwm_duty;
                     state.led_on = cmd.led_on;  /* real 1-byte bool */
                     strcpy(state.status, "commanded");
+                }
+            } else if (rx.msg_type == LEDMATRIX4X4STATE_MSG_TYPE) {
+                /* THE OBJECT LIGHTS THE GRID: driver knob routes it
+                 * through the FPGA register or the MCU's own RAM. */
+                LedMatrix4x4State_t cmd;
+                if (LedMatrix4x4State_decode(rx.payload,
+                                             rx.payload_len,
+                                             &cmd) == 0) {
+                    if (cmd.driver[0])
+                        strcpy(led.driver, cmd.driver);
+                    if (!fpga_present)   /* no FPGA: mcu only, honest */
+                        strcpy(led.driver, "mcu");
+                    if (led.driver[0] == 'f') {
+                        FPGA_REG(FPGA_LED_MATRIX_OFFSET) =
+                            (uint32_t)cmd.pixels & 0xFFFFu;
+                    } else {
+                        led_ram = (uint32_t)cmd.pixels & 0xFFFFu;
+                    }
                 }
             } else if (rx.msg_type == FPGAREGISTERSTATE_MSG_TYPE) {
                 /* Polari programs the FPGA: rw registers written
@@ -165,6 +195,19 @@ int main(void)
             uart_send(wire, polari_packet_encode(
                 wire, SIMRIGSTATE_MSG_TYPE, DEVICE_ID, seq++,
                 payload, SimRigState_encode(&state, payload)));
+
+            /* LED grid: fpga driver reads pixels BACK FROM THE
+             * SILICON (write-through proof); mcu driver from RAM. */
+            led.pixels = (led.driver[0] == 'f' && fpga_present)
+                ? (int64_t)(FPGA_REG(FPGA_LED_MATRIX_OFFSET)
+                            & 0xFFFFu)
+                : (int64_t)led_ram;
+            uart_send(wire, polari_packet_encode(
+                wire, LEDMATRIX4X4STATE_MSG_TYPE, DEVICE_ID, seq++,
+                payload, LedMatrix4x4State_encode(&led, payload)));
+
+            if (!fpga_present)
+                continue;   /* mcu-only rig: no FPGA telemetry */
 
             /* The FPGA twin: every field read from the silicon —
              * rw values prove write-through, STATUS carries the

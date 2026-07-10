@@ -22,6 +22,11 @@ curl -skf \
     -o fpgaregisterstate_packets.h
 grep -q 'FPGAREGISTERSTATE_MSG_TYPE' fpgaregisterstate_packets.h \
     || { echo "FpgaRegisterState header fetch failed"; exit 1; }
+curl -skf \
+    "$BASE/api/grpc/exposures/LedMatrix4x4State/c-header?msg_type=3" \
+    -o ledmatrix4x4state_packets.h
+grep -q 'LEDMATRIX4X4STATE_MSG_TYPE' ledmatrix4x4state_packets.h \
+    || { echo "LedMatrix4x4State header fetch failed"; exit 1; }
 curl -skf "$BASE/api/hw/registermaps/hardware-runtime/c-defines" \
     -o hardware_runtime_regs.h
 grep -q 'FPGA_BASE' hardware_runtime_regs.h \

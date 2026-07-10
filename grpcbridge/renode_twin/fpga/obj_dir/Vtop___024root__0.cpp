@@ -63,51 +63,86 @@ void Vtop___024root___nba_sequent__TOP__0(Vtop___024root* vlSelf) {
              & (~ (IData)(vlSelfRef.rvalid)))) {
             __Vdly__rvalid = 1U;
             vlSelfRef.rresp = 0U;
-            vlSelfRef.top__DOT__rdata32 = ((0U == (0x000000ffU 
-                                                   & (IData)(vlSelfRef.araddr)))
-                                            ? 0x504c0001U
-                                            : ((4U 
+            vlSelfRef.top__DOT__rdata32 = (((((((((0U 
+                                                   == 
+                                                   (0x000000ffU 
+                                                    & (IData)(vlSelfRef.araddr))) 
+                                                  | (4U 
+                                                     == 
+                                                     (0x000000ffU 
+                                                      & (IData)(vlSelfRef.araddr)))) 
+                                                 | (8U 
+                                                    == 
+                                                    (0x000000ffU 
+                                                     & (IData)(vlSelfRef.araddr)))) 
+                                                | (0x0cU 
+                                                   == 
+                                                   (0x000000ffU 
+                                                    & (IData)(vlSelfRef.araddr)))) 
+                                               | (0x10U 
+                                                  == 
+                                                  (0x000000ffU 
+                                                   & (IData)(vlSelfRef.araddr)))) 
+                                              | (0x20U 
+                                                 == 
+                                                 (0x000000ffU 
+                                                  & (IData)(vlSelfRef.araddr)))) 
+                                             | (0x24U 
+                                                == 
+                                                (0x000000ffU 
+                                                 & (IData)(vlSelfRef.araddr)))) 
+                                            | (0x30U 
+                                               == (0x000000ffU 
+                                                   & (IData)(vlSelfRef.araddr))))
+                                            ? ((0U 
                                                 == 
                                                 (0x000000ffU 
                                                  & (IData)(vlSelfRef.araddr)))
-                                                ? 0x00010000U
+                                                ? 0x504c0001U
                                                 : (
-                                                   (8U 
+                                                   (4U 
                                                     == 
                                                     (0x000000ffU 
                                                      & (IData)(vlSelfRef.araddr)))
-                                                    ? 
-                                                   ((((1U 
-                                                       & vlSelfRef.top__DOT__dut__DOT__r_mode_mux)
-                                                       ? 0xb7U
-                                                       : (IData)(vlSelfRef.top__DOT__dut__DOT__sim_counter)) 
-                                                     << 0x00000010U) 
-                                                    | (IData)(vlSelfRef.top__DOT__dut__DOT__heartbeat))
+                                                    ? 0x00010000U
                                                     : 
-                                                   ((0x0cU 
+                                                   ((8U 
                                                      == 
                                                      (0x000000ffU 
                                                       & (IData)(vlSelfRef.araddr)))
-                                                     ? 0U
+                                                     ? 
+                                                    ((((1U 
+                                                        & vlSelfRef.top__DOT__dut__DOT__r_mode_mux)
+                                                        ? 0xb7U
+                                                        : (IData)(vlSelfRef.top__DOT__dut__DOT__sim_counter)) 
+                                                      << 0x00000010U) 
+                                                     | (IData)(vlSelfRef.top__DOT__dut__DOT__heartbeat))
                                                      : 
-                                                    ((0x10U 
+                                                    ((0x0cU 
                                                       == 
                                                       (0x000000ffU 
                                                        & (IData)(vlSelfRef.araddr)))
-                                                      ? vlSelfRef.top__DOT__dut__DOT__r_commands
+                                                      ? 0U
                                                       : 
-                                                     ((0x20U 
+                                                     ((0x10U 
                                                        == 
                                                        (0x000000ffU 
                                                         & (IData)(vlSelfRef.araddr)))
-                                                       ? vlSelfRef.top__DOT__dut__DOT__r_config
+                                                       ? vlSelfRef.top__DOT__dut__DOT__r_commands
                                                        : 
-                                                      ((0x24U 
+                                                      ((0x20U 
                                                         == 
                                                         (0x000000ffU 
                                                          & (IData)(vlSelfRef.araddr)))
-                                                        ? vlSelfRef.top__DOT__dut__DOT__r_mode_mux
-                                                        : 0U)))))));
+                                                        ? vlSelfRef.top__DOT__dut__DOT__r_config
+                                                        : 
+                                                       ((0x24U 
+                                                         == 
+                                                         (0x000000ffU 
+                                                          & (IData)(vlSelfRef.araddr)))
+                                                         ? vlSelfRef.top__DOT__dut__DOT__r_mode_mux
+                                                         : vlSelfRef.top__DOT__dut__DOT__r_led_matrix)))))))
+                                            : 0U);
         } else if (((IData)(vlSelfRef.rvalid) & (IData)(vlSelfRef.rready))) {
             __Vdly__rvalid = 0U;
         }
@@ -139,6 +174,9 @@ void Vtop___024root___nba_sequent__TOP__0(Vtop___024root* vlSelf) {
             } else if ((0x24U == (IData)(vlSelfRef.top__DOT__dut__DOT__waddr_l))) {
                 vlSelfRef.top__DOT__dut__DOT__r_mode_mux 
                     = (IData)(vlSelfRef.wdata);
+            } else if ((0x30U == (IData)(vlSelfRef.top__DOT__dut__DOT__waddr_l))) {
+                vlSelfRef.top__DOT__dut__DOT__r_led_matrix 
+                    = (IData)(vlSelfRef.wdata);
             }
             __Vdly__bvalid = 1U;
             vlSelfRef.bresp = 0U;
@@ -164,6 +202,7 @@ void Vtop___024root___nba_sequent__TOP__0(Vtop___024root* vlSelf) {
         vlSelfRef.top__DOT__dut__DOT__r_commands = 0U;
         vlSelfRef.top__DOT__dut__DOT__r_config = 0U;
         vlSelfRef.top__DOT__dut__DOT__r_mode_mux = 0U;
+        vlSelfRef.top__DOT__dut__DOT__r_led_matrix = 0U;
     }
     vlSelfRef.arready = __Vdly__arready;
     vlSelfRef.rvalid = __Vdly__rvalid;

@@ -47,7 +47,7 @@ def main():
     map_row = fv.get_map(mgr, 'hardware-runtime')
     registers = fv.map_registers(mgr, 'hardware-runtime')
     check('seed map + registers present',
-          map_row is not None and len(registers) == 7)
+          map_row is not None and len(registers) == 8)
 
     core = fv.render_core(map_row, registers)
     check('core: const DEVICE_ID hardwired from the row',
@@ -57,6 +57,9 @@ def main():
           and "r_config <= 32'h00000000;" in core)
     check('core: the MUX select is the MODE_MUX knob bit',
           'r_mode_mux[0] ? hw_pin_in : sim_counter' in core)
+    check('core: pins_out row emits a wired output port (4x4 LED)',
+          'output wire [15:0] led_matrix_pins' in core
+          and 'assign led_matrix_pins = r_led_matrix[15:0];' in core)
 
     defines = fv.render_c_defines(map_row, registers)
     check('c-defines: base + offsets + const values from rows',
@@ -64,7 +67,7 @@ def main():
           and '#define FPGA_STATUS_OFFSET 0x0008u' in defines
           and '#define FPGA_DEVICE_ID_VALUE 0x504C0001u' in defines)
 
-    sim_top = fv.render_sim_top()
+    sim_top = fv.render_sim_top(registers)
     check('sim wrapper: 64-bit channels (IntegrationLibrary binds '
           'uint64_t)',
           '[63:0] awaddr' in sim_top and '[63:0] rdata' in sim_top)

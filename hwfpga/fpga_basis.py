@@ -60,6 +60,11 @@ class RegisterDefinition(treeObject):
         register: str = '',
         access: str = 'rw',
         reset_value: int = 0,
+        # KNOB: how many of this register's low bits drive physical
+        # output pins (0 = none). The generator emits a
+        # `<register>_pins` output port wired to them — LEDs, relays,
+        # enables… all data-driven, no generator edits per device.
+        pins_out: int = 0,
         description: str = '',
         manager=None,
     ):
@@ -69,6 +74,7 @@ class RegisterDefinition(treeObject):
         self.register = register
         self.access = access
         self.reset_value = reset_value
+        self.pins_out = pins_out
         self.description = description
 
 
@@ -145,6 +151,13 @@ SEED_REGISTERS = [
      'reset_value': 0,
      'description': 'Input-source select (a real multiplexer): bit0 '
                     '0=sim counter, 1=hardware input pins.'},
+    # The 4x4 LED demo: one rw register, 16 output pins — added as a
+    # ROW, no generator change (pins_out is the generic mechanism).
+    {'name': 'hardware-runtime-led-matrix', 'map_name': 'hardware-runtime',
+     'offset': 0x0030, 'register': 'LED_MATRIX', 'access': 'rw',
+     'reset_value': 0, 'pins_out': 16,
+     'description': '4x4 LED matrix: bit(row*4+col) lights LED '
+                    '(row, col); the low 16 bits drive pins.'},
 ]
 
 SEED_FPGA_STATES = [

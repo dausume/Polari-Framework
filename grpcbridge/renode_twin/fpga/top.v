@@ -26,6 +26,7 @@ module top (
 );
     wire [31:0] rdata32;
     assign rdata = {32'h0, rdata32};
+    wire [15:0] led_matrix_pins_obs;
 
     polari_regblock dut (
         .clk(clk), .rst(rst),
@@ -37,6 +38,7 @@ module top (
         .rdata(rdata32), .rresp(rresp), .rvalid(rvalid),
         .rready(rready),
         // the "hardware pins" in simulation: a fixed stub pattern
-        .hw_pin_in(8'hB7)
+        .hw_pin_in(8'hB7),
+        .led_matrix_pins(led_matrix_pins_obs)
     );
 endmodule

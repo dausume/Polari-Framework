@@ -45,6 +45,7 @@ class alignas(VL_CACHE_LINE_BYTES) Vtop___024root final {
     IData/*31:0*/ top__DOT__dut__DOT__r_commands;
     IData/*31:0*/ top__DOT__dut__DOT__r_config;
     IData/*31:0*/ top__DOT__dut__DOT__r_mode_mux;
+    IData/*31:0*/ top__DOT__dut__DOT__r_led_matrix;
     IData/*31:0*/ __VactIterCount;
     VL_IN64(awaddr,63,0);
     VL_IN64(wdata,63,0);

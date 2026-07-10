@@ -160,6 +160,7 @@ VL_ATTR_COLD void Vtop___024root___ctor_var_reset(Vtop___024root* vlSelf) {
     vlSelf->top__DOT__dut__DOT__r_commands = VL_SCOPED_RAND_RESET_I(32, __VscopeHash, 4331646622591516817ull);
     vlSelf->top__DOT__dut__DOT__r_config = VL_SCOPED_RAND_RESET_I(32, __VscopeHash, 11394764286939122158ull);
     vlSelf->top__DOT__dut__DOT__r_mode_mux = VL_SCOPED_RAND_RESET_I(32, __VscopeHash, 5144520711008303888ull);
+    vlSelf->top__DOT__dut__DOT__r_led_matrix = VL_SCOPED_RAND_RESET_I(32, __VscopeHash, 15650551348111963890ull);
     vlSelf->top__DOT__dut__DOT__heartbeat = VL_SCOPED_RAND_RESET_I(16, __VscopeHash, 6605098038011507968ull);
     vlSelf->top__DOT__dut__DOT__sim_counter = VL_SCOPED_RAND_RESET_I(8, __VscopeHash, 8972232500010988118ull);
     vlSelf->top__DOT__dut__DOT__aw_got = VL_SCOPED_RAND_RESET_I(1, __VscopeHash, 10761189717752989709ull);

@@ -1,0 +1,15 @@
+:name: polari-hwsim-mcu-only
+:description: The SAME rig firmware with NO FPGA attached — the mcu profile: the 4x4 LED grid is driven entirely by the microcontroller (driver=mcu), FPGA telemetry honestly absent.
+
+mach create "renode-rig-mcu"
+machine LoadPlatformDescription @platforms/boards/stm32f4_discovery-kit.repl
+
+# No CoSimulated peripheral here on purpose: the firmware probes
+# DEVICE_ID at boot, finds nothing, and runs mcu-only.
+
+emulation CreateUartPtyTerminal "rigpty" "/tmp/renode-rig-uart" true
+connector Connect sysbus.usart2 rigpty
+
+sysbus LoadELF @firmware/firmware.elf
+
+start

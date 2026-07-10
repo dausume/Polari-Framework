@@ -25,11 +25,15 @@ module polari_regblock (
     input  wire        rready,
     // The mode MUX's source-1 input: real pins on silicon, a stub
     // pattern in simulation.
-    input  wire [7:0]  hw_pin_in
+    input  wire [7:0]  hw_pin_in,
+    // LED_MATRIX low 16 bits drive pins (pins_out knob on the row)
+    output wire [15:0] led_matrix_pins
 );
     reg  [31:0] r_commands;  // 0x0010 Command word from the MCU / Polari.
     reg  [31:0] r_config;  // 0x0020 Configuration word.
     reg  [31:0] r_mode_mux;  // 0x0024 Input-source select (a real multiplexer): bit0 0=sim counter, 1=hardware input pins.
+    reg  [31:0] r_led_matrix;  // 0x0030 4x4 LED matrix: bit(row*4+col) lights LED (row, col); the low 16 bits drive pins.
+    assign led_matrix_pins = r_led_matrix[15:0];
 
     // Fixed logic: liveness heartbeat + the two MUX input sources.
     reg  [15:0] heartbeat;
@@ -64,6 +68,7 @@ module polari_regblock (
             r_commands <= 32'h00000000;
             r_config <= 32'h00000000;
             r_mode_mux <= 32'h00000000;
+            r_led_matrix <= 32'h00000000;
         end else begin
             if (awvalid && !aw_got && !awready) begin
                 awready <= 1'b1;
@@ -84,6 +89,7 @@ module polari_regblock (
                 8'h10: r_commands <= wdata;
                 8'h20: r_config <= wdata;
                 8'h24: r_mode_mux <= wdata;
+                8'h30: r_led_matrix <= wdata;
                     default: ;  // ro/const/unmapped: write ignored
                 endcase
                 bvalid <= 1'b1;
@@ -118,6 +124,7 @@ module polari_regblock (
                 8'h10: rdata <= r_commands;
                 8'h20: rdata <= r_config;
                 8'h24: rdata <= r_mode_mux;
+                8'h30: rdata <= r_led_matrix;
                     default: rdata <= 32'h00000000;
                 endcase
             end else if (rvalid && rready) begin

@@ -318,6 +318,8 @@ from hwfpga.fpga_basis import (
     FpgaRegisterState, RegisterDefinition, RegisterMapDefinition,
     SEED_FPGA_STATES, SEED_REGISTER_MAPS, SEED_REGISTERS,
 )
+# The 4x4 LED demo grid (driver knob: fpga | mcu profiles).
+from hwfpga.led_basis import LedMatrix4x4State, SEED_LED_MATRICES
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -980,7 +982,7 @@ class polariServer(treeObject):
             SimRigState,
             # FPGA register maps as data + FPGA twin (hwsim-3).
             RegisterMapDefinition, RegisterDefinition,
-            FpgaRegisterState,
+            FpgaRegisterState, LedMatrix4x4State,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1805,6 +1807,8 @@ class polariServer(treeObject):
              SEED_REGISTERS),
             ('FpgaRegisterState', FpgaRegisterState,
              SEED_FPGA_STATES),
+            ('LedMatrix4x4State', LedMatrix4x4State,
+             SEED_LED_MATRICES),
             # Thermal windows from the Base Wax Properties notes.
             ('ThermalProcessingProfile', ThermalProcessingProfile,
              SEED_THERMAL_PROFILES),
