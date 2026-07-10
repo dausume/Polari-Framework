@@ -58,6 +58,36 @@ class managedDatabase(managedFile):
         """Table cache (no-op unless CACHE_BACKEND=keydb)."""
         return get_cache()
 
+    @property
+    def instanceScope(self):
+        """Multi-instance shared-DB scope ('' = off, the default).
+
+        When POLARI_SHARED_OBJECT_DB is truthy, several Polari
+        instances share ONE set of object tables in one schema:
+        every row carries an indexed `_instance_id` column stamped
+        from POLARI_INSTANCE_ID, primary keys become composite
+        (pk, _instance_id) so instances can never clobber each
+        other, and every read/delete is scoped to this instance's
+        rows. Off → behavior is byte-identical to the historical
+        schema-per-instance mode."""
+        cached = self.__dict__.get('_instanceScope')
+        if cached is None:
+            import os
+            shared = os.environ.get(
+                'POLARI_SHARED_OBJECT_DB', '').strip().lower()
+            if shared in ('1', 'true', 'yes', 'on'):
+                cached = (os.environ.get('POLARI_INSTANCE_ID')
+                          or 'a').strip() or 'a'
+            else:
+                cached = ''
+            self.__dict__['_instanceScope'] = cached
+        return cached
+
+    def _scopedCacheTable(self, tableName):
+        """Cache key namespace: shared tables cache per instance."""
+        scope = self.instanceScope
+        return f'{tableName}@{scope}' if scope else tableName
+
     def setExtension(self, fileExtension):
         if(fileExtensions.__contains__(fileExtension)):
             logging.warning('Entered a valid file extension, but instantiated using the wrong object, should be a managedFile.')
@@ -136,6 +166,17 @@ class managedDatabase(managedFile):
                 print(f'[DB-Save]   {colName}: {repr(value)[:80]}', flush=True)
             else:
                 print(f'[DB-Save]   {colName}: NOT in instance __dict__', flush=True)
+        # Shared-DB mode: stamp whose row this is (never guessed).
+        scope = self.instanceScope
+        if scope:
+            if '_instance_id' in tableColumns:
+                rowList.append('_instance_id')
+                valueList.append(scope)
+            else:
+                print(f'[DB-Save] WARNING: shared mode on but '
+                      f'{className} lacks _instance_id — row saved '
+                      'unscoped (table predates shared mode; recreate '
+                      'or ALTER it)', flush=True)
         # Add _branch_path if the table supports it
         if '_branch_path' in tableColumns:
             try:
@@ -160,7 +201,8 @@ class managedDatabase(managedFile):
             dbConnection.commit()
             print(f'[DB-Save] SUCCESS: saved {className} instance', flush=True)
             dbConnection.close()
-            self.cache.invalidateTable(self.name, className)
+            self.cache.invalidateTable(
+                self.name, self._scopedCacheTable(className))
             self._recordCleanSave(className)
             return True
         except Exception as e:
@@ -211,7 +253,8 @@ class managedDatabase(managedFile):
                     self.adapter.replaceSQL(className, columns),
                     tuple(values))
                 conn.commit()
-                self.cache.invalidateTable(self.name, className)
+                self.cache.invalidateTable(
+                    self.name, self._scopedCacheTable(className))
                 return True
             finally:
                 conn.close()
@@ -232,14 +275,28 @@ class managedDatabase(managedFile):
     #second of which is the list of all instances as tuples of the requested class, which have
     #the same order as and are the corresponding values of the first list.
     def getAllInTable(self, tableName):
-        cached = self.cache.getTable(self.name, tableName)
+        cacheTable = self._scopedCacheTable(tableName)
+        cached = self.cache.getTable(self.name, cacheTable)
         if cached is not None:
             return cached
+        scope = self.instanceScope
         commandString = 'SELECT * FROM ' + tableName + ';'
+        params = ()
+        if scope:
+            commandString = ('SELECT * FROM ' + tableName
+                             + ' WHERE _instance_id = '
+                             + self.adapter.placeholder + ';')
+            params = (scope,)
         dbConnection = self.adapter.connect()
         dbCursor = dbConnection.cursor()
         print(commandString)
-        dbCursor.execute(commandString)
+        try:
+            dbCursor.execute(commandString, params)
+        except Exception:
+            if not scope:
+                raise
+            # legacy table without _instance_id — honest unscoped read
+            dbCursor.execute('SELECT * FROM ' + tableName + ';')
         dataSets = dbCursor.fetchall()
         columns = dbCursor.description
         columnNames = []
@@ -248,7 +305,7 @@ class managedDatabase(managedFile):
         tempList = [columnNames, dataSets]
         dataSets = tuple(tempList)
         dbConnection.close()
-        self.cache.setTable(self.name, tableName, columnNames, dataSets[1])
+        self.cache.setTable(self.name, cacheTable, columnNames, dataSets[1])
         return dataSets
 
     #Uses a Directory Path and file name together with a class name to import a specific class
@@ -297,6 +354,33 @@ class managedDatabase(managedFile):
             + "enter the name of the file (without extension) where the class is defined second, then enter"
             +"the class name third.")
 
+    def _scopeColumnDefs(self, rowList):
+        """Shared-DB transform of sqlite-affinity column defs: add the
+        `_instance_id` discriminator and fold every primary key into a
+        composite (pk..., _instance_id) so two instances can hold the
+        same id without clobbering each other. No scope → unchanged."""
+        if not self.instanceScope:
+            return list(rowList)
+        import re as _re
+        out, pk_cols = [], []
+        for row in rowList:
+            stripped = row.strip()
+            table_pk = _re.match(r'(?i)^PRIMARY KEY\s*\(([^)]*)\)',
+                                 stripped)
+            if table_pk:
+                pk_cols += [c.strip() for c in
+                            table_pk.group(1).split(',')]
+                continue  # re-emitted as the composite below
+            if _re.search(r'(?i)\bPRIMARY KEY\b', stripped):
+                pk_cols.append(stripped.split()[0])
+                stripped = _re.sub(r'(?i)\s*PRIMARY KEY', '', stripped)
+            out.append(stripped)
+        out.append('_instance_id TEXT')
+        if pk_cols:
+            out.append('PRIMARY KEY ('
+                       + ', '.join(pk_cols + ['_instance_id']) + ')')
+        return out
+
     #Takes in a table name and a list of strings, with each string having (Keyword, data type,
     #special conditions)
     def makeSQLiteTable(self, tableName, rowList):
@@ -308,7 +392,8 @@ class managedDatabase(managedFile):
         if not self.adapter.databaseExists() and self.adapter.dialect == 'sqlite':
             print(f'[DB] makeSQLiteTable: database not found, cannot create table {tableName}', flush=True)
             return
-        translatedRows = self.adapter.translateColumnDefs(rowList)
+        translatedRows = self.adapter.translateColumnDefs(
+            self._scopeColumnDefs(rowList))
         commandString = ('CREATE TABLE IF NOT EXISTS ' + tableName + ' ('
                          + ', '.join(translatedRows) + ');')
         dbConnection = self.adapter.connect()
@@ -367,15 +452,21 @@ class managedDatabase(managedFile):
         if tableName not in self.tables and not tableName.startswith('_'):
             return -1
         try:
+            scope = self.instanceScope
             dbConnection = self.adapter.connect()
             cursor = dbConnection.cursor()
-            cursor.execute(
-                f'DELETE FROM {tableName} WHERE {column} = '
-                f'{self.adapter.placeholder}', (value,))
+            sql = (f'DELETE FROM {tableName} WHERE {column} = '
+                   f'{self.adapter.placeholder}')
+            params = (value,)
+            if scope:
+                sql += f' AND _instance_id = {self.adapter.placeholder}'
+                params = (value, scope)
+            cursor.execute(sql, params)
             dbConnection.commit()
             deleted = cursor.rowcount
             dbConnection.close()
-            self.cache.invalidateTable(self.name, tableName)
+            self.cache.invalidateTable(
+                self.name, self._scopedCacheTable(tableName))
             print(f'[DB] Deleted {deleted} row(s) from {tableName} '
                   f'where {column}={value!r}', flush=True)
             return deleted
@@ -384,19 +475,38 @@ class managedDatabase(managedFile):
             return -1
 
     def deleteAllFromTable(self, tableName):
-        """Delete all rows from a table."""
+        """Delete all rows from a table (this instance's rows only,
+        in shared-DB mode — other instances' rows are not ours to
+        delete)."""
         try:
+            scope = self.instanceScope
             dbConnection = self.adapter.connect()
-            dbConnection.cursor().execute(f'DELETE FROM {tableName}')
+            if scope:
+                dbConnection.cursor().execute(
+                    f'DELETE FROM {tableName} WHERE _instance_id = '
+                    f'{self.adapter.placeholder}', (scope,))
+            else:
+                dbConnection.cursor().execute(f'DELETE FROM {tableName}')
             dbConnection.commit()
             dbConnection.close()
-            self.cache.invalidateTable(self.name, tableName)
-            print(f'[DB] Deleted all rows from {tableName}', flush=True)
+            self.cache.invalidateTable(
+                self.name, self._scopedCacheTable(tableName))
+            print(f'[DB] Deleted all rows from {tableName}'
+                  + (f' (instance {scope})' if scope else ''),
+                  flush=True)
         except Exception as e:
             print(f'[DB] Error deleting rows from {tableName}: {e}', flush=True)
 
     def dropTable(self, tableName):
         """Drop a table from the database and remove it from self.tables."""
+        if self.instanceScope:
+            # a shared table holds OTHER instances' rows — dropping it
+            # is not this instance's call; clear our rows instead.
+            print(f'[DB] REFUSED drop of shared table {tableName} '
+                  f'(shared-DB mode) — deleting instance '
+                  f'"{self.instanceScope}" rows instead', flush=True)
+            self.deleteAllFromTable(tableName)
+            return
         try:
             dbConnection = self.adapter.connect()
             dbConnection.cursor().execute(f'DROP TABLE IF EXISTS {tableName}')
