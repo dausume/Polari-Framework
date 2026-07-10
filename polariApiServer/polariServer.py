@@ -799,6 +799,12 @@ class polariServer(treeObject):
         # is set (see materialsScience.engines.remote's ladder).
         from topology.provider_registry import set_manager
         set_manager(self.manager)
+        # Node resource inventory (res-1): every PolariNodeMachine
+        # carries observed cores/RAM/disk — isoSys bridged into the
+        # topology; remote nodes pull (system_info_url knob) or push.
+        from resources.node_resources_api import NodeResourcesAPI
+        nodeResourcesEndpoint = NodeResourcesAPI(
+            polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -1940,6 +1946,17 @@ class polariServer(treeObject):
                     print(f'[SeedSimSpace3D] Failed to create {class_name} "{name}": {e}', flush=True)
                     import traceback
                     traceback.print_exc()
+        # res-1: observe THIS device onto its PolariNodeMachine row
+        # (ssh_alias=='' convention) so the topology is resource-aware
+        # from boot — fills the historical `mem_gb: 0.0` gap.
+        try:
+            from resources.node_resources import refresh_local_machine
+            report = refresh_local_machine(self.manager)
+            print(f'[NodeResources] local self-observation: {report}',
+                  flush=True)
+        except Exception as e:
+            print(f'[NodeResources] local self-observation failed: {e}',
+                  flush=True)
 
     def _seedSimulations(self):
         """Seed the simulations module — pendulum-2d demo end-to-end.

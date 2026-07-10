@@ -31,12 +31,14 @@ class systemInfoAPI(treeObject):
             # Refresh live metrics before responding
             hostSys.refreshMetrics()
 
+            import platform as _platform
             platform = {
                 "systemType": getattr(hostSys, 'systemType', ''),
                 "networkName": getattr(hostSys, 'networkName', ''),
                 "IPaddress": getattr(hostSys, 'IPaddress', ''),
                 "domainName": getattr(hostSys, 'domainName', ''),
-                "isContainerized": getattr(hostSys, 'isContainerized', False)
+                "isContainerized": getattr(hostSys, 'isContainerized', False),
+                "arch": _platform.machine()
             }
 
             cpu = {
@@ -59,6 +61,28 @@ class systemInfoAPI(treeObject):
                 "percentUsed": memPercent[0] if isinstance(memPercent, tuple) else memPercent
             }
 
+            # res-1: disk + the cgroup memory ceiling (a containerized
+            # backend's honest budget) — what remote inventory pulls need.
+            disk = {"totalBytes": 0, "freeBytes": 0}
+            try:
+                import shutil
+                usage = shutil.disk_usage('/app/data')
+                disk = {"totalBytes": usage.total, "freeBytes": usage.free}
+            except OSError:
+                pass
+            try:
+                from simulations.resource_monitor import system_resources
+                budget = system_resources()
+                limit = (budget.get('memory') or {}).get('limitBytes')
+                if limit:
+                    memory["cgroupLimitBytes"] = limit
+                if not disk["freeBytes"]:
+                    free = (budget.get('disk') or {}).get('freeBytes')
+                    if free:
+                        disk["freeBytes"] = free
+            except Exception:
+                pass
+
             swapTotal = getattr(hostSys, 'totalSwapMemoryInBytes', 0)
             swapUsed = getattr(hostSys, 'usedSwapMemoryInBytes', (0, ''))
             swapFree = getattr(hostSys, 'freeSwapMemoryInBytes', (0, ''))
@@ -80,6 +104,7 @@ class systemInfoAPI(treeObject):
                 "platform": platform,
                 "cpu": cpu,
                 "memory": memory,
+                "disk": disk,
                 "swap": swap,
                 "bootProfile": bootProfile
             }

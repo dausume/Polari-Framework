@@ -41,7 +41,33 @@ class PolariNodeMachine(treeObject):
         # CPU arch ('x86_64', 'aarch64', '') — preflight-reported.
         arch: str = '',
         # Memory in GB (0 = unknown until preflight/observe reports).
+        # Kept for back-compat; res-1 mirrors total_ram_mb into it.
         mem_gb: float = 0.0,
+        # --- res-1: observed device resources (0/'' = not yet
+        # observed — honest absence, never fabricated) ---
+        logical_cpus: int = 0,
+        physical_cpus: int = 0,
+        total_ram_mb: float = 0.0,
+        available_ram_mb: float = 0.0,
+        total_disk_mb: float = 0.0,
+        free_disk_mb: float = 0.0,
+        # cgroup memory ceiling seen by the reporting process
+        # (0 = none/unlimited) — a containerized backend reports its
+        # container budget, which is what admission must respect.
+        cgroup_ram_limit_mb: float = 0.0,
+        # Latest utilization sample: {"cpuPct", "ramPct", "ts"}.
+        load_snapshot_json: str = '{}',
+        # How the resource fields were obtained: 'observed-local'
+        # (this backend's own isoSys), 'observed-remote' (pulled from
+        # the node's system_info_url), 'observed-push' (the node
+        # reported itself, pol-CLI style), 'manual', or 'unknown'.
+        resource_source: str = 'unknown',
+        resource_observed_at: str = '',
+        # KNOB: where this node's /system-info answers, for remote
+        # pull ('http://192.168.0.24:9501' or a full .../system-info
+        # URL). '' = no remote pull configured — swarm's routing mesh
+        # makes ip:port ambiguous, so a human names the address.
+        system_info_url: str = '',
         # JSON list of deploy roles ('engines', 'remote-worker',
         # 'node', 'core') — mirrors nodes.yml roles.
         roles_json: str = '[]',
@@ -58,6 +84,17 @@ class PolariNodeMachine(treeObject):
         self.ssh_alias = ssh_alias
         self.arch = arch
         self.mem_gb = mem_gb
+        self.logical_cpus = logical_cpus
+        self.physical_cpus = physical_cpus
+        self.total_ram_mb = total_ram_mb
+        self.available_ram_mb = available_ram_mb
+        self.total_disk_mb = total_disk_mb
+        self.free_disk_mb = free_disk_mb
+        self.cgroup_ram_limit_mb = cgroup_ram_limit_mb
+        self.load_snapshot_json = load_snapshot_json
+        self.resource_source = resource_source
+        self.resource_observed_at = resource_observed_at
+        self.system_info_url = system_info_url
         self.roles_json = roles_json
         self.swarm_role = swarm_role
         self.repo_dir = repo_dir

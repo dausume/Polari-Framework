@@ -284,7 +284,21 @@ def graph_payload(manager, topology_name):
                 'roles': _loads(m, 'roles_json', []),
                 'swarmRole': getattr(m, 'swarm_role', 'none'),
                 'source': getattr(m, 'source', ''),
-                'notes': getattr(m, 'notes', '')}
+                'notes': getattr(m, 'notes', ''),
+                # res-1: observed device resources (0 = not observed)
+                'logicalCpus': getattr(m, 'logical_cpus', 0),
+                'physicalCpus': getattr(m, 'physical_cpus', 0),
+                'totalRamMb': getattr(m, 'total_ram_mb', 0.0),
+                'availableRamMb': getattr(m, 'available_ram_mb', 0.0),
+                'totalDiskMb': getattr(m, 'total_disk_mb', 0.0),
+                'freeDiskMb': getattr(m, 'free_disk_mb', 0.0),
+                'cgroupRamLimitMb':
+                    getattr(m, 'cgroup_ram_limit_mb', 0.0),
+                'load': _loads(m, 'load_snapshot_json', {}),
+                'resourceSource':
+                    getattr(m, 'resource_source', 'unknown'),
+                'resourceObservedAt':
+                    getattr(m, 'resource_observed_at', '')}
 
     def instance_dict(i):
         return {'name': getattr(i, 'name', ''),

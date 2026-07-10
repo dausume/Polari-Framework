@@ -299,7 +299,11 @@ class TopologyAPI(treeObject):
                           'topology': name}
 
     _MACHINE_FIELDS = ('ssh_alias', 'arch', 'mem_gb', 'roles_json',
-                       'swarm_role', 'repo_dir', 'source', 'notes')
+                       'swarm_role', 'repo_dir', 'source', 'notes',
+                       # res-1 knob: where the node's /system-info
+                       # answers (observed fields are NOT upsertable
+                       # here — they come from the observe paths).
+                       'system_info_url')
     _INSTANCE_FIELDS = ('kind', 'service_kinds_json', 'replicas',
                         'env_tier', 'machine_name',
                         'placement_constraint', 'db_backend',
