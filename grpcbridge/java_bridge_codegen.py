@@ -60,7 +60,7 @@ def ordered_fields(field_map):
     return sorted(fields.items(), key=lambda kv: kv[1]['tag'])
 
 
-def _sample_expr(spec):
+def _sample_expr(spec, field_name='', class_name=''):
     ptype = spec['proto_type']
     if ptype == 'int64':
         return 'seq'
@@ -72,6 +72,12 @@ def _sample_expr(spec):
         return 'new byte[]{(byte) seq}'
     if spec.get('comment'):  # JSON-carrying string — stay honest JSON
         return '"{\\"sim\\": " + seq + "}"'
+    if field_name == 'name':
+        # A device streams telemetry about ITSELF: identity stays
+        # STABLE across frames (Polari's `name` unique-key convention
+        # — grpc-2's Push matches on it), only measurements vary.
+        # Varying this would create one object row PER FRAME upstream.
+        return f'"sim-{class_name.lower()}"'
     return '"sim-" + seq'
 
 
@@ -149,7 +155,7 @@ def render_codec(class_name, field_map, msg_type):
                 f'        r.{jname} = buf.getDouble();')
         sample_sets.append(
             f'        r.{java_field_name(name)} = '
-            f'{_sample_expr(spec)};')
+            f'{_sample_expr(spec, name, class_name)};')
 
     nl = '\n'
     return f'''package org.polari.bridge.codec;

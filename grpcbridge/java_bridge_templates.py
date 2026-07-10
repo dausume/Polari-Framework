@@ -571,6 +571,14 @@ POM_XML = r'''<?xml version="1.0" encoding="UTF-8"?>
     </extensions>
     <plugins>
       <plugin>
+        <!-- Pinned: Maven 3.6-era defaults ship compiler-plugin 3.1,
+             which ignores maven.compiler.release and targets Java 5
+             (build fails on any modern JDK). -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+      </plugin>
+      <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
         <version>0.6.1</version>

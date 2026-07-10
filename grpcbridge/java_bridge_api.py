@@ -135,7 +135,11 @@ class HardwareBridgeAPI(treeObject):
         response.media = media
 
     def on_post_bridge(self, request, response, bridge_name):
-        """Knob act: {action: generate}."""
+        """Knob acts: {action: generate} | {action: configure, ...}.
+        configure flips the run knobs on an existing row — THE
+        sim->real transition (source: simulated->serial) and the
+        gRPC leg (grpcEnabled/grpcTarget) are one configure away;
+        the app is re-downloaded, nothing else changes."""
         payload, err = self._payload(request)
         if err:
             return self._refuse(response, err)
@@ -145,9 +149,39 @@ class HardwareBridgeAPI(treeObject):
                 response, f'no bridge "{bridge_name}"',
                 '404 Not Found')
         action = (payload or {}).get('action', '')
+        if action == 'configure':
+            changed = {}
+            for key, attr, cast in (
+                    ('source', 'source', str),
+                    ('serialDevice', 'serial_device', str),
+                    ('baud', 'baud', int),
+                    ('simRateHz', 'sim_rate_hz', int),
+                    ('grpcEnabled', 'grpc_enabled', bool),
+                    ('grpcTarget', 'grpc_target', str),
+                    ('deviceId', 'device_id', int),
+                    # measured-run bookkeeping (res-3 idiom: numbers
+                    # recorded on the knob row, labels travel)
+                    ('notes', 'notes', str)):
+                if key in payload:
+                    if key == 'source' and payload[key] not in (
+                            'simulated', 'serial'):
+                        return self._refuse(
+                            response,
+                            'source must be simulated | serial')
+                    setattr(bridge, attr, cast(payload[key]))
+                    changed[key] = payload[key]
+            try:
+                self.manager.db.saveInstanceInDB(bridge)
+            except Exception:
+                pass
+            media = self._summary(bridge)
+            media.update({'ok': True, 'changed': changed})
+            response.media = media
+            return
         if action != 'generate':
             return self._refuse(
-                response, f'unknown action "{action}" (generate)')
+                response,
+                f'unknown action "{action}" (generate | configure)')
         report = generate_project(self.manager, bridge)
         if not report.get('ok'):
             return self._refuse(response, report['error'],
