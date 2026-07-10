@@ -297,6 +297,11 @@ from topology.topology_seed import (
 # character, and storage-tier recommendation — the admission basis.
 from resources.profile_basis import ModuleResourceProfile
 from resources.profile_seed import SEED_MODULE_RESOURCE_PROFILES
+# Schema stabilization: per-class trust state + captured OOPS events
+# (stat-freezing for object schemas; typing work exits the tree).
+from polariDataTyping.schema_stability_basis import (
+    SchemaDeviationEvent, SchemaStabilityProfile,
+)
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -820,6 +825,13 @@ class polariServer(treeObject):
         from resources.admission_api import AdmissionAPI
         admissionEndpoint = AdmissionAPI(
             polServer=self, manager=self.manager)
+        # Schema stabilization: learning state per class + the
+        # captured type-mismatch (OOPS) events + manual knobs.
+        from polariDataTyping.schema_stability_api import (
+            SchemaStabilityAPI,
+        )
+        schemaStabilityEndpoint = SchemaStabilityAPI(
+            polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -926,6 +938,8 @@ class polariServer(treeObject):
             TopologyDefinition, TopologyObservation,
             # Resource profiles (res-2).
             ModuleResourceProfile,
+            # Schema stabilization (freeze/oops/adapt).
+            SchemaStabilityProfile, SchemaDeviationEvent,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,

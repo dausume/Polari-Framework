@@ -161,10 +161,71 @@ class managedDatabase(managedFile):
             print(f'[DB-Save] SUCCESS: saved {className} instance', flush=True)
             dbConnection.close()
             self.cache.invalidateTable(self.name, className)
+            self._recordCleanSave(className)
             return True
         except Exception as e:
             print(f'[DB-Save] INSERT failed for {className}: {e}', flush=True)
             dbConnection.close()
+            # Schema-stability OOPS path: capture the payload, record
+            # the deviation, destabilize, adapt (widen the named column
+            # or coerce), retry — never silent data loss.
+            return self._handleSaveMismatch(className, rowList,
+                                            valueList, e)
+
+    def _recordCleanSave(self, className):
+        """Failure-isolated stabilization hook."""
+        try:
+            from polariDataTyping.schema_stability import record_clean_save
+            record_clean_save(self.manager, className)
+        except Exception:
+            pass
+
+    def _handleSaveMismatch(self, className, rowList, valueList, error):
+        """The smooth OOPS handler around schema_stability. Returns
+        True when the adapted retry landed the write."""
+        try:
+            from polariDataTyping.schema_stability import (
+                handle_save_mismatch,
+            )
+        except Exception:
+            return False
+
+        def adapt_column(colName):
+            sql = self.adapter.modifyColumnSQL(className, colName, 'TEXT')
+            if not sql:
+                return False  # dialect can't widen in place — coerce
+            conn = self.adapter.connect()
+            try:
+                conn.cursor().execute(sql)
+                conn.commit()
+                print(f'[DB-Save] widened {className}.{colName} -> TEXT',
+                      flush=True)
+                return True
+            finally:
+                conn.close()
+
+        def retry(columns, values):
+            conn = self.adapter.connect()
+            try:
+                conn.cursor().execute(
+                    self.adapter.replaceSQL(className, columns),
+                    tuple(values))
+                conn.commit()
+                self.cache.invalidateTable(self.name, className)
+                return True
+            finally:
+                conn.close()
+
+        try:
+            report = handle_save_mismatch(
+                self.manager, className, rowList, valueList,
+                db_error=error, adapt_column=adapt_column, retry=retry)
+            print(f'[DB-Save] schema-stability outcome for {className}: '
+                  f'{report.get("action")}', flush=True)
+            return bool(report.get('saved'))
+        except Exception as e2:
+            print(f'[DB-Save] schema-stability handler failed: {e2}',
+                  flush=True)
             return False
 
     #Returns a List of Two Lists, the first of which contains the class variables, and the

@@ -581,6 +581,20 @@ class polyTypedObject(treeObject):
     #Creates typing for the instance by analyzing it's variables and creating
     #default polyTypedVariables for it.
     def analyzeInstance(self, pythonClassInstance):
+        # Schema-stability freeze: a stabilized class's typing is
+        # trusted — per-instance analysis is skipped (the observation
+        # consolidated itself away; an OOPS at the DB destabilizes and
+        # resumes it). Failure-isolated: any error falls through to
+        # normal analysis.
+        try:
+            from polariDataTyping import schema_stability
+            if schema_stability.is_stabilized(self.manager,
+                                              self.className):
+                schema_stability.note_skipped_analysis(
+                    self.manager, self.className)
+                return
+        except Exception:
+            pass
         #print("instance to analyze: ", pythonClassInstance)
         try:
             instSize = sys.getsizeof(pythonClassInstance)

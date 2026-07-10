@@ -133,6 +133,10 @@ class MariaDBAdapter(DBAdapter):
         return (f'ALTER TABLE {self.quoteIdent(tableName)} ADD COLUMN '
                 f'{self.quoteIdent(colName)} {colType}')
 
+    def modifyColumnSQL(self, tableName, colName, newType):
+        return (f'ALTER TABLE {self.quoteIdent(tableName)} MODIFY '
+                f'COLUMN {self.quoteIdent(colName)} {newType}')
+
     def tableColumnDefs(self, conn, tableName):
         with conn.cursor() as cursor:
             cursor.execute(

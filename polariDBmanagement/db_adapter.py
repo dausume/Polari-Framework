@@ -66,6 +66,13 @@ class DBAdapter:
     def addColumnSQL(self, tableName, colName, colType):
         return f'ALTER TABLE {tableName} ADD COLUMN {colName} {colType}'
 
+    def modifyColumnSQL(self, tableName, colName, newType):
+        """Widen an existing column's type (schema-stability OOPS
+        adaptation). None = this dialect cannot alter column types
+        in place (sqlite — its loose affinity rarely rejects data
+        anyway; the caller falls back to value coercion)."""
+        return None
+
     def quoteIdent(self, name):
         """Dialect identifier quoting (sqlite: "x", mariadb: `x`)."""
         return f'"{name}"'
