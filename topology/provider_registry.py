@@ -141,7 +141,17 @@ def resolve_provider(module_name, probe=_probe):
         for a in _scoped(manager, 'ModuleAssignment', topology)
         if getattr(a, 'module_name', '') == module_name
         and getattr(a, 'state', '') == 'enabled')
+    # res-4: cost-aware ordering — benefit-appropriate machines
+    # first (single-threaded module -> smallest adequate provider).
+    # Honest no-op when profiles/specs are absent.
+    try:
+        from resources.admission_advisor import rank_candidates_by_fit
+        candidates = rank_candidates_by_fit(
+            manager, module_name, candidates)
+    except Exception:
+        pass
     # the edge-named provider goes first: it is the CONFIGURED choice
+    # — cost ranking reorders only the unconfigured remainder
     for edge in _scoped(manager, 'ModuleDependencyEdge', topology):
         if (getattr(edge, 'depends_on_module', '') == module_name
                 and getattr(edge, 'provider_instance_name', '')

@@ -814,6 +814,12 @@ class polariServer(treeObject):
         from resources.profile_api import ResourceProfilesAPI
         resourceProfilesEndpoint = ResourceProfilesAPI(
             polServer=self, manager=self.manager)
+        # Admission advisor (res-4): route-to-storage / fits-as-is /
+        # fits-with-reallocation / would-break — verdicts as
+        # suggestions, never auto-applied.
+        from resources.admission_api import AdmissionAPI
+        admissionEndpoint = AdmissionAPI(
+            polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI

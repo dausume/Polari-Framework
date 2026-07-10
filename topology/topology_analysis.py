@@ -315,6 +315,24 @@ def graph_payload(manager, topology_name):
                     getattr(i, 'orchestration_target', ''),
                 'notes': getattr(i, 'notes', '')}
 
+    # res-4: capacity vs allocated floors per machine (lazy import —
+    # absent profiles simply omit the block, never guessed).
+    allocations = {}
+    try:
+        from resources.admission_advisor import node_allocation
+        allocations = {name: view.get('allocation', {})
+                       for name, view in node_allocation(
+                           manager, topology_name).items()}
+    except Exception:
+        pass
+
+    def machine_with_allocation(m):
+        d = machine_dict(m)
+        alloc = allocations.get(d['name'])
+        if alloc:
+            d['allocation'] = alloc
+        return d
+
     return {
         'ok': True,
         'topology': {
@@ -327,7 +345,7 @@ def graph_payload(manager, topology_name):
             'findings': _loads(d, 'validation_findings_json', []),
             'schemaVersion': getattr(d, 'schema_version', '1'),
         },
-        'machines': [machine_dict(m) for m in
+        'machines': [machine_with_allocation(m) for m in
                      _rows(manager, 'PolariNodeMachine')],
         'instances': [instance_dict(i) for i in
                       _scoped(manager, 'InstanceDefinition',
@@ -507,4 +525,12 @@ def suggest_reallocations(manager, topology_name):
             'evidence': (f'{why}. Routing evidence: '
                          f'{json.dumps(evidence)[:400]}'),
             'suggestedCommand': command})
+    # res-4: resource-efficiency signal beyond degraded-only — a
+    # single-threaded module holding a big node while a scaling
+    # module sits cramped. Lazy import; absent profiles → no rows.
+    try:
+        from resources.admission_advisor import efficiency_suggestions
+        rows.extend(efficiency_suggestions(manager, topology_name))
+    except Exception:
+        pass
     return rows
