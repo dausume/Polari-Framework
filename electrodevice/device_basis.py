@@ -40,9 +40,11 @@ class ElectronicDeviceDefinition(treeObject):
         # THE MATERIAL KNOB: the msci model row whose EXECUTION
         # yields the transport property (e.g. effectiveSigma S/m).
         sim_model: str = 'cnt-solgel-percolation',
-        # Geometry knobs (a printed composite trace).
+        # Geometry knobs (a printed composite trace). The film
+        # thickness makes the footprint honest: width = A / t.
         length_m: float = 0.002,
         cross_section_m2: float = 1.4e-8,
+        film_thickness_m: float = 1e-4,
         # Transistor knobs (device_type nfet|pfet): which derived
         # SemiconductorProfile supplies gap/carrier type, and the
         # gate stack (sol-gel dielectric).
@@ -68,6 +70,7 @@ class ElectronicDeviceDefinition(treeObject):
         self.sim_model = sim_model
         self.length_m = length_m
         self.cross_section_m2 = cross_section_m2
+        self.film_thickness_m = film_thickness_m
         self.semiconductor_profile = semiconductor_profile
         self.dielectric_material = dielectric_material
         self.dielectric_thickness_m = dielectric_thickness_m
@@ -142,6 +145,7 @@ SEED_DEVICES = [
     {'name': 'cnt-solgel-led-resistor', 'device_type': 'resistor',
      'sim_model': 'cnt-solgel-percolation',
      'length_m': 0.002, 'cross_section_m2': 1.4e-8,
+     'film_thickness_m': 1e-4,   # 100 um paste trace -> W 140 um
      'notes': 'Current limiter for the renode-led-grid pins; derive '
               'before use.'},
     # CNT-network FETs (sol-gel gate dielectric): channel on-state
@@ -151,10 +155,12 @@ SEED_DEVICES = [
      'sim_model': 'cnt-solgel-percolation',
      'semiconductor_profile': 'cnt-potash-doped',
      'length_m': 2e-5, 'cross_section_m2': 1.4e-8,
+     'film_thickness_m': 1e-6,   # 1 um film -> W 14 mm (honest!)
      'notes': 'Low-side LED switch + inverter pull-down.'},
     {'name': 'cnt-pfet-inverter', 'device_type': 'pfet',
      'sim_model': 'cnt-solgel-percolation',
      'semiconductor_profile': 'cnt-p-doped',
      'length_m': 2e-5, 'cross_section_m2': 1.4e-8,
+     'film_thickness_m': 1e-6,
      'notes': 'Inverter pull-up (complementary to the nfet).'},
 ]

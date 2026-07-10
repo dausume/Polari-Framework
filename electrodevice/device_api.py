@@ -136,6 +136,17 @@ class ElectroDeviceAPI(treeObject):
                 response.status = '422 Unprocessable Entity'
             response.media = report
             return
+        if action == 'switching-analysis':
+            from electrodevice.switching import run_switching_analysis
+            report = run_switching_analysis(
+                self.manager, device,
+                rdrv_ohm=float(payload.get('rdrvOhm', 33.0)),
+                cload_f=float(payload.get('cloadF', 1e-11)),
+                vdd=float(payload.get('vdd', 3.3)))
+            if not report.get('ok'):
+                response.status = '422 Unprocessable Entity'
+            response.media = report
+            return
         if action == 'circuit-test':
             pixels = payload.get('pixels')
             if pixels is None:
@@ -163,7 +174,8 @@ class ElectroDeviceAPI(treeObject):
         return self._refuse(
             response,
             f'unknown action "{action}" (derive | card | '
-            'circuit-test | switch-test | validate)')
+            'circuit-test | switch-test | validate | '
+            'switching-analysis)')
 
     def on_get_semiconductors(self, request, response):
         tables = getattr(self.manager, 'objectTables', None) or {}

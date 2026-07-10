@@ -92,6 +92,12 @@ SEED_SEMICONDUCTOR_PROFILES = [
     {'name': 'cnt-potash-doped', 'material': 'carbon-nanotube',
      'variant': 'n', 'sim_model': 'potash-doped-cnt-fragment-energy',
      'reference_model': 'cnt-fragment-energy'},
+    # The larger N-fragment: GRAPHITIC (interior) nitrogen vs the
+    # same-size naphthalene reference.
+    {'name': 'cnt-graphitic-n-doped',
+     'material': 'n-doped-carbon-nanotube', 'variant': 'n',
+     'sim_model': 'graphitic-n-cnt-fragment-energy',
+     'reference_model': 'cnt-fragment-energy-l2'},
 ]
 
 

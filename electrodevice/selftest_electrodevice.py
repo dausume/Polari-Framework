@@ -278,6 +278,27 @@ def main():
               and abs(tt['pin-high']['ledCurrent_mA']) < 0.01,
               json.dumps(run['outputs'])[:250])
 
+    # --- physical size + state-space switching -----------------------
+    from electrodevice import switching as sw
+    nfet.film_thickness_m = 1e-6
+    nfet.dielectric_thickness_m = 1e-7
+    geo = sw.device_geometry(nfet)
+    check('geometry: width = A/t with landmark comparison',
+          abs(geo['width_m'] - 0.014) < 1e-6
+          and 'fingernail' in geo['widthScale'])
+    ana = sw.state_space_switching(
+        nfet, {'epsilonR': 3.9,
+               'measurementContext': {'frequency_hz': 1e6}})
+    lam = ana['stateSpace']['eigenvalues_on']
+    check('state-space: triangular A eigenvalues = phase rates; '
+          'delays + f_max derived',
+          lam[0] < 0 and lam[1] < 0
+          and ana['delays_s']['turnOn'] < ana['delays_s']['turnOff']
+          and ana['maxToggle_Hz'] > 1e6)
+    check('state-space: honest frequency-context note (f_max beyond '
+          'the eps_r measurement frequency)',
+          'EXCEEDS' in ana['frequencyContextNote'])
+
     passed = sum(1 for _, ok in _results if ok)
     print(f'\n{passed}/{len(_results)} checks passed')
     return 0 if passed == len(_results) else 1

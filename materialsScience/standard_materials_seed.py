@@ -150,6 +150,18 @@ _K_BENZENE = (_BENZENE_RING + '; '
               'H 2.481 0 0; H 1.2405 2.1486 0; H -1.2405 2.1486 0; '
               'H -2.481 0 0; H -1.2405 -2.1486 0; H 1.2405 -2.1486 0; '
               'K 0 0 2.8')
+_NAPH_RING = ('C 0 0.705 0; C 0 -0.705 0; '
+              'C 1.212 1.405 0; C 2.425 0.705 0; '
+              'C 2.425 -0.705 0; C 1.212 -1.405 0; '
+              'C -1.212 1.405 0; C -2.425 0.705 0; '
+              'C -2.425 -0.705 0; C -1.212 -1.405 0')
+_NAPH_H = ('H 1.212 2.495 0; H 3.367 1.253 0; '
+           'H 3.367 -1.253 0; H 1.212 -2.495 0; '
+           'H -1.212 2.495 0; H -3.367 1.253 0; '
+           'H -3.367 -1.253 0; H -1.212 -2.495 0')
+_NAPHTHALENE = _NAPH_RING + '; ' + _NAPH_H
+_N_NAPHTHALENE = ('N 0 0.705 0; ' + _NAPH_RING.split('; ', 1)[1]
+                  + '; ' + _NAPH_H)
 
 SEED_STANDARD_FEM_MODELS = [
     {
@@ -362,6 +374,55 @@ SEED_STANDARD_DFT_MODELS = [
         'accuracy_json': '{}',
         'notes': f'{PROV}: open-shell doublet (odd electron — the '
                  'donated one); UKS. Idealized geometry, stand-in '
+                 'energy only.',
+        'enabled': True,
+    },
+    # ------------------------------------------------------------------
+    # The LARGER N-fragment (Dustin 2026-07-10): pyridine's edge
+    # (pyridinic) N is NOT the donor configuration — GRAPHITIC N (an
+    # interior lattice site, 3 C neighbors, no H) is. Naphthalene's
+    # bridgehead is the smallest such site. Fair mu comparison needs a
+    # same-size pristine reference.
+    # ------------------------------------------------------------------
+    {
+        'name': 'cnt-fragment-energy-l2',
+        'display_name': 'Pristine CNT fragment L2 (naphthalene)',
+        'description': (
+            'Naphthalene (C10H8) — the two-ring pristine fragment: '
+            'the same-size reference the graphitic-N fragment is '
+            'compared against (mu shifts are only fair at equal '
+            'fragment size).'
+        ),
+        'calculation_ref': 'dft-molecular-energy',
+        'structure_json': json.dumps({'kind': 'molecule',
+                                      'atoms': _NAPHTHALENE}),
+        'method_json': json.dumps({'basis': '6-31g', 'xc': 'b3lyp',
+                                   'charge': 0, 'spin': 0}),
+        'accuracy_json': '{}',
+        'notes': f'{PROV}: idealized fused-hexagon geometry — '
+                 'stand-in energy only.',
+        'enabled': True,
+    },
+    {
+        'name': 'graphitic-n-cnt-fragment-energy',
+        'display_name': 'Graphitic-N CNT fragment (bridgehead N in '
+                        'naphthalene)',
+        'description': (
+            'Naphthalene with a BRIDGEHEAD carbon replaced by N '
+            '(C9NH8): the smallest graphitic-nitrogen site — N bonded '
+            'to 3 carbons inside the lattice, its extra electron '
+            'donated to the pi system (the true donor configuration; '
+            'pyridinic edge-N is not). COMMUNITY SOURCE: ammonia / '
+            'urea nitrogen, as before.'
+        ),
+        'calculation_ref': 'dft-molecular-energy',
+        'structure_json': json.dumps({'kind': 'molecule',
+                                      'atoms': _N_NAPHTHALENE}),
+        'method_json': json.dumps({'basis': '6-31g', 'xc': 'b3lyp',
+                                   'charge': 0, 'spin': 1}),
+        'accuracy_json': '{}',
+        'notes': f'{PROV}: open-shell doublet (the donated pi '
+                 'electron); UKS. Idealized geometry, stand-in '
                  'energy only.',
         'enabled': True,
     },
