@@ -27,6 +27,8 @@ REGISTERED_COMPONENTS = {
     'formulation-search-workbench',
     'fem-model-config',
     'dft-model-config',
+    'md-model-config',
+    'meso-model-config',
     'materials-home',
     'material-level-page',
 }
@@ -48,9 +50,10 @@ def _component_names(page):
 if __name__ == '__main__':
     print('\nMaterials-science pages\n')
     names = [p['name'] for p in SEED_MSCI_PAGE_DISPLAYS]
-    check('all ten msci pages seeded (home + 4 tools + 5 levels)',
+    check('all twelve msci pages seeded (home + 6 tools + 5 levels)',
           names == ['materials', 'materials-basis', 'fem-models',
-                    'dft-models', 'formulation-search',
+                    'dft-models', 'md-models', 'meso-models',
+                    'formulation-search',
                     'materials-level-0', 'materials-level-1',
                     'materials-level-2', 'materials-level-3',
                     'materials-level-4'], f'names={names}')
@@ -74,13 +77,21 @@ if __name__ == '__main__':
     check('workbench defaults to the seeded search definition',
           wb_inputs['defaultSearchRef']
           == SEED_FORMULATION_SEARCHES[0]['name'])
-    fem = json.loads(by_name['fem-models']['definition'])
-    dft = json.loads(by_name['dft-models']['definition'])
+    def _default_ref(name):
+        page = json.loads(by_name[name]['definition'])
+        return (page['rows'][0]['items'][0]['componentProps']
+                ['inputs']['defaultModelRef'])
     check('model pages default to the seeded proof models',
-          fem['rows'][0]['items'][0]['componentProps']['inputs']
-          ['defaultModelRef'] == 'wax-thermal-continuum'
-          and dft['rows'][0]['items'][0]['componentProps']['inputs']
-          ['defaultModelRef'] == 'paraffin-quantum-energy')
+          _default_ref('fem-models') == 'wax-thermal-continuum'
+          and _default_ref('dft-models') == 'paraffin-quantum-energy')
+    from materialsScience.l2_l3_models_seed import (
+        SEED_MD_MODELS, SEED_MESO_MODELS,
+    )
+    check('md/meso pages default to msci-26 seeded models '
+          '(validation rung + the assumption-closing study)',
+          _default_ref('md-models') == SEED_MD_MODELS[0]['name']
+          and _default_ref('meso-models')
+          == SEED_MESO_MODELS[0]['name'])
     from materialsScience.materials_basis import SCALE_LEVEL_DETAILS
     check('one level page per SCALE_LEVEL_DETAILS entry, level wired '
           'as the component input',

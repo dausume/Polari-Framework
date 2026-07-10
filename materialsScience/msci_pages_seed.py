@@ -148,6 +148,74 @@ SEED_MSCI_PAGE_DISPLAYS = [
         }]}),
     },
     {
+        'name': 'md-models',
+        'description': (
+            'The MD simulation interface: configure molecular-dynamics '
+            'runs the way MD tools structure their decks — system '
+            '(LJ fluid or bead-spring chains, reduced units with an '
+            'optional bindable real-material mapping), interactions '
+            '(force-field MD shown as the named gap), ensemble and '
+            'thermostat, integration with the O(N^2) cost estimate '
+            'before running, results with measured-vs-target honesty '
+            'badges.'
+        ),
+        'source_class': 'MDModelDefinition',
+        'isPage': True,
+        'pageRoute': 'md-models',
+        'linkedSolutions': '[]',
+        'definition': json.dumps({'rows': [{
+            'index': 0, 'rowSegments': 12, 'minRowHeight': 480,
+            'maxRowHeight': 0, 'autoHeight': True, 'cssClass': '',
+            'items': [{
+                'id': 'md-models-item', 'index': 0,
+                'type': 'component', 'rowSegmentsUsed': 12,
+                'gridColumnStart': None,
+                'title': 'MD models — configure and simulate',
+                'visible': True, 'collapsed': False, 'cssClass': '',
+                'componentProps': {
+                    'componentName': 'md-model-config',
+                    'inputs': {'defaultModelRef':
+                               'lj-reference-fluid'},
+                },
+                'item': None, 'nestedRows': [],
+            }],
+        }]}),
+    },
+    {
+        'name': 'meso-models',
+        'description': (
+            'The mesoscale simulation interface: rod-network '
+            'percolation (Monte-Carlo bisection sampling) and dipolar '
+            'chaining (Brownian dynamics with the lambda-from-physics '
+            'helper and the kinetics-limited warning). Verdicts show '
+            'the derived vf_c against the Balberg slender-rod limit, '
+            'and the explicit use-as-percolationThreshold knob binds '
+            'the derived result into a chosen L1 model — never '
+            'automatically.'
+        ),
+        'source_class': 'MesoModelDefinition',
+        'isPage': True,
+        'pageRoute': 'meso-models',
+        'linkedSolutions': '[]',
+        'definition': json.dumps({'rows': [{
+            'index': 0, 'rowSegments': 12, 'minRowHeight': 480,
+            'maxRowHeight': 0, 'autoHeight': True, 'cssClass': '',
+            'items': [{
+                'id': 'meso-models-item', 'index': 0,
+                'type': 'component', 'rowSegmentsUsed': 12,
+                'gridColumnStart': None,
+                'title': 'Mesoscale models — configure and study',
+                'visible': True, 'collapsed': False, 'cssClass': '',
+                'componentProps': {
+                    'componentName': 'meso-model-config',
+                    'inputs': {'defaultModelRef':
+                               'cnt-percolation-threshold'},
+                },
+                'item': None, 'nestedRows': [],
+            }],
+        }]}),
+    },
+    {
         'name': 'formulation-search',
         'description': (
             'The formulation-search workbench: configure a '

@@ -1,6 +1,7 @@
 """
 Standalone self-test for the EngineModelOperation no-code state — the
-FEM/DFT engines callable from custom no-code logic (msci-18).
+FEM/DFT engines callable from custom no-code logic (msci-18), extended
+to the MD/meso model classes (msci-27).
 
 Run from polari-framework/:
     python3 -m polariNoCode.selftest_engine_model_op
@@ -11,7 +12,9 @@ binding, run the REAL homogenization solve, map a chosen result key to
 a friendly context variable, and keep computing on it downstream —
 custom physics logic woven around a real engine call. Also: honest
 refusal paths (unknown model, missing input) surface in the trace log
-without crashing the graph.
+without crashing the graph. The msci-27 case proves an
+MDModelDefinition (bead-spring melt) is weavable through the SAME
+operation with zero new nodes — find_model covers the new classes.
 """
 
 import json
@@ -69,6 +72,21 @@ def _mgr():
         boundary_conditions_json='[]', source_terms_json='{}',
         mesh_json='{"refine": 3}', solver_json='{}',
         last_result_json='{}', last_executed_at='', enabled=True))
+    # An MD bead-spring melt whose TEMPERATURE arrives in-graph
+    # (stageDerived 'nocode.meltT') — tiny system so the REAL run
+    # stays fast; bond length is set by FENE+WCA even at this size.
+    m.add('MDModelDefinition', SimpleNamespace(
+        name='nocode-bead-spring',
+        physics_ref='md-bead-spring-melt',
+        system_json=json.dumps({'chainLength': 5, 'nChains': 4}),
+        thermodynamic_state_json=json.dumps({
+            'density': 0.85,
+            'temperature': {'kind': 'stageDerived', 'stage': 'nocode',
+                            'key': 'meltT'}}),
+        integration_json=json.dumps({'steps': 500,
+                                     'equilibration': 200,
+                                     'dt': 0.004, 'seed': 1234}),
+        last_result_json='{}', last_executed_at='', enabled=True))
     return m
 
 
@@ -117,6 +135,33 @@ def _solution(model_ref='nocode-homogenization'):
             _state('Solve', 'EngineModelOperation', op_fields,
                    out_to='Done'),
             _state('Done', 'ReturnValue', {'returnValue': 'k_eff'}),
+        ],
+    }
+
+
+def _md_solution():
+    """InitialState → EngineModelOperation → ReturnValue over the MD
+    bead-spring model: the graph supplies the melt temperature and
+    reads back the chain bond length (msci-27 — no new node)."""
+    op_fields = {
+        'modelRef': 'nocode-bead-spring',
+        'inputBindings': [
+            {'symbol': 'nocode.meltT', 'source': _src_obj('self.melt_t')},
+        ],
+        'resultKeyMap': [
+            {'resultKey': 'meanBondLength', 'contextVar': 'bond'},
+        ],
+        'resultTarget': 'result_variable',
+        'resultVariableName': 'md_report',
+    }
+    return {
+        'solutionName': 'md-model-op-test',
+        'stateInstances': [
+            _state('Start', 'InitialState', {'inputParams': []},
+                   out_to='Simulate'),
+            _state('Simulate', 'EngineModelOperation', op_fields,
+                   out_to='Done'),
+            _state('Done', 'ReturnValue', {'returnValue': 'bond'}),
         ],
     }
 
@@ -177,6 +222,21 @@ if __name__ == '__main__':
     else:
         check('honest refusal without scikit-fem (trace, not crash)',
               trace.status == 'completed' and 'refused' in logs)
+
+    # msci-27: an MD model through the SAME operation — find_model
+    # resolves MDModelDefinition; the graph feeds T*, the REAL
+    # bead-spring engine runs, and the KG-literature bond comes back.
+    md_trace = _run(mgr, _md_solution(), {'melt_t': 1.0})
+    md_final = _extract_final_context(md_trace)
+    md_logs = _logs(md_trace)
+    bond = md_final.get('bond')
+    check('MD bead-spring model weavable via EngineModelOperation '
+          '(bond in the KG band)',
+          isinstance(bond, float) and 0.90 <= bond <= 1.05,
+          f'bond={bond}')
+    check("MD outputs also written under 'model.<key>'",
+          isinstance(md_final.get('model.radiusOfGyration'), float)
+          and 'nocode-bead-spring' in md_logs)
 
     # Refusal paths never crash the graph.
     trace3 = _run(mgr, _solution(model_ref='ghost-model'),

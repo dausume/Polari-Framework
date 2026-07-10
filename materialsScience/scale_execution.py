@@ -169,7 +169,8 @@ def execute_scale_definition(manager, name):
         return {'ok': False, 'name': name,
                 'error': f"no MaterialScaleDefinition named '{name}'"}
     definition_class = getattr(row, 'definition_class', '')
-    if definition_class in ('FEMModelDefinition', 'DFTModelDefinition'):
+    if definition_class in ('FEMModelDefinition', 'DFTModelDefinition',
+                            'MDModelDefinition', 'MesoModelDefinition'):
         # A scale level backed by a configured model definition: run it
         # through the model executor, then store the result on THIS row
         # exactly like an EngineComputation (scale_presence gates and
@@ -206,8 +207,9 @@ def execute_scale_definition(manager, name):
         return {'ok': False, 'name': name,
                 'error': f"'{name}' is not an executable row "
                          f"(definition_class='{definition_class}') — "
-                         "EngineComputation, FEMModelDefinition, and "
-                         "DFTModelDefinition rows are executable."}
+                         "EngineComputation, FEMModelDefinition, "
+                         "DFTModelDefinition, MDModelDefinition, and "
+                         "MesoModelDefinition rows are executable."}
     try:
         params = json.loads(getattr(row, 'parameters_json', '{}') or '{}')
     except Exception as e:

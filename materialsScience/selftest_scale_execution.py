@@ -132,11 +132,52 @@ def test_dft_execution_paths():
               'result' not in json.loads(row.parameters_json))
 
 
+def test_md_meso_scale_rows():
+    """msci-27: L2/L3 scale rows backed by MD/Meso model definitions
+    execute through the SAME path — result on the row, partial→defined
+    (they could not before; the class tuple named only FEM/DFT)."""
+    print('[md/meso-backed scale rows — msci-27]')
+    from materialsScience.engine_model_seed import (
+        SEED_ENGINE_MODEL_TEMPLATES,
+    )
+    manager = _manager()
+    manager.objectTables['EngineModelTemplate'] = {
+        s['name']: SimpleNamespace(**s)
+        for s in SEED_ENGINE_MODEL_TEMPLATES}
+    manager.objectTables['MDModelDefinition'] = {
+        'tiny-bead-spring': SimpleNamespace(
+            name='tiny-bead-spring',
+            physics_ref='md-bead-spring-melt',
+            system_json=json.dumps({'chainLength': 5, 'nChains': 4}),
+            thermodynamic_state_json=json.dumps(
+                {'density': 0.85, 'temperature': 1.0}),
+            integration_json=json.dumps(
+                {'steps': 500, 'equilibration': 200, 'dt': 0.004,
+                 'seed': 1234}),
+            last_result_json='{}', last_executed_at='', enabled=True)}
+    manager.objectTables['MaterialScaleDefinition']['test-wax@L3'] = \
+        SimpleNamespace(
+            name='test-wax@L3', material_name='test-wax',
+            scale_level=3, status='partial',
+            definition_class='MDModelDefinition',
+            definition_ref='tiny-bead-spring', parameters_json='{}')
+    verdict = execute_scale_definition(manager, 'test-wax@L3')
+    check('MD-backed scale row executes', verdict['ok'])
+    if verdict['ok']:
+        row = manager.objectTables['MaterialScaleDefinition'][
+            'test-wax@L3']
+        stored = json.loads(row.parameters_json)
+        check('bond result stored ON the scale row',
+              0.90 <= stored['result']['meanBondLength'] <= 1.05)
+        check('status partial -> defined', row.status == 'defined')
+
+
 def main():
     test_registry_and_refusals()
     test_fem_execution_end_to_end()
     test_homogenization_execution()
     test_dft_execution_paths()
+    test_md_meso_scale_rows()
     print(f'\n{PASS} passed, {FAIL} failed')
     return 1 if FAIL else 0
 
