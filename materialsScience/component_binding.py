@@ -70,6 +70,11 @@ _MODEL_SECTION_FIELDS = {
     'structure': 'structure_json',
     'method': 'method_json',
     'accuracy': 'accuracy_json',
+    # MD / Meso model sections (msci-26)
+    'system': 'system_json',
+    'thermodynamicState': 'thermodynamic_state_json',
+    'integration': 'integration_json',
+    'sampling': 'sampling_json',
 }
 
 

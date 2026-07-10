@@ -237,7 +237,7 @@ def _cluster_stats(np, positions, box, bond_cut=1.3):
 
 
 def dipolar_chaining(coupling_lambda, volume_fraction, n_particles=150,
-                     steps=2500, dt=0.002, seed=1234):
+                     steps=6000, dt=0.002, seed=1234):
     """Do field-aligned dipolar spheres chain at this coupling and
     loading? Overdamped Brownian dynamics (kT = gamma = sigma = 1),
     lambda = dipole contact energy / kT."""

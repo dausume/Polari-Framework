@@ -43,6 +43,15 @@ _REGISTRY_INPUT_KEYS = {
     'dft.bulk-structure': {'symbol', 'crystal', 'latticeA'},
     'dft.total-energy': {'symbol', 'crystal', 'latticeA', 'ecutwfc',
                          'kpts'},
+    'md.lj-melt': {'density', 'temperature', 'nParticles', 'steps',
+                   'equilibration', 'dt', 'thermostat', 'seed'},
+    'md.bead-spring-melt': {'chainLength', 'nChains', 'density',
+                            'temperature', 'steps', 'equilibration',
+                            'dt', 'seed'},
+    'meso.rod-percolation': {'aspectRatio', 'nRods', 'trials',
+                             'iterations', 'seed'},
+    'meso.dipolar-chaining': {'couplingLambda', 'volumeFraction',
+                              'nParticles', 'steps', 'dt', 'seed'},
 }
 assert set(_REGISTRY_INPUT_KEYS) <= set(ENGINE_REGISTRY), (
     'engine_model_seed names engines missing from ENGINE_REGISTRY')
@@ -432,6 +441,260 @@ SEED_ENGINE_MODEL_TEMPLATES = [
             ['dft.executionLayer']),
         'notes': 'Needs pw.x locally or a WITH_QE=1 msci-engines build '
                  '+ pseudopotentials.',
+        'enabled': True,
+    },
+    {
+        'name': 'md-lj-melt',
+        'display_name': 'MD — Lennard-Jones melt (L3 reference fluid)',
+        'description': (
+            'Atomistic reference: LJ particles in reduced units, '
+            'velocity-Verlet + Langevin thermostat, virial pressure. '
+            'THE validation rung for every L3 claim — and the '
+            'thermodynamic-state probe for simple melts once '
+            'epsilon/sigma are chosen with provenance.'
+        ),
+        'engine_kind': 'md', 'engine_key': 'md.lj-melt',
+        'parameter_schema_json': _schema([
+            {'section': 'thermodynamicState', 'key': 'density',
+             'type': 'number', 'required': True, 'min': 0.01,
+             'max': 1.2, 'description': 'reduced density rho*'},
+            {'section': 'thermodynamicState', 'key': 'temperature',
+             'type': 'number', 'required': True, 'min': 0.1,
+             'max': 10.0, 'description': 'reduced temperature T*'},
+            {'section': 'system', 'key': 'nParticles',
+             'type': 'number', 'required': False, 'default': 256,
+             'min': 32, 'max': 2048, 'description': 'particle count'},
+            {'section': 'integration', 'key': 'steps',
+             'type': 'number', 'required': False, 'default': 3000,
+             'min': 200, 'max': 50000, 'description': 'MD steps'},
+            {'section': 'integration', 'key': 'equilibration',
+             'type': 'number', 'required': False, 'default': 1000,
+             'min': 0, 'max': 20000,
+             'description': 'discarded equilibration steps'},
+            {'section': 'integration', 'key': 'dt', 'type': 'number',
+             'required': False, 'default': 0.005, 'min': 0.0005,
+             'max': 0.01, 'description': 'reduced timestep'},
+            {'section': 'integration', 'key': 'thermostat',
+             'type': 'string', 'required': False,
+             'default': 'langevin',
+             'description': "'langevin' | 'none' (NVE drift check)"},
+            {'section': 'integration', 'key': 'seed', 'type': 'number',
+             'required': False, 'default': 1234,
+             'description': 'RNG seed'},
+        ]),
+        'section_map_json': json.dumps({
+            'density': 'thermodynamicState.density',
+            'temperature': 'thermodynamicState.temperature',
+            'nParticles': 'system.nParticles',
+            'steps': 'integration.steps',
+            'equilibration': 'integration.equilibration',
+            'dt': 'integration.dt',
+            'thermostat': 'integration.thermostat',
+            'seed': 'integration.seed',
+        }),
+        'outputs_json': json.dumps([
+            {'key': 'measuredTemperature', 'type': 'number',
+             'description': 'sampled kinetic T* (thermostat check)'},
+            {'key': 'potentialPerParticle', 'type': 'number',
+             'description': 'U*/N'},
+            {'key': 'pressure', 'type': 'number',
+             'description': 'virial pressure P*'},
+            {'key': 'idealGasPressure', 'type': 'number',
+             'description': 'rho*T* baseline'},
+            {'key': 'validity', 'type': 'string',
+             'description': 'reduced-units honesty line'},
+        ]),
+        'cost_class': 'moderate',
+        'capability_requirements_json': json.dumps(['md']),
+        'notes': 'Reduced LJ units — mapping to a real material means '
+                 'choosing epsilon/sigma WITH provenance; force-field '
+                 'MD (TraPPE/GAFF via OpenMM/LAMMPS) is the named gap.',
+        'enabled': True,
+    },
+    {
+        'name': 'md-bead-spring-melt',
+        'display_name': 'MD — Kremer-Grest bead-spring melt (L3 '
+                        'polymer)',
+        'description': (
+            'Coarse-grained polymer melt: FENE bonds + WCA beads — '
+            'chain conformation (Rg, end-to-end, bond length) for '
+            'printable-wax-class melts, ~3 CH2 per bead.'
+        ),
+        'engine_kind': 'md', 'engine_key': 'md.bead-spring-melt',
+        'parameter_schema_json': _schema([
+            {'section': 'system', 'key': 'chainLength',
+             'type': 'number', 'required': True, 'min': 2, 'max': 100,
+             'description': 'beads per chain'},
+            {'section': 'system', 'key': 'nChains', 'type': 'number',
+             'required': True, 'min': 2, 'max': 200,
+             'description': 'number of chains'},
+            {'section': 'thermodynamicState', 'key': 'density',
+             'type': 'number', 'required': False, 'default': 0.85,
+             'min': 0.4, 'max': 1.2,
+             'description': 'reduced bead density (melt ~0.85)'},
+            {'section': 'thermodynamicState', 'key': 'temperature',
+             'type': 'number', 'required': False, 'default': 1.0,
+             'min': 0.1, 'max': 5.0, 'description': 'reduced T*'},
+            {'section': 'integration', 'key': 'steps',
+             'type': 'number', 'required': False, 'default': 3000,
+             'min': 200, 'max': 50000, 'description': 'MD steps'},
+            {'section': 'integration', 'key': 'equilibration',
+             'type': 'number', 'required': False, 'default': 1000,
+             'min': 0, 'max': 20000,
+             'description': 'discarded equilibration steps'},
+            {'section': 'integration', 'key': 'dt', 'type': 'number',
+             'required': False, 'default': 0.004, 'min': 0.0005,
+             'max': 0.008,
+             'description': 'reduced timestep (FENE-safe)'},
+            {'section': 'integration', 'key': 'seed', 'type': 'number',
+             'required': False, 'default': 1234,
+             'description': 'RNG seed'},
+        ]),
+        'section_map_json': json.dumps({
+            'chainLength': 'system.chainLength',
+            'nChains': 'system.nChains',
+            'density': 'thermodynamicState.density',
+            'temperature': 'thermodynamicState.temperature',
+            'steps': 'integration.steps',
+            'equilibration': 'integration.equilibration',
+            'dt': 'integration.dt',
+            'seed': 'integration.seed',
+        }),
+        'outputs_json': json.dumps([
+            {'key': 'meanBondLength', 'type': 'number',
+             'description': 'FENE bond length (KG lit ~0.97 sigma)'},
+            {'key': 'radiusOfGyration', 'type': 'number',
+             'description': 'chain Rg'},
+            {'key': 'endToEndDistance', 'type': 'number',
+             'description': 'chain end-to-end distance'},
+            {'key': 'measuredTemperature', 'type': 'number',
+             'description': 'sampled kinetic T*'},
+            {'key': 'validity', 'type': 'string',
+             'description': 'coarse-grained honesty line'},
+        ]),
+        'cost_class': 'moderate',
+        'capability_requirements_json': json.dumps(['md']),
+        'notes': 'A CHAIN model, not a chemical force field — bead-to-'
+                 'monomer mapping carries provenance.',
+        'enabled': True,
+    },
+    {
+        'name': 'meso-rod-percolation',
+        'display_name': 'Meso — rod-network percolation threshold '
+                        '(L2)',
+        'description': (
+            'Monte-Carlo spanning of soft-core rods: DERIVES the '
+            'percolation threshold the L1 CNT conductivity models '
+            'take as a literature assumption (0.005). Bisection to '
+            '50%% spanning; Balberg slender-rod limit reported.'
+        ),
+        'engine_kind': 'meso', 'engine_key': 'meso.rod-percolation',
+        'parameter_schema_json': _schema([
+            {'section': 'system', 'key': 'aspectRatio',
+             'type': 'number', 'required': True, 'min': 2,
+             'max': 200, 'description': 'rod length/diameter'},
+            {'section': 'system', 'key': 'nRods', 'type': 'number',
+             'required': False, 'default': 300, 'min': 50,
+             'max': 2000,
+             'description': 'rods per trial (finite-size knob)'},
+            {'section': 'sampling', 'key': 'trials', 'type': 'number',
+             'required': False, 'default': 8, 'min': 2, 'max': 32,
+             'description': 'MC trials per bisection point'},
+            {'section': 'sampling', 'key': 'iterations',
+             'type': 'number', 'required': False, 'default': 9,
+             'min': 4, 'max': 16,
+             'description': 'bisection iterations'},
+            {'section': 'sampling', 'key': 'seed', 'type': 'number',
+             'required': False, 'default': 1234,
+             'description': 'RNG seed'},
+        ]),
+        'section_map_json': json.dumps({
+            'aspectRatio': 'system.aspectRatio',
+            'nRods': 'system.nRods',
+            'trials': 'sampling.trials',
+            'iterations': 'sampling.iterations',
+            'seed': 'sampling.seed',
+        }),
+        'outputs_json': json.dumps([
+            {'key': 'percolationThreshold', 'type': 'number',
+             'description': 'derived vf_c (upper bound — waviness '
+                            'and attraction lower it)'},
+            {'key': 'slenderRodLimit', 'type': 'number',
+             'description': '0.7/aspect (Balberg 1984)'},
+            {'key': 'ratioToLimit', 'type': 'number',
+             'description': 'vf_c / slender limit'},
+            {'key': 'validity', 'type': 'string',
+             'description': 'finite-size + straight-rod honesty '
+                            'line'},
+        ]),
+        'cost_class': 'moderate',
+        'capability_requirements_json': json.dumps(['meso']),
+        'notes': 'Feeds the L1 percolation models: the derived vf_c '
+                 'closes their stated assumption via an objectRef '
+                 'binding (msci-26 closing move).',
+        'enabled': True,
+    },
+    {
+        'name': 'meso-dipolar-chaining',
+        'display_name': 'Meso — dipolar particle chaining (L2 '
+                        'magnetics)',
+        'description': (
+            'Overdamped Brownian dynamics of field-pinned dipoles '
+            '(WCA cores): do ferrite particles CHAIN in a melt? '
+            'Cluster stats + field alignment + a chainsFormed '
+            'verdict — the microstructure question behind tuned '
+            'magnetic composites.'
+        ),
+        'engine_kind': 'meso', 'engine_key': 'meso.dipolar-chaining',
+        'parameter_schema_json': _schema([
+            {'section': 'system', 'key': 'couplingLambda',
+             'type': 'number', 'required': True, 'min': 0, 'max': 20,
+             'description': 'dipolar coupling lambda (chaining '
+                            'onsets ~2)'},
+            {'section': 'system', 'key': 'volumeFraction',
+             'type': 'number', 'required': True, 'min': 0.005,
+             'max': 0.3, 'description': 'particle volume fraction'},
+            {'section': 'system', 'key': 'nParticles',
+             'type': 'number', 'required': False, 'default': 150,
+             'min': 20, 'max': 600, 'description': 'particle count'},
+            {'section': 'integration', 'key': 'steps',
+             'type': 'number', 'required': False, 'default': 6000,
+             'min': 500, 'max': 40000,
+             'description': 'BD steps (low vf needs MORE — '
+                            'kinetics-limited)'},
+            {'section': 'integration', 'key': 'dt', 'type': 'number',
+             'required': False, 'default': 0.002, 'min': 0.0002,
+             'max': 0.005, 'description': 'BD timestep'},
+            {'section': 'integration', 'key': 'seed',
+             'type': 'number', 'required': False, 'default': 1234,
+             'description': 'RNG seed'},
+        ]),
+        'section_map_json': json.dumps({
+            'couplingLambda': 'system.couplingLambda',
+            'volumeFraction': 'system.volumeFraction',
+            'nParticles': 'system.nParticles',
+            'steps': 'integration.steps',
+            'dt': 'integration.dt',
+            'seed': 'integration.seed',
+        }),
+        'outputs_json': json.dumps([
+            {'key': 'meanClusterSize', 'type': 'number',
+             'description': 'mean cluster size (particles)'},
+            {'key': 'chainedFraction', 'type': 'number',
+             'description': 'fraction in chains of >= 3'},
+            {'key': 'fieldAlignment', 'type': 'number',
+             'description': 'mean cos of chain-field angle'},
+            {'key': 'chainsFormed', 'type': 'boolean',
+             'description': 'chainedFraction > 0.5 AND alignment '
+                            '> 0.6'},
+            {'key': 'validity', 'type': 'string',
+             'description': 'pinned-dipole + kinetics honesty line'},
+        ]),
+        'cost_class': 'moderate',
+        'capability_requirements_json': json.dumps(['meso']),
+        'notes': 'Kinetics-limited below vf ~0.1: read fieldAlignment '
+                 '(structure) separately from chainedFraction '
+                 '(aggregation kinetics) or raise steps.',
         'enabled': True,
     },
 ]

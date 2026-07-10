@@ -108,6 +108,43 @@ ENGINE_REGISTRY = {
                    if inputs.get('latticeA') else None),
         ecutwfc=float(inputs.get('ecutwfc', 30.0)),
         kpts=tuple(int(k) for k in inputs.get('kpts', (3, 3, 3)))),
+    # L3 atomistic MD (msci-25): pure-numpy reduced-unit engines —
+    # always available; force-field MD (TraPPE/GAFF) is the named gap.
+    'md.lj-melt': lambda inputs: md_engine.lj_melt(
+        density=float(inputs.get('density', 0.8)),
+        temperature=float(inputs.get('temperature', 1.0)),
+        n_particles=int(inputs.get('nParticles', 256)),
+        steps=int(inputs.get('steps', 3000)),
+        equilibration=int(inputs.get('equilibration', 1000)),
+        dt=float(inputs.get('dt', 0.005)),
+        thermostat=inputs.get('thermostat', 'langevin'),
+        seed=int(inputs.get('seed', 1234))),
+    'md.bead-spring-melt': lambda inputs: md_engine.bead_spring_melt(
+        chain_length=int(inputs.get('chainLength', 10)),
+        n_chains=int(inputs.get('nChains', 20)),
+        density=float(inputs.get('density', 0.85)),
+        temperature=float(inputs.get('temperature', 1.0)),
+        steps=int(inputs.get('steps', 3000)),
+        equilibration=int(inputs.get('equilibration', 1000)),
+        dt=float(inputs.get('dt', 0.004)),
+        seed=int(inputs.get('seed', 1234))),
+    # L2 mesoscale (msci-25): rod-network percolation MC + dipolar
+    # chaining BD; DPD/hydrodynamics is the named gap.
+    'meso.rod-percolation': lambda inputs:
+        meso_engine.rod_percolation_threshold(
+            aspect_ratio=float(inputs.get('aspectRatio', 20.0)),
+            n_rods=int(inputs.get('nRods', 300)),
+            trials=int(inputs.get('trials', 8)),
+            iterations=int(inputs.get('iterations', 9)),
+            seed=int(inputs.get('seed', 1234))),
+    'meso.dipolar-chaining': lambda inputs:
+        meso_engine.dipolar_chaining(
+            coupling_lambda=float(inputs.get('couplingLambda', 4.0)),
+            volume_fraction=float(inputs.get('volumeFraction', 0.1)),
+            n_particles=int(inputs.get('nParticles', 150)),
+            steps=int(inputs.get('steps', 6000)),
+            dt=float(inputs.get('dt', 0.002)),
+            seed=int(inputs.get('seed', 1234))),
 }
 
 

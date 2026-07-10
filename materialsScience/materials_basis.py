@@ -67,14 +67,17 @@ SCALE_LEVEL_DETAILS = {
                     'analytic.percolation-conductivity']},
     2: {'name': 'mesoscale', 'lengthRange': 'nm–µm',
         'methods': 'coarse-grained MD / dissipative particle dynamics',
-        'earnedBy': 'a CGMD/DPD model — no mesoscale engine is wired '
-                    'yet, so every L2 row is honestly planned',
-        'engines': []},
+        'earnedBy': 'an executable mesoscale model (rod-network '
+                    'percolation MC or dipolar-chaining BD); '
+                    'DPD/hydrodynamics remains the named gap',
+        'engines': ['meso.rod-percolation',
+                    'meso.dipolar-chaining']},
     3: {'name': 'atomistic', 'lengthRange': 'Å–nm',
         'methods': 'molecular dynamics',
-        'earnedBy': 'an MD model — no atomistic engine is wired yet, '
-                    'so every L3 row is honestly planned',
-        'engines': []},
+        'earnedBy': 'an executable MD model (LJ melt or Kremer-Grest '
+                    'bead-spring); force-field MD (TraPPE/GAFF) '
+                    'remains the named gap',
+        'engines': ['md.lj-melt', 'md.bead-spring-melt']},
     4: {'name': 'quantum', 'lengthRange': 'Å',
         'methods': 'density functional theory',
         'earnedBy': 'an executable DFT model (fragment or bulk) whose '

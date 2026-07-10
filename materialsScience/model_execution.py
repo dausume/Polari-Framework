@@ -27,7 +27,8 @@ def _now():
 def find_model(manager, name):
     """A model definition by name, whichever specialized class holds it.
     Returns (row, class_name) or (None, '')."""
-    for class_name in ('FEMModelDefinition', 'DFTModelDefinition'):
+    for class_name in ('FEMModelDefinition', 'DFTModelDefinition',
+                       'MDModelDefinition', 'MesoModelDefinition'):
         row = find_row(manager, class_name, name)
         if row is not None:
             return row, class_name
@@ -44,8 +45,11 @@ def check_capability_requirements(template) -> Dict:
         requirements = []
     missing = []
     suggestions = []
-    from materialsScience.engines import dft_engine, fem_engine
-    caps = {'fem': fem_engine.capability(), 'dft': dft_engine.capability()}
+    from materialsScience.engines import (dft_engine, fem_engine,
+                                          md_engine, meso_engine)
+    caps = {'fem': fem_engine.capability(), 'dft': dft_engine.capability(),
+            'md': md_engine.capability(),
+            'meso': meso_engine.capability()}
     for req in requirements:
         parts = str(req).split('.')
         node = caps.get(parts[0])
