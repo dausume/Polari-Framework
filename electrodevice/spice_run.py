@@ -91,6 +91,112 @@ def _parse_currents(stdout, pins):
     return [currents.get(pin, 0.0) for pin in range(pins)]
 
 
+def render_switch_netlist(nfet_switch, pfet, nfet, resistor,
+                          pin_v, vdd=3.3):
+    """The proof-of-concept micro-circuit — two DIGITAL SEGMENTS
+    from material-derived CNT FETs:
+      segment 1: complementary inverter (p-CNT pull-up, n-CNT
+                 pull-down), input = the FPGA pin;
+      segment 2: n-CNT low-side switch, gate = the inverter output,
+                 load = the LED + the CNT sol-gel resistor.
+    LED truth table: pin LOW -> inverter HIGH -> switch ON -> lit."""
+    from electrodevice.device_derive import render_card
+    cards = []
+    for dev in (nfet_switch, pfet, nfet, resistor):
+        card = render_card(dev)
+        if card is None:
+            return None
+        if card not in cards:
+            cards.append(card)
+    sw, pf, nf, res = (subckt_name(d) for d in
+                       (nfet_switch, pfet, nfet, resistor))
+    return '\n'.join(
+        [f'* Polari cnt-inverter-led-switch — pin={pin_v} V'] + cards
+        + [LED_MODEL,
+           f'Vdd vdd 0 DC {vdd}',
+           f'Vpin pin 0 DC {pin_v}',
+           '* segment 1: complementary CNT inverter '
+           '(subckt ports: d g s)',
+           f'Xpu inv pin vdd {pf}',
+           f'Xpd inv pin 0 {nf}',
+           '* segment 2: low-side switch driving the LED branch',
+           f'Xr vdd anode {res}',
+           'Dled anode drain polari_led',
+           f'Xsw drain inv 0 {sw}',
+           '.control', 'op',
+           'print i(vdd)', 'print v(inv)', 'print v(drain)',
+           'quit', '.endc', '.end', ''])
+
+
+def run_led_switch(manager, nfet_switch, pfet, nfet, resistor,
+                   vdd=3.3, result_factory=None):
+    """Both logic states -> the truth table + honest verdict."""
+    binary = ngspice_bin()
+    if binary is None:
+        return {'ok': False,
+                'error': 'ngspice not available on this node',
+                'capability': capability()}
+    states = {}
+    for label, pin_v in (('pin-low', 0.0), ('pin-high', vdd)):
+        netlist = render_switch_netlist(nfet_switch, pfet, nfet,
+                                        resistor, pin_v, vdd)
+        if netlist is None:
+            return {'ok': False,
+                    'error': 'a device in the circuit has never '
+                             'been derived'}
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, 'sw.cir')
+            with open(path, 'w') as f:
+                f.write(netlist)
+            proc = subprocess.run([binary, '-b', path],
+                                  capture_output=True, text=True,
+                                  timeout=120)
+        supply = re.search(r'i\(vdd\)\s*=\s*([-+0-9.eE]+)',
+                           proc.stdout)
+        inv = re.search(r'v\(inv\)\s*=\s*([-+0-9.eE]+)',
+                        proc.stdout)
+        states[label] = {
+            'ledCurrent_mA': round(-float(supply.group(1)) * 1e3, 4)
+            if supply else None,
+            'inverterOut_V': round(float(inv.group(1)), 3)
+            if inv else None,
+        }
+    on = states['pin-low']['ledCurrent_mA'] or 0.0
+    off = states['pin-high']['ledCurrent_mA'] or 0.0
+    works = (LED_MIN_A * 1e3 <= on <= LED_MAX_A * 1e3
+             and abs(off) < 0.01)
+    verdict = 'switch-works' if works else 'switch-broken'
+    outputs = {'truthTable': states,
+               'onOffCurrentRatio':
+                   round(on / off, 1) if off else 'inf',
+               'logic': 'LED = NOT(pin) — one inverting segment '
+                        'before the switch'}
+    if result_factory is None:
+        from electrodevice.device_basis import CircuitRunResult
+        result_factory = CircuitRunResult
+    stamp = datetime.now(timezone.utc).isoformat()
+    row = result_factory(
+        name=f'{nfet_switch.name}-swrun-'
+             f'{stamp[11:19].replace(":", "")}',
+        device_name=nfet_switch.name,
+        circuit='cnt-inverter-led-switch',
+        inputs_json=json.dumps({'vdd': vdd,
+                                'devices': [nfet_switch.name,
+                                            pfet.name, nfet.name,
+                                            resistor.name]}),
+        outputs_json=json.dumps(outputs), verdict=verdict,
+        engine=f'ngspice ({os.path.basename(binary)})',
+        ran_at=stamp, notes='', manager=manager)
+    try:
+        db = getattr(manager, 'db', None)
+        if db is not None:
+            db.saveInstanceInDB(row)
+    except Exception:
+        pass
+    return {'ok': True, 'verdict': verdict, 'outputs': outputs,
+            'resultRow': row.name}
+
+
 def run_led_grid(manager, device, pixels, vdd=3.3,
                  result_factory=None):
     binary = ngspice_bin()

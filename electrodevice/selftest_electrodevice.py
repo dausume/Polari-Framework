@@ -16,6 +16,8 @@ import sys
 import types
 
 from electrodevice import device_derive as dd
+from electrodevice import device_validator as dv
+from electrodevice import semiconductor as sc
 from electrodevice import spice_run as sr
 
 _results = []
@@ -35,7 +37,45 @@ def _factory(**fields):
 def _mgr():
     return types.SimpleNamespace(objectTables={
         'ElectronicDeviceDefinition': {}, 'SpiceModelCard': {},
-        'CircuitRunResult': {}}, db=None)
+        'CircuitRunResult': {}, 'SemiconductorProfile': {},
+        'DeviceValidationReport': {},
+        'MaterialScaleDefinition': {}}, db=None)
+
+
+def _profile(**over):
+    base = dict(name='cnt-n-doped', material='n-doped-cnt',
+                variant='n', sim_model='doped-cnt-fragment-energy',
+                reference_model='cnt-fragment-energy', homo_ev=0.0,
+                lumo_ev=0.0, gap_ev=0.0, level_shift_ev=0.0,
+                carrier_type='', derived_at='', provenance_json='{}',
+                notes='')
+    base.update(over)
+    return types.SimpleNamespace(**base)
+
+
+def _dft_executor(frontiers):
+    def execute(manager, name):
+        homo, lumo = frontiers[name]
+        return {'ok': True, 'engine': 'dft.molecular-energy',
+                'result': {'homoEv': homo, 'lumoEv': lumo,
+                           'gapEv': lumo - homo,
+                           'frontierNote': 'Kohn-Sham approx'}}
+    return execute
+
+
+FRONTIERS = {  # from the LIVE staging runs 2026-07-10
+    'cnt-fragment-energy': (-6.765, 0.124),
+    'doped-cnt-fragment-energy': (-6.529, -0.829),
+    'p-doped-cnt-fragment-energy': (-5.978, -2.742),
+}
+
+
+def _fet_executor(manager, name):
+    return {'ok': True, 'engine': 'analytic.percolation-conductivity',
+            'inputs': {'matrixSigma': 1e-12},
+            'result': {'effectiveSigma': 227.267,
+                       'matrixSigma': 1e-12,
+                       'validity': 'idealized'}}
 
 
 def _device(**over):
@@ -130,6 +170,86 @@ def main():
               '+ knob suggestion',
               run['verdict'] == 'current-out-of-range'
               and 'geometry' in run['suggestion']['knob'])
+
+    # --- semiconductor section + validator + transistor ladder ------
+    mgr2 = _mgr()
+    nprof = _profile()
+    rep = sc.derive_semiconductor(mgr2, nprof,
+                                  executor=_dft_executor(FRONTIERS))
+    check('semiconductor: N-fragment honestly classifies p (mu '
+          'shifts down — the data does not demonstrate donor '
+          'character at this fragment size)',
+          rep['ok'] and rep['carrierType'] == 'p'
+          and abs(rep['gapEv'] - 5.7) < 0.01, str(rep)[:200])
+    pprof = _profile(name='cnt-p-doped', variant='p',
+                     sim_model='p-doped-cnt-fragment-energy')
+    rep = sc.derive_semiconductor(mgr2, pprof,
+                                  executor=_dft_executor(FRONTIERS))
+    check('semiconductor: B-doped classified p (mu down 1.04 eV)',
+          rep['ok'] and rep['carrierType'] == 'p'
+          and rep['levelShiftEv'] < -0.9)
+    mgr2.objectTables['SemiconductorProfile'] = {
+        nprof.name: nprof, pprof.name: pprof}
+
+    findings = dv.validate_profile(pprof)
+    check('validator: consistent derived profile passes clean',
+          dv._verdict(findings) == 'valid-semiconductor-device',
+          str(findings))
+    findings = dv.validate_profile(nprof)
+    check('validator: claimed n but the sim demonstrates p -> '
+          'not-valid with evidence (the standards gate WORKING)',
+          dv._verdict(findings) == 'not-valid'
+          and any(f['criterion'] == 'carrier-consistent'
+                  and f['status'] == 'fail' for f in findings))
+
+    nfet = _device(name='cnt-nfet-led-switch', device_type='nfet',
+                   semiconductor_profile='cnt-n-doped',
+                   dielectric_material='bio-fused-silica',
+                   dielectric_thickness_m=1e-7,
+                   length_m=2e-5, cross_section_m2=1.4e-8,
+                   threshold_v=0.0, kp_a_per_v2=0.0, r_on_ohm=0.0,
+                   r_off_ohm=0.0)
+    rep = dd.derive_device(mgr2, nfet, executor=_fet_executor)
+    check('transistor: VTO=+gap/4, Ron/Roff from on/off sigmas',
+          rep['ok'] and abs(rep['threshold_v'] - 5.7 / 4) < 0.01
+          and rep['onOffRatio'] > 1e10, str(rep)[:200])
+    findings = dv.validate_transistor(mgr2, nfet)
+    check('validator: nfet on the inconsistent profile -> not-valid',
+          dv._verdict(findings) == 'not-valid', str(findings)[:200])
+    pfet_probe = _device(name='pfet-probe', device_type='pfet',
+                         semiconductor_profile='cnt-p-doped',
+                         dielectric_material='bio-fused-silica',
+                         dielectric_thickness_m=1e-7,
+                         length_m=2e-5, cross_section_m2=1.4e-8,
+                         threshold_v=0.0, kp_a_per_v2=0.0,
+                         r_on_ohm=0.0, r_off_ohm=0.0)
+    dd.derive_device(mgr2, pfet_probe, executor=_fet_executor)
+    findings = dv.validate_transistor(mgr2, pfet_probe)
+    check('validator: pfet conditionally-valid (dielectric '
+          'literature fallback flagged, profile clean)',
+          dv._verdict(findings) == 'conditionally-valid'
+          and any(f['criterion'] == 'dielectric-sourced'
+                  and f['status'] == 'warn' for f in findings),
+          str(findings)[:300])
+
+    pfet = _device(name='cnt-pfet-inverter', device_type='pfet',
+                   semiconductor_profile='cnt-p-doped',
+                   dielectric_material='bio-fused-silica',
+                   dielectric_thickness_m=1e-7,
+                   length_m=2e-5, cross_section_m2=1.4e-8,
+                   threshold_v=0.0, kp_a_per_v2=0.0, r_on_ohm=0.0,
+                   r_off_ohm=0.0)
+    dd.derive_device(mgr2, pfet, executor=_fet_executor)
+    if sr.ngspice_bin() is not None:
+        run = sr.run_led_switch(mgr2, nfet, pfet, nfet, dev,
+                                result_factory=_factory)
+        tt = run['outputs']['truthTable']
+        check('micro-circuit: truth table LED=NOT(pin), on-current '
+              'in LED range',
+              run['verdict'] == 'switch-works'
+              and tt['pin-low']['ledCurrent_mA'] > 1.0
+              and abs(tt['pin-high']['ledCurrent_mA']) < 0.01,
+              json.dumps(run['outputs'])[:250])
 
     passed = sum(1 for _, ok in _results if ok)
     print(f'\n{passed}/{len(_results)} checks passed')

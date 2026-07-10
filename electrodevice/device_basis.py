@@ -43,9 +43,19 @@ class ElectronicDeviceDefinition(treeObject):
         # Geometry knobs (a printed composite trace).
         length_m: float = 0.002,
         cross_section_m2: float = 1.4e-8,
+        # Transistor knobs (device_type nfet|pfet): which derived
+        # SemiconductorProfile supplies gap/carrier type, and the
+        # gate stack (sol-gel dielectric).
+        semiconductor_profile: str = '',
+        dielectric_material: str = 'bio-fused-silica',
+        dielectric_thickness_m: float = 1e-7,
         # Derived at the last 'derive' act (never hand-set):
         sigma_s_per_m: float = 0.0,
         resistance_ohm: float = 0.0,
+        threshold_v: float = 0.0,
+        kp_a_per_v2: float = 0.0,
+        r_on_ohm: float = 0.0,
+        r_off_ohm: float = 0.0,
         derived_at: str = '',
         # Where every number came from (model inputs/outputs +
         # formula + the sim's own validity note).
@@ -58,8 +68,15 @@ class ElectronicDeviceDefinition(treeObject):
         self.sim_model = sim_model
         self.length_m = length_m
         self.cross_section_m2 = cross_section_m2
+        self.semiconductor_profile = semiconductor_profile
+        self.dielectric_material = dielectric_material
+        self.dielectric_thickness_m = dielectric_thickness_m
         self.sigma_s_per_m = sigma_s_per_m
         self.resistance_ohm = resistance_ohm
+        self.threshold_v = threshold_v
+        self.kp_a_per_v2 = kp_a_per_v2
+        self.r_on_ohm = r_on_ohm
+        self.r_off_ohm = r_off_ohm
         self.derived_at = derived_at
         self.provenance_json = provenance_json
         self.notes = notes
@@ -127,4 +144,17 @@ SEED_DEVICES = [
      'length_m': 0.002, 'cross_section_m2': 1.4e-8,
      'notes': 'Current limiter for the renode-led-grid pins; derive '
               'before use.'},
+    # CNT-network FETs (sol-gel gate dielectric): channel on-state
+    # from the percolation sim; threshold/type from the doped-CNT
+    # frontier-orbital profiles. Short fat channel = switch-grade Ron.
+    {'name': 'cnt-nfet-led-switch', 'device_type': 'nfet',
+     'sim_model': 'cnt-solgel-percolation',
+     'semiconductor_profile': 'cnt-n-doped',
+     'length_m': 2e-5, 'cross_section_m2': 1.4e-8,
+     'notes': 'Low-side LED switch + inverter pull-down.'},
+    {'name': 'cnt-pfet-inverter', 'device_type': 'pfet',
+     'sim_model': 'cnt-solgel-percolation',
+     'semiconductor_profile': 'cnt-p-doped',
+     'length_m': 2e-5, 'cross_section_m2': 1.4e-8,
+     'notes': 'Inverter pull-up (complementary to the nfet).'},
 ]

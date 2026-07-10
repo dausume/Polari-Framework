@@ -51,18 +51,24 @@ def subckt_name(device):
     return 'polari_' + device.name.replace('-', '_')
 
 
+VDD_REF = 3.3  # the FPGA rail the switching heuristics reference
+
+
 def derive_device(manager, device, executor=None):
-    """Run the material sim and stamp the device parameters.
+    """Run the material sim(s) and stamp the device parameters.
     `executor` injects a fake in selftests; production uses the real
     msci execute_model."""
     if executor is None:
         from materialsScience.model_execution import execute_model
         executor = execute_model
-    if getattr(device, 'device_type', '') != 'resistor':
+    kind = getattr(device, 'device_type', '')
+    if kind in ('nfet', 'pfet'):
+        return _derive_transistor(manager, device, executor)
+    if kind != 'resistor':
         return {'ok': False,
                 'error': f'device_type "{device.device_type}" not '
-                         'supported yet (resistor only — capacitor/'
-                         'diode are the next rungs)'}
+                         'supported yet (resistor | nfet | pfet — '
+                         'capacitor/diode are the next rungs)'}
     report = executor(manager, device.sim_model)
     if not report.get('ok'):
         return {'ok': False,
@@ -101,11 +107,122 @@ def derive_device(manager, device, executor=None):
             'provenance': provenance}
 
 
+def _derive_transistor(manager, device, executor):
+    """CNT-network FET with a sol-gel gate: on-state channel from
+    the percolation sim; threshold sign/magnitude from the derived
+    SemiconductorProfile; off-state from the matrix conductivity the
+    SAME sim declares. All heuristics named in provenance."""
+    from electrodevice.semiconductor import get_profile
+    profile = get_profile(manager,
+                          getattr(device, 'semiconductor_profile',
+                                  ''))
+    if profile is None or not getattr(profile, 'derived_at', ''):
+        return {'ok': False,
+                'error': 'semiconductor profile '
+                         f'"{device.semiconductor_profile}" missing '
+                         'or never derived',
+                'suggestion': {
+                    'knob': '/api/electrodevice/semiconductors/'
+                            f'{device.semiconductor_profile}',
+                    'how': 'POST {"action": "derive"} first'}}
+    report = executor(manager, device.sim_model)
+    if not report.get('ok'):
+        return {'ok': False,
+                'error': f'channel sim "{device.sim_model}" refused'}
+    result = report.get('result') or {}
+    sigma_on = float(result.get('effectiveSigma') or 0.0)
+    sigma_off = float(result.get('matrixSigma')
+                      or (report.get('inputs') or {})
+                      .get('matrixSigma') or 0.0)
+    if sigma_on <= 0.0 or sigma_off <= 0.0:
+        return {'ok': False,
+                'error': 'channel sim lacks on/off conductivities',
+                'simResult': result}
+    length = float(device.length_m)
+    area = float(device.cross_section_m2)
+    r_on = length / (sigma_on * area)
+    r_off = length / (sigma_off * area)
+    gap = float(profile.gap_ev)
+    polarity = 1.0 if device.device_type == 'nfet' else -1.0
+    vto = polarity * gap / 4.0
+    if abs(vto) >= VDD_REF:
+        return {'ok': False,
+                'error': f'|VTO| {abs(vto):.2f} V >= the {VDD_REF} V '
+                         'rail — the gate cannot switch this channel',
+                'suggestion': {'knob': 'semiconductor_profile',
+                               'how': 'a smaller-gap variant, or '
+                                      'raise the rail'}}
+    kp = 1.0 / (r_on * (VDD_REF - abs(vto)))
+    eps_r, eps_src = _dielectric_epsilon(manager,
+                                         device.dielectric_material)
+    provenance = {
+        'channelSim': device.sim_model,
+        'engine': report.get('engine', ''),
+        'sigmaOn_S_per_m': sigma_on,
+        'sigmaOff_S_per_m': sigma_off,
+        'semiconductorProfile': profile.name,
+        'gapEv': gap, 'carrierType': profile.carrier_type,
+        'formulas': {
+            'Ron': 'L/(sigma_on*A) — percolating network',
+            'Roff': 'L/(sigma_off*A) — matrix-only leakage',
+            'VTO': 'sign(type) * gap/4 — HEURISTIC frontier-gap -> '
+                   'switching threshold (order-of-magnitude)',
+            'KP': f'1/(Ron*(VDD-|VTO|)) at VDD={VDD_REF} — triode '
+                  'on-resistance match',
+        },
+        'dielectric': {'material': device.dielectric_material,
+                       'epsilonR': eps_r, 'source': eps_src,
+                       'thickness_m': device.dielectric_thickness_m},
+        'simValidity': result.get('validity', ''),
+        'profileHonesty': json.loads(
+            profile.provenance_json or '{}').get('honesty', ''),
+    }
+    device.sigma_s_per_m = sigma_on
+    device.r_on_ohm = r_on
+    device.r_off_ohm = r_off
+    device.threshold_v = vto
+    device.kp_a_per_v2 = kp
+    device.resistance_ohm = r_on
+    device.derived_at = _now()
+    device.provenance_json = json.dumps(provenance)
+    _save(manager, device)
+    return {'ok': True, 'device': device.name,
+            'threshold_v': vto, 'kp_a_per_v2': kp,
+            'r_on_ohm': r_on, 'r_off_ohm': r_off,
+            'onOffRatio': r_off / r_on, 'provenance': provenance}
+
+
+def _dielectric_epsilon(manager, material_name):
+    """Gate epsilon_r: prefer a material property row; fall back to
+    the literature value LABELED as such (the validator flags it —
+    the data gap stays visible)."""
+    try:
+        tables = getattr(manager, 'objectTables', None) or {}
+        for row in (tables.get('MaterialScaleDefinition')
+                    or {}).values():
+            if getattr(row, 'material_name', '') != material_name:
+                continue
+            props = json.loads(getattr(row, 'properties_json', '{}')
+                               or '{}')
+            for key in ('relativePermittivity', 'dielectricConstant',
+                        'epsilonR'):
+                if key in props:
+                    value = props[key]
+                    if isinstance(value, dict):
+                        value = value.get('value')
+                    return float(value), 'material-row'
+    except Exception:
+        pass
+    return 3.9, 'literature-fallback (fused silica ~3.9)'
+
+
 def render_card(device):
     """The embeddable SPICE abstraction (.subckt) of the device."""
     if not device.derived_at:
         return None
     prov = json.loads(device.provenance_json or '{}')
+    if getattr(device, 'device_type', '') in ('nfet', 'pfet'):
+        return _render_fet_card(device, prov)
     r = float(device.resistance_ohm)
     return '\n'.join([
         f'* Polari SpiceModelCard — {device.name}',
@@ -118,6 +235,34 @@ def render_card(device):
         f'* validity: {prov.get("simValidity", "")[:100]}',
         f'.subckt {subckt_name(device)} n1 n2',
         f'R1 n1 n2 {r:.6g}',
+        '.ends',
+        '',
+    ])
+
+
+def _render_fet_card(device, prov):
+    kind = 'NMOS' if device.device_type == 'nfet' else 'PMOS'
+    sub = subckt_name(device)
+    return '\n'.join([
+        f'* Polari SpiceModelCard — {device.name} ({kind} switch)',
+        f'* DERIVED from simulated material data: channel '
+        f'{prov.get("channelSim", "?")}, semiconductor profile '
+        f'{prov.get("semiconductorProfile", "?")} (gap '
+        f'{prov.get("gapEv", 0):.3f} eV, {prov.get("carrierType")}'
+        f'-type), {device.derived_at}',
+        f'* Ron {device.r_on_ohm:.6g} / Roff {device.r_off_ohm:.6g} '
+        f'ohm; VTO {device.threshold_v:+.3f} V (gap/4 heuristic); '
+        f'KP {device.kp_a_per_v2:.6g} A/V^2',
+        f'* gate: {prov.get("dielectric", {}).get("material", "?")} '
+        f'eps_r {prov.get("dielectric", {}).get("epsilonR", "?")} '
+        f'({prov.get("dielectric", {}).get("source", "?")})',
+        f'* validity: rough DIGITAL-SEGMENT abstraction — level-1 '
+        f'MOSFET; see provenance formulas',
+        f'.model {sub}_m {kind}(LEVEL=1 VTO={device.threshold_v:.4g} '
+        f'KP={device.kp_a_per_v2:.6g} LAMBDA=0.01)',
+        f'.subckt {sub} d g s',
+        f'M1 d g s s {sub}_m W=1u L=1u',
+        f'R1 d s {device.r_off_ohm:.6g}',
         '.ends',
         '',
     ])

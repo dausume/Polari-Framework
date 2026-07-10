@@ -18,7 +18,13 @@ from objectTreeDecorators import treeObject, treeObjectInit
 from electrodevice.device_derive import (
     derive_device, get_device, make_card_row,
 )
-from electrodevice.spice_run import capability, run_led_grid
+from electrodevice.device_validator import validate
+from electrodevice.semiconductor import (
+    derive_semiconductor, get_profile,
+)
+from electrodevice.spice_run import (
+    capability, run_led_grid, run_led_switch,
+)
 
 
 class ElectroDeviceAPI(treeObject):
@@ -37,6 +43,10 @@ class ElectroDeviceAPI(treeObject):
                 suffix='card')
             add('/api/electrodevice/capability', self,
                 suffix='capability')
+            add('/api/electrodevice/semiconductors', self,
+                suffix='semiconductors')
+            add('/api/electrodevice/semiconductors/{name}', self,
+                suffix='semiconductor')
 
     def _refuse(self, response, error, status='400 Bad Request'):
         response.status = status
@@ -96,6 +106,36 @@ class ElectroDeviceAPI(treeObject):
                 response.status = '400 Bad Request'
             response.media = report
             return
+        if action == 'validate':
+            report = validate(self.manager, device, 'transistor'
+                              if device.device_type in ('nfet',
+                                                        'pfet')
+                              else 'device')
+            response.media = report
+            return
+        if action == 'switch-test':
+            # The proof-of-concept micro-circuit: inverter + switch.
+            names = {
+                'pfet': payload.get('pfet', 'cnt-pfet-inverter'),
+                'nfet': payload.get('nfet', 'cnt-nfet-led-switch'),
+                'resistor': payload.get('resistor',
+                                        'cnt-solgel-led-resistor'),
+            }
+            parts = {k: get_device(self.manager, v)
+                     for k, v in names.items()}
+            missing = [v for k, v in names.items()
+                       if parts[k] is None]
+            if missing:
+                return self._refuse(response,
+                                    f'missing devices: {missing}')
+            report = run_led_switch(
+                self.manager, device, parts['pfet'], parts['nfet'],
+                parts['resistor'],
+                vdd=float(payload.get('vdd', 3.3)))
+            if not report.get('ok'):
+                response.status = '422 Unprocessable Entity'
+            response.media = report
+            return
         if action == 'circuit-test':
             pixels = payload.get('pixels')
             if pixels is None:
@@ -123,7 +163,46 @@ class ElectroDeviceAPI(treeObject):
         return self._refuse(
             response,
             f'unknown action "{action}" (derive | card | '
-            'circuit-test)')
+            'circuit-test | switch-test | validate)')
+
+    def on_get_semiconductors(self, request, response):
+        tables = getattr(self.manager, 'objectTables', None) or {}
+        profiles = [{
+            'name': getattr(r, 'name', ''),
+            'material': getattr(r, 'material', ''),
+            'variant': getattr(r, 'variant', ''),
+            'gapEv': getattr(r, 'gap_ev', 0.0),
+            'carrierType': getattr(r, 'carrier_type', ''),
+            'levelShiftEv': getattr(r, 'level_shift_ev', 0.0),
+            'derivedAt': getattr(r, 'derived_at', ''),
+        } for r in (tables.get('SemiconductorProfile')
+                    or {}).values()]
+        profiles.sort(key=lambda x: x['name'])
+        response.media = {'ok': True, 'profiles': profiles}
+
+    def on_post_semiconductor(self, request, response, name):
+        """{action: derive | validate}."""
+        try:
+            raw = request.bounded_stream.read()
+            payload = json.loads(raw) if raw else {}
+        except Exception as e:
+            return self._refuse(response, f'bad JSON payload: {e}')
+        profile = get_profile(self.manager, name)
+        if profile is None:
+            return self._refuse(response, f'no profile "{name}"',
+                                '404 Not Found')
+        action = payload.get('action', '')
+        if action == 'derive':
+            response.media = derive_semiconductor(self.manager,
+                                                  profile)
+            return
+        if action == 'validate':
+            response.media = validate(self.manager, profile,
+                                      'semiconductor')
+            return
+        return self._refuse(response,
+                            f'unknown action "{action}" (derive | '
+                            'validate)')
 
     def on_get_card(self, request, response, name):
         device = get_device(self.manager, name)

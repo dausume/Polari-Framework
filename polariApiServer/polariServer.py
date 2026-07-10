@@ -325,6 +325,10 @@ from electrodevice.device_basis import (
     CircuitRunResult, ElectronicDeviceDefinition, SpiceModelCard,
     SEED_DEVICES,
 )
+from electrodevice.semiconductor import (
+    SemiconductorProfile, SEED_SEMICONDUCTOR_PROFILES,
+)
+from electrodevice.device_validator import DeviceValidationReport
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -995,7 +999,8 @@ class polariServer(treeObject):
             FpgaRegisterState, LedMatrix4x4State,
             # Material-derived devices + SPICE cards + circuit runs.
             ElectronicDeviceDefinition, SpiceModelCard,
-            CircuitRunResult,
+            CircuitRunResult, SemiconductorProfile,
+            DeviceValidationReport,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
@@ -1824,6 +1829,8 @@ class polariServer(treeObject):
              SEED_LED_MATRICES),
             ('ElectronicDeviceDefinition', ElectronicDeviceDefinition,
              SEED_DEVICES),
+            ('SemiconductorProfile', SemiconductorProfile,
+             SEED_SEMICONDUCTOR_PROFILES),
             # Thermal windows from the Base Wax Properties notes.
             ('ThermalProcessingProfile', ThermalProcessingProfile,
              SEED_THERMAL_PROFILES),
