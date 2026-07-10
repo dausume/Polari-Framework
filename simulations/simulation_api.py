@@ -307,7 +307,17 @@ class SimulationAPI(treeObject):
         except Exception:
             body = {}
 
-        result = run_step(self.manager, run, target_step=target_step)
+        # xsim-2: every mutating sim entry takes the single-writer gate
+        # (a tied child presents the parent's token and passes through).
+        from simulationLocks.gate import gate_refusal_media, simulation_gate
+        with simulation_gate(self.manager, 'msim-run', run_name,
+                             submitted_by='simulation_api/step') as slot:
+            if not slot['ok']:
+                response.status = falcon.HTTP_423
+                response.media = {'success': False,
+                                  **gate_refusal_media(slot)}
+                return
+            result = run_step(self.manager, run, target_step=target_step)
         response.media = {'success': result.get('success', False), 'data': result}
         response.status = falcon.HTTP_200 if result.get('success') else falcon.HTTP_400
 
@@ -387,10 +397,32 @@ class SimulationAPI(treeObject):
             response.status = falcon.HTTP_409
             return
 
+        # xsim-2: the batch takes the single-writer gate for its whole
+        # duration; a second sim's request queues instead (423 + honest
+        # position).
+        from simulationLocks.gate import gate_refusal_media, simulation_gate
+        with simulation_gate(self.manager, 'msim-run', run_name,
+                             submitted_by='simulation_api/run') as slot:
+            if not slot['ok']:
+                response.status = falcon.HTTP_423
+                response.media = {'success': False,
+                                  **gate_refusal_media(slot)}
+                return
+            self._run_batch_gated(response, run, steps, projection)
+
+    def _run_batch_gated(self, response, run, steps, projection):
         committed: List[Dict] = []
         warnings_all: List[str] = []
         last_result: Optional[Dict] = None
-        for _ in range(steps):
+        # Long batches heartbeat the lease so a healthy run never
+        # crosses the TTL into 'breakable' mid-execution.
+        from simulationLocks.lease import heartbeat_lease
+        from simulationLocks.run_context import current_run
+        run_ctx = current_run() or {}
+        for step_index in range(steps):
+            if run_ctx and step_index % 25 == 0:
+                heartbeat_lease(self.manager, run_ctx.get('run_id', ''),
+                                run_ctx.get('lease_token', 0))
             result = run_step(self.manager, run)
             warnings_all.extend(result.get('warnings') or [])
             if not result.get('success'):
@@ -767,6 +799,25 @@ class SimulationAPI(treeObject):
             body = request.media or {}
         except Exception:
             body = {}
+        # xsim-2: stage searches are mutating sims under the strict
+        # policy — gated; a nested subModel/engineModel re-entering
+        # through here rides the ambient run context as a tied child.
+        from simulationLocks.gate import gate_refusal_media, simulation_gate
+        with simulation_gate(self.manager, 'stage-search',
+                             f'{msim_name}/{stage_key}',
+                             submitted_by='simulation_api/stage') as slot:
+            if not slot['ok']:
+                response.status = falcon.HTTP_423
+                response.media = {'success': False,
+                                  **gate_refusal_media(slot)}
+                return
+            self._stage_search_gated(response, msim_name, stage_key,
+                                     msim, stage, body)
+
+    def _stage_search_gated(self, response, msim_name, stage_key, msim,
+                            stage, body):
+        from simulations.multi_scale_stages import apply_derive
+        from simulations.multi_scale_search import run_stage_search
         # Non-stepping stage kinds each have their own executor that
         # reshapes into this endpoint's exact contract (lazy imports,
         # same style as the rest of this module): formulationSearch

@@ -25,6 +25,13 @@ import types, inspect, base64, threading
 # for update/delete operations!
 TREE_OBJECT_INTERNAL_VARS = frozenset({'manager', 'branch', 'inTree'})
 
+# xsim-2: the single-writer machinery's own bookkeeping classes are
+# exempt from generated-object auto-lock (locking a lock row would
+# recurse; queue/lease/event rows are infrastructure, not run outputs).
+_LOCK_EXEMPT_CLASSES = frozenset({
+    'MutationLease', 'LeaseBreakEvent', 'ObjectLockEntry',
+    'LockBreakEvent', 'SimulationQueueEntry', 'WriteJournalEntry'})
+
 
 def treeObjectInit(init):
     #Note: For objects instantiated using this Decorator, MUST USER KEYWORD ARGUMENTS NOT POSITIONAL, EX: (manager=mngObj, id='base64Id')
@@ -81,6 +88,20 @@ class treeObject:
             else:
                 self.manager.objectTables[key] = {}
                 self.manager.objectTables[key][self.id] = self
+            # xsim-2: objects generated while a gated simulation run is
+            # active are auto-locked + tagged with the run (quarantine on
+            # failure). Guarded so tree creation NEVER breaks on it.
+            if key not in _LOCK_EXEMPT_CLASSES:
+                try:
+                    from simulationLocks.run_context import current_run
+                    _run = current_run()
+                    if _run:
+                        from simulationLocks.object_locks import lock_generated
+                        lock_generated(self.manager, _run['run_id'],
+                                       _run.get('lease_token', 0), key,
+                                       str(self.id))
+                except Exception:
+                    pass
 
     def __setattr__(self, name, value):
         if(type(value).__name__ == 'list'):

@@ -79,7 +79,26 @@ def execute_model(manager, name, stage_context=None) -> Dict:
     """Execute a model definition end to end. Returns
     {'ok', 'model', 'modelClass', 'template', 'engine', 'inputs',
      'resolved', 'result'|'error'+'suggestion(s)', 'executedAt',
-     'persisted'}."""
+     'persisted'}.
+
+    xsim-2: model executes count as sims under the strict single-writer
+    policy — a standalone call takes a short lease through the gate;
+    stage machinery / scale executes ride the ambient (or
+    stage-context-carried) run context as tied children."""
+    from simulationLocks.gate import simulation_gate
+    from simulationLocks.run_context import from_stage_context
+    with simulation_gate(manager, 'model', name,
+                         run_context=from_stage_context(stage_context)
+                         ) as slot:
+        if not slot['ok']:
+            return {'ok': False, 'model': name, 'queued': True,
+                    'error': slot.get('error'),
+                    'position': slot.get('position'),
+                    'suggestion': slot.get('suggestion')}
+        return _execute_model_body(manager, name, stage_context)
+
+
+def _execute_model_body(manager, name, stage_context=None) -> Dict:
     model, model_class = find_model(manager, name)
     if model is None:
         return {'ok': False, 'model': name,

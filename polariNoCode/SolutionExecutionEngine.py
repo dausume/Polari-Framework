@@ -663,6 +663,39 @@ class SolutionExecutionEngine:
         self.manager = manager
 
     def execute(self, solution_data, input_params, config=None, target_runtime='python_backend', instance_fields=None, _invocation_chain=()):
+        """xsim-2 single-writer gate around _execute_ungated: nested
+        invocations (_invocation_chain) and executions inside a gated
+        run ride the ambient context as tied children; a manager-less
+        engine (unit selftests) has no tree to lock and runs ungated."""
+        if _invocation_chain or self.manager is None:
+            return self._execute_ungated(
+                solution_data, input_params, config=config,
+                target_runtime=target_runtime,
+                instance_fields=instance_fields,
+                _invocation_chain=_invocation_chain)
+        solution_name = (solution_data.get('solutionName', 'untitled')
+                         if isinstance(solution_data, dict)
+                         else 'untitled')
+        from simulationLocks.gate import simulation_gate
+        with simulation_gate(self.manager, 'solution', solution_name,
+                             submitted_by='SolutionExecutionEngine'
+                             ) as slot:
+            if not slot['ok']:
+                trace = ExecutionTrace(_generate_execution_id(),
+                                       solution_name, target_runtime)
+                trace.error(
+                    f"queued by the single-writer policy: "
+                    f"{slot.get('error')} (queue entry "
+                    f"{slot.get('entry')}, position "
+                    f"{slot.get('position')})")
+                return trace
+            return self._execute_ungated(
+                solution_data, input_params, config=config,
+                target_runtime=target_runtime,
+                instance_fields=instance_fields,
+                _invocation_chain=_invocation_chain)
+
+    def _execute_ungated(self, solution_data, input_params, config=None, target_runtime='python_backend', instance_fields=None, _invocation_chain=()):
         """
         Execute a solution by walking its state graph.
 

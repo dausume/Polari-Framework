@@ -227,6 +227,29 @@ class polariCRUDE(treeObject):
         pass
 
     #Update in CRUD
+    def _check_object_lock(self, instance, className=None):
+        """xsim-2 enforcement seam: None when the write is allowed,
+        else the refusal body (run + queue position) for a 423. A
+        caller INSIDE the run (ambient run context) passes. Guarded so
+        CRUDE never breaks if the locks module is absent."""
+        try:
+            from simulationLocks.object_locks import check_write
+            from simulationLocks.run_context import current_run
+            run = current_run() or {}
+            result = check_write(
+                self.manager, className or self.apiObject,
+                obj_id=str(getattr(instance, 'id', '') or '')
+                if instance is not None else '',
+                obj_name=str(getattr(instance, 'name', '') or '')
+                if instance is not None else '',
+                run_id=run.get('run_id', ''))
+        except Exception:
+            return None
+        if result.get('allowed', True):
+            return None
+        return {key: value for key, value in result.items()
+                if key != 'allowed'}
+
     def on_put(self, request, response):
         if self._guard_purged(response):
             return
@@ -278,6 +301,15 @@ class polariCRUDE(treeObject):
             else:
                 response.status = falcon.HTTP_400
                 raise ValueError("Recieved Update request containing instance update with neither a composite or polari Identifier ('polariId' or 'compositeId') value .")
+            # xsim-2: objects inside a running simulation's working set
+            # are write-locked — refuse honestly naming the run + queue
+            # position (reads stay live; refusal, not blocking).
+            lockCheck = self._check_object_lock(
+                instToUpdate if instToUpdate is not None else None)
+            if lockCheck is not None:
+                response.status = falcon.HTTP_423
+                response.media = lockCheck
+                return
             if("updateData" in instUpdate):
                 updateDict = instUpdate["updateData"]
                 #TODO For now we just allow everything to be set, need to implement
@@ -349,6 +381,13 @@ class polariCRUDE(treeObject):
                 dataSets = json.loads(dataSegment)
         if(dataSet != {}):
             dataSets.append(dataSet)
+        # xsim-2: a class-wide lock held by a running simulation blocks
+        # external creates of that class (423, naming the run).
+        lockCheck = self._check_object_lock(None)
+        if lockCheck is not None:
+            response.status = falcon.HTTP_423
+            response.media = lockCheck
+            return
         print(f"[polariCRUDE] Final dataSets to process: {dataSets}")
         # Read parameter lists from the live typing object so edits to
         # dynamic classes (via PUT /createClass) are picked up immediately
@@ -546,6 +585,13 @@ class polariCRUDE(treeObject):
             targetInstance = targetResolution[targetId]
             if(targetId not in allowedInstances.keys()):
                 raise PermissionError("Access Permissions do not allow user to delete the targeted instance.")
+            # xsim-2: a locked object may not be deleted out from under
+            # its run (quarantined orphans included — cleanup knob only).
+            lockCheck = self._check_object_lock(targetInstance)
+            if lockCheck is not None:
+                response.status = falcon.HTTP_423
+                response.media = lockCheck
+                return
             # Check inheritance cascade policy: if this class is a parent to
             # other multi-inheritance classes, enforce the cascade policy.
             if self.objTyping.inheritedByClasses:

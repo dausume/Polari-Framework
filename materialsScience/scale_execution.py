@@ -163,7 +163,21 @@ def execute_scale_definition(manager, name):
     Returns {'ok', 'name', 'engine', 'result'|'error'+'suggestion(s)'}.
     On success the row itself is updated (result stored, status
     partial→defined) and persisted.
-    """
+
+    xsim-2: scale executes count as sims under the strict
+    single-writer policy — gated; the nested execute_model call rides
+    this run's ambient context as a tied child."""
+    from simulationLocks.gate import simulation_gate
+    with simulation_gate(manager, 'scale', name) as slot:
+        if not slot['ok']:
+            return {'ok': False, 'name': name, 'queued': True,
+                    'error': slot.get('error'),
+                    'position': slot.get('position'),
+                    'suggestion': slot.get('suggestion')}
+        return _execute_scale_definition_body(manager, name)
+
+
+def _execute_scale_definition_body(manager, name):
     row = _find_row(manager, name)
     if row is None:
         return {'ok': False, 'name': name,

@@ -55,11 +55,22 @@ class FormulationSearchAPI(treeObject):
             body = json.load(request.bounded_stream)
         except Exception:
             body = {}
-        result = run_formulation_search(
-            self.manager, name,
-            continue_after_winner=body.get('continueAfterWinner'),
-            attempt_tag=str(body.get('attemptTag', '') or ''),
-            knob_overrides=body.get('knobOverrides') or None)
+        # xsim-2: search runs are mutating sims — single-writer gated
+        # (tied children pass through on the ambient run context).
+        from simulationLocks.gate import gate_refusal_media, simulation_gate
+        with simulation_gate(self.manager, 'search', name,
+                             submitted_by='formulation_search_api'
+                             ) as slot:
+            if not slot['ok']:
+                response.status = '423 Locked'
+                response.media = {'ok': False,
+                                  **gate_refusal_media(slot)}
+                return
+            result = run_formulation_search(
+                self.manager, name,
+                continue_after_winner=body.get('continueAfterWinner'),
+                attempt_tag=str(body.get('attemptTag', '') or ''),
+                knob_overrides=body.get('knobOverrides') or None)
         if not result.get('ok'):
             response.status = '422 Unprocessable Entity'
         response.media = result

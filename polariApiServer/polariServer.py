@@ -223,6 +223,9 @@ from mathshapes.tower_basis import AquaponicTowerDefinition
 from mathshapes.tower_seed import SEED_TOWERS
 # CAD import/export via cad-engines worker + MinIO (shape-3).
 from mathshapes.cad_basis import ImportedCadObject
+from simulationLocks.lease import LeaseBreakEvent, MutationLease
+from simulationLocks.object_locks import LockBreakEvent, ObjectLockEntry
+from simulationLocks.sim_queue import SimulationQueueEntry
 # Tanks: freshwater + saltwater ecosystem simulation — alternate
 # nutrient source (tank-1).
 from tanks.tank_basis import (
@@ -812,6 +815,10 @@ class polariServer(treeObject):
         from mathshapes.cad_api import CadImportAPI
         cadImportEndpoint = CadImportAPI(
             polServer=self, manager=self.manager)
+        # xsim-2: single-writer lease + object locks + simulation queue.
+        from simulationLocks.locks_api import SimulationLocksAPI
+        simulationLocksEndpoint = SimulationLocksAPI(
+            polServer=self, manager=self.manager)
         # Tanks: freshwater + saltwater ecosystem nutrient balance +
         # harvest yield (the alternate nutrient source, tank-1).
         from tanks.tank_api import TankSystemAPI
@@ -1020,7 +1027,11 @@ class polariServer(treeObject):
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,
             NewtonianPendulumBobSimState, NewtonianPendulumRodSimState,
-            WindFieldGridState, MaterialCondensationState]
+            WindFieldGridState, MaterialCondensationState,
+            # xsim-2 single-writer machinery: lease + object locks +
+            # queue (persisted rows — the queue survives restart).
+            MutationLease, LeaseBreakEvent, ObjectLockEntry,
+            LockBreakEvent, SimulationQueueEntry]
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
         for defClass in self.defClassList:
             className = defClass.__name__
