@@ -104,7 +104,7 @@ int main(void)
     memset(&rx, 0, sizeof rx);
     strcpy(state.name, "renode-rig");   /* Push match key upstream */
     strcpy(state.status, "boot");
-    strcpy(state.led_on, "False");
+    state.led_on = 0u;
 
     for (;;) {
         uint8_t b;
@@ -119,9 +119,7 @@ int main(void)
                 if (SimRigState_decode(rx.payload, rx.payload_len,
                                        &cmd) == 0) {
                     state.pwm_duty = cmd.pwm_duty;
-                    /* bool rides as text on this contract (Python
-                     * bools stabilize as TEXT) — copy it verbatim */
-                    strcpy(state.led_on, cmd.led_on);
+                    state.led_on = cmd.led_on;  /* real 1-byte bool */
                     strcpy(state.status, "commanded");
                 }
             }

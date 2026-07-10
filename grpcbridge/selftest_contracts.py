@@ -52,6 +52,11 @@ SNAPSHOT = {
               'schemaStrategy': 'typed'},
     'active': {'dominantType': 'bool', 'dominantAffinity': 'INTEGER',
                'schemaStrategy': 'typed'},
+    # The live framework stores Python bools as TEXT — the wire must
+    # STILL carry a real 1-byte bool (MCU cost: 'True' as a string is
+    # 7 wire bytes + a 64-byte firmware buffer).
+    'armed': {'dominantType': 'bool', 'dominantAffinity': 'TEXT',
+              'schemaStrategy': 'typed'},
     'ratio': {'dominantType': 'float', 'dominantAffinity': 'REAL',
               'schemaStrategy': 'typed'},
     'label': {'dominantType': 'str', 'dominantAffinity': 'TEXT',
@@ -130,6 +135,8 @@ def main():
     proto = exposure.proto_text
     check('mapping: int → int64', 'int64 count = ' in proto)
     check('mapping: bool → bool', 'bool active = ' in proto)
+    check('mapping: TEXT-affinity bool STILL → wire bool (MCU cost)',
+          'bool armed = ' in proto)
     check('mapping: float → double', 'double ratio = ' in proto)
     check('mapping: str → string', 'string label = ' in proto)
     check('mapping: variant → string + honest JSON comment',

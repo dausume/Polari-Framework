@@ -134,9 +134,13 @@ def proto_type_for(summary):
         return 'string', f'JSON-encoded (schema strategy: {strategy})'
     if dominant in ('list', 'dict', 'tuple', 'set', 'polariList'):
         return 'string', f'JSON-encoded (python {dominant})'
+    if dominant == 'bool':
+        # Regardless of DB affinity: Python bools ride storage as
+        # TEXT in this framework, but the WIRE must carry a real
+        # 1-byte bool — 'True' as a length-prefixed string is 7
+        # bytes per message plus a 64-byte buffer on an MCU.
+        return 'bool', ''
     if affinity == 'INTEGER':
-        if dominant == 'bool':
-            return 'bool', ''
         return 'int64', ''
     if affinity == 'REAL':
         return 'double', ''
