@@ -105,8 +105,12 @@ class SolarStackDefinition(treeObject):
         self,
         name: str = '',
         # JSON list of absorber candidates:
-        # {name, gap_ev | gapRecord | simModel, notes}.
+        # {name, gapRecord | simModel, demonstrated?, caveats?}.
         absorber_candidates_json: str = '[]',
+        # KNOB: what picks the absorber — 'sq-limit' (the physics
+        # ceiling) | 'demonstrated' (what has actually produced
+        # power in someone's hands). Disagreement -> a suggestion.
+        selection_policy: str = 'sq-limit',
         chosen_absorber: str = '',
         chosen_gap_ev: float = 0.0,
         ultimate_efficiency: float = 0.0,
@@ -117,6 +121,7 @@ class SolarStackDefinition(treeObject):
     ):
         self.name = name
         self.absorber_candidates_json = absorber_candidates_json
+        self.selection_policy = selection_policy
         self.chosen_absorber = chosen_absorber
         self.chosen_gap_ev = chosen_gap_ev
         self.ultimate_efficiency = ultimate_efficiency
@@ -221,35 +226,10 @@ SEED_SOLAR_LAYERS = [
      'notes': 'The 2 vol% percolation conductivity, reused.'},
 ]
 
+
 SEED_SOLAR_STACKS = [
     {'name': 'community-thin-film-panel',
-     'absorber_candidates_json': _json.dumps([
-         {'name': 'cuprous-oxide', 'gapRecord': {
-             'value': 2.1, 'unit': 'eV',
-             'measurement_method': 'literature',
-             'confidence': 'high'},
-          'source': 'Cu2O: torched copper sheet — THE classic '
-                    'homemade cell'},
-         {'name': 'pyrite-FeS2', 'gapRecord': {
-             'value': 0.95, 'unit': 'eV',
-             'measurement_method': 'literature',
-             'confidence': 'high'},
-          'source': 'iron + sulfur, earth-abundant'},
-         {'name': 'zinc-oxide', 'gapRecord': {
-             'value': 3.3, 'unit': 'eV',
-             'measurement_method': 'literature',
-             'confidence': 'high'},
-          'source': 'bio-ZnO (UV-only — expected to rank poorly)'},
-         {'name': 'tetracene-organic', 'simModel':
-             'acene4-fragment-energy',
-          'source': 'the acene-4 fragment — organic thin film'},
-         {'name': 'anthocyanin-dye-tio2', 'gapRecord': {
-             'value': 2.2, 'unit': 'eV',
-             'measurement_method': 'literature (DSSC berry dyes)',
-             'confidence': 'low'},
-          'source': 'berry-dye sensitized route (community DSSC)'},
-     ]),
-     'notes': 'Optimize ranks by blackbody ultimate efficiency; '
-              'realistic community efficiencies land far below — '
-              'the loss ladder is stated in provenance.'},
+     'selection_policy': 'sq-limit',
+     'absorber_candidates_json': "[{\"name\": \"cuprous-oxide\", \"gapRecord\": {\"value\": 2.1, \"unit\": \"eV\", \"measurement_method\": \"literature\", \"confidence\": \"high\"}, \"source\": \"Cu2O: torched copper sheet \\u2014 THE classic homemade cell\", \"demonstrated\": {\"value\": 0.081, \"context\": \"lab record ~8.1% (Minami et al. 2016, engineered stack); homemade torched-copper cells ~1%\", \"confidence\": \"high\"}}, {\"name\": \"pyrite-FeS2\", \"gapRecord\": {\"value\": 0.95, \"unit\": \"eV\", \"measurement_method\": \"literature\", \"confidence\": \"high\"}, \"source\": \"iron + sulfur, earth-abundant; films by sulfurizing iron foil (low-tech)\", \"demonstrated\": {\"value\": 0.028, \"context\": \"record ~2.8% photoelectrochemical (Hahn-Meitner, 1990s); solid-state thin films <1% \\u2014 no commercial cell exists\", \"confidence\": \"high\"}, \"caveats\": [{\"kind\": \"voc-deficit\", \"note\": \"open-circuit voltage stalls ~0.2 V where ~0.5+ V is expected \\u2014 the famous unsolved pyrite puzzle (sulfur vacancies / surface inversion / phase impurities); absorption and gap are superb, photoVOLTAGE is the research problem\"}, {\"kind\": \"phase-purity\", \"note\": \"sulfur-poor phases (marcasite, pyrrhotite, troilite) are metallic recombination shorts \\u2014 needs sulfur-rich atmosphere and >~400 C\"}, {\"kind\": \"recommended-use\", \"note\": \"today: photodetector/photoconductor (the voltage deficit does not kill photoconductivity) and a research absorber; NOT a working community power cell yet\"}]}, {\"name\": \"zinc-oxide\", \"gapRecord\": {\"value\": 3.3, \"unit\": \"eV\", \"measurement_method\": \"literature\", \"confidence\": \"high\"}, \"source\": \"bio-ZnO (UV-only \\u2014 expected to rank poorly)\"}, {\"name\": \"tetracene-organic\", \"simModel\": \"acene4-fragment-energy\", \"source\": \"the acene-4 fragment \\u2014 organic thin film\", \"demonstrated\": {\"value\": 0.01, \"context\": \"single-junction acene organics: low single digits at best\", \"confidence\": \"low\"}}, {\"name\": \"anthocyanin-dye-tio2\", \"gapRecord\": {\"value\": 2.2, \"unit\": \"eV\", \"measurement_method\": \"literature (DSSC berry dyes)\", \"confidence\": \"low\"}, \"source\": \"berry-dye sensitized route (community DSSC)\", \"demonstrated\": {\"value\": 0.01, \"context\": \"berry-dye community DSSCs ~0.5-1%; engineered dyes reach ~13%\", \"confidence\": \"medium\"}}]",
+     'notes': 'Optimize ranks by the detailed-balance (SQ) limit and reports demonstrated efficiencies + caveats; the selection_policy knob chooses which one picks.'},
 ]

@@ -337,9 +337,13 @@ def main():
           and ph.detailed_balance_efficiency(2.1) < sq13, str(sq13))
     stack = _factory(
         name='panel', absorber_candidates_json=json.dumps([
-            {'name': 'cu2o', 'gapRecord': {'value': 2.1}},
-            {'name': 'pyrite', 'gapRecord': {'value': 0.95}},
+            {'name': 'cu2o', 'gapRecord': {'value': 2.1},
+             'demonstrated': {'value': 0.081}},
+            {'name': 'pyrite', 'gapRecord': {'value': 0.95},
+             'demonstrated': {'value': 0.028},
+             'caveats': [{'kind': 'voc-deficit', 'note': 'x'}]},
             {'name': 'zno', 'gapRecord': {'value': 3.3}}]),
+        selection_policy='sq-limit',
         chosen_absorber='', chosen_gap_ev=0.0,
         ultimate_efficiency=0.0, derived_at='',
         provenance_json='{}')
@@ -352,6 +356,18 @@ def main():
           == ['pyrite', 'cu2o', 'zno']
           and all(c['sqLimit'] < c['ultimateEfficiency']
                   for c in rep['ranking']))
+    check('solar: physics-vs-demonstrated disagreement -> the '
+          'policy-knob suggestion, caveats ride the ranking',
+          rep.get('suggestion', {}).get('knob', '').count(
+              'selection_policy')
+          and 'cu2o' in rep['suggestion']['why']
+          and any(c.get('caveats') for c in rep['ranking']))
+    stack.selection_policy = 'demonstrated'
+    rep = ph.optimize_stack(mgr2, stack, executor=photo_exec)
+    check('solar: demonstrated policy picks Cu2O (what has actually '
+          'made power)',
+          rep['chosen'] == 'cu2o'
+          and rep['selectionPolicy'] == 'demonstrated')
 
     passed = sum(1 for _, ok in _results if ok)
     print(f'\n{passed}/{len(_results)} checks passed')

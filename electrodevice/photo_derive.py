@@ -243,15 +243,19 @@ def optimize_stack(manager, stack, executor=None):
         if gap is None or gap <= 0:
             skipped.append({'candidate': cand.get('name'), **prov})
             continue
-        ranked.append({'candidate': cand['name'], 'gapEv': gap,
-                       'sqLimit':
-                           round(detailed_balance_efficiency(gap), 4),
-                       'ultimateEfficiency':
-                           round(ultimate_efficiency(gap), 4),
-                       'absorptionEdge_nm':
-                           round(HC_EV_NM / gap, 1),
-                       'communitySource': cand.get('source', ''),
-                       'provenance': prov})
+        entry = {'candidate': cand['name'], 'gapEv': gap,
+                 'sqLimit':
+                     round(detailed_balance_efficiency(gap), 4),
+                 'ultimateEfficiency':
+                     round(ultimate_efficiency(gap), 4),
+                 'absorptionEdge_nm': round(HC_EV_NM / gap, 1),
+                 'communitySource': cand.get('source', ''),
+                 'provenance': prov}
+        if cand.get('demonstrated'):
+            entry['demonstrated'] = cand['demonstrated']
+        if cand.get('caveats'):
+            entry['caveats'] = cand['caveats']
+        ranked.append(entry)
     if not ranked:
         return {'ok': False, 'error': 'every candidate refused',
                 'skipped': skipped}
@@ -259,7 +263,27 @@ def optimize_stack(manager, stack, executor=None):
     # junction ceiling; 'ultimate' stays visible as the pre-detailed-
     # balance bound it is (Dustin's 43%%-vs-limits challenge).
     ranked.sort(key=lambda c: -c['sqLimit'])
-    best = ranked[0]
+    policy = getattr(stack, 'selection_policy', 'sq-limit') \
+        or 'sq-limit'
+    physics_best = ranked[0]
+    demo_best = max(ranked, key=lambda c:
+                    (c.get('demonstrated') or {}).get('value', 0.0))
+    best = (demo_best if policy == 'demonstrated'
+            else physics_best)
+    suggestion = None
+    if physics_best['candidate'] != demo_best['candidate']:
+        suggestion = {
+            'knob': f'SolarStackDefinition "{stack.name}" '
+                    'selection_policy (sq-limit | demonstrated)',
+            'why': f"the physics ceiling favors "
+                   f"{physics_best['candidate']} (SQ "
+                   f"{physics_best['sqLimit'] * 100:.1f}%) but "
+                   f"demonstrated results favor "
+                   f"{demo_best['candidate']} "
+                   f"({(demo_best.get('demonstrated') or {}) .get('value', 0) * 100:.1f}% shown; see its caveats)",
+            'how': 'flip the knob and re-optimize; both readings '
+                   'stay in the ranking either way',
+        }
     layers = sorted(
         (r for r in _rows(manager, 'SolarLayerDefinition').values()
          if getattr(r, 'stack_name', '') == stack.name),
@@ -283,7 +307,8 @@ def optimize_stack(manager, stack, executor=None):
                  'cells a few %.',
     })
     _save(manager, stack)
-    return {'ok': True, 'stack': stack.name,
+    report_out = {'ok': True, 'stack': stack.name,
+            'selectionPolicy': policy,
             'chosen': best['candidate'],
             'gapEv': best['gapEv'],
             'sqLimit': best['sqLimit'],
@@ -296,3 +321,6 @@ def optimize_stack(manager, stack, executor=None):
                         'thickness_m': l.thickness_m,
                         'communitySource': l.community_source}
                        for l in layers]}
+    if suggestion:
+        report_out['suggestion'] = suggestion
+    return report_out
