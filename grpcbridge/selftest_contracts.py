@@ -137,12 +137,13 @@ def main():
           and 'JSON-encoded (schema strategy: variant)' in proto)
     check('internal fields never reach the wire',
           ' manager = ' not in proto)
-    check('service block: Get/List/Watch/Push all present',
+    check('service block: Get/List/Watch/Push/Commands all present',
           all(s in proto for s in
               ('service WidgetSync', 'rpc Get (ObjectKey)',
                'rpc List (ListRequest) returns (stream Widget)',
                'rpc Watch (WatchRequest)',
-               'rpc Push (stream Widget) returns (PushSummary)')))
+               'rpc Push (stream Widget) returns (PushSummary)',
+               'rpc Commands (WatchRequest) returns (stream Widget)')))
     check('shared messages: ChangeNotification mirrors the STOMP '
           'payload fields',
           all(f in proto for f in

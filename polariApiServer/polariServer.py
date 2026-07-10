@@ -307,6 +307,9 @@ from polariDataTyping.schema_stability_basis import (
 from grpcbridge.contract_basis import (
     GrpcExposure, ProtoContractVersion,
 )
+# Polari Hardware Bridge (grpc-j1): generatable Java bridge apps —
+# simulation-first, per-bridge knob rows.
+from grpcbridge.java_bridge_basis import HardwareBridgeDefinition
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -843,6 +846,11 @@ class polariServer(treeObject):
         from grpcbridge.contract_api import GrpcContractsAPI
         grpcContractsEndpoint = GrpcContractsAPI(
             polServer=self, manager=self.manager)
+        # Polari Hardware Bridge (grpc-j1): bridge-definition rows +
+        # generate/download of the buildable Java app (tar.gz).
+        from grpcbridge.java_bridge_api import HardwareBridgeAPI
+        hardwareBridgeEndpoint = HardwareBridgeAPI(
+            polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -953,6 +961,8 @@ class polariServer(treeObject):
             SchemaStabilityProfile, SchemaDeviationEvent,
             # gRPC exposure knob + contract history (grpc-1).
             GrpcExposure, ProtoContractVersion,
+            # Polari Hardware Bridge definitions (grpc-j1).
+            HardwareBridgeDefinition,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,

@@ -219,6 +219,9 @@ def render_service(class_name):
             f'(stream ChangeNotification);\n'
             f'  // hardware in: devices stream telemetry up (grpc-4)\n'
             f'  rpc Push (stream {class_name}) returns (PushSummary);\n'
+            f'  // hardware out: Polari streams commands down (grpc-4)\n'
+            f'  rpc Commands (WatchRequest) returns '
+            f'(stream {class_name});\n'
             f'}}')
 
 
