@@ -819,6 +819,10 @@ class polariServer(treeObject):
         from simulationLocks.locks_api import SimulationLocksAPI
         simulationLocksEndpoint = SimulationLocksAPI(
             polServer=self, manager=self.manager)
+        # xsim-3: the reference ladder's resolve endpoint (read-only).
+        from polariRefs.refs_api import PolariRefsAPI
+        polariRefsEndpoint = PolariRefsAPI(
+            polServer=self, manager=self.manager)
         # Tanks: freshwater + saltwater ecosystem nutrient balance +
         # harvest yield (the alternate nutrient source, tank-1).
         from tanks.tank_api import TankSystemAPI

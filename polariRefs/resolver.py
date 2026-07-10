@@ -120,14 +120,16 @@ def _remote_refusal(ref, instance: str) -> Dict:
     return {
         'error': f"{ref['className']} "
                  f"'{ref['name'] or ref['id']}' lives on instance "
-                 f"'{instance}' — this is '{ident['instanceId']}' and "
-                 'the cross-instance rungs are not built yet',
-        'rung': 'shared-db-peer / remote-api',
-        'phase': 'xsim-3 (shared-DB read) / xsim-6 (remote API)',
-        'suggestion': {'knob': 'binding.authority',
-                       'action': 'point at a local row until xsim-3 '
-                                 'lands, or wait for the shared-DB '
-                                 'rung'}}
+                 f"'{instance}' — this is '{ident['instanceId']}', the "
+                 'shared object DB is not available here, and the '
+                 'remote-API rung is not built yet',
+        'rung': 'remote-api',
+        'phase': 'xsim-6 (remote API); shared-DB rung needs '
+                 'POLARI_SHARED_OBJECT_DB',
+        'suggestion': {'knob': 'POLARI_SHARED_OBJECT_DB / '
+                               'binding.authority',
+                       'action': 'share the object DB with the owner, '
+                                 'or wait for the remote-API rung'}}
 
 
 def _find_in_tree(manager, ref):
@@ -175,8 +177,11 @@ def resolve_ref(manager, raw_ref) -> Dict:
         return {'ok': False, 'refusal': refusal}
     provenance: Dict[str, Any] = {'className': ref['className'],
                                   'authority': ref['authority']}
-    # schemaVersion honesty (edge ledger: mismatch names both versions)
-    if ref['schemaVersion']:
+    route, resolved_instance, refusal = _route_authority(manager, ref)
+    # schemaVersion honesty (edge ledger: mismatch names both
+    # versions) — checked against the AUTHORITY's profile: local here
+    # for local routes; the owner's inside the shared-DB rung.
+    if ref['schemaVersion'] and route == 'local':
         local_version = schema_version_of(manager, ref['className'])
         if local_version and local_version != ref['schemaVersion']:
             return {'ok': False, 'refusal': {
@@ -192,10 +197,28 @@ def resolve_ref(manager, raw_ref) -> Dict:
             provenance['schemaVersionUnverified'] = (
                 f"ref carries '{ref['schemaVersion']}' but "
                 f"{ref['className']} has no stabilized local profile")
-    route, resolved_instance, refusal = _route_authority(manager, ref)
     if route == 'refuse':
         return {'ok': False, 'refusal': refusal}
     if route == 'remote':
+        # rung 3 (xsim-3): shared-DB peer read — same MariaDB,
+        # different _instance_id, permitted via PeerAgreement.
+        from polariRefs.remote_hydration import hydrate_shared_db
+        hydrated = hydrate_shared_db(manager, ref, resolved_instance)
+        if hydrated.get('ok'):
+            row = hydrated['object']
+            registered = identity_map_for(manager).register(
+                f'instance:{resolved_instance}', ref['className'],
+                str(getattr(row, 'id', '') or ref['id'] or ref['name']),
+                row)
+            merged = dict(provenance)
+            merged.update(hydrated['provenance'])
+            merged['identity'] = registered.get('note',
+                                                registered.get('error'))
+            return {'ok': True, 'object': registered['instance'],
+                    'provenance': merged}
+        if not hydrated.get('fallthrough'):
+            return {'ok': False, 'refusal': hydrated['refusal']}
+        # rung 4 (remote API) is xsim-6 — refuse naming the phase.
         return {'ok': False,
                 'refusal': _remote_refusal(ref, resolved_instance)}
     if resolved_instance:

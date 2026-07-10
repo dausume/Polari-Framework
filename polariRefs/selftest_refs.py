@@ -167,9 +167,10 @@ if __name__ == '__main__':
                                    'className':
                                        'MaterialScaleDefinition',
                                    'name': 'steel-rod'})
-    check("authority instance 'b' refuses naming xsim-3/xsim-6",
+    check("authority instance 'b' without a shared DB refuses naming "
+          'the xsim-6 rung',
           not result['ok']
-          and 'xsim-3' in result['refusal'].get('phase', '')
+          and 'xsim-6' in result['refusal'].get('phase', '')
           and "'b'" in result['refusal']['error'])
     result = resolve_ref(manager, {'kind': 'objectRef',
                                    'authority': {'instance': 'a'},
@@ -243,11 +244,115 @@ if __name__ == '__main__':
     ok, _, refusal = resolve_binding(
         manager, dict(bare, authority={'instance': 'b'}))
     check('remote authority through resolve_binding refuses honestly',
-          not ok and 'xsim-3' in (refusal or {}).get('phase', ''))
+          not ok and 'xsim-6' in (refusal or {}).get('phase', ''))
     ok, _, refusal = resolve_ref_value(
         manager, dict(bare, path='parameters_json.nope'))
     check('path miss refuses listing available keys',
           not ok and refusal.get('availableKeys') == ['inputs'])
+
+    print('rung 3 — shared-DB peer read (xsim-3)')
+
+    class _SharedDB:
+        """Emulates the shared object DB holding instance b's rows."""
+        def __init__(self, on=True):
+            self.on = on
+            self.peer_tables = {
+                'MaterialScaleDefinition': (
+                    ['id', 'name', 'last_result_json', '_instance_id'],
+                    [('AAAAAAAA1', 'steel-rod',
+                      json.dumps({'percolationThreshold': 0.201}),
+                      'b')]),
+                'GhostClass': (
+                    ['id', 'name', 'sigma', '_instance_id'],
+                    [('GH0ST0001', 'phantom', 42.5, 'b')]),
+                '_dynamic_class_registry': (
+                    ['className', 'variables'],
+                    [('GhostClass', json.dumps(
+                        [{'name': 'name'}, {'name': 'sigma'}]))]),
+                'SchemaStabilityProfile': (
+                    ['subject_class', 'field_summary_json'],
+                    [('MaterialScaleDefinition', json.dumps(
+                        {'name': {'type': 'str'},
+                         'last_result_json': {'type': 'str'},
+                         'extraPeerField': {'type': 'float'}}))]),
+            }
+
+        def getAllInTableForInstance(self, table, scope):
+            if not self.on:
+                return {'ok': False,
+                        'error': 'shared object DB is off '
+                                 '(POLARI_SHARED_OBJECT_DB)'}
+            columns, rows = self.peer_tables.get(table, ([], []))
+            return {'ok': True, 'columns': columns,
+                    'rows': [r for r in rows]}
+
+    manager.db = _SharedDB(on=False)
+    b_ref = {'kind': 'objectRef', 'authority': {'instance': 'b'},
+             'className': 'MaterialScaleDefinition',
+             'name': 'steel-rod'}
+    result = resolve_ref(manager, b_ref)
+    check('shared DB off → refusal names xsim-6 + the DB knob',
+          not result['ok']
+          and 'xsim-6' in result['refusal'].get('phase', ''))
+    manager.db = _SharedDB(on=True)
+    result = resolve_ref(manager, b_ref)
+    check('shared DB on but NO PeerAgreement → refusal names the '
+          'join flow',
+          not result['ok'] and 'PeerAgreement'
+          in result['refusal']['error'])
+    agreement = _Row(id='AGR000001', status='approved',
+                     requester_name='polari-b',
+                     approver_name='polari-a',
+                     agreement_id='agr-b-1', scope='peer-basic')
+    manager.objectTables['PeerAgreement'] = {agreement.id: agreement}
+    result = resolve_ref(manager, b_ref)
+    check("approved agreement → instance b's row hydrates "
+          '(GenericRemoteObject)',
+          result['ok']
+          and result['provenance']['rung'] == 'shared-db-peer'
+          and result['provenance']['agreement'] == 'agr-b-1')
+    remote_rod = result['object'] if result['ok'] else None
+    check("b's row 5 and local row 5 stay TWO objects (identity map)",
+          remote_rod is not rod
+          and identity_map_for(manager).get(
+              'instance:b', 'MaterialScaleDefinition',
+              'AAAAAAAA1') is remote_rod
+          and identity_map_for(manager).get(
+              'local', 'MaterialScaleDefinition',
+              'AAAAAAAA1') is rod)
+    ok, value, _ = resolve_ref_value(
+        manager, dict(b_ref,
+                      path='last_result_json.percolationThreshold'))
+    check("path walk reads b's DIFFERENT value through the same ref "
+          'shape', ok and value == 0.201)
+    refused_write = False
+    try:
+        remote_rod.sigma = 1
+    except AttributeError as e:
+        refused_write = 'xsim-4' in str(e)
+    check('write to a remote object refuses naming xsim-4',
+          refused_write)
+    result = resolve_ref(manager, {'kind': 'objectRef',
+                                   'authority': {'instance': 'b'},
+                                   'className': 'GhostClass',
+                                   'name': 'phantom'})
+    check('UNINSTALLED class hydrates typed from the peer registry',
+          result['ok'] and result['object'].sigma == 42.5
+          and result['provenance']['typedFrom']
+          == 'peer-dynamic-class-registry')
+    result = resolve_ref(manager, dict(
+        b_ref, schemaVersion='deadbeef00000000'))
+    check("schemaVersion mismatch vs the OWNER's profile names both",
+          not result['ok'] and 'deadbeef00000000'
+          in result['refusal']['error']
+          and "'b'" in result['refusal']['error'])
+    result = resolve_ref(manager, {'kind': 'objectRef',
+                                   'authority': {'instance': 'b'},
+                                   'className':
+                                       'MaterialScaleDefinition',
+                                   'name': 'not-on-b'})
+    check("missing peer row → refusal names the owner instance",
+          not result['ok'] and "'b'" in result['refusal']['error'])
 
     total, green = len(_results), sum(_results)
     print(f'\n{green}/{total} checks green')

@@ -318,6 +318,36 @@ class managedDatabase(managedFile):
         self.cache.setTable(self.name, cacheTable, columnNames, dataSets[1])
         return dataSets
 
+    def getAllInTableForInstance(self, tableName, instanceScope):
+        """xsim-3 shared-DB peer rung: read ANOTHER instance's rows from
+        the shared object DB (same MariaDB, different _instance_id) —
+        the cheap cross-instance read, no network hop. READ-ONLY seam:
+        writes to peer rows go through the lease path (xsim-4), never
+        through here. Uncached (peer data must not stale-mask under the
+        local instance's cache keys); refuses honestly when the shared
+        DB is off."""
+        if not self.instanceScope:
+            return {'ok': False,
+                    'error': 'shared object DB is off '
+                             '(POLARI_SHARED_OBJECT_DB) — no peer rows '
+                             'live in this database'}
+        commandString = ('SELECT * FROM ' + tableName
+                         + ' WHERE _instance_id = '
+                         + self.adapter.placeholder + ';')
+        dbConnection = self.adapter.connect()
+        try:
+            dbCursor = dbConnection.cursor()
+            dbCursor.execute(commandString, (str(instanceScope),))
+            rows = dbCursor.fetchall()
+            columnNames = [column[0] for column in dbCursor.description]
+        except Exception as e:
+            return {'ok': False,
+                    'error': f"peer read of '{tableName}' for instance "
+                             f"'{instanceScope}' failed: {e}"}
+        finally:
+            dbConnection.close()
+        return {'ok': True, 'columns': columnNames, 'rows': rows}
+
     #Uses a Directory Path and file name together with a class name to import a specific class
     #The Directory Path must exist either at the same location the class is defined or at 
     #Then creates a table by grabbing data from that Class, with all data types set to Text.
