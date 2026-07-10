@@ -206,6 +206,16 @@ def record_deviation(manager, class_name, field='', expected_type='',
         db_error=str(db_error)[:1000], action=action,
         resolved=resolved, occurred_at=stamp, manager=manager)
     _save_row(manager, event)
+    # A deviation invalidates the trusted snapshot any gRPC contract
+    # was generated from (grpc-1). Failure-isolated like every hook.
+    try:
+        from grpcbridge.proto_gen import mark_exposures_stale
+        mark_exposures_stale(
+            manager, class_name,
+            f'schema deviation on field "{field or "?"}" '
+            f'({actual_type or "unknown type"})')
+    except Exception:
+        pass
     return profile, event
 
 

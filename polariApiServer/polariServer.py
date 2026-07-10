@@ -302,6 +302,11 @@ from resources.profile_seed import SEED_MODULE_RESOURCE_PROFILES
 from polariDataTyping.schema_stability_basis import (
     SchemaDeviationEvent, SchemaStabilityProfile,
 )
+# gRPC contracts (grpc-1): per-class exposure KNOB + append-only
+# contract versions, generated from stabilization snapshots only.
+from grpcbridge.contract_basis import (
+    GrpcExposure, ProtoContractVersion,
+)
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -832,6 +837,12 @@ class polariServer(treeObject):
         )
         schemaStabilityEndpoint = SchemaStabilityAPI(
             polServer=self, manager=self.manager)
+        # gRPC contracts (grpc-1): exposure catalogue + the
+        # enable/disable/regenerate knob + .proto download. Contracts
+        # generate ONLY from stabilized schemas.
+        from grpcbridge.contract_api import GrpcContractsAPI
+        grpcContractsEndpoint = GrpcContractsAPI(
+            polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -940,6 +951,8 @@ class polariServer(treeObject):
             ModuleResourceProfile,
             # Schema stabilization (freeze/oops/adapt).
             SchemaStabilityProfile, SchemaDeviationEvent,
+            # gRPC exposure knob + contract history (grpc-1).
+            GrpcExposure, ProtoContractVersion,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             PendulumBobSimState, PendulumStringSimState,

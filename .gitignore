@@ -10,3 +10,6 @@ testDoc.txt
 testDocOne.txt
 testDocTwo.txt
 data/
+# Claude Code local files (settings, memory) — keep private
+.claude/
+CLAUDE.local.md
