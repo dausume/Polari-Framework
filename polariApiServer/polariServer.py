@@ -312,6 +312,13 @@ from grpcbridge.contract_basis import (
 from grpcbridge.java_bridge_basis import HardwareBridgeDefinition
 # hwsim-1: hardware rig digital twins (Renode firmware streams here).
 from grpcbridge.hwsim_basis import SimRigState, SEED_SIM_RIGS
+# msci-26: L3 MD + L2 mesoscale model definitions + seeds.
+from materialsScience.md_model_definition import MDModelDefinition
+from materialsScience.meso_model_definition import MesoModelDefinition
+from materialsScience.l2_l3_models_seed import (
+    SEED_MD_MODELS, SEED_MESO_MODELS, SEED_L2_L3_SCALE_ROWS,
+    SEED_DERIVED_VFC_MODELS,
+)
 # hwsim-3: FPGA register maps as DATA (every register = a knob row;
 # Verilog/C/testbench artifacts generate FROM the rows).
 from hwfpga.fpga_basis import (
@@ -999,6 +1006,8 @@ class polariServer(treeObject):
             HardwareBridgeDefinition,
             # Hardware rig digital twins (hwsim-1).
             SimRigState,
+            # L3 MD + L2 mesoscale model definitions (msci-26).
+            MDModelDefinition, MesoModelDefinition,
             # FPGA register maps as data + FPGA twin (hwsim-3).
             RegisterMapDefinition, RegisterDefinition,
             FpgaRegisterState, LedMatrix4x4State,
@@ -1816,7 +1825,8 @@ class polariServer(treeObject):
             ('MaterialScaleDefinition', MaterialScaleDefinition,
              SEED_MS_SCALE_DEFINITIONS
              + SEED_STANDARD_SCALE_DEFINITIONS
-             + SEED_POT_SCALE_DEFINITIONS),
+             + SEED_POT_SCALE_DEFINITIONS
+             + SEED_L2_L3_SCALE_ROWS),
             # Modules-as-projects: the in-tree module, config-tracked.
             ('ModuleSourceConfig', ModuleSourceConfig,
              SEED_MODULE_SOURCE_CONFIGS),
@@ -2001,7 +2011,13 @@ class polariServer(treeObject):
             ('EngineModelTemplate', EngineModelTemplate,
              SEED_ENGINE_MODEL_TEMPLATES),
             ('FEMModelDefinition', FEMModelDefinition,
-             SEED_FEM_MODELS + SEED_STANDARD_FEM_MODELS),
+             SEED_FEM_MODELS + SEED_STANDARD_FEM_MODELS
+             + SEED_DERIVED_VFC_MODELS),
+            # msci-26: MD + meso models BEFORE the scale rows that
+            # reference them.
+            ('MDModelDefinition', MDModelDefinition, SEED_MD_MODELS),
+            ('MesoModelDefinition', MesoModelDefinition,
+             SEED_MESO_MODELS),
             ('DFTModelDefinition', DFTModelDefinition,
              SEED_DFT_MODELS + SEED_STANDARD_DFT_MODELS),
             # Topology orchestration (top-1): machines + targets
