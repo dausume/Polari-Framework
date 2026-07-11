@@ -66,6 +66,7 @@ CRITICALITY_OVERRIDES = {
     # The spine must be able to test itself before anything gates
     # on it, and the normal-build absence is a Dustin non-negotiable.
     'selftest:testing.testing': 'blocking',
+    'selftest:testing.substrate': 'blocking',
     'gate:normal-build-absence': 'blocking',
 }
 
@@ -126,10 +127,48 @@ def _selftest_entries():
     return entries
 
 
+def _substrate_entries():
+    """acct-1: live databases + cache. runner_ref is
+    'module:function' for runner_kind 'callable'."""
+    prefix = 'testing.substrate_checks:'
+    rows = [
+        ('substrate:mariadb-reachability', 'live',
+         'check_mariadb_reachability',
+         'Connect + SELECT VERSION() on the live MariaDB.'),
+        ('substrate:mariadb-credential-honesty', 'live',
+         'check_mariadb_credential_honesty',
+         'A wrong password must be refused (and the right one '
+         'accepted) — the wrong-password-boots-healthy gotcha, '
+         'pinned.'),
+        ('substrate:mariadb-auto-tables', 'live',
+         'check_mariadb_auto_tables',
+         'The object-tree schema was auto-generated on the live '
+         'server (>=150 tables).'),
+        ('substrate:keydb-roundtrip', 'live',
+         'check_keydb_roundtrip',
+         "The framework's PolariCache setTable/getTable/"
+         'invalidateTable round-trip against live KeyDB.'),
+        ('substrate:dialect-parity', 'live',
+         'check_dialect_parity',
+         'The dbcombo proof, repeatable: the same unittest file '
+         'must behave identically on sqlite and mariadb '
+         '(throwaway schema).'),
+        ('substrate:restart-persistence', 'compose',
+         'check_restart_persistence',
+         'Volume-backed data survives a real container restart — '
+         'DISRUPTIVE, opt-in via POLARI_ALLOW_DISRUPTIVE=true.'),
+    ]
+    return [_entry(name=name, category='substrate', kind=kind,
+                   runner_kind='callable', runner_ref=prefix + fn,
+                   description=description)
+            for name, kind, fn, description in rows]
+
+
 def catalog_checks():
     """The full check catalog, deterministically ordered
     (category, name). Pure data — no manager, no side effects."""
-    entries = _suite_entries() + _selftest_entries()
+    entries = (_suite_entries() + _selftest_entries()
+               + _substrate_entries())
     entries.append(_entry(
         name='live:api-smoke', category='transport', kind='live',
         runner_kind='live-smoke',

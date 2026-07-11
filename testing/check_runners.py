@@ -167,6 +167,27 @@ def _run_live_smoke(entry, timeout, base_url=None):
                 f'exit {code}; ' + _tail(output), passed, total)
 
 
+def _run_callable(entry):
+    """runner_ref 'module:function' -> the callable returns a
+    partial row {status, evidence[, passed, total]}; identity +
+    timing added here. The callable owns its own honesty
+    (skip-honest + suggestion when its substrate isn't declared)."""
+    import importlib
+    start = time.monotonic()
+    try:
+        module_name, _, fn_name = entry['runner_ref'].partition(':')
+        fn = getattr(importlib.import_module(module_name), fn_name)
+        partial = fn()
+    except Exception as exc:
+        partial = {'status': 'fail',
+                   'evidence': f'check callable crashed: '
+                               f'{type(exc).__name__}: {exc}'}
+    duration_ms = int((time.monotonic() - start) * 1000)
+    return _row(entry, partial['status'], duration_ms,
+                partial.get('evidence', ''),
+                partial.get('passed'), partial.get('total'))
+
+
 def run_check(entry, timeout=None, live_base_url=None):
     """Execute one catalog entry -> result row. Never raises."""
     timeout = timeout or DEFAULT_TIMEOUT_S
@@ -180,5 +201,7 @@ def run_check(entry, timeout=None, live_base_url=None):
                                base_url=live_base_url)
     if kind == 'absence':
         return _run_selftest(entry, timeout, scrub_test_build=True)
+    if kind == 'callable':
+        return _run_callable(entry)
     return _row(entry, 'fail', 0,
                 f"unknown runner_kind {kind!r} — catalog bug")
