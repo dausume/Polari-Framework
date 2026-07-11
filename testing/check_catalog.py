@@ -58,6 +58,13 @@ CATEGORY_BY_SUITE = {
 
 BLOCKING_CATEGORIES = frozenset({'substrate', 'transport', 'twin'})
 
+# Name-level category overrides (win over the package rule) — for
+# testing/'s own phase selftests, which pin seams in OTHER packages.
+CATEGORY_OVERRIDES = {
+    'selftest:testing.formats': 'format',
+    'selftest:testing.stomp': 'transport',
+}
+
 # Per-check criticality overrides (win over the category rule).
 CRITICALITY_OVERRIDES = {
     # Known matcher drift (prf-test-suites 2026-07-11) — visible
@@ -67,7 +74,16 @@ CRITICALITY_OVERRIDES = {
     # on it, and the normal-build absence is a Dustin non-negotiable.
     'selftest:testing.testing': 'blocking',
     'selftest:testing.substrate': 'blocking',
+    'selftest:testing.transports': 'blocking',
     'gate:normal-build-absence': 'blocking',
+    # acct-2: format golden shapes are deterministic in-process pins
+    # — drift should gate even though `format` isn't a blocking
+    # category by default.
+    'selftest:testing.formats': 'blocking',
+    # Registered for grpc-3 (one implementation, not two): visible
+    # debt, non-blocking until grpc-3 lands — flip these then.
+    'transport:grpc-parity-measurement': 'informational',
+    'transport:grpc-peer-watch': 'informational',
 }
 
 DEFAULT_LIVE_BASE_URL = 'https://api.prf.192.168.0.210.nip.io'
@@ -164,11 +180,44 @@ def _substrate_entries():
             for name, kind, fn, description in rows]
 
 
+def _transport_entries():
+    """acct-2: live sidecar probes + the grpc-3 placeholders."""
+    prefix = 'testing.transport_checks:'
+    rows = [
+        ('transport:stomp-live-connect', 'live',
+         'check_stomp_live_connect',
+         'Real websocket CONNECT -> CONNECTED against the live '
+         'STOMP sidecar (:3001 in prf-backend).'),
+        ('transport:grpc-sidecar-reachability', 'live',
+         'check_grpc_sidecar_reachability',
+         'gRPC reflection list_services on the live sidecar '
+         '(:3002); polari.sync.* count reported as evidence.'),
+        ('transport:grpc-parity-measurement', 'live',
+         'check_grpc_parity_measurement',
+         'STOMP<->gRPC parity + measured efficiency — lands with '
+         'grpc-3; registered so the debt is visible.'),
+        ('transport:grpc-peer-watch', 'live',
+         'check_grpc_peer_watch',
+         'Peer-to-peer Watch via the class-directory grpcTarget — '
+         'lands with grpc-3; registered so the debt is visible.'),
+    ]
+    return [_entry(name=name, category='transport', kind=kind,
+                   runner_kind='callable', runner_ref=prefix + fn,
+                   description=description)
+            for name, kind, fn, description in rows]
+
+
 def catalog_checks():
     """The full check catalog, deterministically ordered
     (category, name). Pure data — no manager, no side effects."""
     entries = (_suite_entries() + _selftest_entries()
-               + _substrate_entries())
+               + _substrate_entries() + _transport_entries())
+    for entry in entries:
+        override = CATEGORY_OVERRIDES.get(entry['name'])
+        if override:
+            entry['category'] = override
+            entry['criticality'] = _criticality(entry['name'],
+                                                override)
     entries.append(_entry(
         name='live:api-smoke', category='transport', kind='live',
         runner_kind='live-smoke',
