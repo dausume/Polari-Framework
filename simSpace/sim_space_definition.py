@@ -90,6 +90,21 @@ class SimSpaceDefinition(treeObject):
         # NOTE (migration): added 2026-07-06; existing volumes gain the
         # column via the boot schema sync.
         camera_json: str = '',
+        # --- XR (xr-1, WEBXR_PLAN.md) -------------------------------
+        # Explicit space category — the Q1b vocabulary keying
+        # XrTypeDefault rows (e.g. 'hydroponics-layout', 'msim-world').
+        # Empty = derive from owning_module (xr_resolution).
+        category: str = '',
+        # The module that seeded/owns this space (e.g. 'aquaponics') —
+        # supplies the DERIVED category default when `category` is
+        # unset. Seeds set it going forward; legacy rows resolve past
+        # the type level honestly.
+        owning_module: str = '',
+        # Individual (lowest, always-wins-when-set) rung of the XR
+        # cascade: 'unset' | 'none' | 'vr' | 'ar' | 'both' and
+        # 'unset' | 'inside' | 'exhibit'.
+        xr_mode: str = 'unset',
+        xr_framing: str = 'unset',
         manager=None,
     ):
         self.name = name
@@ -102,3 +117,7 @@ class SimSpaceDefinition(treeObject):
         self.definition = definition
         self.axis_labels_json = axis_labels_json
         self.camera_json = camera_json
+        self.category = category
+        self.owning_module = owning_module
+        self.xr_mode = xr_mode
+        self.xr_framing = xr_framing

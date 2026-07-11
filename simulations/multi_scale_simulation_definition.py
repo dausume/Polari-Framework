@@ -92,6 +92,11 @@ class MultiScaleSimulationDefinition(treeObject):
         # never codegen. Empty = no declared family (an honest gap the
         # conformance endpoint reports, not an error).
         profile_ref: str = '',
+        # Multiscale rung of the XR cascade (xr-1, WEBXR_PLAN.md):
+        # overrides type/global for every panel of this msim, is
+        # overridden by a directly-set per-space value.
+        xr_mode: str = 'unset',
+        xr_framing: str = 'unset',
         enabled: bool = True,
         manager=None,
     ):
@@ -105,4 +110,6 @@ class MultiScaleSimulationDefinition(treeObject):
         self.display_ref = display_ref
         self.compare_run_policy_json = compare_run_policy_json
         self.profile_ref = profile_ref
+        self.xr_mode = xr_mode
+        self.xr_framing = xr_framing
         self.enabled = enabled

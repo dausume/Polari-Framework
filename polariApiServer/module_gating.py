@@ -30,7 +30,7 @@ CORE_PACKAGES = frozenset({
     'polariApiServer', 'polariDataTyping', 'polariDBmanagement',
     'polariNetworking', 'polariNoCode', 'accessControl', 'matrices',
     'simSpace', 'simSpace2D', 'simSpace3D', 'polariPeers', 'topology',
-    'resources', 'simulationLocks', 'polariRefs',
+    'resources', 'simulationLocks', 'polariRefs', 'xr',
     'objectTreeDecorators', 'objectTreeManagerDecorators', '__main__',
 })
 

@@ -300,6 +300,10 @@ from topology.topology_seed import (
 # Resource profiles (res-2): each module/engine's floor, scalability,
 # character, and storage-tier recommendation — the admission basis.
 from resources.profile_basis import ModuleResourceProfile
+from xr.xr_settings import (
+    XrGlobalSettings, XrTypeDefault, XrInterfaceVariant,
+    SEED_XR_GLOBAL_SETTINGS, SEED_XR_TYPE_DEFAULTS,
+)
 from resources.profile_seed import SEED_MODULE_RESOURCE_PROFILES
 # Schema stabilization: per-class trust state + captured OOPS events
 # (stat-freezing for object schemas; typing work exits the tree).
@@ -870,6 +874,11 @@ class polariServer(treeObject):
         from resources.profile_api import ResourceProfilesAPI
         resourceProfilesEndpoint = ResourceProfilesAPI(
             polServer=self, manager=self.manager)
+        # XR cascade resolution (xr-1): read-only resolve surface —
+        # mode/framing + provenance for one space (writes go through
+        # the generated CRUDE endpoints on the settings rows).
+        from xr.xr_api import XrAPI
+        xrEndpoint = XrAPI(polServer=self, manager=self.manager)
         # Admission advisor (res-4): route-to-storage / fits-as-is /
         # fits-with-reallocation / would-break — verdicts as
         # suggestions, never auto-applied.
@@ -1010,6 +1019,8 @@ class polariServer(treeObject):
             TopologyDefinition, TopologyObservation,
             # Resource profiles (res-2).
             ModuleResourceProfile,
+            # XR settings cascade + interface variants (xr-1).
+            XrGlobalSettings, XrTypeDefault, XrInterfaceVariant,
             # Schema stabilization (freeze/oops/adapt).
             SchemaStabilityProfile, SchemaDeviationEvent,
             # gRPC exposure knob + contract history (grpc-1).
@@ -2074,6 +2085,11 @@ class polariServer(treeObject):
             # for known subjects; res-3 measurement overrides.
             ('ModuleResourceProfile', ModuleResourceProfile,
              SEED_MODULE_RESOURCE_PROFILES),
+            # XR cascade (xr-1): the global singleton + category type
+            # defaults (Q9 seeds — suggestions made durable, editable).
+            ('XrGlobalSettings', XrGlobalSettings,
+             SEED_XR_GLOBAL_SETTINGS),
+            ('XrTypeDefault', XrTypeDefault, SEED_XR_TYPE_DEFAULTS),
         ]
         # Old demo-3d description (used as the "untouched" signature). If
         # the existing demo-3d row still has this verbatim, we treat it

@@ -47,6 +47,8 @@ FRAMEWORK_BOUNDARIES: Dict[str, str] = {
     'matrices': 'Math: matrix/equation definitions + executors',
     'simSpace': 'Visualization: sim-space definitions, bindings, '
                 'snapshot compilers',
+    'xr': 'Visualization: XR mode/framing cascade settings + '
+          'per-mode interface variants',
     'simSpace2D': 'Visualization: 2D primitives',
     'simSpace3D': 'Visualization: 3D primitives',
     'polariPeers': 'Distribution: peers, module bundles, module '
