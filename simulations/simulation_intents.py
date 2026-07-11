@@ -301,4 +301,17 @@ def validate_composition(manager, msim) -> List[Dict[str, str]]:
         err('Sub-model cycle: ' + ' -> '.join(cycle) + ' — a '
             'multiscale model cannot (transitively) contain itself.')
 
+    # xsim-5 overlap advisor: stages whose write sets are not provably
+    # disjoint (e.g. two stages executing the SAME model definition —
+    # a shared-row overwrite that makes results order/rerun-dependent).
+    # Advisor, never enforcer: warnings with the full evidence on the
+    # write-sets analysis endpoint.
+    try:
+        from simulationLocks.advisor_stages import analyze_write_sets
+        for overlap in analyze_write_sets(manager, msim)['findings']:
+            warn(overlap['message'] + ' — suggestions: serialize the '
+                 'stages, partition by id/range, or clone-then-merge.')
+    except Exception:
+        pass
+
     return findings

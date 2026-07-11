@@ -799,13 +799,45 @@ class SimulationAPI(treeObject):
             body = request.media or {}
         except Exception:
             body = {}
+        # xsim-5 pre-run gate: overlap findings touching this stage
+        # refuse until explicitly accepted (acceptWarnings knob — the
+        # overrideResourceWarning idiom). Advisor evidence rides the
+        # refusal; nothing is rewritten.
+        manifest = None
+        try:
+            from simulationLocks.advisor_stages import (
+                analyze_write_sets, stage_manifest,
+            )
+            analysis = analyze_write_sets(self.manager, msim)
+            mine = [f for f in analysis['findings']
+                    if f'stage:{stage_key}' in
+                    (f['evidence']['branchA'], f['evidence']['branchB'])]
+            if mine and not body.get('acceptWarnings'):
+                response.status = falcon.HTTP_409
+                response.media = {
+                    'success': False,
+                    'error': 'overlap advisor: this stage\'s write set '
+                             'is not provably disjoint from another '
+                             'stage\'s',
+                    'data': {'findings': mine,
+                             'howToProceed':
+                                 'apply a suggestion (serialize / '
+                                 'partition / clone-then-merge) or '
+                                 'resend with acceptWarnings: true'},
+                }
+                return
+            # the advisor's write-set manifest IS the lock manifest
+            manifest = stage_manifest(self.manager, msim, stage)
+        except Exception:
+            manifest = None
         # xsim-2: stage searches are mutating sims under the strict
         # policy — gated; a nested subModel/engineModel re-entering
         # through here rides the ambient run context as a tied child.
         from simulationLocks.gate import gate_refusal_media, simulation_gate
         with simulation_gate(self.manager, 'stage-search',
                              f'{msim_name}/{stage_key}',
-                             submitted_by='simulation_api/stage') as slot:
+                             submitted_by='simulation_api/stage',
+                             manifest=manifest) as slot:
             if not slot['ok']:
                 response.status = falcon.HTTP_423
                 response.media = {'success': False,
@@ -919,11 +951,21 @@ class SimulationAPI(treeObject):
                               'error': f'MultiScaleSimulationDefinition "{msim_name}" not found'}
             return
         findings = validate_composition(self.manager, msim)
+        # xsim-5: the full evidence-bearing write-set analysis rides
+        # along (the conformance panel's detail view; validate findings
+        # carry the plain-language summaries).
+        write_analysis = None
+        try:
+            from simulationLocks.advisor_stages import analyze_write_sets
+            write_analysis = analyze_write_sets(self.manager, msim)
+        except Exception:
+            pass
         response.media = {
             'success': True,
             'data': {
                 'coherent': not any(f['level'] == 'error' for f in findings),
                 'findings': findings,
+                'writeAnalysis': write_analysis,
             },
         }
         response.status = falcon.HTTP_200
