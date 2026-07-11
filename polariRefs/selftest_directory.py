@@ -74,12 +74,20 @@ if __name__ == '__main__':
                 2: _Row(module_name='aquaponics',
                         instance_name='polari-n', state='enabled'),
                 3: _Row(module_name='scoring',
-                        instance_name='polari-x', state='disabled')},
+                        instance_name='polari-x', state='disabled'),
+                # two EXACT assignments for one module: the
+                # PeerNode-addressable one must win (deliberate
+                # routing act); disable it to fall back local.
+                4: _Row(module_name='materialsScience',
+                        instance_name='prf-a', state='enabled')},
             'PeerNode': {
                 0: _Row(name='polari-m',
-                        base_url='https://api.m.example/'),
+                        base_url='https://api.m.example/',
+                        identity_json='{"grpcTarget": "m-host:3002"}'),
                 1: _Row(name='polari-n',
-                        base_url='https://api.n.example')}},
+                        base_url='https://api.n.example',
+                        identity_json='{"wsUrl": '
+                                      '"wss://custom.n/socket"}')}},
         dynamicClasses={'RuntimeGadget': object},
         idList=[])
     api = PolariRefsAPI(polServer=None, manager=manager)
@@ -107,6 +115,16 @@ if __name__ == '__main__':
     check('dynamic classes listed as local',
           directory['classes']['RuntimeGadget']['module'] == 'dynamic'
           and directory['classes']['RuntimeGadget']['baseUrl'] == '')
+    check('wsUrl derives from the browser base URL (vhost upgrades '
+          'in place, same path — the api.prf pattern)',
+          directory['modules']['materialsScience']['wsUrl']
+          == 'wss://api.m.example/')
+    check('identity_json overrides win (wsUrl + grpcTarget '
+          'advertised)',
+          directory['modules']['aquaponics']['wsUrl']
+          == 'wss://custom.n/socket'
+          and directory['modules']['materialsScience']['grpcTarget']
+          == 'm-host:3002')
 
     total, green = len(_results), sum(_results)
     print(f'\n{green}/{total} checks green')

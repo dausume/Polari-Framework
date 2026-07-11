@@ -14,6 +14,8 @@ HTTP surface for the ONE reference ladder (xsim-3):
 @see /CROSS_INSTANCE_SIM_PLAN.md
 """
 
+import json
+
 import falcon
 
 from objectTreeDecorators import treeObject, treeObjectInit
@@ -239,27 +241,60 @@ class PolariRefsAPI(treeObject):
         stays local (baseUrl '')."""
         from polariRefs.remote_hydration import _matches_instance
         rows = (getattr(self.manager, 'objectTables', None) or {})
-        assignments = {}
+        peers = list((rows.get('PeerNode', {}) or {}).values())
+
+        def _addressable(instance_name):
+            return any(_matches_instance(getattr(node, 'name', ''),
+                                         instance_name)
+                       and getattr(node, 'base_url', '')
+                       for node in peers)
+
+        # candidates per package: exact assignments outrank dotted
+        # sub-assignments; among exacts, a PeerNode-ADDRESSABLE
+        # instance outranks the local default (an enabled remote
+        # assignment is a deliberate routing act; disabling it is the
+        # one-knob way back to core).
+        candidates = {}
         for a in (rows.get('ModuleAssignment', {}) or {}).values():
             if getattr(a, 'state', '') != 'enabled':
                 continue
             package = (getattr(a, 'module_name', '') or '').split('.')[0]
             exact = '.' not in getattr(a, 'module_name', '')
-            # exact package assignments outrank dotted sub-assignments
-            if package not in assignments or exact:
-                assignments[package] = getattr(a, 'instance_name', '')
-        peers = list((rows.get('PeerNode', {}) or {}).values())
+            candidates.setdefault(package, []).append(
+                (exact, getattr(a, 'instance_name', '')))
+        assignments = {}
+        for package, entries in candidates.items():
+            entries.sort(key=lambda e: (e[0], _addressable(e[1])),
+                         reverse=True)
+            assignments[package] = entries[0][1]
         providers = {}
         for package, instance_name in assignments.items():
-            base_url = ''
+            base_url, ws_url, grpc_target = '', '', ''
             for node in peers:
                 if _matches_instance(getattr(node, 'name', ''),
                                      instance_name):
                     base_url = (getattr(node, 'base_url', '')
                                 or '').rstrip('/')
+                    # modsplit-3: transports ride identity_json
+                    # overrides; wsUrl otherwise derives from the
+                    # browser base URL (the vhost upgrades in place).
+                    try:
+                        identity = json.loads(
+                            getattr(node, 'identity_json', '') or '{}')
+                    except (TypeError, ValueError):
+                        identity = {}
+                    # same host+path as the API — the vhost detects
+                    # the Upgrade header (the api.prf pattern)
+                    ws_url = identity.get('wsUrl', '') or (
+                        base_url.replace('https://', 'wss://')
+                        .replace('http://', 'ws://') + '/'
+                        if base_url else '')
+                    grpc_target = identity.get('grpcTarget', '')
                     break
             providers[package] = {'instance': instance_name,
-                                  'baseUrl': base_url}
+                                  'baseUrl': base_url,
+                                  'wsUrl': ws_url,
+                                  'grpcTarget': grpc_target}
         return providers
 
     def on_get_directory(self, request, response):
