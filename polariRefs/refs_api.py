@@ -68,6 +68,8 @@ class PolariRefsAPI(treeObject):
                 '/api/refs/apply-write', self, suffix='apply_write')
             polServer.falconServer.add_route(
                 '/api/refs/journal', self, suffix='journal')
+            polServer.falconServer.add_route(
+                '/api/refs/directory', self, suffix='directory')
 
     def on_post_resolve(self, request, response):
         try:
@@ -229,3 +231,63 @@ class PolariRefsAPI(treeObject):
         from polariRefs.write_journal import journal_rows
         response.media = {'ok': True, 'entries': journal_rows(
             self.manager, request.get_param('run') or '')}
+
+    def _module_providers(self):
+        """module package → {instance, baseUrl} from ModuleAssignment
+        (topology data) + PeerNode (the admin-set, browser-reachable
+        address book). A module with no remote-addressable assignment
+        stays local (baseUrl '')."""
+        from polariRefs.remote_hydration import _matches_instance
+        rows = (getattr(self.manager, 'objectTables', None) or {})
+        assignments = {}
+        for a in (rows.get('ModuleAssignment', {}) or {}).values():
+            if getattr(a, 'state', '') != 'enabled':
+                continue
+            package = (getattr(a, 'module_name', '') or '').split('.')[0]
+            exact = '.' not in getattr(a, 'module_name', '')
+            # exact package assignments outrank dotted sub-assignments
+            if package not in assignments or exact:
+                assignments[package] = getattr(a, 'instance_name', '')
+        peers = list((rows.get('PeerNode', {}) or {}).values())
+        providers = {}
+        for package, instance_name in assignments.items():
+            base_url = ''
+            for node in peers:
+                if _matches_instance(getattr(node, 'name', ''),
+                                     instance_name):
+                    base_url = (getattr(node, 'base_url', '')
+                                or '').rstrip('/')
+                    break
+            providers[package] = {'instance': instance_name,
+                                  'baseUrl': base_url}
+        return providers
+
+    def on_get_directory(self, request, response):
+        """modsplit-1: THE coordination contract — core tells the
+        frontend which backend serves each class. className →
+        {module, instance, baseUrl}; baseUrl '' = fetch from the
+        backend that served this directory. Data-driven (topology
+        ModuleAssignment + PeerNode), no probing — liveness is the
+        caller's honest fallback."""
+        from polariApiServer.module_gating import module_of_class
+        from polariRefs.ref_format import local_identity
+        providers = self._module_providers()
+        classes = {}
+        for cls in getattr(self.polServer, 'defClassList', []) or []:
+            package = module_of_class(cls)
+            provider = providers.get(package)
+            classes[cls.__name__] = {
+                'module': package,
+                'instance': provider['instance'] if provider else
+                local_identity()['instanceName'],
+                'baseUrl': provider['baseUrl'] if provider else ''}
+        for class_name in (getattr(self.manager, 'dynamicClasses', {})
+                           or {}):
+            classes.setdefault(class_name, {
+                'module': 'dynamic',
+                'instance': local_identity()['instanceName'],
+                'baseUrl': ''})
+        response.media = {'ok': True,
+                          'localInstance': local_identity(),
+                          'modules': providers,
+                          'classes': classes}

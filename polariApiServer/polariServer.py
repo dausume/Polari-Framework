@@ -1039,6 +1039,19 @@ class polariServer(treeObject):
             LockBreakEvent, SimulationQueueEntry,
             # xsim-4: the remote-write audit ledger.
             WriteJournalEntry]
+        # modsplit-1: each instance registers ONLY its assigned
+        # modules' classes (POLARI_MODULES env; unset = all). Seeds,
+        # CRUDE endpoints, and boot restore all key off the typing
+        # this filter controls — one honest gate point.
+        from polariApiServer.module_gating import class_enabled, gate_summary
+        _gate = gate_summary(self.defClassList)
+        if _gate['dropped']:
+            print(f"[DefInit] Module gating (POLARI_MODULES="
+                  f"{_gate['modulesKnob']}): dropped "
+                  f"{sum(_gate['dropped'].values())} classes from "
+                  f"{sorted(_gate['dropped'])}", flush=True)
+        self.defClassList = [c for c in self.defClassList
+                             if class_enabled(c)]
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
         for defClass in self.defClassList:
             className = defClass.__name__
