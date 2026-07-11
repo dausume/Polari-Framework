@@ -85,9 +85,12 @@ def write_remote(manager, raw_ref, fields: Dict,
                                ref['className'], obj_id=ref['id'],
                                obj_name=ref['name'])
         escalated = result.get('lock', '')
-    # resolve the concrete row id when the ref names by name
+    # resolve the concrete row id when the ref names by name; a
+    # shared-DB miss (or no shared DB) falls through to rung 4.
     row_id = ref['id']
-    if not row_id:
+    shared_db_reachable = hasattr(getattr(manager, 'db', None),
+                                  'getAllInTableForInstance')
+    if shared_db_reachable and not row_id:
         probe = manager.db.getAllInTableForInstance(
             ref['className'], target)
         if probe.get('ok'):
@@ -96,17 +99,52 @@ def write_remote(manager, raw_ref, fields: Dict,
                 if str(row_fields.get('name', '')) == ref['name']:
                     row_id = str(row_fields.get('id', ''))
                     break
-    if not row_id:
+        elif 'shared object DB is off' in probe.get('error', ''):
+            shared_db_reachable = False
+    def _rung4_push():
+        # rung 4 (xsim-6): push the write to the OWNER's apply-write;
+        # the owner validates the epoch against core and journals its
+        # side — both ends keep evidence.
+        from polariRefs.remote_api import push_remote_write
+        pushed = push_remote_write(manager, ref, fields, run_id,
+                                   token, target)
+        if pushed.get('ok'):
+            entry = journal_write(
+                manager, run_id, f'instance:{target}',
+                ref['className'], object_key,
+                pushed.get('fieldsChanged') or list(fields or {}),
+                token, 'applied',
+                notes=f'remote-api rung; owner journal '
+                      f"{pushed.get('journal', '?')}"
+                      + (f'; escalated lock {escalated}'
+                         if escalated else ''))
+            return {'ok': True, 'rung': 'remote-api',
+                    'fieldsChanged': pushed.get('fieldsChanged'),
+                    'journal': entry.name,
+                    'ownerJournal': pushed.get('journal'),
+                    'escalatedLock': escalated or None,
+                    'tokenEpoch': token}
+        reason = ((pushed.get('refusal') or {}).get('error')
+                  or pushed.get('error'))
         journal_write(manager, run_id, f'instance:{target}',
                       ref['className'], object_key,
                       list(fields or {}), token,
                       'refused-write-failed',
-                      notes='target row not found on the owner')
+                      notes=f'remote-api rung: {reason}')
         return {'ok': False, 'refusal': {
-            'error': f"instance '{target}' has no {ref['className']} "
-                     f"'{object_key}' to write", 'journaled': True}}
+            'error': reason,
+            'rung': 'remote-api', 'journaled': True,
+            'blockedState': 'run should pause honestly — retry/skip '
+                            'knobs (never diverge silently)'}}
+
+    if not shared_db_reachable or not row_id:
+        return _rung4_push()
     written = manager.db.updateRowForInstance(
         ref['className'], row_id, fields, target)
+    if not written.get('ok') and 'nothing written' \
+            in written.get('error', ''):
+        # id-carrying ref whose owner is an API-only peer
+        return _rung4_push()
     if not written.get('ok'):
         journal_write(manager, run_id, f'instance:{target}',
                       ref['className'], row_id, list(fields or {}),

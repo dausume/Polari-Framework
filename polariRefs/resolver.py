@@ -115,23 +115,6 @@ def _route_authority(manager, ref) -> Tuple[str, str, Optional[Dict]]:
                                  'or install the module here'}}
 
 
-def _remote_refusal(ref, instance: str) -> Dict:
-    ident = local_identity()
-    return {
-        'error': f"{ref['className']} "
-                 f"'{ref['name'] or ref['id']}' lives on instance "
-                 f"'{instance}' — this is '{ident['instanceId']}', the "
-                 'shared object DB is not available here, and the '
-                 'remote-API rung is not built yet',
-        'rung': 'remote-api',
-        'phase': 'xsim-6 (remote API); shared-DB rung needs '
-                 'POLARI_SHARED_OBJECT_DB',
-        'suggestion': {'knob': 'POLARI_SHARED_OBJECT_DB / '
-                               'binding.authority',
-                       'action': 'share the object DB with the owner, '
-                                 'or wait for the remote-API rung'}}
-
-
 def _find_in_tree(manager, ref):
     table = (getattr(manager, 'objectTables', None) or {}).get(
         ref['className'], {}) or {}
@@ -218,9 +201,34 @@ def resolve_ref(manager, raw_ref) -> Dict:
                     'provenance': merged}
         if not hydrated.get('fallthrough'):
             return {'ok': False, 'refusal': hydrated['refusal']}
-        # rung 4 (remote API) is xsim-6 — refuse naming the phase.
-        return {'ok': False,
-                'refusal': _remote_refusal(ref, resolved_instance)}
+        # rung 4 (xsim-6): the remote-API hop for API-only peers.
+        from polariRefs.remote_api import fetch_remote_api
+        from polariRefs.remote_hydration import (
+            GenericRemoteObject, peer_agreement_allows,
+        )
+        allowed = peer_agreement_allows(manager, resolved_instance)
+        if not allowed['ok']:
+            return {'ok': False, 'refusal': allowed}
+        fetched = fetch_remote_api(manager, ref, resolved_instance)
+        if not fetched['ok']:
+            refusal = fetched['refusal']
+            if hydrated.get('note'):
+                refusal['sharedDbNote'] = hydrated['note']
+            return {'ok': False, 'refusal': refusal}
+        merged = dict(provenance)
+        merged.update(fetched['provenance'])
+        merged['agreement'] = allowed['agreement']
+        remote = GenericRemoteObject(
+            ref['className'], f'instance:{resolved_instance}',
+            fetched['fields'], merged)
+        registered = identity_map_for(manager).register(
+            f'instance:{resolved_instance}', ref['className'],
+            str(fetched['fields'].get('id', '')
+                or ref['id'] or ref['name']), remote)
+        merged['identity'] = registered.get('note',
+                                            registered.get('error'))
+        return {'ok': True, 'object': registered['instance'],
+                'provenance': merged}
     if resolved_instance:
         provenance['resolvedInstance'] = resolved_instance
     # rung 1: local tree

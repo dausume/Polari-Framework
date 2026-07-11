@@ -29,13 +29,27 @@ def _serializable(obj):
         return {'fields': {k: v for k, v in obj.__dict__.items()
                            if not k.startswith('_')
                            and not k.startswith('polariRef')}}
-    # a live local tree object: identifying surface only (read-only
-    # endpoint — full objects stay on their CRUDE surface)
-    return {'fields': {'id': getattr(obj, 'id', None),
-                       'name': getattr(obj, 'name', None),
-                       'className': type(obj).__name__},
-            'note': 'local tree object — full body via its CRUDE '
-                    'endpoint'}
+    # a live local tree object: its persistable fields (JSON-safe
+    # coerced) — this IS what a rung-4 peer hydrates from, so the
+    # body must be complete, not just identifying (read-only either
+    # way; writes go through apply-write).
+    fields = {}
+    for key, value in vars(obj).items():
+        if key in ('manager', 'branch', 'inTree') or callable(value):
+            continue
+        if isinstance(value, (str, int, float, bool, type(None))):
+            fields[key] = value
+        elif isinstance(value, (list, dict)):
+            try:
+                import json as _json
+                _json.dumps(value)
+                fields[key] = value
+            except (TypeError, ValueError):
+                fields[key] = str(value)
+        else:
+            fields[key] = str(value)
+    fields.setdefault('className', type(obj).__name__)
+    return {'fields': fields}
 
 
 class PolariRefsAPI(treeObject):
@@ -50,6 +64,8 @@ class PolariRefsAPI(treeObject):
                 '/api/refs/resolve', self, suffix='resolve')
             polServer.falconServer.add_route(
                 '/api/refs/write', self, suffix='write')
+            polServer.falconServer.add_route(
+                '/api/refs/apply-write', self, suffix='apply_write')
             polServer.falconServer.add_route(
                 '/api/refs/journal', self, suffix='journal')
 
@@ -123,6 +139,91 @@ class PolariRefsAPI(treeObject):
             response.media = {'ok': False, 'refusal': refusal}
             return
         response.media = result
+
+    def on_post_apply_write(self, request, response):
+        """xsim-6 OWNER side: another instance's run asks this
+        instance to mutate ITS OWN row. The epoch is validated against
+        CORE (POLARI_CORE_URL when this instance is not core), local
+        object locks are respected, and the application is journaled
+        here too — both sides of the hop keep evidence."""
+        from polariRefs.remote_api import validate_epoch_for_owner
+        from polariRefs.write_journal import journal_write
+        from simulationLocks.object_locks import check_write
+        try:
+            body = request.get_media() or {}
+        except Exception:
+            body = {}
+        ref = body.get('ref') or {}
+        fields = body.get('fields')
+        class_name = str(ref.get('className', '') or '')
+        row_name = str(ref.get('name', '') or '')
+        row_id = str(ref.get('id', '') or '')
+        if not class_name or not isinstance(fields, dict) \
+                or not (row_name or row_id):
+            response.status = falcon.HTTP_400
+            response.media = {'ok': False,
+                              'error': "body needs {'ref': {className,"
+                                       " name|id}, 'fields': {...}}"}
+            return
+        run_id = request.get_header('X-Polari-Run-Id') or ''
+        try:
+            token = int(request.get_header('X-Polari-Lease-Token')
+                        or 0)
+        except (TypeError, ValueError):
+            token = 0
+        fenced = validate_epoch_for_owner(self.manager, token)
+        if not fenced['ok']:
+            journal_write(self.manager, run_id, 'inbound',
+                          class_name, row_id or row_name,
+                          list(fields), token, 'refused-stale-token',
+                          notes=fenced['error'])
+            response.status = falcon.HTTP_423
+            response.media = {'ok': False,
+                              'refusal': {'error': fenced['error'],
+                                          'journaled': True}}
+            return
+        table = (getattr(self.manager, 'objectTables', None) or {}
+                 ).get(class_name, {}) or {}
+        target = table.get(row_id) if row_id else next(
+            (r for r in table.values()
+             if getattr(r, 'name', '') == row_name), None)
+        if target is None:
+            journal_write(self.manager, run_id, 'inbound', class_name,
+                          row_id or row_name, list(fields), token,
+                          'refused-write-failed',
+                          notes='no such row on this owner')
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'refusal': {
+                'error': f"this instance has no {class_name} "
+                         f"'{row_name or row_id}'", 'journaled': True}}
+            return
+        lock = check_write(self.manager, class_name,
+                           obj_id=str(getattr(target, 'id', '')),
+                           obj_name=getattr(target, 'name', ''),
+                           run_id=run_id)
+        if not lock.get('allowed', True):
+            response.status = falcon.HTTP_423
+            response.media = {'ok': False, 'refusal': {
+                key: value for key, value in lock.items()
+                if key != 'allowed'}}
+            return
+        applied = []
+        for field, value in fields.items():
+            if isinstance(field, str) and field.isidentifier() \
+                    and not field.startswith('_'):
+                setattr(target, field, value)
+                applied.append(field)
+        try:
+            self.manager.db.saveInstanceInDB(target)
+        except Exception:
+            pass
+        entry = journal_write(
+            self.manager, run_id, 'inbound', class_name,
+            str(getattr(target, 'id', '') or row_name), applied,
+            token, 'applied',
+            notes=f"remote run '{run_id}' via apply-write")
+        response.media = {'ok': True, 'fieldsChanged': sorted(applied),
+                          'journal': entry.name}
 
     def on_get_journal(self, request, response):
         from polariRefs.write_journal import journal_rows

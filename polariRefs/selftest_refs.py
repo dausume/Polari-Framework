@@ -168,10 +168,10 @@ if __name__ == '__main__':
                                    'className':
                                        'MaterialScaleDefinition',
                                    'name': 'steel-rod'})
-    check("authority instance 'b' without a shared DB refuses naming "
-          'the xsim-6 rung',
+    check("authority instance 'b' with nothing configured refuses "
+          'naming the join-flow knob (the ladder ends honestly)',
           not result['ok']
-          and 'xsim-6' in result['refusal'].get('phase', '')
+          and 'PeerAgreement' in result['refusal']['error']
           and "'b'" in result['refusal']['error'])
     result = resolve_ref(manager, {'kind': 'objectRef',
                                    'authority': {'instance': 'a'},
@@ -245,7 +245,7 @@ if __name__ == '__main__':
     ok, _, refusal = resolve_binding(
         manager, dict(bare, authority={'instance': 'b'}))
     check('remote authority through resolve_binding refuses honestly',
-          not ok and 'xsim-6' in (refusal or {}).get('phase', ''))
+          not ok and 'PeerAgreement' in (refusal or {}).get('error', ''))
     ok, _, refusal = resolve_ref_value(
         manager, dict(bare, path='parameters_json.nope'))
     check('path miss refuses listing available keys',
@@ -292,9 +292,9 @@ if __name__ == '__main__':
              'className': 'MaterialScaleDefinition',
              'name': 'steel-rod'}
     result = resolve_ref(manager, b_ref)
-    check('shared DB off → refusal names xsim-6 + the DB knob',
+    check('shared DB off + no agreement → the join-flow refusal',
           not result['ok']
-          and 'xsim-6' in result['refusal'].get('phase', ''))
+          and 'PeerAgreement' in result['refusal']['error'])
     manager.db = _SharedDB(on=True)
     result = resolve_ref(manager, b_ref)
     check('shared DB on but NO PeerAgreement → refusal names the '
@@ -352,8 +352,10 @@ if __name__ == '__main__':
                                    'className':
                                        'MaterialScaleDefinition',
                                    'name': 'not-on-b'})
-    check("missing peer row → refusal names the owner instance",
-          not result['ok'] and "'b'" in result['refusal']['error'])
+    check('missing peer row falls through rung 4 → refusal names the '
+          'missing PeerNode address + the shared-DB miss',
+          not result['ok'] and 'PeerNode' in result['refusal']['error']
+          and 'not-on-b' in result['refusal'].get('sharedDbNote', ''))
 
     print('xsim-4 — automated remote writes + journal + zombie')
     from polariRefs.remote_writes import write_remote
@@ -442,6 +444,91 @@ if __name__ == '__main__':
     check("SHARED lock table sweep: another instance's lock refuses "
           'local writes',
           not swept['allowed'] and swept['lockedBy'] == 'run-on-b')
+
+    print('rung 4 — remote-API hop (xsim-6, stubbed transport)')
+    import polariRefs.remote_api as remote_api_mod
+    from simulationLocks.lease import acquire_lease as _acq, \
+        release_lease as _rel
+
+    calls = []
+
+    def _fake_http(method, url, body=None, headers=None):
+        calls.append((method, url, body, headers))
+        if url.endswith('/api/refs/resolve'):
+            return {'ok': True,
+                    'fields': {'id': 'CROW00001', 'name': 'ferrite',
+                               'sigma': 99.9},
+                    'provenance': {'rung': 'local-tree'}}
+        if url.endswith('/api/refs/apply-write'):
+            token = int((headers or {}).get('X-Polari-Lease-Token', 0))
+            if token != 777:
+                return {'ok': False,
+                        'refusal': {'error': 'stale fencing token: '
+                                             'owner validated against '
+                                             'core and refused'}}
+            return {'ok': True, 'fieldsChanged': ['notes'],
+                    'journal': 'wj-owner-side-1'}
+        return {'_error': 'unknown route'}
+
+    remote_api_mod._http_json = _fake_http
+    c_ref = {'kind': 'objectRef', 'authority': {'instance': 'c'},
+             'className': 'MaterialsScienceMaterial', 'name': 'ferrite'}
+    result = resolve_ref(manager, c_ref)
+    check('API-only peer without an agreement → scope refusal first',
+          not result['ok']
+          and 'PeerAgreement' in result['refusal']['error'])
+    manager.objectTables['PeerAgreement']['AGR2'] = _Row(
+        id='AGR2', status='approved', requester_name='polari-c',
+        approver_name='polari-a', agreement_id='agr-c-1',
+        scope='peer-basic')
+    manager.objectTables['PeerNode'] = {
+        'PN1': _Row(id='PN1', name='polari-c',
+                    base_url='http://prf-xsim-c:3000')}
+    result = resolve_ref(manager, c_ref)
+    check('rung 4 read hydrates from the owner over HTTP',
+          result['ok'] and result['object'].sigma == 99.9
+          and result['provenance']['rung'] == 'remote-api'
+          and result['provenance']['baseUrl']
+          == 'http://prf-xsim-c:3000')
+    check('rung-4 object registered under instance:c in the '
+          'identity map',
+          identity_map_for(manager).get(
+              'instance:c', 'MaterialsScienceMaterial', 'CROW00001')
+          is result['object'])
+    # write path: shared DB has no 'c' rows → falls through to rung 4
+    manager.db.peer_tables.setdefault('MaterialsScienceMaterial',
+                                      (['id', 'name'], []))
+    granted = _acq(manager, 'run-X')
+    # our stub owner only accepts epoch 777 — mismatch = owner-side
+    # core-validated zombie refusal, journaled on THIS side too
+    result = write_remote(manager, c_ref, {'notes': 'x'},
+                          run_context={'run_id': 'run-X',
+                                       'lease_token':
+                                           granted['token']})
+    check('owner-side stale-epoch refusal journaled locally',
+          not result['ok']
+          and result['refusal']['rung'] == 'remote-api'
+          and any(e['outcome'] == 'refused-write-failed'
+                  and 'stale' in e['notes']
+                  for e in journal_rows(manager, 'run-X')))
+    _rel(manager, 'run-X', granted['token'])
+    lease_stub = manager.objectTables['MutationLease']
+    next(iter(lease_stub.values())).token = 776
+    granted = _acq(manager, 'run-Y')     # epoch becomes 777
+    result = write_remote(manager, c_ref, {'notes': 'x'},
+                          run_context={'run_id': 'run-Y',
+                                       'lease_token': 777})
+    check('rung-4 write applies; BOTH journals referenced',
+          result['ok'] and result['rung'] == 'remote-api'
+          and result['ownerJournal'] == 'wj-owner-side-1'
+          and any(e['outcome'] == 'applied'
+                  and 'wj-owner-side-1' in e['notes']
+                  for e in journal_rows(manager, 'run-Y')))
+    check('the apply-write hop carried the fencing headers',
+          any(u.endswith('/apply-write')
+              and (h or {}).get('X-Polari-Run-Id') == 'run-Y'
+              for _, u, _, h in calls))
+    _rel(manager, 'run-Y', 777)
 
     total, green = len(_results), sum(_results)
     print(f'\n{green}/{total} checks green')

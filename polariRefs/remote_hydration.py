@@ -177,14 +177,14 @@ def hydrate_shared_db(manager, ref, target_instance: str) -> Dict:
         return {'ok': False, 'refusal': allowed}
     row_fields = _find_peer_row(probe, ref)
     if row_fields is None:
-        return {'ok': False, 'refusal': {
-            'error': f"instance '{target_instance}' has no "
-                     f"{ref['className']} "
-                     f"'{ref['name'] or ref['id']}'",
-            'rung': 'shared-db-peer',
-            'suggestion': {'knob': 'binding.name / binding.authority',
-                           'action': 'point at a row the owner '
-                                     'actually holds'}}}
+        # Not in the shared DB — the owner may not share it at all
+        # (an API-only peer): fall through to rung 4, which ends the
+        # ladder with the honest both-rungs refusal on a true miss.
+        return {'ok': False, 'fallthrough': True,
+                'note': f"no {ref['className']} "
+                        f"'{ref['name'] or ref['id']}' under "
+                        f"_instance_id '{target_instance}' in the "
+                        'shared DB'}
     provenance: Dict[str, Any] = {
         'rung': 'shared-db-peer',
         'owningInstance': target_instance,
