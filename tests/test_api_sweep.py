@@ -27,10 +27,9 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import falcon.inspect
-from falcon import testing
 
-from objectTreeManagerDecorators import managerObject
 from objectTreeDecorators import treeObject, treeObjectInit
+from tests.api_test_server import register_scratch
 
 
 class SweepScratchObject(treeObject):
@@ -80,13 +79,10 @@ class ApiSweepTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         print('\n' + '=' * 70)
-        print('Setting up API Sweep Test Suite (in-process server)')
+        print('Setting up API Sweep Test Suite (shared in-process server)')
         print('=' * 70)
-        cls.manager = managerObject(hasServer=True)
-        cls.manager.getObjectTyping(classObj=SweepScratchObject)
-        cls.manager.polServer.registerCRUDEforObjectType('SweepScratchObject', overrideExclusion=True)
+        cls.manager, cls.client = register_scratch(SweepScratchObject)
         cls.app = cls.manager.polServer.falconServer
-        cls.client = testing.TestClient(cls.app)
         cls.routes = cls._real_routes()
         print(f'✓ {len(cls.routes)} route/method variants discovered')
 
