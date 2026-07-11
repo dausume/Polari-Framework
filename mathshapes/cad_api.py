@@ -78,7 +78,13 @@ class CadImportAPI(treeObject):
         fmt = body.get('format', 'glb')
         result = cad_import.export_shape(self.manager, name, fmt)
         if not result.get('ok'):
-            response.status = '502 Bad Gateway'
+            # Unknown shape = the CALLER's error (404); 502 stays
+            # reserved for a genuinely failed/unreachable CAD worker.
+            error = str(result.get('error', ''))
+            if 'no MathShapeDefinition' in error:
+                response.status = '404 Not Found'
+            else:
+                response.status = '502 Bad Gateway'
         response.media = result
 
     def on_get_imports(self, request, response):

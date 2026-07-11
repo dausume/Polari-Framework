@@ -2410,13 +2410,21 @@ class polariServer(treeObject):
 
         print(f'[polariServer] Auto-register complete: {registered} new, {updated} updated', flush=True)
 
-    def registerCRUDEforObjectType(self, objType):
+    def registerCRUDEforObjectType(self, objType, overrideExclusion=False):
         """
         Dynamically register a CRUDE endpoint for an object type.
         This is useful when object types are registered after server initialization.
 
         Args:
             objType: The class name (string) of the object type to register
+            overrideExclusion: polyTypedObject defaults excludeFromCRUDE=True,
+                so a typing created via manager.getObjectTyping() gets
+                silently skipped here even though the caller explicitly
+                asked for an endpoint (the bug behind the long-standing
+                dynamic-registration test failures). Pass True to treat
+                THIS call as the deliberate opt-in: the flag is flipped
+                to False and registration proceeds. Default False keeps
+                the knob authoritative for automated callers.
 
         Returns:
             The polariCRUDE instance that was created, or None if excludeFromCRUDE is True
@@ -2430,8 +2438,11 @@ class polariServer(treeObject):
         # Check if this object type should be excluded from CRUDE API
         # Core framework objects may set this to True to prevent runtime issues
         if hasattr(typingObj, 'excludeFromCRUDE') and typingObj.excludeFromCRUDE:
-            print(f"Object type '{objType}' has excludeFromCRUDE=True, skipping CRUDE endpoint registration")
-            return None
+            if not overrideExclusion:
+                print(f"Object type '{objType}' has excludeFromCRUDE=True, skipping CRUDE endpoint registration")
+                return None
+            print(f"Object type '{objType}': overriding excludeFromCRUDE for explicit registration")
+            typingObj.excludeFromCRUDE = False
 
         # Check if CRUDE endpoint already exists for this type
         for crude in self.crudeObjectsList:

@@ -79,6 +79,32 @@ class polariCRUDE(treeObject):
             return True
         return False
 
+    def _refuse(self, response, status, error):
+        """Honest refusal — a reason the caller can act on, never a
+        stack trace (the API sweep test enforces zero 5xx)."""
+        response.status = status
+        response.media = {"error": error}
+
+    def _form_parts(self, request, response):
+        """The CRUDE write protocol is multipart form-data. Returns the
+        iterable of form parts, or None after setting an honest 415/400
+        for any other media type — a JSON body used to crash the
+        handler mid-iteration instead of being refused."""
+        ctype = request.content_type or ''
+        if 'multipart/form-data' not in ctype:
+            self._refuse(
+                response, falcon.HTTP_415,
+                "CRUDE writes use multipart form-data (fields: "
+                "initParamSets / polariId+updateData / targetInstance); "
+                f"got content-type '{ctype or 'none'}'.")
+            return None
+        try:
+            return request.get_media()
+        except Exception as e:
+            self._refuse(response, falcon.HTTP_400,
+                         f"unreadable multipart body: {e}")
+            return None
+
     def _notify_ws_subscribers(self, operation, instanceIds=None):
         """Publish change notifications after a CRUDE mutation via the
         transport MUX (grpcbridge.transport_mux): STOMP by default —
@@ -105,11 +131,11 @@ class polariCRUDE(treeObject):
         (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
         #Check to ensure user has at least some access.
         if(not "R" in accessQueryDict):
-            response.status = falcon.HTTP_405
-            raise PermissionError("Read or Get requests not allowed at all for this user on this object type.")
+            return self._refuse(response, falcon.HTTP_405,
+                "Read or Get requests not allowed at all for this user on this object type.")
         if(not "R" in permissionQueryDict):
-            response.status = falcon.HTTP_405
-            raise PermissionError("Read or Get requests do not have access to any variables on this object type.")
+            return self._refuse(response, falcon.HTTP_405,
+                "Read or Get requests do not have access to any variables on this object type.")
         jsonObj = {}
         try:
             #Get which instances fall under what is being requested.
@@ -261,13 +287,15 @@ class polariCRUDE(treeObject):
         (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
         #Check to ensure user has at least some access to updates.
         if(not "U" in accessQueryDict):
-            response.status = falcon.HTTP_405
-            raise PermissionError("Update requests not allowed at all for this user on this object type.")
+            return self._refuse(response, falcon.HTTP_405,
+                "Update requests not allowed at all for this user on this object type.")
         #Determines which variables can be updated.
         if(not "U" in permissionQueryDict):
-            response.status = falcon.HTTP_405
-            raise PermissionError("Update requests do not have access to any variables on this object type.")
-        data = request.get_media()
+            return self._refuse(response, falcon.HTTP_405,
+                "Update requests do not have access to any variables on this object type.")
+        data = self._form_parts(request, response)
+        if data is None:
+            return
         singularUpdate = {}
         massUpdateDataSet = []
         for someData in data:
@@ -289,18 +317,28 @@ class polariCRUDE(treeObject):
                 massUpdateDataSet = json.loads(dataSegment)
         if(singularUpdate != {}):
             massUpdateDataSet.append(singularUpdate)
+        if(massUpdateDataSet == []):
+            # Previously a silent 200 no-op — dishonest; say what the
+            # protocol wants.
+            return self._refuse(response, falcon.HTTP_400,
+                "no update payload: send polariId + updateData form "
+                "fields (or massUpdateDataSet).")
         response.status = falcon.HTTP_200
         for instUpdate in massUpdateDataSet:
             instToUpdate = None
             if("polariId" in instUpdate):
-                instToUpdate = self.manager.objectTables[self.apiObject][instUpdate["polariId"]]
+                instToUpdate = self.manager.objectTables[self.apiObject].get(instUpdate["polariId"])
+                if instToUpdate is None:
+                    return self._refuse(response, falcon.HTTP_404,
+                        f"no {self.apiObject} instance with polariId "
+                        f"'{instUpdate['polariId']}'.")
             elif("compositeId" in instUpdate):
                 #TODO Build out functionality to handle composite Ids.
-                response.status = falcon.HTTP_400
-                raise ValueError("Functionality to handle Composite Ids has not been built out yet.")
+                return self._refuse(response, falcon.HTTP_400,
+                    "Functionality to handle Composite Ids has not been built out yet.")
             else:
-                response.status = falcon.HTTP_400
-                raise ValueError("Recieved Update request containing instance update with neither a composite or polari Identifier ('polariId' or 'compositeId') value .")
+                return self._refuse(response, falcon.HTTP_400,
+                    "Received Update request containing instance update with neither a composite or polari Identifier ('polariId' or 'compositeId') value.")
             # xsim-2: objects inside a running simulation's working set
             # are write-locked — refuse honestly naming the run + queue
             # position (reads stay live; refusal, not blocking).
@@ -326,8 +364,8 @@ class polariCRUDE(treeObject):
                     except Exception as e:
                         print(f'[polariCRUDE] DB update-persist FAILED for {self.apiObject}: {e}', flush=True)
             else:
-                response.status = falcon.HTTP_400
-                raise ValueError("Recieved Update request containing a valid instance id, but no updateData to perform the update with.")
+                return self._refuse(response, falcon.HTTP_400,
+                    "Received Update request containing a valid instance id, but no updateData to perform the update with.")
         updatedIds = []
         for instUpdate in massUpdateDataSet:
             if "polariId" in instUpdate:
@@ -347,7 +385,9 @@ class polariCRUDE(treeObject):
         #authUser = request.context.user
         urlParameters = request.query_string
         (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
-        data = request.get_media()
+        data = self._form_parts(request, response)
+        if data is None:
+            return
         dataSets = []
         dataSet = {}
         print(f"[polariCRUDE] Processing multipart data...")
@@ -381,6 +421,11 @@ class polariCRUDE(treeObject):
                 dataSets = json.loads(dataSegment)
         if(dataSet != {}):
             dataSets.append(dataSet)
+        if(dataSets == []):
+            # Previously a silent 200 creating nothing — dishonest.
+            return self._refuse(response, falcon.HTTP_400,
+                "no create payload: send an initParamSets form field "
+                "(JSON array of __init__ kwargs dicts).")
         # xsim-2: a class-wide lock held by a running simulation blocks
         # external creates of that class (423, naming the run).
         lockCheck = self._check_object_lock(None)
@@ -555,36 +600,46 @@ class polariCRUDE(treeObject):
         (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
         #Check to ensure user has at least some access to events.
         if(not "D" in accessQueryDict):
-            response.status = falcon.HTTP_405
-            raise PermissionError("Delete requests not allowed at all for this user on this object type.")
-        data = request.get_media()
+            return self._refuse(response, falcon.HTTP_405,
+                "Delete requests not allowed at all for this user on this object type.")
+        data = self._form_parts(request, response)
+        if data is None:
+            return
         targetInfo = {}
         event = ""
         parametersDict = {}
         for someData in data:
-            # Verbose data logging - commented out for cleaner output
-            # print("data segment name: ",someData.name)
-            # print("data segment content type: ",someData.content_type)
-            # print("data segment: ", someData.data)
             dataSegment = (someData.data).decode("utf-8")
             #Find if target can be found using passed variable info.
             #If the variables passed in do not resolve to exactly one target,
-            #then throw an error.
+            #then refuse.
             if(someData.name == "targetInstance"):
-                targetInfo = json.loads(dataSegment)
-        allowedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=accessQueryDict["D"][self.apiObject] )
+                try:
+                    targetInfo = json.loads(dataSegment)
+                except ValueError:
+                    return self._refuse(response, falcon.HTTP_400,
+                        "targetInstance form field is not valid JSON.")
+        #Refuse an empty target BEFORE resolving — an empty query
+        #matches every instance (and used to 500 as a raw KeyError).
+        if(targetInfo == {}):
+            return self._refuse(response, falcon.HTTP_400,
+                "no target: send a targetInstance form field (JSON "
+                "attribute query, e.g. {\"id\": \"<polariId>\"}).")
+        deleteAccessQuery = accessQueryDict["D"].get(self.apiObject)
+        if deleteAccessQuery is None:
+            return self._refuse(response, falcon.HTTP_403,
+                f"Delete access does not extend to {self.apiObject}.")
+        allowedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=deleteAccessQuery )
         targetResolution = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=targetInfo )
         targetInstance = None
         instancesDeleted = None
         migratedInstances = None
-        #First, check if the target info passed can resolve to a single target.
-        if(targetInfo == {}):
-            raise KeyError("No target Information passed for use in retrieving target.")
         if(len(targetResolution) == 1):
             targetId = list(targetResolution.keys())[0]
             targetInstance = targetResolution[targetId]
             if(targetId not in allowedInstances.keys()):
-                raise PermissionError("Access Permissions do not allow user to delete the targeted instance.")
+                return self._refuse(response, falcon.HTTP_403,
+                    "Access Permissions do not allow user to delete the targeted instance.")
             # xsim-2: a locked object may not be deleted out from under
             # its run (quarantined orphans included — cleanup knob only).
             lockCheck = self._check_object_lock(targetInstance)
@@ -600,11 +655,10 @@ class polariCRUDE(treeObject):
                     cascade = self.objTyping.inheritanceCascade
                     if cascade == 'prevent':
                         childSummary = ', '.join(f'{cls}({len(insts)})' for cls, insts in childRefs.items())
-                        raise ValueError(
+                        return self._refuse(response, falcon.HTTP_409,
                             f"Cannot delete {self.apiObject} id={targetId}: "
                             f"referenced by child instances: {childSummary}. "
-                            f"Delete children first or change cascade policy."
-                        )
+                            f"Delete children first or change cascade policy.")
                     elif cascade == 'cascade':
                         for childClassName, childInsts in childRefs.items():
                             for childInst in childInsts:
@@ -622,9 +676,11 @@ class polariCRUDE(treeObject):
             (instancesDeleted, migratedInstances) = self.manager.deleteTreeNode(className=self.apiObject, nodePolariId=targetId)
         else:
             if(len(targetResolution) == 0):
-                raise ValueError("Target did not resolve and could not retrieve any instances.")
+                return self._refuse(response, falcon.HTTP_404,
+                    "Target did not resolve and could not retrieve any instances.")
             else:
-                raise ValueError("Target resolved for multiple instances, must resolve to only one.")
+                return self._refuse(response, falcon.HTTP_409,
+                    "Target resolved for multiple instances, must resolve to only one.")
         response.media = {"instancesDeleted":instancesDeleted,"migratedInstances":migratedInstances}
         #Take the return value and convert it to a format that can be
         response.status = falcon.HTTP_200
@@ -645,13 +701,15 @@ class polariCRUDE(treeObject):
         (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
         #Check to ensure user has at least some access to events.
         if(not "E" in accessQueryDict):
-            response.status = falcon.HTTP_405
-            raise PermissionError("Event requests not allowed at all for this user on this object type.")
+            return self._refuse(response, falcon.HTTP_405,
+                "Event requests not allowed at all for this user on this object type.")
         #Determines which events can be accessed.
         if(not "E" in permissionQueryDict):
-            response.status = falcon.HTTP_405
-            raise PermissionError("Event requests do not have access to any variables on this object type.")
-        data = request.get_media()
+            return self._refuse(response, falcon.HTTP_405,
+                "Event requests do not have access to any variables on this object type.")
+        data = self._form_parts(request, response)
+        if data is None:
+            return
         targetInfo = {}
         event = ""
         parametersDict = {}
@@ -689,18 +747,22 @@ class polariCRUDE(treeObject):
         targetInstance = None
         #First, check if the target info passed can resolve to a single target.
         if(targetInfo == {}):
-            raise KeyError("No target Information passed for use in retrieving target.")
+            return self._refuse(response, falcon.HTTP_400,
+                "no target: send a targetInstance form field (JSON attribute query).")
         if(len(targetResolution) == 1):
             targetId = list(targetResolution.keys())[0]
             targetInstance = targetResolution[targetId]
             if(targetId not in allowedInstances.keys()):
-                raise PermissionError("Permissions do not allow user to perform events on the targeted instance.")
+                return self._refuse(response, falcon.HTTP_403,
+                    "Permissions do not allow user to perform events on the targeted instance.")
             pass
         else:
             if(len(targetResolution) == 0):
-                raise ValueError("Target did not resolve and could not retrieve any instances.")
+                return self._refuse(response, falcon.HTTP_404,
+                    "Target did not resolve and could not retrieve any instances.")
             else:
-                raise ValueError("Target resolved for multiple instances, must resolve to only one.")
+                return self._refuse(response, falcon.HTTP_409,
+                    "Target resolved for multiple instances, must resolve to only one.")
         #Second, check that the event exists on the target as a function and get parameters.
         eventRef = None
         allParams = []
@@ -710,7 +772,8 @@ class polariCRUDE(treeObject):
             allParams = list(sig.parameters)
             print("Got event ", eventRef, " and parameters list", allParams, " from signature ", sig)
         else:
-            raise ValueError("Event could not be found on target.")
+            return self._refuse(response, falcon.HTTP_404,
+                "Event could not be found on target.")
         #Third, go through parameter options and attempt to resolve all that are found to exist.
         #
         keywordParams = {}

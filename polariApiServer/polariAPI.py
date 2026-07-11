@@ -98,7 +98,8 @@ class polariAPI(treeObject):
     def on_get(self, request, response):
         if(not "R" in self.minAccessDict.keys()):
             response.status = falcon.HTTP_405
-            raise PermissionError("Read or Get requests not allowed on this API.")
+            response.media = {"error": "Read or Get requests not allowed on this API."}
+            return
         jsonObj = {}
         #Get the authorization data, user data, and potential url parameters, which are both commonly relevant to both cases.
         print("Starting GET method.")
@@ -134,52 +135,60 @@ class polariAPI(treeObject):
         
 
     def on_get_collection(self, request, response):
-        if(not "R" in self.allowedMinAccess.keys()):
+        if(not "R" in self.minAccessDict.keys()):
             response.status = falcon.HTTP_405
-            raise PermissionError("Read or Get requests not allowed on this API.")
+            response.media = {"error": "Read or Get requests not allowed on this API."}
+            return
         pass
 
     #Update in CRUD
     def on_put(self, request, response):
-        if(not "U" in self.allowedMinAccess.keys()):
+        if(not "U" in self.minAccessDict.keys()):
             response.status = falcon.HTTP_405
-            raise PermissionError("Update or Put requests not allowed on this API.")
+            response.media = {"error": "Update or Put requests not allowed on this API."}
+            return
         pass
 
     def on_put_collection(self, request, response):
-        if(not "U" in self.allowedMinAccess.keys()):
+        if(not "U" in self.minAccessDict.keys()):
             response.status = falcon.HTTP_405
-            raise PermissionError("Update or Put requests not allowed on this API.")
+            response.media = {"error": "Update or Put requests not allowed on this API."}
+            return
         pass
 
     #Create a single object instance in CRUD
     def on_post(self, request, response):
-        if(not "C" in self.allowedMinAccess.keys()):
+        if(not "C" in self.minAccessDict.keys()):
             response.status = falcon.HTTP_405
-            raise PermissionError("Create or Post requests not allowed on this API.")
+            response.media = {"error": "Create or Post requests not allowed on this API."}
+            return
         pass
 
     def on_post_collection(self, request, response):
-        if(not "C" in self.allowedMinAccess.keys()):
+        if(not "C" in self.minAccessDict.keys()):
             response.status = falcon.HTTP_405
-            raise PermissionError("Create or Post requests not allowed on this API.")
+            response.media = {"error": "Create or Post requests not allowed on this API."}
+            return
         pass
 
     #Delete in CRUD
     def on_delete(self, request, response):
-        if(not "D" in self.allowedMinAccess.keys()):
+        if(not "D" in self.minAccessDict.keys()):
             response.status = falcon.HTTP_405
-            raise PermissionError("Delete requests not allowed on this API.")
+            response.media = {"error": "Delete requests not allowed on this API."}
+            return
         pass
 
     def on_delete_collection(self, request, response):
-        if(not "D" in self.allowedMinAccess.keys()):
+        if(not "D" in self.minAccessDict.keys()):
             response.status = falcon.HTTP_405
-            raise PermissionError("Delete requests not allowed on this API.")
+            response.media = {"error": "Delete requests not allowed on this API."}
+            return
         pass
 
     def on_event(self, request, response):
-        if(not "E" in self.allowedMinAccess.keys()):
+        if(not "E" in self.minAccessDict.keys()):
             response.status = falcon.HTTP_405
-            raise PermissionError("Event requests not allowed on this API.")
+            response.media = {"error": "Event requests not allowed on this API."}
+            return
         pass

@@ -903,7 +903,7 @@ class APIDomainAPI(treeObject):
 
         response.set_header('Powered-By', 'Polari')
 
-    def on_post(self, request, response):
+    def on_post(self, request, response, domain_id=None):
         """
         Create a new APIDomain.
 
@@ -927,6 +927,10 @@ class APIDomainAPI(treeObject):
             "domain": {...}
         }
         """
+        if domain_id is not None:
+            response.status = falcon.HTTP_400
+            response.media = {"success": False, "error": "POST creates a new APIDomain — do not target an id; use PUT to update."}
+            return
         try:
             from polariApiProfiler.apiDomain import APIDomain
 
@@ -1193,7 +1197,7 @@ class APIEndpointAPI(treeObject):
 
         response.set_header('Powered-By', 'Polari')
 
-    def on_post(self, request, response):
+    def on_post(self, request, response, endpoint_id=None):
         """
         Create a new APIEndpoint.
 
@@ -1219,6 +1223,10 @@ class APIEndpointAPI(treeObject):
             "endpoint": {...}
         }
         """
+        if endpoint_id is not None:
+            response.status = falcon.HTTP_400
+            response.media = {"success": False, "error": "POST creates a new APIEndpoint — do not target an id; use PUT to update."}
+            return
         try:
             from polariApiProfiler.apiEndpoint import APIEndpoint
 

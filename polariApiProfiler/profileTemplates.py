@@ -809,6 +809,16 @@ def get_data_from_response(response_data: Any, profile_name: str) -> Any:
     return current
 
 
+# Legacy module-level constants (pre-FORMAT_PROFILES API) — aliases so
+# older callers/tests keep working; the FORMAT_PROFILES entries above
+# stay the single source of truth.
+POLARI_CRUDE_RESPONSE = FORMAT_PROFILES['polariCrude']
+POLARI_ERROR_RESPONSE = FORMAT_PROFILES['polariError']
+POLARI_SUCCESS_RESPONSE = FORMAT_PROFILES['polariSuccess']
+PAGINATION_RESPONSE = FORMAT_PROFILES['paginated']
+REST_COLLECTION_RESPONSE = FORMAT_PROFILES['uniformArray']
+REST_RESOURCE_RESPONSE = FORMAT_PROFILES['singleObject']
+
 # Legacy compatibility - map old template names
 LEGACY_TEMPLATE_MAP = {
     'PolariCRUDEResponse': 'polariCrude',

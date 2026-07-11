@@ -128,6 +128,12 @@ def resolve_for_space(manager, space_name, multiscale_name=''):
         global_value=getattr(global_row, 'xr_framing', ''),
         builtin=BUILTIN_FRAMING,
     )
+    def _rung(row):
+        if row is None:
+            return None
+        return {'mode': getattr(row, 'xr_mode', 'unset') or 'unset',
+                'framing': getattr(row, 'xr_framing', 'unset') or 'unset'}
+
     return {
         'spaceName': space_name,
         'multiscaleName': multiscale_name or '',
@@ -137,4 +143,14 @@ def resolve_for_space(manager, space_name, multiscale_name=''):
         'framingResolvedFrom': framing_from,
         'category': category,
         'categorySource': category_source,
+        # The raw ladder — evidence for the provenance UI ("why is
+        # there no VR button" answers itself). None = rung absent
+        # (no msim context / no type row for the category).
+        'rungs': {
+            'individual': _rung(space),
+            'multiscale': _rung(msim),
+            'type': _rung(type_row),
+            'global': _rung(global_row),
+        },
+        'typeDefaultName': getattr(type_row, 'name', '') if type_row else '',
     }

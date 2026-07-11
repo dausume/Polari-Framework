@@ -66,7 +66,7 @@ class CRUDEAPITestCase(unittest.TestCase):
         cls.manager.getObjectTyping(classObj=TestObject)
 
         # Register CRUDE endpoint for TestObject (required when registering types after server init)
-        cls.manager.polServer.registerCRUDEforObjectType('TestObject')
+        cls.manager.polServer.registerCRUDEforObjectType('TestObject', overrideExclusion=True)
 
         # Get the Falcon app for testing
         cls.app = cls.manager.polServer.falconServer
@@ -434,7 +434,7 @@ class CRUDEEndpointTestCase(unittest.TestCase):
         """Set up test fixtures"""
         cls.manager = managerObject(hasServer=True)
         cls.manager.getObjectTyping(classObj=TestObject)
-        cls.manager.polServer.registerCRUDEforObjectType('TestObject')
+        cls.manager.polServer.registerCRUDEforObjectType('TestObject', overrideExclusion=True)
         cls.app = cls.manager.polServer.falconServer
         cls.client = testing.TestClient(cls.app)
 

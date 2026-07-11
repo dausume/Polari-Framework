@@ -378,18 +378,19 @@ class SolutionCodeGeneratorAPI(treeObject):
         try:
             runtime = request.get_param('runtime') or 'python_backend'
 
-            # Find the solution in stored SolutionDefinitions
+            # Find the solution in stored SolutionDefinitions. Instances
+            # live in manager.objectTables — polyTypedObject has no
+            # instancesDict (that attribute never existed; this handler
+            # 500'd on every call until the API sweep caught it).
             solution_data = None
-            for className, polyTypedObj in self.manager.objectTypingDict.items():
-                if className == 'SolutionDefinition':
-                    for inst_id, inst in polyTypedObj.instancesDict.items():
-                        if getattr(inst, 'name', '') == solutionName:
-                            definition_str = getattr(inst, 'definition', '{}')
-                            try:
-                                solution_data = json.loads(definition_str) if isinstance(definition_str, str) else definition_str
-                            except:
-                                solution_data = None
-                            break
+            for inst in (self.manager.objectTables.get(
+                    'SolutionDefinition', {}) or {}).values():
+                if getattr(inst, 'name', '') == solutionName:
+                    definition_str = getattr(inst, 'definition', '{}')
+                    try:
+                        solution_data = json.loads(definition_str) if isinstance(definition_str, str) else definition_str
+                    except:
+                        solution_data = None
                     break
 
             if not solution_data:
