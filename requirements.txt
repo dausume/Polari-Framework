@@ -9,6 +9,9 @@ PyJWT[crypto]==2.10.1
 psutil==5.9.8
 pycparser==2.21
 PyYAML==6.0.2
+# acct-3: code coverage for the accountability matrix
+# (POLARI_COVERAGE=true wraps every subprocess check).
+coverage==7.6.10
 requests==2.32.5
 setuptools==70.0.0
 svgwrite==1.4.3

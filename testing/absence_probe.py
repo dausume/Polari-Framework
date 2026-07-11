@@ -47,6 +47,8 @@ def main():
     check('no /api/accountability route',
           not any(p.startswith('/api/accountability')
                   for p in routes))
+    check('no /api/testing route (lease handle is test-build-only)',
+          not any(p.startswith('/api/testing') for p in routes))
     check('no CapabilityCheck CRUDE route',
           not any('CapabilityCheck' in p for p in routes))
     check('testing classes absent from defClassList',

@@ -25,17 +25,22 @@ DEFAULT_RESULTS_DIR = os.path.join(FRAMEWORK_ROOT, 'test-results')
 def report_dict(run_record):
     """Project a matrix run record into the versioned report schema
     (plan §1)."""
+    run = {
+        'id': run_record['id'],
+        'started_at': run_record['started_at'],
+        'finished_at': run_record['finished_at'],
+        'build': run_record['build'],
+        'environment': run_record['environment'],
+        'totals': run_record['totals'],
+        'blocking_green': run_record['blocking_green'],
+    }
+    # Optional, additive (schema stays v1): present only when the
+    # POLARI_COVERAGE knob was on for this run.
+    if run_record.get('coverage'):
+        run['coverage'] = run_record['coverage']
     return {
         'report_version': REPORT_VERSION,
-        'run': {
-            'id': run_record['id'],
-            'started_at': run_record['started_at'],
-            'finished_at': run_record['finished_at'],
-            'build': run_record['build'],
-            'environment': run_record['environment'],
-            'totals': run_record['totals'],
-            'blocking_green': run_record['blocking_green'],
-        },
+        'run': run,
         'checks': [
             {'name': row['name'], 'category': row['category'],
              'criticality': row['criticality'],

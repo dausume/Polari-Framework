@@ -48,6 +48,18 @@ LIVE_SMOKE_SUGGESTION = (
     'POLARI_SMOKE_BASE_URL at a running instance.')
 
 
+def coverage_enabled():
+    """acct-3: the coverage knob — POLARI_COVERAGE=true wraps every
+    python subprocess check in `coverage run --parallel-mode` and
+    the matrix combines the data files into one report per run."""
+    raw = (os.environ.get('POLARI_COVERAGE') or '').strip().lower()
+    return raw in ('1', 'true', 'yes', 'on')
+
+
+def coverage_data_file():
+    return os.path.join(FRAMEWORK_ROOT, 'test-results', '.coverage')
+
+
 def _subprocess_env(scrub_test_build=False):
     env = dict(os.environ)
     env['PYTHONUNBUFFERED'] = '1'
@@ -55,15 +67,31 @@ def _subprocess_env(scrub_test_build=False):
     env['PYTHONPATH'] = os.pathsep.join(
         [FRAMEWORK_ROOT, modules_dir]
         + ([env['PYTHONPATH']] if env.get('PYTHONPATH') else []))
+    if coverage_enabled():
+        env['COVERAGE_FILE'] = coverage_data_file()
     if scrub_test_build:
         env.pop('POLARI_TEST_BUILD', None)
         env.pop('POLARI_MODULES', None)
     return env
 
 
+def _maybe_coverage(cmd):
+    """Rewrite `python3 [-m mod | script]` to run under coverage.
+    Docker-fixture checks measure nothing extra (the containers run
+    their own interpreters) — honest scope: in-process python only."""
+    if not coverage_enabled() or cmd[:1] != ['python3']:
+        return cmd
+    prefix = ['python3', '-m', 'coverage', 'run', '--parallel-mode',
+              '--source', FRAMEWORK_ROOT]
+    if cmd[1:2] == ['-m']:
+        return prefix + ['-m'] + cmd[2:]
+    return prefix + cmd[1:]
+
+
 def _run(cmd, timeout, scrub_test_build=False):
     """(exit_code, merged_output, duration_ms) — never raises."""
     start = time.monotonic()
+    cmd = _maybe_coverage(cmd)
     try:
         proc = subprocess.run(
             cmd, cwd=FRAMEWORK_ROOT, timeout=timeout,

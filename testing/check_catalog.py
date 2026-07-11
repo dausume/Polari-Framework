@@ -207,11 +207,26 @@ def _transport_entries():
             for name, kind, fn, description in rows]
 
 
+def _twin_entries():
+    """acct-3: the compose-driven coherence rehearsal."""
+    return [_entry(
+        name='twin:rehearsal', category='twin', kind='compose',
+        runner_kind='callable',
+        runner_ref='testing.twin_checks:check_twin_rehearsal',
+        description='Throwaway core+m+n containers: module-gating '
+                    'separation, directory routing (addressable '
+                    'tie-break), rung-4 traversal, un-leased write '
+                    'refusal, leased dual-journal remote write, '
+                    'zombie fencing, clean teardown — the xsim-6/'
+                    'modsplit rehearsal as one repeatable command.')]
+
+
 def catalog_checks():
     """The full check catalog, deterministically ordered
     (category, name). Pure data — no manager, no side effects."""
     entries = (_suite_entries() + _selftest_entries()
-               + _substrate_entries() + _transport_entries())
+               + _substrate_entries() + _transport_entries()
+               + _twin_entries())
     for entry in entries:
         override = CATEGORY_OVERRIDES.get(entry['name'])
         if override:

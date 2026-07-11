@@ -866,6 +866,11 @@ class polariServer(treeObject):
             from testing.accountability_api import AccountabilityAPI
             accountabilityEndpoint = AccountabilityAPI(
                 polServer=self, manager=self.manager)
+            # acct-3: the twin rehearsal's out-of-process lease
+            # handle (production keeps NO HTTP lease surface).
+            from testing.twin_lease_api import TwinLeaseAPI
+            twinLeaseEndpoint = TwinLeaseAPI(
+                polServer=self, manager=self.manager)
 
         # Topology orchestration: graph/validate/assign/drift/observe
         # + portable package export/import (top-1).

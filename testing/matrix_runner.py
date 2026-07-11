@@ -77,6 +77,48 @@ def environment_stamp():
             'containers_up': _containers_up()}
 
 
+def collect_coverage(results_dir, log=print):
+    """acct-3: when POLARI_COVERAGE is on, combine the per-check
+    parallel data files into test-results/coverage.json and return
+    {percent, files, report} — None when the knob is off. The
+    combined report only measures in-process python checks (docker
+    fixtures run their own interpreters — stated, not hidden)."""
+    from testing.check_runners import (
+        coverage_data_file, coverage_enabled,
+    )
+    from testing.report_yaml import DEFAULT_RESULTS_DIR
+    if not coverage_enabled():
+        return None
+    results_dir = results_dir or DEFAULT_RESULTS_DIR
+    os.makedirs(results_dir, exist_ok=True)
+    json_path = os.path.join(results_dir, 'coverage.json')
+    env = dict(os.environ, COVERAGE_FILE=coverage_data_file())
+    try:
+        subprocess.run(['python3', '-m', 'coverage', 'combine'],
+                       cwd=FRAMEWORK_ROOT, env=env, timeout=300,
+                       stdout=subprocess.DEVNULL,
+                       stderr=subprocess.STDOUT)
+        subprocess.run(['python3', '-m', 'coverage', 'json',
+                        '-o', json_path, '-q'],
+                       cwd=FRAMEWORK_ROOT, env=env, timeout=300,
+                       stdout=subprocess.DEVNULL,
+                       stderr=subprocess.STDOUT)
+        with open(json_path) as handle:
+            totals = json.load(handle).get('totals', {})
+        summary = {'percent': round(
+                       totals.get('percent_covered', 0.0), 2),
+                   'files': len(json.load(open(json_path))
+                                .get('files', {})),
+                   'report': json_path}
+        log(f"[matrix] coverage {summary['percent']}% across "
+            f"{summary['files']} files -> {json_path}")
+        return summary
+    except Exception as exc:
+        log(f'[matrix] coverage collection failed: {exc}')
+        return {'percent': None, 'files': 0,
+                'error': f'{type(exc).__name__}: {exc}'}
+
+
 def select_checks(category=None, names=None):
     entries = catalog_checks()
     if category:
@@ -124,7 +166,8 @@ def run_matrix(category=None, names=None, manager=None,
               'environment': environment_stamp(),
               'totals': compute_totals(results),
               'blocking_green': compute_blocking_green(results),
-              'results': results, 'report_path': ''}
+              'results': results, 'report_path': '',
+              'coverage': collect_coverage(results_dir, log=log)}
     record['report_path'] = write_report(record,
                                          results_dir=results_dir)
     if manager is not None:
