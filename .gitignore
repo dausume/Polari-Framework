@@ -13,3 +13,5 @@ data/
 # Claude Code local files (settings, memory) — keep private
 .claude/
 CLAUDE.local.md
+# acct-0: matrix run reports are artifacts, not source
+test-results/

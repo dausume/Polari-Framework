@@ -34,6 +34,21 @@ CORE_PACKAGES = frozenset({
     'objectTreeDecorators', 'objectTreeManagerDecorators', '__main__',
 })
 
+# Opt-in packages NEVER ride the unset-knob monolithic default (acct-0:
+# test objects load ONLY in test builds). They register only when
+# POLARI_MODULES names them explicitly or POLARI_TEST_BUILD is set —
+# a normal build's clean absence is itself a pinned behavior
+# (testing.absence_probe asserts it).
+OPT_IN_PACKAGES = frozenset({'testing'})
+
+
+def is_test_build() -> bool:
+    """The test-build knob: POLARI_TEST_BUILD=true (Dockerfile.test
+    lineage). Enables opt-in packages without having to enumerate
+    every other module in POLARI_MODULES."""
+    raw = (os.environ.get('POLARI_TEST_BUILD') or '').strip().lower()
+    return raw in ('1', 'true', 'yes', 'on')
+
 
 def enabled_module_names() -> Optional[Set[str]]:
     """None = all modules (knob unset — monolithic default)."""
@@ -52,6 +67,10 @@ def module_enabled(package: str) -> bool:
     if package in CORE_PACKAGES:
         return True
     enabled = enabled_module_names()
+    if package in OPT_IN_PACKAGES:
+        if is_test_build():
+            return True
+        return enabled is not None and package in enabled
     return True if enabled is None else package in enabled
 
 

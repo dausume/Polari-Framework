@@ -73,6 +73,9 @@ COPY --from=builder /build /build
 ENV PATH="/opt/venv/bin:$PATH"
 ENV IN_DOCKER_CONTAINER=true
 ENV DEPLOY_ENV=test
+# acct-0: THE test-build knob — enables the opt-in testing/ module
+# (accountability matrix). Normal images never set this.
+ENV POLARI_TEST_BUILD=true
 ENV FREETYPE_VERSION=2.6.1
 ENV FREETYPE_DIR=/build/freetype-2.6.1
 ENV FREETYPE_ROOT=$FREETYPE_DIR
@@ -84,5 +87,10 @@ COPY . /app
 # Make test runner executable
 RUN chmod +x /app/run_tests.py
 
-# Default command runs tests
-CMD ["python3", "run_tests.py"]
+# acct-0: "full test suite" is a build target — the default command
+# runs the whole capability matrix (which wraps run_tests.py's
+# unittest files, every module selftest, and the live/absence
+# probes), writes test-results/test-report.yaml, and exits 0 iff
+# blocking_green. `python3 run_tests.py` remains available for the
+# quick unittest-only subset.
+CMD ["python3", "-m", "testing.run_matrix"]

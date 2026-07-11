@@ -310,6 +310,12 @@ from resources.profile_seed import SEED_MODULE_RESOURCE_PROFILES
 from polariDataTyping.schema_stability_basis import (
     SchemaDeviationEvent, SchemaStabilityProfile,
 )
+# Testing accountability spine (acct-0): checks as tree objects.
+# TEST-BUILD ONLY — `testing` is an OPT_IN package (module_gating),
+# so these classes register/seed only under POLARI_TEST_BUILD or an
+# explicit POLARI_MODULES entry; import alone registers nothing.
+from testing.capability_basis import CapabilityCheck, CheckRun
+from testing.testing_seed import SEED_CAPABILITY_CHECKS
 # gRPC contracts (grpc-1): per-class exposure KNOB + append-only
 # contract versions, generated from stabilization snapshots only.
 from grpcbridge.contract_basis import (
@@ -852,6 +858,14 @@ class polariServer(treeObject):
         from supplychain.chain_api import SupplyChainAPI
         supplyChainEndpoint = SupplyChainAPI(
             polServer=self, manager=self.manager)
+        # acct-0: the accountability matrix. Endpoint construction is
+        # NOT auto-gated (only defClassList is), so guard explicitly —
+        # a normal build must register no /api/accountability route.
+        from polariApiServer.module_gating import module_enabled
+        if module_enabled('testing'):
+            from testing.accountability_api import AccountabilityAPI
+            accountabilityEndpoint = AccountabilityAPI(
+                polServer=self, manager=self.manager)
 
         # Topology orchestration: graph/validate/assign/drift/observe
         # + portable package export/import (top-1).
@@ -1049,7 +1063,10 @@ class polariServer(treeObject):
             MutationLease, LeaseBreakEvent, ObjectLockEntry,
             LockBreakEvent, SimulationQueueEntry,
             # xsim-4: the remote-write audit ledger.
-            WriteJournalEntry]
+            WriteJournalEntry,
+            # acct-0 accountability spine (TEST BUILDS ONLY — the
+            # module gate below drops these on normal builds).
+            CapabilityCheck, CheckRun]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
         # CRUDE endpoints, and boot restore all key off the typing
@@ -2090,6 +2107,12 @@ class polariServer(treeObject):
             ('XrGlobalSettings', XrGlobalSettings,
              SEED_XR_GLOBAL_SETTINGS),
             ('XrTypeDefault', XrTypeDefault, SEED_XR_TYPE_DEFAULTS),
+            # acct-0: every discovered test surface as a never-run
+            # CapabilityCheck row (skipped on normal builds — the
+            # class is absent from objectTypingDict). CheckRun rows
+            # are never seeded: runs are observed state.
+            ('CapabilityCheck', CapabilityCheck,
+             SEED_CAPABILITY_CHECKS),
         ]
         # Old demo-3d description (used as the "untouched" signature). If
         # the existing demo-3d row still has this verbatim, we treat it

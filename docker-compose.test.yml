@@ -17,9 +17,16 @@ services:
       - DEPLOY_ENV=test
       - IN_DOCKER_CONTAINER=true
       - PYTHONUNBUFFERED=1
+      # acct-0: the test-build knob — loads the opt-in testing/
+      # module (accountability matrix). Normal builds never set it.
+      - POLARI_TEST_BUILD=true
     # Tests will run and container will exit when complete
     # Use --abort-on-container-exit flag to stop all containers when tests finish
-    command: python3 run_tests.py
+    # acct-0: the full capability matrix; exit code mirrors
+    # blocking_green, test-results/test-report.yaml is the
+    # pipeline-readable outcome. `python3 run_tests.py` is still
+    # the quick unittest-only subset.
+    command: python3 -m testing.run_matrix
     # Optional: Mount volume for test results or coverage reports
     volumes:
       - ./test-results:/app/test-results:rw
