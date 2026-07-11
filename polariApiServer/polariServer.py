@@ -223,6 +223,7 @@ from mathshapes.tower_basis import AquaponicTowerDefinition
 from mathshapes.tower_seed import SEED_TOWERS
 # CAD import/export via cad-engines worker + MinIO (shape-3).
 from mathshapes.cad_basis import ImportedCadObject
+from polariRefs.write_journal import WriteJournalEntry
 from simulationLocks.lease import LeaseBreakEvent, MutationLease
 from simulationLocks.object_locks import LockBreakEvent, ObjectLockEntry
 from simulationLocks.sim_queue import SimulationQueueEntry
@@ -1035,7 +1036,9 @@ class polariServer(treeObject):
             # xsim-2 single-writer machinery: lease + object locks +
             # queue (persisted rows — the queue survives restart).
             MutationLease, LeaseBreakEvent, ObjectLockEntry,
-            LockBreakEvent, SimulationQueueEntry]
+            LockBreakEvent, SimulationQueueEntry,
+            # xsim-4: the remote-write audit ledger.
+            WriteJournalEntry]
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
         for defClass in self.defClassList:
             className = defClass.__name__

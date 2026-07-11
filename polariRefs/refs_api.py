@@ -48,6 +48,10 @@ class PolariRefsAPI(treeObject):
         if polServer is not None:
             polServer.falconServer.add_route(
                 '/api/refs/resolve', self, suffix='resolve')
+            polServer.falconServer.add_route(
+                '/api/refs/write', self, suffix='write')
+            polServer.falconServer.add_route(
+                '/api/refs/journal', self, suffix='journal')
 
     def on_post_resolve(self, request, response):
         try:
@@ -79,3 +83,48 @@ class PolariRefsAPI(treeObject):
         else:
             media.update(_serializable(result['object']))
         response.media = media
+
+    def on_post_write(self, request, response):
+        """xsim-4 automated remote write. The run context comes from
+        the X-Polari-Run-Id + X-Polari-Lease-Token headers (the
+        remote-API presentation shape) or the ambient gated run —
+        without a valid fencing token the write is refused AND
+        journaled (zombie evidence, never silence)."""
+        from polariRefs.remote_writes import write_remote
+        try:
+            body = request.get_media() or {}
+        except Exception:
+            body = {}
+        ref = body.get('ref')
+        fields = body.get('fields')
+        if not isinstance(ref, dict) or not isinstance(fields, dict):
+            response.status = falcon.HTTP_400
+            response.media = {'ok': False,
+                              'error': "body needs {'ref': {...}, "
+                                       "'fields': {...}}"}
+            return
+        run_context = None
+        header_run = request.get_header('X-Polari-Run-Id')
+        header_token = request.get_header('X-Polari-Lease-Token')
+        if header_run or header_token:
+            try:
+                run_context = {'run_id': header_run or '',
+                               'lease_token': int(header_token or 0)}
+            except (TypeError, ValueError):
+                run_context = {'run_id': header_run or '',
+                               'lease_token': 0}
+        result = write_remote(self.manager, ref, fields,
+                              run_context=run_context)
+        if not result['ok']:
+            refusal = result['refusal']
+            response.status = falcon.HTTP_423 \
+                if 'fenced out' in refusal.get('error', '') \
+                else falcon.HTTP_403
+            response.media = {'ok': False, 'refusal': refusal}
+            return
+        response.media = result
+
+    def on_get_journal(self, request, response):
+        from polariRefs.write_journal import journal_rows
+        response.media = {'ok': True, 'entries': journal_rows(
+            self.manager, request.get_param('run') or '')}

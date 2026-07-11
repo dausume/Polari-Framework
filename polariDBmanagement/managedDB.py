@@ -348,6 +348,74 @@ class managedDatabase(managedFile):
             dbConnection.close()
         return {'ok': True, 'columns': columnNames, 'rows': rows}
 
+    def getAllInTableAllScopes(self, tableName):
+        """xsim-4 shared lock table: read a table ACROSS every
+        instance scope (unscoped SELECT) — used by the object-lock
+        enforcement sweep so instance b refuses writes to rows locked
+        by instance a's run. Read-only; refuses when sharing is off."""
+        if not self.instanceScope:
+            return {'ok': False,
+                    'error': 'shared object DB is off '
+                             '(POLARI_SHARED_OBJECT_DB)'}
+        dbConnection = self.adapter.connect()
+        try:
+            dbCursor = dbConnection.cursor()
+            dbCursor.execute('SELECT * FROM ' + tableName + ';')
+            rows = dbCursor.fetchall()
+            columnNames = [column[0] for column in dbCursor.description]
+        except Exception as e:
+            return {'ok': False,
+                    'error': f"cross-scope read of '{tableName}' "
+                             f'failed: {e}'}
+        finally:
+            dbConnection.close()
+        return {'ok': True, 'columns': columnNames, 'rows': rows}
+
+    def updateRowForInstance(self, tableName, rowId, fields,
+                             instanceScope):
+        """xsim-4 automated remote write: parameterized UPDATE of ONE
+        row owned by another instance (`_instance_id = instanceScope`).
+        Callers MUST have validated the fencing token first — this is
+        the mechanical seam, not the policy seam. Field names are
+        identifier-checked (never interpolated raw)."""
+        if not self.instanceScope:
+            return {'ok': False,
+                    'error': 'shared object DB is off '
+                             '(POLARI_SHARED_OBJECT_DB)'}
+        clean = {k: v for k, v in (fields or {}).items()
+                 if isinstance(k, str) and k.isidentifier()
+                 and not k.startswith('_')}
+        if not clean:
+            return {'ok': False,
+                    'error': 'no writable fields (identifiers only, '
+                             'never _-prefixed infrastructure columns)'}
+        ph = self.adapter.placeholder
+        setClause = ', '.join(f'`{k}` = {ph}' for k in clean)
+        commandString = (f'UPDATE {tableName} SET {setClause} '
+                         f'WHERE id = {ph} AND _instance_id = {ph};')
+        dbConnection = self.adapter.connect()
+        try:
+            dbCursor = dbConnection.cursor()
+            dbCursor.execute(commandString,
+                             tuple(clean.values())
+                             + (str(rowId), str(instanceScope)))
+            affected = dbCursor.rowcount
+            dbConnection.commit()
+        except Exception as e:
+            return {'ok': False,
+                    'error': f"remote write to '{tableName}' id "
+                             f"'{rowId}' @ '{instanceScope}' "
+                             f'failed: {e}'}
+        finally:
+            dbConnection.close()
+        if affected == 0:
+            return {'ok': False,
+                    'error': f"no {tableName} row id '{rowId}' owned "
+                             f"by instance '{instanceScope}' — "
+                             'nothing written'}
+        return {'ok': True, 'rowsAffected': affected,
+                'fieldsChanged': sorted(clean)}
+
     #Uses a Directory Path and file name together with a class name to import a specific class
     #The Directory Path must exist either at the same location the class is defined or at 
     #Then creates a table by grabbing data from that Class, with all data types set to Text.

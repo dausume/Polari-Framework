@@ -68,6 +68,7 @@ def _mgr():
             'SchemaStabilityProfile': {profile.id: profile}},
         objectTyping=[],
         dynamicClasses={},
+        idList=[],
         db=_FakeDB({'DemotedThing': (demoted_columns, demoted_rows)}),
     ), rod
 
@@ -353,6 +354,94 @@ if __name__ == '__main__':
                                    'name': 'not-on-b'})
     check("missing peer row → refusal names the owner instance",
           not result['ok'] and "'b'" in result['refusal']['error'])
+
+    print('xsim-4 — automated remote writes + journal + zombie')
+    from polariRefs.remote_writes import write_remote
+    from polariRefs.write_journal import journal_rows
+    from simulationLocks.lease import acquire_lease, release_lease
+    from simulationLocks.object_locks import check_write
+
+    class _WritableSharedDB(_SharedDB):
+        def __init__(self):
+            super().__init__(on=True)
+            self.updates = []
+            self.shared_lock_rows = []
+
+        def updateRowForInstance(self, table, row_id, fields, scope):
+            clean = {k: v for k, v in fields.items()
+                     if k.isidentifier() and not k.startswith('_')}
+            self.updates.append((table, row_id, clean, scope))
+            return {'ok': True, 'rowsAffected': 1,
+                    'fieldsChanged': sorted(clean)}
+
+        def getAllInTableAllScopes(self, table):
+            if table != 'ObjectLockEntry':
+                return {'ok': False, 'error': 'not stubbed'}
+            columns = ['name', 'run_id', 'class_name', 'selector_kind',
+                       'selector_value', 'status', 'tag']
+            return {'ok': True, 'columns': columns,
+                    'rows': list(self.shared_lock_rows)}
+
+        def saveInstanceInDB(self, row):
+            return True
+
+    manager.db = _WritableSharedDB()
+    write_ref = {'kind': 'objectRef', 'authority': {'instance': 'b'},
+                 'className': 'MaterialScaleDefinition',
+                 'name': 'steel-rod'}
+    result = write_remote(manager, write_ref, {'notes': 'x'},
+                          run_context={'run_id': 'run-zombie',
+                                       'lease_token': 0})
+    check('write without a held lease refused + JOURNALED (zombie '
+          'leaves evidence)',
+          not result['ok']
+          and any(e['outcome'] == 'refused-stale-token'
+                  for e in journal_rows(manager, 'run-zombie')))
+    granted = acquire_lease(manager, 'run-W')
+    live_token = granted['token']
+    result = write_remote(manager, write_ref,
+                          {'notes': 'set by run-W',
+                           '_instance_id': 'EVIL'},
+                          run_context={'run_id': 'run-W',
+                                       'lease_token': live_token})
+    check('live-token write APPLIES via owner-scoped UPDATE',
+          result['ok'] and manager.db.updates[-1][3] == 'b'
+          and manager.db.updates[-1][1] == 'AAAAAAAA1')
+    check('infrastructure columns are never writable',
+          '_instance_id' not in manager.db.updates[-1][2])
+    check('undeclared target lazily escalated a lock (advisor '
+          'evidence)', result['escalatedLock'] is not None)
+    check('applied write journaled with the epoch',
+          any(e['outcome'] == 'applied'
+              and e['tokenEpoch'] == live_token
+              for e in journal_rows(manager, 'run-W')))
+    result2 = write_remote(manager, write_ref, {'notes': 'again'},
+                           run_context={'run_id': 'run-W',
+                                        'lease_token': live_token})
+    check('second write rides the escalated lock (no re-escalation)',
+          result2['ok'] and result2['escalatedLock'] is None)
+    result = write_remote(manager, dict(write_ref, name='not-on-b'),
+                          {'notes': 'x'},
+                          run_context={'run_id': 'run-W',
+                                       'lease_token': live_token})
+    check('missing owner row → refused-write-failed journaled',
+          not result['ok']
+          and any(e['outcome'] == 'refused-write-failed'
+                  for e in journal_rows(manager, 'run-W')))
+    release_lease(manager, 'run-W', live_token)
+    stale = write_remote(manager, write_ref, {'notes': 'late'},
+                         run_context={'run_id': 'run-W',
+                                      'lease_token': live_token})
+    check('released epoch presented later → fenced out honestly',
+          not stale['ok']
+          and 'fenced out' in stale['refusal']['error'])
+    manager.db.shared_lock_rows = [
+        ('peer-lock-1', 'run-on-b', 'SharedThing', 'name',
+         'contested', 'held', 'declared')]
+    swept = check_write(manager, 'SharedThing', obj_name='contested')
+    check("SHARED lock table sweep: another instance's lock refuses "
+          'local writes',
+          not swept['allowed'] and swept['lockedBy'] == 'run-on-b')
 
     total, green = len(_results), sum(_results)
     print(f'\n{green}/{total} checks green')

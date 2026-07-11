@@ -234,12 +234,51 @@ def escalate_lock(manager, run_id: str, token_epoch: int,
             'note': 'undeclared-touch (advisor evidence)'}
 
 
+class _SweptLock:
+    """A lock row read from the SHARED lock table (another instance's
+    scope) — same duck shape as ObjectLockEntry for matching."""
+
+    def __init__(self, fields: Dict):
+        self.name = fields.get('name', '')
+        self.run_id = fields.get('run_id', '')
+        self.class_name = fields.get('class_name', '')
+        self.selector_kind = fields.get('selector_kind', '')
+        self.selector_value = fields.get('selector_value', '')
+        self.status = fields.get('status', '')
+        self.tag = fields.get('tag', '')
+
+
+def _shared_locks(manager) -> List:
+    """xsim-4: shared-DB instances share ONE lock table — the sweep
+    that lets instance b refuse writes to rows locked by instance a's
+    run. Honest no-op when sharing is off/unreadable."""
+    db = getattr(manager, 'db', None)
+    if db is None or not hasattr(db, 'getAllInTableAllScopes'):
+        return []
+    try:
+        table = db.getAllInTableAllScopes('ObjectLockEntry')
+    except Exception:
+        return []
+    if not (isinstance(table, dict) and table.get('ok')):
+        return []
+    local_names = {lock.name for lock in held_locks(manager)}
+    swept = []
+    for row in table.get('rows') or []:
+        fields = dict(zip(table.get('columns') or [], row))
+        lock = _SweptLock(fields)
+        if lock.status in ('held', 'quarantined') \
+                and lock.name not in local_names:
+            swept.append(lock)
+    return swept
+
+
 def check_write(manager, class_name: str, obj_id: str = '',
                 obj_name: str = '', run_id: str = '') -> Dict:
     """The enforcement seam (CRUDE PUT/POST/DELETE + saveInstanceInDB
     callers): allowed unless a lock held by ANOTHER run covers the
-    object. Refusals name the run and its queue position."""
-    for lock in held_locks(manager):
+    object — including locks in the SHARED lock table placed by a
+    peer instance's run. Refusals name the run and queue position."""
+    for lock in held_locks(manager) + _shared_locks(manager):
         if lock.class_name != class_name or lock.run_id == run_id:
             continue
         if selector_matches(lock, obj_id=obj_id, obj_name=obj_name):
