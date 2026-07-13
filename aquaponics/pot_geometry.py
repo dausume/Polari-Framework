@@ -31,8 +31,9 @@ geometry actually does.
 import math
 
 from aquaponics.pot_basis import (
-    IDEAL_SIDE_SEPARATION_DEG, MAX_ABS_ANGLE_DEG,
-    MIN_OUTPUT_DOWNHILL_DEG, MIN_SIDE_SEPARATION_DEG,
+    IDEAL_SIDE_SEPARATION_DEG, MAX_ABS_ANGLE_DEG, MAX_WALL_THICKNESS_FRACTION,
+    MIN_BASE_THICKNESS_MM, MIN_HOLE_DIAMETER_MM, MIN_OUTPUT_DOWNHILL_DEG,
+    MIN_SIDE_SEPARATION_DEG, MIN_WALL_THICKNESS_MM,
     RECOMMENDED_OUTPUT_DOWNHILL_DEG,
 )
 
@@ -107,6 +108,8 @@ def validate_pot(manager, pot_name):
     height = _f(pot, 'height_mm')
     base_th = _f(pot, 'base_thickness_mm')
     wall_th = _f(pot, 'wall_thickness_mm')
+    min_outer_radius = min(_f(pot, 'outer_top_diameter_mm', 200.0),
+                           _f(pot, 'outer_base_diameter_mm', 200.0)) / 2.0
     holes = _holes_of(manager, pot_name)
     inputs = [h for h in holes if getattr(h, 'kind', '') == 'input']
     outputs = [h for h in holes if getattr(h, 'kind', '') == 'output']
@@ -133,12 +136,42 @@ def validate_pot(manager, pot_name):
                 'hole to drain excess by gravity', 'PotHole.kind',
                 "add a PotHole with kind 'output' near the bottom")
 
+    # 1b. Physical minimums — below these the shell/bore isn't a
+    #     buildable wall/hole (mathshapes clamps to render anyway, but
+    #     this is never silent).
+    if wall_th < MIN_WALL_THICKNESS_MM - 1e-9:
+        finding('wall-too-thin', None,
+                f'wall thickness {wall_th:.1f}mm is below the buildable '
+                f'minimum {MIN_WALL_THICKNESS_MM:.0f}mm',
+                'PotDefinition.wall_thickness_mm',
+                f'raise to at least {MIN_WALL_THICKNESS_MM:.0f}mm')
+    if base_th < MIN_BASE_THICKNESS_MM - 1e-9:
+        finding('base-too-thin', None,
+                f'base thickness {base_th:.1f}mm is below the buildable '
+                f'minimum {MIN_BASE_THICKNESS_MM:.0f}mm',
+                'PotDefinition.base_thickness_mm',
+                f'raise to at least {MIN_BASE_THICKNESS_MM:.0f}mm')
+    max_wall_th = min_outer_radius * MAX_WALL_THICKNESS_FRACTION
+    if wall_th > max_wall_th + 1e-9:
+        finding('wall-too-thick', None,
+                f'wall thickness {wall_th:.1f}mm exceeds '
+                f'{MAX_WALL_THICKNESS_FRACTION * 100:.0f}% of the pot\'s '
+                f'own (smaller) outer radius ({min_outer_radius:.1f}mm) — '
+                'it has effectively eaten the interior',
+                'PotDefinition.wall_thickness_mm',
+                f'lower to at most {max_wall_th:.1f}mm, or widen the pot')
+
     # 2. Per-hole: inside the wall, angle within the tunable limit,
     #    outputs downhill.
     for h in holes:
         d = _f(h, 'diameter_mm')
         angle = _f(h, 'angle_deg')
         lower, upper = _lower_lip_mm(h), _upper_lip_mm(h)
+        if d < MIN_HOLE_DIAMETER_MM - 1e-9:
+            finding('hole-too-small', h,
+                    f'diameter {d:.1f}mm is below the buildable minimum '
+                    f'{MIN_HOLE_DIAMETER_MM:.0f}mm', 'PotHole.diameter_mm',
+                    f'raise to at least {MIN_HOLE_DIAMETER_MM:.0f}mm')
         if lower < base_th:
             finding('breaches-base', h,
                     f'lower lip at {lower:.1f}mm is below the base '

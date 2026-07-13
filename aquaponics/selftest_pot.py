@@ -120,6 +120,50 @@ if __name__ == '__main__':
           all(s['angle_deg'] >= 0 for s in specs
               if s['kind'] == 'output'))
 
+    print('\nphysical minimums (Dustin 2026-07-13): 3mm wall/base, '
+          '1mm hole diameter')
+    thin_pot = [{'name': 'p2', 'shape': 'cylinder',
+                'outer_top_diameter_mm': 200.0,
+                'outer_base_diameter_mm': 200.0, 'height_mm': 250.0,
+                'wall_thickness_mm': 1.0, 'base_thickness_mm': 2.0}]
+    thin_holes = [
+        {'name': 'p2-in', 'pot_name': 'p2', 'kind': 'input',
+         'diameter_mm': 0.5, 'height_mm': 200.0, 'azimuth_deg': 0.0,
+         'angle_deg': 0.0},
+        {'name': 'p2-out', 'pot_name': 'p2', 'kind': 'output',
+         'diameter_mm': 12.0, 'height_mm': 40.0, 'azimuth_deg': 180.0,
+         'angle_deg': 2.0},
+    ]
+    report = validate_pot(_mgr(thin_pot, thin_holes), 'p2')
+    kinds = _kinds(report)
+    check('wall thinner than 3mm flagged', 'wall-too-thin' in kinds)
+    check('base thinner than 3mm flagged', 'base-too-thin' in kinds)
+    check('hole narrower than 1mm flagged', 'hole-too-small' in kinds)
+    check('every physical-minimum finding names a knob',
+          all('knob' in f['suggestion'] for f in report['findings']))
+
+    print('\nphysical CEILING (adversarial-review finding, 2026-07-13): '
+          'a wall that has effectively eaten the interior')
+    thick_pot = [{'name': 'p3', 'shape': 'cylinder',
+                 'outer_top_diameter_mm': 100.0,
+                 'outer_base_diameter_mm': 100.0, 'height_mm': 250.0,
+                 # wall = 45mm on a 50mm outer radius — way past the
+                 # 40% ceiling (20mm) — this is the exact shape that
+                 # used to let a hole's bore punch through BOTH sides
+                 # (mathshapes.shape_modify's hole_length now caps
+                 # against it independently too, see selftest_shape2).
+                 'wall_thickness_mm': 45.0, 'base_thickness_mm': 12.0}]
+    report = validate_pot(_mgr(thick_pot, thin_holes), 'p3')
+    kinds = _kinds(report)
+    check('wall thicker than the pot can physically hold flagged',
+          'wall-too-thick' in kinds)
+    thick_finding = next(f for f in report['findings']
+                         if f['kind'] == 'wall-too-thick')
+    check('wall-too-thick finding names the knob + a concrete bound',
+          thick_finding['suggestion']['knob']
+          == 'PotDefinition.wall_thickness_mm'
+          and 'mm' in thick_finding['suggestion']['action'])
+
     print('\nsize-scaled suggestions + refusals')
     big = SimpleNamespace(outer_top_diameter_mm=600.0,
                           outer_base_diameter_mm=600.0)

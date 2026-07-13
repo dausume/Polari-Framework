@@ -53,6 +53,25 @@ RECOMMENDED_OUTPUT_DOWNHILL_DEG = 2.0
 MIN_SIDE_SEPARATION_DEG = 90.0
 IDEAL_SIDE_SEPARATION_DEG = 180.0
 
+#: Physical floors (Dustin 2026-07-13) — below these the shell/bore
+#: isn't a buildable wall/hole, just a mathematical degenerate. The
+#: math-shape derivation (mathshapes.shape_modify) CLAMPS to these so a
+#: too-thin pot still renders (rather than a negative/zero-radius
+#: crash); validate_pot below still flags the clamp as a finding so it
+#: is never silent.
+MIN_WALL_THICKNESS_MM = 3.0
+MIN_BASE_THICKNESS_MM = 3.0
+MIN_HOLE_DIAMETER_MM = 1.0
+
+#: Physical CEILING (2026-07-13, adversarial-review finding): a wall
+#: thicker than this fraction of the pot's own (smaller) outer radius
+#: has effectively eaten the whole interior — mathshapes.shape_modify
+#: still derives *something* (clamped via the hole-length cap so a
+#: bore can never punch through to the far side), but a pot this
+#: degenerate isn't a buildable vessel. Flagged, not blocked — same
+#: knobs-and-suggestions honesty as the MIN_* floors above.
+MAX_WALL_THICKNESS_FRACTION = 0.4
+
 
 class PotDefinition(treeObject):
     """One parametric self-watering pot."""
@@ -82,6 +101,20 @@ class PotDefinition(treeObject):
         # water store below the soil. 0 = the output holes alone set
         # the maintained level (aqp-3 hydraulics uses this).
         reservoir_height_mm: float = 0.0,
+        # Soil fill height (mm), measured from the INTERIOR floor (the
+        # top of the base slab) — an explicit knob, never a hidden
+        # fraction (aquaponics-pot-shape phase 4). Clamped to the
+        # usable interior height (height_mm - base_thickness_mm) by
+        # mathshapes.soil_modify.soil_shape_from_definition if it
+        # would otherwise poke above the rim.
+        soil_fill_height_mm: float = 180.0,
+        # Per-layer transparency toggles (aquaponics-pot-shape phase 5)
+        # — explicit knobs, never a hidden "make everything see-through"
+        # switch. Each swaps that layer's render style between the
+        # opaque seed material and its '-transparent' variant
+        # (simSpace3D/seed_data.py) the next time the pot re-derives.
+        wall_transparent: bool = False,
+        soil_transparent: bool = False,
         notes: str = '',
         manager=None,
     ):
@@ -96,6 +129,9 @@ class PotDefinition(treeObject):
         self.base_thickness_mm = base_thickness_mm
         self.material_name = material_name
         self.reservoir_height_mm = reservoir_height_mm
+        self.soil_fill_height_mm = soil_fill_height_mm
+        self.wall_transparent = wall_transparent
+        self.soil_transparent = soil_transparent
         self.notes = notes
 
 

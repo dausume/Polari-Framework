@@ -379,6 +379,8 @@ from materialsScience.wax_multiscale_seed import (
 )
 # The materials-basis + formulation-search DisplayDefinition pages.
 from materialsScience.msci_pages_seed import SEED_MSCI_PAGE_DISPLAYS
+# The aquaponics-pot-shape phase 2 pot-geometry-editor DisplayDefinition page.
+from aquaponics.aquaponics_pages_seed import SEED_AQUAPONICS_PAGE_DISPLAYS
 # The engine-model layer: the FEM/DFT catalog + the specialized
 # domain-shaped model definitions (msci-15).
 from materialsScience.engine_model_template import EngineModelTemplate
@@ -1880,7 +1882,8 @@ class polariServer(treeObject):
             ('ChemicalElementDefinition', ChemicalElementDefinition,
              SEED_CHEMICAL_ELEMENTS),
             ('DisplayDefinition', DisplayDefinition,
-             SEED_PERIODIC_DISPLAYS + SEED_MSCI_PAGE_DISPLAYS),
+             SEED_PERIODIC_DISPLAYS + SEED_MSCI_PAGE_DISPLAYS
+             + SEED_AQUAPONICS_PAGE_DISPLAYS),
             # Materials basis — identities before their scale rows.
             ('MaterialsScienceMaterial', MaterialsScienceMaterial,
              SEED_MS_MATERIALS + SEED_STANDARD_MATERIALS

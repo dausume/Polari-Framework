@@ -32,9 +32,9 @@ import json
 import math
 
 from mathshapes.shape_geometry import (
-    axial_mesh, classify_axis_aligned, ellipsoid_mesh, primitive_inside,
-    primitive_properties, quadric_as_ellipsoid, quadric_is_axis_aligned,
-    quadric_value,
+    axial_mesh, classify_axis_aligned, ellipsoid_mesh, hollow_frustum_shell_mesh,
+    primitive_inside, primitive_properties, quadric_as_ellipsoid,
+    quadric_is_axis_aligned, quadric_value,
 )
 
 _MAX_RES = 80            # grid-sample resolution cap (keeps N^3 bounded)
@@ -379,8 +379,15 @@ def sample_surface(manager, shape_name, n=24):
                 _center(params),
                 [float(radii[0]), float(radii[1]), float(radii[2])],
                 n_lat=n // 2 or 8, n_lon=n)
+        elif kind == 'hollow_frustum':
+            pts, tris = hollow_frustum_shell_mesh(
+                params, n_lon=n, n_stack=max(6, n // 2))
         else:                                 # cylinder / cone / frustum
-            pts, tris = axial_mesh(kind, params, n_lon=n)
+            pts, tris = axial_mesh(
+                kind, params, n_lon=n,
+                cap_base=bool(params.get('cap_base', False)),
+                cap_top=bool(params.get('cap_top', False)),
+                inward=bool(params.get('inward', False)))
         return {'ok': True, 'shape': shape_name, 'family': family,
                 'points': [[round(v, 4) for v in p] for p in pts],
                 'triangles': tris, 'count': len(pts),

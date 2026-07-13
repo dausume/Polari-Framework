@@ -12,8 +12,29 @@ HTTP surface for math-defined shapes:
   POST /api/shapes/{name}/evaluate  {x,y,z}  inside/outside + value.
   GET  /api/shapes/{name}/surface?n=       surface mesh points (+ tris).
   GET  /api/shapes/{name}/classify         the quadric surface type.
+  POST /api/shapes/from-pot/{potName}      derive/refresh a pot's math
+                                           shape (hollow wall + bottom
+                                           slab + holes) from its aqp-1
+                                           PotDefinition + PotHole rows
+                                           (shape_modify.
+                                           pot_shape_from_definition),
+                                           ALSO derives its soil fill
+                                           (soil_modify.
+                                           soil_shape_from_definition —
+                                           phase 4), AND ensures a
+                                           `{potName}-viz`
+                                           SimSpaceDefinition scene
+                                           listing wall + bottom +
+                                           soil + holes (mathshapes.
+                                           pot_scene). Re-run after
+                                           editing hole/pot CRUDE fields
+                                           (incl. soil_fill_height_mm)
+                                           to refresh all of it.
 
-Shapes themselves are edited through CRUDE (object-coherence).
+Shapes themselves are edited through CRUDE (object-coherence). Pot
+holes/dimensions are edited through CRUDE on PotDefinition/PotHole
+(aquaponics.pot_api) — from-pot re-derives from whatever is currently
+persisted there, it never edits pot fields itself.
 
 @consumers
   - mathshapes frontend / SimSpace3D rendering (later)
@@ -26,7 +47,9 @@ from objectTreeDecorators import treeObject, treeObjectInit
 from mathshapes.shape_analysis import (
     evaluate_point, quadric_classify, sample_surface, shape_properties,
 )
-from mathshapes.shape_modify import modify_parameter
+from mathshapes.shape_modify import modify_parameter, pot_shape_from_definition
+from mathshapes.soil_modify import soil_shape_from_definition
+from mathshapes.pot_scene import ensure_pot_viz_scene
 
 
 class MathShapesAPI(treeObject):
@@ -49,6 +72,8 @@ class MathShapesAPI(treeObject):
                 '/api/shapes/{name}/classify', self, suffix='classify')
             polServer.falconServer.add_route(
                 '/api/shapes/{name}/modify', self, suffix='modify')
+            polServer.falconServer.add_route(
+                '/api/shapes/from-pot/{pot_name}', self, suffix='from_pot')
 
     def _shapes(self):
         table = (getattr(self.manager, 'objectTables', None) or {}).get(
@@ -127,4 +152,25 @@ class MathShapesAPI(treeObject):
         result = modify_parameter(self.manager, name, param, body['value'])
         if not result.get('ok'):
             response.status = '400 Bad Request'
+        response.media = result
+
+    def on_post_from_pot(self, request, response, pot_name):
+        result = pot_shape_from_definition(self.manager, pot_name)
+        if not result.get('ok'):
+            response.status = '404 Not Found'
+            response.media = result
+            return
+        # Soil (phase 4) is derived FROM the wall/bottom this just
+        # built (same _pot_core_dimensions numbers) — never fails the
+        # whole re-derive; an honest gap (e.g. soil_fill_height_mm
+        # resolves to ~0) is surfaced in the response, not silently
+        # dropped.
+        soil = soil_shape_from_definition(self.manager, pot_name)
+        result['soil'] = soil
+        soil_shape_name = soil.get('soilShape') if soil.get('ok') else None
+        result['simSpace'] = ensure_pot_viz_scene(
+            self.manager, pot_name, result['wallShape'],
+            result['bottomShape'], soil_shape_name, result['holeShapes'],
+            wall_transparent=result.get('wallTransparent', False),
+            soil_transparent=result.get('soilTransparent', False))
         response.media = result

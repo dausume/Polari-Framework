@@ -120,6 +120,38 @@ SEED_MATERIALS_3D = [
         'roughness': 0.15,
     },
     {
+        'name': 'soil-brown',
+        'description': 'Damp potting soil — matte earth tone (aquaponics-'
+                       'pot-shape phase 4 soil fill).',
+        'material_type': 'standard',
+        'color': '#5d4037',
+        'metalness': 0.0,
+        'roughness': 0.95,
+    },
+    {
+        'name': 'matte-blue-transparent',
+        'description': 'Matte blue, see-through — aquaponics-pot-shape '
+                       'phase 5 wall transparency toggle (see the '
+                       'interior/soil/holes without hiding the vessel).',
+        'material_type': 'standard',
+        'color': '#1976d2',
+        'metalness': 0.0,
+        'roughness': 0.8,
+        'opacity': 0.3,
+        'transparent': True,
+    },
+    {
+        'name': 'soil-brown-transparent',
+        'description': 'Damp potting soil, see-through — aquaponics-pot-'
+                       'shape phase 5 soil transparency toggle.',
+        'material_type': 'standard',
+        'color': '#5d4037',
+        'metalness': 0.0,
+        'roughness': 0.95,
+        'opacity': 0.4,
+        'transparent': True,
+    },
+    {
         'name': 'metal-steel',
         'description': 'Brushed steel — metallic finish.',
         'material_type': 'standard',

@@ -100,6 +100,8 @@ def primitive_inside(kind, params, x, y, z):
             return False
         return (((x - center[0]) / a) ** 2 + ((y - center[1]) / b) ** 2
                 + ((z - center[2]) / c) ** 2) <= 1.0 + 1e-9
+    if kind == 'hollow_frustum':
+        return _hollow_frustum_inside(params, center, axis, x, y, z)
     # axial primitives share the along/perp decomposition
     along, perp = _decompose(x, y, z, center, axis)
     h = _num(params, 'height', 1.0)
@@ -119,6 +121,57 @@ def primitive_inside(kind, params, x, y, z):
         local = base_r + (top_r - base_r) * (t / h) if h > 0 else base_r
         return perp <= local + 1e-9
     return False
+
+
+def _hollow_frustum_inside(params, center, axis, x, y, z):
+    """Inside-test for a render-only 'hollow_frustum' primitive (see
+    hollow_frustum_shell_mesh): between the inner and outer tapered
+    profile at this height, and outside every one of its `holes`
+    (each a plain cylinder-primitive param dict — same test
+    primitive_inside('cylinder', ...) already uses)."""
+    along, perp = _decompose(x, y, z, center, axis)
+    h = _num(params, 'height', 1.0)
+    if abs(along) > h / 2.0 + 1e-12:
+        return False
+    t = (along + h / 2.0) / h if h > 0 else 0.0
+    r0o = _num(params, 'base_outer_radius', 1.0)
+    r1o = _num(params, 'top_outer_radius', 0.9)
+    r0i = _num(params, 'base_inner_radius', 0.8)
+    r1i = _num(params, 'top_inner_radius', 0.7)
+    outer = r0o + (r1o - r0o) * t
+    inner = r0i + (r1i - r0i) * t
+    if not (inner - 1e-9 <= perp <= outer + 1e-9):
+        return False
+    for hole_params in (params.get('holes') or []):
+        if primitive_inside('cylinder', hole_params, x, y, z):
+            return False
+    return True
+
+
+def _hollow_frustum_properties(params, center, axis, ai):
+    """Approximate {volume, area, bounds, centroid} for a render-only
+    'hollow_frustum' — NOT the authoritative volume (that's the
+    quadric+CSG chain pot_shape_from_definition builds alongside this
+    shape; see potMaterialVolumeCm3). Closed-form: outer frustum minus
+    inner frustum minus each hole's own cylinder volume — a reasonable
+    approximation, cheap, and here mainly so shape_properties()/GET
+    .../properties never crashes on this shape name."""
+    h = _num(params, 'height', 1.0)
+    outer_vol, outer_area, outer_bounds, _ = primitive_properties('frustum', {
+        'base_radius': _num(params, 'base_outer_radius', 1.0),
+        'top_radius': _num(params, 'top_outer_radius', 0.9),
+        'height': h, 'axis': axis, 'center': center})
+    inner_vol, inner_area, _, _ = primitive_properties('frustum', {
+        'base_radius': _num(params, 'base_inner_radius', 0.8),
+        'top_radius': _num(params, 'top_inner_radius', 0.7),
+        'height': h, 'axis': axis, 'center': center})
+    holes_vol = 0.0
+    for hole_params in (params.get('holes') or []):
+        hv, _, _, _ = primitive_properties('cylinder', hole_params)
+        holes_vol += hv
+    vol = max(0.0, outer_vol - inner_vol - holes_vol)
+    area = outer_area + inner_area          # doesn't subtract hole openings
+    return vol, area, outer_bounds, list(center)
 
 
 # --------------------------------------------------------------------------
@@ -156,6 +209,8 @@ def primitive_properties(kind, params):
                   [center[1] - b, center[1] + b],
                   [center[2] - c, center[2] + c]]
         return vol, area, bounds, list(center)
+    if kind == 'hollow_frustum':
+        return _hollow_frustum_properties(params, center, axis, ai)
     # axial primitives
     h = _num(params, 'height', 1.0)
     perp = _perp_axes(axis)
@@ -206,6 +261,80 @@ def quadric_value(Q, x, y, z):
     return total
 
 
+def cone_quadric_matrix(base_radius, top_radius, height, axis='z',
+                        center=(0.0, 0.0, 0.0)):
+    """4x4 matrix Q (pᵀQp form, `quadric_value`) for the INFINITE cone/
+    cylinder whose lateral surface passes through `base_radius` at this
+    shape's own z = center[axis] - height/2 and `top_radius` at
+    z = center[axis] + height/2 (assumes the shape is coaxial with
+    `axis` through its perp-plane center — true for every shape this
+    module derives). Pair with a height-bounding box (CSG intersection)
+    for the finite solid — the quadric itself is the SOURCE-OF-TRUTH
+    equation (Dustin 2026-07-13: "leverage matrix equations ... to
+    form volumetric shapes"); a frustum's lateral surface is exactly a
+    bounded slice of this surface. Degenerates to a true cylinder
+    quadric (x²+y² = r²) when base_radius == top_radius (slope = 0).
+
+    Derivation: radius(z)² = (base_radius + slope·(z - z0))², z0 the
+    local base z. Expanding x²+y² - radius(z)² = 0 into pᵀQp form:
+        Q[ai][ai]  = -slope²
+        Q[ai][3]   = Q[3][ai] = slope·m,  m = slope·z0 - base_radius
+        Q[3][3]    = -m²
+        Q[perp][perp] = 1  (both perpendicular axes)
+    """
+    ai = _axis_index(axis)
+    perp = _perp_axes(axis)
+    z0 = center[ai] - height / 2.0
+    slope = (top_radius - base_radius) / height if height > 1e-9 else 0.0
+    m = slope * z0 - base_radius
+    Q = [[0.0] * 4 for _ in range(4)]
+    Q[perp[0]][perp[0]] = 1.0
+    Q[perp[1]][perp[1]] = 1.0
+    Q[ai][ai] = -slope * slope
+    Q[ai][3] = Q[3][ai] = slope * m
+    Q[3][3] = -m * m
+    return Q
+
+
+def radius_at_z(Q, axis, z):
+    """Radius of a cone_quadric_matrix's lateral surface at a given z —
+    the exact algebraic inverse of its construction (Q is normalized
+    to 1 on both perpendicular-axis diagonal entries, so x²+y² at the
+    surface is just -(Q[ai][ai]z² + 2·Q[ai][3]z + Q[3][3])). Used to
+    DERIVE numeric mesh/render parameters FROM the quadric equation
+    (rather than compute them independently) so the equation stays the
+    single source of truth end to end."""
+    ai = _axis_index(axis)
+    val = -(Q[ai][ai] * z * z + 2.0 * Q[ai][3] * z + Q[3][3])
+    return math.sqrt(max(0.0, val))
+
+
+_AXIS_LATEX_SYMBOL = {'x': 'x', 'y': 'y', 'z': 'z'}
+
+
+def cone_quadric_latex(base_radius, top_radius, height, z0, axis='z',
+                       ndigits=4):
+    """Human-readable LaTeX for the SAME surface cone_quadric_matrix
+    encodes — a DERIVED display, not a second source of truth (the Q
+    matrix is authoritative; this is read directly off the same
+    base_radius/slope/z0/axis inputs, never re-derived from Q). Uses
+    the two PERPENDICULAR axis symbols on the left (e.g. a hole bored
+    along x reads `y^2 + z^2 = ...`, not a hardcoded x/y) — a straight
+    cylinder (base_radius == top_radius) renders without the
+    now-degenerate slope/z0 terms."""
+    perp = _perp_axes(axis)
+    p0 = _AXIS_LATEX_SYMBOL.get(('x', 'y', 'z')[perp[0]], 'x')
+    p1 = _AXIS_LATEX_SYMBOL.get(('x', 'y', 'z')[perp[1]], 'y')
+    av = _AXIS_LATEX_SYMBOL.get(axis, 'z')
+    slope = (top_radius - base_radius) / height if height > 1e-9 else 0.0
+    r0 = round(base_radius, ndigits)
+    if abs(slope) < 1e-9:
+        return f'{p0}^2 + {p1}^2 = {r0}^2'
+    k = round(slope, ndigits)
+    z0r = round(z0, ndigits)
+    return f'{p0}^2 + {p1}^2 = ({r0} + {k}({av} - {z0r}))^2'
+
+
 def quadric_is_axis_aligned(Q, tol=1e-9):
     """True if the top-left 3x3 block is diagonal (no cross terms)."""
     return (abs(Q[0][1]) < tol and abs(Q[0][2]) < tol
@@ -238,6 +367,21 @@ def classify_axis_aligned(Q):
         return max(vals) - min(vals) < 1e-9 * (max(vals) or 1.0)
 
     if len(nz) == 3:
+        # Complete the square (translate to the quadric's own vertex/
+        # center) before reading the constant's sign — the sphere vs.
+        # ellipsoid vs. point vs. empty AND cone vs. hyperboloid splits
+        # are properties of the SURFACE, not of which frame its
+        # equation happens to be written in. A cone whose apex isn't
+        # at the origin (e.g. cone_quadric_matrix's pot-local frame,
+        # z0 = the wall's own base, not the true apex) has a nonzero
+        # RAW Q[3][3] despite genuinely being a cone — recentering
+        # first (same algebra quadric_as_ellipsoid already uses) makes
+        # this coordinate-invariant. No-op for already-centered
+        # quadrics (Q[i][3]==0 → c_i==0 → recentered_const==Q[3][3]).
+        c_i = [-Q[i][3] / quad[i] for i in range(3)]
+        recentered_const = (
+            Q[3][3] - sum(quad[i] * c_i[i] ** 2 for i in range(3)))
+        cs = _sign(recentered_const)
         if npos == 3 or nneg == 3:            # all same sign
             if cs == 0:
                 return 'point'
@@ -277,10 +421,16 @@ def quadric_as_ellipsoid(Q):
     a, b, c = Q[0][0], Q[1][1], Q[2][2]
     if _sign(a) <= 0 or _sign(b) <= 0 or _sign(c) <= 0:
         return None
-    # complete the square: a(x - x0)^2 + ... = -const'  (all a,b,c>0)
+    # complete the square: a(x - x0)^2 + ... = -const'  (all a,b,c>0).
+    # a·x² + 2·Q[0][3]·x = a·(x - cx)² - a·cx² for cx = -Q[0][3]/a (and
+    # likewise y, z) — so the recentered constant is Q[3][3] minus the
+    # sum, with NO extra term (previously had a stray "+ 2·Σ Q[i][3]·c_i"
+    # that only vanished for an already-centered quadric — i.e. every
+    # quadric this function had ever actually been called with; a
+    # hand-verified off-center sphere caught it — see
+    # AQUAPONICS_POT_SHAPE_PLAN.md).
     cx, cy, cz = -Q[0][3] / a, -Q[1][3] / b, -Q[2][3] / c
-    const = Q[3][3] - (a * cx * cx + b * cy * cy + c * cz * cz) \
-        + 2 * (Q[0][3] * cx + Q[1][3] * cy + Q[2][3] * cz)
+    const = Q[3][3] - (a * cx * cx + b * cy * cy + c * cz * cz)
     # surface a·X^2 + b·Y^2 + c·Z^2 + const = 0  -> need const < 0
     k = -const
     if k <= 0:
@@ -315,8 +465,24 @@ def ellipsoid_mesh(center, radii, n_lat=16, n_lon=24):
     return pts, tris
 
 
-def axial_mesh(kind, params, n_lon=24, n_stack=1):
-    """Lateral + cap mesh for cylinder/cone/frustum along its axis."""
+def axial_mesh(kind, params, n_lon=24, n_stack=1,
+               cap_base=False, cap_top=False, inward=False):
+    """Lateral (+ optional end-cap) mesh for cylinder/cone/frustum along
+    its axis. `cap_base`/`cap_top` triangulate a flat disc at that end
+    (a fan from the ring to its center) — OFF by default so a shape
+    meant to be seen through (a bore hole, a hollow wall's own lateral
+    surface) stays open; turn them on for a primitive meant to read as
+    a SOLID (e.g. a pot's base slab).
+
+    `inward=True` reverses every triangle's winding (and therefore its
+    outward-pointing normal) — for a surface meant to be viewed from
+    the axis side rather than from outside (e.g. the INNER surface of
+    a hollow shell, where the visible face looks back toward the
+    center). Without this, an inner-wall mesh built the same way as an
+    outer-wall mesh would have its front face pointing INTO the solid
+    material — invisible from inside the vessel with a single-sided
+    material (this was the aquaponics-pot-shape phase-1 bug: a solid
+    frustum with no caps read as an open, one-sided sheet)."""
     center = _center(params)
     axis = params.get('axis', 'z')
     ai = _axis_index(axis)
@@ -352,4 +518,177 @@ def axial_mesh(kind, params, n_lon=24, n_stack=1):
         jn = (j + 1) % n_lon
         tris.append([b0 + j, b0 + jn, t0 + j])
         tris.append([b0 + jn, t0 + jn, t0 + j])
+
+    if cap_base and r0 > 1e-9:
+        c0 = len(pts)
+        base_center = list(center)
+        base_center[ai] = center[ai] - h / 2.0
+        pts.append(base_center)
+        for j in range(n_lon):
+            jn = (j + 1) % n_lon
+            # Base cap faces DOWN/OUT (away from the solid) — opposite
+            # winding sense from the lateral surface's base ring.
+            tris.append([c0, b0 + jn, b0 + j])
+    if cap_top and r1 > 1e-9:
+        c1 = len(pts)
+        top_center = list(center)
+        top_center[ai] = center[ai] + h / 2.0
+        pts.append(top_center)
+        for j in range(n_lon):
+            jn = (j + 1) % n_lon
+            tris.append([c1, t0 + j, t0 + jn])
+
+    if inward:
+        tris = [[t[0], t[2], t[1]] for t in tris]
+    return pts, tris
+
+
+def hollow_frustum_shell_mesh(params, n_lon=32, n_stack=16,
+                              hole_local_samples=14, hole_margin_factor=2.5):
+    """ONE integrated, closed mesh for a hollow tapered shell (a pot's
+    side wall): outer lateral surface + inner lateral surface (inward-
+    wound) + a top rim annulus AND a bottom rim annulus (Dustin
+    2026-07-13 round 3: "the top of the bottom shape should be flush
+    with the bottom of the siding shape" — the bottom rim closes what
+    was an open ring, sitting exactly on the bottom-slab's top face)
+    — stitched from a SINGLE vertex grid so it reads as one solid
+    object, not floating surfaces.
+
+    Each hole in `params['holes']` (plain cylinder-primitive param
+    dicts) is CUT OUT: a grid quad with a corner inside that hole's
+    cylinder (primitive_inside('cylinder', ...) — the SAME solid
+    volume the hole's own standalone primitive is, no separate
+    "hollow" concept) is dropped. The angular/height grid is NOT
+    uniform — round 2 used a flat n_lon×n_stack grid, and a hole
+    (~1cm) is a couple of PERCENT of the wall's circumference/height,
+    so at n_lon~32 a hole spanned under 2 grid columns: the resulting
+    cut was a single ragged wedge, not a hole (Dustin: "you subtracted
+    a random section of the siding"). Fixed by inserting
+    `hole_local_samples` extra angular AND height samples densely
+    clustered around EACH hole's own (azimuth, elevation) — resolving
+    each hole's actual round footprint — while leaving the rest of the
+    wall at the coarse base resolution (bounded total triangle count).
+    Still a blocky (not analytically exact) boolean cut — this module
+    has no general mesh-boolean/marching-cubes engine — but now
+    resolved at hole scale, not wall scale.
+    """
+    # `2*k/(hole_local_samples-1)` below divides by zero at 1 and is
+    # meaningless at 0 (no local refinement at all) — every current
+    # caller passes the default (14), but this keyword is a real,
+    # externally-settable parameter, not just an internal constant.
+    hole_local_samples = max(2, int(hole_local_samples))
+    center = _center(params)
+    axis = params.get('axis', 'z')
+    ai = _axis_index(axis)
+    perp = _perp_axes(axis)
+    h = _num(params, 'height', 1.0)
+    r0o = _num(params, 'base_outer_radius', 1.0)
+    r1o = _num(params, 'top_outer_radius', 0.9)
+    r0i = _num(params, 'base_inner_radius', 0.8)
+    r1i = _num(params, 'top_inner_radius', 0.7)
+    holes = params.get('holes') or []
+
+    def outer_r(t):
+        return r0o + (r1o - r0o) * t
+
+    def inner_r(t):
+        return r0i + (r1i - r0i) * t
+
+    two_pi = 2.0 * math.pi
+    phis = [two_pi * j / n_lon for j in range(n_lon)]
+    ts = [i / n_stack for i in range(n_stack + 1)]
+    for hp in holes:
+        hc = hp.get('center') or [0.0, 0.0, 0.0]
+        r_hole = max(1e-6, _num(hp, 'radius', 0.1))
+        px, py = hc[perp[0]], hc[perp[1]]
+        mid_r = max(1e-3, math.hypot(px, py))
+        phi_c = math.atan2(py, px) % two_pi
+        half_phi = min(math.pi * 0.4, hole_margin_factor * r_hole / mid_r)
+        phis.extend(
+            (phi_c + half_phi * (2.0 * k / (hole_local_samples - 1) - 1.0))
+            % two_pi for k in range(hole_local_samples))
+        z_c = hc[ai]
+        half_z = hole_margin_factor * r_hole
+        t_c = (z_c - (center[ai] - h / 2.0)) / h if h > 1e-9 else 0.5
+        half_t = half_z / h if h > 1e-9 else 0.1
+        ts.extend(
+            min(1.0, max(0.0, t_c + half_t * (2.0 * k / (hole_local_samples - 1) - 1.0)))
+            for k in range(hole_local_samples))
+
+    phis = sorted(set(round(p, 9) for p in phis))
+    ts = sorted(set(round(t, 9) for t in ts))
+    n_j, n_i = len(phis), len(ts)
+
+    def grid_point(t, radius, phi):
+        p = [0.0, 0.0, 0.0]
+        p[ai] = center[ai] - h / 2.0 + t * h
+        p[perp[0]] = center[perp[0]] + radius * math.cos(phi)
+        p[perp[1]] = center[perp[1]] + radius * math.sin(phi)
+        return p
+
+    def cut(p):
+        return any(primitive_inside('cylinder', hp, p[0], p[1], p[2])
+                  for hp in holes)
+
+    pts = []
+    outer_idx, inner_idx = {}, {}
+    for i, t in enumerate(ts):
+        for j, phi in enumerate(phis):
+            outer_idx[(i, j)] = len(pts)
+            pts.append(grid_point(t, outer_r(t), phi))
+    for i, t in enumerate(ts):
+        for j, phi in enumerate(phis):
+            inner_idx[(i, j)] = len(pts)
+            pts.append(grid_point(t, inner_r(t), phi))
+
+    cut_outer = {k: cut(pts[v]) for k, v in outer_idx.items()}
+    cut_inner = {k: cut(pts[v]) for k, v in inner_idx.items()}
+
+    tris = []
+    for i in range(n_i - 1):
+        for j in range(n_j):
+            jn = (j + 1) % n_j
+            corners = ((i, j), (i, jn), (i + 1, j), (i + 1, jn))
+            if not any(cut_outer[c] for c in corners):
+                a, b, c, d = (outer_idx[(i, j)], outer_idx[(i, jn)],
+                             outer_idx[(i + 1, j)], outer_idx[(i + 1, jn)])
+                tris.append([a, b, c])
+                tris.append([b, d, c])
+            if not any(cut_inner[c] for c in corners):
+                a, b, c, d = (inner_idx[(i, j)], inner_idx[(i, jn)],
+                             inner_idx[(i + 1, j)], inner_idx[(i + 1, jn)])
+                # inward winding — see axial_mesh's `inward` docstring.
+                tris.append([a, c, b])
+                tris.append([b, c, d])
+
+    # Top rim annulus (i = n_i-1) — closes the open mouth so the wall
+    # reads as having real thickness at the rim, not a knife edge.
+    i = n_i - 1
+    for j in range(n_j):
+        jn = (j + 1) % n_j
+        if (cut_outer[(i, j)] or cut_outer[(i, jn)]
+                or cut_inner[(i, j)] or cut_inner[(i, jn)]):
+            continue
+        oa, ob = outer_idx[(i, j)], outer_idx[(i, jn)]
+        ia, ib = inner_idx[(i, j)], inner_idx[(i, jn)]
+        tris.append([oa, ob, ia])
+        tris.append([ob, ib, ia])
+
+    # Bottom rim annulus (i = 0) — closes the wall's own bottom edge so
+    # it sits flush against the bottom-slab's top face instead of
+    # leaving an open ring where the two independently-built meshes
+    # meet (round 3 feedback).
+    i = 0
+    for j in range(n_j):
+        jn = (j + 1) % n_j
+        if (cut_outer[(i, j)] or cut_outer[(i, jn)]
+                or cut_inner[(i, j)] or cut_inner[(i, jn)]):
+            continue
+        oa, ob = outer_idx[(i, j)], outer_idx[(i, jn)]
+        ia, ib = inner_idx[(i, j)], inner_idx[(i, jn)]
+        # Reversed winding vs. the top rim — outward normal points
+        # DOWN here, not up (hand-verified via cross product).
+        tris.append([oa, ia, ob])
+        tris.append([ob, ia, ib])
+
     return pts, tris
