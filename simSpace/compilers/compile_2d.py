@@ -4,9 +4,10 @@
 @tags @xc:render-2d
 
 2D snapshot compiler. Walks freestanding shapes from the SimSpace
-definition blob, then iterates enabled SimSpaceBindingDefinition rows
-with dimensionality='2d' to emit one SimSpaceObject per matching
-class instance.
+definition blob, then (unless `definition.freestandingOnly` is set —
+a curated shelf, not a data view) iterates enabled
+SimSpaceBindingDefinition rows with dimensionality='2d' to emit one
+SimSpaceObject per matching class instance.
 
 @consumers
   - simSpace.sim_space_api (SimSpaceAPI route handler)
@@ -66,6 +67,15 @@ def compile_2d(
             'styleRef': entry.get('styleRef') or 'default',
             'userData': entry.get('userData'),
         })
+
+    # Scene knob: freestandingOnly scenes render ONLY their baked
+    # definition blob — no class bindings at all (selection/demo spaces
+    # are curated shelves, not data views; without this every
+    # defaultVisible binding's rows would pour in). Mirrors compile_3d —
+    # was missing here entirely until 2026-07-14 (demo-2d pulling in
+    # every defaultVisible-bound class in the system was the symptom).
+    if blob.get('freestandingOnly'):
+        return objects, connections
 
     # 2. Scene-level boundClasses overrides.
     override_by_class = load_bound_overrides(row, warnings)

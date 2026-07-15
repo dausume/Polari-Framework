@@ -17,8 +17,11 @@ from aquaponics.pot_seed import SEED_POTS
 PASS, FAIL = '\033[0;32mPASS\033[0m', '\033[0;31mFAIL\033[0m'
 _results = []
 
-# The name aquaponics-display-components.ts registers (string contract).
-REGISTERED_COMPONENTS = {'pot-geometry-editor'}
+# The names aquaponics-display-components.ts registers (string
+# contract). sim-space-viewer (2026-07-14): the editor alone renders
+# nothing — this bare viewer is what actually shows the re-derived
+# scene next to it.
+REGISTERED_COMPONENTS = {'pot-geometry-editor', 'sim-space-viewer'}
 
 
 def check(label, cond, extra=''):

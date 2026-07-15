@@ -338,8 +338,17 @@ SEED_SIM_SPACES_3D = [
         'bound_classes_json': '[]',
         # Freestanding placements — every builtin mesh, spread on a grid
         # so the user can spin the camera and inspect each one.
+        # freestandingOnly (2026-07-14 fix): this is a curated shelf, not
+        # a data view — without it, compile_3d falls through past the
+        # (only-checked-when-freestandingOnly) early return and pours in
+        # EVERY defaultVisible-bound class in the whole system (wind
+        # field grid cells, every pendulum run's bob/rod/string history,
+        # material condensation states — thousands of unrelated objects
+        # crowding what should be nine static primitives). Same pattern
+        # already used correctly by solid-material-selector / periodic-
+        # table-selector / the aquaponics pot-viz scenes.
         'definition': (
-            '{"freestanding": ['
+            '{"freestandingOnly": true, "freestanding": ['
             # Row z=-2: 3D analogs of 2D shapes
             '{"id":"demo-cube","position":[-4,0,-2],"shapeRef":"cube","styleRef":"matte-blue","label":"Cube"},'
             '{"id":"demo-pyramid","position":[-2,0,-2],"shapeRef":"pyramid","styleRef":"emissive-yellow","label":"Pyramid"},'

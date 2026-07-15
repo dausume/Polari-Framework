@@ -105,6 +105,23 @@ class SimSpaceDefinition(treeObject):
         # 'unset' | 'inside' | 'exhibit'.
         xr_mode: str = 'unset',
         xr_framing: str = 'unset',
+        # Optional: CONFIGURED "how to set this scene up" interfaces —
+        # ordered Display-registry component refs (e.g. an aquaponics
+        # pot editor, an msim material picker) shown as tabs in the
+        # viewer's Initial Conditions panel, ahead of the generic
+        # auto-generating manual form (which always renders as the
+        # LAST tab). Generalizes MultiScaleSimulationDefinition's
+        # icInterfaceRef panel (msim-only) so any SimSpace can carry
+        # one or more, independent of whether a SimulationDefinition is
+        # bound. JSON shape: a list of
+        #   {"componentName": "<Display-registry name>",
+        #    "inputs": {...}, "label": "<tab label>"}
+        # Empty list = no configured tabs; the panel then shows just
+        # the manual form. Exactly one configured entry = it opens as
+        # the default active tab (manual is still reachable, last).
+        # NOTE (migration): added 2026-07-14; existing volumes gain the
+        # column via the boot schema sync.
+        configured_interfaces_json: str = '[]',
         manager=None,
     ):
         self.name = name
@@ -121,3 +138,4 @@ class SimSpaceDefinition(treeObject):
         self.owning_module = owning_module
         self.xr_mode = xr_mode
         self.xr_framing = xr_framing
+        self.configured_interfaces_json = configured_interfaces_json

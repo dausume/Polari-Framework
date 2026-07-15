@@ -263,10 +263,24 @@ class SimSpaceAPI(treeObject):
         e.g. the 3D newtonian scene picking up the `defaultVisible` 3D bindings
         of the 2D pendulum and (first-seen) defaulting its whole run panel /
         play / eval scope to `pendulum-2d`, which starves the newtonian run.
-        When a scene declares no bound classes we fall back to all enabled
-        bindings of the dimension (legacy behavior)."""
+
+        A scene that declares NO bound classes gets NO participating
+        simulations — not a fallback to "every enabled binding of the
+        dimension." That fallback existed briefly (legacy) and leaked
+        every same-dimension simulation into every unscoped scene: e.g.
+        WindFieldGridState's 3D binding (real, needed by
+        newtonian-pendulum-viz, which explicitly lists it) was also
+        showing up as "participating" in demo-3d, the material/periodic
+        selector scenes, and the aquaponics pot scenes — none of which
+        have anything to do with wind, or with each other's runs at
+        all (found 2026-07-14). A freestanding or otherwise unscoped
+        scene has no class-bound content to run a simulation against in
+        the first place, so an empty result is the correct/honest
+        answer, not an under-scoped guess."""
         dim = getattr(scene_row, 'dimensionality', '2d')
         scene_classes = set(load_bound_overrides(scene_row, []).keys())
+        if not scene_classes:
+            return []
         bindings_table = self.manager.objectTables.get('SimSpaceBindingDefinition', {}) or {}
         seen: List[str] = []
         for b in bindings_table.values():
@@ -277,8 +291,8 @@ class SimSpaceAPI(treeObject):
             cls_name = getattr(b, 'class_name', '')
             if not cls_name:
                 continue
-            # Scope to the scene's declared bound classes (when it declares any).
-            if scene_classes and cls_name not in scene_classes:
+            # Scope to the scene's declared bound classes.
+            if cls_name not in scene_classes:
                 continue
             typing_obj = self.manager.objectTypingDict.get(cls_name)
             cls = getattr(typing_obj, 'classDefinition', None) if typing_obj else None
@@ -324,6 +338,17 @@ class SimSpaceAPI(treeObject):
             camera = json.loads(getattr(row, 'camera_json', '') or 'null')
         except (ValueError, TypeError):
             camera = None
+        try:
+            configured_interfaces = json.loads(
+                getattr(row, 'configured_interfaces_json', '') or '[]')
+        except (ValueError, TypeError):
+            configured_interfaces = []
+        if not isinstance(configured_interfaces, list):
+            configured_interfaces = []
+        configured_interfaces = [
+            ci for ci in configured_interfaces
+            if isinstance(ci, dict) and ci.get('componentName')
+        ]
         return {
             'id': row.name,
             'name': row.name,
@@ -336,4 +361,5 @@ class SimSpaceAPI(treeObject):
             'definition': getattr(row, 'definition', '{}'),
             'axisLabels': axis_labels,
             'camera': camera,
+            'configuredInterfaces': configured_interfaces,
         }

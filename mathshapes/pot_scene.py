@@ -109,10 +109,25 @@ def ensure_pot_viz_scene(manager, pot_name, wall_name, bottom_name,
                    f'{" + soil fill" if soil_name else ""} + '
                    f'{len(hole_names)} drainage holes).')
 
+    # Configured interface (2026-07-14): the pot-geometry-editor IS this
+    # scene's "how to set it up" — it edits the exact PotDefinition/
+    # PotHole rows that from-pot derives this scene from. Shown as the
+    # default tab in the viewer's Initial Conditions panel (generalizes
+    # msim's icInterfaceRef pattern to any SimSpace, not just multi-
+    # scale sims — this pot has no bound SimulationDefinition at all
+    # yet, so without this the panel would have nothing configured to
+    # show ahead of the — here inapplicable — generic manual form).
+    configured_interfaces_json = json.dumps([{
+        'componentName': 'pot-geometry-editor',
+        'inputs': {'potName': pot_name},
+        'label': f'Pot geometry — {pot_name}',
+    }])
+
     existing = table.get(scene_name)
     if existing is not None:
         existing.definition = definition_json
         existing.description = description
+        existing.configured_interfaces_json = configured_interfaces_json
         return scene_name
 
     table[scene_name] = SimpleNamespace(
@@ -130,5 +145,6 @@ def ensure_pot_viz_scene(manager, pot_name, wall_name, bottom_name,
         owning_module='aquaponics',
         xr_mode='unset',
         xr_framing='unset',
+        configured_interfaces_json=configured_interfaces_json,
     )
     return scene_name
