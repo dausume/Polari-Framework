@@ -18,7 +18,7 @@ from types import SimpleNamespace
 
 from aquaponics.hydraulics import (
     build_darcy_payload, reservoir_model, run_hydraulics,
-    soil_conductivity_m_per_s,
+    soil_conductivity_m_per_s, water_slice_mesh,
 )
 from aquaponics.pot_seed import SEED_POTS, SEED_POT_HOLES
 
@@ -171,6 +171,67 @@ if __name__ == '__main__':
           and finding['kind'] == 'does-not-drain'
           and 'height_mm' in finding['knob']
           and 'lower the output' in finding['action'])
+
+    print('water_slice_mesh — 3-D-positioned Darcy cross-section '
+          '(phase 3, engine mocked)')
+    WIDTH_M = 0.184  # demo-herb-pot inner width (200 - 2*8mm)
+    field_canned = {
+        'ok': True, 'engine': 'scikit-fem', 'fidelity': 'fem',
+        'headField': [[0.0, 0.0, 0.05], [WIDTH_M, 0.0, 0.02],
+                      [WIDTH_M / 2, 0.2, 0.04]],
+        'headFieldColumns': ['x_m', 'z_m', 'head_m'],
+        'headFieldTriangles': [[0, 1, 2]],
+        'outflowRateMlS': 1.5, 'inflowRateM3s': 0.0, 'outflowRateM3s': 0.0,
+        'fluxStats': {'maxDarcySpeedMs': 1e-6, 'meanDarcySpeedMs': 5e-7},
+        'meshMeta': {'elements': 1, 'nodes': 3, 'refine': 6,
+                     'spacingM': 0.01, 'widthM': WIDTH_M, 'heightM': 0.2},
+        'note': 'mocked field solve',
+    }
+
+    def mock_field_engine(pay, want_field):
+        return dict(field_canned)
+
+    slice_result = water_slice_mesh(manager, 'demo-herb-pot',
+                                    'potting-mix',
+                                    engine=mock_field_engine)
+    check('ok, one point per headField row, one triangle carried through',
+          slice_result['ok']
+          and len(slice_result['points']) == 3
+          and slice_result['triangles'] == [[0, 1, 2]])
+    check('headValuesM is exactly the head_m column',
+          slice_result['headValuesM'] == [0.05, 0.02, 0.04])
+
+    # demo-herb-pot outputs sit at azimuth 170/190 -> circular mean 180deg
+    # -> slice direction (-1, 0). H = 250mm/10 = 25cm -> floor_z = -12.5cm.
+    import math
+    x0, y0, z0 = slice_result['points'][0]  # x_m=0 (input wall), z_m=0
+    check('input-wall point maps to +width/2 along the output-azimuth '
+          'line (180deg direction => world_x = +width_cm/2)',
+          abs(x0 - (WIDTH_M * 100 / 2)) < 1e-6 and abs(y0) < 1e-6)
+    check('z_m=0 maps to the pot floor (outer-base bottom, -H/2 in cm)',
+          abs(z0 - (-12.5)) < 1e-6)
+    x1, y1, z1 = slice_result['points'][1]  # x_m=width (output wall)
+    check('output-wall point maps to -width/2 along the same line',
+          abs(x1 - (-WIDTH_M * 100 / 2)) < 1e-6 and abs(y1) < 1e-6)
+    check('note states the flat-slice + repeated-steady-state '
+          'approximation plainly',
+          'VISUAL APPROXIMATION' in slice_result['note']
+          and 'not a true transient' in slice_result['note'])
+
+    def mock_no_field_engine(pay, want_field):
+        return {'ok': False, 'error': 'no engines worker configured',
+                'suggestion': {'knob': 'MSCI_ENGINES_URL',
+                               'action': 'start the worker',
+                               'evidence': 'unset'}}
+
+    no_field = water_slice_mesh(manager, 'demo-herb-pot', 'potting-mix',
+                                engine=mock_no_field_engine)
+    check('no reachable field solver -> honest refusal naming the '
+          'fem requirement, never a silent reservoir-model substitute',
+          not no_field['ok'] and 'fem field solve' in no_field['error'])
+    check('unknown pot still refuses cleanly through the same path',
+          not water_slice_mesh(manager, 'nope', '',
+                               engine=mock_field_engine).get('ok'))
 
     print('units helper')
     check('soil K helper: 3600 mm/hr == 1e-3 m/s',

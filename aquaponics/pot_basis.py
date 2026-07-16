@@ -113,8 +113,12 @@ class PotDefinition(treeObject):
         # switch. Each swaps that layer's render style between the
         # opaque seed material and its '-transparent' variant
         # (simSpace3D/seed_data.py) the next time the pot re-derives.
-        wall_transparent: bool = False,
-        soil_transparent: bool = False,
+        # Default TRUE (2026-07-15, Dustin: "the pots and soil only
+        # mostly transparent so we can see the water flow") — a fresh
+        # pot is see-through by default now; flip to False for the
+        # occasional fully-opaque render.
+        wall_transparent: bool = True,
+        soil_transparent: bool = True,
         notes: str = '',
         manager=None,
     ):

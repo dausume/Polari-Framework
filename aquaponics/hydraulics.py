@@ -244,6 +244,81 @@ def run_hydraulics(manager, pot_name, soil_name, water_level_mm=None,
     return result
 
 
+def water_slice_mesh(manager, pot_name, soil_name, water_level_mm=None,
+                     refine=6, engine=None):
+    """A 3-D-positioned triangulated slice of the steady Darcy head
+    field (aquaponics-pot-shape phase 3) — the SAME (cm, z-vertical-
+    through-the-pot's-own-center) coordinate frame
+    mathshapes.shape_modify.pot_shape_from_definition's own wall/soil/
+    hole meshes already render in, so this drops into the existing
+    renderer with no extra transform.
+
+    VISUAL APPROXIMATION, stated plainly (matching the Darcy engine's
+    own documented fidelity ceiling): the field solve is a flat 2-D
+    vertical cross-section, not a full 3-D volume — this renders that
+    cross-section as ONE flat plane through the pot's input->output
+    azimuth line (a real chord through the pot, not an arbitrary
+    slice), rather than claiming a revolved/3-D result the underlying
+    physics doesn't support. 'Time-stepping' an animation is the
+    CALLER's job: call this repeatedly at a rising water_level_mm
+    across ticks (repeated independent steady-state solves, NOT a true
+    transient formulation — the simpler of the two options the plan
+    doc left open, picked because it reuses the existing solver
+    unchanged; see AQUAPONICS_POT_SHAPE_PLAN.md phase 3)."""
+    result = run_hydraulics(manager, pot_name, soil_name,
+                            water_level_mm=water_level_mm, fidelity='fem',
+                            want_field=True, refine=refine, engine=engine)
+    if not result.get('ok'):
+        return result
+    if 'headField' not in result or 'headFieldTriangles' not in result:
+        return {'ok': False,
+                'error': 'no field solver reachable for this pot — '
+                         'water-slice needs the fem field solve',
+                'fidelityNote': result.get('fidelityNote')}
+
+    pot = _named(manager, 'PotDefinition', pot_name)
+    from mathshapes.shape_modify import _pot_core_dimensions
+    floor_z_cm = -_pot_core_dimensions(pot)['H'] / 2.0
+
+    import math
+    from aquaponics.pot_geometry import _circular_mean_deg
+    outputs = [h for h in _rows(manager, 'PotHole')
+              if getattr(h, 'pot_name', '') == pot_name
+              and getattr(h, 'kind', '') == 'output']
+    output_az_deg = _circular_mean_deg(
+        [_f(h, 'azimuth_deg') for h in outputs]) or 0.0
+    az_rad = math.radians(output_az_deg)
+    dir_x, dir_y = math.cos(az_rad), math.sin(az_rad)
+
+    width_m = float(result.get('meshMeta', {}).get('widthM', 0.0))
+    points_cm, head_values_m = [], []
+    for x_m, z_m, head_m in result['headField']:
+        t_cm = (x_m - width_m / 2.0) * 100.0
+        points_cm.append([round(t_cm * dir_x, 4), round(t_cm * dir_y, 4),
+                          round(floor_z_cm + z_m * 100.0, 4)])
+        head_values_m.append(head_m)
+
+    return {
+        'ok': True,
+        'pot': pot_name,
+        'soil': soil_name or '',
+        'points': points_cm,
+        'triangles': result['headFieldTriangles'],
+        'headValuesM': head_values_m,
+        'waterLevelMm': result.get('waterLevelMm'),
+        'outflowRateMlS': result.get('outflowRateMlS'),
+        'fluxStats': result.get('fluxStats'),
+        'meshMeta': result.get('meshMeta'),
+        'note': 'VISUAL APPROXIMATION: a flat 2-D Darcy cross-section '
+                "rendered as one plane through the pot's input->output "
+                'azimuth line, not a full 3-D volume. Sequential calls '
+                'at a rising water_level_mm approximate a fill '
+                'transient as repeated independent steady-state solves '
+                '— not a true transient formulation (see '
+                'AQUAPONICS_POT_SHAPE_PLAN.md phase 3).',
+    }
+
+
 def _findings(result, payload):
     """Evidence-bearing findings, knobs named (knobs-and-suggestions)."""
     findings = []

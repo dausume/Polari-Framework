@@ -152,6 +152,47 @@ SEED_MATERIALS_3D = [
         'transparent': True,
     },
     {
+        'name': 'matte-gray-transparent',
+        'description': "Neutral gray, nearly invisible — aquaponics-pot-"
+                       "shape's hole-cylinder style (2026-07-15, Dustin: "
+                       "hole markers should be fully transparent by "
+                       "default, they're bore-position markers, not "
+                       "solid geometry the water flow should be hidden "
+                       "behind). Kept as its own row rather than "
+                       "lowering the shared 'matte-gray' default, which "
+                       "other non-pot scenes use at full opacity.",
+        'material_type': 'standard',
+        'color': '#9e9e9e',
+        'metalness': 0.0,
+        'roughness': 0.9,
+        'opacity': 0.08,
+        'transparent': True,
+    },
+    {
+        'name': 'water-blue',
+        'description': 'Translucent water — aquaponics-pot-shape phase 3 '
+                       'water-flow visualization (the live Darcy '
+                       'cross-section slice).',
+        'material_type': 'standard',
+        'color': '#29b6f6',
+        'metalness': 0.0,
+        'roughness': 0.1,
+        'opacity': 0.55,
+        'transparent': True,
+    },
+    {
+        'name': 'plant-green',
+        'description': 'Opaque living-plant green — plant-growth-sim '
+                       'phase 6/7 animation-bones skeleton (roots + '
+                       'stem/canopy).',
+        'material_type': 'standard',
+        'color': '#43a047',
+        'metalness': 0.0,
+        'roughness': 0.85,
+        'opacity': 1.0,
+        'transparent': False,
+    },
+    {
         'name': 'metal-steel',
         'description': 'Brushed steel — metallic finish.',
         'material_type': 'standard',
@@ -338,8 +379,17 @@ SEED_SIM_SPACES_3D = [
         'bound_classes_json': '[]',
         # Freestanding placements — every builtin mesh, spread on a grid
         # so the user can spin the camera and inspect each one.
+        # freestandingOnly (2026-07-14 fix): this is a curated shelf, not
+        # a data view — without it, compile_3d falls through past the
+        # (only-checked-when-freestandingOnly) early return and pours in
+        # EVERY defaultVisible-bound class in the whole system (wind
+        # field grid cells, every pendulum run's bob/rod/string history,
+        # material condensation states — thousands of unrelated objects
+        # crowding what should be nine static primitives). Same pattern
+        # already used correctly by solid-material-selector / periodic-
+        # table-selector / the aquaponics pot-viz scenes.
         'definition': (
-            '{"freestanding": ['
+            '{"freestandingOnly": true, "freestanding": ['
             # Row z=-2: 3D analogs of 2D shapes
             '{"id":"demo-cube","position":[-4,0,-2],"shapeRef":"cube","styleRef":"matte-blue","label":"Cube"},'
             '{"id":"demo-pyramid","position":[-2,0,-2],"shapeRef":"pyramid","styleRef":"emissive-yellow","label":"Pyramid"},'

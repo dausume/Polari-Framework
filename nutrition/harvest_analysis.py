@@ -8,9 +8,9 @@ manager (stdlib-only selftests).
 
 harvest_mass_g: realized edible FRESH mass from the aqp-4 PlantParts'
 volumes (× dry density → dry mass → fresh mass via fresh/dry ratio),
-using aqp-8 realized per-part volumes when a grow_result is supplied,
-else the aqp-4 mature_volume_cm3. Which volume it used travels with the
-number.
+using aquaponics.plant_growth_simplified's realized per-part volumes
+when a grow_result is supplied, else the aqp-4 mature_volume_cm3.
+Which volume it used travels with the number.
 
 harvest_nutrients: fresh mass × NutrientContent/100 g → per-nutrient
 yield for one harvest, with prior flags carried. Honest refusal (naming
@@ -18,7 +18,10 @@ the knob) when a food has no NutrientContent rows.
 
 This is the "analyze a plant's harvest in terms of nutrients for meals"
 capability — and because the plant is the SAME one grown in the flowing
-self-watering pot (aqp-1/aqp-8), a real grow run feeds real yields.
+self-watering pot (aqp-1), a real grow run feeds real yields. See
+aquaponics/plant_growth_simplified.py (2026-07-15) for what that grow
+run now actually is — a distilled aggregate read pulling its constants
+from the real per-plant model, not an independent simulation.
 
 @consumers
   - nutrition.fulfillment_analysis (nut-5), nutrition.food_api

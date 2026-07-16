@@ -45,19 +45,28 @@ from types import SimpleNamespace
 #: one style. Holes are empty space; a distinct gray marker is the
 #: placeholder for "nothing is here" (there's no clean way to render
 #: an absence, see the plan doc). Soil (phase 4) gets its own earth
-#: tone (simSpace3D/seed_data.py's 'soil-brown'). Each has a
-#: '-transparent' variant (phase 5) toggled by the pot's own
+#: tone (simSpace3D/seed_data.py's 'soil-brown'). Vessel/soil each
+#: have a '-transparent' variant (phase 5) toggled by the pot's own
 #: wall_transparent/soil_transparent knobs — never a blanket
-#: "make everything see-through" switch.
+#: "make everything see-through" switch. Holes are the one exception
+#: (2026-07-15, Dustin): they're bore-position markers, not solid
+#: geometry worth hiding water behind, so they ALWAYS render at
+#: 'matte-gray-transparent' — untouched by either toggle, same as
+#: before, just permanently the see-through variant now.
 VESSEL_STYLE_REF = 'matte-blue'
 VESSEL_TRANSPARENT_STYLE_REF = 'matte-blue-transparent'
-HOLE_STYLE_REF = 'matte-gray'
+HOLE_STYLE_REF = 'matte-gray-transparent'
 SOIL_STYLE_REF = 'soil-brown'
 SOIL_TRANSPARENT_STYLE_REF = 'soil-brown-transparent'
+WATER_STYLE_REF = 'water-blue'
 
 
 def _scene_name(pot_name):
     return f'{pot_name}-viz'
+
+
+def _water_scene_name(pot_name):
+    return f'{pot_name}-water-viz'
 
 
 def _freestanding_entry(shape_name, style_ref):
@@ -65,6 +74,43 @@ def _freestanding_entry(shape_name, style_ref):
         'id': shape_name,
         'shapeRef': f'mathshape:{shape_name}',
         'styleRef': style_ref,
+        'position': [0.0, 0.0, 0.0],
+    }
+
+
+def _water_freestanding_entry(pot_name):
+    """`waterslice:` is a DIFFERENT resolution scheme from `mathshape:`
+    — there's no stored MathShapeDefinition row backing it (the mesh
+    depends on water_level_mm, which changes every animation tick), so
+    the frontend resolves it via GET /api/aquaponics/pots/{pot_name}/
+    water-slice instead of /api/shapes/{name}/surface. Same freestanding-
+    entry shape either way; only the shapeRef prefix differs."""
+    return {
+        'id': f'{pot_name}-water-slice',
+        'shapeRef': f'waterslice:{pot_name}',
+        'styleRef': WATER_STYLE_REF,
+        'position': [0.0, 0.0, 0.0],
+    }
+
+
+def _plant_scene_name(planting_name):
+    return f'{planting_name}-plant-viz'
+
+
+def _plant_freestanding_entry(planting_name):
+    """`plantskeleton:` — a THIRD resolution scheme, alongside
+    `mathshape:`/`waterslice:` (plant-growth-sim phase 6/7,
+    2026-07-15). No stored row backs it either (the bone graph depends
+    on the planting's CURRENT normalized_growth, which changes every
+    advance_growth() call) — the frontend resolves it via GET
+    /api/aquaponics/plantings/{planting_name}/skeleton instead."""
+    return {
+        'id': f'{planting_name}-skeleton',
+        'shapeRef': f'plantskeleton:{planting_name}',
+        # A living plant needs its own material, not the vessel/soil
+        # tones — reuses simSpace3D/seed_data.py's 'plant-green'
+        # (added alongside 'water-blue' this phase).
+        'styleRef': 'plant-green',
         'position': [0.0, 0.0, 0.0],
     }
 
@@ -109,10 +155,25 @@ def ensure_pot_viz_scene(manager, pot_name, wall_name, bottom_name,
                    f'{" + soil fill" if soil_name else ""} + '
                    f'{len(hole_names)} drainage holes).')
 
+    # Configured interface (2026-07-14): the pot-geometry-editor IS this
+    # scene's "how to set it up" — it edits the exact PotDefinition/
+    # PotHole rows that from-pot derives this scene from. Shown as the
+    # default tab in the viewer's Initial Conditions panel (generalizes
+    # msim's icInterfaceRef pattern to any SimSpace, not just multi-
+    # scale sims — this pot has no bound SimulationDefinition at all
+    # yet, so without this the panel would have nothing configured to
+    # show ahead of the — here inapplicable — generic manual form).
+    configured_interfaces_json = json.dumps([{
+        'componentName': 'pot-geometry-editor',
+        'inputs': {'potName': pot_name},
+        'label': f'Pot geometry — {pot_name}',
+    }])
+
     existing = table.get(scene_name)
     if existing is not None:
         existing.definition = definition_json
         existing.description = description
+        existing.configured_interfaces_json = configured_interfaces_json
         return scene_name
 
     table[scene_name] = SimpleNamespace(
@@ -130,5 +191,147 @@ def ensure_pot_viz_scene(manager, pot_name, wall_name, bottom_name,
         owning_module='aquaponics',
         xr_mode='unset',
         xr_framing='unset',
+        configured_interfaces_json=configured_interfaces_json,
+    )
+    return scene_name
+
+
+def ensure_pot_water_viz_scene(manager, pot_name, wall_name, bottom_name,
+                               soil_name, hole_names):
+    """Idempotently create/refresh `{pot_name}-water-viz` — a
+    SEPARATE SimSpaceDefinition from `{pot_name}-viz` (2026-07-15,
+    Dustin: "this simulation should be separate from the pot with soil
+    that lacks water flowing through"), not a mode toggle on the same
+    scene. Same wall/bottom/soil/hole shapes, but ALWAYS at their
+    transparent style variants regardless of the pot's own
+    wall_transparent/soil_transparent knobs — seeing the water is the
+    entire point of this scene, so it doesn't defer to a toggle meant
+    for the no-water view. Adds ONE more freestanding entry, the live
+    water-slice mesh (see water_freestanding_entry / hydraulics.py's
+    water_slice_mesh) — its shapeRef resolves dynamically per-request
+    (water_level_mm changes every animation tick), unlike the static
+    `mathshape:` entries here which resolve once per re-derive."""
+    table = (getattr(manager, 'objectTables', None) or {}).setdefault(
+        'SimSpaceDefinition', {})
+    scene_name = _water_scene_name(pot_name)
+
+    freestanding = [
+        _freestanding_entry(wall_name, VESSEL_TRANSPARENT_STYLE_REF),
+        _freestanding_entry(bottom_name, VESSEL_TRANSPARENT_STYLE_REF),
+    ]
+    if soil_name:
+        freestanding.append(
+            _freestanding_entry(soil_name, SOIL_TRANSPARENT_STYLE_REF))
+    freestanding += [_freestanding_entry(h, HOLE_STYLE_REF) for h in hole_names]
+    freestanding.append(_water_freestanding_entry(pot_name))
+    definition_json = json.dumps({
+        'freestandingOnly': True,
+        'freestanding': freestanding,
+    })
+    description = (f'Water-flow visualization of aqp-1 pot "{pot_name}" '
+                   f'(always-transparent shell'
+                   f'{" + soil" if soil_name else ""} + '
+                   f'{len(hole_names)} holes + the live Darcy '
+                   f'cross-section) — separate from "{pot_name}-viz", '
+                   'the static no-water view.')
+    configured_interfaces_json = json.dumps([{
+        'componentName': 'pot-geometry-editor',
+        'inputs': {'potName': pot_name},
+        'label': f'Pot geometry — {pot_name}',
+    }])
+
+    existing = table.get(scene_name)
+    if existing is not None:
+        existing.definition = definition_json
+        existing.description = description
+        existing.configured_interfaces_json = configured_interfaces_json
+        return scene_name
+
+    table[scene_name] = SimpleNamespace(
+        name=scene_name,
+        description=description,
+        dimensionality='3d',
+        coordinate_system='math',
+        unit_scale=1.0,
+        viewport_json='',
+        bound_classes_json='[]',
+        definition=definition_json,
+        axis_labels_json='{}',
+        camera_json='',
+        category='',
+        owning_module='aquaponics',
+        xr_mode='unset',
+        xr_framing='unset',
+        configured_interfaces_json=configured_interfaces_json,
+    )
+    return scene_name
+
+
+def ensure_pot_plant_viz_scene(manager, planting_name, pot_name, wall_name,
+                               bottom_name, soil_name, hole_names):
+    """Idempotently create/refresh `{planting_name}-plant-viz` — keyed
+    by PLANTING, not pot (2026-07-15, plant-growth-sim phase 6/7): a
+    pot can have more than one PotPlanting bound to it (this session's
+    own real seed data does — the same demo-herb-pot under two
+    different what-if PotSystemDefinitions), and two plants can't
+    physically occupy the same pot at once, so a pot-keyed scene would
+    be ambiguous the moment a second planting exists. One scene per
+    planting sidesteps that entirely — each shows THAT planting's own
+    pot/soil/holes (always-transparent, same rationale as the water-
+    viz scene: seeing the plant/roots through the shell is the whole
+    point) plus its own live `plantskeleton:` mesh, which resolves to
+    a DIFFERENT bone graph per planting even when they share a pot
+    (different normalized_growth, possibly a different random_seed)."""
+    table = (getattr(manager, 'objectTables', None) or {}).setdefault(
+        'SimSpaceDefinition', {})
+    scene_name = _plant_scene_name(planting_name)
+
+    freestanding = [
+        _freestanding_entry(wall_name, VESSEL_TRANSPARENT_STYLE_REF),
+        _freestanding_entry(bottom_name, VESSEL_TRANSPARENT_STYLE_REF),
+    ]
+    if soil_name:
+        freestanding.append(
+            _freestanding_entry(soil_name, SOIL_TRANSPARENT_STYLE_REF))
+    freestanding += [_freestanding_entry(h, HOLE_STYLE_REF) for h in hole_names]
+    freestanding.append(_plant_freestanding_entry(planting_name))
+    definition_json = json.dumps({
+        'freestandingOnly': True,
+        'freestanding': freestanding,
+    })
+    description = (f'Plant-growth visualization of "{planting_name}" '
+                   f'(always-transparent shell'
+                   f'{" + soil" if soil_name else ""} + '
+                   f'{len(hole_names)} holes + the live animation-bones '
+                   f'skeleton) in pot "{pot_name}".')
+    configured_interfaces_json = json.dumps([{
+        'componentName': 'pot-geometry-editor',
+        'inputs': {'potName': pot_name},
+        'label': f'Pot geometry — {pot_name}',
+    }])
+
+    existing = table.get(scene_name)
+    if existing is not None:
+        existing.definition = definition_json
+        existing.description = description
+        existing.configured_interfaces_json = configured_interfaces_json
+        return scene_name
+
+    table[scene_name] = SimpleNamespace(
+        name=scene_name,
+        description=description,
+        dimensionality='3d',
+        coordinate_system='math',
+        unit_scale=1.0,
+        viewport_json='',
+        bound_classes_json='[]',
+        definition=definition_json,
+        axis_labels_json='{}',
+        camera_json='',
+        category='',
+        owning_module='aquaponics',
+        xr_mode='unset',
+        xr_framing='unset',
+        configured_interfaces_json=configured_interfaces_json,
     )
     return scene_name

@@ -188,10 +188,17 @@ def _solve_local(payload):
     head_field = [[round(float(x), 5), round(float(z), 5),
                    round(float(v), 6)]
                   for x, z, v in zip(mesh.p[0], mesh.p[1], head)]
+    # Triangle connectivity (node indices into headField, one triple per
+    # element) — 2026-07-15, aquaponics-pot-shape phase 3: without this
+    # a caller only has a scattered point cloud, not a real surface to
+    # triangulate for the water-flow visualization. mesh.t is (3, n).
+    triangles = [[int(a), int(b), int(c)]
+                for a, b, c in zip(mesh.t[0], mesh.t[1], mesh.t[2])]
     return {
         'ok': True, 'engine': 'scikit-fem', 'fidelity': 'fem',
         'headField': head_field,
         'headFieldColumns': ['x_m', 'z_m', 'head_m'],
+        'headFieldTriangles': triangles,
         'outflowRateM3s': outflow_m3s,
         'outflowRateMlS': outflow_m3s * 1e6,
         'inflowRateM3s': inflow_m3s,

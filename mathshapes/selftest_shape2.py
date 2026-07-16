@@ -345,12 +345,48 @@ if __name__ == '__main__':
     check('viz scene freestanding shapeRefs are mathshape:-prefixed',
           all(e['shapeRef'].startswith('mathshape:')
               for e in scene_def['freestanding']))
-    # Re-deriving must REFRESH the existing scene row, not duplicate it.
+    # Re-deriving must REFRESH the existing scene rows, not duplicate
+    # them — 2 rows expected since aquaponics-pot-shape phase 3 added
+    # a SEPARATE {pot}-water-viz scene alongside {pot}-viz (this
+    # fixture has no PotPlanting table, so phase 6/7's plant-viz
+    # scenes correctly add zero more — see plantSimSpaces below).
     MathShapesAPI.on_post_from_pot(api, None, SimpleNamespace(media=None,
                                                               status=None),
                                     'demo-pot')
-    check('re-deriving refreshes (not duplicates) the viz scene row',
-          len(m4.objectTables['SimSpaceDefinition']) == 1)
+    check('re-deriving refreshes (not duplicates) the viz scene rows',
+          len(m4.objectTables['SimSpaceDefinition']) == 2
+          and set(m4.objectTables['SimSpaceDefinition'])
+          == {'demo-pot-viz', 'demo-pot-water-viz'})
+    check('no PotPlanting rows for this pot -> plantSimSpaces is '
+          'empty, never an error',
+          resp_ok.media.get('plantSimSpaces') == [])
+
+    print('plant-viz scenes — one per PotPlanting bound to the pot '
+          '(phase 6/7)')
+    m5 = _mgr(HOLES_VALID)
+    m5.objectTables['PotPlanting'] = {
+        'a': SimpleNamespace(name='demo-pot-basil', pot_name='demo-pot'),
+        'b': SimpleNamespace(name='other-pot-basil', pot_name='other-pot'),
+    }
+    api5 = SimpleNamespace(manager=m5)
+    resp5 = SimpleNamespace(media=None, status=None)
+    MathShapesAPI.on_post_from_pot(api5, None, resp5, 'demo-pot')
+    check('only the planting bound to THIS pot gets a scene '
+          "(other-pot-basil, bound elsewhere, doesn't)",
+          resp5.media.get('plantSimSpaces') == ['demo-pot-basil-plant-viz'])
+    plant_scene = m5.objectTables['SimSpaceDefinition'][
+        'demo-pot-basil-plant-viz']
+    plant_scene_def = json.loads(plant_scene.definition)
+    check('plant-viz scene carries exactly one live plantskeleton: entry, '
+          'keyed by PLANTING name not pot name',
+          sum(1 for e in plant_scene_def['freestanding']
+              if e['shapeRef'] == 'plantskeleton:demo-pot-basil') == 1)
+    check('plant-viz scene shell/soil are always the transparent '
+          'variant, same rationale as the water-viz scene',
+          all(e['styleRef'].endswith('-transparent')
+              for e in plant_scene_def['freestanding']
+              if e['id'] in (resp5.media['wallShape'],
+                            resp5.media['bottomShape'])))
     resp_404 = SimpleNamespace(media=None, status=None)
     MathShapesAPI.on_post_from_pot(api, None, resp_404, 'no-such-pot')
     check('from-pot route 404s on an unknown pot',

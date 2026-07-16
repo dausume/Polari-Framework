@@ -10,8 +10,11 @@ HTTP surface for nut-2 (plant harvest -> meal nutrients):
   GET  /api/nutrition/foods/{name}/nutrients
         per-harvest nutrient yield at MATURE volume.
   POST /api/nutrition/foods/{name}/nutrients
-        body {plant, days, supply?} -> runs an aqp-8 grow first, then
-        the REALIZED harvest yield (the self-watering-pot loop closed).
+        body {plant, days, supplyFactor?} -> runs the simplified/
+        aggregate growth model first (2026-07-15 — was aqp-8's
+        plant_growth.grow, renamed + rebuilt to pull its constants
+        from the real detailed model), then the REALIZED harvest yield
+        (the self-watering-pot loop closed).
 
 Foods are edited through CRUDE on FoodItem / NutrientContent rows.
 
@@ -54,7 +57,8 @@ class NutritionFoodAPI(treeObject):
         response.media = result
 
     def on_post_nutrients(self, request, response, name):
-        """Grow the plant (aqp-8) then compute the REALIZED harvest."""
+        """Grow the plant (simplified/aggregate model) then compute
+        the REALIZED harvest."""
         try:
             body = json.load(request.bounded_stream) \
                 if request.content_length else {}
@@ -67,12 +71,14 @@ class NutritionFoodAPI(treeObject):
         plant = body.get('plant')
         if plant:
             try:
-                from aquaponics.plant_growth import grow
+                from aquaponics.plant_growth_simplified import grow
                 grow_result = grow(
                     self.manager, plant,
                     days=float(body.get('days', 60.0) or 60.0),
-                    supply=body.get('supply') or {},
-                    supply_by_part=body.get('supply_by_part') or {})
+                    supply_factor=float(
+                        body.get('supplyFactor', 1.0) or 1.0),
+                    supply_factor_by_part=body.get(
+                        'supplyFactorByPart') or {})
             except Exception as e:
                 response.status = '400 Bad Request'
                 response.media = {'ok': False,

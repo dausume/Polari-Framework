@@ -89,6 +89,20 @@ def _part(name, plant, ptype, vmax):
             'flux_json': '{}'}
 
 
+# free_soil_constants() (the real detailed model this test's
+# growth_prediction.py now sources its constants from — 2026-07-15)
+# requires a PlantDefinition row per species; no PlantGrowthModel rows
+# are seeded here, so every part uses PlantDefinition's own
+# normalized_growth_rate_per_day FALLBACK rate — deliberately, keeping
+# this fixture independent of PlantGrowthModel/aqp-8 specifics.
+def _plant(name):
+    return {'name': name, 'display_name': name, 'species': name,
+            'normalized_growth_rate_per_day': 0.12}
+
+
+PLANTS = [_plant('sweet-basil'), _plant('dwarf-pepper'), _plant('oak')]
+
+
 PARTS = [
     _part('basil-leaf', 'sweet-basil', 'leaf', 400.0),
     _part('basil-stem', 'sweet-basil', 'stem', 200.0),
@@ -107,6 +121,7 @@ def _mgr():
         'AquaponicTowerDefinition': _rows(TOWERS),
         'RootSystemModel': _rows(ROOTS),
         'PlantPart': _rows(PARTS),
+        'PlantDefinition': _rows(PLANTS),
     })
 
 

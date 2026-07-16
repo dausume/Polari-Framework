@@ -129,6 +129,33 @@ class RootSystemModel(treeObject):
         # The estimate: can it live in a pot indefinitely (with the
         # cadence above)? honest bool the analysis re-derives + explains.
         indefinite_in_pot: bool = True,
+        # --- Free Soil Constants additions (2026-07-15, plant-growth-
+        # sim phase 1 — Dustin: root branching needs "usual root
+        # density when it has only free soil" + "how root thickness
+        # changes with distance from plant core as a function of
+        # growth"). All three are UNCONFINED references, same status
+        # as natural_spread_radius_mm/natural_depth_mm above — the
+        # confinement math (morphology_analysis.confinement_assessment)
+        # scales them down for a specific pot, it never edits them. ---
+        # Root dry-mass density WITHIN the occupied soil envelope at
+        # full unconfined growth (g root dry mass / cm3 of SOIL the
+        # roots have colonized — a real soil-science quantity,
+        # distinct from PlantGrowthModel.volume_density_g_cm3, which is
+        # the density of the root TISSUE itself, not how densely it
+        # fills the soil around it).
+        soil_root_density_g_per_cm3: float = 0.02,
+        # Root diameter AT the core (seed origin) once fully mature
+        # (mm) — the taper profile's starting point.
+        root_core_diameter_mm: float = 3.0,
+        # Taper exponent: diameter(distance) = root_core_diameter_mm *
+        # (1 - distance/envelope_extent) ** root_taper_exponent, floored
+        # at root_hair_diameter_mm. Higher = thins out faster near the
+        # core; lower = a more gradual taper reaching further before
+        # thinning. 1.0 = linear taper.
+        root_taper_exponent: float = 1.6,
+        # Floor diameter (mm) roots never taper below, however far from
+        # the core — real root hairs, not a mathematical zero.
+        root_hair_diameter_mm: float = 0.2,
         is_prior: bool = True,
         provenance_id: str = '',
         notes: str = '',
@@ -144,6 +171,10 @@ class RootSystemModel(treeObject):
         self.dwarfable = dwarfable
         self.root_prune_cadence_days = root_prune_cadence_days
         self.indefinite_in_pot = indefinite_in_pot
+        self.soil_root_density_g_per_cm3 = soil_root_density_g_per_cm3
+        self.root_core_diameter_mm = root_core_diameter_mm
+        self.root_taper_exponent = root_taper_exponent
+        self.root_hair_diameter_mm = root_hair_diameter_mm
         self.is_prior = is_prior
         self.provenance_id = provenance_id
         self.notes = notes

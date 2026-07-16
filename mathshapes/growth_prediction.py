@@ -9,8 +9,13 @@ math-shape geometry as the CONSTRAINT. Couples three existing layers
 
   - shape-2 `tower_geometry`  → each tier's GROW VOLUME = the carrying
     capacity the pot geometry provides.
-  - aqp-8 `plant_growth.grow` → the plant's intrinsic per-part logistic
-    growth trajectory (unconfined), CAPPED here by the tier volume.
+  - `plant_growth_simplified.grow` (2026-07-15, was aqp-8's
+    `plant_growth.grow` — renamed + rebuilt to pull its constants +
+    curve from the real detailed model, plant_growth_normalized) →
+    the plant's intrinsic per-part growth trajectory (unconfined),
+    CAPPED here by the tier volume. This is EXACTLY the "mass
+    evaluation at scale" use case the simplified model was redefined
+    for — one representative trajectory applied across every tier.
   - morph-1 `confinement_assessment` → does the mature root ball fit the
     tier, the resulting dwarf factor, and whether the plant can be kept
     in that tier INDEFINITELY (+ the root-prune cadence).
@@ -21,10 +26,10 @@ labels travel with numbers). Duck-typed manager, stdlib only.
 
 @consumers
   - mathshapes.tower_api (GET .../growth-forecast)
-@see /MATH_SHAPES_PLAN.md (PHASE shape-4)
+@see /MATH_SHAPES_PLAN.md (PHASE shape-4), /AQUAPONICS_POT_SHAPE_PLAN.md phase 9
 """
 
-from aquaponics import plant_growth
+from aquaponics import plant_growth_simplified
 from mathshapes.tower_analysis import tower_geometry
 from plant_morphology.morphology_analysis import confinement_assessment
 
@@ -101,8 +106,9 @@ def tower_growth_forecast(manager, tower_name, plant_name, days=180.0,
                                'action': 'seed a morph-1 root model for '
                                          'the plant'}}
     # intrinsic (unconfined) growth trajectory — same for every tier.
-    growth = plant_growth.grow(manager, plant_name, days=float(days),
-                               dt_days=float(dt_days))
+    growth = plant_growth_simplified.grow(manager, plant_name,
+                                          days=float(days),
+                                          dt_days=float(dt_days))
     if not growth.get('ok'):
         return {'ok': False,
                 'error': f"growth model unavailable: "
@@ -143,9 +149,8 @@ def tower_growth_forecast(manager, tower_name, plant_name, days=180.0,
         if not growth_survived:
             verdict = 'will fail'
             fail = (growth.get('failureSummary') or [{}])[0]
-            limiting = (f"growth failure: {fail.get('limitingSpecies')} "
-                        f"limiting from day {fail.get('day')} "
-                        f"(supply, not geometry)")
+            reason = fail.get('reason', 'supply factor too low')
+            limiting = f"growth failure: {reason} (supply, not geometry)"
 
         verdict_counts[verdict] = verdict_counts.get(verdict, 0) + 1
         per_tier.append({

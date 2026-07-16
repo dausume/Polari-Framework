@@ -143,6 +143,43 @@ from scoring.worldview_elections import (
     SEED_ASSEMBLY_GROUPS, SEED_WORLDVIEW_BALLOTS,
     SEED_WORLDVIEW_ELECTIONS, WorldviewBallot, WorldviewElection,
 )
+# Democratic Scorecard revamp Phase 2: Housing Affordability, the first
+# real (non-demo) Context Tree — mechanism B applied to real content.
+from scoring.housing_affordability_seed import (
+    SEED_HOUSING_BALLOTS, SEED_HOUSING_CONTEXTUALIZED_VALUES,
+    SEED_HOUSING_CONTRIBUTORS, SEED_HOUSING_ELECTIONS,
+    SEED_HOUSING_SCORE_CONCEPTS, SEED_HOUSING_SCORE_GROUPS,
+    SEED_HOUSING_SCORE_TERMS,
+)
+# Democratic Scorecard revamp Phase 4: mechanism A (Group Display
+# votes) — vote on which Display best EXPLAINS a score, distinct from
+# mechanism B's vote on term-WEIGHTING worldviews.
+from scoring.group_display_vote import (
+    GroupDisplayBallot, GroupDisplayVote, SEED_GROUP_DISPLAY_BALLOTS,
+    SEED_GROUP_DISPLAY_VOTES, SEED_GROUP_DISPLAYS,
+)
+# Democratic Scorecard revamp mechanism C: logic-fork criterion votes
+# — vote on which alternate criterion a SPECIFIC decision point/fork
+# inside a decision procedure should use, distinct from mechanism A
+# (whole Displays) and mechanism B (whole worldview concepts).
+from scoring.logic_fork_vote import (
+    DecisionProcedureEdge, LogicForkBallot, LogicForkCriterion,
+    LogicForkVote, SEED_DECISION_PROCEDURE_EDGES,
+    SEED_LOGIC_FORK_BALLOTS, SEED_LOGIC_FORK_CONTRIBUTORS,
+    SEED_LOGIC_FORK_CRITERIA, SEED_LOGIC_FORK_VOTES,
+)
+# System-choice implications: which criterion is actually deployed
+# where over time (SystemChoiceInForce), and evidence-weighted claims
+# that a system choice affects a real-world score (reuses
+# ScoreAssertion unchanged).
+from scoring.system_choice_implications import (
+    SEED_IMPLICATION_ASSERTIONS, SEED_IMPLICATION_CONTEXTUALIZED_VALUES,
+    SEED_IMPLICATION_SCORE_TERMS, SEED_IMPLICATION_SUBJECTS,
+    SEED_IMPLICATION_VALIDITY_VOTES, SEED_INTERPRETATION_BALLOTS,
+    SEED_INTERPRETATION_ELECTIONS, SEED_INTERPRETATION_SCORE_CONCEPTS,
+    SEED_INTERPRETATION_SCORE_GROUPS, SEED_SYSTEM_CHOICES_IN_FORCE,
+    SystemChoiceInForce,
+)
 # scr-15: media outlets held accountable for accuracy to the data.
 from scoring.media_accuracy import (
     AccuracyPolicy, FactualClaim, SEED_ACCURACY_POLICIES,
@@ -215,6 +252,23 @@ from plant_morphology.organ_basis import OrganModel, RootSystemModel
 from plant_morphology.morphology_seed import (
     SEED_ORGAN_MODELS, SEED_ROOT_MODELS,
 )
+# Plant-growth-sim phase 1: per-part normalized-growth instance state
+# (2026-07-15 — the missing "this specific plant, in this pot, this
+# far along" object; see aquaponics/plant_growth_normalized.py).
+from aquaponics.plant_growth_normalized import PotPlanting
+from aquaponics.plant_growth_normalized_seed import SEED_POT_PLANTINGS
+# Plant-growth-sim phase 7: stress-type-differentiated response curves
+# (2026-07-15 — see aquaponics/plant_stress.py).
+from aquaponics.plant_stress import StressResponseCurve
+from aquaponics.plant_stress_seed import SEED_STRESS_CURVES
+# Plant-growth-sim phase 8: direct-light field simulation (2026-07-15
+# — see aquaponics/light_field.py).
+from aquaponics.light_basis import LightSourceDefinition, LightSpectrumDefinition
+from aquaponics.light_seed import SEED_LIGHT_SOURCES, SEED_LIGHT_SPECTRA
+# Plant-growth-sim phase 10: water batching + real nutrient uptake
+# (2026-07-15 — see aquaponics/water_batch.py, nutrient_uptake.py).
+from aquaponics.water_batch import WaterBatchSchedule
+from aquaponics.water_batch_seed import SEED_WATER_BATCH_SCHEDULES
 # Math-defined shapes: quadric/primitive/CSG geometry core (shape-1).
 from mathshapes.shape_basis import MathShapeDefinition
 from mathshapes.shape_seed import SEED_MATH_SHAPES
@@ -794,11 +848,15 @@ class polariServer(treeObject):
         from aquaponics.vermicompost_api import AquaponicsCompostAPI
         aquaponicsCompostEndpoint = AquaponicsCompostAPI(
             polServer=self, manager=self.manager)
-        # Aquaponics: per-part plant growth / failure + volume
-        # interactions — grow / interactions (aqp-8).
-        from aquaponics.plant_growth_api import AquaponicsPlantGrowthAPI
-        aquaponicsPlantGrowthEndpoint = AquaponicsPlantGrowthAPI(
-            polServer=self, manager=self.manager)
+        # Aquaponics: SIMPLIFIED/AGGREGATE growth model (was aqp-8;
+        # renamed + rebuilt 2026-07-15 to pull its constants + curve
+        # from the real detailed model, plant_growth_normalized).
+        from aquaponics.plant_growth_simplified_api import (
+            AquaponicsPlantGrowthSimplifiedAPI,
+        )
+        aquaponicsPlantGrowthSimplifiedEndpoint = (
+            AquaponicsPlantGrowthSimplifiedAPI(
+                polServer=self, manager=self.manager))
         # Nutrition: dietary-nutrient vocab + person BMR/needs +
         # household demand aggregation (nut-1/3/4).
         from nutrition.nutrition_api import NutritionAPI
@@ -813,6 +871,27 @@ class polariServer(treeObject):
         # dwarfing assessment (morph-1).
         from plant_morphology.morphology_api import PlantMorphologyAPI
         plantMorphologyEndpoint = PlantMorphologyAPI(
+            polServer=self, manager=self.manager)
+        # Plant-growth-sim phase 1: free-soil/constrained-limits +
+        # per-part PotPlanting state + animation-bones skeleton
+        # (2026-07-15).
+        from aquaponics.plant_growth_normalized_api import (
+            AquaponicsPlantGrowthNormalizedAPI,
+        )
+        aquaponicsPlantGrowthNormalizedEndpoint = (
+            AquaponicsPlantGrowthNormalizedAPI(
+                polServer=self, manager=self.manager))
+        # Plant-growth-sim phase 8: direct-light field diagnostics.
+        from aquaponics.light_field_api import AquaponicsLightFieldAPI
+        aquaponicsLightFieldEndpoint = AquaponicsLightFieldAPI(
+            polServer=self, manager=self.manager)
+        # Plant-growth-sim phase 10: water batching + nutrient uptake.
+        from aquaponics.water_batch_api import AquaponicsWaterBatchAPI
+        aquaponicsWaterBatchEndpoint = AquaponicsWaterBatchAPI(
+            polServer=self, manager=self.manager)
+        # Plant-growth-sim phase 11: decomposed water-level trajectory.
+        from aquaponics.water_level_api import AquaponicsWaterLevelAPI
+        aquaponicsWaterLevelEndpoint = AquaponicsWaterLevelAPI(
             polServer=self, manager=self.manager)
         # Math-defined shapes: quadric/primitive/CSG geometry (shape-1)
         # + parametric modification (shape-2, POST /modify).
@@ -1003,12 +1082,19 @@ class polariServer(treeObject):
             ScoreAssertion, AssertionValidityVote, MediaEvidence,
             EvidencePolicy, Contributor, PolicyVote,
             WorldviewElection, WorldviewBallot,
+            GroupDisplayVote, GroupDisplayBallot,
+            LogicForkCriterion, LogicForkVote, LogicForkBallot,
+            DecisionProcedureEdge, SystemChoiceInForce,
             FactualClaim, AccuracyPolicy, BiasPolicy,
             CostCategory, SurvivalCostProfile,
             PotDefinition, PotHole,
             NutrientSpecies, NutrientProfile, SoilDefinition,
             WaterDefinition, PlantDefinition, PlantPart,
             AtmosphereDefinition, PotSystemDefinition,
+            # Plant-growth-sim phase 8: direct-light field simulation.
+            LightSpectrumDefinition, LightSourceDefinition,
+            # Plant-growth-sim phase 10: water batching schedules.
+            WaterBatchSchedule,
             CompostBinDefinition, VermicompostProfile,
             CompostLoopDefinition, PlantGrowthModel,
             # Nutrition (nut-1/3/4 + nut-2 foods).
@@ -1016,6 +1102,10 @@ class polariServer(treeObject):
             HouseholdProfile, FoodItem, NutrientContent,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
+            # Plant-growth-sim phase 1: normalized-growth instance state.
+            PotPlanting,
+            # Plant-growth-sim phase 7: stress-type response curves.
+            StressResponseCurve,
             # Math-defined shapes: quadric/primitive/CSG (shape-1).
             MathShapeDefinition,
             # Aquaponic tower: stacked math-defined pots (shape-2).
@@ -1883,7 +1973,7 @@ class polariServer(treeObject):
              SEED_CHEMICAL_ELEMENTS),
             ('DisplayDefinition', DisplayDefinition,
              SEED_PERIODIC_DISPLAYS + SEED_MSCI_PAGE_DISPLAYS
-             + SEED_AQUAPONICS_PAGE_DISPLAYS),
+             + SEED_AQUAPONICS_PAGE_DISPLAYS + SEED_GROUP_DISPLAYS),
             # Materials basis — identities before their scale rows.
             ('MaterialsScienceMaterial', MaterialsScienceMaterial,
              SEED_MS_MATERIALS + SEED_STANDARD_MATERIALS
@@ -1932,45 +2022,76 @@ class polariServer(treeObject):
             # values and concepts that reference them.
             ('ScoreTerm', ScoreTerm,
              SEED_SCORE_TERMS + SEED_COST_TERMS
-             + SEED_AQP_SCORE_TERMS + SEED_ENRICH_SCORE_TERMS),
+             + SEED_AQP_SCORE_TERMS + SEED_ENRICH_SCORE_TERMS
+             + SEED_HOUSING_SCORE_TERMS + SEED_IMPLICATION_SCORE_TERMS),
             ('ScoreContext', ScoreContext, SEED_SCORE_CONTEXTS),
             ('ScoreSubject', ScoreSubject,
              SEED_SCORE_SUBJECTS + SEED_POLICY_SUBJECTS
              + SEED_POLITICIAN_SUBJECTS + SEED_MEDIA_OUTLETS
-             + SEED_AQP_SCORE_SUBJECTS + SEED_ENRICH_SCORE_SUBJECTS),
+             + SEED_AQP_SCORE_SUBJECTS + SEED_ENRICH_SCORE_SUBJECTS
+             + SEED_IMPLICATION_SUBJECTS),
             ('ContextualizedValue', ContextualizedValue,
              SEED_CONTEXTUALIZED_VALUES
              + SEED_AQP_CONTEXTUALIZED_VALUES
-             + SEED_ENRICH_CONTEXTUALIZED_VALUES),
+             + SEED_ENRICH_CONTEXTUALIZED_VALUES
+             + SEED_HOUSING_CONTEXTUALIZED_VALUES
+             + SEED_IMPLICATION_CONTEXTUALIZED_VALUES),
             ('ScoreConcept', ScoreConcept,
              SEED_SCORE_CONCEPTS + SEED_AQP_SCORE_CONCEPTS
-             + SEED_ENRICH_SCORE_CONCEPTS),
+             + SEED_ENRICH_SCORE_CONCEPTS
+             + SEED_HOUSING_SCORE_CONCEPTS
+             + SEED_INTERPRETATION_SCORE_CONCEPTS),
             # Groups + the editable agreement-classification bands
             # (concepts first — groups reference member concepts).
             ('ScoreGroup', ScoreGroup,
              SEED_SCORE_GROUPS + SEED_COHORT_GROUPS
-             + SEED_ASSEMBLY_GROUPS),
+             + SEED_ASSEMBLY_GROUPS + SEED_HOUSING_SCORE_GROUPS
+             + SEED_INTERPRETATION_SCORE_GROUPS),
             ('AgreementPolicy', AgreementPolicy,
              SEED_AGREEMENT_POLICIES),
             # scr-5: contributors before the evidence/assertions that
             # cite them; evidence before assertions.
-            ('Contributor', Contributor, SEED_CONTRIBUTORS),
+            ('Contributor', Contributor,
+             SEED_CONTRIBUTORS + SEED_HOUSING_CONTRIBUTORS
+             + SEED_LOGIC_FORK_CONTRIBUTORS),
             ('EvidencePolicy', EvidencePolicy,
              SEED_EVIDENCE_POLICIES),
             ('MediaEvidence', MediaEvidence, SEED_MEDIA_EVIDENCE),
             ('ScoreAssertion', ScoreAssertion,
-             SEED_SCORE_ASSERTIONS),
+             SEED_SCORE_ASSERTIONS + SEED_IMPLICATION_ASSERTIONS),
             ('AssertionValidityVote', AssertionValidityVote,
-             SEED_VALIDITY_VOTES),
+             SEED_VALIDITY_VOTES + SEED_IMPLICATION_VALIDITY_VOTES),
             # scr-6: votes after the politician/policy subjects they
             # reference.
             ('PolicyVote', PolicyVote, SEED_POLICY_VOTES),
             # scr-8: elections after the groups/worldviews they run
             # over; ballots after their election.
             ('WorldviewElection', WorldviewElection,
-             SEED_WORLDVIEW_ELECTIONS),
+             SEED_WORLDVIEW_ELECTIONS + SEED_HOUSING_ELECTIONS
+             + SEED_INTERPRETATION_ELECTIONS),
             ('WorldviewBallot', WorldviewBallot,
-             SEED_WORLDVIEW_BALLOTS),
+             SEED_WORLDVIEW_BALLOTS + SEED_HOUSING_BALLOTS
+             + SEED_INTERPRETATION_BALLOTS),
+            # Phase 4 mechanism A: votes after their group + candidate
+            # Displays (both seeded above); ballots after their vote.
+            ('GroupDisplayVote', GroupDisplayVote,
+             SEED_GROUP_DISPLAY_VOTES),
+            ('GroupDisplayBallot', GroupDisplayBallot,
+             SEED_GROUP_DISPLAY_BALLOTS),
+            # Mechanism C: logic-fork criteria before the votes that
+            # reference them as candidates; ballots after their vote.
+            ('LogicForkCriterion', LogicForkCriterion,
+             SEED_LOGIC_FORK_CRITERIA),
+            ('LogicForkVote', LogicForkVote, SEED_LOGIC_FORK_VOTES),
+            ('LogicForkBallot', LogicForkBallot,
+             SEED_LOGIC_FORK_BALLOTS),
+            ('DecisionProcedureEdge', DecisionProcedureEdge,
+             SEED_DECISION_PROCEDURE_EDGES),
+            # System-choice implications: which criterion is actually
+            # deployed where (references LogicForkCriterion by name,
+            # resolved live, no ordering dependency).
+            ('SystemChoiceInForce', SystemChoiceInForce,
+             SEED_SYSTEM_CHOICES_IN_FORCE),
             # scr-15: claims after the outlets/terms they reference.
             ('AccuracyPolicy', AccuracyPolicy,
              SEED_ACCURACY_POLICIES),
@@ -1999,6 +2120,16 @@ class polariServer(treeObject):
             # aqp-5: atmospheric environments.
             ('AtmosphereDefinition', AtmosphereDefinition,
              SEED_ATMOSPHERES),
+            # Plant-growth-sim phase 8: light spectra/sources (before
+            # PotSystemDefinition, which references a source by name).
+            ('LightSpectrumDefinition', LightSpectrumDefinition,
+             SEED_LIGHT_SPECTRA),
+            ('LightSourceDefinition', LightSourceDefinition,
+             SEED_LIGHT_SOURCES),
+            # Plant-growth-sim phase 10: water batch schedules (before
+            # PotSystemDefinition, which references one by name).
+            ('WaterBatchSchedule', WaterBatchSchedule,
+             SEED_WATER_BATCH_SCHEDULES),
             # aqp-6: bound pot systems (the scoring rows above bind to
             # these via objectRef into impact_result_json).
             ('PotSystemDefinition', PotSystemDefinition,
@@ -2030,6 +2161,12 @@ class polariServer(treeObject):
             # morph-1: 3D organ + root stand-in models.
             ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
+            # Plant-growth-sim phase 1: real plantings (after
+            # PotDefinition + PlantDefinition, which they reference).
+            ('PotPlanting', PotPlanting, SEED_POT_PLANTINGS),
+            # Plant-growth-sim phase 7: stress-type response curves.
+            ('StressResponseCurve', StressResponseCurve,
+             SEED_STRESS_CURVES),
             # shape-1: math-defined shapes (quadric/primitive/CSG).
             ('MathShapeDefinition', MathShapeDefinition, SEED_MATH_SHAPES),
             # shape-2: aquaponic towers (reference math-defined pots).

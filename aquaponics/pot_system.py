@@ -59,6 +59,22 @@ class PotSystemDefinition(treeObject):
         water_name: str = '',
         plant_name: str = '',
         atmosphere_name: str = '',
+        # Optional aquaponics.light_basis.LightSourceDefinition name
+        # (plant-growth-sim phase 8, 2026-07-15) — when set,
+        # advance_growth's 'light' stress factor is computed from the
+        # REAL geometric/spectral light field (aquaponics.light_field)
+        # instead of the static AtmosphereDefinition.
+        # light_ppfd_umol_m2_s scalar. Empty = unchanged, existing
+        # behavior (falls back to the atmosphere field).
+        light_source_name: str = '',
+        # Optional aquaponics.water_batch.WaterBatchSchedule name
+        # (plant-growth-sim phase 10, 2026-07-15) — when set, the
+        # ACTIVE water source (which batch is currently governing the
+        # pot) is resolved per-planting from the schedule and used for
+        # BOTH the water-quality stress curves (phase 7) AND real
+        # nutrient uptake (phase 10), OVERRIDING water_name for that
+        # tick. Empty = unchanged, water_name is used directly.
+        water_batch_schedule_name: str = '',
         # Persisted impact snapshot (JSON) — system_impact writes it;
         # scoring binds to it. Empty until first computed.
         impact_result_json: str = '',
@@ -74,6 +90,8 @@ class PotSystemDefinition(treeObject):
         self.water_name = water_name
         self.plant_name = plant_name
         self.atmosphere_name = atmosphere_name
+        self.light_source_name = light_source_name
+        self.water_batch_schedule_name = water_batch_schedule_name
         self.impact_result_json = impact_result_json
         self.provenance_id = provenance_id
         self.notes = notes

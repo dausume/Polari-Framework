@@ -15,16 +15,24 @@ HTTP surface for aqp-3 pot hydraulics:
         {"pot", "soil", "water_level_mm"?, "refine"?} -> the full
         per-node head field (fem fidelity; refuses honestly when no
         solver is reachable — the reservoir model has no field).
+  GET  /api/aquaponics/pots/{name}/water-slice
+        aquaponics-pot-shape phase 3: a 3-D-positioned triangulated
+        mesh of the steady head field, in the same coordinate frame
+        the pot's own wall/soil/hole meshes render in — ready to feed
+        straight into the frontend's water-flow visualization. Query:
+        ?soil=<name>&waterLevelMm=<mm>&refine=<n>
 
 @consumers
   - aquaponics frontend (later phase); aqp-7/aqp-8 couplings
-@see /AQUAPONICS_PHASE2_PLAN.md
+@see /AQUAPONICS_PHASE2_PLAN.md, /AQUAPONICS_POT_SHAPE_PLAN.md (phase 3)
 """
 
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from aquaponics.hydraulics import build_darcy_payload, run_hydraulics
+from aquaponics.hydraulics import (
+    build_darcy_payload, run_hydraulics, water_slice_mesh,
+)
 
 
 class AquaponicsHydraulicsAPI(treeObject):
@@ -44,6 +52,9 @@ class AquaponicsHydraulicsAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/aquaponics/hydraulics/head-field', self,
                 suffix='headfield')
+            polServer.falconServer.add_route(
+                '/api/aquaponics/pots/{name}/water-slice', self,
+                suffix='water_slice')
 
     def on_get_capability(self, request, response):
         from materialsScience.engines import darcy_engine
@@ -106,4 +117,17 @@ class AquaponicsHydraulicsAPI(treeObject):
         else:
             result['pot'] = pot
             result['conductivitySource'] = built['conductivitySource']
+        response.media = result
+
+    def on_get_water_slice(self, request, response, name):
+        params = request.params or {}
+        water = params.get('waterLevelMm')
+        result = water_slice_mesh(
+            self.manager, name, params.get('soil', ''),
+            water_level_mm=float(water) if water else None,
+            refine=int(params.get('refine', 6) or 6))
+        if not result.get('ok'):
+            response.status = '404 Not Found' \
+                if 'no PotDefinition' in str(result.get('error', '')) \
+                else '503 Service Unavailable'
         response.media = result

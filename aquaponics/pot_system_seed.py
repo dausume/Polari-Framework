@@ -29,6 +29,13 @@ SEED_POT_SYSTEMS = [
         'water_name': 'tilapia-aquaponic-loop',
         'plant_name': 'sweet-basil',
         'atmosphere_name': 'ventilated-grow-tent',
+        # plant-growth-sim phase 8 (2026-07-15) — binds the REAL
+        # computed light-field path (aquaponics.light_field) alongside
+        # the static atmosphere_name.light_ppfd_umol_m2_s field the
+        # 'light' stress curve already used; see aquaponics.light_seed
+        # for the source's own docstring on why its intensity_w_m2
+        # was solved to roughly match this system's existing 350 PPFD.
+        'light_source_name': 'demo-herb-pot-grow-light',
         # Precomputed snapshot (see system_impact); refreshed on POST.
         'impact_result_json': json.dumps({
             'permanentCarbonG': 1.76,
@@ -64,6 +71,51 @@ SEED_POT_SYSTEMS = [
             'waterThroughputL': 4320.0,
             'lifetimeDays': 120.0}),
         'provenance_id': 'aqp-6 failing system',
+    },
+    {
+        'name': 'basil-water-batched',
+        'display_name': 'Basil / aquaponic / batched water',
+        'description': 'Same pot/plant/atmosphere/light as the '
+                       'healthy reference tent, but the water source '
+                       'CYCLES on a schedule (plant-growth-sim phase '
+                       '10, 2026-07-15) instead of one static binding '
+                       '— a deliberate, controlled Fe-stress window '
+                       'each cycle, distinct from '
+                       'basil-aquaponic-tent (always rich) and '
+                       'basil-aquaponic-sealed (atmosphere-stressed).',
+        'pot_name': 'demo-herb-pot', 'soil_name': 'coir-perlite-mix',
+        # Fallback only — water_batch_schedule_name overrides this
+        # whenever it resolves; kept as an honest "what if the
+        # schedule fails to resolve" default, same pattern as
+        # light_source_name's own fallback-to-static-field behavior.
+        'water_name': 'hydroponic-reservoir',
+        'water_batch_schedule_name': 'basil-fe-stress-cycle',
+        'plant_name': 'sweet-basil',
+        'atmosphere_name': 'ventilated-grow-tent',
+        'light_source_name': 'demo-herb-pot-grow-light',
+        'impact_result_json': '',
+        'provenance_id': 'plant-growth-sim phase 10',
+        'notes': 'demo system for water batching/nutrient-source '
+                 'cycling — see aquaponics.water_batch_seed.',
+    },
+    {
+        'name': 'dwarf-pepper-tent',
+        'display_name': 'Dwarf pepper / ventilated tent',
+        'description': 'plant-growth-sim phase 12 (2026-07-15) — the '
+                       'SAME pot/soil/water/atmosphere/light as '
+                       'basil-aquaponic-tent, ONLY the plant species '
+                       'differs, isolating species-specific growth '
+                       'differences for a real, apples-to-apples '
+                       'comparison against sweet-basil.',
+        'pot_name': 'demo-herb-pot', 'soil_name': 'coir-perlite-mix',
+        'water_name': 'hydroponic-reservoir',
+        'plant_name': 'dwarf-pepper',
+        'atmosphere_name': 'ventilated-grow-tent',
+        'light_source_name': 'demo-herb-pot-grow-light',
+        'impact_result_json': '',
+        'provenance_id': 'plant-growth-sim phase 12',
+        'notes': 'the second full-parity comparison species — see '
+                 'aquaponics.plant_seed for the full rationale.',
     },
 ]
 

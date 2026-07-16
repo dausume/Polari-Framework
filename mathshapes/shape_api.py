@@ -49,7 +49,10 @@ from mathshapes.shape_analysis import (
 )
 from mathshapes.shape_modify import modify_parameter, pot_shape_from_definition
 from mathshapes.soil_modify import soil_shape_from_definition
-from mathshapes.pot_scene import ensure_pot_viz_scene
+from mathshapes.pot_scene import (
+    ensure_pot_plant_viz_scene, ensure_pot_viz_scene,
+    ensure_pot_water_viz_scene,
+)
 
 
 class MathShapesAPI(treeObject):
@@ -173,4 +176,28 @@ class MathShapesAPI(treeObject):
             result['bottomShape'], soil_shape_name, result['holeShapes'],
             wall_transparent=result.get('wallTransparent', False),
             soil_transparent=result.get('soilTransparent', False))
+        # Separate water-flow scene (aquaponics-pot-shape phase 3) —
+        # kept in sync with the static scene on every re-derive since
+        # both come from the same wall/bottom/soil/hole shapes.
+        result['waterSimSpace'] = ensure_pot_water_viz_scene(
+            self.manager, pot_name, result['wallShape'],
+            result['bottomShape'], soil_shape_name, result['holeShapes'])
+        # One plant-viz scene PER PotPlanting bound to this pot (phase
+        # 6/7, 2026-07-15) — keyed by planting, not pot, since a pot
+        # can have more than one planting (this session's own demo
+        # data does) and two plants can't share a scene unambiguously.
+        # Never fails the whole re-derive — an honest per-planting gap
+        # is just absent from the list, not a silent whole-request 500.
+        plantings_table = (self.manager.objectTables or {}).get(
+            'PotPlanting', {})
+        plantings = plantings_table.values() if isinstance(
+            plantings_table, dict) else plantings_table
+        result['plantSimSpaces'] = [
+            ensure_pot_plant_viz_scene(
+                self.manager, planting.name, pot_name, result['wallShape'],
+                result['bottomShape'], soil_shape_name,
+                result['holeShapes'])
+            for planting in plantings
+            if getattr(planting, 'pot_name', '') == pot_name
+        ]
         response.media = result
