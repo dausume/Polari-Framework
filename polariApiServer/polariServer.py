@@ -2665,14 +2665,20 @@ class polariServer(treeObject):
         # retire its persisted rows (idempotent no-op once gone) and
         # remap stale PolariModule.tech_node_ref hints.
         try:
-            from techtree.techtree_seed import retire_legacy_trees
+            from techtree.techtree_seed import (
+                backfill_cross_refs, retire_legacy_trees,
+            )
             retired = retire_legacy_trees(self.manager)
             if retired:
                 print(f'[TechTree] retired legacy tree rows: '
                       f'{retired}', flush=True)
+            filled = backfill_cross_refs(self.manager)
+            if filled.get('filled'):
+                print(f'[TechTree] cross-ref backfill: {filled}',
+                      flush=True)
         except Exception as e:
-            print(f'[TechTree] legacy retirement failed: {e}',
-                  flush=True)
+            print(f'[TechTree] legacy retirement/backfill failed: '
+                  f'{e}', flush=True)
         # res-1: observe THIS device onto its PolariNodeMachine row
         # (ssh_alias=='' convention) so the topology is resource-aware
         # from boot — fills the historical `mem_gb: 0.0` gap.

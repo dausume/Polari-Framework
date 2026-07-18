@@ -336,6 +336,44 @@ if __name__ == '__main__':
                                             'business', 'politics']
           and abs(printing3d['completionLevel'] - 0.25) < 1e-9)
 
+    print('== suite: cross-tree refs + zoom-to payload (tt-9) ==')
+    payload = tree_payload(domains, TREE_ELECTRONICS)
+    lasis = [n for n in payload['nodes']
+             if n['name'] == f'{TREE_ELECTRONICS}/lasis'][0]
+    check('lasis carries a resolved cross-ref to nanoparticle '
+          'supply', lasis['crossRefs'] == [{
+              'tree': TREE_SUPPLY,
+              'node': f'{TREE_SUPPLY}/nanoparticle-supply',
+              'relation': 'produces',
+              'treeTitle': 'Raw Supply Chain',
+              'nodeTitle': 'Nanoparticle supply',
+              'exists': True}], json.dumps(lasis['crossRefs']))
+    supply_payload = tree_payload(domains, TREE_SUPPLY)
+    nano = [n for n in supply_payload['nodes']
+            if n['name'] == f'{TREE_SUPPLY}/nanoparticle-supply'][0]
+    check('reverse direction resolved too (produced-by lasis)',
+          nano['crossRefs'] and nano['crossRefs'][0]['node']
+          == f'{TREE_ELECTRONICS}/lasis'
+          and nano['crossRefs'][0]['exists'])
+    check('every seeded cross-ref resolves (no dangling)',
+          all(ref['exists'] for p in (payload, supply_payload,
+                                      tree_payload(domains,
+                                                   TREE_ECONOMY))
+              for n in p['nodes'] for ref in (n['crossRefs'] or [])))
+    # Dangling refs surface as WARN findings, never errors.
+    domains.objectTables['TechNode'][
+        f'{TREE_ELECTRONICS}/lasis'].cross_refs_json = json.dumps([
+            {'tree': TREE_SUPPLY, 'node': f'{TREE_SUPPLY}/nope',
+             'relation': 'produces'}])
+    report = validate_tree(domains, TREE_ELECTRONICS)
+    check('dangling cross-ref caught as a warn finding',
+          report['valid'] and any(
+              f['check'] == 'dangling-cross-ref'
+              for f in report['findings']))
+    domains = _seeded_mgr()
+    for tree_name in (TREE_ELECTRONICS, TREE_SUPPLY, TREE_ECONOMY):
+        sync_edges(domains, tree_name)
+
     print('== suite: OSEB baseline across domain trees (tt-8) ==')
     baseline = baseline_report(domains)
     check('baseline rolls up all three domain trees',

@@ -45,12 +45,18 @@ TREE_SUPPLY = 'raw-supply-chain'
 TREE_ECONOMY = 'os-economy-politics'
 
 
-def _node(tree, short, title, deps=(), description=''):
+def _node(tree, short, title, deps=(), description='', cross=()):
+    """cross: ((other_tree, other_short, relation), ...) — tt-9
+    cross-tree references, shown as zoom-to chips, never edges."""
     return {'name': f'{tree}/{short}', 'tree_name': tree,
             'title': title, 'description': description,
             'depends_on_json': _json.dumps(
                 [f'{tree}/{d}' for d in deps]),
-            'layout_hints_json': '{}', 'notes': ''}
+            'layout_hints_json': '{}',
+            'cross_refs_json': _json.dumps([
+                {'tree': ct, 'node': f'{ct}/{cn}', 'relation': rel}
+                for ct, cn, rel in cross]),
+            'notes': ''}
 
 
 def _theory(tree, short, ref):
@@ -103,11 +109,13 @@ _P = TREE_ECONOMY
 #: household-nutrition node moved to the Raw Supply Chain tree).
 SEED_TECH_NODES = [
     _node(_E, 'wax-materials', 'Wax materials',
-          description='Bio/synthetic wax basis + supply routes.'),
+          description='Bio/synthetic wax basis + supply routes.',
+          cross=((_S, 'wax-supply', 'supplied-by'),)),
     _node(_E, '3d-printing', '3D printing + extrusion',
           deps=('wax-materials',),
           description='Pellet-fed auger-screw wax printing '
-                      '(waxprint wp-1..8).'),
+                      '(waxprint wp-1..8).',
+          cross=((_S, 'wax-supply', 'supplied-by'),)),
     _node(_E, 'filament-formulation', 'Filament formulation',
           deps=('wax-materials',),
           description='Formulation searches over the materials '
@@ -123,33 +131,43 @@ SEED_TECH_NODES = [
           description='Carbon-nanotube PRODUCTION as its own '
                       'technology: carbon monoxide reduction route '
                       '(disproportionation → CNT growth). Shell — '
-                      'production sim not built yet.'),
+                      'production sim not built yet.',
+          cross=((_S, 'cnt-supply', 'produces'),)),
     _node(_E, 'battery-semiconductors',
           'Solid-state battery + semiconductors',
           deps=('carbon-nanotubes', 'ceramics-composites',
                 'silicon-refinement'),
           description='Electrodevice stack over the materials '
-                      'basis.'),
+                      'basis.',
+          cross=((_S, 'cnt-supply-p-doped', 'consumes'),
+                 (_S, 'cnt-supply-n-doped', 'consumes'),
+                 (_S, 'silicon-supply-semiconductor-grade',
+                  'consumes'))),
     _node(_E, 'silicon-refinement', 'Silicon refinement grade-scale',
           description='Making the different grades of silicon — '
                       'down the grade-scale from raw/metallurgical '
                       'to PV-grade to semiconductor-grade. The '
                       'grade supply streams live in the Raw Supply '
                       'Chain tree. Shell — refinement sim not '
-                      'built yet.'),
+                      'built yet.',
+          cross=((_S, 'silicon-supply-pv-grade', 'produces'),
+                 (_S, 'silicon-supply-semiconductor-grade',
+                  'produces'))),
     _node(_E, 'bombastic-laser-cnc', 'Bombastic Laser CNC',
           deps=('wax-materials', 'lasis',
                 'precision-laser-apparatus', 'open-source-hardware'),
           description='Laser melt/ablate wax voxels (BLCNC_PLAN). '
                       'The REAL device requires the Precision Laser '
-                      'Apparatus.'),
+                      'Apparatus.',
+          cross=((_S, 'wax-nanocomposite-supply', 'supplied-by'),)),
     _node(_E, 'lasis', 'LASiS nanoparticle synthesis',
           deps=('precision-laser-apparatus',),
           description='Laser Ablation Synthesis in Solution — the '
                       'key nanoparticle-making technology (msci-20 '
                       'family). Its output stream is the '
                       'nanoparticle SUPPLY tracked in the Raw '
-                      'Supply Chain tree.'),
+                      'Supply Chain tree.',
+          cross=((_S, 'nanoparticle-supply', 'produces'),)),
     _node(_E, 'precision-laser-apparatus',
           'Precision Laser Apparatus',
           deps=('expandable-dielectrics',),
@@ -189,7 +207,8 @@ SEED_TECH_NODES = [
                       'sol-gel/CNT into laser-cut wax masks. Its '
                       'OWN roadmap (OSPVD_ROADMAP.md): vacuum pump '
                       'and piezo sputter materials are '
-                      'prerequisites.'),
+                      'prerequisites.',
+          cross=((_S, 'sol-gel-supply', 'supplied-by'),)),
     _node(_E, 'blcnc-p1-ideal-melt-voxel',
           'P1 Ideal melt-voxel proof',
           deps=('bombastic-laser-cnc', '3d-printing'),
@@ -241,19 +260,23 @@ SEED_TECH_NODES = [
           description='The supply stream of nanoparticles as a RAW '
                       'MATERIAL (volumes, sources, feedstocks) — '
                       'produced by LASiS in the Electronics tree. '
-                      'Shell — supply module not built yet.'),
+                      'Shell — supply module not built yet.',
+          cross=((_E, 'lasis', 'produced-by'),)),
     _node(_S, 'cnt-supply', 'Carbon nanotube supply',
           description='Raw CNT supply stream — produced by the '
                       'CO-reduction route in the Electronics tree. '
-                      'Shell.'),
+                      'Shell.',
+          cross=((_E, 'cnt-co-reduction', 'produced-by'),)),
     _node(_S, 'cnt-supply-p-doped', 'p-doped CNT supply',
           deps=('cnt-supply',),
           description='p-doped CNTs as their own raw-material '
-                      'stream (semiconductor substrate). Shell.'),
+                      'stream (semiconductor substrate). Shell.',
+          cross=((_E, 'battery-semiconductors', 'consumed-by'),)),
     _node(_S, 'cnt-supply-n-doped', 'n-doped CNT supply',
           deps=('cnt-supply',),
           description='n-doped CNTs as their own raw-material '
-                      'stream (semiconductor substrate). Shell.'),
+                      'stream (semiconductor substrate). Shell.',
+          cross=((_E, 'battery-semiconductors', 'consumed-by'),)),
     _node(_S, 'silicon-supply', 'Raw silicon supply',
           description='Raw / metallurgical-grade silicon as the '
                       'base of the grade-scale. Shell.'),
@@ -261,16 +284,20 @@ SEED_TECH_NODES = [
           deps=('silicon-supply',),
           description='PV-grade silicon — first stop down the '
                       'grade-scale (refined by the Electronics '
-                      'tree\'s silicon-refinement tech). Shell.'),
+                      'tree\'s silicon-refinement tech). Shell.',
+          cross=((_E, 'silicon-refinement', 'produced-by'),)),
     _node(_S, 'silicon-supply-semiconductor-grade',
           'Semiconductor-grade silicon supply',
           deps=('silicon-supply-pv-grade',),
           description='Semiconductor-grade silicon — the far end '
-                      'of the grade-scale. Shell.'),
+                      'of the grade-scale. Shell.',
+          cross=((_E, 'silicon-refinement', 'produced-by'),
+                 (_E, 'battery-semiconductors', 'consumed-by'))),
     _node(_S, 'sol-gel-supply', 'Sol-gel supply',
           description='Sol-gel precursors/coatings as a critical '
                       'raw material (the OS-PVD deposition feed). '
-                      'Shell.'),
+                      'Shell.',
+          cross=((_E, 'os-pvd', 'supplies'),)),
     _node(_S, 'geopolymer-composite-supply',
           'Geopolymer composite supply',
           description='Geopolymer composites as a critical raw '
@@ -278,14 +305,17 @@ SEED_TECH_NODES = [
                       'carries the theory). Shell.'),
     _node(_S, 'wax-supply', 'Wax supply',
           description='Wax as a critical raw material — bio + '
-                      'synthetic source routes (waxsupply module).'),
+                      'synthetic source routes (waxsupply module).',
+          cross=((_E, 'wax-materials', 'supplies'),
+                 (_E, '3d-printing', 'supplies'))),
     _node(_S, 'wax-nanocomposite-supply',
           'Wax nanocomposite layer supply',
           deps=('wax-supply', 'nanoparticle-supply'),
           description='Wax + nanoparticle composite LAYERS as their '
                       'own raw-material stream (the 7 msci recipes; '
                       'recipe 7 = the BLCNC sim target). Shell for '
-                      'the supply side.'),
+                      'the supply side.',
+          cross=((_E, 'bombastic-laser-cnc', 'supplies'),)),
     # ---- Open Source Economy & Politics (SHELLS) -----------------
     _node(_P, 'judicial-systems', 'Judicial systems',
           description='Addressing judicial issues: court cases as '
@@ -298,7 +328,8 @@ SEED_TECH_NODES = [
     _node(_P, 'business-logic-models', 'Business-logic models',
           description='Business logic for the particular kinds of '
                       'businesses the baseline needs (scale ladder: '
-                      'one-person → unit-economy).'),
+                      'one-person → unit-economy).',
+          cross=((_E, '3d-printing', 'applies-to'),)),
     _node(_P, 'micro-business-tailoring', 'Micro-business tailoring',
           deps=('business-logic-models',),
           description='Efficiency + technology tailored so each '
@@ -509,6 +540,30 @@ def _remap_legacy_node(old):
         if old.startswith(prefix):
             return f'{TREE_ELECTRONICS}/{old[len(prefix):]}'
     return old
+
+
+def backfill_cross_refs(manager):
+    """tt-9 upgrade for rows seeded BEFORE cross_refs_json existed:
+    stamp the seed's cross-refs onto existing TechNode rows whose
+    field is still empty. Fills gaps only — a row somebody edited
+    (non-empty field) is never overwritten. Idempotent."""
+    seeded = {n['name']: n.get('cross_refs_json', '[]')
+              for n in SEED_TECH_NODES
+              if n.get('cross_refs_json', '[]') not in ('', '[]')}
+    filled = 0
+    table = (getattr(manager, 'objectTables', None) or {}).get(
+        'TechNode', {}) or {}
+    for row in table.values():
+        name = getattr(row, 'name', '')
+        if name in seeded and getattr(
+                row, 'cross_refs_json', '[]') in ('', '[]', None):
+            row.cross_refs_json = seeded[name]
+            filled += 1
+            try:
+                manager.db.saveInstanceInDB(row)
+            except Exception:
+                pass
+    return {'filled': filled}
 
 
 def retire_legacy_trees(manager):

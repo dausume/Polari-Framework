@@ -88,6 +88,11 @@ class TechNode(treeObject):
         depends_on_json: str = '[]',
         # JSON layout hints for the renderer ({} = auto-placed).
         layout_hints_json: str = '{}',
+        # tt-9: CROSS-TREE relationships — never edges (edges are
+        # tree-scoped); a JSON list of {tree, node, relation} the
+        # renderer shows as zoom-to chips naming the home tree
+        # ('produces' / 'supplied-by' / ...).
+        cross_refs_json: str = '[]',
         notes: str = '',
         manager=None,
     ):
@@ -97,6 +102,7 @@ class TechNode(treeObject):
         self.description = description
         self.depends_on_json = depends_on_json
         self.layout_hints_json = layout_hints_json
+        self.cross_refs_json = cross_refs_json
         self.notes = notes
 
 

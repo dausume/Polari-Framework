@@ -184,7 +184,8 @@ class TechTreeAPI(treeObject):
     _DEFINITION_FIELDS = ('title', 'owner', 'description',
                           'is_active', 'is_baseline', 'notes')
     _NODE_FIELDS = ('tree_name', 'title', 'description',
-                    'depends_on_json', 'layout_hints_json', 'notes')
+                    'depends_on_json', 'layout_hints_json',
+                    'cross_refs_json', 'notes')
     _SEGMENT_FIELDS = ('tech_node', 'tree_name', 'kind', 'weight',
                        'notes')
     _ASSIGNMENT_FIELDS = ('tech_node', 'tree_name', 'segment_kind',

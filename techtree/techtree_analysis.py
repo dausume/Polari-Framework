@@ -375,6 +375,37 @@ def baseline_report(manager):
 # Validation + the render payload.
 # ---------------------------------------------------------------------
 
+def resolve_cross_refs(manager, node):
+    """One node's cross-tree references, resolved for the renderer
+    (tt-9): home-tree title + target-node title + an honest exists
+    flag — the zoom-to chip's whole payload. Cross-tree relations
+    are NEVER edges; they only name where the related work lives."""
+    resolved = []
+    trees = {getattr(t, 'name', ''): t
+             for t in _rows(manager, 'TechTreeDefinition')}
+    nodes = {getattr(n, 'name', ''): n
+             for n in _rows(manager, 'TechNode')}
+    for ref in _loads(node, 'cross_refs_json', []):
+        if not isinstance(ref, dict):
+            continue
+        tree = ref.get('tree', '')
+        target = ref.get('node', '')
+        tree_row = trees.get(tree)
+        node_row = nodes.get(target)
+        resolved.append({
+            'tree': tree,
+            'node': target,
+            'relation': ref.get('relation', ''),
+            'treeTitle': (getattr(tree_row, 'title', '')
+                          or tree) if tree_row else tree,
+            'nodeTitle': (getattr(node_row, 'title', '')
+                          or target) if node_row else target,
+            'exists': tree_row is not None and node_row is not None
+            and getattr(node_row, 'tree_name', '') == tree,
+        })
+    return resolved
+
+
 def _finding(severity, check, subject, evidence, knob, action):
     return {'severity': severity, 'check': check, 'subject': subject,
             'evidence': evidence, 'knob': knob, 'action': action}
@@ -406,6 +437,17 @@ def validate_tree(manager, tree_name):
                     getattr(node, 'name', ''),
                     'a technology cannot depend on itself',
                     'TechNode.depends_on_json', 'drop the self-dep'))
+    for node in nodes.values():
+        for ref in resolve_cross_refs(manager, node):
+            if not ref['exists']:
+                findings.append(_finding(
+                    'warn', 'dangling-cross-ref',
+                    getattr(node, 'name', ''),
+                    f'cross-tree ref points at "{ref["node"]}" in '
+                    f'tree "{ref["tree"]}" but no such node exists '
+                    'there',
+                    'TechNode.cross_refs_json',
+                    'add that node to its tree or drop the ref'))
     for asg in _scoped(manager, 'TechSegmentAssignment', tree_name):
         aname = getattr(asg, 'name', '')
         if getattr(asg, 'tech_node', '') not in nodes:
@@ -470,6 +512,7 @@ def tree_payload(manager, tree_name):
                        or getattr(n, 'name', '')),
              'description': getattr(n, 'description', ''),
              'dependsOn': _loads(n, 'depends_on_json', []),
+             'crossRefs': resolve_cross_refs(manager, n),
              'layoutHints': _loads(n, 'layout_hints_json', {}),
              **{k: by_name.get(getattr(n, 'name', ''), {}).get(k)
                 for k in ('segmentsPresent', 'segments',
