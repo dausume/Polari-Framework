@@ -478,6 +478,9 @@ from topology.topology_links import ServiceConnection
 from topology.topology_state import (
     TopologyDefinition, TopologyObservation,
 )
+# tt-11: testing over the topology — suite runs + integration pings
+# as observed-state rows (never seeded).
+from topology.topology_testing import IntegrationPing, TopologyTestRun
 from topology.topology_seed import (
     SEED_INSTANCE_DEFINITIONS, SEED_MODULE_ASSIGNMENTS,
     SEED_MODULE_DEPENDENCY_EDGES, SEED_NODE_MACHINES,
@@ -1128,6 +1131,13 @@ class polariServer(treeObject):
         from topology.topology_api import TopologyAPI
         topologyEndpoint = TopologyAPI(
             polServer=self, manager=self.manager)
+        # Testing over topology (tt-11): run module selftests +
+        # foundational integration pings; the topology graph is the
+        # progress visualization (red/green modules + hosts, edges
+        # annotated with protocol + security).
+        from topology.topology_testing_api import TopologyTestingAPI
+        topologyTestingEndpoint = TopologyTestingAPI(
+            polServer=self, manager=self.manager)
         # Tech tree (tt-3): trees/nodes/segments + derived completion
         # rollup — the topology expansion toward the OSEB.
         from techtree.techtree_api import TechTreeAPI
@@ -1351,6 +1361,8 @@ class polariServer(treeObject):
             InstanceDefinition, ModuleAssignment,
             ModuleDependencyEdge, ServiceConnection,
             TopologyDefinition, TopologyObservation,
+            # Testing over topology (tt-11): observed runs/pings.
+            TopologyTestRun, IntegrationPing,
             # Tech tree (tt-3) + segment content (tt-6).
             TechTreeDefinition, TechNode, TechSegment,
             TechSegmentAssignment, TechDependencyEdge,
