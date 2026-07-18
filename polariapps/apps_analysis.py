@@ -46,12 +46,15 @@ def _named(manager, class_name, name):
 
 
 def _module_available(manager, module):
-    """Honest availability: an installed PolariModule row or ANY
-    ModuleAssignment — absence means the module isn't in this
-    image/topology at all."""
-    row = _named(manager, 'PolariModule', module)
-    if row is not None and getattr(row, 'status', '') == 'installed':
-        return True
+    """Honest availability: an installed PolariModule row (matched
+    by name OR source_ref — registry names like 'Wax-3D-Printing'
+    map back to the 'waxprint' directory) or ANY ModuleAssignment —
+    absence means the module isn't in this image/topology at all."""
+    for row in _rows(manager, 'PolariModule'):
+        if (getattr(row, 'status', '') == 'installed'
+                and module in (getattr(row, 'name', ''),
+                               getattr(row, 'source_ref', ''))):
+            return True
     return any(getattr(a, 'module_name', '').split('.')[0] == module
                for a in _rows(manager, 'ModuleAssignment'))
 
@@ -73,14 +76,23 @@ def app_plan(manager, app_name, topology_name):
         return {'ok': False,
                 'error': f'no instances in topology '
                          f'"{topology_name}"'}
-    # Deterministic suggestion: the alphabetically-first instance
-    # whose kind carries a backend (falls back to first instance).
-    backendish = [i for i in instances
-                  for row in _rows(manager, 'InstanceDefinition')
-                  if getattr(row, 'name', '') == i
-                  and 'backend' in getattr(row, 'kind', '')]
-    suggested_instance = (backendish[0] if backendish
-                          else instances[0])
+    # Deterministic suggestion: prefer the alphabetically-first
+    # core-backend instance (live kinds are short: 'prf'/'psc';
+    # older seeds say 'prf-backend'), then anything that is not a
+    # worker/infra role, then the first instance at all.
+    kinds = {getattr(r, 'name', ''): getattr(r, 'kind', '')
+             for r in _rows(manager, 'InstanceDefinition')
+             if getattr(r, 'topology_name', '') == topology_name}
+
+    def _rank(name):
+        kind = kinds.get(name, '')
+        if kind.startswith('prf') or 'backend' in kind:
+            return 0
+        if kind not in ('worker', 'infra', 'engines'):
+            return 1
+        return 2
+    suggested_instance = sorted(
+        instances, key=lambda i: (_rank(i), i))[0]
     placements = []
     for module in _loads(app, 'modules_json', []):
         placed_on = sorted({

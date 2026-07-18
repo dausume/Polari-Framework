@@ -492,6 +492,10 @@ SEED_OSEB_POLARI_MODULES = [
             'compositions.'),
     _module('matrices', _E, 'computational-methods',
             'Matrix/equation definitions + executors.'),
+    _module('mathshapes', _E, 'computational-methods',
+            'Math-defined shapes: quadric/primitive/CSG, algorithmic '
+            'modification, CAD import (the auger-shape variant '
+            'substrate).'),
     _module('polariNoCode', _E, 'computational-methods',
             'No-code solution graphs + execution engine (incl. '
             'judicial CourtCase compilation).'),
