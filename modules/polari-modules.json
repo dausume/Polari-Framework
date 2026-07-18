@@ -110,7 +110,7 @@
     },
     "zones": {
       "kind": "official",
-      "downloaded": false,
+      "downloaded": true,
       "path": "modules/zones",
       "repo": "",
       "wave": 4,
@@ -131,7 +131,7 @@
     "aquaponics": {
       "kind": "official",
       "downloaded": true,
-      "path": "aquaponics",
+      "path": "modules/aquaponics",
       "repo": "",
       "wave": 5,
       "requires": [
@@ -143,15 +143,15 @@
     "grpcbridge": {
       "kind": "official",
       "downloaded": true,
-      "path": "grpcbridge",
+      "path": "modules/grpcbridge",
       "repo": "",
       "wave": 5,
       "description": "gRPC contracts from stabilized schemas, Java hardware bridges, hw sim rigs."
     },
     "resources": {
       "kind": "official",
-      "downloaded": true,
-      "path": "resources",
+      "downloaded": false,
+      "path": "modules/resources",
       "repo": "",
       "wave": 5,
       "required_by_core": true,
