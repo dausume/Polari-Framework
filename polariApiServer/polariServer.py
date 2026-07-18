@@ -491,6 +491,10 @@ from techtree.techtree_basis import (
     TechDependencyEdge, TechNode, TechSegment, TechSegmentAssignment,
     TechTreeDefinition,
 )
+from techtree.techtree_seed import (
+    SEED_OSEB_POLARI_MODULES, SEED_TECH_NODES,
+    SEED_TECH_SEGMENT_ASSIGNMENTS, SEED_TECH_TREE_DEFINITIONS,
+)
 # Resource profiles (res-2): each module/engine's floor, scalability,
 # character, and storage-tier recommendation — the admission basis.
 from resources.profile_basis import ModuleResourceProfile
@@ -2431,7 +2435,17 @@ class polariServer(treeObject):
             # (the two seeded runs render in the wax-print-wall scene).
             ('WaxPrintSimState', WaxPrintSimState, SEED_WAXPRINT_STATE_ROWS),
             # waxprint (wp-8): first-class Polari Module identity row.
-            ('PolariModule', PolariModule, SEED_WAXPRINT_MODULES),
+            ('PolariModule', PolariModule,
+             SEED_WAXPRINT_MODULES + SEED_OSEB_POLARI_MODULES),
+            # Tech tree (tt-5): the OSEB baseline tree — definition
+            # before nodes, nodes before assignments. Edges are
+            # NEVER seeded: TechDependencyEdge rows derive from
+            # depends_on_json (sync on read/write), like drift.
+            ('TechTreeDefinition', TechTreeDefinition,
+             SEED_TECH_TREE_DEFINITIONS),
+            ('TechNode', TechNode, SEED_TECH_NODES),
+            ('TechSegmentAssignment', TechSegmentAssignment,
+             SEED_TECH_SEGMENT_ASSIGNMENTS),
             # aqp-1: self-watering pots + their side holes (pots
             # before holes — holes reference their pot).
             ('PotDefinition', PotDefinition, SEED_POTS),

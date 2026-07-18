@@ -42,6 +42,10 @@ SEED_WAXPRINT_MODULES = [{
         'simSpace': 'wax-print-wall', 'page': 'wax-print-sim',
         'noCodeOperation': 'WaxPrintOperation'}),
     'bundle_json': '',
+    # tt-5: self-declared tech-tree placement (theory segment of the
+    # OSEB 3D-printing node reads this module's installed status).
+    'data_only': False,
+    'tech_node_ref': 'oseb/3d-printing',
 }]
 
 # --------------------------------------------------------------------------

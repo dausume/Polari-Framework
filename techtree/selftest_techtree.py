@@ -256,6 +256,59 @@ if __name__ == '__main__':
     check('unknown tree payload refused honestly',
           not tree_payload(mgr, 'nope').get('ok'))
 
+    print('== suite: OSEB seed coherence (tt-5) ==')
+    from techtree.techtree_seed import (
+        SEED_OSEB_POLARI_MODULES, SEED_TECH_NODES,
+        SEED_TECH_SEGMENT_ASSIGNMENTS, SEED_TECH_TREE_DEFINITIONS,
+    )
+    from waxprint.waxprint_seed import SEED_WAXPRINT_MODULES
+
+    def _table(seed_list):
+        return {s['name']: _ns(**s) for s in seed_list}
+
+    oseb = _ns(objectTables={
+        'TechTreeDefinition': _table(SEED_TECH_TREE_DEFINITIONS),
+        'TechNode': _table(SEED_TECH_NODES),
+        'TechSegment': {},
+        'TechSegmentAssignment': _table(
+            SEED_TECH_SEGMENT_ASSIGNMENTS),
+        'TechDependencyEdge': {},
+        'ModuleAssignment': {},
+        'PolariModule': _table(SEED_WAXPRINT_MODULES
+                               + SEED_OSEB_POLARI_MODULES),
+        'RealArtifact': {}, 'BusinessModelDefinition': {},
+        'PolicyDefinition': {},
+    })
+    check('oseb is the active baseline tree',
+          active_tree_name(oseb) == 'oseb')
+    report = validate_tree(oseb, 'oseb')
+    check('oseb seed validates with zero errors',
+          report.get('valid'), json.dumps(report.get('findings')))
+    check('oseb carries the 13 domains + os-pvd + 5 phases',
+          len(SEED_TECH_NODES) == 19)
+    sync_edges(oseb, 'oseb')
+    edges = oseb.objectTables['TechDependencyEdge'].values()
+    blcnc_dependents = [e for e in edges if e.depends_on_tech
+                        == 'oseb/bombastic-laser-cnc']
+    check('BLCNC shared by P1+P4+... => transient designation live',
+          sum(1 for e in blcnc_dependents if e.is_primary) == 1
+          and sum(1 for e in blcnc_dependents if e.is_transient)
+          == len(blcnc_dependents) - 1
+          and len(blcnc_dependents) >= 2)
+    tree = tree_completion(oseb, 'oseb')
+    check('theory substrate counts (baseline already >40%)',
+          0.4 < tree['completionLevel'] < 1.0,
+          str(tree['completionLevel']))
+    check('unbuilt sims stay honest gaps naming blcnc/ospvd',
+          any('"blcnc"' in g['evidence'] for g in tree['gaps'])
+          and any('"ospvd"' in g['evidence'] for g in tree['gaps']))
+    check('waxprint module row satisfies the 3d-printing theory ref',
+          [n for n in tree['nodes']
+           if n['node'] == 'oseb/3d-printing'][0]
+          ['completionLevel'] == 1.0)
+    print(f"  (seeded OSEB baseline completion: "
+          f"{round(tree['completionLevel'] * 100, 1)}%)")
+
     failed = [label for label, ok in _results if not ok]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} checks '
           f'passed' + (f'; FAILED: {failed}' if failed else ''))

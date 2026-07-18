@@ -121,6 +121,10 @@ class TechTreeAPI(treeObject):
             return self._refuse(
                 response, 'no active tree and no ?name= given',
                 '404 Not Found')
+        # Edge rows derive from depends_on_json — sync here so a
+        # freshly-seeded tree renders with designated edges without
+        # waiting for a node write.
+        self._sync_and_save_edges(name)
         report = tree_payload(self.manager, name)
         if not report.get('ok'):
             response.status = '404 Not Found'
