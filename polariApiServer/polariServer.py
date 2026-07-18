@@ -2661,6 +2661,18 @@ class polariServer(treeObject):
                     print(f'[SeedSimSpace3D] Failed to create {class_name} "{name}": {e}', flush=True)
                     import traceback
                     traceback.print_exc()
+        # tt-8: the single 'oseb' tree became three DOMAIN trees —
+        # retire its persisted rows (idempotent no-op once gone) and
+        # remap stale PolariModule.tech_node_ref hints.
+        try:
+            from techtree.techtree_seed import retire_legacy_trees
+            retired = retire_legacy_trees(self.manager)
+            if retired:
+                print(f'[TechTree] retired legacy tree rows: '
+                      f'{retired}', flush=True)
+        except Exception as e:
+            print(f'[TechTree] legacy retirement failed: {e}',
+                  flush=True)
         # res-1: observe THIS device onto its PolariNodeMachine row
         # (ssh_alias=='' convention) so the topology is resource-aware
         # from boot — fills the historical `mem_gb: 0.0` gap.

@@ -19,8 +19,8 @@ import json
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from techtree.techtree_analysis import (
-    active_tree_name, sync_edges, tree_completion, tree_payload,
-    validate_tree,
+    active_tree_name, baseline_report, sync_edges, tree_completion,
+    tree_payload, validate_tree,
 )
 from techtree.techtree_basis import (
     TechDependencyEdge, TechNode, TechSegment, TechSegmentAssignment,
@@ -56,6 +56,7 @@ class TechTreeAPI(treeObject):
             add('/api/techtree/summary', self, suffix='summary')
             add('/api/techtree/tree', self, suffix='tree')
             add('/api/techtree/completion', self, suffix='completion')
+            add('/api/techtree/baseline', self, suffix='baseline')
             add('/api/techtree/validate', self, suffix='validate')
             add('/api/techtree/node', self, suffix='node')
             add('/api/techtree/segment', self, suffix='segment')
@@ -123,11 +124,19 @@ class TechTreeAPI(treeObject):
                        for class_name in CLASS_MAP},
             'trees': [
                 {'name': getattr(t, 'name', ''),
+                 'title': (getattr(t, 'title', '')
+                           or getattr(t, 'name', '')),
                  'owner': getattr(t, 'owner', ''),
                  'isActive': getattr(t, 'is_active', False),
                  'isBaseline': getattr(t, 'is_baseline', False),
                  'description': getattr(t, 'description', '')}
                 for t in self._table('TechTreeDefinition').values()]}
+
+    def on_get_baseline(self, request, response):
+        """tt-8: the OSEB rollup across baseline DOMAIN trees —
+        reaching the end of all of them, combined, is the
+        Open Source Economic Baseline."""
+        response.media = baseline_report(self.manager)
 
     def on_get_tree(self, request, response):
         name = self._tree_name(request)
@@ -172,8 +181,8 @@ class TechTreeAPI(treeObject):
                                 '404 Not Found')
         response.media = report
 
-    _DEFINITION_FIELDS = ('owner', 'description', 'is_active',
-                          'is_baseline', 'notes')
+    _DEFINITION_FIELDS = ('title', 'owner', 'description',
+                          'is_active', 'is_baseline', 'notes')
     _NODE_FIELDS = ('tree_name', 'title', 'description',
                     'depends_on_json', 'layout_hints_json', 'notes')
     _SEGMENT_FIELDS = ('tech_node', 'tree_name', 'kind', 'weight',

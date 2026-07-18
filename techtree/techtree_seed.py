@@ -2,193 +2,385 @@
 @cross-cutting
 @module techtree.techtree_seed
 
-The Open Source Economic Baseline tree (tt-5, TECH_TREE_TOPOLOGY_PLAN
-B5): the 13-domain OSEB slice as TechNode rows — theory segments
-wired to the modules that ALREADY EXIST in this framework (the
-theory baseline is substantially built), real/business/politics left
-as honest gaps for tt-6+. The BLCNC/PVD worked example
-(BLCNC_PVD_ROADMAP P1..P5 + OS-PVD) is seeded as connected nodes so
-dependencies, transient designation, and per-segment completion get
-exercised by real content: as each phase's sim modules land, its
-theory segment fills and the node's completion rises.
+The Open Source Economic Baseline as THREE DOMAIN TREES (tt-8,
+Dustin 2026-07-18 — 'we need a larger containment'):
 
-Seeded PolariModule rows below mark the module directories genuinely
-present in this image as installed (that is what the theory
-done-test reads) and self-declare their primary tech-node placement
-(tech_node_ref, tt-1). Refs like 'blcnc' / 'ospvd' point at modules
-that DO NOT exist yet — those assignments stay undone and their gaps
-name exactly what to build (knobs-and-suggestions).
+  electronics       — 'Electronics / Microelectronics': the original
+                      tt-5 tree (wax → printing → BLCNC/PVD →
+                      microfab), theory wired to the modules that
+                      already exist.
+  raw-supply-chain  — 'Raw Supply Chain': SHELLS ONLY for
+                      aquaponics/household nutrition, agroforestry,
+                      biomining, and carbon management — the
+                      containers for that work, not the work.
+  os-economy-politics — 'Open Source Economy & Politics': SHELLS
+                      for judicial systems, policy tracking,
+                      business-logic models, and micro-business
+                      tailoring (businesses as small as technology
+                      allows).
+
+Reaching the end of ALL THREE trees, combined, is the OSEB —
+baseline_report rolls them up (every tree is is_baseline=True; the
+electronics tree stays is_active as the default view).
+
+Seeded PolariModule rows mark genuinely-present module directories
+as installed (the theory done-test reads that) and self-declare
+their primary tech-node placement. Refs like 'blcnc' / 'ospvd' /
+'agroforestry' / 'microbusiness' point at modules that DO NOT exist
+yet — honest gaps naming exactly what to build.
+
+The tt-5 single-tree seed ('oseb') is RETIRED: retire_legacy_trees
+removes its rows from the DB + object tree at boot (idempotent,
+no-op once gone) and remaps stale PolariModule.tech_node_ref hints.
 
 @consumers
-  - polariServer seed loop (idempotent-by-name)
+  - polariServer seed loop (idempotent-by-name) + boot retirement
   - techtree.selftest_techtree (seed-coherence suite)
 """
 
 import json as _json
 
-TREE = 'oseb'
+TREE_ELECTRONICS = 'electronics'
+TREE_SUPPLY = 'raw-supply-chain'
+TREE_ECONOMY = 'os-economy-politics'
 
 
-def _node(short, title, deps=(), description=''):
-    return {'name': f'{TREE}/{short}', 'tree_name': TREE,
+def _node(tree, short, title, deps=(), description=''):
+    return {'name': f'{tree}/{short}', 'tree_name': tree,
             'title': title, 'description': description,
             'depends_on_json': _json.dumps(
-                [f'{TREE}/{d}' for d in deps]),
+                [f'{tree}/{d}' for d in deps]),
             'layout_hints_json': '{}', 'notes': ''}
 
 
-def _theory(short, ref):
-    return {'name': f'{TREE}/{short}:theory:{ref}',
-            'tech_node': f'{TREE}/{short}', 'tree_name': TREE,
+def _theory(tree, short, ref):
+    return {'name': f'{tree}/{short}:theory:{ref}',
+            'tech_node': f'{tree}/{short}', 'tree_name': tree,
             'segment_kind': 'theory', 'ref_name': ref, 'notes': ''}
 
 
-def _module(name, tech_short, summary):
+def _module(name, tree, tech_short, summary):
     """One genuinely-present framework module directory, installed
     in this image, self-declaring its primary tech-node placement."""
     return {'name': name, 'version': '', 'source_kind': 'file',
             'source_ref': name, 'status': 'installed',
             'manifest_json': _json.dumps({'summary': summary}),
             'bundle_json': '', 'data_only': False,
-            'tech_node_ref': f'{TREE}/{tech_short}'}
+            'tech_node_ref': f'{tree}/{tech_short}'}
 
 
-SEED_TECH_TREE_DEFINITIONS = [{
-    'name': TREE, 'owner': 'polari',
-    'description': 'The Open Source Economic Baseline: the full set '
-                   'of technologies needed for an open, '
-                   'self-sufficient unit economy. Complete tree = '
-                   'baseline achieved — the end goal of the whole '
-                   'Polari project.',
-    'is_active': True, 'is_baseline': True, 'notes': '',
-}]
+SEED_TECH_TREE_DEFINITIONS = [
+    {'name': TREE_ELECTRONICS,
+     'title': 'Electronics / Microelectronics',
+     'owner': 'polari',
+     'description': 'Wax materials → printing/extrusion → laser CNC '
+                    '+ PVD → theoretical chip → combined microfab '
+                    'device: the open path to microelectronics.',
+     'is_active': True, 'is_baseline': True, 'notes': ''},
+    {'name': TREE_SUPPLY,
+     'title': 'Raw Supply Chain',
+     'owner': 'polari',
+     'description': 'Where the raw inputs come from: aquaponics / '
+                    'household nutrition, agroforestry, biomining, '
+                    'carbon management. Shells for that work — the '
+                    'containers, filled as the work happens.',
+     'is_active': False, 'is_baseline': True, 'notes': ''},
+    {'name': TREE_ECONOMY,
+     'title': 'Open Source Economy & Politics',
+     'owner': 'polari',
+     'description': 'Judicial issues, policies passed, business '
+                    'logic for the particular kinds of businesses '
+                    'needed, and technology tailored so businesses '
+                    'can be as small as possible.',
+     'is_active': False, 'is_baseline': True, 'notes': ''},
+]
 
-#: The 13 Open-Source-Economy-Notes domains (B5) + the OS-PVD node
-#: and the five BLCNC/PVD roadmap phases (the worked example).
+_E = TREE_ELECTRONICS
+_S = TREE_SUPPLY
+_P = TREE_ECONOMY
+
+#: Electronics / Microelectronics — the original tt-5 nodes (the
+#: household-nutrition node moved to the Raw Supply Chain tree).
 SEED_TECH_NODES = [
-    _node('wax-materials', 'Wax materials',
+    _node(_E, 'wax-materials', 'Wax materials',
           description='Bio/synthetic wax basis + supply routes.'),
-    _node('3d-printing', '3D printing + extrusion',
+    _node(_E, '3d-printing', '3D printing + extrusion',
           deps=('wax-materials',),
           description='Pellet-fed auger-screw wax printing '
                       '(waxprint wp-1..8).'),
-    _node('filament-formulation', 'Filament formulation',
+    _node(_E, 'filament-formulation', 'Filament formulation',
           deps=('wax-materials',),
           description='Formulation searches over the materials '
                       'basis.'),
-    _node('carbon-nanotubes', 'Carbon nanotubes',
-          description='CNT family in the materials basis.'),
-    _node('battery-semiconductors',
+    _node(_E, 'carbon-nanotubes', 'Carbon nanotubes',
+          deps=('cnt-co-reduction',),
+          description='CNT family in the materials basis. Usable '
+                      'CNTs need the CO-reduction production route; '
+                      'the supply streams (raw, p-doped, n-doped) '
+                      'are tracked in the Raw Supply Chain tree.'),
+    _node(_E, 'cnt-co-reduction',
+          'CNT production via CO reduction',
+          description='Carbon-nanotube PRODUCTION as its own '
+                      'technology: carbon monoxide reduction route '
+                      '(disproportionation → CNT growth). Shell — '
+                      'production sim not built yet.'),
+    _node(_E, 'battery-semiconductors',
           'Solid-state battery + semiconductors',
-          deps=('carbon-nanotubes', 'ceramics-composites'),
+          deps=('carbon-nanotubes', 'ceramics-composites',
+                'silicon-refinement'),
           description='Electrodevice stack over the materials '
                       'basis.'),
-    _node('bombastic-laser-cnc', 'Bombastic Laser CNC',
-          deps=('wax-materials', 'nanoparticles',
-                'open-source-hardware'),
-          description='Laser melt/ablate wax voxels + LASiS '
-                      'nanoparticle synthesis (BLCNC_PLAN).'),
-    _node('nanoparticles', 'Nanoparticles',
-          description='LASiS nanoparticle family (msci-20).'),
-    _node('ceramics-composites', 'Ceramics + composites',
+    _node(_E, 'silicon-refinement', 'Silicon refinement grade-scale',
+          description='Making the different grades of silicon — '
+                      'down the grade-scale from raw/metallurgical '
+                      'to PV-grade to semiconductor-grade. The '
+                      'grade supply streams live in the Raw Supply '
+                      'Chain tree. Shell — refinement sim not '
+                      'built yet.'),
+    _node(_E, 'bombastic-laser-cnc', 'Bombastic Laser CNC',
+          deps=('wax-materials', 'lasis',
+                'precision-laser-apparatus', 'open-source-hardware'),
+          description='Laser melt/ablate wax voxels (BLCNC_PLAN). '
+                      'The REAL device requires the Precision Laser '
+                      'Apparatus.'),
+    _node(_E, 'lasis', 'LASiS nanoparticle synthesis',
+          deps=('precision-laser-apparatus',),
+          description='Laser Ablation Synthesis in Solution — the '
+                      'key nanoparticle-making technology (msci-20 '
+                      'family). Its output stream is the '
+                      'nanoparticle SUPPLY tracked in the Raw '
+                      'Supply Chain tree.'),
+    _node(_E, 'precision-laser-apparatus',
+          'Precision Laser Apparatus',
+          deps=('expandable-dielectrics',),
+          description='Modulatable precision laser optics (ETL '
+                      'focal control) — required by BOTH the real '
+                      'BLCNC and LASiS. Built on dielectrics that '
+                      'can be modified to expand/contract.'),
+    _node(_E, 'expandable-dielectrics',
+          'Tunable expansion dielectrics',
+          description='Dielectric materials modifiable to '
+                      'expand/contract — the actuation basis for '
+                      'the Precision Laser Apparatus.'),
+    _node(_E, 'vacuum-pump', 'Open-source vacuum pump',
+          description='Prerequisite for the PVD chamber (and the '
+                      'BLCNC near-vacuum melt extraction). See '
+                      'OSPVD_ROADMAP.md.'),
+    _node(_E, 'piezoelectrics', 'Piezoelectric sputter materials',
+          description='Materials that can act as piezoelectronics '
+                      '— enable the sputter the PVD deposition '
+                      'needs. See OSPVD_ROADMAP.md.'),
+    _node(_E, 'ceramics-composites', 'Ceramics + composites',
           description='Ceramics/geopolymer families in the '
                       'materials basis.'),
-    _node('electromagnetic-systems', 'Electromagnetic systems',
+    _node(_E, 'electromagnetic-systems', 'Electromagnetic systems',
           deps=('ceramics-composites',),
           description='Ferrite/magnetics + electromagnetic '
                       'hardware.'),
-    _node('open-source-hardware', 'Open-source hardware',
+    _node(_E, 'open-source-hardware', 'Open-source hardware',
           description='MCU+FPGA stack, safety MCU, hwsim digital '
                       'twins.'),
-    _node('computational-methods', 'Computational methods',
+    _node(_E, 'computational-methods', 'Computational methods',
           description='The Polari framework itself: FEM/DFT/MD/meso '
                       'engines, no-code, simulation composition.'),
-    _node('household-nutrition',
-          'Household nutrition / agroforestry',
-          deps=('computational-methods',),
-          description='Aquaponics towers, nutrition ledger, tanks, '
-                      'plant morphology.'),
-    # ---- The BLCNC/PVD worked example (BLCNC_PVD_ROADMAP) --------
-    _node('os-pvd', 'Open-Source PVD',
+    _node(_E, 'os-pvd', 'Open-Source PVD',
+          deps=('vacuum-pump', 'piezoelectrics'),
           description='PVD physics: make the wax, deposit '
-                      'sol-gel/CNT into laser-cut wax masks.'),
-    _node('blcnc-p1-ideal-melt-voxel', 'P1 Ideal melt-voxel proof',
+                      'sol-gel/CNT into laser-cut wax masks. Its '
+                      'OWN roadmap (OSPVD_ROADMAP.md): vacuum pump '
+                      'and piezo sputter materials are '
+                      'prerequisites.'),
+    _node(_E, 'blcnc-p1-ideal-melt-voxel',
+          'P1 Ideal melt-voxel proof',
           deps=('bombastic-laser-cnc', '3d-printing'),
           description='Prove melt-voxel physics under MOST IDEAL '
                       'conditions; gates = Single Melt Action '
                       'Metrics (leakage≈0).'),
-    _node('blcnc-p2-theoretical-chip', 'P2 Theoretical chip',
+    _node(_E, 'blcnc-p2-theoretical-chip', 'P2 Theoretical chip',
           deps=('blcnc-p1-ideal-melt-voxel', 'os-pvd'),
           description='PVD + verified melt-voxel cycle → smallest '
                       'possible device; prove microchips possible '
                       'by calculation.'),
-    _node('blcnc-p31-stochastic-materials',
+    _node(_E, 'blcnc-p31-stochastic-materials',
           'P3.1 Stochastic materials priors',
           deps=('os-pvd',),
           description='Guess stochastic nanocomposite definitions '
                       'from existing PVD/CVD knowledge.'),
-    _node('blcnc-p3-feasible-production', 'P3 Feasible production',
+    _node(_E, 'blcnc-p3-feasible-production',
+          'P3 Feasible production',
           deps=('os-pvd', 'blcnc-p2-theoretical-chip',
                 'blcnc-p31-stochastic-materials'),
           description='What nanocomposites are actually producible '
                       '+ their stochastic materials (locked by '
                       'OS-PVD).'),
-    _node('blcnc-p4-hardware', 'P4 BLCNC hardware',
+    _node(_E, 'blcnc-p4-hardware', 'P4 BLCNC hardware',
           deps=('bombastic-laser-cnc', 'open-source-hardware'),
           description='Laser fleet + ETL + gantry + FPGA + safety '
                       'in the hwsim twin; aluminum heat-calibration '
                       'voxels.'),
-    _node('blcnc-p5-microfab-device', 'P5 Combined microfab device',
+    _node(_E, 'blcnc-p5-microfab-device',
+          'P5 Combined microfab device',
           deps=('blcnc-p3-feasible-production', 'blcnc-p4-hardware'),
           description='The all-in-one BLCNC+PVD microfab device.'),
+    # ---- Raw Supply Chain (SHELLS: containers, not the work) -----
+    _node(_S, 'aquaponics', 'Aquaponics / Household nutrition',
+          description='Self-watering pots, FEM hydraulics, '
+                      'vermicompost, plant growth, harvest→meal '
+                      'nutrients, tanks.'),
+    _node(_S, 'agroforestry', 'Agroforestry',
+          description='Tree/crop system layer over the plant '
+                      'morphology model. Shell — module not built '
+                      'yet.'),
+    _node(_S, 'biomining', 'Biomining / Bioextraction',
+          description='Bacteria/algae extraction → product '
+                      'variants.'),
+    _node(_S, 'carbon-management', 'Carbon management',
+          description='Photobioreactor decarbonization + the '
+                      'unifying carbon/materials/food ledger.'),
+    _node(_S, 'nanoparticle-supply', 'Nanoparticle supply',
+          description='The supply stream of nanoparticles as a RAW '
+                      'MATERIAL (volumes, sources, feedstocks) — '
+                      'produced by LASiS in the Electronics tree. '
+                      'Shell — supply module not built yet.'),
+    _node(_S, 'cnt-supply', 'Carbon nanotube supply',
+          description='Raw CNT supply stream — produced by the '
+                      'CO-reduction route in the Electronics tree. '
+                      'Shell.'),
+    _node(_S, 'cnt-supply-p-doped', 'p-doped CNT supply',
+          deps=('cnt-supply',),
+          description='p-doped CNTs as their own raw-material '
+                      'stream (semiconductor substrate). Shell.'),
+    _node(_S, 'cnt-supply-n-doped', 'n-doped CNT supply',
+          deps=('cnt-supply',),
+          description='n-doped CNTs as their own raw-material '
+                      'stream (semiconductor substrate). Shell.'),
+    _node(_S, 'silicon-supply', 'Raw silicon supply',
+          description='Raw / metallurgical-grade silicon as the '
+                      'base of the grade-scale. Shell.'),
+    _node(_S, 'silicon-supply-pv-grade', 'PV-grade silicon supply',
+          deps=('silicon-supply',),
+          description='PV-grade silicon — first stop down the '
+                      'grade-scale (refined by the Electronics '
+                      'tree\'s silicon-refinement tech). Shell.'),
+    _node(_S, 'silicon-supply-semiconductor-grade',
+          'Semiconductor-grade silicon supply',
+          deps=('silicon-supply-pv-grade',),
+          description='Semiconductor-grade silicon — the far end '
+                      'of the grade-scale. Shell.'),
+    _node(_S, 'sol-gel-supply', 'Sol-gel supply',
+          description='Sol-gel precursors/coatings as a critical '
+                      'raw material (the OS-PVD deposition feed). '
+                      'Shell.'),
+    _node(_S, 'geopolymer-composite-supply',
+          'Geopolymer composite supply',
+          description='Geopolymer composites as a critical raw '
+                      'material (msci ceramics/geopolymer family '
+                      'carries the theory). Shell.'),
+    _node(_S, 'wax-supply', 'Wax supply',
+          description='Wax as a critical raw material — bio + '
+                      'synthetic source routes (waxsupply module).'),
+    _node(_S, 'wax-nanocomposite-supply',
+          'Wax nanocomposite layer supply',
+          deps=('wax-supply', 'nanoparticle-supply'),
+          description='Wax + nanoparticle composite LAYERS as their '
+                      'own raw-material stream (the 7 msci recipes; '
+                      'recipe 7 = the BLCNC sim target). Shell for '
+                      'the supply side.'),
+    # ---- Open Source Economy & Politics (SHELLS) -----------------
+    _node(_P, 'judicial-systems', 'Judicial systems',
+          description='Addressing judicial issues: court cases as '
+                      'no-code rows, democratic proofs, term '
+                      'competition.'),
+    _node(_P, 'policy-tracking', 'Policy tracking',
+          description='Policies passed: legislation tracking, cost '
+                      'of living evidence, accountability '
+                      'scorecards.'),
+    _node(_P, 'business-logic-models', 'Business-logic models',
+          description='Business logic for the particular kinds of '
+                      'businesses the baseline needs (scale ladder: '
+                      'one-person → unit-economy).'),
+    _node(_P, 'micro-business-tailoring', 'Micro-business tailoring',
+          deps=('business-logic-models',),
+          description='Efficiency + technology tailored so each '
+                      'business can be AS SMALL AS POSSIBLE. Shell '
+                      '— module not built yet.'),
 ]
 
-#: Theory assignments. Refs matching an installed PolariModule (or
-#: an enabled ModuleAssignment) test done; refs to not-yet-built
-#: modules ('blcnc', 'ospvd') stay honest gaps naming the build.
 SEED_TECH_SEGMENT_ASSIGNMENTS = [
-    _theory('wax-materials', 'materialsScience'),
-    _theory('wax-materials', 'waxsupply'),
-    _theory('3d-printing', 'Wax-3D-Printing'),
-    _theory('filament-formulation', 'materialsScience'),
-    _theory('carbon-nanotubes', 'materialsScience'),
-    _theory('battery-semiconductors', 'electrodevice'),
-    _theory('battery-semiconductors', 'materialsScience'),
-    _theory('bombastic-laser-cnc', 'blcnc'),
-    _theory('nanoparticles', 'materialsScience'),
-    _theory('ceramics-composites', 'materialsScience'),
-    _theory('electromagnetic-systems', 'materialsScience'),
-    _theory('electromagnetic-systems', 'electrodevice'),
-    _theory('open-source-hardware', 'hwdigital'),
-    _theory('open-source-hardware', 'hwfpga'),
-    _theory('open-source-hardware', 'grpcbridge'),
-    _theory('computational-methods', 'simulations'),
-    _theory('computational-methods', 'matrices'),
-    _theory('computational-methods', 'polariNoCode'),
-    _theory('household-nutrition', 'aquaponics'),
-    _theory('household-nutrition', 'nutrition'),
-    _theory('household-nutrition', 'tanks'),
-    _theory('household-nutrition', 'plant_morphology'),
-    # BLCNC/PVD slice: existing substrate counts, future sims gap.
-    _theory('os-pvd', 'ospvd'),
-    _theory('blcnc-p1-ideal-melt-voxel', 'blcnc'),
-    _theory('blcnc-p1-ideal-melt-voxel', 'Wax-3D-Printing'),
-    _theory('blcnc-p2-theoretical-chip', 'ospvd'),
-    _theory('blcnc-p2-theoretical-chip', 'blcnc'),
-    _theory('blcnc-p31-stochastic-materials', 'materialsScience'),
-    _theory('blcnc-p31-stochastic-materials', 'blcnc'),
-    _theory('blcnc-p3-feasible-production', 'blcnc'),
-    _theory('blcnc-p4-hardware', 'grpcbridge'),
-    _theory('blcnc-p4-hardware', 'hwfpga'),
-    _theory('blcnc-p4-hardware', 'blcnc'),
-    _theory('blcnc-p5-microfab-device', 'blcnc'),
+    # ---- Electronics / Microelectronics --------------------------
+    _theory(_E, 'wax-materials', 'materialsScience'),
+    _theory(_E, 'wax-materials', 'waxsupply'),
+    _theory(_E, '3d-printing', 'Wax-3D-Printing'),
+    _theory(_E, 'filament-formulation', 'materialsScience'),
+    _theory(_E, 'carbon-nanotubes', 'materialsScience'),
+    _theory(_E, 'cnt-co-reduction', 'cntproduction'),
+    _theory(_E, 'battery-semiconductors', 'electrodevice'),
+    _theory(_E, 'battery-semiconductors', 'materialsScience'),
+    _theory(_E, 'silicon-refinement', 'siliconrefinement'),
+    _theory(_E, 'bombastic-laser-cnc', 'blcnc'),
+    _theory(_E, 'lasis', 'materialsScience'),
+    _theory(_E, 'lasis', 'blcnc'),
+    _theory(_E, 'precision-laser-apparatus', 'precisionlaser'),
+    _theory(_E, 'expandable-dielectrics', 'materialsScience'),
+    _theory(_E, 'vacuum-pump', 'vacuumpump'),
+    _theory(_E, 'piezoelectrics', 'materialsScience'),
+    _theory(_E, 'ceramics-composites', 'materialsScience'),
+    _theory(_E, 'electromagnetic-systems', 'materialsScience'),
+    _theory(_E, 'electromagnetic-systems', 'electrodevice'),
+    _theory(_E, 'open-source-hardware', 'hwdigital'),
+    _theory(_E, 'open-source-hardware', 'hwfpga'),
+    _theory(_E, 'open-source-hardware', 'grpcbridge'),
+    _theory(_E, 'computational-methods', 'simulations'),
+    _theory(_E, 'computational-methods', 'matrices'),
+    _theory(_E, 'computational-methods', 'polariNoCode'),
+    _theory(_E, 'os-pvd', 'ospvd'),
+    _theory(_E, 'blcnc-p1-ideal-melt-voxel', 'blcnc'),
+    _theory(_E, 'blcnc-p1-ideal-melt-voxel', 'Wax-3D-Printing'),
+    _theory(_E, 'blcnc-p2-theoretical-chip', 'ospvd'),
+    _theory(_E, 'blcnc-p2-theoretical-chip', 'blcnc'),
+    _theory(_E, 'blcnc-p31-stochastic-materials', 'materialsScience'),
+    _theory(_E, 'blcnc-p31-stochastic-materials', 'blcnc'),
+    _theory(_E, 'blcnc-p3-feasible-production', 'blcnc'),
+    _theory(_E, 'blcnc-p4-hardware', 'grpcbridge'),
+    _theory(_E, 'blcnc-p4-hardware', 'hwfpga'),
+    _theory(_E, 'blcnc-p4-hardware', 'blcnc'),
+    _theory(_E, 'blcnc-p5-microfab-device', 'blcnc'),
+    # ---- Raw Supply Chain (what exists counts; shells stay gaps) -
+    _theory(_S, 'aquaponics', 'aquaponics'),
+    _theory(_S, 'aquaponics', 'nutrition'),
+    _theory(_S, 'aquaponics', 'tanks'),
+    _theory(_S, 'aquaponics', 'plant_morphology'),
+    _theory(_S, 'agroforestry', 'plant_morphology'),
+    _theory(_S, 'agroforestry', 'agroforestry'),
+    _theory(_S, 'biomining', 'biomining'),
+    _theory(_S, 'carbon-management', 'microalgae'),
+    _theory(_S, 'carbon-management', 'supplychain'),
+    _theory(_S, 'nanoparticle-supply', 'nanoparticlesupply'),
+    _theory(_S, 'cnt-supply', 'cntsupply'),
+    _theory(_S, 'cnt-supply-p-doped', 'cntsupply'),
+    _theory(_S, 'cnt-supply-n-doped', 'cntsupply'),
+    _theory(_S, 'silicon-supply', 'siliconsupply'),
+    _theory(_S, 'silicon-supply-pv-grade', 'siliconsupply'),
+    _theory(_S, 'silicon-supply-semiconductor-grade',
+            'siliconsupply'),
+    _theory(_S, 'sol-gel-supply', 'solgelsupply'),
+    _theory(_S, 'geopolymer-composite-supply', 'materialsScience'),
+    _theory(_S, 'geopolymer-composite-supply', 'geopolymersupply'),
+    _theory(_S, 'wax-supply', 'waxsupply'),
+    _theory(_S, 'wax-nanocomposite-supply', 'materialsScience'),
+    _theory(_S, 'wax-nanocomposite-supply', 'waxnanosupply'),
+    # ---- Open Source Economy & Politics --------------------------
+    _theory(_P, 'judicial-systems', 'polariNoCode'),
+    _theory(_P, 'judicial-systems', 'scorecard'),
+    _theory(_P, 'policy-tracking', 'scorecard'),
+    _theory(_P, 'policy-tracking', 'dmvdata'),
+    _theory(_P, 'business-logic-models', 'techtree'),
+    _theory(_P, 'micro-business-tailoring', 'microbusiness'),
 ]
 
-#: tt-6 worked examples on the 3d-printing node — REAL rows, HONEST
-#: state: the wax printer is designed + simulated but NOT physically
-#: proven, the one-person print farm is defined but not evidenced
-#: self-sustaining, the policy has no outcome evidence yet. Their
-#: gaps are the point: they name exactly what makes them real.
+#: tt-6 worked examples on the electronics 3d-printing node — REAL
+#: rows, HONEST state: sim-proven printer, unevidenced business
+#: model + policy. Their gaps name exactly what makes them real.
 SEED_REAL_ARTIFACTS = [{
     'name': 'waxprinter-v1',
     'cad_ref': 'waxprint device parts (wp-1..8)',
@@ -227,20 +419,18 @@ SEED_POLICY_DEFINITIONS = [{
              'counts it done.',
 }]
 
-#: Fill all four segments on the 3d-printing node so the quartered
-#: rendering + per-segment gaps show on real content.
 SEED_TECH_SEGMENT_ASSIGNMENTS += [
-    {'name': f'{TREE}/3d-printing:real:waxprinter-v1',
-     'tech_node': f'{TREE}/3d-printing', 'tree_name': TREE,
+    {'name': f'{_E}/3d-printing:real:waxprinter-v1',
+     'tech_node': f'{_E}/3d-printing', 'tree_name': _E,
      'segment_kind': 'real', 'ref_name': 'waxprinter-v1',
      'notes': ''},
-    {'name': f'{TREE}/3d-printing:business:one-person-printfarm',
-     'tech_node': f'{TREE}/3d-printing', 'tree_name': TREE,
+    {'name': f'{_E}/3d-printing:business:one-person-printfarm',
+     'tech_node': f'{_E}/3d-printing', 'tree_name': _E,
      'segment_kind': 'business', 'ref_name': 'one-person-printfarm',
      'notes': ''},
-    {'name': f'{TREE}/3d-printing:politics:'
+    {'name': f'{_E}/3d-printing:politics:'
              'open-hardware-procurement',
-     'tech_node': f'{TREE}/3d-printing', 'tree_name': TREE,
+     'tech_node': f'{_E}/3d-printing', 'tree_name': _E,
      'segment_kind': 'politics',
      'ref_name': 'open-hardware-procurement', 'notes': ''},
 ]
@@ -248,37 +438,118 @@ SEED_TECH_SEGMENT_ASSIGNMENTS += [
 #: Framework module directories genuinely present in this image —
 #: the theory substrate the done-test reads. tech_node_ref is the
 #: module's PRIMARY placement hint (modules like materialsScience
-#: serve several nodes via assignments).
+#: serve several nodes via assignments). Name kept from tt-5 —
+#: polariServer imports it.
 SEED_OSEB_POLARI_MODULES = [
-    _module('materialsScience', 'wax-materials',
+    _module('materialsScience', _E, 'wax-materials',
             'Materials basis: identities, scale levels, formulation '
             'searches, FEM/DFT/MD/meso engines, nanoparticle + CNT '
             '+ ceramics families.'),
-    _module('waxsupply', 'wax-materials',
+    _module('waxsupply', _E, 'wax-materials',
             'Bio wax sources + supply routes.'),
-    _module('electrodevice', 'battery-semiconductors',
+    _module('electrodevice', _E, 'battery-semiconductors',
             'Electronic devices: circuits, breadboards, '
             'semiconductor stack.'),
-    _module('hwdigital', 'open-source-hardware',
+    _module('hwdigital', _E, 'open-source-hardware',
             'Digital hardware: iCE40 bitstream generation.'),
-    _module('hwfpga', 'open-source-hardware',
+    _module('hwfpga', _E, 'open-source-hardware',
             'FPGA register maps as data + generated artifacts.'),
-    _module('grpcbridge', 'open-source-hardware',
+    _module('grpcbridge', _E, 'open-source-hardware',
             'Hardware bridges + hwsim digital twins.'),
-    _module('simulations', 'computational-methods',
+    _module('simulations', _E, 'computational-methods',
             'Simulation definitions, runners, multi-scale '
             'compositions.'),
-    _module('matrices', 'computational-methods',
+    _module('matrices', _E, 'computational-methods',
             'Matrix/equation definitions + executors.'),
-    _module('polariNoCode', 'computational-methods',
-            'No-code solution graphs + execution engine.'),
-    _module('aquaponics', 'household-nutrition',
+    _module('polariNoCode', _E, 'computational-methods',
+            'No-code solution graphs + execution engine (incl. '
+            'judicial CourtCase compilation).'),
+    _module('aquaponics', _S, 'aquaponics',
             'Self-watering pots, FEM hydraulics, vermicompost, '
             'plant growth.'),
-    _module('nutrition', 'household-nutrition',
+    _module('nutrition', _S, 'aquaponics',
             'Harvest→meal nutrients, household demand.'),
-    _module('tanks', 'household-nutrition',
+    _module('tanks', _S, 'aquaponics',
             'Freshwater/saltwater tank systems.'),
-    _module('plant_morphology', 'household-nutrition',
+    _module('plant_morphology', _S, 'aquaponics',
             'Organ/root confinement plant model.'),
+    _module('biomining', _S, 'biomining',
+            'Bacteria/algae extraction → product variants.'),
+    _module('microalgae', _S, 'carbon-management',
+            'Photobioreactor decarbonization route.'),
+    _module('supplychain', _S, 'carbon-management',
+            'Unifying carbon/materials/food supply ledger.'),
+    _module('dmvdata', _P, 'policy-tracking',
+            'DMV cost-of-living source catalog + trust stack.'),
+    _module('techtree', _P, 'business-logic-models',
+            'Tech trees, business-model/policy definitions, '
+            'completion rollups.'),
 ]
+
+# ---------------------------------------------------------------------
+# tt-5 single-tree retirement (the 'oseb' tree became three domain
+# trees). Idempotent: no-op once the legacy rows are gone.
+# ---------------------------------------------------------------------
+
+LEGACY_TREE_NAMES = ('oseb',)
+
+#: Old node names -> new homes, for remapping stale
+#: PolariModule.tech_node_ref hints left by the tt-5 seed.
+_LEGACY_NODE_REMAP = {
+    'oseb/household-nutrition': f'{_S}/aquaponics',
+    'oseb/nanoparticles': f'{_E}/lasis',
+}
+
+
+def _remap_legacy_node(old):
+    if old in _LEGACY_NODE_REMAP:
+        return _LEGACY_NODE_REMAP[old]
+    for legacy in LEGACY_TREE_NAMES:
+        prefix = f'{legacy}/'
+        if old.startswith(prefix):
+            return f'{TREE_ELECTRONICS}/{old[len(prefix):]}'
+    return old
+
+
+def retire_legacy_trees(manager):
+    """Remove the retired single-tree rows from the object tree AND
+    the DB, and remap stale tech_node_ref hints. Returns an honest
+    count report; never raises."""
+    removed = {}
+    tables = getattr(manager, 'objectTables', None) or {}
+    for legacy in LEGACY_TREE_NAMES:
+        for class_name, column in (
+                ('TechTreeDefinition', 'name'),
+                ('TechNode', 'tree_name'),
+                ('TechSegment', 'tree_name'),
+                ('TechSegmentAssignment', 'tree_name'),
+                ('TechDependencyEdge', 'tree_name')):
+            table = tables.get(class_name, {}) or {}
+            stale = [key for key, row in list(table.items())
+                     if getattr(row, column, '') == legacy]
+            for key in stale:
+                table.pop(key, None)
+            count = len(stale)
+            try:
+                deleted = manager.db.deleteRowsWhere(
+                    class_name, column, legacy)
+                if isinstance(deleted, int) and deleted > count:
+                    count = deleted
+            except Exception:
+                pass
+            if count:
+                removed[f'{class_name}[{legacy}]'] = count
+    remapped = 0
+    for row in (tables.get('PolariModule', {}) or {}).values():
+        old = getattr(row, 'tech_node_ref', '')
+        new = _remap_legacy_node(old)
+        if new != old:
+            row.tech_node_ref = new
+            remapped += 1
+            try:
+                manager.db.saveInstanceInDB(row)
+            except Exception:
+                pass
+    if remapped:
+        removed['PolariModule.tech_node_ref remapped'] = remapped
+    return removed

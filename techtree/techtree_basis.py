@@ -33,24 +33,33 @@ SEGMENT_COLORS = {'theory': '#1e88e5', 'real': '#e53935',
 
 
 class TechTreeDefinition(treeObject):
-    """One tech tree. Configurable per org (B6): a business's tree
-    is the set of technologies it depends on to do business; the
-    canonical baseline tree is flagged is_baseline."""
+    """One tech tree = one DOMAIN of technologies (tt-8): e.g.
+    'Electronics / Microelectronics', 'Raw Supply Chain', 'Open
+    Source Economy & Politics'. Configurable per org (B6): a
+    business's tree is the set of technologies it depends on to do
+    business. Trees flagged is_baseline are the OSEB's domain
+    components — reaching the end of ALL of them, combined, is the
+    Open Source Economic Baseline (baseline_report)."""
 
     @treeObjectInit
     def __init__(
         self,
         name: str = '',
+        # Display title ('' = derive from name), e.g.
+        # 'Electronics / Microelectronics'.
+        title: str = '',
         # The org/business this tree belongs to ('' = unowned/shared).
         owner: str = '',
         description: str = '',
         is_active: bool = False,
-        # The canonical Open-Source-Economic-Baseline tree.
+        # This tree is one of the OSEB's domain components; the
+        # baseline is the COMBINATION of all such trees complete.
         is_baseline: bool = False,
         notes: str = '',
         manager=None,
     ):
         self.name = name
+        self.title = title
         self.owner = owner
         self.description = description
         self.is_active = is_active

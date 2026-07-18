@@ -320,6 +320,8 @@ def tree_completion(manager, tree_name):
                   / len(reports)) if reports else 0.0
     return {
         'ok': True, 'tree': tree_name,
+        'title': (getattr(definition, 'title', '')
+                  or getattr(definition, 'name', '')),
         'isBaseline': getattr(definition, 'is_baseline', False),
         'owner': getattr(definition, 'owner', ''),
         'nodes': reports,
@@ -327,6 +329,45 @@ def tree_completion(manager, tree_name):
         'baselineAchieved': bool(reports) and all(
             r['completionLevel'] >= 1.0 for r in reports),
         'gaps': [g for r in reports for g in r['gaps']],
+    }
+
+
+def baseline_report(manager):
+    """The Open Source Economic Baseline across DOMAIN trees (tt-8):
+    every TechTreeDefinition flagged is_baseline is one domain
+    component (Electronics/Microelectronics, Raw Supply Chain, Open
+    Source Economy & Politics, ...). Reaching the end of ALL of them,
+    combined, is the OSEB — combined completion is the mean over the
+    domain trees, achieved only when every tree is achieved."""
+    trees = sorted(
+        (t for t in _rows(manager, 'TechTreeDefinition')
+         if getattr(t, 'is_baseline', False)),
+        key=lambda t: getattr(t, 'name', ''))
+    reports = []
+    for tree in trees:
+        name = getattr(tree, 'name', '')
+        completion = tree_completion(manager, name)
+        if not completion.get('ok'):
+            continue
+        reports.append({
+            'name': name,
+            'title': (getattr(tree, 'title', '') or name),
+            'owner': getattr(tree, 'owner', ''),
+            'completionLevel': completion['completionLevel'],
+            'baselineAchieved': completion['baselineAchieved'],
+            'nodeCount': len(completion['nodes']),
+            'gapCount': len(completion['gaps']),
+        })
+    combined = (sum(r['completionLevel'] for r in reports)
+                / len(reports)) if reports else 0.0
+    return {
+        'ok': True,
+        'trees': reports,
+        'completionLevel': combined,
+        'baselineAchieved': bool(reports) and all(
+            r['baselineAchieved'] for r in reports),
+        'note': 'the OSEB = every baseline domain tree complete, '
+                'combined',
     }
 
 
@@ -416,6 +457,7 @@ def tree_payload(manager, tree_name):
     return {
         'ok': True, 'tree': {
             'name': tree_name,
+            'title': completion['title'],
             'owner': completion['owner'],
             'isBaseline': completion['isBaseline'],
             'completionLevel': completion['completionLevel'],

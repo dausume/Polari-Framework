@@ -256,73 +256,151 @@ if __name__ == '__main__':
     check('unknown tree payload refused honestly',
           not tree_payload(mgr, 'nope').get('ok'))
 
-    print('== suite: OSEB seed coherence (tt-5) ==')
+    print('== suite: domain-tree seed coherence (tt-8) ==')
+    from techtree.techtree_analysis import baseline_report
     from techtree.techtree_seed import (
         SEED_BUSINESS_MODELS, SEED_OSEB_POLARI_MODULES,
         SEED_POLICY_DEFINITIONS, SEED_REAL_ARTIFACTS,
         SEED_TECH_NODES, SEED_TECH_SEGMENT_ASSIGNMENTS,
-        SEED_TECH_TREE_DEFINITIONS,
+        SEED_TECH_TREE_DEFINITIONS, TREE_ECONOMY, TREE_ELECTRONICS,
+        TREE_SUPPLY, retire_legacy_trees,
     )
     from waxprint.waxprint_seed import SEED_WAXPRINT_MODULES
 
     def _table(seed_list):
         return {s['name']: _ns(**s) for s in seed_list}
 
-    oseb = _ns(objectTables={
-        'TechTreeDefinition': _table(SEED_TECH_TREE_DEFINITIONS),
-        'TechNode': _table(SEED_TECH_NODES),
-        'TechSegment': {},
-        'TechSegmentAssignment': _table(
-            SEED_TECH_SEGMENT_ASSIGNMENTS),
-        'TechDependencyEdge': {},
-        'ModuleAssignment': {},
-        'PolariModule': _table(SEED_WAXPRINT_MODULES
-                               + SEED_OSEB_POLARI_MODULES),
-        'RealArtifact': _table(SEED_REAL_ARTIFACTS),
-        'BusinessModelDefinition': _table(SEED_BUSINESS_MODELS),
-        'PolicyDefinition': _table(SEED_POLICY_DEFINITIONS),
-    })
-    check('oseb is the active baseline tree',
-          active_tree_name(oseb) == 'oseb')
-    report = validate_tree(oseb, 'oseb')
-    check('oseb seed validates with zero errors',
-          report.get('valid'), json.dumps(report.get('findings')))
-    check('oseb carries the 13 domains + os-pvd + 5 phases',
-          len(SEED_TECH_NODES) == 19)
-    sync_edges(oseb, 'oseb')
-    edges = oseb.objectTables['TechDependencyEdge'].values()
-    blcnc_dependents = [e for e in edges if e.depends_on_tech
-                        == 'oseb/bombastic-laser-cnc']
-    check('BLCNC shared by P1+P4+... => transient designation live',
-          sum(1 for e in blcnc_dependents if e.is_primary) == 1
-          and sum(1 for e in blcnc_dependents if e.is_transient)
-          == len(blcnc_dependents) - 1
-          and len(blcnc_dependents) >= 2)
-    tree = tree_completion(oseb, 'oseb')
-    check('theory substrate counts (baseline already >40%)',
-          0.4 < tree['completionLevel'] < 1.0,
-          str(tree['completionLevel']))
-    check('unbuilt sims stay honest gaps naming blcnc/ospvd',
-          any('"blcnc"' in g['evidence'] for g in tree['gaps'])
-          and any('"ospvd"' in g['evidence'] for g in tree['gaps']))
-    printing3d = [n for n in tree['nodes']
-                  if n['node'] == 'oseb/3d-printing'][0]
-    check('3d-printing presents ALL FOUR segments (tt-6 examples)',
+    def _seeded_mgr():
+        return _ns(objectTables={
+            'TechTreeDefinition': _table(SEED_TECH_TREE_DEFINITIONS),
+            'TechNode': _table(SEED_TECH_NODES),
+            'TechSegment': {},
+            'TechSegmentAssignment': _table(
+                SEED_TECH_SEGMENT_ASSIGNMENTS),
+            'TechDependencyEdge': {},
+            'ModuleAssignment': {},
+            'PolariModule': _table(SEED_WAXPRINT_MODULES
+                                   + SEED_OSEB_POLARI_MODULES),
+            'RealArtifact': _table(SEED_REAL_ARTIFACTS),
+            'BusinessModelDefinition': _table(SEED_BUSINESS_MODELS),
+            'PolicyDefinition': _table(SEED_POLICY_DEFINITIONS),
+        })
+
+    domains = _seeded_mgr()
+    check('electronics is the active tree',
+          active_tree_name(domains) == TREE_ELECTRONICS)
+    for tree_name in (TREE_ELECTRONICS, TREE_SUPPLY, TREE_ECONOMY):
+        report = validate_tree(domains, tree_name)
+        check(f'{tree_name} seed validates with zero errors',
+              report.get('valid'),
+              json.dumps(report.get('findings')))
+        sync_edges(domains, tree_name)
+    by_tree = {}
+    for n in SEED_TECH_NODES:
+        by_tree[n['tree_name']] = by_tree.get(n['tree_name'], 0) + 1
+    check('node counts: electronics 24 / supply 15 / economy 4',
+          by_tree == {TREE_ELECTRONICS: 24, TREE_SUPPLY: 15,
+                      TREE_ECONOMY: 4}, json.dumps(by_tree))
+
+    edges = domains.objectTables['TechDependencyEdge'].values()
+    pla_dependents = [
+        e for e in edges if e.depends_on_tech
+        == f'{TREE_ELECTRONICS}/precision-laser-apparatus']
+    check('Precision Laser Apparatus shared by BLCNC + LASiS => '
+          'one primary + transient copy',
+          sorted(e.tech_node.split("/")[1]
+                 for e in pla_dependents) == [
+              'bombastic-laser-cnc', 'lasis']
+          and sum(1 for e in pla_dependents if e.is_primary) == 1
+          and sum(1 for e in pla_dependents if e.is_transient) == 1)
+    cnt_dependents = [e for e in edges if e.depends_on_tech
+                      == f'{TREE_SUPPLY}/cnt-supply']
+    check('p-doped + n-doped CNT supplies branch off raw CNT supply',
+          len(cnt_dependents) == 2
+          and sum(1 for e in cnt_dependents if e.is_transient) == 1)
+    check('os-pvd requires vacuum pump + piezoelectrics',
+          any(e.tech_node == f'{TREE_ELECTRONICS}/os-pvd'
+              and e.depends_on_tech
+              == f'{TREE_ELECTRONICS}/vacuum-pump' for e in edges)
+          and any(e.tech_node == f'{TREE_ELECTRONICS}/os-pvd'
+                  and e.depends_on_tech
+                  == f'{TREE_ELECTRONICS}/piezoelectrics'
+                  for e in edges))
+
+    printing3d = [
+        n for n in tree_completion(
+            domains, TREE_ELECTRONICS)['nodes']
+        if n['node'] == f'{TREE_ELECTRONICS}/3d-printing'][0]
+    check('3d-printing still presents ALL FOUR segments at 25%',
           printing3d['segmentsPresent'] == ['theory', 'real',
-                                            'business', 'politics'])
-    check('waxprint module row satisfies the 3d-printing theory ref',
-          [s for s in printing3d['segments']
-           if s['kind'] == 'theory'][0]['completion'] == 1.0)
-    check('unproven printer / unevidenced business+policy stay '
-          'honest (node at 25%)',
-          abs(printing3d['completionLevel'] - 0.25) < 1e-9,
-          str(printing3d['completionLevel']))
-    check('real gap names the missing proof + routes',
-          any('not proven' in g['evidence']
-              and 'commercial route' in g['evidence']
-              for g in printing3d['gaps']))
-    print(f"  (seeded OSEB baseline completion: "
-          f"{round(tree['completionLevel'] * 100, 1)}%)")
+                                            'business', 'politics']
+          and abs(printing3d['completionLevel'] - 0.25) < 1e-9)
+
+    print('== suite: OSEB baseline across domain trees (tt-8) ==')
+    baseline = baseline_report(domains)
+    check('baseline rolls up all three domain trees',
+          [t['name'] for t in baseline['trees']] == sorted([
+              TREE_ELECTRONICS, TREE_SUPPLY, TREE_ECONOMY]))
+    check('baseline carries domain titles',
+          any(t['title'] == 'Electronics / Microelectronics'
+              for t in baseline['trees'])
+          and any(t['title'] == 'Raw Supply Chain'
+                  for t in baseline['trees']))
+    expected = sum(t['completionLevel']
+                   for t in baseline['trees']) / 3
+    check('combined completion is the mean over domain trees',
+          abs(baseline['completionLevel'] - expected) < 1e-9)
+    check('OSEB not achieved while any domain tree is open',
+          not baseline['baselineAchieved'])
+    check('shells stay honest gaps (agroforestry / microbusiness / '
+          'cntsupply named)',
+          any('"agroforestry"' in g['evidence']
+              for t in baseline['trees'] for g in tree_completion(
+                  domains, t['name'])['gaps'])
+          and any('"microbusiness"' in g['evidence']
+                  for g in tree_completion(
+                      domains, TREE_ECONOMY)['gaps'])
+          and any('"cntsupply"' in g['evidence']
+                  for g in tree_completion(
+                      domains, TREE_SUPPLY)['gaps']))
+    for t in baseline['trees']:
+        print(f"  ({t['title']}: "
+              f"{round(t['completionLevel'] * 100, 1)}%)")
+    print(f"  (combined OSEB: "
+          f"{round(baseline['completionLevel'] * 100, 1)}%)")
+
+    print('== suite: legacy oseb retirement (tt-8) ==')
+    legacy = _seeded_mgr()
+    legacy.objectTables['TechTreeDefinition']['oseb'] = _ns(
+        name='oseb', title='', owner='polari', description='',
+        is_active=False, is_baseline=True, notes='')
+    legacy.objectTables['TechNode']['oseb/nanoparticles'] = _ns(
+        name='oseb/nanoparticles', tree_name='oseb', title='',
+        description='', depends_on_json='[]',
+        layout_hints_json='{}', notes='')
+    legacy.objectTables['PolariModule']['materialsScience'] \
+        .tech_node_ref = 'oseb/nanoparticles'
+    deletes = []
+    legacy.db = _ns(
+        deleteRowsWhere=lambda c, col, v: deletes.append(
+            (c, col, v)) or 0,
+        saveInstanceInDB=lambda row: None)
+    removed = retire_legacy_trees(legacy)
+    check('legacy tree + node rows removed from the object tree',
+          'oseb' not in legacy.objectTables['TechTreeDefinition']
+          and 'oseb/nanoparticles'
+          not in legacy.objectTables['TechNode'])
+    check('DB deletes issued for the legacy rows',
+          ('TechTreeDefinition', 'name', 'oseb') in deletes
+          and ('TechNode', 'tree_name', 'oseb') in deletes)
+    check('stale tech_node_ref remapped (nanoparticles -> lasis)',
+          legacy.objectTables['PolariModule']['materialsScience']
+          .tech_node_ref == f'{TREE_ELECTRONICS}/lasis')
+    check('baseline unaffected after retirement',
+          not any(t['name'] == 'oseb'
+                  for t in baseline_report(legacy)['trees']))
+    check('retirement is idempotent',
+          retire_legacy_trees(legacy) == {})
 
     failed = [label for label, ok in _results if not ok]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} checks '
