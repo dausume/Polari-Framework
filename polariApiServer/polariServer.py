@@ -484,6 +484,13 @@ from topology.topology_seed import (
     SEED_ORCHESTRATION_TARGETS, SEED_SERVICE_CONNECTIONS,
     SEED_TOPOLOGY_DEFINITIONS,
 )
+# Tech tree (tt-3): technologies with theory/real/business/politics
+# segments; completion always DERIVED (techtree_analysis), edges
+# derived from depends_on_json with tt-1 transient designation.
+from techtree.techtree_basis import (
+    TechDependencyEdge, TechNode, TechSegment, TechSegmentAssignment,
+    TechTreeDefinition,
+)
 # Resource profiles (res-2): each module/engine's floor, scalability,
 # character, and storage-tier recommendation — the admission basis.
 from resources.profile_basis import ModuleResourceProfile
@@ -1112,6 +1119,11 @@ class polariServer(treeObject):
         from topology.topology_api import TopologyAPI
         topologyEndpoint = TopologyAPI(
             polServer=self, manager=self.manager)
+        # Tech tree (tt-3): trees/nodes/segments + derived completion
+        # rollup — the topology expansion toward the OSEB.
+        from techtree.techtree_api import TechTreeAPI
+        techTreeEndpoint = TechTreeAPI(
+            polServer=self, manager=self.manager)
         # Provider routing (top-7): module delegation resolves its
         # provider from the topology rows when no explicit URL knob
         # is set (see materialsScience.engines.remote's ladder).
@@ -1330,6 +1342,9 @@ class polariServer(treeObject):
             InstanceDefinition, ModuleAssignment,
             ModuleDependencyEdge, ServiceConnection,
             TopologyDefinition, TopologyObservation,
+            # Tech tree (tt-3).
+            TechTreeDefinition, TechNode, TechSegment,
+            TechSegmentAssignment, TechDependencyEdge,
             # Resource profiles (res-2).
             ModuleResourceProfile,
             # XR settings cascade + interface variants (xr-1).
