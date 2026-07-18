@@ -2,6 +2,10 @@
 # The shared engine-parity vectors ARE source (both engines' contract) —
 # exempt them from the blanket *.json ignore.
 !polariNoCode/parity_vectors/*.json
+# The module register IS source (mp-1/mp-2: what exists, what is
+# downloaded, where each sub-project repo lives) — a fresh clone
+# without it loses the waves/requires/repo config.
+!modules/polari-modules.json
 *.pyc
 *.db
 */falcon

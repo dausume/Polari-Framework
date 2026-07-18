@@ -1,0 +1,215 @@
+{
+  "schema_version": "1",
+  "note": "The inspectable module register (MODULE_PROJECTS_PLAN mp-1/mp-2). kind: official (maintained here) | vendor (third-party remote) | self (made on this instance from your own objects). downloaded: is the code locally present \u2014 module_registry.sync() re-derives this from the filesystem on every read, so the flag can never lie. repo: the module's own git remote once it is split into a sub-project (mp-2); '' means it still ships with this checkout. path: where the code lives TODAY (framework root until its mp-4 wave moves it into modules/). requires: other feature modules whose code this one imports \u2014 pol modules drop refuses while a dependent is downloaded. required_by_core: the core still imports this statically (module_gating CORE_PACKAGES) \u2014 it may MOVE into modules/ but cannot be dropped. wave: the planned mp-4 migration wave (0 = already moved). pol CLI: `pol modules registry | get <m> | drop <m> | publish <m> | register <m>`.",
+  "modules": {
+    "biomining": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/biomining",
+      "repo": "https://github.com/dausume/polari-module-biomining.git",
+      "wave": 0,
+      "description": "Bacteria/algae extraction -> product variants."
+    },
+    "microalgae": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/microalgae",
+      "repo": "https://github.com/dausume/polari-module-microalgae.git",
+      "wave": 0,
+      "description": "Photobioreactor decarbonization route."
+    },
+    "nutrition": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "nutrition",
+      "repo": "",
+      "wave": 1,
+      "description": "Dietary nutrients, person/household profiling, harvest -> meal-nutrient yield."
+    },
+    "tanks": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "tanks",
+      "repo": "",
+      "wave": 1,
+      "description": "Freshwater/saltwater tank ecosystems \u2014 the alternate nutrient source."
+    },
+    "plant_morphology": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "plant_morphology",
+      "repo": "",
+      "wave": 1,
+      "description": "3D organ + root stand-in models, confinement/dwarfing assessment."
+    },
+    "waxsupply": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "waxsupply",
+      "repo": "",
+      "wave": 2,
+      "description": "Bio wax sources for molds and electronic masks."
+    },
+    "supplychain": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "supplychain",
+      "repo": "",
+      "wave": 2,
+      "description": "Unifying bio supply-chain ledger \u2014 materials + food + carbon accounting."
+    },
+    "dmvdata": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "dmvdata",
+      "repo": "",
+      "wave": 2,
+      "requires": [
+        "scoring"
+      ],
+      "description": "DMV cost-of-living source catalogs, gov/legal sources, cross-validation."
+    },
+    "mathshapes": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "mathshapes",
+      "repo": "",
+      "wave": 3,
+      "requires": [
+        "aquaponics",
+        "plant_morphology"
+      ],
+      "description": "Math-defined shapes (quadric/primitive/CSG), aquaponic towers, CAD import."
+    },
+    "electrodevice": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "electrodevice",
+      "repo": "",
+      "wave": 3,
+      "requires": [
+        "hwdigital"
+      ],
+      "description": "Material-derived electronic devices, SPICE cards, circuits/breadboards as rows."
+    },
+    "hwdigital": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "hwdigital",
+      "repo": "",
+      "wave": 3,
+      "description": "Logic diagrams as rows -> generated artifacts (iCE40 bitstreams)."
+    },
+    "hwfpga": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "hwfpga",
+      "repo": "",
+      "wave": 3,
+      "description": "FPGA register maps as data; Verilog/C/testbench artifacts from rows."
+    },
+    "zones": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "zones",
+      "repo": "",
+      "wave": 4,
+      "requires": [
+        "scoring"
+      ],
+      "description": "AR-captured 3D zones: planar/hull models, rooms vs selections, cube packing."
+    },
+    "xr": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "xr",
+      "repo": "",
+      "wave": 4,
+      "required_by_core": true,
+      "description": "XR settings cascade + interface variants. Moves in wave 4; core still imports it statically (drop refuses)."
+    },
+    "aquaponics": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "aquaponics",
+      "repo": "",
+      "wave": 5,
+      "requires": [
+        "plant_morphology",
+        "scoring"
+      ],
+      "description": "Self-watering pots, FEM hydraulics, vermicompost, per-part plant growth."
+    },
+    "grpcbridge": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "grpcbridge",
+      "repo": "",
+      "wave": 5,
+      "description": "gRPC contracts from stabilized schemas, Java hardware bridges, hw sim rigs."
+    },
+    "resources": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "resources",
+      "repo": "",
+      "wave": 5,
+      "required_by_core": true,
+      "description": "Node resource inventory, module profiles, admission advisor. Moves in wave 5; core still imports it statically (drop refuses)."
+    },
+    "waxprint": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "waxprint",
+      "repo": "",
+      "wave": 6,
+      "description": "Pellet-fed auger-screw wax printer: melt/bead-voxel/movement sim + optimizer."
+    },
+    "scoring": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "scoring",
+      "repo": "",
+      "wave": 6,
+      "description": "Context-based scoring engine + epistemics stack (terms, proofs, credibility, authority)."
+    },
+    "techtree": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "techtree",
+      "repo": "",
+      "wave": 6,
+      "description": "Tech trees with theory/real/business/politics segments; OSEB baseline rollup."
+    },
+    "polariapps": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "polariapps",
+      "repo": "",
+      "wave": 6,
+      "description": "Polari-Apps: module configurations per use-case, plan-first + exportable."
+    },
+    "testing": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "testing",
+      "repo": "",
+      "wave": 6,
+      "description": "Accountability spine (opt-in: registers only on test builds / explicit POLARI_MODULES)."
+    },
+    "materials_science": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/polariMaterialsScienceModule",
+      "repo": "",
+      "description": "Legacy registry module (optional, toggleable)."
+    },
+    "agro_forestry": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/polariAgroForestryModule",
+      "repo": "",
+      "description": "Legacy registry module (user-created example)."
+    }
+  }
+}
