@@ -44,7 +44,7 @@
     },
     "waxsupply": {
       "kind": "official",
-      "downloaded": false,
+      "downloaded": true,
       "path": "modules/waxsupply",
       "repo": "",
       "wave": 2,
@@ -71,8 +71,8 @@
     },
     "mathshapes": {
       "kind": "official",
-      "downloaded": true,
-      "path": "mathshapes",
+      "downloaded": false,
+      "path": "modules/mathshapes",
       "repo": "",
       "wave": 3,
       "requires": [
@@ -84,7 +84,7 @@
     "electrodevice": {
       "kind": "official",
       "downloaded": true,
-      "path": "electrodevice",
+      "path": "modules/electrodevice",
       "repo": "",
       "wave": 3,
       "requires": [
@@ -95,7 +95,7 @@
     "hwdigital": {
       "kind": "official",
       "downloaded": true,
-      "path": "hwdigital",
+      "path": "modules/hwdigital",
       "repo": "",
       "wave": 3,
       "description": "Logic diagrams as rows -> generated artifacts (iCE40 bitstreams)."
@@ -103,7 +103,7 @@
     "hwfpga": {
       "kind": "official",
       "downloaded": true,
-      "path": "hwfpga",
+      "path": "modules/hwfpga",
       "repo": "",
       "wave": 3,
       "description": "FPGA register maps as data; Verilog/C/testbench artifacts from rows."
