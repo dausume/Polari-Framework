@@ -21,15 +21,15 @@
     "nutrition": {
       "kind": "official",
       "downloaded": true,
-      "path": "nutrition",
+      "path": "modules/nutrition",
       "repo": "",
       "wave": 1,
       "description": "Dietary nutrients, person/household profiling, harvest -> meal-nutrient yield."
     },
     "tanks": {
       "kind": "official",
-      "downloaded": true,
-      "path": "tanks",
+      "downloaded": false,
+      "path": "modules/tanks",
       "repo": "",
       "wave": 1,
       "description": "Freshwater/saltwater tank ecosystems \u2014 the alternate nutrient source."
@@ -37,7 +37,7 @@
     "plant_morphology": {
       "kind": "official",
       "downloaded": true,
-      "path": "plant_morphology",
+      "path": "modules/plant_morphology",
       "repo": "",
       "wave": 1,
       "description": "3D organ + root stand-in models, confinement/dwarfing assessment."
