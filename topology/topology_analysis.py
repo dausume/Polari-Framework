@@ -23,9 +23,12 @@ command or row edit that fixes them and are never auto-applied
 import json
 
 from topology.topology_constants import (
-    DB_BACKENDS, ENV_TIERS, INTERCONNECT_KEYS, KNOWN_SERVICE_KINDS,
-    ORCHESTRATION_TARGETS, SERVICE_LABEL_ALIASES,
+    DB_BACKENDS, ENGINE_CAPABILITY_MODULES, ENGINE_HOST_KINDS,
+    ENV_TIERS, INFRA_KINDS, INTEGRATED_APP_KINDS, INTERCONNECT_KEYS,
+    KNOWN_SERVICE_KINDS, ORCHESTRATION_TARGETS,
+    POLARI_RECEPTIVE_KINDS, SERVICE_LABEL_ALIASES,
 )
+from topology.topology_constants import AUTH_KINDS
 
 
 def _rows(manager, class_name):
@@ -218,6 +221,77 @@ def validate_topology(manager, topology_name):
             'warnCount': len(findings) - len(errors)}
 
 
+def instance_app_kind(instance):
+    """tt-14 category for one instance: 'polari' (adaptive — can
+    receive modules), 'integrated-app' (PSC/Odoo-style: non-adaptive,
+    integrates at fixed points), 'auth' (Keycloak-style), or
+    'infrastructure' (pure DB/storage/proxy containers)."""
+    kind = getattr(instance, 'kind', '')
+    if kind in POLARI_RECEPTIVE_KINDS:
+        return 'polari'
+    if kind in AUTH_KINDS:
+        return 'auth'
+    if kind in INTEGRATED_APP_KINDS:
+        return 'integrated-app'
+    if kind in INFRA_KINDS:
+        return 'infrastructure'
+    return 'unknown'
+
+
+def instance_storage(instance):
+    """Where this instance's OBJECT ROWS live — named, so unknown
+    sqlite stashes become visible. sqlite = a local file this
+    instance OWNS (it alone answers for those objects); combo/
+    mariadb = the shared server everyone can see."""
+    kind = getattr(instance, 'kind', '')
+    if instance_app_kind(instance) != 'polari':
+        return None  # not an object-tree holder
+    backend = getattr(instance, 'db_backend', '')
+    name = getattr(instance, 'name', '')
+    if backend in ('combo', 'mariadb', 'dbcombo'):
+        return {'kind': 'mariadb', 'name': 'pol-mariadb (shared)',
+                'shared': True,
+                'note': 'objects live on the shared MariaDB — '
+                        'visible to every sharing instance'}
+    if backend in ('sqlite', ''):
+        return {'kind': 'sqlite', 'name': f'sqlite-{name}',
+                'shared': False,
+                'note': f'local sqlite file owned by "{name}" — '
+                        'this instance alone answers for these '
+                        'objects'}
+    return {'kind': backend, 'name': f'{backend}-{name}',
+            'shared': False, 'note': ''}
+
+
+def placement_check(module, instance):
+    """tt-14 coherence: may `module` be placed on `instance`?
+    Returns (ok, why-not)."""
+    kind = getattr(instance, 'kind', '')
+    name = getattr(instance, 'name', '')
+    category = instance_app_kind(instance)
+    if category != 'polari':
+        return False, (
+            f'"{name}" is {"an auth container" if category == "auth" else "a non-adaptive " + category} '
+            f'(kind "{kind}") — not a Polari instance; it integrates '
+            'with Polari at fixed points and cannot receive modules')
+    if (module in ENGINE_CAPABILITY_MODULES
+            and kind not in ENGINE_HOST_KINDS):
+        return False, (
+            f'"{module}" is an engine capability — it only lives on '
+            f'engine/worker instances (a Polari wrapped the engine '
+            f'from the beginning); "{name}" is kind "{kind}"')
+    return True, ''
+
+
+def is_real_machine(machine):
+    """Synthetic rows (sim seeds) are not deploy targets."""
+    name = getattr(machine, 'name', '')
+    source = str(getattr(machine, 'source', ''))
+    if name.startswith('sim-') or source.startswith('sim'):
+        return False
+    return True
+
+
 def plan_move(manager, topology_name, module, to_instance='',
               to_machine=''):
     """tt-13: PLAN a dynamic re-placement — pure, executes nothing.
@@ -239,12 +313,16 @@ def plan_move(manager, topology_name, module, to_instance='',
                   if getattr(a, 'module_name', '') == module
                   and getattr(a, 'state', '') == 'enabled']
     if to_instance:
-        instances = {getattr(i, 'name', '') for i in _scoped(
+        instances = {getattr(i, 'name', ''): i for i in _scoped(
             manager, 'InstanceDefinition', topology_name)}
         if to_instance not in instances:
             return {'ok': False,
                     'error': f'no InstanceDefinition named '
                              f'"{to_instance}" in this topology'}
+        allowed, why = placement_check(module,
+                                       instances[to_instance])
+        if not allowed:
+            return {'ok': False, 'error': why}
         return {
             'ok': True, 'moveKind': 'module-reassignment',
             'module': module, 'toInstance': to_instance,
@@ -260,6 +338,10 @@ def plan_move(manager, topology_name, module, to_instance='',
         return {'ok': False,
                 'error': f'no PolariNodeMachine named '
                          f'"{to_machine}"'}
+    if not is_real_machine(machines[to_machine]):
+        return {'ok': False,
+                'error': f'"{to_machine}" is a synthetic (sim) '
+                         'machine row — not a deploy target'}
     inst_by_name = {getattr(i, 'name', ''): i for i in _scoped(
         manager, 'InstanceDefinition', topology_name)}
     provider_instances = sorted(
@@ -358,6 +440,7 @@ def graph_payload(manager, topology_name):
 
     def machine_dict(m):
         return {'name': getattr(m, 'name', ''),
+                'isReal': is_real_machine(m),
                 'sshAlias': getattr(m, 'ssh_alias', ''),
                 'arch': getattr(m, 'arch', ''),
                 'memGb': getattr(m, 'mem_gb', 0.0),
@@ -382,6 +465,11 @@ def graph_payload(manager, topology_name):
 
     def instance_dict(i):
         return {'name': getattr(i, 'name', ''),
+                # tt-14: category + storage identity for the graph
+                # (colors, move-target filtering, sqlite visibility).
+                'appKind': instance_app_kind(i),
+                'isPolari': instance_app_kind(i) == 'polari',
+                'storage': instance_storage(i),
                 'kind': getattr(i, 'kind', ''),
                 'serviceKinds': _loads(i, 'service_kinds_json', []),
                 'replicas': getattr(i, 'replicas', 1),

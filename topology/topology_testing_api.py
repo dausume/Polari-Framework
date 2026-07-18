@@ -196,10 +196,19 @@ class TopologyTestingAPI(treeObject):
             topology_name=topology, manager=self.manager, **fields)
 
     def _ping_machines(self, topology, checked_at):
+        from topology.topology_analysis import is_real_machine
         out = []
         for machine in self._rows('PolariNodeMachine'):
             name = getattr(machine, 'name', '')
             url = getattr(machine, 'system_info_url', '')
+            swarm_role = getattr(machine, 'swarm_role', 'none')
+            if not is_real_machine(machine):
+                out.append(self._ping_row(
+                    'machine', name, topology, checked_at,
+                    status='unpingable',
+                    evidence='synthetic (sim) machine row — '
+                             'nothing real to ping'))
+                continue
             if not getattr(machine, 'ssh_alias', ''):
                 out.append(self._ping_row(
                     'machine', name, topology, checked_at,
@@ -210,12 +219,16 @@ class TopologyTestingAPI(treeObject):
                     evidence='local machine (the core backend '
                              'process itself)'))
                 continue
+            swarm_note = (f'; swarm {swarm_role} (node-level health '
+                          'lives on the manager: docker node ls)'
+                          if swarm_role in ('manager', 'worker')
+                          else '')
             if not url:
                 out.append(self._ping_row(
                     'machine', name, topology, checked_at,
                     status='unpingable',
-                    evidence='no system_info_url knob set — '
-                             'nothing to ping',))
+                    evidence='no system_info_url knob set — no HTTP '
+                             'endpoint to ping' + swarm_note))
                 continue
             protocol, secured, note = protocol_of(url)
             alive, evidence = self._ping(url)
@@ -224,7 +237,7 @@ class TopologyTestingAPI(treeObject):
                 target=url, protocol=protocol, secured=secured,
                 security_note=note,
                 status='ok' if alive else 'failed',
-                evidence=evidence))
+                evidence=evidence + ('' if alive else swarm_note)))
         return out
 
     def _ping_dep_edges(self, topology, checked_at):

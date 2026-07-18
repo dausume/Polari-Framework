@@ -21,8 +21,8 @@ from datetime import datetime, timezone
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from topology.topology_analysis import (
-    active_topology_name, drift_report, graph_payload, plan_move,
-    resolve_edges, validate_topology,
+    active_topology_name, drift_report, graph_payload,
+    placement_check, plan_move, resolve_edges, validate_topology,
 )
 from topology.topology_basis import (
     InstanceDefinition, OrchestrationTarget, PolariNodeMachine,
@@ -155,13 +155,19 @@ class TopologyAPI(treeObject):
         response.media = report
 
     def on_get_machines(self, request, response):
+        def _roles(m):
+            # sim rows carry junk roles_json — never 500 over it.
+            try:
+                return json.loads(
+                    getattr(m, 'roles_json', '[]') or '[]')
+            except Exception:
+                return []
         response.media = {'ok': True, 'machines': [
             {'name': getattr(m, 'name', ''),
              'sshAlias': getattr(m, 'ssh_alias', ''),
              'arch': getattr(m, 'arch', ''),
              'memGb': getattr(m, 'mem_gb', 0.0),
-             'roles': json.loads(getattr(m, 'roles_json', '[]')
-                                 or '[]'),
+             'roles': _roles(m),
              'swarmRole': getattr(m, 'swarm_role', 'none'),
              'repoDir': getattr(m, 'repo_dir', ''),
              'source': getattr(m, 'source', ''),
@@ -254,11 +260,15 @@ class TopologyAPI(treeObject):
             return self._refuse(
                 response, 'no active topology and no topology given',
                 '404 Not Found')
-        if self._find('InstanceDefinition', to_instance) is None:
+        target_row = self._find('InstanceDefinition', to_instance)
+        if target_row is None:
             return self._refuse(
                 response,
                 f'no InstanceDefinition named "{to_instance}"',
                 '404 Not Found')
+        allowed, why = placement_check(module, target_row)
+        if not allowed:
+            return self._refuse(response, why)
         moved = []
         if from_instance:
             for asg in self._table('ModuleAssignment').values():

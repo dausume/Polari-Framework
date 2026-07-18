@@ -39,6 +39,27 @@ ENV_TIERS = ('dev', 'staging', 'prod', 'test')
 #: = anything else.
 INSTANCE_KINDS = ('prf', 'psc', 'worker', 'infra', 'custom')
 
+#: tt-14 placement coherence (Dustin 2026-07-18): only POLARI
+#: instances can receive modules. Workers (prf-dask) and engines
+#: (dft/fem hosts) ARE Polari instances — a Polari wrapped the
+#: engine from the beginning — so they can carry other modules too.
+#: 'psc' (SpringBoot/Angular public server) and 'infra' (mariadb/
+#: keycloak/minio/proxy containers) are NON-ADAPTIVE apps that
+#: integrate with Polari at fixed points — never module targets.
+POLARI_RECEPTIVE_KINDS = ('prf', 'worker', 'engines', 'prf-backend')
+INTEGRATED_APP_KINDS = ('psc', 'psc-backend')
+INFRA_KINDS = ('infra', 'shared-infra')
+#: Auth-oriented containers (Keycloak etc.) are their own category:
+#: separate color in the graph and NEVER a module target.
+AUTH_KINDS = ('auth', 'keycloak')
+
+#: Engine-capability modules can ONLY live on engine/worker
+#: instances (the Polari-wrapped engines) — matching PROVIDER_PORTS'
+#: routing world.
+ENGINE_CAPABILITY_MODULES = ('materialsScience.fem',
+                             'materialsScience.dft')
+ENGINE_HOST_KINDS = ('worker', 'engines')
+
 #: ModuleAssignment lifecycle. 'planned' = desired but not applied.
 #: 'transient' (tt-13) = the module MOVED away — this row is the
 #: dashed ghost at its former location: visible in the graph,

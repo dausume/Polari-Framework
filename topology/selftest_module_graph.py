@@ -220,6 +220,61 @@ if __name__ == '__main__':
     check('transient ghost excluded from resolution '
           '(edge unresolves)', fem_edge.status == 'unresolved')
 
+    print('== suite: placement coherence (tt-14) ==')
+    from topology.topology_analysis import (
+        instance_app_kind, instance_storage, is_real_machine,
+        placement_check,
+    )
+
+    def _ns(**fields):
+        return types.SimpleNamespace(**fields)
+    prf = _ns(name='prf-a', kind='prf', db_backend='sqlite')
+    worker = _ns(name='engines', kind='worker', db_backend='')
+    psc = _ns(name='psc-a', kind='psc', db_backend='')
+    infra = _ns(name='shared-infra', kind='infra', db_backend='')
+    auth = _ns(name='kc', kind='auth', db_backend='')
+    check('app kinds: polari / integrated-app / infrastructure / '
+          'auth',
+          instance_app_kind(prf) == 'polari'
+          and instance_app_kind(worker) == 'polari'
+          and instance_app_kind(psc) == 'integrated-app'
+          and instance_app_kind(infra) == 'infrastructure'
+          and instance_app_kind(auth) == 'auth')
+    check('modules may land on prf AND worker (both are Polari)',
+          placement_check('aquaponics', prf)[0]
+          and placement_check('aquaponics', worker)[0])
+    ok, why = placement_check('aquaponics', psc)
+    check('psc refused — non-adaptive integrated app',
+          not ok and 'not a Polari instance' in why)
+    check('infra refused', not placement_check(
+        'aquaponics', infra)[0])
+    check('auth container refused',
+          'auth container' in placement_check('scoring', auth)[1])
+    ok, why = placement_check('materialsScience.fem', prf)
+    check('engine capability refused on a plain prf instance',
+          not ok and 'engine capability' in why)
+    check('engine capability allowed on a worker/engine instance',
+          placement_check('materialsScience.fem', worker)[0])
+    check('named sqlite storage carries ownership',
+          instance_storage(prf)['name'] == 'sqlite-prf-a'
+          and not instance_storage(prf)['shared'])
+    combo = _ns(name='prf-b', kind='prf', db_backend='combo')
+    check('combo backend reads as the shared mariadb',
+          instance_storage(combo)['shared'])
+    check('non-polari instances hold no object storage',
+          instance_storage(psc) is None)
+    check('sim machine rows are not real deploy targets',
+          not is_real_machine(_ns(name='sim-polarinodemachine',
+                                  source='sim-599'))
+          and is_real_machine(_ns(name='isle-core',
+                                  source='nodes.yml')))
+    check('move to psc refused end-to-end', not plan_move(
+        _ns(objectTables={
+            'InstanceDefinition': {'psc-a': psc},
+            'ModuleAssignment': {},
+            'PolariNodeMachine': {}}),
+        'staging-a', 'scoring', to_instance='psc-a').get('ok'))
+
     print('== suite: boundary graph reverse edges ==')
     from moduleService.module_dependency_tracker import boundary_graph
     graph = boundary_graph()

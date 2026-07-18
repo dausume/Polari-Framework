@@ -108,10 +108,14 @@ class ModulesAPI(treeObject):
             # a place to navigate to — per-class row counts (data),
             # display pages (pages), text-scanned add_route strings
             # (functionality), and the selftest suites.
+            storage = self._storage_descriptor()
             for entry in classes_detail:
                 cn = entry.get('className', '')
                 entry['instanceCount'] = len(
                     self.manager.objectTables.get(cn, {}) or {})
+                # tt-14: where this class's rows live ON THIS
+                # backend (class↔database clarity).
+                entry['database'] = storage['name']
             response.media = {
                 "success": True,
                 "module": {
@@ -124,6 +128,7 @@ class ModulesAPI(treeObject):
                     "classCount": len(module_classes) if is_enabled else len(classes_detail),
                     "seedInstanceCount": instance_count,
                     "classes": classes_detail,
+                    "storage": storage,
                     "pythonDependencies": python_deps,
                     "polariDependencies": polari_deps,
                     "pages": self._module_pages(
@@ -340,10 +345,12 @@ class ModulesAPI(treeObject):
             == module_id)
         classes_detail = self._get_classes_from_typing(
             module_classes)
+        storage = self._storage_descriptor()
         for entry in classes_detail:
             entry['instanceCount'] = len(
                 self.manager.objectTables.get(
                     entry.get('className', ''), {}) or {})
+            entry['database'] = storage['name']
         instance_count = sum(
             entry['instanceCount'] for entry in classes_detail)
         response.media = {
@@ -360,6 +367,7 @@ class ModulesAPI(treeObject):
                 "classCount": len(module_classes),
                 "seedInstanceCount": instance_count,
                 "classes": classes_detail,
+                "storage": storage,
                 "pythonDependencies": _sanitize_import_names(
                     scan_python_imports(dir_path)),
                 "polariDependencies": [
@@ -376,6 +384,40 @@ class ModulesAPI(treeObject):
         }
         response.status = falcon.HTTP_200
         response.set_header('Powered-By', 'Polari')
+
+    def _storage_descriptor(self):
+        """tt-14: WHERE this backend's object rows live — so 'which
+        database does this class live on' has a concrete answer.
+        Honest scope: this descriptor is THIS instance's storage;
+        instances with their own local sqlite answer for their own
+        rows (sqlite ownership is per-instance by design)."""
+        db = getattr(self.manager, 'db', None)
+        adapter = getattr(db, 'adapter', None)
+        kind = type(adapter).__name__ if adapter is not None else ''
+        scope = str(getattr(db, 'instanceScope', '') or '')
+        if 'Maria' in kind:
+            return {
+                'kind': 'mariadb',
+                'name': f"mariadb:{getattr(adapter, 'database', '?')}"
+                        f"@{getattr(adapter, 'host', '?')}",
+                'shared': True,
+                'note': 'shared MariaDB — visible to every sharing '
+                        'instance'
+                        + (f' (shared-object scope "{scope}")'
+                           if scope else '')}
+        if 'Sqlite' in kind:
+            local_name = (getattr(adapter, 'dbName', '')
+                          or getattr(db, 'name', '') or '?')
+            return {
+                'kind': 'sqlite',
+                'name': f'sqlite:{local_name}',
+                'shared': False,
+                'note': 'local sqlite file — THIS instance owns '
+                        'these objects; other instances own their '
+                        'own sqlite files'}
+        return {'kind': kind or 'unknown', 'name': '',
+                'shared': False,
+                'note': 'no db adapter visible on this manager'}
 
     def _module_pages(self, module_id, module_classes):
         """DisplayDefinition rows this module defines: attributed by

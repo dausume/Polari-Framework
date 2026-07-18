@@ -31,6 +31,8 @@ runs stdlib-only with SimpleNamespace rows.
   - topology.selftest_module_graph
 """
 
+from topology.topology_constants import ENGINE_CAPABILITY_MODULES
+
 #: A2 vocabulary — how a module relates to the dependency graph.
 MODULE_CLASSIFICATIONS = (
     'consumer', 'provider', 'hybrid', 'independent', 'data-only')
@@ -161,6 +163,9 @@ def module_graph(manager, topology_name):
         ins = sorted(dependents.get(name, set()))
         modules.append({
             'name': name,
+            # tt-14: engine capabilities only live on engine hosts —
+            # the UI's move picker filters targets by this.
+            'engineCapability': name in ENGINE_CAPABILITY_MODULES,
             'placements': placements.get(name, []),
             'dependsOn': outs,
             'dependents': ins,
