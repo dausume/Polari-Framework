@@ -28,7 +28,7 @@
     },
     "tanks": {
       "kind": "official",
-      "downloaded": false,
+      "downloaded": true,
       "path": "modules/tanks",
       "repo": "",
       "wave": 1,
@@ -44,8 +44,8 @@
     },
     "waxsupply": {
       "kind": "official",
-      "downloaded": true,
-      "path": "waxsupply",
+      "downloaded": false,
+      "path": "modules/waxsupply",
       "repo": "",
       "wave": 2,
       "description": "Bio wax sources for molds and electronic masks."
@@ -53,7 +53,7 @@
     "supplychain": {
       "kind": "official",
       "downloaded": true,
-      "path": "supplychain",
+      "path": "modules/supplychain",
       "repo": "",
       "wave": 2,
       "description": "Unifying bio supply-chain ledger \u2014 materials + food + carbon accounting."
@@ -61,7 +61,7 @@
     "dmvdata": {
       "kind": "official",
       "downloaded": true,
-      "path": "dmvdata",
+      "path": "modules/dmvdata",
       "repo": "",
       "wave": 2,
       "requires": [
