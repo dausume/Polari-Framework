@@ -63,9 +63,13 @@ class ModulesAPI(treeObject):
 
             discovered = discover_available_modules()
             if module_id not in discovered:
-                response.status = falcon.HTTP_404
-                response.media = {"success": False, "error": f"Module '{module_id}' not found"}
-                return
+                # tt-10: FRAMEWORK BOUNDARY modules (aquaponics,
+                # topology, waxprint, ...) aren't in the optional-
+                # module registry but are exactly what the graph
+                # drill-ins link to — serve them from their source
+                # directory + the registered class list.
+                return self._boundary_detail(
+                    response, module_id)
 
             info = discovered[module_id]
             module_classes = self.polServer._module_classes.get(module_id, [])
@@ -305,6 +309,71 @@ class ModulesAPI(treeObject):
     # tt-10 drill-in helpers — where a module's pages/functionality/
     # data live, so a person can navigate straight to them.
     # ------------------------------------------------------------------
+
+    def _boundary_detail(self, response, module_id):
+        """Detail for a framework directory module: classes derived
+        from the registered class list (a class belongs to the
+        boundary whose package defines it), plus the same drill-in
+        map as registry modules. Honest 404 when no such directory
+        exists."""
+        import os as _os
+        root = _os.path.dirname(_os.path.dirname(
+            _os.path.abspath(__file__)))
+        dir_path = _os.path.join(root, module_id)
+        if not _os.path.isdir(dir_path):
+            response.status = falcon.HTTP_404
+            response.media = {
+                "success": False,
+                "error": f"Module '{module_id}' not found — neither "
+                         "a registry module nor a framework "
+                         "directory"}
+            return
+        from moduleService.moduleDiscovery import scan_python_imports
+        from moduleService.module_dependency_tracker import (
+            FRAMEWORK_BOUNDARIES, scan_boundary_imports,
+        )
+        module_classes = sorted(
+            cls.__name__ for cls in (getattr(
+                self.polServer, 'defClassList', None) or [])
+            if getattr(cls, '__module__', '').split('.')[0]
+            == module_id)
+        classes_detail = self._get_classes_from_typing(
+            module_classes)
+        for entry in classes_detail:
+            entry['instanceCount'] = len(
+                self.manager.objectTables.get(
+                    entry.get('className', ''), {}) or {})
+        instance_count = sum(
+            entry['instanceCount'] for entry in classes_detail)
+        response.media = {
+            "success": True,
+            "module": {
+                "id": module_id,
+                "name": module_id,
+                "description": FRAMEWORK_BOUNDARIES.get(
+                    module_id,
+                    f'framework module directory {module_id}/'),
+                "enabled": True,
+                "available": True,
+                "userCreated": False,
+                "classCount": len(module_classes),
+                "seedInstanceCount": instance_count,
+                "classes": classes_detail,
+                "pythonDependencies": scan_python_imports(dir_path),
+                "polariDependencies": [
+                    {"moduleId": dep, "moduleName": dep,
+                     "reasons": ["imports the boundary"]}
+                    for dep in scan_boundary_imports(
+                        module_id, root)],
+                "pages": self._module_pages(
+                    module_id, module_classes),
+                "apiRoutes": self._scan_api_routes(dir_path),
+                "selftests": self._module_selftests(
+                    module_id, dir_path),
+            }
+        }
+        response.status = falcon.HTTP_200
+        response.set_header('Powered-By', 'Polari')
 
     def _module_pages(self, module_id, module_classes):
         """DisplayDefinition rows this module defines: attributed by
