@@ -171,6 +171,55 @@ if __name__ == '__main__':
           _module(report, 'aquaponics')[
               'classification'] != 'data-only')
 
+    print('== suite: dynamic move planning (tt-13) ==')
+    from topology.topology_analysis import plan_move
+    from topology.topology_seed import (
+        SEED_INSTANCE_DEFINITIONS, SEED_NODE_MACHINES,
+    )
+    mgr = _mgr()
+    mgr.objectTables['InstanceDefinition'] = _rows(
+        SEED_INSTANCE_DEFINITIONS)
+    mgr.objectTables['PolariNodeMachine'] = _rows(SEED_NODE_MACHINES)
+    move = plan_move(mgr, 'staging-a', 'aquaponics',
+                     to_instance='prf-b')
+    check('container target => module-reassignment with ghosts '
+          'noted', move.get('ok')
+          and move['moveKind'] == 'module-reassignment'
+          and move['fromInstances'] == ['prf-a']
+          and 'TRANSIENT' in move['note'])
+    move = plan_move(mgr, 'staging-a', 'materialsScience.fem',
+                     to_machine='isle-core')
+    check('device target on an engine => engine-relocation with '
+          'constraint + human commands',
+          move.get('ok') and move['moveKind'] == 'engine-relocation'
+          and move['instance'] == 'engines'
+          and move['placementConstraint']
+          == 'node.labels.polari.machine == isle-core'
+          and any('pol allocate engines isle-core' in c
+                  for c in move['suggestedCommands']))
+    move = plan_move(mgr, 'staging-a', 'aquaponics',
+                     to_machine='isle-core')
+    check('device target on a NON-engine module refused honestly',
+          not move.get('ok') and 'name a container' in move['error'])
+    check('both targets refused', not plan_move(
+        mgr, 'staging-a', 'x', to_instance='a',
+        to_machine='b').get('ok'))
+    check('neither target refused', not plan_move(
+        mgr, 'staging-a', 'x').get('ok'))
+    check('unknown instance refused honestly', not plan_move(
+        mgr, 'staging-a', 'aquaponics',
+        to_instance='nope').get('ok'))
+    # Transient ghosts are inert: resolve ignores them.
+    from topology.topology_analysis import resolve_edges
+    mgr.objectTables['ModuleAssignment'][
+        'materialsScience.fem@engines'].state = 'transient'
+    resolve_edges(mgr, 'staging-a')
+    fem_edge = [e for e in mgr.objectTables[
+        'ModuleDependencyEdge'].values()
+        if e.depends_on_module == 'materialsScience.fem'][0]
+    check('transient ghost excluded from resolution '
+          '(edge unresolves)', fem_edge.status == 'unresolved')
+
     print('== suite: boundary graph reverse edges ==')
     from moduleService.module_dependency_tracker import boundary_graph
     graph = boundary_graph()

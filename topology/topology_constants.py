@@ -40,7 +40,10 @@ ENV_TIERS = ('dev', 'staging', 'prod', 'test')
 INSTANCE_KINDS = ('prf', 'psc', 'worker', 'infra', 'custom')
 
 #: ModuleAssignment lifecycle. 'planned' = desired but not applied.
-ASSIGNMENT_STATES = ('enabled', 'planned', 'disabled')
+#: 'transient' (tt-13) = the module MOVED away — this row is the
+#: dashed ghost at its former location: visible in the graph,
+#: excluded from resolution/tests, and the one-click way back.
+ASSIGNMENT_STATES = ('enabled', 'planned', 'disabled', 'transient')
 
 #: ModuleDependencyEdge resolution states. 'degraded' = provider
 #: assigned but observed unreachable (top-7 wires this in).

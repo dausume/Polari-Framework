@@ -21,8 +21,8 @@ from datetime import datetime, timezone
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from topology.topology_analysis import (
-    active_topology_name, drift_report, graph_payload, resolve_edges,
-    validate_topology,
+    active_topology_name, drift_report, graph_payload, plan_move,
+    resolve_edges, validate_topology,
 )
 from topology.topology_basis import (
     InstanceDefinition, OrchestrationTarget, PolariNodeMachine,
@@ -69,6 +69,7 @@ class TopologyAPI(treeObject):
             add('/api/topology/validate', self, suffix='validate')
             add('/api/topology/resolve', self, suffix='resolve')
             add('/api/topology/assign', self, suffix='assign')
+            add('/api/topology/move', self, suffix='move')
             add('/api/topology/drift', self, suffix='drift')
             add('/api/topology/observe', self, suffix='observe')
             add('/api/topology/export', self, suffix='export')
@@ -265,8 +266,14 @@ class TopologyAPI(treeObject):
                         and getattr(asg, 'module_name', '') == module
                         and getattr(asg, 'instance_name',
                                     '') == from_instance
-                        and getattr(asg, 'state', '') != 'disabled'):
-                    asg.state = 'disabled'
+                        and getattr(asg, 'state', '')
+                        not in ('disabled', 'transient')):
+                    # tt-13: the former location stays visible as a
+                    # dashed TRANSIENT ghost (inert; one-click back).
+                    asg.state = 'transient'
+                    asg.notes = (f'moved to {to_instance} — '
+                                 'transient ghost at the former '
+                                 'location')
                     self._save(asg)
                     moved.append(getattr(asg, 'name', ''))
         target = None
@@ -297,6 +304,92 @@ class TopologyAPI(treeObject):
             'assignment': getattr(target, 'name', ''),
             'disabled': moved, 'resolve': resolve,
             'suggestedCommand': 'pol topology apply --plan'}
+
+    def on_post_move(self, request, response):
+        """tt-13 dynamic re-placement: plan_move decides whether
+        this is a MODULE reassignment (container target — former
+        locations become transient ghosts) or an ENGINE relocation
+        (device target — the provider instance re-pins; the stack
+        redeploy stays the human-run pol command). Rows persist, so
+        the move IS the configuration that comes back up. Pass
+        {"plan": true} to preview without touching anything."""
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        module = (payload or {}).get('module', '')
+        if not module:
+            return self._refuse(response, 'payload needs {module}')
+        name = self._topology_name(request, payload)
+        if not name:
+            return self._refuse(
+                response, 'no active topology and no topology given',
+                '404 Not Found')
+        plan = plan_move(
+            self.manager, name, module,
+            to_instance=(payload or {}).get('to_instance', ''),
+            to_machine=(payload or {}).get('to_machine', ''))
+        if not plan.get('ok'):
+            return self._refuse(response, plan.get('error'))
+        if (payload or {}).get('plan', False):
+            response.media = {**plan, 'planOnly': True}
+            return
+        if plan['moveKind'] == 'module-reassignment':
+            # Reuse the assign path per former location, so the
+            # ghosting + resolve/designate logic stays in one place.
+            for from_instance in plan['fromInstances']:
+                self._reassign(name, module, plan['toInstance'],
+                               from_instance)
+            if not plan['fromInstances']:
+                self._reassign(name, module, plan['toInstance'], '')
+            response.media = {
+                **plan,
+                'suggestedCommand': 'pol topology apply --plan'}
+            return
+        row = self._find('InstanceDefinition', plan['instance'])
+        row.machine_name = plan['toMachine']
+        row.placement_constraint = plan['placementConstraint']
+        self._save(row)
+        response.media = plan
+
+    def _reassign(self, topology, module, to_instance,
+                  from_instance):
+        """The assign endpoint's row logic, callable internally."""
+        if from_instance:
+            for asg in self._table('ModuleAssignment').values():
+                if (getattr(asg, 'topology_name', '') == topology
+                        and getattr(asg, 'module_name', '') == module
+                        and getattr(asg, 'instance_name',
+                                    '') == from_instance
+                        and getattr(asg, 'state', '')
+                        not in ('disabled', 'transient')):
+                    asg.state = 'transient'
+                    asg.notes = (f'moved to {to_instance} — '
+                                 'transient ghost at the former '
+                                 'location')
+                    self._save(asg)
+        target = None
+        for asg in self._table('ModuleAssignment').values():
+            if (getattr(asg, 'topology_name', '') == topology
+                    and getattr(asg, 'module_name', '') == module
+                    and getattr(asg, 'instance_name',
+                                '') == to_instance):
+                target = asg
+                break
+        if target is None:
+            target = ModuleAssignment(
+                name=f'{module}@{to_instance}', module_name=module,
+                instance_name=to_instance, state='enabled',
+                topology_name=topology,
+                notes='placed via /api/topology/move',
+                manager=self.manager)
+        else:
+            target.state = 'enabled'
+        self._save(target)
+        resolve_edges(self.manager, topology)
+        designate_transients(self.manager, topology)
+        for edge in self._table('ModuleDependencyEdge').values():
+            if getattr(edge, 'topology_name', '') == topology:
+                self._save(edge)
 
     def on_post_observe(self, request, response):
         """Ingest one node observation (`pol topology report`)."""

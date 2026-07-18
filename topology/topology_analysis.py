@@ -218,6 +218,86 @@ def validate_topology(manager, topology_name):
             'warnCount': len(findings) - len(errors)}
 
 
+def plan_move(manager, topology_name, module, to_instance='',
+              to_machine=''):
+    """tt-13: PLAN a dynamic re-placement — pure, executes nothing.
+
+    Moving a MODULE targets a Polari container (to_instance): the
+    enabled assignments elsewhere become 'transient' ghosts and the
+    target gains/enables one. Moving an ENGINE targets a device
+    (to_machine): engines are single-purpose provider instances, so
+    the whole instance relocates (machine pin + placement
+    constraint) and the stack redeploy stays a human pol command.
+    The two are different on purpose — the planner picks by target
+    kind and refuses honestly when the shape doesn't fit."""
+    if bool(to_instance) == bool(to_machine):
+        return {'ok': False,
+                'error': 'name exactly one target: to_instance '
+                         '(container) or to_machine (device)'}
+    placements = [a for a in _scoped(manager, 'ModuleAssignment',
+                                     topology_name)
+                  if getattr(a, 'module_name', '') == module
+                  and getattr(a, 'state', '') == 'enabled']
+    if to_instance:
+        instances = {getattr(i, 'name', '') for i in _scoped(
+            manager, 'InstanceDefinition', topology_name)}
+        if to_instance not in instances:
+            return {'ok': False,
+                    'error': f'no InstanceDefinition named '
+                             f'"{to_instance}" in this topology'}
+        return {
+            'ok': True, 'moveKind': 'module-reassignment',
+            'module': module, 'toInstance': to_instance,
+            'fromInstances': sorted(
+                getattr(a, 'instance_name', '') for a in placements
+                if getattr(a, 'instance_name', '') != to_instance),
+            'note': 'former locations become TRANSIENT ghosts — '
+                    'visible, inert, one click to move back',
+        }
+    machines = {getattr(m, 'name', ''): m
+                for m in _rows(manager, 'PolariNodeMachine')}
+    if to_machine not in machines:
+        return {'ok': False,
+                'error': f'no PolariNodeMachine named '
+                         f'"{to_machine}"'}
+    inst_by_name = {getattr(i, 'name', ''): i for i in _scoped(
+        manager, 'InstanceDefinition', topology_name)}
+    provider_instances = sorted(
+        getattr(a, 'instance_name', '') for a in placements
+        if getattr(inst_by_name.get(
+            getattr(a, 'instance_name', '')), 'kind', '')
+        in ('worker', 'engines'))
+    if len(provider_instances) != 1:
+        candidates = sorted(
+            name for name, i in inst_by_name.items()
+            if getattr(i, 'machine_name', '') == to_machine)
+        return {
+            'ok': False,
+            'error': (f'"{module}" is not carried by exactly one '
+                      'single-purpose engine instance '
+                      f'(found: {provider_instances or "none"}) — '
+                      'a device move relocates a whole engine; for '
+                      'a module, name a container on that device'
+                      + (f' (containers on "{to_machine}": '
+                         f'{candidates})' if candidates else '')),
+            'candidates': candidates}
+    instance = provider_instances[0]
+    row = inst_by_name[instance]
+    return {
+        'ok': True, 'moveKind': 'engine-relocation',
+        'module': module, 'instance': instance,
+        'fromMachine': getattr(row, 'machine_name', ''),
+        'toMachine': to_machine,
+        'placementConstraint':
+            f'node.labels.polari.machine == {to_machine}',
+        'suggestedCommands': [
+            f'pol topology render {topology_name}',
+            f'pol allocate {instance} {to_machine}'],
+        'note': 'relocating pins the ENGINE INSTANCE to the device; '
+                'the stack redeploy stays the human-run pol command',
+    }
+
+
 def resolve_edges(manager, topology_name):
     """Recompute every edge's provider from enabled assignments.
 

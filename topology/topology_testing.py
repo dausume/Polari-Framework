@@ -210,8 +210,8 @@ def testing_report(manager, topology_name, suites=None):
     for asg in _rows(manager, 'ModuleAssignment'):
         if getattr(asg, 'topology_name', '') != topology_name:
             continue
-        if getattr(asg, 'state', '') == 'disabled':
-            continue
+        if getattr(asg, 'state', '') in ('disabled', 'transient'):
+            continue  # transient ghosts (tt-13) are inert
         top = getattr(asg, 'module_name', '').split('.')[0]
         placements.setdefault(top, set()).add(
             getattr(asg, 'instance_name', ''))
