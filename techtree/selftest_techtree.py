@@ -258,8 +258,10 @@ if __name__ == '__main__':
 
     print('== suite: OSEB seed coherence (tt-5) ==')
     from techtree.techtree_seed import (
-        SEED_OSEB_POLARI_MODULES, SEED_TECH_NODES,
-        SEED_TECH_SEGMENT_ASSIGNMENTS, SEED_TECH_TREE_DEFINITIONS,
+        SEED_BUSINESS_MODELS, SEED_OSEB_POLARI_MODULES,
+        SEED_POLICY_DEFINITIONS, SEED_REAL_ARTIFACTS,
+        SEED_TECH_NODES, SEED_TECH_SEGMENT_ASSIGNMENTS,
+        SEED_TECH_TREE_DEFINITIONS,
     )
     from waxprint.waxprint_seed import SEED_WAXPRINT_MODULES
 
@@ -276,8 +278,9 @@ if __name__ == '__main__':
         'ModuleAssignment': {},
         'PolariModule': _table(SEED_WAXPRINT_MODULES
                                + SEED_OSEB_POLARI_MODULES),
-        'RealArtifact': {}, 'BusinessModelDefinition': {},
-        'PolicyDefinition': {},
+        'RealArtifact': _table(SEED_REAL_ARTIFACTS),
+        'BusinessModelDefinition': _table(SEED_BUSINESS_MODELS),
+        'PolicyDefinition': _table(SEED_POLICY_DEFINITIONS),
     })
     check('oseb is the active baseline tree',
           active_tree_name(oseb) == 'oseb')
@@ -302,10 +305,22 @@ if __name__ == '__main__':
     check('unbuilt sims stay honest gaps naming blcnc/ospvd',
           any('"blcnc"' in g['evidence'] for g in tree['gaps'])
           and any('"ospvd"' in g['evidence'] for g in tree['gaps']))
+    printing3d = [n for n in tree['nodes']
+                  if n['node'] == 'oseb/3d-printing'][0]
+    check('3d-printing presents ALL FOUR segments (tt-6 examples)',
+          printing3d['segmentsPresent'] == ['theory', 'real',
+                                            'business', 'politics'])
     check('waxprint module row satisfies the 3d-printing theory ref',
-          [n for n in tree['nodes']
-           if n['node'] == 'oseb/3d-printing'][0]
-          ['completionLevel'] == 1.0)
+          [s for s in printing3d['segments']
+           if s['kind'] == 'theory'][0]['completion'] == 1.0)
+    check('unproven printer / unevidenced business+policy stay '
+          'honest (node at 25%)',
+          abs(printing3d['completionLevel'] - 0.25) < 1e-9,
+          str(printing3d['completionLevel']))
+    check('real gap names the missing proof + routes',
+          any('not proven' in g['evidence']
+              and 'commercial route' in g['evidence']
+              for g in printing3d['gaps']))
     print(f"  (seeded OSEB baseline completion: "
           f"{round(tree['completionLevel'] * 100, 1)}%)")
 

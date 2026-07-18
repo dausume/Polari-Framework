@@ -26,6 +26,10 @@ from techtree.techtree_basis import (
     TechDependencyEdge, TechNode, TechSegment, TechSegmentAssignment,
     TechTreeDefinition,
 )
+from techtree.techtree_content import (
+    BusinessModelDefinition, BusinessOutcome, PolicyDefinition,
+    RealArtifact,
+)
 
 CLASS_MAP = {
     'TechTreeDefinition': TechTreeDefinition,
@@ -33,6 +37,10 @@ CLASS_MAP = {
     'TechSegment': TechSegment,
     'TechSegmentAssignment': TechSegmentAssignment,
     'TechDependencyEdge': TechDependencyEdge,
+    'RealArtifact': RealArtifact,
+    'BusinessModelDefinition': BusinessModelDefinition,
+    'BusinessOutcome': BusinessOutcome,
+    'PolicyDefinition': PolicyDefinition,
 }
 
 
@@ -53,6 +61,12 @@ class TechTreeAPI(treeObject):
             add('/api/techtree/segment', self, suffix='segment')
             add('/api/techtree/assignment', self, suffix='assignment')
             add('/api/techtree/definition', self, suffix='definition')
+            # tt-6 segment-content upserts.
+            add('/api/techtree/artifact', self, suffix='artifact')
+            add('/api/techtree/business-model', self,
+                suffix='business_model')
+            add('/api/techtree/outcome', self, suffix='outcome')
+            add('/api/techtree/policy', self, suffix='policy')
 
     # ---- helpers ----------------------------------------------------
 
@@ -209,3 +223,30 @@ class TechTreeAPI(treeObject):
     def on_post_assignment(self, request, response):
         self._upsert(request, response, 'TechSegmentAssignment',
                      self._ASSIGNMENT_FIELDS)
+
+    _ARTIFACT_FIELDS = ('cad_ref', 'hardware_design_ref', 'proven',
+                        'evidence_json', 'commercial_route_json',
+                        'self_manufacture_route_json', 'notes')
+    _BUSINESS_FIELDS = ('scale', 'policies_json',
+                        'unit_economics_json', 'self_sustaining',
+                        'evidence_json', 'notes')
+    _OUTCOME_FIELDS = ('business_model', 'summary', 'outcome',
+                       'evidence_json', 'notes')
+    _POLICY_FIELDS = ('policy', 'effect', 'target_business_model',
+                      'evidence_json', 'notes')
+
+    def on_post_artifact(self, request, response):
+        self._upsert(request, response, 'RealArtifact',
+                     self._ARTIFACT_FIELDS)
+
+    def on_post_business_model(self, request, response):
+        self._upsert(request, response, 'BusinessModelDefinition',
+                     self._BUSINESS_FIELDS)
+
+    def on_post_outcome(self, request, response):
+        self._upsert(request, response, 'BusinessOutcome',
+                     self._OUTCOME_FIELDS)
+
+    def on_post_policy(self, request, response):
+        self._upsert(request, response, 'PolicyDefinition',
+                     self._POLICY_FIELDS)

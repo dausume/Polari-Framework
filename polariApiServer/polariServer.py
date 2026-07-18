@@ -491,8 +491,13 @@ from techtree.techtree_basis import (
     TechDependencyEdge, TechNode, TechSegment, TechSegmentAssignment,
     TechTreeDefinition,
 )
+from techtree.techtree_content import (
+    BusinessModelDefinition, BusinessOutcome, PolicyDefinition,
+    RealArtifact,
+)
 from techtree.techtree_seed import (
-    SEED_OSEB_POLARI_MODULES, SEED_TECH_NODES,
+    SEED_BUSINESS_MODELS, SEED_OSEB_POLARI_MODULES,
+    SEED_POLICY_DEFINITIONS, SEED_REAL_ARTIFACTS, SEED_TECH_NODES,
     SEED_TECH_SEGMENT_ASSIGNMENTS, SEED_TECH_TREE_DEFINITIONS,
 )
 # Resource profiles (res-2): each module/engine's floor, scalability,
@@ -1346,9 +1351,11 @@ class polariServer(treeObject):
             InstanceDefinition, ModuleAssignment,
             ModuleDependencyEdge, ServiceConnection,
             TopologyDefinition, TopologyObservation,
-            # Tech tree (tt-3).
+            # Tech tree (tt-3) + segment content (tt-6).
             TechTreeDefinition, TechNode, TechSegment,
             TechSegmentAssignment, TechDependencyEdge,
+            RealArtifact, BusinessModelDefinition, BusinessOutcome,
+            PolicyDefinition,
             # Resource profiles (res-2).
             ModuleResourceProfile,
             # XR settings cascade + interface variants (xr-1).
@@ -2446,6 +2453,14 @@ class polariServer(treeObject):
             ('TechNode', TechNode, SEED_TECH_NODES),
             ('TechSegmentAssignment', TechSegmentAssignment,
              SEED_TECH_SEGMENT_ASSIGNMENTS),
+            # tt-6 worked examples (honest state: unproven printer,
+            # unevidenced business model + policy — their gaps name
+            # exactly what makes them real).
+            ('RealArtifact', RealArtifact, SEED_REAL_ARTIFACTS),
+            ('BusinessModelDefinition', BusinessModelDefinition,
+             SEED_BUSINESS_MODELS),
+            ('PolicyDefinition', PolicyDefinition,
+             SEED_POLICY_DEFINITIONS),
             # aqp-1: self-watering pots + their side holes (pots
             # before holes — holes reference their pot).
             ('PotDefinition', PotDefinition, SEED_POTS),

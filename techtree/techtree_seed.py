@@ -184,6 +184,67 @@ SEED_TECH_SEGMENT_ASSIGNMENTS = [
     _theory('blcnc-p5-microfab-device', 'blcnc'),
 ]
 
+#: tt-6 worked examples on the 3d-printing node — REAL rows, HONEST
+#: state: the wax printer is designed + simulated but NOT physically
+#: proven, the one-person print farm is defined but not evidenced
+#: self-sustaining, the policy has no outcome evidence yet. Their
+#: gaps are the point: they name exactly what makes them real.
+SEED_REAL_ARTIFACTS = [{
+    'name': 'waxprinter-v1',
+    'cad_ref': 'waxprint device parts (wp-1..8)',
+    'hardware_design_ref': 'two-zone melt + safety interlock design',
+    'proven': False,
+    'evidence_json': '[]',
+    'commercial_route_json': '{}',
+    'self_manufacture_route_json': _json.dumps({
+        'guide': 'waxprint module: pellet-fed auger-screw design, '
+                 'movement patterns, print-recipe optimizer',
+        'status': 'sim-proven only — no physical build yet'}),
+    'notes': 'Real segment completes when a physical printer is '
+             'proven and the commercial route is documented.',
+}]
+
+SEED_BUSINESS_MODELS = [{
+    'name': 'one-person-printfarm',
+    'scale': 'one-person',
+    'policies_json': _json.dumps([
+        'print-to-order from the open recipe catalog',
+        'source pellets via the waxsupply routes']),
+    'unit_economics_json': '{}',
+    'self_sustaining': False,
+    'evidence_json': '[]',
+    'notes': 'First rung of the scale ladder for 3D printing.',
+}]
+
+SEED_POLICY_DEFINITIONS = [{
+    'name': 'open-hardware-procurement',
+    'policy': 'public procurement preference for open-hardware '
+              'devices with documented self-manufacture routes',
+    'effect': 'increase',
+    'target_business_model': 'one-person-printfarm',
+    'evidence_json': '[]',
+    'notes': 'Needs outcome evidence before the politics segment '
+             'counts it done.',
+}]
+
+#: Fill all four segments on the 3d-printing node so the quartered
+#: rendering + per-segment gaps show on real content.
+SEED_TECH_SEGMENT_ASSIGNMENTS += [
+    {'name': f'{TREE}/3d-printing:real:waxprinter-v1',
+     'tech_node': f'{TREE}/3d-printing', 'tree_name': TREE,
+     'segment_kind': 'real', 'ref_name': 'waxprinter-v1',
+     'notes': ''},
+    {'name': f'{TREE}/3d-printing:business:one-person-printfarm',
+     'tech_node': f'{TREE}/3d-printing', 'tree_name': TREE,
+     'segment_kind': 'business', 'ref_name': 'one-person-printfarm',
+     'notes': ''},
+    {'name': f'{TREE}/3d-printing:politics:'
+             'open-hardware-procurement',
+     'tech_node': f'{TREE}/3d-printing', 'tree_name': TREE,
+     'segment_kind': 'politics',
+     'ref_name': 'open-hardware-procurement', 'notes': ''},
+]
+
 #: Framework module directories genuinely present in this image —
 #: the theory substrate the done-test reads. tech_node_ref is the
 #: module's PRIMARY placement hint (modules like materialsScience
