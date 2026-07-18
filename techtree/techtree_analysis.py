@@ -253,9 +253,24 @@ def assignment_report(manager, assignment):
                 'knob': 'TechSegmentAssignment.segment_kind',
                 'action': 'pick a known segment kind'}
     done, evidence, knob, action = test(manager, ref)
-    return {'name': getattr(assignment, 'name', ''), 'refName': ref,
-            'segmentKind': kind, 'done': done, 'evidence': evidence,
-            'knob': knob, 'action': action}
+    report = {'name': getattr(assignment, 'name', ''),
+              'refName': ref, 'segmentKind': kind, 'done': done,
+              'evidence': evidence, 'knob': knob, 'action': action}
+    if kind == 'theory':
+        # tt-10: the navigable module id (module-details page) —
+        # a PolariModule row's source_ref maps registry names like
+        # 'Wax-3D-Printing' back to the 'waxprint' directory;
+        # unbuilt refs get NO id (nothing to navigate to yet).
+        row = _named(manager, 'PolariModule', ref)
+        if row is not None and getattr(row, 'status',
+                                       '') == 'installed':
+            report['moduleId'] = (getattr(row, 'source_ref', '')
+                                  or ref.split('.')[0])
+        elif done:
+            report['moduleId'] = ref.split('.')[0]
+        else:
+            report['moduleId'] = ''
+    return report
 
 
 # ---------------------------------------------------------------------

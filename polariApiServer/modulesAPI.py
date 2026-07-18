@@ -13,6 +13,8 @@ from objectTreeDecorators import treeObject, treeObjectInit
 import falcon
 import json
 import importlib
+import os
+import re
 
 
 class ModulesAPI(treeObject):
@@ -98,6 +100,14 @@ class ModulesAPI(treeObject):
                     self.polServer._module_classes, self.manager
                 )
 
+            # tt-10 drill-in map: everything the module DEFINES with
+            # a place to navigate to — per-class row counts (data),
+            # display pages (pages), text-scanned add_route strings
+            # (functionality), and the selftest suites.
+            for entry in classes_detail:
+                cn = entry.get('className', '')
+                entry['instanceCount'] = len(
+                    self.manager.objectTables.get(cn, {}) or {})
             response.media = {
                 "success": True,
                 "module": {
@@ -112,6 +122,12 @@ class ModulesAPI(treeObject):
                     "classes": classes_detail,
                     "pythonDependencies": python_deps,
                     "polariDependencies": polari_deps,
+                    "pages": self._module_pages(
+                        module_id, module_classes),
+                    "apiRoutes": self._scan_api_routes(
+                        info['dir_path']),
+                    "selftests": self._module_selftests(
+                        module_id, info['dir_path']),
                 }
             }
             response.status = falcon.HTTP_200
@@ -285,6 +301,81 @@ class ModulesAPI(treeObject):
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # tt-10 drill-in helpers — where a module's pages/functionality/
+    # data live, so a person can navigate straight to them.
+    # ------------------------------------------------------------------
+
+    def _module_pages(self, module_id, module_classes):
+        """DisplayDefinition rows this module defines: attributed by
+        source_class membership, or by the page/route carrying the
+        module's own name. Each entry carries the frontend route."""
+        pages = []
+        class_set = set(module_classes or [])
+        needle = module_id.lower()
+        for row in (self.manager.objectTables.get(
+                'DisplayDefinition', {}) or {}).values():
+            name = getattr(row, 'name', '')
+            source_class = getattr(row, 'source_class', '')
+            page_route = getattr(row, 'pageRoute', '') or ''
+            mine = (source_class in class_set
+                    or needle in name.lower()
+                    or (page_route and needle in page_route.lower()))
+            if not mine:
+                continue
+            pages.append({
+                'name': name,
+                'sourceClass': source_class,
+                'route': page_route or f'/display/{name}',
+            })
+        return sorted(pages, key=lambda p: p['name'])
+
+    #: Catches both spellings in the codebase: direct
+    #: `falconServer.add_route('/x', ...)` and the aliased
+    #: `add = polServer.falconServer.add_route; add('/x', ...)` —
+    #: the leading '/' keeps unrelated add() calls out.
+    _ROUTE_RE = re.compile(
+        r"(?:add_route|\badd)\(\s*['\"](/[^'\"]*)['\"]")
+
+    def _scan_api_routes(self, dir_path):
+        """The module's registered API routes, text-scanned from its
+        own source (same idiom as scan_boundary_imports — catches
+        the real strings, no server introspection)."""
+        routes = set()
+        if not dir_path or not os.path.isdir(dir_path):
+            return []
+        for dirpath, _dirnames, filenames in os.walk(dir_path):
+            if '__pycache__' in dirpath:
+                continue
+            for filename in filenames:
+                if not filename.endswith('.py'):
+                    continue
+                try:
+                    with open(os.path.join(dirpath, filename),
+                              encoding='utf-8',
+                              errors='ignore') as f:
+                        source = f.read()
+                except OSError:
+                    continue
+                routes.update(self._ROUTE_RE.findall(source))
+        return sorted(routes)
+
+    def _module_selftests(self, module_id, dir_path):
+        """Selftest suites in the module dir + the exact command
+        that runs them (the pol CLI's discovery rule)."""
+        suites = []
+        if dir_path and os.path.isdir(dir_path):
+            for filename in sorted(os.listdir(dir_path)):
+                if (filename.startswith('selftest_')
+                        and filename.endswith('.py')):
+                    suites.append(
+                        f'{module_id}.{filename[:-3]}')
+        return {
+            'suites': suites,
+            'command': (f'pol modules selftest {module_id}'
+                        if suites else ''),
+        }
+
     def _build_module_list(self):
         """Build the list of module descriptors from dynamic discovery."""
         from moduleService.moduleDiscovery import discover_available_modules
