@@ -20,6 +20,12 @@ import types
 sys.path.insert(0, os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))
 
+# mp-3: this suite exercises feature-module code — refuse honestly
+# when that code is not downloaded instead of a raw ImportError.
+from moduleService.module_loading import feature_downloaded, missing_message
+for _m in ('electrodevice', 'hwdigital'):
+    if not feature_downloaded(_m):
+        raise SystemExit(missing_message(_m))
 from electrodevice import device_derive as dd
 from electrodevice.circuit_basis import (SEED_CIRCUIT_COMPONENTS,
                                          SEED_CIRCUIT_NETS,

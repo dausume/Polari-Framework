@@ -115,12 +115,21 @@ def app_plan(manager, app_name, topology_name):
                 'suggestedCommand':
                     f'pol allocate {module} {suggested_instance}'})
         else:
+            # mp-3/mp-5: a registered-but-absent module gets the real
+            # get command; anything else stays the build/install hint.
+            from moduleService.module_loading import (
+                FEATURE_MODULES, feature_downloaded, missing_message,
+            )
+            if (module in FEATURE_MODULES
+                    and not feature_downloaded(module)):
+                suggestion = missing_message(module)
+            else:
+                suggestion = (f'module "{module}" is not in this '
+                              'image — build/install it first')
             placements.append({
                 'module': module, 'status': 'missing',
                 'instances': [], 'suggestedInstance': '',
-                'suggestedCommand':
-                    f'module "{module}" is not in this image — '
-                    'build/install it first'})
+                'suggestedCommand': suggestion})
     placed = sum(1 for p in placements
                  if p['status'] == 'already-placed')
     return {

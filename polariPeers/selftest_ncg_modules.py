@@ -22,6 +22,10 @@ from types import SimpleNamespace
 sys.path.insert(0, os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))
 
+# mp-3: refuse honestly when the feature code is not downloaded.
+from moduleService.module_loading import feature_downloaded, missing_message
+if not feature_downloaded('hwdigital'):
+    raise SystemExit(missing_message('hwdigital'))
 from hwdigital.logic_basis import (LogicBlockDesign, LogicBlockNode,
                                    SEED_LOGIC_DESIGNS,
                                    SEED_LOGIC_NODES)

@@ -172,15 +172,25 @@ class managedFile(treeObject):
                 logging.warning('Attempting to create a file \'' + self.name + '.' + self.extension + '\' which already exists in the directory, '+ self.Path +'.')
 
     def openFile(self):
+        # mp-1/mp-3: honor self.Path when it is set — source files
+        # tracked for classes live in their OWN directories (framework
+        # root packages AND the modules/ import root), not the cwd.
+        # Before this fix every non-cwd file logged 'outside of path
+        # scope' (hundreds of lines per boot, worse once modules
+        # moved to modules/).
+        target = self.name + '.' + self.extension
+        if self.Path:
+            joined = os.path.join(self.Path, target)
+            if os.path.exists(joined):
+                target = joined
         try:
             if(self.fileInstance != None):
                 if(not (self.fileInstance).closed):
                     logging.error(msg='Attempting to open a file Instance that was already opened.')
                 else:
-                    self.fileInstance = open(self.name + '.' + self.extension,'r+')
+                    self.fileInstance = open(target,'r+')
             else:
-                #print('opening file instance: ', self.name + '.' + self.extension)
-                self.fileInstance = open(self.name + '.' + self.extension,'r+')
+                self.fileInstance = open(target,'r+')
         except:
             print(f"File Instance of file '{self.name}.{self.extension}' could not be generated. Either file exists outside of path scope, or it does not exist.")
 

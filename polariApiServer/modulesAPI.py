@@ -347,6 +347,17 @@ class ModulesAPI(treeObject):
         if not _os.path.isdir(dir_path):
             dir_path = _os.path.join(root, 'modules', module_id)
         if not _os.path.isdir(dir_path):
+            # mp-3: a registered module whose code is absent gets the
+            # honest get-command, not a generic 404.
+            from moduleService.module_registry import load_registry
+            from moduleService.module_loading import missing_message
+            if module_id in load_registry().get('modules', {}):
+                response.status = falcon.HTTP_404
+                response.media = {
+                    "success": False,
+                    "notDownloaded": True,
+                    "error": missing_message(module_id)}
+                return
             response.status = falcon.HTTP_404
             response.media = {
                 "success": False,
@@ -580,6 +591,41 @@ class ModulesAPI(treeObject):
                 # In-process framework module: toggling lives on the
                 # topology (ModuleAssignment), not this registry.
                 "boundary": True,
+            })
+        # mp-3: registry modules whose CODE is absent from this
+        # checkout appear honestly — not a dead entry, a get-command.
+        from moduleService.module_loading import (
+            MISSING_FEATURE_MODULES, missing_message,
+        )
+        from moduleService.module_registry import load_registry
+        listed = {m['id'] for m in modules}
+        registry_modules = load_registry().get('modules', {})
+        for module_id, entry in sorted(registry_modules.items()):
+            if entry.get('downloaded') or module_id in listed:
+                continue
+            modules.append({
+                "id": module_id,
+                "name": module_id,
+                "description": entry.get('description', ''),
+                "enabled": False,
+                "available": False,
+                "classCount": 0,
+                "seedInstanceCount": 0,
+                "userCreated": entry.get('kind') == 'self',
+                "downloaded": False,
+                "notDownloaded": missing_message(module_id),
+                "repo": entry.get('repo', ''),
+            })
+        # Import-time absences polariServer recorded (covers modules
+        # the registry does not know yet).
+        for module_id, msg in sorted(MISSING_FEATURE_MODULES.items()):
+            if module_id in listed or module_id in registry_modules:
+                continue
+            modules.append({
+                "id": module_id, "name": module_id, "description": '',
+                "enabled": False, "available": False, "classCount": 0,
+                "seedInstanceCount": 0, "userCreated": False,
+                "downloaded": False, "notDownloaded": msg, "repo": '',
             })
         return modules
 

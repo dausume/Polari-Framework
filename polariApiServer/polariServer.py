@@ -106,365 +106,553 @@ from materialsScience.thermal_windows import (
 from materialsScience.property_meanings import (
     MaterialPropertyMeaning, SEED_PROPERTY_MEANINGS,
 )
+# mp-3 (MODULE_PROJECTS_PLAN): feature modules may be ABSENT from a
+# checkout (pol modules get/drop). Every feature-module import below
+# sits in a guarded block: present code imports exactly as before;
+# absent code stubs its symbols (SEED_* -> [], classes -> None) and
+# records itself in MISSING_FEATURE_MODULES so surfaces stay honest.
+# A downloaded module that fails to import still raises — lazy
+# loading never swallows broken code.
+from moduleService.module_loading import (
+    feature_available as _feature_available,
+    feature_import_error as _feature_import_error,
+    stub_feature_symbols as _stub_feature_symbols,
+    boot_report as _module_loading_boot_report,
+)
+
+
+def _stub_missing_feature(module_name, exc, globalns, symbols):
+    _feature_import_error(module_name, exc)  # re-raises when downloaded
+    _stub_feature_symbols(globalns, module_name, symbols)
+
+
 # Context-based scoring: the Political Scorecard's term/context/weight
 # system generalized over arbitrary Polari data (scr-1).
-from scoring.scoring_basis import (
-    ContextualizedValue, ScoreContext, ScoreSubject, ScoreTerm,
-)
-from scoring.score_concept import ScoreConcept
-from scoring.score_group import ScoreGroup
-from scoring.agreement_policy import (
-    AgreementPolicy, SEED_AGREEMENT_POLICIES,
-)
-from scoring.scoring_seed import (
-    SEED_CONTEXTUALIZED_VALUES, SEED_SCORE_CONCEPTS,
-    SEED_SCORE_CONTEXTS, SEED_SCORE_GROUPS, SEED_SCORE_SUBJECTS,
-    SEED_SCORE_TERMS,
-)
-# scr-5: assertions bind policy text to concepts; evidence carries
-# graded proof; contributors make individuals/orgs/lobbies trackable
-# (or pseudonymous) accountable identities.
-from scoring.assertions import AssertionValidityVote, ScoreAssertion
-from scoring.contributors import Contributor, SEED_CONTRIBUTORS
-from scoring.evidence import (
-    EvidencePolicy, MediaEvidence, SEED_EVIDENCE_POLICIES,
-)
-from scoring.assertion_seed import (
-    SEED_MEDIA_EVIDENCE, SEED_POLICY_SUBJECTS, SEED_SCORE_ASSERTIONS,
-    SEED_VALIDITY_VOTES,
-)
-# scr-6: politician voting records → vote-weighted politician scores.
-from scoring.policy_votes import (
-    PolicyVote, SEED_COHORT_GROUPS, SEED_POLICY_VOTES,
-    SEED_POLITICIAN_SUBJECTS,
-)
-# scr-8: worldview elections → vote-derived group member weights.
-from scoring.worldview_elections import (
-    SEED_ASSEMBLY_GROUPS, SEED_WORLDVIEW_BALLOTS,
-    SEED_WORLDVIEW_ELECTIONS, WorldviewBallot, WorldviewElection,
-)
-# Democratic Scorecard revamp Phase 2: Housing Affordability, the first
-# real (non-demo) Context Tree — mechanism B applied to real content.
-from scoring.housing_affordability_seed import (
-    SEED_HOUSING_BALLOTS, SEED_HOUSING_CONTEXTUALIZED_VALUES,
-    SEED_HOUSING_CONTRIBUTORS, SEED_HOUSING_ELECTIONS,
-    SEED_HOUSING_SCORE_CONCEPTS, SEED_HOUSING_SCORE_GROUPS,
-    SEED_HOUSING_SCORE_TERMS,
-)
-# Democratic Scorecard revamp Phase 4: mechanism A (Group Display
-# votes) — vote on which Display best EXPLAINS a score, distinct from
-# mechanism B's vote on term-WEIGHTING worldviews.
-from scoring.group_display_vote import (
-    GroupDisplayBallot, GroupDisplayVote, SEED_GROUP_DISPLAY_BALLOTS,
-    SEED_GROUP_DISPLAY_VOTES, SEED_GROUP_DISPLAYS,
-)
-# Democratic Scorecard revamp mechanism C: logic-fork criterion votes
-# — vote on which alternate criterion a SPECIFIC decision point/fork
-# inside a decision procedure should use, distinct from mechanism A
-# (whole Displays) and mechanism B (whole worldview concepts).
-from scoring.logic_fork_vote import (
-    DecisionProcedureEdge, LogicForkBallot, LogicForkCriterion,
-    LogicForkVote, SEED_DECISION_PROCEDURE_EDGES,
-    SEED_LOGIC_FORK_BALLOTS, SEED_LOGIC_FORK_CONTRIBUTORS,
-    SEED_LOGIC_FORK_CRITERIA, SEED_LOGIC_FORK_VOTES,
-)
-# System-choice implications: which criterion is actually deployed
-# where over time (SystemChoiceInForce), and evidence-weighted claims
-# that a system choice affects a real-world score (reuses
-# ScoreAssertion unchanged).
-from scoring.system_choice_implications import (
-    SEED_IMPLICATION_ASSERTIONS, SEED_IMPLICATION_CONTEXTUALIZED_VALUES,
-    SEED_IMPLICATION_SCORE_TERMS, SEED_IMPLICATION_SUBJECTS,
-    SEED_IMPLICATION_VALIDITY_VOTES, SEED_INTERPRETATION_BALLOTS,
-    SEED_INTERPRETATION_ELECTIONS, SEED_INTERPRETATION_SCORE_CONCEPTS,
-    SEED_INTERPRETATION_SCORE_GROUPS, SEED_SYSTEM_CHOICES_IN_FORCE,
-    SystemChoiceInForce,
-)
-# Policy drafts scoreable through their lifecycle; venue-mismatch
-# pattern analysis (findings adjudicated by scr-6 validity votes).
-from scoring.policy_drafts import PolicyDraft
-from scoring.venue_patterns import (SEED_VENUE_PATTERNS,
-                                    VenueActionRecord,
-                                    VenueMismatchPattern)
-# Org-defined data-gathering procedures on the graph seam + the
-# step-credibility assertions comparing equivalent terms' methods.
-from scoring.data_gathering import (DataGatheringSolution,
-                                    StepCredibilityAssertion)
-# Assertion credibility voting (group + individual units) and
-# drafter-set PolicyIntent (opt-in personal participation).
-from scoring.assertion_credibility import AssertionCredibilityVote
-from scoring.policy_intent import PolicyIntent
-# Term Competition (the PSC termcompetition draft, built): cited
-# composite proposals, relation assertions, scope votes, elections.
-from scoring.term_competition import (TermProposal,
-                                      TermRelationAssertion,
-                                      TermScopeVote)
-# Credibility bases: professional/impact/methodological/locality
-# standing per context, attestations, relevance voting, prioritized
-# (never-excluding) stance readings.
-from scoring.credibility_bases import (ClaimAttestation,
-                                       CredibilityClaim,
-                                       QualificationRelevanceVote,
-                                       StanceBasis)
-# Democratic term proofs: rebuttable re-runnable demonstrations,
-# validity + comprehension votes, the manipulation-pattern catalog.
-# (SEED_TERM_PROOFS held back — its demo terms await a demo-content
-# pass; the pattern catalog seeds now.)
-from scoring.term_proofs import (DataManipulationPattern,
-                                 ProofRebuttal, ProofVote,
-                                 SEED_MANIPULATION_PATTERNS,
-                                 TermProof)
-# Legislation tracking: who drafted what, who voted, provision-level
-# contributor attribution; official legislative API registrations.
-from scoring.legislation import (LegislationProvision,
-                                 LegislationRecord,
-                                 LegislativeVoteEvent)
-from dmvdata.legis_sources import (SEED_LEGIS_DOMAINS,
-                                   SEED_LEGIS_ENDPOINTS,
-                                   SEED_LEGIS_GOV_SOURCES)
+try:
+    from scoring.scoring_basis import (
+        ContextualizedValue, ScoreContext, ScoreSubject, ScoreTerm,
+    )
+    from scoring.score_concept import ScoreConcept
+    from scoring.score_group import ScoreGroup
+    from scoring.agreement_policy import (
+        AgreementPolicy, SEED_AGREEMENT_POLICIES,
+    )
+    from scoring.scoring_seed import (
+        SEED_CONTEXTUALIZED_VALUES, SEED_SCORE_CONCEPTS,
+        SEED_SCORE_CONTEXTS, SEED_SCORE_GROUPS, SEED_SCORE_SUBJECTS,
+        SEED_SCORE_TERMS,
+    )
+    # scr-5: assertions bind policy text to concepts; evidence carries
+    # graded proof; contributors make individuals/orgs/lobbies trackable
+    # (or pseudonymous) accountable identities.
+    from scoring.assertions import AssertionValidityVote, ScoreAssertion
+    from scoring.contributors import Contributor, SEED_CONTRIBUTORS
+    from scoring.evidence import (
+        EvidencePolicy, MediaEvidence, SEED_EVIDENCE_POLICIES,
+    )
+    from scoring.assertion_seed import (
+        SEED_MEDIA_EVIDENCE, SEED_POLICY_SUBJECTS, SEED_SCORE_ASSERTIONS,
+        SEED_VALIDITY_VOTES,
+    )
+    # scr-6: politician voting records → vote-weighted politician scores.
+    from scoring.policy_votes import (
+        PolicyVote, SEED_COHORT_GROUPS, SEED_POLICY_VOTES,
+        SEED_POLITICIAN_SUBJECTS,
+    )
+    # scr-8: worldview elections → vote-derived group member weights.
+    from scoring.worldview_elections import (
+        SEED_ASSEMBLY_GROUPS, SEED_WORLDVIEW_BALLOTS,
+        SEED_WORLDVIEW_ELECTIONS, WorldviewBallot, WorldviewElection,
+    )
+    # Democratic Scorecard revamp Phase 2: Housing Affordability, the first
+    # real (non-demo) Context Tree — mechanism B applied to real content.
+    from scoring.housing_affordability_seed import (
+        SEED_HOUSING_BALLOTS, SEED_HOUSING_CONTEXTUALIZED_VALUES,
+        SEED_HOUSING_CONTRIBUTORS, SEED_HOUSING_ELECTIONS,
+        SEED_HOUSING_SCORE_CONCEPTS, SEED_HOUSING_SCORE_GROUPS,
+        SEED_HOUSING_SCORE_TERMS,
+    )
+    # Democratic Scorecard revamp Phase 4: mechanism A (Group Display
+    # votes) — vote on which Display best EXPLAINS a score, distinct from
+    # mechanism B's vote on term-WEIGHTING worldviews.
+    from scoring.group_display_vote import (
+        GroupDisplayBallot, GroupDisplayVote, SEED_GROUP_DISPLAY_BALLOTS,
+        SEED_GROUP_DISPLAY_VOTES, SEED_GROUP_DISPLAYS,
+    )
+    # Democratic Scorecard revamp mechanism C: logic-fork criterion votes
+    # — vote on which alternate criterion a SPECIFIC decision point/fork
+    # inside a decision procedure should use, distinct from mechanism A
+    # (whole Displays) and mechanism B (whole worldview concepts).
+    from scoring.logic_fork_vote import (
+        DecisionProcedureEdge, LogicForkBallot, LogicForkCriterion,
+        LogicForkVote, SEED_DECISION_PROCEDURE_EDGES,
+        SEED_LOGIC_FORK_BALLOTS, SEED_LOGIC_FORK_CONTRIBUTORS,
+        SEED_LOGIC_FORK_CRITERIA, SEED_LOGIC_FORK_VOTES,
+    )
+    # System-choice implications: which criterion is actually deployed
+    # where over time (SystemChoiceInForce), and evidence-weighted claims
+    # that a system choice affects a real-world score (reuses
+    # ScoreAssertion unchanged).
+    from scoring.system_choice_implications import (
+        SEED_IMPLICATION_ASSERTIONS, SEED_IMPLICATION_CONTEXTUALIZED_VALUES,
+        SEED_IMPLICATION_SCORE_TERMS, SEED_IMPLICATION_SUBJECTS,
+        SEED_IMPLICATION_VALIDITY_VOTES, SEED_INTERPRETATION_BALLOTS,
+        SEED_INTERPRETATION_ELECTIONS, SEED_INTERPRETATION_SCORE_CONCEPTS,
+        SEED_INTERPRETATION_SCORE_GROUPS, SEED_SYSTEM_CHOICES_IN_FORCE,
+        SystemChoiceInForce,
+    )
+    # Policy drafts scoreable through their lifecycle; venue-mismatch
+    # pattern analysis (findings adjudicated by scr-6 validity votes).
+    from scoring.policy_drafts import PolicyDraft
+    from scoring.venue_patterns import (SEED_VENUE_PATTERNS,
+                                        VenueActionRecord,
+                                        VenueMismatchPattern)
+    # Org-defined data-gathering procedures on the graph seam + the
+    # step-credibility assertions comparing equivalent terms' methods.
+    from scoring.data_gathering import (DataGatheringSolution,
+                                        StepCredibilityAssertion)
+    # Assertion credibility voting (group + individual units) and
+    # drafter-set PolicyIntent (opt-in personal participation).
+    from scoring.assertion_credibility import AssertionCredibilityVote
+    from scoring.policy_intent import PolicyIntent
+    # Term Competition (the PSC termcompetition draft, built): cited
+    # composite proposals, relation assertions, scope votes, elections.
+    from scoring.term_competition import (TermProposal,
+                                          TermRelationAssertion,
+                                          TermScopeVote)
+    # Credibility bases: professional/impact/methodological/locality
+    # standing per context, attestations, relevance voting, prioritized
+    # (never-excluding) stance readings.
+    from scoring.credibility_bases import (ClaimAttestation,
+                                           CredibilityClaim,
+                                           QualificationRelevanceVote,
+                                           StanceBasis)
+    # Democratic term proofs: rebuttable re-runnable demonstrations,
+    # validity + comprehension votes, the manipulation-pattern catalog.
+    # (SEED_TERM_PROOFS held back — its demo terms await a demo-content
+    # pass; the pattern catalog seeds now.)
+    from scoring.term_proofs import (DataManipulationPattern,
+                                     ProofRebuttal, ProofVote,
+                                     SEED_MANIPULATION_PATTERNS,
+                                     TermProof)
+    # Legislation tracking: who drafted what, who voted, provision-level
+    # contributor attribution; official legislative API registrations.
+    from scoring.legislation import (LegislationProvision,
+                                     LegislationRecord,
+                                     LegislativeVoteEvent)
+except ImportError as _exc:
+    _stub_missing_feature('scoring', _exc, globals(), (
+        'ContextualizedValue', 'ScoreContext', 'ScoreSubject', 'ScoreTerm',
+        'ScoreConcept', 'ScoreGroup', 'AgreementPolicy', 'SEED_AGREEMENT_POLICIES',
+        'SEED_CONTEXTUALIZED_VALUES', 'SEED_SCORE_CONCEPTS', 'SEED_SCORE_CONTEXTS', 'SEED_SCORE_GROUPS',
+        'SEED_SCORE_SUBJECTS', 'SEED_SCORE_TERMS', 'AssertionValidityVote', 'ScoreAssertion',
+        'Contributor', 'SEED_CONTRIBUTORS', 'EvidencePolicy', 'MediaEvidence',
+        'SEED_EVIDENCE_POLICIES', 'SEED_MEDIA_EVIDENCE', 'SEED_POLICY_SUBJECTS', 'SEED_SCORE_ASSERTIONS',
+        'SEED_VALIDITY_VOTES', 'PolicyVote', 'SEED_COHORT_GROUPS', 'SEED_POLICY_VOTES',
+        'SEED_POLITICIAN_SUBJECTS', 'SEED_ASSEMBLY_GROUPS', 'SEED_WORLDVIEW_BALLOTS', 'SEED_WORLDVIEW_ELECTIONS',
+        'WorldviewBallot', 'WorldviewElection', 'SEED_HOUSING_BALLOTS', 'SEED_HOUSING_CONTEXTUALIZED_VALUES',
+        'SEED_HOUSING_CONTRIBUTORS', 'SEED_HOUSING_ELECTIONS', 'SEED_HOUSING_SCORE_CONCEPTS', 'SEED_HOUSING_SCORE_GROUPS',
+        'SEED_HOUSING_SCORE_TERMS', 'GroupDisplayBallot', 'GroupDisplayVote', 'SEED_GROUP_DISPLAY_BALLOTS',
+        'SEED_GROUP_DISPLAY_VOTES', 'SEED_GROUP_DISPLAYS', 'DecisionProcedureEdge', 'LogicForkBallot',
+        'LogicForkCriterion', 'LogicForkVote', 'SEED_DECISION_PROCEDURE_EDGES', 'SEED_LOGIC_FORK_BALLOTS',
+        'SEED_LOGIC_FORK_CONTRIBUTORS', 'SEED_LOGIC_FORK_CRITERIA', 'SEED_LOGIC_FORK_VOTES', 'SEED_IMPLICATION_ASSERTIONS',
+        'SEED_IMPLICATION_CONTEXTUALIZED_VALUES', 'SEED_IMPLICATION_SCORE_TERMS', 'SEED_IMPLICATION_SUBJECTS', 'SEED_IMPLICATION_VALIDITY_VOTES',
+        'SEED_INTERPRETATION_BALLOTS', 'SEED_INTERPRETATION_ELECTIONS', 'SEED_INTERPRETATION_SCORE_CONCEPTS', 'SEED_INTERPRETATION_SCORE_GROUPS',
+        'SEED_SYSTEM_CHOICES_IN_FORCE', 'SystemChoiceInForce', 'PolicyDraft', 'SEED_VENUE_PATTERNS',
+        'VenueActionRecord', 'VenueMismatchPattern', 'DataGatheringSolution', 'StepCredibilityAssertion',
+        'AssertionCredibilityVote', 'PolicyIntent', 'TermProposal', 'TermRelationAssertion',
+        'TermScopeVote', 'ClaimAttestation', 'CredibilityClaim', 'QualificationRelevanceVote',
+        'StanceBasis', 'DataManipulationPattern', 'ProofRebuttal', 'ProofVote',
+        'SEED_MANIPULATION_PATTERNS', 'TermProof', 'LegislationProvision', 'LegislationRecord',
+        'LegislativeVoteEvent',
+    ))
+try:
+    from dmvdata.legis_sources import (SEED_LEGIS_DOMAINS,
+                                       SEED_LEGIS_ENDPOINTS,
+                                       SEED_LEGIS_GOV_SOURCES)
+except ImportError as _exc:
+    _stub_missing_feature('dmvdata', _exc, globals(), (
+        'SEED_LEGIS_DOMAINS', 'SEED_LEGIS_ENDPOINTS', 'SEED_LEGIS_GOV_SOURCES',
+    ))
 # ncg-2: court cases advanced fork-by-fork through compiled no-code
 # graphs (the judicial client of the graph-compiler seam).
-from scoring.court_case import CourtCase
-# Group/instance authority: users hold primary/shared authority over
-# groups + instances; bindings make an instance THE authoritative
-# source for a group (both-sides definition with the PSC); signals
-# are admitted only through the three-check authority verdict.
-from scoring.group_authority import (GroupAuthorityGrant,
-                                     GroupInstanceBinding,
-                                     InstanceAuthorityGrant,
-                                     TermAvailabilitySignal)
+try:
+    from scoring.court_case import CourtCase
+    # Group/instance authority: users hold primary/shared authority over
+    # groups + instances; bindings make an instance THE authoritative
+    # source for a group (both-sides definition with the PSC); signals
+    # are admitted only through the three-check authority verdict.
+    from scoring.group_authority import (GroupAuthorityGrant,
+                                         GroupInstanceBinding,
+                                         InstanceAuthorityGrant,
+                                         TermAvailabilitySignal)
+except ImportError as _exc:
+    _stub_missing_feature('scoring', _exc, globals(), (
+        'CourtCase', 'GroupAuthorityGrant', 'GroupInstanceBinding', 'InstanceAuthorityGrant',
+        'TermAvailabilitySignal',
+    ))
 # AR zone capture (arz-1): 3+ placed points become a volume (prism)
 # or a shape in the air (hull); sites aggregate zones house-wide.
-from zones.zone_basis import (SEED_SITES, SEED_ZONE_POINTS,
-                              SEED_ZONES, SiteDefinition,
-                              ZoneDefinition, ZoneEstimateRecord,
-                              ZonePoint)
+try:
+    from zones.zone_basis import (SEED_SITES, SEED_ZONE_POINTS,
+                                  SEED_ZONES, SiteDefinition,
+                                  ZoneDefinition, ZoneEstimateRecord,
+                                  ZonePoint)
+except ImportError as _exc:
+    _stub_missing_feature('zones', _exc, globals(), (
+        'SEED_SITES', 'SEED_ZONE_POINTS', 'SEED_ZONES', 'SiteDefinition',
+        'ZoneDefinition', 'ZoneEstimateRecord', 'ZonePoint',
+    ))
 from polariNoCode.graph_compilers import (GraphCompilerDefinition,
                                           SEED_GRAPH_COMPILERS)
 # ncg-3: digital-logic diagrams as rows -> generated Verilog/bench,
 # iCE40 synthesis target (the hwdigital client of the same seam).
-from hwdigital.logic_basis import (LogicBlockDesign, LogicBlockNode,
-                                   SEED_LOGIC_DESIGNS,
-                                   SEED_LOGIC_NODES)
+try:
+    from hwdigital.logic_basis import (LogicBlockDesign, LogicBlockNode,
+                                       SEED_LOGIC_DESIGNS,
+                                       SEED_LOGIC_NODES)
+except ImportError as _exc:
+    _stub_missing_feature('hwdigital', _exc, globals(), (
+        'LogicBlockDesign', 'LogicBlockNode', 'SEED_LOGIC_DESIGNS', 'SEED_LOGIC_NODES',
+    ))
 # ncg-4: circuits as rows -> generated SPICE netlists (the circuit
 # client of the same seam).
-from electrodevice.circuit_basis import (
-    CircuitComponentDefinition, CircuitDefinition,
-    CircuitNetDefinition, SEED_CIRCUIT_COMPONENTS,
-    SEED_CIRCUIT_NETS, SEED_CIRCUITS)
-# ncg-5: breadboards — placements wired by tie point, jumpers
-# joining boards, boards re-wrappable as components.
-from electrodevice.breadboard_basis import (
-    BoardJumper, BreadboardDefinition, ComponentPlacement,
-    SEED_BREADBOARDS, SEED_JUMPERS, SEED_PLACEMENTS)
+try:
+    from electrodevice.circuit_basis import (
+        CircuitComponentDefinition, CircuitDefinition,
+        CircuitNetDefinition, SEED_CIRCUIT_COMPONENTS,
+        SEED_CIRCUIT_NETS, SEED_CIRCUITS)
+    # ncg-5: breadboards — placements wired by tie point, jumpers
+    # joining boards, boards re-wrappable as components.
+    from electrodevice.breadboard_basis import (
+        BoardJumper, BreadboardDefinition, ComponentPlacement,
+        SEED_BREADBOARDS, SEED_JUMPERS, SEED_PLACEMENTS)
+except ImportError as _exc:
+    _stub_missing_feature('electrodevice', _exc, globals(), (
+        'CircuitComponentDefinition', 'CircuitDefinition', 'CircuitNetDefinition', 'SEED_CIRCUIT_COMPONENTS',
+        'SEED_CIRCUIT_NETS', 'SEED_CIRCUITS', 'BoardJumper', 'BreadboardDefinition',
+        'ComponentPlacement', 'SEED_BREADBOARDS', 'SEED_JUMPERS', 'SEED_PLACEMENTS',
+    ))
 # col-1 (DMV cost of living): persona/geography vocabulary, the
 # obscure-factor terms, escape-cost walkthrough categories, and the
 # law-as-data statute values (DMV_COST_OF_LIVING_DATA_PLAN.md).
-from scoring.dmv_col_seed import (
-    SEED_DMV_GEO_CONTEXTS, SEED_DMV_SUBJECTS, SEED_DMV_TERMS,
-    SEED_DMV_TIMEFRAMES, SEED_ESCAPE_COST_CATEGORIES,
-    SEED_ESCAPE_COST_TERMS, SEED_PERSONA_CONTEXTS,
-    SEED_STATUTE_VALUES)
+try:
+    from scoring.dmv_col_seed import (
+        SEED_DMV_GEO_CONTEXTS, SEED_DMV_SUBJECTS, SEED_DMV_TERMS,
+        SEED_DMV_TIMEFRAMES, SEED_ESCAPE_COST_CATEGORIES,
+        SEED_ESCAPE_COST_TERMS, SEED_PERSONA_CONTEXTS,
+        SEED_STATUTE_VALUES)
+except ImportError as _exc:
+    _stub_missing_feature('scoring', _exc, globals(), (
+        'SEED_DMV_GEO_CONTEXTS', 'SEED_DMV_SUBJECTS', 'SEED_DMV_TERMS', 'SEED_DMV_TIMEFRAMES',
+        'SEED_ESCAPE_COST_CATEGORIES', 'SEED_ESCAPE_COST_TERMS', 'SEED_PERSONA_CONTEXTS', 'SEED_STATUTE_VALUES',
+    ))
 # col-2: the official-source registrations the API profiler ingests
 # from (auth via env knobs only — repos are public).
-from dmvdata.source_seed import (SEED_API_DOMAINS,
-                                 SEED_API_ENDPOINTS)
-# GovSource registry: acronym glossary + key requirements +
-# duplication-origin records (retrievals are runtime data, no seeds).
-from dmvdata.gov_sources import (GovSource, SEED_GOV_SOURCES,
-                                 SourceRetrieval)
-# Cross-validation: independent re-pull confirmations + provider-
-# group reliability terms/concept (weights mechanism-B votable).
-from dmvdata.cross_validation import (RetrievalConfirmation,
-                                      SEED_PROVIDER_CONCEPT,
-                                      SEED_PROVIDER_TERMS)
-# Varying legal source types — nonprofit/company/political-group/
-# individual siblings of GovSource, one cross-type machinery.
-from dmvdata.legal_sources import (
-    CompanySource, IndividualSource, NonProfitSource,
-    PoliticalGroupSource, SEED_COMPANY_SOURCES,
-    SEED_INDIVIDUAL_SOURCES, SEED_NONPROFIT_SOURCES,
-    SEED_POLITICAL_SOURCES)
+try:
+    from dmvdata.source_seed import (SEED_API_DOMAINS,
+                                     SEED_API_ENDPOINTS)
+    # GovSource registry: acronym glossary + key requirements +
+    # duplication-origin records (retrievals are runtime data, no seeds).
+    from dmvdata.gov_sources import (GovSource, SEED_GOV_SOURCES,
+                                     SourceRetrieval)
+    # Cross-validation: independent re-pull confirmations + provider-
+    # group reliability terms/concept (weights mechanism-B votable).
+    from dmvdata.cross_validation import (RetrievalConfirmation,
+                                          SEED_PROVIDER_CONCEPT,
+                                          SEED_PROVIDER_TERMS)
+    # Varying legal source types — nonprofit/company/political-group/
+    # individual siblings of GovSource, one cross-type machinery.
+    from dmvdata.legal_sources import (
+        CompanySource, IndividualSource, NonProfitSource,
+        PoliticalGroupSource, SEED_COMPANY_SOURCES,
+        SEED_INDIVIDUAL_SOURCES, SEED_NONPROFIT_SOURCES,
+        SEED_POLITICAL_SOURCES)
+except ImportError as _exc:
+    _stub_missing_feature('dmvdata', _exc, globals(), (
+        'SEED_API_DOMAINS', 'SEED_API_ENDPOINTS', 'GovSource', 'SEED_GOV_SOURCES',
+        'SourceRetrieval', 'RetrievalConfirmation', 'SEED_PROVIDER_CONCEPT', 'SEED_PROVIDER_TERMS',
+        'CompanySource', 'IndividualSource', 'NonProfitSource', 'PoliticalGroupSource',
+        'SEED_COMPANY_SOURCES', 'SEED_INDIVIDUAL_SOURCES', 'SEED_NONPROFIT_SOURCES', 'SEED_POLITICAL_SOURCES',
+    ))
 # ncg-6: design-output -> circuit-source bindings, and authorable
 # no-code test cases/packs (the acct-6 seed).
-from electrodevice.level_bridge import (PinBindingDefinition,
-                                        SEED_PIN_BINDINGS)
+try:
+    from electrodevice.level_bridge import (PinBindingDefinition,
+                                            SEED_PIN_BINDINGS)
+except ImportError as _exc:
+    _stub_missing_feature('electrodevice', _exc, globals(), (
+        'PinBindingDefinition', 'SEED_PIN_BINDINGS',
+    ))
 from polariNoCode.nocode_tests import (NoCodeTestCase,
                                        NoCodeTestPack,
                                        SEED_TEST_CASES,
                                        SEED_TEST_PACKS)
 # scr-15: media outlets held accountable for accuracy to the data.
-from scoring.media_accuracy import (
-    AccuracyPolicy, FactualClaim, SEED_ACCURACY_POLICIES,
-    SEED_FACTUAL_CLAIMS, SEED_MEDIA_OUTLETS,
-)
-# scr-16: per-group bias reads (bands are editable rows).
-from scoring.group_bias import BiasPolicy, SEED_BIAS_POLICIES
-# scr-12a: survival-cost walkthrough (categories ARE the wizard).
-from scoring.survival_costs import (
-    CostCategory, SEED_COST_CATEGORIES, SEED_COST_TERMS,
-    SEED_SURVIVAL_PROFILES, SurvivalCostProfile,
-)
+try:
+    from scoring.media_accuracy import (
+        AccuracyPolicy, FactualClaim, SEED_ACCURACY_POLICIES,
+        SEED_FACTUAL_CLAIMS, SEED_MEDIA_OUTLETS,
+    )
+    # scr-16: per-group bias reads (bands are editable rows).
+    from scoring.group_bias import BiasPolicy, SEED_BIAS_POLICIES
+    # scr-12a: survival-cost walkthrough (categories ARE the wizard).
+    from scoring.survival_costs import (
+        CostCategory, SEED_COST_CATEGORIES, SEED_COST_TERMS,
+        SEED_SURVIVAL_PROFILES, SurvivalCostProfile,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('scoring', _exc, globals(), (
+        'AccuracyPolicy', 'FactualClaim', 'SEED_ACCURACY_POLICIES', 'SEED_FACTUAL_CLAIMS',
+        'SEED_MEDIA_OUTLETS', 'BiasPolicy', 'SEED_BIAS_POLICIES', 'CostCategory',
+        'SEED_COST_CATEGORIES', 'SEED_COST_TERMS', 'SEED_SURVIVAL_PROFILES', 'SurvivalCostProfile',
+    ))
 # Aquaponics module (aqp-1): self-watering pot geometry as first-class
 # objects + waterproof pot materials (ceramic/geopolymer).
-from aquaponics.pot_basis import PotDefinition, PotHole
-from aquaponics.pot_seed import SEED_POTS, SEED_POT_HOLES
+try:
+    from aquaponics.pot_basis import PotDefinition, PotHole
+    from aquaponics.pot_seed import SEED_POTS, SEED_POT_HOLES
+except ImportError as _exc:
+    _stub_missing_feature('aquaponics', _exc, globals(), (
+        'PotDefinition', 'PotHole', 'SEED_POTS', 'SEED_POT_HOLES',
+    ))
 # waxprint module (wp-1): pellet-fed auger-screw wax 3D-printer sim —
 # printer assembly + wax feedstock + print condition + device materials,
 # with the two-zone (auger + hotend) melt and wax thermal-safety gate.
-from waxprint.waxprint_basis import (
-    DeviceMaterialDefinition, PrinterAssemblyDefinition,
-    WaxFeedstockDefinition, PrintConditionDefinition,
-)
-from waxprint.waxprint_seed import (
-    SEED_DEVICE_MATERIALS, SEED_FEEDSTOCKS, SEED_ASSEMBLIES, SEED_CONDITIONS,
-    SEED_WAXPRINT_MODULES,
-)
-# waxprint sim space (wp-5/wp-6): a registered, 3D-viewable multiscale sim
-# (WaxPrintSimState rows over build height) + condition-evaluation gates.
-# Importing sim_seed appends the scene/bindings/equations/sim-def/runs/msim/
-# ic-picker to the shared framework seed lists (trigger-on-import pattern).
-from waxprint.sim_state import WaxPrintSimState
-from waxprint import sim_seed  # noqa: F401 (import triggers the seed appends)
-from waxprint.sim_seed import (
-    SEED_WAXPRINT_STATE_ROWS, SEED_WAXPRINT_PAGE_DISPLAYS,
-)
-from aquaponics.pot_materials_seed import (
-    SEED_POT_MATERIALS, SEED_POT_PROPERTY_MEANINGS,
-    SEED_POT_SCALE_DEFINITIONS,
-)
-# aqp-2: multiscale soil + water + nutrient profiles.
-from aquaponics.growth_media import (
-    NutrientProfile, NutrientSpecies, SoilDefinition, WaterDefinition,
-)
-from aquaponics.media_seed import (
-    SEED_NUTRIENT_PROFILES, SEED_NUTRIENT_SPECIES, SEED_SOILS,
-    SEED_WATERS,
-)
-# aqp-4: per-part plant profiles (permanent structure + carbon/nutrient
-# capture + CO2/O2 flux).
-from aquaponics.plant_basis import PlantDefinition, PlantPart
-from aquaponics.plant_seed import SEED_PLANTS, SEED_PLANT_PARTS
-# aqp-5: full atmospheric conditions + plant<->air gas exchange.
-from aquaponics.atmosphere_basis import AtmosphereDefinition
-from aquaponics.atmosphere_seed import SEED_ATMOSPHERES
-# aqp-6: bound pot systems + environmental-impact/survival synthesis +
-# the scoring bridge (systems ranked through the context-scoring engine).
-from aquaponics.pot_system import PotSystemDefinition
-from aquaponics.pot_system_seed import (
-    SEED_AQP_CONTEXTUALIZED_VALUES, SEED_AQP_SCORE_CONCEPTS,
-    SEED_AQP_SCORE_SUBJECTS, SEED_AQP_SCORE_TERMS, SEED_POT_SYSTEMS,
-)
-# Aquaponics worm-compost enrichment loop (aqp-7).
-from aquaponics.vermicompost import (
-    CompostBinDefinition, CompostLoopDefinition, VermicompostProfile,
-)
-from aquaponics.vermicompost_seed import (
-    SEED_COMPOST_BINS, SEED_COMPOST_LOOPS, SEED_ENRICH_CONTEXTUALIZED_VALUES,
-    SEED_ENRICH_SCORE_CONCEPTS, SEED_ENRICH_SCORE_SUBJECTS,
-    SEED_ENRICH_SCORE_TERMS, SEED_VERMICOMPOST_PROFILES,
-)
-# Aquaponics per-part plant growth / growth-failure (aqp-8).
-from aquaponics.plant_growth_basis import PlantGrowthModel
-from aquaponics.plant_growth_seed import SEED_PLANT_GROWTH_MODELS
+try:
+    from waxprint.waxprint_basis import (
+        DeviceMaterialDefinition, PrinterAssemblyDefinition,
+        WaxFeedstockDefinition, PrintConditionDefinition,
+    )
+    from waxprint.waxprint_seed import (
+        SEED_DEVICE_MATERIALS, SEED_FEEDSTOCKS, SEED_ASSEMBLIES, SEED_CONDITIONS,
+        SEED_WAXPRINT_MODULES,
+    )
+    # waxprint sim space (wp-5/wp-6): a registered, 3D-viewable multiscale sim
+    # (WaxPrintSimState rows over build height) + condition-evaluation gates.
+    # Importing sim_seed appends the scene/bindings/equations/sim-def/runs/msim/
+    # ic-picker to the shared framework seed lists (trigger-on-import pattern).
+    from waxprint.sim_state import WaxPrintSimState
+    from waxprint import sim_seed  # noqa: F401 (import triggers the seed appends)
+    from waxprint.sim_seed import (
+        SEED_WAXPRINT_STATE_ROWS, SEED_WAXPRINT_PAGE_DISPLAYS,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('waxprint', _exc, globals(), (
+        'DeviceMaterialDefinition', 'PrinterAssemblyDefinition', 'WaxFeedstockDefinition', 'PrintConditionDefinition',
+        'SEED_DEVICE_MATERIALS', 'SEED_FEEDSTOCKS', 'SEED_ASSEMBLIES', 'SEED_CONDITIONS',
+        'SEED_WAXPRINT_MODULES', 'WaxPrintSimState', 'sim_seed', 'SEED_WAXPRINT_STATE_ROWS',
+        'SEED_WAXPRINT_PAGE_DISPLAYS',
+    ))
+try:
+    from aquaponics.pot_materials_seed import (
+        SEED_POT_MATERIALS, SEED_POT_PROPERTY_MEANINGS,
+        SEED_POT_SCALE_DEFINITIONS,
+    )
+    # aqp-2: multiscale soil + water + nutrient profiles.
+    from aquaponics.growth_media import (
+        NutrientProfile, NutrientSpecies, SoilDefinition, WaterDefinition,
+    )
+    from aquaponics.media_seed import (
+        SEED_NUTRIENT_PROFILES, SEED_NUTRIENT_SPECIES, SEED_SOILS,
+        SEED_WATERS,
+    )
+    # aqp-4: per-part plant profiles (permanent structure + carbon/nutrient
+    # capture + CO2/O2 flux).
+    from aquaponics.plant_basis import PlantDefinition, PlantPart
+    from aquaponics.plant_seed import SEED_PLANTS, SEED_PLANT_PARTS
+    # aqp-5: full atmospheric conditions + plant<->air gas exchange.
+    from aquaponics.atmosphere_basis import AtmosphereDefinition
+    from aquaponics.atmosphere_seed import SEED_ATMOSPHERES
+    # aqp-6: bound pot systems + environmental-impact/survival synthesis +
+    # the scoring bridge (systems ranked through the context-scoring engine).
+    from aquaponics.pot_system import PotSystemDefinition
+    from aquaponics.pot_system_seed import (
+        SEED_AQP_CONTEXTUALIZED_VALUES, SEED_AQP_SCORE_CONCEPTS,
+        SEED_AQP_SCORE_SUBJECTS, SEED_AQP_SCORE_TERMS, SEED_POT_SYSTEMS,
+    )
+    # Aquaponics worm-compost enrichment loop (aqp-7).
+    from aquaponics.vermicompost import (
+        CompostBinDefinition, CompostLoopDefinition, VermicompostProfile,
+    )
+    from aquaponics.vermicompost_seed import (
+        SEED_COMPOST_BINS, SEED_COMPOST_LOOPS, SEED_ENRICH_CONTEXTUALIZED_VALUES,
+        SEED_ENRICH_SCORE_CONCEPTS, SEED_ENRICH_SCORE_SUBJECTS,
+        SEED_ENRICH_SCORE_TERMS, SEED_VERMICOMPOST_PROFILES,
+    )
+    # Aquaponics per-part plant growth / growth-failure (aqp-8).
+    from aquaponics.plant_growth_basis import PlantGrowthModel
+    from aquaponics.plant_growth_seed import SEED_PLANT_GROWTH_MODELS
+except ImportError as _exc:
+    _stub_missing_feature('aquaponics', _exc, globals(), (
+        'SEED_POT_MATERIALS', 'SEED_POT_PROPERTY_MEANINGS', 'SEED_POT_SCALE_DEFINITIONS', 'NutrientProfile',
+        'NutrientSpecies', 'SoilDefinition', 'WaterDefinition', 'SEED_NUTRIENT_PROFILES',
+        'SEED_NUTRIENT_SPECIES', 'SEED_SOILS', 'SEED_WATERS', 'PlantDefinition',
+        'PlantPart', 'SEED_PLANTS', 'SEED_PLANT_PARTS', 'AtmosphereDefinition',
+        'SEED_ATMOSPHERES', 'PotSystemDefinition', 'SEED_AQP_CONTEXTUALIZED_VALUES', 'SEED_AQP_SCORE_CONCEPTS',
+        'SEED_AQP_SCORE_SUBJECTS', 'SEED_AQP_SCORE_TERMS', 'SEED_POT_SYSTEMS', 'CompostBinDefinition',
+        'CompostLoopDefinition', 'VermicompostProfile', 'SEED_COMPOST_BINS', 'SEED_COMPOST_LOOPS',
+        'SEED_ENRICH_CONTEXTUALIZED_VALUES', 'SEED_ENRICH_SCORE_CONCEPTS', 'SEED_ENRICH_SCORE_SUBJECTS', 'SEED_ENRICH_SCORE_TERMS',
+        'SEED_VERMICOMPOST_PROFILES', 'PlantGrowthModel', 'SEED_PLANT_GROWTH_MODELS',
+    ))
 # Nutrition: dietary-nutrient vocab + person + household profiling
 # (nut-1/3/4).
-from nutrition.nutrient_basis import DietaryNutrient, NutrientReference
-from nutrition.nutrient_seed import (
-    SEED_DIETARY_NUTRIENTS, SEED_NUTRIENT_REFERENCES,
-)
-from nutrition.person_basis import PersonProfile
-from nutrition.household_basis import HouseholdProfile
-from nutrition.person_seed import SEED_HOUSEHOLDS, SEED_PERSONS
-# Nutrition: plant harvest -> meal-nutrient yield (nut-2).
-from nutrition.food_basis import FoodItem, NutrientContent
-from nutrition.food_seed import SEED_FOOD_ITEMS, SEED_NUTRIENT_CONTENTS
+try:
+    from nutrition.nutrient_basis import DietaryNutrient, NutrientReference
+    from nutrition.nutrient_seed import (
+        SEED_DIETARY_NUTRIENTS, SEED_NUTRIENT_REFERENCES,
+    )
+    from nutrition.person_basis import PersonProfile
+    from nutrition.household_basis import HouseholdProfile
+    from nutrition.person_seed import SEED_HOUSEHOLDS, SEED_PERSONS
+    # Nutrition: plant harvest -> meal-nutrient yield (nut-2).
+    from nutrition.food_basis import FoodItem, NutrientContent
+    from nutrition.food_seed import SEED_FOOD_ITEMS, SEED_NUTRIENT_CONTENTS
+except ImportError as _exc:
+    _stub_missing_feature('nutrition', _exc, globals(), (
+        'DietaryNutrient', 'NutrientReference', 'SEED_DIETARY_NUTRIENTS', 'SEED_NUTRIENT_REFERENCES',
+        'PersonProfile', 'HouseholdProfile', 'SEED_HOUSEHOLDS', 'SEED_PERSONS',
+        'FoodItem', 'NutrientContent', 'SEED_FOOD_ITEMS', 'SEED_NUTRIENT_CONTENTS',
+    ))
 # Plant morphology: 3D organ + root stand-in models + confinement
 # (morph-1).
-from plant_morphology.organ_basis import OrganModel, RootSystemModel
-from plant_morphology.morphology_seed import (
-    SEED_ORGAN_MODELS, SEED_ROOT_MODELS,
-)
+try:
+    from plant_morphology.organ_basis import OrganModel, RootSystemModel
+    from plant_morphology.morphology_seed import (
+        SEED_ORGAN_MODELS, SEED_ROOT_MODELS,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('plant_morphology', _exc, globals(), (
+        'OrganModel', 'RootSystemModel', 'SEED_ORGAN_MODELS', 'SEED_ROOT_MODELS',
+    ))
 # Plant-growth-sim phase 1: per-part normalized-growth instance state
 # (2026-07-15 — the missing "this specific plant, in this pot, this
 # far along" object; see aquaponics/plant_growth_normalized.py).
-from aquaponics.plant_growth_normalized import PotPlanting
-from aquaponics.plant_growth_normalized_seed import SEED_POT_PLANTINGS
-# Plant-growth-sim phase 7: stress-type-differentiated response curves
-# (2026-07-15 — see aquaponics/plant_stress.py).
-from aquaponics.plant_stress import StressResponseCurve
-from aquaponics.plant_stress_seed import SEED_STRESS_CURVES
-# Plant-growth-sim phase 8: direct-light field simulation (2026-07-15
-# — see aquaponics/light_field.py).
-from aquaponics.light_basis import LightSourceDefinition, LightSpectrumDefinition
-from aquaponics.light_seed import SEED_LIGHT_SOURCES, SEED_LIGHT_SPECTRA
-# Plant-growth-sim phase 10: water batching + real nutrient uptake
-# (2026-07-15 — see aquaponics/water_batch.py, nutrient_uptake.py).
-from aquaponics.water_batch import WaterBatchSchedule
-from aquaponics.water_batch_seed import SEED_WATER_BATCH_SCHEDULES
+try:
+    from aquaponics.plant_growth_normalized import PotPlanting
+    from aquaponics.plant_growth_normalized_seed import SEED_POT_PLANTINGS
+    # Plant-growth-sim phase 7: stress-type-differentiated response curves
+    # (2026-07-15 — see aquaponics/plant_stress.py).
+    from aquaponics.plant_stress import StressResponseCurve
+    from aquaponics.plant_stress_seed import SEED_STRESS_CURVES
+    # Plant-growth-sim phase 8: direct-light field simulation (2026-07-15
+    # — see aquaponics/light_field.py).
+    from aquaponics.light_basis import LightSourceDefinition, LightSpectrumDefinition
+    from aquaponics.light_seed import SEED_LIGHT_SOURCES, SEED_LIGHT_SPECTRA
+    # Plant-growth-sim phase 10: water batching + real nutrient uptake
+    # (2026-07-15 — see aquaponics/water_batch.py, nutrient_uptake.py).
+    from aquaponics.water_batch import WaterBatchSchedule
+    from aquaponics.water_batch_seed import SEED_WATER_BATCH_SCHEDULES
+except ImportError as _exc:
+    _stub_missing_feature('aquaponics', _exc, globals(), (
+        'PotPlanting', 'SEED_POT_PLANTINGS', 'StressResponseCurve', 'SEED_STRESS_CURVES',
+        'LightSourceDefinition', 'LightSpectrumDefinition', 'SEED_LIGHT_SOURCES', 'SEED_LIGHT_SPECTRA',
+        'WaterBatchSchedule', 'SEED_WATER_BATCH_SCHEDULES',
+    ))
 # Math-defined shapes: quadric/primitive/CSG geometry core (shape-1).
-from mathshapes.shape_basis import MathShapeDefinition
-from mathshapes.shape_seed import SEED_MATH_SHAPES
-# Aquaponic tower: vertical stack of math-defined pots (shape-2).
-from mathshapes.tower_basis import AquaponicTowerDefinition
-from mathshapes.tower_seed import SEED_TOWERS
-# CAD import/export via cad-engines worker + MinIO (shape-3).
-from mathshapes.cad_basis import ImportedCadObject
+try:
+    from mathshapes.shape_basis import MathShapeDefinition
+    from mathshapes.shape_seed import SEED_MATH_SHAPES
+    # Aquaponic tower: vertical stack of math-defined pots (shape-2).
+    from mathshapes.tower_basis import AquaponicTowerDefinition
+    from mathshapes.tower_seed import SEED_TOWERS
+    # CAD import/export via cad-engines worker + MinIO (shape-3).
+    from mathshapes.cad_basis import ImportedCadObject
+except ImportError as _exc:
+    _stub_missing_feature('mathshapes', _exc, globals(), (
+        'MathShapeDefinition', 'SEED_MATH_SHAPES', 'AquaponicTowerDefinition', 'SEED_TOWERS',
+        'ImportedCadObject',
+    ))
 from polariRefs.write_journal import WriteJournalEntry
 from simulationLocks.lease import LeaseBreakEvent, MutationLease
 from simulationLocks.object_locks import LockBreakEvent, ObjectLockEntry
 from simulationLocks.sim_queue import SimulationQueueEntry
 # Tanks: freshwater + saltwater ecosystem simulation — alternate
 # nutrient source (tank-1).
-from tanks.tank_basis import (
-    AquacultureSpecies, TankDefinition, TankSubstrateDefinition,
-    TankSystemDefinition,
-)
-from tanks.tank_seed import (
-    SEED_AQUACULTURE_SPECIES, SEED_TANK_SUBSTRATES, SEED_TANK_SYSTEMS,
-    SEED_TANKS,
-)
+try:
+    from tanks.tank_basis import (
+        AquacultureSpecies, TankDefinition, TankSubstrateDefinition,
+        TankSystemDefinition,
+    )
+    from tanks.tank_seed import (
+        SEED_AQUACULTURE_SPECIES, SEED_TANK_SUBSTRATES, SEED_TANK_SYSTEMS,
+        SEED_TANKS,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('tanks', _exc, globals(), (
+        'AquacultureSpecies', 'TankDefinition', 'TankSubstrateDefinition', 'TankSystemDefinition',
+        'SEED_AQUACULTURE_SPECIES', 'SEED_TANK_SUBSTRATES', 'SEED_TANK_SYSTEMS', 'SEED_TANKS',
+    ))
 # Microalgae photobioreactors — the decarbonization route, coupled
 # sustainably to aquaponics / tanks / hydroponics (algae-1).
-from microalgae.reactor_basis import AlgaeStrain, AlgaeReactorDefinition
-from microalgae.reactor_seed import (
-    SEED_ALGAE_REACTORS, SEED_ALGAE_STRAINS,
-)
-# Integrated excess-source + reactor loops (algae-2).
-from microalgae.integrated_basis import IntegratedLoopDefinition
-from microalgae.integrated_seed import SEED_INTEGRATED_LOOPS
+try:
+    from microalgae.reactor_basis import AlgaeStrain, AlgaeReactorDefinition
+    from microalgae.reactor_seed import (
+        SEED_ALGAE_REACTORS, SEED_ALGAE_STRAINS,
+    )
+    # Integrated excess-source + reactor loops (algae-2).
+    from microalgae.integrated_basis import IntegratedLoopDefinition
+    from microalgae.integrated_seed import SEED_INTEGRATED_LOOPS
+except ImportError as _exc:
+    _stub_missing_feature('microalgae', _exc, globals(), (
+        'AlgaeStrain', 'AlgaeReactorDefinition', 'SEED_ALGAE_REACTORS', 'SEED_ALGAE_STRAINS',
+        'IntegratedLoopDefinition', 'SEED_INTEGRATED_LOOPS',
+    ))
 # Biomining / bioextraction specialized aquaponic variants (biomine-1).
-from biomining.biomining_basis import (
-    BioextractionAgent, BiomineralProduct, BiomineSystemDefinition,
-)
-from biomining.biomining_seed import (
-    SEED_BIOEXTRACTION_AGENTS, SEED_BIOMINERAL_PRODUCTS,
-    SEED_BIOMINE_SYSTEMS,
-)
-# Fully-bio optical-dielectric biomining variants (dielectric-optics-1).
-from biomining.optical_seed import (
-    SEED_OPTICAL_AGENTS, SEED_OPTICAL_BIOMINE_SYSTEMS,
-    SEED_OPTICAL_PRODUCTS,
-)
+try:
+    from biomining.biomining_basis import (
+        BioextractionAgent, BiomineralProduct, BiomineSystemDefinition,
+    )
+    from biomining.biomining_seed import (
+        SEED_BIOEXTRACTION_AGENTS, SEED_BIOMINERAL_PRODUCTS,
+        SEED_BIOMINE_SYSTEMS,
+    )
+    # Fully-bio optical-dielectric biomining variants (dielectric-optics-1).
+    from biomining.optical_seed import (
+        SEED_OPTICAL_AGENTS, SEED_OPTICAL_BIOMINE_SYSTEMS,
+        SEED_OPTICAL_PRODUCTS,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('biomining', _exc, globals(), (
+        'BioextractionAgent', 'BiomineralProduct', 'BiomineSystemDefinition', 'SEED_BIOEXTRACTION_AGENTS',
+        'SEED_BIOMINERAL_PRODUCTS', 'SEED_BIOMINE_SYSTEMS', 'SEED_OPTICAL_AGENTS', 'SEED_OPTICAL_BIOMINE_SYSTEMS',
+        'SEED_OPTICAL_PRODUCTS',
+    ))
 from materialsScience.dielectric_optics_seed import (
     SEED_DIELECTRIC_MATERIALS, SEED_DIELECTRIC_PROPERTY_MEANINGS,
 )
 # Bio ferrous alloys: Ni phytomining + galvanized bio-steel (bio-alloys-1).
-from biomining.alloy_seed import (
-    SEED_ALLOY_AGENTS, SEED_ALLOY_BIOMINE_SYSTEMS, SEED_ALLOY_PRODUCTS,
-)
+try:
+    from biomining.alloy_seed import (
+        SEED_ALLOY_AGENTS, SEED_ALLOY_BIOMINE_SYSTEMS, SEED_ALLOY_PRODUCTS,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('biomining', _exc, globals(), (
+        'SEED_ALLOY_AGENTS', 'SEED_ALLOY_BIOMINE_SYSTEMS', 'SEED_ALLOY_PRODUCTS',
+    ))
 from materialsScience.bio_alloys_seed import (
     SEED_BIO_ALLOY_MATERIALS, SEED_BIO_ALLOY_PROPERTY_MEANINGS,
 )
 # Bio wax sources (wax-1) + the unifying supply-chain ledger (chain-1).
-from waxsupply.wax_basis import WaxSourceDefinition
-from waxsupply.wax_seed import SEED_WAX_SOURCES
-from supplychain.chain_basis import (
-    SupplyChainDefinition, SupplyFlow, SupplyNode,
-)
-from supplychain.chain_seed import (
-    SEED_SUPPLY_CHAINS, SEED_SUPPLY_FLOWS, SEED_SUPPLY_NODES,
-)
+try:
+    from waxsupply.wax_basis import WaxSourceDefinition
+    from waxsupply.wax_seed import SEED_WAX_SOURCES
+except ImportError as _exc:
+    _stub_missing_feature('waxsupply', _exc, globals(), (
+        'WaxSourceDefinition', 'SEED_WAX_SOURCES',
+    ))
+try:
+    from supplychain.chain_basis import (
+        SupplyChainDefinition, SupplyFlow, SupplyNode,
+    )
+    from supplychain.chain_seed import (
+        SEED_SUPPLY_CHAINS, SEED_SUPPLY_FLOWS, SEED_SUPPLY_NODES,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('supplychain', _exc, globals(), (
+        'SupplyChainDefinition', 'SupplyFlow', 'SupplyNode', 'SEED_SUPPLY_CHAINS',
+        'SEED_SUPPLY_FLOWS', 'SEED_SUPPLY_NODES',
+    ))
 # Topology orchestration (top-1): the swarm/compose topology as
 # object-tree data — machines, instances, module assignments +
 # dependency edges, typed connections, desired vs observed state.
@@ -483,10 +671,15 @@ from topology.topology_state import (
 from topology.topology_testing import IntegrationPing, TopologyTestRun
 # tt-12: Polari-Apps — module configurations per use-case; plans are
 # exportable JSON packages the pol CLI deploys (rows only).
-from polariapps.apps_basis import (
-    AppDeploymentPlan, PolariAppDefinition,
-)
-from polariapps.apps_seed import SEED_POLARI_APPS
+try:
+    from polariapps.apps_basis import (
+        AppDeploymentPlan, PolariAppDefinition,
+    )
+    from polariapps.apps_seed import SEED_POLARI_APPS
+except ImportError as _exc:
+    _stub_missing_feature('polariapps', _exc, globals(), (
+        'AppDeploymentPlan', 'PolariAppDefinition', 'SEED_POLARI_APPS',
+    ))
 from topology.topology_seed import (
     SEED_INSTANCE_DEFINITIONS, SEED_MODULE_ASSIGNMENTS,
     SEED_MODULE_DEPENDENCY_EDGES, SEED_NODE_MACHINES,
@@ -496,19 +689,27 @@ from topology.topology_seed import (
 # Tech tree (tt-3): technologies with theory/real/business/politics
 # segments; completion always DERIVED (techtree_analysis), edges
 # derived from depends_on_json with tt-1 transient designation.
-from techtree.techtree_basis import (
-    TechDependencyEdge, TechNode, TechSegment, TechSegmentAssignment,
-    TechTreeDefinition,
-)
-from techtree.techtree_content import (
-    BusinessModelDefinition, BusinessOutcome, PolicyDefinition,
-    RealArtifact,
-)
-from techtree.techtree_seed import (
-    SEED_BUSINESS_MODELS, SEED_OSEB_POLARI_MODULES,
-    SEED_POLICY_DEFINITIONS, SEED_REAL_ARTIFACTS, SEED_TECH_NODES,
-    SEED_TECH_SEGMENT_ASSIGNMENTS, SEED_TECH_TREE_DEFINITIONS,
-)
+try:
+    from techtree.techtree_basis import (
+        TechDependencyEdge, TechNode, TechSegment, TechSegmentAssignment,
+        TechTreeDefinition,
+    )
+    from techtree.techtree_content import (
+        BusinessModelDefinition, BusinessOutcome, PolicyDefinition,
+        RealArtifact,
+    )
+    from techtree.techtree_seed import (
+        SEED_BUSINESS_MODELS, SEED_OSEB_POLARI_MODULES,
+        SEED_POLICY_DEFINITIONS, SEED_REAL_ARTIFACTS, SEED_TECH_NODES,
+        SEED_TECH_SEGMENT_ASSIGNMENTS, SEED_TECH_TREE_DEFINITIONS,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('techtree', _exc, globals(), (
+        'TechDependencyEdge', 'TechNode', 'TechSegment', 'TechSegmentAssignment',
+        'TechTreeDefinition', 'BusinessModelDefinition', 'BusinessOutcome', 'PolicyDefinition',
+        'RealArtifact', 'SEED_BUSINESS_MODELS', 'SEED_OSEB_POLARI_MODULES', 'SEED_POLICY_DEFINITIONS',
+        'SEED_REAL_ARTIFACTS', 'SEED_TECH_NODES', 'SEED_TECH_SEGMENT_ASSIGNMENTS', 'SEED_TECH_TREE_DEFINITIONS',
+    ))
 # Resource profiles (res-2): each module/engine's floor, scalability,
 # character, and storage-tier recommendation — the admission basis.
 from resources.profile_basis import ModuleResourceProfile
@@ -526,18 +727,29 @@ from polariDataTyping.schema_stability_basis import (
 # TEST-BUILD ONLY — `testing` is an OPT_IN package (module_gating),
 # so these classes register/seed only under POLARI_TEST_BUILD or an
 # explicit POLARI_MODULES entry; import alone registers nothing.
-from testing.capability_basis import CapabilityCheck, CheckRun
-from testing.testing_seed import SEED_CAPABILITY_CHECKS
+try:
+    from testing.capability_basis import CapabilityCheck, CheckRun
+    from testing.testing_seed import SEED_CAPABILITY_CHECKS
+except ImportError as _exc:
+    _stub_missing_feature('testing', _exc, globals(), (
+        'CapabilityCheck', 'CheckRun', 'SEED_CAPABILITY_CHECKS',
+    ))
 # gRPC contracts (grpc-1): per-class exposure KNOB + append-only
 # contract versions, generated from stabilization snapshots only.
-from grpcbridge.contract_basis import (
-    GrpcExposure, ProtoContractVersion,
-)
-# Polari Hardware Bridge (grpc-j1): generatable Java bridge apps —
-# simulation-first, per-bridge knob rows.
-from grpcbridge.java_bridge_basis import HardwareBridgeDefinition
-# hwsim-1: hardware rig digital twins (Renode firmware streams here).
-from grpcbridge.hwsim_basis import SimRigState, SEED_SIM_RIGS
+try:
+    from grpcbridge.contract_basis import (
+        GrpcExposure, ProtoContractVersion,
+    )
+    # Polari Hardware Bridge (grpc-j1): generatable Java bridge apps —
+    # simulation-first, per-bridge knob rows.
+    from grpcbridge.java_bridge_basis import HardwareBridgeDefinition
+    # hwsim-1: hardware rig digital twins (Renode firmware streams here).
+    from grpcbridge.hwsim_basis import SimRigState, SEED_SIM_RIGS
+except ImportError as _exc:
+    _stub_missing_feature('grpcbridge', _exc, globals(), (
+        'GrpcExposure', 'ProtoContractVersion', 'HardwareBridgeDefinition', 'SimRigState',
+        'SEED_SIM_RIGS',
+    ))
 # msci-26: L3 MD + L2 mesoscale model definitions + seeds.
 from materialsScience.md_model_definition import MDModelDefinition
 from materialsScience.meso_model_definition import MesoModelDefinition
@@ -547,26 +759,40 @@ from materialsScience.l2_l3_models_seed import (
 )
 # hwsim-3: FPGA register maps as DATA (every register = a knob row;
 # Verilog/C/testbench artifacts generate FROM the rows).
-from hwfpga.fpga_basis import (
-    FpgaRegisterState, RegisterDefinition, RegisterMapDefinition,
-    SEED_FPGA_STATES, SEED_REGISTER_MAPS, SEED_REGISTERS,
-)
-# The 4x4 LED demo grid (driver knob: fpga | mcu profiles).
-from hwfpga.led_basis import LedMatrix4x4State, SEED_LED_MATRICES
+try:
+    from hwfpga.fpga_basis import (
+        FpgaRegisterState, RegisterDefinition, RegisterMapDefinition,
+        SEED_FPGA_STATES, SEED_REGISTER_MAPS, SEED_REGISTERS,
+    )
+    # The 4x4 LED demo grid (driver knob: fpga | mcu profiles).
+    from hwfpga.led_basis import LedMatrix4x4State, SEED_LED_MATRICES
+except ImportError as _exc:
+    _stub_missing_feature('hwfpga', _exc, globals(), (
+        'FpgaRegisterState', 'RegisterDefinition', 'RegisterMapDefinition', 'SEED_FPGA_STATES',
+        'SEED_REGISTER_MAPS', 'SEED_REGISTERS', 'LedMatrix4x4State', 'SEED_LED_MATRICES',
+    ))
 # Material-derived electronic devices (materials -> SPICE ladder).
-from electrodevice.device_basis import (
-    CircuitRunResult, ElectronicDeviceDefinition, SpiceModelCard,
-    SEED_DEVICES,
-)
-from electrodevice.semiconductor import (
-    SemiconductorProfile, SEED_SEMICONDUCTOR_PROFILES,
-)
-from electrodevice.device_validator import DeviceValidationReport
-from electrodevice.photo_basis import (
-    PhotoAbsorberDefinition, SolarLayerDefinition,
-    SolarStackDefinition, SEED_PHOTO_ABSORBERS, SEED_SOLAR_LAYERS,
-    SEED_SOLAR_STACKS,
-)
+try:
+    from electrodevice.device_basis import (
+        CircuitRunResult, ElectronicDeviceDefinition, SpiceModelCard,
+        SEED_DEVICES,
+    )
+    from electrodevice.semiconductor import (
+        SemiconductorProfile, SEED_SEMICONDUCTOR_PROFILES,
+    )
+    from electrodevice.device_validator import DeviceValidationReport
+    from electrodevice.photo_basis import (
+        PhotoAbsorberDefinition, SolarLayerDefinition,
+        SolarStackDefinition, SEED_PHOTO_ABSORBERS, SEED_SOLAR_LAYERS,
+        SEED_SOLAR_STACKS,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('electrodevice', _exc, globals(), (
+        'CircuitRunResult', 'ElectronicDeviceDefinition', 'SpiceModelCard', 'SEED_DEVICES',
+        'SemiconductorProfile', 'SEED_SEMICONDUCTOR_PROFILES', 'DeviceValidationReport', 'PhotoAbsorberDefinition',
+        'SolarLayerDefinition', 'SolarStackDefinition', 'SEED_PHOTO_ABSORBERS', 'SEED_SOLAR_LAYERS',
+        'SEED_SOLAR_STACKS',
+    ))
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -592,7 +818,12 @@ from materialsScience.wax_multiscale_seed import (
 # The materials-basis + formulation-search DisplayDefinition pages.
 from materialsScience.msci_pages_seed import SEED_MSCI_PAGE_DISPLAYS
 # The aquaponics-pot-shape phase 2 pot-geometry-editor DisplayDefinition page.
-from aquaponics.aquaponics_pages_seed import SEED_AQUAPONICS_PAGE_DISPLAYS
+try:
+    from aquaponics.aquaponics_pages_seed import SEED_AQUAPONICS_PAGE_DISPLAYS
+except ImportError as _exc:
+    _stub_missing_feature('aquaponics', _exc, globals(), (
+        'SEED_AQUAPONICS_PAGE_DISPLAYS',
+    ))
 # No-code pages for the modules that had APIs but no UI (nutrition,
 # vermicompost, tanks, biomining, microalgae, wax, supply chain,
 # morphology, authority) — pure class-rows-table/api-json-panel data.
@@ -736,6 +967,10 @@ try:
 except ImportError:
     # Fallback if config_loader not available
     CORS_ORIGINS = ['*']
+
+# mp-3: one honest boot line per feature module whose code is absent.
+for _line in _module_loading_boot_report():
+    print(_line, flush=True)
 
 
 class CORSExtraHeadersMiddleware:
@@ -976,116 +1211,128 @@ class polariServer(treeObject):
 
         # Context-based scoring: concept list + the scoring pipeline
         # (normalize -> context-match -> weight -> levelize) (scr-1).
-        from scoring.scoring_api import ScoringAPI
-        scoringEndpoint = ScoringAPI(polServer=self, manager=self.manager)
-        from scoring.authority_api import AuthorityAPI
-        authorityEndpoint = AuthorityAPI(polServer=self,
-                                         manager=self.manager)
-        from zones.zones_api import ZonesAPI
-        zonesEndpoint = ZonesAPI(polServer=self, manager=self.manager)
-        from scoring.epistemics_api import EpistemicsAPI
-        epistemicsEndpoint = EpistemicsAPI(polServer=self,
-                                           manager=self.manager)
-
-        # Aquaponics: self-watering pot geometry validation + hole
-        # generation (aqp-1).
-        from aquaponics.pot_api import AquaponicsPotAPI
-        aquaponicsPotEndpoint = AquaponicsPotAPI(
-            polServer=self, manager=self.manager)
-        # Aquaponics: soil / water / nutrient-profile analysis (aqp-2).
-        from aquaponics.media_api import AquaponicsMediaAPI
-        aquaponicsMediaEndpoint = AquaponicsMediaAPI(
-            polServer=self, manager=self.manager)
-        # Aquaponics: per-part plant capture + budget (aqp-4).
-        from aquaponics.plant_api import AquaponicsPlantAPI
-        aquaponicsPlantEndpoint = AquaponicsPlantAPI(
-            polServer=self, manager=self.manager)
-        # Aquaponics: atmospheric conditions + gas exchange (aqp-5).
-        from aquaponics.atmosphere_api import AquaponicsAtmosphereAPI
-        aquaponicsAtmosphereEndpoint = AquaponicsAtmosphereAPI(
-            polServer=self, manager=self.manager)
-        # Aquaponics: bound pot systems — survival + impact (aqp-6).
-        from aquaponics.pot_system_api import AquaponicsSystemAPI
-        aquaponicsSystemEndpoint = AquaponicsSystemAPI(
-            polServer=self, manager=self.manager)
-        # Aquaponics: Darcy pot hydraulics — drains-by-gravity +
-        # head field, fidelity ladder fem->reservoir (aqp-3).
-        from aquaponics.hydraulics_api import AquaponicsHydraulicsAPI
-        aquaponicsHydraulicsEndpoint = AquaponicsHydraulicsAPI(
-            polServer=self, manager=self.manager)
-        # waxprint (wp-1): pellet-fed auger-screw wax printer — list rows +
-        # run the two-zone melt with the wax thermal-safety gate.
-        from waxprint.waxprint_api import WaxPrintAPI
-        waxPrintEndpoint = WaxPrintAPI(polServer=self, manager=self.manager)
-        # waxprint sim space (wp-5/wp-6): run one IC / a range + evaluate the
-        # condition gates for a run.
-        from waxprint.sim_api import WaxPrintSimAPI
-        waxPrintSimEndpoint = WaxPrintSimAPI(polServer=self,
+        # mp-3: every feature-module endpoint below is gated on the
+        # module's code being downloaded + enabled — an absent module
+        # registers no routes (the /modules surface says why).
+        if _feature_available('scoring'):
+            from scoring.scoring_api import ScoringAPI
+            scoringEndpoint = ScoringAPI(polServer=self, manager=self.manager)
+            from scoring.authority_api import AuthorityAPI
+            authorityEndpoint = AuthorityAPI(polServer=self,
                                              manager=self.manager)
-        # Aquaponics: worm-compost enrichment loop — release /
-        # simulate / compare-modes / enriched-water (aqp-7).
-        from aquaponics.vermicompost_api import AquaponicsCompostAPI
-        aquaponicsCompostEndpoint = AquaponicsCompostAPI(
-            polServer=self, manager=self.manager)
-        # Aquaponics: SIMPLIFIED/AGGREGATE growth model (was aqp-8;
-        # renamed + rebuilt 2026-07-15 to pull its constants + curve
-        # from the real detailed model, plant_growth_normalized).
-        from aquaponics.plant_growth_simplified_api import (
-            AquaponicsPlantGrowthSimplifiedAPI,
-        )
-        aquaponicsPlantGrowthSimplifiedEndpoint = (
-            AquaponicsPlantGrowthSimplifiedAPI(
-                polServer=self, manager=self.manager))
-        # Nutrition: dietary-nutrient vocab + person BMR/needs +
-        # household demand aggregation (nut-1/3/4).
-        from nutrition.nutrition_api import NutritionAPI
-        nutritionEndpoint = NutritionAPI(
-            polServer=self, manager=self.manager)
-        # Nutrition: plant harvest -> meal-nutrient yield, closing the
-        # self-watering-pot grow loop (nut-2).
-        from nutrition.food_api import NutritionFoodAPI
-        nutritionFoodEndpoint = NutritionFoodAPI(
-            polServer=self, manager=self.manager)
-        # Plant morphology: 3D organ/root stand-ins + confinement /
-        # dwarfing assessment (morph-1).
-        from plant_morphology.morphology_api import PlantMorphologyAPI
-        plantMorphologyEndpoint = PlantMorphologyAPI(
-            polServer=self, manager=self.manager)
-        # Plant-growth-sim phase 1: free-soil/constrained-limits +
-        # per-part PotPlanting state + animation-bones skeleton
-        # (2026-07-15).
-        from aquaponics.plant_growth_normalized_api import (
-            AquaponicsPlantGrowthNormalizedAPI,
-        )
-        aquaponicsPlantGrowthNormalizedEndpoint = (
-            AquaponicsPlantGrowthNormalizedAPI(
-                polServer=self, manager=self.manager))
-        # Plant-growth-sim phase 8: direct-light field diagnostics.
-        from aquaponics.light_field_api import AquaponicsLightFieldAPI
-        aquaponicsLightFieldEndpoint = AquaponicsLightFieldAPI(
-            polServer=self, manager=self.manager)
-        # Plant-growth-sim phase 10: water batching + nutrient uptake.
-        from aquaponics.water_batch_api import AquaponicsWaterBatchAPI
-        aquaponicsWaterBatchEndpoint = AquaponicsWaterBatchAPI(
-            polServer=self, manager=self.manager)
-        # Plant-growth-sim phase 11: decomposed water-level trajectory.
-        from aquaponics.water_level_api import AquaponicsWaterLevelAPI
-        aquaponicsWaterLevelEndpoint = AquaponicsWaterLevelAPI(
-            polServer=self, manager=self.manager)
-        # Math-defined shapes: quadric/primitive/CSG geometry (shape-1)
-        # + parametric modification (shape-2, POST /modify).
-        from mathshapes.shape_api import MathShapesAPI
-        mathShapesEndpoint = MathShapesAPI(
-            polServer=self, manager=self.manager)
-        # Aquaponic towers: stacked math-defined pots (shape-2) +
-        # growth forecast (shape-4).
-        from mathshapes.tower_api import AquaponicTowerAPI
-        aquaponicTowerEndpoint = AquaponicTowerAPI(
-            polServer=self, manager=self.manager)
-        # CAD import/export via cad-engines worker + MinIO (shape-3).
-        from mathshapes.cad_api import CadImportAPI
-        cadImportEndpoint = CadImportAPI(
-            polServer=self, manager=self.manager)
+            from scoring.epistemics_api import EpistemicsAPI
+            epistemicsEndpoint = EpistemicsAPI(polServer=self,
+                                               manager=self.manager)
+        if _feature_available('zones'):
+            from zones.zones_api import ZonesAPI
+            zonesEndpoint = ZonesAPI(polServer=self, manager=self.manager)
+
+        if _feature_available('aquaponics'):
+            # Aquaponics: self-watering pot geometry validation + hole
+            # generation (aqp-1).
+            from aquaponics.pot_api import AquaponicsPotAPI
+            aquaponicsPotEndpoint = AquaponicsPotAPI(
+                polServer=self, manager=self.manager)
+            # Aquaponics: soil / water / nutrient-profile analysis (aqp-2).
+            from aquaponics.media_api import AquaponicsMediaAPI
+            aquaponicsMediaEndpoint = AquaponicsMediaAPI(
+                polServer=self, manager=self.manager)
+            # Aquaponics: per-part plant capture + budget (aqp-4).
+            from aquaponics.plant_api import AquaponicsPlantAPI
+            aquaponicsPlantEndpoint = AquaponicsPlantAPI(
+                polServer=self, manager=self.manager)
+            # Aquaponics: atmospheric conditions + gas exchange (aqp-5).
+            from aquaponics.atmosphere_api import AquaponicsAtmosphereAPI
+            aquaponicsAtmosphereEndpoint = AquaponicsAtmosphereAPI(
+                polServer=self, manager=self.manager)
+            # Aquaponics: bound pot systems — survival + impact (aqp-6).
+            from aquaponics.pot_system_api import AquaponicsSystemAPI
+            aquaponicsSystemEndpoint = AquaponicsSystemAPI(
+                polServer=self, manager=self.manager)
+            # Aquaponics: Darcy pot hydraulics — drains-by-gravity +
+            # head field, fidelity ladder fem->reservoir (aqp-3).
+            from aquaponics.hydraulics_api import AquaponicsHydraulicsAPI
+            aquaponicsHydraulicsEndpoint = AquaponicsHydraulicsAPI(
+                polServer=self, manager=self.manager)
+        if _feature_available('waxprint'):
+            # waxprint (wp-1): pellet-fed auger-screw wax printer — list rows +
+            # run the two-zone melt with the wax thermal-safety gate.
+            from waxprint.waxprint_api import WaxPrintAPI
+            waxPrintEndpoint = WaxPrintAPI(polServer=self, manager=self.manager)
+            # waxprint sim space (wp-5/wp-6): run one IC / a range + evaluate the
+            # condition gates for a run.
+            from waxprint.sim_api import WaxPrintSimAPI
+            waxPrintSimEndpoint = WaxPrintSimAPI(polServer=self,
+                                                 manager=self.manager)
+        if _feature_available('aquaponics'):
+            # Aquaponics: worm-compost enrichment loop — release /
+            # simulate / compare-modes / enriched-water (aqp-7).
+            from aquaponics.vermicompost_api import AquaponicsCompostAPI
+            aquaponicsCompostEndpoint = AquaponicsCompostAPI(
+                polServer=self, manager=self.manager)
+            # Aquaponics: SIMPLIFIED/AGGREGATE growth model (was aqp-8;
+            # renamed + rebuilt 2026-07-15 to pull its constants + curve
+            # from the real detailed model, plant_growth_normalized).
+            from aquaponics.plant_growth_simplified_api import (
+                AquaponicsPlantGrowthSimplifiedAPI,
+            )
+            aquaponicsPlantGrowthSimplifiedEndpoint = (
+                AquaponicsPlantGrowthSimplifiedAPI(
+                    polServer=self, manager=self.manager))
+        if _feature_available('nutrition'):
+            # Nutrition: dietary-nutrient vocab + person BMR/needs +
+            # household demand aggregation (nut-1/3/4).
+            from nutrition.nutrition_api import NutritionAPI
+            nutritionEndpoint = NutritionAPI(
+                polServer=self, manager=self.manager)
+            # Nutrition: plant harvest -> meal-nutrient yield, closing the
+            # self-watering-pot grow loop (nut-2).
+            from nutrition.food_api import NutritionFoodAPI
+            nutritionFoodEndpoint = NutritionFoodAPI(
+                polServer=self, manager=self.manager)
+        if _feature_available('plant_morphology'):
+            # Plant morphology: 3D organ/root stand-ins + confinement /
+            # dwarfing assessment (morph-1).
+            from plant_morphology.morphology_api import PlantMorphologyAPI
+            plantMorphologyEndpoint = PlantMorphologyAPI(
+                polServer=self, manager=self.manager)
+        if _feature_available('aquaponics'):
+            # Plant-growth-sim phase 1: free-soil/constrained-limits +
+            # per-part PotPlanting state + animation-bones skeleton
+            # (2026-07-15).
+            from aquaponics.plant_growth_normalized_api import (
+                AquaponicsPlantGrowthNormalizedAPI,
+            )
+            aquaponicsPlantGrowthNormalizedEndpoint = (
+                AquaponicsPlantGrowthNormalizedAPI(
+                    polServer=self, manager=self.manager))
+            # Plant-growth-sim phase 8: direct-light field diagnostics.
+            from aquaponics.light_field_api import AquaponicsLightFieldAPI
+            aquaponicsLightFieldEndpoint = AquaponicsLightFieldAPI(
+                polServer=self, manager=self.manager)
+            # Plant-growth-sim phase 10: water batching + nutrient uptake.
+            from aquaponics.water_batch_api import AquaponicsWaterBatchAPI
+            aquaponicsWaterBatchEndpoint = AquaponicsWaterBatchAPI(
+                polServer=self, manager=self.manager)
+            # Plant-growth-sim phase 11: decomposed water-level trajectory.
+            from aquaponics.water_level_api import AquaponicsWaterLevelAPI
+            aquaponicsWaterLevelEndpoint = AquaponicsWaterLevelAPI(
+                polServer=self, manager=self.manager)
+        if _feature_available('mathshapes'):
+            # Math-defined shapes: quadric/primitive/CSG geometry (shape-1)
+            # + parametric modification (shape-2, POST /modify).
+            from mathshapes.shape_api import MathShapesAPI
+            mathShapesEndpoint = MathShapesAPI(
+                polServer=self, manager=self.manager)
+            # Aquaponic towers: stacked math-defined pots (shape-2) +
+            # growth forecast (shape-4).
+            from mathshapes.tower_api import AquaponicTowerAPI
+            aquaponicTowerEndpoint = AquaponicTowerAPI(
+                polServer=self, manager=self.manager)
+            # CAD import/export via cad-engines worker + MinIO (shape-3).
+            from mathshapes.cad_api import CadImportAPI
+            cadImportEndpoint = CadImportAPI(
+                polServer=self, manager=self.manager)
         # xsim-2: single-writer lease + object locks + simulation queue.
         from simulationLocks.locks_api import SimulationLocksAPI
         simulationLocksEndpoint = SimulationLocksAPI(
@@ -1094,35 +1341,40 @@ class polariServer(treeObject):
         from polariRefs.refs_api import PolariRefsAPI
         polariRefsEndpoint = PolariRefsAPI(
             polServer=self, manager=self.manager)
-        # Tanks: freshwater + saltwater ecosystem nutrient balance +
-        # harvest yield (the alternate nutrient source, tank-1).
-        from tanks.tank_api import TankSystemAPI
-        tankSystemEndpoint = TankSystemAPI(
-            polServer=self, manager=self.manager)
-        # Microalgae reactors: sustainability (no-collapse) + CO2
-        # decarbonization coupled to a parent system (algae-1).
-        from microalgae.reactor_api import MicroalgaeReactorAPI
-        microalgaeReactorEndpoint = MicroalgaeReactorAPI(
-            polServer=self, manager=self.manager)
-        # Biomining: element extraction + refinement + nutrient recovery
-        # specialized aquaponic variants (biomine-1).
-        from biomining.biomining_api import BiomineAPI
-        biomineEndpoint = BiomineAPI(
-            polServer=self, manager=self.manager)
-        # Wax sources for molds/masks (wax-1).
-        from waxsupply.wax_api import WaxSupplyAPI
-        waxSupplyEndpoint = WaxSupplyAPI(
-            polServer=self, manager=self.manager)
-        # The unifying bio supply-chain ledger — materials + food +
-        # carbon accounting (chain-1).
-        from supplychain.chain_api import SupplyChainAPI
-        supplyChainEndpoint = SupplyChainAPI(
-            polServer=self, manager=self.manager)
+        if _feature_available('tanks'):
+            # Tanks: freshwater + saltwater ecosystem nutrient balance +
+            # harvest yield (the alternate nutrient source, tank-1).
+            from tanks.tank_api import TankSystemAPI
+            tankSystemEndpoint = TankSystemAPI(
+                polServer=self, manager=self.manager)
+        if _feature_available('microalgae'):
+            # Microalgae reactors: sustainability (no-collapse) + CO2
+            # decarbonization coupled to a parent system (algae-1).
+            from microalgae.reactor_api import MicroalgaeReactorAPI
+            microalgaeReactorEndpoint = MicroalgaeReactorAPI(
+                polServer=self, manager=self.manager)
+        if _feature_available('biomining'):
+            # Biomining: element extraction + refinement + nutrient recovery
+            # specialized aquaponic variants (biomine-1).
+            from biomining.biomining_api import BiomineAPI
+            biomineEndpoint = BiomineAPI(
+                polServer=self, manager=self.manager)
+        if _feature_available('waxsupply'):
+            # Wax sources for molds/masks (wax-1).
+            from waxsupply.wax_api import WaxSupplyAPI
+            waxSupplyEndpoint = WaxSupplyAPI(
+                polServer=self, manager=self.manager)
+        if _feature_available('supplychain'):
+            # The unifying bio supply-chain ledger — materials + food +
+            # carbon accounting (chain-1).
+            from supplychain.chain_api import SupplyChainAPI
+            supplyChainEndpoint = SupplyChainAPI(
+                polServer=self, manager=self.manager)
         # acct-0: the accountability matrix. Endpoint construction is
         # NOT auto-gated (only defClassList is), so guard explicitly —
         # a normal build must register no /api/accountability route.
-        from polariApiServer.module_gating import module_enabled
-        if module_enabled('testing'):
+        # mp-3: the gate also requires the testing code to be present.
+        if _feature_available('testing'):
             from testing.accountability_api import AccountabilityAPI
             accountabilityEndpoint = AccountabilityAPI(
                 polServer=self, manager=self.manager)
@@ -1144,15 +1396,17 @@ class polariServer(treeObject):
         from topology.topology_testing_api import TopologyTestingAPI
         topologyTestingEndpoint = TopologyTestingAPI(
             polServer=self, manager=self.manager)
-        # Polari-Apps (tt-12): use-case module configurations —
-        # plan/export/apply (rows only; deploys stay pol commands).
-        from polariapps.apps_api import AppsAPI
-        appsEndpoint = AppsAPI(polServer=self, manager=self.manager)
-        # Tech tree (tt-3): trees/nodes/segments + derived completion
-        # rollup — the topology expansion toward the OSEB.
-        from techtree.techtree_api import TechTreeAPI
-        techTreeEndpoint = TechTreeAPI(
-            polServer=self, manager=self.manager)
+        if _feature_available('polariapps'):
+            # Polari-Apps (tt-12): use-case module configurations —
+            # plan/export/apply (rows only; deploys stay pol commands).
+            from polariapps.apps_api import AppsAPI
+            appsEndpoint = AppsAPI(polServer=self, manager=self.manager)
+        if _feature_available('techtree'):
+            # Tech tree (tt-3): trees/nodes/segments + derived completion
+            # rollup — the topology expansion toward the OSEB.
+            from techtree.techtree_api import TechTreeAPI
+            techTreeEndpoint = TechTreeAPI(
+                polServer=self, manager=self.manager)
         # Provider routing (top-7): module delegation resolves its
         # provider from the topology rows when no explicit URL knob
         # is set (see materialsScience.engines.remote's ladder).
@@ -1187,36 +1441,37 @@ class polariServer(treeObject):
         )
         schemaStabilityEndpoint = SchemaStabilityAPI(
             polServer=self, manager=self.manager)
-        # gRPC contracts (grpc-1): exposure catalogue + the
-        # enable/disable/regenerate knob + .proto download. Contracts
-        # generate ONLY from stabilized schemas.
-        from grpcbridge.contract_api import GrpcContractsAPI
-        grpcContractsEndpoint = GrpcContractsAPI(
-            polServer=self, manager=self.manager)
-        # Polari Hardware Bridge (grpc-j1): bridge-definition rows +
-        # generate/download of the buildable Java app (tar.gz).
-        from grpcbridge.java_bridge_api import HardwareBridgeAPI
-        hardwareBridgeEndpoint = HardwareBridgeAPI(
-            polServer=self, manager=self.manager)
-        # FPGA register maps (hwsim-3): catalogue + generated
-        # Verilog/C/testbench artifacts, all FROM the knob rows.
-        from hwfpga.fpga_api import FpgaRegisterMapAPI
-        fpgaRegisterMapEndpoint = FpgaRegisterMapAPI(
-            polServer=self, manager=self.manager)
+        if _feature_available('grpcbridge'):
+            # gRPC contracts (grpc-1): exposure catalogue + the
+            # enable/disable/regenerate knob + .proto download. Contracts
+            # generate ONLY from stabilized schemas.
+            from grpcbridge.contract_api import GrpcContractsAPI
+            grpcContractsEndpoint = GrpcContractsAPI(
+                polServer=self, manager=self.manager)
+            # Polari Hardware Bridge (grpc-j1): bridge-definition rows +
+            # generate/download of the buildable Java app (tar.gz).
+            from grpcbridge.java_bridge_api import HardwareBridgeAPI
+            hardwareBridgeEndpoint = HardwareBridgeAPI(
+                polServer=self, manager=self.manager)
+        if _feature_available('hwfpga'):
+            # FPGA register maps (hwsim-3): catalogue + generated
+            # Verilog/C/testbench artifacts, all FROM the knob rows.
+            from hwfpga.fpga_api import FpgaRegisterMapAPI
+            fpgaRegisterMapEndpoint = FpgaRegisterMapAPI(
+                polServer=self, manager=self.manager)
         # ncg-7 (Dustin: split across small devices): endpoint
         # construction is NOT auto-gated (only defClassList is), so
         # the ncg level surfaces guard explicitly — a node assigned
         # only 'scoring' must carry no /api/hw or circuit routes,
         # and vice versa, exactly like the testing surface.
-        from polariApiServer.module_gating import (
-            module_enabled as _ncg_module_enabled)
-        if _ncg_module_enabled('hwdigital'):
+        # mp-3: the gate also requires the module code to be present.
+        if _feature_available('hwdigital'):
             # ncg-3: logic diagrams as rows — catalogue, generated
             # artifacts (through the compiler seam), evaluate.
             from hwdigital.logic_api import LogicDesignAPI
             logicDesignEndpoint = LogicDesignAPI(
                 polServer=self, manager=self.manager)
-        if _ncg_module_enabled('electrodevice'):
+        if _feature_available('electrodevice'):
             # ncg-4: circuits as rows — catalogue, netlist, run.
             from electrodevice.circuit_api import (BreadboardAPI,
                                                    CircuitRowsAPI)
@@ -1225,11 +1480,11 @@ class polariServer(treeObject):
             # ncg-5: jumpered breadboards, run as one netlist.
             breadboardEndpoint = BreadboardAPI(
                 polServer=self, manager=self.manager)
-        # Material-derived electronic devices (derive from msci sims,
-        # SPICE cards, ngspice circuit tests).
-        from electrodevice.device_api import ElectroDeviceAPI
-        electroDeviceEndpoint = ElectroDeviceAPI(
-            polServer=self, manager=self.manager)
+            # Material-derived electronic devices (derive from msci sims,
+            # SPICE cards, ngspice circuit tests).
+            from electrodevice.device_api import ElectroDeviceAPI
+            electroDeviceEndpoint = ElectroDeviceAPI(
+                polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -1421,6 +1676,16 @@ class polariServer(treeObject):
         # CRUDE endpoints, and boot restore all key off the typing
         # this filter controls — one honest gate point.
         from polariApiServer.module_gating import class_enabled, gate_summary
+        # mp-3: absent feature modules stubbed their classes to None
+        # in the guarded import blocks — drop those before gating.
+        _absent = len([c for c in self.defClassList if c is None])
+        if _absent:
+            print(f'[DefInit] mp-3: {_absent} definition classes belong '
+                  f'to modules that are not downloaded — skipped '
+                  f'(pol modules registry shows what is missing)',
+                  flush=True)
+            self.defClassList = [c for c in self.defClassList
+                                 if c is not None]
         _gate = gate_summary(self.defClassList)
         if _gate['dropped']:
             print(f"[DefInit] Module gating (POLARI_MODULES="
@@ -2692,21 +2957,23 @@ class polariServer(treeObject):
         # tt-8: the single 'oseb' tree became three DOMAIN trees —
         # retire its persisted rows (idempotent no-op once gone) and
         # remap stale PolariModule.tech_node_ref hints.
-        try:
-            from techtree.techtree_seed import (
-                backfill_cross_refs, retire_legacy_trees,
-            )
-            retired = retire_legacy_trees(self.manager)
-            if retired:
-                print(f'[TechTree] retired legacy tree rows: '
-                      f'{retired}', flush=True)
-            filled = backfill_cross_refs(self.manager)
-            if filled.get('filled'):
-                print(f'[TechTree] cross-ref backfill: {filled}',
-                      flush=True)
-        except Exception as e:
-            print(f'[TechTree] legacy retirement/backfill failed: '
-                  f'{e}', flush=True)
+        # mp-3: skipped when techtree is not downloaded/enabled.
+        if _feature_available('techtree'):
+            try:
+                from techtree.techtree_seed import (
+                    backfill_cross_refs, retire_legacy_trees,
+                )
+                retired = retire_legacy_trees(self.manager)
+                if retired:
+                    print(f'[TechTree] retired legacy tree rows: '
+                          f'{retired}', flush=True)
+                filled = backfill_cross_refs(self.manager)
+                if filled.get('filled'):
+                    print(f'[TechTree] cross-ref backfill: {filled}',
+                          flush=True)
+            except Exception as e:
+                print(f'[TechTree] legacy retirement/backfill failed: '
+                      f'{e}', flush=True)
         # res-1: observe THIS device onto its PolariNodeMachine row
         # (ssh_alias=='' convention) so the topology is resource-aware
         # from boot — fills the historical `mem_gb: 0.0` gap.

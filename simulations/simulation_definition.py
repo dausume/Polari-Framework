@@ -115,6 +115,11 @@ class SimulationDefinition(treeObject):
         #   '{"PendulumBobSimState.x": {"policy": "derivable"},
         #     "PendulumBobSimState.energy_total": {"policy": "core", "interval": 1}}'
         field_save_overrides_json: str = '{}',
+        # XR requirement for AR-required simulations (zones bridge):
+        # '' = none, 'ar-capture' = needs an AR zone-capture session.
+        # (The assignment below predates this parameter — its absence
+        # made every SimulationDefinition CREATE raise NameError.)
+        xr_requirement: str = '',
         manager=None,
     ):
         self.name = name
