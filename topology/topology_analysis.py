@@ -367,6 +367,10 @@ def graph_payload(manager, topology_name):
              'providerInstanceName':
                  getattr(e, 'provider_instance_name', ''),
              'status': getattr(e, 'status', ''),
+             # tt-1 designation (topology_module_graph) — dashed
+             # transient copies in the revamped renderer.
+             'isPrimary': getattr(e, 'is_primary', False),
+             'isTransient': getattr(e, 'is_transient', False),
              'evidence': _loads(e, 'evidence_json', [])}
             for e in _scoped(manager, 'ModuleDependencyEdge',
                              topology_name)],

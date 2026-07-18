@@ -128,7 +128,9 @@ def scan_boundary_imports(boundary: str,
 
 def boundary_graph(root: Optional[str] = None) -> Dict[str, Any]:
     """The coherent-module map: every declared boundary with its
-    outgoing edges (imports of other boundaries) and its external
+    outgoing edges (imports of other boundaries), the REVERSE edges
+    (which boundaries import it — tt-1, computed by inverting the
+    scan since imports are stored outbound-only), and its external
     python imports."""
     root = root or _framework_root()
     nodes = []
@@ -144,6 +146,13 @@ def boundary_graph(root: Optional[str] = None) -> Dict[str, Any]:
             'pythonImports': _sanitize_import_names(
                 scan_python_imports(directory)) if present else [],
         })
+    dependents: Dict[str, List[str]] = {}
+    for node in nodes:
+        for imported in node['boundaryImports']:
+            dependents.setdefault(imported, []).append(node['name'])
+    for node in nodes:
+        node['boundaryDependents'] = sorted(
+            dependents.get(node['name'], []))
     return {'boundaries': nodes}
 
 

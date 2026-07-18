@@ -83,6 +83,12 @@ class ModuleDependencyEdge(treeObject):
         provider_instance_name: str = '',
         # EDGE_STATUSES entry.
         status: str = 'unresolved',
+        # tt-1 (designate_transients, deterministic like the provider
+        # pick above): a dependency shared by N>1 consumers keeps ONE
+        # primary edge; the other N-1 are transient copies (dashed in
+        # the revamped renderer, duplicates intentional).
+        is_primary: bool = False,
+        is_transient: bool = False,
         # JSON evidence for the current status (candidate providers,
         # unreachability reports from top-7 routing).
         evidence_json: str = '[]',
@@ -97,6 +103,8 @@ class ModuleDependencyEdge(treeObject):
         self.depends_on_module = depends_on_module
         self.provider_instance_name = provider_instance_name
         self.status = status
+        self.is_primary = is_primary
+        self.is_transient = is_transient
         self.evidence_json = evidence_json
         self.topology_name = topology_name
         self.notes = notes

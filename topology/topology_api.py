@@ -29,6 +29,9 @@ from topology.topology_basis import (
 )
 from topology.topology_io import export_topology, merge_topology_doc
 from topology.topology_links import ServiceConnection
+from topology.topology_module_graph import (
+    designate_transients, module_graph,
+)
 from topology.topology_modules import (
     ModuleAssignment, ModuleDependencyEdge,
 )
@@ -60,6 +63,8 @@ class TopologyAPI(treeObject):
             add = polServer.falconServer.add_route
             add('/api/topology/summary', self, suffix='summary')
             add('/api/topology/graph', self, suffix='graph')
+            add('/api/topology/module-graph', self,
+                suffix='module_graph')
             add('/api/topology/machines', self, suffix='machines')
             add('/api/topology/validate', self, suffix='validate')
             add('/api/topology/resolve', self, suffix='resolve')
@@ -130,6 +135,20 @@ class TopologyAPI(treeObject):
                 response, 'no active topology and no ?name= given',
                 '404 Not Found')
         report = graph_payload(self.manager, name)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_module_graph(self, request, response):
+        """The bidirectional module graph (tt-1): classifications,
+        dependents, transient/primary designation — what the
+        circle/nesting renderer draws."""
+        name = self._topology_name(request)
+        if not name:
+            return self._refuse(
+                response, 'no active topology and no ?name= given',
+                '404 Not Found')
+        report = module_graph(self.manager, name)
         if not report.get('ok'):
             response.status = '404 Not Found'
         response.media = report
@@ -207,6 +226,10 @@ class TopologyAPI(treeObject):
                 response, 'no active topology and no name given',
                 '404 Not Found')
         report = resolve_edges(self.manager, name)
+        # tt-1: the same deterministic pass also (re)stamps the
+        # transient/primary designation before edges persist.
+        report['designation'] = designate_transients(
+            self.manager, name)
         for edge in self._table('ModuleDependencyEdge').values():
             if getattr(edge, 'topology_name', '') == name:
                 self._save(edge)
@@ -265,6 +288,7 @@ class TopologyAPI(treeObject):
             target.state = 'enabled'
         self._save(target)
         resolve = resolve_edges(self.manager, name)
+        designate_transients(self.manager, name)
         for edge in self._table('ModuleDependencyEdge').values():
             if getattr(edge, 'topology_name', '') == name:
                 self._save(edge)
@@ -360,6 +384,7 @@ class TopologyAPI(treeObject):
         topo = (payload.get('topology') or {}).get('name', '')
         if topo:
             resolve_edges(self.manager, topo)
+            designate_transients(self.manager, topo)
             for edge in self._table(
                     'ModuleDependencyEdge').values():
                 if getattr(edge, 'topology_name', '') == topo:

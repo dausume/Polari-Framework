@@ -47,6 +47,15 @@ class PolariModule(treeObject):
         manifest_json: str = '{}',
         # Local cache of the full bundle JSON ('' until Track 3 stores it).
         bundle_json: str = '',
+        # tt-1 self-declarations (TECH_TREE_TOPOLOGY_PLAN A2/B):
+        # data_only marks a module that is just stored class/data
+        # information — no logic dependencies; the module graph
+        # classifies it 'data-only' regardless of degree.
+        data_only: bool = False,
+        # Which tech-tree node this module's theory work belongs to
+        # ('' = unplaced). A hint the tt-5 seeding reads; the durable
+        # mapping is the TechSegmentAssignment row.
+        tech_node_ref: str = '',
         manager=None,
     ):
         self.name = name
@@ -56,3 +65,5 @@ class PolariModule(treeObject):
         self.status = status
         self.manifest_json = manifest_json
         self.bundle_json = bundle_json
+        self.data_only = data_only
+        self.tech_node_ref = tech_node_ref
