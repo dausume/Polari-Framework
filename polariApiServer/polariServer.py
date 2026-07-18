@@ -481,6 +481,12 @@ from topology.topology_state import (
 # tt-11: testing over the topology — suite runs + integration pings
 # as observed-state rows (never seeded).
 from topology.topology_testing import IntegrationPing, TopologyTestRun
+# tt-12: Polari-Apps — module configurations per use-case; plans are
+# exportable JSON packages the pol CLI deploys (rows only).
+from polariapps.apps_basis import (
+    AppDeploymentPlan, PolariAppDefinition,
+)
+from polariapps.apps_seed import SEED_POLARI_APPS
 from topology.topology_seed import (
     SEED_INSTANCE_DEFINITIONS, SEED_MODULE_ASSIGNMENTS,
     SEED_MODULE_DEPENDENCY_EDGES, SEED_NODE_MACHINES,
@@ -1138,6 +1144,10 @@ class polariServer(treeObject):
         from topology.topology_testing_api import TopologyTestingAPI
         topologyTestingEndpoint = TopologyTestingAPI(
             polServer=self, manager=self.manager)
+        # Polari-Apps (tt-12): use-case module configurations —
+        # plan/export/apply (rows only; deploys stay pol commands).
+        from polariapps.apps_api import AppsAPI
+        appsEndpoint = AppsAPI(polServer=self, manager=self.manager)
         # Tech tree (tt-3): trees/nodes/segments + derived completion
         # rollup — the topology expansion toward the OSEB.
         from techtree.techtree_api import TechTreeAPI
@@ -1363,6 +1373,8 @@ class polariServer(treeObject):
             TopologyDefinition, TopologyObservation,
             # Testing over topology (tt-11): observed runs/pings.
             TopologyTestRun, IntegrationPing,
+            # Polari-Apps (tt-12): app configs + plan receipts.
+            PolariAppDefinition, AppDeploymentPlan,
             # Tech tree (tt-3) + segment content (tt-6).
             TechTreeDefinition, TechNode, TechSegment,
             TechSegmentAssignment, TechDependencyEdge,
@@ -2473,6 +2485,10 @@ class polariServer(treeObject):
              SEED_BUSINESS_MODELS),
             ('PolicyDefinition', PolicyDefinition,
              SEED_POLICY_DEFINITIONS),
+            # Polari-Apps (tt-12): the three worked use-cases.
+            # AppDeploymentPlan rows are receipts — never seeded.
+            ('PolariAppDefinition', PolariAppDefinition,
+             SEED_POLARI_APPS),
             # aqp-1: self-watering pots + their side holes (pots
             # before holes — holes reference their pot).
             ('PotDefinition', PotDefinition, SEED_POTS),
