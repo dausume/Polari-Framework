@@ -44,7 +44,12 @@ _IMPORT_RE = re.compile(
 
 
 def _framework_root():
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # mp-4: this module may live under modules/ — the framework root
+    # is the directory that CONTAINS modules/, not modules/ itself.
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if os.path.basename(root) == 'modules':
+        root = os.path.dirname(root)
+    return root
 
 
 def scan_module_source(module_name, root=None):
@@ -52,6 +57,11 @@ def scan_module_source(module_name, root=None):
     data classes, module-level function count, and heavy imports."""
     root = root or _framework_root()
     directory = os.path.join(root, *module_name.split('.'))
+    # mp-4: scanned modules may live under either import root.
+    if not os.path.isdir(directory):
+        moved = os.path.join(root, 'modules', *module_name.split('.'))
+        if os.path.isdir(moved):
+            directory = moved
     result = {'present': os.path.isdir(directory), 'dataClasses': [],
               'functionCount': 0, 'heavyImports': []}
     if not result['present']:

@@ -25,8 +25,13 @@ category/criticality here when a phase claims it.
 
 import os
 
+# mp-4: this module may live at the framework root OR under
+# modules/ (the second import root) — the framework root is the
+# directory that actually carries tests/.
 FRAMEWORK_ROOT = os.path.dirname(
     os.path.dirname(os.path.abspath(__file__)))
+if os.path.basename(FRAMEWORK_ROOT) == 'modules':
+    FRAMEWORK_ROOT = os.path.dirname(FRAMEWORK_ROOT)
 
 # A package's selftests inherit its category ('module' if unlisted).
 CATEGORY_BY_PACKAGE = {
@@ -210,10 +215,17 @@ def _suite_entries():
 
 
 def _selftest_entries():
+    # mp-4: packages live at the framework root AND under modules/
+    # (the second import root) — scan both, plain import names.
+    roots = [FRAMEWORK_ROOT]
+    modules_root = os.path.join(FRAMEWORK_ROOT, 'modules')
+    if os.path.isdir(modules_root):
+        roots.append(modules_root)
     entries = []
-    for pkg in sorted(os.listdir(FRAMEWORK_ROOT)):
-        pkg_dir = os.path.join(FRAMEWORK_ROOT, pkg)
-        if (pkg.startswith('.') or pkg == 'tests'
+    for root in roots:
+      for pkg in sorted(os.listdir(root)):
+        pkg_dir = os.path.join(root, pkg)
+        if (pkg.startswith('.') or pkg in ('tests', 'modules')
                 or not os.path.isdir(pkg_dir)
                 or not os.path.isfile(
                     os.path.join(pkg_dir, '__init__.py'))):
