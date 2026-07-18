@@ -71,7 +71,7 @@
     },
     "mathshapes": {
       "kind": "official",
-      "downloaded": false,
+      "downloaded": true,
       "path": "modules/mathshapes",
       "repo": "",
       "wave": 3,
@@ -110,8 +110,8 @@
     },
     "zones": {
       "kind": "official",
-      "downloaded": true,
-      "path": "zones",
+      "downloaded": false,
+      "path": "modules/zones",
       "repo": "",
       "wave": 4,
       "requires": [
@@ -122,7 +122,7 @@
     "xr": {
       "kind": "official",
       "downloaded": true,
-      "path": "xr",
+      "path": "modules/xr",
       "repo": "",
       "wave": 4,
       "required_by_core": true,
