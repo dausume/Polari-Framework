@@ -228,11 +228,19 @@ def main():
           all(profile_dict(types.SimpleNamespace(**s))['subjectName']
               for s in SEED_MODULE_RESOURCE_PROFILES))
 
-    # --- real-tree sanity: the topology module reads as data ----------------
-    real_v = classify_module(_mgr(), 'topology')
-    check('real tree: topology module classifies data '
+    # --- real-tree sanity: a data-dominant module reads as data -------------
+    # (was topology, which honestly drifted to 'balanced' once tt-11/
+    # tt-13 grew it to 54 module-level functions — tanks is the
+    # stable data-dominant example now.)
+    real_v = classify_module(_mgr(), 'tanks')
+    check('real tree: tanks module classifies data '
           f'(got {real_v["character"]})',
           real_v['character'] == 'data')
+    topo_v = classify_module(_mgr(), 'topology')
+    check('real tree: topology classifies with evidence '
+          f'(got {topo_v["character"]})',
+          topo_v['character'] in ('data', 'balanced')
+          and bool(topo_v['evidence']))
     src = scan_module_source('resources')
     check('real tree: resources module scan sees its own classes',
           'ModuleResourceProfile' in src['dataClasses'])

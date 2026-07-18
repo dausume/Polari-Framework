@@ -25,6 +25,14 @@ sys.path.insert(0, _ROOT)
 _SKIP_DIRS = {'.git', '.claude', '__pycache__', 'node_modules', 'tests',
               '.pytest_cache'}
 
+# mp-4: modules/ is a second IMPORT ROOT — its packages import under
+# their PLAIN names ('waxprint', never 'modules.waxprint'). Importing
+# through the 'modules.' prefix creates a SECOND module object whose
+# in-place seed appends run twice (duplicate names). Strip the prefix
+# so every module imports exactly once, under its real name.
+_MODULES_ROOT = os.path.join(_ROOT, 'modules')
+sys.path.insert(0, _MODULES_ROOT)
+
 
 def _discover_seed_modules():
     """Return dotted module names for every *_seed.py under the root."""
@@ -33,7 +41,9 @@ def _discover_seed_modules():
         dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
         for fn in filenames:
             if fn.endswith('_seed.py') and fn != '__init__.py':
-                rel = os.path.relpath(os.path.join(dirpath, fn), _ROOT)
+                base = (_MODULES_ROOT
+                        if dirpath.startswith(_MODULES_ROOT) else _ROOT)
+                rel = os.path.relpath(os.path.join(dirpath, fn), base)
                 dotted = rel[:-3].replace(os.sep, '.')
                 found.append(dotted)
     return sorted(set(found))
