@@ -150,7 +150,7 @@
     },
     "resources": {
       "kind": "official",
-      "downloaded": false,
+      "downloaded": true,
       "path": "modules/resources",
       "repo": "",
       "wave": 5,
@@ -159,8 +159,8 @@
     },
     "waxprint": {
       "kind": "official",
-      "downloaded": true,
-      "path": "waxprint",
+      "downloaded": false,
+      "path": "modules/waxprint",
       "repo": "",
       "wave": 6,
       "description": "Pellet-fed auger-screw wax printer: melt/bead-voxel/movement sim + optimizer."
@@ -168,7 +168,7 @@
     "scoring": {
       "kind": "official",
       "downloaded": true,
-      "path": "scoring",
+      "path": "modules/scoring",
       "repo": "",
       "wave": 6,
       "description": "Context-based scoring engine + epistemics stack (terms, proofs, credibility, authority)."
@@ -176,7 +176,7 @@
     "techtree": {
       "kind": "official",
       "downloaded": true,
-      "path": "techtree",
+      "path": "modules/techtree",
       "repo": "",
       "wave": 6,
       "description": "Tech trees with theory/real/business/politics segments; OSEB baseline rollup."
@@ -184,7 +184,7 @@
     "polariapps": {
       "kind": "official",
       "downloaded": true,
-      "path": "polariapps",
+      "path": "modules/polariapps",
       "repo": "",
       "wave": 6,
       "description": "Polari-Apps: module configurations per use-case, plan-first + exportable."
@@ -192,7 +192,7 @@
     "testing": {
       "kind": "official",
       "downloaded": true,
-      "path": "testing",
+      "path": "modules/testing",
       "repo": "",
       "wave": 6,
       "description": "Accountability spine (opt-in: registers only on test builds / explicit POLARI_MODULES)."
