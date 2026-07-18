@@ -78,16 +78,38 @@ _INTERNAL_NAMES = {'managedDataComms', 'managedFiles', 'managedDB',
                    'managedExecutables', 'managedImages'}
 
 
+_FRAMEWORK_DIRS: Optional[frozenset] = None
+
+
+def _framework_dirs() -> frozenset:
+    """Top-level directories of THIS framework — internal modules
+    that must never be mistaken for installable pip packages
+    (tt-11 fix: the install plan was suggesting `pip install
+    aquaponics ... topology waxprint`)."""
+    global _FRAMEWORK_DIRS
+    if _FRAMEWORK_DIRS is None:
+        root = _framework_root()
+        try:
+            _FRAMEWORK_DIRS = frozenset(
+                entry for entry in os.listdir(root)
+                if os.path.isdir(os.path.join(root, entry)))
+        except OSError:
+            _FRAMEWORK_DIRS = frozenset()
+    return _FRAMEWORK_DIRS
+
+
 def _sanitize_import_names(names) -> List[str]:
     """Keep only plausible external package names: valid pip-name
-    shape, not stdlib, not framework-internal top-level modules."""
+    shape, not stdlib, not framework-internal top-level modules,
+    not this framework's own module directories."""
     stdlib = getattr(sys, 'stdlib_module_names', frozenset())
     out = []
     for raw in names or []:
         name = str(raw).strip().rstrip(',;')
         if (not name or not _VALID_PKG_RE.match(name)
                 or name in _INTERNAL_NAMES
-                or name.split('.')[0] in stdlib):
+                or name.split('.')[0] in stdlib
+                or name.split('.')[0] in _framework_dirs()):
             continue
         out.append(name)
     return sorted(set(out))

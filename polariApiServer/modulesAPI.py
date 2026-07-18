@@ -330,7 +330,8 @@ class ModulesAPI(treeObject):
             return
         from moduleService.moduleDiscovery import scan_python_imports
         from moduleService.module_dependency_tracker import (
-            FRAMEWORK_BOUNDARIES, scan_boundary_imports,
+            FRAMEWORK_BOUNDARIES, _sanitize_import_names,
+            scan_boundary_imports,
         )
         module_classes = sorted(
             cls.__name__ for cls in (getattr(
@@ -359,7 +360,8 @@ class ModulesAPI(treeObject):
                 "classCount": len(module_classes),
                 "seedInstanceCount": instance_count,
                 "classes": classes_detail,
-                "pythonDependencies": scan_python_imports(dir_path),
+                "pythonDependencies": _sanitize_import_names(
+                    scan_python_imports(dir_path)),
                 "polariDependencies": [
                     {"moduleId": dep, "moduleName": dep,
                      "reasons": ["imports the boundary"]}
@@ -474,6 +476,46 @@ class ModulesAPI(treeObject):
                 "userCreated": info['user_created'],
             })
 
+        # tt-11 (Dustin: 'only two modules are configurable'): the
+        # registry only knows the legacy optional modules — list the
+        # FRAMEWORK BOUNDARY modules too, so every module is visible
+        # and drillable. Their enable/disable knob is honest: it
+        # lives on the TOPOLOGY (ModuleAssignment rows), not here —
+        # the flag lets the UI say so instead of a dead toggle.
+        from moduleService.module_dependency_tracker import (
+            FRAMEWORK_BOUNDARIES,
+        )
+        by_module = {}
+        for cls in (getattr(self.polServer, 'defClassList', None)
+                    or []):
+            top = getattr(cls, '__module__', '').split('.')[0]
+            by_module.setdefault(top, []).append(cls.__name__)
+        known = {m['id'] for m in modules}
+        root = os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)))
+        for module_id in sorted(set(by_module) | set(
+                FRAMEWORK_BOUNDARIES)):
+            if module_id in known or not os.path.isdir(
+                    os.path.join(root, module_id)):
+                continue
+            class_names = by_module.get(module_id, [])
+            modules.append({
+                "id": module_id,
+                "name": module_id,
+                "description": FRAMEWORK_BOUNDARIES.get(
+                    module_id,
+                    f'framework module directory {module_id}/'),
+                "enabled": True,
+                "available": True,
+                "classCount": len(class_names),
+                "seedInstanceCount": sum(
+                    len(self.manager.objectTables.get(cn, {}) or {})
+                    for cn in class_names),
+                "userCreated": False,
+                # In-process framework module: toggling lives on the
+                # topology (ModuleAssignment), not this registry.
+                "boundary": True,
+            })
         return modules
 
     def _toggle_module(self, module_id, enabled, module_info):
