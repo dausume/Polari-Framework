@@ -144,6 +144,15 @@ def _run_selftest(entry, timeout, scrub_test_build=False):
     if code == 0:
         counts = (f'{passed}/{total} checks passed'
                   if total is not None else 'exit 0 (no count line)')
+        # ncg-0 honesty: a green selftest whose tool legs were
+        # skipped (verilator/ngspice/iCE40 absent in containers)
+        # must SAY so on the matrix row — green-with-a-note, never
+        # silent green about unproven legs.
+        skipped = output.count('skip-honest')
+        if skipped:
+            counts += (f' | NOTE: {skipped} leg(s) skipped honestly '
+                       f'(tool absent on this node) — those claims '
+                       f'were NOT proven here')
         return _row(entry, 'pass', duration_ms, counts, passed, total)
     return _row(entry, 'fail', duration_ms,
                 f'exit {code}; ' + _tail(output), passed, total)

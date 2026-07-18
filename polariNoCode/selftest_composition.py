@@ -35,63 +35,12 @@ def check(label, cond, extra=''):
 # selftest_turing's builders).
 # --------------------------------------------------------------------------
 
-def node(name, cls, fields=None, outs=None, index=0):
-    slots = [{'isInput': True, 'connectors': []}]
-    for targets in (outs if outs is not None else [[]]):
-        slots.append({
-            'isInput': False,
-            'connectors': [{'targetStateName': t} for t in targets],
-        })
-    return {
-        'stateName': name, 'stateClass': cls, 'boundObjectClass': cls,
-        'boundObjectFieldValues': fields or {}, 'slots': slots, 'index': index,
-    }
-
-
-def solution(name, *states):
-    return {'solutionName': name,
-            'stateInstances': [dict(s, index=i) for i, s in enumerate(states)]}
-
-
-def entry(name='Start', cls='InitialState', nxt=None):
-    return node(name, cls, {}, outs=[[nxt] if nxt else []])
-
-
-def assign(name, var, value, nxt):
-    return node(name, 'VariableAssignment',
-                {'variableName': var, 'value': value},
-                outs=[[nxt] if nxt else []])
-
-
-def math(name, res, left, op, right, nxt):
-    return node(name, 'MathOperation',
-                {'leftOperand': left, 'operationType': op,
-                 'rightOperand': right, 'resultVariable': res},
-                outs=[[nxt] if nxt else []])
-
-
-def ret(name, var):
-    return node(name, 'ReturnValue',
-                {'returnValueSource': 'variable', 'variableName': var},
-                outs=[])
-
-
-def invoke(name, callee, mappings, bindings, nxt):
-    return node(name, 'SolutionInvocation',
-                {'solutionRef': callee,
-                 'inputMappings': mappings,
-                 'resultBindings': bindings},
-                outs=[[nxt] if nxt else []])
-
-
-def var_src(path):
-    return {'sourceType': 'from_source_object', 'sourceObjectPath': path}
-
-
-def lit_src(value):
-    kind = 'int' if isinstance(value, int) else 'float'
-    return {'sourceType': 'direct_assignment', 'directValue': value,
-            'directValueType': kind}
+# Graph-authoring helpers — promoted to polariNoCode.graph_builder
+# (ncg-1); this gate now exercises the SAME seam domain compilers
+# build through.
+from polariNoCode.graph_builder import (node, solution, entry, assign,
+                                        math, ret, invoke, var_src,
+                                        lit_src)
 
 
 def manager_with(*rows):

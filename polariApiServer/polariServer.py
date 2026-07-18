@@ -180,6 +180,119 @@ from scoring.system_choice_implications import (
     SEED_INTERPRETATION_SCORE_GROUPS, SEED_SYSTEM_CHOICES_IN_FORCE,
     SystemChoiceInForce,
 )
+# Policy drafts scoreable through their lifecycle; venue-mismatch
+# pattern analysis (findings adjudicated by scr-6 validity votes).
+from scoring.policy_drafts import PolicyDraft
+from scoring.venue_patterns import (SEED_VENUE_PATTERNS,
+                                    VenueActionRecord,
+                                    VenueMismatchPattern)
+# Org-defined data-gathering procedures on the graph seam + the
+# step-credibility assertions comparing equivalent terms' methods.
+from scoring.data_gathering import (DataGatheringSolution,
+                                    StepCredibilityAssertion)
+# Assertion credibility voting (group + individual units) and
+# drafter-set PolicyIntent (opt-in personal participation).
+from scoring.assertion_credibility import AssertionCredibilityVote
+from scoring.policy_intent import PolicyIntent
+# Term Competition (the PSC termcompetition draft, built): cited
+# composite proposals, relation assertions, scope votes, elections.
+from scoring.term_competition import (TermProposal,
+                                      TermRelationAssertion,
+                                      TermScopeVote)
+# Credibility bases: professional/impact/methodological/locality
+# standing per context, attestations, relevance voting, prioritized
+# (never-excluding) stance readings.
+from scoring.credibility_bases import (ClaimAttestation,
+                                       CredibilityClaim,
+                                       QualificationRelevanceVote,
+                                       StanceBasis)
+# Democratic term proofs: rebuttable re-runnable demonstrations,
+# validity + comprehension votes, the manipulation-pattern catalog.
+# (SEED_TERM_PROOFS held back — its demo terms await a demo-content
+# pass; the pattern catalog seeds now.)
+from scoring.term_proofs import (DataManipulationPattern,
+                                 ProofRebuttal, ProofVote,
+                                 SEED_MANIPULATION_PATTERNS,
+                                 TermProof)
+# Legislation tracking: who drafted what, who voted, provision-level
+# contributor attribution; official legislative API registrations.
+from scoring.legislation import (LegislationProvision,
+                                 LegislationRecord,
+                                 LegislativeVoteEvent)
+from dmvdata.legis_sources import (SEED_LEGIS_DOMAINS,
+                                   SEED_LEGIS_ENDPOINTS,
+                                   SEED_LEGIS_GOV_SOURCES)
+# ncg-2: court cases advanced fork-by-fork through compiled no-code
+# graphs (the judicial client of the graph-compiler seam).
+from scoring.court_case import CourtCase
+# Group/instance authority: users hold primary/shared authority over
+# groups + instances; bindings make an instance THE authoritative
+# source for a group (both-sides definition with the PSC); signals
+# are admitted only through the three-check authority verdict.
+from scoring.group_authority import (GroupAuthorityGrant,
+                                     GroupInstanceBinding,
+                                     InstanceAuthorityGrant,
+                                     TermAvailabilitySignal)
+# AR zone capture (arz-1): 3+ placed points become a volume (prism)
+# or a shape in the air (hull); sites aggregate zones house-wide.
+from zones.zone_basis import (SEED_SITES, SEED_ZONE_POINTS,
+                              SEED_ZONES, SiteDefinition,
+                              ZoneDefinition, ZoneEstimateRecord,
+                              ZonePoint)
+from polariNoCode.graph_compilers import (GraphCompilerDefinition,
+                                          SEED_GRAPH_COMPILERS)
+# ncg-3: digital-logic diagrams as rows -> generated Verilog/bench,
+# iCE40 synthesis target (the hwdigital client of the same seam).
+from hwdigital.logic_basis import (LogicBlockDesign, LogicBlockNode,
+                                   SEED_LOGIC_DESIGNS,
+                                   SEED_LOGIC_NODES)
+# ncg-4: circuits as rows -> generated SPICE netlists (the circuit
+# client of the same seam).
+from electrodevice.circuit_basis import (
+    CircuitComponentDefinition, CircuitDefinition,
+    CircuitNetDefinition, SEED_CIRCUIT_COMPONENTS,
+    SEED_CIRCUIT_NETS, SEED_CIRCUITS)
+# ncg-5: breadboards — placements wired by tie point, jumpers
+# joining boards, boards re-wrappable as components.
+from electrodevice.breadboard_basis import (
+    BoardJumper, BreadboardDefinition, ComponentPlacement,
+    SEED_BREADBOARDS, SEED_JUMPERS, SEED_PLACEMENTS)
+# col-1 (DMV cost of living): persona/geography vocabulary, the
+# obscure-factor terms, escape-cost walkthrough categories, and the
+# law-as-data statute values (DMV_COST_OF_LIVING_DATA_PLAN.md).
+from scoring.dmv_col_seed import (
+    SEED_DMV_GEO_CONTEXTS, SEED_DMV_SUBJECTS, SEED_DMV_TERMS,
+    SEED_DMV_TIMEFRAMES, SEED_ESCAPE_COST_CATEGORIES,
+    SEED_ESCAPE_COST_TERMS, SEED_PERSONA_CONTEXTS,
+    SEED_STATUTE_VALUES)
+# col-2: the official-source registrations the API profiler ingests
+# from (auth via env knobs only — repos are public).
+from dmvdata.source_seed import (SEED_API_DOMAINS,
+                                 SEED_API_ENDPOINTS)
+# GovSource registry: acronym glossary + key requirements +
+# duplication-origin records (retrievals are runtime data, no seeds).
+from dmvdata.gov_sources import (GovSource, SEED_GOV_SOURCES,
+                                 SourceRetrieval)
+# Cross-validation: independent re-pull confirmations + provider-
+# group reliability terms/concept (weights mechanism-B votable).
+from dmvdata.cross_validation import (RetrievalConfirmation,
+                                      SEED_PROVIDER_CONCEPT,
+                                      SEED_PROVIDER_TERMS)
+# Varying legal source types — nonprofit/company/political-group/
+# individual siblings of GovSource, one cross-type machinery.
+from dmvdata.legal_sources import (
+    CompanySource, IndividualSource, NonProfitSource,
+    PoliticalGroupSource, SEED_COMPANY_SOURCES,
+    SEED_INDIVIDUAL_SOURCES, SEED_NONPROFIT_SOURCES,
+    SEED_POLITICAL_SOURCES)
+# ncg-6: design-output -> circuit-source bindings, and authorable
+# no-code test cases/packs (the acct-6 seed).
+from electrodevice.level_bridge import (PinBindingDefinition,
+                                        SEED_PIN_BINDINGS)
+from polariNoCode.nocode_tests import (NoCodeTestCase,
+                                       NoCodeTestPack,
+                                       SEED_TEST_CASES,
+                                       SEED_TEST_PACKS)
 # scr-15: media outlets held accountable for accuracy to the data.
 from scoring.media_accuracy import (
     AccuracyPolicy, FactualClaim, SEED_ACCURACY_POLICIES,
@@ -196,6 +309,26 @@ from scoring.survival_costs import (
 # objects + waterproof pot materials (ceramic/geopolymer).
 from aquaponics.pot_basis import PotDefinition, PotHole
 from aquaponics.pot_seed import SEED_POTS, SEED_POT_HOLES
+# waxprint module (wp-1): pellet-fed auger-screw wax 3D-printer sim —
+# printer assembly + wax feedstock + print condition + device materials,
+# with the two-zone (auger + hotend) melt and wax thermal-safety gate.
+from waxprint.waxprint_basis import (
+    DeviceMaterialDefinition, PrinterAssemblyDefinition,
+    WaxFeedstockDefinition, PrintConditionDefinition,
+)
+from waxprint.waxprint_seed import (
+    SEED_DEVICE_MATERIALS, SEED_FEEDSTOCKS, SEED_ASSEMBLIES, SEED_CONDITIONS,
+    SEED_WAXPRINT_MODULES,
+)
+# waxprint sim space (wp-5/wp-6): a registered, 3D-viewable multiscale sim
+# (WaxPrintSimState rows over build height) + condition-evaluation gates.
+# Importing sim_seed appends the scene/bindings/equations/sim-def/runs/msim/
+# ic-picker to the shared framework seed lists (trigger-on-import pattern).
+from waxprint.sim_state import WaxPrintSimState
+from waxprint import sim_seed  # noqa: F401 (import triggers the seed appends)
+from waxprint.sim_seed import (
+    SEED_WAXPRINT_STATE_ROWS, SEED_WAXPRINT_PAGE_DISPLAYS,
+)
 from aquaponics.pot_materials_seed import (
     SEED_POT_MATERIALS, SEED_POT_PROPERTY_MEANINGS,
     SEED_POT_SCALE_DEFINITIONS,
@@ -435,6 +568,10 @@ from materialsScience.wax_multiscale_seed import (
 from materialsScience.msci_pages_seed import SEED_MSCI_PAGE_DISPLAYS
 # The aquaponics-pot-shape phase 2 pot-geometry-editor DisplayDefinition page.
 from aquaponics.aquaponics_pages_seed import SEED_AQUAPONICS_PAGE_DISPLAYS
+# No-code pages for the modules that had APIs but no UI (nutrition,
+# vermicompost, tanks, biomining, microalgae, wax, supply chain,
+# morphology, authority) — pure class-rows-table/api-json-panel data.
+from polariApiServer.module_pages_seed import SEED_MODULE_PAGE_DISPLAYS
 # The engine-model layer: the FEM/DFT catalog + the specialized
 # domain-shaped model definitions (msci-15).
 from materialsScience.engine_model_template import EngineModelTemplate
@@ -816,6 +953,14 @@ class polariServer(treeObject):
         # (normalize -> context-match -> weight -> levelize) (scr-1).
         from scoring.scoring_api import ScoringAPI
         scoringEndpoint = ScoringAPI(polServer=self, manager=self.manager)
+        from scoring.authority_api import AuthorityAPI
+        authorityEndpoint = AuthorityAPI(polServer=self,
+                                         manager=self.manager)
+        from zones.zones_api import ZonesAPI
+        zonesEndpoint = ZonesAPI(polServer=self, manager=self.manager)
+        from scoring.epistemics_api import EpistemicsAPI
+        epistemicsEndpoint = EpistemicsAPI(polServer=self,
+                                           manager=self.manager)
 
         # Aquaponics: self-watering pot geometry validation + hole
         # generation (aqp-1).
@@ -843,6 +988,15 @@ class polariServer(treeObject):
         from aquaponics.hydraulics_api import AquaponicsHydraulicsAPI
         aquaponicsHydraulicsEndpoint = AquaponicsHydraulicsAPI(
             polServer=self, manager=self.manager)
+        # waxprint (wp-1): pellet-fed auger-screw wax printer — list rows +
+        # run the two-zone melt with the wax thermal-safety gate.
+        from waxprint.waxprint_api import WaxPrintAPI
+        waxPrintEndpoint = WaxPrintAPI(polServer=self, manager=self.manager)
+        # waxprint sim space (wp-5/wp-6): run one IC / a range + evaluate the
+        # condition gates for a run.
+        from waxprint.sim_api import WaxPrintSimAPI
+        waxPrintSimEndpoint = WaxPrintSimAPI(polServer=self,
+                                             manager=self.manager)
         # Aquaponics: worm-compost enrichment loop — release /
         # simulate / compare-modes / enriched-water (aqp-7).
         from aquaponics.vermicompost_api import AquaponicsCompostAPI
@@ -1008,6 +1162,28 @@ class polariServer(treeObject):
         from hwfpga.fpga_api import FpgaRegisterMapAPI
         fpgaRegisterMapEndpoint = FpgaRegisterMapAPI(
             polServer=self, manager=self.manager)
+        # ncg-7 (Dustin: split across small devices): endpoint
+        # construction is NOT auto-gated (only defClassList is), so
+        # the ncg level surfaces guard explicitly — a node assigned
+        # only 'scoring' must carry no /api/hw or circuit routes,
+        # and vice versa, exactly like the testing surface.
+        from polariApiServer.module_gating import (
+            module_enabled as _ncg_module_enabled)
+        if _ncg_module_enabled('hwdigital'):
+            # ncg-3: logic diagrams as rows — catalogue, generated
+            # artifacts (through the compiler seam), evaluate.
+            from hwdigital.logic_api import LogicDesignAPI
+            logicDesignEndpoint = LogicDesignAPI(
+                polServer=self, manager=self.manager)
+        if _ncg_module_enabled('electrodevice'):
+            # ncg-4: circuits as rows — catalogue, netlist, run.
+            from electrodevice.circuit_api import (BreadboardAPI,
+                                                   CircuitRowsAPI)
+            circuitRowsEndpoint = CircuitRowsAPI(
+                polServer=self, manager=self.manager)
+            # ncg-5: jumpered breadboards, run as one netlist.
+            breadboardEndpoint = BreadboardAPI(
+                polServer=self, manager=self.manager)
         # Material-derived electronic devices (derive from msci sims,
         # SPICE cards, ngspice circuit tests).
         from electrodevice.device_api import ElectroDeviceAPI
@@ -1085,9 +1261,35 @@ class polariServer(treeObject):
             GroupDisplayVote, GroupDisplayBallot,
             LogicForkCriterion, LogicForkVote, LogicForkBallot,
             DecisionProcedureEdge, SystemChoiceInForce,
+            CourtCase, GraphCompilerDefinition,
+            GroupAuthorityGrant, InstanceAuthorityGrant,
+            GroupInstanceBinding, TermAvailabilitySignal,
+            SiteDefinition, ZoneDefinition, ZonePoint,
+            ZoneEstimateRecord,
+            LogicBlockDesign, LogicBlockNode,
+            CircuitDefinition, CircuitNetDefinition,
+            CircuitComponentDefinition,
+            BreadboardDefinition, ComponentPlacement, BoardJumper,
+            PinBindingDefinition, NoCodeTestCase, NoCodeTestPack,
+            GovSource, SourceRetrieval, RetrievalConfirmation,
+            NonProfitSource, CompanySource, PoliticalGroupSource,
+            IndividualSource,
+            PolicyDraft, VenueActionRecord, VenueMismatchPattern,
+            LegislationRecord, LegislationProvision,
+            LegislativeVoteEvent,
+            DataGatheringSolution, StepCredibilityAssertion,
+            AssertionCredibilityVote, PolicyIntent,
+            TermProposal, TermRelationAssertion, TermScopeVote,
+            TermProof, ProofRebuttal, DataManipulationPattern,
+            ProofVote,
+            CredibilityClaim, ClaimAttestation, StanceBasis,
+            QualificationRelevanceVote,
             FactualClaim, AccuracyPolicy, BiasPolicy,
             CostCategory, SurvivalCostProfile,
             PotDefinition, PotHole,
+            DeviceMaterialDefinition, PrinterAssemblyDefinition,
+            WaxFeedstockDefinition, PrintConditionDefinition,
+            WaxPrintSimState,
             NutrientSpecies, NutrientProfile, SoilDefinition,
             WaterDefinition, PlantDefinition, PlantPart,
             AtmosphereDefinition, PotSystemDefinition,
@@ -1973,7 +2175,8 @@ class polariServer(treeObject):
              SEED_CHEMICAL_ELEMENTS),
             ('DisplayDefinition', DisplayDefinition,
              SEED_PERIODIC_DISPLAYS + SEED_MSCI_PAGE_DISPLAYS
-             + SEED_AQUAPONICS_PAGE_DISPLAYS + SEED_GROUP_DISPLAYS),
+             + SEED_AQUAPONICS_PAGE_DISPLAYS + SEED_MODULE_PAGE_DISPLAYS
+             + SEED_GROUP_DISPLAYS + SEED_WAXPRINT_PAGE_DISPLAYS),
             # Materials basis — identities before their scale rows.
             ('MaterialsScienceMaterial', MaterialsScienceMaterial,
              SEED_MS_MATERIALS + SEED_STANDARD_MATERIALS
@@ -2023,24 +2226,30 @@ class polariServer(treeObject):
             ('ScoreTerm', ScoreTerm,
              SEED_SCORE_TERMS + SEED_COST_TERMS
              + SEED_AQP_SCORE_TERMS + SEED_ENRICH_SCORE_TERMS
-             + SEED_HOUSING_SCORE_TERMS + SEED_IMPLICATION_SCORE_TERMS),
-            ('ScoreContext', ScoreContext, SEED_SCORE_CONTEXTS),
+             + SEED_HOUSING_SCORE_TERMS + SEED_IMPLICATION_SCORE_TERMS
+             + SEED_DMV_TERMS + SEED_ESCAPE_COST_TERMS
+             + SEED_PROVIDER_TERMS),
+            ('ScoreContext', ScoreContext,
+             SEED_SCORE_CONTEXTS + SEED_DMV_GEO_CONTEXTS
+             + SEED_DMV_TIMEFRAMES + SEED_PERSONA_CONTEXTS),
             ('ScoreSubject', ScoreSubject,
              SEED_SCORE_SUBJECTS + SEED_POLICY_SUBJECTS
              + SEED_POLITICIAN_SUBJECTS + SEED_MEDIA_OUTLETS
              + SEED_AQP_SCORE_SUBJECTS + SEED_ENRICH_SCORE_SUBJECTS
-             + SEED_IMPLICATION_SUBJECTS),
+             + SEED_IMPLICATION_SUBJECTS + SEED_DMV_SUBJECTS),
             ('ContextualizedValue', ContextualizedValue,
              SEED_CONTEXTUALIZED_VALUES
              + SEED_AQP_CONTEXTUALIZED_VALUES
              + SEED_ENRICH_CONTEXTUALIZED_VALUES
              + SEED_HOUSING_CONTEXTUALIZED_VALUES
-             + SEED_IMPLICATION_CONTEXTUALIZED_VALUES),
+             + SEED_IMPLICATION_CONTEXTUALIZED_VALUES
+             + SEED_STATUTE_VALUES),
             ('ScoreConcept', ScoreConcept,
              SEED_SCORE_CONCEPTS + SEED_AQP_SCORE_CONCEPTS
              + SEED_ENRICH_SCORE_CONCEPTS
              + SEED_HOUSING_SCORE_CONCEPTS
-             + SEED_INTERPRETATION_SCORE_CONCEPTS),
+             + SEED_INTERPRETATION_SCORE_CONCEPTS
+             + SEED_PROVIDER_CONCEPT),
             # Groups + the editable agreement-classification bands
             # (concepts first — groups reference member concepts).
             ('ScoreGroup', ScoreGroup,
@@ -2092,6 +2301,96 @@ class polariServer(treeObject):
             # resolved live, no ordering dependency).
             ('SystemChoiceInForce', SystemChoiceInForce,
              SEED_SYSTEM_CHOICES_IN_FORCE),
+            # ncg-2: the compiler registry rows, then cases (cases
+            # are runtime data — no seeds, the table registers).
+            ('GraphCompilerDefinition', GraphCompilerDefinition,
+             SEED_GRAPH_COMPILERS),
+            ('CourtCase', CourtCase, []),
+            # Group/instance authority rows are runtime data (grants
+            # and bindings are explicit acts, never seeded) — the
+            # tables just register.
+            ('GroupAuthorityGrant', GroupAuthorityGrant, []),
+            ('InstanceAuthorityGrant', InstanceAuthorityGrant, []),
+            ('GroupInstanceBinding', GroupInstanceBinding, []),
+            ('TermAvailabilitySignal', TermAvailabilitySignal, []),
+            # AR zones: sites before zones before points (rows
+            # reference upward by name); estimates are runtime data.
+            ('SiteDefinition', SiteDefinition, SEED_SITES),
+            ('ZoneDefinition', ZoneDefinition, SEED_ZONES),
+            ('ZonePoint', ZonePoint, SEED_ZONE_POINTS),
+            ('ZoneEstimateRecord', ZoneEstimateRecord, []),
+            # ncg-3: designs before their nodes (nodes reference the
+            # design by name).
+            ('LogicBlockDesign', LogicBlockDesign,
+             SEED_LOGIC_DESIGNS),
+            ('LogicBlockNode', LogicBlockNode, SEED_LOGIC_NODES),
+            # ncg-4: circuits before nets before components (both
+            # reference the circuit by name).
+            ('CircuitDefinition', CircuitDefinition, SEED_CIRCUITS),
+            ('CircuitNetDefinition', CircuitNetDefinition,
+             SEED_CIRCUIT_NETS),
+            ('CircuitComponentDefinition',
+             CircuitComponentDefinition, SEED_CIRCUIT_COMPONENTS),
+            # ncg-5: boards before placements/jumpers (both
+            # reference boards by name).
+            ('BreadboardDefinition', BreadboardDefinition,
+             SEED_BREADBOARDS),
+            ('ComponentPlacement', ComponentPlacement,
+             SEED_PLACEMENTS),
+            ('BoardJumper', BoardJumper, SEED_JUMPERS),
+            # ncg-6: bindings after the designs/placements they
+            # reference; packs before their cases.
+            ('PinBindingDefinition', PinBindingDefinition,
+             SEED_PIN_BINDINGS),
+            ('NoCodeTestPack', NoCodeTestPack, SEED_TEST_PACKS),
+            ('NoCodeTestCase', NoCodeTestCase, SEED_TEST_CASES),
+            # col-2: source domains before the endpoints that
+            # reference them by domainName.
+            ('APIDomain', APIDomain,
+             SEED_API_DOMAINS + SEED_LEGIS_DOMAINS),
+            ('APIEndpoint', APIEndpoint,
+             SEED_API_ENDPOINTS + SEED_LEGIS_ENDPOINTS),
+            ('GovSource', GovSource,
+             SEED_GOV_SOURCES + SEED_LEGIS_GOV_SOURCES),
+            ('SourceRetrieval', SourceRetrieval, []),
+            ('RetrievalConfirmation', RetrievalConfirmation, []),
+            ('NonProfitSource', NonProfitSource,
+             SEED_NONPROFIT_SOURCES),
+            ('CompanySource', CompanySource, SEED_COMPANY_SOURCES),
+            ('PoliticalGroupSource', PoliticalGroupSource,
+             SEED_POLITICAL_SOURCES),
+            ('IndividualSource', IndividualSource,
+             SEED_INDIVIDUAL_SOURCES),
+            # Drafts + venue records are runtime data; the pattern
+            # catalog seeds Dustin's two sequences (votable rows).
+            ('PolicyDraft', PolicyDraft, []),
+            ('VenueMismatchPattern', VenueMismatchPattern,
+             SEED_VENUE_PATTERNS),
+            ('VenueActionRecord', VenueActionRecord, []),
+            # Legislation rows are runtime data (API pulls or the
+            # manual-entry acts).
+            ('LegislationRecord', LegislationRecord, []),
+            ('LegislationProvision', LegislationProvision, []),
+            ('LegislativeVoteEvent', LegislativeVoteEvent, []),
+            ('DataGatheringSolution', DataGatheringSolution, []),
+            ('StepCredibilityAssertion', StepCredibilityAssertion,
+             []),
+            ('AssertionCredibilityVote', AssertionCredibilityVote,
+             []),
+            ('PolicyIntent', PolicyIntent, []),
+            ('TermProposal', TermProposal, []),
+            ('TermRelationAssertion', TermRelationAssertion, []),
+            ('TermScopeVote', TermScopeVote, []),
+            ('DataManipulationPattern', DataManipulationPattern,
+             SEED_MANIPULATION_PATTERNS),
+            ('TermProof', TermProof, []),
+            ('ProofRebuttal', ProofRebuttal, []),
+            ('ProofVote', ProofVote, []),
+            ('CredibilityClaim', CredibilityClaim, []),
+            ('ClaimAttestation', ClaimAttestation, []),
+            ('StanceBasis', StanceBasis, []),
+            ('QualificationRelevanceVote',
+             QualificationRelevanceVote, []),
             # scr-15: claims after the outlets/terms they reference.
             ('AccuracyPolicy', AccuracyPolicy,
              SEED_ACCURACY_POLICIES),
@@ -2099,9 +2398,25 @@ class polariServer(treeObject):
             # scr-16: bias bands as editable rows.
             ('BiasPolicy', BiasPolicy, SEED_BIAS_POLICIES),
             # scr-12a: the walkthrough vocabulary + demo households.
-            ('CostCategory', CostCategory, SEED_COST_CATEGORIES),
+            ('CostCategory', CostCategory,
+             SEED_COST_CATEGORIES + SEED_ESCAPE_COST_CATEGORIES),
             ('SurvivalCostProfile', SurvivalCostProfile,
              SEED_SURVIVAL_PROFILES),
+            # waxprint (wp-1): device materials + wax feedstocks BEFORE the
+            # assemblies (which ref materials) and conditions.
+            ('DeviceMaterialDefinition', DeviceMaterialDefinition,
+             SEED_DEVICE_MATERIALS),
+            ('WaxFeedstockDefinition', WaxFeedstockDefinition,
+             SEED_FEEDSTOCKS),
+            ('PrinterAssemblyDefinition', PrinterAssemblyDefinition,
+             SEED_ASSEMBLIES),
+            ('PrintConditionDefinition', PrintConditionDefinition,
+             SEED_CONDITIONS),
+            # waxprint sim space (wp-5): pre-computed baseline run states
+            # (the two seeded runs render in the wax-print-wall scene).
+            ('WaxPrintSimState', WaxPrintSimState, SEED_WAXPRINT_STATE_ROWS),
+            # waxprint (wp-8): first-class Polari Module identity row.
+            ('PolariModule', PolariModule, SEED_WAXPRINT_MODULES),
             # aqp-1: self-watering pots + their side holes (pots
             # before holes — holes reference their pot).
             ('PotDefinition', PotDefinition, SEED_POTS),

@@ -36,72 +36,17 @@ def check(label, cond, extra=''):
 
 
 # ---------------------------------------------------------------------------
-# Graph-authoring helpers (the exact dict shape the editor persists).
+# Graph-authoring helpers — promoted to polariNoCode.graph_builder (ncg-1);
+# this gate now exercises the SAME seam domain compilers build through.
 # ---------------------------------------------------------------------------
 
-def node(name, cls, fields=None, outs=None, index=0):
-    """One state instance. `outs` is a list per OUTPUT slot: each entry a
-    list of target state names (empty list = a slot with no connector)."""
-    slots = [{'isInput': True, 'connectors': []}]
-    for targets in (outs if outs is not None else [[]]):
-        slots.append({
-            'isInput': False,
-            'connectors': [{'targetStateName': t} for t in targets],
-        })
-    return {
-        'stateName': name,
-        'stateClass': cls,
-        'boundObjectClass': cls,
-        'boundObjectFieldValues': fields or {},
-        'slots': slots,
-        'index': index,
-    }
-
-
-def solution(name, *states):
-    return {'solutionName': name,
-            'stateInstances': [dict(s, index=i) for i, s in enumerate(states)]}
+from polariNoCode.graph_builder import (node, solution, entry, assign,
+                                        math, ret, execute)
+from polariNoCode.graph_compilers import final_context_of as final_context
 
 
 def run(sol, params=None):
-    engine = SolutionExecutionEngine(manager=None)
-    return engine.execute(
-        solution_data=sol, input_params=params or {},
-        config=StepConfig(mode='step', record_context=True),
-        target_runtime='python_backend',
-    )
-
-
-def final_context(trace):
-    """Unwrap the last snapshot's variables — the consumer contract the
-    runner's _extract_final_context uses."""
-    if not trace.steps:
-        return {}
-    variables = trace.steps[-1].context_after.variables
-    return {k: (v.get('value') if isinstance(v, dict) and 'value' in v else v)
-            for k, v in variables.items()}
-
-
-def entry(name='Start'):
-    return node(name, 'InitialState', {}, outs=[[]])
-
-
-def assign(name, var, value, nxt):
-    return node(name, 'VariableAssignment',
-                {'variableName': var, 'value': value}, outs=[[nxt]])
-
-
-def math(name, res, left, op, right, nxt):
-    return node(name, 'MathOperation',
-                {'leftOperand': left, 'operationType': op,
-                 'rightOperand': right, 'resultVariable': res},
-                outs=[[nxt] if nxt else []])
-
-
-def ret(name, var):
-    return node(name, 'ReturnValue',
-                {'returnValueSource': 'variable', 'variableName': var},
-                outs=[])
+    return execute(sol, params=params)
 
 
 # ---------------------------------------------------------------------------

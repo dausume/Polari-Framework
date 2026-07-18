@@ -1977,6 +1977,98 @@ class SolutionExecutionEngine:
 
             result['result'] = computed
 
+        elif state_class == 'WaxPrintOperation':
+            # Hosts one wax-printer COMMAND (wp-7) — makes the validated
+            # waxprint physics engine callable from no-code, so a solution
+            # graph can compute a command's inputs, run it, and keep
+            # computing on its outputs. `command` picks the operation
+            # (melt / bead-voxel / movement / print-step; extensible to
+            # printer-control commands). inputBindings feed the command's
+            # inputs: each {'symbol','source'} resolves through the context
+            # and lands in the inputs dict under `symbol` — symbols are the
+            # command's declared input names (assembly / feedstock /
+            # condition / height_mm / pattern).
+            #
+            # Outputs: every result key is written into the context as
+            # 'waxprint.<key>'; resultKeyMap entries {'resultKey',
+            # 'contextVar'} additionally copy chosen keys to friendly
+            # variables; the shared resultTarget convention stores the
+            # whole outputs dict like every other operation.
+            command = (field_values.get('command', '')
+                       or field_values.get('commandName', ''))
+            input_bindings = field_values.get('inputBindings', []) or []
+            result_key_map = field_values.get('resultKeyMap', []) or []
+            result_target = field_values.get('resultTarget',
+                                             'result_variable')
+            result_field_path = field_values.get('resultFieldPath', '')
+            result_var_name = field_values.get('resultVariableName',
+                                               'waxprint_result')
+
+            inputs = {}
+            for b in input_bindings:
+                if not isinstance(b, dict):
+                    continue
+                sym = (b.get('symbol') or '').strip()
+                src = b.get('source')
+                if not sym or src is None:
+                    continue
+                try:
+                    inputs[sym] = _resolve_value_source_config(src, context)
+                except Exception as e:
+                    log_output.append(
+                        f'[{state_name}] WaxPrintOperation: failed to '
+                        f'resolve input `{sym}`: {e}')
+
+            computed = None
+            if not command:
+                log_output.append(
+                    f'[{state_name}] WaxPrintOperation: no command '
+                    'configured.')
+            else:
+                try:
+                    from waxprint.commands import run_command
+                    report = run_command(self.manager, command, inputs)
+                except Exception as e:
+                    report = {'ok': False, 'error': str(e)}
+                if report.get('ok'):
+                    computed = report.get('outputs', {})
+                    for k, v in computed.items():
+                        context[f'waxprint.{k}'] = v
+                    for m in result_key_map:
+                        if not isinstance(m, dict):
+                            continue
+                        rk = m.get('resultKey', '')
+                        cv = m.get('contextVar', '')
+                        if rk and cv:
+                            if rk in computed:
+                                context[cv] = computed[rk]
+                            else:
+                                log_output.append(
+                                    f'[{state_name}] WaxPrintOperation: '
+                                    f'result has no key `{rk}` (available: '
+                                    f'{sorted(computed)[:8]})')
+                    log_output.append(
+                        f'[{state_name}] WaxPrintOperation `{command}` '
+                        f'→ {sorted(computed)[:6]}')
+                else:
+                    log_output.append(
+                        f'[{state_name}] WaxPrintOperation `{command}` '
+                        f'refused: {report.get("error", "?")}')
+
+            if result_target == 'solution_field' and result_field_path:
+                key = result_field_path
+                if key.startswith('self.'):
+                    context[key] = computed
+                    context[key[5:]] = computed
+                else:
+                    context[key] = computed
+                    context[f'self.{key}'] = computed
+            else:
+                if result_var_name:
+                    context[result_var_name] = computed
+
+            result['result'] = computed
+
         elif state_class == 'SimStepContribution':
             # Terminator for `simStepPartial` SimulationStateStep
             # solutions. Emits a sparse `{fieldName → {value, op}}`

@@ -91,6 +91,18 @@ def _walk_scope(walker: '_ClosureWalker', scope: Dict[str, Any]) -> None:
         walker.walk_ic_interface(ic)
     for display in scope.get('displays') or []:
         walker._add_by_name('DisplayDefinition', display)
+    # ncg-7: generic rows-by-class roots — lets NON-sim content
+    # (logic designs, circuits, breadboards, judicial procedures,
+    # test packs) export as module objects through the same scope
+    # knob. {'classRows': {'LogicBlockDesign': ['demo-counter2']}}.
+    # Closure convenience lives in polariPeers.ncg_module_scopes.
+    for class_name, names in (scope.get('classRows') or {}).items():
+        # The carried class is also a REQUIREMENT: the importing
+        # instance must hold a fingerprint-matching definition, same
+        # contract as the sim-walk's state classes.
+        walker.required.add(class_name)
+        for row_name in names:
+            walker._add_by_name(class_name, row_name)
 
 
 def suggest_module_scopes(manager) -> List[Dict[str, Any]]:

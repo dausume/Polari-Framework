@@ -68,6 +68,7 @@ BACKEND_ONLY_RUNTIME_CLASSES = {
     'CalculusOperation',        # SymPy equations
     'MatrixEquationOperation',  # numpy matrix engine
     'EngineModelOperation',     # FEM/DFT engine models (msci-18)
+    'WaxPrintOperation',        # wax-printer command engine (wp-7)
     'StateChangeCommit',        # persists instances via the manager/DB
     'SimulationStateStep',      # simulation-runner entry
     'SimStepNextState',         # simulation-runner terminators

@@ -130,3 +130,4 @@ class SimulationDefinition(treeObject):
         self.time_unit = time_unit
         self.initial_conditions_validator_ref = initial_conditions_validator_ref
         self.field_save_overrides_json = field_save_overrides_json
+        self.xr_requirement = xr_requirement

@@ -112,9 +112,14 @@ def _live_checks(by_name):
               row['status'] == 'pass', row['evidence'][:140])
     row = run_check(by_name['substrate:restart-persistence'])
     rows.append(row)
+    # Two honest refusals exist: with MariaDB declared, the probe
+    # names the disruptive knob; on a host with no substrate at all
+    # (the distributed-matrix machines) it skips at declaration —
+    # both are the honest path, neither is a pass-through.
     check('restart probe refuses without the disruptive knob',
           row['status'] == 'skip-honest'
-          and 'POLARI_ALLOW_DISRUPTIVE' in row['evidence'])
+          and ('POLARI_ALLOW_DISRUPTIVE' in row['evidence']
+               or 'not declared' in row['evidence']))
     return rows
 
 

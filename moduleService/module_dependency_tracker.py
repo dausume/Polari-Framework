@@ -60,6 +60,10 @@ FRAMEWORK_BOUNDARIES: Dict[str, str] = {
     'polariDataTyping': 'Typing: polyTyping and friends',
     'polariAnalytics': 'Analytics',
     'accessControl': 'Access control',
+    'waxprint': 'Wax-3D-Printing: pellet-fed auger-screw wax printer — '
+                'two-zone melt + safety, bead cooling/voxelization, '
+                'movement patterns, print-recipe optimizer, a registered '
+                'sim space, and no-code wax-printer commands',
 }
 
 _IMPORT_RE = re.compile(

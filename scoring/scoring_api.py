@@ -306,6 +306,17 @@ class ScoringAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/scoring/decision-procedures/{name}/resolved',
                 self, suffix='decision_procedure_resolved')
+            # ncg-2: cases advanced fork-by-fork through COMPILED
+            # no-code graphs (the judicial seam client).
+            polServer.falconServer.add_route(
+                '/api/scoring/court-cases/create', self,
+                suffix='court_case_create')
+            polServer.falconServer.add_route(
+                '/api/scoring/court-cases/{name}/advance', self,
+                suffix='court_case_advance')
+            polServer.falconServer.add_route(
+                '/api/scoring/court-cases/{name}', self,
+                suffix='court_case')
             polServer.falconServer.add_route(
                 '/api/scoring/system-choices/{fork}/outcomes',
                 self, suffix='system_choice_outcomes')
@@ -724,6 +735,54 @@ class ScoringAPI(treeObject):
 
     def on_get_decision_procedure_resolved(self, request, response, name):
         report = resolved_procedure_summary(self.manager, name)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    # --- ncg-2: court cases on the compiled-fork-graph seam ---
+
+    def on_post_court_case_create(self, request, response):
+        from scoring.court_case import create_court_case
+        try:
+            payload = json.load(request.bounded_stream)
+        except Exception as e:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': f'bad JSON payload: {e}'}
+            return
+        result = create_court_case(
+            self.manager,
+            payload.get('name', ''),
+            payload.get('decision_procedure_name', ''),
+            initial_context=payload.get('initial_context') or {},
+            adjudicator_type=payload.get('adjudicator_type', 'judge'),
+            adjudicator_name=payload.get('adjudicator_name', ''),
+            jurisdiction_subject_name=payload.get(
+                'jurisdiction_subject_name', ''),
+            notes=payload.get('notes', ''))
+        if not result.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = result
+
+    def on_post_court_case_advance(self, request, response, name):
+        from scoring.court_case import advance_case
+        try:
+            payload = json.load(request.bounded_stream)
+        except Exception as e:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': f'bad JSON payload: {e}'}
+            return
+        result = advance_case(
+            self.manager, name, payload.get('determination'),
+            supplied_by=payload.get('supplied_by', ''))
+        if not result.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = result
+
+    def on_get_court_case(self, request, response, name):
+        from scoring.court_case import case_report
+        report = case_report(self.manager, name)
         if not report.get('ok'):
             response.status = '404 Not Found'
         response.media = report

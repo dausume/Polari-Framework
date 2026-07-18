@@ -38,6 +38,9 @@ CATEGORY_BY_PACKAGE = {
     'simulationLocks': 'twin',
     'topology': 'twin',
     'polariNoCode': 'nocode',
+    'hwdigital': 'hwdigital',
+    'electrodevice': 'circuit',
+    'dmvdata': 'format',
     'matrices': 'engine',
     'simulations': 'engine',
     'simSpace': 'engine',
@@ -63,10 +66,97 @@ BLOCKING_CATEGORIES = frozenset({'substrate', 'transport', 'twin'})
 CATEGORY_OVERRIDES = {
     'selftest:testing.formats': 'format',
     'selftest:testing.stomp': 'transport',
+    # ncg-2: the judicial client is the standing litmus that the
+    # no-code generalization seam still serves its first domain.
+    'selftest:scoring.court_case': 'nocode',
+    # ncg-7: the levels must keep splitting across small nodes.
+    'selftest:testing.ncg_split': 'nocode',
+    # ncg-7: the levels as PolariModule objects (export -> store ->
+    # dynamic load into a running instance).
+    'selftest:polariPeers.ncg_modules': 'nocode',
+    # API-profiler schema-drift adaptation + relocation discovery
+    # (Dustin 2026-07-16): deterministic in-process golden behavior
+    # over an emulated external API — a format concern.
+    'selftest:polariApiProfiler.profiler_drift': 'format',
 }
 
 # Per-check criticality overrides (win over the category rule).
 CRITICALITY_OVERRIDES = {
+    # ncg-0: the old no-code must PROVABLY keep working while the
+    # generalization workstream (judicial + circuits) builds on it —
+    # the seven engine selftests + the P5 TS parity leg + the
+    # editor/engine drift sweep gate every phase (Dustin 2026-07-16).
+    'selftest:polariNoCode.turing': 'blocking',
+    'selftest:polariNoCode.composition': 'blocking',
+    'selftest:polariNoCode.parity': 'blocking',
+    'selftest:polariNoCode.display_flow': 'blocking',
+    'selftest:polariNoCode.matrixop': 'blocking',
+    'selftest:polariNoCode.engine_model_op': 'blocking',
+    'selftest:polariNoCode.pendulum_embed': 'blocking',
+    # ncg-1: the promoted builder + compiler/orchestrator seam is
+    # what every domain compiler (judicial, circuits) builds through
+    # — it gates like the engine gates it wraps.
+    'selftest:polariNoCode.graph_builder': 'blocking',
+    'selftest:scoring.court_case': 'blocking',
+    'selftest:testing.nocode_matrix': 'blocking',
+    # ncg-3: the digital-logic client of the seam — python reference
+    # + verilated bench agreement + real iCE40 synthesis (tool legs
+    # skip-honest inside containers).
+    'selftest:hwdigital.logic': 'blocking',
+    # ncg-4: rows must keep reproducing the hand-renderer currents
+    # (real ngspice leg; skip-honest without the binary).
+    'selftest:electrodevice.circuit_rows': 'blocking',
+    # ncg-5: placements/jumpers/board-as-component must keep
+    # conducting the proven current (real ngspice leg).
+    'selftest:electrodevice.breadboard': 'blocking',
+    # ncg-6: the cross-level bridge + the authorable test packs.
+    'selftest:electrodevice.level_bridge': 'blocking',
+    'selftest:polariNoCode.nocode_tests': 'blocking',
+    'selftest:testing.ncg_split': 'blocking',
+    'selftest:polariPeers.ncg_modules': 'blocking',
+    'selftest:polariApiProfiler.profiler_drift': 'blocking',
+    # col-1: the DMV vocabulary (personas, statutes-as-data, escape
+    # costs) — deterministic in-process; the scorecard's data floor.
+    'selftest:scoring.dmv_col': 'blocking',
+    # col-2: source registrations + the Census pull slice (live leg
+    # skip-honest without network/POLARI_CENSUS_API_KEY).
+    'selftest:dmvdata.dmv_sources': 'blocking',
+    # GovSource registry: acronym glossary, key requirements,
+    # retrieval attribution, term origins (Dustin 2026-07-16).
+    'selftest:dmvdata.gov_sources': 'blocking',
+    # Cross-validation: independent re-pull confirmations raise
+    # sourcing credibility; provider groups scored on reliability.
+    'selftest:dmvdata.cross_validation': 'blocking',
+    # Legal source types: nonprofit/company/political-group/
+    # individual siblings of GovSource, one cross-type machinery.
+    'selftest:dmvdata.legal_sources': 'blocking',
+    # Policy drafts scoreable through their lifecycle + the venue-
+    # mismatch pattern analysis (policy-via-budget-rider,
+    # suppression-by-defunding) — findings land as scr-6 assertions.
+    'selftest:scoring.policy_drafts': 'blocking',
+    'selftest:scoring.venue_patterns': 'blocking',
+    # Legislation tracking: drafting/vote rosters/provision
+    # contributors + burial patterns; Congress.gov + VA LIS
+    # registered, MD manual-entry by necessity (no official API).
+    'selftest:scoring.legislation': 'blocking',
+    # Assertion credibility votes (group + individual units),
+    # drafter-set PolicyIntent, org data-gathering solutions on the
+    # graph seam, and the Term Competition system (scope eligibility
+    # + legitimacy elections — the PSC termcompetition draft, built).
+    'selftest:scoring.assertion_credibility': 'blocking',
+    'selftest:scoring.policy_intent': 'blocking',
+    'selftest:scoring.data_gathering': 'blocking',
+    'selftest:scoring.term_competition': 'blocking',
+    # Democratic term proofs: rebuttable, re-runnable demonstrations
+    # with validity + comprehension votes and the manipulation
+    # catalog (neutral computable exposure checks).
+    'selftest:scoring.term_proofs': 'blocking',
+    # Credibility bases: professional/impact/methodological standing
+    # per domain, affiliations disclosed inline, kinds never
+    # collapsed into one number.
+    'selftest:scoring.credibility_bases': 'blocking',
+    'nocode:variant-sweep': 'blocking',
+    'nocode:ts-parity': 'blocking',
     # Known matcher drift (prf-test-suites 2026-07-11) — visible
     # debt, not a pipeline gate, until the profiler row is repaired.
     'suite:api-profiler': 'informational',
@@ -207,6 +297,40 @@ def _transport_entries():
             for name, kind, fn, description in rows]
 
 
+def _nocode_entries():
+    """ncg-0: per-node-type variant rows (container-stable set:
+    backend registry ∪ python dispatch), the drift-sweep summary,
+    and the TS-side parity leg. Import kept local — the enumeration
+    touches polariNoCode, and the catalog module itself must stay
+    import-light."""
+    from testing.nocode_checks import variant_class_names
+    prefix = 'testing.nocode_checks:'
+    entries = [
+        _entry(name=f'nocode:variant-{cls}', category='nocode',
+               kind='in-process', runner_kind='callable',
+               runner_ref=prefix + 'check_variant_' + cls,
+               description=f'Editor/engine/palette drift check for '
+                           f'node type {cls} — truthful stub labels '
+                           f'pass, lying about capability fails.')
+        for cls in variant_class_names()]
+    entries.append(_entry(
+        name='nocode:variant-sweep', category='nocode',
+        kind='in-process', runner_kind='callable',
+        runner_ref=prefix + 'check_variant_sweep',
+        description='Set-level drift summary across every node-type '
+                    'source (registry, engine dispatch, palette, '
+                    'capability partition); palette-only classes '
+                    'surface here.'))
+    entries.append(_entry(
+        name='nocode:ts-parity', category='nocode', kind='host',
+        runner_kind='callable',
+        runner_ref=prefix + 'check_ts_parity',
+        description='P5 TS engine over the shared parity vectors '
+                    '(`npm run parity`) — skip-honest without the '
+                    'Angular checkout or npm.'))
+    return entries
+
+
 def _twin_entries():
     """acct-3: the compose-driven coherence rehearsal."""
     return [_entry(
@@ -226,7 +350,7 @@ def catalog_checks():
     (category, name). Pure data — no manager, no side effects."""
     entries = (_suite_entries() + _selftest_entries()
                + _substrate_entries() + _transport_entries()
-               + _twin_entries())
+               + _nocode_entries() + _twin_entries())
     for entry in entries:
         override = CATEGORY_OVERRIDES.get(entry['name'])
         if override:
