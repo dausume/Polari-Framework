@@ -146,20 +146,27 @@ def _framework_root():
 
 def discover_suites(root=None):
     """{module_dir: [suite python-module paths]} — the same
-    selftest_*.py discovery rule the pol CLI uses."""
+    selftest_*.py discovery rule the pol CLI uses. Scans BOTH import
+    roots (mp-1): the framework root and modules/ (relocated feature
+    modules keep their import names there)."""
     root = root or _framework_root()
     suites = {}
-    for entry in sorted(os.listdir(root)):
-        directory = os.path.join(root, entry)
-        if entry.startswith(('.', '_')) or not os.path.isdir(directory):
+    scan_roots = [root, os.path.join(root, 'modules')]
+    for scan_root in scan_roots:
+        if not os.path.isdir(scan_root):
             continue
-        found = sorted(
-            f'{entry}.{filename[:-3]}'
-            for filename in os.listdir(directory)
-            if filename.startswith('selftest_')
-            and filename.endswith('.py'))
-        if found:
-            suites[entry] = found
+        for entry in sorted(os.listdir(scan_root)):
+            directory = os.path.join(scan_root, entry)
+            if (entry.startswith(('.', '_')) or entry == 'modules'
+                    or not os.path.isdir(directory)):
+                continue
+            found = sorted(
+                f'{entry}.{filename[:-3]}'
+                for filename in os.listdir(directory)
+                if filename.startswith('selftest_')
+                and filename.endswith('.py'))
+            if found:
+                suites.setdefault(entry, found)
     return suites
 
 

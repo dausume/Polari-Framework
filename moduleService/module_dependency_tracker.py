@@ -89,12 +89,15 @@ def _framework_dirs() -> frozenset:
     global _FRAMEWORK_DIRS
     if _FRAMEWORK_DIRS is None:
         root = _framework_root()
-        try:
-            _FRAMEWORK_DIRS = frozenset(
-                entry for entry in os.listdir(root)
-                if os.path.isdir(os.path.join(root, entry)))
-        except OSError:
-            _FRAMEWORK_DIRS = frozenset()
+        dirs = set()
+        for scan_root in (root, os.path.join(root, 'modules')):
+            try:
+                dirs.update(
+                    entry for entry in os.listdir(scan_root)
+                    if os.path.isdir(os.path.join(scan_root, entry)))
+            except OSError:
+                pass
+        _FRAMEWORK_DIRS = frozenset(dirs)
     return _FRAMEWORK_DIRS
 
 

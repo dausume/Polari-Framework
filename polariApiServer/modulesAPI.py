@@ -30,6 +30,7 @@ class ModulesAPI(treeObject):
             polServer.falconServer.add_route(self.apiName, self)
             polServer.falconServer.add_route(self.apiName + '/seed', self, suffix='seed')
             polServer.falconServer.add_route(self.apiName + '/create', self, suffix='create')
+            polServer.falconServer.add_route(self.apiName + '/registry', self, suffix='registry')
             polServer.falconServer.add_route(self.apiName + '/{module_id}', self, suffix='detail')
 
     # ------------------------------------------------------------------
@@ -253,6 +254,14 @@ class ModulesAPI(treeObject):
     # ------------------------------------------------------------------
     # POST /modules/create
     # ------------------------------------------------------------------
+    def on_get_registry(self, request, response):
+        """mp-1: the module register — official/vendor/self entries
+        with filesystem-synced downloaded flags (never stale)."""
+        from moduleService.module_registry import load_registry
+        response.media = {'success': True,
+                          'registry': load_registry()}
+        response.set_header('Powered-By', 'Polari')
+
     def on_post_create(self, request, response):
         """Create a new module from a definition.
 
@@ -284,6 +293,15 @@ class ModulesAPI(treeObject):
             # Persist new module as disabled by default
             from moduleService.moduleState import save_module_state
             save_module_state(result['module_id'], False)
+
+            # mp-1: user-created modules register as kind 'self' in
+            # the inspectable register — your own module has the
+            # same shape as an official one.
+            from moduleService.module_registry import register_module
+            register_module(
+                result['module_id'], 'self',
+                description=body.get('description', ''),
+                path=f"modules/{result['package_name']}")
 
             response.media = {
                 "success": True,
@@ -324,7 +342,10 @@ class ModulesAPI(treeObject):
         import os as _os
         root = _os.path.dirname(_os.path.dirname(
             _os.path.abspath(__file__)))
+        # mp-1: feature modules may live in either import root.
         dir_path = _os.path.join(root, module_id)
+        if not _os.path.isdir(dir_path):
+            dir_path = _os.path.join(root, 'modules', module_id)
         if not _os.path.isdir(dir_path):
             response.status = falcon.HTTP_404
             response.media = {
@@ -537,8 +558,10 @@ class ModulesAPI(treeObject):
             os.path.abspath(__file__)))
         for module_id in sorted(set(by_module) | set(
                 FRAMEWORK_BOUNDARIES)):
-            if module_id in known or not os.path.isdir(
-                    os.path.join(root, module_id)):
+            present = (os.path.isdir(os.path.join(root, module_id))
+                       or os.path.isdir(os.path.join(
+                           root, 'modules', module_id)))
+            if module_id in known or not present:
                 continue
             class_names = by_module.get(module_id, [])
             modules.append({

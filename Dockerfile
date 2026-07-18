@@ -85,6 +85,10 @@ ENV FREETYPE_DIR=/build/freetype-2.6.1
 ENV FREETYPE_ROOT=$FREETYPE_DIR
 ENV LD_LIBRARY_PATH="$FREETYPE_DIR/builds/unix/:$LD_LIBRARY_PATH"
 ENV PYTHONDONTWRITEBYTECODE=1
+# mp-1: modules/ is a second import root — relocated feature modules
+# keep their import names in EVERY python process (server, selftest
+# subprocesses, docker exec), not just where sitecustomize loads.
+ENV PYTHONPATH=/app/modules
 
 # Copy application code LAST (this layer invalidates most often)
 # This ensures dependency layers are cached and reused
