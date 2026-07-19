@@ -460,6 +460,7 @@ try:
     )
     # pspp-3: structure rows (earned, never seeded) + reaction
     # windows (Ch.8 ranges arrive as cited rows — none hardcoded).
+    from pspp.pages_seed import SEED_PSPP_PAGE_DISPLAYS
     from pspp.material_structure import ScaleStructureDefinition
     from pspp.reaction_windows import ReactionWindow, SEED_REACTION_WINDOWS
     # pspp-4: processes as first-class transformations + the reaction
@@ -479,7 +480,7 @@ except ImportError as _exc:
         'SEED_DIGITIZED_DATASETS', 'MaterialState', 'ProcessingStage',
         'SEED_PROCESSING_STAGES', 'ScaleStructureDefinition',
         'ReactionWindow', 'SEED_REACTION_WINDOWS',
-        'MaterialProcessDefinition', 'MaterialProcessExecution',
+        'SEED_PSPP_PAGE_DISPLAYS', 'MaterialProcessDefinition', 'MaterialProcessExecution',
         'SEED_PROCESS_DEFINITIONS', 'ChemicalSpecies', 'ReactionRule',
         'SEED_CHEMICAL_SPECIES', 'SEED_REACTION_RULES',
     ))
@@ -2537,7 +2538,8 @@ class polariServer(treeObject):
             ('DisplayDefinition', DisplayDefinition,
              SEED_PERIODIC_DISPLAYS + SEED_MSCI_PAGE_DISPLAYS
              + SEED_AQUAPONICS_PAGE_DISPLAYS + SEED_MODULE_PAGE_DISPLAYS
-             + SEED_GROUP_DISPLAYS + SEED_WAXPRINT_PAGE_DISPLAYS),
+             + SEED_GROUP_DISPLAYS + SEED_WAXPRINT_PAGE_DISPLAYS
+             + (SEED_PSPP_PAGE_DISPLAYS or [])),
             # Materials basis — identities before their scale rows.
             ('MaterialsScienceMaterial', MaterialsScienceMaterial,
              SEED_MS_MATERIALS + SEED_STANDARD_MATERIALS
