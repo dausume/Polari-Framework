@@ -112,7 +112,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/zones",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-zones.git",
       "wave": 4,
       "requires": [
         "scoring"
@@ -123,7 +123,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/xr",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-xr.git",
       "wave": 4,
       "required_by_core": true,
       "description": "XR settings cascade + interface variants. Moves in wave 4; core still imports it statically (drop refuses)."
@@ -132,7 +132,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/aquaponics",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-aquaponics.git",
       "wave": 5,
       "requires": [
         "plant_morphology",
@@ -144,7 +144,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/grpcbridge",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-grpcbridge.git",
       "wave": 5,
       "description": "gRPC contracts from stabilized schemas, Java hardware bridges, hw sim rigs."
     },
@@ -152,7 +152,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/resources",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-resources.git",
       "wave": 5,
       "required_by_core": true,
       "description": "Node resource inventory, module profiles, admission advisor. Moves in wave 5; core still imports it statically (drop refuses)."
@@ -161,7 +161,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/waxprint",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-waxprint.git",
       "wave": 6,
       "description": "Pellet-fed auger-screw wax printer: melt/bead-voxel/movement sim + optimizer."
     },
@@ -169,7 +169,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/scoring",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-scoring.git",
       "wave": 6,
       "description": "Context-based scoring engine + epistemics stack (terms, proofs, credibility, authority)."
     },
@@ -177,7 +177,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/techtree",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-techtree.git",
       "wave": 6,
       "description": "Tech trees with theory/real/business/politics segments; OSEB baseline rollup."
     },
@@ -185,7 +185,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/polariapps",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-polariapps.git",
       "wave": 6,
       "description": "Polari-Apps: module configurations per use-case, plan-first + exportable."
     },
@@ -193,7 +193,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/testing",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-testing.git",
       "wave": 6,
       "description": "Accountability spine (opt-in: registers only on test builds / explicit POLARI_MODULES)."
     },
