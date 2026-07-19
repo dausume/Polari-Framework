@@ -34,7 +34,8 @@ DATASETS = {d['name']: d
 
 def test_seeds():
     print('[seed integrity]')
-    check('five Ch.5 datasets seeded', len(DATASETS) == 5)
+    check('seven Ch.5 datasets seeded (incl. Figs 5.4/5.5 glass Q '
+          'curves)', len(DATASETS) == 7)
     check('every dataset carries a citation + UNSUPPORTED extrapolation',
           all(d['sourceReference'] and
               d['extrapolationPolicy'] == 'UNSUPPORTED'

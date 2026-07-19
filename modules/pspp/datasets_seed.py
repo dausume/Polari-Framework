@@ -147,6 +147,86 @@ SEED_DIGITIZED_DATASETS = [
         'provenance_id': 'pspp-1 book transcription 2026-07-18',
     },
     {
+        'name': 'na-glass-q-distribution-vs-mr',
+        'source_reference': f'{_BOOK}, Figure 5.4, p.90 (adapted from '
+                            'Maekawa et al. 1991) + Table 5.6 p.103 '
+                            'glass rows + p.90 anchor text',
+        'status': 'ready',
+        'independent_variables_json': '["MR"]',
+        'dependent_variables_json': '["Q0", "Q1", "Q2", "Q3", "Q4"]',
+        'units_json': json.dumps({
+            'MR': 'mol SiO2 / mol Na2O',
+            'Q0-Q4': 'percent of Si sites'}),
+        'source_conditions_json': json.dumps({
+            'system': 'solid Na-silicate GLASS (not solution — the '
+                      'glass->solution transform is the Table 5.6 '
+                      'dataset)',
+            'note': 'Anchor text p.90: MR=1 Na-metasilicate -> almost '
+                    'completely Q2 with small Q1+Q3 (phase III, 50% '
+                    'SiO2); MR=2 Na-disilicate -> virtually only Q3, '
+                    'small Q2+Q4 (phase IV); MR=4 Na-tetrasilicate -> '
+                    'Q3 and Q4 at 50% each. Points at MR '
+                    '1.0/1.33/2.0/3.28 are EXACT (Table 5.6 glass '
+                    'rows, cross-confirmed against the Fig 5.4 '
+                    'curves); MR 4.0 from the anchor statement; '
+                    'MR 0.5 is a curve read.'}),
+        'interpolation_policy': 'linear',
+        'extrapolation_policy': 'UNSUPPORTED',
+        'validity_domain_json': '{"MR": [0.5, 4.0]}',
+        'digitization_method': 'exact table rows + text anchors + '
+                               'photo curve read (MR 0.5 only)',
+        'digitization_error': 'MR 1.0-3.28 exact; MR 4.0 per anchor '
+                              'text; MR 0.5 curve read est. +/-5 Qn%',
+        'points_json': json.dumps([
+            {'MR': 0.5, 'Q0': 8, 'Q1': 27, 'Q2': 52, 'Q3': 8, 'Q4': 0},
+            {'MR': 1.0, 'Q0': 1, 'Q1': 14, 'Q2': 68, 'Q3': 17, 'Q4': 0},
+            {'MR': 1.33, 'Q0': 0, 'Q1': 2, 'Q2': 52, 'Q3': 46, 'Q4': 0},
+            {'MR': 2.0, 'Q0': 0, 'Q1': 0, 'Q2': 13, 'Q3': 75, 'Q4': 12},
+            {'MR': 3.28, 'Q0': 0, 'Q1': 0, 'Q2': 2, 'Q3': 55, 'Q4': 43},
+            {'MR': 4.0, 'Q0': 0, 'Q1': 0, 'Q2': 0, 'Q3': 50, 'Q4': 50},
+        ]),
+        'provenance_id': 'pspp book transcription 2026-07-18 (p.90)',
+    },
+    {
+        'name': 'k-glass-q-distribution-vs-mr',
+        'source_reference': f'{_BOOK}, Figure 5.5, p.90 (adapted from '
+                            'Maekawa et al. 1991) + p.90 anchor text',
+        'status': 'ready',
+        'independent_variables_json': '["MR"]',
+        'dependent_variables_json': '["Q0", "Q1", "Q2", "Q3", "Q4"]',
+        'units_json': json.dumps({
+            'MR': 'mol SiO2 / mol K2O',
+            'Q0-Q4': 'percent of Si sites'}),
+        'source_conditions_json': json.dumps({
+            'system': 'solid K-silicate GLASS',
+            'note': 'Anchor text p.90: MR=1 K-metasilicate -> almost '
+                    'completely Q2, small Q1+Q3 (phase I); MR=2 '
+                    'K-disilicate -> virtually only Q3, small Q2+Q4 '
+                    '(phase II); MR=4 K-tetrasilicate -> Q3 and Q4 at '
+                    '50% each (phase III of K-glass). NO exact table '
+                    'exists for K-glass — all non-anchor points are '
+                    'curve reads; bands honestly wider than the Na '
+                    'dataset.'}),
+        'interpolation_policy': 'linear',
+        'extrapolation_policy': 'UNSUPPORTED',
+        'validity_domain_json': '{"MR": [0.6, 4.0]}',
+        'digitization_method': 'photo curve read anchored by the p.90 '
+                               'text statements (MR=1/2/4)',
+        'digitization_error': 'curve reads est. +/-5 Qn%, +/-0.1 MR; '
+                              'anchor-point splits (small Q1/Q3, '
+                              'small Q2/Q4) estimated from the curves',
+        'points_json': json.dumps([
+            {'MR': 0.6, 'Q0': 5, 'Q1': 25, 'Q2': 58, 'Q3': 5, 'Q4': 0},
+            {'MR': 1.0, 'Q0': 0, 'Q1': 10, 'Q2': 80, 'Q3': 8, 'Q4': 0},
+            {'MR': 1.5, 'Q0': 0, 'Q1': 2, 'Q2': 55, 'Q3': 40, 'Q4': 0},
+            {'MR': 2.0, 'Q0': 0, 'Q1': 0, 'Q2': 12, 'Q3': 78, 'Q4': 8},
+            {'MR': 2.4, 'Q0': 0, 'Q1': 0, 'Q2': 5, 'Q3': 85, 'Q4': 8},
+            {'MR': 3.3, 'Q0': 0, 'Q1': 0, 'Q2': 2, 'Q3': 68, 'Q4': 28},
+            {'MR': 4.0, 'Q0': 0, 'Q1': 0, 'Q2': 0, 'Q3': 50, 'Q4': 50},
+        ]),
+        'provenance_id': 'pspp book transcription 2026-07-18 (p.90)',
+    },
+    {
         'name': 'silicate-solution-viscosity-vs-temperature',
         'source_reference': f'{_BOOK}, Figure 5.20, p.110',
         'status': 'ready',
