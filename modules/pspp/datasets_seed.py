@@ -280,6 +280,204 @@ SEED_DIGITIZED_DATASETS = [
         'provenance_id': 'pspp-1 book transcription 2026-07-18',
     },
     {
+        'name': 'mk750-strength-ph-vs-curing-time',
+        'source_reference': f'{_BOOK.replace("Ch.5", "Ch.8")}, '
+                            'Fig 8.18 + text pp.177-179 '
+                            '(Na-silicate MR=1.70 100g + MK-750 '
+                            '63.47g, Na:Al=1, cured at 80C)',
+        'status': 'ready',
+        'independent_variables_json': '["curing_hours"]',
+        'dependent_variables_json':
+            '["split_tensile_mpa", "ph_broken_sample"]',
+        'units_json': json.dumps({
+            'curing_hours': 'h at 80C',
+            'split_tensile_mpa': 'MPa (Brazilian test, demolded hot, '
+                                 'no drying)',
+            'ph_broken_sample': 'pH'}),
+        'source_conditions_json': json.dumps({
+            'al_species_roles': 'Al(V) (-Al=O) reacts first — 1h '
+                                'hardening; Al(IV) (-Al-O-Al-) slower '
+                                '— 2h peak; Al(VI) (-Al-OH) needs '
+                                'more energy/time — 4-4.5h peak',
+            'dip_mechanism': 'pp.178-179: after ~5h strength DROPS '
+                             '(min 4.26 MPa at 8h) while pH RISES to '
+                             '12.44 — alkaline depolymerization/'
+                             'cleavage of the freshly formed '
+                             'framework; then NEW polymerization '
+                             'phases; 20h plateau 6.90 MPa at lowest '
+                             'pH 12.22. Strength and pH are '
+                             'anticorrelated mirrors. Free water '
+                             'sustains the polymerization/'
+                             'depolymerization equilibrium — '
+                             'subsequent DRYING STOPS IT.',
+            'note': 'Strength values stated exactly in text (p.178 '
+                    'says 6.80, p.179 says 6.83 for the 4h optimum — '
+                    'as-printed variance, both kept); pH values from '
+                    'printed figure labels, time-association '
+                    'approximate.'}),
+        'interpolation_policy': 'linear',
+        'extrapolation_policy': 'UNSUPPORTED',
+        'validity_domain_json': json.dumps({
+            'curing_hours': [1, 24],
+            'note': 'NON-MONOTONIC (dip 5-8h) — linear interpolation '
+                    'inside 4.5-20h carries the dip mechanism note; '
+                    'the band spans honestly wide values there.'}),
+        'digitization_method': 'text-stated values (strength) + '
+                               'printed figure labels (pH)',
+        'digitization_error': 'strength exact per text; pH '
+                              'time-association est. +/-1h',
+        'points_json': json.dumps([
+            {'curing_hours': 1.0, 'split_tensile_mpa': 2.83},
+            {'curing_hours': 2.0, 'split_tensile_mpa': 5.66,
+             'ph_broken_sample': 12.38},
+            {'curing_hours': 4.5, 'split_tensile_mpa': 6.80,
+             'ph_broken_sample': 12.22},
+            {'curing_hours': 8.0, 'split_tensile_mpa': 4.26,
+             'ph_broken_sample': 12.44},
+            {'curing_hours': 20.0, 'split_tensile_mpa': 6.90,
+             'ph_broken_sample': 12.22},
+        ]),
+        'provenance_id': 'pspp book transcription 2026-07-18 '
+                         '(pp.177-179)',
+    },
+    {
+        'name': 'mk750-k-silicate-setting-class-vs-mr',
+        'source_reference': f'{_BOOK.replace("Ch.5", "Ch.8")}, '
+                            '§8.2.8 pp.179-180 + Fig 8.19 '
+                            '(K-silicate 100g + MK-750 80g, 80C, '
+                            'penetrometer)',
+        'status': 'ready',
+        'independent_variables_json': '["MR", "setting_class"]',
+        'dependent_variables_json': '["setting_class_code"]',
+        'units_json': json.dumps({
+            'MR': 'mol SiO2 / mol K2O',
+            'setting_class_code': '1=ultra-rapid(<1h), 2=complete-'
+                                  'at-4h, 3=incomplete-at-4h, '
+                                  '4=no-hardening-in-timeframe'}),
+        'source_conditions_json': json.dumps({
+            'note': 'Seven mixtures, text-stated classes: MR=1.23 '
+                    'ultra rapid (<1h); MR=1.83 and 1.96 complete at '
+                    '4h; MR>1.96 (2.08/2.24/2.43) need >4h; regular '
+                    'commercial MR=2.85 does NOT harden within the '
+                    'experiment timeframe at 80C. Fig 8.19 setting '
+                    'curves exist for finer digitization later '
+                    '(angled photo).'}),
+        'interpolation_policy': 'none',
+        'extrapolation_policy': 'UNSUPPORTED',
+        'validity_domain_json': '{"MR": [1.23, 2.85]}',
+        'digitization_method': 'text-stated classes',
+        'digitization_error': '',
+        'points_json': json.dumps([
+            {'MR': 1.23, 'setting_class': 'ultra-rapid',
+             'setting_class_code': 1},
+            {'MR': 1.83, 'setting_class': 'complete-at-4h',
+             'setting_class_code': 2},
+            {'MR': 1.96, 'setting_class': 'complete-at-4h',
+             'setting_class_code': 2},
+            {'MR': 2.08, 'setting_class': 'incomplete-at-4h',
+             'setting_class_code': 3},
+            {'MR': 2.24, 'setting_class': 'incomplete-at-4h',
+             'setting_class_code': 3},
+            {'MR': 2.43, 'setting_class': 'incomplete-at-4h',
+             'setting_class_code': 3},
+            {'MR': 2.85, 'setting_class': 'no-hardening',
+             'setting_class_code': 4},
+        ]),
+        'provenance_id': 'pspp book transcription 2026-07-18 '
+                         '(pp.179-180)',
+    },
+    {
+        'name': 'k-pss-exotherm-vs-cure-temperature',
+        'source_reference': f'{_BOOK.replace("Ch.5", "Ch.8")}, '
+                            '§8.2.9 p.180 + Fig 8.20 (Davidovits '
+                            '1988; K-silicate MR=1.83 100g + MK-750 '
+                            '80g)',
+        'status': 'ready',
+        'independent_variables_json': '["cure_temperature_c"]',
+        'dependent_variables_json':
+            '["exotherm_peak_c", "peak_time_min"]',
+        'units_json': json.dumps({
+            'cure_temperature_c': 'degC oven',
+            'exotherm_peak_c': 'degC sample peak',
+            'peak_time_min': 'minutes to peak'}),
+        'source_conditions_json': json.dumps({
+            'note': 'The cure-temperature kinetics ladder: heating '
+                    'method changes KINETICS not chemistry; the '
+                    'measured-curve floor for ReactionProgressModel '
+                    'v1 (no Arrhenius fit until a cited Ea exists — '
+                    'invariant I5).'}),
+        'interpolation_policy': 'linear',
+        'extrapolation_policy': 'UNSUPPORTED',
+        'validity_domain_json': '{"cure_temperature_c": [40, 85]}',
+        'digitization_method': 'text-stated values',
+        'digitization_error': '',
+        'points_json': json.dumps([
+            {'cure_temperature_c': 40, 'exotherm_peak_c': 70,
+             'peak_time_min': 210},
+            {'cure_temperature_c': 60, 'exotherm_peak_c': 100,
+             'peak_time_min': 90},
+            {'cure_temperature_c': 85, 'exotherm_peak_c': 115,
+             'peak_time_min': 45},
+        ]),
+        'provenance_id': 'pspp book transcription 2026-07-18 (p.180)',
+    },
+    {
+        'name': 'k-geopolymer-porosity-phases-vs-temperature',
+        'source_reference': f'{_BOOK.replace("Ch.5", "Ch.8")}, '
+                            'Table 8.8 p.194 (after Dan Perera and '
+                            'Trautman 2005; K-geopolymer cured '
+                            '80C/24h, heated ambient->1400C in air)',
+        'status': 'ready',
+        'independent_variables_json': '["temperature_c"]',
+        'dependent_variables_json':
+            '["open_porosity_pct", "xrd_phases"]',
+        'units_json': json.dumps({
+            'temperature_c': 'degC',
+            'open_porosity_pct': '% open porosity',
+            'xrd_phases': 'phase list (m=major, Am=amorphous, '
+                          'Q=quartz, G=gehlenite 2CaO.Al2O3.SiO2, '
+                          'K=kalsilite KAlSiO4, L=leucite KAlSi2O6, '
+                          'CaP=Ca8Si5O18)'}),
+        'source_conditions_json': json.dumps({
+            'note': 'The thermal phase-evolution + porosity-evolution '
+                    'benchmark (Findings 8/9 concrete): amorphous to '
+                    '800C; kalsilite major at 1000C; leucite major '
+                    'at 1200C; distorted kalsilite 1250-1400C; NO '
+                    'significant melting at 1400C. Residual Q1-Q3 '
+                    'siloxonates may precipitate as the insoluble '
+                    'Ca-pentamer Ca8Si5O18 — a FUSING ingredient '
+                    '(softens >1400C, lowers kalsilite melting from '
+                    '1750C) that worsens thermal properties.'}),
+        'interpolation_policy': 'linear',
+        'extrapolation_policy': 'UNSUPPORTED',
+        'validity_domain_json': json.dumps({
+            'temperature_c': [20, 1400],
+            'note': 'xrd_phases is categorical — exact-temperature '
+                    'rows only; porosity may interpolate with bands'}),
+        'digitization_method': 'exact table transcription from photo',
+        'digitization_error': '',
+        'points_json': json.dumps([
+            {'temperature_c': 20, 'open_porosity_pct': 29.5,
+             'xrd_phases': 'Am(m), Q, CaP'},
+            {'temperature_c': 500, 'open_porosity_pct': 58.5,
+             'xrd_phases': 'Am(m), Q, CaP'},
+            {'temperature_c': 800, 'open_porosity_pct': 50.4,
+             'xrd_phases': 'Am(m), Q, CaP'},
+            {'temperature_c': 1000, 'open_porosity_pct': 37.8,
+             'xrd_phases': 'K(m), Q, G, CaP, L(trace)'},
+            {'temperature_c': 1200, 'open_porosity_pct': 37.7,
+             'xrd_phases': 'L(m), K'},
+            {'temperature_c': 1250,
+             'xrd_phases': 'distorted K(m), L'},
+            {'temperature_c': 1300, 'open_porosity_pct': 30.5,
+             'xrd_phases': 'distorted K(m), L(trace)'},
+            {'temperature_c': 1350, 'xrd_phases': 'distorted K'},
+            {'temperature_c': 1400, 'open_porosity_pct': 27.6,
+             'xrd_phases': 'distorted K'},
+        ]),
+        'provenance_id': 'pspp book transcription 2026-07-18 (p.194)',
+    },
+    {
         'name': 'na-siloxonate-solubility-vs-temperature',
         'source_reference': f'{_BOOK}, Figure 5.22, p.112',
         'status': 'provisional-low-confidence',

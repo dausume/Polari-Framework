@@ -202,6 +202,12 @@ SEED_CHEMICAL_SPECIES = [
      'notes': 'Liberated by both condensation pathways and reacts '
               'again (pp.186-187) — the alkali is regenerated, not '
               'consumed.'},
+    {'name': 'potassium-hydroxide', 'formula': 'KOH',
+     'species_kind': 'molecule',
+     'notes': 'The K-route regenerated alkali (pp.195-196).'},
+    {'name': 'cyclo-di-sialate-siloxo', 'species_kind': 'motif',
+     'notes': 'Cyclic hexagonal di-(sialate-siloxo) intermediate of '
+              'the K leucite route (p.196, reaction 6).'},
 ] + [
     # Competing framework families (Finding 4) — products COEXIST;
     # a cured material is phase fractions, never one framework.
@@ -276,17 +282,99 @@ SEED_REACTION_RULES = [
         'reactants_json': json.dumps(
             ['metakaolin-layer', 'sodium-ion', 'hydroxide-ion']),
         'products_json': json.dumps(['ortho-sialate']),
-        'topology_change': 'Alkaline attack on the MK-750 '
-                           'aluminosilicate yields the ortho-sialate '
-                           'molecule (steps 1-5; per-step structures '
-                           'live in Ch.6 Fig 6.6 — not yet '
-                           'photographed, so this rule is the '
-                           'coarse template).',
+        'topology_change': 'Steps 1-5 (pp.181-182): alkalination '
+                           'forms the tetravalent-Al side group '
+                           'O3-Si-O-Al-(OH)3(-)Na+ — via the Al(V) '
+                           'alumoxyl (-Al=O) route (§8.3.1) or '
+                           'Al-O-Al cleavage + hydroxylation '
+                           '(§8.3.2); steps 2-4 cleave the '
+                           'poly(siloxo) layer and isolate the '
+                           'ortho-sialate; step 5 reacts the basic '
+                           'siloxo Si-O(-) with Na+/K+ to the '
+                           'Si-ONa/Si-OK terminal. Same steps for Na '
+                           'and K (K+ bigger -> slightly different '
+                           'kinetics; MK-750 poly(siloxo) backbone '
+                           'stays practically intact).',
         'stage': 'ortho-sialate-generation',
-        'hypothesis_status': 'mechanistic-proposal',
+        'hypothesis_status': 'book-supported',
         'material_family': 'geopolymer',
-        'source_reference': 'Davidovits pp.184-187 (both phases '
-                            'follow steps 1-5 before branching)',
+        'source_reference': 'Davidovits pp.181-182 (§8.3-8.3.2, '
+                            'reactions 1 and 5) + pp.184-187 (both '
+                            'phases branch after these steps)',
+    },
+    # ---- pp.194-196: the K analogues — same stages, different
+    # frameworks (the generality proof for rules-as-data) ----
+    {
+        'name': 'kalsilite-pathway-condensation',
+        'display_name': 'K step 6: three ortho-sialates → '
+                        'cyclo-tri-sialate',
+        'reactants_json': json.dumps(
+            ['ortho-sialate', 'ortho-sialate', 'ortho-sialate']),
+        'products_json': json.dumps(
+            ['cyclo-tri-sialate', 'potassium-hydroxide']),
+        'topology_change': 'Condensation between THREE ortho-sialate '
+                           'molecules (Si-OK + OH-Al) creates the '
+                           'hexagonal cyclo-tri-sialate; KOH '
+                           'liberated, reacts again.',
+        'stage': 'branch-selection',
+        'hypothesis_status': 'book-supported',
+        'material_family': 'geopolymer',
+        'source_reference': 'Davidovits p.195 §8.6.1 reaction (6) — '
+                            'K analogue of the Na nepheline route '
+                            '(same stages, different framework)',
+    },
+    {
+        'name': 'kalsilite-framework-polycondensation',
+        'display_name': 'Polycondensation to kalsilite',
+        'reactants_json': json.dumps(['cyclo-tri-sialate']),
+        'products_json': json.dumps(['framework-kalsilite']),
+        'topology_change': 'Polycondensation into the K-poly(sialate) '
+                           'kalsilite framework (KAlSiO4, Si:Al=1).',
+        'stage': 'framework-growth',
+        'hypothesis_status': 'book-supported',
+        'material_family': 'geopolymer',
+        'source_reference': 'Davidovits p.195 §8.6.1',
+    },
+    {
+        'name': 'leucite-pathway-condensation',
+        'display_name': 'K step 6: Q0 + two ortho-sialates → '
+                        'cyclo-di-sialate-siloxo',
+        'reactants_json': json.dumps(
+            ['siloxonate-q0', 'ortho-sialate', 'ortho-sialate']),
+        'products_json': json.dumps(
+            ['cyclo-di-sialate-siloxo', 'potassium-hydroxide']),
+        'topology_change': 'Ortho-siloxonate Q0 condenses with two '
+                           'ortho-sialates (Si-OK, Si-OH, OH-Al) into '
+                           'the cyclic hexagonal di-(sialate-siloxo); '
+                           'KOH liberated. Q0 again requires mild '
+                           'depolymerization of Q1/Q2 at MR < 1.20 — '
+                           'the SAME threshold as the Na phillipsite '
+                           'route (p.196).',
+        'stage': 'branch-selection',
+        'site_constraint': 'surface-only',
+        'hypothesis_status': 'book-supported',
+        'material_family': 'geopolymer',
+        'source_reference': 'Davidovits pp.195-196 §8.6.2 — K '
+                            'analogue of the Na phillipsite route',
+    },
+    {
+        'name': 'leucite-framework-polycondensation',
+        'display_name': 'Polycondensation to leucite',
+        'reactants_json': json.dumps(['cyclo-di-sialate-siloxo']),
+        'products_json': json.dumps(['framework-leucite']),
+        'topology_change': 'Polycondensation into the K-poly(sialate-'
+                           'siloxo) leucite framework (KAlSi2O6, '
+                           'Si:Al=2). Kriven route to pure leucite '
+                           'CERAMIC: crush geopolymer '
+                           'K2O.Al2O3.4SiO2.7.5H2O, die-press, '
+                           'sinter 1200C/12h (~3um leucite grains in '
+                           'amorphous matrix), anneal 1400C/5h '
+                           '(p.196).',
+        'stage': 'framework-growth',
+        'hypothesis_status': 'book-supported',
+        'material_family': 'geopolymer',
+        'source_reference': 'Davidovits p.196 §8.6.2 (Kriven et al. '
+                            '2003/2005)',
     },
     {
         'name': 'albite-pathway-condensation',

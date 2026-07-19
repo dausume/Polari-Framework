@@ -111,10 +111,23 @@ SEED_REACTION_WINDOWS = [
                   '(K-only: M2O = K2O).', _TABLE_C),
     _range_window('k-ps:SiO2/Al2O3', 'k-ps-kaliophilite',
                   'SiO2/Al2O3', 3.3, 4.5,
-                  'Silica-to-alumina of the K-PS mix.', _TABLE_C),
+                  'Silica-to-alumina of the K-PS mix. p.193 GRADED '
+                  'detail: preferably ~4.0-4.2; BELOW 3.7 the '
+                  'solidified polymer has numerous cracks (unusable '
+                  'for molded objects); higher ratios induce a free '
+                  'potassium-silicate phase + migration that disturbs '
+                  'physical/mechanical properties. (Asymmetric bands '
+                  'need the threshold-shaped window variant — '
+                  'recorded, not yet modeled.)', _TABLE_C),
     _range_window('k-ps:H2O/Al2O3', 'k-ps-kaliophilite', 'H2O/Al2O3',
                   10.0, 25.0,
                   'Water-to-alumina of the K-PS mix.', _TABLE_C),
+    _range_window('k-ps:M2O/Al2O3', 'k-ps-kaliophilite', 'M2O/Al2O3',
+                  0.9, 1.60,
+                  'K2O/Al2O3 of the K-PS mix (p.193 Table C cont.). '
+                  'GRADED detail: preferably ~1.3-1.52; BELOW 1.1 '
+                  'numerous cracks. (Asymmetric bands pending the '
+                  'threshold-shaped variant.)', _TABLE_C),
 ]
 
 

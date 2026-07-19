@@ -34,8 +34,28 @@ DATASETS = {d['name']: d
 
 def test_seeds():
     print('[seed integrity]')
-    check('seven Ch.5 datasets seeded (incl. Figs 5.4/5.5 glass Q '
-          'curves)', len(DATASETS) == 7)
+    check('eleven datasets seeded (Ch.5 + Ch.8 curing-kinetics trio '
+          '+ Table 8.8 thermal phases)', len(DATASETS) == 11)
+    thermal = DATASETS['k-geopolymer-porosity-phases-vs-temperature']
+    check('Table 8.8: amorphous->kalsilite->leucite->distorted-K '
+          'ladder, porosity 29.5->58.5->27.6',
+          len(thermal['points']) == 9
+          and thermal['points'][1]['open_porosity_pct'] == 58.5
+          and 'L(m)' in thermal['points'][4]['xrd_phases']
+          and thermal['points'][-1]['open_porosity_pct'] == 27.6)
+    cure = DATASETS['mk750-strength-ph-vs-curing-time']
+    check('strength/pH series carries the depolymerization-dip '
+          'mechanism note',
+          'depolymerization' in
+          cure['sourceConditions']['dip_mechanism'])
+    exo = DATASETS['k-pss-exotherm-vs-cure-temperature']
+    check('exotherm ladder: 40C->210min, 85C->45min',
+          {p['cure_temperature_c']: p['peak_time_min']
+           for p in exo['points']} == {40: 210, 60: 90, 85: 45})
+    setting = DATASETS['mk750-k-silicate-setting-class-vs-mr']
+    check('setting classes discrete (policy none), MR=2.85 never '
+          'hardens', setting['interpolationPolicy'] == 'none'
+          and setting['points'][-1]['setting_class'] == 'no-hardening')
     check('every dataset carries a citation + UNSUPPORTED extrapolation',
           all(d['sourceReference'] and
               d['extrapolationPolicy'] == 'UNSUPPORTED'
