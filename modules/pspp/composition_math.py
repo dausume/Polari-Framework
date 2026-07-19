@@ -62,15 +62,28 @@ def oxide_moles(mass_composition):
 
 
 def oxide_ratios(mass_composition):
+    """The derived composition descriptors (Ch.8 set) from a MASS
+    composition — see ratios_from_moles for the shared ratio math."""
+    verdict = oxide_moles(mass_composition)
+    if not verdict['ok']:
+        return verdict
+    return ratios_from_moles(verdict['moles'])
+
+
+def ratios_from_moles(mole_composition):
     """The derived composition descriptors (Ch.8 set): molar
     SiO2/Al2O3, M2O/SiO2, M2O/Al2O3, H2O/M2O (M2O = Na2O + K2O
     equivalents) and atomic Si/Al, Na/K. Ratios whose denominator is
     absent come back None with the reason — never a crash, never a
-    silent zero."""
-    verdict = oxide_moles(mass_composition)
-    if not verdict['ok']:
-        return verdict
-    moles = verdict['moles']
+    silent zero. Accepts oxide-formula mole inputs directly (e.g. the
+    book's 1.1Na2O:4SiO2:Al2O3:17H2O benchmark)."""
+    unknown = sorted(k for k in mole_composition
+                     if k not in OXIDE_MOLAR_MASSES)
+    if unknown:
+        return {'ok': False,
+                'refusal': f'unknown oxides {unknown}',
+                'suggestion': f'known: {sorted(OXIDE_MOLAR_MASSES)}'}
+    moles = {k: v for k, v in mole_composition.items() if v > 0}
     m2o = moles.get('Na2O', 0.0) + moles.get('K2O', 0.0)
     atoms = {}
     for oxide, count in moles.items():
@@ -89,6 +102,8 @@ def oxide_ratios(mass_composition):
         ('M2O/SiO2', m2o, moles.get('SiO2', 0.0)),
         ('M2O/Al2O3', m2o, moles.get('Al2O3', 0.0)),
         ('H2O/M2O', moles.get('H2O', 0.0), m2o),
+        ('H2O/Al2O3', moles.get('H2O', 0.0),
+         moles.get('Al2O3', 0.0)),
         ('Si/Al', atoms.get('Si', 0.0), atoms.get('Al', 0.0)),
         ('Na/K', atoms.get('Na', 0.0), atoms.get('K', 0.0)),
     ):

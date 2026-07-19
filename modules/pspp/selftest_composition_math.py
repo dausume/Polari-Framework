@@ -11,7 +11,8 @@ import sys
 
 from pspp.composition_math import (
     COMMERCIAL_SILICATE_MR, baume_from_sg, mr_from_solution,
-    mr_from_wr, oxide_ratios, sg_from_baume, wr_from_mr,
+    mr_from_wr, oxide_ratios, ratios_from_moles, sg_from_baume,
+    wr_from_mr,
 )
 
 PASS = 0
@@ -98,6 +99,22 @@ def test_oxide_ratios():
           and any('Na/K' in n for n in r['absentDenominators']))
     check('unknown oxide refused with the known list',
           oxide_ratios({'SiO2': 50.0, 'XyO9': 50.0})['ok'] is False)
+
+    # p.183 benchmark: 1.1Na2O:4SiO2:Al2O3:17H2O (MK-750, MR=1.82).
+    bench = ratios_from_moles({'Na2O': 1.1, 'SiO2': 4.0,
+                               'Al2O3': 1.0, 'H2O': 17.0})
+    check('p.183 benchmark formula reproduces the printed ratios: '
+          'SiO2/Al2O3=4.0(~4.02), Na2O/SiO2=0.275(~0.28), '
+          'Na2O/Al2O3=1.10, Si:Al=2',
+          bench['ok']
+          and close(bench['ratios']['SiO2/Al2O3'], 4.0, 1e-9)
+          and close(bench['ratios']['M2O/SiO2'], 0.275, 1e-9)
+          and close(bench['ratios']['M2O/Al2O3'], 1.10, 1e-9)
+          and close(bench['ratios']['Si/Al'], 2.0, 1e-9))
+    check('formula H2O/M2O = 15.45 (the book PRINTS 17.20 in the '
+          'ratio list — as-printed discrepancy recorded in the '
+          'benchmark JSON, never reconciled silently)',
+          close(bench['ratios']['H2O/M2O'], 15.4545, 0.001))
 
 
 def main():

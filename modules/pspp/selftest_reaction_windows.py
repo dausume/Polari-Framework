@@ -10,7 +10,10 @@ Run from polari-framework/ (modules/ on the path):
 
 import sys
 
-from pspp.reaction_windows import grade_composition, grade_value
+from pspp.composition_math import ratios_from_moles
+from pspp.reaction_windows import (
+    SEED_REACTION_WINDOWS, grade_composition, grade_value,
+)
 
 PASS = 0
 FAIL = 0
@@ -73,9 +76,50 @@ def test_composition_grading():
           none['ok'] is False and 'do NOT transfer' in none['suggestion'])
 
 
+def test_patent_windows():
+    print('[pp.191-192 patent windows (Tables A + C)]')
+    families = {w['material_family'] for w in SEED_REACTION_WINDOWS}
+    check('two patent families seeded, never mixed',
+          families == {'na-k-pss', 'k-ps-kaliophilite'})
+    check('Table A: four (Na,K)-PSS windows',
+          len([w for w in SEED_REACTION_WINDOWS
+               if w['material_family'] == 'na-k-pss']) == 4)
+    check('binary-range semantics documented on every patent window',
+          all('binary range' in w['behavior_note']
+              for w in SEED_REACTION_WINDOWS))
+
+    sial = next(w for w in SEED_REACTION_WINDOWS
+                if w['name'] == 'na-k-pss:SiO2/Al2O3')
+    check('SiO2/Al2O3 window [3.5, 4.5] — deliberately above the '
+          'stoichiometric 2',
+          grade_value(sial, 4.0)['grade'] == 'ideal'
+          and grade_value(sial, 2.0)['grade'] == 'failure')
+
+    # p.183 benchmark: the MK-750 MR=1.82 mix must sit INSIDE the
+    # Table A windows (formula 1.1Na2O:4SiO2:Al2O3:17H2O).
+    bench = ratios_from_moles({'Na2O': 1.1, 'SiO2': 4.0,
+                               'Al2O3': 1.0, 'H2O': 17.0})
+    graded = grade_composition(SEED_REACTION_WINDOWS,
+                               bench['ratios'], 'na-k-pss')
+    check('MK-750 benchmark grades inside ALL four Table A windows',
+          graded['ok'] and graded['overall'] == 'ideal'
+          and len(graded['graded']) == 4)
+    check('descriptors without na-k-pss windows stay unjudged '
+          '(Si/Al, Na/K, H2O/Al2O3)',
+          set(graded['unjudged']) >= {'Si/Al', 'H2O/Al2O3'})
+
+    kps = grade_composition(SEED_REACTION_WINDOWS,
+                            {'M2O/SiO2': 0.365, 'SiO2/Al2O3': 3.9,
+                             'H2O/Al2O3': 17.5},
+                            'k-ps-kaliophilite')
+    check('Table C midpoints grade ideal in the K-PS family',
+          kps['ok'] and kps['overall'] == 'ideal')
+
+
 def main():
     test_grading()
     test_composition_grading()
+    test_patent_windows()
     print(f'\n{PASS} passed, {FAIL} failed')
     return 1 if FAIL else 0
 
