@@ -73,7 +73,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/mathshapes",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-mathshapes.git",
       "wave": 3,
       "requires": [
         "aquaponics",
@@ -85,7 +85,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/electrodevice",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-electrodevice.git",
       "wave": 3,
       "requires": [
         "hwdigital"
@@ -96,7 +96,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/hwdigital",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-hwdigital.git",
       "wave": 3,
       "description": "Logic diagrams as rows -> generated artifacts (iCE40 bitstreams)."
     },
@@ -104,7 +104,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/hwfpga",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-hwfpga.git",
       "wave": 3,
       "description": "FPGA register maps as data; Verilog/C/testbench artifacts from rows."
     },
