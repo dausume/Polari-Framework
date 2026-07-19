@@ -452,11 +452,18 @@ try:
     from pspp.claims import PropertyClaim, StructureClaim, ValidationClaim
     from pspp.digitized_datasets import DigitizedDataset
     from pspp.datasets_seed import SEED_DIGITIZED_DATASETS
+    # pspp-2: the MaterialState DAG + processing-stage vocabulary.
+    # MaterialState rows are EARNED (canonical states stay implicit
+    # until written — pspp.state_resolution), so only stages seed.
+    from pspp.material_states import (
+        MaterialState, ProcessingStage, SEED_PROCESSING_STAGES,
+    )
 except ImportError as _exc:
     _stub_missing_feature('pspp', _exc, globals(), (
         'EvidenceMethod', 'SEED_EVIDENCE_METHODS', 'PropertyClaim',
         'StructureClaim', 'ValidationClaim', 'DigitizedDataset',
-        'SEED_DIGITIZED_DATASETS',
+        'SEED_DIGITIZED_DATASETS', 'MaterialState', 'ProcessingStage',
+        'SEED_PROCESSING_STAGES',
     ))
 try:
     from aquaponics.pot_materials_seed import (
@@ -1549,7 +1556,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition, ThermalProcessingProfile, EvidenceMethod, PropertyClaim, StructureClaim, ValidationClaim, DigitizedDataset,
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition, ThermalProcessingProfile, EvidenceMethod, PropertyClaim, StructureClaim, ValidationClaim, DigitizedDataset, MaterialState, ProcessingStage,
             # Simulations
             SimulationDefinition, SimulationRun, SimVariable,
             SimSpaceEvaluationEquation,
@@ -2555,6 +2562,9 @@ class polariServer(treeObject):
             ('EvidenceMethod', EvidenceMethod, SEED_EVIDENCE_METHODS),
             ('DigitizedDataset', DigitizedDataset,
              SEED_DIGITIZED_DATASETS),
+            # pspp-2: stage vocabulary rows; MaterialState never seeds.
+            ('ProcessingStage', ProcessingStage,
+             SEED_PROCESSING_STAGES),
             # Context-based scoring: terms/contexts/subjects before the
             # values and concepts that reference them.
             ('ScoreTerm', ScoreTerm,

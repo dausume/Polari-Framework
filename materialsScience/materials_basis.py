@@ -187,6 +187,12 @@ class MaterialScaleDefinition(treeObject):
         # Level-specific parameters (JSON — force field, mesh size,
         # functional, mixture fractions…), inspectable at the object.
         parameters_json: str = '{}',
+        # pspp-2: the MaterialState this definition describes
+        # ('<material>#<state>'). '' = the canonical as-defined state —
+        # which is every pre-pspp row, so legacy rows resolve through
+        # canonical with no backfill (invariant I1; the one reader is
+        # pspp.state_resolution.scale_definitions_for_state).
+        state_key: str = '',
         provenance_id: str = '',
         notes: str = '',
         manager=None,
@@ -201,5 +207,6 @@ class MaterialScaleDefinition(treeObject):
         self.derived_from_name = derived_from_name
         self.derivation_method = derivation_method
         self.parameters_json = parameters_json
+        self.state_key = state_key
         self.provenance_id = provenance_id
         self.notes = notes
