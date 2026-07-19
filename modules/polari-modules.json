@@ -22,7 +22,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/nutrition",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-nutrition.git",
       "wave": 1,
       "description": "Dietary nutrients, person/household profiling, harvest -> meal-nutrient yield."
     },
@@ -30,7 +30,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/tanks",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-tanks.git",
       "wave": 1,
       "description": "Freshwater/saltwater tank ecosystems \u2014 the alternate nutrient source."
     },
@@ -38,7 +38,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/plant_morphology",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-plant_morphology.git",
       "wave": 1,
       "description": "3D organ + root stand-in models, confinement/dwarfing assessment."
     },
@@ -159,7 +159,7 @@
     },
     "waxprint": {
       "kind": "official",
-      "downloaded": false,
+      "downloaded": true,
       "path": "modules/waxprint",
       "repo": "",
       "wave": 6,
