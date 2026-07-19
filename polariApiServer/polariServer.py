@@ -469,6 +469,10 @@ try:
         MaterialProcessDefinition, MaterialProcessExecution,
         SEED_PROCESS_DEFINITIONS,
     )
+    from pspp.cmc_library_seed import (
+        SEED_CMC_PROCESS_DEFINITIONS, SEED_CMC_PROCESSING_STAGES,
+        SEED_CMC_PROPERTY_MEANINGS,
+    )
     from pspp.exposure_scenarios import (
         ExposureScenario, SEED_EXPOSURE_SCENARIOS,
     )
@@ -492,6 +496,8 @@ except ImportError as _exc:
         'SEED_CHEMICAL_SPECIES', 'SEED_REACTION_RULES',
         'ScaleTransferDefinition', 'SEED_SCALE_TRANSFERS',
         'ExposureScenario', 'SEED_EXPOSURE_SCENARIOS',
+        'SEED_CMC_PROCESS_DEFINITIONS', 'SEED_CMC_PROCESSING_STAGES',
+        'SEED_CMC_PROPERTY_MEANINGS',
         'MaterialPerformanceScenario',
     ))
 try:
@@ -2593,7 +2599,8 @@ class polariServer(treeObject):
             ('MaterialPropertyMeaning', MaterialPropertyMeaning,
              SEED_PROPERTY_MEANINGS + SEED_POT_PROPERTY_MEANINGS
              + SEED_DIELECTRIC_PROPERTY_MEANINGS
-             + SEED_BIO_ALLOY_PROPERTY_MEANINGS),
+             + SEED_BIO_ALLOY_PROPERTY_MEANINGS
+             + (SEED_CMC_PROPERTY_MEANINGS or [])),
             # pspp (pspp-1): evidence vocabulary + book datasets —
             # claims have no seeds (they are earned, never seeded).
             ('EvidenceMethod', EvidenceMethod, SEED_EVIDENCE_METHODS),
@@ -2601,12 +2608,14 @@ class polariServer(treeObject):
              SEED_DIGITIZED_DATASETS),
             # pspp-2: stage vocabulary rows; MaterialState never seeds.
             ('ProcessingStage', ProcessingStage,
-             SEED_PROCESSING_STAGES),
+             SEED_PROCESSING_STAGES
+             + (SEED_CMC_PROCESSING_STAGES or [])),
             # pspp-4: process vocabulary, patent windows, and the
             # reaction-network library (species before the rules that
             # trade in them). Executions/states are earned, not seeded.
             ('MaterialProcessDefinition', MaterialProcessDefinition,
-             SEED_PROCESS_DEFINITIONS),
+             SEED_PROCESS_DEFINITIONS
+             + (SEED_CMC_PROCESS_DEFINITIONS or [])),
             ('ReactionWindow', ReactionWindow, SEED_REACTION_WINDOWS),
             ('ChemicalSpecies', ChemicalSpecies,
              SEED_CHEMICAL_SPECIES),
