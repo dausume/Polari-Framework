@@ -4,8 +4,9 @@
 Geopolymer book Ch.5 transcriptions as DigitizedDataset seed rows —
 the operational form of /PSPP_DIGITIZED_DATASETS.json at the suite
 root (the transcription record with the full qualitative-claims list).
-Transcribed 2026-07-18 from Dustin's page photographs; exact book
-citation TO CONFIRM before this module goes to a public repo.
+Transcribed 2026-07-18 from Dustin's page photographs of Davidovits,
+"Geopolymer Chemistry and Applications" (title confirmed by Dustin
+2026-07-18; edition still to note when the copyright page is in hand).
 
 Tables 5.4/5.5/5.6 are exact transcriptions (zero digitization error).
 Fig 5.20's markers carry printed value labels (reliable), but the
@@ -17,7 +18,7 @@ which is the honest behavior, not a gap.
 
 import json
 
-_BOOK = 'Geopolymer book Ch.5'
+_BOOK = ('Davidovits, Geopolymer Chemistry and Applications, Ch.5')
 
 SEED_DIGITIZED_DATASETS = [
     {
