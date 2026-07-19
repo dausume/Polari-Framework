@@ -469,6 +469,10 @@ try:
         MaterialProcessDefinition, MaterialProcessExecution,
         SEED_PROCESS_DEFINITIONS,
     )
+    from pspp.exposure_scenarios import (
+        ExposureScenario, SEED_EXPOSURE_SCENARIOS,
+    )
+    from pspp.performance_scenarios import MaterialPerformanceScenario
     from pspp.scale_transfers import (
         ScaleTransferDefinition, SEED_SCALE_TRANSFERS,
     )
@@ -487,6 +491,8 @@ except ImportError as _exc:
         'SEED_PROCESS_DEFINITIONS', 'ChemicalSpecies', 'ReactionRule',
         'SEED_CHEMICAL_SPECIES', 'SEED_REACTION_RULES',
         'ScaleTransferDefinition', 'SEED_SCALE_TRANSFERS',
+        'ExposureScenario', 'SEED_EXPOSURE_SCENARIOS',
+        'MaterialPerformanceScenario',
     ))
 try:
     from aquaponics.pot_materials_seed import (
@@ -1586,7 +1592,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition, ThermalProcessingProfile, EvidenceMethod, PropertyClaim, StructureClaim, ValidationClaim, DigitizedDataset, MaterialState, ProcessingStage, ScaleStructureDefinition, ReactionWindow, MaterialProcessDefinition, MaterialProcessExecution, ChemicalSpecies, ReactionRule, ScaleTransferDefinition,
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition, ThermalProcessingProfile, EvidenceMethod, PropertyClaim, StructureClaim, ValidationClaim, DigitizedDataset, MaterialState, ProcessingStage, ScaleStructureDefinition, ReactionWindow, MaterialProcessDefinition, MaterialProcessExecution, ChemicalSpecies, ReactionRule, ScaleTransferDefinition, ExposureScenario, MaterialPerformanceScenario,
             # Simulations
             SimulationDefinition, SimulationRun, SimVariable,
             SimSpaceEvaluationEquation,
@@ -2607,6 +2613,8 @@ class polariServer(treeObject):
             ('ReactionRule', ReactionRule, SEED_REACTION_RULES),
             ('ScaleTransferDefinition', ScaleTransferDefinition,
              SEED_SCALE_TRANSFERS),
+            ('ExposureScenario', ExposureScenario,
+             SEED_EXPOSURE_SCENARIOS),
             # Context-based scoring: terms/contexts/subjects before the
             # values and concepts that reference them.
             ('ScoreTerm', ScoreTerm,
