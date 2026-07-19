@@ -34,8 +34,8 @@ DATASETS = {d['name']: d
 
 def test_seeds():
     print('[seed integrity]')
-    check('eleven datasets seeded (Ch.5 + Ch.8 curing-kinetics trio '
-          '+ Table 8.8 thermal phases)', len(DATASETS) == 11)
+    check('thirteen datasets seeded (Ch.5+Ch.8 + Fig 5.21/5.22 + '
+          'Table 5.8)', len(DATASETS) == 13)
     thermal = DATASETS['k-geopolymer-porosity-phases-vs-temperature']
     check('Table 8.8: amorphous->kalsilite->leucite->distorted-K '
           'ladder, porosity 29.5->58.5->27.6',
@@ -160,17 +160,18 @@ def test_viscosity_log_linear():
           str(noSeries['suggestion']))
 
 
-def test_provisional_refusal():
-    print('[Fig 5.22: provisional dataset refuses]')
+def test_solubility_reshoot():
+    print('[Fig 5.22: straight-on re-shoot readable]')
     sol = DATASETS['na-siloxonate-solubility-vs-temperature']
     r = read_dataset(sol, {'series': 'MR=1 Na-metasilicate pentahydrate',
-                           'temperature_C': 40})
-    check('provisional-low-confidence dataset refused until re-shoot',
-          r['ok'] is False and 'provisional' in r['refusal'])
-    check('refusal suggestion points at the data-entry knob',
-          'status=ready' in r['suggestion'])
-    check('qualitative shape is still recorded for the page',
-          'rise with temperature' in sol['qualitativeShape'])
+                           'temperature_C': 45})
+    check('MR=1 series interpolates with the stated +/-30 g/L read '
+          'error riding as an assumption',
+          r['ok'] and 520 < r['values']['solubility_g_per_L'] < 610
+          and any('30 g/L' in a for a in r['assumptions']))
+    check('three series present with 16 read points total',
+          len({p.get('series') for p in sol['points']}) == 3
+          and len(sol['points']) == 16)
 
 
 def main():
@@ -178,7 +179,7 @@ def main():
     test_exact_and_interpolated_reads()
     test_discrete_lookup()
     test_viscosity_log_linear()
-    test_provisional_refusal()
+    test_solubility_reshoot()
     print(f'\n{PASS} passed, {FAIL} failed')
     return 1 if FAIL else 0
 

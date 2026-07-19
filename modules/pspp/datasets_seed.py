@@ -347,8 +347,9 @@ SEED_DIGITIZED_DATASETS = [
                             '(K-silicate 100g + MK-750 80g, 80C, '
                             'penetrometer)',
         'status': 'ready',
-        'independent_variables_json': '["MR", "setting_class"]',
-        'dependent_variables_json': '["setting_class_code"]',
+        'independent_variables_json': '["MR"]',
+        'dependent_variables_json':
+            '["setting_class_code", "setting_class"]',
         'units_json': json.dumps({
             'MR': 'mol SiO2 / mol K2O',
             'setting_class_code': '1=ultra-rapid(<1h), 2=complete-'
@@ -480,7 +481,7 @@ SEED_DIGITIZED_DATASETS = [
     {
         'name': 'na-siloxonate-solubility-vs-temperature',
         'source_reference': f'{_BOOK}, Figure 5.22, p.112',
-        'status': 'provisional-low-confidence',
+        'status': 'ready',
         'independent_variables_json':
             '["temperature_C", "series"]',
         'dependent_variables_json': '["solubility_g_per_L"]',
@@ -495,17 +496,105 @@ SEED_DIGITIZED_DATASETS = [
         'validity_domain_json': json.dumps({
             'temperature_C': [10, 90],
             'solubility_g_per_L': [300, 900]}),
-        'digitization_method': 'angled-photo curve read — axes and '
-                               'shape reliable, point values NOT; '
-                               'RE-SHOOT REQUESTED',
-        'digitization_error': 'est. +/-50 g/L, +/-5 degC',
-        'points_json': '[]',
-        'qualitative_shape': 'All three series rise with temperature '
-                             'over 10-90 degC within 300-900 g/L; '
-                             'MR=1 and MR=2 lie well above MR=3.3 and '
-                             'cross mid-range; MR=3.3 stays lowest. '
-                             'Points intentionally absent pending '
-                             're-digitization.',
-        'provenance_id': 'pspp-1 book transcription 2026-07-18',
+        'digitization_method': 'straight-on photo curve read '
+                               '(re-shoot received 2026-07-18)',
+        'digitization_error': 'est. +/-30 g/L, +/-3 degC',
+        'points_json': json.dumps([
+            {'series': 'MR=1 Na-metasilicate pentahydrate',
+             'temperature_C': 30, 'solubility_g_per_L': 430},
+            {'series': 'MR=1 Na-metasilicate pentahydrate',
+             'temperature_C': 40, 'solubility_g_per_L': 520},
+            {'series': 'MR=1 Na-metasilicate pentahydrate',
+             'temperature_C': 50, 'solubility_g_per_L': 610},
+            {'series': 'MR=1 Na-metasilicate pentahydrate',
+             'temperature_C': 60, 'solubility_g_per_L': 700},
+            {'series': 'MR=1 Na-metasilicate pentahydrate',
+             'temperature_C': 65, 'solubility_g_per_L': 760},
+            {'series': 'MR=2 Na-disilicate 17pct water',
+             'temperature_C': 18, 'solubility_g_per_L': 500},
+            {'series': 'MR=2 Na-disilicate 17pct water',
+             'temperature_C': 30, 'solubility_g_per_L': 565},
+            {'series': 'MR=2 Na-disilicate 17pct water',
+             'temperature_C': 40, 'solubility_g_per_L': 630},
+            {'series': 'MR=2 Na-disilicate 17pct water',
+             'temperature_C': 50, 'solubility_g_per_L': 690},
+            {'series': 'MR=2 Na-disilicate 17pct water',
+             'temperature_C': 60, 'solubility_g_per_L': 750},
+            {'series': 'MR=2 Na-disilicate 17pct water',
+             'temperature_C': 70, 'solubility_g_per_L': 810},
+            {'series': 'MR=3.3 Na-trisilicate 17pct water',
+             'temperature_C': 20, 'solubility_g_per_L': 395},
+            {'series': 'MR=3.3 Na-trisilicate 17pct water',
+             'temperature_C': 35, 'solubility_g_per_L': 430},
+            {'series': 'MR=3.3 Na-trisilicate 17pct water',
+             'temperature_C': 50, 'solubility_g_per_L': 465},
+            {'series': 'MR=3.3 Na-trisilicate 17pct water',
+             'temperature_C': 65, 'solubility_g_per_L': 495},
+            {'series': 'MR=3.3 Na-trisilicate 17pct water',
+             'temperature_C': 80, 'solubility_g_per_L': 530},
+        ]),
+        'qualitative_shape': '',
+        'provenance_id': 'pspp book transcription 2026-07-18 '
+                         '(re-shoot p.112)',
+    },
+    {
+        'name': 'na-silicate-ph-vs-na2o-concentration',
+        'source_reference': f'{_BOOK}, Figure 5.21, p.111',
+        'status': 'ready',
+        'independent_variables_json': '["na2o_concentration_pct"]',
+        'dependent_variables_json': '["ph"]',
+        'units_json': json.dumps({
+            'na2o_concentration_pct': '% Na2O', 'ph': 'pH'}),
+        'source_conditions_json': json.dumps({
+            'note': 'p.110 §5.9: pH depends on MR and above all on '
+                    'M2O concentration; commercial solutions pH '
+                    '10.9-13.5; MR=1 metasilicates above 13.5.'}),
+        'interpolation_policy': 'linear',
+        'extrapolation_policy': 'UNSUPPORTED',
+        'validity_domain_json':
+            '{"na2o_concentration_pct": [2, 20]}',
+        'digitization_method': 'photo curve read',
+        'digitization_error': 'est. +/-0.2 pH, +/-1 pct',
+        'points_json': json.dumps([
+            {'na2o_concentration_pct': 2, 'ph': 10.8},
+            {'na2o_concentration_pct': 5, 'ph': 11.4},
+            {'na2o_concentration_pct': 10, 'ph': 12.2},
+            {'na2o_concentration_pct': 15, 'ph': 12.8},
+            {'na2o_concentration_pct': 20, 'ph': 13.3},
+        ]),
+        'provenance_id': 'pspp book transcription 2026-07-18 (p.111)',
+    },
+    {
+        'name': 'commercial-hydrous-silicate-powders',
+        'source_reference': f'{_BOOK}, Table 5.8, p.111',
+        'status': 'ready',
+        'independent_variables_json': '["product"]',
+        'dependent_variables_json':
+            '["Na2O_pct", "K2O_pct", "SiO2_pct", "MR", "H2O_pct"]',
+        'units_json': json.dumps({
+            'composition': 'weight percent', 'MR': 'mol/mol'}),
+        'source_conditions_json': json.dumps({
+            'note': 'Commercialized hydrous alkali silicate powders '
+                    '(spray/drum dried; residual moisture ~10-20% '
+                    'aids re-dissolution, optimum ~20%). Solubility '
+                    'and dissolution speed depend on MR, water '
+                    'temperature, particle size/structure, and '
+                    'hydration degree (p.111).'}),
+        'interpolation_policy': 'none',
+        'extrapolation_policy': 'UNSUPPORTED',
+        'validity_domain_json': '{}',
+        'digitization_method': 'exact table transcription from photo',
+        'digitization_error': '',
+        'points_json': json.dumps([
+            {'product': 'na-disilicate', 'Na2O_pct': 27.0,
+             'SiO2_pct': 55.0, 'MR': 2.06, 'H2O_pct': 17.0},
+            {'product': 'na-trisilicate', 'Na2O_pct': 19.0,
+             'SiO2_pct': 64.0, 'MR': 3.4, 'H2O_pct': 17.0},
+            {'product': 'na-disilicate-spray', 'Na2O_pct': 27.5,
+             'SiO2_pct': 55.0, 'MR': 2.06, 'H2O_pct': 18.0},
+            {'product': 'k-disilicate', 'K2O_pct': 28.0,
+             'SiO2_pct': 56.0, 'MR': 3.12, 'H2O_pct': 16.0},
+        ]),
+        'provenance_id': 'pspp book transcription 2026-07-18 (p.111)',
     },
 ]

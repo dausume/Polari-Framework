@@ -1248,6 +1248,13 @@ class polariServer(treeObject):
         materialDetailEndpoint = MaterialDetailAPI(
             polServer=self, manager=self.manager)
 
+        # PSPP: dataset curves + reaction network + composition
+        # grading + cure progress (pspp-V — every chart generated
+        # from rows so a book figure proofs against live data).
+        if _feature_available('pspp'):
+            from pspp.pspp_api import PsppAPI
+            psppEndpoint = PsppAPI(polServer=self, manager=self.manager)
+
         # Context-based scoring: concept list + the scoring pipeline
         # (normalize -> context-match -> weight -> levelize) (scr-1).
         # mp-3: every feature-module endpoint below is gated on the
