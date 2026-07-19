@@ -46,7 +46,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/waxsupply",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-waxsupply.git",
       "wave": 2,
       "description": "Bio wax sources for molds and electronic masks."
     },
@@ -54,7 +54,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/supplychain",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-supplychain.git",
       "wave": 2,
       "description": "Unifying bio supply-chain ledger \u2014 materials + food + carbon accounting."
     },
@@ -62,7 +62,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/dmvdata",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-dmvdata.git",
       "wave": 2,
       "requires": [
         "scoring"
