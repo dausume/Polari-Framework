@@ -444,6 +444,20 @@ except ImportError as _exc:
         'SEED_WAXPRINT_MODULES', 'WaxPrintSimState', 'sim_seed', 'SEED_WAXPRINT_STATE_ROWS',
         'SEED_WAXPRINT_PAGE_DISPLAYS',
     ))
+# pspp module (pspp-1): PSPP evidence + claims + digitized-dataset
+# foundation — the one EvidenceMethod vocabulary, claims-not-values
+# rows, and book figures/tables as data read by one generic engine.
+try:
+    from pspp.evidence_methods import EvidenceMethod, SEED_EVIDENCE_METHODS
+    from pspp.claims import PropertyClaim, StructureClaim, ValidationClaim
+    from pspp.digitized_datasets import DigitizedDataset
+    from pspp.datasets_seed import SEED_DIGITIZED_DATASETS
+except ImportError as _exc:
+    _stub_missing_feature('pspp', _exc, globals(), (
+        'EvidenceMethod', 'SEED_EVIDENCE_METHODS', 'PropertyClaim',
+        'StructureClaim', 'ValidationClaim', 'DigitizedDataset',
+        'SEED_DIGITIZED_DATASETS',
+    ))
 try:
     from aquaponics.pot_materials_seed import (
         SEED_POT_MATERIALS, SEED_POT_PROPERTY_MEANINGS,
@@ -1535,7 +1549,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition, ThermalProcessingProfile,
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition, ThermalProcessingProfile, EvidenceMethod, PropertyClaim, StructureClaim, ValidationClaim, DigitizedDataset,
             # Simulations
             SimulationDefinition, SimulationRun, SimVariable,
             SimSpaceEvaluationEquation,
@@ -2536,6 +2550,11 @@ class polariServer(treeObject):
              SEED_PROPERTY_MEANINGS + SEED_POT_PROPERTY_MEANINGS
              + SEED_DIELECTRIC_PROPERTY_MEANINGS
              + SEED_BIO_ALLOY_PROPERTY_MEANINGS),
+            # pspp (pspp-1): evidence vocabulary + book datasets —
+            # claims have no seeds (they are earned, never seeded).
+            ('EvidenceMethod', EvidenceMethod, SEED_EVIDENCE_METHODS),
+            ('DigitizedDataset', DigitizedDataset,
+             SEED_DIGITIZED_DATASETS),
             # Context-based scoring: terms/contexts/subjects before the
             # values and concepts that reference them.
             ('ScoreTerm', ScoreTerm,

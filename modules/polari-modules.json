@@ -210,6 +210,17 @@
       "path": "modules/polariAgroForestryModule",
       "repo": "",
       "description": "Legacy registry module (user-created example)."
+    },
+    "pspp": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/pspp",
+      "repo": "",
+      "wave": 0,
+      "requires": [
+        "materialsScience"
+      ],
+      "description": "PSPP foundation: evidence methods, claims-not-values, digitized book datasets + interpolation (PSPP_MATERIALS_PLAN.md)."
     }
   }
 }
