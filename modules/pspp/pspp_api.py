@@ -14,6 +14,9 @@ carries its evidence and refusals render as refusals.
   GET  /api/pspp/pathways?cation=&mr=&site=  kinetics-free reachability
   POST /api/pspp/guide                       experiment guidance
   POST /api/pspp/checkpoint                  cure checkpoint plan/apply
+  GET  /api/pspp/benchmarks                  benchmark-case catalog
+  GET  /api/pspp/benchmarks/{name}/overlay   measured vs predicted
+  GET  /api/pspp/wax-states                  pspp-11 wax state routes
 """
 
 import json
@@ -53,6 +56,10 @@ class PsppAPI(treeObject):
             add('/api/pspp/pathways', self, suffix='pathways')
             add('/api/pspp/guide', self, suffix='guide')
             add('/api/pspp/checkpoint', self, suffix='checkpoint')
+            add('/api/pspp/benchmarks', self, suffix='benchmarks')
+            add('/api/pspp/benchmarks/{name}/overlay', self,
+                suffix='overlay')
+            add('/api/pspp/wax-states', self, suffix='wax_states')
 
     def on_get_datasets(self, request, response):
         response.media = dataset_catalog(self.manager)
@@ -86,6 +93,24 @@ class PsppAPI(treeObject):
             cure_temperature_c=float(temperature) if temperature
             else 80.0,
             hours=float(hours) if hours else 6.0)
+        if not payload.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = payload
+
+    def on_get_benchmarks(self, request, response):
+        from pspp.benchmark_cases import benchmark_catalog
+        response.media = benchmark_catalog(self.manager)
+
+    def on_get_overlay(self, request, response, name):
+        from pspp.benchmark_cases import benchmark_overlay_by_name
+        payload = benchmark_overlay_by_name(self.manager, name)
+        if not payload.get('ok'):
+            response.status = '404 Not Found'
+        response.media = payload
+
+    def on_get_wax_states(self, request, response):
+        from pspp.wax_states import wax_state_map
+        payload = wax_state_map(self.manager)
         if not payload.get('ok'):
             response.status = '422 Unprocessable Entity'
         response.media = payload

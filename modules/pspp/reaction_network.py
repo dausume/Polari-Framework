@@ -313,6 +313,25 @@ SEED_REACTION_RULES = [
                             'reactions 1 and 5) + pp.184-187 (both '
                             'phases branch after these steps)',
     },
+    {
+        'name': 'ortho-sialate-formation-k',
+        'display_name': 'Ortho-sialate formation, K route '
+                        '(steps 1-5)',
+        'reactants_json': json.dumps(
+            ['metakaolin-layer', 'potassium-ion', 'hydroxide-ion']),
+        'products_json': json.dumps(['ortho-sialate']),
+        'topology_change': 'The SAME steps 1-5 with K+ as the '
+                           'charge-compensating cation (Si-OK '
+                           'terminal) — the book states the steps '
+                           'are identical for Na and K, K+ being '
+                           'bigger changes kinetics only.',
+        'stage': 'ortho-sialate-generation',
+        'hypothesis_status': 'book-supported',
+        'material_family': 'geopolymer',
+        'source_reference': 'Davidovits pp.181-182 ("same steps for '
+                            'Na and K") + pp.194-196 (the K routes '
+                            'consume the K-terminated ortho-sialate)',
+    },
     # ---- pp.194-196: the K analogues — same stages, different
     # frameworks (the generality proof for rules-as-data) ----
     {
@@ -584,6 +603,8 @@ SEED_REACTION_RULES = [
 #: pp.181-182; mild depolymerization spans both — p.196 pins the K
 #: route to the SAME MR<1.20 threshold as the Na phillipsite route).
 _RULE_CATION_FAMILIES = {
+    'ortho-sialate-formation': 'Na',
+    'ortho-sialate-formation-k': 'K',
     'albite-pathway-condensation': 'Na',
     'albite-framework-polycondensation': 'Na',
     'nepheline-pathway-condensation': 'Na',

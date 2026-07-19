@@ -468,6 +468,11 @@ try:
     from pspp.threshold_windows import (
         ThresholdReactionWindow, SEED_THRESHOLD_WINDOWS,
     )
+    # pspp-V3: the Ch.8 patent/lab examples as benchmark rows the
+    # measured-vs-predicted overlay runs against.
+    from pspp.benchmark_cases import (
+        BenchmarkCase, SEED_BENCHMARK_CASES,
+    )
     # pspp-4: processes as first-class transformations + the reaction
     # network as data (generic reactive-material engine).
     from pspp.material_processes import (
@@ -497,6 +502,7 @@ except ImportError as _exc:
         'SEED_PROCESSING_STAGES', 'ScaleStructureDefinition',
         'ReactionWindow', 'SEED_REACTION_WINDOWS',
         'ThresholdReactionWindow', 'SEED_THRESHOLD_WINDOWS',
+        'BenchmarkCase', 'SEED_BENCHMARK_CASES',
         'SEED_PSPP_PAGE_DISPLAYS', 'MaterialProcessDefinition', 'MaterialProcessExecution',
         'SEED_PROCESS_DEFINITIONS', 'ChemicalSpecies', 'ReactionRule',
         'SEED_CHEMICAL_SPECIES', 'SEED_REACTION_RULES',
@@ -2625,6 +2631,7 @@ class polariServer(treeObject):
             ('ReactionWindow', ReactionWindow, SEED_REACTION_WINDOWS),
             ('ThresholdReactionWindow', ThresholdReactionWindow,
              SEED_THRESHOLD_WINDOWS),
+            ('BenchmarkCase', BenchmarkCase, SEED_BENCHMARK_CASES),
             ('ChemicalSpecies', ChemicalSpecies,
              SEED_CHEMICAL_SPECIES),
             ('ReactionRule', ReactionRule, SEED_REACTION_RULES),
