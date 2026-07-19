@@ -18,7 +18,11 @@ from pspp.reaction_network import (
     REACTION_STAGES, SEED_CHEMICAL_SPECIES, SEED_REACTION_RULES,
 )
 from pspp.reaction_windows import (
-    SEED_REACTION_WINDOWS, grade_composition, window_dict,
+    SEED_REACTION_WINDOWS, window_dict,
+)
+from pspp.threshold_windows import (
+    SEED_THRESHOLD_WINDOWS, banded_window_dict,
+    grade_composition_merged,
 )
 from pspp.composition_math import oxide_ratios, ratios_from_moles
 from pspp.state_resolution import material_states
@@ -214,10 +218,17 @@ def grade_payload(manager, composition, basis='mass', family=''):
         return ratios
     windows = _seed_or_rows(manager, 'ReactionWindow',
                             SEED_REACTION_WINDOWS)
+    banded = _seed_or_rows(manager, 'ThresholdReactionWindow',
+                           SEED_THRESHOLD_WINDOWS)
     windowDicts = [window_dict(w) for w in windows]
-    families = sorted({w['materialFamily'] for w in windowDicts})
-    graded = grade_composition(windows, ratios['ratios'],
-                               family) if family else {
+    # Condition-gate windows open/close PATHWAYS (the /pathways
+    # surface) — they never grade a composition.
+    bandedDicts = [w for w in (banded_window_dict(x) for x in banded)
+                   if w['windowRole'] == 'quality']
+    families = sorted({w['materialFamily']
+                       for w in windowDicts + bandedDicts})
+    graded = grade_composition_merged(
+        windows, banded, ratios['ratios'], family) if family else {
         'ok': False,
         'refusal': 'no material_family selected',
         'suggestion': f'pick one of {families}'}
@@ -229,6 +240,9 @@ def grade_payload(manager, composition, basis='mass', family=''):
         'families': families,
         'windows': [w for w in windowDicts
                     if not family or w['materialFamily'] == family],
+        'bandedWindows': [w for w in bandedDicts
+                          if not family
+                          or w['materialFamily'] == family],
         'grading': graded,
     }
 

@@ -117,8 +117,9 @@ SEED_REACTION_WINDOWS = [
                   'for molded objects); higher ratios induce a free '
                   'potassium-silicate phase + migration that disturbs '
                   'physical/mechanical properties. (Asymmetric bands '
-                  'need the threshold-shaped window variant — '
-                  'recorded, not yet modeled.)', _TABLE_C),
+                  'MODELED in the ThresholdReactionWindow row '
+                  "'k-ps:SiO2/Al2O3:banded' — it supersedes this row "
+                  'in merged grading.)', _TABLE_C),
     _range_window('k-ps:H2O/Al2O3', 'k-ps-kaliophilite', 'H2O/Al2O3',
                   10.0, 25.0,
                   'Water-to-alumina of the K-PS mix.', _TABLE_C),
@@ -126,8 +127,9 @@ SEED_REACTION_WINDOWS = [
                   0.9, 1.60,
                   'K2O/Al2O3 of the K-PS mix (p.193 Table C cont.). '
                   'GRADED detail: preferably ~1.3-1.52; BELOW 1.1 '
-                  'numerous cracks. (Asymmetric bands pending the '
-                  'threshold-shaped variant.)', _TABLE_C),
+                  'numerous cracks. (Asymmetric bands MODELED in '
+                  "'k-ps:M2O/Al2O3:banded', which supersedes this "
+                  'row in merged grading.)', _TABLE_C),
 ]
 
 

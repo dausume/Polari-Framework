@@ -106,6 +106,15 @@ class ReactionRule(treeObject):
         # One of SITE_CONSTRAINTS — where transport permits this rule
         # (Fig 8.21 two-phase selection; '' = anywhere).
         site_constraint: str = '',
+        # 'Na' | 'K' | '' (both): §8.5 routes are Na, §8.6 their K
+        # analogues — a rule never fires in a mix whose alkali it
+        # does not name ('' rules fire in both).
+        cation_family: str = '',
+        # JSON list of ThresholdReactionWindow names (condition-gate
+        # role) that must not grade 'failure' for this rule to fire —
+        # pathway thresholds as DATA (e.g. the p.188 MR<1.20 Q0
+        # gate). Enforced by pspp.network_stepping.
+        condition_windows_json: str = '[]',
         # 'none' until a calibration row is loaded (invariant I5).
         kinetics_status: str = 'none',
         kinetics_ref: str = '',
@@ -124,6 +133,8 @@ class ReactionRule(treeObject):
         self.hypothesis_status = hypothesis_status
         self.competing_with_json = competing_with_json
         self.site_constraint = site_constraint
+        self.cation_family = cation_family
+        self.condition_windows_json = condition_windows_json
         self.kinetics_status = kinetics_status
         self.kinetics_ref = kinetics_ref
         self.material_family = material_family
@@ -443,12 +454,14 @@ SEED_REACTION_RULES = [
                            'ortho-siloxonate Q0.',
         'stage': 'dissolution',
         'hypothesis_status': 'book-supported',
+        'condition_windows_json': json.dumps(
+            ['na-silicate:mr-q0-depolymerization']),
         'material_family': 'geopolymer',
         'source_reference': 'Davidovits p.188 §8.5.3 — CONDITION: '
                             'only when the Na-silicate solution has '
-                            'MR < 1.20 (a reaction-window threshold; '
-                            'window row pending a threshold-shaped '
-                            'ReactionWindow variant)',
+                            'MR < 1.20 (gated by the '
+                            "ThresholdReactionWindow row "
+                            "'na-silicate:mr-q0-depolymerization')",
     },
     {
         'name': 'phillipsite-6a-linear-formation',
@@ -566,8 +579,30 @@ SEED_REACTION_RULES = [
     },
 ]
 
+#: §8.5 = the Na routes, §8.6 = their K analogues; unfamilied rules
+#: fire in both (ortho-sialate formation is 'same steps for Na and K',
+#: pp.181-182; mild depolymerization spans both — p.196 pins the K
+#: route to the SAME MR<1.20 threshold as the Na phillipsite route).
+_RULE_CATION_FAMILIES = {
+    'albite-pathway-condensation': 'Na',
+    'albite-framework-polycondensation': 'Na',
+    'nepheline-pathway-condensation': 'Na',
+    'nepheline-framework-polycondensation': 'Na',
+    'phillipsite-6a-linear-formation': 'Na',
+    'phillipsite-6a-quadratic-condensation': 'Na',
+    'phillipsite-6b-disialate-condensation': 'Na',
+    'phillipsite-6b-siloxo-addition': 'Na',
+    'phillipsite-framework-polycondensation': 'Na',
+    'kalsilite-pathway-condensation': 'K',
+    'kalsilite-framework-polycondensation': 'K',
+    'leucite-pathway-condensation': 'K',
+    'leucite-framework-polycondensation': 'K',
+}
+
 for _row in SEED_REACTION_RULES:
     _row.setdefault('provenance_id', _NET_PROVENANCE)
+    _row.setdefault('cation_family',
+                    _RULE_CATION_FAMILIES.get(_row['name'], ''))
 
 
 def _species_names(seed_or_rows):

@@ -463,6 +463,11 @@ try:
     from pspp.pages_seed import SEED_PSPP_PAGE_DISPLAYS
     from pspp.material_structure import ScaleStructureDefinition
     from pspp.reaction_windows import ReactionWindow, SEED_REACTION_WINDOWS
+    # pspp-8: threshold-shaped (banded/asymmetric) windows — p.193
+    # graded bands + condition gates the stepping engine enforces.
+    from pspp.threshold_windows import (
+        ThresholdReactionWindow, SEED_THRESHOLD_WINDOWS,
+    )
     # pspp-4: processes as first-class transformations + the reaction
     # network as data (generic reactive-material engine).
     from pspp.material_processes import (
@@ -491,6 +496,7 @@ except ImportError as _exc:
         'SEED_DIGITIZED_DATASETS', 'MaterialState', 'ProcessingStage',
         'SEED_PROCESSING_STAGES', 'ScaleStructureDefinition',
         'ReactionWindow', 'SEED_REACTION_WINDOWS',
+        'ThresholdReactionWindow', 'SEED_THRESHOLD_WINDOWS',
         'SEED_PSPP_PAGE_DISPLAYS', 'MaterialProcessDefinition', 'MaterialProcessExecution',
         'SEED_PROCESS_DEFINITIONS', 'ChemicalSpecies', 'ReactionRule',
         'SEED_CHEMICAL_SPECIES', 'SEED_REACTION_RULES',
@@ -2617,6 +2623,8 @@ class polariServer(treeObject):
              SEED_PROCESS_DEFINITIONS
              + (SEED_CMC_PROCESS_DEFINITIONS or [])),
             ('ReactionWindow', ReactionWindow, SEED_REACTION_WINDOWS),
+            ('ThresholdReactionWindow', ThresholdReactionWindow,
+             SEED_THRESHOLD_WINDOWS),
             ('ChemicalSpecies', ChemicalSpecies,
              SEED_CHEMICAL_SPECIES),
             ('ReactionRule', ReactionRule, SEED_REACTION_RULES),
