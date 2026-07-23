@@ -927,6 +927,13 @@ from materialsScience.crystal_structure_definition import (
 from materialsScience.crystal_structures_seed import (
     SEED_CRYSTAL_STRUCTURES,
 )
+# ssp-2: importing crystal_scene_seed appends the lattice 3D scenes +
+# element materials to the shared simSpace3D seed lists
+# (trigger-on-import, the waxprint sim_seed idiom).
+from materialsScience import crystal_scene_seed  # noqa: F401
+from materialsScience.crystal_scene_seed import (
+    SEED_SSP_PAGE_DISPLAYS,
+)
 # Simulations module — composed *SimState classes + variable metadata
 # + config tie-in + storage predictor.
 from simulations.sim_variable import SimVariable
@@ -2607,7 +2614,8 @@ class polariServer(treeObject):
              SEED_PERIODIC_DISPLAYS + SEED_MSCI_PAGE_DISPLAYS
              + SEED_AQUAPONICS_PAGE_DISPLAYS + SEED_MODULE_PAGE_DISPLAYS
              + SEED_GROUP_DISPLAYS + SEED_WAXPRINT_PAGE_DISPLAYS
-             + (SEED_PSPP_PAGE_DISPLAYS or [])),
+             + (SEED_PSPP_PAGE_DISPLAYS or [])
+             + SEED_SSP_PAGE_DISPLAYS),
             # Materials basis — identities before their scale rows.
             ('MaterialsScienceMaterial', MaterialsScienceMaterial,
              SEED_MS_MATERIALS + SEED_STANDARD_MATERIALS
