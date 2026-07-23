@@ -31,6 +31,16 @@ self-registering falcon routes):
                                       ssp-4 cubic elastic constants
                                       (clamped-ion). Body: potential,
                                       delta, fitSigmaToStructure.
+  POST /api/msci/structures/{name}/analyze
+                                      ssp-3 symmetry detection on the
+                                      msci-engines worker (pymatgen):
+                                      space group, Wyckoff sites, and
+                                      the declared-vs-detected
+                                      suggestion. Body: symprec.
+  POST /api/msci/structures/{name}/xrd
+                                      ssp-3 simulated powder XRD
+                                      pattern (worker). Body:
+                                      wavelength, twoThetaMax, topN.
 
 Reads are pure except the lazy cache: a successful detail build
 refreshes the row's built_facts_json (object coherence — the built
@@ -80,6 +90,12 @@ class CrystalStructureAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/msci/structures/{name}/elastic', self,
                 suffix='elastic')
+            polServer.falconServer.add_route(
+                '/api/msci/structures/{name}/analyze', self,
+                suffix='analyze')
+            polServer.falconServer.add_route(
+                '/api/msci/structures/{name}/xrd', self,
+                suffix='xrd')
 
     def on_get(self, request, response):
         structures = []
@@ -233,3 +249,40 @@ class CrystalStructureAPI(treeObject):
 
     def on_post_elastic(self, request, response, name):
         self._run_lattice_dynamics(request, response, name, 'elastic')
+
+    def on_post_analyze(self, request, response, name):
+        from materialsScience import crystal_analysis
+        row = find_structure(self.manager, name)
+        if row is None:
+            response.status = '404 Not Found'
+            response.media = {
+                'ok': False,
+                'error': f"no CrystalStructureDefinition named "
+                         f"'{name}'"}
+            return
+        body = request.media if request.content_length else {}
+        report = crystal_analysis.analyze(
+            row, self.manager,
+            symprec=float(body.get('symprec', 0.01) or 0.01))
+        report['structure'] = name
+        response.media = report
+
+    def on_post_xrd(self, request, response, name):
+        from materialsScience import crystal_analysis
+        row = find_structure(self.manager, name)
+        if row is None:
+            response.status = '404 Not Found'
+            response.media = {
+                'ok': False,
+                'error': f"no CrystalStructureDefinition named "
+                         f"'{name}'"}
+            return
+        body = request.media if request.content_length else {}
+        report = crystal_analysis.xrd(
+            row, self.manager,
+            wavelength=body.get('wavelength', 'CuKa'),
+            two_theta_max=float(body.get('twoThetaMax', 90.0)
+                                or 90.0),
+            top_n=int(body.get('topN', 30) or 30))
+        report['structure'] = name
+        response.media = report

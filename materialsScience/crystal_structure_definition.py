@@ -73,6 +73,9 @@ class CrystalStructureDefinition(treeObject):
         # Derived cache — crystal_ops.refresh_built_facts writes the
         # built cell/atoms/bonds/facts here; never hand-edited.
         built_facts_json: str = '{}',
+        # ssp-3 worker-analysis cache (symmetry detection, simulated
+        # XRD) — written by crystal_analysis, never hand-edited.
+        last_analysis_json: str = '{}',
         provenance_id: str = '',
         notes: str = '',
         enabled: bool = True,
@@ -93,6 +96,7 @@ class CrystalStructureDefinition(treeObject):
         self.basis_json = basis_json
         self.bond_cutoff_scale = bond_cutoff_scale
         self.built_facts_json = built_facts_json
+        self.last_analysis_json = last_analysis_json
         self.provenance_id = provenance_id
         self.notes = notes
         self.enabled = enabled
