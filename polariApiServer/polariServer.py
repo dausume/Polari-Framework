@@ -919,6 +919,14 @@ from materialsScience.standard_materials_seed import (
     SEED_STANDARD_DFT_MODELS, SEED_STANDARD_FEM_MODELS,
     SEED_STANDARD_MATERIALS, SEED_STANDARD_SCALE_DEFINITIONS,
 )
+# Solid-state physics (ssp-1): crystal lattices as first-class rows —
+# the structural representation the L3/L4 rungs share.
+from materialsScience.crystal_structure_definition import (
+    CrystalStructureDefinition,
+)
+from materialsScience.crystal_structures_seed import (
+    SEED_CRYSTAL_STRUCTURES,
+)
 # Simulations module — composed *SimState classes + variable metadata
 # + config tie-in + storage predictor.
 from simulations.sim_variable import SimVariable
@@ -1294,6 +1302,13 @@ class polariServer(treeObject):
         materialDetailEndpoint = MaterialDetailAPI(
             polServer=self, manager=self.manager)
 
+        # ssp-1: crystal-structure list/detail (facts + atoms + bonds).
+        from materialsScience.crystal_structure_api import (
+            CrystalStructureAPI,
+        )
+        crystalStructureEndpoint = CrystalStructureAPI(
+            polServer=self, manager=self.manager)
+
         # PSPP: dataset curves + reaction network + composition
         # grading + cure progress (pspp-V — every chart generated
         # from rows so a book figure proofs against live data).
@@ -1633,7 +1648,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition, ThermalProcessingProfile, EvidenceMethod, PropertyClaim, StructureClaim, ValidationClaim, DigitizedDataset, MaterialState, ProcessingStage, ScaleStructureDefinition, ReactionWindow, MaterialProcessDefinition, MaterialProcessExecution, ChemicalSpecies, ReactionRule, ScaleTransferDefinition, ExposureScenario, MaterialPerformanceScenario,
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition, CrystalStructureDefinition, ThermalProcessingProfile, EvidenceMethod, PropertyClaim, StructureClaim, ValidationClaim, DigitizedDataset, MaterialState, ProcessingStage, ScaleStructureDefinition, ReactionWindow, MaterialProcessDefinition, MaterialProcessExecution, ChemicalSpecies, ReactionRule, ScaleTransferDefinition, ExposureScenario, MaterialPerformanceScenario,
             # Simulations
             SimulationDefinition, SimulationRun, SimVariable,
             SimSpaceEvaluationEquation,
@@ -2603,6 +2618,10 @@ class polariServer(treeObject):
              + SEED_STANDARD_SCALE_DEFINITIONS
              + SEED_POT_SCALE_DEFINITIONS
              + SEED_L2_L3_SCALE_ROWS),
+            # ssp-1: canonical crystal lattices with literature
+            # provenance — the L3/L4 structural representation.
+            ('CrystalStructureDefinition', CrystalStructureDefinition,
+             SEED_CRYSTAL_STRUCTURES),
             # Modules-as-projects: the in-tree module, config-tracked.
             ('ModuleSourceConfig', ModuleSourceConfig,
              SEED_MODULE_SOURCE_CONFIGS),
