@@ -63,15 +63,34 @@ def _cache(row, manager, key, report):
             pass
 
 
+def _normalize_worker_refusal(report, path):
+    """A worker without the ssp-3 routes answers falcon's bare
+    {'title': '404 Not Found'} — turn that into an honest refusal
+    naming the stale-worker knob instead of passing ambiguity up."""
+    if report.get('ok') or 'error' in report:
+        return report
+    return {'ok': False,
+            'error': f'the engines worker did not recognize {path} '
+                     f'(answered: {report}) — it predates the ssp-3 '
+                     'structure endpoints',
+            'suggestion': {
+                'knob': 'engines worker version / MSCI_ENGINES_URL',
+                'action': 'rebuild the resolved worker with '
+                          'structure_service.py aboard (the local '
+                          'prf-msci-engines already carries it), or '
+                          'point MSCI_ENGINES_URL at one that does'}}
+
+
 def analyze(row, manager=None, symprec=0.01):
     """Symmetry analysis via the worker. Adds the space-group
     agreement verdict (+ suggestion on disagreement)."""
     built = structure_payload(row)
     if not built['ok']:
         return built
-    report = remote.remote_post('/structure/analyze',
-                                dict(built['payload'],
-                                     symprec=symprec))
+    report = _normalize_worker_refusal(
+        remote.remote_post('/structure/analyze',
+                           dict(built['payload'], symprec=symprec)),
+        '/structure/analyze')
     if not report.get('ok'):
         return report
     declared = int(getattr(row, 'space_group', 0) or 0)
@@ -101,11 +120,13 @@ def xrd(row, manager=None, wavelength='CuKa', two_theta_max=90.0,
     built = structure_payload(row)
     if not built['ok']:
         return built
-    report = remote.remote_post('/structure/xrd',
-                                dict(built['payload'],
-                                     wavelength=wavelength,
-                                     twoThetaMax=two_theta_max,
-                                     topN=top_n))
+    report = _normalize_worker_refusal(
+        remote.remote_post('/structure/xrd',
+                           dict(built['payload'],
+                                wavelength=wavelength,
+                                twoThetaMax=two_theta_max,
+                                topN=top_n)),
+        '/structure/xrd')
     if report.get('ok'):
         _cache(row, manager, 'xrd', report)
     return report
