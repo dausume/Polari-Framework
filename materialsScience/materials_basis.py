@@ -73,11 +73,15 @@ SCALE_LEVEL_DETAILS = {
         'engines': ['meso.rod-percolation',
                     'meso.dipolar-chaining']},
     3: {'name': 'atomistic', 'lengthRange': 'Å–nm',
-        'methods': 'molecular dynamics',
+        'methods': 'molecular dynamics / lattice dynamics',
         'earnedBy': 'an executable MD model (LJ melt or Kremer-Grest '
-                    'bead-spring); force-field MD (TraPPE/GAFF) '
+                    'bead-spring) or a lattice-dynamics computation '
+                    'on a CrystalStructureDefinition (ssp-4 phonons/'
+                    'elastic constants — classical pair potentials, '
+                    'trends grade); force-field MD (TraPPE/GAFF) '
                     'remains the named gap',
-        'engines': ['md.lj-melt', 'md.bead-spring-melt']},
+        'engines': ['md.lj-melt', 'md.bead-spring-melt',
+                    'ssp.phonon-dispersion', 'ssp.elastic-constants']},
     4: {'name': 'quantum', 'lengthRange': 'Å',
         'methods': 'density functional theory',
         'earnedBy': 'an executable DFT model (fragment or bulk) whose '

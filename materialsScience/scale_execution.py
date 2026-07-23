@@ -27,6 +27,7 @@ refusals pass through their suggestions untouched.
 import json
 
 from materialsScience.engines import dft_engine, fem_engine
+from materialsScience.engines import lattice_dynamics_engine
 from materialsScience.engines import md_engine, meso_engine
 from materialsScience.engines import transport_engine
 
@@ -145,7 +146,54 @@ ENGINE_REGISTRY = {
             steps=int(inputs.get('steps', 6000)),
             dt=float(inputs.get('dt', 0.002)),
             seed=int(inputs.get('seed', 1234))),
+    # L3 lattice dynamics (ssp-4): phonons + cubic elastic constants
+    # from classical pair potentials on a crystal structure. The
+    # 'structure' input is a structure dict; EngineComputation rows
+    # may give 'structureName' instead — resolved against the
+    # CrystalStructureDefinition table before dispatch (below).
+    'ssp.phonon-dispersion': lambda inputs:
+        lattice_dynamics_engine.phonon_dispersion(
+            inputs.get('structure') or {},
+            potential=inputs.get('potential') or {},
+            npoints=inputs.get('npoints'),
+            use_primitive=bool(inputs.get('usePrimitive', True)),
+            dos_grid=inputs.get('dosGrid'),
+            fit_sigma=bool(inputs.get('fitSigmaToStructure', False))),
+    'ssp.elastic-constants': lambda inputs:
+        lattice_dynamics_engine.elastic_constants(
+            inputs.get('structure') or {},
+            potential=inputs.get('potential') or {},
+            delta=float(inputs.get('delta', 0.005)),
+            fit_sigma=bool(inputs.get('fitSigmaToStructure', False))),
 }
+
+
+def _resolve_structure_input(manager, engine_key, inputs):
+    """ssp.* engines are pure (no manager): an EngineComputation row
+    naming 'structureName' gets the CrystalStructureDefinition row
+    injected as 'structure' here. Unknown names refuse honestly."""
+    if not engine_key.startswith('ssp.'):
+        return inputs, None
+    if inputs.get('structure') or not inputs.get('structureName'):
+        return inputs, None
+    wanted = inputs['structureName']
+    table = (getattr(manager, 'objectTables', None) or {}).get(
+        'CrystalStructureDefinition', {})
+    rows = table.values() if isinstance(table, dict) else (table or [])
+    row = next((r for r in rows
+                if getattr(r, 'name', '') == wanted), None)
+    if row is None:
+        return None, {
+            'ok': False,
+            'error': f"no CrystalStructureDefinition named "
+                     f"'{wanted}'",
+            'suggestion': {'knob': "inputs['structureName']",
+                           'action': 'name a seeded structure (GET '
+                                     '/api/msci/structures)'}}
+    from materialsScience import crystal_ops
+    resolved = dict(inputs)
+    resolved['structure'] = crystal_ops.structure_dict(row)
+    return resolved, None
 
 
 def _find_row(manager, name):
@@ -242,7 +290,12 @@ def _execute_scale_definition_body(manager, name):
                     'action': 'set it to one of the registry keys',
                 }}
 
-    result = runner(params.get('inputs', {}) or {})
+    inputs, refusal = _resolve_structure_input(
+        manager, engineKey, params.get('inputs', {}) or {})
+    if refusal is not None:
+        return {'ok': False, 'name': name, 'engine': engineKey, **{
+            k: v for k, v in refusal.items() if k != 'ok'}}
+    result = runner(inputs)
     if not result.get('ok'):
         # Pass the engine's own honest refusal through untouched.
         return {'ok': False, 'name': name, 'engine': engineKey, **{

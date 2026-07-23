@@ -46,10 +46,12 @@ def check_capability_requirements(template) -> Dict:
     missing = []
     suggestions = []
     from materialsScience.engines import (dft_engine, fem_engine,
+                                          lattice_dynamics_engine,
                                           md_engine, meso_engine)
     caps = {'fem': fem_engine.capability(), 'dft': dft_engine.capability(),
             'md': md_engine.capability(),
-            'meso': meso_engine.capability()}
+            'meso': meso_engine.capability(),
+            'ssp': lattice_dynamics_engine.capability()}
     for req in requirements:
         parts = str(req).split('.')
         node = caps.get(parts[0])
@@ -142,7 +144,9 @@ def _execute_model_body(manager, name, stage_context=None) -> Dict:
                 'refusals': resolution['refusals'],
                 'resolved': resolution['resolved']}
 
-    from materialsScience.scale_execution import ENGINE_REGISTRY
+    from materialsScience.scale_execution import (
+        ENGINE_REGISTRY, _resolve_structure_input,
+    )
     engine_key = getattr(template, 'engine_key', '')
     runner = ENGINE_REGISTRY.get(engine_key)
     if runner is None:
@@ -150,8 +154,14 @@ def _execute_model_body(manager, name, stage_context=None) -> Dict:
                 'engine': engine_key,
                 'error': f"engine '{engine_key}' not in ENGINE_REGISTRY",
                 'suggestion': {'evidence': sorted(ENGINE_REGISTRY)}}
+    inputs, refusal = _resolve_structure_input(
+        manager, engine_key, resolution['inputs'])
+    if refusal is not None:
+        return {'ok': False, 'model': name, 'template': template_ref,
+                'engine': engine_key, **{
+                    k: v for k, v in refusal.items() if k != 'ok'}}
     try:
-        result = runner(resolution['inputs'])
+        result = runner(inputs)
     except Exception as e:                       # engine crash =
         result = {'ok': False, 'error': str(e)}  # honest refusal
     report = {'ok': bool(result.get('ok')), 'model': name,

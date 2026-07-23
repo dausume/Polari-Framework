@@ -47,12 +47,15 @@ class ScaleExecutionAPI(treeObject):
                 '/api/msci/composites/refine', self, suffix='refine')
 
     def on_get_capability(self, request, response):
-        from materialsScience.engines import md_engine, meso_engine
+        from materialsScience.engines import (
+            lattice_dynamics_engine, md_engine, meso_engine,
+        )
         response.media = {
             'fem': fem_engine.capability(),
             'dft': dft_engine.capability(),
             'md': md_engine.capability(),
             'meso': meso_engine.capability(),
+            'ssp': lattice_dynamics_engine.capability(),
         }
 
     def on_post_execute(self, request, response):

@@ -52,6 +52,14 @@ _REGISTRY_INPUT_KEYS = {
                              'iterations', 'seed'},
     'meso.dipolar-chaining': {'couplingLambda', 'volumeFraction',
                               'nParticles', 'steps', 'dt', 'seed'},
+    # ssp-4: 'structure' stays out of the template schema — model/
+    # scale rows give 'structureName', resolved against the
+    # CrystalStructureDefinition table before dispatch.
+    'ssp.phonon-dispersion': {'structureName', 'usePrimitive',
+                              'potential', 'fitSigmaToStructure',
+                              'npoints', 'dosGrid'},
+    'ssp.elastic-constants': {'structureName', 'potential',
+                              'fitSigmaToStructure', 'delta'},
 }
 assert set(_REGISTRY_INPUT_KEYS) <= set(ENGINE_REGISTRY), (
     'engine_model_seed names engines missing from ENGINE_REGISTRY')
@@ -695,6 +703,132 @@ SEED_ENGINE_MODEL_TEMPLATES = [
         'notes': 'Kinetics-limited below vf ~0.1: read fieldAlignment '
                  '(structure) separately from chainedFraction '
                  '(aggregation kinetics) or raise steps.',
+        'enabled': True,
+    },
+    {
+        'name': 'ssp-phonon-dispersion',
+        'display_name': 'Lattice dynamics — phonon dispersion (L3)',
+        'description': (
+            'Phonon band structure + DOS of a crystal structure from '
+            'a classical pair potential: analytic force constants -> '
+            'dynamical matrix over the periodic neighbor shells, '
+            'sampled along the lattice\'s standard high-symmetry '
+            'path. The acoustic sum rule at Gamma is checked on '
+            'every run.'
+        ),
+        'engine_kind': 'ssp', 'engine_key': 'ssp.phonon-dispersion',
+        'parameter_schema_json': _schema([
+            {'section': 'system', 'key': 'structureName',
+             'type': 'string', 'required': True,
+             'description': 'CrystalStructureDefinition name '
+                            '(GET /api/msci/structures)'},
+            {'section': 'system', 'key': 'usePrimitive',
+             'type': 'boolean', 'required': False, 'default': True,
+             'description': 'reduce to the primitive cell '
+                            '(unfolded bands)'},
+            {'section': 'interactions', 'key': 'potential',
+             'type': 'object', 'required': True,
+             'description': "{'kind': 'lennard-jones', 'epsilonEv', "
+                            "'sigmaA'[, 'cutoffA']} or {'kind': "
+                            "'spring', 'stiffnessEvA2'}"},
+            {'section': 'interactions', 'key': 'fitSigmaToStructure',
+             'type': 'boolean', 'required': False, 'default': False,
+             'description': 'derive sigmaA from the lattice '
+                            '(zero-pressure fit, reported as '
+                            'evidence)'},
+            {'section': 'sampling', 'key': 'npoints',
+             'type': 'integer', 'required': False, 'default': 120,
+             'min': 10, 'max': 600,
+             'description': 'k-points along the path'},
+            {'section': 'sampling', 'key': 'dosGrid',
+             'type': 'integer', 'required': False, 'default': 8,
+             'min': 2, 'max': 16,
+             'description': 'uniform DOS grid (n^3 k-points)'},
+        ]),
+        'section_map_json': json.dumps({
+            'structureName': 'system.structureName',
+            'usePrimitive': 'system.usePrimitive',
+            'potential': 'interactions.potential',
+            'fitSigmaToStructure':
+                'interactions.fitSigmaToStructure',
+            'npoints': 'sampling.npoints',
+            'dosGrid': 'sampling.dosGrid',
+        }),
+        'outputs_json': json.dumps([
+            {'key': 'frequenciesThz', 'type': 'vector',
+             'description': 'branch frequencies per path k-point '
+                            '(negative = imaginary/unstable)'},
+            {'key': 'pathLabels', 'type': 'vector',
+             'description': 'high-symmetry point labels'},
+            {'key': 'dos', 'type': 'object',
+             'description': 'frequency histogram'},
+            {'key': 'gammaAcousticMaxThz', 'type': 'number',
+             'description': 'acoustic-sum-rule check at Gamma'},
+            {'key': 'stable', 'type': 'boolean',
+             'description': 'no imaginary modes'},
+            {'key': 'validity', 'type': 'string',
+             'description': 'pair-potential honesty line'},
+        ]),
+        'cost_class': 'moderate',
+        'capability_requirements_json': json.dumps(['ssp']),
+        'notes': 'Classical pair potentials: trends/teaching grade. '
+                 'Quantitative phonons are the DFPT gap (ssp-5, '
+                 'WITH_QE worker).',
+        'enabled': True,
+    },
+    {
+        'name': 'ssp-elastic-constants',
+        'display_name': 'Lattice dynamics — cubic elastic constants '
+                        '(L3)',
+        'description': (
+            'Clamped-ion C11/C12/C44 + bulk modulus of a CUBIC '
+            'crystal structure by energy-vs-strain finite '
+            'differences under a Lennard-Jones pair potential, with '
+            'the EOS-curvature bulk modulus as an independent '
+            'consistency route.'
+        ),
+        'engine_kind': 'ssp', 'engine_key': 'ssp.elastic-constants',
+        'parameter_schema_json': _schema([
+            {'section': 'system', 'key': 'structureName',
+             'type': 'string', 'required': True,
+             'description': 'CrystalStructureDefinition name '
+                            '(cubic conventional cell)'},
+            {'section': 'interactions', 'key': 'potential',
+             'type': 'object', 'required': True,
+             'description': "{'kind': 'lennard-jones', 'epsilonEv', "
+                            "'sigmaA'[, 'cutoffA']}"},
+            {'section': 'interactions', 'key': 'fitSigmaToStructure',
+             'type': 'boolean', 'required': False, 'default': False,
+             'description': 'derive sigmaA from the lattice'},
+            {'section': 'sampling', 'key': 'delta', 'type': 'number',
+             'required': False, 'default': 0.005, 'min': 0.0005,
+             'max': 0.02, 'description': 'strain step'},
+        ]),
+        'section_map_json': json.dumps({
+            'structureName': 'system.structureName',
+            'potential': 'interactions.potential',
+            'fitSigmaToStructure':
+                'interactions.fitSigmaToStructure',
+            'delta': 'sampling.delta',
+        }),
+        'outputs_json': json.dumps([
+            {'key': 'c11Gpa', 'type': 'number', 'description': 'C11'},
+            {'key': 'c12Gpa', 'type': 'number', 'description': 'C12'},
+            {'key': 'c44Gpa', 'type': 'number', 'description': 'C44'},
+            {'key': 'bulkModulusGpa', 'type': 'number',
+             'description': '(C11 + 2 C12) / 3'},
+            {'key': 'bulkModulusEosGpa', 'type': 'number',
+             'description': 'EOS-curvature route'},
+            {'key': 'bulkRoutesAgree', 'type': 'boolean',
+             'description': 'two routes within 5%'},
+            {'key': 'validity', 'type': 'string',
+             'description': 'clamped-ion honesty line'},
+        ]),
+        'cost_class': 'cheap',
+        'capability_requirements_json': json.dumps(['ssp']),
+        'notes': 'Pair potentials obey the Cauchy relation C12 = C44 '
+                 'at equilibrium — real materials violate it; that '
+                 'discrepancy IS the evidence for many-body terms.',
         'enabled': True,
     },
 ]

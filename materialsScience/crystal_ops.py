@@ -28,7 +28,10 @@ _MAX_SPACE_GROUP = 230
 def structure_dict(row):
     """Plain dict view of a CrystalStructureDefinition row OR dict.
     Numeric fields fall back to their default only when absent/None —
-    an explicit 0 stays 0 so validation can refuse it honestly."""
+    an explicit 0 stays 0 so validation can refuse it honestly.
+    Idempotent: an already-converted dict passes through unchanged."""
+    if isinstance(row, dict) and 'cellpar' in row:
+        return row
     get = (row.get if isinstance(row, dict)
            else lambda k, d=None: getattr(row, k, d))
 
@@ -146,6 +149,39 @@ def build_atoms(row):
             'check that the Wyckoff coordinates match the stated '
             'space group and origin setting')
     return {'ok': True, 'atoms': atoms}
+
+
+#: Conventional -> primitive cell cut vectors per centering letter
+#: (the standard crystallographic centering matrices; R uses the
+#: obverse hexagonal setting). 'P' needs no reduction.
+CENTERING_CUTS = {
+    'F': ((0, 0.5, 0.5), (0.5, 0, 0.5), (0.5, 0.5, 0)),
+    'I': ((-0.5, 0.5, 0.5), (0.5, -0.5, 0.5), (0.5, 0.5, -0.5)),
+    'A': ((1, 0, 0), (0, 0.5, 0.5), (0, -0.5, 0.5)),
+    'B': ((0.5, 0, 0.5), (0, 1, 0), (-0.5, 0, 0.5)),
+    'C': ((0.5, 0.5, 0), (-0.5, 0.5, 0), (0, 0, 1)),
+    'R': ((2 / 3, 1 / 3, 1 / 3), (-1 / 3, 1 / 3, 1 / 3),
+          (-1 / 3, -2 / 3, 1 / 3)),
+}
+
+
+def primitive_atoms(atoms, space_group):
+    """Reduce a conventional cell to its primitive cell using the
+    space group's centering letter (verified: fcc 4->1, bcc 2->1,
+    diamond 8->2, spinel 56->14, corundum 30->10). space_group 0 or a
+    P group returns the atoms unchanged."""
+    if not space_group:
+        return atoms
+    try:
+        from ase.spacegroup import Spacegroup
+        letter = Spacegroup(int(space_group)).symbol.strip()[0]
+    except Exception:
+        return atoms
+    vectors = CENTERING_CUTS.get(letter)
+    if vectors is None:
+        return atoms
+    from ase.build import cut
+    return cut(atoms, a=vectors[0], b=vectors[1], c=vectors[2])
 
 
 def bond_pairs(atoms, cutoff_scale):
