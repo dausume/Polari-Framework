@@ -58,6 +58,9 @@ from matrices.seed_data import SEED_MATRICES, SEED_MATRIX_EQUATIONS
 from polariApiServer.solutionVersionAPI import SolutionVersionAPI
 from polariApiServer.updateClassConfigAPI import UpdateClassConfigAPI
 from polariApiServer.systemInfoAPI import systemInfoAPI
+from polariApiServer.aiChatAPI import aiChatAPI
+from polariApiServer.providersAPI import providersAPI
+from polariApiServer.aiActionsAPI import aiActionsAPI
 from polariApiServer.apiFormatConfig import ApiFormatConfig
 from polariApiServer.configuredFormattedAPIs import FlatJsonAPI, D3ColumnAPI, GeoJsonAPI
 from polariApiServer.tileGeneratorAPI import TileGeneratorAPI
@@ -701,6 +704,11 @@ except ImportError as _exc:
 from materialsScience.bio_alloys_seed import (
     SEED_BIO_ALLOY_MATERIALS, SEED_BIO_ALLOY_PROPERTY_MEANINGS,
 )
+# Self-hosted video (video-1): WebM/MP4 + optional adaptive HLS.
+try:
+    from video.video_basis import VideoAsset
+except ImportError as _exc:
+    _stub_missing_feature('video', _exc, globals(), ('VideoAsset',))
 # Bio wax sources (wax-1) + the unifying supply-chain ledger (chain-1).
 try:
     from waxsupply.wax_basis import WaxSourceDefinition
@@ -1201,6 +1209,15 @@ class polariServer(treeObject):
         # Create System Info endpoint for diagnostics and resource profiling
         systemInfoEndpoint = systemInfoAPI(polServer=self, manager=self.manager)
 
+        # Create in-app AI assistant endpoint (Phase 4 — text/voice/XR panel backend)
+        aiChatEndpoint = aiChatAPI(polServer=self, manager=self.manager)
+
+        # Create reasoning-provider management endpoint (select/auth/validate)
+        providersEndpoint = providersAPI(polServer=self, manager=self.manager)
+
+        # Create in-app AI action loop endpoint (gated propose->confirm->execute)
+        aiActionsEndpoint = aiActionsAPI(polServer=self, manager=self.manager)
+
         # Create endpoint for updating class configuration flags
         updateClassConfigEndpoint = UpdateClassConfigAPI(polServer=self, manager=self.manager)
 
@@ -1433,6 +1450,12 @@ class polariServer(treeObject):
             # specialized aquaponic variants (biomine-1).
             from biomining.biomining_api import BiomineAPI
             biomineEndpoint = BiomineAPI(
+                polServer=self, manager=self.manager)
+        if _feature_available('video'):
+            # Self-hosted video: presigned upload/stream URLs + ffmpeg
+            # conversion trigger (video-1).
+            from video.video_api import VideoAPI
+            videoEndpoint = VideoAPI(
                 polServer=self, manager=self.manager)
         if _feature_available('waxsupply'):
             # Wax sources for molds/masks (wax-1).
@@ -1693,6 +1716,8 @@ class polariServer(treeObject):
             # Biomining / bioextraction variants (biomine-1).
             BioextractionAgent, BiomineralProduct,
             BiomineSystemDefinition,
+            # Self-hosted video: WebM/MP4 + optional adaptive HLS (video-1).
+            VideoAsset,
             # Wax sources (wax-1) + supply-chain ledger (chain-1).
             WaxSourceDefinition, SupplyNode, SupplyFlow,
             SupplyChainDefinition,
@@ -2954,6 +2979,8 @@ class polariServer(treeObject):
             ('BiomineSystemDefinition', BiomineSystemDefinition,
              SEED_BIOMINE_SYSTEMS + SEED_OPTICAL_BIOMINE_SYSTEMS
              + SEED_ALLOY_BIOMINE_SYSTEMS),
+            # video-1: no baseline seed data — assets are user-uploaded.
+            ('VideoAsset', VideoAsset, []),
             # wax-1: bio wax sources for molds / electronic masks.
             ('WaxSourceDefinition', WaxSourceDefinition,
              SEED_WAX_SOURCES),

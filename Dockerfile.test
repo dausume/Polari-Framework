@@ -61,7 +61,9 @@ FROM python:3.12-alpine
 WORKDIR /app
 
 # Install only runtime dependencies
-RUN apk add --no-cache freetype
+# ffmpeg: needed for the video module's selftest to exercise real
+# WebM/MP4 conversion rather than mocking ffmpeg out.
+RUN apk add --no-cache freetype ffmpeg
 
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv

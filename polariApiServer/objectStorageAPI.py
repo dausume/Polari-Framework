@@ -73,6 +73,11 @@ class ObjectStorageAPI(treeObject):
             access_key = body.get('accessKey', '')
             secret_key = body.get('secretKey', '')
             secure = body.get('secure', False)
+            # Optional — browser-reachable host for presigned URLs, when it
+            # differs from `endpoint` (e.g. a manual reconnect against the
+            # internal Docker address). Falls back to `endpoint` if omitted.
+            public_endpoint = body.get('publicEndpoint', '')
+            public_secure = body.get('publicSecure', None)
 
             if not endpoint or not access_key or not secret_key:
                 response.status = falcon.HTTP_400
@@ -85,6 +90,8 @@ class ObjectStorageAPI(treeObject):
                 access_key=access_key,
                 secret_key=secret_key,
                 secure=secure,
+                public_endpoint=public_endpoint,
+                public_secure=public_secure,
                 manager=self.manager
             )
 

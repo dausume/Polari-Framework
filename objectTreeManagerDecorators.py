@@ -217,11 +217,24 @@ class managerObject:
                 print('[ObjectStore] No credentials configured, skipping', flush=True)
                 return
 
+            # Browser-reachable base for presigned URLs (upload/stream links
+            # handed to a client) — the internal `endpoint` above is only
+            # reachable from inside the Docker network. See video_api.py.
+            public_url = os.environ.get('MINIO_PUBLIC_URL', '')
+            public_endpoint, public_secure = '', None
+            if public_url:
+                from urllib.parse import urlparse
+                parsed = urlparse(public_url)
+                public_endpoint = parsed.netloc or parsed.path
+                public_secure = parsed.scheme == 'https'
+
             from polariDBmanagement.managedObjectStore import managedObjectStore
             print(f'[ObjectStore] Attempting connection to {endpoint}...', flush=True)
             self.objectStore = managedObjectStore(
                 endpoint=endpoint, access_key=access_key,
-                secret_key=secret_key, secure=secure, manager=self
+                secret_key=secret_key, secure=secure,
+                public_endpoint=public_endpoint, public_secure=public_secure,
+                manager=self
             )
             if self.objectStore.connected:
                 print(f'[ObjectStore] Connected to {endpoint}, buckets: {self.objectStore.buckets}', flush=True)

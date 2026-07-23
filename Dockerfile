@@ -67,7 +67,10 @@ WORKDIR /app
 # ngspice: the electrodevice circuit engine (materials -> SPICE
 # ladder) rides in-backend like scikit-fem — capability-honest if
 # the package ever goes missing.
-RUN apk add --no-cache freetype sqlite-libs libstdc++ ngspice
+# ffmpeg: video module (modules/video/) WebM/MP4/HLS conversion —
+# same capability-honest pattern (video_conversion.py checks
+# shutil.which('ffmpeg') and reports missing rather than crashing).
+RUN apk add --no-cache freetype sqlite-libs libstdc++ ngspice ffmpeg
 
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
