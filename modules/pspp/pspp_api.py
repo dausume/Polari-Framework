@@ -17,6 +17,11 @@ carries its evidence and refusals render as refusals.
   GET  /api/pspp/benchmarks                  benchmark-case catalog
   GET  /api/pspp/benchmarks/{name}/overlay   measured vs predicted
   GET  /api/pspp/wax-states                  pspp-11 wax state routes
+  GET  /api/pspp/structure/groups            most-likely motifs (gsp-1/4)
+  POST /api/pspp/structure/sample            ensemble sample (gsp-2)
+  POST /api/pspp/structure/scene             sample -> SimSpace (gsp-3)
+  POST /api/pspp/structure/stepped-groups    stepped Q dist (gsp-4b)
+  POST /api/pspp/structure/xrd               Debye halo (gsp-5)
 """
 
 import json
@@ -35,6 +40,12 @@ from pspp.pspp_views import (
     state_dag,
 )
 from pspp.progress_engine import cure_progress
+from pspp.structure_groups import most_likely_groups, stepped_groups
+from pspp.structure_sampling import build_geopolymer_sample
+from pspp.structure_scene import (
+    geopolymer_materials, scene_definition, scene_name,
+)
+from pspp.structure_validation import simulated_halo
 
 
 class PsppAPI(treeObject):
@@ -60,6 +71,16 @@ class PsppAPI(treeObject):
             add('/api/pspp/benchmarks/{name}/overlay', self,
                 suffix='overlay')
             add('/api/pspp/wax-states', self, suffix='wax_states')
+            add('/api/pspp/structure/groups', self,
+                suffix='structure_groups')
+            add('/api/pspp/structure/sample', self,
+                suffix='structure_sample')
+            add('/api/pspp/structure/scene', self,
+                suffix='structure_scene')
+            add('/api/pspp/structure/stepped-groups', self,
+                suffix='structure_stepped')
+            add('/api/pspp/structure/xrd', self,
+                suffix='structure_xrd')
 
     def on_get_datasets(self, request, response):
         response.media = dataset_catalog(self.manager)
@@ -213,3 +234,210 @@ class PsppAPI(treeObject):
         if not payload.get('ok'):
             response.status = '422 Unprocessable Entity'
         response.media = payload
+
+    # -- gsp structure surface (GEOPOLYMER_STRUCTURE_SAMPLING_PLAN) --
+
+    def on_get_structure_groups(self, request, response):
+        mr = request.get_param_as_float('mr')
+        payload = most_likely_groups(
+            manager=self.manager,
+            material=request.get_param('material'),
+            state=request.get_param('state'),
+            cation=request.get_param('cation'),
+            mr=mr,
+            physical_state=request.get_param('physicalState')
+            or 'glass')
+        response.media = payload
+
+    def _fractions_from_body(self, body):
+        """(fractions, source) from an explicit qFractions dict or a
+        groups query (material/state | cation+mr) | refusal dict."""
+        explicit = body.get('qFractions')
+        if explicit:
+            return ({k: float(v) for k, v in explicit.items()},
+                    {'mode': 'explicit'})
+        groups = most_likely_groups(
+            manager=self.manager,
+            material=body.get('material'),
+            state=body.get('state'),
+            cation=body.get('cation'),
+            mr=body.get('mr'),
+            physical_state=body.get('physicalState') or 'glass')
+        if not groups.get('ok'):
+            return None, groups
+        fractions = {g['motif']: g['fraction']
+                     for g in groups['groups']}
+        source = {'mode': groups['mode'],
+                  'caveats': groups.get('caveats') or [],
+                  'evidence': groups.get('evidence')}
+        if groups['mode'] == 'state':
+            source['stateKey'] = groups['stateKey']
+        else:
+            source.update({'cation': groups['cation'],
+                           'MR': groups['MR'],
+                           'physicalState': groups['physicalState']})
+        return fractions, source
+
+    def _build_sample(self, body):
+        fractions, source = self._fractions_from_body(body)
+        if fractions is None:
+            return None, source
+        sample = build_geopolymer_sample(
+            fractions,
+            n_tetrahedra=int(body.get('nTetrahedra', 60)),
+            seed=int(body.get('seed', 1)),
+            cation=body.get('cation') or 'Na',
+            si_al_ratio=body.get('siAlRatio'),
+            target_density_g_cm3=body.get('targetDensity', 2.0))
+        if sample.get('ok'):
+            sample['groupsSource'] = source
+        return sample, None
+
+    def on_post_structure_sample(self, request, response):
+        body = request.media if request.content_length else {}
+        sample, refusal = self._build_sample(body)
+        if sample is None:
+            response.status = '422 Unprocessable Entity'
+            response.media = refusal
+            return
+        if not sample.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = sample
+
+    def on_post_structure_scene(self, request, response):
+        body = request.media if request.content_length else {}
+        sample, refusal = self._build_sample(body)
+        if sample is None or not sample.get('ok'):
+            response.status = '422 Unprocessable Entity'
+            response.media = refusal or sample
+            return
+        name = scene_name(
+            body.get('cation') or 'Na', mr=body.get('mr'),
+            state_key=(sample['groupsSource'].get('stateKey')
+                       if isinstance(sample.get('groupsSource'), dict)
+                       else None),
+            seed=body.get('seed', 1))
+        kwargs = {}
+        if 'atomScale' in body:
+            kwargs['atom_scale'] = float(body['atomScale'])
+        if 'bondRadius' in body:
+            kwargs['bond_radius'] = float(body['bondRadius'])
+        verdict = scene_definition(sample, name, **kwargs)
+        if not verdict['ok']:
+            response.status = '422 Unprocessable Entity'
+            response.media = verdict
+            return
+        materials_added = self._ensure_materials(
+            geopolymer_materials(sample))
+        action, persisted = self._upsert_scene(verdict['scene'])
+        response.media = {
+            'ok': True, 'sceneName': name, 'action': action,
+            'persisted': persisted,
+            'materialsAdded': materials_added,
+            'counts': {**verdict['counts'], **sample['counts']},
+            'density': sample.get('density'),
+            'targetQ': sample['targetQ'],
+            'achievedQ': sample['achievedQ'],
+            'honesty': sample['honesty'],
+            'groupsSource': sample['groupsSource'],
+            'seed': sample['seed'],
+        }
+
+    def on_post_structure_stepped(self, request, response):
+        """gsp-4b: groups after scientist-driven network steps."""
+        body = request.media if request.content_length else {}
+        if body.get('mr') is None:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'refusal': 'mr is required',
+                              'suggestion': '{"cation": "Na", "mr": '
+                                            '2.0, "steps": [{"rule": '
+                                            '"...", "times": 1}]}'}
+            return
+        payload = stepped_groups(
+            body.get('cation') or 'Na', float(body['mr']),
+            steps=body.get('steps') or [],
+            site=body.get('site'),
+            conditions=body.get('conditions'))
+        if not payload.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = payload
+
+    def on_post_structure_xrd(self, request, response):
+        """gsp-5: Debye halo of a sampled cluster (same sampling
+        params as /sample; the cluster is rebuilt deterministically)."""
+        body = request.media if request.content_length else {}
+        sample, refusal = self._build_sample(body)
+        if sample is None or not sample.get('ok'):
+            response.status = '422 Unprocessable Entity'
+            response.media = refusal or sample
+            return
+        verdict = simulated_halo(
+            sample,
+            wavelength=body.get('wavelength') or 'CuKa',
+            two_theta_max=float(body.get('twoThetaMax', 60.0)),
+            points=int(body.get('points', 240)))
+        if not verdict.get('ok'):
+            response.status = '422 Unprocessable Entity'
+            response.media = verdict
+            return
+        verdict['seed'] = sample['seed']
+        verdict['achievedQ'] = sample['achievedQ']
+        verdict['groupsSource'] = sample['groupsSource']
+        response.media = verdict
+
+    def _ensure_materials(self, rows):
+        """Create any missing Material3DDefinition rows; returns the
+        names added."""
+        table = (getattr(self.manager, 'objectTables', None)
+                 or {}).get('Material3DDefinition', {})
+        existing_rows = (table.values() if isinstance(table, dict)
+                         else table)
+        existing = {getattr(r, 'name', '') for r in existing_rows}
+        db = getattr(self.manager, 'db', None)
+        added = []
+        from simSpace3D.material_3d_definition import (
+            Material3DDefinition,
+        )
+        for row in rows:
+            if row['name'] in existing:
+                continue
+            instance = Material3DDefinition(**row,
+                                            manager=self.manager)
+            if db is not None:
+                try:
+                    db.saveInstanceInDB(instance)
+                except Exception:
+                    pass
+            added.append(row['name'])
+        return added
+
+    def _upsert_scene(self, scene):
+        """Create or rewrite the SimSpaceDefinition for one scene
+        (crystal on_post_scene pattern)."""
+        table = (getattr(self.manager, 'objectTables', None)
+                 or {}).get('SimSpaceDefinition', {})
+        rows = table.values() if isinstance(table, dict) else table
+        existing = next(
+            (r for r in rows
+             if getattr(r, 'name', '') == scene['name']), None)
+        if existing is None:
+            from simSpace.sim_space_definition import (
+                SimSpaceDefinition,
+            )
+            existing = SimSpaceDefinition(**scene,
+                                          manager=self.manager)
+            action = 'created'
+        else:
+            existing.definition = scene['definition']
+            existing.viewport_json = scene['viewport_json']
+            existing.description = scene['description']
+            action = 'updated'
+        persisted = False
+        db = getattr(self.manager, 'db', None)
+        if db is not None:
+            try:
+                persisted = bool(db.saveInstanceInDB(existing))
+            except Exception:
+                persisted = False
+        return action, persisted
