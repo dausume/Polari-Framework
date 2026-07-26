@@ -497,6 +497,15 @@ try:
         ChemicalSpecies, ReactionRule, SEED_CHEMICAL_SPECIES,
         SEED_REACTION_RULES,
     )
+    # mtt-2 sg: the sol-gel LIBRARY — the third swap-the-library
+    # proof; rows concatenate into the pspp seeds below.
+    from pspp.solgel_network import (
+        SOLGEL_CHEMICAL_SPECIES, SOLGEL_REACTION_RULES,
+        SOLGEL_THRESHOLD_WINDOWS,
+    )
+    from pspp.solgel_process import (
+        SOLGEL_DIGITIZED_DATASETS, SOLGEL_PROCESSING_STAGES,
+    )
 except ImportError as _exc:
     _stub_missing_feature('pspp', _exc, globals(), (
         'EvidenceMethod', 'SEED_EVIDENCE_METHODS', 'PropertyClaim',
@@ -514,6 +523,9 @@ except ImportError as _exc:
         'SEED_CMC_PROCESS_DEFINITIONS', 'SEED_CMC_PROCESSING_STAGES',
         'SEED_CMC_PROPERTY_MEANINGS',
         'MaterialPerformanceScenario',
+        'SOLGEL_CHEMICAL_SPECIES', 'SOLGEL_REACTION_RULES',
+        'SOLGEL_THRESHOLD_WINDOWS', 'SOLGEL_DIGITIZED_DATASETS',
+        'SOLGEL_PROCESSING_STAGES',
     ))
 try:
     from aquaponics.pot_materials_seed import (
@@ -2669,11 +2681,13 @@ class polariServer(treeObject):
             # claims have no seeds (they are earned, never seeded).
             ('EvidenceMethod', EvidenceMethod, SEED_EVIDENCE_METHODS),
             ('DigitizedDataset', DigitizedDataset,
-             SEED_DIGITIZED_DATASETS),
+             SEED_DIGITIZED_DATASETS
+             + (SOLGEL_DIGITIZED_DATASETS or [])),
             # pspp-2: stage vocabulary rows; MaterialState never seeds.
             ('ProcessingStage', ProcessingStage,
              SEED_PROCESSING_STAGES
-             + (SEED_CMC_PROCESSING_STAGES or [])),
+             + (SEED_CMC_PROCESSING_STAGES or [])
+             + (SOLGEL_PROCESSING_STAGES or [])),
             # pspp-4: process vocabulary, patent windows, and the
             # reaction-network library (species before the rules that
             # trade in them). Executions/states are earned, not seeded.
@@ -2682,11 +2696,15 @@ class polariServer(treeObject):
              + (SEED_CMC_PROCESS_DEFINITIONS or [])),
             ('ReactionWindow', ReactionWindow, SEED_REACTION_WINDOWS),
             ('ThresholdReactionWindow', ThresholdReactionWindow,
-             SEED_THRESHOLD_WINDOWS),
+             SEED_THRESHOLD_WINDOWS
+             + (SOLGEL_THRESHOLD_WINDOWS or [])),
             ('BenchmarkCase', BenchmarkCase, SEED_BENCHMARK_CASES),
             ('ChemicalSpecies', ChemicalSpecies,
-             SEED_CHEMICAL_SPECIES),
-            ('ReactionRule', ReactionRule, SEED_REACTION_RULES),
+             SEED_CHEMICAL_SPECIES
+             + (SOLGEL_CHEMICAL_SPECIES or [])),
+            ('ReactionRule', ReactionRule,
+             SEED_REACTION_RULES
+             + (SOLGEL_REACTION_RULES or [])),
             ('ScaleTransferDefinition', ScaleTransferDefinition,
              SEED_SCALE_TRANSFERS),
             ('ExposureScenario', ExposureScenario,

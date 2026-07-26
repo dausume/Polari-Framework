@@ -593,10 +593,13 @@ SEED_TECH_NODES += [
                  (_S, 'wax-supply', 'supplied-by'))),
     _node(_M, 'sol-gel', 'Sol-gel', deps=('statistical',),
           description='Alkoxide hydrolysis/condensation to a silica '
-                      'gel — SHELL: the pspp path fits directly '
-                      '(Q-speciation, gel/aging/drying state-DAG) but '
-                      'needs an alkoxide species library + a pH/water '
-                      'ratio gate. Glass Q-curves are reusable.',
+                      'gel — BUILT (mtt-2 sg-1..5): alkoxide species '
+                      'library + pH catalysis-fork and R-ratio gates '
+                      'as ThresholdReactionWindow data, sol->gel->'
+                      'xerogel/aerogel state route, acid/base fork '
+                      'proven through the gsp sampler/halo. Numeric '
+                      'curves (gel-time-vs-pH, NMR Q^n) still refuse '
+                      'pending digitized figures.',
           cross=((_E, 'os-pvd', 'consumed-by'),
                  (_S, 'sol-gel-supply', 'supplied-by'))),
     _node(_M, 'geopolymer', 'Geopolymer', deps=('statistical',),

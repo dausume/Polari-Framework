@@ -173,6 +173,53 @@ def state_groups(manager, material, state=None):
     }
 
 
+def inventory_q_fractions(inventory, species=None, alias_of=None):
+    """Map an inventory's quantified qn-carrying species populations
+    to Q-motif fractions (shared by geopolymer stepped mode and the
+    sol-gel library). alias_of: {alias: canonical} — an alias resource
+    is skipped whenever its canonical is quantified (one resource
+    under two names, never double-counted). Returns {ok, fractions,
+    unmappedQuantified, presentUnquantified, aliasNote?} | refusal."""
+    from pspp.reaction_network import SEED_CHEMICAL_SPECIES
+    rows = species if species is not None else SEED_CHEMICAL_SPECIES
+    alias_of = alias_of or {}
+    qn_of = {r['name'] if isinstance(r, dict)
+             else getattr(r, 'name', ''):
+             (r.get('qn', -1) if isinstance(r, dict)
+              else getattr(r, 'qn', -1)) for r in rows}
+    mapped = {m: 0.0 for m in MOTIFS}
+    unmapped_quantified = {}
+    present_unquantified = []
+    for name, amount in inventory.items():
+        if amount is None:
+            present_unquantified.append(name)
+            continue
+        if amount <= 0:
+            continue
+        canonical = alias_of.get(name)
+        if canonical is not None \
+                and inventory.get(canonical) is not None:
+            continue  # aliased resource — counted once
+        qn = qn_of.get(name, -1)
+        if 0 <= qn <= 4:
+            mapped[f'Q{qn}'] += float(amount)
+        else:
+            unmapped_quantified[name] = amount
+    total = sum(mapped.values())
+    if total <= 0:
+        return {'ok': False,
+                'refusal': 'no qn-carrying species remain quantified '
+                           'in this inventory',
+                'unmappedQuantified': unmapped_quantified,
+                'suggestion': 'fewer/other steps — or record the '
+                              'product state\'s distribution as a '
+                              'qDistribution descriptor once measured'}
+    return {'ok': True,
+            'fractions': {m: v / total for m, v in mapped.items()},
+            'unmappedQuantified': unmapped_quantified,
+            'presentUnquantified': sorted(present_unquantified)}
+
+
 def stepped_groups(cation, mr, steps=None, site=None, conditions=None,
                    datasets=None, species=None):
     """gsp-4b: Q-motif fractions AFTER scientist-driven network steps.
@@ -183,7 +230,6 @@ def stepped_groups(cation, mr, steps=None, site=None, conditions=None,
     share cannot enter the fractions) and everything present but
     unquantified."""
     from pspp.network_stepping import solution_inventory, step_once
-    from pspp.reaction_network import SEED_CHEMICAL_SPECIES
 
     start = solution_inventory(cation, mr, datasets=datasets)
     if not start.get('ok'):
@@ -208,38 +254,15 @@ def stepped_groups(cation, mr, steps=None, site=None, conditions=None,
             if note not in assumptions:
                 assumptions.append(note)
 
-    rows = species if species is not None else SEED_CHEMICAL_SPECIES
-    qn_of = {r['name'] if isinstance(r, dict)
-             else getattr(r, 'name', ''):
-             (r.get('qn', -1) if isinstance(r, dict)
-              else getattr(r, 'qn', -1)) for r in rows}
-    mapped = {m: 0.0 for m in MOTIFS}
-    unmapped_quantified = {}
-    present_unquantified = []
-    for name, amount in inventory.items():
-        if amount is None:
-            present_unquantified.append(name)
-            continue
-        if amount <= 0:
-            continue
-        if name == 'di-siloxonate' \
-                and inventory.get('siloxonate-q1') is not None:
-            continue  # aliased Q1 resource — counted once (p.184)
-        qn = qn_of.get(name, -1)
-        if 0 <= qn <= 4:
-            mapped[f'Q{qn}'] += float(amount)
-        else:
-            unmapped_quantified[name] = amount
-    total = sum(mapped.values())
-    if total <= 0:
-        return {'ok': False, 'mode': 'stepped',
-                'refusal': 'no qn-carrying species remain quantified '
-                           'after these steps',
-                'unmappedQuantified': unmapped_quantified,
-                'suggestion': 'fewer/other steps — or record the '
-                              'product state\'s distribution as a '
-                              'qDistribution descriptor once measured'}
-    fractions = {m: v / total for m, v in mapped.items()}
+    mapping = inventory_q_fractions(
+        inventory, species=species,
+        alias_of={'di-siloxonate': 'siloxonate-q1'})
+    if not mapping['ok']:
+        mapping['mode'] = 'stepped'
+        return mapping
+    fractions = mapping['fractions']
+    unmapped_quantified = mapping['unmappedQuantified']
+    present_unquantified = mapping['presentUnquantified']
     if unmapped_quantified:
         assumptions.append(
             'fractions cover ONLY qn-carrying species — quantified '

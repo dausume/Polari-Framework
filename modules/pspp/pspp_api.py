@@ -22,6 +22,8 @@ carries its evidence and refusals render as refusals.
   POST /api/pspp/structure/scene             sample -> SimSpace (gsp-3)
   POST /api/pspp/structure/stepped-groups    stepped Q dist (gsp-4b)
   POST /api/pspp/structure/xrd               Debye halo (gsp-5)
+  GET  /api/pspp/solgel/routes               acid/base fork demos (sg-5)
+  POST /api/pspp/solgel/stepped              sol-gel stepped Q dist
 """
 
 import json
@@ -46,6 +48,9 @@ from pspp.structure_scene import (
     geopolymer_materials, scene_definition, scene_name,
 )
 from pspp.structure_validation import simulated_halo
+from pspp.solgel_structure import (
+    solgel_route_demo, solgel_stepped_groups,
+)
 
 
 class PsppAPI(treeObject):
@@ -81,6 +86,44 @@ class PsppAPI(treeObject):
                 suffix='structure_stepped')
             add('/api/pspp/structure/xrd', self,
                 suffix='structure_xrd')
+            add('/api/pspp/solgel/routes', self,
+                suffix='solgel_routes')
+            add('/api/pspp/solgel/stepped', self,
+                suffix='solgel_stepped')
+
+    # -- sol-gel library surface (MTT2_SOLGEL_SINTERING_PLAN sg-5) --
+
+    def on_get_solgel_routes(self, request, response):
+        """The acid/base catalysis-fork demos: ?route=acid|base (omit
+        for both), &nTetrahedra=&seed=&sample=false to skip the
+        cluster/halo."""
+        want_sample = (request.get_param('sample') or '') != 'false'
+        n = request.get_param_as_int('nTetrahedra') or 80
+        seed = request.get_param_as_int('seed') or 1
+        route = request.get_param('route')
+        if route:
+            response.media = solgel_route_demo(
+                route, n_tetrahedra=n, seed=seed, sample=want_sample)
+            return
+        response.media = {
+            'ok': True,
+            'routes': {r: solgel_route_demo(
+                r, n_tetrahedra=n, seed=seed, sample=want_sample)
+                for r in ('acid', 'base')},
+        }
+
+    def on_post_solgel_stepped(self, request, response):
+        """{r, ph, steps:[{rule,times}], alkoxide?, amount?} ->
+        sol-gel Q-motif fractions after scientist-driven steps."""
+        body = request.media if request.content_length else {}
+        payload = solgel_stepped_groups(
+            body.get('r'), body.get('ph', 7.0),
+            steps=body.get('steps') or [],
+            alkoxide=body.get('alkoxide') or 'teos',
+            amount=float(body.get('amount', 100.0)))
+        if not payload.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = payload
 
     def on_get_datasets(self, request, response):
         response.media = dataset_catalog(self.manager)

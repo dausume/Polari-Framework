@@ -79,8 +79,10 @@ def test_network_and_grading():
     ruleNodes = [n for n in net['nodes'] if n['kind'] == 'rule']
     speciesIds = {n['id'] for n in net['nodes']
                   if n['kind'] == 'species'}
+    from pspp.reaction_network import SEED_REACTION_RULES
     check('graph carries all seed rules + species',
-          len(ruleNodes) == 17 and len(speciesIds) >= 25)
+          len(ruleNodes) == len(SEED_REACTION_RULES)
+          and len(speciesIds) >= 25)
     check('every edge endpoint exists as a node', all(
         (e['from'] in speciesIds
          or any(n['id'] == e['from'] for n in ruleNodes))
