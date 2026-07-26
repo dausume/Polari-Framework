@@ -633,14 +633,21 @@ SEED_TECH_NODES += [
                       'crystallization risk hands off to discrete.',
           cross=((_M, 'silicon', 'shares-network-with'),)),
     _node(_M, 'ceramics', 'Ceramics', deps=('statistical',),
-          description='Green body -> debind -> sinter as a '
-                      'statistical PROCESS (ThermalProcessingProfile '
-                      'exists); the fired crystalline PHASE is a '
-                      'discrete crystal seed. Sintering '
-                      '(grain/pore evolution) is the one genuinely '
-                      'new engine gap.',
+          description='Green body -> debind -> sinter. Sintering '
+                      'engine BUILT (mtt-2 Part B): analytic Master '
+                      'Sintering Curve — work-of-sintering integral Θ '
+                      'over a firing schedule + mean-field grain '
+                      'growth, writing grain/pore/relative-density '
+                      'onto L2 structure rows. HONEST SPLIT: Θ is '
+                      'pure math; ρ(Θ) and the grain kinetics are '
+                      'CALIBRATION DATA and refuse until a real '
+                      'densification master curve is digitized (see '
+                      'data gaps). The fired crystalline phase is a '
+                      'discrete crystal seed.',
           cross=((_E, 'ceramics-composites', 'consumed-by'),
-                 (_S, 'geopolymer-composite-supply', 'related-to'))),
+                 (_S, 'geopolymer-composite-supply', 'related-to')),
+          data_deps=('alumina-densification-master-curve',
+                     'silica-xerogel-shrinkage-vs-temperature')),
     _node(_M, 'aluminum', 'Aluminum', deps=('discrete',),
           description='fcc metal — crystal seed + phonons/elastic '
                       'LIVE (ssp). BLCNC heat-calibration voxels use '

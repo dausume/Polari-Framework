@@ -26,6 +26,8 @@ carries its evidence and refusals render as refusals.
   POST /api/pspp/solgel/stepped              sol-gel stepped Q dist
   GET  /api/pspp/solgel/sources              precursor sourcing + subs
   GET  /api/pspp/solgel/community-routes     accessible-route rollups
+  POST /api/pspp/sinter/fire                 MSC densify + grain + L2
+  GET  /api/pspp/sinter/master-curves        available master curves
 """
 
 import json
@@ -57,6 +59,10 @@ from pspp.solgel_sourcing import (
     COMMUNITY_ROUTES, SEED_PRECURSOR_SOURCES, route_accessibility,
     route_report, substitution_map,
 )
+from pspp.sintering_engine import (
+    grain_size, relative_density, work_of_sintering,
+)
+from pspp.sintering_structure import plan_sinter_structure
 
 
 class PsppAPI(treeObject):
@@ -100,6 +106,65 @@ class PsppAPI(treeObject):
                 suffix='solgel_sources')
             add('/api/pspp/solgel/community-routes', self,
                 suffix='solgel_community')
+            add('/api/pspp/sinter/fire', self, suffix='sinter_fire')
+            add('/api/pspp/sinter/master-curves', self,
+                suffix='sinter_curves')
+
+    # -- ceramic sintering surface (MTT2 Part B) --
+
+    def _master_curve(self, name):
+        """Resolve a master-curve DigitizedDataset by name from live
+        rows -> the dataset_dict shape the engine reads; None if
+        absent."""
+        from pspp.digitized_datasets import dataset_index
+        return dataset_index(self.manager).get(name) if name else None
+
+    def on_get_sinter_curves(self, request, response):
+        """List the DigitizedDataset rows shaped as ρ(log10 Θ) master
+        curves, with their readiness (provisional ones refuse)."""
+        from pspp.digitized_datasets import dataset_index
+        curves = []
+        for name, ds in dataset_index(self.manager).items():
+            if 'log10Theta' in (ds.get('independentVariables') or []) \
+                    and 'relativeDensity' in (
+                        ds.get('dependentVariables') or []):
+                curves.append({
+                    'name': name, 'status': ds.get('status'),
+                    'ready': ds.get('status') == 'ready'
+                    and bool(ds.get('points')),
+                    'source': ds.get('sourceReference')})
+        response.media = {'ok': True, 'masterCurves': curves}
+
+    def on_post_sinter_fire(self, request, response):
+        """One firing: Θ always; ρ if a master curve resolves and Θ is
+        in-range; grain size if kinetics are given; the L2 structure
+        plan when both ρ and grain size exist. Every missing piece
+        refuses in place — the engine invents no Q, curve, or kinetics.
+        Body: {schedule, activationEnergy, masterCurve?, grain?:{d0,n,
+        k0,Qg}, stateKey?, theoreticalDensity?}."""
+        body = request.media if request.content_length else {}
+        schedule = body.get('schedule') or []
+        q = body.get('activationEnergy')
+        out = {'ok': True}
+        out['work'] = work_of_sintering(schedule, q)
+        curve = self._master_curve(body.get('masterCurve'))
+        out['density'] = relative_density(schedule, q, master_curve=curve)
+        grain_in = body.get('grain') or {}
+        if grain_in:
+            out['grain'] = grain_size(
+                schedule, grain_in.get('d0'), grain_in.get('n'),
+                grain_in.get('k0'), grain_in.get('Qg'))
+        density_ok = out['density'].get('ok')
+        grain_ok = out.get('grain', {}).get('ok')
+        if density_ok and grain_ok and body.get('stateKey'):
+            out['structurePlan'] = plan_sinter_structure(
+                body['stateKey'],
+                out['density']['relativeDensity'],
+                out['grain']['grainSizeUm'],
+                theoretical_density_g_cm3=body.get('theoreticalDensity'))
+        if not out['work'].get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = out
 
     # -- community sourcing surface (MTT2 sg-community) --
 

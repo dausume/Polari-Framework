@@ -510,6 +510,9 @@ try:
     from pspp.solgel_sourcing import (
         PrecursorSource, SEED_PRECURSOR_SOURCES,
     )
+    # mtt-2 Part B: the ceramic sintering engine's master-curve
+    # calibration data (provisional until digitized).
+    from pspp.sintering_seed import SEED_SINTERING_DATASETS
 except ImportError as _exc:
     _stub_missing_feature('pspp', _exc, globals(), (
         'EvidenceMethod', 'SEED_EVIDENCE_METHODS', 'PropertyClaim',
@@ -531,6 +534,7 @@ except ImportError as _exc:
         'SOLGEL_THRESHOLD_WINDOWS', 'SOLGEL_DIGITIZED_DATASETS',
         'SOLGEL_PROCESSING_STAGES',
         'PrecursorSource', 'SEED_PRECURSOR_SOURCES',
+        'SEED_SINTERING_DATASETS',
     ))
 try:
     from aquaponics.pot_materials_seed import (
@@ -2687,7 +2691,8 @@ class polariServer(treeObject):
             ('EvidenceMethod', EvidenceMethod, SEED_EVIDENCE_METHODS),
             ('DigitizedDataset', DigitizedDataset,
              SEED_DIGITIZED_DATASETS
-             + (SOLGEL_DIGITIZED_DATASETS or [])),
+             + (SOLGEL_DIGITIZED_DATASETS or [])
+             + (SEED_SINTERING_DATASETS or [])),
             # pspp-2: stage vocabulary rows; MaterialState never seeds.
             ('ProcessingStage', ProcessingStage,
              SEED_PROCESSING_STAGES
