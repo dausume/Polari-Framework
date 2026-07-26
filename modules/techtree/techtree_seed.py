@@ -43,6 +43,8 @@ import json as _json
 TREE_ELECTRONICS = 'electronics'
 TREE_SUPPLY = 'raw-supply-chain'
 TREE_ECONOMY = 'os-economy-politics'
+TREE_MATERIALS = 'materials-science'  # mtt-1
+TREE_SIMULATION = 'simulation-methods'  # smt-1
 
 
 def _node(tree, short, title, deps=(), description='', cross=()):
@@ -99,11 +101,36 @@ SEED_TECH_TREE_DEFINITIONS = [
                     'needed, and technology tailored so businesses '
                     'can be as small as possible.',
      'is_active': False, 'is_baseline': True, 'notes': ''},
+    {'name': TREE_MATERIALS,
+     'title': 'Materials Science',
+     'owner': 'polari',
+     'description': 'The material bodies we manufacture and simulate. '
+                    'Two representation sub-domains — STATISTICAL '
+                    '(distribution/amorphous/reactive: the pspp+gsp '
+                    'engine) and DISCRETE (precise lattice/particle: '
+                    'the msci/ssp engine) — plus the ENCAPSULATION '
+                    'bridge (discrete particle -> safe statistical '
+                    'carrier). See MATERIALS_TECH_TREE_PLAN.md.',
+     'is_active': False, 'is_baseline': True, 'notes': ''},
+    {'name': TREE_SIMULATION,
+     'title': 'Simulation Methods',
+     'owner': 'polari',
+     'description': 'The cross-cutting engine layer that serves every '
+                    'other tree: SimSpace + runner, multi-scale '
+                    'composition/coupling, resource-aware stepping, '
+                    'distributed + cross-instance compute, the gRPC '
+                    'bridge, hardware-sim digital twins, the no-code '
+                    'execution engine, and schema stabilization. '
+                    'Cross-refs INTO materials/electronics/hardware — '
+                    'the methods, not the domain science.',
+     'is_active': False, 'is_baseline': True, 'notes': ''},
 ]
 
 _E = TREE_ELECTRONICS
 _S = TREE_SUPPLY
 _P = TREE_ECONOMY
+_M = TREE_MATERIALS
+_SM = TREE_SIMULATION
 
 #: Electronics / Microelectronics — the original tt-5 nodes (the
 #: household-nutrition node moved to the Raw Supply Chain tree).
@@ -520,6 +547,231 @@ SEED_OSEB_POLARI_MODULES = [
             'Tech trees, business-model/policy definitions, '
             'completion rollups.'),
 ]
+
+# ---------------------------------------------------------------------
+# mtt-1 (MATERIALS_TECH_TREE_PLAN): the Materials Science tree. Three
+# sub-domain hub nodes + the 9 core manufacturing materials + the
+# encapsulation bridge. Materials OWN identity/simulation here and
+# cross-ref (never edge) to the electronics tree (what consumes them),
+# the supply tree (feedstock), keeping the engine boundary as the
+# statistical/discrete cut. Data-only — no engine code.
+# ---------------------------------------------------------------------
+
+SEED_TECH_NODES += [
+    # -- sub-domain hubs (the engine boundary, as membership deps) ----
+    _node(_M, 'statistical', 'Statistical materials (pspp)',
+          description='Identity is a DISTRIBUTION over motifs/phases '
+                      '— amorphous, reactive, formulated. Engine: '
+                      'pspp datasets/rules/windows/state-DAG/progress/'
+                      'grader + gsp Q-groups/sampler/Debye halo.'),
+    _node(_M, 'discrete', 'Discrete materials (crystal / particle)',
+          description='Identity is a PRECISE structure or particle — '
+                      'lattice, stoichiometric crystal, sized '
+                      'nanoparticle. Engine: msci/ssp '
+                      'CrystalStructureDefinition, lattice scenes, '
+                      'phonons/elastic, pymatgen symmetry/XRD, '
+                      'MD/meso.'),
+    _node(_M, 'encapsulation',
+          'Encapsulation (discrete -> safe statistical carrier)',
+          deps=('discrete', 'statistical'),
+          description='Refine a nanoparticle and lock it into a '
+                      'wax/lipid composite carrier so it is safe to '
+                      'transport/handle (no free-particle spill or '
+                      'inhalation hazard). The transform EDGE '
+                      'discrete->statistical; safety gating (release '
+                      'windows, spill scenarios) is first-class here '
+                      '(reuses pspp windows + ExposureScenario).',
+          cross=((_E, 'lasis', 'consumes-output-of'),
+                 (_S, 'nanoparticle-supply', 'consumes'))),
+    # -- the 9 core manufacturing materials ---------------------------
+    _node(_M, 'wax', 'Wax', deps=('statistical',),
+          description='Bio/synthetic wax as a formulated material — '
+                      'wax states + feedstock routes (Wax-3D-Printing '
+                      'carries the print process in the electronics '
+                      'tree).',
+          cross=((_E, 'wax-materials', 'consumed-by'),
+                 (_S, 'wax-supply', 'supplied-by'))),
+    _node(_M, 'sol-gel', 'Sol-gel', deps=('statistical',),
+          description='Alkoxide hydrolysis/condensation to a silica '
+                      'gel — SHELL: the pspp path fits directly '
+                      '(Q-speciation, gel/aging/drying state-DAG) but '
+                      'needs an alkoxide species library + a pH/water '
+                      'ratio gate. Glass Q-curves are reusable.',
+          cross=((_E, 'os-pvd', 'consumed-by'),
+                 (_S, 'sol-gel-supply', 'supplied-by'))),
+    _node(_M, 'geopolymer', 'Geopolymer', deps=('statistical',),
+          description='Alkali-activated aluminosilicate — FULL pspp '
+                      'stack + gsp groups/sampler/Debye halo built '
+                      '(GEOPOLYMER_STRUCTURE_SAMPLING_PLAN). The '
+                      'carbon-negative layer starts here.',
+          cross=((_E, 'ceramics-composites', 'consumed-by'),
+                 (_S, 'geopolymer-composite-supply', 'supplied-by'))),
+    _node(_M, 'glass', 'Glass', deps=('statistical',),
+          description='Silicate glass — the Maekawa alkali-silicate '
+                      'Q-distribution curves are LIVE (pspp glass '
+                      'mode). Refinement (fining/viscosity/'
+                      'devitrification) = datasets + windows TODO; '
+                      'crystallization risk hands off to discrete.',
+          cross=((_M, 'silicon', 'shares-network-with'),)),
+    _node(_M, 'ceramics', 'Ceramics', deps=('statistical',),
+          description='Green body -> debind -> sinter as a '
+                      'statistical PROCESS (ThermalProcessingProfile '
+                      'exists); the fired crystalline PHASE is a '
+                      'discrete crystal seed. Sintering '
+                      '(grain/pore evolution) is the one genuinely '
+                      'new engine gap.',
+          cross=((_E, 'ceramics-composites', 'consumed-by'),
+                 (_S, 'geopolymer-composite-supply', 'related-to'))),
+    _node(_M, 'aluminum', 'Aluminum', deps=('discrete',),
+          description='fcc metal — crystal seed + phonons/elastic '
+                      'LIVE (ssp). BLCNC heat-calibration voxels use '
+                      'it.',
+          cross=((_E, 'blcnc-p4-hardware', 'consumed-by'),)),
+    _node(_M, 'silicon', 'Silicon', deps=('discrete',),
+          description='Diamond-cubic — crystal seed + XRD + phonons '
+                      'LIVE (ssp). Refinement grades (metallurgical '
+                      '-> PV -> semiconductor) + doping = TODO.',
+          cross=((_E, 'silicon-refinement', 'refined-by'),
+                 (_S, 'silicon-supply', 'supplied-by'))),
+    _node(_M, 'carbon-nanotubes', 'Carbon nanotubes',
+          deps=('discrete',),
+          description='Rolled-graphene tubes — DISCRETE identity; '
+                      'needs a chirality/tube structure builder (no '
+                      'CrystalStructureDefinition analog yet). '
+                      'Production route + supply live in the other '
+                      'trees.',
+          cross=((_E, 'carbon-nanotubes', 'consumed-by'),
+                 (_S, 'cnt-supply', 'supplied-by'))),
+    _node(_M, 'galvanized-bio-steel',
+          'Galvanized bio-steel (stainless equivalent)',
+          deps=('discrete',),
+          description='The locally-manufacturable stainless STAND-IN '
+                      '(bio_alloys_seed): plain-bio-steel + '
+                      'bio-phosphate coat + bio-zinc hot-dip. Valid '
+                      'for structural/atmospheric, NOT food-contact/'
+                      'immersion/high-temp. TRUE stainless is an '
+                      'honest gap — needs Cr, no bio-route.',
+          cross=((_S, 'biomining', 'supplied-by'),)),
+]
+
+SEED_TECH_SEGMENT_ASSIGNMENTS += [
+    # sub-domain hubs -> their engines
+    _theory(_M, 'statistical', 'pspp'),
+    _theory(_M, 'discrete', 'materialsScience'),
+    _theory(_M, 'encapsulation', 'materialsScience'),
+    _theory(_M, 'encapsulation', 'pspp'),
+    # the 9 cores -> the modules carrying their theory today
+    _theory(_M, 'wax', 'Wax-3D-Printing'),
+    _theory(_M, 'wax', 'pspp'),
+    _theory(_M, 'sol-gel', 'pspp'),
+    _theory(_M, 'geopolymer', 'pspp'),
+    _theory(_M, 'glass', 'pspp'),
+    _theory(_M, 'glass', 'materialsScience'),
+    _theory(_M, 'ceramics', 'pspp'),
+    _theory(_M, 'ceramics', 'materialsScience'),
+    _theory(_M, 'aluminum', 'materialsScience'),
+    _theory(_M, 'silicon', 'materialsScience'),
+    _theory(_M, 'carbon-nanotubes', 'materialsScience'),
+    _theory(_M, 'galvanized-bio-steel', 'materialsScience'),
+    _theory(_M, 'galvanized-bio-steel', 'biomining'),
+]
+
+SEED_OSEB_POLARI_MODULES += [
+    _module('pspp', _M, 'statistical',
+            'Processing-Structure-Properties-Performance: the generic '
+            'reactive-material engine (datasets/rules/windows/'
+            'state-DAG/progress/grader) + gsp geopolymer structure '
+            'groups, ensemble sampler, and Debye halo validation.'),
+]
+
+
+# ---------------------------------------------------------------------
+# smt-1 (MATERIALS_TECH_TREE_PLAN, sim-methods branch): the Simulation
+# Methods tree — the cross-cutting engine layer. Nodes are METHODS
+# (SimSpace/runner, multi-scale, resource-aware, distributed,
+# cross-instance, gRPC, hardware-sim, no-code execution, schema
+# stability); they cross-ref INTO the domain trees they serve. All
+# theory carried by modules genuinely present today. Data-only.
+# ---------------------------------------------------------------------
+
+SEED_TECH_NODES += [
+    _node(_SM, 'nocode-execution', 'No-code execution engine',
+          description='SolutionDefinition graphs + the execution '
+                      'engine every sim step ultimately runs on '
+                      '(P1-P5 no-code foundations; parity across the '
+                      'Python + TS engines).'),
+    _node(_SM, 'sim-core', 'Simulation core (SimSpace + runner)',
+          deps=('nocode-execution',),
+          description='SimulationDefinition/Runner + SimSpace 2D/3D — '
+                      'the reality-first vector/matrix sim substrate '
+                      'materials and hardware both step on.',
+          cross=((_E, 'computational-methods', 'detailed-by'),
+                 (_M, 'statistical', 'runs'),
+                 (_M, 'discrete', 'runs'))),
+    _node(_SM, 'multi-scale', 'Multi-scale composition + coupling',
+          deps=('sim-core',),
+          description='MultiScaleSimulationDefinition, scale '
+                      'transfers, SimulationCoupling (wind<->pendulum '
+                      'verified) — L1-L5 resolutions composed into '
+                      'one run.',
+          cross=((_M, 'discrete', 'spans-scales-of'),)),
+    _node(_SM, 'resource-aware', 'Resource-aware simulation',
+          deps=('sim-core',),
+          description='Per-step cost tracking, memory-drain warnings, '
+                      'auto-suggested saving strategies, node '
+                      'inventory + module-admission advisor '
+                      '(resources module, res-1..4).'),
+    _node(_SM, 'distributed-compute', 'Distributed compute',
+          deps=('sim-core',),
+          description='Dask parallel + twin instances + cross-instance '
+                      'Dask — the same run spread across cores and '
+                      'machines.'),
+    _node(_SM, 'cross-instance-sim', 'Cross-instance simulation',
+          deps=('distributed-compute',),
+          description='xsim: reference ladder, fencing, module-scoped '
+                      'backends — sims that span Polari instances '
+                      '(xsim-1..6 + modsplit).'),
+    _node(_SM, 'grpc-bridge', 'gRPC bridge + peer watch',
+          deps=('cross-instance-sim',),
+          description='gRPC parity + peer<->peer Watch — the wire '
+                      'protocol under cross-instance runs '
+                      '(grpc-1/2/j1/j2).'),
+    _node(_SM, 'hardware-sim', 'Hardware simulation (digital twins)',
+          deps=('sim-core',),
+          description='hwsim: Renode/Verilator/ngspice stack, real '
+                      'STM32F4 firmware driving the Polari loop — the '
+                      'twin that stands in for physical hardware.',
+          cross=((_E, 'open-source-hardware', 'twins'),
+                 (_E, 'blcnc-p4-hardware', 'twins'))),
+    _node(_SM, 'schema-stability', 'Schema stabilization',
+          deps=('sim-core',),
+          description='Per-class schema freeze + smooth OOPS recovery '
+                      '(destabilize/widen/coerce/retry, never silent '
+                      'loss) + simulation locks/leases — keeps '
+                      'long/distributed runs persistable.'),
+]
+
+SEED_TECH_SEGMENT_ASSIGNMENTS += [
+    _theory(_SM, 'nocode-execution', 'polariNoCode'),
+    _theory(_SM, 'sim-core', 'simulations'),
+    _theory(_SM, 'sim-core', 'matrices'),
+    _theory(_SM, 'multi-scale', 'simulations'),
+    _theory(_SM, 'resource-aware', 'resources'),
+    _theory(_SM, 'resource-aware', 'simulations'),
+    _theory(_SM, 'distributed-compute', 'simulations'),
+    _theory(_SM, 'distributed-compute', 'grpcbridge'),
+    _theory(_SM, 'cross-instance-sim', 'grpcbridge'),
+    _theory(_SM, 'grpc-bridge', 'grpcbridge'),
+    _theory(_SM, 'hardware-sim', 'grpcbridge'),
+    _theory(_SM, 'schema-stability', 'simulations'),
+]
+
+SEED_OSEB_POLARI_MODULES += [
+    _module('resources', _SM, 'resource-aware',
+            'Node inventory, resource profiles, per-step measurement, '
+            'module-admission advisor (res-1..4).'),
+]
+
 
 # ---------------------------------------------------------------------
 # tt-5 single-tree retirement (the 'oseb' tree became three domain
