@@ -24,6 +24,8 @@ carries its evidence and refusals render as refusals.
   POST /api/pspp/structure/xrd               Debye halo (gsp-5)
   GET  /api/pspp/solgel/routes               acid/base fork demos (sg-5)
   POST /api/pspp/solgel/stepped              sol-gel stepped Q dist
+  GET  /api/pspp/solgel/sources              precursor sourcing + subs
+  GET  /api/pspp/solgel/community-routes     accessible-route rollups
 """
 
 import json
@@ -50,6 +52,10 @@ from pspp.structure_scene import (
 from pspp.structure_validation import simulated_halo
 from pspp.solgel_structure import (
     solgel_route_demo, solgel_stepped_groups,
+)
+from pspp.solgel_sourcing import (
+    COMMUNITY_ROUTES, SEED_PRECURSOR_SOURCES, route_accessibility,
+    route_report, substitution_map,
 )
 
 
@@ -90,6 +96,54 @@ class PsppAPI(treeObject):
                 suffix='solgel_routes')
             add('/api/pspp/solgel/stepped', self,
                 suffix='solgel_stepped')
+            add('/api/pspp/solgel/sources', self,
+                suffix='solgel_sources')
+            add('/api/pspp/solgel/community-routes', self,
+                suffix='solgel_community')
+
+    # -- community sourcing surface (MTT2 sg-community) --
+
+    def on_get_solgel_sources(self, request, response):
+        """Precursor sourcing catalog + the substitution map ('what
+        common material replaces this lab input?'). Reads live
+        PrecursorSource rows when present, else the seeds."""
+        sources = self._live('PrecursorSource', SEED_PRECURSOR_SOURCES)
+        response.media = {
+            'ok': True,
+            'sources': [
+                {'name': self._g(s, 'name'),
+                 'displayName': self._g(s, 'display_name'),
+                 'speciesRef': self._g(s, 'species_ref'),
+                 'tier': self._g(s, 'accessibility_tier'),
+                 'claimStatus': self._g(s, 'claim_status'),
+                 'derivation': self._g(s, 'derivation'),
+                 'source': self._g(s, 'source_reference')}
+                for s in sources],
+            'substitutionMap': substitution_map(sources),
+        }
+
+    def on_get_solgel_community(self, request, response):
+        """Accessible-route rollups. ?route=<name> returns the full
+        report (sourcing + accessibility + chemistry); no route lists
+        every route's accessibility rollup."""
+        sources = self._live('PrecursorSource', SEED_PRECURSOR_SOURCES)
+        route = request.get_param('route')
+        if route:
+            payload = route_report(route, sources=sources)
+            if not payload.get('ok'):
+                response.status = '404 Not Found'
+            response.media = payload
+            return
+        response.media = {
+            'ok': True,
+            'routes': {name: route_accessibility(name, sources=sources)
+                       for name in COMMUNITY_ROUTES},
+        }
+
+    @staticmethod
+    def _g(row, key, default=''):
+        return (row.get(key, default) if isinstance(row, dict)
+                else getattr(row, key, default))
 
     # -- sol-gel library surface (MTT2_SOLGEL_SINTERING_PLAN sg-5) --
 

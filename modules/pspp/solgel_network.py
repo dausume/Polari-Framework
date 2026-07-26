@@ -92,6 +92,28 @@ SOLGEL_CHEMICAL_SPECIES = [
      'formula': 'Zr(OR)4', 'species_kind': 'molecule',
      'notes': 'RULES PENDING — same fast-hydrolysis caveat as '
               'aluminum-alkoxide.'},
+    # -- alkoxide-free (water-glass) precursors: the community route --
+    {'name': 'sodium-silicate', 'display_name': 'Sodium silicate '
+                                               '(water glass)',
+     'formula': 'Na2O.nSiO2 (aq)', 'species_kind': 'molecule',
+     'notes': 'Water glass — the alkoxide-FREE silica source. A '
+              'soluble alkaline silicate the community route acidifies '
+              'to liberate silicic acid. qn omitted: in solution it is '
+              'itself a Q distribution (see the na-siloxonate glass->'
+              'solution dataset), not a single motif.'},
+    {'name': 'citric-acid', 'display_name': 'Citric acid',
+     'formula': 'C6H8O7', 'species_kind': 'molecule',
+     'notes': 'The natural acidifier — abundant in citrus juice '
+              '(lemon juice is 60-70% soluble solids, predominantly '
+              'citric with some malic/oxalic). Substitutes for a '
+              'mineral-acid catalyst in acid-route sol-gel.'},
+    {'name': 'dissolved-salt', 'display_name': 'Dissolved salt '
+                                              '(neutralization)',
+     'species_kind': 'molecule',
+     'notes': 'The alkali-neutralization byproduct of acidifying '
+              'water glass (e.g. sodium citrate) — carried so the '
+              'gelation rule balances; washed out of the finished '
+              'gel.'},
     {'name': 'framework-silica-polymeric-gel',
      'display_name': 'Silica gel (polymeric)',
      'species_kind': 'framework',
@@ -129,6 +151,27 @@ SOLGEL_REACTION_RULES = [
         'hypothesis_status': 'book-supported',
         'source_reference': f'{_BS} Ch.3 (hydrolysis); stoichiometry '
                             'canonical',
+    },
+    {
+        'name': 'silicate-acid-gelation',
+        'display_name': 'Acid gelation of water glass',
+        'reactants_json': json.dumps(['sodium-silicate', 'citric-acid']),
+        'products_json': json.dumps(['silicic-acid', 'dissolved-salt']),
+        'topology_change': 'Acidifying sodium silicate (water glass) '
+                           'neutralizes the alkali and liberates '
+                           'monomeric silicic acid Si(OH)4, which then '
+                           'polycondenses via the shared condensation '
+                           'rules into a silica gel. The '
+                           'alkoxide-FREE, community-accessible entry '
+                           'to the same Q ledger.',
+        'stage': 'activation',
+        'hypothesis_status': 'book-supported',
+        'source_reference': 'Iler, The Chemistry of Silica (1979); '
+                            'sodium-silicate + citric acid to pH ~5 '
+                            'gives silicic acid / silica gel (J. Mater. '
+                            'Res. Technol. 2020; Gels 2024, acid-'
+                            'initiated sodium silicate). Stoichiometry '
+                            'canonical; RATES refuse (I5).',
     },
     {
         'name': 'silicic-dimerization',
@@ -448,4 +491,45 @@ def solgel_inventory(r_ratio, alkoxide='teos', amount=100.0):
         ],
         'evidence': 'stoichiometry of the declared mix (R ratio) — '
                     'no measurement involved',
+    }
+
+
+def waterglass_inventory(acid_equiv=1.0, amount=100.0):
+    """The alkoxide-FREE starting pool: `amount` units of sodium
+    silicate (water glass) + `acid_equiv` x amount of citric acid to
+    neutralize the alkali and liberate silicic acid. Si-basis
+    rule-application units — never concentrations."""
+    try:
+        acid = float(acid_equiv)
+    except (TypeError, ValueError):
+        return {'ok': False,
+                'refusal': f'acidEquiv {acid_equiv!r} is not a number',
+                'suggestion': 'acidEquiv = mol acid per mol silicate '
+                              'unit (>=1 to fully neutralize toward '
+                              'pH ~5)'}
+    if acid <= 0:
+        return {'ok': False,
+                'refusal': f'acidEquiv {acid} must be positive — '
+                           'without acid the water glass does not gel',
+                'suggestion': 'citric acid (or any common acid) '
+                              'lowers pH to liberate silicic acid'}
+    inventory = {
+        'sodium-silicate': float(amount),
+        'citric-acid': float(amount) * acid,
+        'water': None,  # aqueous medium, present unquantified
+    }
+    return {
+        'ok': True, 'acidEquiv': acid, 'precursor': 'sodium-silicate',
+        'inventory': inventory,
+        'assumptions': [
+            'rule-application units on a Si basis — stoichiometric '
+            'bookkeeping, never concentrations',
+            'water glass acidified by citric acid: the acid is a '
+            'CONSUMED reactant here (it neutralizes alkali), not a '
+            'bare pH condition as in the alkoxide route',
+            'the acidified pool reaches pH ~5 (Iler / JMRT 2020) — '
+            'pass that pH as the condition when stepping condensation',
+        ],
+        'evidence': 'stoichiometry of a water-glass + citric-acid mix '
+                    '— no measurement involved',
     }

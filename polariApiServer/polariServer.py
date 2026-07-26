@@ -506,6 +506,10 @@ try:
     from pspp.solgel_process import (
         SOLGEL_DIGITIZED_DATASETS, SOLGEL_PROCESSING_STAGES,
     )
+    # mtt-2 sg-community: precursor sourcing / common-material routes.
+    from pspp.solgel_sourcing import (
+        PrecursorSource, SEED_PRECURSOR_SOURCES,
+    )
 except ImportError as _exc:
     _stub_missing_feature('pspp', _exc, globals(), (
         'EvidenceMethod', 'SEED_EVIDENCE_METHODS', 'PropertyClaim',
@@ -526,6 +530,7 @@ except ImportError as _exc:
         'SOLGEL_CHEMICAL_SPECIES', 'SOLGEL_REACTION_RULES',
         'SOLGEL_THRESHOLD_WINDOWS', 'SOLGEL_DIGITIZED_DATASETS',
         'SOLGEL_PROCESSING_STAGES',
+        'PrecursorSource', 'SEED_PRECURSOR_SOURCES',
     ))
 try:
     from aquaponics.pot_materials_seed import (
@@ -2705,6 +2710,10 @@ class polariServer(treeObject):
             ('ReactionRule', ReactionRule,
              SEED_REACTION_RULES
              + (SOLGEL_REACTION_RULES or [])),
+            # mtt-2 sg-community: precursor sourcing / common-material
+            # accessibility for the sol-gel routes.
+            ('PrecursorSource', PrecursorSource,
+             SEED_PRECURSOR_SOURCES or []),
             ('ScaleTransferDefinition', ScaleTransferDefinition,
              SEED_SCALE_TRANSFERS),
             ('ExposureScenario', ExposureScenario,

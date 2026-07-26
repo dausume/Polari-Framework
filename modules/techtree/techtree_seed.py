@@ -593,13 +593,18 @@ SEED_TECH_NODES += [
                  (_S, 'wax-supply', 'supplied-by'))),
     _node(_M, 'sol-gel', 'Sol-gel', deps=('statistical',),
           description='Alkoxide hydrolysis/condensation to a silica '
-                      'gel — BUILT (mtt-2 sg-1..5): alkoxide species '
-                      'library + pH catalysis-fork and R-ratio gates '
-                      'as ThresholdReactionWindow data, sol->gel->'
-                      'xerogel/aerogel state route, acid/base fork '
-                      'proven through the gsp sampler/halo. Numeric '
-                      'curves (gel-time-vs-pH, NMR Q^n) still refuse '
-                      'pending digitized figures.',
+                      'gel — BUILT (mtt-2 sg-1..5 + sg-community): '
+                      'alkoxide species library + pH catalysis-fork '
+                      'and R-ratio gates as ThresholdReactionWindow '
+                      'data, sol->gel->xerogel/aerogel state route, '
+                      'acid/base fork through the gsp sampler/halo. '
+                      'PLUS a community layer: alkoxide-FREE water-'
+                      'glass + citrus-juice route, rice-husk / waste-'
+                      'glass silica sources, PrecursorSource '
+                      'accessibility tiers + the lab->common '
+                      'substitution map. Numeric curves + water-glass '
+                      'morphology fork refuse pending digitized '
+                      'figures.',
           cross=((_E, 'os-pvd', 'consumed-by'),
                  (_S, 'sol-gel-supply', 'supplied-by'))),
     _node(_M, 'geopolymer', 'Geopolymer', deps=('statistical',),
