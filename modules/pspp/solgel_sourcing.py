@@ -248,8 +248,12 @@ COMMUNITY_ROUTES = {
         'story': 'Fully waste-derived: silica from rice-husk ash, '
                  'acid from citrus. Both inputs are household-tier '
                  'agricultural streams.',
-        'morphology_note': 'Same water-glass morphology caveat as '
-                           'waterglass-citrus.',
+        'morphology_note': 'Water-glass morphology does NOT follow the '
+                           'alkoxide acid=open/base=dense fork '
+                           '(acidic water-glass gels are denser, '
+                           'smaller-particle networks; Gels 2024) — '
+                           'UNVALIDATED here, a winner is refused '
+                           'until digitized.',
         'source_reference': 'Rice-husk-ash silica literature + lemon '
                             'bio-waste sol-gel (Sustainable Chemistry '
                             '2021).'},
