@@ -277,10 +277,48 @@ def assignment_report(manager, assignment):
 # Completion rollup (B4): assignment -> segment -> node -> tree.
 # ---------------------------------------------------------------------
 
+def node_data_gaps(manager, node_row):
+    """mtt-2: DERIVED data gaps — every DigitizedDataset a node names
+    in data_dependencies_json that is missing, provisional, or
+    points-empty is an open data ask (digitize it -> gap clears).
+    Duck-typed over the 'DigitizedDataset' table, same idiom as the
+    theory done-test; a node with no data deps yields none."""
+    gaps = []
+    node_name = getattr(node_row, 'name', '')
+    for ds_name in _loads(node_row, 'data_dependencies_json', []):
+        row = _named(manager, 'DigitizedDataset', ds_name)
+        if row is None:
+            gaps.append({
+                'severity': 'warn', 'check': 'data-missing',
+                'subject': f'{node_name}:data:{ds_name}',
+                'evidence': f'dataset "{ds_name}" has no row — the '
+                            'technology names it as a dependency',
+                'knob': 'DigitizedDataset',
+                'action': f'seed/enter the "{ds_name}" dataset row'})
+            continue
+        status = getattr(row, 'status', '')
+        points = _loads(row, 'points_json', [])
+        if status != 'ready' or not points:
+            reason = ('status is ' + (status or 'unset')
+                      if status != 'ready' else 'no digitized points')
+            gaps.append({
+                'severity': 'warn', 'check': 'data-provisional',
+                'subject': f'{node_name}:data:{ds_name}',
+                'evidence': f'dataset "{ds_name}": {reason} — '
+                            'quantitative use refuses until digitized',
+                'knob': 'DigitizedDataset.status / points_json',
+                'action': (getattr(row, 'notes', '')
+                           or f'photograph + digitize "{ds_name}", '
+                              'then set status=ready')})
+    return gaps
+
+
 def node_completion(manager, tree_name, node_name):
     """One node's derived segments + completion. Only PRESENT
     segments (>=1 assignment) exist; node completion is the
-    weighted mean over present segments."""
+    weighted mean over present segments. Data gaps (mtt-2) are a
+    SEPARATE axis — surfaced in `gaps` and counted, but they do NOT
+    move completionLevel (structural build vs data completeness)."""
     assignments = [a for a in _scoped(
         manager, 'TechSegmentAssignment', tree_name)
         if getattr(a, 'tech_node', '') == node_name]
@@ -306,17 +344,21 @@ def node_completion(manager, tree_name, node_name):
     total_weight = sum(s['weight'] for s in segments)
     completion = (sum(s['completion'] * s['weight'] for s in segments)
                   / total_weight) if total_weight else 0.0
+    segment_gaps = [
+        {'severity': 'info', 'check': 'segment-incomplete',
+         'subject': f'{node_name}:{r["segmentKind"]}',
+         'evidence': r['evidence'], 'knob': r['knob'],
+         'action': r['action']}
+        for s in segments for r in s['assignments']
+        if not r['done']]
+    data_gaps = node_data_gaps(manager, _named(manager, 'TechNode',
+                                               node_name))
     return {'node': node_name,
             'segmentsPresent': [s['kind'] for s in segments],
             'segments': segments,
             'completionLevel': completion,
-            'gaps': [
-                {'severity': 'info', 'check': 'segment-incomplete',
-                 'subject': f'{node_name}:{r["segmentKind"]}',
-                 'evidence': r['evidence'], 'knob': r['knob'],
-                 'action': r['action']}
-                for s in segments for r in s['assignments']
-                if not r['done']]}
+            'dataGaps': data_gaps,
+            'gaps': segment_gaps + data_gaps}
 
 
 def tree_completion(manager, tree_name):
@@ -531,7 +573,7 @@ def tree_payload(manager, tree_name):
              'layoutHints': _loads(n, 'layout_hints_json', {}),
              **{k: by_name.get(getattr(n, 'name', ''), {}).get(k)
                 for k in ('segmentsPresent', 'segments',
-                          'completionLevel', 'gaps')}}
+                          'completionLevel', 'gaps', 'dataGaps')}}
             for n in sorted(nodes,
                             key=lambda n: getattr(n, 'name', ''))],
         'edges': [

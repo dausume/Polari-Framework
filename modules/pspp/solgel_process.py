@@ -178,6 +178,110 @@ SOLGEL_DIGITIZED_DATASETS = [
                  'the natural calibration input for the mtt-2 Part B '
                  'sintering engine (densification curves).',
     },
+    # -- sg-community data asks: promoted from prose to first-class
+    # provisional rows so the tech tree can carry them as gaps --
+    {
+        'name': 'sodium-silicate-gel-morphology-vs-ph',
+        'source_reference': 'Process mapping of the sol-gel transition '
+                            'in acid-initiated sodium silicate (Gels '
+                            '2024, 10(10):673); gelation of silica '
+                            'gels from sodium silicate (JMRT 2020) — '
+                            'figure/page PENDING photograph',
+        'status': 'provisional-low-confidence',
+        'independent_variables_json': '["pH"]',
+        'dependent_variables_json':
+            '["particle_size_nm", "pore_size_nm"]',
+        'units_json': json.dumps({
+            'pH': 'pH', 'particle_size_nm': 'nm',
+            'pore_size_nm': 'nm'}),
+        'source_conditions_json': json.dumps({
+            'system': 'sodium silicate (water glass) acidified',
+            'note': 'the WATER-GLASS morphology fork — needed to '
+                    'validate the community route; does NOT transfer '
+                    'from the alkoxide picture'}),
+        'interpolation_policy': 'linear',
+        'extrapolation_policy': 'UNSUPPORTED',
+        'validity_domain_json': '{}',
+        'digitization_method': 'NOT digitized — qualitative literature '
+                               'recall only',
+        'points_json': '[]',
+        'qualitative_shape':
+            'OPPOSITE of the alkoxide fork: acidic sodium-silicate '
+            'gels form SMALLER particles in a dense network (pores '
+            '<550 nm, higher transmittance); basic gels form LARGER '
+            'aggregates (pores ~5 um). This is why the community '
+            'water-glass route refuses to inherit the alkoxide '
+            'acid=open/base=dense gate.',
+        'notes': 'DATA ASK: digitize the particle/pore-size vs pH '
+                 'data (Gels 2024) — unlocks a validated morphology '
+                 'verdict for the water-glass + citrus community '
+                 'route (route_report currently refuses one).',
+    },
+    {
+        'name': 'ricehusk-silica-extraction-yield',
+        'source_reference': 'Rice-husk-ash silica extraction '
+                            'literature — figure/table PENDING',
+        'status': 'provisional-low-confidence',
+        'independent_variables_json': '["calcination_temperature_C"]',
+        'dependent_variables_json':
+            '["silica_yield_percent", "amorphous_fraction"]',
+        'units_json': json.dumps({
+            'calcination_temperature_C': 'C',
+            'silica_yield_percent': '%',
+            'amorphous_fraction': 'fraction'}),
+        'source_conditions_json': json.dumps({
+            'system': 'rice husk burned to ash, alkali-dissolved',
+            'note': 'controlled burn keeps silica amorphous; too hot '
+                    'crystallizes it (cristobalite)'}),
+        'interpolation_policy': 'linear',
+        'extrapolation_policy': 'UNSUPPORTED',
+        'validity_domain_json': '{}',
+        'digitization_method': 'NOT digitized — qualitative literature '
+                               'recall only',
+        'points_json': '[]',
+        'qualitative_shape':
+            'Rice husk is ~15-20% silica; a controlled burn (~500-700 '
+            'C) yields high-amorphous white ash, while overheating '
+            'crystallizes to cristobalite (less reactive). Yield and '
+            'amorphous fraction trade off against burn temperature.',
+        'notes': 'DATA ASK: digitize silica yield + amorphous fraction '
+                 'vs calcination temperature — quantifies the '
+                 'ricehusk-citrus community route feedstock.',
+    },
+    {
+        'name': 'citrus-juice-acid-content',
+        'source_reference': 'Synthesis of silica-based solids by '
+                            'sol-gel using lemon bio-waste (Sustainable '
+                            'Chemistry 2021, doi:10.3390/suschem2040037)'
+                            ' — composition PENDING full transcription',
+        'status': 'provisional-low-confidence',
+        'independent_variables_json': '["fruit_part"]',
+        'dependent_variables_json':
+            '["citric_acid_g_per_L", "total_acid_g_per_L", "pH"]',
+        'units_json': json.dumps({
+            'fruit_part': 'category (juice|peel|extract)',
+            'citric_acid_g_per_L': 'g/L', 'total_acid_g_per_L': 'g/L',
+            'pH': 'pH'}),
+        'source_conditions_json': json.dumps({
+            'system': 'lemon/citrus juice as sol-gel acid catalyst',
+            'note': 'juice is 60-70% soluble solids, predominantly '
+                    'citric with some malic/oxalic'}),
+        'interpolation_policy': 'none',
+        'extrapolation_policy': 'UNSUPPORTED',
+        'validity_domain_json': '{}',
+        'digitization_method': 'NOT digitized — qualitative literature '
+                               'recall only',
+        'points_json': '[]',
+        'qualitative_shape':
+            'Lemon juice acids are predominantly citric (with malic '
+            'and trace oxalic), 60-70% of soluble solids. The exact '
+            'g/L and resulting pH set how much juice substitutes for '
+            'a given mineral-acid charge.',
+        'notes': 'DATA ASK: transcribe the lemon-juice acid '
+                 'composition table (Sustainable Chemistry 2021) — '
+                 'lets the citrus routes compute an acid-equivalent '
+                 'charge instead of assuming acidEquiv=1.',
+    },
 ]
 
 for _row in SOLGEL_DIGITIZED_DATASETS:

@@ -47,9 +47,13 @@ TREE_MATERIALS = 'materials-science'  # mtt-1
 TREE_SIMULATION = 'simulation-methods'  # smt-1
 
 
-def _node(tree, short, title, deps=(), description='', cross=()):
+def _node(tree, short, title, deps=(), description='', cross=(),
+          data_deps=()):
     """cross: ((other_tree, other_short, relation), ...) — tt-9
-    cross-tree references, shown as zoom-to chips, never edges."""
+    cross-tree references, shown as zoom-to chips, never edges.
+    data_deps: DigitizedDataset names the technology needs to be
+    quantitatively complete (mtt-2) — missing/provisional ones surface
+    as derived data gaps."""
     return {'name': f'{tree}/{short}', 'tree_name': tree,
             'title': title, 'description': description,
             'depends_on_json': _json.dumps(
@@ -58,6 +62,7 @@ def _node(tree, short, title, deps=(), description='', cross=()):
             'cross_refs_json': _json.dumps([
                 {'tree': ct, 'node': f'{ct}/{cn}', 'relation': rel}
                 for ct, cn, rel in cross]),
+            'data_dependencies_json': _json.dumps(list(data_deps)),
             'notes': ''}
 
 
@@ -606,7 +611,13 @@ SEED_TECH_NODES += [
                       'morphology fork refuse pending digitized '
                       'figures.',
           cross=((_E, 'os-pvd', 'consumed-by'),
-                 (_S, 'sol-gel-supply', 'supplied-by'))),
+                 (_S, 'sol-gel-supply', 'supplied-by')),
+          data_deps=('silica-solgel-gel-time-vs-ph',
+                     'silica-solgel-q-speciation-vs-time',
+                     'silica-xerogel-shrinkage-vs-temperature',
+                     'sodium-silicate-gel-morphology-vs-ph',
+                     'ricehusk-silica-extraction-yield',
+                     'citrus-juice-acid-content')),
     _node(_M, 'geopolymer', 'Geopolymer', deps=('statistical',),
           description='Alkali-activated aluminosilicate — FULL pspp '
                       'stack + gsp groups/sampler/Debye halo built '

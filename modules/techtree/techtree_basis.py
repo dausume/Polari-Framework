@@ -93,6 +93,13 @@ class TechNode(treeObject):
         # renderer shows as zoom-to chips naming the home tree
         # ('produces' / 'supplied-by' / ...).
         cross_refs_json: str = '[]',
+        # mtt-2: DigitizedDataset names this technology needs to be
+        # QUANTITATIVELY complete. A referenced dataset that is
+        # missing, provisional, or points-empty surfaces as a DERIVED
+        # data gap (digitize it -> the gap auto-clears). Structural
+        # (theory) completion and data completeness are separate axes:
+        # a node can be 'built' yet still carry open data asks.
+        data_dependencies_json: str = '[]',
         notes: str = '',
         manager=None,
     ):
@@ -103,6 +110,7 @@ class TechNode(treeObject):
         self.depends_on_json = depends_on_json
         self.layout_hints_json = layout_hints_json
         self.cross_refs_json = cross_refs_json
+        self.data_dependencies_json = data_dependencies_json
         self.notes = notes
 
 

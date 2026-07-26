@@ -15,8 +15,8 @@ import json
 import types
 
 from techtree.techtree_analysis import (
-    active_tree_name, node_completion, sync_edges, tree_completion,
-    tree_payload, validate_tree,
+    active_tree_name, node_completion, node_data_gaps, sync_edges,
+    tree_completion, tree_payload, validate_tree,
 )
 
 _results = []
@@ -445,6 +445,48 @@ if __name__ == '__main__':
                   for t in baseline_report(legacy)['trees']))
     check('retirement is idempotent',
           retire_legacy_trees(legacy) == {})
+
+    print('== suite: derived data gaps (mtt-2) ==')
+    dg = _mgr()
+    # A node that declares three data dependencies: one ready+points,
+    # one provisional, one missing entirely.
+    dg.objectTables['TechNode']['3d-printing'].data_dependencies_json = \
+        json.dumps(['ds-ready', 'ds-provisional', 'ds-missing'])
+    dg.objectTables['DigitizedDataset'] = {
+        'ds-ready': _ns(name='ds-ready', status='ready',
+                        points_json='[{"x": 1, "y": 2}]', notes=''),
+        'ds-provisional': _ns(
+            name='ds-provisional', status='provisional-low-confidence',
+            points_json='[]',
+            notes='DATA ASK: photograph the figure and digitize it'),
+    }
+    node = dg.objectTables['TechNode']['3d-printing']
+    gaps = node_data_gaps(dg, node)
+    subjects = {g['subject'] for g in gaps}
+    check('ready+points dataset raises NO data gap',
+          '3d-printing:data:ds-ready' not in subjects)
+    check('provisional dataset raises a data gap carrying its DATA ASK',
+          any(g['check'] == 'data-provisional'
+              and 'DATA ASK' in g['action']
+              and g['subject'] == '3d-printing:data:ds-provisional'
+              for g in gaps))
+    check('missing dataset raises a data-missing gap',
+          any(g['check'] == 'data-missing'
+              and g['subject'] == '3d-printing:data:ds-missing'
+              for g in gaps))
+    comp = node_completion(dg, 'oseb-test', '3d-printing')
+    check('data gaps surface in node_completion.dataGaps + gaps',
+          len(comp['dataGaps']) == 2
+          and all(g in comp['gaps'] for g in comp['dataGaps']))
+    check('data gaps do NOT change completionLevel (separate axis)',
+          abs(comp['completionLevel'] - 0.75) < 1e-9)
+    check('a node with no data deps yields no data gaps',
+          node_data_gaps(dg, dg.objectTables['TechNode']['wax-materials'])
+          == [])
+    tp = tree_payload(dg, 'oseb-test')
+    p3d = next(n for n in tp['nodes'] if n['name'] == '3d-printing')
+    check('render payload carries dataGaps per node',
+          len(p3d['dataGaps']) == 2)
 
     failed = [label for label, ok in _results if not ok]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} checks '
