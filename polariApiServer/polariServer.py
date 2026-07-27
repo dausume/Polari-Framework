@@ -1054,6 +1054,7 @@ from simulations.step_cost_profile import StepCostProfile
 # Peer + module handshake (twin-Polari / node integration).
 from polariPeers.peer_node import PeerNode
 from polariPeers.polari_module import PolariModule
+from moduleService.module_boot_records import ModuleBootRecord
 from polariPeers.module_source_config import (
     ModuleSourceConfig, SEED_MODULE_SOURCE_CONFIGS,
 )
@@ -1150,6 +1151,15 @@ class polariServer(treeObject):
         # In staging/prod, nginx also handles CORS (including OPTIONS interception).
         allow_origins = '*' if '*' in CORS_ORIGINS else CORS_ORIGINS
         allow_creds = '*' if '*' in CORS_ORIGINS else allow_origins
+        # mlb-1: the boot registry exists on EVERY boot (monolithic
+        # boots mark themselves all-online, so the middleware is a
+        # no-op there); the loading middleware turns not-yet-admitted
+        # modules' requests into honest 503s instead of empty data.
+        from polariApiServer.lazy_boot import (
+            HealthEndpoint, ModuleBootRegistry, ModuleLoadingMiddleware,
+            ModulesStatusEndpoint,
+        )
+        self.bootRegistry = ModuleBootRegistry()
         self.falconServer = falcon.App(
             middleware=[
                 falcon.CORSMiddleware(allow_origins=allow_origins, allow_credentials=allow_creds),
@@ -1157,9 +1167,14 @@ class polariServer(treeObject):
                 # Populates req.context.user_info / req.context.roles from
                 # the incoming Bearer token. Lenient in Phase 1 — never
                 # rejects, just plumbs identity for downstream gating.
-                AuthContextMiddleware()
+                AuthContextMiddleware(),
+                ModuleLoadingMiddleware(self),
             ]
         )
+        # /api/health (net-new, mlb-1): 200 at core-data-ready;
+        # /api/modules/status (mlb-3): the bring-up summary doc.
+        HealthEndpoint(self)
+        ModulesStatusEndpoint(self)
         self.active = False
         # STOMP WebSocket server reference (set after startup in initLocalhostPolariServer)
         # Declared here during @treeObjectInit so it's a known variable on the tree.
@@ -1823,6 +1838,9 @@ class polariServer(treeObject):
             SolarStackDefinition, SolarLayerDefinition,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
+            # mlb-2: per-boot module timing history (durable — later
+            # boots derive expected-online ETAs from these rows).
+            ModuleBootRecord,
             PendulumBobSimState, PendulumStringSimState,
             NewtonianPendulumBobSimState, NewtonianPendulumRodSimState,
             WindFieldGridState, MaterialCondensationState,
@@ -1858,6 +1876,9 @@ class polariServer(treeObject):
                   f"{sorted(_gate['dropped'])}", flush=True)
         self.defClassList = [c for c in self.defClassList
                              if class_enabled(c)]
+        # mlb-1: the middleware resolves each CRUDE route's owning
+        # module through this map.
+        self.bootRegistry.register_classes(self.defClassList)
         print(f'[DefInit] Registering {len(self.defClassList)} definition classes', flush=True)
         for defClass in self.defClassList:
             className = defClass.__name__
@@ -1939,7 +1960,16 @@ class polariServer(treeObject):
         self._module_classes = {}  # {module_id: [class_names]}
         # Backwards compat alias for materials_science specifically
         self._materials_science_classes = []
+        # mlb-1: lazy boots defer dynamic modules to the admission
+        # worker (Phase C) — construction stays fast.
+        from polariApiServer.lazy_boot import lazy_boot_enabled
+        if not lazy_boot_enabled():
+            self.initializeDynamicModules()
 
+    def initializeDynamicModules(self):
+        """Discover + initialize the dynamic (modules/-registry)
+        modules. Runs during construction on monolithic boots; the
+        admission worker calls it post-listen on lazy boots."""
         try:
             from config_loader import config as mod_config
         except ImportError:
@@ -2202,7 +2232,7 @@ class polariServer(treeObject):
         if(numCharCount < self.passwordRequirements["min-nums"]):
             raise ValueError("Must have over ", self.passwordRequirements["min-nums"], " numbers in password.")
 
-    def ensureDefinitionTables(self):
+    def ensureDefinitionTables(self, only_classes=None):
         """Create DB tables for Definition classes and restore saved instances.
 
         Called from managerObject.__init__ AFTER jumpstartDatabase() completes,
@@ -2211,13 +2241,24 @@ class polariServer(treeObject):
         1. Creates missing tables for each Definition class
         2. Migrates old tables that lack an 'id' column
         3. Restores previously-saved Definition instances from the DB
+
+        only_classes (mlb-1): restrict the pass to these class names —
+        the admission worker calls this once for the core set and then
+        once per module. None = everything (monolithic boot).
         """
         db = self.manager.db
         if db is None:
             print('[DefInit] ensureDefinitionTables: no database, skipping', flush=True)
             return
+        scoped = ([c for c in self.defClassList
+                   if c.__name__ in only_classes]
+                  if only_classes is not None else self.defClassList)
+
+        def in_scope(class_name):
+            return only_classes is None or class_name in only_classes
+
         print(f'[DefInit] ensureDefinitionTables: db.tables={db.tables}', flush=True)
-        for defClass in self.defClassList:
+        for defClass in scoped:
             className = defClass.__name__
             defTyping = self.manager.objectTypingDict.get(className)
             if defTyping is None:
@@ -2250,35 +2291,48 @@ class polariServer(treeObject):
                               f'{className}: {e}', flush=True)
         print(f'[DefInit] DB tables after ensureDefinitionTables: {db.tables}', flush=True)
         # Now restore any saved Definition instances
-        self._restoreDefinitionInstances(self.defClassList)
+        self._restoreDefinitionInstances(scoped)
         # Register each seeded solution's `boundClass` as a real Polari class
         # so it appears in the Class Manager / Class Selector and can be
         # referenced by Equation bindings. Must run before
         # `_seedSolutionDefinitions` so the class exists when the solution
         # row is created.
-        self._seedBoundClasses()
-        # Seed SolutionDefinition with sample data if the table is empty
-        self._seedSolutionDefinitions()
+        # (Each seed method runs only when its primary class is in
+        # scope — the mlb-1 per-module pass skips foreign seeds.)
+        if in_scope('SolutionDefinition'):
+            self._seedBoundClasses()
+            # Seed SolutionDefinition with sample data if the table is empty
+            self._seedSolutionDefinitions()
         # Seed EquationDefinition with smoke-test equations if missing
-        self._seedEquationDefinitions()
+        if in_scope('EquationDefinition'):
+            self._seedEquationDefinitions()
         # Seed MatrixDefinition with concept-test + element-kind demos
-        self._seedMatrixDefinitions()
+        if in_scope('MatrixDefinition'):
+            self._seedMatrixDefinitions()
         # Seed MatrixEquationDefinition with one example per math kind
-        self._seedMatrixEquations()
+        if in_scope('MatrixEquationDefinition'):
+            self._seedMatrixEquations()
         # Seed SimSpace2D stock library + a demo space
-        self._seedSimSpace2D()
-        # Seed SimSpace3D stock library + a demo space (Phase 2)
-        self._seedSimSpace3D()
+        if in_scope('Shape2DDefinition'):
+            self._seedSimSpace2D()
+        # Seed SimSpace3D stock library + a demo space (Phase 2) —
+        # ALSO carries the per-module definition seed pairs, which
+        # filter to the scope.
+        self._seedSimSpace3D(only_classes=only_classes)
         # Seed simulations module — Pendulum2D demo + its SimSpace + binding
-        self._seedSimulations()
+        if in_scope('SimulationDefinition'):
+            self._seedSimulations()
         # Modules-as-projects boot hook: materialize ONLY rows whose
         # auto_fetch knob is on; everything else surfaces as suggestions.
-        try:
-            from polariPeers.module_fetcher import auto_fetch_configured
-            for result in auto_fetch_configured(self.manager):
-                print(f'[ModuleProjects] auto-fetch: {result}', flush=True)
-        except Exception as e:
-            print(f'[ModuleProjects] auto-fetch skipped: {e}', flush=True)
+        # (Monolithic pass only — the admission worker runs it once at
+        # the very end of the lazy boot.)
+        if only_classes is None:
+            try:
+                from polariPeers.module_fetcher import auto_fetch_configured
+                for result in auto_fetch_configured(self.manager):
+                    print(f'[ModuleProjects] auto-fetch: {result}', flush=True)
+            except Exception as e:
+                print(f'[ModuleProjects] auto-fetch skipped: {e}', flush=True)
 
     def _migrateDefinitionTable(self, className):
         """Check if a Definition table has an 'id' column and recreate it if not.
@@ -2634,12 +2688,16 @@ class polariServer(treeObject):
                     import traceback
                     traceback.print_exc()
 
-    def _seedSimSpace3D(self):
+    def _seedSimSpace3D(self, only_classes=None):
         """Seed SimSpace 3D library (meshes + materials) + a demo 3D space.
         Same idempotent-by-name pattern as _seedSimSpace2D, plus a small
         upgrade pass that refreshes legacy demo-3d definitions to the
         expanded showcase layout (safe: only updates when the row exactly
-        matches the prior seed signature)."""
+        matches the prior seed signature).
+
+        only_classes (mlb-1): the per-module admission pass filters the
+        seed pairs to that module's class names; the boot-side hooks at
+        the tail run only for the class scope that owns them."""
         seed_pairs = [
             ('Mesh3DDefinition', Mesh3DDefinition, SEED_MESHES_3D),
             # Textures BEFORE materials — materials reference them.
@@ -3140,6 +3198,9 @@ class polariServer(treeObject):
             'Proves the 3D renderer wires up behind the same '
             'SimSpaceRenderer interface as 2D.'
         )
+        if only_classes is not None:
+            seed_pairs = [(n, c, s) for n, c, s in seed_pairs
+                          if n in only_classes]
         for class_name, cls, seed_list in seed_pairs:
             typingObj = self.manager.objectTypingDict.get(class_name)
             if typingObj is None:
@@ -3179,7 +3240,9 @@ class polariServer(treeObject):
         # retire its persisted rows (idempotent no-op once gone) and
         # remap stale PolariModule.tech_node_ref hints.
         # mp-3: skipped when techtree is not downloaded/enabled.
-        if _feature_available('techtree'):
+        # mlb-1: runs in techtree's own admission pass (or monolithic).
+        if _feature_available('techtree') and (
+                only_classes is None or 'TechNode' in only_classes):
             try:
                 from techtree.techtree_seed import (
                     backfill_cross_refs, retire_legacy_trees,
@@ -3198,6 +3261,10 @@ class polariServer(treeObject):
         # res-1: observe THIS device onto its PolariNodeMachine row
         # (ssh_alias=='' convention) so the topology is resource-aware
         # from boot — fills the historical `mem_gb: 0.0` gap.
+        # mlb-1: topology is core, so this runs in the core pass.
+        if only_classes is not None \
+                and 'PolariNodeMachine' not in only_classes:
+            return
         try:
             from resources.node_resources import (
                 fetch_remote_specs, refresh_local_machine,

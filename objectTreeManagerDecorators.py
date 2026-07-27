@@ -154,7 +154,16 @@ class managerObject:
         self.bootResourcePostTree = _captureResourceCheckpoint()
         # After tree scaffolding and analysis, jumpstart DB if enabled
         print(f'[INIT] Pre-DB check: hasDB={self.hasDB}, db={self.db}', flush=True)
-        if(self.hasDB):
+        # mlb-1: two-phase boot — Phase 0 stops HERE. The whole DB
+        # phase (jumpstart/restore/seeds) runs post-listen in the
+        # admission worker, core first then module-by-module.
+        from polariApiServer.lazy_boot import lazy_boot_enabled
+        if self.hasDB and lazy_boot_enabled() \
+                and self.polServer is not None:
+            print('[INIT] POLARI_LAZY_BOOT=on — DB/seed/restore '
+                  'deferred to the admission worker (post-listen).',
+                  flush=True)
+        elif(self.hasDB):
             print(f'[INIT] Calling jumpstartDatabase()...', flush=True)
             try:
                 self.jumpstartDatabase()
@@ -247,7 +256,7 @@ class managerObject:
             traceback.print_exc()
             self.objectStore = None
 
-    def jumpstartDatabase(self):
+    def jumpstartDatabase(self, skip_restore_tables=None):
         """Initialize database — restore from existing DB or create fresh.
 
         Called after tree scaffolding and analysis are complete.
@@ -256,6 +265,10 @@ class managerObject:
         Detects if a .db file already exists on disk:
         - If yes: restores the object tree from stored data
         - If no: creates a fresh DB and populates tables from polyTyping
+
+        skip_restore_tables (mlb-1): table names whose warm-boot row
+        restore is DEFERRED — the admission worker restores them via
+        restoreTables() when their module comes online.
         """
         if self.db is not None:
             print('[DB] Database already initialized')
@@ -284,7 +297,8 @@ class managerObject:
             # Existing DB found — restore object tree from it
             print(f'[DB] Existing {bootAdapter.dialect} database found, restoring...')
             self.isFreshBoot = False
-            self.restoreFromDatabase(dbName, dbDir)
+            self.restoreFromDatabase(dbName, dbDir,
+                                     skip_tables=skip_restore_tables)
         else:
             # No DB — create fresh and jumpstart tables
             self.isFreshBoot = True
@@ -314,7 +328,7 @@ class managerObject:
             print(f'[DB] Database jumpstarted with {len(self.db.tables)} tables ({tablesCreated} created)')
             self.bootResourcePostDB = _captureResourceCheckpoint()
 
-    def restoreFromDatabase(self, dbName, dbPath):
+    def restoreFromDatabase(self, dbName, dbPath, skip_tables=None):
         """Restore object tree from an existing SQLite database.
 
         Loads all tables, creates instances from stored data,
@@ -323,9 +337,9 @@ class managerObject:
         Args:
             dbName: Database file name (without .db extension)
             dbPath: Directory path containing the .db file
+            skip_tables: table names to DEFER (mlb-1 lazy boot) —
+                restored later via restoreTables() at module admission
         """
-        import json as jsonLib
-
         # 1. Connect to existing DB and load table list
         self.db = managedDatabase(name=dbName, manager=self)
         # Re-set manager after construction (managedFile.__init__ clears it)
@@ -351,6 +365,41 @@ class managerObject:
         except Exception as e:
             print(f'[DB] Error restoring dynamic classes: {e}')
 
+        skip = set(skip_tables or ())
+        tables = []
+        deferred = 0
+        for tableName in self.db.tables:
+            # loadDB_byFile returns tuples like ('tableName',) — extract string
+            tName = tableName[0] if isinstance(tableName, tuple) else tableName
+            if tName in skip:
+                deferred += 1
+                continue
+            tables.append(tName)
+        if deferred:
+            print(f'[DB] Deferred restore of {deferred} module-owned '
+                  'tables (lazy boot — restored at admission)',
+                  flush=True)
+        self._restoreTableRows(tables)
+
+    def restoreTables(self, only_tables):
+        """mlb-1: restore rows for SPECIFIC tables after boot — the
+        admission worker's per-module warm-boot restore. No-op on a
+        fresh DB (nothing to restore) or when the DB is absent."""
+        if self.db is None or not only_tables:
+            return
+        known = set()
+        for tableName in self.db.tables:
+            tName = tableName[0] if isinstance(tableName, tuple) \
+                else tableName
+            known.add(tName)
+        self._restoreTableRows(
+            [t for t in only_tables if t in known])
+
+    def _restoreTableRows(self, tables):
+        """The per-table instance-restore loop shared by full boot
+        restore and per-module admission restore."""
+        import json as jsonLib
+
         # Identify seed instance IDs to skip during restore
         seedDbIds = self.identifySeedDBIds()
 
@@ -358,10 +407,7 @@ class managerObject:
         restoredInstances = []  # list of (instance, branchPath)
         totalSeedSkips = 0
 
-        for tableName in self.db.tables:
-            # loadDB_byFile returns tuples like ('tableName',) — extract string
-            tName = tableName[0] if isinstance(tableName, tuple) else tableName
-
+        for tName in tables:
             # Skip variant side tables
             if '_variant' in tName:
                 continue

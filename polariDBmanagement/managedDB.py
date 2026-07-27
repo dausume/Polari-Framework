@@ -27,6 +27,14 @@ import os, json, sqlite3, sys
 from polariDBmanagement.db_adapter import make_adapter
 from polariDBmanagement.keydb_cache import get_cache
 
+
+def _db_log_verbose():
+    """mlb-5: POLARI_DB_LOG=verbose restores the per-field [DB-Save]
+    stream; default is quiet (the verbose stream was a measurable
+    chunk of the 15-25 min cold seed). Warnings/errors always print."""
+    return (os.environ.get('POLARI_DB_LOG') or 'quiet') \
+        .strip().lower() == 'verbose'
+
 DBtypesList = ['Polari', 'App', 'Test']
 DBstatuses = ['UnInitialized Tables', 'Finalized DB']
 
@@ -131,9 +139,11 @@ class managedDatabase(managedFile):
     def saveInstanceInDB(self, passedInstance):
         """Persist instance to DB. Returns True on success, False if skipped/failed."""
         className = str(type(passedInstance).__name__)
-        print(f'[DB-Save] saveInstanceInDB called for {className}, tables={self.tables}', flush=True)
+        if _db_log_verbose():
+            print(f'[DB-Save] saveInstanceInDB called for {className}, tables={self.tables}', flush=True)
         if className not in self.tables:
-            print(f'[DB-Save] SKIP: {className} not in self.tables', flush=True)
+            if _db_log_verbose():
+                print(f'[DB-Save] SKIP: {className} not in self.tables', flush=True)
             return False
         # DB-serializable types
         serializableTypes = (str, int, float, bool, bytes, type(None))
@@ -141,12 +151,14 @@ class managedDatabase(managedFile):
         dbConnection = self.adapter.connect()
         dbCursor = dbConnection.cursor()
         tableColumns = self.adapter.tableColumns(dbConnection, className)
-        print(f'[DB-Save] Table columns for {className}: {tableColumns}', flush=True)
+        if _db_log_verbose():
+            print(f'[DB-Save] Table columns for {className}: {tableColumns}', flush=True)
         # Collect only attributes that match table columns and are serializable
         rowList = []
         valueList = []
         classInfoDict = passedInstance.__dict__
-        print(f'[DB-Save] Instance __dict__ keys: {list(classInfoDict.keys())}', flush=True)
+        if _db_log_verbose():
+            print(f'[DB-Save] Instance __dict__ keys: {list(classInfoDict.keys())}', flush=True)
         for colName in tableColumns:
             if colName in ('_branch_path', '_instance_id'):
                 continue  # handled separately below — a reloaded
@@ -156,7 +168,8 @@ class managedDatabase(managedFile):
             if colName in classInfoDict:
                 value = classInfoDict[colName]
                 if value is None or value == []:
-                    print(f'[DB-Save]   {colName}: skipped (None or empty)', flush=True)
+                    if _db_log_verbose():
+                        print(f'[DB-Save]   {colName}: skipped (None or empty)', flush=True)
                     continue
                 # Convert lists/dicts to JSON strings
                 if isinstance(value, (list, dict)):
@@ -166,9 +179,11 @@ class managedDatabase(managedFile):
                     value = str(value)
                 rowList.append(colName)
                 valueList.append(value)
-                print(f'[DB-Save]   {colName}: {repr(value)[:80]}', flush=True)
+                if _db_log_verbose():
+                    print(f'[DB-Save]   {colName}: {repr(value)[:80]}', flush=True)
             else:
-                print(f'[DB-Save]   {colName}: NOT in instance __dict__', flush=True)
+                if _db_log_verbose():
+                    print(f'[DB-Save]   {colName}: NOT in instance __dict__', flush=True)
         # Shared-DB mode: stamp whose row this is (never guessed).
         scope = self.instanceScope
         if scope:
@@ -192,17 +207,21 @@ class managedDatabase(managedFile):
             except Exception:
                 pass
         if len(rowList) == 0:
-            print(f'[DB-Save] SKIP: no columns to save for {className}', flush=True)
+            if _db_log_verbose():
+                print(f'[DB-Save] SKIP: no columns to save for {className}', flush=True)
             return False
         # Upsert-by-primary-key to handle re-persisting on restart
         commandString = self.adapter.replaceSQL(className, rowList)
         valueTuple = tuple(valueList)
-        print(f'[DB-Save] SQL: {commandString}', flush=True)
-        print(f'[DB-Save] Values: {valueTuple[:3]}...', flush=True)
+        if _db_log_verbose():
+            print(f'[DB-Save] SQL: {commandString}', flush=True)
+        if _db_log_verbose():
+            print(f'[DB-Save] Values: {valueTuple[:3]}...', flush=True)
         try:
             dbCursor.execute(commandString, valueTuple)
             dbConnection.commit()
-            print(f'[DB-Save] SUCCESS: saved {className} instance', flush=True)
+            if _db_log_verbose():
+                print(f'[DB-Save] SUCCESS: saved {className} instance', flush=True)
             dbConnection.close()
             self.cache.invalidateTable(
                 self.name, self._scopedCacheTable(className))

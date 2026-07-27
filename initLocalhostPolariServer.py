@@ -93,11 +93,20 @@ if(__name__=='__main__'):
     print("="*70)
 
     #Create a basic manager with a polariServer
+    from polariApiServer.lazy_boot import (
+        lazy_boot_enabled, start_admission_worker,
+    )
+    lazy = lazy_boot_enabled()
+    if lazy:
+        print("[LazyBoot] POLARI_LAZY_BOOT=on — two-phase boot: "
+              "typing + routes now, DB/seeds after listen.")
     db_enabled = config.get_bool('database.enabled', True)
     localHostedManagerServer = managerObject(hasServer=True, hasDB=db_enabled)
 
-    # Persist all initialized instances to database
-    if db_enabled and localHostedManagerServer.db is not None:
+    # Persist all initialized instances to database (lazy boots defer
+    # this to the admission worker's close-out — the DB doesn't exist
+    # yet in Phase 0).
+    if not lazy and db_enabled and localHostedManagerServer.db is not None:
         localHostedManagerServer.persistTree()
 
     # First-boot mesh role auto-config (mesh convergence Phase 1).
@@ -188,6 +197,15 @@ if(__name__=='__main__'):
     print("\n" + "="*70 + "\n")
 
     falcon_app = localHostedManagerServer.polServer.falconServer
+
+    # mlb-1: start the module-admission worker just before listening —
+    # core data first (health flips 200), then each module in
+    # dependency order, timing recorded per module.
+    if lazy and db_enabled:
+        start_admission_worker(localHostedManagerServer)
+        print("[LazyBoot] admission worker started — "
+              "GET /api/health + /api/modules/status track the "
+              "bring-up.")
 
     if ssl_available:
         # Start HTTPS server in a separate thread

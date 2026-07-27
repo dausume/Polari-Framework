@@ -32,6 +32,9 @@ CORE_PACKAGES = frozenset({
     'simSpace', 'simSpace2D', 'simSpace3D', 'polariPeers', 'topology',
     'resources', 'simulationLocks', 'polariRefs', 'xr',
     'objectTreeDecorators', 'objectTreeManagerDecorators', '__main__',
+    # mlb: the module system itself (loading, gating, boot records)
+    # must register everywhere — you can't lazily boot the lazy-boot.
+    'moduleService',
 })
 
 # Opt-in packages NEVER ride the unset-knob monolithic default (acct-0:

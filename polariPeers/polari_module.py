@@ -56,6 +56,17 @@ class PolariModule(treeObject):
         # ('' = unplaced). A hint the tt-5 seeding reads; the durable
         # mapping is the TechSegmentAssignment row.
         tech_node_ref: str = '',
+        # mlb-2 lifecycle (written by the lazy-boot admission worker;
+        # '' / 0 on instances that never lazy-booted):
+        # pending|loading|online|failed|blocked|disabled.
+        boot_status: str = '',
+        boot_started_at: float = 0.0,
+        boot_finished_at: float = 0.0,
+        seeded_rows: int = 0,
+        boot_error: str = '',
+        # Expected seconds-to-online after deps, from ModuleBootRecord
+        # history (0.0 = no history yet — no ETA is shown, not a guess).
+        expected_online_s: float = 0.0,
         manager=None,
     ):
         self.name = name
@@ -67,3 +78,9 @@ class PolariModule(treeObject):
         self.bundle_json = bundle_json
         self.data_only = data_only
         self.tech_node_ref = tech_node_ref
+        self.boot_status = boot_status
+        self.boot_started_at = boot_started_at
+        self.boot_finished_at = boot_finished_at
+        self.seeded_rows = seeded_rows
+        self.boot_error = boot_error
+        self.expected_online_s = expected_online_s
