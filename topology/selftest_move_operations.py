@@ -143,10 +143,40 @@ def test_expected_durations():
           expected_step_durations(history, 'database-move') == {})
 
 
+def test_move_plan():
+    print('[gm-6: plan preview — steps + ETAs + typed-confirm flag]')
+    from topology.move_operations import MOVE_SUBJECTS, move_plan
+    check('every relocatable subject is cataloged',
+          set(MOVE_SUBJECTS) == {'msci-engines', 'backend',
+                                 'prf-file-store', 'prf-keycloak',
+                                 'prf-mariadb'})
+    plan = move_plan(subject='prf-mariadb', machine='isle-core')
+    check('stateful subject demands confirmation',
+          plan['ok'] and plan['stateful']
+          and plan['confirmationRequired'])
+    check('the exact command carries the machine',
+          plan['command'] == 'pol swarm relocate mariadb isle-core')
+    check('the planned steps show before anything runs',
+          plan['steps'][0]['key'] == 'preflight'
+          and all(s['status'] == 'pending' for s in plan['steps']))
+    kc = move_plan(subject='prf-keycloak')
+    check('stateless (server-only) subjects skip typed confirmation',
+          kc['ok'] and not kc['stateful'])
+    hist = [_finished_row({'check-image': 2.0, 'service-update': 8.0,
+                           'readiness': 4.0, 'verify': 1.0})]
+    eng = move_plan(subject='msci-engines', records=hist)
+    check('expected durations flow from history into the preview',
+          eng['expectedStepDurationsS'].get('service-update') == 8.0
+          and eng['expectedTotalS'] == 15.0)
+    check('unknown subject refuses with the catalog',
+          move_plan(subject='mystery')['ok'] is False)
+
+
 def main():
     test_planned_steps()
     test_step_transitions()
     test_expected_durations()
+    test_move_plan()
     print(f'\n{PASS} passed, {FAIL} failed')
     return 1 if FAIL else 0
 

@@ -240,6 +240,76 @@ def expected_step_durations(records, kind, subject=None):
     return out
 
 
+#: gm-6: the move catalog — what each RELOCATABLE subject is, which
+#: plan it runs, whether it is stateful (typed confirmation in the
+#: UI), and the exact command the human runs (knobs-and-suggestions:
+#: the UI previews and confirms; execution stays the human's move).
+MOVE_SUBJECTS = {
+    'msci-engines': {
+        'kind': 'engine-relocation', 'stateful': False,
+        'command': 'pol allocate engines {machine} --graceful',
+        'what': 'stateless compute worker — blue-green through the '
+                'routing mesh, zero downtime'},
+    'backend': {
+        'kind': 'instance-move', 'stateful': True,
+        'command': 'pol swarm relocate backend {machine}',
+        'what': 'the Polari instance + its owned sqlite — quiesced, '
+                'staged copy, honest downtime (~1-2 min)'},
+    'prf-file-store': {
+        'kind': 'minio-move', 'stateful': True,
+        'command': 'pol swarm relocate file-store {machine}',
+        'what': 'the object store volume — staged copy under the '
+                'backend upload gate (~15s downtime)'},
+    'prf-keycloak': {
+        'kind': 'auth-move', 'stateful': False,
+        'command': 'pol swarm relocate keycloak {machine}',
+        'what': 'server-only (realms/keys stay in the DB) — '
+                'blue-green, zero downtime, tokens stay valid'},
+    'prf-mariadb': {
+        'kind': 'database-move', 'stateful': True,
+        'command': 'pol swarm relocate mariadb {machine}',
+        'what': 'the auth database — writers drained (measured auth '
+                'window ~2-3 min), dump receipt, staged copy'},
+}
+
+
+def move_plan(kind=None, subject=None, records=(), machine=None):
+    """gm-6 preview: the PLANNED step list + expected durations from
+    history + the exact command — shown BEFORE anything runs. Accepts
+    a subject (kind inferred from the catalog) or a bare kind."""
+    info = MOVE_SUBJECTS.get(subject or '')
+    if info is None and subject:
+        return {'ok': False,
+                'refusal': f'unknown move subject {subject!r}',
+                'suggestion': 'one of ' + ', '.join(
+                    sorted(MOVE_SUBJECTS))}
+    kind = (info or {}).get('kind', kind)
+    steps = planned_steps(kind)
+    if not steps:
+        return {'ok': False,
+                'refusal': f'no step plan for kind {kind!r}',
+                'suggestion': 'pass a known subject or kind'}
+    expected = expected_step_durations(records, kind, subject)
+    return {
+        'ok': True,
+        'subject': subject or '',
+        'kind': kind,
+        'stateful': bool((info or {}).get('stateful', True)),
+        'confirmationRequired': bool((info or {}).get('stateful',
+                                                      True)),
+        'what': (info or {}).get('what', ''),
+        'command': ((info or {}).get('command', '')
+                    .format(machine=machine or '<machine>')),
+        'steps': steps,
+        'expectedStepDurationsS': expected,
+        'expectedTotalS': (round(sum(expected.values()), 1)
+                           if expected else None),
+        'note': 'the UI previews + confirms; EXECUTION stays the '
+                'human-run command (knobs-and-suggestions) — live '
+                'progress paints in the Moves panel once it runs',
+    }
+
+
 def move_dict(row, expected=None):
     steps = _steps(row)
     total = sum(s.get('duration_s') or 0 for s in steps

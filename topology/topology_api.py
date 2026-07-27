@@ -80,6 +80,8 @@ class TopologyAPI(treeObject):
             # gm-1 probe-cache invalidation.
             add('/api/topology/move-operations', self,
                 suffix='move_ops')
+            add('/api/topology/move-operations/plan', self,
+                suffix='move_plan')
             add('/api/topology/move-operations/step', self,
                 suffix='move_op_step')
             add('/api/topology/move-operations/finish', self,
@@ -346,6 +348,31 @@ class TopologyAPI(treeObject):
             if getattr(row, 'name', '') == name:
                 return row
         return None
+
+    def on_get_move_plan(self, request, response):
+        """gm-6: preview a move BEFORE anything runs — the planned
+        step list, expected durations from prior verified moves, the
+        statefulness (typed confirmation), and the exact command.
+        ?subject=<name> (or ?kind=) [&machine=<target>]."""
+        from topology.move_operations import (
+            MOVE_SUBJECTS, move_plan,
+        )
+        subject = request.params.get('subject', '')
+        kind = request.params.get('kind', '')
+        if not subject and not kind:
+            response.media = {
+                'ok': True,
+                'subjects': {name: {k: v for k, v in info.items()}
+                             for name, info in MOVE_SUBJECTS.items()},
+                'note': 'pass ?subject= for a full plan preview'}
+            return
+        plan = move_plan(
+            kind=kind or None, subject=subject or None,
+            records=list(self._table('MoveOperation').values()),
+            machine=request.params.get('machine'))
+        if not plan.get('ok'):
+            return self._refuse(response, plan['refusal'])
+        response.media = plan
 
     def on_get_move_ops(self, request, response):
         """The move ledger: recent MoveOperations (newest first) with
