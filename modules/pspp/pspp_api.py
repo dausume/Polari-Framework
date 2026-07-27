@@ -28,6 +28,8 @@ carries its evidence and refusals render as refusals.
   GET  /api/pspp/solgel/community-routes     accessible-route rollups
   POST /api/pspp/sinter/fire                 MSC densify + grain + L2
   GET  /api/pspp/sinter/master-curves        available master curves
+  GET  /api/pspp/ceramics/samples            samples + temp ladder
+  GET  /api/pspp/ceramics/ladder             furnace escalation ladder
 """
 
 import json
@@ -63,6 +65,13 @@ from pspp.sintering_engine import (
     grain_size, relative_density, work_of_sintering,
 )
 from pspp.sintering_structure import plan_sinter_structure
+from pspp.ceramics_samples import (
+    SEED_CERAMIC_SAMPLES, samples_meeting_temp, temperature_ladder,
+    validate_samples,
+)
+from pspp.ceramics_ladder import (
+    SEED_LADDER_RUNGS, ladder_path, validate_ladder,
+)
 
 
 class PsppAPI(treeObject):
@@ -109,6 +118,50 @@ class PsppAPI(treeObject):
             add('/api/pspp/sinter/fire', self, suffix='sinter_fire')
             add('/api/pspp/sinter/master-curves', self,
                 suffix='sinter_curves')
+            add('/api/pspp/ceramics/samples', self,
+                suffix='ceramics_samples')
+            add('/api/pspp/ceramics/ladder', self,
+                suffix='ceramics_ladder')
+
+    # -- ceramic samples + escalation ladder (MTT2 ceramics) --
+
+    def on_get_ceramics_samples(self, request, response):
+        """The ceramic sample ladder. Filters: ?minTemp=<C> (meets a
+        service temp), ?local=true (drop the mined olivine track),
+        ?carbonNegative=true. No filter = the whole temperature
+        ladder. Reads live CeramicSample rows when present."""
+        rows = self._live('CeramicSample', SEED_CERAMIC_SAMPLES)
+        min_temp = request.get_param_as_float('minTemp')
+        if min_temp is not None:
+            response.media = samples_meeting_temp(
+                min_temp, samples=rows,
+                local_only=(request.get_param('local') == 'true'),
+                carbon_negative_only=(
+                    request.get_param('carbonNegative') == 'true'))
+            return
+        response.media = {
+            'ok': True,
+            'ladder': temperature_ladder(rows),
+            'validation': validate_samples(rows),
+            'note': 'ascending by max service temperature — the '
+                    'gradual escalating temperature-resistance ladder; '
+                    'temps are literature-approximate',
+        }
+
+    def on_get_ceramics_ladder(self, request, response):
+        """The furnace escalation ladder (geopolymer oven -> '
+        steelmaking) + its physical bootstrapping validation."""
+        rungs = self._live('LadderRung', SEED_LADDER_RUNGS)
+        samples = self._live('CeramicSample', SEED_CERAMIC_SAMPLES)
+        response.media = {
+            'ok': True,
+            'rungs': ladder_path(rungs),
+            'bootstrapCheck': validate_ladder(rungs, samples),
+            'note': 'each rung is built from the output of the one '
+                    'below it — the thermal strain of material '
+                    'refinement, from a geopolymer oven up to a '
+                    'steelmaking-capable basic-lined furnace',
+        }
 
     # -- ceramic sintering surface (MTT2 Part B) --
 

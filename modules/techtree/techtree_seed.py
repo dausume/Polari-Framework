@@ -45,6 +45,7 @@ TREE_SUPPLY = 'raw-supply-chain'
 TREE_ECONOMY = 'os-economy-politics'
 TREE_MATERIALS = 'materials-science'  # mtt-1
 TREE_SIMULATION = 'simulation-methods'  # smt-1
+TREE_MANUFACTURING = 'manufacturing-tools'  # mtt-2 furnace ladder
 
 
 def _node(tree, short, title, deps=(), description='', cross=(),
@@ -129,6 +130,19 @@ SEED_TECH_TREE_DEFINITIONS = [
                     'Cross-refs INTO materials/electronics/hardware — '
                     'the methods, not the domain science.',
      'is_active': False, 'is_baseline': True, 'notes': ''},
+    {'name': TREE_MANUFACTURING,
+     'title': 'Manufacturing Tools',
+     'owner': 'polari',
+     'description': 'The TOOLS that refine materials, distinct from '
+                    'the materials themselves — cross-cutting apparatus '
+                    '(a furnace serves ceramics, metals AND glass). Its '
+                    'first populated branch is the THERMAL strain: the '
+                    'furnace escalation ladder (a geopolymer oven '
+                    'bootstrapped up to a steelmaking-capable furnace, '
+                    'each rung built from the last one\'s output). '
+                    'Backed by pspp.ceramics_ladder + the sintering '
+                    'engine. See MTT2_SOLGEL_SINTERING_PLAN.md.',
+     'is_active': False, 'is_baseline': True, 'notes': ''},
 ]
 
 _E = TREE_ELECTRONICS
@@ -136,6 +150,7 @@ _S = TREE_SUPPLY
 _P = TREE_ECONOMY
 _M = TREE_MATERIALS
 _SM = TREE_SIMULATION
+_MT = TREE_MANUFACTURING
 
 #: Electronics / Microelectronics — the original tt-5 nodes (the
 #: household-nutrition node moved to the Raw Supply Chain tree).
@@ -647,7 +662,8 @@ SEED_TECH_NODES += [
           cross=((_E, 'ceramics-composites', 'consumed-by'),
                  (_S, 'geopolymer-composite-supply', 'related-to')),
           data_deps=('alumina-densification-master-curve',
-                     'silica-xerogel-shrinkage-vs-temperature')),
+                     'silica-xerogel-shrinkage-vs-temperature',
+                     'olivine-carbonation-sequestration')),
     _node(_M, 'aluminum', 'Aluminum', deps=('discrete',),
           description='fcc metal — crystal seed + phonons/elastic '
                       'LIVE (ssp). BLCNC heat-calibration voxels use '
@@ -796,6 +812,71 @@ SEED_OSEB_POLARI_MODULES += [
     _module('resources', _SM, 'resource-aware',
             'Node inventory, resource profiles, per-step measurement, '
             'module-admission advisor (res-1..4).'),
+]
+
+# ---------------------------------------------------------------------
+# mtt-2 Manufacturing Tools — the THERMAL strain: the furnace
+# escalation ladder (pspp.ceramics_ladder). Dependency edges ARE the
+# bootstrapping (each furnace built from the last one's output);
+# cross-refs point at the ceramic linings + the materials each rung
+# unlocks. Data deps carry the sintering + carbonation data gaps.
+# ---------------------------------------------------------------------
+SEED_TECH_NODES += [
+    _node(_MT, 'geopolymer-oven', 'Geopolymer oven',
+          description='The ladder START: an ambient-cured geopolymer '
+                      'body fired by a wood/biomass fire — no prior '
+                      'kiln needed. Reaches ~700 C: dry + bisque.',
+          cross=((_M, 'geopolymer', 'built-from'),)),
+    _node(_MT, 'earthenware-kiln', 'Earthenware / wood kiln',
+          deps=('geopolymer-oven',),
+          description='~1050 C wood/charcoal kiln, walls built GREEN '
+                      'from fireclay and hardened in use. Fires '
+                      'earthenware; starts the refractory brick.',
+          cross=((_M, 'ceramics', 'produces'),)),
+    _node(_MT, 'firebrick-furnace', 'Firebrick furnace (forced air)',
+          deps=('earthenware-kiln',),
+          description='~1350 C forced-air furnace lined with fireclay '
+                      'firebrick. Fires stoneware + cordierite; begins '
+                      'mullite. Also the temperature (not the gate) '
+                      'for CNT CVD.',
+          cross=((_M, 'ceramics', 'produces'),)),
+    _node(_MT, 'refractory-furnace', 'High-refractory furnace',
+          deps=('firebrick-furnace',),
+          description='~1700 C, lined with mullite/alumina (local) or '
+                      'forsterite (olivine). Makes high refractories + '
+                      'sustains consistent high temperature.',
+          cross=((_M, 'ceramics', 'produces'),
+                 (_SM, 'multi-scale', 'modeled-by')),
+          data_deps=('alumina-densification-master-curve',)),
+    _node(_MT, 'steelmaking-furnace', 'Steelmaking furnace (basic '
+                                      'lining)',
+          deps=('refractory-furnace',),
+          description='LINING-CHEMISTRY-gated (not hotter): a BASIC '
+                      'refractory — LOCAL dolomitic (carbon-positive) '
+                      'or NON-LOCAL olivine forsterite (carbon-'
+                      'negative) — survives basic steel slags. Unlocks '
+                      'bio-galvanized steel.',
+          cross=((_M, 'galvanized-bio-steel', 'enables'),
+                 (_M, 'ceramics', 'built-from')),
+          data_deps=('olivine-carbonation-sequestration',)),
+    _node(_MT, 'cnt-cvd-reactor', 'CNT CVD reactor (controlled '
+                                  'atmosphere)',
+          deps=('firebrick-furnace',),
+          description='BRANCH, not a hotter rung: catalytic CVD '
+                      'nanotube growth is only ~700-1100 C (reachable '
+                      'here) but the real gate is a CONTROLLED '
+                      'ATMOSPHERE + catalyst reactor — a specialized '
+                      'refinement axis, not just heat.',
+          cross=((_M, 'carbon-nanotubes', 'enables'),)),
+]
+
+SEED_TECH_SEGMENT_ASSIGNMENTS += [
+    _theory(_MT, 'geopolymer-oven', 'pspp'),
+    _theory(_MT, 'earthenware-kiln', 'pspp'),
+    _theory(_MT, 'firebrick-furnace', 'pspp'),
+    _theory(_MT, 'refractory-furnace', 'pspp'),
+    _theory(_MT, 'steelmaking-furnace', 'pspp'),
+    _theory(_MT, 'cnt-cvd-reactor', 'pspp'),
 ]
 
 

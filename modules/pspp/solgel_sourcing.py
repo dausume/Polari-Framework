@@ -48,6 +48,10 @@ ACCESSIBILITY_TIERS = (
     'household',          # lemon juice, vinegar, sand, wood ash, lye
     'common-industrial',  # water glass, mineral acid, ammonia — cheap
                           # commodities, widely sold, not household
+    'mined-nonlocal',     # olivine, bauxite, zircon — a specific
+                          # geology, mined + shipped; NOT locally
+                          # producible (olivine is mantle rock —
+                          # theoretically deep-sourced)
     'lab-reagent',        # TEOS/TMOS, metal alkoxides — specialty
 )
 _TIER_RANK = {t: i for i, t in enumerate(ACCESSIBILITY_TIERS)}

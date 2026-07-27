@@ -513,6 +513,12 @@ try:
     # mtt-2 Part B: the ceramic sintering engine's master-curve
     # calibration data (provisional until digitized).
     from pspp.sintering_seed import SEED_SINTERING_DATASETS
+    # mtt-2 ceramics: usable samples (local + olivine tracks) + the
+    # furnace escalation ladder + the olivine-carbonation dataset.
+    from pspp.ceramics_samples import (
+        CeramicSample, SEED_CERAMIC_SAMPLES, SEED_CERAMICS_DATASETS,
+    )
+    from pspp.ceramics_ladder import LadderRung, SEED_LADDER_RUNGS
 except ImportError as _exc:
     _stub_missing_feature('pspp', _exc, globals(), (
         'EvidenceMethod', 'SEED_EVIDENCE_METHODS', 'PropertyClaim',
@@ -535,6 +541,8 @@ except ImportError as _exc:
         'SOLGEL_PROCESSING_STAGES',
         'PrecursorSource', 'SEED_PRECURSOR_SOURCES',
         'SEED_SINTERING_DATASETS',
+        'CeramicSample', 'SEED_CERAMIC_SAMPLES', 'SEED_CERAMICS_DATASETS',
+        'LadderRung', 'SEED_LADDER_RUNGS',
     ))
 try:
     from aquaponics.pot_materials_seed import (
@@ -2692,7 +2700,8 @@ class polariServer(treeObject):
             ('DigitizedDataset', DigitizedDataset,
              SEED_DIGITIZED_DATASETS
              + (SOLGEL_DIGITIZED_DATASETS or [])
-             + (SEED_SINTERING_DATASETS or [])),
+             + (SEED_SINTERING_DATASETS or [])
+             + (SEED_CERAMICS_DATASETS or [])),
             # pspp-2: stage vocabulary rows; MaterialState never seeds.
             ('ProcessingStage', ProcessingStage,
              SEED_PROCESSING_STAGES
@@ -2719,6 +2728,11 @@ class polariServer(treeObject):
             # accessibility for the sol-gel routes.
             ('PrecursorSource', PrecursorSource,
              SEED_PRECURSOR_SOURCES or []),
+            # mtt-2 ceramics: usable samples + the furnace escalation
+            # ladder (the thermal strain of material refinement).
+            ('CeramicSample', CeramicSample,
+             SEED_CERAMIC_SAMPLES or []),
+            ('LadderRung', LadderRung, SEED_LADDER_RUNGS or []),
             ('ScaleTransferDefinition', ScaleTransferDefinition,
              SEED_SCALE_TRANSFERS),
             ('ExposureScenario', ExposureScenario,
