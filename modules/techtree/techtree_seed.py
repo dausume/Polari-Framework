@@ -656,12 +656,23 @@ SEED_TECH_NODES += [
           cross=((_E, 'ceramics-composites', 'consumed-by'),
                  (_S, 'geopolymer-composite-supply', 'supplied-by'))),
     _node(_M, 'glass', 'Glass', deps=('statistical',),
-          description='Silicate glass — the Maekawa alkali-silicate '
-                      'Q-distribution curves are LIVE (pspp glass '
-                      'mode). Refinement (fining/viscosity/'
-                      'devitrification) = datasets + windows TODO; '
-                      'crystallization risk hands off to discrete.',
-          cross=((_M, 'silicon', 'shares-network-with'),)),
+          description='Silicate glass — Maekawa alkali-silicate '
+                      'Q-distribution curves LIVE (pspp glass mode). '
+                      'REFINEMENT WINDOWS BUILT (mtt-2): viscosity '
+                      'fixed points as data + exact VFT fit '
+                      '(residual-honest), fining/forming/annealing '
+                      'gates + devit-risk zone as banded windows. '
+                      'VISCOUS SINTERING BUILT: Λ = ∫γ/(ηr)dt work '
+                      'integral + Frenkel early stage + MS final '
+                      'stage from a measured checkpoint; mid-stage ρ '
+                      'refuses until the frit master curve is '
+                      'digitized. Devit KINETICS refuse until the '
+                      'TTT dataset arrives; crystallization hands '
+                      'off to discrete.',
+          cross=((_M, 'silicon', 'shares-network-with'),),
+          data_deps=('soda-lime-viscosity-reference-points',
+                     'soda-lime-devitrification-ttt',
+                     'glass-frit-viscous-sintering-master-curve')),
     _node(_M, 'ceramics', 'Ceramics', deps=('statistical',),
           description='Green body -> debind -> sinter. Sintering '
                       'engine BUILT (mtt-2 Part B): analytic Master '

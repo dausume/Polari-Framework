@@ -35,6 +35,8 @@ carries its evidence and refusals render as refusals.
   GET  /api/pspp/characterization/methods    XRD + FTIR explainers
   POST /api/pspp/characterization/ftir       simulated FTIR bands
   GET  /api/pspp/research-tools              buildable instruments
+  GET  /api/pspp/glass/refinement            viscosity fit + windows
+  POST /api/pspp/sinter/viscous              viscous (glass) firing
 """
 
 import json
@@ -75,6 +77,10 @@ from pspp.characterization import (
 )
 from pspp.research_tools import SEED_RESEARCH_TOOLS, research_tools
 from pspp.sintering_structure import plan_sinter_structure
+from pspp.glass_refinement import (
+    GLASS_THRESHOLD_WINDOWS, process_map, refinement_report,
+)
+from pspp.viscous_sintering import viscous_fire
 from pspp.ceramics_samples import (
     SEED_CERAMIC_SAMPLES, samples_meeting_temp, temperature_ladder,
     validate_samples,
@@ -142,6 +148,10 @@ class PsppAPI(treeObject):
                 suffix='char_ftir')
             add('/api/pspp/research-tools', self,
                 suffix='research_tools')
+            add('/api/pspp/glass/refinement', self,
+                suffix='glass_refinement')
+            add('/api/pspp/sinter/viscous', self,
+                suffix='sinter_viscous')
 
     def on_get_char_methods(self, request, response):
         """XRD + FTIR as data — plain-language what/how, diagnostic
@@ -247,14 +257,22 @@ class PsppAPI(treeObject):
         from pspp.digitized_datasets import dataset_index
         curves = []
         for name, ds in dataset_index(self.manager).items():
-            if 'log10Theta' in (ds.get('independentVariables') or []) \
-                    and 'relativeDensity' in (
-                        ds.get('dependentVariables') or []):
-                curves.append({
-                    'name': name, 'status': ds.get('status'),
-                    'ready': ds.get('status') == 'ready'
-                    and bool(ds.get('points')),
-                    'source': ds.get('sourceReference')})
+            indep = ds.get('independentVariables') or []
+            if 'relativeDensity' not in (
+                    ds.get('dependentVariables') or []):
+                continue
+            if 'log10Theta' in indep:
+                kind = 'solid-state'
+            elif 'log10Lambda' in indep:
+                kind = 'viscous'
+            else:
+                continue
+            curves.append({
+                'name': name, 'status': ds.get('status'),
+                'kind': kind,
+                'ready': ds.get('status') == 'ready'
+                and bool(ds.get('points')),
+                'source': ds.get('sourceReference')})
         response.media = {'ok': True, 'masterCurves': curves}
 
     def on_post_sinter_fire(self, request, response):
@@ -287,6 +305,75 @@ class PsppAPI(treeObject):
         if not out['work'].get('ok'):
             response.status = '422 Unprocessable Entity'
         response.media = out
+
+    # -- glass refinement + viscous sintering (MTT2 glass core) --
+
+    def _glass_points(self):
+        """Live soda-lime viscosity points when the dataset row has
+        been edited; None falls back to the module seeds."""
+        from pspp.digitized_datasets import dataset_index
+        ds = dataset_index(self.manager).get(
+            'soda-lime-viscosity-reference-points')
+        pts = (ds or {}).get('points') or []
+        return pts if len(pts) >= 3 else None
+
+    def _glass_windows(self):
+        """Live silicate-glass banded windows when rows exist, else
+        the module seeds."""
+        rows = self._live('ThresholdReactionWindow',
+                          GLASS_THRESHOLD_WINDOWS)
+        mine = [w for w in rows
+                if self._g(w, 'material_family') in
+                ('silicate-glass',)
+                or self._g(w, 'name').startswith('soda-lime-glass:')]
+        return mine or GLASS_THRESHOLD_WINDOWS
+
+    def on_get_glass_refinement(self, request, response):
+        """The glass-refinement surface: reference points + the exact
+        VFT fit (+ residual honesty) + process windows + the devit
+        data ask. ?temperature=<C> grades every gate at that
+        temperature instead."""
+        points = self._glass_points()
+        windows = self._glass_windows()
+        temp = request.get_param_as_float('temperature')
+        if temp is not None:
+            from pspp.glass_refinement import fit_vft
+            response.media = process_map(
+                temp, vft=fit_vft(points), windows=windows)
+            return
+        response.media = refinement_report(points=points,
+                                           windows=windows)
+
+    def on_post_sinter_viscous(self, request, response):
+        """One VISCOUS (glass) firing: Λ always; ρ via master curve /
+        Frenkel-while-valid / the refusal naming the asks; the MS
+        final stage from a measured closed-pore checkpoint; the
+        amorphous L2 plan. Body: {schedule, particleRadiusUm, gamma?,
+        greenDensity?, masterCurve?, measured?:{density,
+        poreRadiusUm}, stateKey?}."""
+        body = request.media if request.content_length else {}
+        curve = self._master_curve(body.get('masterCurve'))
+        if body.get('masterCurve') and curve is None:
+            response.status = '422 Unprocessable Entity'
+            response.media = {
+                'ok': False,
+                'refusal': f"master curve {body['masterCurve']!r} "
+                           'resolves to no DigitizedDataset row',
+                'suggestion': 'GET /api/pspp/sinter/master-curves '
+                              'lists the candidates'}
+            return
+        payload = viscous_fire(
+            body.get('schedule') or [],
+            body.get('particleRadiusUm'),
+            gamma_n_per_m=body.get('gamma'),
+            green_density=body.get('greenDensity'),
+            master_curve=curve,
+            measured=body.get('measured'),
+            points=self._glass_points(),
+            state_key=body.get('stateKey'))
+        if not payload.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = payload
 
     # -- community sourcing surface (MTT2 sg-community) --
 

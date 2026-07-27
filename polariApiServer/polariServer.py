@@ -524,6 +524,11 @@ try:
     from pspp.research_tools import ResearchTool, SEED_RESEARCH_TOOLS
     # mtt-2 characterization: the FTIR band-calibration data gap.
     from pspp.characterization import SEED_CHARACTERIZATION_DATASETS
+    # mtt-2 glass core: viscosity reference points + refinement
+    # windows + the devit/viscous-master-curve data asks.
+    from pspp.glass_refinement import (
+        GLASS_DIGITIZED_DATASETS, GLASS_THRESHOLD_WINDOWS,
+    )
 except ImportError as _exc:
     _stub_missing_feature('pspp', _exc, globals(), (
         'EvidenceMethod', 'SEED_EVIDENCE_METHODS', 'PropertyClaim',
@@ -550,6 +555,7 @@ except ImportError as _exc:
         'LadderRung', 'SEED_LADDER_RUNGS',
         'ResearchTool', 'SEED_RESEARCH_TOOLS',
         'SEED_CHARACTERIZATION_DATASETS',
+        'GLASS_DIGITIZED_DATASETS', 'GLASS_THRESHOLD_WINDOWS',
     ))
 try:
     from aquaponics.pot_materials_seed import (
@@ -2709,7 +2715,8 @@ class polariServer(treeObject):
              + (SOLGEL_DIGITIZED_DATASETS or [])
              + (SEED_SINTERING_DATASETS or [])
              + (SEED_CERAMICS_DATASETS or [])
-             + (SEED_CHARACTERIZATION_DATASETS or [])),
+             + (SEED_CHARACTERIZATION_DATASETS or [])
+             + (GLASS_DIGITIZED_DATASETS or [])),
             # pspp-2: stage vocabulary rows; MaterialState never seeds.
             ('ProcessingStage', ProcessingStage,
              SEED_PROCESSING_STAGES
@@ -2724,7 +2731,8 @@ class polariServer(treeObject):
             ('ReactionWindow', ReactionWindow, SEED_REACTION_WINDOWS),
             ('ThresholdReactionWindow', ThresholdReactionWindow,
              SEED_THRESHOLD_WINDOWS
-             + (SOLGEL_THRESHOLD_WINDOWS or [])),
+             + (SOLGEL_THRESHOLD_WINDOWS or [])
+             + (GLASS_THRESHOLD_WINDOWS or [])),
             ('BenchmarkCase', BenchmarkCase, SEED_BENCHMARK_CASES),
             ('ChemicalSpecies', ChemicalSpecies,
              SEED_CHEMICAL_SPECIES
