@@ -373,10 +373,17 @@ def plan_move(manager, topology_name, module, to_instance='',
         'placementConstraint':
             f'node.labels.polari.machine == {to_machine}',
         'suggestedCommands': [
+            f'pol allocate {instance} {to_machine} --graceful',
             f'pol topology render {topology_name}',
             f'pol allocate {instance} {to_machine}'],
         'note': 'relocating pins the ENGINE INSTANCE to the device; '
-                'the stack redeploy stays the human-run pol command',
+                'the deploy stays the human-run pol command. '
+                '--graceful (gm-1) is the blue-green path: image '
+                'ship if needed, start-first constraint swap (the '
+                'mesh keeps :9500 answering), /capability readiness '
+                'gate, probe-cache invalidation — every step '
+                'receipted as a MoveOperation row with expected '
+                'durations from prior moves',
     }
 
 

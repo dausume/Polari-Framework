@@ -76,6 +76,16 @@ class TopologyAPI(treeObject):
             add('/api/topology/import', self, suffix='import_doc')
             add('/api/topology/machine', self, suffix='machine')
             add('/api/topology/instance', self, suffix='instance')
+            # gm-2-lite: graceful moves as observable data + the
+            # gm-1 probe-cache invalidation.
+            add('/api/topology/move-operations', self,
+                suffix='move_ops')
+            add('/api/topology/move-operations/step', self,
+                suffix='move_op_step')
+            add('/api/topology/move-operations/finish', self,
+                suffix='move_op_finish')
+            add('/api/topology/providers/reprobe', self,
+                suffix='reprobe')
 
     # ---- helpers ----------------------------------------------------
 
@@ -314,6 +324,167 @@ class TopologyAPI(treeObject):
             'assignment': getattr(target, 'name', ''),
             'disabled': moved, 'resolve': resolve,
             'suggestedCommand': 'pol topology apply --plan'}
+
+    # ---- gm-2-lite: move operations (moves as data) -----------------
+
+    @staticmethod
+    def _stomp_move(row):
+        try:
+            from polariApiServer.stompWebSocketServer import (
+                get_stomp_server,
+            )
+            from topology.move_operations import move_dict
+            server = get_stomp_server()
+            if server is not None:
+                server.publish('/topic/MoveOperation', {
+                    'operation': 'move-status', **move_dict(row)})
+        except Exception:
+            pass  # push is best-effort; the panel polls too
+
+    def _find_move(self, name):
+        for row in self._table('MoveOperation').values():
+            if getattr(row, 'name', '') == name:
+                return row
+        return None
+
+    def on_get_move_ops(self, request, response):
+        """The move ledger: recent MoveOperations (newest first) with
+        per-step receipts + EXPECTED step durations from prior
+        verified moves of the same kind (median; no history = {}).
+        ?active=true filters to planned/running."""
+        from topology.move_operations import (
+            expected_step_durations, move_dict,
+        )
+        rows = list(self._table('MoveOperation').values())
+        if request.params.get('active') == 'true':
+            rows = [r for r in rows
+                    if getattr(r, 'status', '') in ('planned',
+                                                    'running')]
+        rows.sort(key=lambda r: getattr(r, 'started_at', 0.0)
+                  or 0.0, reverse=True)
+        try:
+            limit = int(request.params.get('limit', 10))
+        except ValueError:
+            limit = 10
+        history = list(self._table('MoveOperation').values())
+        response.media = {
+            'ok': True,
+            'moves': [
+                move_dict(r, expected=expected_step_durations(
+                    history, getattr(r, 'kind', ''),
+                    getattr(r, 'subject', '')))
+                for r in rows[:limit]],
+        }
+
+    def on_post_move_ops(self, request, response):
+        """Create a MoveOperation with its PLANNED step list (shown
+        before anything runs — gm-6 discipline). Body: {kind, subject,
+        fromMachine, toMachine, triggeredBy?}. Returns the row +
+        expected step durations from history."""
+        import json as jsonLib
+        import time as timeLib
+        from topology.move_operations import (
+            MOVE_KINDS, MoveOperation, expected_step_durations,
+            move_dict, planned_steps,
+        )
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        kind = (payload or {}).get('kind', 'engine-relocation')
+        subject = (payload or {}).get('subject', '')
+        if kind not in MOVE_KINDS:
+            return self._refuse(
+                response, f'unknown move kind {kind!r} — one of '
+                          f'{MOVE_KINDS}')
+        if not subject:
+            return self._refuse(response, 'payload needs {subject}')
+        steps = planned_steps(kind)
+        if not steps:
+            return self._refuse(
+                response,
+                f'move kind {kind!r} has no step plan yet — only '
+                'engine-relocation is automated (gm-1); the stateful '
+                'movers are gm-3..5')
+        row = MoveOperation(
+            name=f'{subject}@{int(timeLib.time())}',
+            kind=kind, subject=subject,
+            from_machine=(payload or {}).get('fromMachine', ''),
+            to_machine=(payload or {}).get('toMachine', ''),
+            status='running',
+            steps_json=jsonLib.dumps(steps),
+            started_at=timeLib.time(),
+            triggered_by=(payload or {}).get('triggeredBy', ''),
+            manager=self.manager)
+        self._save(row)
+        self._stomp_move(row)
+        history = list(self._table('MoveOperation').values())
+        response.media = {
+            'ok': True,
+            'move': move_dict(row, expected=expected_step_durations(
+                history, kind, subject)),
+        }
+
+    def on_post_move_op_step(self, request, response):
+        """One step transition: {name, step, status, receipt?} —
+        durations are measured server-side so every mover reports
+        identically."""
+        from topology.move_operations import (
+            apply_step_update, move_dict,
+        )
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        row = self._find_move((payload or {}).get('name', ''))
+        if row is None:
+            return self._refuse(
+                response, f"no MoveOperation named "
+                          f"{(payload or {}).get('name', '')!r}",
+                '404 Not Found')
+        verdict = apply_step_update(
+            row, (payload or {}).get('step', ''),
+            (payload or {}).get('status', ''),
+            receipt=(payload or {}).get('receipt'))
+        if not verdict.get('ok'):
+            return self._refuse(response, verdict['refusal'])
+        self._save(row)
+        self._stomp_move(row)
+        response.media = {'ok': True, 'move': move_dict(row)}
+
+    def on_post_move_op_finish(self, request, response):
+        """Close a move: {name, status: verified|failed, error?}."""
+        import time as timeLib
+        from topology.move_operations import move_dict
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        row = self._find_move((payload or {}).get('name', ''))
+        if row is None:
+            return self._refuse(
+                response, f"no MoveOperation named "
+                          f"{(payload or {}).get('name', '')!r}",
+                '404 Not Found')
+        status = (payload or {}).get('status', '')
+        if status not in ('verified', 'failed', 'abandoned'):
+            return self._refuse(
+                response, 'finish status must be verified | failed '
+                          '| abandoned')
+        row.status = status
+        row.finished_at = timeLib.time()
+        row.error = (payload or {}).get('error', '') or ''
+        self._save(row)
+        self._stomp_move(row)
+        response.media = {'ok': True, 'move': move_dict(row)}
+
+    def on_post_reprobe(self, request, response):
+        """gm-1 step 4: invalidate the provider probe cache so edges
+        re-resolve against the RELOCATED provider immediately instead
+        of waiting out the 30s TTL."""
+        from topology import provider_registry
+        cleared = len(provider_registry._PROBE_CACHE)
+        provider_registry._PROBE_CACHE.clear()
+        response.media = {
+            'ok': True, 'clearedEntries': cleared,
+            'note': 'next resolve_provider call probes live'}
 
     def on_post_move(self, request, response):
         """tt-13 dynamic re-placement: plan_move decides whether

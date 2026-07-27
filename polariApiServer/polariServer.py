@@ -787,6 +787,7 @@ from topology.topology_state import (
 # tt-11: testing over the topology — suite runs + integration pings
 # as observed-state rows (never seeded).
 from topology.topology_testing import IntegrationPing, TopologyTestRun
+from topology.move_operations import MoveOperation
 # tt-12: Polari-Apps — module configurations per use-case; plans are
 # exportable JSON packages the pol CLI deploys (rows only).
 try:
@@ -1804,6 +1805,8 @@ class polariServer(treeObject):
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
             ModuleDependencyEdge, ServiceConnection,
+            # gm-2-lite: graceful moves as observable data.
+            MoveOperation,
             TopologyDefinition, TopologyObservation,
             # Testing over topology (tt-11): observed runs/pings.
             TopologyTestRun, IntegrationPing,
