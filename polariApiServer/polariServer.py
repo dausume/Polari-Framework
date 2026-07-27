@@ -1160,7 +1160,12 @@ class polariServer(treeObject):
             HealthEndpoint, ModuleBootRegistry, ModuleLoadingMiddleware,
             ModulesStatusEndpoint,
         )
+        # gm-2: the quiesce seam every stateful move calls first.
+        from polariApiServer.quiesce import (
+            QuiesceEndpoint, QuiesceMiddleware, QuiesceState,
+        )
         self.bootRegistry = ModuleBootRegistry()
+        self.quiesceState = QuiesceState()
         self.falconServer = falcon.App(
             middleware=[
                 falcon.CORSMiddleware(allow_origins=allow_origins, allow_credentials=allow_creds),
@@ -1170,12 +1175,15 @@ class polariServer(treeObject):
                 # rejects, just plumbs identity for downstream gating.
                 AuthContextMiddleware(),
                 ModuleLoadingMiddleware(self),
+                QuiesceMiddleware(self.quiesceState),
             ]
         )
         # /api/health (net-new, mlb-1): 200 at core-data-ready;
-        # /api/modules/status (mlb-3): the bring-up summary doc.
+        # /api/modules/status (mlb-3): the bring-up summary doc;
+        # /api/quiesce* (gm-2): the stateful-move write gate.
         HealthEndpoint(self)
         ModulesStatusEndpoint(self)
+        QuiesceEndpoint(self, self.quiesceState)
         self.active = False
         # STOMP WebSocket server reference (set after startup in initLocalhostPolariServer)
         # Declared here during @treeObjectInit so it's a known variable on the tree.

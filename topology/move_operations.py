@@ -45,6 +45,21 @@ ENGINE_MOVE_STEPS = (
     ('verify', 'capability + placement verified'),
 )
 
+#: gm-5 owned-sqlite instance move — QUIESCED, honest downtime
+#: (stop-first: a stateful instance must never double-write).
+INSTANCE_MOVE_STEPS = (
+    ('sync-image', 'target runs the SAME image content (same tag != '
+                   'same code — swarm ships config, not images)'),
+    ('quiesce', 'write gate up + full flush (receipt = in-flight 0)'),
+    ('snapshot', 'row counts recorded (the verify baseline)'),
+    ('copy-data', 'sqlite volume copied to target machine'),
+    ('service-update', 'constraint swap (stop-first — honest '
+                       'downtime, no double-writes)'),
+    ('boot-ready', 'relocated instance core-ready (/api/health)'),
+    ('verify-data', 'row counts + marker row match the snapshot'),
+    ('retire', 'old volume left in place as the rollback copy'),
+)
+
 
 class MoveOperation(treeObject):
     """One graceful move of one subject between machines."""
@@ -102,12 +117,12 @@ def _steps(row):
 def planned_steps(kind):
     """The canonical step plan for a move kind — shown BEFORE anything
     runs (gm-6 discipline: the user sees the plan first)."""
-    if kind == 'engine-relocation':
-        return [{'key': k, 'label': label, 'status': 'pending',
-                 'started_at': None, 'finished_at': None,
-                 'duration_s': None, 'receipt': ''}
-                for k, label in ENGINE_MOVE_STEPS]
-    return []
+    plans = {'engine-relocation': ENGINE_MOVE_STEPS,
+             'instance-move': INSTANCE_MOVE_STEPS}
+    return [{'key': k, 'label': label, 'status': 'pending',
+             'started_at': None, 'finished_at': None,
+             'duration_s': None, 'receipt': ''}
+            for k, label in plans.get(kind, ())]
 
 
 def expected_step_durations(records, kind, subject=None):
