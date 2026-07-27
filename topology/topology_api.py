@@ -404,8 +404,8 @@ class TopologyAPI(treeObject):
                 response,
                 f'move kind {kind!r} has no step plan yet — '
                 'engine-relocation (gm-1), instance-move (gm-5 '
-                'sqlite), minio-move/keydb-move (gm-3) are '
-                'automated; auth/database movers are gm-4/5')
+                'sqlite), minio-move/keydb-move (gm-3), auth-move '
+                '(gm-4) are automated; the MariaDB mover is gm-5')
         row = MoveOperation(
             name=f'{subject}@{int(timeLib.time())}',
             kind=kind, subject=subject,

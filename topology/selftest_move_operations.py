@@ -61,6 +61,12 @@ def test_planned_steps():
           == [s['key'] for s in planned_steps('keydb-move')]
           and {'preflight', 'copy-data', 'retire'}
           <= {s['key'] for s in minio})
+    auth = planned_steps('auth-move')
+    check('gm-4: auth plan is server-only (db-check, NO copy-data — '
+          'the DB does not move)',
+          'db-check' in {s['key'] for s in auth}
+          and 'copy-data' not in {s['key'] for s in auth}
+          and 'quiesce' not in {s['key'] for s in auth})
 
 
 def test_step_transitions():

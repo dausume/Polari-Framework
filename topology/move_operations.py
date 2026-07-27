@@ -87,6 +87,29 @@ MINIO_MOVE_STEPS = (
 )
 
 
+#: gm-4 auth (Keycloak) — a SERVER-ONLY move: realms/clients/KEYS
+#: live in its database, which does NOT move (moving both at once is
+#: refused — that is two moves, DB first). Blue-green start-first:
+#: two non-clustered KC servers briefly sharing one DB is the
+#: cutover; the issuer hostname never changes, so existing tokens
+#: stay valid. No quiesce, no volumes, nothing to delete at retire.
+AUTH_MOVE_STEPS = (
+    ('preflight', 'target reachable + no update converging on '
+                  'keycloak OR its database'),
+    ('db-check', 'the DB is NOT moving (refuse keycloak+DB in one '
+                 'step) and answers'),
+    ('sync-image', 'target runs the SAME image content'),
+    ('service-update', 'swarm update: start-first + constraint swap '
+                       '(old serves until new runs)'),
+    ('readiness', 'relocated server answers realm + JWKS through '
+                  'the proxy'),
+    ('verify', 'issuer unchanged; backend jwks-health green; '
+               'existing tokens remain valid'),
+    ('retire', 'nothing to delete — no data moved (the honest '
+               'no-op)'),
+)
+
+
 class MoveOperation(treeObject):
     """One graceful move of one subject between machines."""
 
@@ -152,7 +175,8 @@ def planned_steps(kind):
              # replica-promote route with zero cold-cache is the
              # documented refinement, not built).
              'minio-move': MINIO_MOVE_STEPS,
-             'keydb-move': MINIO_MOVE_STEPS}
+             'keydb-move': MINIO_MOVE_STEPS,
+             'auth-move': AUTH_MOVE_STEPS}
     return [{'key': k, 'label': label, 'status': 'pending',
              'started_at': None, 'finished_at': None,
              'duration_s': None, 'receipt': ''}
