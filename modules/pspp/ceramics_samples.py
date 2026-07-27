@@ -296,6 +296,55 @@ SEED_CERAMIC_SAMPLES = [
               'calcining dolomite RELEASES CO2 (carbon-positive), so '
               'it trades carbon cost for local availability. The '
               'olivine track is the carbon-negative alternative.'},
+    # -- GEOPOLYMER-DERIVED ceramics (the geopolymer->ceramic path,
+    # DATA-BACKED by Table 8.8) — a cured geopolymer crystallized by
+    # firing, so the same body climbs from gel to refractory ceramic.
+    {'name': 'leucite-ceramic',
+     'display_name': 'Leucite ceramic (from K-geopolymer)',
+     'family': 'leucite-ceramic', 'track': 'local',
+     'feedstocks_json': _fs(
+         ('metakaolin (calcined local kaolin)', 'household',
+          'Al-Si source — calcine local kaolin ~700 C'),
+         ('potassium hydroxide / potash', 'common-industrial',
+          'K activator (potash is locally leachable from wood ash)')),
+     'accessibility_tier': 'common-industrial',
+     'peak_firing_temp_c': 1200.0, 'max_service_temp_c': 1400.0,
+     'softening_temp_c': 1400.0, 'thermal_shock': 'moderate',
+     'refractory_class': 'acidic', 'carbon_profile': 'neutral',
+     'use_cases_json': json.dumps([
+         'geopolymer FIRED into a leucite (KAlSi2O6) ceramic',
+         'the same molded body climbs gel -> refractory ceramic',
+         'moderate-refractory parts from a cast geopolymer']),
+     'ladder_role': 'kiln-furniture',
+     'source_reference': 'Davidovits p.196 (Kriven leucite-ceramic '
+                         'route) + Table 8.8 (Perera & Trautman 2005): '
+                         'leucite major at 1200 C.',
+     'notes': 'DATA-BACKED conversion (Table 8.8): amorphous to 800 C, '
+              'kalsilite at 1000 C, leucite at 1200 C. Lower firing '
+              'energy than a from-powder ceramic because the '
+              'geopolymer is already a shaped aluminosilicate.'},
+    {'name': 'kalsilite-ceramic',
+     'display_name': 'Kalsilite ceramic (from K-geopolymer)',
+     'family': 'kalsilite-ceramic', 'track': 'local',
+     'feedstocks_json': _fs(
+         ('metakaolin (calcined local kaolin)', 'household',
+          'Al-Si source'),
+         ('potassium hydroxide / potash', 'common-industrial',
+          'K activator')),
+     'accessibility_tier': 'common-industrial',
+     'peak_firing_temp_c': 1000.0, 'max_service_temp_c': 1400.0,
+     'softening_temp_c': 1400.0, 'thermal_shock': 'moderate',
+     'refractory_class': 'acidic', 'carbon_profile': 'neutral',
+     'use_cases_json': json.dumps([
+         'geopolymer fired into a kalsilite (KAlSiO4) ceramic',
+         'distorted kalsilite is stable to 1400 C with no melting']),
+     'ladder_role': 'kiln-furniture',
+     'source_reference': 'Table 8.8 (Perera & Trautman 2005): '
+                         'kalsilite major at 1000 C; distorted '
+                         'kalsilite stable to 1400 C.',
+     'notes': 'A Ca-pentamer (Ca8Si5O18) fusing phase softens above '
+              '1400 C and lowers the melting point — the honest cap on '
+              'service temperature.'},
     # -- OLIVINE track: non-local but optimized + CARBON-NEGATIVE --
     {'name': 'forsterite-olivine',
      'display_name': 'Forsterite (olivine) basic refractory',

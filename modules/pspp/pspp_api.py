@@ -30,6 +30,8 @@ carries its evidence and refusals render as refusals.
   GET  /api/pspp/sinter/master-curves        available master curves
   GET  /api/pspp/ceramics/samples            samples + temp ladder
   GET  /api/pspp/ceramics/ladder             furnace escalation ladder
+  POST /api/pspp/sinter/stages               sample a firing in stages
+  GET  /api/pspp/ceramics/geopolymer-transition  geopolymer->ceramic
 """
 
 import json
@@ -62,8 +64,9 @@ from pspp.solgel_sourcing import (
     route_report, substitution_map,
 )
 from pspp.sintering_engine import (
-    grain_size, relative_density, work_of_sintering,
+    grain_size, relative_density, sinter_stages, work_of_sintering,
 )
+from pspp.geopolymer_ceramic_transition import transition_stages
 from pspp.sintering_structure import plan_sinter_structure
 from pspp.ceramics_samples import (
     SEED_CERAMIC_SAMPLES, samples_meeting_temp, temperature_ladder,
@@ -122,6 +125,36 @@ class PsppAPI(treeObject):
                 suffix='ceramics_samples')
             add('/api/pspp/ceramics/ladder', self,
                 suffix='ceramics_ladder')
+            add('/api/pspp/sinter/stages', self,
+                suffix='sinter_stages')
+            add('/api/pspp/ceramics/geopolymer-transition', self,
+                suffix='geopolymer_transition')
+
+    def on_post_sinter_stages(self, request, response):
+        """Sample a firing at N checkpoints — the ceramic at different
+        stages during sintering. Body: {schedule, activationEnergy,
+        masterCurve?, grain?, nStages?}. ρ/grain refuse in place where
+        their calibration is absent (honest stage-by-stage)."""
+        body = request.media if request.content_length else {}
+        curve = self._master_curve(body.get('masterCurve'))
+        payload = sinter_stages(
+            body.get('schedule') or [], body.get('activationEnergy'),
+            master_curve=curve, grain=body.get('grain'),
+            n_stages=int(body.get('nStages', 5)))
+        if not payload.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = payload
+
+    def on_get_geopolymer_transition(self, request, response):
+        """The DATA-BACKED geopolymer -> ceramic thermal-conversion
+        ladder (Table 8.8) + the glass branch. ?temperature=<C> reads
+        the porosity/stage at one temperature."""
+        temp = request.get_param_as_float('temperature')
+        if temp is not None:
+            from pspp.geopolymer_ceramic_transition import porosity_at
+            response.media = porosity_at(temp)
+            return
+        response.media = transition_stages()
 
     # -- ceramic samples + escalation ladder (MTT2 ceramics) --
 

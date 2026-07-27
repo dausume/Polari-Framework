@@ -212,6 +212,75 @@ def relative_density(schedule, activation_energy_j_per_mol,
     }
 
 
+def _truncate_schedule(schedule, fraction):
+    """The schedule up to `fraction` (0..1] of its total time — the
+    partial firing sampled at a checkpoint. Splits the segment the
+    checkpoint lands in (a hold stays a hold; a ramp ends at its
+    interpolated temperature)."""
+    total = sum(_seg_duration_s(s) for s in schedule)
+    target = total * float(fraction)
+    out, acc = [], 0.0
+    for seg in schedule:
+        dur = _seg_duration_s(seg)
+        if acc + dur <= target + 1e-9:
+            out.append(seg)
+            acc += dur
+            continue
+        remaining = target - acc
+        if remaining <= 0:
+            break
+        minutes = remaining / 60.0
+        if 'hold_c' in seg:
+            out.append({'hold_c': seg['hold_c'], 'minutes': minutes})
+        else:
+            t0, t1 = _temps_k(seg)
+            frac = remaining / dur
+            mid_c = (seg['ramp_from_c']
+                     + (seg['ramp_to_c'] - seg['ramp_from_c']) * frac)
+            out.append({'ramp_from_c': seg['ramp_from_c'],
+                        'ramp_to_c': mid_c, 'minutes': minutes})
+        break
+    return out
+
+
+def sinter_stages(schedule, activation_energy_j_per_mol,
+                  master_curve=None, grain=None, n_stages=5,
+                  substeps=200):
+    """Sample the firing at `n_stages` checkpoints (partial firings) —
+    the ceramic AT DIFFERENT STAGES DURING SINTERING. Each stage
+    carries Θ (always), ρ (where a ready master curve + in-range Θ
+    allow, else the honest refusal), and grain size (where kinetics
+    are given). grain = {d0, n, k0, Qg} or None."""
+    ok, refusal = _validate_schedule(schedule)
+    if not ok:
+        return refusal
+    n = max(2, int(n_stages))
+    stages = []
+    for i in range(1, n + 1):
+        fraction = i / n
+        partial = _truncate_schedule(schedule, fraction)
+        work = work_of_sintering(partial, activation_energy_j_per_mol,
+                                 substeps)
+        stage = {'fraction': round(fraction, 4),
+                 'work': work}
+        stage['density'] = relative_density(
+            partial, activation_energy_j_per_mol,
+            master_curve=master_curve, substeps=substeps)
+        if grain:
+            stage['grain'] = grain_size(
+                partial, grain.get('d0'), grain.get('n'),
+                grain.get('k0'), grain.get('Qg'), substeps)
+        stages.append(stage)
+    return {
+        'ok': True,
+        'stages': stages,
+        'note': 'each stage is a PARTIAL firing (the schedule truncated '
+                'at that fraction of total time) — Θ grows monotonically; '
+                'ρ and grain follow where their calibration exists, and '
+                'refuse in place where it does not',
+    }
+
+
 def grain_size(schedule, d0_um, growth_exponent_n,
                k0_um_n_per_s, grain_activation_energy_j_per_mol,
                substeps=200):
