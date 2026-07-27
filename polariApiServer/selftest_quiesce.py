@@ -101,8 +101,17 @@ def test_gate_semantics():
     check('status reports quiesced',
           client.simulate_get('/api/quiesce/status')
           .json['quiesced'] is True)
+    got = client.simulate_post('/api/quiesce', json={
+        'moveName': 'backend@1'})
+    check('re-engage for the SAME move is idempotent (crash-resume, '
+          'gm-safety)',
+          got.status_code == 200 and got.json.get('resumed') is True)
+    got = client.simulate_post('/api/quiesce', json={
+        'moveName': 'other@9'})
+    check('engage for a DIFFERENT move 409s (no interleaving)',
+          got.status_code == 409)
     got = client.simulate_post('/api/quiesce', json={})
-    check('double engage 409s (two moves must not interleave)',
+    check('anonymous double engage 409s too',
           got.status_code == 409)
     got = client.simulate_post('/api/quiesce/release')
     check('release drops the gate', got.json['released'] is True)
@@ -162,11 +171,57 @@ def test_stateless():
           .status_code == 423)
 
 
+def test_stale_move_artifacts():
+    print('[gm-safety: interrupted transfers are discoverable]')
+    import json as _json
+    import os
+    import tempfile
+
+    from polariApiServer.quiesce import stale_move_artifacts
+    tmp = tempfile.mkdtemp(prefix='stale-move-')
+    check('clean volume -> no findings',
+          stale_move_artifacts(tmp) == [])
+    _json.dump({'move': 'backend@9', 'from': 'a', 'to': 'b',
+                'phase': 'copying'},
+               open(os.path.join(tmp, '.move-journal.json'), 'w'))
+    os.makedirs(os.path.join(tmp, '.incoming-backend@9'))
+    os.makedirs(os.path.join(tmp, '.previous-backend@9'))
+    found = stale_move_artifacts(tmp)
+    kinds = {f['kind'] for f in found}
+    check('journal + staged + previous all surface',
+          kinds == {'move-journal', 'incoming', 'previous'})
+    journal = next(f for f in found if f['kind'] == 'move-journal')
+    check('the journal names the move and phase',
+          journal['journal']['move'] == 'backend@9'
+          and journal['journal']['phase'] == 'copying')
+    check('every finding carries meaning + action (honest, not '
+          'just a path)',
+          all(f.get('meaning') and f.get('action') for f in found))
+    # /api/health surfaces them (the boot-time awareness).
+    old = os.environ.get('POLARI_DATA_DIR')
+    os.environ['POLARI_DATA_DIR'] = tmp
+    try:
+        from polariApiServer.lazy_boot import HealthEndpoint
+        stub = types.SimpleNamespace(falconServer=falcon.App(),
+                                     bootRegistry=None)
+        HealthEndpoint(stub)
+        got = ft.TestClient(stub.falconServer) \
+            .simulate_get('/api/health')
+        check('health carries staleMoveArtifacts',
+              len(got.json.get('staleMoveArtifacts', [])) == 3)
+    finally:
+        if old is None:
+            os.environ.pop('POLARI_DATA_DIR', None)
+        else:
+            os.environ['POLARI_DATA_DIR'] = old
+
+
 def main():
     test_gate_semantics()
     test_async_engage()
     test_failed_flush()
     test_stateless()
+    test_stale_move_artifacts()
     print(f'\n{PASS} passed, {FAIL} failed')
     return 1 if FAIL else 0
 

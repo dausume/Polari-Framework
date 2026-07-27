@@ -48,16 +48,21 @@ ENGINE_MOVE_STEPS = (
 #: gm-5 owned-sqlite instance move — QUIESCED, honest downtime
 #: (stop-first: a stateful instance must never double-write).
 INSTANCE_MOVE_STEPS = (
+    ('preflight', 'target reachable + enough free space for the '
+                  'data (fail EARLY, not mid-copy)'),
     ('sync-image', 'target runs the SAME image content (same tag != '
                    'same code — swarm ships config, not images)'),
     ('quiesce', 'write gate up + full flush (receipt = in-flight 0)'),
     ('snapshot', 'row counts recorded (the verify baseline)'),
-    ('copy-data', 'sqlite volume copied to target machine'),
+    ('copy-data', 'STAGED: copy into .incoming-<move>/, verify the '
+                  'staged file, journal both volumes — live target '
+                  'data untouched until the verified swap'),
     ('service-update', 'constraint swap (stop-first — honest '
                        'downtime, no double-writes)'),
     ('boot-ready', 'relocated instance core-ready (/api/health)'),
     ('verify-data', 'row counts + marker row match the snapshot'),
-    ('retire', 'old volume left in place as the rollback copy'),
+    ('retire', 'journals cleared + .previous removed on target; the '
+               'SOURCE volume is never deleted (rollback copy)'),
 )
 
 

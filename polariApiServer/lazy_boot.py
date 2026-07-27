@@ -232,12 +232,22 @@ class HealthEndpoint:
         snap = registry.snapshot() if registry else {}
         core_ready = (not registry) or (not registry.lazy) \
             or registry.core_data_ready_at is not None
+        # gm-safety: an interrupted transfer must be discoverable
+        # after ANY failure — the volume's own artifacts are the
+        # crash-durable record.
+        try:
+            from polariApiServer.quiesce import stale_move_artifacts
+            artifacts = stale_move_artifacts()
+        except Exception:
+            artifacts = []
         response.media = {
             'ok': core_ready,
             'phase': ('online' if not registry or registry.all_online
                       else 'admitting-modules' if core_ready
                       else 'core-boot'),
             **snap,
+            **({'staleMoveArtifacts': artifacts} if artifacts
+               else {}),
         }
         if not core_ready:
             response.status = '503 Service Unavailable'

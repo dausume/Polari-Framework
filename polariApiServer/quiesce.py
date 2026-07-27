@@ -32,12 +32,57 @@ never come up frozen by a stale flag — the plan's cutover semantics).
   - polariApiServer.selftest_quiesce
 """
 
+import glob
+import json as _json
+import os
 import threading
 import time
 
 import falcon
 
 _MUTATING = ('POST', 'PUT', 'PATCH', 'DELETE')
+
+
+def stale_move_artifacts(data_dir=None):
+    """gm-safety: a system failure mid-transfer must be DISCOVERABLE.
+    The mover writes .move-journal.json into both volumes at copy
+    start and clears it at retire; staged copies live in .incoming-*/
+    and the pre-swap generation in .previous-*/. Anything of those
+    surviving to a later boot means a transfer was interrupted —
+    surfaced on /api/health, never silently ignored. Returns a list
+    of findings ([] = clean)."""
+    data_dir = data_dir or os.environ.get('POLARI_DATA_DIR',
+                                          '/app/data')
+    findings = []
+    journal = os.path.join(data_dir, '.move-journal.json')
+    if os.path.exists(journal):
+        try:
+            doc = _json.load(open(journal))
+        except Exception:
+            doc = {'unreadable': True}
+        findings.append({
+            'kind': 'move-journal',
+            'path': journal,
+            'journal': doc,
+            'meaning': 'a graceful move involving THIS volume was in '
+                       'progress and did not retire cleanly',
+            'action': 'check /api/topology/move-operations for the '
+                      'named move; resume it (re-run the relocate) '
+                      'or clean the artifacts after confirming data',
+        })
+    for pattern, meaning in (
+            ('.incoming-*', 'a staged copy that never swapped live '
+                            '(safe to delete after confirming the '
+                            'live data)'),
+            ('.previous-*', 'the pre-swap generation kept for '
+                            'rollback (delete only after the move '
+                            'verifies)')):
+        for path in sorted(glob.glob(os.path.join(data_dir,
+                                                  pattern))):
+            findings.append({'kind': pattern.strip('.-*'),
+                             'path': path, 'meaning': meaning,
+                             'action': 'inspect before deleting'})
+    return findings
 
 #: Path prefixes that stay open while quiesced (receipts + honesty).
 OPEN_PREFIXES = (
@@ -187,10 +232,20 @@ class QuiesceEndpoint:
         except Exception:
             body = {}
         if self._state.engaged:
+            # Idempotent for the SAME move: a crashed mover resumes
+            # by re-engaging (gm-safety) — only a DIFFERENT move
+            # conflicts.
+            same = (body.get('moveName')
+                    and body.get('moveName')
+                    == self._state.move_name)
+            if same:
+                response.media = {'ok': True, 'resumed': True,
+                                  **self._state.snapshot()}
+                return
             response.status = '409 Conflict'
             response.media = {
                 'ok': False,
-                'refusal': 'already quiesced',
+                'refusal': 'already quiesced for a DIFFERENT move',
                 **self._state.snapshot(),
                 'suggestion': 'release first, or check moveName — '
                               'two moves must not interleave'}
