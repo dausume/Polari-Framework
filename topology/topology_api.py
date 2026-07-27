@@ -403,9 +403,9 @@ class TopologyAPI(treeObject):
             return self._refuse(
                 response,
                 f'move kind {kind!r} has no step plan yet — '
-                'engine-relocation (gm-1) and instance-move (gm-5 '
-                'sqlite) are automated; keydb/minio/auth/database '
-                'movers are gm-3..5')
+                'engine-relocation (gm-1), instance-move (gm-5 '
+                'sqlite), minio-move/keydb-move (gm-3) are '
+                'automated; auth/database movers are gm-4/5')
         row = MoveOperation(
             name=f'{subject}@{int(timeLib.time())}',
             kind=kind, subject=subject,

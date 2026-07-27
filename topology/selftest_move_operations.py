@@ -55,6 +55,12 @@ def test_planned_steps():
           all(s['status'] == 'pending' for s in steps))
     check('unknown kinds get NO invented plan',
           planned_steps('database-move') == [])
+    minio = planned_steps('minio-move')
+    check('gm-3: minio + keydb share the staged-copy plan',
+          [s['key'] for s in minio]
+          == [s['key'] for s in planned_steps('keydb-move')]
+          and {'preflight', 'copy-data', 'retire'}
+          <= {s['key'] for s in minio})
 
 
 def test_step_transitions():

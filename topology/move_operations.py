@@ -66,6 +66,27 @@ INSTANCE_MOVE_STEPS = (
 )
 
 
+#: gm-3 stateful sidecar (MinIO / KeyDB) — same staged-copy
+#: discipline; the write gate is the BACKEND quiesce (uploads flow
+#: through it), verification is file-count + bytes on the staged
+#: copy BEFORE the swap.
+MINIO_MOVE_STEPS = (
+    ('preflight', 'target reachable + enough free space + no '
+                  'service update converging'),
+    ('sync-image', 'target runs the SAME image content'),
+    ('quiesce', 'backend write gate up (uploads flow through it)'),
+    ('snapshot', 'file count + bytes recorded (the verify baseline)'),
+    ('copy-data', 'STAGED into .incoming-<move>/, verified '
+                  'count+bytes BEFORE the swap; journals both '
+                  'volumes'),
+    ('service-update', 'constraint swap (stop-first)'),
+    ('boot-ready', 'relocated service healthy'),
+    ('verify-data', 'target serves; live file count >= baseline'),
+    ('retire', 'target .previous + journal cleared; source volume '
+               'kept (rollback) + journal marks moved-to'),
+)
+
+
 class MoveOperation(treeObject):
     """One graceful move of one subject between machines."""
 
@@ -123,7 +144,15 @@ def planned_steps(kind):
     """The canonical step plan for a move kind — shown BEFORE anything
     runs (gm-6 discipline: the user sees the plan first)."""
     plans = {'engine-relocation': ENGINE_MOVE_STEPS,
-             'instance-move': INSTANCE_MOVE_STEPS}
+             'instance-move': INSTANCE_MOVE_STEPS,
+             # gm-3: the staged-copy discipline generalized to the
+             # stateful sidecar services. MinIO moves live (its
+             # volume is the object store); KeyDB shares the plan
+             # when a stack deploys one (cache = soft state; the
+             # replica-promote route with zero cold-cache is the
+             # documented refinement, not built).
+             'minio-move': MINIO_MOVE_STEPS,
+             'keydb-move': MINIO_MOVE_STEPS}
     return [{'key': k, 'label': label, 'status': 'pending',
              'started_at': None, 'finished_at': None,
              'duration_s': None, 'receipt': ''}
