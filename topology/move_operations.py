@@ -110,6 +110,36 @@ AUTH_MOVE_STEPS = (
 )
 
 
+#: gm-5 database (MariaDB) — the careful one. v1 correct-before-
+#: clever: DRAIN the writers first (on this stack: Keycloak — a
+#: measured auth window, never a silent torn write), mysqldump as
+#: the BACKUP + semantic receipt, then the proven staged volume move
+#: with the DB STOPPED (perfectly consistent copy). Verification is
+#: two-layered: file-level staged verify pre-swap + semantic counts
+#: (realms/clients/users/tables) against the dump receipt post-boot.
+#: v2 (binlog replica -> promote, seconds of drain) is the
+#: documented refinement, not built.
+DATABASE_MOVE_STEPS = (
+    ('preflight', 'target reachable + space + no updates converging '
+                  'on the DB or its writers'),
+    ('sync-image', 'target runs the SAME image content'),
+    ('writers-drain', 'every writer stopped (Keycloak scaled to 0 — '
+                      'a measured auth window, no torn writes)'),
+    ('backup-dump', 'mysqldump receipt file — the backup AND the '
+                    'semantic verify baseline'),
+    ('quiesce-db', 'DB service scaled to 0 (the volume is now '
+                   'perfectly still)'),
+    ('copy-data', 'STAGED volume copy, verified BEFORE the swap; '
+                  'journals both volumes'),
+    ('service-update', 'constraint swap + scale back up on target'),
+    ('boot-ready', 'relocated DB healthy'),
+    ('verify-data', 'semantic counts match the dump receipt; writers '
+                    'restored and healthy (JWKS answers)'),
+    ('retire', 'source volume kept (rollback) + dump kept (backup); '
+               'journal marks moved-to'),
+)
+
+
 class MoveOperation(treeObject):
     """One graceful move of one subject between machines."""
 
@@ -176,7 +206,8 @@ def planned_steps(kind):
              # documented refinement, not built).
              'minio-move': MINIO_MOVE_STEPS,
              'keydb-move': MINIO_MOVE_STEPS,
-             'auth-move': AUTH_MOVE_STEPS}
+             'auth-move': AUTH_MOVE_STEPS,
+             'database-move': DATABASE_MOVE_STEPS}
     return [{'key': k, 'label': label, 'status': 'pending',
              'started_at': None, 'finished_at': None,
              'duration_s': None, 'receipt': ''}

@@ -54,7 +54,7 @@ def test_planned_steps():
     check('all steps start pending',
           all(s['status'] == 'pending' for s in steps))
     check('unknown kinds get NO invented plan',
-          planned_steps('database-move') == [])
+          planned_steps('teleportation-move') == [])
     minio = planned_steps('minio-move')
     check('gm-3: minio + keydb share the staged-copy plan',
           [s['key'] for s in minio]
@@ -67,6 +67,12 @@ def test_planned_steps():
           'db-check' in {s['key'] for s in auth}
           and 'copy-data' not in {s['key'] for s in auth}
           and 'quiesce' not in {s['key'] for s in auth})
+    db = planned_steps('database-move')
+    check('gm-5: database plan drains writers + dumps BEFORE the '
+          'volume move (correct-before-clever)',
+          [s['key'] for s in db][:6]
+          == ['preflight', 'sync-image', 'writers-drain',
+              'backup-dump', 'quiesce-db', 'copy-data'])
 
 
 def test_step_transitions():
