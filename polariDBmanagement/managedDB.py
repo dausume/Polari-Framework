@@ -236,6 +236,93 @@ class managedDatabase(managedFile):
             return self._handleSaveMismatch(className, rowList,
                                             valueList, e)
 
+    def saveClassBatch(self, className, instances):
+        """mlb-5b: persist ALL of one class's instances in ONE
+        transaction — DELETE (scoped) + executemany REPLACE with a
+        uniform full-column row shape. REPLACE sets unnamed columns
+        NULL anyway, so full-column-with-NULLs is byte-equivalent to
+        the per-row subset writes; the win is one connect/commit/
+        fsync per CLASS instead of per ROW (measured 2758s -> the
+        whole point of this method).
+
+        Returns (ok, rowsWritten, error). ok=False means the caller
+        MUST fall back to the row-by-row path (which carries the
+        schema-stability OOPS adaptation) — never silent loss."""
+        if className not in self.tables:
+            return (False, 0, 'no table')
+        serializableTypes = (str, int, float, bool, bytes, type(None))
+        try:
+            dbConnection = self.adapter.connect()
+            dbCursor = dbConnection.cursor()
+            tableColumns = self.adapter.tableColumns(dbConnection,
+                                                     className)
+        except Exception as e:
+            return (False, 0, f'{type(e).__name__}: {e}')
+        scope = self.instanceScope
+        writeCols = [c for c in tableColumns
+                     if c not in ('_branch_path', '_instance_id')]
+        useScope = bool(scope) and '_instance_id' in tableColumns
+        useBranch = '_branch_path' in tableColumns
+        allCols = list(writeCols)
+        if useScope:
+            allCols.append('_instance_id')
+        if useBranch:
+            allCols.append('_branch_path')
+        typing = None
+        if self.manager is not None:
+            typing = getattr(self.manager, 'objectTypingDict',
+                             {}).get(className)
+        rows = []
+        for instance in instances:
+            info = instance.__dict__
+            values = []
+            for colName in writeCols:
+                value = info.get(colName)
+                try:
+                    if isinstance(value, list) and not value:
+                        value = None
+                    elif isinstance(value, (list, dict)):
+                        value = json.dumps(value, default=str)
+                    elif not isinstance(value, serializableTypes):
+                        value = str(value)
+                except Exception:
+                    value = str(value)
+                values.append(value)
+            if useScope:
+                values.append(scope)
+            if useBranch:
+                treePath = None
+                try:
+                    if typing is not None:
+                        treePath = typing.serializeTreePath(instance)
+                except Exception:
+                    treePath = None
+                values.append(treePath)
+            rows.append(tuple(values))
+        try:
+            if scope:
+                dbCursor.execute(
+                    f'DELETE FROM {className} WHERE _instance_id = '
+                    f'{self.adapter.placeholder}', (scope,))
+            else:
+                dbCursor.execute(f'DELETE FROM {className}')
+            if rows:
+                dbCursor.executemany(
+                    self.adapter.replaceSQL(className, allCols), rows)
+            dbConnection.commit()
+            dbConnection.close()
+            self.cache.invalidateTable(
+                self.name, self._scopedCacheTable(className))
+            self._recordCleanSave(className)
+            return (True, len(rows), '')
+        except Exception as e:
+            try:
+                dbConnection.rollback()
+                dbConnection.close()
+            except Exception:
+                pass
+            return (False, 0, f'{type(e).__name__}: {e}')
+
     def _recordCleanSave(self, className):
         """Failure-isolated stabilization hook."""
         try:

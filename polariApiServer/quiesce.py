@@ -135,10 +135,52 @@ class QuiesceEndpoint:
                                   or {}),
         }
 
+    def _run_flush(self):
+        """The flush body — gate is ALREADY up when this runs. Writes
+        live per-class progress into the receipt (mlb-5b: the flush
+        is observable piece by piece, module-ordered, one transaction
+        per object type), then the final report. A failed flush
+        leaves the gate UP with the error as the receipt."""
+        state = self._state
+        t0 = time.time()
+
+        def progress(step):
+            state.receipt.update({
+                'phase': 'flushing',
+                'currentModule': step['module'],
+                'currentClass': step['className'],
+                'classesDone': step['classesDone'],
+                'classesTotal': step['classesTotal'],
+                'rowsDone': step['rowsDone'],
+                'elapsedSeconds': round(time.time() - t0, 1),
+            })
+
+        flush = {'persisted': False, 'flushSeconds': None,
+                 'error': ''}
+        try:
+            manager = self._polServer.manager
+            if getattr(manager, 'db', None) is not None:
+                manager.persistTree(progress=progress)
+                flush['persisted'] = True
+            else:
+                flush['error'] = 'no DB on this instance — nothing ' \
+                                 'to flush (stateless)'
+        except Exception as exc:
+            flush['error'] = f'{type(exc).__name__}: {exc}'
+        flush['flushSeconds'] = round(time.time() - t0, 3)
+        ok = bool(flush['persisted']) or 'stateless' in flush['error']
+        state.receipt.update({
+            **flush, **self._counts(), 'phase': 'done' if ok
+            else 'flush-failed',
+            'inFlight': 0 if ok else None})
+
     def on_post(self, request, response):
-        """Engage. Body: {reason?, moveName?}. Gate first, flush
-        second, report third — the receipt is only returned once no
-        further mutation can land."""
+        """Engage. Body: {reason?, moveName?, wait?}. The gate goes
+        up IMMEDIATELY; the flush runs in a background thread and
+        streams per-class progress into /api/quiesce/status (a flush
+        can take minutes — one long POST outlives proxy timeouts,
+        measured). wait=true runs the flush inline (small instances,
+        selftests)."""
         try:
             import json
             body = json.load(request.bounded_stream) or {}
@@ -155,32 +197,24 @@ class QuiesceEndpoint:
             return
         self._state.engage(body.get('reason', '') or 'graceful move',
                            body.get('moveName', '') or '')
-        flush = {'persisted': False, 'flushSeconds': None,
-                 'error': ''}
-        t0 = time.time()
-        try:
-            manager = self._polServer.manager
-            if getattr(manager, 'db', None) is not None:
-                manager.persistTree()
-                flush['persisted'] = True
-            else:
-                flush['error'] = 'no DB on this instance — nothing ' \
-                                 'to flush (stateless)'
-            flush['flushSeconds'] = round(time.time() - t0, 3)
-        except Exception as exc:
-            # A failed flush means the move MUST NOT proceed — the
-            # gate stays up (data is protected) and the error is the
-            # receipt.
-            flush['error'] = f'{type(exc).__name__}: {exc}'
-            flush['flushSeconds'] = round(time.time() - t0, 3)
-        receipt = {**flush, **self._counts(), 'inFlight': 0
-                   if flush['persisted'] or 'stateless'
-                   in flush['error'] else None}
-        self._state.receipt.update(receipt)
-        ok = bool(flush['persisted']) or 'stateless' in flush['error']
-        if not ok:
-            response.status = '500 Internal Server Error'
-        response.media = {'ok': ok, **self._state.snapshot()}
+        self._state.receipt.update({'phase': 'flushing'})
+        if body.get('wait'):
+            self._run_flush()
+            snap = self._state.snapshot()
+            ok = bool(snap['receipt'].get('persisted')) \
+                or 'stateless' in (snap['receipt'].get('error') or '')
+            if not ok:
+                response.status = '500 Internal Server Error'
+            response.media = {'ok': ok, **snap}
+            return
+        threading.Thread(target=self._run_flush, daemon=True,
+                         name='quiesce-flush').start()
+        response.media = {
+            'ok': True, 'flushing': True,
+            **self._state.snapshot(),
+            'note': 'gate is UP; poll /api/quiesce/status until '
+                    'receipt.persisted (per-class progress streams '
+                    'there)'}
 
     def on_get_status(self, request, response):
         response.media = {'ok': True, **self._state.snapshot()}

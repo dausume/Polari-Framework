@@ -49,10 +49,15 @@ def _app(persist=None, has_db=True):
     app = falcon.App(middleware=[QuiesceMiddleware(state)])
     calls = []
 
-    def _persist():
+    def _persist(progress=None):
         calls.append(1)
         if persist == 'boom':
             raise RuntimeError('disk exploded')
+        if progress is not None:
+            progress({'module': '(core)', 'className': 'Widget',
+                      'rows': 3, 'batched': True, 'batchError': '',
+                      'classesDone': 1, 'classesTotal': 2,
+                      'rowsDone': 3})
 
     manager = types.SimpleNamespace(
         db=object() if has_db else None,
@@ -70,12 +75,16 @@ def test_gate_semantics():
     print('[gate: mutations 423, reads flow, receipts flow]')
     state, client, calls = _app()
     got = client.simulate_post('/api/quiesce', json={
-        'reason': 'test move', 'moveName': 'backend@1'})
-    check('engage ok with flush receipt',
+        'reason': 'test move', 'moveName': 'backend@1',
+        'wait': True})
+    check('engage (wait) ok with flush receipt',
           got.status_code == 200 and got.json['ok']
           and got.json['receipt']['persisted'] is True
           and got.json['receipt']['inFlight'] == 0)
     check('persistTree ran exactly once', len(calls) == 1)
+    check('per-class progress streamed into the receipt (mlb-5b)',
+          got.json['receipt'].get('classesDone') == 1
+          and got.json['receipt'].get('currentClass') == 'Widget')
     check('mutation 423s while quiesced',
           client.simulate_post('/api/DigitizedDataset')
           .status_code == 423)
@@ -105,10 +114,32 @@ def test_gate_semantics():
           .json['released'] is False)
 
 
+def test_async_engage():
+    print('[async engage: gate up immediately, status streams]')
+    state, client, calls = _app()
+    got = client.simulate_post('/api/quiesce', json={
+        'moveName': 'backend@2'})
+    check('async engage returns immediately with flushing note',
+          got.status_code == 200 and got.json.get('flushing'))
+    check('gate is up before the flush finishes (gate-first)',
+          client.simulate_post('/api/DigitizedDataset')
+          .status_code == 423)
+    import time as _t
+    for _ in range(50):
+        st = client.simulate_get('/api/quiesce/status').json
+        if st['receipt'].get('persisted'):
+            break
+        _t.sleep(0.1)
+    check('status reaches persisted with flush seconds',
+          st['receipt'].get('persisted') is True
+          and st['receipt'].get('flushSeconds') is not None)
+    client.simulate_post('/api/quiesce/release')
+
+
 def test_failed_flush():
     print('[failed flush: gate STAYS UP, error is the receipt]')
     state, client, calls = _app(persist='boom')
-    got = client.simulate_post('/api/quiesce', json={})
+    got = client.simulate_post('/api/quiesce', json={'wait': True})
     check('engage reports failure', got.status_code == 500
           and got.json['ok'] is False)
     check('the error is the receipt',
@@ -122,7 +153,7 @@ def test_failed_flush():
 def test_stateless():
     print('[stateless instance: nothing to flush, still gates]')
     state, client, calls = _app(has_db=False)
-    got = client.simulate_post('/api/quiesce', json={})
+    got = client.simulate_post('/api/quiesce', json={'wait': True})
     check('no-DB engage is ok with the honest note',
           got.status_code == 200 and got.json['ok']
           and 'stateless' in got.json['receipt']['error'])
@@ -133,6 +164,7 @@ def test_stateless():
 
 def main():
     test_gate_semantics()
+    test_async_engage()
     test_failed_flush()
     test_stateless()
     print(f'\n{PASS} passed, {FAIL} failed')

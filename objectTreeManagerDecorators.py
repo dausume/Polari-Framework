@@ -543,11 +543,22 @@ class managerObject:
 
         print(f'[DB] Restored {len(restoredInstances)} instances ({totalSeedSkips} seeds skipped), {registeredCount} registered in objectTables', flush=True)
 
-    def persistTree(self):
+    def persistTree(self, progress=None):
         """Save all instances from objectTables into the database.
 
-        Clears each table first, then re-inserts all current instances.
-        This prevents row duplication for tables without a PRIMARY KEY.
+        mlb-5b: MODULE-ORDERED, CLASS-BATCHED. Classes group by their
+        owning module (core first, then feature modules in dependency
+        order) and each class flushes as ONE transaction
+        (saveClassBatch: DELETE + executemany REPLACE) instead of one
+        connect/commit/fsync per row — the 2758s flush measured on
+        isle-core was the per-row path. A class whose batch fails
+        falls back to the row-by-row path (which carries the
+        schema-stability OOPS adaptation) — never silent loss.
+
+        progress: optional callback({module, className, rows,
+        batched, classesDone, classesTotal, rowsDone}) after each
+        class — the quiesce status streams these so a flush is
+        observable piece by piece.
         """
         if self.db is None:
             print('[DB] Cannot persist tree — no database initialized.', flush=True)
@@ -555,23 +566,84 @@ class managerObject:
         savedCount = 0
         skippedCount = 0
         errorCount = 0
+        fallbackClasses = []
         # snapshot both levels: saves can CREATE rows mid-iteration
         # (schema-stability profiles/events are treeObjects born
         # inside saveInstanceInDB hooks)
-        for className, instancesDict in list(self.objectTables.items()):
+        tables = {name: dict(instances) for name, instances
+                  in list(self.objectTables.items())}
+        # ---- group classes by owning module ----
+        from polariApiServer.module_gating import CORE_PACKAGES
+        groups = {}
+        for className, instancesDict in tables.items():
             if className not in self.db.tables:
                 skippedCount += len(instancesDict)
                 continue
-            # Clear existing rows before re-persisting to prevent duplicates
-            self.db.deleteAllFromTable(className)
-            for instanceId, instance in list(instancesDict.items()):
-                try:
-                    self.db.saveInstanceInDB(instance)
-                    savedCount += 1
-                except Exception as e:
-                    errorCount += 1
-                    print(f'[DB] Error saving {className}(id={instanceId}): {e}', flush=True)
-        print(f'[DB] Persisted {savedCount} instances to database ({skippedCount} skipped — no table, {errorCount} errors)', flush=True)
+            module = ''
+            sample = next(iter(instancesDict.values()), None)
+            if sample is not None:
+                module = (type(sample).__module__ or '').split('.')[0]
+            if not module or module in CORE_PACKAGES:
+                module = '(core)'
+            groups.setdefault(module, []).append(className)
+        feature_mods = sorted(m for m in groups if m != '(core)')
+        try:
+            from moduleService.module_boot_records import (
+                dependency_order,
+            )
+            ordered = dependency_order(feature_mods)
+            if ordered.get('ok'):
+                feature_mods = ordered['order']
+        except Exception:
+            pass
+        module_order = (['(core)'] if '(core)' in groups else []) \
+            + feature_mods
+        classesTotal = sum(len(v) for v in groups.values())
+        classesDone = 0
+        # ---- flush: one transaction per class, module by module ----
+        for module in module_order:
+            for className in sorted(groups[module]):
+                instances = list(tables[className].values())
+                ok, rows, err = self.db.saveClassBatch(className,
+                                                       instances)
+                if ok:
+                    savedCount += rows
+                else:
+                    # Fallback: the row-by-row path adapts schema
+                    # mismatches (OOPS) that a batch cannot.
+                    fallbackClasses.append(className)
+                    self.db.deleteAllFromTable(className)
+                    for instanceId, instance in tables[
+                            className].items():
+                        try:
+                            self.db.saveInstanceInDB(instance)
+                            savedCount += 1
+                        except Exception as e:
+                            errorCount += 1
+                            print(f'[DB] Error saving {className}'
+                                  f'(id={instanceId}): {e}',
+                                  flush=True)
+                classesDone += 1
+                if progress is not None:
+                    try:
+                        progress({
+                            'module': module,
+                            'className': className,
+                            'rows': rows if ok else len(instances),
+                            'batched': ok,
+                            'batchError': err,
+                            'classesDone': classesDone,
+                            'classesTotal': classesTotal,
+                            'rowsDone': savedCount,
+                        })
+                    except Exception:
+                        pass
+        note = (f'; {len(fallbackClasses)} classes fell back to '
+                f'row-by-row: {fallbackClasses[:5]}'
+                if fallbackClasses else '')
+        print(f'[DB] Persisted {savedCount} instances to database '
+              f'({classesDone} class batches, {skippedCount} skipped '
+              f'— no table, {errorCount} errors{note})', flush=True)
 
     def identifySeedDBIds(self):
         """Identify DB rows that match runtime seed instances by property fingerprinting.
