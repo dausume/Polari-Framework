@@ -519,6 +519,11 @@ try:
         CeramicSample, SEED_CERAMIC_SAMPLES, SEED_CERAMICS_DATASETS,
     )
     from pspp.ceramics_ladder import LadderRung, SEED_LADDER_RUNGS
+    # mtt-2 research tools: buildable open-source instruments (the
+    # measurement half — FTIR, red-cabbage pH, Brix, spectrometer...).
+    from pspp.research_tools import ResearchTool, SEED_RESEARCH_TOOLS
+    # mtt-2 characterization: the FTIR band-calibration data gap.
+    from pspp.characterization import SEED_CHARACTERIZATION_DATASETS
 except ImportError as _exc:
     _stub_missing_feature('pspp', _exc, globals(), (
         'EvidenceMethod', 'SEED_EVIDENCE_METHODS', 'PropertyClaim',
@@ -543,6 +548,8 @@ except ImportError as _exc:
         'SEED_SINTERING_DATASETS',
         'CeramicSample', 'SEED_CERAMIC_SAMPLES', 'SEED_CERAMICS_DATASETS',
         'LadderRung', 'SEED_LADDER_RUNGS',
+        'ResearchTool', 'SEED_RESEARCH_TOOLS',
+        'SEED_CHARACTERIZATION_DATASETS',
     ))
 try:
     from aquaponics.pot_materials_seed import (
@@ -2701,7 +2708,8 @@ class polariServer(treeObject):
              SEED_DIGITIZED_DATASETS
              + (SOLGEL_DIGITIZED_DATASETS or [])
              + (SEED_SINTERING_DATASETS or [])
-             + (SEED_CERAMICS_DATASETS or [])),
+             + (SEED_CERAMICS_DATASETS or [])
+             + (SEED_CHARACTERIZATION_DATASETS or [])),
             # pspp-2: stage vocabulary rows; MaterialState never seeds.
             ('ProcessingStage', ProcessingStage,
              SEED_PROCESSING_STAGES
@@ -2733,6 +2741,8 @@ class polariServer(treeObject):
             ('CeramicSample', CeramicSample,
              SEED_CERAMIC_SAMPLES or []),
             ('LadderRung', LadderRung, SEED_LADDER_RUNGS or []),
+            # mtt-2 research tools (the measurement half).
+            ('ResearchTool', ResearchTool, SEED_RESEARCH_TOOLS or []),
             ('ScaleTransferDefinition', ScaleTransferDefinition,
              SEED_SCALE_TRANSFERS),
             ('ExposureScenario', ExposureScenario,

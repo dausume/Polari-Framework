@@ -32,6 +32,9 @@ carries its evidence and refusals render as refusals.
   GET  /api/pspp/ceramics/ladder             furnace escalation ladder
   POST /api/pspp/sinter/stages               sample a firing in stages
   GET  /api/pspp/ceramics/geopolymer-transition  geopolymer->ceramic
+  GET  /api/pspp/characterization/methods    XRD + FTIR explainers
+  POST /api/pspp/characterization/ftir       simulated FTIR bands
+  GET  /api/pspp/research-tools              buildable instruments
 """
 
 import json
@@ -67,6 +70,10 @@ from pspp.sintering_engine import (
     grain_size, relative_density, sinter_stages, work_of_sintering,
 )
 from pspp.geopolymer_ceramic_transition import transition_stages
+from pspp.characterization import (
+    characterization_methods, simulated_ftir,
+)
+from pspp.research_tools import SEED_RESEARCH_TOOLS, research_tools
 from pspp.sintering_structure import plan_sinter_structure
 from pspp.ceramics_samples import (
     SEED_CERAMIC_SAMPLES, samples_meeting_temp, temperature_ladder,
@@ -129,6 +136,35 @@ class PsppAPI(treeObject):
                 suffix='sinter_stages')
             add('/api/pspp/ceramics/geopolymer-transition', self,
                 suffix='geopolymer_transition')
+            add('/api/pspp/characterization/methods', self,
+                suffix='char_methods')
+            add('/api/pspp/characterization/ftir', self,
+                suffix='char_ftir')
+            add('/api/pspp/research-tools', self,
+                suffix='research_tools')
+
+    def on_get_char_methods(self, request, response):
+        """XRD + FTIR as data — plain-language what/how, diagnostic
+        signals, local-buildability + safety."""
+        response.media = characterization_methods()
+
+    def on_post_char_ftir(self, request, response):
+        """Simulated FTIR diagnostic bands. Body: {siAlRatio?,
+        hasWater?, hasCarbonate?}. Positions approximate; intensities
+        refuse."""
+        body = request.media if request.content_length else {}
+        response.media = simulated_ftir(
+            si_al_ratio=body.get('siAlRatio'),
+            has_water=body.get('hasWater', True),
+            has_carbonate=body.get('hasCarbonate', False))
+
+    def on_get_research_tools(self, request, response):
+        """Buildable open-source instruments (easiest first). ?domain=
+        materials|food|water|soil|carbon filters. Reads live
+        ResearchTool rows when present."""
+        rows = self._live('ResearchTool', SEED_RESEARCH_TOOLS)
+        response.media = research_tools(
+            domain=request.get_param('domain'), samples=rows)
 
     def on_post_sinter_stages(self, request, response):
         """Sample a firing at N checkpoints — the ceramic at different

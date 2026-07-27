@@ -46,6 +46,7 @@ TREE_ECONOMY = 'os-economy-politics'
 TREE_MATERIALS = 'materials-science'  # mtt-1
 TREE_SIMULATION = 'simulation-methods'  # smt-1
 TREE_MANUFACTURING = 'manufacturing-tools'  # mtt-2 furnace ladder
+TREE_RESEARCH = 'research-tools'  # mtt-2 measurement instruments
 
 
 def _node(tree, short, title, deps=(), description='', cross=(),
@@ -130,6 +131,19 @@ SEED_TECH_TREE_DEFINITIONS = [
                     'Cross-refs INTO materials/electronics/hardware — '
                     'the methods, not the domain science.',
      'is_active': False, 'is_baseline': True, 'notes': ''},
+    {'name': TREE_RESEARCH,
+     'title': 'Research Tools',
+     'owner': 'polari',
+     'description': 'The MEASUREMENT half of the open-source economy — '
+                    'the instruments a community builds to SEE what '
+                    'its materials, food, water and soil are doing '
+                    '(manufacturing tools MAKE; research tools '
+                    'MEASURE). Ordered easiest-first: a red-cabbage pH '
+                    'detector and a DVD-grating spectrometer up to an '
+                    'open-source FTIR. Backs goal accountability — you '
+                    'cannot claim a result you cannot measure. See '
+                    'pspp.research_tools + pspp.characterization.',
+     'is_active': False, 'is_baseline': True, 'notes': ''},
     {'name': TREE_MANUFACTURING,
      'title': 'Manufacturing Tools',
      'owner': 'polari',
@@ -151,6 +165,7 @@ _P = TREE_ECONOMY
 _M = TREE_MATERIALS
 _SM = TREE_SIMULATION
 _MT = TREE_MANUFACTURING
+_RT = TREE_RESEARCH
 
 #: Electronics / Microelectronics — the original tt-5 nodes (the
 #: household-nutrition node moved to the Raw Supply Chain tree).
@@ -877,6 +892,69 @@ SEED_TECH_SEGMENT_ASSIGNMENTS += [
     _theory(_MT, 'refractory-furnace', 'pspp'),
     _theory(_MT, 'steelmaking-furnace', 'pspp'),
     _theory(_MT, 'cnt-cvd-reactor', 'pspp'),
+]
+
+# ---------------------------------------------------------------------
+# mtt-2 Research Tools — the MEASUREMENT half (goal accountability:
+# you cannot claim a result you cannot measure). Easiest-first;
+# open-source FTIR depends on first building the visible spectrometer.
+# Cross-refs: FTIR characterizes materials; the thermocouple measures
+# the manufacturing furnaces (research <-> manufacturing bridge).
+# ---------------------------------------------------------------------
+SEED_TECH_NODES += [
+    _node(_RT, 'red-cabbage-ph', 'Red-cabbage pH detector',
+          description='Trivial + safe: boil red cabbage, the '
+                      'anthocyanin dye changes colour with pH. Pair '
+                      'with the spectrometer to read a number.'),
+    _node(_RT, 'visible-spectrometer', 'Visible spectrometer',
+          description='The WORKHORSE: a DVD grating + a webcam make '
+                      'any colour assay quantitative (pH, nitrate, '
+                      'phosphate, chlorophyll). The accessible cousin '
+                      'of FTIR.'),
+    _node(_RT, 'colorimeter', 'LED colorimeter',
+          description='Single-wavelength assays (nitrate/phosphate/'
+                      'chlorine): LED + photodiode + cuvette.'),
+    _node(_RT, 'brix-refractometer', 'Brix refractometer',
+          description='Dissolved solids (sugar) in sap as Brix — a '
+                      'field PROXY for plant health/mineral density '
+                      '(a correlation, confirmed with EC/a lab).'),
+    _node(_RT, 'ec-tds-meter', 'EC / TDS meter',
+          description='Dissolved MINERALS in water + soil via '
+                      'conductivity — the direct partner to the Brix '
+                      'proxy.'),
+    _node(_RT, 'thermocouple-logger', 'Thermocouple furnace logger',
+          description='Measures kiln/furnace temperature — the tool '
+                      'that lets you CLIMB the manufacturing furnace '
+                      'ladder (you cannot hit 1200 C if you cannot '
+                      'measure it).',
+          cross=((_MT, 'refractory-furnace', 'measures'),)),
+    _node(_RT, 'turbidity-meter', 'Turbidity meter',
+          description='Water clarity via 90-degree light scatter.'),
+    _node(_RT, 'diy-microscope', 'DIY microscope',
+          description='A salvaged lens + a phone camera: crystals, '
+                      'fibres, cells, soil life.'),
+    _node(_RT, 'open-source-ftir', 'Open-source FTIR',
+          deps=('visible-spectrometer',),
+          description='The reach goal: infrared bond spectroscopy — '
+                      'reads AMORPHOUS geopolymers/gels (XRD cannot) '
+                      'and DETECTS CARBONATE to verify carbon-negative '
+                      'sequestration. High difficulty (interferometer); '
+                      'build the visible spectrometer first.',
+          cross=((_M, 'geopolymer', 'characterizes'),
+                 (_M, 'ceramics', 'characterizes')),
+          data_deps=('ftir-siot-band-vs-si-al',)),
+]
+
+SEED_TECH_SEGMENT_ASSIGNMENTS += [
+    _theory(_RT, 'red-cabbage-ph', 'pspp'),
+    _theory(_RT, 'visible-spectrometer', 'pspp'),
+    _theory(_RT, 'colorimeter', 'pspp'),
+    _theory(_RT, 'brix-refractometer', 'pspp'),
+    _theory(_RT, 'ec-tds-meter', 'pspp'),
+    _theory(_RT, 'thermocouple-logger', 'pspp'),
+    _theory(_RT, 'turbidity-meter', 'pspp'),
+    _theory(_RT, 'diy-microscope', 'pspp'),
+    _theory(_RT, 'open-source-ftir', 'pspp'),
 ]
 
 

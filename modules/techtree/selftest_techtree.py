@@ -263,8 +263,8 @@ if __name__ == '__main__':
         SEED_POLICY_DEFINITIONS, SEED_REAL_ARTIFACTS,
         SEED_TECH_NODES, SEED_TECH_SEGMENT_ASSIGNMENTS,
         SEED_TECH_TREE_DEFINITIONS, TREE_ECONOMY, TREE_ELECTRONICS,
-        TREE_MANUFACTURING, TREE_MATERIALS, TREE_SIMULATION,
-        TREE_SUPPLY, retire_legacy_trees,
+        TREE_MANUFACTURING, TREE_MATERIALS, TREE_RESEARCH,
+        TREE_SIMULATION, TREE_SUPPLY, retire_legacy_trees,
     )
     from waxprint.waxprint_seed import SEED_WAXPRINT_MODULES
 
@@ -292,7 +292,7 @@ if __name__ == '__main__':
           active_tree_name(domains) == TREE_ELECTRONICS)
     for tree_name in (TREE_ELECTRONICS, TREE_SUPPLY, TREE_ECONOMY,
                       TREE_MATERIALS, TREE_SIMULATION,
-                      TREE_MANUFACTURING):
+                      TREE_MANUFACTURING, TREE_RESEARCH):
         report = validate_tree(domains, tree_name)
         check(f'{tree_name} seed validates with zero errors',
               report.get('valid'),
@@ -302,10 +302,11 @@ if __name__ == '__main__':
     for n in SEED_TECH_NODES:
         by_tree[n['tree_name']] = by_tree.get(n['tree_name'], 0) + 1
     check('node counts: electronics 24 / supply 15 / economy 4 / '
-          'materials 12 / simulation 9 / manufacturing 6',
+          'materials 12 / simulation 9 / manufacturing 6 / research 9',
           by_tree == {TREE_ELECTRONICS: 24, TREE_SUPPLY: 15,
                       TREE_ECONOMY: 4, TREE_MATERIALS: 12,
-                      TREE_SIMULATION: 9, TREE_MANUFACTURING: 6},
+                      TREE_SIMULATION: 9, TREE_MANUFACTURING: 6,
+                      TREE_RESEARCH: 9},
           json.dumps(by_tree))
 
     edges = domains.objectTables['TechDependencyEdge'].values()
@@ -382,10 +383,11 @@ if __name__ == '__main__':
 
     print('== suite: OSEB baseline across domain trees (tt-8) ==')
     baseline = baseline_report(domains)
-    check('baseline rolls up all six domain trees',
+    check('baseline rolls up all seven domain trees',
           [t['name'] for t in baseline['trees']] == sorted([
               TREE_ELECTRONICS, TREE_SUPPLY, TREE_ECONOMY,
-              TREE_MATERIALS, TREE_SIMULATION, TREE_MANUFACTURING]))
+              TREE_MATERIALS, TREE_SIMULATION, TREE_MANUFACTURING,
+              TREE_RESEARCH]))
     check('baseline carries domain titles',
           any(t['title'] == 'Electronics / Microelectronics'
               for t in baseline['trees'])
