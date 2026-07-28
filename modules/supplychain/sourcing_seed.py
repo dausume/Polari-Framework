@@ -267,7 +267,8 @@ SEED_SUPPLY_SOURCES = [
         'is_local': False, 'is_polari': False,
         'is_eco_friendly': False,
         'availability': 'available',
-        'supplies_json': json.dumps(['magnetite-powder']),
+        'supplies_json': json.dumps(['magnetite-powder',
+                                     'ferrous-sulfate']),
         'demands_json': '[]',
         'business_model_ref': '',
         'locality_note': '',
@@ -315,6 +316,110 @@ SEED_SUPPLY_SOURCES = [
                  'The techtree CNT-builder work models structure, '
                  'not production. DISPERSIONS of bought powder are '
                  'makeable today.',
+    },
+    {
+        'name': 'soapgoods',
+        'display_name': 'Soapgoods (soapgoods.com)',
+        'supplier_name': 'Soapgoods',
+        'url': 'https://www.soapgoods.com/',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['sls-surfactant']),
+        'demands_json': '[]', 'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-7',
+        'notes': 'Soap-making surfactants — the CNT-dispersion '
+                 'stabilizer channel.',
+    },
+    {
+        'name': 'homebrewing-org',
+        'display_name': 'Adventures in Homebrewing (rice hulls)',
+        'supplier_name': 'Adventures in Homebrewing',
+        'url': 'https://homebrewing.org/products/'
+               'rice-hulls-50-lb-bag',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': True,
+        'availability': 'available',
+        'supplies_json': json.dumps(['rice-hulls']),
+        'demands_json': '[]', 'business_model_ref': '',
+        'locality_note': 'homebrew shops stock locally too',
+        'is_prior': True, 'provenance_id': 'src-7',
+        'notes': 'Agricultural byproduct by the 50 lb bag — the '
+                 'rice-husk-ash feedstock (brewing/garden channel; '
+                 'rice MILLS often give hulls near-free).',
+    },
+    {
+        'name': 'clay-king',
+        'display_name': 'Clay King (EPK kaolin)',
+        'supplier_name': 'Clay King',
+        'url': 'https://www.clay-king.com/product/'
+               'edgar-plastic-kaolin-epk/',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['kaolin-raw']),
+        'demands_json': '[]', 'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-7',
+        'notes': 'Raw EPK kaolin — the metakaolin FEEDSTOCK '
+                 '(calcine ~700C to dehydroxylate).',
+    },
+    {
+        'name': 'wholesale-supplies-plus',
+        'display_name': 'Wholesale Supplies Plus (stearic acid)',
+        'supplier_name': 'Wholesale Supplies Plus',
+        'url': 'https://www.wholesalesuppliesplus.com/products/'
+               'stearic-acid',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['stearic-acid']),
+        'demands_json': '[]', 'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-7',
+        'notes': 'Vegetable stearic acid — wax hardener candidate '
+                 '(cheaper than carnauba).',
+    },
+    {
+        'name': 'candelilla-amazon-listing',
+        'display_name': 'Candelilla wax (Amazon marketplace)',
+        'supplier_name': '(marketplace listing)',
+        'url': 'https://www.amazon.com/Candelilla-Natural-Flakes-'
+               'Alternative-Beeswax/dp/B07LHKT1F9',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['candelilla-wax']),
+        'demands_json': '[]', 'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-7',
+        'notes': 'Vegan beeswax alternative — base/hardener '
+                 'candidate in the wax blend.',
+    },
+    {
+        'name': 'in-the-swim',
+        'display_name': 'In The Swim (soda ash)',
+        'supplier_name': 'In The Swim',
+        'url': 'https://www.intheswim.com/p/ph-increaser-5-lbs./'
+               '400249.html',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['soda-ash']),
+        'demands_json': '[]', 'business_model_ref': '',
+        'locality_note': 'pool stores stock locally',
+        'is_prior': True, 'provenance_id': 'src-7',
+        'notes': '100% sodium carbonate via the pool channel — the '
+                 'alkali for the FUSED (furnace) waterglass route; '
+                 'cited but NOT wired into the digestion recipe '
+                 '(different process, needs a melt furnace).',
     },
     {
         'name': 'polari-waxprint-lab',
@@ -677,6 +782,119 @@ SEED_PRICE_CITATIONS.extend([
     },
 ])
 
+SEED_PRICE_CITATIONS.extend([
+    {
+        'name': 'alpha-ferrous-sulfate-5lb-2026-07-28',
+        'source_ref': 'alpha-chemicals-walmart',
+        'item_ref': 'ferrous-sulfate',
+        'price': 16.00, 'currency': 'USD',
+        'amount': 5.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T13:10:00',
+        'citation_url': 'https://www.walmart.com/ip/Ferrous-Sulfate-'
+                        'Heptahydrate-FeSO47H2O-20-Iron-Very-Soluble-'
+                        '5-Pounds/2011562598',
+        'citation_note': 'Product page bot-gated at observation; '
+                         '$16 is the typical $14-18 listing range '
+                         'midpoint for the Alpha Chemicals 5 lb. '
+                         'Re-cite exact (screenshot works).',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-7', 'notes': '',
+    },
+    {
+        'name': 'soapgoods-sls-1lb-2026-07-28',
+        'source_ref': 'soapgoods',
+        'item_ref': 'sls-surfactant',
+        'price': 15.84, 'currency': 'USD',
+        'amount': 1.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T13:12:00',
+        'citation_url': 'https://www.soapgoods.com/sodium-lauryl-'
+                        'sulfate-sls-powder-p-1841.html',
+        'citation_note': 'Listed EXACT $15.84/lb — page showed OUT '
+                         'OF STOCK at observation; availability '
+                         'caveat, price real.',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': 'src-7', 'notes': '',
+    },
+    {
+        'name': 'homebrewing-rice-hulls-50lb-2026-07-28',
+        'source_ref': 'homebrewing-org',
+        'item_ref': 'rice-hulls',
+        'price': 30.00, 'currency': 'USD',
+        'amount': 50.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T13:14:00',
+        'citation_url': 'https://homebrewing.org/products/'
+                        'rice-hulls-50-lb-bag',
+        'citation_note': 'Typical homebrew-channel price for the '
+                         '50 lb bag ($27-35 range midpointish); '
+                         'page price not shown in search — re-cite '
+                         'exact. Rice mills often give hulls '
+                         'near-free locally.',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-7', 'notes': '',
+    },
+    {
+        'name': 'clayking-epk-50lb-2026-07-28',
+        'source_ref': 'clay-king',
+        'item_ref': 'kaolin-raw',
+        'price': 21.50, 'currency': 'USD',
+        'amount': 50.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T13:16:00',
+        'citation_url': 'https://www.clay-king.com/product/'
+                        'edgar-plastic-kaolin-epk/',
+        'citation_note': 'Listed range $4.90-$21.50 by size; top '
+                         'mapped to the 50 lb bag by inference '
+                         '(other suppliers quote ~$0.40/lb bulk).',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-7', 'notes': '',
+    },
+    {
+        'name': 'wsp-stearic-5lb-2026-07-28',
+        'source_ref': 'wholesale-supplies-plus',
+        'item_ref': 'stearic-acid',
+        'price': 40.19, 'currency': 'USD',
+        'amount': 5.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T13:18:00',
+        'citation_url': 'https://www.wholesalesuppliesplus.com/'
+                        'products/stearic-acid',
+        'citation_note': 'Listed $40.19 for 5 lb ($8.04/lb) — '
+                         'search-surfaced listing price.',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': 'src-7', 'notes': '',
+    },
+    {
+        'name': 'amazon-candelilla-5lb-2026-07-28',
+        'source_ref': 'candelilla-amazon-listing',
+        'item_ref': 'candelilla-wax',
+        'price': 48.00, 'currency': 'USD',
+        'amount': 5.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T13:20:00',
+        'citation_url': 'https://www.amazon.com/Candelilla-Natural-'
+                        'Flakes-Alternative-Beeswax/dp/B07LHKT1F9',
+        'citation_note': 'Search-surfaced 5 lb listing ~$48; '
+                         'marketplace prices swing wildly ($14-18/lb '
+                         'quoted elsewhere, one $152.99/5lb '
+                         'outlier) — flagged until pinned.',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-7', 'notes': '',
+    },
+    {
+        'name': 'intheswim-soda-ash-5lb-2026-07-28',
+        'source_ref': 'in-the-swim',
+        'item_ref': 'soda-ash',
+        'price': 14.00, 'currency': 'USD',
+        'amount': 5.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T13:22:00',
+        'citation_url': 'https://www.intheswim.com/p/'
+                        'ph-increaser-5-lbs./400249.html',
+        'citation_note': 'Typical listing for the 5 lb pH-increaser '
+                         '(100% soda ash); exact not search-visible '
+                         '— re-cite. Feeds the FUSED waterglass '
+                         'route when that recipe lands.',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-7', 'notes': '',
+    },
+])
+
 SEED_PRODUCT_REQUIREMENTS = [
     {
         'name': 'natural-print-wax-blend-requirements',
@@ -880,10 +1098,11 @@ SEED_PRODUCT_REQUIREMENTS = [
         'notes': 'FERRITE v1 = magnetite powder (Fe3O4). The buy '
                  'side is cited ($21.99/5lb pigment powder); the '
                  'coprecipitation make-route exists as data but '
-                 'REFUSES to cost until iron salts are cited — '
-                 'ferrous-sulfate (garden-supply channel) and '
-                 'ferric-chloride (PCB-etchant channel) are the '
-                 'hunts. Sintered MnZn/NiZn ferrite PARTS '
+                 'now COSTS (ferrous sulfate cited src-7) — and '
+                 'BUYING WINS ~2x for pigment-grade Fe3O4; '
+                 'coprecipitation earns its keep only where nano/'
+                 'monodisperse particles matter. ferric-chloride '
+                 '(PCB-etchant channel) still uncited. Sintered MnZn/NiZn ferrite PARTS '
                  '(inductor cores) are a further processing step, '
                  'not this item.',
     },
@@ -903,6 +1122,11 @@ SEED_PRODUCT_REQUIREMENTS = [
              'purpose': 'dispersion medium',
              'min_fraction': 0.96, 'max_fraction': 0.99,
              'candidates': ['tap-water']},
+            {'role': 'surfactant',
+             'purpose': 'stabilizer so the dispersion does not '
+                        'settle (optional in v1 recipes)',
+             'min_fraction': 0.0, 'max_fraction': 0.02,
+             'candidates': ['sls-surfactant']},
         ]),
         'substitutes_json': '[]',
         'is_prior': True,
@@ -913,6 +1137,47 @@ SEED_PRODUCT_REQUIREMENTS = [
                  'near-term: sonication energy/equipment EXCLUDED '
                  'v1, and surfactant-free dispersions SETTLE — the '
                  'surfactant route (SDS et al.) is an uncited gap.',
+    },
+    {
+        'name': 'metakaolin-requirements',
+        'display_name': 'Metakaolin — makeable by calcining kaolin',
+        'product_item_ref': 'metakaolin',
+        'roles_json': json.dumps([
+            {'role': 'kaolin',
+             'purpose': 'raw kaolin, dehydroxylated at ~700C to the '
+                        'reactive metakaolin phase',
+             'min_fraction': 1.0, 'max_fraction': 1.0,
+             'candidates': ['kaolin-raw']},
+        ]),
+        'substitutes_json': '[]',
+        'is_prior': True,
+        'provenance_id': 'src-7',
+        'notes': 'THE metakaolin intermediary: buy calcined ($46-66/'
+                 '50lb) or calcine raw EPK ($21.50/50lb) at ~700C — '
+                 'kiln ENERGY EXCLUDED v1 (a pottery kiln does it; '
+                 'the suite already models sintering schedules). '
+                 'Yield ~0.86 (14% dehydroxylation water loss).',
+    },
+    {
+        'name': 'rice-husk-ash-requirements',
+        'display_name': 'Rice husk ash — burned from cited hulls',
+        'product_item_ref': 'rice-husk-ash',
+        'roles_json': json.dumps([
+            {'role': 'hulls',
+             'purpose': 'agricultural byproduct, controlled burn -> '
+                        'amorphous silica ash (~90% SiO2)',
+             'min_fraction': 1.0, 'max_fraction': 1.0,
+             'candidates': ['rice-hulls']},
+        ]),
+        'substitutes_json': '[]',
+        'is_prior': True,
+        'provenance_id': 'src-7',
+        'notes': 'The sg-community silica source becomes makeable: '
+                 'controlled-burn hulls to amorphous ash (burn '
+                 'conditions matter for reactivity — the sol-gel '
+                 'tech node carries the chemistry; burn ENERGY '
+                 'self-fueling in practice, excluded v1). RHA wins '
+                 'on process TEMPERATURE, not on $/kg vs sand.',
     },
 ]
 
@@ -1039,6 +1304,39 @@ SEED_PRODUCT_FORMULAS = [
                  'energy/equipment excluded v1; surfactant-free = '
                  'settles (surfactant route is the uncited gap). '
                  'Exists to price the make-vs-buy on dispersions.',
+    },
+    {
+        'name': 'metakaolin-calcined-v0',
+        'display_name': 'Metakaolin by calcining EPK (yield 0.86)',
+        'product_item_ref': 'metakaolin',
+        'components_json': json.dumps([
+            {'item_ref': 'kaolin-raw', 'role': 'kaolin',
+             'fraction': 1.0},
+        ]),
+        'yield_fraction': 0.86,
+        'status': 'candidate',
+        'is_prior': True,
+        'provenance_id': 'src-7',
+        'notes': 'Calcine ~700C to dehydroxylate; kiln energy '
+                 'excluded v1. Standard pottery practice (calcined '
+                 'kaolin), reactivity should be verified per batch.',
+    },
+    {
+        'name': 'rha-burned-v0',
+        'display_name': 'Rice husk ash by controlled burn '
+                        '(yield 0.18)',
+        'product_item_ref': 'rice-husk-ash',
+        'components_json': json.dumps([
+            {'item_ref': 'rice-hulls', 'role': 'hulls',
+             'fraction': 1.0},
+        ]),
+        'yield_fraction': 0.18,
+        'status': 'candidate',
+        'is_prior': True,
+        'provenance_id': 'src-7',
+        'notes': 'Ash yield ~18% of hull mass (typical); burn is '
+                 'self-fueling. Amorphous-silica quality depends on '
+                 'burn temperature control.',
     },
 ]
 

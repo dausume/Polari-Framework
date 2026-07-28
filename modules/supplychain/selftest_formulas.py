@@ -74,12 +74,12 @@ if __name__ == '__main__':
           and abs(base['soy-wax']['usdPerKg'] - SOY) < 0.001
           and base['soy-wax']['citation']
           and base['soy-wax']['observedAt'])
-    check('uncited candidates are RESEARCH GAPS, not omissions',
+    check('uncited candidates are RESEARCH GAPS, not omissions '
+          '(candelilla + stearic got cited src-7 — only rice-bran '
+          'remains)',
           not base['rice-bran-wax']['cited']
-          and any(g['item'] == 'candelilla-wax'
-                  for g in out['researchGaps'])
-          and any(g['item'] == 'stearic-acid'
-                  for g in out['researchGaps']))
+          and {g['item'] for g in out['researchGaps']}
+          == {'rice-bran-wax'})
     check('unknown product refuses naming the requirement knob',
           not requirement_coverage(mgr, 'unobtainium').get('ok'))
 
@@ -131,7 +131,7 @@ if __name__ == '__main__':
           'requirement deliberately)',
           'not a candidate' in formula_cost(mgr, bad)
           .get('refusal', ''))
-    bad = _formula([{'item_ref': 'candelilla-wax', 'role': 'base-wax',
+    bad = _formula([{'item_ref': 'rice-bran-wax', 'role': 'base-wax',
                      'fraction': 0.75},
                     {'item_ref': 'beeswax', 'role': 'toughener',
                      'fraction': 0.15},
@@ -140,27 +140,29 @@ if __name__ == '__main__':
     out = formula_cost(mgr, bad)
     check('uncited component refuses with a citation suggestion',
           not out.get('ok')
-          and 'candelilla-wax' in out['refusal']
+          and 'rice-bran-wax' in out['refusal']
           and 'cite' in out['suggestion']['action'])
 
     print('== suite: cheapest feasible blend ==')
     out = cheapest_blend(mgr, 'natural-print-wax-blend')
     comp = {c['item_ref']: c['fraction'] for c in out['components']}
-    check('optimizer maxes the cheapest role within its range '
-          '(soy 0.85 / beeswax 0.10 / carnauba 0.05)',
+    STEARIC = 17.7208
+    check('optimizer switched hardener to STEARIC once cited '
+          '(soy 0.85 / beeswax 0.10 / stearic 0.05)',
           out.get('ok') and comp == {'soy-wax': 0.85,
                                      'beeswax': 0.10,
-                                     'carnauba-wax': 0.05})
+                                     'stearic-acid': 0.05})
     expected_cheap = round(0.85 * SOY + 0.10 * BEESWAX
-                           + 0.05 * CARNAUBA, 4)
-    check('cheapest blend 7.79/kg beats v0 10.78/kg',
+                           + 0.05 * STEARIC, 4)
+    check('cheapest blend 6.95/kg beats v0 10.78/kg (new citations '
+          'lowered the floor)',
           abs(out['usdPerKg'] - expected_cheap) < 0.001
-          and out['usdPerKg'] < 10.78)
+          and out['usdPerKg'] < 7.0)
     check('optimizer output is a SUGGESTION demanding '
           'print-validation',
           'print-validate' in out['suggestion']['action'])
-    check('research gaps ride along (cheaper candidates may exist '
-          'uncited)', len(out['researchGaps']) >= 3)
+    check('research gaps ride along (rice-bran still uncited)',
+          len(out['researchGaps']) >= 1)
     # verify the suggested blend round-trips through formula_cost
     suggested = _formula(out['components'], name='cheapest-check')
     round_trip = formula_cost(mgr, suggested)
@@ -189,9 +191,10 @@ if __name__ == '__main__':
           out['rows'][0]['kind'] == 'optimized-blend'
           and out['rows'][-1]['kind'] == 'substitute')
     verdict = out['verdict']
-    check('verdict: our blend beats the substitute by ~64.6%',
+    check('verdict: our blend beats the substitute by ~68.5% '
+          '(stearic hardener)',
           verdict['ours']['name'] == 'cheapest-feasible-blend'
-          and abs(verdict['oursCheaperPct'] - 64.6) < 0.5)
+          and abs(verdict['oursCheaperPct'] - 68.5) < 0.5)
     check('verdict keeps the substitute honest (caveats attached)',
           verdict['substitute']['caveats'])
 
@@ -217,10 +220,10 @@ if __name__ == '__main__':
           any('hydroxide-free' in c for c in sub['caveats']))
     verdict = out['verdict']
     check('verdict: making beats buying — cascaded recipe wins '
-          '(~1.48/kg, ~69% cheaper than the kit)',
+          '(~1.11/kg, ~77% cheaper: metakaolin joined the cascade)',
           'self-made' in verdict['ours']['name']
-          and abs(verdict['ours']['usdPerKg'] - 1.484) < 0.02
-          and abs(verdict['oursCheaperPct'] - 69.4) < 1.5)
+          and abs(verdict['ours']['usdPerKg'] - 1.110) < 0.02
+          and abs(verdict['oursCheaperPct'] - 77.1) < 1.5)
     cheap = cheapest_blend(mgr, 'geopolymer-mix')
     comp = {c['item_ref']: c['fraction'] for c in cheap['components']}
     check('optimizer pours the remainder into sand then metakaolin '
@@ -251,13 +254,14 @@ if __name__ == '__main__':
 
     print('== suite: cascaded geopolymer (self-made waterglass) ==')
     out = cascaded_cost(mgr, v0g)
-    check('cascaded v0 drops to ~1.48/kg with in-house waterglass',
-          out.get('ok') and abs(out['usdPerKg'] - 1.484) < 0.01)
-    check('made intermediate declared WITH the energy caveat',
-          len(out['madeIntermediates']) == 1
-          and out['madeIntermediates'][0]['item']
-          == 'sodium-silicate-solution'
-          and 'energy' in out['madeIntermediates'][0]['caveat'])
+    check('cascaded v0 drops to ~1.11/kg — waterglass AND '
+          'metakaolin both self-made now',
+          out.get('ok') and abs(out['usdPerKg'] - 1.110) < 0.01)
+    check('BOTH made intermediates declared WITH energy caveats',
+          {m['item'] for m in out['madeIntermediates']}
+          == {'sodium-silicate-solution', 'metakaolin'}
+          and all('energy' in m['caveat']
+                  for m in out['madeIntermediates']))
     check('breakdown tags via made/cited per component',
           {b['via'] for b in out['breakdown']} == {'made', 'cited'})
     comp_g = product_cost_comparison(mgr, 'geopolymer-mix')
@@ -266,10 +270,10 @@ if __name__ == '__main__':
                                      'intermediates'), None)
     check('comparison surfaces the cascaded row, cheapest of all '
           'named recipes', casc_row is not None
-          and abs(casc_row['usdPerKg'] - 1.484) < 0.01)
-    check('verdict vs GPI kit now ~69% cheaper (cascaded wins '
-          'the ours side)',
-          abs(comp_g['verdict']['oursCheaperPct'] - 69.4) < 1.5)
+          and abs(casc_row['usdPerKg'] - 1.110) < 0.01)
+    check('verdict vs GPI kit now ~77% cheaper (kaolin-calcining '
+          'joined the cascade)',
+          abs(comp_g['verdict']['oursCheaperPct'] - 77.1) < 1.5)
 
     print('== suite: sol-gel — two-level cascade ==')
     sg = _rows(SEED_PRODUCT_FORMULAS)['solgel-community-v0']
@@ -286,14 +290,16 @@ if __name__ == '__main__':
           and casc['madeIntermediates'][0]['item']
           == 'sodium-silicate-solution')
 
-    print('== suite: ferrite — refusal IS the research ask ==')
+    print('== suite: ferrite — citation landed, BUY still wins ==')
     mag = _rows(SEED_PRODUCT_FORMULAS)['magnetite-coprecipitation-v0']
     out = formula_cost(mgr, mag)
-    check('coprecipitation refuses until ferrous sulfate is cited',
-          not out.get('ok') and 'ferrous-sulfate' in out['refusal'])
+    check('coprecipitation COSTS now (~20.11/kg, ferrous sulfate '
+          'cited)', out.get('ok')
+          and abs(out['usdPerKg'] - 20.108) < 0.05
+          and out['anyEstimate'] is True)
     eff = effective_unit_price(mgr, 'magnetite-powder')
-    check('effective magnetite price = BOUGHT pigment 9.70/kg '
-          '(make refused -> cited wins)',
+    check('effective magnetite = BOUGHT pigment 9.70/kg — make '
+          'costs 2x, buying honestly wins',
           eff['via'] == 'cited'
           and abs(eff['normalized'] - 9.6959) < 0.01)
 
@@ -323,9 +329,8 @@ if __name__ == '__main__':
     print('== suite: catalog ==')
     cat = formulas_catalog(mgr)
     by_name = {f['name']: f for f in cat['formulas']}
-    check('catalog costs all SIX seeded formulas (magnetite = '
-          'honest refusal)',
-          cat.get('ok') and len(cat['formulas']) == 6
+    check('catalog costs all EIGHT seeded formulas',
+          cat.get('ok') and len(cat['formulas']) == 8
           and abs(by_name['natural-print-wax-v0']['usdPerKg']
                   - 10.7834) < 0.01
           and abs(by_name['geopolymer-castable-v0']['usdPerKg']
@@ -336,10 +341,12 @@ if __name__ == '__main__':
                   - 35.786) < 0.05
           and abs(by_name['mwcnt-dispersion-2wt-v0']['usdPerKg']
                   - 7.503) < 0.01
-          and by_name['magnetite-coprecipitation-v0']['usdPerKg']
-          is None
-          and 'ferrous-sulfate'
-          in by_name['magnetite-coprecipitation-v0']['costRefusal'])
+          and abs(by_name['magnetite-coprecipitation-v0']['usdPerKg']
+                  - 20.108) < 0.05
+          and abs(by_name['metakaolin-calcined-v0']['usdPerKg']
+                  - 1.1023) < 0.01
+          and abs(by_name['rha-burned-v0']['usdPerKg']
+                  - 7.349) < 0.02)
 
     failed = _results.count(False)
     print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
