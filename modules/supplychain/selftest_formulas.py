@@ -130,7 +130,7 @@ if __name__ == '__main__':
           'not a candidate' in formula_cost(mgr, bad)
           .get('refusal', ''))
     bad = types.SimpleNamespace(
-        name='wg-from-waste-glass',
+        name='wg-from-waste-glass-scratch',
         product_item_ref='sodium-silicate-solution',
         components_json=json.dumps([
             {'item_ref': 'waste-glass-fines', 'role': 'silica-source',
@@ -140,11 +140,9 @@ if __name__ == '__main__':
             {'item_ref': 'tap-water', 'role': 'water',
              'fraction': 0.57}]))
     out = formula_cost(mgr, bad)
-    check('uncited component refuses with a citation suggestion '
-          '(waste-glass-fines is the last silica gap)',
-          not out.get('ok')
-          and 'waste-glass-fines' in out['refusal']
-          and 'cite' in out['suggestion']['action'])
+    check('waste-glass silica route COSTS now (src-9 closed the '
+          'last silica gap): ~1.58/kg, sand route still cheapest',
+          out.get('ok') and abs(out['usdPerKg'] - 1.5776) < 0.01)
 
     print('== suite: cheapest feasible blend ==')
     out = cheapest_blend(mgr, 'natural-print-wax-blend')
@@ -180,10 +178,12 @@ if __name__ == '__main__':
           out.get('ok')
           and kinds == {'formula', 'optimized-blend', 'substitute'})
     sub = next(r for r in out['rows'] if r['kind'] == 'substitute')
-    check('machinable wax priced ~22.05/kg from the flagged '
-          'citation', sub['name'] == 'machinable-wax'
-          and abs(sub['usdPerKg'] - 22.0461) < 0.01
-          and sub['anyEstimate'] is True)
+    check('machinable wax priced 11.01/kg from the EXACT src-9 '
+          're-cite (pellets $49.95/10lb sale) — half the old '
+          'forum estimate, honesty won',
+          sub['name'] == 'machinable-wax'
+          and abs(sub['usdPerKg'] - 11.0121) < 0.01
+          and sub['anyEstimate'] is False)
     check('substitute caveats travel WITH the price (plastics, '
           'fumes, non-eco)',
           any('plastic' in c for c in sub['caveats'])
@@ -194,10 +194,11 @@ if __name__ == '__main__':
           out['rows'][0]['kind'] == 'optimized-blend'
           and out['rows'][-1]['kind'] == 'substitute')
     verdict = out['verdict']
-    check('verdict: our blend beats the substitute by ~68.5% '
-          '(stearic hardener)',
+    check('verdict: our blend beats the substitute by ~36.9% on '
+          'the EXACT pellet price (was ~68.5% vs the estimate — '
+          'the honest margin shrank and that is the point)',
           verdict['ours']['name'] == 'cheapest-feasible-blend'
-          and abs(verdict['oursCheaperPct'] - 68.5) < 0.5)
+          and abs(verdict['oursCheaperPct'] - 36.9) < 0.5)
     check('verdict keeps the substitute honest (caveats attached)',
           verdict['substitute']['caveats'])
 
@@ -382,8 +383,9 @@ if __name__ == '__main__':
     print('== suite: catalog ==')
     cat = formulas_catalog(mgr)
     by_name = {f['name']: f for f in cat['formulas']}
-    check('catalog costs all TWELVE seeded formulas',
-          cat.get('ok') and len(cat['formulas']) == 12
+    check('catalog costs all THIRTEEN seeded formulas (src-9 '
+          'added the waste-glass waterglass route)',
+          cat.get('ok') and len(cat['formulas']) == 13
           and abs(by_name['natural-print-wax-v0']['usdPerKg']
                   - 10.7834) < 0.01
           and abs(by_name['geopolymer-castable-v0']['usdPerKg']

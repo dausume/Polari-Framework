@@ -704,7 +704,153 @@ SEED_PRICE_CITATIONS.append(
         'is_prior': True, 'provenance_id': 'src-3', 'notes': '',
     })
 
+SEED_PRICE_CITATIONS.append(
+    {
+        'name': 'machinablewax-pellets-exact-2026-07-28',
+        'source_ref': 'machinable-wax-com',
+        'item_ref': 'machinable-wax',
+        'price': 49.95, 'currency': 'USD',
+        'amount': 10.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T13:20:00',
+        'citation_url': 'https://machinablewax.com/'
+                        'machinable-wax-pelletized-10-pound-box/',
+        'citation_note': 'EXACT store price finally read (src-9 '
+                         're-cite; store page reachable with cert '
+                         'workaround): pelletized 10 lb box $49.95 '
+                         'ON SALE, regular $64.95 — the ~$10/lb '
+                         'forum figure in the earlier est citation '
+                         'was roughly the regular block pricing, '
+                         'pellets run ~half that. Sale prices '
+                         'drift: re-check before quoting.',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': 'src-9', 'notes': '',
+    })
+
+SEED_SUPPLY_SOURCES.append(
+    {
+        'name': 'seven-springs-farm',
+        'display_name': 'Seven Springs Farm Supply — rice hulls '
+                        '(farm-supply channel)',
+        'kind_open_source': False, 'kind_commercial': True,
+        'kind_local': False, 'kind_polari': False,
+        'eco_friendly': True,
+        'availability': 'available',
+        'region_note': 'US farm-supply mail order (VA); the '
+                       'agricultural channel for hulls, vs the '
+                       'homebrew channel already on record',
+        'url': 'https://www.7springsfarm.com/products/'
+               'rice-hulls-soil-amendment-50-lb-bag',
+        'supplies_json': json.dumps(['rice-hulls']),
+        'demands_json': '[]',
+        'is_prior': True,
+        'provenance_id': 'src-9',
+        'notes': 'Second channel pins the hulls price range: '
+                 'farm-supply exact vs homebrew estimate. Mills '
+                 'still give hulls near-free locally — the deal '
+                 'channel stays the real target.',
+    })
+
+SEED_SUPPLY_SOURCES.append(
+    {
+        'name': 'vedaoils-us',
+        'display_name': 'VedaOils USA — candelilla wax (cosmetic '
+                        'supplier tiers)',
+        'kind_open_source': False, 'kind_commercial': True,
+        'kind_local': False, 'kind_polari': False,
+        'eco_friendly': True,
+        'availability': 'available',
+        'region_note': 'US cosmetic-ingredient mail order',
+        'url': 'https://us.vedaoils.com/products/candelilla-wax',
+        'supplies_json': json.dumps(['candelilla-wax']),
+        'demands_json': '[]',
+        'is_prior': True,
+        'provenance_id': 'src-9',
+        'notes': 'Tiered supplier listing (100 g to 20 kg) — the '
+                 'EXACT anchor for candelilla, which marketplace '
+                 'listings scatter around. Mexico drought/labor '
+                 'volatility noted in trade coverage: expect '
+                 'drift, re-cite before quoting.',
+    })
+
+SEED_SUPPLY_SOURCES.append(
+    {
+        'name': 'tricity-crushed-glass',
+        'display_name': 'Tri-City Equipment Rental — recycled '
+                        'crushed glass (blast media)',
+        'kind_open_source': False, 'kind_commercial': True,
+        'kind_local': False, 'kind_polari': False,
+        'eco_friendly': True,
+        'availability': 'available',
+        'region_note': 'US retail (equipment-supply channel); '
+                       'recycled-glass blast media is stocked by '
+                       'many local blasting suppliers — check for '
+                       'a truly LOCAL equivalent',
+        'url': 'https://tricityequipmentrental.com/product/'
+               'crushed-glass-2/',
+        'supplies_json': json.dumps(['waste-glass-fines']),
+        'demands_json': '[]',
+        'is_prior': True,
+        'provenance_id': 'src-9',
+        'notes': '100% recycled crushed glass, 40/70 MESH — blast '
+                 'media grade, NOT powder: the waterglass '
+                 'digestion route needs it milled finer (ball '
+                 'mill / mortar pass), a labor step the v1 cost '
+                 'excludes loudly. Closes the recycling loop the '
+                 'waterglass route 3 named.',
+    })
+
 SEED_PRICE_CITATIONS.extend([
+    {
+        'name': 'sevensprings-rice-hulls-50lb-2026-07-28',
+        'source_ref': 'seven-springs-farm',
+        'item_ref': 'rice-hulls',
+        'price': 32.50, 'currency': 'USD',
+        'amount': 50.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T13:30:00',
+        'citation_url': 'https://www.7springsfarm.com/products/'
+                        'rice-hulls-soil-amendment-50-lb-bag',
+        'citation_note': 'EXACT store price $32.50/50 lb bag '
+                         '(src-9) — brackets the homebrew-channel '
+                         '$30 estimate from above; the est row '
+                         'stays on record for the spread.',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': 'src-9', 'notes': '',
+    },
+    {
+        'name': 'vedaoils-candelilla-1kg-2026-07-28',
+        'source_ref': 'vedaoils-us',
+        'item_ref': 'candelilla-wax',
+        'price': 60.00, 'currency': 'USD',
+        'amount': 1.0, 'amount_unit': 'kg',
+        'observed_at': '2026-07-28T13:32:00',
+        'citation_url': 'https://us.vedaoils.com/products/'
+                        'candelilla-wax',
+        'citation_note': 'EXACT supplier tier: $60.00/1 kg '
+                         '($289/5 kg = 57.80/kg, $569/10 kg = '
+                         '56.90/kg). WELL ABOVE the est-flagged '
+                         'Amazon 5 lb figure (~21/kg) — the '
+                         'marketplace scatter is real; treat cheap '
+                         'listings skeptically until one is '
+                         'pinned with a receipt.',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': 'src-9', 'notes': '',
+    },
+    {
+        'name': 'tricity-crushed-glass-50lb-2026-07-28',
+        'source_ref': 'tricity-crushed-glass',
+        'item_ref': 'waste-glass-fines',
+        'price': 10.50, 'currency': 'USD',
+        'amount': 50.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T13:25:00',
+        'citation_url': 'https://tricityequipmentrental.com/'
+                        'product/crushed-glass-2/',
+        'citation_note': 'Crushed Glass 40-70 50# bag $10.50 '
+                         '($10.00/bag at full-skid quantity). '
+                         '40/70 mesh blast-media grade — mill '
+                         'finer before NaOH digestion.',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': 'src-9', 'notes': '',
+    },
     {
         'name': 'pool360-metamax-55lb-2026-07-28',
         'source_ref': 'pool360-metamax',
@@ -1328,7 +1474,8 @@ SEED_PRODUCT_REQUIREMENTS = [
                  'community route from the sol-gel tech-tree work, '
                  'RHA uncited gap (husks near-free at mills, ash '
                  'it yourself); (3) waste-glass fines + NaOH — '
-                 'uncited gap, ties the recycling loop. Same '
+                 'CITED src-9 (recycled blast media 0.46/kg, '
+                 'needs milling), ties the recycling loop. Same '
                  'item_ref also has PURCHASE citations — the '
                  'cascaded costing compares make vs buy.',
     },
@@ -1606,6 +1753,29 @@ SEED_PRODUCT_FORMULAS = [
                  'solids) — NOT bench-validated; digestion ENERGY '
                  'EXCLUDED from v1 cost. Exists so the intermediary '
                  'make-vs-buy has a number.',
+    },
+    {
+        'name': 'waterglass-from-waste-glass-v0',
+        'display_name': 'Waterglass via recycled glass + NaOH v0 '
+                        '(28/15/57)',
+        'product_item_ref': 'sodium-silicate-solution',
+        'components_json': json.dumps([
+            {'item_ref': 'waste-glass-fines',
+             'role': 'silica-source', 'fraction': 0.28},
+            {'item_ref': 'sodium-hydroxide-lye', 'role': 'alkali',
+             'fraction': 0.15},
+            {'item_ref': 'tap-water', 'role': 'water',
+             'fraction': 0.57},
+        ]),
+        'status': 'candidate',
+        'is_prior': True,
+        'provenance_id': 'src-9',
+        'notes': 'The RECYCLING-LOOP route: soda-lime glass is '
+                 'already amorphous silicate, so digestion is '
+                 'gentler than sand — but the cited feed is 40/70 '
+                 'blast media and needs MILLING to fines first '
+                 '(labor/energy excluded loudly, like digestion '
+                 'heat). NOT bench-validated.',
     },
     {
         'name': 'solgel-community-v0',
