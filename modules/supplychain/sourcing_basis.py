@@ -131,15 +131,19 @@ class ProductFormula(treeObject):
 
     @treeObjectInit
     def __init__(self, name='', display_name='', product_item_ref='',
-                 components_json='[]', status='candidate',
-                 is_prior=True, provenance_id='', notes='',
-                 manager=None):
+                 components_json='[]', yield_fraction=1.0,
+                 status='candidate', is_prior=True, provenance_id='',
+                 notes='', manager=None):
         self.name = name
         self.display_name = display_name
         self.product_item_ref = product_item_ref
         #: JSON list of {item_ref, role, fraction} — mass fractions
         #: that must satisfy the product's ProductInputRequirement.
         self.components_json = components_json
+        #: kg of PRODUCT per kg of input blend (1.0 = casting-like;
+        #: <1 = mass leaves during processing, e.g. sol-gel drying).
+        #: Costing divides by this so usdPerKg is OUTPUT basis.
+        self.yield_fraction = yield_fraction
         self.status = status
         self.is_prior = is_prior
         self.provenance_id = provenance_id

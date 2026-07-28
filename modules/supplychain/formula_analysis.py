@@ -179,14 +179,21 @@ def formula_cost(manager, formula, policy_name='',
             'observedAt': best['observedAt'],
             'isEstimate': best['isEstimate']})
         total += contribution
+    yf = float(getattr(formula, 'yield_fraction', 1.0) or 1.0)
+    if not 0.0 < yf <= 1.0:
+        return {'ok': False,
+                'refusal': f'yield_fraction {yf} outside (0, 1]'}
+    out_cost = round(total / yf, 4)
     return {'ok': True,
             'formula': getattr(formula, 'name', ''),
             'product': product,
             'sourceChoice': source_choice,
-            'usdPerKg': round(total, 4),
+            'usdPerKg': out_cost,
+            'inputBlendCostPerKg': round(total, 4),
+            'yieldFraction': yf,
             'anyEstimate': any_estimate,
             'breakdown': breakdown,
-            'scoreTerm': {**COST_TERM, 'value': round(total, 4),
+            'scoreTerm': {**COST_TERM, 'value': out_cost,
                           'evidence': [b['citation']
                                        for b in breakdown]}}
 
@@ -351,14 +358,21 @@ def cascaded_cost(manager, formula, policy_name='',
             'source': eff.get('source', ''),
             'citation': eff.get('citation', '')})
         total += contribution
+    yf = float(getattr(formula, 'yield_fraction', 1.0) or 1.0)
+    if not 0.0 < yf <= 1.0:
+        return {'ok': False,
+                'refusal': f'yield_fraction {yf} outside (0, 1]'}
+    out_cost = round(total / yf, 4)
     return {'ok': True,
             'formula': getattr(formula, 'name', ''),
             'product': product, 'sourceChoice': source_choice,
-            'usdPerKg': round(total, 4),
+            'usdPerKg': out_cost,
+            'inputBlendCostPerKg': round(total, 4),
+            'yieldFraction': yf,
             'anyEstimate': any_estimate,
             'madeIntermediates': made_intermediates,
             'breakdown': breakdown,
-            'scoreTerm': {**COST_TERM, 'value': round(total, 4),
+            'scoreTerm': {**COST_TERM, 'value': out_cost,
                           'evidence': [b['citation']
                                        for b in breakdown]}}
 

@@ -271,17 +271,75 @@ if __name__ == '__main__':
           'the ours side)',
           abs(comp_g['verdict']['oursCheaperPct'] - 69.4) < 1.5)
 
+    print('== suite: sol-gel — two-level cascade ==')
+    sg = _rows(SEED_PRODUCT_FORMULAS)['solgel-community-v0']
+    plain = formula_cost(mgr, sg)
+    check('xerogel with BOUGHT waterglass: ~35.79/kg output '
+          '(yield 0.16 applied)',
+          plain.get('ok') and abs(plain['usdPerKg'] - 35.786) < 0.05
+          and plain['yieldFraction'] == 0.16
+          and abs(plain['inputBlendCostPerKg'] - 5.726) < 0.01)
+    casc = cascaded_cost(mgr, sg)
+    check('xerogel with SELF-MADE waterglass: ~10.67/kg — the '
+          'two-level cascade (xerogel <- waterglass <- sand/NaOH)',
+          casc.get('ok') and abs(casc['usdPerKg'] - 10.668) < 0.05
+          and casc['madeIntermediates'][0]['item']
+          == 'sodium-silicate-solution')
+
+    print('== suite: ferrite — refusal IS the research ask ==')
+    mag = _rows(SEED_PRODUCT_FORMULAS)['magnetite-coprecipitation-v0']
+    out = formula_cost(mgr, mag)
+    check('coprecipitation refuses until ferrous sulfate is cited',
+          not out.get('ok') and 'ferrous-sulfate' in out['refusal'])
+    eff = effective_unit_price(mgr, 'magnetite-powder')
+    check('effective magnetite price = BOUGHT pigment 9.70/kg '
+          '(make refused -> cited wins)',
+          eff['via'] == 'cited'
+          and abs(eff['normalized'] - 9.6959) < 0.01)
+
+    print('== suite: CNTs — synthesis far off, dispersion near ==')
+    check('NO make route for CNT powder (assumption on record)',
+          make_cost(mgr, 'mwcnt-powder') is None
+          and make_cost(mgr, 'swcnt-powder') is None)
+    check('grade ladder on record: SWCNT ~500000/kg vs MWCNT '
+          '375/kg (orders of magnitude)',
+          abs(effective_unit_price(mgr, 'swcnt-powder')['normalized']
+              - 500000.0) < 1
+          and abs(effective_unit_price(mgr, 'mwcnt-powder')
+                  ['normalized'] - 375.0) < 0.01)
+    disp = _rows(SEED_PRODUCT_FORMULAS)['mwcnt-dispersion-2wt-v0']
+    out = formula_cost(mgr, disp)
+    check('2wt% MWCNT dispersion from bought powder: ~7.50/kg',
+          out.get('ok') and abs(out['usdPerKg'] - 7.503) < 0.01)
+    eff = effective_unit_price(mgr, 'cnt-water-dispersion')
+    check('dispersion: MAKE beats BUY (7.50 vs 185 market, ~96%)',
+          eff['via'] == 'made'
+          and abs(eff['normalized'] - 7.503) < 0.01)
+    cheap = cheapest_blend(mgr, 'cnt-water-dispersion')
+    check('optimizer picks MWCNT, never SWCNT, for the cnt role',
+          all(c['item_ref'] != 'swcnt-powder'
+              for c in cheap['components']))
+
     print('== suite: catalog ==')
     cat = formulas_catalog(mgr)
     by_name = {f['name']: f for f in cat['formulas']}
-    check('catalog costs all THREE seeded formulas',
-          cat.get('ok') and len(cat['formulas']) == 3
+    check('catalog costs all SIX seeded formulas (magnetite = '
+          'honest refusal)',
+          cat.get('ok') and len(cat['formulas']) == 6
           and abs(by_name['natural-print-wax-v0']['usdPerKg']
                   - 10.7834) < 0.01
           and abs(by_name['geopolymer-castable-v0']['usdPerKg']
                   - 2.653) < 0.02
           and abs(by_name['waterglass-hydrothermal-v0']['usdPerKg']
-                  - 1.539) < 0.01)
+                  - 1.539) < 0.01
+          and abs(by_name['solgel-community-v0']['usdPerKg']
+                  - 35.786) < 0.05
+          and abs(by_name['mwcnt-dispersion-2wt-v0']['usdPerKg']
+                  - 7.503) < 0.01
+          and by_name['magnetite-coprecipitation-v0']['usdPerKg']
+          is None
+          and 'ferrous-sulfate'
+          in by_name['magnetite-coprecipitation-v0']['costRefusal'])
 
     failed = _results.count(False)
     print(f'\n{len(_results) - failed}/{len(_results)} checks passed')

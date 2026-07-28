@@ -239,6 +239,84 @@ SEED_SUPPLY_SOURCES = [
                  'published 2026 tariff.',
     },
     {
+        'name': 'milliard-amazon',
+        'display_name': 'Milliard via Amazon (citric acid)',
+        'supplier_name': 'Milliard',
+        'url': 'https://www.amazon.com/Milliard-Citric-Acid-'
+               '10-Pound/dp/B00GNBHPAS',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['citric-acid']),
+        'demands_json': '[]',
+        'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-6',
+        'notes': 'Food-grade citric acid by the 10 lb bag — the '
+                 'sol-gel community route acid catalyst (the '
+                 'citrus-juice route made shelf-stable).',
+    },
+    {
+        'name': 'alpha-chemicals-walmart',
+        'display_name': 'Alpha Chemicals via Walmart (magnetite)',
+        'supplier_name': 'Alpha Chemicals',
+        'url': 'https://www.walmart.com/ip/Black-Iron-Oxide-'
+               'Fe3O4-Natural-5-Pounds/687367701',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['magnetite-powder']),
+        'demands_json': '[]',
+        'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-6',
+        'notes': 'Natural Fe3O4 pigment powder — the buy-side of '
+                 'the ferrite feedstock question.',
+    },
+    {
+        'name': 'cheap-tubes',
+        'display_name': 'Cheap Tubes (cheaptubes.com)',
+        'supplier_name': 'Cheap Tubes Inc',
+        'url': 'https://www.cheaptubes.com/',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['mwcnt-powder', 'swcnt-powder',
+                                     'cnt-water-dispersion']),
+        'demands_json': '[]',
+        'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-6',
+        'notes': 'CNT vendor across grades — industrial MWCNT '
+                 'through electronic SWCNT; the varying-CNT price '
+                 'ladder lives in the citations.',
+    },
+    {
+        'name': 'polari-cnt-lab',
+        'display_name': 'Polari CNT synthesis (EXPLICITLY far off)',
+        'supplier_name': 'Polari (self)',
+        'url': '',
+        'is_open_source': True, 'is_commercial': False,
+        'is_local': True, 'is_polari': True,
+        'is_eco_friendly': False,
+        'availability': 'potential',
+        'supplies_json': json.dumps(['mwcnt-powder', 'swcnt-powder']),
+        'demands_json': '[]',
+        'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-6',
+        'notes': 'ASSUMPTION ON RECORD (Dustin 2026-07-28): making '
+                 'CNTs from scratch is FAR OFF — CVD synthesis is '
+                 'not planned near-term, so NO make-formula is '
+                 'seeded on purpose and CNT powders stay buy-only. '
+                 'The techtree CNT-builder work models structure, '
+                 'not production. DISPERSIONS of bought powder are '
+                 'makeable today.',
+    },
+    {
         'name': 'polari-waxprint-lab',
         'display_name': 'Polari wax-print lab (our own blend)',
         'supplier_name': 'Polari (self)',
@@ -513,6 +591,92 @@ SEED_PRICE_CITATIONS.append(
         'is_prior': True, 'provenance_id': 'src-5', 'notes': '',
     })
 
+SEED_PRICE_CITATIONS.extend([
+    {
+        'name': 'milliard-citric-10lb-2026-07-28',
+        'source_ref': 'milliard-amazon',
+        'item_ref': 'citric-acid',
+        'price': 25.99, 'currency': 'USD',
+        'amount': 10.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T12:40:00',
+        'citation_url': 'https://www.amazon.com/Milliard-Citric-'
+                        'Acid-10-Pound/dp/B00GNBHPAS',
+        'citation_note': 'Typical listing price for the 10 lb bag — '
+                         'Amazon prices fluctuate; flagged estimate '
+                         'until pinned on a dated screenshot.',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-6', 'notes': '',
+    },
+    {
+        'name': 'alpha-magnetite-5lb-2026-07-28',
+        'source_ref': 'alpha-chemicals-walmart',
+        'item_ref': 'magnetite-powder',
+        'price': 21.99, 'currency': 'USD',
+        'amount': 5.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T12:42:00',
+        'citation_url': 'https://www.walmart.com/ip/Black-Iron-'
+                        'Oxide-Fe3O4-Natural-5-Pounds/687367701',
+        'citation_note': 'Listed price, natural Fe3O4 5 lb, free '
+                         'shipping.',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': 'src-6', 'notes': '',
+    },
+    {
+        'name': 'cheaptubes-mwcnt-1kg-2026-07-28',
+        'source_ref': 'cheap-tubes',
+        'item_ref': 'mwcnt-powder',
+        'price': 375.00, 'currency': 'USD',
+        'amount': 1.0, 'amount_unit': 'kg',
+        'observed_at': '2026-07-28T12:45:00',
+        'citation_url': 'https://www.cheaptubes.com/product/'
+                        'industrial-grade-multi-walled-carbon-'
+                        'nanotubes-10-30nm/',
+        'citation_note': 'Industrial-grade MWCNT 10-30nm listed '
+                         '$375-$390/kg; low end cited. Ton-scale '
+                         'pricing exists on request.',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-6', 'notes': '',
+    },
+    {
+        'name': 'swcnt-electronic-grade-2026-07-28',
+        'source_ref': 'cheap-tubes',
+        'item_ref': 'swcnt-powder',
+        'price': 500.00, 'currency': 'USD',
+        'amount': 0.001, 'amount_unit': 'kg',
+        'observed_at': '2026-07-28T12:46:00',
+        'citation_url': 'https://www.cheaptubes.com/'
+                        'product-category/single-walled-carbon-'
+                        'nanotubes/',
+        'citation_note': 'Electronic/semiconducting SWCNT reported '
+                         '$500-1500 PER GRAM (low end cited = '
+                         '$500k/kg); research-grade SWCNT runs far '
+                         'lower but still ~10x MWCNT. The point on '
+                         'record: SWCNT is ORDERS OF MAGNITUDE '
+                         'above MWCNT — grade choice dominates '
+                         'cost. Re-cite per exact grade when '
+                         'selected.',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-6', 'notes': '',
+    },
+    {
+        'name': 'cnt-dispersion-market-2026-07-28',
+        'source_ref': 'cheap-tubes',
+        'item_ref': 'cnt-water-dispersion',
+        'price': 185.00, 'currency': 'USD',
+        'amount': 1.0, 'amount_unit': 'kg',
+        'observed_at': '2026-07-28T12:47:00',
+        'citation_url': 'https://www.indexbox.io/store/china-carbon-'
+                        'nanotube-dispersions-market-analysis-'
+                        'forecast-size-trends-and-insights/',
+        'citation_note': 'Market-report range $120-250/kg for SWCNT '
+                         'water dispersions; midpoint cited. Vendor '
+                         'quotes (TUBALL etc.) are volume-'
+                         'personalized — re-cite on quote.',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-6', 'notes': '',
+    },
+])
+
 SEED_PRODUCT_REQUIREMENTS = [
     {
         'name': 'natural-print-wax-blend-requirements',
@@ -650,6 +814,106 @@ SEED_PRODUCT_REQUIREMENTS = [
                  'item_ref also has PURCHASE citations — the '
                  'cascaded costing compares make vs buy.',
     },
+    {
+        'name': 'silica-xerogel-requirements',
+        'display_name': 'Silica xerogel (sol-gel) — community route '
+                        'feedstock space',
+        'product_item_ref': 'silica-xerogel',
+        'roles_json': json.dumps([
+            {'role': 'silicate-precursor',
+             'purpose': 'silica source for the sol (community route '
+                        'uses OUR waterglass; TEOS is the lab-'
+                        'alkoxide alternative)',
+             'min_fraction': 0.50, 'max_fraction': 0.65,
+             'candidates': ['sodium-silicate-solution', 'teos',
+                            'rice-husk-ash']},
+            {'role': 'acid-catalyst',
+             'purpose': 'drops pH to gel the silicate (citrus-juice '
+                        'route made shelf-stable = citric acid)',
+             'min_fraction': 0.05, 'max_fraction': 0.20,
+             'candidates': ['citric-acid', 'acetic-vinegar']},
+            {'role': 'water',
+             'purpose': 'dilution water for workable sol',
+             'min_fraction': 0.25, 'max_fraction': 0.40,
+             'candidates': ['tap-water']},
+        ]),
+        'substitutes_json': json.dumps([
+            {'item_ref': 'silica-gel-desiccant',
+             'caveats': [
+                 'desiccant grade — NOT a functional sol-gel '
+                 'coating/monolith precursor',
+                 'uncited — comparison pending a dated citation',
+             ],
+             'notes': 'Commodity silica gel exists cheap; it '
+                      'substitutes only for drying uses, never for '
+                      'sol-gel processing.'},
+        ]),
+        'is_prior': True,
+        'provenance_id': 'src-6',
+        'notes': 'The sg-community alkoxide-free route as COST data '
+                 '(the sol-gel tech node carries the chemistry). '
+                 'TEOS + vinegar + RHA = uncited gaps. Drying '
+                 'ENERGY excluded v1; yield lives on the formula.',
+    },
+    {
+        'name': 'magnetite-powder-requirements',
+        'display_name': 'Magnetite/ferrite feedstock — '
+                        'coprecipitation space',
+        'product_item_ref': 'magnetite-powder',
+        'roles_json': json.dumps([
+            {'role': 'iron-salt',
+             'purpose': 'dissolved Fe2+/Fe3+ for coprecipitation',
+             'min_fraction': 0.55, 'max_fraction': 0.75,
+             'candidates': ['ferrous-sulfate', 'ferric-chloride']},
+            {'role': 'alkali',
+             'purpose': 'precipitates Fe3O4 from the salt solution',
+             'min_fraction': 0.10, 'max_fraction': 0.25,
+             'candidates': ['sodium-hydroxide-lye']},
+            {'role': 'water',
+             'purpose': 'reaction solution',
+             'min_fraction': 0.10, 'max_fraction': 0.30,
+             'candidates': ['tap-water']},
+        ]),
+        'substitutes_json': '[]',
+        'is_prior': True,
+        'provenance_id': 'src-6',
+        'notes': 'FERRITE v1 = magnetite powder (Fe3O4). The buy '
+                 'side is cited ($21.99/5lb pigment powder); the '
+                 'coprecipitation make-route exists as data but '
+                 'REFUSES to cost until iron salts are cited — '
+                 'ferrous-sulfate (garden-supply channel) and '
+                 'ferric-chloride (PCB-etchant channel) are the '
+                 'hunts. Sintered MnZn/NiZn ferrite PARTS '
+                 '(inductor cores) are a further processing step, '
+                 'not this item.',
+    },
+    {
+        'name': 'cnt-water-dispersion-requirements',
+        'display_name': 'CNT water dispersion — makeable from '
+                        'BOUGHT powder',
+        'product_item_ref': 'cnt-water-dispersion',
+        'roles_json': json.dumps([
+            {'role': 'cnt',
+             'purpose': 'the nanotubes (grade choice dominates '
+                        'cost: MWCNT vs SWCNT is orders of '
+                        'magnitude)',
+             'min_fraction': 0.01, 'max_fraction': 0.04,
+             'candidates': ['mwcnt-powder', 'swcnt-powder']},
+            {'role': 'water',
+             'purpose': 'dispersion medium',
+             'min_fraction': 0.96, 'max_fraction': 0.99,
+             'candidates': ['tap-water']},
+        ]),
+        'substitutes_json': '[]',
+        'is_prior': True,
+        'provenance_id': 'src-6',
+        'notes': 'CNT SYNTHESIS FROM SCRATCH IS FAR OFF (assumption '
+                 'on record — polari-cnt-lab stays potential, no '
+                 'powder make-formula). Dispersing BOUGHT powder is '
+                 'near-term: sonication energy/equipment EXCLUDED '
+                 'v1, and surfactant-free dispersions SETTLE — the '
+                 'surfactant route (SDS et al.) is an uncited gap.',
+    },
 ]
 
 SEED_PRODUCT_FORMULAS = [
@@ -712,6 +976,69 @@ SEED_PRODUCT_FORMULAS = [
                  'solids) — NOT bench-validated; digestion ENERGY '
                  'EXCLUDED from v1 cost. Exists so the intermediary '
                  'make-vs-buy has a number.',
+    },
+    {
+        'name': 'solgel-community-v0',
+        'display_name': 'Silica xerogel via waterglass + citric v0 '
+                        '(55/15/30, yield 0.16)',
+        'product_item_ref': 'silica-xerogel',
+        'components_json': json.dumps([
+            {'item_ref': 'sodium-silicate-solution',
+             'role': 'silicate-precursor', 'fraction': 0.55},
+            {'item_ref': 'citric-acid', 'role': 'acid-catalyst',
+             'fraction': 0.15},
+            {'item_ref': 'tap-water', 'role': 'water',
+             'fraction': 0.30},
+        ]),
+        'yield_fraction': 0.16,
+        'status': 'candidate',
+        'is_prior': True,
+        'provenance_id': 'src-6',
+        'notes': 'sg-community route recipe guess; yield 0.16 kg '
+                 'xerogel per kg wet sol is an ESTIMATE (solids '
+                 'math, not bench-measured); drying energy '
+                 'excluded. Cascades onto self-made waterglass.',
+    },
+    {
+        'name': 'magnetite-coprecipitation-v0',
+        'display_name': 'Magnetite via coprecipitation v0 '
+                        '(65/15/20, yield 0.30)',
+        'product_item_ref': 'magnetite-powder',
+        'components_json': json.dumps([
+            {'item_ref': 'ferrous-sulfate', 'role': 'iron-salt',
+             'fraction': 0.65},
+            {'item_ref': 'sodium-hydroxide-lye', 'role': 'alkali',
+             'fraction': 0.15},
+            {'item_ref': 'tap-water', 'role': 'water',
+             'fraction': 0.20},
+        ]),
+        'yield_fraction': 0.30,
+        'status': 'candidate',
+        'is_prior': True,
+        'provenance_id': 'src-6',
+        'notes': 'DELIBERATELY refuses to cost until ferrous '
+                 'sulfate is cited — the refusal IS the research '
+                 'ask. Buy-side magnetite stays the effective '
+                 'price meanwhile.',
+    },
+    {
+        'name': 'mwcnt-dispersion-2wt-v0',
+        'display_name': 'MWCNT water dispersion 2wt% v0 (2/98)',
+        'product_item_ref': 'cnt-water-dispersion',
+        'components_json': json.dumps([
+            {'item_ref': 'mwcnt-powder', 'role': 'cnt',
+             'fraction': 0.02},
+            {'item_ref': 'tap-water', 'role': 'water',
+             'fraction': 0.98},
+        ]),
+        'yield_fraction': 1.0,
+        'status': 'candidate',
+        'is_prior': True,
+        'provenance_id': 'src-6',
+        'notes': 'Disperse BOUGHT industrial MWCNT — sonication '
+                 'energy/equipment excluded v1; surfactant-free = '
+                 'settles (surfactant route is the uncited gap). '
+                 'Exists to price the make-vs-buy on dispersions.',
     },
 ]
 

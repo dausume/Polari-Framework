@@ -78,8 +78,9 @@ if __name__ == '__main__':
     print('== suite: catalog + overlaps + the mutual loop ==')
     cat = source_catalog(mgr)
     rows = {r['name']: r for r in cat['sources']}
-    check('catalog ranked, polari lab first',
-          cat['sources'][0]['name'] == 'polari-waxprint-lab')
+    check('catalog ranked, a rank-1 polari lab first',
+          cat['sources'][0]['rank'] == 1
+          and cat['sources'][0]['name'].startswith('polari-'))
     check('overlap visible: farm is local AND commercial AND eco',
           set(rows['local-hydroponics-farm']['categories'])
           >= {'local', 'commercial', 'eco_friendly'})
