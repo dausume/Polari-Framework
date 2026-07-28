@@ -194,12 +194,50 @@ if __name__ == '__main__':
     check('verdict keeps the substitute honest (caveats attached)',
           verdict['substitute']['caveats'])
 
+    print('== suite: geopolymer — DIY raw cost vs buying the kit ==')
+    out = requirement_coverage(mgr, 'geopolymer-mix')
+    check('4 geopolymer roles; fly-ash + slag are honest gaps',
+          out.get('ok') and len(out['roles']) == 4
+          and {g['item'] for g in out['researchGaps']}
+          == {'fly-ash-class-f', 'ggbfs-slag'})
+    v0g = _rows(SEED_PRODUCT_FORMULAS)['geopolymer-castable-v0']
+    cost = formula_cost(mgr, v0g)
+    check('DIY castable v0 costs ~2.96/kg from citations',
+          cost.get('ok') and abs(cost['usdPerKg'] - 2.96) < 0.02)
+    check('DIY cost flags estimates (metakaolin + waterglass mass '
+          'are inferred)', cost['anyEstimate'] is True)
+    out = product_cost_comparison(mgr, 'geopolymer-mix')
+    sub = next(r for r in out['rows'] if r['kind'] == 'substitute')
+    check('GPI kit is the substitute at ~4.85/kg',
+          sub['name'] == 'geopolymer-kit'
+          and abs(sub['usdPerKg'] - 4.8502) < 0.01)
+    check('substitute caveats cut BOTH ways (hydroxide-free '
+          'friendliness on the kit side)',
+          any('hydroxide-free' in c for c in sub['caveats']))
+    verdict = out['verdict']
+    check('verdict: making beats buying (optimized ~2.11/kg, '
+          '~56% cheaper than the kit)',
+          verdict['ours']['name'] == 'cheapest-feasible-blend'
+          and abs(verdict['ours']['usdPerKg'] - 2.11) < 0.02
+          and abs(verdict['oursCheaperPct'] - 56.4) < 1.0)
+    cheap = cheapest_blend(mgr, 'geopolymer-mix')
+    comp = {c['item_ref']: c['fraction'] for c in cheap['components']}
+    check('optimizer pours the remainder into sand then metakaolin '
+          '(0.34/0.10/0.01/0.55)',
+          comp == {'metakaolin': 0.34,
+                   'sodium-silicate-solution': 0.10,
+                   'sodium-hydroxide-lye': 0.01,
+                   'silica-sand': 0.55})
+
     print('== suite: catalog ==')
     cat = formulas_catalog(mgr)
-    check('catalog costs the seeded v0 formula',
-          cat.get('ok')
-          and cat['formulas'][0]['name'] == 'natural-print-wax-v0'
-          and abs(cat['formulas'][0]['usdPerKg'] - 10.7834) < 0.01)
+    by_name = {f['name']: f for f in cat['formulas']}
+    check('catalog costs BOTH seeded formulas',
+          cat.get('ok') and len(cat['formulas']) == 2
+          and abs(by_name['natural-print-wax-v0']['usdPerKg']
+                  - 10.7834) < 0.01
+          and abs(by_name['geopolymer-castable-v0']['usdPerKg']
+                  - 2.96) < 0.02)
 
     failed = _results.count(False)
     print(f'\n{len(_results) - failed}/{len(_results)} checks passed')

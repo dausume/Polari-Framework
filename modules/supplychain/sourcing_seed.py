@@ -126,6 +126,78 @@ SEED_SUPPLY_SOURCES = [
                  'substitute benchmark our natural blend must beat.',
     },
     {
+        'name': 'pool360-metamax',
+        'display_name': 'POOL360 (BASF MetaMax metakaolin)',
+        'supplier_name': 'POOL360 / SCP Distributors',
+        'url': 'https://www.pool360.com/',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['metakaolin']),
+        'demands_json': '[]',
+        'business_model_ref': '',
+        'locality_note': 'pool-plaster distribution network',
+        'is_prior': True, 'provenance_id': 'src-4',
+        'notes': 'Metakaolin ships in 55 lb bags through pool-plaster '
+                 'supply — the accessible retail-ish channel for the '
+                 'geopolymer precursor.',
+    },
+    {
+        'name': 'sheffield-pottery',
+        'display_name': 'Sheffield Pottery (sheffield-pottery.com)',
+        'supplier_name': 'Sheffield Pottery',
+        'url': 'https://www.sheffield-pottery.com/',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['sodium-silicate-solution']),
+        'demands_json': '[]',
+        'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-4',
+        'notes': 'Pottery-supply waterglass (40% solution) by the '
+                 'gallon — the silicate activator channel.',
+    },
+    {
+        'name': 'essential-depot',
+        'display_name': 'Essential Depot (essentialdepot.com)',
+        'supplier_name': 'Essential Depot',
+        'url': 'https://www.essentialdepot.com/',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['sodium-hydroxide-lye']),
+        'demands_json': '[]',
+        'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-4',
+        'notes': 'Food-grade NaOH micro-beads in bulk (soap-making '
+                 'channel). CAUSTIC — PPE required; the user-'
+                 'friendliness cost of the DIY alkali route.',
+    },
+    {
+        'name': 'home-depot',
+        'display_name': 'The Home Depot (big-box)',
+        'supplier_name': 'The Home Depot',
+        'url': 'https://www.homedepot.com/',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['silica-sand']),
+        'demands_json': '[]',
+        'business_model_ref': '',
+        'locality_note': 'big-box, locally stocked everywhere',
+        'is_prior': True, 'provenance_id': 'src-4',
+        'notes': 'Washed/screened/dried play sand — the aggregate. '
+                 'Locally STOCKED but not a local business (the '
+                 'is_local flag means local enterprise, not local '
+                 'shelf).',
+    },
+    {
         'name': 'polari-waxprint-lab',
         'display_name': 'Polari wax-print lab (our own blend)',
         'supplier_name': 'Polari (self)',
@@ -279,6 +351,70 @@ SEED_PRICE_CITATIONS.append(
         'is_prior': True, 'provenance_id': 'src-3', 'notes': '',
     })
 
+SEED_PRICE_CITATIONS.extend([
+    {
+        'name': 'pool360-metamax-55lb-2026-07-28',
+        'source_ref': 'pool360-metamax',
+        'item_ref': 'metakaolin',
+        'price': 70.00, 'currency': 'USD',
+        'amount': 55.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T11:35:00',
+        'citation_url': 'https://www.pool360.com/Product/'
+                        '55-lb-pa-metamax-metakaolin-pool-aaa-65-300',
+        'citation_note': '55 lb MetaMax bag product confirmed; exact '
+                         'price sits behind the dealer login — $70 is '
+                         'the typical $60-80/bag retail range '
+                         'midpoint. Re-cite exact when accessible.',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-4', 'notes': '',
+    },
+    {
+        'name': 'sheffield-waterglass-1gal-2026-07-28',
+        'source_ref': 'sheffield-pottery',
+        'item_ref': 'sodium-silicate-solution',
+        'price': 46.00, 'currency': 'USD',
+        'amount': 5.2, 'amount_unit': 'kg',
+        'observed_at': '2026-07-28T11:30:00',
+        'citation_url': 'https://www.sheffield-pottery.com/products/'
+                        'sodium-silicate-1-gallon-rmsodsilw35g',
+        'citation_note': 'PRICE EXACT ($46.00/gallon, listed); MASS '
+                         'inferred — 40% solution at SG~1.38 makes a '
+                         'gallon ~5.2 kg AS-SOLUTION (water included; '
+                         'dry-silicate basis would cost more per kg).',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-4', 'notes': '',
+    },
+    {
+        'name': 'essentialdepot-lye-16lb-2026-07-28',
+        'source_ref': 'essential-depot',
+        'item_ref': 'sodium-hydroxide-lye',
+        'price': 69.97, 'currency': 'USD',
+        'amount': 16.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T11:32:00',
+        'citation_url': 'https://www.essentialdepot.com/category/'
+                        'sodium-hydroxide.html',
+        'citation_note': 'Food-grade NaOH micro-beads, 8x2 lb '
+                         'bottles = 16 lb at $69.97 (listed bulk '
+                         'pack).',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': 'src-4', 'notes': '',
+    },
+    {
+        'name': 'homedepot-playsand-50lb-2026-07-28',
+        'source_ref': 'home-depot',
+        'item_ref': 'silica-sand',
+        'price': 7.39, 'currency': 'USD',
+        'amount': 50.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T11:36:00',
+        'citation_url': 'https://www.homedepot.com/p/Quikrete-50-lb-'
+                        'Quikrete-Premium-Play-Sand-111351/206363630',
+        'citation_note': 'Quikrete Premium Play Sand 50 lb, listed '
+                         'price (local store prices may vary).',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': 'src-4', 'notes': '',
+    },
+])
+
 SEED_PRODUCT_REQUIREMENTS = [
     {
         'name': 'natural-print-wax-blend-requirements',
@@ -326,6 +462,56 @@ SEED_PRODUCT_REQUIREMENTS = [
                  'WaxFeedstockDefinition carries the material '
                  'properties side.',
     },
+    {
+        'name': 'geopolymer-mix-requirements',
+        'display_name': 'DIY geopolymer castable — full feedstock '
+                        'space',
+        'product_item_ref': 'geopolymer-mix',
+        'roles_json': json.dumps([
+            {'role': 'precursor',
+             'purpose': 'aluminosilicate that geopolymerizes '
+                        '(the reactive backbone)',
+             'min_fraction': 0.30, 'max_fraction': 0.50,
+             'candidates': ['metakaolin', 'fly-ash-class-f',
+                            'ggbfs-slag']},
+            {'role': 'silicate-activator',
+             'purpose': 'waterglass — dissolves/polycondenses the '
+                        'precursor (mass as 40% SOLUTION, v1 '
+                        'simplification)',
+             'min_fraction': 0.10, 'max_fraction': 0.22,
+             'candidates': ['sodium-silicate-solution']},
+            {'role': 'alkali-activator',
+             'purpose': 'raises pH for dissolution — CAUSTIC, the '
+                        'user-friendliness cost of the DIY route',
+             'min_fraction': 0.01, 'max_fraction': 0.06,
+             'candidates': ['sodium-hydroxide-lye']},
+            {'role': 'aggregate',
+             'purpose': 'filler for castable strength + volume',
+             'min_fraction': 0.30, 'max_fraction': 0.55,
+             'candidates': ['silica-sand']},
+        ]),
+        'substitutes_json': json.dumps([
+            {'item_ref': 'geopolymer-kit',
+             'caveats': [
+                 'closed-source proprietary formula',
+                 'shipping on heavy material not in the cited price',
+                 'cuts the OTHER way too: the kit is hydroxide-free '
+                 '— friendlier chemistry than our DIY NaOH route '
+                 '(caustic, PPE required)',
+             ],
+             'notes': 'Geopolymer International ready castable — '
+                      'the buy-it option for pots/vases/furniture.'},
+        ]),
+        'is_prior': True,
+        'provenance_id': 'src-4',
+        'notes': 'Fractions are dry-mass engineering priors from the '
+                 'suite geopolymer work; silicate counted '
+                 'as-solution (water incl.) — dry-basis costing and '
+                 'mix-water are v2 refinements. fly-ash/slag are '
+                 'UNCITED gaps (not retail-purchasable easily — '
+                 'industrial byproduct channels, often cheap-to-'
+                 'free locally: worth the hunt).',
+    },
 ]
 
 SEED_PRODUCT_FORMULAS = [
@@ -346,6 +532,27 @@ SEED_PRODUCT_FORMULAS = [
         'provenance_id': 'src-2',
         'notes': 'First engineering guess — exists so cost scoring '
                  'has a baseline to beat; NOT print-validated.',
+    },
+    {
+        'name': 'geopolymer-castable-v0',
+        'display_name': 'DIY geopolymer castable v0 (40/16/3/41)',
+        'product_item_ref': 'geopolymer-mix',
+        'components_json': json.dumps([
+            {'item_ref': 'metakaolin', 'role': 'precursor',
+             'fraction': 0.40},
+            {'item_ref': 'sodium-silicate-solution',
+             'role': 'silicate-activator', 'fraction': 0.16},
+            {'item_ref': 'sodium-hydroxide-lye',
+             'role': 'alkali-activator', 'fraction': 0.03},
+            {'item_ref': 'silica-sand', 'role': 'aggregate',
+             'fraction': 0.41},
+        ]),
+        'status': 'candidate',
+        'is_prior': True,
+        'provenance_id': 'src-4',
+        'notes': 'Metakaolin-waterglass castable engineering guess — '
+                 'NOT cure-validated; exists so the buy-vs-make '
+                 'comparison against the GPI kit has a DIY cost.',
     },
 ]
 
