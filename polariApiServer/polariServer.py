@@ -760,11 +760,13 @@ try:
         BusinessProfile, LocalEconomyMilestone,
         ProcessWorkflowDefinition, ProductOrder,
         MarketSessionRecord, ProductionRunRecord,
+        PartnershipAgreement, BusinessRiskNote,
     )
     from bizops.bizops_seed import (
         SEED_BUSINESS_STAGES, SEED_BUSINESS_UPGRADES,
         SEED_BUSINESS_PROFILES, SEED_ECONOMY_MILESTONES,
-        SEED_PROCESS_WORKFLOWS,
+        SEED_PROCESS_WORKFLOWS, SEED_RISK_NOTES,
+        SEED_PARTNERSHIPS,
     )
 except ImportError as _exc:
     _stub_missing_feature('bizops', _exc, globals(), (
@@ -772,9 +774,11 @@ except ImportError as _exc:
         'BusinessProfile', 'LocalEconomyMilestone',
         'ProcessWorkflowDefinition', 'ProductOrder',
         'MarketSessionRecord', 'ProductionRunRecord',
+        'PartnershipAgreement', 'BusinessRiskNote',
         'SEED_BUSINESS_STAGES', 'SEED_BUSINESS_UPGRADES',
         'SEED_BUSINESS_PROFILES', 'SEED_ECONOMY_MILESTONES',
-        'SEED_PROCESS_WORKFLOWS',
+        'SEED_PROCESS_WORKFLOWS', 'SEED_RISK_NOTES',
+        'SEED_PARTNERSHIPS',
     ))
 # Odoo ERP connector — instance configs + sim/ops write guards (od-3).
 try:
@@ -1893,6 +1897,7 @@ class polariServer(treeObject):
             BusinessProfile, LocalEconomyMilestone,
             ProcessWorkflowDefinition, ProductOrder,
             MarketSessionRecord, ProductionRunRecord,
+            PartnershipAgreement, BusinessRiskNote,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -3247,6 +3252,10 @@ class polariServer(treeObject):
              SEED_ECONOMY_MILESTONES),
             ('ProcessWorkflowDefinition', ProcessWorkflowDefinition,
              SEED_PROCESS_WORKFLOWS),
+            ('BusinessRiskNote', BusinessRiskNote,
+             SEED_RISK_NOTES),
+            ('PartnershipAgreement', PartnershipAgreement,
+             SEED_PARTNERSHIPS),
             # chain-1: nodes + flows before the chain that binds them.
             ('SupplyNode', SupplyNode, SEED_SUPPLY_NODES),
             ('SupplyFlow', SupplyFlow, SEED_SUPPLY_FLOWS),

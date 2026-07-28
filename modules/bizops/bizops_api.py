@@ -12,6 +12,10 @@ from objectTreeDecorators import treeObject, treeObjectInit
 from bizops.bizops_flows import (
     business_flow_report, local_economy_report,
 )
+from bizops.bizops_guide import (
+    partnership_report, partnership_suggestions,
+    startup_walkthrough,
+)
 from bizops.bizops_planner import (
     lead_time_quote, order_plan, prestage_plan, product_readiness,
 )
@@ -33,6 +37,12 @@ class BizOpsAPI(treeObject):
                 suffix='quote')
             add('/api/bizops/readiness/{business}', self,
                 suffix='readiness')
+            add('/api/bizops/walkthrough/{business}', self,
+                suffix='walkthrough')
+            add('/api/bizops/partnerships', self,
+                suffix='partnerships')
+            add('/api/bizops/partnership-suggestions', self,
+                suffix='partnership_suggestions')
 
     def on_get_flows(self, request, response, business):
         out = business_flow_report(self.manager, business)
@@ -77,6 +87,21 @@ class BizOpsAPI(treeObject):
         if not out.get('ok'):
             response.status = '404 Not Found'
         response.media = out
+
+    def on_get_walkthrough(self, request, response, business):
+        out = startup_walkthrough(
+            self.manager, business,
+            budget_usd=float(request.params.get('budgetUsd',
+                                                120.0)))
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_partnerships(self, request, response):
+        response.media = partnership_report(self.manager)
+
+    def on_get_partnership_suggestions(self, request, response):
+        response.media = partnership_suggestions(self.manager)
 
     def on_get_plan(self, request, response, business):
         out = order_plan(

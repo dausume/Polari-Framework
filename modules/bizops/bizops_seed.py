@@ -231,6 +231,144 @@ SEED_ECONOMY_MILESTONES = [
      'is_prior': True, 'provenance_id': 'biz-1', 'notes': ''},
 ]
 
+SEED_RISK_NOTES = [
+    {'name': 'risk-naoh-caustic', 'step_ref': 'buy-materials',
+     'severity': 'safety-critical',
+     'risk': 'Sodium hydroxide (lye) is CAUSTIC — burns skin and '
+             'eyes; the waterglass digestion and geopolymer alkali '
+             'both use it.',
+     'mitigation': 'Gloves + goggles ALWAYS; add lye to water '
+                   'never water to lye; keep vinegar nearby to '
+                   'neutralize splashes.',
+     'is_prior': True, 'provenance_id': 'biz-3', 'notes': ''},
+    {'name': 'risk-alkaline-mix', 'step_ref': 'first-batch',
+     'severity': 'high',
+     'risk': 'Fresh geopolymer paste is strongly alkaline — skin '
+             'contact causes chemical burns over minutes, like wet '
+             'cement.',
+     'mitigation': 'Nitrile gloves, long sleeves, wash splashes '
+                   'immediately; cured pieces are safe to handle.',
+     'is_prior': True, 'provenance_id': 'biz-3', 'notes': ''},
+    {'name': 'risk-hot-wax', 'step_ref': 'first-batch',
+     'severity': 'high',
+     'risk': 'Melted wax burns and can ignite if overheated; even '
+             'natural blends fume near their safety ceiling.',
+     'mitigation': 'Respect the feedstock safe_melt_max (the print '
+                   'gate enforces it); ventilate; never leave melts '
+                   'unattended.',
+     'is_prior': True, 'provenance_id': 'biz-3', 'notes': ''},
+    {'name': 'risk-unsold-stock', 'step_ref': 'sell-and-log',
+     'severity': 'medium',
+     'risk': 'Stage-0 batches are SPECULATIVE — some products will '
+             'not sell and that money is spent.',
+     'mitigation': 'Keep batches small, vary products, log every '
+                   'session so the next batch learns; unsold stock '
+                   'is tuition, budget it as such.',
+     'is_prior': True, 'provenance_id': 'biz-3', 'notes': ''},
+    {'name': 'risk-price-drift', 'step_ref': 'buy-materials',
+     'severity': 'medium',
+     'risk': 'Several cited prices are FLAGGED estimates and '
+             'marketplace prices swing; your real receipt may '
+             'differ.',
+     'mitigation': 'Re-cite with your actual receipts (screenshots '
+                   'count); the drift checker flags divergence.',
+     'is_prior': True, 'provenance_id': 'biz-3', 'notes': ''},
+    {'name': 'risk-overpromise', 'step_ref': 'step-up',
+     'severity': 'high',
+     'risk': 'Taking advance orders before you have measured your '
+             'own speed leads to broken promises.',
+     'mitigation': 'The readiness ladder gates quoting on made+'
+                   'sold+timed for a reason — do not shortcut it.',
+     'is_prior': True, 'provenance_id': 'biz-3', 'notes': ''},
+    {'name': 'risk-burnout', 'step_ref': 'step-up',
+     'severity': 'medium',
+     'risk': 'Off-time hours are real hours from your life; '
+             'committing more (stage 1) trades rest for growth.',
+     'mitigation': 'Take commit-hours only when its evidence gate '
+                   'holds two plans running — not on one good '
+                   'market day.',
+     'is_prior': True, 'provenance_id': 'biz-3', 'notes': ''},
+    {'name': 'risk-not-food-safe', 'step_ref': 'sell-and-log',
+     'severity': 'high',
+     'risk': 'Geopolymer planters/vases are NOT food-contact '
+             'vessels — no food-safety claim exists anywhere in '
+             'this stack.',
+     'mitigation': 'Say so on the stall card; sell as planters and '
+                   'decor until testing ever says otherwise.',
+     'is_prior': True, 'provenance_id': 'biz-3', 'notes': ''},
+]
+
+SEED_PARTNERSHIPS = [
+    {
+        'name': 'deal-rice-husk-supply',
+        'display_name': 'Rice husk/ash supply deal (partner to be '
+                        'found)',
+        'party_a': 'local-rice-mill (to be found)',
+        'party_b': 'wax-mold-goods',
+        'kind': 'supply-deal',
+        'flows_json': json.dumps([
+            {'from': 'local-rice-mill (to be found)',
+             'to': 'wax-mold-goods', 'item_ref': 'rice-hulls',
+             'terms_note': 'mill waste, near-free vs the $30/50lb '
+                           'homebrew channel — haul-it-yourself is '
+                           'the usual term'}]),
+        'terms_note': 'The husk->RHA->waterglass chain is what this '
+                      'unlocks at real prices.',
+        'status': 'proposed',
+        'is_prior': True, 'provenance_id': 'biz-3',
+        'notes': 'The archetype local-byproduct deal — same shape '
+                 'works for fly ash (ready-mix plant) and bagasse '
+                 '(sugar mill).',
+    },
+    {
+        'name': 'deal-hydro-mold-loop',
+        'display_name': 'Hydroponic farm <-> mold-goods mutual deal',
+        'party_a': 'local-hydroponics-farm',
+        'party_b': 'wax-mold-goods',
+        'kind': 'mutual-supply',
+        'flows_json': json.dumps([
+            {'from': 'local-hydroponics-farm',
+             'to': 'wax-mold-goods',
+             'item_ref': 'wax-source-biomass',
+             'terms_note': 'transfer price 3.50/kg (scenario-2 '
+                           'seed; price discovery ongoing)'},
+            {'from': 'wax-mold-goods',
+             'to': 'local-hydroponics-farm',
+             'item_ref': 'geopolymer-self-watering-pot',
+             'terms_note': '18.00/unit; shelving to follow'}]),
+        'terms_note': 'The scenario-2 mutual loop as an actual '
+                      'agreement row.',
+        'status': 'proposed',
+        'is_prior': True, 'provenance_id': 'biz-3', 'notes': '',
+    },
+    {
+        'name': 'deal-printer-maintenance',
+        'display_name': '3D-printer makers <-> assemblers '
+                        'maintenance + scaling deal',
+        'party_a': 'printer-maker-collective (to be found)',
+        'party_b': 'printer-assembler-group (to be found)',
+        'kind': 'service-maintenance',
+        'flows_json': json.dumps([
+            {'from': 'printer-assembler-group (to be found)',
+             'to': 'printer-maker-collective (to be found)',
+             'item_ref': 'printer-maintenance-service',
+             'terms_note': 'maintain fielded wax printers; parts '
+                           'from the makers'},
+            {'from': 'printer-maker-collective (to be found)',
+             'to': 'printer-assembler-group (to be found)',
+             'item_ref': 'printer-kits',
+             'terms_note': 'kits + training; assemblers scale '
+                           'other operations as demand needs'}]),
+        'terms_note': 'The capacity-scaling archetype: makers make, '
+                      'assemblers maintain and flex.',
+        'status': 'proposed',
+        'is_prior': True, 'provenance_id': 'biz-3',
+        'notes': 'Both parties are placeholders — the deal SHAPE '
+                 'is the seed; the open-hardware wax printer work '
+                 'is where these groups come from.',
+    },
+]
+
 SEED_PROCESS_WORKFLOWS = [
     {
         'name': 'wax-mold-print-workflow',

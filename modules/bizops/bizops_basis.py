@@ -230,6 +230,61 @@ class MarketSessionRecord(treeObject):
         self.notes = notes
 
 
+class PartnershipAgreement(treeObject):
+    """A deal between two parties (businesses and/or sources): who
+    gives what to whom, on what terms. Coherence is CHECKED against
+    the supply/demand rows — a deal whose flows match what the
+    parties actually supply/demand is marked coherent; unresolved
+    parties are honest gaps, not errors (deals can name partners
+    still to be found)."""
+
+    @treeObjectInit
+    def __init__(self, name='', display_name='', party_a='',
+                 party_b='', kind='supply-deal', flows_json='[]',
+                 terms_note='', status='proposed', is_prior=True,
+                 provenance_id='biz-3', notes='', manager=None):
+        self.name = name
+        self.display_name = display_name
+        #: BusinessProfile or SupplySourceProfile name — or a
+        #: plain-language placeholder for a partner to be found.
+        self.party_a = party_a
+        self.party_b = party_b
+        #: supply-deal | mutual-supply | service-maintenance |
+        #: capacity-share.
+        self.kind = kind
+        #: JSON [{from, to, item_ref, terms_note}] — the actual
+        #: flows, direction explicit.
+        self.flows_json = flows_json
+        self.terms_note = terms_note
+        #: proposed | active | ended.
+        self.status = status
+        self.is_prior = is_prior
+        self.provenance_id = provenance_id
+        self.notes = notes
+
+
+class BusinessRiskNote(treeObject):
+    """One risk/danger a new business maker must hear BEFORE it
+    bites — attached to a walkthrough step, with severity and the
+    mitigation stated plainly. Rows, so the register grows from
+    experience."""
+
+    @treeObjectInit
+    def __init__(self, name='', step_ref='', severity='medium',
+                 risk='', mitigation='', is_prior=True,
+                 provenance_id='biz-3', notes='', manager=None):
+        self.name = name
+        #: Which walkthrough step this belongs to.
+        self.step_ref = step_ref
+        #: low | medium | high | safety-critical.
+        self.severity = severity
+        self.risk = risk
+        self.mitigation = mitigation
+        self.is_prior = is_prior
+        self.provenance_id = provenance_id
+        self.notes = notes
+
+
 class ProductOrder(treeObject):
     """The order REGISTRAR row the planner runs on. v1 rows are
     entered directly (CRUDE/UI); the od-4 sale.order binding is the

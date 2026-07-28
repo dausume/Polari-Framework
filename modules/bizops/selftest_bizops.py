@@ -14,13 +14,17 @@ import types
 from bizops.bizops_flows import (
     business_flow_report, local_economy_report,
 )
+from bizops.bizops_guide import (
+    partnership_report, partnership_suggestions,
+    startup_walkthrough,
+)
 from bizops.bizops_planner import (
     lead_time_quote, order_plan, prestage_plan, product_readiness,
 )
 from bizops.bizops_seed import (
     SEED_BUSINESS_PROFILES, SEED_BUSINESS_STAGES,
     SEED_BUSINESS_UPGRADES, SEED_ECONOMY_MILESTONES,
-    SEED_PROCESS_WORKFLOWS,
+    SEED_PARTNERSHIPS, SEED_PROCESS_WORKFLOWS, SEED_RISK_NOTES,
 )
 from supplychain.sourcing_seed import (
     SEED_PRICE_CITATIONS, SEED_PRODUCT_FORMULAS,
@@ -67,6 +71,8 @@ def _mgr():
         'MoldLifecycleRecord': {},
         'MarketSessionRecord': {},
         'ProductionRunRecord': {},
+        'BusinessRiskNote': _rows(SEED_RISK_NOTES),
+        'PartnershipAgreement': _rows(SEED_PARTNERSHIPS),
     })
 
 
@@ -281,6 +287,83 @@ if __name__ == '__main__':
                          lead_limit_days=365)
     check('the limit is adjustable per call (365d accepts it)',
           q4['withinLimit'] and q4['leadLimitDays'] == 365)
+
+    print('== suite: the walkthrough (stage 0 -> 1, intuitive) ==')
+    mgr3 = _mgr()
+    out = startup_walkthrough(mgr3, 'wax-mold-goods',
+                              budget_usd=120.0)
+    check('walkthrough ok, scoped to stages 0-1 only',
+          out.get('ok') and 'stages 0 and 1 only' in out['scope'])
+    order = [st['step'] for st in out['steps']]
+    check('six steps in doing order: prereqs -> buy -> batch -> '
+          'sell -> readiness -> step-up',
+          order == ['prerequisites', 'buy-materials', 'first-batch',
+                    'sell-and-log', 'readiness-check', 'step-up'])
+    buy = out['steps'][1]
+    check('shopping list is CONCRETE: items with stores, prices, '
+          'citations, estimate flags',
+          len(buy['shoppingList']) >= 6
+          and all(i['buyFrom'] and i['citation']
+                  for i in buy['shoppingList']))
+    check('batch step embeds the live pre-stage plan with costs '
+          'and hours',
+          out['steps'][2]['batchPlan']
+          and out['steps'][2]['batchPlan']['ok'])
+    check('risks attach where they bite: caustic lye on buying, '
+          'burns on the batch, tuition on selling',
+          any('CAUSTIC' in r['risk']
+              for r in buy['risks'])
+          and any('alkaline' in r['risk'].lower()
+                  for r in out['steps'][2]['risks'])
+          and any('tuition' in r['mitigation']
+                  for r in out['steps'][3]['risks']))
+    check('safety-critical risks carry mitigations, every one',
+          all(r['mitigation'] for st in out['steps']
+              for r in st['risks']))
+    check('no-food-safety-claim risk is stated at the stall',
+          any('food' in r['risk'].lower()
+              for r in out['steps'][3]['risks']))
+    check('step-up carries the commit-hours evidence gate verbatim',
+          'two consecutive plans' in out['steps'][5]['gate'])
+
+    print('== suite: partnerships ==')
+    out = partnership_report(mgr3)
+    by = {d['name']: d for d in out['deals']}
+    check('three archetype deals seeded, all proposed',
+          len(out['deals']) == 3
+          and all(d['status'] == 'proposed' for d in out['deals']))
+    hydro = by['deal-hydro-mold-loop']
+    check('hydro<->mold deal: both parties RESOLVE and the biomass '
+          'flow is coherent with the farm supplies',
+          hydro['partyAResolved'] and hydro['partyBResolved']
+          and hydro['flows'][0]['coherentWithSupplies'] is True)
+    rice = by['deal-rice-husk-supply']
+    check('rice-mill deal: partner honestly UNRESOLVED (to be '
+          'found), deal shape kept',
+          not rice['partyAResolved'] and rice['partyBResolved'])
+    printer = by['deal-printer-maintenance']
+    check('printer makers<->assemblers deal seeded with both '
+          'placeholder parties',
+          not printer['partyAResolved']
+          and not printer['partyBResolved']
+          and printer['kind'] == 'service-maintenance')
+    out = partnership_suggestions(mgr3)
+    check('suggestions mined from demands x supplies, existing '
+          'pairs excluded',
+          out.get('ok') and all(
+              frozenset((sg['partyDemanding'], sg['partySupplying']))
+              != frozenset(('local-hydroponics-farm',
+                            'wax-mold-goods'))
+              for sg in out['suggestions']))
+    check('the polari lab demanding waxes finds its suppliers as '
+          'suggestions',
+          any(sg['partyDemanding'] == 'polari-waxprint-lab'
+              for sg in out['suggestions']))
+    check('suggestions are suggestions: humans agree terms',
+          all('never' in sg['action'].replace('auto',
+                                              'never auto')
+              or 'suggestion' in sg['action']
+              for sg in out['suggestions']))
 
     failed = _results.count(False)
     print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
