@@ -759,6 +759,7 @@ try:
         BusinessStageDefinition, BusinessUpgradeStep,
         BusinessProfile, LocalEconomyMilestone,
         ProcessWorkflowDefinition, ProductOrder,
+        MarketSessionRecord, ProductionRunRecord,
     )
     from bizops.bizops_seed import (
         SEED_BUSINESS_STAGES, SEED_BUSINESS_UPGRADES,
@@ -770,6 +771,7 @@ except ImportError as _exc:
         'BusinessStageDefinition', 'BusinessUpgradeStep',
         'BusinessProfile', 'LocalEconomyMilestone',
         'ProcessWorkflowDefinition', 'ProductOrder',
+        'MarketSessionRecord', 'ProductionRunRecord',
         'SEED_BUSINESS_STAGES', 'SEED_BUSINESS_UPGRADES',
         'SEED_BUSINESS_PROFILES', 'SEED_ECONOMY_MILESTONES',
         'SEED_PROCESS_WORKFLOWS',
@@ -1890,6 +1892,7 @@ class polariServer(treeObject):
             BusinessStageDefinition, BusinessUpgradeStep,
             BusinessProfile, LocalEconomyMilestone,
             ProcessWorkflowDefinition, ProductOrder,
+            MarketSessionRecord, ProductionRunRecord,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,

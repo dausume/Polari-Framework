@@ -53,6 +53,343 @@ def _scale(volume_l, exponent=PLAN_PRIORS['volume_exponent']):
     return (max(volume_l, 1e-6)) ** exponent
 
 
+#: Stage-0 exploration variants (the "try different products"
+#: axiom as data) — market price prior scales from the scenario's
+#: 18.00 at the 1 L class.
+PRESTAGE_VARIANTS = [
+    {'variant': 'small-pot', 'volume_l': 0.5},
+    {'variant': 'planter-1l', 'volume_l': 1.0},
+    {'variant': 'large-planter', 'volume_l': 4.0},
+]
+MARKET_PRICE_REF = 18.0
+WAX_MOLD_CYCLES = 10
+
+
+def _sell_through(manager, business_name):
+    """Per-variant sell-through from MarketSessionRecord rows —
+    the stage-0 learning; None when no sessions exist yet."""
+    offered, sold = {}, {}
+    for rec in _rows(manager, 'MarketSessionRecord'):
+        if getattr(rec, 'business_ref', '') != business_name:
+            continue
+        for variant, n in _loads(rec, 'offered_json', {}).items():
+            offered[variant] = offered.get(variant, 0) + n
+        for variant, n in _loads(rec, 'sold_json', {}).items():
+            sold[variant] = sold.get(variant, 0) + n
+    if not offered:
+        return None
+    return {v: (sold.get(v, 0) / offered[v]) if offered[v] else 0.0
+            for v in offered}
+
+
+def prestage_plan(manager, business_name, budget_usd=100.0,
+                  horizon_days=30):
+    """The STAGE-0 planner (Dustin's refinement): no orders — the
+    business produces what it can AFFORD with what it HAS, spreads
+    the batch across DIFFERENT products, then tries to sell.
+    Allocation is even across variants until MarketSessionRecord
+    sell-through exists to weight it — speculation first, learning
+    second, never a demand forecast pulled from nowhere."""
+    biz = _named(manager, 'BusinessProfile', business_name)
+    if biz is None:
+        return {'ok': False,
+                'refusal': f'no BusinessProfile named '
+                           f'"{business_name}"'}
+    stage = _named(manager, 'BusinessStageDefinition',
+                   getattr(biz, 'current_stage', ''))
+    work_mode = getattr(stage, 'work_mode', 'order-driven')         if stage else 'order-driven'
+    geo_cost = make_cost(manager, 'geopolymer-mix')
+    wax_cost = make_cost(manager, 'natural-print-wax-blend')
+    cast_wf = _named(manager, 'ProcessWorkflowDefinition',
+                     'geopolymer-cast-workflow')
+    print_wf = _named(manager, 'ProcessWorkflowDefinition',
+                      'wax-mold-print-workflow')
+    if None in (geo_cost, wax_cost, cast_wf, print_wf):
+        return {'ok': False,
+                'refusal': 'costs or workflows unresolvable — the '
+                           'cited stack and workflow seeds must '
+                           'exist first'}
+    weekly = getattr(biz, 'weekly_hours', 10.0)
+    hours_budget = weekly * horizon_days / 7.0
+    weights = _sell_through(manager, business_name)
+    shares = {}
+    for var in PRESTAGE_VARIANTS:
+        if weights:
+            w = weights.get(var['variant'], 0.34)
+            shares[var['variant']] = max(w, 0.1)  # keep exploring
+        else:
+            shares[var['variant']] = 1.0
+    total_w = sum(shares.values())
+    batch = []
+    spent = 0.0
+    hours_used = 0.0
+    for var in PRESTAGE_VARIANTS:
+        vol = var['volume_l']
+        scale = _scale(vol)
+        share = shares[var['variant']] / total_w
+        b_share = budget_usd * share
+        h_share = hours_budget * share
+        unit_kg = PLAN_PRIORS['product_mass_kg_ref'] * scale
+        unit_cost = unit_kg * geo_cost['usdPerKg']
+        unit_h = (getattr(cast_wf, 'hours_per_unit_ref', 0.8)
+                  * scale)
+        mold_kg = PLAN_PRIORS['wax_mold_mass_kg_ref'] * scale
+        mold_cost = mold_kg * wax_cost['usdPerKg']
+        mold_h = getattr(print_wf, 'hours_per_mold_ref', 2.0) * scale
+        # afford: units bounded by budget (incl molds) AND hours
+        units = 0
+        while True:
+            n = units + 1
+            molds = max(1, -(-n // WAX_MOLD_CYCLES))
+            cost = n * unit_cost + molds * mold_cost
+            hours = n * unit_h + molds * mold_h
+            if cost > b_share or hours > h_share:
+                break
+            units = n
+        if units == 0:
+            batch.append({'variant': var['variant'],
+                          'volumeL': vol, 'units': 0,
+                          'sellThroughWeight': round(
+                              shares[var['variant']] / total_w, 3),
+                          'refusal': 'share of budget/hours too '
+                                     'small for even one unit — '
+                                     'the exploration floor kept '
+                                     'its claim; it lands when '
+                                     'budget grows'})
+            continue
+        molds = max(1, -(-units // WAX_MOLD_CYCLES))
+        cost = round(units * unit_cost + molds * mold_cost, 2)
+        hours = round(units * unit_h + molds * mold_h, 1)
+        price = round(MARKET_PRICE_REF * scale, 2)
+        spent += cost
+        hours_used += hours
+        batch.append({
+            'variant': var['variant'], 'volumeL': vol,
+            'units': units, 'molds': molds,
+            'materialCost': cost, 'laborHours': hours,
+            'marketPriceEach': price,
+            'revenueIfAllSells': round(units * price, 2),
+            'marginIfAllSells': round(units * price - cost, 2),
+            'sellThroughWeight': round(shares[var['variant']]
+                                       / total_w, 3)})
+    return {
+        'ok': True, 'business': business_name,
+        'workMode': work_mode,
+        'workModeNote': ('this IS the stage-0 mode' if work_mode
+                         == 'pre-staged-speculative' else
+                         'business is past pre-staged mode — the '
+                         'order planner is primary; this batch '
+                         'plan still works for market stock'),
+        'budgetUsd': budget_usd,
+        'budgetSpent': round(spent, 2),
+        'hoursBudget': round(hours_budget, 1),
+        'hoursUsed': round(hours_used, 1),
+        'batch': batch,
+        'learning': ('sell-through weighting ACTIVE from market '
+                     'sessions' if weights else
+                     'no MarketSessionRecord rows yet — EVEN split '
+                     'across variants (pure exploration); log '
+                     'sessions to let the batch learn'),
+        'assumptions': [
+            'SPECULATIVE: revenue/margin lines assume everything '
+            'sells — unsold stock is the stage-0 tuition',
+            f'market price prior {MARKET_PRICE_REF} at 1 L scaled '
+            'V^(2/3) — replace with real session prices as they '
+            'log',
+            'wax molds at ' + str(WAX_MOLD_CYCLES)
+            + ' casts each; hour priors are estimates',
+            'exploration floor keeps every variant >= 10% weight '
+            'even when it has not sold — trying different products '
+            'IS the strategy',
+        ]}
+
+
+def measured_rates(manager, business_name):
+    """MEASURED hours/unit per variant from ProductionRunRecord rows
+    (mold hours tracked separately). None per variant until timed
+    runs exist — priors never masquerade as measurements."""
+    agg = {}
+    for r in _rows(manager, 'ProductionRunRecord'):
+        if getattr(r, 'business_ref', '') != business_name:
+            continue
+        v = getattr(r, 'variant', '') or '?'
+        a = agg.setdefault(v, {'units': 0, 'hours': 0.0,
+                               'molds': 0, 'moldHours': 0.0,
+                               'runs': 0,
+                               'volumeL': getattr(r, 'unit_volume_l',
+                                                  1.0)})
+        a['units'] += getattr(r, 'units_made', 0)
+        a['hours'] += getattr(r, 'attended_hours', 0.0)
+        a['molds'] += getattr(r, 'molds_made', 0)
+        a['moldHours'] += getattr(r, 'mold_hours', 0.0)
+        a['runs'] += 1
+    out = {}
+    for v, a in agg.items():
+        if a['units'] > 0:
+            out[v] = {
+                'hoursPerUnit': round(a['hours'] / a['units'], 3),
+                'hoursPerMold': round(a['moldHours'] / a['molds'],
+                                      3) if a['molds'] else None,
+                'unitsMeasured': a['units'], 'runs': a['runs'],
+                'volumeL': a['volumeL']}
+    return out
+
+
+READINESS_LEVELS = ('concept', 'produced', 'market-proven',
+                    'advance-orderable')
+
+
+def product_readiness(manager, business_name, made_threshold=1,
+                      sold_threshold=None):
+    """Per-variant readiness LADDER (Dustin): concept -> produced
+    (timed runs exist) -> market-proven (MADE AND SOLD past the
+    threshold) -> advance-orderable (market-proven + measured
+    rates). Escalation is EARNED by rows, never declared."""
+    biz = _named(manager, 'BusinessProfile', business_name)
+    if biz is None:
+        return {'ok': False,
+                'refusal': f'no BusinessProfile named '
+                           f'"{business_name}"'}
+    threshold = (getattr(biz, 'readiness_sold_threshold', 1)
+                 if sold_threshold is None else int(sold_threshold))
+    rates = measured_rates(manager, business_name)
+    sold = {}
+    for rec in _rows(manager, 'MarketSessionRecord'):
+        if getattr(rec, 'business_ref', '') != business_name:
+            continue
+        for variant, n in _loads(rec, 'sold_json', {}).items():
+            sold[variant] = sold.get(variant, 0) + n
+    variants = sorted(set(list(rates) + list(sold))
+                      | {v['variant'] for v in PRESTAGE_VARIANTS})
+    rows = []
+    for v in variants:
+        made = rates.get(v, {}).get('unitsMeasured', 0)
+        n_sold = sold.get(v, 0)
+        if made >= made_threshold and n_sold >= threshold                 and v in rates:
+            level = 'advance-orderable'
+            next_step = 'quote advance orders (lead_time_quote)'
+        elif made >= made_threshold and n_sold >= threshold:
+            level = 'market-proven'
+            next_step = 'log timed runs to unlock quoting'
+        elif made >= made_threshold:
+            level = 'produced'
+            next_step = (f'sell >= {threshold} at market '
+                         '(MarketSessionRecord) to prove it')
+        else:
+            level = 'concept'
+            next_step = ('produce it in a pre-staged batch '
+                         '(ProductionRunRecord logs the making)')
+        rows.append({'variant': v, 'level': level,
+                     'unitsMade': made, 'unitsSold': n_sold,
+                     'soldThreshold': threshold,
+                     'nextEscalation': next_step})
+    return {'ok': True, 'business': business_name,
+            'soldThreshold': threshold,
+            'variants': rows,
+            'rule': 'a product escalates only after it has been '
+                    'MADE and SOLD past the threshold — readiness '
+                    'is earned by rows, never declared'}
+
+
+def lead_time_quote(manager, business_name, variant='',
+                    unit_volume_l=1.0, quantity=1,
+                    lead_limit_days=None):
+    """'Based on our backlog, if you place this order we estimate
+    it will take THIS long to arrive.' Advance orders are GATED on
+    measured production records for the variant — no timed runs, no
+    customer promise (sell from stock until the records exist).
+    The promise ceiling defaults to the business's lead_limit_days
+    (30 unless adjusted) and is overridable per call."""
+    biz = _named(manager, 'BusinessProfile', business_name)
+    if biz is None:
+        return {'ok': False,
+                'refusal': f'no BusinessProfile named '
+                           f'"{business_name}"'}
+    limit = (getattr(biz, 'lead_limit_days', 30)
+             if lead_limit_days is None else int(lead_limit_days))
+    readiness = product_readiness(manager, business_name)
+    r_row = next((r for r in readiness.get('variants', [])
+                  if r['variant'] == variant), None)
+    if r_row is None or r_row['level'] != 'advance-orderable':
+        level = r_row['level'] if r_row else 'concept'
+        return {'ok': False,
+                'refusal': f'"{variant}" is not advance-orderable '
+                           f'yet (readiness: {level}) — a product '
+                           'escalates only after it has been MADE '
+                           'and SOLD past the threshold, with '
+                           'timed runs logged',
+                'readiness': r_row,
+                'suggestion': {
+                    'evidence': 'customer promises need earned '
+                                'readiness, never declarations',
+                    'knob': 'ProductionRunRecord + '
+                            'MarketSessionRecord (+ BusinessProfile'
+                            '.readiness_sold_threshold)',
+                    'action': (r_row['nextEscalation'] if r_row
+                               else 'produce it first')}}
+    rates = measured_rates(manager, business_name)
+    rate = rates.get(variant)
+    weekly = getattr(biz, 'weekly_hours', 10.0)
+    daily_hours = weekly / 7.0
+    # backlog: accepted+requested orders, measured rates where they
+    # exist, priors (flagged) where they do not.
+    backlog_hours = 0.0
+    backlog_flagged = False
+    for o in _rows(manager, 'ProductOrder'):
+        if getattr(o, 'status', '') not in ('requested', 'accepted'):
+            continue
+        ov = getattr(o, 'variant_note', '') or ''
+        oq = getattr(o, 'quantity', 0)
+        orate = rates.get(ov)
+        if orate:
+            backlog_hours += oq * orate['hoursPerUnit']
+        else:
+            backlog_hours += (oq * 0.8
+                              * _scale(getattr(o, 'unit_volume_l',
+                                               1.0)))
+            backlog_flagged = True
+    order_hours = quantity * rate['hoursPerUnit']
+    molds = max(1, -(-quantity // WAX_MOLD_CYCLES))
+    if rate['hoursPerMold'] is not None:
+        order_hours += molds * rate['hoursPerMold']
+    cure_buffer_days = 1.0  # passive cure on the last batch
+    est_days = round((backlog_hours + order_hours) / daily_hours
+                     + cure_buffer_days, 1)
+    within = est_days <= limit
+    out = {
+        'ok': True, 'business': business_name, 'variant': variant,
+        'quantity': quantity,
+        'measuredRate': rate,
+        'backlogHours': round(backlog_hours, 1),
+        'orderHours': round(order_hours, 1),
+        'dailyHours': round(daily_hours, 2),
+        'estimatedLeadDays': est_days,
+        'leadLimitDays': limit,
+        'withinLimit': within,
+        'quote': (f'based on our backlog, this order is estimated '
+                  f'to take ~{est_days} days'
+                  if within else
+                  f'~{est_days} days — BEYOND our {limit}-day '
+                  'promise window; we should not accept it as-is'),
+    }
+    if backlog_flagged:
+        out['backlogNote'] = ('part of the backlog is estimated '
+                              'from priors (no timed runs for some '
+                              'variants) — the quote is only as '
+                              'measured as the backlog is')
+    if not within:
+        out['suggestion'] = {
+            'evidence': f'{est_days}d > {limit}d at '
+                        f'{round(daily_hours, 1)}h/day',
+            'knob': 'BusinessProfile.lead_limit_days (adjustable) '
+                    '/ the upgrade flows',
+            'action': 'decline, split the order, extend the limit '
+                      'WITH the customer, or take the commit-hours/'
+                      'hire-caster upgrade — the flow report has '
+                      'the gates'}
+    return out
+
+
 def order_plan(manager, business_name, horizon_days=30):
     biz = _named(manager, 'BusinessProfile', business_name)
     if biz is None:

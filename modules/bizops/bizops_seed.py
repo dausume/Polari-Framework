@@ -18,6 +18,7 @@ SEED_BUSINESS_STAGES = [
         'display_name': 'Solo, off-time (the origin)',
         'headcount': 1, 'weekly_hours': 10.0,
         'time_commitment': 'off-time',
+        'work_mode': 'pre-staged-speculative',
         'sales_channels_json': json.dumps(
             ['online', 'farmer-market', 'maker-market']),
         'sourcing_posture': 'retail-available',
@@ -26,7 +27,12 @@ SEED_BUSINESS_STAGES = [
         'is_prior': True, 'provenance_id': 'biz-1',
         'notes': 'THE AXIOM: every business starts as one person '
                  'buying whatever is available, selling only in '
-                 'off-time — online or at farmer/maker markets.',
+                 'off-time — online or at farmer/maker markets. '
+                 'WORK MODE pre-staged: produce what you can '
+                 'afford with what you have, TRY DIFFERENT '
+                 'products, then try to sell them — unsold '
+                 'stock is the tuition, MarketSessionRecord '
+                 'rows are the learning.',
     },
     {
         'name': 'stage-1-solo-committed',
@@ -34,6 +40,7 @@ SEED_BUSINESS_STAGES = [
         'display_name': 'Solo, committed hours',
         'headcount': 1, 'weekly_hours': 25.0,
         'time_commitment': 'part-time',
+        'work_mode': 'mixed',
         'sales_channels_json': json.dumps(
             ['online', 'farmer-market', 'maker-market',
              'standing-orders']),
@@ -50,6 +57,7 @@ SEED_BUSINESS_STAGES = [
         'display_name': 'Plus one hire on a task',
         'headcount': 2, 'weekly_hours': 55.0,
         'time_commitment': 'part-time',
+        'work_mode': 'order-driven',
         'sales_channels_json': json.dumps(
             ['online', 'farmer-market', 'maker-market',
              'standing-orders', 'local-retail']),
@@ -67,6 +75,7 @@ SEED_BUSINESS_STAGES = [
         'display_name': 'Capability shop (kiln, reclaim, partners)',
         'headcount': 2, 'weekly_hours': 70.0,
         'time_commitment': 'full-time-mixed',
+        'work_mode': 'order-driven',
         'sales_channels_json': json.dumps(
             ['online', 'standing-orders', 'local-retail',
              'wholesale']),

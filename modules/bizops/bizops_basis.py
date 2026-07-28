@@ -30,6 +30,7 @@ class BusinessStageDefinition(treeObject):
     def __init__(self, name='', stage_index=0, display_name='',
                  headcount=1, weekly_hours=10.0,
                  time_commitment='off-time',
+                 work_mode='order-driven',
                  sales_channels_json='[]',
                  sourcing_posture='retail-available',
                  capabilities_json='[]', is_prior=True,
@@ -41,6 +42,10 @@ class BusinessStageDefinition(treeObject):
         #: Productive hours/week the stage can actually field.
         self.weekly_hours = weekly_hours
         self.time_commitment = time_commitment
+        #: pre-staged-speculative (stage 0: produce what you can
+        #: afford, VARY the products, then try to sell) | mixed |
+        #: order-driven.
+        self.work_mode = work_mode
         self.sales_channels_json = sales_channels_json
         #: retail-available | bulk | local-partners |
         #: self-made-intermediaries — where inputs come from.
@@ -92,6 +97,7 @@ class BusinessProfile(treeObject):
                  business_model_ref='', current_stage='',
                  headcount=1, weekly_hours=10.0,
                  capabilities_json='[]', region_note='',
+                 lead_limit_days=30, readiness_sold_threshold=1,
                  is_prior=True, provenance_id='biz-1', notes='',
                  manager=None):
         self.name = name
@@ -102,6 +108,39 @@ class BusinessProfile(treeObject):
         self.weekly_hours = weekly_hours
         self.capabilities_json = capabilities_json
         self.region_note = region_note
+        #: The advance-order promise ceiling (Dustin: default one
+        #: month, ADJUSTABLE) — quotes beyond it refuse honestly.
+        self.lead_limit_days = lead_limit_days
+        #: Units a variant must have MADE AND SOLD before it may
+        #: escalate (advance orders etc). Default 1, adjustable.
+        self.readiness_sold_threshold = readiness_sold_threshold
+        self.is_prior = is_prior
+        self.provenance_id = provenance_id
+        self.notes = notes
+
+
+class ProductionRunRecord(treeObject):
+    """A TIMED production run — the 'proper record of how long it
+    takes to make things'. These rows are what unlock advance
+    orders: customer lead-time promises are computed from MEASURED
+    rates only, never from planning priors."""
+
+    @treeObjectInit
+    def __init__(self, name='', business_ref='', variant='',
+                 unit_volume_l=1.0, units_made=0,
+                 attended_hours=0.0, molds_made=0,
+                 mold_hours=0.0, run_note='', is_prior=False,
+                 provenance_id='biz-2', notes='', manager=None):
+        self.name = name
+        self.business_ref = business_ref
+        self.variant = variant
+        self.unit_volume_l = unit_volume_l
+        self.units_made = units_made
+        #: Actual attended hours for the units (excl. mold making).
+        self.attended_hours = attended_hours
+        self.molds_made = molds_made
+        self.mold_hours = mold_hours
+        self.run_note = run_note
         self.is_prior = is_prior
         self.provenance_id = provenance_id
         self.notes = notes
@@ -160,6 +199,32 @@ class ProcessWorkflowDefinition(treeObject):
         #: Shell-dominated ops scale ~V^(2/3).
         self.volume_exponent = volume_exponent
         self.steps_json = steps_json
+        self.is_prior = is_prior
+        self.provenance_id = provenance_id
+        self.notes = notes
+
+
+class MarketSessionRecord(treeObject):
+    """One market/online selling session — the stage-0
+    FEEDBACK loop: what was offered, what actually sold, for how
+    much. Sell-through per variant is what turns speculative
+    batches into informed ones."""
+
+    @treeObjectInit
+    def __init__(self, name='', business_ref='', channel='',
+                 session_note='', offered_json='{}', sold_json='{}',
+                 revenue_usd=0.0, is_prior=False,
+                 provenance_id='biz-1', notes='', manager=None):
+        self.name = name
+        self.business_ref = business_ref
+        #: farmer-market | maker-market | online.
+        self.channel = channel
+        self.session_note = session_note
+        #: JSON {variant: unitsOffered}.
+        self.offered_json = offered_json
+        #: JSON {variant: unitsSold}.
+        self.sold_json = sold_json
+        self.revenue_usd = revenue_usd
         self.is_prior = is_prior
         self.provenance_id = provenance_id
         self.notes = notes

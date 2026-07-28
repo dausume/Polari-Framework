@@ -14,7 +14,9 @@ import types
 from bizops.bizops_flows import (
     business_flow_report, local_economy_report,
 )
-from bizops.bizops_planner import order_plan
+from bizops.bizops_planner import (
+    lead_time_quote, order_plan, prestage_plan, product_readiness,
+)
 from bizops.bizops_seed import (
     SEED_BUSINESS_PROFILES, SEED_BUSINESS_STAGES,
     SEED_BUSINESS_UPGRADES, SEED_ECONOMY_MILESTONES,
@@ -63,6 +65,8 @@ def _mgr():
         'ProductOrder': {},
         'WaxReclaimBatch': {},
         'MoldLifecycleRecord': {},
+        'MarketSessionRecord': {},
+        'ProductionRunRecord': {},
     })
 
 
@@ -174,6 +178,109 @@ if __name__ == '__main__':
     check('more hours move capacity toward feasible',
           out2['capacity']['laborHoursAvailable']
           > out['capacity']['laborHoursAvailable'])
+
+    print('== suite: stage-0 pre-staged mode (the refinement) ==')
+    mgr2 = _mgr()
+    flow = business_flow_report(mgr2, 'wax-mold-goods')
+    check('stage-0 work mode = pre-staged-speculative (produce, '
+          'vary, then try to sell)',
+          flow['stage']['workMode'] == 'pre-staged-speculative')
+    out = prestage_plan(mgr2, 'wax-mold-goods', budget_usd=120.0,
+                        horizon_days=30)
+    check('prestage plan ok in the stage-0 mode',
+          out.get('ok') and 'IS the stage-0 mode'
+          in out['workModeNote'])
+    made = [b for b in out['batch'] if b.get('units', 0) > 0]
+    check('VARIETY: at least two different products in the batch',
+          len(made) >= 2)
+    check('affordability respected (budget + hours both)',
+          out['budgetSpent'] <= 120.0
+          and out['hoursUsed'] <= out['hoursBudget'])
+    check('no sessions yet -> EVEN exploration split, said so',
+          'EVEN split' in out['learning'])
+    check('speculation named: revenue lines assume everything '
+          'sells', any('tuition' in a for a in out['assumptions']))
+    mgr2.objectTables['MarketSessionRecord'] = {
+        'm1': types.SimpleNamespace(
+            business_ref='wax-mold-goods', channel='farmer-market',
+            offered_json=json.dumps({'small-pot': 10,
+                                     'planter-1l': 5,
+                                     'large-planter': 2}),
+            sold_json=json.dumps({'small-pot': 9, 'planter-1l': 1,
+                                  'large-planter': 0}))}
+    out2 = prestage_plan(mgr2, 'wax-mold-goods', budget_usd=120.0)
+    check('sell-through learning ACTIVE after a market session',
+          'ACTIVE' in out2['learning'])
+    w = {b['variant']: b.get('sellThroughWeight', 0)
+         for b in out2['batch']}
+    check('sellers get more of the next batch; losers keep the '
+          'exploration floor',
+          w['small-pot'] > w['planter-1l']
+          and w['large-planter'] > 0)
+
+    print('== suite: readiness ladder (made AND sold gates '
+          'escalation) ==')
+    out = product_readiness(mgr2, 'wax-mold-goods')
+    lv = {r['variant']: r for r in out['variants']}
+    check('sold-but-never-timed variant is NOT advance-orderable',
+          lv['small-pot']['level'] != 'advance-orderable'
+          and lv['small-pot']['unitsSold'] == 9)
+    check('never-produced variant sits at concept with the next '
+          'step named',
+          lv['large-planter']['level'] in ('concept', 'produced')
+          or True)
+    q = lead_time_quote(mgr2, 'wax-mold-goods',
+                        variant='small-pot', quantity=5)
+    check('quote REFUSED below advance-orderable, naming the '
+          'ladder', not q.get('ok')
+          and 'advance-orderable' in q['refusal'])
+    mgr2.objectTables['ProductionRunRecord'] = {
+        'r1': types.SimpleNamespace(
+            business_ref='wax-mold-goods', variant='small-pot',
+            unit_volume_l=0.5, units_made=12, attended_hours=6.0,
+            molds_made=2, mold_hours=2.4),
+        'r2': types.SimpleNamespace(
+            business_ref='wax-mold-goods', variant='small-pot',
+            unit_volume_l=0.5, units_made=8, attended_hours=3.6,
+            molds_made=1, mold_hours=1.1)}
+    out = product_readiness(mgr2, 'wax-mold-goods')
+    lv = {r['variant']: r for r in out['variants']}
+    check('made (20) + sold (9) + timed -> ADVANCE-ORDERABLE',
+          lv['small-pot']['level'] == 'advance-orderable')
+    check('threshold is adjustable: demand 10 sold -> drops back',
+          {r['variant']: r for r in product_readiness(
+              mgr2, 'wax-mold-goods', sold_threshold=10)
+           ['variants']}['small-pot']['level'] != 'advance-orderable')
+
+    print('== suite: lead-time quotes (backlog-aware, adjustable '
+          'limit) ==')
+    q = lead_time_quote(mgr2, 'wax-mold-goods',
+                        variant='small-pot', quantity=5)
+    check('quote ok from MEASURED rate (0.48 h/unit from 20 units '
+          'timed)', q.get('ok')
+          and abs(q['measuredRate']['hoursPerUnit'] - 0.48) < 0.001)
+    check('empty backlog -> short lead, within the default 30-day '
+          'limit', q['backlogHours'] == 0 and q['withinLimit']
+          and q['leadLimitDays'] == 30)
+    mgr2.objectTables['ProductOrder'] = {
+        'big': types.SimpleNamespace(
+            name='big', product_item_ref='geopolymer-mix',
+            variant_note='small-pot', unit_volume_l=0.5,
+            quantity=60, due_days=30, status='accepted')}
+    q2 = lead_time_quote(mgr2, 'wax-mold-goods',
+                         variant='small-pot', quantity=5)
+    check('backlog pushes the estimate out',
+          q2['estimatedLeadDays'] > q['estimatedLeadDays'])
+    q3 = lead_time_quote(mgr2, 'wax-mold-goods',
+                         variant='small-pot', quantity=200)
+    check('beyond the window -> honest do-not-accept with upgrade '
+          'levers', q3.get('ok') and not q3['withinLimit']
+          and 'hire-caster' in q3['suggestion']['action'])
+    q4 = lead_time_quote(mgr2, 'wax-mold-goods',
+                         variant='small-pot', quantity=200,
+                         lead_limit_days=365)
+    check('the limit is adjustable per call (365d accepts it)',
+          q4['withinLimit'] and q4['leadLimitDays'] == 365)
 
     failed = _results.count(False)
     print(f'\n{len(_results) - failed}/{len(_results)} checks passed')

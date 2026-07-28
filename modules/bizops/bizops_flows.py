@@ -74,6 +74,9 @@ def business_flow_report(manager, business_name):
                                         []) if stage else [],
                 'sourcingPosture': getattr(stage, 'sourcing_posture',
                                            '?') if stage else '?',
+                'workMode': getattr(stage, 'work_mode',
+                                    'order-driven')
+                if stage else '?',
             } if stage else {'name': getattr(biz, 'current_stage',
                                              '?')},
             'capabilities': sorted(caps),
