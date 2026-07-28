@@ -12,9 +12,22 @@ caller's confirm string into the same guards.
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from odooconnect.odoo_analysis import odoo_configs, odoo_status
-from odooconnect.odoo_sync import (
-    bindings_catalog, pull, push, receipts_catalog,
+from odooconnect.odoo_scenario_engine import (
+    scenario_archive_status, scenario_create_status, scenario_harvest,
+    scenario_plan, scenario_run, scenario_seed, scenarios_catalog,
 )
+from odooconnect.odoo_sync import (
+    _named_row, bindings_catalog, pull, push, receipts_catalog,
+)
+
+SCENARIO_VERBS = {
+    'plan': scenario_plan,
+    'create': scenario_create_status,
+    'seed': scenario_seed,
+    'run': scenario_run,
+    'harvest': scenario_harvest,
+    'archive': scenario_archive_status,
+}
 
 
 class OdooConnectAPI(treeObject):
@@ -30,6 +43,8 @@ class OdooConnectAPI(treeObject):
             add('/api/odoo/pull', self, suffix='pull')
             add('/api/odoo/push', self, suffix='push')
             add('/api/odoo/receipts', self, suffix='receipts')
+            add('/api/odoo/scenarios', self, suffix='scenarios')
+            add('/api/odoo/scenario/{verb}', self, suffix='scenario')
 
     def _binding_named(self, name):
         table = getattr(self.manager, 'objectTables', {}).get(
@@ -62,6 +77,31 @@ class OdooConnectAPI(treeObject):
                            f'"{body.get("binding", "")}"'}
             return
         response.media = pull(self.manager, binding)
+
+    def on_get_scenarios(self, request, response):
+        response.media = scenarios_catalog(self.manager)
+
+    def on_post_scenario(self, request, response, verb):
+        fn = SCENARIO_VERBS.get(verb)
+        if fn is None:
+            response.status = '400 Bad Request'
+            response.media = {
+                'ok': False,
+                'refusal': f'unknown scenario verb "{verb}" — one of '
+                           f'{sorted(SCENARIO_VERBS)}'}
+            return
+        body = request.media if request.content_length else {}
+        scenario = _named_row(self.manager,
+                              'BusinessScenarioDefinition',
+                              body.get('scenario', ''))
+        if scenario is None:
+            response.status = '400 Bad Request'
+            response.media = {
+                'ok': False,
+                'refusal': f'no BusinessScenarioDefinition named '
+                           f'"{body.get("scenario", "")}"'}
+            return
+        response.media = fn(self.manager, scenario)
 
     def on_post_push(self, request, response):
         body = request.media if request.content_length else {}

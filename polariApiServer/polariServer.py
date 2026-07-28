@@ -757,11 +757,15 @@ try:
     from odooconnect.odoo_bindings import (
         OdooModelBinding, OdooSyncReceipt, SEED_ODOO_BINDINGS,
     )
+    from odooconnect.odoo_scenarios import (
+        BusinessScenarioDefinition, SEED_BUSINESS_SCENARIOS,
+    )
     from odooconnect.odoo_seed import SEED_ODOO_INSTANCES
 except ImportError as _exc:
     _stub_missing_feature('odooconnect', _exc, globals(), (
         'OdooInstanceConfig', 'OdooModelBinding', 'OdooSyncReceipt',
-        'SEED_ODOO_INSTANCES', 'SEED_ODOO_BINDINGS',
+        'BusinessScenarioDefinition', 'SEED_ODOO_INSTANCES',
+        'SEED_ODOO_BINDINGS', 'SEED_BUSINESS_SCENARIOS',
     ))
 # Bio wax sources (wax-1) + the unifying supply-chain ledger (chain-1).
 try:
@@ -1826,8 +1830,9 @@ class polariServer(treeObject):
             # Wax sources (wax-1) + supply-chain ledger (chain-1).
             WaxSourceDefinition, SupplyNode, SupplyFlow,
             SupplyChainDefinition,
-            # Odoo ERP connector (od-3/od-4).
+            # Odoo ERP connector (od-3/od-4/od-5).
             OdooInstanceConfig, OdooModelBinding, OdooSyncReceipt,
+            BusinessScenarioDefinition,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -3169,6 +3174,8 @@ class polariServer(treeObject):
              SEED_ODOO_INSTANCES),
             ('OdooModelBinding', OdooModelBinding,
              SEED_ODOO_BINDINGS),
+            ('BusinessScenarioDefinition', BusinessScenarioDefinition,
+             SEED_BUSINESS_SCENARIOS),
             # chain-1: nodes + flows before the chain that binds them.
             ('SupplyNode', SupplyNode, SEED_SUPPLY_NODES),
             ('SupplyFlow', SupplyFlow, SEED_SUPPLY_FLOWS),
