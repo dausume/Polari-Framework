@@ -639,7 +639,16 @@ SEED_TECH_NODES += [
                       'accessibility tiers + the lab->common '
                       'substitution map. Numeric curves + water-glass '
                       'morphology fork refuse pending digitized '
-                      'figures.',
+                      'figures. WATERGLASS AS A MAKEABLE '
+                      'INTERMEDIARY (src-5): production routes are '
+                      'sourcing DATA (supplychain '
+                      'sodium-silicate-solution-requirements — '
+                      'hydrothermal sand+NaOH cited ~1.54/kg energy-'
+                      'excluded, rice-husk-ash + waste-glass routes '
+                      'as uncited gaps) and cascaded make-vs-buy '
+                      'costing feeds the economy side; a first-class '
+                      'waterglass-production node with edges is a '
+                      'deliberate follow-up.',
           cross=((_E, 'os-pvd', 'consumed-by'),
                  (_S, 'sol-gel-supply', 'supplied-by')),
           data_deps=('silica-solgel-gel-time-vs-ph',

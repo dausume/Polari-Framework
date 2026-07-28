@@ -249,6 +249,120 @@ def cheapest_blend(manager, product_item_ref, policy_name='',
             'researchGaps': coverage['researchGaps']}
 
 
+def make_cost(manager, item_ref, policy_name='',
+              source_choice='cheapest', _visiting=None):
+    """Cheapest cost to MAKE an item from its seeded ProductFormula
+    rows (validated recipes only — the optimizer stays a suggestion),
+    with components themselves resolved make-vs-buy recursively.
+    None when the item has no costable formula. Cycle-guarded."""
+    _visiting = _visiting or set()
+    if item_ref in _visiting:
+        return None
+    best = None
+    for f in _rows(manager, 'ProductFormula'):
+        if getattr(f, 'product_item_ref', '') != item_ref:
+            continue
+        cost = cascaded_cost(manager, f, policy_name=policy_name,
+                             source_choice=source_choice,
+                             _visiting=_visiting | {item_ref})
+        if cost.get('ok') and (best is None
+                               or cost['usdPerKg']
+                               < best['usdPerKg']):
+            best = {'usdPerKg': cost['usdPerKg'],
+                    'formula': cost['formula'],
+                    'anyEstimate': cost['anyEstimate'],
+                    'madeIntermediates': cost['madeIntermediates']}
+    return best
+
+
+def effective_unit_price(manager, item_ref, policy_name='',
+                         source_choice='cheapest', _visiting=None):
+    """min(buy it, make it) for an item — the intermediary seam.
+    Returns a price row tagged via 'cited' or 'made'."""
+    cited = _best_unit_price(manager, item_ref,
+                             policy_name=policy_name,
+                             source_choice=source_choice)
+    made = make_cost(manager, item_ref, policy_name=policy_name,
+                     source_choice=source_choice,
+                     _visiting=_visiting)
+    if cited is None and made is None:
+        return None
+    if made is None or (cited is not None
+                        and cited['normalized']
+                        <= made['usdPerKg']):
+        return {**cited, 'via': 'cited'}
+    return {'normalized': made['usdPerKg'], 'via': 'made',
+            'source': f'self-made ({made["formula"]})',
+            'citation': made['formula'],
+            'observedAt': '', 'isEstimate': made['anyEstimate'],
+            'madeIntermediates': made['madeIntermediates']}
+
+
+def cascaded_cost(manager, formula, policy_name='',
+                  source_choice='cheapest', _visiting=None):
+    """formula_cost, but every component resolves make-vs-buy
+    (effective_unit_price) — the true local-production cost once
+    intermediaries like waterglass can be made in-house. Energy is
+    NOT costed in v1; each made intermediate carries that caveat."""
+    product = getattr(formula, 'product_item_ref', '')
+    req = _requirement_for(manager, product)
+    if req is None:
+        return {'ok': False,
+                'refusal': f'no ProductInputRequirement for '
+                           f'"{product}"'}
+    components = _loads(formula, 'components_json', [])
+    problem = _validate_components(req, components)
+    if problem:
+        return {'ok': False,
+                'refusal': f'formula '
+                           f'"{getattr(formula, "name", "?")}" is '
+                           f'infeasible: {problem}'}
+    breakdown, made_intermediates = [], []
+    total = 0.0
+    any_estimate = False
+    for comp in components:
+        eff = effective_unit_price(manager, comp['item_ref'],
+                                   policy_name=policy_name,
+                                   source_choice=source_choice,
+                                   _visiting=_visiting)
+        if eff is None:
+            return {'ok': False,
+                    'refusal': f'"{comp["item_ref"]}" has neither a '
+                               'cited price nor a costable make '
+                               'formula',
+                    'suggestion': {
+                        'evidence': 'buy-or-make, never guess',
+                        'knob': 'PriceCitation / ProductFormula',
+                        'action': f'cite or define a recipe for '
+                                  f'"{comp["item_ref"]}"'}}
+        contribution = round(comp['fraction'] * eff['normalized'], 4)
+        any_estimate = any_estimate or eff.get('isEstimate', False)
+        if eff['via'] == 'made':
+            made_intermediates.append(
+                {'item': comp['item_ref'],
+                 'formula': eff['citation'],
+                 'usdPerKg': eff['normalized'],
+                 'caveat': 'process energy NOT costed in v1'})
+        breakdown.append({
+            'item': comp['item_ref'], 'role': comp['role'],
+            'fraction': comp['fraction'], 'via': eff['via'],
+            'usdPerKg': eff['normalized'],
+            'contribution': contribution,
+            'source': eff.get('source', ''),
+            'citation': eff.get('citation', '')})
+        total += contribution
+    return {'ok': True,
+            'formula': getattr(formula, 'name', ''),
+            'product': product, 'sourceChoice': source_choice,
+            'usdPerKg': round(total, 4),
+            'anyEstimate': any_estimate,
+            'madeIntermediates': made_intermediates,
+            'breakdown': breakdown,
+            'scoreTerm': {**COST_TERM, 'value': round(total, 4),
+                          'evidence': [b['citation']
+                                       for b in breakdown]}}
+
+
 def product_cost_comparison(manager, product_item_ref,
                             policy_name=''):
     """Our formulas vs the optimizer vs WHOLE-product substitutes —
@@ -270,6 +384,21 @@ def product_cost_comparison(manager, product_item_ref,
                          'usdPerKg': cost['usdPerKg'],
                          'anyEstimate': cost['anyEstimate'],
                          'caveats': []})
+        cascaded = cascaded_cost(manager, f,
+                                 policy_name=policy_name)
+        if cascaded.get('ok') and cascaded['madeIntermediates'] \
+                and cost.get('ok') \
+                and cascaded['usdPerKg'] < cost['usdPerKg'] * 0.99:
+            rows.append({'kind': 'formula-with-made-intermediates',
+                         'name': f'{getattr(f, "name", "")}'
+                                 ' (+self-made inputs)',
+                         'usdPerKg': cascaded['usdPerKg'],
+                         'anyEstimate': cascaded['anyEstimate'],
+                         'madeIntermediates':
+                             cascaded['madeIntermediates'],
+                         'caveats': ['intermediates made in-house — '
+                                     'process energy NOT costed '
+                                     'in v1']})
     cheapest = cheapest_blend(manager, product_item_ref,
                               policy_name=policy_name)
     if cheapest.get('ok'):

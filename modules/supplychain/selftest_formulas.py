@@ -13,7 +13,8 @@ import json
 import types
 
 from supplychain.formula_analysis import (
-    cheapest_blend, formula_cost, formulas_catalog,
+    cascaded_cost, cheapest_blend, effective_unit_price,
+    formula_cost, formulas_catalog, make_cost,
     product_cost_comparison, requirement_coverage,
 )
 from supplychain.sourcing_seed import (
@@ -215,11 +216,11 @@ if __name__ == '__main__':
           'friendliness on the kit side)',
           any('hydroxide-free' in c for c in sub['caveats']))
     verdict = out['verdict']
-    check('verdict: making beats buying (optimized ~1.85/kg, '
-          '~62% cheaper than the kit)',
-          verdict['ours']['name'] == 'cheapest-feasible-blend'
-          and abs(verdict['ours']['usdPerKg'] - 1.853) < 0.02
-          and abs(verdict['oursCheaperPct'] - 61.8) < 1.0)
+    check('verdict: making beats buying — cascaded recipe wins '
+          '(~1.48/kg, ~69% cheaper than the kit)',
+          'self-made' in verdict['ours']['name']
+          and abs(verdict['ours']['usdPerKg'] - 1.484) < 0.02
+          and abs(verdict['oursCheaperPct'] - 69.4) < 1.5)
     cheap = cheapest_blend(mgr, 'geopolymer-mix')
     comp = {c['item_ref']: c['fraction'] for c in cheap['components']}
     check('optimizer pours the remainder into sand then metakaolin '
@@ -229,15 +230,58 @@ if __name__ == '__main__':
                    'sodium-hydroxide-lye': 0.01,
                    'silica-sand': 0.55})
 
+    print('== suite: waterglass — the makeable intermediary ==')
+    wg = _rows(SEED_PRODUCT_FORMULAS)['waterglass-hydrothermal-v0']
+    cost = formula_cost(mgr, wg)
+    check('make-waterglass recipe costs ~1.54/kg from citations '
+          '(sand+NaOH+tap water)',
+          cost.get('ok') and abs(cost['usdPerKg'] - 1.539) < 0.01)
+    made = make_cost(mgr, 'sodium-silicate-solution')
+    check('make_cost resolves from the seeded recipe (not the '
+          'optimizer)', made is not None
+          and made['formula'] == 'waterglass-hydrothermal-v0'
+          and abs(made['usdPerKg'] - 1.539) < 0.01)
+    eff = effective_unit_price(mgr, 'sodium-silicate-solution')
+    check('effective price picks MAKE over BUY (1.54 vs 8.85 '
+          'purchased)', eff['via'] == 'made'
+          and abs(eff['normalized'] - 1.539) < 0.01)
+    check('sand stays cheaper to buy than to make (no formula -> '
+          'cited)', effective_unit_price(mgr, 'silica-sand')['via']
+          == 'cited')
+
+    print('== suite: cascaded geopolymer (self-made waterglass) ==')
+    out = cascaded_cost(mgr, v0g)
+    check('cascaded v0 drops to ~1.48/kg with in-house waterglass',
+          out.get('ok') and abs(out['usdPerKg'] - 1.484) < 0.01)
+    check('made intermediate declared WITH the energy caveat',
+          len(out['madeIntermediates']) == 1
+          and out['madeIntermediates'][0]['item']
+          == 'sodium-silicate-solution'
+          and 'energy' in out['madeIntermediates'][0]['caveat'])
+    check('breakdown tags via made/cited per component',
+          {b['via'] for b in out['breakdown']} == {'made', 'cited'})
+    comp_g = product_cost_comparison(mgr, 'geopolymer-mix')
+    casc_row = next((r for r in comp_g['rows']
+                     if r['kind'] == 'formula-with-made-'
+                                     'intermediates'), None)
+    check('comparison surfaces the cascaded row, cheapest of all '
+          'named recipes', casc_row is not None
+          and abs(casc_row['usdPerKg'] - 1.484) < 0.01)
+    check('verdict vs GPI kit now ~69% cheaper (cascaded wins '
+          'the ours side)',
+          abs(comp_g['verdict']['oursCheaperPct'] - 69.4) < 1.5)
+
     print('== suite: catalog ==')
     cat = formulas_catalog(mgr)
     by_name = {f['name']: f for f in cat['formulas']}
-    check('catalog costs BOTH seeded formulas',
-          cat.get('ok') and len(cat['formulas']) == 2
+    check('catalog costs all THREE seeded formulas',
+          cat.get('ok') and len(cat['formulas']) == 3
           and abs(by_name['natural-print-wax-v0']['usdPerKg']
                   - 10.7834) < 0.01
           and abs(by_name['geopolymer-castable-v0']['usdPerKg']
-                  - 2.653) < 0.02)
+                  - 2.653) < 0.02
+          and abs(by_name['waterglass-hydrothermal-v0']['usdPerKg']
+                  - 1.539) < 0.01)
 
     failed = _results.count(False)
     print(f'\n{len(_results) - failed}/{len(_results)} checks passed')

@@ -218,6 +218,27 @@ SEED_SUPPLY_SOURCES = [
                  'source.',
     },
     {
+        'name': 'municipal-water-utility',
+        'display_name': 'Municipal water utility (tap)',
+        'supplier_name': '(your local utility)',
+        'url': 'https://capitalregionwater.com/customer-support/'
+               'water-sewer-rates/',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': True, 'is_polari': False,
+        'is_eco_friendly': True,
+        'availability': 'available',
+        'supplies_json': json.dumps(['tap-water']),
+        'demands_json': '[]',
+        'business_model_ref': '',
+        'locality_note': 'by definition local — rank 4 on the '
+                         'ladder (local closed-source)',
+        'is_prior': True, 'provenance_id': 'src-5',
+        'notes': 'Process water for making intermediaries '
+                 '(waterglass digestion, geopolymer mix water). '
+                 'Rates vary by utility; the citation uses one '
+                 'published 2026 tariff.',
+    },
+    {
         'name': 'polari-waxprint-lab',
         'display_name': 'Polari wax-print lab (our own blend)',
         'supplier_name': 'Polari (self)',
@@ -473,6 +494,25 @@ SEED_PRICE_CITATIONS.extend([
     },
 ])
 
+SEED_PRICE_CITATIONS.append(
+    {
+        'name': 'capital-region-water-2026-tariff',
+        'source_ref': 'municipal-water-utility',
+        'item_ref': 'tap-water',
+        'price': 11.63, 'currency': 'USD',
+        'amount': 3785.4, 'amount_unit': 'kg',
+        'observed_at': '2026-07-28T12:05:00',
+        'citation_url': 'https://capitalregionwater.com/'
+                        'customer-support/water-sewer-rates/',
+        'citation_note': 'Published tariff effective 2026-01-01: '
+                         '$11.63 per 1000 gallons (= 3785.4 kg). '
+                         'EXACT for that utility; rates vary '
+                         'widely by locality — re-cite your own '
+                         'utility for real runs.',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': 'src-5', 'notes': '',
+    })
+
 SEED_PRODUCT_REQUIREMENTS = [
     {
         'name': 'natural-print-wax-blend-requirements',
@@ -570,6 +610,46 @@ SEED_PRODUCT_REQUIREMENTS = [
                  'industrial byproduct channels, often cheap-to-'
                  'free locally: worth the hunt).',
     },
+    {
+        'name': 'sodium-silicate-solution-requirements',
+        'display_name': 'Waterglass (40% solution) — MAKEABLE '
+                        'intermediary, routes as data',
+        'product_item_ref': 'sodium-silicate-solution',
+        'roles_json': json.dumps([
+            {'role': 'silica-source',
+             'purpose': 'amorphous/reactive SiO2 to dissolve '
+                        '(modulus ~2.5 target)',
+             'min_fraction': 0.24, 'max_fraction': 0.32,
+             'candidates': ['silica-sand', 'rice-husk-ash',
+                            'waste-glass-fines']},
+            {'role': 'alkali',
+             'purpose': 'NaOH to digest the silica — CAUSTIC, hot: '
+                        'the safety cost of making it ourselves',
+             'min_fraction': 0.12, 'max_fraction': 0.18,
+             'candidates': ['sodium-hydroxide-lye']},
+            {'role': 'water',
+             'purpose': 'solution water (~40% solids product)',
+             'min_fraction': 0.52, 'max_fraction': 0.62,
+             'candidates': ['tap-water']},
+        ]),
+        'substitutes_json': '[]',
+        'is_prior': True,
+        'provenance_id': 'src-5',
+        'notes': 'WATERGLASS IS AN INTERMEDIARY, NOT A NATURAL '
+                 'MATERIAL (Dustin 2026-07-28) — critical to '
+                 'geopolymer activation, sol-gel (sg-community '
+                 'alkoxide-free route), pspp chemistry. Three '
+                 'production routes as data: (1) hydrothermal '
+                 'sand+NaOH digestion — needs sustained heat '
+                 '(ENERGY EXCLUDED from v1 cost, loudly); (2) '
+                 'rice-husk-ash + NaOH — the LOW-temperature '
+                 'community route from the sol-gel tech-tree work, '
+                 'RHA uncited gap (husks near-free at mills, ash '
+                 'it yourself); (3) waste-glass fines + NaOH — '
+                 'uncited gap, ties the recycling loop. Same '
+                 'item_ref also has PURCHASE citations — the '
+                 'cascaded costing compares make vs buy.',
+    },
 ]
 
 SEED_PRODUCT_FORMULAS = [
@@ -611,6 +691,27 @@ SEED_PRODUCT_FORMULAS = [
         'notes': 'Metakaolin-waterglass castable engineering guess — '
                  'NOT cure-validated; exists so the buy-vs-make '
                  'comparison against the GPI kit has a DIY cost.',
+    },
+    {
+        'name': 'waterglass-hydrothermal-v0',
+        'display_name': 'Waterglass via sand + NaOH digestion v0 '
+                        '(28/15/57)',
+        'product_item_ref': 'sodium-silicate-solution',
+        'components_json': json.dumps([
+            {'item_ref': 'silica-sand', 'role': 'silica-source',
+             'fraction': 0.28},
+            {'item_ref': 'sodium-hydroxide-lye', 'role': 'alkali',
+             'fraction': 0.15},
+            {'item_ref': 'tap-water', 'role': 'water',
+             'fraction': 0.57},
+        ]),
+        'status': 'candidate',
+        'is_prior': True,
+        'provenance_id': 'src-5',
+        'notes': 'Hydrothermal digestion recipe guess (~MR 2.5, 40% '
+                 'solids) — NOT bench-validated; digestion ENERGY '
+                 'EXCLUDED from v1 cost. Exists so the intermediary '
+                 'make-vs-buy has a number.',
     },
 ]
 

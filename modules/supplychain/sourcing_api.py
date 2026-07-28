@@ -11,7 +11,7 @@ suggestions, and scenario price-drift findings (src-1).
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from supplychain.formula_analysis import (
-    cheapest_blend, formula_cost, formulas_catalog,
+    cascaded_cost, cheapest_blend, formula_cost, formulas_catalog,
     product_cost_comparison, requirement_coverage,
 )
 from supplychain.sourcing_analysis import (
@@ -45,6 +45,8 @@ class SourcingAPI(treeObject):
                 self, suffix='cheapest')
             add('/api/supplychain/sourcing/compare/{item_ref}',
                 self, suffix='compare')
+            add('/api/supplychain/sourcing/cascaded-cost/{name}',
+                self, suffix='cascaded')
 
     def _policy(self, request):
         return request.params.get('policy', '')
@@ -96,6 +98,21 @@ class SourcingAPI(treeObject):
     def on_get_cheapest(self, request, response, item_ref):
         out = cheapest_blend(
             self.manager, item_ref, self._policy(request),
+            source_choice=request.params.get('sources', 'cheapest'))
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_cascaded(self, request, response, name):
+        formula = _named(self.manager, 'ProductFormula', name)
+        if formula is None:
+            response.status = '404 Not Found'
+            response.media = {'ok': False,
+                              'refusal': f'no ProductFormula '
+                                         f'named "{name}"'}
+            return
+        out = cascaded_cost(
+            self.manager, formula, self._policy(request),
             source_choice=request.params.get('sources', 'cheapest'))
         if not out.get('ok'):
             response.status = '404 Not Found'
