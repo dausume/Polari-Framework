@@ -74,6 +74,17 @@ def requirement_coverage(manager, product_item_ref, policy_name=''):
             best = _best_unit_price(manager, item,
                                     policy_name=policy_name)
             if best is None:
+                made = make_cost(manager, item,
+                                 policy_name=policy_name)
+                if made is not None:
+                    # Uncited but MAKEABLE from a seeded recipe —
+                    # grounded, just not purchasable; not a gap.
+                    candidates.append({
+                        'item': item, 'cited': False,
+                        'makeable': True,
+                        'makeCostPerKg': made['usdPerKg'],
+                        'makeFormula': made['formula']})
+                    continue
                 candidates.append({'item': item, 'cited': False})
                 gaps.append({'role': role.get('role', ''),
                              'item': item,
@@ -212,6 +223,10 @@ def cheapest_blend(manager, product_item_ref, policy_name='',
     for role in coverage['roles']:
         cited = [c for c in role['candidates'] if c.get('cited')]
         if not cited:
+            if float(role.get('minFraction', 0.0)) == 0.0:
+                # OPTIONAL role with nothing cited — filled at zero,
+                # honestly absent from the cost optimum.
+                continue
             return {'ok': False,
                     'refusal': f'role "{role["role"]}" has no cited '
                                'candidate — cheapest blend would be '

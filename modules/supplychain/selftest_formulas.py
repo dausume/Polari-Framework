@@ -203,11 +203,12 @@ if __name__ == '__main__':
 
     print('== suite: geopolymer — DIY raw cost vs buying the kit ==')
     out = requirement_coverage(mgr, 'geopolymer-mix')
-    check('4 geopolymer roles; fly-ash + slag cited (src-8); the '
-          'only gap left is the crush LOOPBACK (log crush events)',
-          out.get('ok') and len(out['roles']) == 4
+    check('5 geopolymer roles (fiber added src-9); gaps = crush '
+          'LOOPBACK + the uncited bio candidates',
+          out.get('ok') and len(out['roles']) == 5
           and {g['item'] for g in out['researchGaps']}
-          == {'crushed-geopolymer-aggregate'})
+          == {'crushed-geopolymer-aggregate',
+              'sugarcane-bagasse-ash', 'hemp-fiber'})
     v0g = _rows(SEED_PRODUCT_FORMULAS)['geopolymer-castable-v0']
     cost = formula_cost(mgr, v0g)
     check('DIY castable v0 costs ~2.65/kg (volume-tier metakaolin)',
@@ -330,11 +331,59 @@ if __name__ == '__main__':
           all(c['item_ref'] != 'swcnt-powder'
               for c in cheap['components']))
 
+    print('== suite: bio routes — husks are not sand ==')
+    HUSKS = 24.3427  # farmersspice 24lb case, exact
+    fib = _rows(SEED_PRODUCT_FORMULAS)['corn-husk-fiber-v0']
+    out = formula_cost(mgr, fib)
+    check('fiber route costs husks/0.6 (~40.57/kg at RETAIL husk '
+          'prices — the farm channel is the whole game)',
+          out.get('ok') and abs(out['usdPerKg'] - HUSKS / 0.6)
+          < 0.05)
+    ash = _rows(SEED_PRODUCT_FORMULAS)['corn-husk-ash-v0']
+    out = formula_cost(mgr, ash)
+    check('ash route honestly ABSURD for corn (~487/kg at yield '
+          '0.05) — rice hulls stay the special case',
+          out.get('ok') and abs(out['usdPerKg'] - HUSKS / 0.05)
+          < 1.0 and out['usdPerKg'] > 60 * 7.35)
+    chips = _rows(SEED_PRODUCT_FORMULAS)['corn-husk-chips-v0']
+    casc = cascaded_cost(mgr, chips)
+    check('chips route cascades onto SELF-MADE waterglass '
+          '(mineralizer dip)',
+          casc.get('ok')
+          and casc['madeIntermediates'][0]['item']
+          == 'sodium-silicate-solution'
+          and abs(casc['usdPerKg']
+                  - (0.75 * HUSKS + 0.25 * 1.5392) / 0.9) < 0.05)
+    bio = _rows(SEED_PRODUCT_FORMULAS)['geopolymer-castable-bio-v0']
+    out = formula_cost(mgr, bio)
+    check('bio castable REFUSES buy-everything costing (nobody '
+          'SELLS mineralized chips) — the cascade is the only '
+          'true cost', not out.get('ok')
+          and 'corn-husk-chips-mineralized' in out['refusal'])
+    casc_bio = cascaded_cost(mgr, bio)
+    plain_geo = _rows(SEED_PRODUCT_FORMULAS)[
+        'geopolymer-castable-v0']
+    casc_plain = cascaded_cost(mgr, plain_geo)
+    check('at RETAIL husk prices the bio castable costs ~5x the '
+          'plain one — the number that PROVES the farm-waste '
+          'channel requirement',
+          casc_bio.get('ok')
+          and casc_bio['usdPerKg'] > 4 * casc_plain['usdPerKg'])
+    over = _formula([{'item_ref': 'soy-wax', 'role': 'base-wax',
+                      'fraction': 0.83},
+                     {'item_ref': 'beeswax', 'role': 'toughener',
+                      'fraction': 0.10},
+                     {'item_ref': 'carnauba-wax', 'role': 'hardener',
+                      'fraction': 0.07}])
+    # (unrelated formula reused to keep the wax validator warm)
+    check('wax validator still fine after the role additions',
+          formula_cost(mgr, over).get('ok'))
+
     print('== suite: catalog ==')
     cat = formulas_catalog(mgr)
     by_name = {f['name']: f for f in cat['formulas']}
-    check('catalog costs all EIGHT seeded formulas',
-          cat.get('ok') and len(cat['formulas']) == 8
+    check('catalog costs all TWELVE seeded formulas',
+          cat.get('ok') and len(cat['formulas']) == 12
           and abs(by_name['natural-print-wax-v0']['usdPerKg']
                   - 10.7834) < 0.01
           and abs(by_name['geopolymer-castable-v0']['usdPerKg']

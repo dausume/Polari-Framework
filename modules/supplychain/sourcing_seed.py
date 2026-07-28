@@ -512,6 +512,26 @@ SEED_SUPPLY_SOURCES = [
                  'sol-gel processing substitute).',
     },
     {
+        'name': 'farmers-spice',
+        'display_name': 'Farmers Spice (corn husks)',
+        'supplier_name': 'Us-Farmers Spice',
+        'url': 'https://www.farmersspice.com/products/corn-husk',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': True,
+        'availability': 'available',
+        'supplies_json': json.dumps(['corn-husks']),
+        'demands_json': '[]', 'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-9',
+        'notes': 'FOOD-GRADE tamale channel — the citable buy-now '
+                 'price. The truth that matters: husks are FARM '
+                 'WASTE, near-free at any corn operation — the '
+                 'local-farm channel (and the hydroponic-farm '
+                 'partner loop) is where bio-aggregate economics '
+                 'actually work.',
+    },
+    {
         'name': 'polari-waxprint-lab',
         'display_name': 'Polari wax-print lab (our own blend)',
         'supplier_name': 'Polari (self)',
@@ -1097,6 +1117,27 @@ SEED_PRICE_CITATIONS.extend([
     },
 ])
 
+SEED_PRICE_CITATIONS.append(
+    {
+        'name': 'farmersspice-cornhusks-24lb-2026-07-28',
+        'source_ref': 'farmers-spice',
+        'item_ref': 'corn-husks',
+        'price': 265.00, 'currency': 'USD',
+        'amount': 24.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T14:35:00',
+        'citation_url': 'https://www.farmersspice.com/products/'
+                        'corn-husk',
+        'citation_note': 'Listed EXACT: 24 lb case $265 '
+                         '($11.04/lb; 1 lb $15.73, 5 lb $69.99). '
+                         'FOOD-GRADE tamale pricing — husks are '
+                         'farm waste, near-free at source; every '
+                         'bio-route number downstream of this '
+                         'citation collapses toward processing-'
+                         'only cost on the farm channel.',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': 'src-9', 'notes': '',
+    })
+
 SEED_PRODUCT_REQUIREMENTS = [
     {
         'name': 'natural-print-wax-blend-requirements',
@@ -1155,7 +1196,8 @@ SEED_PRODUCT_REQUIREMENTS = [
                         '(the reactive backbone)',
              'min_fraction': 0.30, 'max_fraction': 0.50,
              'candidates': ['metakaolin', 'fly-ash-class-f',
-                            'ggbfs-slag']},
+                            'ggbfs-slag',
+                            'sugarcane-bagasse-ash']},
             {'role': 'silicate-activator',
              'purpose': 'waterglass — dissolves/polycondenses the '
                         'precursor (mass as 40% SOLUTION, v1 '
@@ -1168,10 +1210,22 @@ SEED_PRODUCT_REQUIREMENTS = [
              'min_fraction': 0.01, 'max_fraction': 0.06,
              'candidates': ['sodium-hydroxide-lye']},
             {'role': 'aggregate',
-             'purpose': 'filler for castable strength + volume',
+             'purpose': 'filler for castable strength + volume '
+                        '(mineralized bio chips = LIGHTWEIGHT '
+                        'partial substitution, not full — '
+                        'insulating planter grades)',
              'min_fraction': 0.30, 'max_fraction': 0.55,
              'candidates': ['silica-sand',
-                            'crushed-geopolymer-aggregate']},
+                            'crushed-geopolymer-aggregate',
+                            'corn-husk-chips-mineralized']},
+            {'role': 'fiber-reinforcement',
+             'purpose': 'OPTIONAL chopped bio fiber for flexural '
+                        'toughness — cellulose DEGRADES in the '
+                        'alkaline matrix, so washed+coated fiber '
+                        'and non-structural service lives only '
+                        'until aging tests say more',
+             'min_fraction': 0.0, 'max_fraction': 0.02,
+             'candidates': ['corn-husk-fiber', 'hemp-fiber']},
         ]),
         'substitutes_json': json.dumps([
             {'item_ref': 'geopolymer-kit',
@@ -1387,6 +1441,71 @@ SEED_PRODUCT_REQUIREMENTS = [
                  'self-fueling in practice, excluded v1). RHA wins '
                  'on process TEMPERATURE, not on $/kg vs sand.',
     },
+    {
+        'name': 'corn-husk-fiber-requirements',
+        'display_name': 'Corn-husk fiber — reinforcement route',
+        'product_item_ref': 'corn-husk-fiber',
+        'roles_json': json.dumps([
+            {'role': 'husks',
+             'purpose': 'REFINEMENT CHAIN: dry -> strip/chop to '
+                        '10-30mm -> alkali-wash + RINSE (pre-'
+                        'conditioning) -> optional protective coat '
+                        '(wax dip or waterglass mineralization) '
+                        'against the alkaline matrix',
+             'min_fraction': 1.0, 'max_fraction': 1.0,
+             'candidates': ['corn-husks']},
+        ]),
+        'substitutes_json': '[]',
+        'is_prior': True, 'provenance_id': 'src-9',
+        'notes': 'Fiber = TOUGHNESS role, never a sand substitute. '
+                 'Cellulose degrades in alkaline geopolymer — coat '
+                 'or accept non-structural service; aging tests '
+                 'decide more.',
+    },
+    {
+        'name': 'corn-husk-chips-requirements',
+        'display_name': 'Mineralized husk chips — lightweight '
+                        'bio-aggregate route',
+        'product_item_ref': 'corn-husk-chips-mineralized',
+        'roles_json': json.dumps([
+            {'role': 'husks',
+             'purpose': 'REFINEMENT: dry -> chop to 5-15mm chips',
+             'min_fraction': 0.70, 'max_fraction': 0.80,
+             'candidates': ['corn-husks']},
+            {'role': 'mineralizer',
+             'purpose': 'waterglass dip (OUR intermediary) — the '
+                        'wood-wool-board trick: silicate skin slows '
+                        'alkaline degradation + improves matrix '
+                        'bond',
+             'min_fraction': 0.20, 'max_fraction': 0.30,
+             'candidates': ['sodium-silicate-solution']},
+        ]),
+        'substitutes_json': '[]',
+        'is_prior': True, 'provenance_id': 'src-9',
+        'notes': 'PARTIAL sand substitution only (lightweight/'
+                 'insulating grades — self-watering planters '
+                 'benefit); compressible organic cores mean '
+                 'strength drops with volume fraction.',
+    },
+    {
+        'name': 'corn-husk-ash-requirements',
+        'display_name': 'Corn-husk ash — the honest comparator',
+        'product_item_ref': 'corn-husk-ash',
+        'roles_json': json.dumps([
+            {'role': 'husks',
+             'purpose': 'REFINEMENT: dry -> controlled burn '
+                        '500-700C -> mill/sieve',
+             'min_fraction': 1.0, 'max_fraction': 1.0,
+             'candidates': ['corn-husks']},
+        ]),
+        'substitutes_json': '[]',
+        'is_prior': True, 'provenance_id': 'src-9',
+        'notes': 'EXISTS TO SHOW THE HONEST NUMBER: herbaceous ash '
+                 'yield is only ~5% (vs rice hulls ~18%) and the '
+                 'ash is K-rich / lower-SiO2 — rice hulls are the '
+                 'special case; corn husks belong to the FIBER and '
+                 'CHIPS routes, not the ash route.',
+    },
 ]
 
 SEED_PRODUCT_FORMULAS = [
@@ -1545,6 +1664,79 @@ SEED_PRODUCT_FORMULAS = [
         'notes': 'Ash yield ~18% of hull mass (typical); burn is '
                  'self-fueling. Amorphous-silica quality depends on '
                  'burn temperature control.',
+    },
+    {
+        'name': 'corn-husk-fiber-v0',
+        'display_name': 'Corn-husk fiber (dry/chop/wash, yield 0.6)',
+        'product_item_ref': 'corn-husk-fiber',
+        'components_json': json.dumps([
+            {'item_ref': 'corn-husks', 'role': 'husks',
+             'fraction': 1.0},
+        ]),
+        'yield_fraction': 0.6,
+        'status': 'candidate',
+        'is_prior': True, 'provenance_id': 'src-9',
+        'notes': 'Yield estimate; wash water + labor excluded v1.',
+    },
+    {
+        'name': 'corn-husk-chips-v0',
+        'display_name': 'Mineralized husk chips (75/25 dip, '
+                        'yield 0.9)',
+        'product_item_ref': 'corn-husk-chips-mineralized',
+        'components_json': json.dumps([
+            {'item_ref': 'corn-husks', 'role': 'husks',
+             'fraction': 0.75},
+            {'item_ref': 'sodium-silicate-solution',
+             'role': 'mineralizer', 'fraction': 0.25},
+        ]),
+        'yield_fraction': 0.9,
+        'status': 'candidate',
+        'is_prior': True, 'provenance_id': 'src-9',
+        'notes': 'Dip pickup fraction + yield are estimates; '
+                 'cascades onto self-made waterglass.',
+    },
+    {
+        'name': 'corn-husk-ash-v0',
+        'display_name': 'Corn-husk ash (controlled burn, '
+                        'yield 0.05)',
+        'product_item_ref': 'corn-husk-ash',
+        'components_json': json.dumps([
+            {'item_ref': 'corn-husks', 'role': 'husks',
+             'fraction': 1.0},
+        ]),
+        'yield_fraction': 0.05,
+        'status': 'candidate',
+        'is_prior': True, 'provenance_id': 'src-9',
+        'notes': 'The honest comparator — see the requirement note.',
+    },
+    {
+        'name': 'geopolymer-castable-bio-v0',
+        'display_name': 'Bio-lightweight geopolymer castable '
+                        '(chips + fiber)',
+        'product_item_ref': 'geopolymer-mix',
+        'components_json': json.dumps([
+            {'item_ref': 'metakaolin', 'role': 'precursor',
+             'fraction': 0.40},
+            {'item_ref': 'sodium-silicate-solution',
+             'role': 'silicate-activator', 'fraction': 0.16},
+            {'item_ref': 'sodium-hydroxide-lye',
+             'role': 'alkali-activator', 'fraction': 0.03},
+            {'item_ref': 'silica-sand', 'role': 'aggregate',
+             'fraction': 0.21},
+            {'item_ref': 'corn-husk-chips-mineralized',
+             'role': 'aggregate', 'fraction': 0.18},
+            {'item_ref': 'corn-husk-fiber',
+             'role': 'fiber-reinforcement', 'fraction': 0.02},
+        ]),
+        'yield_fraction': 1.0,
+        'status': 'candidate',
+        'is_prior': True, 'provenance_id': 'src-9',
+        'notes': 'Insulating planter grade — LIGHTER + tougher, '
+                 'NOT stronger; viable economics REQUIRE farm-'
+                 'waste husks (retail tamale husks price this out, '
+                 'and the cost engine shows exactly that). '
+                 'Cellulose-in-alkali aging unproven — '
+                 'non-structural service until tested.',
     },
 ]
 
