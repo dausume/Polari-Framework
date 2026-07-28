@@ -82,8 +82,8 @@ class CannedHandle:
 
 
 CANNED = {
-    'purchase.order': [{'amount_untaxed': 132.0},
-                       {'amount_untaxed': 132.0}],
+    'purchase.order': [{'amount_untaxed': 242.1},
+                       {'amount_untaxed': 242.1}],
     'sale.order': [{'amount_untaxed': 360.0},
                    {'amount_untaxed': 360.0}],
     'mrp.production': [
@@ -171,9 +171,10 @@ if __name__ == '__main__':
     out = scenario_harvest(mgr, scn, handle_factory=CannedHandle)
     m = out.get('metrics', {})
     check('harvest ok', out.get('ok'), json.dumps(out)[:200])
-    check('revenue/cost/margin computed', m.get('revenue') == 720.0
-          and m.get('material_cost') == 264.0
-          and m.get('margin') == 456.0)
+    check('revenue/cost/margin computed (repinned cited prices)',
+          m.get('revenue') == 720.0
+          and m.get('material_cost') == 484.2
+          and m.get('margin') == 235.8)
     check('only DONE manufacturing counts',
           m.get('pots_made') == 40.0 and m.get('molds_made') == 6.0)
     outcomes = list(mgr.objectTables.get('BusinessOutcome',

@@ -31,6 +31,30 @@ _SCORECARD_PROV = ('political-scorecard-node labor-quality sample '
 
 SEED_SCORE_TERMS = [
     {
+        'name': 'material-cost-per-kg',
+        'display_name': 'Material Cost per kg',
+        'description': 'Cited-price material cost of a product '
+                       'formula (USD per kg of product) — computed '
+                       'by supplychain.formula_analysis from '
+                       'PriceCitation rows, cascaded through '
+                       'self-made intermediaries. Cheaper is '
+                       'better: the affordability term for formula '
+                       'search and business-simulation scoring '
+                       '(src-2/src-5).',
+        'category': 'materials-economics', 'value_type': 'custom',
+        'unit': 'USD/kg',
+        'is_positive': False,
+        'normalization_json': json.dumps(
+            {'method': 'min-max-auto'}),
+        'temporal_json': json.dumps(
+            {'nature': 'stock', 'resample': 'nearest'}),
+        'abstract_tags_json': json.dumps(
+            ['affordability', 'materials', 'sourcing',
+             'open-source-economics']),
+        'provenance_id': 'src-2 formula costing '
+                         '(supplychain.formula_analysis.COST_TERM)',
+    },
+    {
         'name': 'union-participation',
         'display_name': 'Union Participation',
         'description': 'Share of the state workforce in a union.',
