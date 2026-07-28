@@ -74,12 +74,10 @@ if __name__ == '__main__':
           and abs(base['soy-wax']['usdPerKg'] - SOY) < 0.001
           and base['soy-wax']['citation']
           and base['soy-wax']['observedAt'])
-    check('uncited candidates are RESEARCH GAPS, not omissions '
-          '(candelilla + stearic got cited src-7 — only rice-bran '
-          'remains)',
-          not base['rice-bran-wax']['cited']
-          and {g['item'] for g in out['researchGaps']}
-          == {'rice-bran-wax'})
+    check('the ENTIRE wax feedstock space is now cited '
+          '(rice-bran landed src-8 — zero research gaps)',
+          base['rice-bran-wax']['cited']
+          and out['researchGaps'] == [])
     check('unknown product refuses naming the requirement knob',
           not requirement_coverage(mgr, 'unobtainium').get('ok'))
 
@@ -131,16 +129,21 @@ if __name__ == '__main__':
           'requirement deliberately)',
           'not a candidate' in formula_cost(mgr, bad)
           .get('refusal', ''))
-    bad = _formula([{'item_ref': 'rice-bran-wax', 'role': 'base-wax',
-                     'fraction': 0.75},
-                    {'item_ref': 'beeswax', 'role': 'toughener',
-                     'fraction': 0.15},
-                    {'item_ref': 'carnauba-wax', 'role': 'hardener',
-                     'fraction': 0.10}])
+    bad = types.SimpleNamespace(
+        name='wg-from-waste-glass',
+        product_item_ref='sodium-silicate-solution',
+        components_json=json.dumps([
+            {'item_ref': 'waste-glass-fines', 'role': 'silica-source',
+             'fraction': 0.28},
+            {'item_ref': 'sodium-hydroxide-lye', 'role': 'alkali',
+             'fraction': 0.15},
+            {'item_ref': 'tap-water', 'role': 'water',
+             'fraction': 0.57}]))
     out = formula_cost(mgr, bad)
-    check('uncited component refuses with a citation suggestion',
+    check('uncited component refuses with a citation suggestion '
+          '(waste-glass-fines is the last silica gap)',
           not out.get('ok')
-          and 'rice-bran-wax' in out['refusal']
+          and 'waste-glass-fines' in out['refusal']
           and 'cite' in out['suggestion']['action'])
 
     print('== suite: cheapest feasible blend ==')
@@ -161,8 +164,8 @@ if __name__ == '__main__':
     check('optimizer output is a SUGGESTION demanding '
           'print-validation',
           'print-validate' in out['suggestion']['action'])
-    check('research gaps ride along (rice-bran still uncited)',
-          len(out['researchGaps']) >= 1)
+    check('wax research gaps are CLOSED (src-8)',
+          len(out['researchGaps']) == 0)
     # verify the suggested blend round-trips through formula_cost
     suggested = _formula(out['components'], name='cheapest-check')
     round_trip = formula_cost(mgr, suggested)
@@ -200,10 +203,10 @@ if __name__ == '__main__':
 
     print('== suite: geopolymer — DIY raw cost vs buying the kit ==')
     out = requirement_coverage(mgr, 'geopolymer-mix')
-    check('4 geopolymer roles; fly-ash + slag are honest gaps',
+    check('4 geopolymer roles; fly-ash + slag cited (src-8) — '
+          'geopolymer gaps closed too',
           out.get('ok') and len(out['roles']) == 4
-          and {g['item'] for g in out['researchGaps']}
-          == {'fly-ash-class-f', 'ggbfs-slag'})
+          and out['researchGaps'] == [])
     v0g = _rows(SEED_PRODUCT_FORMULAS)['geopolymer-castable-v0']
     cost = formula_cost(mgr, v0g)
     check('DIY castable v0 costs ~2.65/kg (volume-tier metakaolin)',

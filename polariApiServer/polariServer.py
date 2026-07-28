@@ -426,6 +426,7 @@ try:
     from waxprint.waxprint_basis import (
         DeviceMaterialDefinition, PrinterAssemblyDefinition,
         WaxFeedstockDefinition, PrintConditionDefinition,
+        WaxReclaimBatch,
     )
     from waxprint.waxprint_seed import (
         SEED_DEVICE_MATERIALS, SEED_FEEDSTOCKS, SEED_ASSEMBLIES, SEED_CONDITIONS,
@@ -442,7 +443,7 @@ try:
     )
 except ImportError as _exc:
     _stub_missing_feature('waxprint', _exc, globals(), (
-        'DeviceMaterialDefinition', 'PrinterAssemblyDefinition', 'WaxFeedstockDefinition', 'PrintConditionDefinition',
+        'DeviceMaterialDefinition', 'PrinterAssemblyDefinition', 'WaxFeedstockDefinition', 'PrintConditionDefinition', 'WaxReclaimBatch',
         'SEED_DEVICE_MATERIALS', 'SEED_FEEDSTOCKS', 'SEED_ASSEMBLIES', 'SEED_CONDITIONS',
         'SEED_WAXPRINT_MODULES', 'WaxPrintSimState', 'sim_seed', 'SEED_WAXPRINT_STATE_ROWS',
         'SEED_WAXPRINT_PAGE_DISPLAYS',
@@ -1810,6 +1811,8 @@ class polariServer(treeObject):
             PotDefinition, PotHole,
             DeviceMaterialDefinition, PrinterAssemblyDefinition,
             WaxFeedstockDefinition, PrintConditionDefinition,
+            # wp-r: geopolymer-wax-mold-reuse-cycles tracking.
+            WaxReclaimBatch,
             WaxPrintSimState,
             NutrientSpecies, NutrientProfile, SoilDefinition,
             WaterDefinition, PlantDefinition, PlantPart,

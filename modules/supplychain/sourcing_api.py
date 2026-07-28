@@ -10,6 +10,9 @@ suggestions, and scenario price-drift findings (src-1).
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
+from supplychain.reclaim_analysis import (
+    reclaim_cycle_curve, reclaim_pool_report, reclaim_steady_state,
+)
 from supplychain.formula_analysis import (
     cascaded_cost, cheapest_blend, formula_cost, formulas_catalog,
     product_cost_comparison, requirement_coverage,
@@ -47,6 +50,10 @@ class SourcingAPI(treeObject):
                 self, suffix='compare')
             add('/api/supplychain/sourcing/cascaded-cost/{name}',
                 self, suffix='cascaded')
+            add('/api/supplychain/sourcing/reclaim', self,
+                suffix='reclaim')
+            add('/api/supplychain/sourcing/reclaim/pools', self,
+                suffix='reclaim_pools')
 
     def _policy(self, request):
         return request.params.get('policy', '')
@@ -117,6 +124,26 @@ class SourcingAPI(treeObject):
         if not out.get('ok'):
             response.status = '404 Not Found'
         response.media = out
+
+    def on_get_reclaim(self, request, response):
+        p = request.params
+        out = reclaim_steady_state(
+            self.manager,
+            wax_kg_per_mold=float(p.get('waxKgPerMold', 0.35)),
+            recovery_fraction=(float(p['recoveryFraction'])
+                               if 'recoveryFraction' in p else None),
+            policy_name=self._policy(request))
+        if out.get('ok') and 'cycles' in p:
+            out['curve'] = reclaim_cycle_curve(
+                self.manager, cycles=int(p['cycles']),
+                wax_kg_per_mold=float(p.get('waxKgPerMold', 0.35)),
+                policy_name=self._policy(request)).get('curve')
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_reclaim_pools(self, request, response):
+        response.media = reclaim_pool_report(self.manager)
 
     def on_get_compare(self, request, response, item_ref):
         out = product_cost_comparison(self.manager, item_ref,

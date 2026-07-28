@@ -95,13 +95,15 @@ SEED_SUPPLY_SOURCES = [
         'is_local': False, 'is_polari': False,
         'is_eco_friendly': False,
         'availability': 'available',
-        'supplies_json': json.dumps(['carnauba-wax']),
+        'supplies_json': json.dumps(['carnauba-wax',
+                                     'rice-bran-wax']),
         'demands_json': '[]',
         'business_model_ref': '',
         'locality_note': '',
         'is_prior': True, 'provenance_id': 'src-1',
         'notes': 'Second commercial carnauba source — exists so the '
-                 'price-compare has a real spread to show.',
+                 'price-compare has a real spread to show. Also the '
+                 'rice-bran-wax channel (src-8).',
     },
     {
         'name': 'machinable-wax-com',
@@ -420,6 +422,94 @@ SEED_SUPPLY_SOURCES = [
                  'alkali for the FUSED (furnace) waterglass route; '
                  'cited but NOT wired into the digestion recipe '
                  '(different process, needs a melt furnace).',
+    },
+    {
+        'name': 'science-company',
+        'display_name': 'The Science Company (ferric chloride)',
+        'supplier_name': 'The Science Company',
+        'url': 'https://www.sciencecompany.com/',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['ferric-chloride']),
+        'demands_json': '[]', 'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-8',
+        'notes': 'Lab/hobby chemicals — ferric chloride etchant '
+                 '(the PCB channel; also the Fe3+ salt for '
+                 'magnetite coprecipitation).',
+    },
+    {
+        'name': 'ebay-teos-listing',
+        'display_name': 'TEOS small-vial listing (eBay)',
+        'supplier_name': '(marketplace listing)',
+        'url': 'https://www.ebay.com/itm/204582215772',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['teos']),
+        'demands_json': '[]', 'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-8',
+        'notes': 'The lab-alkoxide sol-gel precursor; lab-house '
+                 'bulk prices are login-gated, so the visible '
+                 'anchor is a small vial.',
+    },
+    {
+        'name': 'countertop-admix-ebay',
+        'display_name': 'Countertop admixture channel (eBay)',
+        'supplier_name': '(concrete-countertop supply listings)',
+        'url': 'https://www.ebay.com/itm/225760472235',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': True,
+        'availability': 'available',
+        'supplies_json': json.dumps(['fly-ash-class-f',
+                                     'ggbfs-slag']),
+        'demands_json': '[]', 'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-8',
+        'notes': 'Small-bag fly ash + GGBFS via the concrete-'
+                 'countertop hobby channel. BOTH are industrial '
+                 'byproducts (eco flag) whose BULK price is ~100x '
+                 'lower — the real play is a local ready-mix '
+                 'plant / utility channel.',
+    },
+    {
+        'name': 'walmart-grocery',
+        'display_name': 'Walmart grocery (vinegar)',
+        'supplier_name': 'Walmart (Great Value)',
+        'url': 'https://www.walmart.com/ip/Great-Value-Distilled-'
+               'White-Vinegar-1-gal/10450998',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['acetic-vinegar']),
+        'demands_json': '[]', 'business_model_ref': '',
+        'locality_note': 'grocery — stocked everywhere',
+        'is_prior': True, 'provenance_id': 'src-8',
+        'notes': 'Distilled white vinegar (5% acetic) — the '
+                 'kitchen-grade sol-gel acid catalyst.',
+    },
+    {
+        'name': 'dry-and-dry-ebay',
+        'display_name': 'Dry & Dry silica gel (eBay)',
+        'supplier_name': 'Dry & Dry',
+        'url': 'https://www.ebay.com/itm/272443787355',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['silica-gel-desiccant']),
+        'demands_json': '[]', 'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-8',
+        'notes': 'Commodity desiccant beads — the substitute '
+                 'benchmark for DRYING uses of silica gel (never a '
+                 'sol-gel processing substitute).',
     },
     {
         'name': 'polari-waxprint-lab',
@@ -892,6 +982,118 @@ SEED_PRICE_CITATIONS.extend([
                          'route when that recipe lands.',
         'is_estimate': True,
         'is_prior': True, 'provenance_id': 'src-7', 'notes': '',
+    },
+])
+
+SEED_PRICE_CITATIONS.extend([
+    {
+        'name': 'oilscenter-ricebran-5lb-2026-07-28',
+        'source_ref': 'oils-center',
+        'item_ref': 'rice-bran-wax',
+        'price': 65.99, 'currency': 'USD',
+        'amount': 5.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T13:55:00',
+        'citation_url': 'https://oilscenter.com/rice-bran-wax-'
+                        'organic-flakes-vegan-beads-vegetable-'
+                        'pastilles-100-pure-5-lb',
+        'citation_note': 'Listed EXACT $65.99/5 lb — closes the '
+                         'LAST uncited wax-blend candidate.',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': 'src-8', 'notes': '',
+    },
+    {
+        'name': 'sciencecompany-fecl3-500ml-2026-07-28',
+        'source_ref': 'science-company',
+        'item_ref': 'ferric-chloride',
+        'price': 21.95, 'currency': 'USD',
+        'amount': 0.70, 'amount_unit': 'kg',
+        'observed_at': '2026-07-28T13:57:00',
+        'citation_url': 'https://www.sciencecompany.com/Ferric-'
+                        'Chloride-Etchant-Solution-40-500mL-P17177',
+        'citation_note': 'PRICE EXACT ($21.95, 500 mL of 40% '
+                         'solution); MASS inferred at SG~1.40 -> '
+                         '~0.70 kg as-solution.',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-8', 'notes': '',
+    },
+    {
+        'name': 'ebay-teos-20ml-2026-07-28',
+        'source_ref': 'ebay-teos-listing',
+        'item_ref': 'teos',
+        'price': 5.80, 'currency': 'USD',
+        'amount': 0.0187, 'amount_unit': 'kg',
+        'observed_at': '2026-07-28T13:58:00',
+        'citation_url': 'https://www.ebay.com/itm/204582215772',
+        'citation_note': 'Listed small-vial price (20 mL x SG 0.933 '
+                         '= ~18.7 g) -> ~310/kg at THIS scale; '
+                         'lab-house bulk is login-gated and lower, '
+                         'but TEOS stays 1-2 ORDERS above '
+                         'waterglass as a silica source either way '
+                         '— which is exactly why the sg-community '
+                         'alkoxide-free route exists.',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-8', 'notes': '',
+    },
+    {
+        'name': 'ebay-flyash-7lb-2026-07-28',
+        'source_ref': 'countertop-admix-ebay',
+        'item_ref': 'fly-ash-class-f',
+        'price': 17.00, 'currency': 'USD',
+        'amount': 7.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T14:00:00',
+        'citation_url': 'https://www.ebay.com/itm/225760472235',
+        'citation_note': 'Countertop-channel 7 lb bag, typical '
+                         '$12-22 (midpoint cited, listing price not '
+                         'search-visible). BULK truth: $30-80/'
+                         'METRIC TON (~0.03-0.08/kg) — a ~100x gap; '
+                         'hunt a local ready-mix/utility channel.',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-8', 'notes': '',
+    },
+    {
+        'name': 'ebay-ggbfs-7lb-2026-07-28',
+        'source_ref': 'countertop-admix-ebay',
+        'item_ref': 'ggbfs-slag',
+        'price': 17.00, 'currency': 'USD',
+        'amount': 7.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T14:01:00',
+        'citation_url': 'https://www.ebay.com/itm/225893034174',
+        'citation_note': 'Same countertop channel, same midpoint '
+                         'estimate. BULK: ~$54/MT USA (2026-03) = '
+                         '~0.054/kg — the local-channel hunt '
+                         'applies doubly.',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-8', 'notes': '',
+    },
+    {
+        'name': 'walmart-vinegar-1gal-2026-07-28',
+        'source_ref': 'walmart-grocery',
+        'item_ref': 'acetic-vinegar',
+        'price': 3.97, 'currency': 'USD',
+        'amount': 3.78, 'amount_unit': 'kg',
+        'observed_at': '2026-07-28T14:02:00',
+        'citation_url': 'https://www.walmart.com/ip/Great-Value-'
+                        'Distilled-White-Vinegar-1-gal/10450998',
+        'citation_note': 'Listed EXACT $3.97/gallon; mass = ~3.78 '
+                         'kg AS 5% SOLUTION — per kg of ACETIC ACID '
+                         'this is ~21/kg, the dilution is the '
+                         'catch.',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': 'src-8', 'notes': '',
+    },
+    {
+        'name': 'dryndry-silicagel-10lb-2026-07-28',
+        'source_ref': 'dry-and-dry-ebay',
+        'item_ref': 'silica-gel-desiccant',
+        'price': 35.00, 'currency': 'USD',
+        'amount': 10.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T14:03:00',
+        'citation_url': 'https://www.ebay.com/itm/272443787355',
+        'citation_note': 'Typical listing for the 10 lb bag '
+                         '(~$30-40 range midpoint; exact not '
+                         'search-visible).',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-8', 'notes': '',
     },
 ])
 
