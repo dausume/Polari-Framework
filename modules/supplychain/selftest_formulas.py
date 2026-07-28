@@ -208,7 +208,7 @@ if __name__ == '__main__':
           out.get('ok') and len(out['roles']) == 5
           and {g['item'] for g in out['researchGaps']}
           == {'crushed-geopolymer-aggregate',
-              'sugarcane-bagasse-ash', 'hemp-fiber'})
+              'sugarcane-bagasse-ash'})
     v0g = _rows(SEED_PRODUCT_FORMULAS)['geopolymer-castable-v0']
     cost = formula_cost(mgr, v0g)
     check('DIY castable v0 costs ~2.65/kg (volume-tier metakaolin)',

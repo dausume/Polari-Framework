@@ -532,6 +532,25 @@ SEED_SUPPLY_SOURCES = [
                  'actually work.',
     },
     {
+        'name': 'organic-cotton-plus',
+        'display_name': 'Organic Cotton Plus (hemp fiber)',
+        'supplier_name': 'Organic Cotton Plus',
+        'url': 'https://organiccottonplus.com/collections/fiber/'
+               'products/hemp-stuffing-fiber',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': True,
+        'availability': 'available',
+        'supplies_json': json.dumps(['hemp-fiber']),
+        'demands_json': '[]', 'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-9',
+        'notes': 'Craft-channel hemp fiber — the second bio-fiber '
+                 'reinforcement candidate. Bulk Hemp Warehouse '
+                 'sells uncombed bast cheaper by the pound at '
+                 'volume.',
+    },
+    {
         'name': 'polari-waxprint-lab',
         'display_name': 'Polari wax-print lab (our own blend)',
         'supplier_name': 'Polari (self)',
@@ -1134,6 +1153,25 @@ SEED_PRICE_CITATIONS.append(
                          'bio-route number downstream of this '
                          'citation collapses toward processing-'
                          'only cost on the farm channel.',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': 'src-9', 'notes': '',
+    })
+
+SEED_PRICE_CITATIONS.append(
+    {
+        'name': 'organiccotton-hemp-1lb-2026-07-28',
+        'source_ref': 'organic-cotton-plus',
+        'item_ref': 'hemp-fiber',
+        'price': 17.09, 'currency': 'USD',
+        'amount': 1.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T15:20:00',
+        'citation_url': 'https://organiccottonplus.com/collections/'
+                        'fiber/products/hemp-stuffing-fiber',
+        'citation_note': 'Listed EXACT $17.09/lb craft channel. '
+                         'sugarcane-bagasse-ash stays UNCITED on '
+                         'purpose: no US retail channel exists — '
+                         'a sugar-mill byproduct hunt, same class '
+                         'as fly ash bulk.',
         'is_estimate': False,
         'is_prior': True, 'provenance_id': 'src-9', 'notes': '',
     })

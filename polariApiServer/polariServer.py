@@ -752,6 +752,28 @@ try:
     from video.video_basis import VideoAsset
 except ImportError as _exc:
     _stub_missing_feature('video', _exc, globals(), ('VideoAsset',))
+# Business ops — setup/upgrade flows, economy track, order planner
+# (biz-1).
+try:
+    from bizops.bizops_basis import (
+        BusinessStageDefinition, BusinessUpgradeStep,
+        BusinessProfile, LocalEconomyMilestone,
+        ProcessWorkflowDefinition, ProductOrder,
+    )
+    from bizops.bizops_seed import (
+        SEED_BUSINESS_STAGES, SEED_BUSINESS_UPGRADES,
+        SEED_BUSINESS_PROFILES, SEED_ECONOMY_MILESTONES,
+        SEED_PROCESS_WORKFLOWS,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('bizops', _exc, globals(), (
+        'BusinessStageDefinition', 'BusinessUpgradeStep',
+        'BusinessProfile', 'LocalEconomyMilestone',
+        'ProcessWorkflowDefinition', 'ProductOrder',
+        'SEED_BUSINESS_STAGES', 'SEED_BUSINESS_UPGRADES',
+        'SEED_BUSINESS_PROFILES', 'SEED_ECONOMY_MILESTONES',
+        'SEED_PROCESS_WORKFLOWS',
+    ))
 # Odoo ERP connector — instance configs + sim/ops write guards (od-3).
 try:
     from odooconnect.odoo_basis import OdooInstanceConfig
@@ -1576,6 +1598,11 @@ class polariServer(treeObject):
             from video.video_api import VideoAPI
             videoEndpoint = VideoAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('bizops'):
+            # Business flows + economy track + order planner (biz-1).
+            from bizops.bizops_api import BizOpsAPI
+            bizOpsEndpoint = BizOpsAPI(
+                polServer=self, manager=self.manager)
         if _feature_available('odooconnect'):
             # Odoo ERP connector status/catalog (od-3).
             from odooconnect.odoo_api import OdooConnectAPI
@@ -1859,6 +1886,10 @@ class polariServer(treeObject):
             # Odoo ERP connector (od-3/od-4/od-5).
             OdooInstanceConfig, OdooModelBinding, OdooSyncReceipt,
             BusinessScenarioDefinition,
+            # Business ops (biz-1).
+            BusinessStageDefinition, BusinessUpgradeStep,
+            BusinessProfile, LocalEconomyMilestone,
+            ProcessWorkflowDefinition, ProductOrder,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -3202,6 +3233,17 @@ class polariServer(treeObject):
              SEED_ODOO_BINDINGS),
             ('BusinessScenarioDefinition', BusinessScenarioDefinition,
              SEED_BUSINESS_SCENARIOS),
+            # biz-1: stages before profiles that name them.
+            ('BusinessStageDefinition', BusinessStageDefinition,
+             SEED_BUSINESS_STAGES),
+            ('BusinessUpgradeStep', BusinessUpgradeStep,
+             SEED_BUSINESS_UPGRADES),
+            ('BusinessProfile', BusinessProfile,
+             SEED_BUSINESS_PROFILES),
+            ('LocalEconomyMilestone', LocalEconomyMilestone,
+             SEED_ECONOMY_MILESTONES),
+            ('ProcessWorkflowDefinition', ProcessWorkflowDefinition,
+             SEED_PROCESS_WORKFLOWS),
             # chain-1: nodes + flows before the chain that binds them.
             ('SupplyNode', SupplyNode, SEED_SUPPLY_NODES),
             ('SupplyFlow', SupplyFlow, SEED_SUPPLY_FLOWS),

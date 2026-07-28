@@ -258,9 +258,11 @@ def cheapest_blend(manager, product_item_ref, policy_name='',
     return {'ok': True, 'product': product_item_ref,
             'sourceChoice': source_choice,
             'usdPerKg': total,
+            # zero-fill optional roles are noise in a suggested
+            # recipe — dropped from the output.
             'components': [{'item_ref': p['item'], 'role': p['role'],
                             'fraction': p['fraction']}
-                           for p in picks],
+                           for p in picks if p['fraction'] > 0],
             'scoreTerm': {**COST_TERM, 'value': total},
             'suggestion': {
                 'evidence': 'cost-only optimum over cited prices — '

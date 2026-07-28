@@ -42,7 +42,16 @@
       "wave": 1,
       "description": "3D organ + root stand-in models, confinement/dwarfing assessment."
     },
-    "odooconnect": {
+    "bizops": {
+    "kind": "official",
+    "downloaded": true,
+    "path": "modules/bizops",
+    "repo": "",
+    "requires": ["supplychain"],
+    "wave": 3,
+    "description": "Business operations: setup/upgrade flows, local-economy track, order planner with mold-ladder reuse."
+  },
+  "odooconnect": {
     "kind": "official",
     "downloaded": true,
     "path": "modules/odooconnect",
