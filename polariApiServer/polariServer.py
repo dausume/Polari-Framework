@@ -754,10 +754,14 @@ except ImportError as _exc:
 # Odoo ERP connector — instance configs + sim/ops write guards (od-3).
 try:
     from odooconnect.odoo_basis import OdooInstanceConfig
+    from odooconnect.odoo_bindings import (
+        OdooModelBinding, OdooSyncReceipt, SEED_ODOO_BINDINGS,
+    )
     from odooconnect.odoo_seed import SEED_ODOO_INSTANCES
 except ImportError as _exc:
     _stub_missing_feature('odooconnect', _exc, globals(), (
-        'OdooInstanceConfig', 'SEED_ODOO_INSTANCES',
+        'OdooInstanceConfig', 'OdooModelBinding', 'OdooSyncReceipt',
+        'SEED_ODOO_INSTANCES', 'SEED_ODOO_BINDINGS',
     ))
 # Bio wax sources (wax-1) + the unifying supply-chain ledger (chain-1).
 try:
@@ -1822,8 +1826,8 @@ class polariServer(treeObject):
             # Wax sources (wax-1) + supply-chain ledger (chain-1).
             WaxSourceDefinition, SupplyNode, SupplyFlow,
             SupplyChainDefinition,
-            # Odoo ERP connector (od-3).
-            OdooInstanceConfig,
+            # Odoo ERP connector (od-3/od-4).
+            OdooInstanceConfig, OdooModelBinding, OdooSyncReceipt,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -3159,9 +3163,12 @@ class polariServer(treeObject):
             # wax-1: bio wax sources for molds / electronic masks.
             ('WaxSourceDefinition', WaxSourceDefinition,
              SEED_WAX_SOURCES),
-            # Odoo endpoints — sim free, ops guarded (od-3).
+            # Odoo endpoints — sim free, ops guarded (od-3);
+            # instances before the bindings that name them (od-4).
             ('OdooInstanceConfig', OdooInstanceConfig,
              SEED_ODOO_INSTANCES),
+            ('OdooModelBinding', OdooModelBinding,
+             SEED_ODOO_BINDINGS),
             # chain-1: nodes + flows before the chain that binds them.
             ('SupplyNode', SupplyNode, SEED_SUPPLY_NODES),
             ('SupplyFlow', SupplyFlow, SEED_SUPPLY_FLOWS),

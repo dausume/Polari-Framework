@@ -12,15 +12,14 @@ Run from polari-framework/: python3 -m odooconnect.selftest_odoo
 
 import json
 import os
-import threading
 import types
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from odooconnect.odoo_analysis import odoo_status
 from odooconnect.odoo_client import (
     OdooHandle, jsonrpc, ops_confirm_phrase,
 )
 from odooconnect.odoo_seed import SEED_ODOO_INSTANCES
+from odooconnect.stub_odoo import start_stub
 
 PASS = '\033[92mPASS\033[0m'
 FAIL = '\033[91mFAIL\033[0m'
@@ -31,69 +30,6 @@ def check(label, cond, extra=''):
     _results.append(bool(cond))
     print(f'{PASS if cond else FAIL}: {label}'
           + (f'  [{extra}]' if extra and not cond else ''))
-
-
-# ---------------------------------------------------------------------------
-# Stub Odoo: /jsonrpc with common.version / common.authenticate /
-# object.execute_kw over 25 fake partners. Auth: login 'stub' +
-# password 'stub-pass' -> uid 7.
-# ---------------------------------------------------------------------------
-PARTNERS = [{'id': i, 'name': f'partner-{i:02d}'} for i in range(1, 26)]
-CREATED = []
-
-
-class _StubOdoo(BaseHTTPRequestHandler):
-    def log_message(self, *args):
-        pass
-
-    def _reply(self, result=None, error=None):
-        body = {'jsonrpc': '2.0', 'id': 1}
-        if error is not None:
-            body['error'] = error
-        else:
-            body['result'] = result
-        data = json.dumps(body).encode()
-        self.send_response(200)
-        self.send_header('Content-Type', 'application/json')
-        self.send_header('Content-Length', str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
-
-    def do_POST(self):
-        if self.path != '/jsonrpc':
-            self.send_error(404)
-            return
-        req = json.loads(self.rfile.read(
-            int(self.headers.get('Content-Length', 0))))
-        params = req.get('params', {})
-        service, method = params.get('service'), params.get('method')
-        args = params.get('args', [])
-        if service == 'common' and method == 'version':
-            self._reply({'server_version': '18.0-stub'})
-        elif service == 'common' and method == 'authenticate':
-            db, login, password = args[0], args[1], args[2]
-            ok = (db.startswith('odoo_') and login == 'stub'
-                  and password == 'stub-pass')
-            self._reply(7 if ok else False)
-        elif service == 'object' and method == 'execute_kw':
-            _db, uid, password, model, obj_method = args[:5]
-            if uid != 7 or password != 'stub-pass':
-                self._reply(error={'message': 'Access Denied'})
-                return
-            m_args = args[5] if len(args) > 5 else []
-            m_kwargs = args[6] if len(args) > 6 else {}
-            if model == 'res.partner' and obj_method == 'search_read':
-                offset = int(m_kwargs.get('offset', 0))
-                limit = int(m_kwargs.get('limit', 0)) or len(PARTNERS)
-                self._reply(PARTNERS[offset:offset + limit])
-            elif model == 'res.partner' and obj_method == 'create':
-                CREATED.append(m_args[0])
-                self._reply(1000 + len(CREATED))
-            else:
-                self._reply(error={'message':
-                                   f'stub: no {model}.{obj_method}'})
-        else:
-            self._reply(error={'message': 'stub: unknown service'})
 
 
 def _cfg(name, mode, push_enabled, read_only, base_url,
@@ -107,9 +43,7 @@ def _cfg(name, mode, push_enabled, read_only, base_url,
 
 
 if __name__ == '__main__':
-    server = ThreadingHTTPServer(('127.0.0.1', 0), _StubOdoo)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    URL = f'http://127.0.0.1:{server.server_address[1]}'
+    server, URL = start_stub()
     os.environ['STUB_ODOO_PASS'] = 'stub-pass'
 
     print('== suite: raw jsonrpc + probes ==')
