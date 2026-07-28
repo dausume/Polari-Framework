@@ -11,6 +11,9 @@ Run from polari-framework/: python3 -m bizops.selftest_bizops
 import json
 import types
 
+from bizops.bizops_deals import (
+    deal_price_window, deal_pricing_catalog,
+)
 from bizops.bizops_compliance import (
     qa_report, sellability_report,
 )
@@ -481,6 +484,45 @@ if __name__ == '__main__':
     check('leachate-pH check doubles as the plant-safe claim '
           'evidence (the note says so)',
           'plant-safe' in out['note'])
+
+    print('== suite: deal pricing — transfer-price discovery '
+          '(biz-5) ==')
+    mgr5 = _mgr()
+    out = deal_price_window(mgr5, 'deal-hydro-mold-loop')
+    biomass = out['flows'][0]
+    check('biomass window bounded by the buyer alternative: '
+          'ceiling = cited soy wax 4.81/kg exact',
+          out.get('ok')
+          and biomass['alternativeItem'] == 'soy-wax'
+          and abs(biomass['ceilingUsdPerKg'] - 4.8061) < 0.01
+          and biomass['ceilingEstimate'] is False)
+    check('no seeded recipe for farm biomass -> floor 0 with the '
+          'supplier-must-confirm note',
+          biomass['floorUsdPerKg'] == 0.0
+          and 'SUPPLIER must confirm' in biomass['floorBasis'])
+    check('window viable, midpoint suggested at 2.40, current '
+          'seeded term 3.50 shown beside it for the human',
+          biomass['viable'] is True
+          and biomass['suggestedUsdPerKg'] == 2.4
+          and biomass['currentTermPrice'] == 3.5)
+    pot = out['flows'][1]
+    check('pot counter-flow honestly UNBOUNDED (no pot citation) '
+          'with the citation ask',
+          pot['viable'] is None and 'cite' in pot.get('ask', ''))
+    check('report ends in a suggestion + the dynamic-half pointer '
+          '(scenario engine validates, plan-first)',
+          'never auto' in out['suggestion']['action']
+          and 'scenario' in out['dynamicHalf'])
+    out = deal_price_window(mgr5, 'deal-rice-husk-supply')
+    husk = out['flows'][0]
+    check('husk deal: ceiling from the retail-hulls est citation, '
+          'flagged est; wide byproduct window',
+          husk['ceilingEstimate'] is True
+          and abs(husk['ceilingUsdPerKg'] - 1.3228) < 0.01
+          and husk['viable'] is True)
+    check('unknown deal refused; catalog covers all three deals',
+          not deal_price_window(mgr5, 'nope').get('ok')
+          and len(deal_pricing_catalog(mgr5)['deals']) == 3)
 
     print('== suite: sellability embedded in the walkthrough ==')
     out = startup_walkthrough(_mgr(), 'wax-mold-goods',

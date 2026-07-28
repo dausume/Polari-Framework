@@ -330,8 +330,11 @@ SEED_PARTNERSHIPS = [
             {'from': 'local-hydroponics-farm',
              'to': 'wax-mold-goods',
              'item_ref': 'wax-source-biomass',
+             'alternative_item_ref': 'soy-wax',
              'terms_note': 'transfer price 3.50/kg (scenario-2 '
-                           'seed; price discovery ongoing)'},
+                           'seed; price discovery ongoing — '
+                           'buyer\'s alternative is commercial '
+                           'soy wax)'},
             {'from': 'wax-mold-goods',
              'to': 'local-hydroponics-farm',
              'item_ref': 'geopolymer-self-watering-pot',

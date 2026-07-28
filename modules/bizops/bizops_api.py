@@ -12,6 +12,9 @@ from objectTreeDecorators import treeObject, treeObjectInit
 from bizops.bizops_flows import (
     business_flow_report, local_economy_report,
 )
+from bizops.bizops_deals import (
+    deal_price_window, deal_pricing_catalog,
+)
 from bizops.bizops_compliance import (
     qa_report, sellability_report,
 )
@@ -46,6 +49,10 @@ class BizOpsAPI(treeObject):
                 suffix='partnerships')
             add('/api/bizops/partnership-suggestions', self,
                 suffix='partnership_suggestions')
+            add('/api/bizops/deal-pricing', self,
+                suffix='deal_pricing_all')
+            add('/api/bizops/deal-pricing/{deal}', self,
+                suffix='deal_pricing')
             add('/api/bizops/sellability/{business}', self,
                 suffix='sellability')
             add('/api/bizops/qa/{business}', self, suffix='qa')
@@ -108,6 +115,24 @@ class BizOpsAPI(treeObject):
 
     def on_get_partnership_suggestions(self, request, response):
         response.media = partnership_suggestions(self.manager)
+
+    def on_get_deal_pricing_all(self, request, response):
+        out = deal_pricing_catalog(
+            self.manager,
+            min_margin_pct=float(request.params.get(
+                'minMarginPct', 10.0)))
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_deal_pricing(self, request, response, deal):
+        out = deal_price_window(
+            self.manager, deal,
+            min_margin_pct=float(request.params.get(
+                'minMarginPct', 10.0)))
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
 
     def on_get_sellability(self, request, response, business):
         out = sellability_report(
