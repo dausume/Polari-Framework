@@ -12,7 +12,7 @@ from objectTreeDecorators import treeObject, treeObjectInit
 
 from supplychain.formula_analysis import (
     cheapest_blend, formula_cost, formulas_catalog,
-    requirement_coverage,
+    product_cost_comparison, requirement_coverage,
 )
 from supplychain.sourcing_analysis import (
     _named, preferred_source, price_compare, scenario_price_drift,
@@ -43,6 +43,8 @@ class SourcingAPI(treeObject):
                 self, suffix='formula_cost')
             add('/api/supplychain/sourcing/cheapest-blend/{item_ref}',
                 self, suffix='cheapest')
+            add('/api/supplychain/sourcing/compare/{item_ref}',
+                self, suffix='compare')
 
     def _policy(self, request):
         return request.params.get('policy', '')
@@ -95,6 +97,13 @@ class SourcingAPI(treeObject):
         out = cheapest_blend(
             self.manager, item_ref, self._policy(request),
             source_choice=request.params.get('sources', 'cheapest'))
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_compare(self, request, response, item_ref):
+        out = product_cost_comparison(self.manager, item_ref,
+                                      self._policy(request))
         if not out.get('ok'):
             response.status = '404 Not Found'
         response.media = out

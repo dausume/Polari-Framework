@@ -14,7 +14,7 @@ import types
 
 from supplychain.formula_analysis import (
     cheapest_blend, formula_cost, formulas_catalog,
-    requirement_coverage,
+    product_cost_comparison, requirement_coverage,
 )
 from supplychain.sourcing_seed import (
     SEED_PRICE_CITATIONS, SEED_PRODUCT_FORMULAS,
@@ -166,6 +166,33 @@ if __name__ == '__main__':
     check('suggested blend is feasible by the same validator',
           round_trip.get('ok')
           and abs(round_trip['usdPerKg'] - out['usdPerKg']) < 0.001)
+
+    print('== suite: substitute comparison (MachinableWax) ==')
+    out = product_cost_comparison(mgr, 'natural-print-wax-blend')
+    kinds = {r['kind'] for r in out['rows']}
+    check('comparison spans formulas + optimizer + substitute',
+          out.get('ok')
+          and kinds == {'formula', 'optimized-blend', 'substitute'})
+    sub = next(r for r in out['rows'] if r['kind'] == 'substitute')
+    check('machinable wax priced ~22.05/kg from the flagged '
+          'citation', sub['name'] == 'machinable-wax'
+          and abs(sub['usdPerKg'] - 22.0461) < 0.01
+          and sub['anyEstimate'] is True)
+    check('substitute caveats travel WITH the price (plastics, '
+          'fumes, non-eco)',
+          any('plastic' in c for c in sub['caveats'])
+          and any('fume' in c for c in sub['caveats'])
+          and sub.get('ecoFriendly') is False)
+    check('rows sorted cheapest-first, substitute is the DEAREST '
+          'priced row',
+          out['rows'][0]['kind'] == 'optimized-blend'
+          and out['rows'][-1]['kind'] == 'substitute')
+    verdict = out['verdict']
+    check('verdict: our blend beats the substitute by ~64.6%',
+          verdict['ours']['name'] == 'cheapest-feasible-blend'
+          and abs(verdict['oursCheaperPct'] - 64.6) < 0.5)
+    check('verdict keeps the substitute honest (caveats attached)',
+          verdict['substitute']['caveats'])
 
     print('== suite: catalog ==')
     cat = formulas_catalog(mgr)

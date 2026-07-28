@@ -249,6 +249,85 @@ def cheapest_blend(manager, product_item_ref, policy_name='',
             'researchGaps': coverage['researchGaps']}
 
 
+def product_cost_comparison(manager, product_item_ref,
+                            policy_name=''):
+    """Our formulas vs the optimizer vs WHOLE-product substitutes —
+    one table, caveats attached, so the cheap option never hides
+    what it costs you (plastics, fumes, eco)."""
+    req = _requirement_for(manager, product_item_ref)
+    if req is None:
+        return {'ok': False,
+                'refusal': f'no ProductInputRequirement for '
+                           f'"{product_item_ref}"'}
+    rows = []
+    for f in _rows(manager, 'ProductFormula'):
+        if getattr(f, 'product_item_ref', '') != product_item_ref:
+            continue
+        cost = formula_cost(manager, f, policy_name=policy_name)
+        if cost.get('ok'):
+            rows.append({'kind': 'formula',
+                         'name': getattr(f, 'name', ''),
+                         'usdPerKg': cost['usdPerKg'],
+                         'anyEstimate': cost['anyEstimate'],
+                         'caveats': []})
+    cheapest = cheapest_blend(manager, product_item_ref,
+                              policy_name=policy_name)
+    if cheapest.get('ok'):
+        rows.append({'kind': 'optimized-blend',
+                     'name': 'cheapest-feasible-blend',
+                     'usdPerKg': cheapest['usdPerKg'],
+                     'anyEstimate': True,
+                     'components': cheapest['components'],
+                     'caveats': ['cost-only optimum — '
+                                 'print-validate before adopting']})
+    for sub in _loads(req, 'substitutes_json', []):
+        best = _best_unit_price(manager, sub.get('item_ref', ''),
+                                policy_name=policy_name)
+        source = _named(manager, 'SupplySourceProfile',
+                        best['source']) if best else None
+        row = {'kind': 'substitute',
+               'name': sub.get('item_ref', ''),
+               'caveats': list(sub.get('caveats', [])),
+               'notes': sub.get('notes', '')}
+        if best is None:
+            row['usdPerKg'] = None
+            row['refusal'] = 'no cited price — comparison pending'
+        else:
+            row['usdPerKg'] = best['normalized']
+            row['anyEstimate'] = best['isEstimate']
+            row['citation'] = best['citation']
+            row['observedAt'] = best['observedAt']
+            if source is not None:
+                row['ecoFriendly'] = bool(
+                    getattr(source, 'is_eco_friendly', False))
+        rows.append(row)
+    priced = [r for r in rows if r.get('usdPerKg') is not None]
+    result = {'ok': True, 'product': product_item_ref,
+              'rows': sorted(rows,
+                             key=lambda r: (r.get('usdPerKg')
+                                            is None,
+                                            r.get('usdPerKg') or 0))}
+    if priced:
+        best_ours = min((r for r in priced
+                         if r['kind'] != 'substitute'),
+                        key=lambda r: r['usdPerKg'], default=None)
+        best_sub = min((r for r in priced
+                        if r['kind'] == 'substitute'),
+                       key=lambda r: r['usdPerKg'], default=None)
+        if best_ours and best_sub:
+            result['verdict'] = {
+                'ours': {'name': best_ours['name'],
+                         'usdPerKg': best_ours['usdPerKg']},
+                'substitute': {'name': best_sub['name'],
+                               'usdPerKg': best_sub['usdPerKg'],
+                               'caveats': best_sub['caveats']},
+                'oursCheaperPct': round(
+                    100.0 * (best_sub['usdPerKg']
+                             - best_ours['usdPerKg'])
+                    / best_sub['usdPerKg'], 1)}
+    return result
+
+
 def formulas_catalog(manager, policy_name=''):
     rows = []
     for f in _rows(manager, 'ProductFormula'):

@@ -104,6 +104,28 @@ SEED_SUPPLY_SOURCES = [
                  'price-compare has a real spread to show.',
     },
     {
+        'name': 'machinable-wax-com',
+        'display_name': 'MachinableWax.com (Print2Cast)',
+        'supplier_name': 'MachinableWax.com',
+        'url': 'https://machinablewax.com/',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['machinable-wax']),
+        'demands_json': '[]',
+        'business_model_ref': '',
+        'locality_note': '',
+        'is_prior': True, 'provenance_id': 'src-3',
+        'notes': 'THE current commercial alternative for 3D-printing '
+                 'wax (machinable/Print2Cast). NOT eco-friendly: '
+                 'machinable wax is a paraffin + polyethylene '
+                 '(plastic) blend, and it emits fumes when '
+                 'overheated — ventilation required, non-user-'
+                 'friendly under some conditions. Exists here as the '
+                 'substitute benchmark our natural blend must beat.',
+    },
+    {
         'name': 'polari-waxprint-lab',
         'display_name': 'Polari wax-print lab (our own blend)',
         'supplier_name': 'Polari (self)',
@@ -237,6 +259,26 @@ SEED_PRICE_CITATIONS = [
     },
 ]
 
+SEED_PRICE_CITATIONS.append(
+    {
+        'name': 'machinablewax-pellets-2026-07-28',
+        'source_ref': 'machinable-wax-com',
+        'item_ref': 'machinable-wax',
+        'price': 10.00, 'currency': 'USD',
+        'amount': 1.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T11:05:00',
+        'citation_url': 'https://machinablewax.com/'
+                        'machinable-wax-pelletized-10-pound-box/',
+        'citation_note': 'Pelletized 10 lb box product exists; exact '
+                         'store price NOT retrievable at observation '
+                         'time (site TLS error) — ~$10/lb is the '
+                         'commonly forum-referenced figure for '
+                         'machinable wax. Re-cite with the exact '
+                         'store price when reachable.',
+        'is_estimate': True,
+        'is_prior': True, 'provenance_id': 'src-3', 'notes': '',
+    })
+
 SEED_PRODUCT_REQUIREMENTS = [
     {
         'name': 'natural-print-wax-blend-requirements',
@@ -261,6 +303,18 @@ SEED_PRODUCT_REQUIREMENTS = [
              'min_fraction': 0.05, 'max_fraction': 0.15,
              'candidates': ['carnauba-wax', 'stearic-acid',
                             'candelilla-wax']},
+        ]),
+        'substitutes_json': json.dumps([
+            {'item_ref': 'machinable-wax',
+             'caveats': [
+                 'contains plastics — paraffin + polyethylene blend',
+                 'emits fumes when overheated; ventilation required '
+                 '(non-user-friendly under some conditions)',
+                 'not eco-friendly (petrochemical feedstock)',
+             ],
+             'notes': 'Drop-in commercial 3D-printing wax '
+                      '(MachinableWax.com Print2Cast family) — the '
+                      'benchmark substitute for cost comparison.'},
         ]),
         'is_prior': True,
         'provenance_id': 'src-2',
