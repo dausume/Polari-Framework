@@ -783,10 +783,12 @@ try:
         SEED_SUPPLY_CHAINS, SEED_SUPPLY_FLOWS, SEED_SUPPLY_NODES,
     )
     from supplychain.sourcing_basis import (
-        PriceCitation, SourcePreferencePolicy, SupplySourceProfile,
+        PriceCitation, ProductFormula, ProductInputRequirement,
+        SourcePreferencePolicy, SupplySourceProfile,
     )
     from supplychain.sourcing_seed import (
-        SEED_PRICE_CITATIONS, SEED_SOURCE_POLICIES,
+        SEED_PRICE_CITATIONS, SEED_PRODUCT_FORMULAS,
+        SEED_PRODUCT_REQUIREMENTS, SEED_SOURCE_POLICIES,
         SEED_SUPPLY_SOURCES,
     )
 except ImportError as _exc:
@@ -794,8 +796,10 @@ except ImportError as _exc:
         'SupplyChainDefinition', 'SupplyFlow', 'SupplyNode', 'SEED_SUPPLY_CHAINS',
         'SEED_SUPPLY_FLOWS', 'SEED_SUPPLY_NODES',
         'SupplySourceProfile', 'PriceCitation',
-        'SourcePreferencePolicy', 'SEED_SUPPLY_SOURCES',
+        'SourcePreferencePolicy', 'ProductInputRequirement',
+        'ProductFormula', 'SEED_SUPPLY_SOURCES',
         'SEED_PRICE_CITATIONS', 'SEED_SOURCE_POLICIES',
+        'SEED_PRODUCT_REQUIREMENTS', 'SEED_PRODUCT_FORMULAS',
     ))
 # Topology orchestration (top-1): the swarm/compose topology as
 # object-tree data — machines, instances, module assignments +
@@ -1846,6 +1850,7 @@ class polariServer(treeObject):
             WaxSourceDefinition, SupplyNode, SupplyFlow,
             SupplyChainDefinition, SupplySourceProfile,
             PriceCitation, SourcePreferencePolicy,
+            ProductInputRequirement, ProductFormula,
             # Odoo ERP connector (od-3/od-4/od-5).
             OdooInstanceConfig, OdooModelBinding, OdooSyncReceipt,
             BusinessScenarioDefinition,
@@ -3205,6 +3210,11 @@ class polariServer(treeObject):
              SEED_PRICE_CITATIONS),
             ('SourcePreferencePolicy', SourcePreferencePolicy,
              SEED_SOURCE_POLICIES),
+            # Formula layer (src-2): requirements before formulas.
+            ('ProductInputRequirement', ProductInputRequirement,
+             SEED_PRODUCT_REQUIREMENTS),
+            ('ProductFormula', ProductFormula,
+             SEED_PRODUCT_FORMULAS),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),

@@ -237,6 +237,64 @@ SEED_PRICE_CITATIONS = [
     },
 ]
 
+SEED_PRODUCT_REQUIREMENTS = [
+    {
+        'name': 'natural-print-wax-blend-requirements',
+        'display_name': 'Natural 3D-printable wax — full feedstock '
+                        'space',
+        'product_item_ref': 'natural-print-wax-blend',
+        'roles_json': json.dumps([
+            {'role': 'base-wax',
+             'purpose': 'bulk body of the blend; melt behavior',
+             'min_fraction': 0.60, 'max_fraction': 0.85,
+             'candidates': ['soy-wax', 'rice-bran-wax',
+                            'candelilla-wax']},
+            {'role': 'toughener',
+             'purpose': 'flexibility/toughness so printed molds '
+                        'survive handling + demolding',
+             'min_fraction': 0.10, 'max_fraction': 0.30,
+             'candidates': ['beeswax']},
+            {'role': 'hardener',
+             'purpose': 'raises stiffness + melting point for '
+                        'dimensional stability during geopolymer '
+                        'cure',
+             'min_fraction': 0.05, 'max_fraction': 0.15,
+             'candidates': ['carnauba-wax', 'stearic-acid',
+                            'candelilla-wax']},
+        ]),
+        'is_prior': True,
+        'provenance_id': 'src-2',
+        'notes': 'The COMPLETE candidate space, cited or not — '
+                 'uncited candidates (rice-bran-wax, candelilla-wax, '
+                 'stearic-acid) surface as research gaps in '
+                 'coverage, driving the next price hunts. Fractions '
+                 'are v1 engineering priors; waxprint '
+                 'WaxFeedstockDefinition carries the material '
+                 'properties side.',
+    },
+]
+
+SEED_PRODUCT_FORMULAS = [
+    {
+        'name': 'natural-print-wax-v0',
+        'display_name': 'Natural print wax v0 (70/20/10)',
+        'product_item_ref': 'natural-print-wax-blend',
+        'components_json': json.dumps([
+            {'item_ref': 'soy-wax', 'role': 'base-wax',
+             'fraction': 0.70},
+            {'item_ref': 'beeswax', 'role': 'toughener',
+             'fraction': 0.20},
+            {'item_ref': 'carnauba-wax', 'role': 'hardener',
+             'fraction': 0.10},
+        ]),
+        'status': 'candidate',
+        'is_prior': True,
+        'provenance_id': 'src-2',
+        'notes': 'First engineering guess — exists so cost scoring '
+                 'has a baseline to beat; NOT print-validated.',
+    },
+]
+
 SEED_SOURCE_POLICIES = [
     {
         'name': 'polari-preference-ladder-v1',

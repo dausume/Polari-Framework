@@ -10,8 +10,12 @@ suggestions, and scenario price-drift findings (src-1).
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
+from supplychain.formula_analysis import (
+    cheapest_blend, formula_cost, formulas_catalog,
+    requirement_coverage,
+)
 from supplychain.sourcing_analysis import (
-    preferred_source, price_compare, scenario_price_drift,
+    _named, preferred_source, price_compare, scenario_price_drift,
     source_catalog,
 )
 
@@ -31,6 +35,14 @@ class SourcingAPI(treeObject):
                 self, suffix='preferred')
             add('/api/supplychain/sourcing/scenario-drift', self,
                 suffix='drift')
+            add('/api/supplychain/sourcing/requirements/{item_ref}',
+                self, suffix='requirements')
+            add('/api/supplychain/sourcing/formulas', self,
+                suffix='formulas')
+            add('/api/supplychain/sourcing/formula-cost/{name}',
+                self, suffix='formula_cost')
+            add('/api/supplychain/sourcing/cheapest-blend/{item_ref}',
+                self, suffix='cheapest')
 
     def _policy(self, request):
         return request.params.get('policy', '')
@@ -49,6 +61,40 @@ class SourcingAPI(treeObject):
     def on_get_preferred(self, request, response, item_ref):
         out = preferred_source(self.manager, item_ref,
                                self._policy(request))
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_requirements(self, request, response, item_ref):
+        out = requirement_coverage(self.manager, item_ref,
+                                   self._policy(request))
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_formulas(self, request, response):
+        response.media = formulas_catalog(self.manager,
+                                          self._policy(request))
+
+    def on_get_formula_cost(self, request, response, name):
+        formula = _named(self.manager, 'ProductFormula', name)
+        if formula is None:
+            response.status = '404 Not Found'
+            response.media = {'ok': False,
+                              'refusal': f'no ProductFormula '
+                                         f'named "{name}"'}
+            return
+        out = formula_cost(
+            self.manager, formula, self._policy(request),
+            source_choice=request.params.get('sources', 'cheapest'))
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_cheapest(self, request, response, item_ref):
+        out = cheapest_blend(
+            self.manager, item_ref, self._policy(request),
+            source_choice=request.params.get('sources', 'cheapest'))
         if not out.get('ok'):
             response.status = '404 Not Found'
         response.media = out
