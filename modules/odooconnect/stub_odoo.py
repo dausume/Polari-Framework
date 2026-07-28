@@ -38,6 +38,55 @@ class StubState:
         self.product_fields = {'name', 'list_price'}
         self.next_id = 1000
         self.created_payloads = []
+        # od-4b order-book fixtures: a mapped product w/ volume, a
+        # SKU-mapped one w/o volume, and an unmapped one — plus
+        # orders in draft/sale/cancel states, one w/o a promise date.
+        self.product_variants = [
+            {'id': 501, 'name': 'Self-watering pot 1L',
+             'x_polari_ref': 'geopolymer-mix', 'default_code': '',
+             'volume': 0.001, 'write_date': '2026-07-28 02:00:00'},
+            {'id': 502, 'name': 'Pot shelf',
+             'x_polari_ref': '', 'default_code': 'shelf-std',
+             'volume': 0, 'write_date': '2026-07-28 02:00:00'},
+            {'id': 503, 'name': 'Mystery trinket',
+             'x_polari_ref': '', 'default_code': '',
+             'volume': 0, 'write_date': '2026-07-28 02:00:00'},
+        ]
+        self.sale_orders = [
+            {'id': 71, 'name': 'S00071', 'state': 'sale',
+             'commitment_date': '2026-08-15 12:00:00',
+             'date_order': '2026-07-27 09:00:00',
+             'partner_id': [3, 'partner-03'],
+             'write_date': '2026-07-28 02:10:00'},
+            {'id': 72, 'name': 'S00072', 'state': 'draft',
+             'commitment_date': False,
+             'date_order': '2026-07-28 08:00:00',
+             'partner_id': [4, 'partner-04'],
+             'write_date': '2026-07-28 02:11:00'},
+            {'id': 73, 'name': 'S00073', 'state': 'cancel',
+             'commitment_date': '2026-08-01 12:00:00',
+             'date_order': '2026-07-20 09:00:00',
+             'partner_id': [5, 'partner-05'],
+             'write_date': '2026-07-28 02:12:00'},
+        ]
+        self.sale_lines = [
+            {'id': 711, 'order_id': [71, 'S00071'],
+             'product_id': [501, 'Self-watering pot 1L'],
+             'product_uom_qty': 12.0, 'name': 'pot 1L run',
+             'write_date': '2026-07-28 02:10:01'},
+            {'id': 712, 'order_id': [71, 'S00071'],
+             'product_id': [502, 'Pot shelf'],
+             'product_uom_qty': 3.0, 'name': 'matching shelves',
+             'write_date': '2026-07-28 02:10:02'},
+            {'id': 721, 'order_id': [72, 'S00072'],
+             'product_id': [503, 'Mystery trinket'],
+             'product_uom_qty': 5.0, 'name': 'trinkets',
+             'write_date': '2026-07-28 02:11:01'},
+            {'id': 731, 'order_id': [73, 'S00073'],
+             'product_id': [501, 'Self-watering pot 1L'],
+             'product_uom_qty': 2.0, 'name': 'cancelled pots',
+             'write_date': '2026-07-28 02:12:01'},
+        ]
 
 
 STATE = StubState()
@@ -162,6 +211,14 @@ class StubOdooHandler(BaseHTTPRequestHandler):
                 self._reply(True)
             else:
                 self._err(f'stub: no product.template.{obj_method}')
+        elif model in ('sale.order', 'sale.order.line',
+                       'product.product') \
+                and obj_method == 'search_read':
+            table = {'sale.order': s.sale_orders,
+                     'sale.order.line': s.sale_lines,
+                     'product.product': s.product_variants}[model]
+            domain = m_args[0] if m_args else []
+            self._reply(_page(_filter(table, domain), m_kwargs))
         elif model == 'ir.model' and obj_method == 'search':
             domain = m_args[0] if m_args else []
             wanted = domain[0][2] if domain else ''

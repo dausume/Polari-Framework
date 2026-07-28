@@ -16,6 +16,7 @@ from odooconnect.odoo_scenario_engine import (
     scenario_archive_status, scenario_create_status, scenario_harvest,
     scenario_plan, scenario_run, scenario_seed, scenarios_catalog,
 )
+from odooconnect.odoo_orders import pull_orders
 from odooconnect.odoo_sync import (
     _named_row, bindings_catalog, pull, push, receipts_catalog,
 )
@@ -41,6 +42,7 @@ class OdooConnectAPI(treeObject):
             add('/api/odoo/configs', self, suffix='configs')
             add('/api/odoo/bindings', self, suffix='bindings')
             add('/api/odoo/pull', self, suffix='pull')
+            add('/api/odoo/pull-orders', self, suffix='pull_orders')
             add('/api/odoo/push', self, suffix='push')
             add('/api/odoo/receipts', self, suffix='receipts')
             add('/api/odoo/scenarios', self, suffix='scenarios')
@@ -77,6 +79,19 @@ class OdooConnectAPI(treeObject):
                            f'"{body.get("binding", "")}"'}
             return
         response.media = pull(self.manager, binding)
+
+    def on_post_pull_orders(self, request, response):
+        body = request.media if request.content_length else {}
+        binding = self._binding_named(body.get('binding',
+                                               'sim-sale-orders'))
+        if binding is None:
+            response.status = '400 Bad Request'
+            response.media = {
+                'ok': False,
+                'refusal': f'no OdooModelBinding named '
+                           f'"{body.get("binding", "sim-sale-orders")}"'}
+            return
+        response.media = pull_orders(self.manager, binding)
 
     def on_get_scenarios(self, request, response):
         response.media = scenarios_catalog(self.manager)

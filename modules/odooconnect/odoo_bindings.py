@@ -109,6 +109,25 @@ SEED_ODOO_BINDINGS = [
                  'push direction feeds od-5 scenario seeding.',
     },
     {
+        'name': 'sim-sale-orders',
+        'display_name': 'odoo_sim sale.order lines -> ProductOrder',
+        'instance_ref': 'odoo-sim',
+        'odoo_model': 'sale.order',
+        'polari_class': 'ProductOrder',
+        'field_map_json': '{}',
+        'direction': 'pull',
+        'row_name_prefix': 'odoo-so',
+        'defaults_json': '{"due_days": 30, '
+                         '"notes": "pulled from odoo_sim (od-4b)"}',
+        'is_prior': True,
+        'provenance_id': 'od-4b',
+        'notes': 'The order-registrar feed: one ProductOrder per '
+                 'order LINE via /api/odoo/pull-orders (line '
+                 'explosion + state map live in odoo_orders, not a '
+                 'flat field map). Needs the sale app installed — '
+                 'pulls refuse honestly until then.',
+    },
+    {
         'name': 'sim-boms-to-supplychains',
         'display_name': 'odoo_sim mrp.bom -> SupplyChainDefinition',
         'instance_ref': 'odoo-sim',
