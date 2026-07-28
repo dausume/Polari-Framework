@@ -198,6 +198,26 @@ SEED_SUPPLY_SOURCES = [
                  'shelf).',
     },
     {
+        'name': 'clay-art-center',
+        'display_name': 'Clay Art Center (clayartcenter.net)',
+        'supplier_name': 'Clay Art Center',
+        'url': 'https://clayartcenter.net/',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['metakaolin']),
+        'demands_json': '[]',
+        'business_model_ref': '',
+        'locality_note': 'Tacoma WA showroom (weigh-outs in store) '
+                         '+ ships',
+        'is_prior': True, 'provenance_id': 'src-4',
+        'notes': 'Pottery-supply metakaolin from 1 lb weigh-outs to '
+                 '50 lb dry bags with volume tiers (10-30% off by '
+                 'bag count) — the second, EXACTLY-priced metakaolin '
+                 'source.',
+    },
+    {
         'name': 'polari-waxprint-lab',
         'display_name': 'Polari wax-print lab (our own blend)',
         'supplier_name': 'Polari (self)',
@@ -410,6 +430,44 @@ SEED_PRICE_CITATIONS.extend([
                         'Quikrete-Premium-Play-Sand-111351/206363630',
         'citation_note': 'Quikrete Premium Play Sand 50 lb, listed '
                          'price (local store prices may vary).',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': 'src-4', 'notes': '',
+    },
+])
+
+SEED_PRICE_CITATIONS.extend([
+    {
+        'name': 'clayart-metakaolin-50lb-2026-07-28',
+        'source_ref': 'clay-art-center',
+        'item_ref': 'metakaolin',
+        'price': 66.00, 'currency': 'USD',
+        'amount': 50.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T19:23:00',
+        'citation_url': 'https://clayartcenter.net/product/'
+                        'rm450-kaolin-meta/',
+        'citation_note': 'EXACT listed price, 50 lbs Dry selector = '
+                         '$66.00 (single bag; 1 lb weigh-out = '
+                         '$5.00). Site bot-blocks automated fetch — '
+                         'price captured from Dustin\'s in-store-'
+                         'browser screenshots 2026-07-28.',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': 'src-4', 'notes': '',
+    },
+    {
+        'name': 'clayart-metakaolin-40bag-tier-2026-07-28',
+        'source_ref': 'clay-art-center',
+        'item_ref': 'metakaolin',
+        'price': 1848.00, 'currency': 'USD',
+        'amount': 2000.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-28T19:23:00',
+        'citation_url': 'https://clayartcenter.net/product/'
+                        'rm450-kaolin-meta/',
+        'citation_note': 'Volume tier: 40-999 bags at 30% off = '
+                         '$46.20/50 lb bag; amount is the 40-bag '
+                         'MINIMUM commitment (2000 lb) so the pack '
+                         'size shows what the price demands. Tiers: '
+                         '2-9 -10% $59.40, 10-19 -20% $52.80, 20-39 '
+                         '-25% $49.50. Same screenshot capture.',
         'is_estimate': False,
         'is_prior': True, 'provenance_id': 'src-4', 'notes': '',
     },

@@ -202,8 +202,8 @@ if __name__ == '__main__':
           == {'fly-ash-class-f', 'ggbfs-slag'})
     v0g = _rows(SEED_PRODUCT_FORMULAS)['geopolymer-castable-v0']
     cost = formula_cost(mgr, v0g)
-    check('DIY castable v0 costs ~2.96/kg from citations',
-          cost.get('ok') and abs(cost['usdPerKg'] - 2.96) < 0.02)
+    check('DIY castable v0 costs ~2.65/kg (volume-tier metakaolin)',
+          cost.get('ok') and abs(cost['usdPerKg'] - 2.653) < 0.02)
     check('DIY cost flags estimates (metakaolin + waterglass mass '
           'are inferred)', cost['anyEstimate'] is True)
     out = product_cost_comparison(mgr, 'geopolymer-mix')
@@ -215,11 +215,11 @@ if __name__ == '__main__':
           'friendliness on the kit side)',
           any('hydroxide-free' in c for c in sub['caveats']))
     verdict = out['verdict']
-    check('verdict: making beats buying (optimized ~2.11/kg, '
-          '~56% cheaper than the kit)',
+    check('verdict: making beats buying (optimized ~1.85/kg, '
+          '~62% cheaper than the kit)',
           verdict['ours']['name'] == 'cheapest-feasible-blend'
-          and abs(verdict['ours']['usdPerKg'] - 2.11) < 0.02
-          and abs(verdict['oursCheaperPct'] - 56.4) < 1.0)
+          and abs(verdict['ours']['usdPerKg'] - 1.853) < 0.02
+          and abs(verdict['oursCheaperPct'] - 61.8) < 1.0)
     cheap = cheapest_blend(mgr, 'geopolymer-mix')
     comp = {c['item_ref']: c['fraction'] for c in cheap['components']}
     check('optimizer pours the remainder into sand then metakaolin '
@@ -237,7 +237,7 @@ if __name__ == '__main__':
           and abs(by_name['natural-print-wax-v0']['usdPerKg']
                   - 10.7834) < 0.01
           and abs(by_name['geopolymer-castable-v0']['usdPerKg']
-                  - 2.96) < 0.02)
+                  - 2.653) < 0.02)
 
     failed = _results.count(False)
     print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
