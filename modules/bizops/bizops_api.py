@@ -12,6 +12,9 @@ from objectTreeDecorators import treeObject, treeObjectInit
 from bizops.bizops_flows import (
     business_flow_report, local_economy_report,
 )
+from bizops.bizops_compliance import (
+    qa_report, sellability_report,
+)
 from bizops.bizops_guide import (
     partnership_report, partnership_suggestions,
     startup_walkthrough,
@@ -43,6 +46,9 @@ class BizOpsAPI(treeObject):
                 suffix='partnerships')
             add('/api/bizops/partnership-suggestions', self,
                 suffix='partnership_suggestions')
+            add('/api/bizops/sellability/{business}', self,
+                suffix='sellability')
+            add('/api/bizops/qa/{business}', self, suffix='qa')
 
     def on_get_flows(self, request, response, business):
         out = business_flow_report(self.manager, business)
@@ -102,6 +108,21 @@ class BizOpsAPI(treeObject):
 
     def on_get_partnership_suggestions(self, request, response):
         response.media = partnership_suggestions(self.manager)
+
+    def on_get_sellability(self, request, response, business):
+        out = sellability_report(
+            self.manager, business,
+            variant=request.params.get('variant', ''))
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_qa(self, request, response, business):
+        out = qa_report(self.manager, business,
+                        variant=request.params.get('variant', ''))
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
 
     def on_get_plan(self, request, response, business):
         out = order_plan(

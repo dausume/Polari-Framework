@@ -369,6 +369,109 @@ SEED_PARTNERSHIPS = [
     },
 ]
 
+SEED_COMPLIANCE_REQUIREMENTS = [
+    {'name': 'req-food-contact', 'display_name': 'Food-contact '
+     'safety (the hard one)', 'kind': 'legal-mandatory',
+     'applies_context': 'sold-as-food-contact',
+     'required_level': 'certified-third-party-pass',
+     'requirement': 'A product sold for food contact must meet '
+                    'food-contact-substance rules — NOTHING in this '
+                    'stack may be sold as food safe without '
+                    'CERTIFIED third-party testing, period.',
+     'reference_note': 'US: FDA 21 CFR (food contact substances); '
+                       'EU: 1935/2004. NOT LEGAL ADVICE — verify '
+                       'for your jurisdiction.',
+     'is_prior': True, 'provenance_id': 'biz-4',
+     'notes': 'Geopolymer planters/vases are NOT food vessels '
+              'until this is certified — the stall card says so.'},
+    {'name': 'req-honest-labeling', 'display_name': 'Honest '
+     'labeling / no false claims', 'kind': 'legal-mandatory',
+     'applies_context': 'general-goods',
+     'required_level': 'self-test-pass',
+     'requirement': 'Describe materials honestly, make no unproven '
+                    'claims (food-safe, frost-proof, load ratings) '
+                    '— self-test-pass = your label template audited '
+                    'against what the rows actually prove.',
+     'reference_note': 'US FTC Act §5 (deceptive practices). NOT '
+                       'LEGAL ADVICE.',
+     'is_prior': True, 'provenance_id': 'biz-4', 'notes': ''},
+    {'name': 'req-business-license', 'display_name': 'Business '
+     'license + sales tax registration',
+     'kind': 'legal-mandatory', 'applies_context': 'general-goods',
+     'required_level': 'self-test-pass',
+     'requirement': 'Local business license (or cottage/hobby '
+                    'exemption verified) + sales tax collection '
+                    'registered where required.',
+     'reference_note': 'Varies by city/county/state. NOT LEGAL '
+                       'ADVICE — one call to your county clerk '
+                       'answers it.',
+     'is_prior': True, 'provenance_id': 'biz-4', 'notes': ''},
+    {'name': 'req-market-vendor-rules', 'display_name': 'Market '
+     'vendor rules (fees, insurance)', 'kind': 'market-rule',
+     'applies_context': 'farmer-maker-markets',
+     'required_level': 'self-test-pass',
+     'requirement': 'Each market sets vendor fees, sometimes '
+                    'liability insurance; confirm per market '
+                    'before booking a table.',
+     'reference_note': 'Ask the market organizer.',
+     'is_prior': True, 'provenance_id': 'biz-4', 'notes': ''},
+    {'name': 'req-childrens-product', 'display_name': 'Children\'s '
+     'product testing (CPSIA)', 'kind': 'legal-mandatory',
+     'applies_context': 'marketed-for-children',
+     'required_level': 'certified-third-party-pass',
+     'requirement': 'Anything MARKETED for children needs '
+                    'third-party CPSC-accepted testing — do not '
+                    'market these goods for children.',
+     'reference_note': 'US CPSIA. NOT LEGAL ADVICE.',
+     'is_prior': True, 'provenance_id': 'biz-4', 'notes': ''},
+    {'name': 'req-plant-safe-claim', 'display_name': 'Plant-safe '
+     'claim (leachate pH)', 'kind': 'voluntary-standard',
+     'applies_context': 'sold-as-plant-safe',
+     'required_level': 'self-test-pass',
+     'requirement': 'Fresh geopolymer can leach alkalinity into '
+                    'soil at first — claim plant-safe only after '
+                    'a soak + leachate pH self-test passes '
+                    '(red-cabbage/strip from the research-tools '
+                    'tree is enough).',
+     'reference_note': 'Internal standard — the honest-claims '
+                       'principle applied to planters.',
+     'is_prior': True, 'provenance_id': 'biz-4', 'notes': ''},
+]
+
+SEED_QUALITY_CHECKS = [
+    {'name': 'qa-visual-crack', 'display_name': 'Visual crack + '
+     'edge inspection', 'product_kind': 'geopolymer-cast',
+     'method': 'eyes + raking light; tap test for dull ring',
+     'acceptance': 'no through-cracks, no crumbling edges',
+     'frequency': 'every-unit', 'is_prior': True,
+     'provenance_id': 'biz-4', 'notes': ''},
+    {'name': 'qa-dimensional-fit', 'display_name': 'Dimensional '
+     'fit vs the mold spec', 'product_kind': 'geopolymer-cast',
+     'method': 'calipers on 3 axes vs mold nominal',
+     'acceptance': 'within ±2% (shrinkage drift flags the mix)',
+     'frequency': 'per-batch', 'is_prior': True,
+     'provenance_id': 'biz-4', 'notes': ''},
+    {'name': 'qa-water-tightness', 'display_name': 'Water '
+     'tightness (planters)', 'product_kind': 'geopolymer-cast',
+     'method': 'fill, stand 24h on dry paper',
+     'acceptance': 'no weep-through (drain holes excepted)',
+     'frequency': 'per-batch', 'is_prior': True,
+     'provenance_id': 'biz-4', 'notes': ''},
+    {'name': 'qa-cure-hardness', 'display_name': 'Cure hardness '
+     'scratch test', 'product_kind': 'geopolymer-cast',
+     'method': 'Mohs pick or nail scratch on the foot',
+     'acceptance': 'no gouging at nail hardness after full cure',
+     'frequency': 'per-batch', 'is_prior': True,
+     'provenance_id': 'biz-4', 'notes': ''},
+    {'name': 'qa-leachate-ph', 'display_name': 'Leachate pH '
+     '(plant-safe gate)', 'product_kind': 'geopolymer-cast',
+     'method': '24h soak, test the water (red-cabbage/strip)',
+     'acceptance': 'pH <= 9 after soak (else keep curing/rinsing)',
+     'frequency': 'per-batch', 'is_prior': True,
+     'provenance_id': 'biz-4',
+     'notes': 'The evidence row behind req-plant-safe-claim.'},
+]
+
 SEED_PROCESS_WORKFLOWS = [
     {
         'name': 'wax-mold-print-workflow',

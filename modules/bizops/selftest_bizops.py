@@ -11,6 +11,9 @@ Run from polari-framework/: python3 -m bizops.selftest_bizops
 import json
 import types
 
+from bizops.bizops_compliance import (
+    qa_report, sellability_report,
+)
 from bizops.bizops_flows import (
     business_flow_report, local_economy_report,
 )
@@ -23,8 +26,9 @@ from bizops.bizops_planner import (
 )
 from bizops.bizops_seed import (
     SEED_BUSINESS_PROFILES, SEED_BUSINESS_STAGES,
-    SEED_BUSINESS_UPGRADES, SEED_ECONOMY_MILESTONES,
-    SEED_PARTNERSHIPS, SEED_PROCESS_WORKFLOWS, SEED_RISK_NOTES,
+    SEED_BUSINESS_UPGRADES, SEED_COMPLIANCE_REQUIREMENTS,
+    SEED_ECONOMY_MILESTONES, SEED_PARTNERSHIPS,
+    SEED_PROCESS_WORKFLOWS, SEED_QUALITY_CHECKS, SEED_RISK_NOTES,
 )
 from supplychain.sourcing_seed import (
     SEED_PRICE_CITATIONS, SEED_PRODUCT_FORMULAS,
@@ -73,6 +77,11 @@ def _mgr():
         'ProductionRunRecord': {},
         'BusinessRiskNote': _rows(SEED_RISK_NOTES),
         'PartnershipAgreement': _rows(SEED_PARTNERSHIPS),
+        'ComplianceRequirement': _rows(
+            SEED_COMPLIANCE_REQUIREMENTS),
+        'ComplianceRecord': {},
+        'QualityCheckDefinition': _rows(SEED_QUALITY_CHECKS),
+        'QualityCheckRecord': {},
     })
 
 
@@ -364,6 +373,124 @@ if __name__ == '__main__':
                                               'never auto')
               or 'suggestion' in sg['action']
               for sg in out['suggestions']))
+
+    print('== suite: compliance / sellability (biz-4) ==')
+    mgr4 = _mgr()
+    out = sellability_report(mgr4, 'wax-mold-goods')
+    ctxs = {c['context']: c for c in out['contexts']}
+    check('report carries the NOT-LEGAL-ADVICE disclaimer and the '
+          'food-safety hard rule',
+          out.get('ok') and 'NOT legal' in out['disclaimer']
+          and 'certified-third-party-pass' in out['hardRule'])
+    check('food-contact context BLOCKED at unassessed — required '
+          'level is certified third-party, period',
+          not ctxs['sold-as-food-contact']['allowed']
+          and ctxs['sold-as-food-contact']['requirements'][0]
+          ['requiredLevel'] == 'certified-third-party-pass')
+    check('even plain goods start blocked: labeling + license '
+          'requirements unmet at unassessed',
+          not out['canSellPlainGoods']
+          and len(ctxs['general-goods']['blockers']) == 2)
+    check('unknown business refused',
+          not sellability_report(mgr4, 'nope').get('ok'))
+
+    def _rec(name, req, level, variant=''):
+        mgr4.objectTables['ComplianceRecord'][name] = \
+            types.SimpleNamespace(
+                name=name, business_ref='wax-mold-goods',
+                variant=variant, requirement_ref=req, level=level,
+                evidence_note=f'{level} evidence for {req}')
+
+    _rec('cr-label', 'req-honest-labeling', 'self-test-pass')
+    _rec('cr-lic', 'req-business-license', 'self-test-pass')
+    out = sellability_report(mgr4, 'wax-mold-goods')
+    ctxs = {c['context']: c for c in out['contexts']}
+    check('labeling + license records at self-test-pass UNBLOCK '
+          'plain-goods selling',
+          out['canSellPlainGoods']
+          and not ctxs['general-goods']['blockers'])
+    check('food-contact stays blocked — records elsewhere never '
+          'leak across requirements',
+          not ctxs['sold-as-food-contact']['allowed'])
+
+    _rec('cr-food-self', 'req-food-contact', 'self-test-pass',
+         variant='pot-1l')
+    out = sellability_report(mgr4, 'wax-mold-goods',
+                             variant='pot-1l')
+    ctxs = {c['context']: c for c in out['contexts']}
+    check('personal testing is NOT enough for food contact: '
+          'self-test-pass < certified-third-party-pass',
+          not ctxs['sold-as-food-contact']['allowed']
+          and ctxs['sold-as-food-contact']['requirements'][0]
+          ['attainedLevel'] == 'self-test-pass')
+    _rec('cr-food-cert', 'req-food-contact',
+         'certified-third-party-pass', variant='pot-1l')
+    out = sellability_report(mgr4, 'wax-mold-goods',
+                             variant='pot-1l')
+    ctxs = {c['context']: c for c in out['contexts']}
+    check('certified third-party record finally opens the '
+          'food-contact context for THAT variant',
+          ctxs['sold-as-food-contact']['allowed'])
+    out = sellability_report(mgr4, 'wax-mold-goods',
+                             variant='vase-2l')
+    ctxs = {c['context']: c for c in out['contexts']}
+    check('the certification is variant-scoped: a different '
+          'variant stays blocked',
+          not ctxs['sold-as-food-contact']['allowed'])
+    check('plant-safe is voluntary: unmet gates the CLAIM, the '
+          'context itself stays allowed',
+          ctxs['sold-as-plant-safe']['allowed']
+          and any('claim only' in b
+                  for b in ctxs['sold-as-plant-safe']['blockers']))
+
+    print('== suite: quality assurance tracking (biz-4) ==')
+    out = qa_report(mgr4, 'wax-mold-goods')
+    check('all five seeded checks reported; zero records = '
+          'honestly unmeasured, never a fake 100%',
+          out.get('ok') and len(out['checks']) == 5
+          and all(c['passRatePct'] is None and 'unmeasured'
+                  in c['note'] for c in out['checks']))
+    mgr4.objectTables['QualityCheckRecord'] = {
+        'qr-1': types.SimpleNamespace(
+            name='qr-1', business_ref='wax-mold-goods',
+            variant='pot-1l', check_ref='qa-visual-crack',
+            units_checked=12, units_passed=11,
+            defects_note='one hairline crack at the rim'),
+        'qr-2': types.SimpleNamespace(
+            name='qr-2', business_ref='wax-mold-goods',
+            variant='vase-2l', check_ref='qa-visual-crack',
+            units_checked=4, units_passed=4, defects_note=''),
+        'qr-3': types.SimpleNamespace(
+            name='qr-3', business_ref='wax-mold-goods',
+            variant='pot-1l', check_ref='qa-leachate-ph',
+            units_checked=3, units_passed=3, defects_note=''),
+    }
+    out = qa_report(mgr4, 'wax-mold-goods')
+    by = {c['check']: c for c in out['checks']}
+    check('pass rates derive from the records: 15/16 visual = '
+          '93.8%, defects noted',
+          by['qa-visual-crack']['passRatePct'] == 93.8
+          and by['qa-visual-crack']['runs'] == 2
+          and 'hairline' in by['qa-visual-crack']
+          ['defectsSeen'][0])
+    check('variant filter narrows the rates (pot-1l visual '
+          '11/12 = 91.7%)',
+          {c['check']: c for c in qa_report(
+              mgr4, 'wax-mold-goods', variant='pot-1l')['checks']}
+          ['qa-visual-crack']['passRatePct'] == 91.7)
+    check('leachate-pH check doubles as the plant-safe claim '
+          'evidence (the note says so)',
+          'plant-safe' in out['note'])
+
+    print('== suite: sellability embedded in the walkthrough ==')
+    out = startup_walkthrough(_mgr(), 'wax-mold-goods',
+                              budget_usd=120.0)
+    sell = out['steps'][3]
+    check('sell-and-log step embeds the live sellability report '
+          'with its contexts and hard rule',
+          sell['sellability'] and sell['sellability']['ok']
+          and 'certified-third-party-pass'
+          in sell['sellability']['hardRule'])
 
     failed = _results.count(False)
     print(f'\n{len(_results) - failed}/{len(_results)} checks passed')

@@ -761,12 +761,15 @@ try:
         ProcessWorkflowDefinition, ProductOrder,
         MarketSessionRecord, ProductionRunRecord,
         PartnershipAgreement, BusinessRiskNote,
+        ComplianceRequirement, ComplianceRecord,
+        QualityCheckDefinition, QualityCheckRecord,
     )
     from bizops.bizops_seed import (
         SEED_BUSINESS_STAGES, SEED_BUSINESS_UPGRADES,
         SEED_BUSINESS_PROFILES, SEED_ECONOMY_MILESTONES,
         SEED_PROCESS_WORKFLOWS, SEED_RISK_NOTES,
-        SEED_PARTNERSHIPS,
+        SEED_PARTNERSHIPS, SEED_COMPLIANCE_REQUIREMENTS,
+        SEED_QUALITY_CHECKS,
     )
 except ImportError as _exc:
     _stub_missing_feature('bizops', _exc, globals(), (
@@ -775,10 +778,13 @@ except ImportError as _exc:
         'ProcessWorkflowDefinition', 'ProductOrder',
         'MarketSessionRecord', 'ProductionRunRecord',
         'PartnershipAgreement', 'BusinessRiskNote',
+        'ComplianceRequirement', 'ComplianceRecord',
+        'QualityCheckDefinition', 'QualityCheckRecord',
         'SEED_BUSINESS_STAGES', 'SEED_BUSINESS_UPGRADES',
         'SEED_BUSINESS_PROFILES', 'SEED_ECONOMY_MILESTONES',
         'SEED_PROCESS_WORKFLOWS', 'SEED_RISK_NOTES',
-        'SEED_PARTNERSHIPS',
+        'SEED_PARTNERSHIPS', 'SEED_COMPLIANCE_REQUIREMENTS',
+        'SEED_QUALITY_CHECKS',
     ))
 # Odoo ERP connector — instance configs + sim/ops write guards (od-3).
 try:
@@ -1898,6 +1904,8 @@ class polariServer(treeObject):
             ProcessWorkflowDefinition, ProductOrder,
             MarketSessionRecord, ProductionRunRecord,
             PartnershipAgreement, BusinessRiskNote,
+            ComplianceRequirement, ComplianceRecord,
+            QualityCheckDefinition, QualityCheckRecord,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -3256,6 +3264,10 @@ class polariServer(treeObject):
              SEED_RISK_NOTES),
             ('PartnershipAgreement', PartnershipAgreement,
              SEED_PARTNERSHIPS),
+            ('ComplianceRequirement', ComplianceRequirement,
+             SEED_COMPLIANCE_REQUIREMENTS),
+            ('QualityCheckDefinition', QualityCheckDefinition,
+             SEED_QUALITY_CHECKS),
             # chain-1: nodes + flows before the chain that binds them.
             ('SupplyNode', SupplyNode, SEED_SUPPLY_NODES),
             ('SupplyFlow', SupplyFlow, SEED_SUPPLY_FLOWS),

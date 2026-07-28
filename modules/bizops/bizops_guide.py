@@ -13,6 +13,7 @@ the ladder but are not walked here.
 """
 
 from supplychain.formula_analysis import requirement_coverage
+from bizops.bizops_compliance import sellability_report
 from bizops.bizops_flows import _loads, _named, _rows
 from bizops.bizops_planner import prestage_plan, product_readiness
 
@@ -68,6 +69,7 @@ def startup_walkthrough(manager, business_name='wax-mold-goods',
                            f'"{business_name}"'}
     batch = prestage_plan(manager, business_name,
                           budget_usd=budget_usd)
+    sellability = sellability_report(manager, business_name)
     readiness = product_readiness(manager, business_name)
     commit = _named(manager, 'BusinessUpgradeStep', 'commit-hours')
     steps = [
@@ -115,6 +117,8 @@ def startup_walkthrough(manager, business_name='wax-mold-goods',
                   'LOG every session',
          'what': 'Offer everything; write down per product what '
                  'was offered and what sold (MarketSessionRecord).',
+         'sellability': sellability
+         if sellability.get('ok') else None,
          'cost': 'market stall fees vary locally (typically '
                  '$10-40/day — uncited, ask your market)',
          'why': 'sell-through is the ONLY signal that tunes your '

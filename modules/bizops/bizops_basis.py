@@ -285,6 +285,110 @@ class BusinessRiskNote(treeObject):
         self.notes = notes
 
 
+COMPLIANCE_LEVELS = ('unassessed', 'theoretical-pass',
+                     'self-test-pass',
+                     'certified-third-party-pass')
+
+
+class ComplianceRequirement(treeObject):
+    """One legal/market/voluntary requirement that gates SELLING a
+    kind of product in a CONTEXT (general goods, food-contact,
+    marketed-for-children, plant-safe claim...). required_level
+    names the attainment rung that satisfies it. NOT LEGAL ADVICE —
+    reference_note points at the source, verify locally."""
+
+    @treeObjectInit
+    def __init__(self, name='', display_name='', kind='legal-mandatory',
+                 applies_context='general-goods', required_level='',
+                 requirement='', reference_note='', is_prior=True,
+                 provenance_id='biz-4', notes='', manager=None):
+        self.name = name
+        self.display_name = display_name
+        #: legal-mandatory | market-rule | voluntary-standard.
+        self.kind = kind
+        #: The sale context this gates (a claim or market).
+        self.applies_context = applies_context
+        #: COMPLIANCE_LEVELS rung that satisfies it.
+        self.required_level = required_level
+        self.requirement = requirement
+        self.reference_note = reference_note
+        self.is_prior = is_prior
+        self.provenance_id = provenance_id
+        self.notes = notes
+
+
+class ComplianceRecord(treeObject):
+    """What a business has actually ATTAINED for one requirement on
+    one product variant: theoretical-pass (analysis says it should
+    pass) -> self-test-pass (we tested it ourselves) ->
+    certified-third-party-pass. Levels are earned by evidence rows,
+    never declared bare."""
+
+    @treeObjectInit
+    def __init__(self, name='', business_ref='', variant='',
+                 requirement_ref='', level='unassessed',
+                 evidence_note='', tested_at='', expires_note='',
+                 is_prior=False, provenance_id='biz-4', notes='',
+                 manager=None):
+        self.name = name
+        self.business_ref = business_ref
+        self.variant = variant
+        self.requirement_ref = requirement_ref
+        self.level = (level if level in COMPLIANCE_LEVELS
+                      else 'unassessed')
+        self.evidence_note = evidence_note
+        self.tested_at = tested_at
+        self.expires_note = expires_note
+        self.is_prior = is_prior
+        self.provenance_id = provenance_id
+        self.notes = notes
+
+
+class QualityCheckDefinition(treeObject):
+    """One QA check for a kind of product: what to check, how, the
+    acceptance criterion, and how often."""
+
+    @treeObjectInit
+    def __init__(self, name='', display_name='', product_kind='',
+                 method='', acceptance='', frequency='per-batch',
+                 is_prior=True, provenance_id='biz-4', notes='',
+                 manager=None):
+        self.name = name
+        self.display_name = display_name
+        self.product_kind = product_kind
+        self.method = method
+        self.acceptance = acceptance
+        #: every-unit | per-batch | periodic.
+        self.frequency = frequency
+        self.is_prior = is_prior
+        self.provenance_id = provenance_id
+        self.notes = notes
+
+
+class QualityCheckRecord(treeObject):
+    """One QA check RUN: which batch, how many passed/failed, what
+    the defects were — pass rates derive from these."""
+
+    @treeObjectInit
+    def __init__(self, name='', business_ref='', variant='',
+                 check_ref='', batch_note='', units_checked=0,
+                 units_passed=0, defects_note='', checked_at='',
+                 is_prior=False, provenance_id='biz-4', notes='',
+                 manager=None):
+        self.name = name
+        self.business_ref = business_ref
+        self.variant = variant
+        self.check_ref = check_ref
+        self.batch_note = batch_note
+        self.units_checked = units_checked
+        self.units_passed = units_passed
+        self.defects_note = defects_note
+        self.checked_at = checked_at
+        self.is_prior = is_prior
+        self.provenance_id = provenance_id
+        self.notes = notes
+
+
 class ProductOrder(treeObject):
     """The order REGISTRAR row the planner runs on. v1 rows are
     entered directly (CRUDE/UI); the od-4 sale.order binding is the
