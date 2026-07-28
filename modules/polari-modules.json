@@ -42,7 +42,15 @@
       "wave": 1,
       "description": "3D organ + root stand-in models, confinement/dwarfing assessment."
     },
-    "waxsupply": {
+    "odooconnect": {
+    "kind": "official",
+    "downloaded": true,
+    "path": "modules/odooconnect",
+    "repo": "",
+    "wave": 2,
+    "description": "Odoo ERP connector: JSON-RPC client with sim/ops write guards, instance configs, /api/odoo status."
+  },
+  "waxsupply": {
       "kind": "official",
       "downloaded": true,
       "path": "modules/waxsupply",

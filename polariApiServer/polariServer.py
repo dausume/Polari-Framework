@@ -751,6 +751,14 @@ try:
     from video.video_basis import VideoAsset
 except ImportError as _exc:
     _stub_missing_feature('video', _exc, globals(), ('VideoAsset',))
+# Odoo ERP connector — instance configs + sim/ops write guards (od-3).
+try:
+    from odooconnect.odoo_basis import OdooInstanceConfig
+    from odooconnect.odoo_seed import SEED_ODOO_INSTANCES
+except ImportError as _exc:
+    _stub_missing_feature('odooconnect', _exc, globals(), (
+        'OdooInstanceConfig', 'SEED_ODOO_INSTANCES',
+    ))
 # Bio wax sources (wax-1) + the unifying supply-chain ledger (chain-1).
 try:
     from waxsupply.wax_basis import WaxSourceDefinition
@@ -1545,6 +1553,11 @@ class polariServer(treeObject):
             from video.video_api import VideoAPI
             videoEndpoint = VideoAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('odooconnect'):
+            # Odoo ERP connector status/catalog (od-3).
+            from odooconnect.odoo_api import OdooConnectAPI
+            odooConnectEndpoint = OdooConnectAPI(
+                polServer=self, manager=self.manager)
         if _feature_available('waxsupply'):
             # Wax sources for molds/masks (wax-1).
             from waxsupply.wax_api import WaxSupplyAPI
@@ -1809,6 +1822,8 @@ class polariServer(treeObject):
             # Wax sources (wax-1) + supply-chain ledger (chain-1).
             WaxSourceDefinition, SupplyNode, SupplyFlow,
             SupplyChainDefinition,
+            # Odoo ERP connector (od-3).
+            OdooInstanceConfig,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -3144,6 +3159,9 @@ class polariServer(treeObject):
             # wax-1: bio wax sources for molds / electronic masks.
             ('WaxSourceDefinition', WaxSourceDefinition,
              SEED_WAX_SOURCES),
+            # Odoo endpoints — sim free, ops guarded (od-3).
+            ('OdooInstanceConfig', OdooInstanceConfig,
+             SEED_ODOO_INSTANCES),
             # chain-1: nodes + flows before the chain that binds them.
             ('SupplyNode', SupplyNode, SEED_SUPPLY_NODES),
             ('SupplyFlow', SupplyFlow, SEED_SUPPLY_FLOWS),

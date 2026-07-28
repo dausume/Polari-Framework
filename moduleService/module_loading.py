@@ -37,7 +37,8 @@ from polariApiServer.module_gating import module_enabled
 FEATURE_MODULES = frozenset({
     'aquaponics', 'biomining', 'dmvdata', 'electrodevice',
     'grpcbridge', 'hwdigital', 'hwfpga', 'mathshapes', 'microalgae',
-    'nutrition', 'plant_morphology', 'polariapps', 'scoring',
+    'nutrition', 'odooconnect', 'plant_morphology', 'polariapps',
+    'scoring',
     'supplychain', 'tanks', 'techtree', 'testing', 'waxprint',
     'waxsupply', 'zones',
 })
