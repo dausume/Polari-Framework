@@ -782,10 +782,20 @@ try:
     from supplychain.chain_seed import (
         SEED_SUPPLY_CHAINS, SEED_SUPPLY_FLOWS, SEED_SUPPLY_NODES,
     )
+    from supplychain.sourcing_basis import (
+        PriceCitation, SourcePreferencePolicy, SupplySourceProfile,
+    )
+    from supplychain.sourcing_seed import (
+        SEED_PRICE_CITATIONS, SEED_SOURCE_POLICIES,
+        SEED_SUPPLY_SOURCES,
+    )
 except ImportError as _exc:
     _stub_missing_feature('supplychain', _exc, globals(), (
         'SupplyChainDefinition', 'SupplyFlow', 'SupplyNode', 'SEED_SUPPLY_CHAINS',
         'SEED_SUPPLY_FLOWS', 'SEED_SUPPLY_NODES',
+        'SupplySourceProfile', 'PriceCitation',
+        'SourcePreferencePolicy', 'SEED_SUPPLY_SOURCES',
+        'SEED_PRICE_CITATIONS', 'SEED_SOURCE_POLICIES',
     ))
 # Topology orchestration (top-1): the swarm/compose topology as
 # object-tree data — machines, instances, module assignments +
@@ -1577,6 +1587,10 @@ class polariServer(treeObject):
             from supplychain.chain_api import SupplyChainAPI
             supplyChainEndpoint = SupplyChainAPI(
                 polServer=self, manager=self.manager)
+            # Sourcing: cited prices + preference ladder (src-1).
+            from supplychain.sourcing_api import SourcingAPI
+            sourcingEndpoint = SourcingAPI(
+                polServer=self, manager=self.manager)
         # acct-0: the accountability matrix. Endpoint construction is
         # NOT auto-gated (only defClassList is), so guard explicitly —
         # a normal build must register no /api/accountability route.
@@ -1827,9 +1841,11 @@ class polariServer(treeObject):
             BiomineSystemDefinition,
             # Self-hosted video: WebM/MP4 + optional adaptive HLS (video-1).
             VideoAsset,
-            # Wax sources (wax-1) + supply-chain ledger (chain-1).
+            # Wax sources (wax-1) + supply-chain ledger (chain-1)
+            # + sourcing profiles/citations/preference ladder (src-1).
             WaxSourceDefinition, SupplyNode, SupplyFlow,
-            SupplyChainDefinition,
+            SupplyChainDefinition, SupplySourceProfile,
+            PriceCitation, SourcePreferencePolicy,
             # Odoo ERP connector (od-3/od-4/od-5).
             OdooInstanceConfig, OdooModelBinding, OdooSyncReceipt,
             BusinessScenarioDefinition,
@@ -3181,6 +3197,14 @@ class polariServer(treeObject):
             ('SupplyFlow', SupplyFlow, SEED_SUPPLY_FLOWS),
             ('SupplyChainDefinition', SupplyChainDefinition,
              SEED_SUPPLY_CHAINS),
+            # Sourcing (src-1): sources before citations that name
+            # them; the ladder is independent.
+            ('SupplySourceProfile', SupplySourceProfile,
+             SEED_SUPPLY_SOURCES),
+            ('PriceCitation', PriceCitation,
+             SEED_PRICE_CITATIONS),
+            ('SourcePreferencePolicy', SourcePreferencePolicy,
+             SEED_SOURCE_POLICIES),
             # The MVW wax derivation as a configurable search object.
             ('FormulationSearchDefinition', FormulationSearchDefinition,
              SEED_FORMULATION_SEARCHES),
