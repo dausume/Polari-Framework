@@ -149,7 +149,8 @@ def test_move_plan():
     check('every relocatable subject is cataloged',
           set(MOVE_SUBJECTS) == {'msci-engines', 'backend',
                                  'prf-file-store', 'prf-keycloak',
-                                 'prf-mariadb'})
+                                 'prf-mariadb', 'odoo',
+                                 'odoo-postgres'})
     plan = move_plan(subject='prf-mariadb', machine='isle-core')
     check('stateful subject demands confirmation',
           plan['ok'] and plan['stateful']

@@ -270,6 +270,26 @@ MOVE_SUBJECTS = {
         'command': 'pol swarm relocate mariadb {machine}',
         'what': 'the auth database — writers drained (measured auth '
                 'window ~2-3 min), dump receipt, staged copy'},
+    'odoo': {
+        'kind': 'server-move', 'stateful': False,
+        'command': 'pol odoo up --env staging  # on {machine}, '
+                   'after image+config ship',
+        'what': 'the Odoo SERVER only (all state in postgres + '
+                'filestore) — compose-mode today: docker save|ssh '
+                'load the images, ship pol-odoo{,-postgres} configs, '
+                'up on the target (the econ-core 2026-07-28 ship is '
+                'the receipt/template); becomes a gm-4 blue-green '
+                'swarm move when odoo joins the suite stack'},
+    'odoo-postgres': {
+        'kind': 'database-move', 'stateful': True,
+        'command': 'pol odoo backup <sim|ops>  # receipt FIRST, '
+                   'then staged volume copy to {machine}',
+        'what': 'the odoo databases + filestore — gm-5 shape: '
+                'writers-drain = pol odoo down (scale odoo to 0), '
+                'pg_dump receipts for BOTH dbs, staged odoo-db-data '
+                '+ odoo-filestore volume copy, restore-drill verify '
+                'on the target; swarm mover lands with the stack '
+                'move'},
 }
 
 
