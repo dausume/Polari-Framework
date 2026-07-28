@@ -203,10 +203,11 @@ if __name__ == '__main__':
 
     print('== suite: geopolymer — DIY raw cost vs buying the kit ==')
     out = requirement_coverage(mgr, 'geopolymer-mix')
-    check('4 geopolymer roles; fly-ash + slag cited (src-8) — '
-          'geopolymer gaps closed too',
+    check('4 geopolymer roles; fly-ash + slag cited (src-8); the '
+          'only gap left is the crush LOOPBACK (log crush events)',
           out.get('ok') and len(out['roles']) == 4
-          and out['researchGaps'] == [])
+          and {g['item'] for g in out['researchGaps']}
+          == {'crushed-geopolymer-aggregate'})
     v0g = _rows(SEED_PRODUCT_FORMULAS)['geopolymer-castable-v0']
     cost = formula_cost(mgr, v0g)
     check('DIY castable v0 costs ~2.65/kg (volume-tier metakaolin)',

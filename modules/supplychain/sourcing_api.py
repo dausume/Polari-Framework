@@ -10,6 +10,9 @@ suggestions, and scenario price-drift findings (src-1).
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
+from supplychain.mold_analysis import (
+    mold_fleet_report, mold_strategy_compare,
+)
 from supplychain.reclaim_analysis import (
     reclaim_cycle_curve, reclaim_pool_report, reclaim_steady_state,
 )
@@ -54,6 +57,10 @@ class SourcingAPI(treeObject):
                 suffix='reclaim')
             add('/api/supplychain/sourcing/reclaim/pools', self,
                 suffix='reclaim_pools')
+            add('/api/supplychain/sourcing/molds/compare', self,
+                suffix='molds_compare')
+            add('/api/supplychain/sourcing/molds/fleet', self,
+                suffix='molds_fleet')
 
     def _policy(self, request):
         return request.params.get('policy', '')
@@ -144,6 +151,18 @@ class SourcingAPI(treeObject):
 
     def on_get_reclaim_pools(self, request, response):
         response.media = reclaim_pool_report(self.manager)
+
+    def on_get_molds_compare(self, request, response):
+        out = mold_strategy_compare(
+            self.manager,
+            casts=int(request.params.get('casts', 100)),
+            policy_name=self._policy(request))
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_molds_fleet(self, request, response):
+        response.media = mold_fleet_report(self.manager)
 
     def on_get_compare(self, request, response, item_ref):
         out = product_cost_comparison(self.manager, item_ref,

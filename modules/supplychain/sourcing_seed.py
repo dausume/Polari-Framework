@@ -1170,7 +1170,8 @@ SEED_PRODUCT_REQUIREMENTS = [
             {'role': 'aggregate',
              'purpose': 'filler for castable strength + volume',
              'min_fraction': 0.30, 'max_fraction': 0.55,
-             'candidates': ['silica-sand']},
+             'candidates': ['silica-sand',
+                            'crushed-geopolymer-aggregate']},
         ]),
         'substitutes_json': json.dumps([
             {'item_ref': 'geopolymer-kit',
@@ -1186,7 +1187,12 @@ SEED_PRODUCT_REQUIREMENTS = [
         ]),
         'is_prior': True,
         'provenance_id': 'src-4',
-        'notes': 'Fractions are dry-mass engineering priors from the '
+        'notes': 'AGGREGATE LOOPBACK (mold-1): crushed retired '
+                 'geopolymer MOLDS re-enter here as '
+                 'crushed-geopolymer-aggregate — a coverage gap '
+                 'until crush events are logged/cited, near-free '
+                 'in practice. Fractions are dry-mass engineering '
+                 'priors from the '
                  'suite geopolymer work; silicate counted '
                  'as-solution (water incl.) — dry-basis costing and '
                  'mix-water are v2 refinements. fly-ash/slag are '
