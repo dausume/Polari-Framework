@@ -50,20 +50,24 @@ SEED_NODE_MACHINES = [
                  'here.',
     },
     {
-        'name': 'lightweight',
-        'ssh_alias': 'lightweight',
+        # Renamed from 'lightweight' 2026-07-27 (names = mandates):
+        # the BUSINESS-OPS/ECONOMICS core, and the Odoo host (od-0).
+        'name': 'econ-core',
+        'ssh_alias': 'econ-core',
         'arch': 'x86_64',
         'mem_gb': 7.5,
-        'roles_json': json.dumps(['engines', 'remote-worker']),
+        'roles_json': json.dumps(['engines', 'remote-worker',
+                                  'business-ops', 'economics']),
         'swarm_role': 'none',
         'repo_dir': '~/polari-suite',
         'source': 'nodes.yml',
         # res-1 knob: polari-engines_msci-engines is PINNED here
-        # (node.labels.polari.machine==lightweight).
+        # (node.labels.polari.machine==econ-core).
         'system_info_url': 'http://192.168.0.210:9500',
         'notes': 'N95 4-core / 7.5G; suspend disabled 2026-07-08 — '
-                 'safe headless target. system_info_url -> the '
-                 'msci-engines service pinned here.',
+                 'safe headless target. Business-ops/economics core; '
+                 'Odoo + odoo-postgres land here '
+                 '(ODOO_INTEGRATION_PLAN.md).',
     },
 ]
 
@@ -207,6 +211,40 @@ SEED_INSTANCE_DEFINITIONS = [
         'notes': 'The polari-engines swarm stack (:9500) — FEM/DFT '
                  'compute workers, deployed via `pol swarm deploy '
                  'engines` (single-node swarm today).',
+    },
+    {
+        'name': 'odoo',
+        'kind': 'custom',
+        'service_kinds_json': json.dumps(['odoo']),
+        'replicas': 1,
+        'env_tier': 'staging',
+        'machine_name': 'econ-core',
+        'db_backend': 'postgres',
+        'image_tag': 'staging',
+        'orchestration_target': 'compose',
+        'topology_name': 'staging-a',
+        'notes': 'Odoo 18 Community ERP (od-1) — backbone of business '
+                 'SIMULATIONS (odoo_sim) and REAL ops (odoo_ops); the '
+                 'two never blur. Compose profile "odoo": started via '
+                 '`pol odoo up`, never by suite up. SSO = od-2, '
+                 'odooconnect module = od-3.',
+    },
+    {
+        'name': 'odoo-postgres',
+        'kind': 'infra',
+        'service_kinds_json': json.dumps(['odoo-postgres']),
+        'replicas': 1,
+        'env_tier': 'staging',
+        'machine_name': 'econ-core',
+        'db_backend': 'postgres',
+        'image_tag': 'staging',
+        'orchestration_target': 'compose',
+        'topology_name': 'staging-a',
+        'notes': 'PostgreSQL 16 for Odoo — the suite\'s FIRST '
+                 'postgres (Odoo requires it). Volumes odoo-db-data + '
+                 'odoo-filestore; credential volume-baked at first '
+                 'init (drift rescue: pol-odoo/README.md); movers = '
+                 'od-6.',
     },
 ]
 
@@ -360,4 +398,31 @@ SEED_SERVICE_CONNECTIONS = [
      'topology_name': 'staging-a',
      'notes': 'psc consumes prf\'s /api/scoring instead of its own '
               'mocks — designed, not built (scr-7).'},
+    {'name': 'odoo->odoo-postgres:db-credentials',
+     'interconnect_key': 'db-credentials',
+     'from_kind': 'odoo', 'to_kind': 'odoo-postgres',
+     'from_instance_name': 'odoo', 'to_instance_name': 'odoo-postgres',
+     'artifact': 'pol-odoo-postgres/odoo-postgres.env',
+     'topology_name': 'staging-a',
+     'notes': 'One shared credential (mirrored into '
+              'pol-odoo/odoo.env), volume-baked at first init — '
+              'drift rescue in pol-odoo/README.md.'},
+    {'name': 'pol-proxy->odoo:nginx-proxy-config',
+     'interconnect_key': 'nginx-proxy-config',
+     'from_kind': 'pol-proxy', 'to_kind': 'odoo',
+     'from_instance_name': 'shared-infra', 'to_instance_name': 'odoo',
+     'artifact': '.generated/nginx.staging.conf (suite)',
+     'topology_name': 'staging-a',
+     'notes': 'odoo.<domain> routes; VARIABLE proxy_pass so the '
+              'proxy boots while the odoo profile is down; '
+              '/websocket -> :8072.'},
+    {'name': 'prf-backend->odoo:erp-api-seam',
+     'interconnect_key': 'erp-api-seam',
+     'from_kind': 'prf-backend', 'to_kind': 'odoo',
+     'from_instance_name': 'prf-a', 'to_instance_name': 'odoo',
+     'artifact': '(od-3, designed not built) odooconnect JSON-RPC',
+     'topology_name': 'staging-a',
+     'notes': 'odooconnect module: pull free, push = knob + typed '
+              'confirm; sim/ops handles never blur — designed, not '
+              'built (od-3).'},
 ]

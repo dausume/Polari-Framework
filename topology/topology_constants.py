@@ -25,7 +25,7 @@ SCHEMA_VERSION = '1'
 ORCHESTRATION_TARGETS = ('compose', 'swarm', 'isle')
 
 #: The `pol db` vocabulary — per-instance DB backend choice.
-DB_BACKENDS = ('sqlite', 'mariadb', 'mariadb+keydb')
+DB_BACKENDS = ('sqlite', 'mariadb', 'mariadb+keydb', 'postgres')
 
 #: Swarm membership of a machine.
 SWARM_ROLES = ('manager', 'worker', 'none')
@@ -85,6 +85,7 @@ INTERCONNECT_KEYS = (
     'minio-credentials',
     'nginx-proxy-config',
     'scorecard-api-seam',
+    'erp-api-seam',
 )
 
 #: Compose/swarm service LABELS -> registry kinds, for observation
@@ -104,7 +105,7 @@ SERVICE_LABEL_ALIASES = {
     'remote-worker': 'prf-msci-engines',
 }
 
-#: The 19 registry service kinds (pol-build/registry/services.yml:93).
+#: The 21 registry service kinds (pol-build/registry/services.yml:93).
 KNOWN_SERVICE_KINDS = (
     'pol-mariadb', 'pol-keycloak', 'pol-file-store', 'pol-proxy',
     'psc-redis', 'psc-backend', 'psc-frontend',
@@ -112,4 +113,5 @@ KNOWN_SERVICE_KINDS = (
     'prf-file-store', 'prf-proxy',
     'prf-backend-b', 'prf-frontend-b', 'prf-keydb-b',
     'prf-dask', 'prf-msci-engines', 'prf-test-harness',
+    'odoo', 'odoo-postgres',
 )

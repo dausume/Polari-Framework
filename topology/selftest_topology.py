@@ -87,6 +87,13 @@ FULL_STAGING_SERVICES = [
      'service': 'msci-engines'},
 ]
 
+#: What econ-core runs once `pol odoo up` has run there (od-1) — the
+#: odoo pair is profile-gated, so this is its own observation node.
+ECON_CORE_SERVICES = [
+    {'name': 'odoo', 'service': 'odoo'},
+    {'name': 'odoo-postgres', 'service': 'odoo-postgres'},
+]
+
 
 if __name__ == '__main__':
     print('== suite: seed coherence ==')
@@ -107,8 +114,8 @@ if __name__ == '__main__':
     print('== suite: graph payload ==')
     graph = graph_payload(mgr, 'staging-a')
     check('graph ok', graph.get('ok'))
-    check('graph carries 6 instances',
-          len(graph.get('instances', [])) == 6)
+    check('graph carries 8 instances',
+          len(graph.get('instances', [])) == 8)
     check('graph carries 3 machines',
           len(graph.get('machines', [])) == 3)
     check('graph carries 8 assignments',
@@ -117,8 +124,8 @@ if __name__ == '__main__':
           all(e['providerInstanceName'] == 'engines'
               and e['status'] == 'resolved'
               for e in graph.get('edges', [])))
-    check('graph carries 12 typed connections',
-          len(graph.get('connections', [])) == 12)
+    check('graph carries 15 typed connections',
+          len(graph.get('connections', [])) == 15)
     check('graph decodes service kinds',
           'prf-backend' in graph['instances'][0]['serviceKinds']
           or any('prf-backend' in i['serviceKinds']
@@ -144,7 +151,7 @@ if __name__ == '__main__':
 
     bad = _mgr()
     inst = bad.objectTables['InstanceDefinition']['engines']
-    inst.machine_name = 'lightweight'  # not in the swarm yet
+    inst.machine_name = 'econ-core'  # not in the swarm yet
     report = validate_topology(bad, 'staging-a')
     swarm = [f for f in report['findings']
              if f['check'] == 'machine-not-in-swarm']
@@ -228,12 +235,14 @@ if __name__ == '__main__':
     check('no observations => every instance unobserved',
           report['inDrift'] and all(
               r['kind'] == 'unobserved' for r in report['rows'])
-          and len(report['rows']) == 6)
+          and len(report['rows']) == 8)
     check('unobserved rows suggest pol topology report',
           all(r['suggestedCommand'] == 'pol topology report'
               for r in report['rows']))
     mgr.objectTables['TopologyObservation']['full'] = _observation(
         'staging-a', FULL_STAGING_SERVICES)
+    mgr.objectTables['TopologyObservation']['econ'] = _observation(
+        'econ-core', ECON_CORE_SERVICES)
     report = drift_report(mgr, 'staging-a')
     check('full observation => no drift',
           not report['inDrift'], json.dumps(report['rows']))
@@ -307,13 +316,14 @@ if __name__ == '__main__':
           .replace('keycloak-client-secrets', '')
           .replace('client-secrets', ''))
     check('package only carries machines the topology uses',
-          [m['name'] for m in doc['machines']] == ['staging-a'])
+          sorted(m['name'] for m in doc['machines'])
+          == ['econ-core', 'staging-a'])
     empty = types.SimpleNamespace(objectTables={
         k: {} for k in mgr.objectTables})
     plan = merge_topology_doc(empty, doc)
     check('merge into empty manager creates everything',
           plan.get('ok') and len(plan['creates']) == (
-              1 + 1 + 6 + 8 + 2 + 12) and not plan['skips'])
+              1 + 2 + 8 + 8 + 2 + 15) and not plan['skips'])
     for class_name, row in plan['creates']:
         empty.objectTables[class_name][row['name']] = (
             types.SimpleNamespace(**row))
@@ -324,7 +334,7 @@ if __name__ == '__main__':
     plan = merge_topology_doc(mgr, doc)
     check('merge into seeded manager skips everything (idempotent)',
           plan.get('ok') and not plan['creates']
-          and len(plan['skips']) == 30)
+          and len(plan['skips']) == 36)
     check('non-package document refused honestly',
           not merge_topology_doc(mgr, {'kind': 'nope'}).get('ok'))
     check('wrong schema_version refused honestly',
