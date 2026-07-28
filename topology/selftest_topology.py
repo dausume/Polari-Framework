@@ -124,8 +124,8 @@ if __name__ == '__main__':
           all(e['providerInstanceName'] == 'engines'
               and e['status'] == 'resolved'
               for e in graph.get('edges', [])))
-    check('graph carries 15 typed connections',
-          len(graph.get('connections', [])) == 15)
+    check('graph carries 16 typed connections',
+          len(graph.get('connections', [])) == 16)
     check('graph decodes service kinds',
           'prf-backend' in graph['instances'][0]['serviceKinds']
           or any('prf-backend' in i['serviceKinds']
@@ -323,7 +323,7 @@ if __name__ == '__main__':
     plan = merge_topology_doc(empty, doc)
     check('merge into empty manager creates everything',
           plan.get('ok') and len(plan['creates']) == (
-              1 + 2 + 8 + 8 + 2 + 15) and not plan['skips'])
+              1 + 2 + 8 + 8 + 2 + 16) and not plan['skips'])
     for class_name, row in plan['creates']:
         empty.objectTables[class_name][row['name']] = (
             types.SimpleNamespace(**row))
@@ -334,7 +334,7 @@ if __name__ == '__main__':
     plan = merge_topology_doc(mgr, doc)
     check('merge into seeded manager skips everything (idempotent)',
           plan.get('ok') and not plan['creates']
-          and len(plan['skips']) == 36)
+          and len(plan['skips']) == 37)
     check('non-package document refused honestly',
           not merge_topology_doc(mgr, {'kind': 'nope'}).get('ok'))
     check('wrong schema_version refused honestly',

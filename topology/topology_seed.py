@@ -416,6 +416,16 @@ SEED_SERVICE_CONNECTIONS = [
      'notes': 'odoo.<domain> routes; VARIABLE proxy_pass so the '
               'proxy boots while the odoo profile is down; '
               '/websocket -> :8072.'},
+    {'name': 'odoo->pol-keycloak:keycloak-client-secrets',
+     'interconnect_key': 'keycloak-client-secrets',
+     'from_kind': 'odoo', 'to_kind': 'pol-keycloak',
+     'from_instance_name': 'odoo', 'to_instance_name': 'shared-infra',
+     'artifact': 'KC client "odoo" (realm Polari) -> auth.oauth.provider '
+                 'rows, written by pol odoo sso-setup (never a file)',
+     'topology_name': 'staging-a',
+     'notes': 'od-2 SSO: OIDC code flow via OCA auth_oidc; humans '
+              'log in through auth.<domain>; role->group mapping is '
+              'MANUAL in v1.'},
     {'name': 'prf-backend->odoo:erp-api-seam',
      'interconnect_key': 'erp-api-seam',
      'from_kind': 'prf-backend', 'to_kind': 'odoo',
