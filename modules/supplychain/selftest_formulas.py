@@ -383,9 +383,10 @@ if __name__ == '__main__':
     print('== suite: catalog ==')
     cat = formulas_catalog(mgr)
     by_name = {f['name']: f for f in cat['formulas']}
-    check('catalog costs all THIRTEEN seeded formulas (src-9 '
-          'added the waste-glass waterglass route)',
-          cat.get('ok') and len(cat['formulas']) == 13
+    check('catalog costs all NINETEEN seeded formulas (src-9 added '
+          'the waste-glass waterglass route; mag-1 added six '
+          'magnetic recipes)',
+          cat.get('ok') and len(cat['formulas']) == 19
           and abs(by_name['natural-print-wax-v0']['usdPerKg']
                   - 10.7834) < 0.01
           and abs(by_name['geopolymer-castable-v0']['usdPerKg']

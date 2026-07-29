@@ -45,6 +45,11 @@ def normalized_price(citation):
     unit = (getattr(citation, 'amount_unit', '') or '').lower()
     if price <= 0 or amount <= 0:
         return None, ''
+    # Non-USD citations are data but never normalize — pretending an
+    # exchange rate would silently mislabel EUR/GBP as USD (mag-1).
+    currency = (getattr(citation, 'currency', 'USD') or 'USD').upper()
+    if currency != 'USD':
+        return None, ''
     if unit in MASS_TO_KG:
         return round(price / (amount * MASS_TO_KG[unit]), 4), 'USD/kg'
     return round(price / amount, 4), f'USD/{unit}'

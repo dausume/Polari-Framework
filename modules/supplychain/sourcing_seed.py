@@ -154,7 +154,8 @@ SEED_SUPPLY_SOURCES = [
         'is_local': False, 'is_polari': False,
         'is_eco_friendly': False,
         'availability': 'available',
-        'supplies_json': json.dumps(['sodium-silicate-solution']),
+        'supplies_json': json.dumps(['sodium-silicate-solution',
+                                     'barium-carbonate']),
         'demands_json': '[]',
         'business_model_ref': '',
         'locality_note': '',
@@ -363,7 +364,10 @@ SEED_SUPPLY_SOURCES = [
         'is_local': False, 'is_polari': False,
         'is_eco_friendly': False,
         'availability': 'available',
-        'supplies_json': json.dumps(['kaolin-raw']),
+        'supplies_json': json.dumps(['kaolin-raw',
+                                     'strontium-carbonate',
+                                     'red-iron-oxide',
+                                     'barium-carbonate']),
         'demands_json': '[]', 'business_model_ref': '',
         'locality_note': '',
         'is_prior': True, 'provenance_id': 'src-7',
@@ -1977,3 +1981,15 @@ SEED_SOURCE_POLICIES = [
                  'design — open-source alone does not outrank local.',
     },
 ]
+
+# mag-1: the magnetic-materials sourcing layer lives in its own file
+# (file-size discipline) and EXTENDS these lists so polariServer's
+# existing seed_pairs wiring carries it with zero new imports there.
+from supplychain.magnetic_sourcing_seed import (  # noqa: E402
+    SEED_MAGNETIC_SOURCES, SEED_MAGNETIC_CITATIONS,
+    SEED_MAGNETIC_REQUIREMENTS, SEED_MAGNETIC_FORMULAS,
+)
+SEED_SUPPLY_SOURCES.extend(SEED_MAGNETIC_SOURCES)
+SEED_PRICE_CITATIONS.extend(SEED_MAGNETIC_CITATIONS)
+SEED_PRODUCT_REQUIREMENTS.extend(SEED_MAGNETIC_REQUIREMENTS)
+SEED_PRODUCT_FORMULAS.extend(SEED_MAGNETIC_FORMULAS)
