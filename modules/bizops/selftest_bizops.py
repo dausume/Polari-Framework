@@ -448,9 +448,10 @@ if __name__ == '__main__':
 
     print('== suite: quality assurance tracking (biz-4) ==')
     out = qa_report(mgr4, 'wax-mold-goods')
-    check('all five seeded checks reported; zero records = '
-          'honestly unmeasured, never a fake 100%',
-          out.get('ok') and len(out['checks']) == 5
+    check('all six seeded checks reported (5 biz-4 + wound-core '
+          'mag-2); zero records = honestly unmeasured, never a '
+          'fake 100%',
+          out.get('ok') and len(out['checks']) == 6
           and all(c['passRatePct'] is None and 'unmeasured'
                   in c['note'] for c in out['checks']))
     mgr4.objectTables['QualityCheckRecord'] = {

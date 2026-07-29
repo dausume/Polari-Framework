@@ -36,7 +36,8 @@ from polariApiServer.module_gating import module_enabled
 # always required and their imports stay static.
 FEATURE_MODULES = frozenset({
     'aquaponics', 'biomining', 'bizops', 'dmvdata', 'electrodevice',
-    'grpcbridge', 'hwdigital', 'hwfpga', 'mathshapes', 'microalgae',
+    'grpcbridge', 'hwdigital', 'hwfpga', 'magnetics', 'mathshapes',
+    'microalgae',
     'nutrition', 'odooconnect', 'plant_morphology', 'polariapps',
     'scoring',
     'supplychain', 'tanks', 'techtree', 'testing', 'waxprint',
@@ -50,6 +51,7 @@ FEATURE_REQUIRES = {
     'aquaponics': ('plant_morphology', 'scoring'),
     'bizops': ('supplychain',),
     'dmvdata': ('scoring',),
+    'magnetics': ('supplychain',),
     'mathshapes': ('aquaponics', 'plant_morphology'),
     'electrodevice': ('hwdigital',),
     'zones': ('scoring',),

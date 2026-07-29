@@ -473,6 +473,21 @@ SEED_QUALITY_CHECKS = [
      'frequency': 'per-batch', 'is_prior': True,
      'provenance_id': 'biz-4',
      'notes': 'The evidence row behind req-plant-safe-claim.'},
+    {'name': 'qa-wound-core-inductance', 'display_name': 'Wound-'
+     'core inductance (mu verification)', 'product_kind':
+     'magnetic-cast',
+     'method': 'wind N reference turns, measure L vs the air-core '
+               'L0 (inductance-test-rig, research-tools tree); '
+               'mu_eff = L/L0',
+     'acceptance': 'mu_eff within ±20% of the formula\'s predicted '
+                   'value (msci FEM datum) — drift flags the mix '
+                   'or the filler loading',
+     'frequency': 'per-batch', 'is_prior': True,
+     'provenance_id': 'mag-2',
+     'notes': 'THE per-batch magnetic QA: a cast composite claims '
+              'mu only through this row — and passing batches are '
+              'exactly what earns made-and-measured on the '
+              'magnetics catalog.'},
 ]
 
 SEED_PROCESS_WORKFLOWS = [

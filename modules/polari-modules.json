@@ -43,23 +43,25 @@
       "description": "3D organ + root stand-in models, confinement/dwarfing assessment."
     },
     "bizops": {
-    "kind": "official",
-    "downloaded": true,
-    "path": "modules/bizops",
-    "repo": "",
-    "requires": ["supplychain"],
-    "wave": 3,
-    "description": "Business operations: setup/upgrade flows, local-economy track, order planner with mold-ladder reuse."
-  },
-  "odooconnect": {
-    "kind": "official",
-    "downloaded": true,
-    "path": "modules/odooconnect",
-    "repo": "",
-    "wave": 2,
-    "description": "Odoo ERP connector: JSON-RPC client with sim/ops write guards, instance configs, /api/odoo status."
-  },
-  "waxsupply": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/bizops",
+      "repo": "",
+      "requires": [
+        "supplychain"
+      ],
+      "wave": 3,
+      "description": "Business operations: setup/upgrade flows, local-economy track, order planner with mold-ladder reuse."
+    },
+    "odooconnect": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/odooconnect",
+      "repo": "",
+      "wave": 2,
+      "description": "Odoo ERP connector: JSON-RPC client with sim/ops write guards, instance configs, /api/odoo status."
+    },
+    "waxsupply": {
       "kind": "official",
       "downloaded": true,
       "path": "modules/waxsupply",
@@ -238,6 +240,18 @@
         "materialsScience"
       ],
       "description": "PSPP foundation: evidence methods, claims-not-values, digitized book datasets + interpolation (PSPP_MATERIALS_PLAN.md)."
+    },
+    "magnetics": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/magnetics",
+      "repo": "",
+      "requires": [
+        "supplychain",
+        "materialsScience"
+      ],
+      "wave": 3,
+      "description": "Magnetic materials Section A: option catalog with realization ladder, functional role taxonomy (derived viability), theoretical powder designer (MAGNETIC_MATERIALS_PLAN.md)."
     }
   }
 }

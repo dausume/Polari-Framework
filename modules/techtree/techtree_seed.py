@@ -963,6 +963,26 @@ SEED_TECH_NODES += [
           cross=((_M, 'geopolymer', 'characterizes'),
                  (_M, 'ceramics', 'characterizes')),
           data_deps=('ftir-siot-band-vs-si-al',)),
+    # mag-2: the magnetics measurement pair — easiest-first, honest
+    # difficulty, same goal-accountability rule (no B_r claim
+    # without a probe; no mu claim without an inductance test).
+    _node(_RT, 'hall-gaussmeter', 'Hall-probe gaussmeter',
+          description='EASY: a linear Hall sensor (~$3 class, the '
+                      'AS5600\'s cousins) + an ADC reads magnet '
+                      'surface field — the tool that turns '
+                      '"we made a magnet" into a B_r number. '
+                      'Calibration against a known magnet stays '
+                      'honest-approximate; buy suggestion is a '
+                      'KNOB, never auto-purchased.'),
+    _node(_RT, 'inductance-test-rig', 'Wound-core inductance test',
+          deps=('hall-gaussmeter',),
+          description='MODERATE: wind N turns on a core, measure L '
+                      '(LCR meter or LC oscillator + frequency '
+                      'count) — mu_eff = L/L0 follows directly. '
+                      'THE per-batch mu verification for cast '
+                      'magnetic composites; lands in the biz-4 QA '
+                      'machinery as the wound-core-inductance '
+                      'check.'),
 ]
 
 SEED_TECH_SEGMENT_ASSIGNMENTS += [
@@ -975,6 +995,8 @@ SEED_TECH_SEGMENT_ASSIGNMENTS += [
     _theory(_RT, 'turbidity-meter', 'pspp'),
     _theory(_RT, 'diy-microscope', 'pspp'),
     _theory(_RT, 'open-source-ftir', 'pspp'),
+    _theory(_RT, 'hall-gaussmeter', 'magnetics'),
+    _theory(_RT, 'inductance-test-rig', 'magnetics'),
 ]
 
 

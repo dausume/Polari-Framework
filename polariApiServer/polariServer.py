@@ -786,6 +786,22 @@ except ImportError as _exc:
         'SEED_PARTNERSHIPS', 'SEED_COMPLIANCE_REQUIREMENTS',
         'SEED_QUALITY_CHECKS',
     ))
+# Magnetic materials Section A — option catalog + role taxonomy +
+# powder designer (mag-2/2r/2t).
+try:
+    from magnetics.magnet_basis import (
+        MagneticMaterialOption, MagneticPowderDefinition,
+        MaterialUseRole,
+    )
+    from magnetics.magnet_seed import (
+        SEED_MAGNETIC_POWDERS, SEED_MATERIAL_OPTIONS, SEED_USE_ROLES,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('magnetics', _exc, globals(), (
+        'MagneticMaterialOption', 'MagneticPowderDefinition',
+        'MaterialUseRole', 'SEED_MAGNETIC_POWDERS',
+        'SEED_MATERIAL_OPTIONS', 'SEED_USE_ROLES',
+    ))
 # Odoo ERP connector — instance configs + sim/ops write guards (od-3).
 try:
     from odooconnect.odoo_basis import OdooInstanceConfig
@@ -1625,6 +1641,12 @@ class polariServer(treeObject):
             from waxsupply.wax_api import WaxSupplyAPI
             waxSupplyEndpoint = WaxSupplyAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('magnetics'):
+            # Magnetic materials Section A: catalog gates, role
+            # search, powder designer (mag-2/2r/2t).
+            from magnetics.magnet_api import MagneticsAPI
+            magneticsEndpoint = MagneticsAPI(
+                polServer=self, manager=self.manager)
         if _feature_available('supplychain'):
             # The unifying bio supply-chain ledger — materials + food +
             # carbon accounting (chain-1).
@@ -1906,6 +1928,9 @@ class polariServer(treeObject):
             PartnershipAgreement, BusinessRiskNote,
             ComplianceRequirement, ComplianceRecord,
             QualityCheckDefinition, QualityCheckRecord,
+            # Magnetic materials Section A (mag-2/2r/2t).
+            MaterialUseRole, MagneticMaterialOption,
+            MagneticPowderDefinition,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -3268,6 +3293,14 @@ class polariServer(treeObject):
              SEED_COMPLIANCE_REQUIREMENTS),
             ('QualityCheckDefinition', QualityCheckDefinition,
              SEED_QUALITY_CHECKS),
+            # mag-2r/2/2t: roles before the options whose viability
+            # derives against them; powders before options that
+            # reference them by powder_ref.
+            ('MaterialUseRole', MaterialUseRole, SEED_USE_ROLES),
+            ('MagneticPowderDefinition', MagneticPowderDefinition,
+             SEED_MAGNETIC_POWDERS),
+            ('MagneticMaterialOption', MagneticMaterialOption,
+             SEED_MATERIAL_OPTIONS),
             # chain-1: nodes + flows before the chain that binds them.
             ('SupplyNode', SupplyNode, SEED_SUPPLY_NODES),
             ('SupplyFlow', SupplyFlow, SEED_SUPPLY_FLOWS),

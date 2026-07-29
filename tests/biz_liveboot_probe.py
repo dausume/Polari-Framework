@@ -42,8 +42,9 @@ reqs = manager.objectTables.get('ComplianceRequirement', {})
 checks_tbl = manager.objectTables.get('QualityCheckDefinition', {})
 check('6 ComplianceRequirement rows seeded by polariServer',
       len(reqs) == 6, extra=str(len(reqs)))
-check('5 QualityCheckDefinition rows seeded by polariServer',
-      len(checks_tbl) == 5, extra=str(len(checks_tbl)))
+check('6 QualityCheckDefinition rows seeded by polariServer '
+      '(5 biz-4 + wound-core-inductance mag-2)',
+      len(checks_tbl) == 6, extra=str(len(checks_tbl)))
 food = next((r for r in reqs.values()
              if getattr(r, 'name', '') == 'req-food-contact'), None)
 check('food-contact row demands certified-third-party-pass',
@@ -66,10 +67,10 @@ check('food-contact context blocked at unassessed on the live app',
 
 r = client.simulate_get('/api/bizops/qa/wax-mold-goods')
 body = r.json
-check('GET /api/bizops/qa/{biz} 200 + 5 checks all honestly '
+check('GET /api/bizops/qa/{biz} 200 + 6 checks all honestly '
       'unmeasured',
       r.status_code == 200 and body.get('ok')
-      and len(body.get('checks', [])) == 5
+      and len(body.get('checks', [])) == 6
       and all(c['passRatePct'] is None for c in body['checks']),
       extra=r.status)
 

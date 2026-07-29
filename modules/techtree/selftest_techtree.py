@@ -302,11 +302,12 @@ if __name__ == '__main__':
     for n in SEED_TECH_NODES:
         by_tree[n['tree_name']] = by_tree.get(n['tree_name'], 0) + 1
     check('node counts: electronics 24 / supply 15 / economy 4 / '
-          'materials 12 / simulation 9 / manufacturing 6 / research 9',
+          'materials 12 / simulation 9 / manufacturing 6 / '
+          'research 11 (mag-2 added gaussmeter + inductance rig)',
           by_tree == {TREE_ELECTRONICS: 24, TREE_SUPPLY: 15,
                       TREE_ECONOMY: 4, TREE_MATERIALS: 12,
                       TREE_SIMULATION: 9, TREE_MANUFACTURING: 6,
-                      TREE_RESEARCH: 9},
+                      TREE_RESEARCH: 11},
           json.dumps(by_tree))
 
     edges = domains.objectTables['TechDependencyEdge'].values()
