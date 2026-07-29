@@ -110,6 +110,19 @@ SEED_GRAPH_COMPILERS = [
                        '.subckt components.',
         'enabled': True,
     },
+    {
+        'name': 'magnetic-netlist',
+        'domain': 'magnetics',
+        'compiler_ref': 'magnetics.magnetic_netlist'
+                        ':compile_magnetic',
+        'description': 'MagneticElementDefinition/FluxNodeDefinition'
+                       ' rows -> a solved reluctance network '
+                       '(Hopkinson analogy, MNA over the permeance '
+                       'matrix); materials resolve against the '
+                       'Section-A catalog, saturation flagged '
+                       'never hidden (mag-3).',
+        'enabled': True,
+    },
 ]
 
 

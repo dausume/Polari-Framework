@@ -108,6 +108,31 @@ check('mag-1 cascade route answers (~6.09/kg) on the live app',
       and abs(r.json['usdPerKg'] - 6.0898) < 0.05,
       extra=str(r.json.get('usdPerKg')))
 
+# mag-3: circuits seeded + solved through the live app
+circuits = manager.objectTables.get('MagneticCircuitDefinition', {})
+elements = manager.objectTables.get('MagneticElementDefinition', {})
+check('3 MagneticCircuitDefinition + 11 element rows seeded',
+      len(circuits) == 3 and len(elements) == 11,
+      extra=f'{len(circuits)}/{len(elements)}')
+r = client.simulate_get('/api/magnetics/circuits')
+check('GET /api/magnetics/circuits 200 with element lists',
+      r.status_code == 200 and r.json['count'] == 3
+      and all(c['elements'] for c in r.json['circuits']))
+r = client.simulate_get('/api/magnetics/solve/gapped-toroid-demo')
+ops = [a for a in r.json.get('analyses', [])
+       if a.get('type') == 'op']
+check('solve route answers: op + sweep, flux ~1.35e-7 Wb, '
+      'validity sentence riding',
+      r.status_code == 200 and r.json.get('ok') and ops
+      and abs(next(e for e in ops[0]['result']['elements']
+                   if e['element'] == 'core1')['fluxWb']
+              - 1.3501e-7) < 1e-10
+      and 'linear magnetostatics'
+      in ops[0]['result']['validity'])
+r = client.simulate_get('/api/magnetics/solve/nope')
+check('solve of unknown circuit = 404 refusal',
+      r.status_code == 404 and not r.json.get('ok'))
+
 failed = results.count(False)
 print(f'\n{len(results) - failed}/{len(results)} live-boot checks '
       'passed')

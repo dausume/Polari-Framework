@@ -32,6 +32,11 @@ class MagneticsAPI(treeObject):
             add('/api/magnetics/powders', self, suffix='powders')
             add('/api/magnetics/predict', self, suffix='predict')
             add('/api/magnetics/ladder', self, suffix='ladder')
+            add('/api/magnetics/circuits', self, suffix='circuits')
+            add('/api/magnetics/solve/{circuit_name}', self,
+                suffix='solve')
+            add('/api/magnetics/parity/{circuit_name}', self,
+                suffix='parity')
 
     def on_get_catalog(self, request, response):
         rows = []
@@ -140,4 +145,33 @@ class MagneticsAPI(treeObject):
                               form=request.params.get('form', ''))
         if not out.get('ok'):
             response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_circuits(self, request, response):
+        rows = []
+        for c in _rows(self.manager, 'MagneticCircuitDefinition'):
+            name = getattr(c, 'name', '')
+            rows.append({
+                'name': name,
+                'description': getattr(c, 'description', ''),
+                'analyses': getattr(c, 'analyses_json', '[]'),
+                'elements': [getattr(e, 'name', '') for e in _rows(
+                    self.manager, 'MagneticElementDefinition')
+                    if getattr(e, 'circuit_name', '') == name],
+            })
+        response.media = {'ok': True, 'circuits': rows,
+                          'count': len(rows)}
+
+    def on_get_solve(self, request, response, circuit_name):
+        from magnetics.magnetic_netlist import run_analyses
+        out = run_analyses(self.manager, circuit_name)
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_parity(self, request, response, circuit_name):
+        from magnetics.magnetic_netlist import parity_run
+        out = parity_run(self.manager, circuit_name)
+        if not out.get('ok'):
+            response.status = '409 Conflict'
         response.media = out

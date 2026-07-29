@@ -426,6 +426,9 @@ SEED_MATERIAL_OPTIONS = [
                       'simulated, not measured'),
             h_c_ka_m=(8.0, 'kA/m', 'literature-est',
                       'inherits the filler\'s soft character'),
+            b_sat_t=(0.21, 'T', 'literature-est',
+                     'volume-diluted filler B_sat (0.6 T x 35 '
+                     'vol%) — the honest composite ceiling prior'),
             density_kg_m3=(3120.0, 'kg/m3', 'literature-est')),
         'role_overrides_json': '{}',
         'is_prior': True, 'provenance_id': PROV,
@@ -504,6 +507,9 @@ SEED_MATERIAL_OPTIONS = [
                       'msci FEM @40vol% — the cast-composite '
                       'ceiling; SINTERED ferrite parts run '
                       '1e2-1e4'),
+            b_sat_t=(0.24, 'T', 'literature-est',
+                     'volume-diluted filler B_sat (0.6 T x 40 '
+                     'vol%)'),
             density_kg_m3=(3400.0, 'kg/m3', 'literature-est')),
         'role_overrides_json': '{}',
         'is_prior': True, 'provenance_id': PROV,

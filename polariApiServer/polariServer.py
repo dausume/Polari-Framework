@@ -796,11 +796,19 @@ try:
     from magnetics.magnet_seed import (
         SEED_MAGNETIC_POWDERS, SEED_MATERIAL_OPTIONS, SEED_USE_ROLES,
     )
+    from magnetics.magnet_circuit_basis import (
+        FluxNodeDefinition, MagneticCircuitDefinition,
+        MagneticElementDefinition, SEED_FLUX_NODES,
+        SEED_MAGNETIC_CIRCUITS, SEED_MAGNETIC_ELEMENTS,
+    )
 except ImportError as _exc:
     _stub_missing_feature('magnetics', _exc, globals(), (
         'MagneticMaterialOption', 'MagneticPowderDefinition',
         'MaterialUseRole', 'SEED_MAGNETIC_POWDERS',
         'SEED_MATERIAL_OPTIONS', 'SEED_USE_ROLES',
+        'FluxNodeDefinition', 'MagneticCircuitDefinition',
+        'MagneticElementDefinition', 'SEED_FLUX_NODES',
+        'SEED_MAGNETIC_CIRCUITS', 'SEED_MAGNETIC_ELEMENTS',
     ))
 # Odoo ERP connector — instance configs + sim/ops write guards (od-3).
 try:
@@ -1928,9 +1936,11 @@ class polariServer(treeObject):
             PartnershipAgreement, BusinessRiskNote,
             ComplianceRequirement, ComplianceRecord,
             QualityCheckDefinition, QualityCheckRecord,
-            # Magnetic materials Section A (mag-2/2r/2t).
+            # Magnetic materials Section A (mag-2/2r/2t) + circuits
+            # (mag-3).
             MaterialUseRole, MagneticMaterialOption,
-            MagneticPowderDefinition,
+            MagneticPowderDefinition, MagneticCircuitDefinition,
+            MagneticElementDefinition, FluxNodeDefinition,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -3301,6 +3311,13 @@ class polariServer(treeObject):
              SEED_MAGNETIC_POWDERS),
             ('MagneticMaterialOption', MagneticMaterialOption,
              SEED_MATERIAL_OPTIONS),
+            # mag-3: circuits before nodes/elements that name them.
+            ('MagneticCircuitDefinition', MagneticCircuitDefinition,
+             SEED_MAGNETIC_CIRCUITS),
+            ('FluxNodeDefinition', FluxNodeDefinition,
+             SEED_FLUX_NODES),
+            ('MagneticElementDefinition', MagneticElementDefinition,
+             SEED_MAGNETIC_ELEMENTS),
             # chain-1: nodes + flows before the chain that binds them.
             ('SupplyNode', SupplyNode, SEED_SUPPLY_NODES),
             ('SupplyFlow', SupplyFlow, SEED_SUPPLY_FLOWS),
