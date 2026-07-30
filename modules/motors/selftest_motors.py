@@ -812,6 +812,69 @@ check('strength values are labelled literature-est for the CLASS, '
       'literature-est' in lc['validity']
       or 'none of our' in lc['validity'])
 
+print('== suite: mag-15b FEM stress, judged correctly ==')
+from motors.motor_stress import part_stress  # noqa: E402
+from motors.motor_shapes import (  # noqa: E402
+    SEED_LAVET_V2_PART_SHAPES as _V2SH,
+)
+
+mgrf = _mgr()
+mgrf.objectTables['GearTrainDefinition'] = {
+    g['name']: types.SimpleNamespace(**g) for g in _GTR}
+mgrf.objectTables['GearDefinition'] = {
+    g['name']: types.SimpleNamespace(**g) for g in _GRS}
+mgrf.objectTables['MotorPartDefinition'] = {
+    p['name']: types.SimpleNamespace(**p) for p in SEED_MOTOR_PARTS}
+mgrf.objectTables['MathShapeDefinition'] = {
+    p['name']: types.SimpleNamespace(**p) for p in _V2SH}
+
+st = part_stress(mgrf, 'clock-lavet-m0', 'lavet-v2-stator')
+check('FEM runs on a real part and returns the STRESS TENSOR, both '
+      'criteria, and where each peaks',
+      st['ok'] and st['stress']['vonMisesPa'] > 0
+      and st['stress']['maxPrincipalPa'] > 0
+      and st['stress']['maxPrincipalAtXY']
+      and st['stress']['meanStressTensor'],
+      extra=str(st.get('refusal'))[:80])
+check('a BRITTLE part is judged by max principal, NOT von Mises — '
+      'and BOTH numbers are reported so the choice is auditable',
+      'max principal' in st['stress']['judgedBy']
+      and st['stress']['judgedPa'] == st['stress']['maxPrincipalPa']
+      and st['stress']['vonMisesPa'] != st['stress']['judgedPa'])
+check('the stator SURVIVES the governing load with margin',
+      st['passes'] and st['safetyFactor'] > 4.0,
+      extra=str(st.get('safetyFactor')))
+check('ASSEMBLY is the governing case, not operation',
+      st['governingLoad']['case'] == 'assembly')
+
+pin = part_stress(mgrf, 'clock-lavet-m0', 'lavet-v2-pinion')
+check('THE FINDING: the small pinion is AT RISK under a finger '
+      'press (SF ~2.5 against the 4.0 required for an unmeasured '
+      'brittle casting) — a real actionable result, not a rubber '
+      'stamp',
+      pin['ok'] and not pin['passes']
+      and 1.5 < pin['safetyFactor'] < 3.5
+      and 'AT RISK' in pin['verdict'],
+      extra=str(pin.get('safetyFactor')))
+check('a higher handling force makes it worse — the knob moves the '
+      'answer, so the answer is load-driven not decorative',
+      part_stress(mgrf, 'clock-lavet-m0', 'lavet-v2-pinion',
+                  handling_force_n=20.0)['safetyFactor']
+      < pin['safetyFactor'])
+check('plane-strain and plane-stress give DIFFERENT answers, so '
+      'the assumption is a real knob',
+      part_stress(mgrf, 'clock-lavet-m0', 'lavet-v2-stator',
+                  assumption='plane-strain')['stress']['judgedPa']
+      != st['stress']['judgedPa'])
+check('the mesh is reported, and the validity names fatigue, '
+      'flaws and mesh dependence as NOT covered',
+      st['elements'] > 0 and 'fatigue' in st['validity']
+      and 'worst flaw' in st['validity'])
+check('a part whose material lacks E/nu REFUSES — a stress number '
+      'without a stiffness is a fiction, not an estimate',
+      not part_stress(mgrf, 'clock-lavet-m0',
+                      'lavet-v2-coil').get('ok'))
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

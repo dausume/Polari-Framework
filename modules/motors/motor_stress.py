@@ -266,3 +266,147 @@ def load_cases(manager, design_name, handling_force_n=5.0):
         'gaps': [g for g in (tooth_gap,) if g],
         'validity': VALIDITY,
     }
+
+
+def part_stress(manager, design_name, part_name, refine=3,
+                handling_force_n=5.0, assumption='plane-stress'):
+    """FEM the governing load into one part and JUDGE it by the
+    criterion its material actually fails by.
+
+    Geometry: the part's bounding box in-plane, with its bore where
+    it has one — a 2D idealisation of a flat stamped plate, which is
+    what a Lavet stator IS, so the idealisation is honest here and
+    would not be for the rotor.
+    """
+    part = _named(manager, 'MotorPartDefinition', part_name)
+    if part is None:
+        return {'ok': False,
+                'refusal': f'no MotorPartDefinition named '
+                           f'"{part_name}"'}
+    material = getattr(part, 'material_ref', '')
+    crit = failure_criterion(manager, material)
+    if not crit.get('ok'):
+        return crit
+
+    E_mpa, e_prov = _prop(manager, material, 'youngs_modulus_mpa')
+    nu, _ = _prop(manager, material, 'poisson_ratio')
+    if not E_mpa or nu is None:
+        return {'ok': False,
+                'refusal': f'"{material}" states no '
+                           f'youngs_modulus_mpa/poisson_ratio — FEM '
+                           f'elasticity cannot run, and a stress '
+                           f'number without a stiffness is not an '
+                           f'estimate, it is a fiction',
+                'suggestion': {
+                    'knob': 'MagneticMaterialOption.properties_json',
+                    'action': 'add E and nu (literature-est is fine '
+                              'if labelled)'}}
+
+    loads = load_cases(manager, design_name,
+                       handling_force_n=handling_force_n)
+    if not loads.get('ok'):
+        return loads
+    force_n = max(loads['maxOperatingN'], loads['maxAssemblyN'])
+    governing = loads['governingCase']
+
+    # Geometry from the part's own shape row — same rows the viewer
+    # draws (the mag-11 rule).
+    try:
+        from mathshapes.shape_analysis import shape_properties
+    except ImportError:
+        return {'ok': False,
+                'refusal': 'mathshapes not enabled — the part '
+                           'geometry cannot be measured'}
+    geo = shape_properties(manager, getattr(part, 'shape_ref', ''))
+    if not geo.get('ok'):
+        return {'ok': False,
+                'refusal': f'geometry unreadable: '
+                           f'{geo.get("error")}'}
+    bbox = geo.get('boundingBox') or []
+    if len(bbox) != 3:
+        return {'ok': False, 'refusal': 'no bounding box'}
+    unit = getattr(part, 'shape_units', 'cm') or 'cm'
+    scale = 0.001 if unit == 'mm' else 0.01      # -> metres
+    w = (bbox[0][1] - bbox[0][0]) * scale
+    h = (bbox[1][1] - bbox[1][0]) * scale
+    t = max((bbox[2][1] - bbox[2][0]) * scale, 1e-6)
+    if w <= 0 or h <= 0:
+        return {'ok': False, 'refusal': 'degenerate bounding box'}
+
+    # Traction = force spread over the loaded edge (h x thickness).
+    traction_pa = force_n / max(h * t, 1e-12)
+
+    from materialsScience.engines.fem_engine import (
+        solve_elasticity_2d,
+    )
+    sol = solve_elasticity_2d(
+        width=w, height=h,
+        youngs_modulus=float(E_mpa) * 1e6, poisson_ratio=float(nu),
+        tractions=({'edge': 'right', 'tx': traction_pa, 'ty': 0.0},),
+        fixed_edges=({'edge': 'left', 'dof': 'xy'},),
+        assumption=assumption, refine=refine)
+    if not sol.get('ok'):
+        return {'ok': False,
+                'refusal': f'FEM solve failed: {sol.get("error")}',
+                'suggestion': sol.get('suggestion')}
+
+    brittle = crit['failureClass'] == 'brittle'
+    # The solver returns each peak as {'value', 'atXY'} — the
+    # LOCATION matters as much as the number for a brittle part,
+    # because that is where the crack starts.
+    von_e = sol.get('maxVonMises') or {}
+    prin_e = sol.get('maxPrincipal') or {}
+    von = von_e.get('value')
+    principal = prin_e.get('value')
+    judged_pa = principal if brittle else von
+    strength_mpa = crit['tensileMpa']
+    sf = ((strength_mpa * 1e6) / judged_pa
+          if judged_pa and strength_mpa else None)
+    passes = (sf is not None and sf >= DEFAULT_SAFETY_FACTOR)
+
+    return {
+        'ok': True, 'design': design_name, 'part': part_name,
+        'material': material,
+        'criterion': crit['criterion'],
+        'criterionWhy': crit['why'],
+        'governingLoad': {'case': governing, 'forceN': force_n,
+                          'tractionPa': traction_pa,
+                          'headline': loads['headline']},
+        'geometry': {'widthM': w, 'heightM': h, 'thicknessM': t,
+                     'assumption': assumption,
+                     'note': '2D idealisation of a flat stamped '
+                             'plate — honest for the stator, and '
+                             'NOT honest for the rotor cylinder'},
+        'stress': {
+            'vonMisesPa': von,
+            'maxPrincipalPa': principal,
+            'judgedPa': judged_pa,
+            'judgedBy': ('max principal (brittle)' if brittle
+                         else 'von Mises (ductile)'),
+            'vonMisesAtXY': von_e.get('atXY'),
+            'maxPrincipalAtXY': prin_e.get('atXY'),
+            'minPrincipalPa': (sol.get('minPrincipal') or {})
+            .get('value'),
+            'meanStressTensor': sol.get('meanStress'),
+            'stressRange': sol.get('stressRange'),
+            'disagreementPct': (
+                round(abs(von - principal) / max(principal, 1e-9)
+                      * 100.0, 1)
+                if (von and principal) else None),
+        },
+        'strengthMpa': strength_mpa,
+        'strengthProvenance': crit['strengthProvenance'],
+        'safetyFactor': (round(sf, 2) if sf else None),
+        'requiredSafetyFactor': DEFAULT_SAFETY_FACTOR,
+        'passes': passes,
+        'verdict': (
+            f'{"SURVIVES" if passes else "AT RISK"}: judged by '
+            f'{crit["criterion"]} against {strength_mpa} MPa, '
+            f'safety factor '
+            f'{round(sf, 2) if sf else "n/a"} vs the '
+            f'{DEFAULT_SAFETY_FACTOR} required for an unmeasured '
+            f'brittle casting'),
+        'elements': sol.get('elementCount'),
+        'meshNote': sol.get('validity', ''),
+        'validity': VALIDITY,
+    }

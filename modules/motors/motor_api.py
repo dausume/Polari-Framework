@@ -44,6 +44,8 @@ class MotorsAPI(treeObject):
                 suffix='loads')
             add('/api/motors/criterion/{material}', self,
                 suffix='criterion')
+            add('/api/motors/stress/{design_name}/{part_name}',
+                self, suffix='stress')
             add('/api/motors/winding/{design_name}', self,
                 suffix='winding')
             add('/api/motors/winding-sweep/{design_name}', self,
@@ -165,6 +167,24 @@ class MotorsAPI(treeObject):
         out = failure_criterion(self.manager, material)
         if not out.get('ok'):
             response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_stress(self, request, response, design_name,
+                      part_name):
+        from motors.motor_stress import part_stress
+        def num(k, d):
+            try:
+                return float(request.params.get(k, d))
+            except (TypeError, ValueError):
+                return d
+        out = part_stress(
+            self.manager, design_name, part_name,
+            refine=int(num('refine', 3)),
+            handling_force_n=num('handlingN', 5.0),
+            assumption=request.params.get('assumption',
+                                          'plane-stress'))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
         response.media = out
 
     def _winding_params(self, request):
