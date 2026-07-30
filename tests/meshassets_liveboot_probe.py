@@ -49,17 +49,19 @@ check('GET /api/meshassets/sources 200: every source carries a '
               for s in body['sources']),
       extra=r.status)
 gates = {s['name']: s['license'] for s in body['sources']}
-check('CC0 sources clear simulate AND redistribute on the live app',
-      gates['polyhaven']['mayRedistribute']
-      and gates['quaternius']['mayRedistribute'])
-check('PlantMap3D is present and clears NOTHING — the negative '
-      'finding survives a real boot',
-      gates['plantmap3d']['grade'] == 'unverified'
-      and not gates['plantmap3d']['maySimulate'])
-check('copyleft gear libs are reference-only; public-domain '
-      'pd-gears is unrestricted',
-      gates['mcad-involute-gears']['grade'] == 'reference-only'
-      and gates['pd-gears']['grade'] == 'unrestricted')
+check('compatibility is judged against OUR GPL-3.0 licence on the '
+      'live app', body['projectLicense'] == 'GPL-3.0-or-later')
+check('CC0 sources are compatible with no obligations',
+      gates['polyhaven']['compatible']
+      and not gates['polyhaven']['attributionRequired'])
+check('copyleft IS compatible for a GPLv3 project: CC-BY-SA-4.0 '
+      'one-way into GPLv3, LGPL-2.1 via its section 3',
+      gates['polygear']['compatible']
+      and gates['polygear']['shareAlike']
+      and gates['mcad-involute-gears']['compatible'])
+check('PlantMap3D is present and still INCOMPATIBLE — no licence '
+      'means no rights, and ours cannot invent them',
+      not gates['plantmap3d']['compatible'])
 
 r = client.simulate_get(
     '/api/meshassets/fit/sweet-basil-leaf-organ/'
@@ -90,6 +92,23 @@ check('an UNMEASURED asset refuses live rather than inventing a '
       r.status_code == 400
       and 'no measured bounding box' in r.json.get('refusal', ''),
       extra=r.status)
+
+r = client.simulate_get('/api/meshassets/citations')
+body = r.json
+check('LIVE citation manifest: every asset credited (TASL + terms '
+      'link), naming our licence — the list a release ships',
+      r.status_code == 200 and body.get('ok')
+      and body['count'] == 5
+      and body['projectLicense'] == 'GPL-3.0-or-later'
+      and all(c['citationLine'] for c in body['citations']),
+      extra=r.status)
+
+r = client.simulate_get(
+    '/api/meshassets/citation/quat-plant-broadleaf')
+check('LIVE single citation is complete and paste-ready',
+      r.status_code == 200 and r.json['complete'] is True
+      and 'Quaternius' in r.json['citationLine'],
+      extra=str(r.json.get('citationLine'))[:70])
 
 failed = results.count(False)
 print(f'\n{len(results) - failed}/{len(results)} live-boot checks '

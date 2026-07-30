@@ -36,14 +36,10 @@ than no answer:
 
 import json
 
-from meshassets.mesh_asset_basis import LICENSE_GRADE_BY_SPDX
-
-#: Grades that may be used in a simulation at all.
-SIMULATABLE_GRADES = ('simulate-only', 'simulate-and-attribute',
-                      'unrestricted', 'reference-only')
-#: Grades that may be SHIPPED inside something we hand to someone
-#: else. Deliberately narrower than the above.
-REDISTRIBUTABLE_GRADES = ('unrestricted', 'simulate-and-attribute')
+from meshassets.mesh_asset_basis import (
+    COMPATIBILITY, PROJECT_LICENSE_SPDX,
+    PROJECT_LICENSE_VERIFIED_FROM,
+)
 
 #: Fidelity below this is reported as a poor stand-in. A judgement
 #: threshold, exposed as a knob rather than buried in a comparison.
@@ -80,34 +76,148 @@ def _refuse(refusal, suggestion=None):
 
 
 def license_gate(source):
-    """The licence finding, as a usable verdict. Unknown SPDX ->
-    'unverified' BY CONSTRUCTION: a licence nobody has graded is
-    not one we may lean on."""
+    """Judge this source's licence AGAINST OUR OWN (GPL-3.0).
+
+    Compatibility is a RELATION, not a property: being GPLv3 is
+    exactly what makes CC BY-SA 4.0 and LGPL-2.1 assets usable
+    here. An unlisted SPDX is unusable by construction — a licence
+    nobody has reasoned about is not one to rely on."""
     spdx = getattr(source, 'license_spdx', 'NONE') or 'NONE'
-    grade = LICENSE_GRADE_BY_SPDX.get(spdx, 'unverified')
-    attribution = grade == 'simulate-and-attribute'
+    rel = COMPATIBILITY.get(spdx)
+    unknown = rel is None
+    if unknown:
+        rel = {'compatible': False, 'relation': 'unreviewed',
+               'attribution_required': False, 'share_alike': False,
+               'why': f'"{spdx}" is not in the reviewed '
+                      f'compatibility table — read the actual terms '
+                      f'and add it before relying on this asset.'}
     return {
         'source': getattr(source, 'name', ''),
         'licenseSpdx': spdx,
-        'grade': grade,
-        'maySimulate': grade in SIMULATABLE_GRADES,
-        'mayRedistribute': grade in REDISTRIBUTABLE_GRADES,
-        'attributionRequired': attribution,
+        'licenseUrl': getattr(source, 'license_url', ''),
+        'projectLicense': PROJECT_LICENSE_SPDX,
+        'projectLicenseVerifiedFrom': PROJECT_LICENSE_VERIFIED_FROM,
+        'relation': rel['relation'],
+        'compatible': rel['compatible'],
+        # Kept under the old key names so every caller and stored
+        # payload keeps working: for a GPLv3 project these now mean
+        # what they say rather than being a conservatism.
+        'maySimulate': rel['compatible'],
+        'mayRedistribute': rel['compatible'],
+        'attributionRequired': rel['attribution_required'],
+        'shareAlike': rel['share_alike'],
+        'why': rel['why'],
         'verificationMethod': getattr(source, 'verification_method',
                                       'not-checked'),
         'verifiedAt': getattr(source, 'verified_at', ''),
         'statement': getattr(source, 'license_statement', ''),
-        'note': ('no licence on record — default copyright applies, '
-                 'so this asset may not be used at all; the fix is '
-                 'to ASK the publisher, not to assume'
-                 if grade == 'unverified' else
-                 'copyleft: read it, run it locally, but shipping a '
-                 'derivative carries obligations — a human decides '
-                 'per case' if grade == 'reference-only' else
-                 'attribution must travel with anything shipped'
-                 if attribution else
-                 'public-domain equivalent: use and redistribute '
-                 'freely'),
+        'note': (rel['why'] if not rel['compatible'] else
+                 'compatible with our GPL-3.0 licence; the '
+                 'share-alike/attribution obligations below travel '
+                 'with anything we ship'
+                 if rel['share_alike'] else
+                 'compatible; attribution travels with anything we '
+                 'ship' if rel['attribution_required'] else
+                 'compatible with no obligations attached'),
+        'disclaimer': 'licence RECORD-KEEPING, not legal advice — '
+                      'the quoted statement and the link are the '
+                      'authority, this verdict is our reading of '
+                      'them',
+    }
+
+
+def citation_record(manager, asset_name):
+    """THE CITATION, as data (Dustin: "assets have clear citations
+    tracked as data").
+
+    TASL — Title, Author, Source, Licence — is what CC asks for and
+    what any downstream credits file needs. Where a licence requires
+    attribution and a field is missing, this reports the GAP rather
+    than quietly substituting the site name for a person: an
+    incomplete credit that LOOKS complete is the failure mode worth
+    designing against."""
+    asset = _named(manager, 'MeshAssetReference', asset_name)
+    if asset is None:
+        return _refuse(f'no MeshAssetReference named '
+                       f'"{asset_name}"')
+    source = _named(manager, 'MeshAssetSource',
+                    getattr(asset, 'source_ref', ''))
+    if source is None:
+        return _refuse(
+            f'asset "{asset_name}" names an unknown source — an '
+            f'asset without a licence finding cannot be cited')
+    gate = license_gate(source)
+    title = getattr(asset, 'display_name', '') or asset_name
+    author = getattr(source, 'author', '')
+    src_url = (getattr(asset, 'asset_url', '')
+               or getattr(source, 'url', ''))
+
+    gaps = []
+    if gate['attributionRequired']:
+        if not author:
+            gaps.append('author missing, and this licence REQUIRES '
+                        'attribution — find the credited creator '
+                        'before shipping this asset')
+        if not src_url:
+            gaps.append('source URL missing')
+        if not gate['licenseUrl']:
+            gaps.append('licence URL missing — a credit should link '
+                        'the terms, not just name them')
+
+    line = (f'"{title}"'
+            + (f' by {author}' if author else ' (author UNKNOWN)')
+            + (f' — {src_url}' if src_url else '')
+            + f' — {gate["licenseSpdx"]}'
+            + (f' ({gate["licenseUrl"]})' if gate['licenseUrl']
+               else ''))
+    return {
+        'ok': True, 'asset': asset_name,
+        'title': title, 'author': author or None,
+        'sourceUrl': src_url or None,
+        'licenseSpdx': gate['licenseSpdx'],
+        'licenseUrl': gate['licenseUrl'] or None,
+        'attributionRequired': gate['attributionRequired'],
+        'shareAlike': gate['shareAlike'],
+        'compatible': gate['compatible'],
+        'citationLine': line,
+        'complete': not gaps,
+        'gaps': gaps,
+        'modificationNote': 'if we scale or edit the mesh, say so '
+                            'in the credit — CC licences ask that '
+                            'adaptations be indicated, and an '
+                            'OrganMeshChoice IS an adaptation '
+                            '(it records the per-axis scaling)',
+        'note': 'this record is what travels into a credits file, '
+                'an exported scene, or a release — cite from the '
+                'ROW so the credit cannot drift from the asset',
+    }
+
+
+def citation_manifest(manager):
+    """Every catalogued asset's citation in one list — the thing a
+    release or an exported scene ships. Assets whose licence is
+    incompatible are listed too, flagged, so the manifest doubles
+    as the do-not-ship list."""
+    entries, incomplete, blocked = [], [], []
+    for asset in _rows(manager, 'MeshAssetReference'):
+        rec = citation_record(manager, getattr(asset, 'name', ''))
+        if not rec.get('ok'):
+            continue
+        entries.append(rec)
+        if not rec['compatible']:
+            blocked.append(rec['asset'])
+        elif not rec['complete']:
+            incomplete.append(rec['asset'])
+    entries.sort(key=lambda r: r['asset'])
+    return {
+        'ok': True, 'projectLicense': PROJECT_LICENSE_SPDX,
+        'citations': entries, 'count': len(entries),
+        'incompleteCitations': incomplete,
+        'blockedAssets': blocked,
+        'note': 'ship this list with the build. Entries under '
+                '"blockedAssets" are catalogued but NOT usable — '
+                'they stay visible so the reason is on record '
+                'rather than rediscovered.',
     }
 
 
@@ -135,10 +245,10 @@ def fit_asset_to_organ(manager, organ_name, asset_name):
             f'without a licence finding is unusable by definition')
 
     gate = license_gate(source)
-    if not gate['maySimulate']:
+    if not gate['compatible']:
         return _refuse(
-            f'asset "{asset_name}" is licence-gated: '
-            f'{gate["note"]}',
+            f'asset "{asset_name}" is licence-gated against our '
+            f'{gate["projectLicense"]} project: {gate["why"]}',
             {'evidence': gate['statement'],
              'knob': 'MeshAssetSource.license_spdx',
              'action': 'obtain an explicit licence from the '
@@ -288,15 +398,19 @@ def source_catalog(manager):
             'license': gate,
             'notes': getattr(s, 'notes', ''),
         })
-    out.sort(key=lambda r: (not r['license']['mayRedistribute'],
+    out.sort(key=lambda r: (not r['license']['compatible'],
                             r['name']))
-    usable = [r for r in out if r['license']['maySimulate']]
+    usable = [r for r in out if r['license']['compatible']]
     return {
         'ok': True, 'sources': out, 'count': len(out),
         'usableCount': len(usable),
-        'note': 'licences were read from the publisher\'s own words '
-                'on the date in each row, and the quote is kept. A '
-                'source graded "unverified" is IN this list on '
-                'purpose: a written-down negative finding does not '
-                'have to be re-discovered every few months.',
+        'projectLicense': PROJECT_LICENSE_SPDX,
+        'note': 'compatibility is judged AGAINST OUR OWN LICENCE '
+                f'({PROJECT_LICENSE_SPDX}) — being GPLv3 is what '
+                'makes the copyleft assets usable here. Licences '
+                'were read from the publisher\'s own words on the '
+                'date in each row and the quote is kept. An '
+                'incompatible source stays IN this list on purpose: '
+                'a written-down negative finding does not have to '
+                'be re-discovered every few months.',
     }

@@ -29,6 +29,8 @@ SEED_MESH_SOURCES = [
     # ---------------- plant / organic: approximation VALID -------
     {
         'name': 'polyhaven',
+        'author': 'Poly Haven (Rob Tuytel, Greg Zaal et al.)',
+        'license_url': 'https://creativecommons.org/publicdomain/zero/1.0/',
         'display_name': 'Poly Haven (polyhaven.com)',
         'url': 'https://polyhaven.com/models',
         'license_spdx': 'CC0-1.0',
@@ -48,6 +50,8 @@ SEED_MESH_SOURCES = [
     },
     {
         'name': 'quaternius',
+        'author': 'Quaternius',
+        'license_url': 'https://creativecommons.org/publicdomain/zero/1.0/',
         'display_name': 'Quaternius (quaternius.com)',
         'url': 'https://quaternius.com/',
         'license_spdx': 'CC0-1.0',
@@ -69,6 +73,8 @@ SEED_MESH_SOURCES = [
     },
     {
         'name': 'opengameart-cc0-3d-plants',
+        'author': 'josepharaoh99',
+        'license_url': 'https://creativecommons.org/publicdomain/zero/1.0/',
         'display_name': 'OpenGameArt — "CC0 - 3D Plants" '
                         '(josepharaoh99)',
         'url': 'https://opengameart.org/content/cc0-3d-plants',
@@ -89,6 +95,8 @@ SEED_MESH_SOURCES = [
     # ---------------- gears: approximation INVALID ---------------
     {
         'name': 'pd-gears',
+        'author': 'Leemon Baird (orig.), sadr0b0t (fork)',
+        'license_url': '',
         'display_name': 'pd-gears / publicDomainGearV1.1 '
                         '(Leemon Baird)',
         'url': 'https://github.com/sadr0b0t/pd-gears',
@@ -114,6 +122,8 @@ SEED_MESH_SOURCES = [
     },
     {
         'name': 'mcad-involute-gears',
+        'author': 'GregFrost',
+        'license_url': 'https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html',
         'display_name': 'MCAD involute_gears.scad (GregFrost)',
         'url': 'https://github.com/openscad/MCAD',
         'license_spdx': 'LGPL-2.1',
@@ -126,13 +136,19 @@ SEED_MESH_SOURCES = [
         'approximation_valid': False,
         'formats_json': json.dumps(['scad']),
         'is_prior': True, 'provenance_id': PROV,
-        'notes': 'Copyleft => reference-only here: read it to '
-                 'understand bevel geometry, do not lift code. '
-                 'pd-gears is the unencumbered reference to follow '
-                 'for gr-3.',
+        'notes': 'USABLE: LGPL-2.1 section 3 relicenses to GPL '
+                 '"version 2 or any later", so it reaches our '
+                 'GPL-3.0 — bevel geometry here is a real option, '
+                 'not just reading material, provided the credit '
+                 'and the copyleft obligation travel. (An earlier '
+                 'pass wrongly graded this reference-only by '
+                 'treating copyleft as a problem instead of '
+                 'checking it against our own licence.)',
     },
     {
         'name': 'polygear',
+        'author': 'dpellegr',
+        'license_url': 'https://creativecommons.org/licenses/by-sa/4.0/',
         'display_name': 'PolyGear (dpellegr)',
         'url': 'https://github.com/dpellegr/PolyGear',
         'license_spdx': 'CC-BY-SA-4.0',
@@ -144,7 +160,11 @@ SEED_MESH_SOURCES = [
         'approximation_valid': False,
         'formats_json': json.dumps(['scad']),
         'is_prior': True, 'provenance_id': PROV,
-        'notes': 'The most capable of the three (profile shift, '
+        'notes': 'USABLE: Creative Commons declared CC BY-SA 4.0 '
+                 'ONE-WAY compatible with GPLv3 in 2015, and we ARE '
+                 'GPLv3 — so this may be adapted into the project '
+                 'with attribution + share-alike travelling. '
+                 'The most capable of the three (profile shift, '
                  'variable helix, backlash) and therefore the best '
                  'to READ when gr-2/gr-6 need those — but '
                  'share-alike, so reference-only.',
@@ -152,6 +172,8 @@ SEED_MESH_SOURCES = [
     # ---------------- the negative finding, kept AS A ROW --------
     {
         'name': 'plantmap3d',
+        'author': 'Precision Sustainable Agriculture / USDA-ARS consortium',
+        'license_url': '',
         'display_name': 'PlantMap3D (precision-sustainable-ag)',
         'url': 'https://github.com/precision-sustainable-ag/'
                'PlantMap3D-Computer-Vision',

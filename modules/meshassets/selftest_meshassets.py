@@ -24,8 +24,8 @@ from meshassets.mesh_asset_seed import (
     SEED_MESH_ASSETS, SEED_MESH_SOURCES,
 )
 from meshassets.mesh_fit import (
-    candidates_for_organ, fit_asset_to_organ, license_gate,
-    source_catalog,
+    candidates_for_organ, citation_manifest, citation_record,
+    fit_asset_to_organ, license_gate, source_catalog,
 )
 from plant_morphology.morphology_seed import SEED_ORGAN_MODELS
 
@@ -53,37 +53,58 @@ def _mgr():
 
 mgr = _mgr()
 
-print('== suite: the licence GATE (the PlantMap3D lesson) ==')
+print('== suite: compatibility is judged against OUR licence ==')
 cat = source_catalog(mgr)
 by_src = {s['name']: s for s in cat['sources']}
 check('7 sources catalogued, each with a quoted licence statement',
       cat['count'] == 7
       and all(s['license']['statement'] for s in cat['sources']),
       extra=str(cat['count']))
-check('CC0 sources clear BOTH simulate and redistribute, with no '
-      'attribution obligation',
-      by_src['polyhaven']['license']['maySimulate']
-      and by_src['polyhaven']['license']['mayRedistribute']
-      and not by_src['polyhaven']['license']['attributionRequired'])
-check('PlantMap3D is IN the catalog, graded unverified, and clears '
-      'NOTHING — a written-down negative finding',
-      by_src['plantmap3d']['license']['grade'] == 'unverified'
-      and not by_src['plantmap3d']['license']['maySimulate']
-      and not by_src['plantmap3d']['license']['mayRedistribute'])
-check('copyleft (LGPL / CC-BY-SA) is reference-only: readable and '
-      'runnable, NOT shippable without a human decision',
-      by_src['mcad-involute-gears']['license']['grade']
-      == 'reference-only'
-      and by_src['polygear']['license']['grade'] == 'reference-only'
-      and not by_src['polygear']['license']['mayRedistribute'])
-check('public-domain pd-gears is unrestricted — the unencumbered '
-      'algorithm reference for gr-3',
-      by_src['pd-gears']['license']['grade'] == 'unrestricted')
-check('an UNKNOWN spdx grades unverified BY CONSTRUCTION (a licence '
-      'nobody graded is not one we may lean on)',
+check('the verdict names OUR licence (GPL-3.0) and where it was '
+      'verified from — a relation, not a property',
+      cat['projectLicense'] == 'GPL-3.0-or-later'
+      and 'LICENSE' in by_src['polyhaven']['license']
+      ['projectLicenseVerifiedFrom'])
+check('CC0 is compatible with NO obligations attached',
+      by_src['polyhaven']['license']['compatible']
+      and not by_src['polyhaven']['license']['attributionRequired']
+      and not by_src['polyhaven']['license']['shareAlike'])
+check('CC-BY-SA-4.0 IS compatible — Creative Commons declared it '
+      'ONE-WAY into GPLv3, and we are GPLv3 (the correction: '
+      'copyleft is not a problem for a copyleft project)',
+      by_src['polygear']['license']['compatible']
+      and by_src['polygear']['license']['relation']
+      == 'one-way-into-gplv3'
+      and by_src['polygear']['license']['shareAlike'])
+check('LGPL-2.1 IS compatible — its section 3 relicenses to GPL '
+      '"v2 or any later", which reaches ours',
+      by_src['mcad-involute-gears']['license']['compatible']
+      and 'section 3' in by_src['mcad-involute-gears']['license']
+      ['why'])
+check('public-domain pd-gears is compatible with nothing to '
+      'satisfy',
+      by_src['pd-gears']['license']['compatible']
+      and not by_src['pd-gears']['license']['attributionRequired'])
+check('PlantMap3D stays INCOMPATIBLE — no licence means default '
+      'copyright, and OUR licence cannot invent permission the '
+      'author never gave',
+      not by_src['plantmap3d']['license']['compatible']
+      and 'cannot create permission'
+      in by_src['plantmap3d']['license']['why'])
+check('GPL-2.0-only is named as the one genuinely blocking '
+      'copyleft case, so it is not confused with the compatible '
+      'ones',
       license_gate(types.SimpleNamespace(
-          name='x', license_spdx='WTFPL-9000'))['grade']
-      == 'unverified')
+          name='x', license_spdx='GPL-2.0-only'))['compatible']
+      is False)
+check('an UNREVIEWED spdx is incompatible BY CONSTRUCTION',
+      license_gate(types.SimpleNamespace(
+          name='x', license_spdx='WTFPL-9000'))['relation']
+      == 'unreviewed')
+check('the verdict disclaims being legal advice and points at the '
+      'quote + link as the authority',
+      'not legal advice'
+      in by_src['polygear']['license']['disclaimer'])
 check('every licence row records HOW it was verified and when',
       all(s['license']['verificationMethod'] != 'not-checked'
           and s['license']['verifiedAt']
@@ -159,6 +180,55 @@ check('a fidelity floor filters the wrong-shape candidates out AND '
       all(c['shapeFidelity'] >= 0.5 for c in out['candidates'])
       and any('below the requested floor' in r['reason']
               for r in out['rejected']))
+
+print('== suite: CITATIONS TRACKED AS DATA ==')
+rec = citation_record(mgr, 'quat-plant-broadleaf')
+check('a citation carries TASL — title, author, source, licence — '
+      'plus a link to the terms',
+      rec['ok'] and rec['title'] and rec['author'] == 'Quaternius'
+      and rec['sourceUrl'] and rec['licenseSpdx'] == 'CC0-1.0'
+      and rec['licenseUrl'],
+      extra=str(rec.get('citationLine'))[:70])
+check('the citation LINE is ready to paste into a credits file',
+      'Quaternius' in rec['citationLine']
+      and 'CC0-1.0' in rec['citationLine']
+      and rec['complete'] is True)
+check('adaptations must be declared — and an OrganMeshChoice IS an '
+      'adaptation (it records the per-axis scaling)',
+      'adaptation' in rec['modificationNote'])
+rec = citation_record(mgr, 'oga-plants-unmeasured')
+check('a CC0 asset needs no attribution, so a thin credit is still '
+      'COMPLETE (obligations drive the gaps, not tidiness)',
+      rec['complete'] is True
+      and rec['attributionRequired'] is False)
+
+mgr_gap = _mgr()
+mgr_gap.objectTables['MeshAssetSource']['quaternius'].author = ''
+mgr_gap.objectTables['MeshAssetSource']['quaternius'] \
+    .license_spdx = 'CC-BY-4.0'
+rec = citation_record(mgr_gap, 'quat-plant-broadleaf')
+check('an attribution-REQUIRED licence with no author reports the '
+      'GAP instead of quietly crediting the website',
+      rec['complete'] is False
+      and any('author missing' in g for g in rec['gaps'])
+      and 'author UNKNOWN' in rec['citationLine'],
+      extra=str(rec.get('gaps')))
+
+man = citation_manifest(mgr)
+check('the manifest covers every catalogued asset and names OUR '
+      'licence', man['count'] == 5
+      and man['projectLicense'] == 'GPL-3.0-or-later')
+check('the manifest doubles as the DO-NOT-SHIP list: incompatible '
+      'assets are listed, flagged, with the reason on record',
+      isinstance(man['blockedAssets'], list)
+      and 'do-not-ship' not in man['note']
+      and 'NOT usable' in man['note'])
+mgr_blocked = _mgr()
+mgr_blocked.objectTables['MeshAssetReference'][
+    'quat-plant-broadleaf'].source_ref = 'plantmap3d'
+man = citation_manifest(mgr_blocked)
+check('an asset under an unlicensed source lands in blockedAssets',
+      'quat-plant-broadleaf' in man['blockedAssets'])
 
 print('== suite: refusal ladder ==')
 check('unknown organ refuses',

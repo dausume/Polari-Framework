@@ -11,7 +11,8 @@ organ.
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from meshassets.mesh_fit import (
-    candidates_for_organ, fit_asset_to_organ, source_catalog,
+    candidates_for_organ, citation_manifest, citation_record,
+    fit_asset_to_organ, source_catalog,
 )
 
 
@@ -27,6 +28,12 @@ class MeshAssetsAPI(treeObject):
                 suffix='candidates')
             add('/api/meshassets/fit/{organ_name}/{asset_name}',
                 self, suffix='fit')
+            # Citations as data: the manifest a release ships, and
+            # one asset's credit on its own.
+            add('/api/meshassets/citations', self,
+                suffix='citations')
+            add('/api/meshassets/citation/{asset_name}', self,
+                suffix='citation')
 
     def on_get_sources(self, request, response):
         response.media = source_catalog(self.manager)
@@ -38,6 +45,15 @@ class MeshAssetsAPI(treeObject):
             floor = 0.0
         out = candidates_for_organ(self.manager, organ_name,
                                    min_fidelity=floor)
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_citations(self, request, response):
+        response.media = citation_manifest(self.manager)
+
+    def on_get_citation(self, request, response, asset_name):
+        out = citation_record(self.manager, asset_name)
         if not out.get('ok'):
             response.status = '404 Not Found'
         response.media = out

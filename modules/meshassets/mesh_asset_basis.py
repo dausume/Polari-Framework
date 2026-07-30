@@ -14,17 +14,25 @@ settled it was reading the actual license. So license is not a note
 here — it is a GATE with two levels, because the two questions are
 genuinely different:
 
-  simulate      may we USE the mesh in our own sim/render?
-  redistribute  may we SHIP it inside a Polari release or an
-                exported scene someone else receives?
+  compatible    do this licence's terms let a GPLv3 project use it?
+  obligations   what must TRAVEL with it — attribution, share-alike?
 
-CC0/public-domain clears both. CC-BY clears both WITH attribution
-that must travel. CC-BY-SA and LGPL clear simulation but make
-redistribution carry obligations onto whatever they touch, so those
-default to reference-only until a human decides. UNVERIFIED clears
-NOTHING — that is the PlantMap3D case, and an asset row in that
-state refuses by name rather than sitting in a catalog looking
-usable.
+Compatibility is judged RELATIVE TO OUR OWN LICENCE (GPL-3.0, see
+PROJECT_LICENSE_SPDX), because compatibility is a relation between
+two licences and never a property of one. Being GPLv3 ourselves is
+what makes the copyleft assets usable: CC BY-SA 4.0 is one-way
+compatible into GPLv3 by Creative Commons' own 2015 declaration,
+and LGPL-2.1 section 3 relicenses to GPL. The genuinely blocking
+cases are narrow: GPL-2.0-only, and NO LICENCE AT ALL — the
+PlantMap3D case, where default copyright grants us nothing and our
+own licence cannot invent permission the author never gave.
+
+So the practical job here is not gatekeeping, it is CITATION:
+every usable asset carries a complete, data-tracked credit
+(Title, Author, Source, Licence + a link to the terms) that travels
+with anything we ship. An asset whose licence requires attribution
+but whose author or title is missing reports that GAP instead of
+emitting a citation that looks complete and isn't.
 
 THE APPROXIMATION IS THE POINT — for organic parts. A leaf has no
 exact specification; "close enough, then tuned against our own
@@ -47,30 +55,104 @@ that distinction as data.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-#: What a licence lets us do. Ordered weakest -> strongest.
-LICENSE_GRADES = ('unverified', 'reference-only', 'simulate-only',
-                  'simulate-and-attribute', 'unrestricted')
+#: OUR licence — the fact everything else is judged RELATIVE to.
+#: Verified by the same method we apply to strangers: read the file.
+#: `./LICENSE` at the suite root and in polari-framework is the full
+#: GNU GPL v3 text (674 lines).
+#:
+#: This is the correction Dustin made on 2026-07-30, and it matters:
+#: an earlier pass graded CC-BY-SA and LGPL "reference-only" as
+#: though copyleft were a problem. For a GPLv3 project it is not —
+#: copyleft assets are COMPATIBLE, and treating them as blocked
+#: throws away usable work for no reason. Compatibility is a
+#: RELATION between two licences, never a property of one.
+PROJECT_LICENSE_SPDX = 'GPL-3.0-or-later'
+PROJECT_LICENSE_VERIFIED_FROM = (
+    './LICENSE (suite root) and polari-rf-node/polari-framework/'
+    'LICENSE — GNU GPL v3 full text, read 2026-07-30')
 
-#: SPDX (or 'public-domain') -> the grade we treat it as. Anything
-#: absent from this map is UNVERIFIED by construction: a licence we
-#: have not thought about is not a licence we may rely on.
-LICENSE_GRADE_BY_SPDX = {
-    'CC0-1.0': 'unrestricted',
-    'public-domain': 'unrestricted',
-    'MIT': 'simulate-and-attribute',
-    'BSD-3-Clause': 'simulate-and-attribute',
-    'Apache-2.0': 'simulate-and-attribute',
-    'CC-BY-4.0': 'simulate-and-attribute',
-    'CC-BY-3.0': 'simulate-and-attribute',
-    # Copyleft: fine to LEARN from and to run locally; shipping a
-    # derivative carries obligations onto what it touches, so a
-    # human decides per case rather than a catalog assuming.
-    'CC-BY-SA-4.0': 'reference-only',
-    'LGPL-2.1': 'reference-only',
-    'GPL-3.0': 'reference-only',
-    # Explicitly named so the PlantMap3D case has a row shape:
-    'NONE': 'unverified',
-    'NOASSERTION': 'unverified',
+#: How a licence relates to OURS. Each entry states whether we may
+#: use the asset, what obligations TRAVEL with it, and why — the
+#: "why" being the part that stops this table from becoming folklore.
+#:
+#: Anything absent is UNUSABLE by construction: a licence nobody has
+#: reasoned about is not one to rely on, and no licence at all
+#: (PlantMap3D) means default copyright, which our own licence
+#: cannot fix.
+COMPATIBILITY = {
+    'CC0-1.0': {
+        'compatible': True, 'relation': 'public-domain',
+        'attribution_required': False, 'share_alike': False,
+        'why': 'CC0 waives rights worldwide — nothing to satisfy. '
+               'Credit is appreciated by the publishers and we give '
+               'it anyway, but it is courtesy, not obligation.'},
+    'public-domain': {
+        'compatible': True, 'relation': 'public-domain',
+        'attribution_required': False, 'share_alike': False,
+        'why': 'No rights reserved; no obligations attach.'},
+    'MIT': {
+        'compatible': True, 'relation': 'permissive',
+        'attribution_required': True, 'share_alike': False,
+        'why': 'Permissive and GPL-compatible; the copyright notice '
+               'and licence text must be preserved in what we '
+               'ship.'},
+    'BSD-3-Clause': {
+        'compatible': True, 'relation': 'permissive',
+        'attribution_required': True, 'share_alike': False,
+        'why': 'Permissive and GPL-compatible; notice preserved.'},
+    'Apache-2.0': {
+        'compatible': True, 'relation': 'permissive',
+        'attribution_required': True, 'share_alike': False,
+        'why': 'GPLv3-compatible specifically (NOT GPLv2 — the '
+               'patent-termination clause is why). We are v3, so '
+               'this is fine.'},
+    'CC-BY-4.0': {
+        'compatible': True, 'relation': 'permissive',
+        'attribution_required': True, 'share_alike': False,
+        'why': 'Attribution only. The credit must travel with the '
+               'asset wherever it goes.'},
+    'CC-BY-3.0': {
+        'compatible': True, 'relation': 'permissive',
+        'attribution_required': True, 'share_alike': False,
+        'why': 'Attribution only.'},
+    'CC-BY-SA-4.0': {
+        'compatible': True, 'relation': 'one-way-into-gplv3',
+        'attribution_required': True, 'share_alike': True,
+        'why': 'Creative Commons declared CC BY-SA 4.0 ONE-WAY '
+               'compatible with GPLv3 (2015): BY-SA material may be '
+               'adapted and released under GPLv3. ONE-WAY means we '
+               'can bring it in and cannot push the result back '
+               'out as BY-SA — which suits us, since we are GPLv3 '
+               'already.'},
+    'LGPL-2.1': {
+        'compatible': True, 'relation': 'relicensable-to-gpl',
+        'attribution_required': True, 'share_alike': True,
+        'why': 'LGPL-2.1 section 3 lets a recipient apply the '
+               'ordinary GPL "version 2 or any later version" to a '
+               'copy — so it reaches GPLv3 and sits comfortably in '
+               'a GPLv3 project.'},
+    'GPL-3.0': {
+        'compatible': True, 'relation': 'same-licence',
+        'attribution_required': True, 'share_alike': True,
+        'why': 'Identical terms to ours.'},
+    'GPL-2.0-only': {
+        'compatible': False, 'relation': 'incompatible',
+        'attribution_required': True, 'share_alike': True,
+        'why': 'GPLv2 WITHOUT "or later" cannot be combined with '
+               'GPLv3 — the one genuinely blocking copyleft case, '
+               'named so it is not confused with the compatible '
+               'ones above.'},
+    'NONE': {
+        'compatible': False, 'relation': 'no-licence',
+        'attribution_required': False, 'share_alike': False,
+        'why': 'No licence means default copyright: no rights are '
+               'granted to us. Our own licence cannot create '
+               'permission the author never gave. Ask them.'},
+    'NOASSERTION': {
+        'compatible': False, 'relation': 'no-licence',
+        'attribution_required': False, 'share_alike': False,
+        'why': 'The host could not identify a licence — treat as '
+               'unlicensed until a human reads the actual terms.'},
 }
 
 #: How the licence was established. 'api' = the hosting API's own
@@ -96,7 +178,8 @@ class MeshAssetSource(treeObject):
 
     @treeObjectInit
     def __init__(self, name='', display_name='', url='',
-                 license_spdx='NONE', license_statement='',
+                 author='', license_spdx='NONE',
+                 license_url='', license_statement='',
                  verification_method='not-checked',
                  verified_at='', approximation_valid=True,
                  formats_json='[]', is_prior=True,
@@ -104,6 +187,15 @@ class MeshAssetSource(treeObject):
         self.name = name
         self.display_name = display_name
         self.url = url
+        #: The CREDITED author — the 'A' of the TASL attribution
+        #: (Title, Author, Source, Licence) that CC asks for. Blank
+        #: where a licence needs attribution is a GAP the citation
+        #: record REPORTS rather than papering over with the site
+        #: name.
+        self.author = author
+        #: Canonical licence deed/text URL, so a citation can link
+        #: the terms rather than just naming them.
+        self.license_url = license_url
         #: SPDX id, or 'public-domain', or 'NONE' when the publisher
         #: declares nothing (which is a FINDING, not a blank).
         self.license_spdx = license_spdx
