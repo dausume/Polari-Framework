@@ -14,7 +14,11 @@ import os
 import sys
 
 os.environ['POLARI_MODULES'] = (
-    'materialsScience,supplychain,magnetics,motors')
+    'materialsScience,supplychain,magnetics,motors,'
+    # mag-7 remainder: the mathshapes chain (its requires) so the
+    # motor scene snapshot + the coil-ring tube surface are probed
+    # through the same route the page uses.
+    'scoring,plant_morphology,aquaponics,mathshapes')
 os.environ.setdefault('POLARI_DB_BACKEND', 'sqlite')
 
 FRAMEWORK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -230,6 +234,54 @@ check('material accountability live: 3 slots, winding follows to '
               and s['supply']['citations']
               for s in r.json['slots'])
       and any('fillerSupply' in s for s in r.json['slots']))
+
+# mag-7 remainder: verification seam through the REAL create path
+r = client.simulate_get('/api/motors/verify/clock-lavet-m0')
+check('verify summary live: zero runs, made-and-measured honestly '
+      'not earned',
+      r.status_code == 200 and r.json['count'] == 0
+      and r.json['madeAndMeasured'] is False)
+r = client.simulate_post('/api/motors/verify/clock-lavet-m0',
+                         json={'kind': 'sim-quasi-static',
+                               'stepsCommanded': 60,
+                               'stepsTaken': 60})
+check('POST verify records through objectTypingDict (the real '
+      'row-create path); sim honesty rider present',
+      r.status_code == 200 and r.json.get('ok')
+      and r.json['run']['clockErrorS'] == 0.0
+      and 'not proof' in r.json['honesty'])
+r = client.simulate_get('/api/motors/report/clock-lavet-m0')
+check('design report live: verification block shows the sim run, '
+      'made-and-measured still false',
+      r.status_code == 200
+      and r.json['verification']['simCount'] == 1
+      and r.json['verification']['madeAndMeasured'] is False)
+r = client.simulate_post('/api/motors/verify/clock-lavet-m0',
+                         json={'kind': 'measured',
+                               'stepsCommanded': 10,
+                               'stepsTaken': 12})
+check('impossible measured claim refuses live (422)',
+      r.status_code == 422 and 'more steps' in r.json['refusal'])
+
+# mag-7 remainder: the assembled motor as a real scene row
+r = client.simulate_get('/api/simspace/motor-m0-viz/snapshot')
+check('motor-m0-viz snapshot: six parts, coil references the CSG '
+      'ring row',
+      r.status_code == 200
+      and len(r.json['data']['objects']) == 6
+      and any(o['shapeRef'] == 'mathshape:motor-m0-coil-ring'
+              for o in r.json['data']['objects']))
+r = client.simulate_get('/api/shapes/motor-m0-coil-ring/surface')
+check('coil ring surface: exact parametric TUBE mesh with '
+      'triangles (the mag-7b triangulation gap, closed)',
+      r.status_code == 200
+      and 'parametric tube' in r.json['method']
+      and len(r.json['triangles']) > 0)
+r = client.simulate_get('/api/shapes/motor-m0-rotor-disc/surface')
+check('rotor disc surface now carries end caps (closed solid, '
+      'not a band): more triangles than the open lateral 2n',
+      r.status_code == 200
+      and len(r.json['triangles']) > 2 * 24)
 
 failed = results.count(False)
 print(f'\n{len(results) - failed}/{len(results)} live-boot checks '

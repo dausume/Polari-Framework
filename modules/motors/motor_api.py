@@ -36,6 +36,8 @@ class MotorsAPI(treeObject):
                 suffix='materials')
             add('/api/motors/drive/{design_name}', self,
                 suffix='drive')
+            add('/api/motors/verify/{design_name}', self,
+                suffix='verify')
 
     def on_get_designs(self, request, response):
         rows = []
@@ -127,4 +129,32 @@ class MotorsAPI(treeObject):
             profile_name=request.params.get('profile', ''))
         if not out.get('ok'):
             response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_verify(self, request, response, design_name):
+        from motors.motor_verify import verification_summary
+        out = verification_summary(self.manager, design_name)
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_post_verify(self, request, response, design_name):
+        import json as json_mod
+        from motors.motor_verify import record_verification_run
+        try:
+            payload = json_mod.load(request.bounded_stream)
+        except Exception as exc:  # noqa: BLE001 — bad client body
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'refusal': f'bad JSON payload: {exc}'}
+            return
+        out = record_verification_run(
+            self.manager, design_name,
+            kind=payload.get('kind', ''),
+            steps_commanded=payload.get('stepsCommanded'),
+            steps_taken=payload.get('stepsTaken'),
+            duration_s=payload.get('durationS'),
+            notes=payload.get('notes', ''))
+        if not out.get('ok'):
+            response.status = '422 Unprocessable Entity'
         response.media = out

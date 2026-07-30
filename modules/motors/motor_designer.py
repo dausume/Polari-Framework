@@ -116,6 +116,8 @@ def design_report(manager, design_name):
     # M2/M3 rotors that are saliency-only don't need torque-magnet
     # (reluctance variants) — a magnetic-conductor rotor with
     # saliency_ratio > 1 downgrades the torque-magnet flag to info.
+    from motors.motor_verify import verification_summary
+    verify = verification_summary(manager, design_name)
     return {'ok': True, 'design': design_name,
             'topology': topology,
             'ladderRung': getattr(design, 'ladder_rung', ''),
@@ -123,6 +125,12 @@ def design_report(manager, design_name):
             'buildRequirements': _loads(
                 design, 'build_requirements_json', {}),
             'materialSlots': slots, 'flags': flags,
+            'verification': {
+                'measuredCount': verify.get('measuredCount', 0),
+                'simCount': verify.get('simCount', 0),
+                'madeAndMeasured': verify.get('madeAndMeasured',
+                                              False),
+                'honesty': verify.get('honesty', '')},
             'validity': VALIDITY}
 
 

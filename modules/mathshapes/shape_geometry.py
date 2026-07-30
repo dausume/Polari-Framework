@@ -543,6 +543,51 @@ def axial_mesh(kind, params, n_lon=24, n_stack=1,
     return pts, tris
 
 
+def tube_mesh(center, axis, r_outer, r_inner, height, n_lon=32):
+    """Closed annular tube (a cylinder with a coaxial bore): outer
+    lateral surface + inner lateral surface (inward-wound, same fix as
+    axial_mesh's `inward` note) + an annulus rim at BOTH ends, stitched
+    from one vertex set so it reads as one solid ring — the exact
+    parametric mesh for a CSG difference of two coaxial cylinders
+    (mag-7: the motor coil winding body). Analogous special-casing
+    precedent: quadric_as_ellipsoid lets an axis-aligned quadric skip
+    the marching fallback."""
+    ai = _axis_index(axis)
+    perp = _perp_axes(axis)
+
+    def ring(t, radius):
+        out = []
+        for j in range(n_lon):
+            phi = 2.0 * math.pi * j / n_lon
+            p = [0.0, 0.0, 0.0]
+            p[ai] = center[ai] - height / 2.0 + t * height
+            p[perp[0]] = center[perp[0]] + radius * math.cos(phi)
+            p[perp[1]] = center[perp[1]] + radius * math.sin(phi)
+            out.append(p)
+        return out
+
+    pts = []
+    ob = len(pts); pts.extend(ring(0.0, r_outer))   # outer base
+    ot = len(pts); pts.extend(ring(1.0, r_outer))   # outer top
+    ib = len(pts); pts.extend(ring(0.0, r_inner))   # inner base
+    it = len(pts); pts.extend(ring(1.0, r_inner))   # inner top
+    tris = []
+    for j in range(n_lon):
+        jn = (j + 1) % n_lon
+        # outer lateral, outward winding (same sense as axial_mesh)
+        tris.append([ob + j, ob + jn, ot + j])
+        tris.append([ob + jn, ot + jn, ot + j])
+        # inner lateral, reversed — visible from inside the bore
+        tris.append([ib + j, it + j, ib + jn])
+        tris.append([ib + jn, it + j, it + jn])
+        # base rim annulus (faces down/out) + top rim annulus (up/out)
+        tris.append([ob + j, ib + j, ob + jn])
+        tris.append([ob + jn, ib + j, ib + jn])
+        tris.append([ot + j, ot + jn, it + j])
+        tris.append([ot + jn, it + jn, it + j])
+    return pts, tris
+
+
 def hollow_frustum_shell_mesh(params, n_lon=32, n_stack=16,
                               hole_local_samples=14, hole_margin_factor=2.5):
     """ONE integrated, closed mesh for a hollow tapered shell (a pot's

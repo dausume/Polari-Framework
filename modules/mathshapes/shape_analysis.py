@@ -34,7 +34,7 @@ import math
 from mathshapes.shape_geometry import (
     axial_mesh, classify_axis_aligned, ellipsoid_mesh, hollow_frustum_shell_mesh,
     primitive_inside, primitive_properties, quadric_as_ellipsoid,
-    quadric_is_axis_aligned, quadric_value,
+    quadric_is_axis_aligned, quadric_value, tube_mesh,
 )
 
 _MAX_RES = 80            # grid-sample resolution cap (keeps N^3 bounded)
@@ -401,19 +401,72 @@ def sample_surface(manager, shape_name, n=24):
                     'points': [[round(v, 4) for v in p] for p in pts],
                     'triangles': tris, 'count': len(pts),
                     'method': 'parametric ellipsoid from quadric Q'}
-    # quadric (general) + CSG: march the grid for boundary points
+    # CSG special case: a difference of two COAXIAL cylinders is an
+    # annular tube with an exact parametric mesh — no marching needed.
+    if family == 'csg':
+        tube = _csg_tube_params(manager, shape)
+        if tube is not None:
+            pts, tris = tube_mesh(**tube, n_lon=max(n, 24))
+            return {'ok': True, 'shape': shape_name, 'family': family,
+                    'points': [[round(v, 4) for v in p] for p in pts],
+                    'triangles': tris, 'count': len(pts),
+                    'method': 'parametric tube (difference of coaxial '
+                              'cylinders)'}
+    # quadric (general) + CSG: march the grid, triangulate voxel faces
     bounds = _shape_bounds(manager, shape)
     if bounds is None:
         return {'ok': False,
                 'error': 'need bounds_json to march a general quadric/CSG '
                          'surface'}
-    return _march_points(manager, shape, bounds, n)
+    return _march_voxel_mesh(manager, shape, bounds, n)
 
 
-def _march_points(manager, shape, bounds, n):
+def _csg_tube_params(manager, shape):
+    """If this CSG row is `difference` of exactly two coaxial cylinder
+    primitives (same axis, same center in the perpendicular plane,
+    bore radius < outer radius, bore at least as tall as the outer),
+    return tube_mesh kwargs; else None (the marching fallback runs)."""
+    from mathshapes.shape_geometry import _axis_index, _center, _num
+    blob = _json(getattr(shape, 'csg_json', ''), {})
+    if (blob.get('op') != 'difference'
+            or len(blob.get('shapes') or []) != 2):
+        return None
+    outer, bore = (_named(manager, s) for s in blob['shapes'])
+    for part in (outer, bore):
+        if (part is None
+                or getattr(part, 'family', '') != 'primitive'
+                or getattr(part, 'primitive_kind', '') != 'cylinder'):
+            return None
+    po, pb = _params(outer), _params(bore)
+    axis = po.get('axis', 'z')
+    if pb.get('axis', 'z') != axis:
+        return None
+    ai = _axis_index(axis)
+    co, cb = _center(po), _center(pb)
+    perp = [d for d in range(3) if d != ai]
+    if any(abs(co[d] - cb[d]) > 1e-9 for d in perp + [ai]):
+        return None                      # off-axis or axially shifted
+    r_outer = _num(po, 'radius', 1.0)
+    r_inner = _num(pb, 'radius', 1.0)
+    if not (0 < r_inner < r_outer):
+        return None
+    h_outer = _num(po, 'height', 1.0)
+    if _num(pb, 'height', 1.0) < h_outer - 1e-9:
+        return None                      # bore doesn't pierce through
+    return {'center': co, 'axis': axis, 'r_outer': r_outer,
+            'r_inner': r_inner, 'height': h_outer}
+
+
+def _march_voxel_mesh(manager, shape, bounds, n):
+    """Marching-grid mesh for general quadric/CSG shapes: every
+    boundary face between an inside cell and an outside neighbor
+    becomes a quad (2 triangles) on the cell lattice. Blocky — exact
+    only in the N→∞ limit, and the method string says so — but a
+    closed, orientable, RENDERABLE surface (mag-7: the old point
+    cloud drew nothing in the 3D viewer)."""
     (x0, x1), (y0, y1), (z0, z1) = bounds
     dx, dy, dz = (x1 - x0) / n, (y1 - y0) / n, (z1 - z0) / n
-    inside_flags = {}
+    inside_flags = set()
     for i in range(n):
         cx = x0 + (i + 0.5) * dx
         for j in range(n):
@@ -422,16 +475,39 @@ def _march_points(manager, shape, bounds, n):
                 cz = z0 + (k + 0.5) * dz
                 inside, _ = _evaluate_shape(manager, shape, cx, cy, cz)
                 if inside:
-                    inside_flags[(i, j, k)] = (cx, cy, cz)
-    pts = []
-    for (i, j, k), (cx, cy, cz) in inside_flags.items():
-        boundary = any((i + di, j + dj, k + dk) not in inside_flags
-                       for di, dj, dk in ((1, 0, 0), (-1, 0, 0), (0, 1, 0),
-                                          (0, -1, 0), (0, 0, 1), (0, 0, -1)))
-        if boundary:
-            pts.append([round(cx, 4), round(cy, 4), round(cz, 4)])
+                    inside_flags.add((i, j, k))
+    # Corner-lattice vertices, deduplicated across faces.
+    vert_index = {}
+    pts, tris = [], []
+
+    def vert(i, j, k):
+        key = (i, j, k)
+        if key not in vert_index:
+            vert_index[key] = len(pts)
+            pts.append([round(x0 + i * dx, 4), round(y0 + j * dy, 4),
+                        round(z0 + k * dz, 4)])
+        return vert_index[key]
+
+    # For each axis direction: the face's 4 corners, ordered so the
+    # outward normal points toward the OUTSIDE neighbor.
+    face_corners = {
+        (1, 0, 0): ((1, 0, 0), (1, 1, 0), (1, 1, 1), (1, 0, 1)),
+        (-1, 0, 0): ((0, 0, 0), (0, 0, 1), (0, 1, 1), (0, 1, 0)),
+        (0, 1, 0): ((0, 1, 0), (0, 1, 1), (1, 1, 1), (1, 1, 0)),
+        (0, -1, 0): ((0, 0, 0), (1, 0, 0), (1, 0, 1), (0, 0, 1)),
+        (0, 0, 1): ((0, 0, 1), (1, 0, 1), (1, 1, 1), (0, 1, 1)),
+        (0, 0, -1): ((0, 0, 0), (0, 1, 0), (1, 1, 0), (1, 0, 0)),
+    }
+    for (i, j, k) in inside_flags:
+        for (di, dj, dk), corners in face_corners.items():
+            if (i + di, j + dj, k + dk) in inside_flags:
+                continue
+            a, b, c, d = (vert(i + ci, j + cj, k + ck)
+                          for ci, cj, ck in corners)
+            tris.append([a, b, c])
+            tris.append([a, c, d])
     return {'ok': True, 'shape': getattr(shape, 'name', ''),
             'family': getattr(shape, 'family', ''),
-            'points': pts, 'triangles': [], 'count': len(pts),
-            'method': f'marching grid boundary points (N={n}); point '
-                      f'cloud (no triangulation)'}
+            'points': pts, 'triangles': tris, 'count': len(pts),
+            'method': f'voxel-face mesh from marching grid (N={n}); '
+                      f'blocky — exact only as N grows'}

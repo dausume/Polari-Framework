@@ -110,6 +110,60 @@ if __name__ == '__main__':
           fr['count'] > 0 and len(fr['triangles']) > 0,
           f"pts={fr['count']} tris={len(fr['triangles'])}")
 
+    print('CSG surfaces are triangulated (mag-7)')
+    import json as _json_mod
+    tube_rows = manager.objectTables['MathShapeDefinition']
+    base = max(tube_rows) + 1
+    tube_rows[base] = SimpleNamespace(
+        name='t-outer', family='primitive', primitive_kind='cylinder',
+        parameters_json=_json_mod.dumps(
+            {'radius': 2.0, 'height': 1.0, 'axis': 'y',
+             'center': [0.0, 0.0, 0.0]}))
+    tube_rows[base + 1] = SimpleNamespace(
+        name='t-bore', family='primitive', primitive_kind='cylinder',
+        parameters_json=_json_mod.dumps(
+            {'radius': 1.0, 'height': 1.4, 'axis': 'y',
+             'center': [0.0, 0.0, 0.0]}))
+    tube_rows[base + 2] = SimpleNamespace(
+        name='t-ring', family='csg',
+        csg_json=_json_mod.dumps(
+            {'op': 'difference', 'shapes': ['t-outer', 't-bore']}),
+        bounds_json=_json_mod.dumps(
+            [[-2.2, 2.2], [-0.8, 0.8], [-2.2, 2.2]]))
+    ring = sample_surface(manager, 't-ring', n=24)
+    check('coaxial-cylinder difference gets the exact tube mesh',
+          ring.get('ok') and 'parametric tube' in ring['method']
+          and len(ring['triangles']) == 8 * 24,
+          f"method={ring.get('method')} tris={len(ring.get('triangles', []))}")
+    # points are rounded to 4 decimals — tolerance must exceed that
+    radii_ok = all(
+        1.0 - 1e-3 <= math.hypot(p[0], p[2]) <= 2.0 + 1e-3
+        for p in ring['points'])
+    check('every tube vertex sits between bore and outer radius',
+          radii_ok)
+    holed_mesh = sample_surface(manager, 'pot-with-holes', n=20)
+    check('general CSG marching now returns triangles (voxel-face '
+          'mesh), honestly labelled blocky',
+          holed_mesh.get('ok') and len(holed_mesh['triangles']) > 0
+          and 'blocky' in holed_mesh['method'],
+          f"method={holed_mesh.get('method')}")
+    # An off-axis bore must NOT match the tube special case.
+    tube_rows[base + 3] = SimpleNamespace(
+        name='t-bore-off', family='primitive', primitive_kind='cylinder',
+        parameters_json=_json_mod.dumps(
+            {'radius': 0.5, 'height': 1.4, 'axis': 'y',
+             'center': [0.8, 0.0, 0.0]}))
+    tube_rows[base + 4] = SimpleNamespace(
+        name='t-ring-off', family='csg',
+        csg_json=_json_mod.dumps(
+            {'op': 'difference', 'shapes': ['t-outer', 't-bore-off']}),
+        bounds_json=_json_mod.dumps(
+            [[-2.2, 2.2], [-0.8, 0.8], [-2.2, 2.2]]))
+    off = sample_surface(manager, 't-ring-off', n=16)
+    check('off-axis bore falls back to the voxel-face mesh',
+          off.get('ok') and 'voxel-face' in off['method']
+          and len(off['triangles']) > 0, f"method={off.get('method')}")
+
     failed = _results.count(False)
     print(f'\n{len(_results) - failed}/{len(_results)} passed')
     raise SystemExit(1 if failed else 0)

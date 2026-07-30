@@ -26,12 +26,16 @@ import json
 PROV = 'mag-7b'
 
 SEED_MOTOR_PART_SHAPES = [
+    # cap_base/cap_top: these cylinders are SOLIDS — without end caps
+    # the mesher's lateral-only default made the disc read as an open
+    # band in the viewer (the mag-7b gap, closed 2026-07-30).
     {'name': 'motor-m0-rotor-disc',
      'display_name': 'M0 rotor disc (bonded hexaferrite)',
      'family': 'primitive', 'primitive_kind': 'cylinder',
      'parameters_json': json.dumps(
          {'radius': 3.0, 'height': 0.8, 'axis': 'z',
-          'center': [0.0, 0.0, 0.0]}),
+          'center': [0.0, 0.0, 0.0],
+          'cap_base': True, 'cap_top': True}),
      'notes': 'The 6 mm-class rotor scaled to the demo scene '
               '(cm units); casts from this exact math shape.',
      'provenance_id': PROV},
@@ -49,7 +53,8 @@ SEED_MOTOR_PART_SHAPES = [
      'family': 'primitive', 'primitive_kind': 'cylinder',
      'parameters_json': json.dumps(
          {'radius': 0.35, 'height': 3.0, 'axis': 'z',
-          'center': [0.0, 0.0, 0.2]}),
+          'center': [0.0, 0.0, 0.2],
+          'cap_base': True, 'cap_top': True}),
      'provenance_id': PROV},
     {'name': 'motor-m0-pole-left',
      'display_name': 'M0 stator pole shoe (left)',
@@ -72,7 +77,8 @@ SEED_MOTOR_PART_SHAPES = [
      'family': 'primitive', 'primitive_kind': 'cylinder',
      'parameters_json': json.dumps(
          {'radius': 1.6, 'height': 1.4, 'axis': 'y',
-          'center': [0.0, -5.6, 0.0]}),
+          'center': [0.0, -5.6, 0.0],
+          'cap_base': True, 'cap_top': True}),
      'provenance_id': PROV},
     {'name': 'motor-m0-coil-bore',
      'display_name': 'M0 coil bore (CSG component)',
@@ -93,6 +99,63 @@ SEED_MOTOR_PART_SHAPES = [
               'this part\'s polarity material swap + the bore '
               'field vector reversing.',
      'provenance_id': PROV},
+]
+
+#: mag-7 remainder (2026-07-30): the assembled M0 motor as a PROPER
+#: SimSpaceDefinition row — scene = data, not a blob hard-coded in
+#: the Angular component. freestandingOnly (curated shelf, the
+#: demo-3d lesson: without it every defaultVisible binding pours in).
+#: The motor page fetches this row's snapshot, then drives the rotor
+#: entries' transforms from the clock-sim replay — layout from the
+#: row, motion from the solver. The coil entry references the CSG
+#: RING (triangulated via the coaxial-tube mesher this same pass),
+#: not the solid outer stand-in.
+SEED_MOTOR_SIM_SPACES = [
+    {'name': 'motor-m0-viz',
+     'description': 'M0 Lavet clock stepper, assembled: every part '
+                    'a MathShapeDefinition row (the same geometry '
+                    'the wax-mold seam casts). The motor page '
+                    'replays the solver history through this '
+                    'scene — rotor rotation + coil polarity are '
+                    'runtime transforms, never baked in.',
+     'dimensionality': '3d',
+     'coordinate_system': 'math',
+     'unit_scale': 1.0,
+     'viewport_json': json.dumps(
+         {'center': [0, -1.5, 0], 'extent': [7, 8, 5]}),
+     'bound_classes_json': '[]',
+     'definition': json.dumps({
+         'freestandingOnly': True,
+         'freestanding': [
+             {'id': 'pole-left',
+              'shapeRef': 'mathshape:motor-m0-pole-left',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'pole-right',
+              'shapeRef': 'mathshape:motor-m0-pole-right',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'coil',
+              'shapeRef': 'mathshape:motor-m0-coil-ring',
+              'styleRef': 'motor-coil-idle',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'shaft',
+              'shapeRef': 'mathshape:motor-m0-shaft',
+              'styleRef': 'motor-shaft-steel',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'rotor-disc',
+              'shapeRef': 'mathshape:motor-m0-rotor-disc',
+              'styleRef': 'motor-rotor-dark',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'rotor-pointer',
+              'shapeRef': 'mathshape:motor-m0-rotor-pointer',
+              'styleRef': 'motor-pointer-red',
+              'position': [0.0, 0.0, 0.0]},
+         ]}),
+     'axis_labels_json': '{}',
+     'camera_json': '',
+     'category': 'motors',
+     'owning_module': 'motors'},
 ]
 
 SEED_MOTOR_MATERIALS_3D = [

@@ -27,6 +27,12 @@ from motors.motor_drive import (
     SEED_CONTROLLER_PROFILES, SEED_PHASE_BINDINGS,
     simplefoc_config,
 )
+from motors.motor_shapes import (
+    SEED_MOTOR_PART_SHAPES, SEED_MOTOR_SIM_SPACES,
+)
+from motors.motor_verify import (
+    record_verification_run, verification_summary,
+)
 from supplychain.sourcing_seed import (
     SEED_PRICE_CITATIONS, SEED_PRODUCT_FORMULAS,
     SEED_PRODUCT_REQUIREMENTS, SEED_SOURCE_POLICIES,
@@ -250,6 +256,92 @@ check('M3 with the named clone profile: 4 pole pairs, parallel '
       'note on bindings',
       out['ok'] and out['polePairs'] == 4
       and out['board'] == 'mks-dual-foc-clone')
+
+print('== suite: verification-run recording seam (mag-7) ==')
+# fixture typing dict: the create method inserts a SimpleNamespace
+# row, same shape the odoo selftests fake _class_for with.
+def _fake_typing(class_name):
+    def create(manager=None, **kw):
+        row = types.SimpleNamespace(**kw)
+        manager.objectTables.setdefault(class_name, {})[
+            kw.get('name', '')] = row
+        return row
+    return types.SimpleNamespace(getCreateMethod=lambda: create)
+
+
+mgr.objectTables['MotorVerificationRun'] = {}
+mgr.objectTypingDict = {
+    'MotorVerificationRun': _fake_typing('MotorVerificationRun')}
+out = record_verification_run(mgr, 'clock-lavet-m0',
+                              'sim-quasi-static', 60, 60)
+check('sim run records: duration DERIVED from commanded/rate '
+      '(60 pulses @ 1 Hz = 60 s), zero clock error, honesty says '
+      'sim is provenance not proof',
+      out['ok'] and out['run']['durationS'] == 60.0
+      and out['run']['clockErrorS'] == 0.0
+      and 'not proof' in out['honesty'])
+out = verification_summary(mgr, 'clock-lavet-m0')
+check('summary: 1 sim run, made-and-measured still NOT earned',
+      out['ok'] and out['simCount'] == 1
+      and out['measuredCount'] == 0
+      and out['madeAndMeasured'] is False
+      and 'no measured run yet' in out['honesty'])
+rep = design_report(mgr, 'clock-lavet-m0')
+check('design report carries the verification block (earned state '
+      'visible at design time)',
+      rep['verification']['simCount'] == 1
+      and rep['verification']['madeAndMeasured'] is False)
+out = record_verification_run(mgr, 'clock-lavet-m0', 'measured',
+                              3600, 3597, duration_s=3600.0,
+                              notes='bench clock, 1 h soak')
+check('measured run: clock error DERIVES from missed steps / rate '
+      '(3 missed @ 1 Hz = 3 s)',
+      out['ok'] and out['run']['clockErrorS'] == 3.0
+      and out['run']['missedSteps'] == 3)
+out = verification_summary(mgr, 'clock-lavet-m0')
+check('made-and-measured EARNED by the measured row; honesty '
+      'points at the clock error, not just the flag',
+      out['madeAndMeasured'] is True and out['measuredCount'] == 1
+      and 'clock error' in out['honesty'])
+check('run names allocate per design (run-1, run-2)',
+      [r['name'] for r in out['runs']]
+      == ['clock-lavet-m0-run-1', 'clock-lavet-m0-run-2'])
+out = record_verification_run(mgr, 'clock-lavet-m0', 'measured',
+                              10, 12)
+check('more steps than commanded REFUSES (a motor cannot '
+      'over-step its command)',
+      not out['ok'] and 'cannot take more steps' in out['refusal'])
+out = record_verification_run(mgr, 'clock-lavet-m0', 'bench-guess',
+                              10, 10)
+check('unknown kind refuses, naming the valid kinds',
+      not out['ok'] and 'sim-quasi-static' in out['refusal'])
+out = record_verification_run(mgr, 'no-such-motor', 'measured',
+                              10, 10)
+check('unknown design refuses', not out['ok'])
+
+print('== suite: motor scene row + capped meshes (mag-7) ==')
+check('motor-m0-viz scene row seeded: freestandingOnly, six parts, '
+      'coil entry references the CSG RING (not the solid outer)',
+      len(SEED_MOTOR_SIM_SPACES) == 1
+      and json.loads(SEED_MOTOR_SIM_SPACES[0]['definition'])
+      .get('freestandingOnly') is True
+      and [e['id'] for e in json.loads(
+          SEED_MOTOR_SIM_SPACES[0]['definition'])['freestanding']]
+      == ['pole-left', 'pole-right', 'coil', 'shaft', 'rotor-disc',
+          'rotor-pointer']
+      and any(e['shapeRef'] == 'mathshape:motor-m0-coil-ring'
+              for e in json.loads(
+                  SEED_MOTOR_SIM_SPACES[0]['definition'])
+              ['freestanding']))
+_shape_params = {s['name']: json.loads(s.get('parameters_json',
+                                             '{}'))
+                 for s in SEED_MOTOR_PART_SHAPES}
+check('solid cylinders (rotor disc, shaft, coil outer) request end '
+      'caps — a disc must not read as an open band',
+      all(_shape_params[n].get('cap_base')
+          and _shape_params[n].get('cap_top')
+          for n in ('motor-m0-rotor-disc', 'motor-m0-shaft',
+                    'motor-m0-coil-outer')))
 
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')

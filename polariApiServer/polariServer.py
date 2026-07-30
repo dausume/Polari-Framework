@@ -836,6 +836,7 @@ try:
     )
     from motors.motor_shapes import (
         SEED_MOTOR_MATERIALS_3D, SEED_MOTOR_PART_SHAPES,
+        SEED_MOTOR_SIM_SPACES,
     )
     from motors.motor_drive import (
         MotorControllerProfile, PhaseBindingDefinition,
@@ -850,6 +851,7 @@ except ImportError as _exc:
     ))
     SEED_MOTOR_MATERIALS_3D = []
     SEED_MOTOR_PART_SHAPES = []
+    SEED_MOTOR_SIM_SPACES = []
 # Odoo ERP connector — instance configs + sim/ops write guards (od-3).
 try:
     from odooconnect.odoo_basis import OdooInstanceConfig
@@ -2902,7 +2904,8 @@ class polariServer(treeObject):
              SEED_MATERIALS_3D + SEED_MOTOR_MATERIALS_3D),
             ('MaterialPhaseAppearance', MaterialPhaseAppearance,
              SEED_MATERIAL_PHASE_APPEARANCES),
-            ('SimSpaceDefinition', SimSpaceDefinition, SEED_SIM_SPACES_3D),
+            ('SimSpaceDefinition', SimSpaceDefinition,
+             SEED_SIM_SPACES_3D + SEED_MOTOR_SIM_SPACES),
             # Materials Science: the periodic table as objects + its
             # selection-space demo page.
             ('ChemicalElementDefinition', ChemicalElementDefinition,
