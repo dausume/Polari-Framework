@@ -50,6 +50,12 @@ class MagneticsAPI(treeObject):
                 suffix='fieldview')
             add('/api/magnetics/fieldview-group/{group_name}', self,
                 suffix='fieldview_group')
+            # mag-12: what measured evidence WOULD support — a
+            # suggestion surface, never a mutation.
+            add('/api/magnetics/promotion', self,
+                suffix='promotion')
+            add('/api/magnetics/promotion/{option_name}', self,
+                suffix='promotion_one')
 
     def on_get_catalog(self, request, response):
         rows = []
@@ -156,6 +162,18 @@ class MagneticsAPI(treeObject):
             return
         out = laddered_answer(self.manager, role,
                               form=request.params.get('form', ''))
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_promotion(self, request, response):
+        from magnetics.realization_promotion import promotion_report
+        response.media = promotion_report(self.manager)
+
+    def on_get_promotion_one(self, request, response, option_name):
+        from magnetics.realization_promotion import promotion_report
+        out = promotion_report(self.manager,
+                               option_name=option_name)
         if not out.get('ok'):
             response.status = '404 Not Found'
         response.media = out

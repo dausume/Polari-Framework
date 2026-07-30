@@ -238,6 +238,123 @@ check('literature rung is NdFeB and it is FLAGGED reference-only '
       == 'opt-ndfeb'
       and levels['literature-demonstrated']['referenceOnly'])
 
+print('== suite: mag-12 realization promotion (suggest, never '
+      'mutate) ==')
+from magnetics.realization_promotion import (  # noqa: E402
+    promotion_report,
+)
+
+mgrp = _mgr()
+base = promotion_report(mgrp)
+check('with NO evidence tables loaded, nothing is suggested — a '
+      'report that invents promotions is worse than none',
+      base['ok'] and base['suggestionCount'] == 0,
+      extra=str(base['suggestionCount']))
+check('and the missing evidence tables are named as OUR blind '
+      'spots, not as absence of evidence',
+      len(base['blindSpots']) == 2
+      and any('MotorVerificationRun' in b for b in base['blindSpots'])
+      and any('QualityCheckRecord' in b for b in base['blindSpots']))
+check('the rules travel on the payload rather than living only in '
+      'the source',
+      'DIRECT measurement' in base['rules']
+      and 'Simulation rows never count' in base['rules'])
+_v = {e['option']: e for e in base['options']}
+check('reference-only comparators (NdFeB, electrical steel) are '
+      'NEVER promoted — measuring someone else\'s part says '
+      'nothing about our route',
+      _v['opt-ndfeb']['verdict'] == 'never-promoted'
+      and _v['opt-electrical-steel']['verdict'] == 'never-promoted')
+check('a row claiming a rung we cannot see evidence for reads '
+      'UNJUDGEABLE-HERE, not over-claiming (the mag-9 rule: our '
+      'blind spot may not condemn a row)',
+      _v['opt-copper-magnet-wire']['verdict'] == 'unjudgeable-here')
+
+# --- now give it evidence, at DATA level like the real app ---
+mgre = _mgr()
+mgre.objectTables['MotorVerificationRun'] = {}
+mgre.objectTables['QualityCheckRecord'] = {}
+mgre.objectTables['MotorDesignDefinition'] = {
+    'clock-lavet-m0': types.SimpleNamespace(
+        name='clock-lavet-m0',
+        params_json='{"rotor_material": '
+                    '"opt-bonded-hexaferrite-geopolymer", '
+                    '"stator_material": "opt-geopolymer-ferrite"}')}
+
+_target = 'opt-geopolymer-ferrite'
+before = _named(mgre, 'MagneticMaterialOption',
+                _target).realization_level
+mgre.objectTables['MotorVerificationRun']['run-sim'] = \
+    types.SimpleNamespace(name='run-sim',
+                          design_ref='clock-lavet-m0',
+                          kind='sim-quasi-static', steps_taken=60,
+                          steps_commanded=60, clock_error_s=0.0)
+rep = promotion_report(mgre, _target)['options'][0]
+check('a SIM run is not evidence — provenance, not proof (the same '
+      'rule motor_verify applies)',
+      rep['evidenceCount']['system'] == 0
+      and rep['verdict'] == 'level-matches-evidence',
+      extra=str(rep['evidenceCount']))
+
+mgre.objectTables['MotorVerificationRun']['run-measured'] = \
+    types.SimpleNamespace(name='run-measured',
+                          design_ref='clock-lavet-m0',
+                          kind='measured', steps_taken=3597,
+                          steps_commanded=3600, clock_error_s=3.0)
+rep = promotion_report(mgre, _target)['options'][0]
+check('a MEASURED motor run counts as SYSTEM evidence and names '
+      'the run + the slot it was used in',
+      rep['evidenceCount']['system'] == 1
+      and rep['systemEvidence'][0]['row'] == 'run-measured'
+      and 'stator_material' in rep['systemEvidence'][0]['slots'])
+check('but system evidence alone does NOT earn made-and-measured — '
+      'a clock keeping time proves the rotor was magnetic enough, '
+      'not that a property is what the row claims',
+      rep['supportedLevel'] != 'made-and-measured'
+      and 'SYSTEM-level' in rep['rungReasons']['made-and-measured'])
+
+mgre.objectTables['QualityCheckRecord']['qa-1'] = \
+    types.SimpleNamespace(
+        name='qa-1', business_ref='wax-mold-goods',
+        variant='inductor-core-toroid', check_ref='qa-visual-crack',
+        batch_note='', notes='', units_checked=10, units_passed=10)
+rep = promotion_report(mgre, _target)['options'][0]
+check('a NON-magnetic QA check is not magnetic evidence, however '
+      'measured — a dimensional pass says nothing about mu',
+      rep['evidenceCount']['direct'] == 0)
+
+mgre.objectTables['QualityCheckRecord']['qa-2'] = \
+    types.SimpleNamespace(
+        name='qa-2', business_ref='wax-mold-goods',
+        variant='inductor-core-toroid',
+        check_ref='qa-wound-core-inductance',
+        batch_note=f'cores cast from {_target}', notes='',
+        units_checked=8, units_passed=8)
+rep = promotion_report(mgre, _target)['options'][0]
+check('a magnetic QA record NAMING the option is DIRECT evidence, '
+      'and the report says which property it measured',
+      rep['evidenceCount']['direct'] == 1
+      and rep['directEvidence'][0]['measuresProperty'] == 'mu_r_eff'
+      and rep['directEvidence'][0]['linkedVia'] == 'batch_note')
+check('with literature + recipe + direct measurement the promotion '
+      'is SUGGESTED, with the evidence and the knob named',
+      rep['verdict'] == 'promotion-suggested'
+      and rep['supportedLevel'] == 'made-and-measured'
+      and rep['suggestion']['knob']
+      == 'MagneticMaterialOption.realization_level'
+      and 'never writes' in rep['suggestion']['action'])
+check('THE ROW IS NOT MUTATED — suggesting is the whole contract',
+      _named(mgre, 'MagneticMaterialOption',
+             _target).realization_level == before,
+      extra=f'{before} -> {_named(mgre, "MagneticMaterialOption", _target).realization_level}')
+check('a QA record that names NO option credits nothing — evidence '
+      'is never assigned to a material nobody claimed it for',
+      promotion_report(
+          mgre, 'opt-solgel-ferrite')['options'][0]
+      ['evidenceCount']['direct'] == 0)
+check('unknown option refuses',
+      not promotion_report(mgre, 'nope').get('ok'))
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
