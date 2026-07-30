@@ -37,7 +37,7 @@ from polariApiServer.module_gating import module_enabled
 FEATURE_MODULES = frozenset({
     'aquaponics', 'biomining', 'bizops', 'dmvdata', 'electrodevice',
     'gears', 'grpcbridge', 'hwdigital', 'hwfpga', 'magnetics',
-    'mathshapes', 'microalgae', 'motors',
+    'mathshapes', 'meshassets', 'microalgae', 'motors',
     'nutrition', 'odooconnect', 'plant_morphology', 'polariapps',
     'scoring',
     'supplychain', 'tanks', 'techtree', 'testing', 'waxprint',
@@ -57,6 +57,8 @@ FEATURE_REQUIRES = {
     # generator is gr-3), but the registry entry names the coupling
     # so a drop refuses honestly once gr-3 lands.
     'gears': ('mathshapes',),
+    # mesh-1: the fit engine reads OrganModel rows.
+    'meshassets': ('plant_morphology',),
     'mathshapes': ('aquaponics', 'plant_morphology'),
     'electrodevice': ('hwdigital',),
     'zones': ('scoring',),

@@ -274,6 +274,17 @@
       ],
       "wave": 4,
       "description": "Gear trains as data (GEARS_PLAN.md): the gear-type taxonomy with ratio laws + literature efficiency bands + how each type would be MADE in our stack, and the abstract kinematic solve over a shaft-node/mesh-edge graph (speeds with direction, torque after the efficiency chain, power conservation, accumulated backlash). Motor splice = gr-5."
+    },
+    "meshassets": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/meshassets",
+      "repo": "",
+      "requires": [
+        "plant_morphology"
+      ],
+      "wave": 4,
+      "description": "License-GATED external mesh catalog: verified open-source 3D assets as pointers (never vendored bytes), graded by what the licence actually permits (simulate vs redistribute), plus the fit engine that scales a borrowed mesh onto our vector organ definitions and MEASURES the compromise (shape fidelity). Gears are flagged approximation-invalid: an approximate gear does not mesh."
     }
   }
 }

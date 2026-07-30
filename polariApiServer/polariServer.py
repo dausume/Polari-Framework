@@ -855,6 +855,20 @@ except ImportError as _exc:
         'SEED_PHASE_BINDINGS', 'SEED_MOTOR_MATERIALS_3D',
         'SEED_MOTOR_PART_SHAPES', 'SEED_MOTOR_SIM_SPACES',
     ))
+# mesh-1: license-GATED external mesh catalog + the fit engine
+# (borrowed meshes measured against our vector organ definitions).
+try:
+    from meshassets.mesh_asset_basis import (
+        MeshAssetReference, MeshAssetSource, OrganMeshChoice,
+    )
+    from meshassets.mesh_asset_seed import (
+        SEED_MESH_ASSETS, SEED_MESH_SOURCES,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('meshassets', _exc, globals(), (
+        'MeshAssetSource', 'MeshAssetReference', 'OrganMeshChoice',
+        'SEED_MESH_SOURCES', 'SEED_MESH_ASSETS',
+    ))
 # Gear trains (gr-1) — the mechanical twin of the reluctance
 # network: shaft nodes as graph nodes, meshes as edges.
 try:
@@ -1726,6 +1740,11 @@ class polariServer(treeObject):
             from motors.motor_api import MotorsAPI
             motorsEndpoint = MotorsAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('meshassets'):
+            # mesh-1: the licence-gated catalog + organ fit.
+            from meshassets.mesh_asset_api import MeshAssetsAPI
+            meshAssetsEndpoint = MeshAssetsAPI(
+                polServer=self, manager=self.manager)
         if _feature_available('gears'):
             # Gear trains: taxonomy + the abstract kinematic solve
             # (gr-1); the motor splice lands at gr-5.
@@ -2025,6 +2044,9 @@ class polariServer(treeObject):
             # Motors Section C (mag-5/6).
             MotorDesignDefinition, MotorVerificationRun,
             MotorControllerProfile, PhaseBindingDefinition,
+            # mesh-1: licence findings, the assets under them, and
+            # the human's accepted picks.
+            MeshAssetSource, MeshAssetReference, OrganMeshChoice,
             # Gear trains (gr-1): types before bodies, bodies before
             # the meshes that reference them.
             GearTypeDefinition, ShaftNodeDefinition,
@@ -3436,6 +3458,14 @@ class polariServer(treeObject):
              SEED_CONTROLLER_PROFILES),
             ('PhaseBindingDefinition', PhaseBindingDefinition,
              SEED_PHASE_BINDINGS),
+            # mesh-1: sources carry the licence finding, so they
+            # seed BEFORE the assets that cite them. Picks
+            # (OrganMeshChoice) are never seeded — choosing an
+            # approximation is a human act.
+            ('MeshAssetSource', MeshAssetSource, SEED_MESH_SOURCES),
+            ('MeshAssetReference', MeshAssetReference,
+             SEED_MESH_ASSETS),
+            ('OrganMeshChoice', OrganMeshChoice, []),
             # gr-1: the type taxonomy first (bodies reference it),
             # then shafts, trains, bodies, meshes. Verification runs
             # NEVER seeded (observed state, the motors rule).
