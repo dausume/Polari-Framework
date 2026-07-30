@@ -2052,6 +2052,8 @@ class polariServer(treeObject):
             # Motors Section C (mag-5/6).
             MotorDesignDefinition, MotorVerificationRun,
             MotorControllerProfile, PhaseBindingDefinition,
+            # mag-11: the per-piece bill (part -> material -> job).
+            MotorPartDefinition,
             # mesh-1: licence findings, the assets under them, and
             # the human's accepted picks.
             MeshAssetSource, MeshAssetReference, OrganMeshChoice,
