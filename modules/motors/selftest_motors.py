@@ -441,6 +441,57 @@ check('unknown gauge refuses with the valid list',
       not winding_report(mgrw, 'clock-lavet-m0',
                          awg=99).get('ok'))
 
+print('== suite: mag-10 the REALISTIC Lavet geometry ==')
+from motors.motor_shapes import (  # noqa: E402
+    SEED_LAVET_PART_SHAPES, SEED_LAVET_SIM_SPACES,
+)
+
+_lavet = {p['name']: p for p in SEED_LAVET_PART_SHAPES}
+check('the realistic set exists ALONGSIDE the schematic one — '
+      'both kept, and the module says which is which',
+      len(SEED_LAVET_PART_SHAPES) == 12
+      and len(SEED_MOTOR_PART_SHAPES) == 8)
+check('ONE bored stator plate (CSG box minus bore), not two '
+      'floating pole shoes — the correction Dustin spotted from '
+      'photographs',
+      _lavet['motor-m0r-stator']['family'] == 'csg'
+      and 'difference' in _lavet['motor-m0r-stator']['csg_json'])
+check('the rotor is a 2 mm DIAMETRIC cylinder, not a disc with a '
+      'pointer',
+      json.loads(_lavet['motor-m0r-rotor']['parameters_json'])
+      ['radius'] == 1.0
+      and 'diameter' in _lavet['motor-m0r-rotor']['notes'])
+check('the coil is a coaxial-cylinder difference, so it gets the '
+      'EXACT tube mesh, and its bobbin is the SAME 12 mm2 the '
+      'mag-9 winding check judges',
+      _lavet['motor-m0r-coil']['family'] == 'csg'
+      and '12 mm2' in _lavet['motor-m0r-coil']['notes'])
+_pin = json.loads(_lavet['motor-m0r-pinion']['parameters_json'])
+_wheel = json.loads(
+    _lavet['motor-m0r-seconds-wheel']['parameters_json'])
+check('pinion and seconds wheel are at TRUE relative size: 8t and '
+      '240t at module 0.3 => 1.2 mm and 36 mm pitch radii (30:1, '
+      'the clock-train-m0 first stage)',
+      abs(_pin['radius'] - 1.2) < 1e-9
+      and abs(_wheel['radius'] - 36.0) < 1e-9
+      and abs(_wheel['radius'] / _pin['radius'] - 30.0) < 1e-9)
+check('and they sit at the correct CENTRE DISTANCE (r1 + r2 = '
+      '37.2 mm) — the same sum the gear solver derives',
+      abs(_wheel['center'][0] - (_pin['radius']
+                                 + _wheel['radius'])) < 1e-9,
+      extra=str(_wheel['center'][0]))
+check('teeth are NOT faked on the pinion — gear geometry is '
+      'generated (gr-3), and drawing fake teeth would be the exact '
+      '"close enough gear" mistake the mesh catalog refuses',
+      'teeth not rendered' in _lavet['motor-m0r-pinion']['notes'])
+check('the realistic scene row exists, freestandingOnly, with all '
+      '8 bodies including the wheel it drives',
+      len(SEED_LAVET_SIM_SPACES) == 1
+      and json.loads(SEED_LAVET_SIM_SPACES[0]['definition'])
+      ['freestandingOnly'] is True
+      and len(json.loads(SEED_LAVET_SIM_SPACES[0]['definition'])
+              ['freestanding']) == 8)
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
