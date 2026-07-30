@@ -160,6 +160,30 @@ r = client.simulate_get(
 check('dry-fit route: 5 adjacencies all mortared',
       r.status_code == 200 and r.json.get('mortaredJoints') == 5)
 
+# mag-fv: field views seeded + all three payload modes answer
+check('mag-fv seeds landed (3 views, 5 bands, 1 group)',
+      len(manager.objectTables.get('FieldViewDefinition', {})) == 3
+      and len(manager.objectTables.get('FieldThresholdBand', {}))
+      == 5
+      and len(manager.objectTables.get('FieldViewGroup', {})) == 1)
+r = client.simulate_get('/api/magnetics/fieldview/'
+                        'dipole-b-dispersion')
+check('dispersion view: threshold-gated vectors + watermark',
+      r.status_code == 200 and r.json.get('ok')
+      and 0 < len(r.json['vectors']) < r.json['sampled']
+      and 'EXACT' in r.json['watermark'])
+r = client.simulate_get('/api/magnetics/fieldview/dipole-b-shells')
+check('shells view: fit metrics measure the sphere-vs-dipole '
+      'compromise',
+      r.status_code == 200
+      and r.json['shapes'][0]['fit']['precision'] is not None)
+r = client.simulate_get('/api/magnetics/fieldview-group/'
+                        'dipole-and-ring-group')
+check('group route: 3 views in order, flux tubes included',
+      r.status_code == 200 and len(r.json['views']) == 3
+      and r.json['views'][2]['payload']['displayMode']
+      == 'flux-tubes')
+
 failed = results.count(False)
 print(f'\n{len(results) - failed}/{len(results)} live-boot checks '
       'passed')

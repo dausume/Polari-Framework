@@ -44,6 +44,12 @@ class MagneticsAPI(treeObject):
                 suffix='layout_cost')
             add('/api/magnetics/layout/{layout_name}/dryfit', self,
                 suffix='layout_dryfit')
+            add('/api/magnetics/fieldviews', self,
+                suffix='fieldviews')
+            add('/api/magnetics/fieldview/{view_name}', self,
+                suffix='fieldview')
+            add('/api/magnetics/fieldview-group/{group_name}', self,
+                suffix='fieldview_group')
 
     def on_get_catalog(self, request, response):
         rows = []
@@ -225,6 +231,40 @@ class MagneticsAPI(treeObject):
             out = dry_fit_report(self.manager, layout_name)
         except ValueError as exc:
             out = {'ok': False, 'refusal': str(exc)}
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_fieldviews(self, request, response):
+        rows = []
+        for v in _rows(self.manager, 'FieldViewDefinition'):
+            rows.append({
+                'name': getattr(v, 'name', ''),
+                'displayName': getattr(v, 'display_name', ''),
+                'fieldKind': getattr(v, 'field_kind', ''),
+                'sourceKind': getattr(v, 'source_kind', ''),
+                'displayMode': getattr(v, 'display_mode', ''),
+                'deviceKind': getattr(v, 'device_kind', ''),
+                'deviceRef': getattr(v, 'device_ref', ''),
+            })
+        groups = [{'name': getattr(g, 'name', ''),
+                   'displayName': getattr(g, 'display_name', ''),
+                   'order': getattr(g, 'view_refs_json', '[]')}
+                  for g in _rows(self.manager, 'FieldViewGroup')]
+        response.media = {'ok': True, 'views': rows,
+                          'groups': groups}
+
+    def on_get_fieldview(self, request, response, view_name):
+        from magnetics.field_views import view_payload
+        out = view_payload(self.manager, view_name)
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_fieldview_group(self, request, response,
+                               group_name):
+        from magnetics.field_views import group_payload
+        out = group_payload(self.manager, group_name)
         if not out.get('ok'):
             response.status = '404 Not Found'
         response.media = out

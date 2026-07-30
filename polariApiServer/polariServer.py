@@ -807,6 +807,10 @@ try:
         SEED_BLOCK_PLACEMENTS, SEED_BLOCK_VARIANTS,
         SEED_JOINT_MORTARS,
     )
+    from magnetics.field_view_basis import (
+        FieldThresholdBand, FieldViewDefinition, FieldViewGroup,
+        SEED_FIELD_BANDS, SEED_FIELD_GROUPS, SEED_FIELD_VIEWS,
+    )
 except ImportError as _exc:
     _stub_missing_feature('magnetics', _exc, globals(), (
         'MagneticMaterialOption', 'MagneticPowderDefinition',
@@ -819,6 +823,9 @@ except ImportError as _exc:
         'BlockSizeVariant', 'JointMortarAssignment',
         'SEED_BLOCK_LAYOUTS', 'SEED_BLOCK_PLACEMENTS',
         'SEED_BLOCK_VARIANTS', 'SEED_JOINT_MORTARS',
+        'FieldThresholdBand', 'FieldViewDefinition',
+        'FieldViewGroup', 'SEED_FIELD_BANDS', 'SEED_FIELD_GROUPS',
+        'SEED_FIELD_VIEWS',
     ))
 # Odoo ERP connector — instance configs + sim/ops write guards (od-3).
 try:
@@ -1951,9 +1958,10 @@ class polariServer(treeObject):
             MaterialUseRole, MagneticMaterialOption,
             MagneticPowderDefinition, MagneticCircuitDefinition,
             MagneticElementDefinition, FluxNodeDefinition,
-            # Slot-matrix assembly (mag-4).
+            # Slot-matrix assembly (mag-4) + field views (mag-fv).
             BlockSizeVariant, BlockLayoutDefinition,
             BlockPlacement, JointMortarAssignment,
+            FieldViewDefinition, FieldThresholdBand, FieldViewGroup,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -3341,6 +3349,12 @@ class polariServer(treeObject):
              SEED_BLOCK_PLACEMENTS),
             ('JointMortarAssignment', JointMortarAssignment,
              SEED_JOINT_MORTARS),
+            # mag-fv: views before bands/groups that name them.
+            ('FieldViewDefinition', FieldViewDefinition,
+             SEED_FIELD_VIEWS),
+            ('FieldThresholdBand', FieldThresholdBand,
+             SEED_FIELD_BANDS),
+            ('FieldViewGroup', FieldViewGroup, SEED_FIELD_GROUPS),
             # chain-1: nodes + flows before the chain that binds them.
             ('SupplyNode', SupplyNode, SEED_SUPPLY_NODES),
             ('SupplyFlow', SupplyFlow, SEED_SUPPLY_FLOWS),
