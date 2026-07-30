@@ -596,6 +596,154 @@ check('parts whose material is a supplychain item (copper wire) '
 check('a design with no part rows refuses and names the knob',
       not part_report(_mgr(), 'clock-lavet-m0').get('ok'))
 
+print('== suite: mag-12 M1 + M3 geometry and parts ==')
+import math as _m12  # noqa: E402
+from motors.motor_shapes import (  # noqa: E402
+    SEED_M1_PART_SHAPES, SEED_M1_SIM_SPACES,
+    SEED_M3_PART_SHAPES, SEED_M3_SIM_SPACES,
+)
+
+_m1 = {p['name']: p for p in SEED_M1_PART_SHAPES}
+_m3 = {p['name']: p for p in SEED_M3_PART_SHAPES}
+_m1scene = json.loads(SEED_M1_SIM_SPACES[0]['definition'])
+_m3scene = json.loads(SEED_M3_SIM_SPACES[0]['definition'])
+
+# --- M1: the numbers come from the design's own params_json ---
+_m1params = json.loads(
+    mgr.objectTables['MotorDesignDefinition'][
+        'reluctance-6s4p-m1'].params_json)
+_tooth = json.loads(_m1['motor-m1-stator-tooth']['parameters_json'])
+check('M1 tooth FACE matches the design\'s tooth_area_m2 (6.0 x '
+      '6.7 mm = 40.2 mm2 vs the stated 4e-5 m2)',
+      abs(_tooth['size'][1] * _tooth['size'][2]
+          - _m1params['tooth_area_m2'] * 1e6) < 1.0,
+      extra=str(_tooth['size'][1] * _tooth['size'][2]))
+_pole = json.loads(_m1['motor-m1-rotor-pole']['parameters_json'])
+_pole_tip = _pole['center'][0] + _pole['size'][0] / 2.0
+_tooth_face = _tooth['center'][0] - _tooth['size'][0] / 2.0
+check('M1 AIR GAP is the design\'s gap_base_m: tooth face at 12.6 '
+      'mm minus pole tip at 12.0 mm = 0.6 mm',
+      abs((_tooth_face - _pole_tip)
+          - _m1params['gap_base_m'] * 1000.0) < 1e-6,
+      extra=f'{_tooth_face} - {_pole_tip}')
+check('M1 arrays by SCENE ROTATION, not by 14 near-identical shape '
+      'rows: ONE tooth row placed 6 times, ONE pole row placed 4',
+      sum(1 for b in _m1scene['freestanding']
+          if b['shapeRef'].endswith('m1-stator-tooth')) == 6
+      and sum(1 for b in _m1scene['freestanding']
+              if b['shapeRef'].endswith('m1-rotor-pole')) == 4)
+check('the 6 teeth are 60 deg apart and the 4 poles 90 deg — the '
+      'slot/pole counts the design states',
+      sorted(round(_m12.degrees(b['rotation'][2]))
+             for b in _m1scene['freestanding']
+             if b['shapeRef'].endswith('m1-stator-tooth'))
+      == [0, 60, 120, 180, 240, 300]
+      and sorted(round(_m12.degrees(b['rotation'][2]))
+                 for b in _m1scene['freestanding']
+                 if b['shapeRef'].endswith('m1-rotor-pole'))
+      == [0, 90, 180, 270])
+check('M1 yoke is a coaxial-cylinder difference, so it renders '
+      'through the EXACT tube mesh rather than the blocky voxel '
+      'fallback',
+      _m1['motor-m1-yoke']['family'] == 'csg'
+      and json.loads(_m1['motor-m1-yoke']['csg_json'])['op']
+      == 'difference')
+_cbore = json.loads(_m1['motor-m1-coil-bore']['parameters_json'])
+check('M1 coil bore CLEARS its tooth (bore 5.0 mm vs the tooth\'s '
+      '4.5 mm half-diagonal) — the coil actually fits',
+      _cbore['radius']
+      > _m12.hypot(_tooth['size'][1], _tooth['size'][2]) / 2.0,
+      extra=str(_m12.hypot(_tooth['size'][1], _tooth['size'][2]) / 2))
+check('six coils are placed, wired A-B-C-A-B-C = three phases of '
+      'two',
+      sum(1 for b in _m1scene['freestanding']
+          if b['shapeRef'].endswith('m1-coil')) == 6)
+
+# --- M3: the dual gap IS the rung ---
+_m3params = json.loads(
+    mgr.objectTables['MotorDesignDefinition'][
+        'dual-stator-axial-m3'].params_json)
+_ta = json.loads(_m3['motor-m3-stator-a-tooth']['parameters_json'])
+_tb = json.loads(_m3['motor-m3-stator-b-tooth']['parameters_json'])
+_rot = json.loads(_m3['motor-m3-rotor-disk']['parameters_json'])
+check('M3 tooth face matches tooth_area_m2 (23 x 11 = 253 mm2 vs '
+      'the stated 2.5e-4 m2)',
+      abs(_ta['size'][0] * _ta['size'][1]
+          - _m3params['tooth_area_m2'] * 1e6) < 5.0,
+      extra=str(_ta['size'][0] * _ta['size'][1]))
+_gap_a = ((_ta['center'][2] - _ta['size'][2] / 2.0)
+          - _rot['height'] / 2.0)
+_gap_b = ((-_rot['height'] / 2.0)
+          - (_tb['center'][2] + _tb['size'][2] / 2.0))
+check('M3 has TWO working gaps, each the design\'s gap_base_m '
+      '(0.8 mm) — the doubled area that IS the SS2d thesis',
+      abs(_gap_a - _m3params['gap_base_m'] * 1000.0) < 1e-6
+      and abs(_gap_b - _m3params['gap_base_m'] * 1000.0) < 1e-6,
+      extra=f'{_gap_a} / {_gap_b}')
+check('and the two stators are SYMMETRIC about the rotor — an '
+      'asymmetric pair would pull the rotor into one gap',
+      abs(_ta['center'][2] + _tb['center'][2]) < 1e-9)
+check('M3 arrays 12 teeth per stator at 30 deg and 8 rotor poles '
+      'at 45 deg, matching teeth_per_stator and poles',
+      sum(1 for b in _m3scene['freestanding']
+          if b['shapeRef'].endswith('m3-stator-a-tooth'))
+      == _m3params['teeth_per_stator']
+      and sum(1 for b in _m3scene['freestanding']
+              if b['shapeRef'].endswith('m3-stator-b-tooth'))
+      == _m3params['teeth_per_stator']
+      and sum(1 for b in _m3scene['freestanding']
+              if b['shapeRef'].endswith('m3-rotor-pole'))
+      == _m3params['poles'])
+check('M3 rotor thickness is the design\'s magnet_length_m (6 mm)',
+      abs(_rot['height'] - _m3params['magnet_length_m'] * 1000.0)
+      < 1e-9)
+check('M3 draws NO coils, and the scene SAYS WHY — a round tube is '
+      'the wrong primitive for a trapezoidal axial-flux coil, and '
+      'drawing the wrong shape is worse than drawing none',
+      not any('coil' in b['shapeRef']
+              for b in _m3scene['freestanding'])
+      and 'trapezoidal' in SEED_M3_SIM_SPACES[0]['description'])
+
+# --- part rows for both rungs ---
+mgr12 = _mgr()
+mgr12.objectTables['MotorPartDefinition'] = {
+    p['name']: types.SimpleNamespace(**p) for p in SEED_MOTOR_PARTS}
+mgr12.objectTables['MathShapeDefinition'] = {
+    p['name']: types.SimpleNamespace(**p)
+    for p in (SEED_M1_PART_SHAPES + SEED_M3_PART_SHAPES)}
+for _design, _expect in (('reluctance-6s4p-m1', 6),
+                         ('dual-stator-axial-m3', 7)):
+    _rep = part_report(mgr12, _design)
+    check(f'{_design}: {_expect} part rows, every one with a '
+          f'purpose and mm units declared',
+          _rep['ok'] and _rep['count'] == _expect
+          and all(p['purpose'] and p['shapeUnits'] == 'mm'
+                  for p in _rep['parts']),
+          extra=str(_rep.get('count') or _rep.get('refusal')))
+    check(f'{_design}: volumes derive from the shape rows, so the '
+          f'bill and the 3D view cannot disagree',
+          all(p['volumeCm3'] is not None for p in _rep['parts']))
+_m1rep = {p['part']: p for p in
+          part_report(mgr12, 'reluctance-6s4p-m1')['parts']}
+check('M1 rotor poles are the TORQUE-PRODUCING part and the row '
+      'says the mechanism needs no magnet at all',
+      _m1rep['m1-rotor-poles']['function'] == 'torque-producing'
+      and 'no magnet' in _m1rep['m1-rotor-poles']['purpose'])
+check('M1 rotor wants SOFT magnetic material — the opposite of the '
+      'M0 rotor, and the row explains why',
+      'SOFT magnetic'
+      in _m1rep['m1-rotor-poles']['whyThisMaterial'])
+_m3rep = {p['part']: p for p in
+          part_report(mgr12, 'dual-stator-axial-m3')['parts']}
+check('M3 rotor carrier is non-magnetic ON PURPOSE (a ferrous one '
+      'would short the magnets through the disk)',
+      'Non-magnetic ON PURPOSE'
+      in _m3rep['m3-rotor-disk']['whyThisMaterial'])
+check('both rungs\' shafts are BOUGHT steel, reported as an '
+      'honest gap rather than a faked density',
+      _m1rep['m1-shaft']['massG'] is None
+      and _m3rep['m3-shaft']['massG'] is None)
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

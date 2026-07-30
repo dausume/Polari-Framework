@@ -647,3 +647,535 @@ SEED_LAVET_V2_SIM_SPACES = [
      'axis_labels_json': '{}', 'camera_json': '',
      'category': 'motors', 'owning_module': 'motors'},
 ]
+
+#: ------------------------------------------------------------
+#: M1 — 6-SLOT / 4-POLE RADIAL RELUCTANCE (mag-12)
+#:
+#: The no-permanent-magnet rung: torque comes from SALIENCY alone.
+#: The rotor has 4 lumps and 4 gaps, so the magnetic circuit's
+#: reluctance depends on rotor angle; energising a stator tooth
+#: pulls the nearest rotor pole toward alignment. There is nothing
+#: magnetised anywhere in this machine — which is exactly why every
+#: material in it is costed TODAY, and why it is the honest first
+#: rung after the clock.
+#:
+#: Geometry from the seeded design's own params_json:
+#:   6 slots, 4 poles, gap 0.6 mm, tooth face 4e-5 m2 = 40 mm2
+#:   (here 6.0 mm tangential x 6.7 mm axial = 40.2 mm2), 300 turns.
+#:
+#: ONE tooth row placed SIX times by scene rotation, one pole row
+#: placed FOUR times — the array is in the scene, not in 14 nearly
+#: identical shape rows. Rotation is about the world origin, which
+#: is why every arrayed part is authored on the +X axis.
+#:
+#: UNITS: 1 unit = 1 mm, as with the Lavet sets. mathshapes'
+#: shape_properties reports volumeCm3 (it assumes cm), so any part
+#: row pointing here MUST carry shape_units='mm' or a 40 mm2 tooth
+#: silently becomes a 40 cm2 one.
+#: ------------------------------------------------------------
+SEED_M1_PART_SHAPES = [
+    {'name': 'motor-m1-shaft',
+     'display_name': 'M1 shaft (8 mm, mag-1 cited stock)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 4.0, 'height': 34.0, 'axis': 'z',
+          'center': [0.0, 0.0, 0.0], 'cap_base': True,
+          'cap_top': True}),
+     'notes': 'Matches the 8 mm rod cited in mag-1, so the bill '
+              'and the shopping list describe one object.',
+     'provenance_id': 'mag-12'},
+    {'name': 'motor-m1-rotor-core',
+     'display_name': 'M1 rotor core (the hub the poles stand on)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 6.0, 'height': 6.7, 'axis': 'z',
+          'center': [0.0, 0.0, 0.0], 'cap_base': True,
+          'cap_top': True}),
+     'provenance_id': 'mag-12'},
+    {'name': 'motor-m1-rotor-pole',
+     'display_name': 'M1 rotor salient pole (x4 by rotation)',
+     'family': 'primitive', 'primitive_kind': 'box',
+     'parameters_json': json.dumps(
+         {'size': [6.0, 6.0, 6.7], 'center': [9.0, 0.0, 0.0]}),
+     'notes': 'Spans radius 6.0 to 12.0 mm. FOUR of these, 90 deg '
+              'apart, are the whole torque mechanism: the lumps '
+              'want to line up with an energised tooth, and the '
+              'gaps between them are what makes lining up mean '
+              'something.',
+     'provenance_id': 'mag-12'},
+    {'name': 'motor-m1-stator-tooth',
+     'display_name': 'M1 stator tooth (x6 by rotation)',
+     'family': 'primitive', 'primitive_kind': 'box',
+     'parameters_json': json.dumps(
+         {'size': [7.4, 6.0, 6.7], 'center': [16.3, 0.0, 0.0]}),
+     'notes': 'Face sits at radius 12.6 mm — 0.6 mm clear of the '
+              'rotor pole tip, which IS the gap_base_m the solver '
+              'uses. Face area 6.0 x 6.7 = 40.2 mm2, the design\'s '
+              'tooth_area_m2 of 4e-5.',
+     'provenance_id': 'mag-12'},
+    {'name': 'motor-m1-yoke-outer',
+     'display_name': 'M1 stator yoke outer (CSG component)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 24.0, 'height': 6.7, 'axis': 'z',
+          'center': [0.0, 0.0, 0.0], 'cap_base': True,
+          'cap_top': True}),
+     'provenance_id': 'mag-12'},
+    {'name': 'motor-m1-yoke-bore',
+     'display_name': 'M1 stator yoke bore (CSG component)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 20.0, 'height': 7.2, 'axis': 'z',
+          'center': [0.0, 0.0, 0.0], 'cap_base': True,
+          'cap_top': True}),
+     'provenance_id': 'mag-12'},
+    {'name': 'motor-m1-yoke',
+     'display_name': 'M1 stator yoke (back-iron ring)',
+     'family': 'csg',
+     'csg_json': json.dumps(
+         {'op': 'difference',
+          'shapes': ['motor-m1-yoke-outer', 'motor-m1-yoke-bore']}),
+     'bounds_json': json.dumps(
+         [[-24.5, 24.5], [-24.5, 24.5], [-3.8, 3.8]]),
+     'notes': 'Coaxial-cylinder difference, so it gets the EXACT '
+              'parametric tube mesh rather than the blocky voxel '
+              'fallback. Its job is the return path: flux leaving '
+              'one tooth has to get back to another, and this ring '
+              'is that road.',
+     'provenance_id': 'mag-12'},
+    {'name': 'motor-m1-coil-outer',
+     'display_name': 'M1 phase coil outer (CSG component)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 6.5, 'height': 6.0, 'axis': 'x',
+          'center': [16.3, 0.0, 0.0], 'cap_base': True,
+          'cap_top': True}),
+     'provenance_id': 'mag-12'},
+    {'name': 'motor-m1-coil-bore',
+     'display_name': 'M1 phase coil bore (CSG component)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 5.0, 'height': 6.4, 'axis': 'x',
+          'center': [16.3, 0.0, 0.0], 'cap_base': True,
+          'cap_top': True}),
+     'provenance_id': 'mag-12'},
+    {'name': 'motor-m1-coil',
+     'display_name': 'M1 phase coil (300 t, 26 AWG) (x6 by '
+                     'rotation)',
+     'family': 'csg',
+     'csg_json': json.dumps(
+         {'op': 'difference',
+          'shapes': ['motor-m1-coil-outer', 'motor-m1-coil-bore']}),
+     'bounds_json': json.dumps(
+         [[13.0, 19.6], [-6.9, 6.9], [-6.9, 6.9]]),
+     'notes': 'Wraps its tooth (bore 5.0 mm clears the tooth\'s '
+              '4.5 mm half-diagonal). Six of them, wired A-B-C-A-'
+              'B-C, are the three phases; the mag-9 winding check '
+              'judges 300 turns of 26 AWG in the design\'s stated '
+              '72 mm2 window.',
+     'provenance_id': 'mag-12'},
+]
+
+SEED_M1_SIM_SPACES = [
+    {'name': 'motor-m1-viz',
+     'description': 'M1 6-slot/4-pole radial reluctance motor: a '
+                    'salient 4-pole rotor inside 6 wound stator '
+                    'teeth on a ring yoke. No magnets anywhere — '
+                    'the torque is saliency, the rotor lumps '
+                    'wanting to line up with whichever tooth is '
+                    'energised. Teeth and poles are ONE shape row '
+                    'each, arrayed by scene rotation.',
+     'dimensionality': '3d', 'coordinate_system': 'math',
+     'unit_scale': 1.0,
+     'viewport_json': json.dumps(
+         {'center': [0.0, 0.0, 0.0], 'extent': [60.0, 60.0, 40.0]}),
+     'bound_classes_json': '[]',
+     'definition': json.dumps({
+         'freestandingOnly': True,
+         'freestanding': [
+             {'id': 'shaft',
+              'shapeRef': 'mathshape:motor-m1-shaft',
+              'styleRef': 'motor-shaft-steel',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'rotor-core',
+              'shapeRef': 'mathshape:motor-m1-rotor-core',
+              'styleRef': 'motor-rotor-dark',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'rotor-pole-0',
+              'shapeRef': 'mathshape:motor-m1-rotor-pole',
+              'styleRef': 'motor-rotor-dark',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 0.0]},
+             {'id': 'rotor-pole-1',
+              'shapeRef': 'mathshape:motor-m1-rotor-pole',
+              'styleRef': 'motor-rotor-dark',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 1.570796]},
+             {'id': 'rotor-pole-2',
+              'shapeRef': 'mathshape:motor-m1-rotor-pole',
+              'styleRef': 'motor-rotor-dark',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 3.141593]},
+             {'id': 'rotor-pole-3',
+              'shapeRef': 'mathshape:motor-m1-rotor-pole',
+              'styleRef': 'motor-rotor-dark',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 4.712389]},
+             {'id': 'yoke',
+              'shapeRef': 'mathshape:motor-m1-yoke',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'stator-tooth-0',
+              'shapeRef': 'mathshape:motor-m1-stator-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 0.0]},
+             {'id': 'stator-tooth-1',
+              'shapeRef': 'mathshape:motor-m1-stator-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 1.047198]},
+             {'id': 'stator-tooth-2',
+              'shapeRef': 'mathshape:motor-m1-stator-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 2.094395]},
+             {'id': 'stator-tooth-3',
+              'shapeRef': 'mathshape:motor-m1-stator-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 3.141593]},
+             {'id': 'stator-tooth-4',
+              'shapeRef': 'mathshape:motor-m1-stator-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 4.18879]},
+             {'id': 'stator-tooth-5',
+              'shapeRef': 'mathshape:motor-m1-stator-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 5.235988]},
+             {'id': 'coil-A0',
+              'shapeRef': 'mathshape:motor-m1-coil',
+              'styleRef': 'motor-coil-idle',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 0.0]},
+             {'id': 'coil-B0',
+              'shapeRef': 'mathshape:motor-m1-coil',
+              'styleRef': 'motor-coil-idle',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 1.047198]},
+             {'id': 'coil-C0',
+              'shapeRef': 'mathshape:motor-m1-coil',
+              'styleRef': 'motor-coil-idle',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 2.094395]},
+             {'id': 'coil-A1',
+              'shapeRef': 'mathshape:motor-m1-coil',
+              'styleRef': 'motor-coil-idle',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 3.141593]},
+             {'id': 'coil-B1',
+              'shapeRef': 'mathshape:motor-m1-coil',
+              'styleRef': 'motor-coil-idle',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 4.18879]},
+             {'id': 'coil-C1',
+              'shapeRef': 'mathshape:motor-m1-coil',
+              'styleRef': 'motor-coil-idle',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 5.235988]}
+         ]}),
+     'axis_labels_json': '{}', 'camera_json': '',
+     'category': 'motors', 'owning_module': 'motors'},
+]
+
+#: ------------------------------------------------------------
+#: M3 — DUAL-STATOR AXIAL FLUX (mag-12), the SS2d flagship
+#:
+#: Two stator disks sandwich one rotor disk, so the machine has
+#: TWO working air gaps instead of one. That is the entire thesis:
+#: force scales with gap AREA, and a second gap doubles the area
+#: inside the same envelope — which is how a ferrite machine
+#: reaches for parity with a rare-earth one. torque_curve()
+#: computes that doubling rather than asserting it.
+#:
+#: Geometry from the design's params_json: 12 teeth per stator,
+#: 8 rotor poles, gap 0.8 mm, tooth face 2.5e-4 m2 = 250 mm2
+#: (here 23 x 11 = 253 mm2), rotor magnet length 6 mm.
+#:
+#: NAMED GAP — no coils are drawn. An axial-flux coil is a
+#: trapezoidal wedge that fills the space between two teeth, and a
+#: round tube is simply the wrong primitive for it: at 12 teeth on
+#: a 33 mm pitch circle the tube OD needed to clear a 23 mm-long
+#: tooth is wider than the tooth pitch, so tubes would intersect
+#: each other and lie about the winding. Drawing the wrong shape
+#: would be worse than drawing none. The mag-9 winding report
+#: still judges the real 100 t / 20 AWG winding.
+#: ------------------------------------------------------------
+SEED_M3_PART_SHAPES = [
+    {'name': 'motor-m3-shaft',
+     'display_name': 'M3 shaft',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 5.0, 'height': 46.0, 'axis': 'z',
+          'center': [0.0, 0.0, 0.0], 'cap_base': True,
+          'cap_top': True}),
+     'provenance_id': 'mag-12'},
+    {'name': 'motor-m3-rotor-disk',
+     'display_name': 'M3 rotor disk (the carrier)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 42.0, 'height': 6.0, 'axis': 'z',
+          'center': [0.0, 0.0, 0.0], 'cap_base': True,
+          'cap_top': True}),
+     'notes': '6 mm thick = the design\'s magnet_length_m. It sits '
+              'BETWEEN the two stators, which is what gives the '
+              'machine two gaps.',
+     'provenance_id': 'mag-12'},
+    {'name': 'motor-m3-rotor-pole',
+     'display_name': 'M3 rotor magnet pole (x8 by rotation)',
+     'family': 'primitive', 'primitive_kind': 'box',
+     'parameters_json': json.dumps(
+         {'size': [23.0, 14.0, 6.2], 'center': [30.0, 0.0, 0.0]}),
+     'notes': 'Eight sintered-hexaferrite sectors, alternating N/S '
+              'around the disk. These face BOTH stators at once — '
+              'one magnet, two gaps, which is where the doubling '
+              'comes from.',
+     'provenance_id': 'mag-12'},
+    {'name': 'motor-m3-stator-a-yoke',
+     'display_name': 'M3 stator A yoke (upper back-iron disk)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 45.0, 'height': 5.0, 'axis': 'z',
+          'center': [0.0, 0.0, 10.3], 'cap_base': True,
+          'cap_top': True}),
+     'provenance_id': 'mag-12'},
+    {'name': 'motor-m3-stator-a-tooth',
+     'display_name': 'M3 stator A tooth (x12 by rotation)',
+     'family': 'primitive', 'primitive_kind': 'box',
+     'parameters_json': json.dumps(
+         {'size': [23.0, 11.0, 4.0], 'center': [30.0, 0.0, 5.8]}),
+     'notes': 'Face at z = +3.8 mm, i.e. 0.8 mm above the rotor '
+              'face — the design\'s gap_base_m. Face 23 x 11 = 253 '
+              'mm2 against the stated 2.5e-4 m2.',
+     'provenance_id': 'mag-12'},
+    {'name': 'motor-m3-stator-b-yoke',
+     'display_name': 'M3 stator B yoke (lower back-iron disk)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 45.0, 'height': 5.0, 'axis': 'z',
+          'center': [0.0, 0.0, -10.3], 'cap_base': True,
+          'cap_top': True}),
+     'provenance_id': 'mag-12'},
+    {'name': 'motor-m3-stator-b-tooth',
+     'display_name': 'M3 stator B tooth (x12 by rotation)',
+     'family': 'primitive', 'primitive_kind': 'box',
+     'parameters_json': json.dumps(
+         {'size': [23.0, 11.0, 4.0], 'center': [30.0, 0.0, -5.8]}),
+     'notes': 'The mirror of stator A. Its existence is the point '
+              'of the whole rung: the SECOND gap.',
+     'provenance_id': 'mag-12'},
+]
+
+SEED_M3_SIM_SPACES = [
+    {'name': 'motor-m3-viz',
+     'description': 'M3 dual-stator axial flux — the SS2d end goal. '
+                    'Two 12-tooth stator disks sandwich one '
+                    '8-pole rotor, giving TWO working air gaps in '
+                    'one envelope; that doubled area is how a '
+                    'ferrite machine reaches toward rare-earth '
+                    'torque. Windings are deliberately NOT drawn: '
+                    'an axial-flux coil is a trapezoidal wedge and '
+                    'a round tube would intersect its neighbours '
+                    'and lie about the winding.',
+     'dimensionality': '3d', 'coordinate_system': 'math',
+     'unit_scale': 1.0,
+     'viewport_json': json.dumps(
+         {'center': [0.0, 0.0, 0.0],
+          'extent': [110.0, 110.0, 60.0]}),
+     'bound_classes_json': '[]',
+     'definition': json.dumps({
+         'freestandingOnly': True,
+         'freestanding': [
+             {'id': 'shaft',
+              'shapeRef': 'mathshape:motor-m3-shaft',
+              'styleRef': 'motor-shaft-steel',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'rotor-disk',
+              'shapeRef': 'mathshape:motor-m3-rotor-disk',
+              'styleRef': 'motor-rotor-dark',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'rotor-pole-0',
+              'shapeRef': 'mathshape:motor-m3-rotor-pole',
+              'styleRef': 'motor-rotor-dark',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 0.0]},
+             {'id': 'rotor-pole-1',
+              'shapeRef': 'mathshape:motor-m3-rotor-pole',
+              'styleRef': 'motor-rotor-dark',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 0.785398]},
+             {'id': 'rotor-pole-2',
+              'shapeRef': 'mathshape:motor-m3-rotor-pole',
+              'styleRef': 'motor-rotor-dark',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 1.570796]},
+             {'id': 'rotor-pole-3',
+              'shapeRef': 'mathshape:motor-m3-rotor-pole',
+              'styleRef': 'motor-rotor-dark',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 2.356194]},
+             {'id': 'rotor-pole-4',
+              'shapeRef': 'mathshape:motor-m3-rotor-pole',
+              'styleRef': 'motor-rotor-dark',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 3.141593]},
+             {'id': 'rotor-pole-5',
+              'shapeRef': 'mathshape:motor-m3-rotor-pole',
+              'styleRef': 'motor-rotor-dark',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 3.926991]},
+             {'id': 'rotor-pole-6',
+              'shapeRef': 'mathshape:motor-m3-rotor-pole',
+              'styleRef': 'motor-rotor-dark',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 4.712389]},
+             {'id': 'rotor-pole-7',
+              'shapeRef': 'mathshape:motor-m3-rotor-pole',
+              'styleRef': 'motor-rotor-dark',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 5.497787]},
+             {'id': 'stator-a-yoke',
+              'shapeRef': 'mathshape:motor-m3-stator-a-yoke',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'stator-a-tooth-0',
+              'shapeRef': 'mathshape:motor-m3-stator-a-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 0.0]},
+             {'id': 'stator-a-tooth-1',
+              'shapeRef': 'mathshape:motor-m3-stator-a-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 0.523599]},
+             {'id': 'stator-a-tooth-2',
+              'shapeRef': 'mathshape:motor-m3-stator-a-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 1.047198]},
+             {'id': 'stator-a-tooth-3',
+              'shapeRef': 'mathshape:motor-m3-stator-a-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 1.570796]},
+             {'id': 'stator-a-tooth-4',
+              'shapeRef': 'mathshape:motor-m3-stator-a-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 2.094395]},
+             {'id': 'stator-a-tooth-5',
+              'shapeRef': 'mathshape:motor-m3-stator-a-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 2.617994]},
+             {'id': 'stator-a-tooth-6',
+              'shapeRef': 'mathshape:motor-m3-stator-a-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 3.141593]},
+             {'id': 'stator-a-tooth-7',
+              'shapeRef': 'mathshape:motor-m3-stator-a-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 3.665191]},
+             {'id': 'stator-a-tooth-8',
+              'shapeRef': 'mathshape:motor-m3-stator-a-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 4.18879]},
+             {'id': 'stator-a-tooth-9',
+              'shapeRef': 'mathshape:motor-m3-stator-a-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 4.712389]},
+             {'id': 'stator-a-tooth-10',
+              'shapeRef': 'mathshape:motor-m3-stator-a-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 5.235988]},
+             {'id': 'stator-a-tooth-11',
+              'shapeRef': 'mathshape:motor-m3-stator-a-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 5.759587]},
+             {'id': 'stator-b-yoke',
+              'shapeRef': 'mathshape:motor-m3-stator-b-yoke',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'stator-b-tooth-0',
+              'shapeRef': 'mathshape:motor-m3-stator-b-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 0.0]},
+             {'id': 'stator-b-tooth-1',
+              'shapeRef': 'mathshape:motor-m3-stator-b-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 0.523599]},
+             {'id': 'stator-b-tooth-2',
+              'shapeRef': 'mathshape:motor-m3-stator-b-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 1.047198]},
+             {'id': 'stator-b-tooth-3',
+              'shapeRef': 'mathshape:motor-m3-stator-b-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 1.570796]},
+             {'id': 'stator-b-tooth-4',
+              'shapeRef': 'mathshape:motor-m3-stator-b-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 2.094395]},
+             {'id': 'stator-b-tooth-5',
+              'shapeRef': 'mathshape:motor-m3-stator-b-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 2.617994]},
+             {'id': 'stator-b-tooth-6',
+              'shapeRef': 'mathshape:motor-m3-stator-b-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 3.141593]},
+             {'id': 'stator-b-tooth-7',
+              'shapeRef': 'mathshape:motor-m3-stator-b-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 3.665191]},
+             {'id': 'stator-b-tooth-8',
+              'shapeRef': 'mathshape:motor-m3-stator-b-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 4.18879]},
+             {'id': 'stator-b-tooth-9',
+              'shapeRef': 'mathshape:motor-m3-stator-b-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 4.712389]},
+             {'id': 'stator-b-tooth-10',
+              'shapeRef': 'mathshape:motor-m3-stator-b-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 5.235988]},
+             {'id': 'stator-b-tooth-11',
+              'shapeRef': 'mathshape:motor-m3-stator-b-tooth',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0],
+              'rotation': [0.0, 0.0, 5.759587]}
+         ]}),
+     'axis_labels_json': '{}', 'camera_json': '',
+     'category': 'motors', 'owning_module': 'motors'},
+]
+

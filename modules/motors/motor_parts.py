@@ -219,6 +219,258 @@ SEED_MOTOR_PARTS = [
      'why_this_material': 'No material: it is a mark, not a piece.',
      'quantity': 1, 'is_prior': True, 'provenance_id': 'mag-11',
      'notes': ''},
+    # ---------------- M1: 6-slot/4-pole radial reluctance -------
+    {'name': 'm1-stator-yoke', 'design_ref': 'reluctance-6s4p-m1',
+     'display_name': 'Stator yoke ring (back-iron)',
+     'shape_units': 'mm', 'shape_ref': 'motor-m1-yoke',
+     'material_ref': 'opt-geopolymer-ferrite',
+     'function': 'flux-path',
+     'purpose': 'The return road. Flux pushed out of one energised '
+                'tooth has to get back to another one, and this '
+                'ring is the path it takes. Leave it out and each '
+                'tooth is a dead end — the circuit never closes and '
+                'no torque is produced however hard you drive the '
+                'coils.',
+     'why_this_material': 'Pure flux CONDUCTOR duty, so the only '
+                          'thing that matters is the highest mu we '
+                          'can cast. At mu~2.2 this ring is a poor '
+                          'road compared with the laminated steel '
+                          '(mu 1e3-1e4) a commercial machine uses, '
+                          'and that is the single biggest reason '
+                          'M1 torque comes out SMALL — the reports '
+                          'say so rather than burying it.',
+     'quantity': 1, 'is_prior': True, 'provenance_id': 'mag-12',
+     'notes': ''},
+    {'name': 'm1-stator-teeth', 'design_ref': 'reluctance-6s4p-m1',
+     'display_name': 'Stator teeth (x6)',
+     'shape_units': 'mm', 'shape_ref': 'motor-m1-stator-tooth',
+     'material_ref': 'opt-geopolymer-ferrite',
+     'function': 'flux-shaping',
+     'purpose': 'Concentrates the coil\'s flux into a small face '
+                'right across the air gap from the rotor. Torque '
+                'follows the RATE at which reluctance changes with '
+                'angle, so a narrow tooth facing a narrow pole is '
+                'what makes that rate steep. Six teeth wired as '
+                'three phases means something is always pulling.',
+     'why_this_material': 'Same cast composite as the yoke — it is '
+                          'the same flux path, just the part of it '
+                          'that has to be shaped precisely. The '
+                          '0.6 mm gap at its face is the design\'s '
+                          'gap_base_m, and gap reluctance dominates '
+                          'the whole circuit, so tooth-face '
+                          'accuracy matters more here than material '
+                          'grade does.',
+     'quantity': 6, 'is_prior': True, 'provenance_id': 'mag-12',
+     'notes': 'One shape row placed six times by scene rotation.'},
+    {'name': 'm1-rotor-poles', 'design_ref': 'reluctance-6s4p-m1',
+     'display_name': 'Rotor salient poles (x4)',
+     'shape_units': 'mm', 'shape_ref': 'motor-m1-rotor-pole',
+     'material_ref': 'opt-geopolymer-ferrite',
+     'function': 'torque-producing',
+     'purpose': 'THE torque mechanism, and there is no magnet in '
+                'it. Four lumps with gaps between them make the '
+                'circuit\'s reluctance depend on rotor angle; the '
+                'rotor turns because iron in a field is pulled '
+                'toward the position of least reluctance — toward '
+                'alignment with whichever tooth is energised. Cut '
+                'the lumps off and make the rotor a plain cylinder '
+                'and the machine stops working entirely.',
+     'why_this_material': 'Must be SOFT magnetic — the opposite of '
+                          'the M0 rotor. It has to magnetise and '
+                          'de-magnetise freely as each tooth takes '
+                          'its turn; any remanence would fight the '
+                          'next phase. This is the rung that needs '
+                          'no hard magnet at all, which is why '
+                          'every material in M1 is costed TODAY.',
+     'quantity': 4, 'is_prior': True, 'provenance_id': 'mag-12',
+     'notes': 'saliency_ratio 3.0 on the design is the ratio of '
+              'aligned to unaligned permeance these lumps create.'},
+    {'name': 'm1-rotor-core', 'design_ref': 'reluctance-6s4p-m1',
+     'display_name': 'Rotor core hub',
+     'shape_units': 'mm', 'shape_ref': 'motor-m1-rotor-core',
+     'material_ref': 'opt-geopolymer-ferrite',
+     'function': 'flux-path',
+     'purpose': 'Carries flux from one rotor pole across to the '
+                'opposite one, closing the loop through the rotor. '
+                'Structural and magnetic at once — it is also what '
+                'the poles are cast onto and what grips the shaft.',
+     'why_this_material': 'Same soft composite as the poles; it is '
+                          'the same flux path continuing inward.',
+     'quantity': 1, 'is_prior': True, 'provenance_id': 'mag-12',
+     'notes': ''},
+    {'name': 'm1-coils', 'design_ref': 'reluctance-6s4p-m1',
+     'display_name': 'Phase coils (x6, wired A-B-C-A-B-C)',
+     'shape_units': 'mm', 'shape_ref': 'motor-m1-coil',
+     'material_ref': 'magnet-wire-copper',
+     'function': 'mmf-source',
+     'purpose': 'Six coils on six teeth, wired as three phases of '
+                'two. Energising a phase magnetises its pair of '
+                'teeth and pulls the nearest rotor poles toward '
+                'them; switching phases in sequence keeps a pull '
+                'always just ahead of the rotor. Unlike M0 this '
+                'needs a real 3-phase driver — which is what the '
+                'mag-6 SimpleFOC config generates, and why M0 '
+                'refuses to have one.',
+     'why_this_material': 'Copper again, for the same reason as '
+                          'everywhere else: amp-turns per volt. '
+                          '300 turns of 26 AWG in the design\'s '
+                          'stated 72 mm2 window is what the mag-9 '
+                          'winding check judges, and it comes out '
+                          'a tight-but-hand-windable 0.60 fill.',
+     'quantity': 6, 'is_prior': True, 'provenance_id': 'mag-12',
+     'notes': 'Volume is the winding BODY (copper plus the air '
+              'between turns) — trust the mag-9 report for wire '
+              'mass and cost.'},
+    {'name': 'm1-shaft', 'design_ref': 'reluctance-6s4p-m1',
+     'display_name': 'Shaft (8 mm)',
+     'shape_units': 'mm', 'shape_ref': 'motor-m1-shaft',
+     'material_ref': '',
+     'function': 'structural',
+     'purpose': 'Holds the rotor concentric in the bore and takes '
+                'the torque out to whatever is being driven. In a '
+                'machine whose gap is 0.6 mm, shaft runout is not '
+                'a detail: a wobble of a few tenths is a large '
+                'fraction of the gap, and gap reluctance dominates '
+                'the circuit.',
+     'why_this_material': 'Steel rod from the mag-1 cited stock — '
+                          'bought, not cast. Nothing in our '
+                          'materials stack makes a straight, round, '
+                          'stiff 8 mm shaft, and pretending '
+                          'otherwise would be the kind of claim '
+                          'this project exists to avoid.',
+     'quantity': 1, 'is_prior': True, 'provenance_id': 'mag-12',
+     'notes': 'material_ref is a supplychain item, not a magnetic '
+              'option, so no density resolves here — the part '
+              'reports that as an honest gap.'},
+    # ---------------- M3: dual-stator axial flux ----------------
+    {'name': 'm3-stator-a-yoke', 'design_ref': 'dual-stator-axial-m3',
+     'display_name': 'Stator A yoke disk (upper back-iron)',
+     'shape_units': 'mm', 'shape_ref': 'motor-m3-stator-a-yoke',
+     'material_ref': 'opt-geopolymer-ferrite',
+     'function': 'flux-path',
+     'purpose': 'The return path for the upper stator, and the '
+                'reason a YOKELESS variant is attractive: this disk '
+                'is dead weight magnetically speaking, carrying '
+                'flux sideways between teeth. Flat disks are also '
+                'the easiest shape in this whole ladder to cast AND '
+                'to lap flat afterwards, which is why the flagship '
+                'is axial rather than radial.',
+     'why_this_material': 'Flux conductor duty; highest castable '
+                          'mu. Being flat, it is one of the few '
+                          'parts where our T1 lapping can actually '
+                          'reach the tolerance the gap wants.',
+     'quantity': 1, 'is_prior': True, 'provenance_id': 'mag-12',
+     'notes': ''},
+    {'name': 'm3-stator-a-teeth',
+     'design_ref': 'dual-stator-axial-m3',
+     'display_name': 'Stator A teeth (x12)',
+     'shape_units': 'mm', 'shape_ref': 'motor-m3-stator-a-tooth',
+     'material_ref': 'opt-geopolymer-ferrite',
+     'function': 'flux-shaping',
+     'purpose': 'Twelve teeth facing the rotor across an 0.8 mm '
+                'gap, each presenting a 253 mm2 face. Face AREA is '
+                'the quantity that buys force in this machine, '
+                'which is the whole reason the design is axial: '
+                'discs give you area cheaply where a radial machine '
+                'would have to grow in diameter.',
+     'why_this_material': 'Same cast composite; the tooth face is '
+                          'where lapping flatness pays off, since '
+                          'an uneven face means a bigger effective '
+                          'gap and gap reluctance dominates.',
+     'quantity': 12, 'is_prior': True, 'provenance_id': 'mag-12',
+     'notes': 'One shape row placed twelve times by scene '
+              'rotation.'},
+    {'name': 'm3-stator-b-yoke', 'design_ref': 'dual-stator-axial-m3',
+     'display_name': 'Stator B yoke disk (lower back-iron)',
+     'shape_units': 'mm', 'shape_ref': 'motor-m3-stator-b-yoke',
+     'material_ref': 'opt-geopolymer-ferrite',
+     'function': 'flux-path',
+     'purpose': 'The mirror of stator A, below the rotor. Its '
+                'existence IS the rung: a second stator means a '
+                'second working gap, and force scales with gap '
+                'area, so the same rotor does twice the work in '
+                'the same envelope. torque_curve() computes that '
+                'doubling from the geometry rather than asserting '
+                'it.',
+     'why_this_material': 'Identical to stator A — symmetry is not '
+                          'cosmetic here, an asymmetric pair would '
+                          'pull the rotor axially into one gap.',
+     'quantity': 1, 'is_prior': True, 'provenance_id': 'mag-12',
+     'notes': ''},
+    {'name': 'm3-stator-b-teeth',
+     'design_ref': 'dual-stator-axial-m3',
+     'display_name': 'Stator B teeth (x12)',
+     'shape_units': 'mm', 'shape_ref': 'motor-m3-stator-b-tooth',
+     'material_ref': 'opt-geopolymer-ferrite',
+     'function': 'flux-shaping',
+     'purpose': 'The second set of twelve faces, aligned with '
+                'stator A\'s so both gaps pull on the same rotor '
+                'pole at the same instant. Misalign them and the '
+                'two halves fight each other instead of adding.',
+     'why_this_material': 'Same as stator A, for the same reasons.',
+     'quantity': 12, 'is_prior': True, 'provenance_id': 'mag-12',
+     'notes': ''},
+    {'name': 'm3-rotor-poles', 'design_ref': 'dual-stator-axial-m3',
+     'display_name': 'Rotor magnet poles (x8, alternating N/S)',
+     'shape_units': 'mm', 'shape_ref': 'motor-m3-rotor-pole',
+     'material_ref': 'opt-sintered-hexaferrite',
+     'function': 'torque-producing',
+     'purpose': 'Eight sintered-hexaferrite sectors alternating '
+                'north and south around the disk. Each one faces '
+                'BOTH stators at once — one magnet, two gaps — '
+                'which is exactly where the doubling comes from '
+                'and why the rotor sits in the middle rather than '
+                'at one end.',
+     'why_this_material': 'HARD magnetic and, being sintered '
+                          'rather than bonded, the highest B_r our '
+                          'own route can reach (0.39 T against '
+                          'NdFeB\'s 1.3). torque_parity() turns '
+                          'that gap into the honest number: about '
+                          '3.33x the area to match a rare-earth '
+                          'machine, of which the dual gap already '
+                          'supplies 2x.',
+     'quantity': 8, 'is_prior': True, 'provenance_id': 'mag-12',
+     'notes': ''},
+    {'name': 'm3-rotor-disk', 'design_ref': 'dual-stator-axial-m3',
+     'display_name': 'Rotor carrier disk',
+     'shape_units': 'mm', 'shape_ref': 'motor-m3-rotor-disk',
+     'material_ref': 'opt-plain-geopolymer',
+     'function': 'structural',
+     'purpose': 'Holds the eight magnet sectors in position and '
+                'carries their torque to the shaft. It lives '
+                'inside both air gaps, so every millimetre of it '
+                'is a millimetre the flux has to cross.',
+     'why_this_material': 'Non-magnetic ON PURPOSE. A ferrous '
+                          'carrier would short the magnets to each '
+                          'other through the disk instead of '
+                          'sending their flux across the gaps — '
+                          'the same reasoning as the M0 pinion, '
+                          'and the same conclusion: plain '
+                          'geopolymer is right here precisely '
+                          'because it is magnetically useless.',
+     'quantity': 1, 'is_prior': True, 'provenance_id': 'mag-12',
+     'notes': ''},
+    {'name': 'm3-shaft', 'design_ref': 'dual-stator-axial-m3',
+     'display_name': 'Shaft (10 mm)',
+     'shape_units': 'mm', 'shape_ref': 'motor-m3-shaft',
+     'material_ref': '',
+     'function': 'structural',
+     'purpose': 'Takes the torque out, and — more critically than '
+                'in a radial machine — holds the rotor CENTRED '
+                'between two stators that are both pulling on it '
+                'axially. Those pulls cancel only while the rotor '
+                'stays in the middle; the bearing arrangement is '
+                'what keeps that true.',
+     'why_this_material': 'Bought steel rod (mag-1 cited stock). '
+                          'The axial pull here is the load the '
+                          'bearings have to take, and it is a real '
+                          'design constraint the sim does NOT '
+                          'model.',
+     'quantity': 1, 'is_prior': True, 'provenance_id': 'mag-12',
+     'notes': 'No coils are catalogued for M3 — see the scene '
+              'description: a round tube is the wrong primitive '
+              'for a trapezoidal axial-flux coil, so none is '
+              'drawn rather than drawing a lie.'},
 ]
 
 
