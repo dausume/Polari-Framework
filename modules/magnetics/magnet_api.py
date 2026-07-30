@@ -37,6 +37,13 @@ class MagneticsAPI(treeObject):
                 suffix='solve')
             add('/api/magnetics/parity/{circuit_name}', self,
                 suffix='parity')
+            add('/api/magnetics/layouts', self, suffix='layouts')
+            add('/api/magnetics/layout/{layout_name}/network', self,
+                suffix='layout_network')
+            add('/api/magnetics/layout/{layout_name}/cost', self,
+                suffix='layout_cost')
+            add('/api/magnetics/layout/{layout_name}/dryfit', self,
+                suffix='layout_dryfit')
 
     def on_get_catalog(self, request, response):
         rows = []
@@ -174,4 +181,50 @@ class MagneticsAPI(treeObject):
         out = parity_run(self.manager, circuit_name)
         if not out.get('ok'):
             response.status = '409 Conflict'
+        response.media = out
+
+    def on_get_layouts(self, request, response):
+        rows = []
+        for lay in _rows(self.manager, 'BlockLayoutDefinition'):
+            name = getattr(lay, 'name', '')
+            rows.append({
+                'name': name,
+                'displayName': getattr(lay, 'display_name', ''),
+                'description': getattr(lay, 'description', ''),
+                'grid': getattr(lay, 'grid_json', '{}'),
+                'placements': [getattr(p, 'name', '') for p in
+                               _rows(self.manager, 'BlockPlacement')
+                               if getattr(p, 'layout_name', '')
+                               == name],
+            })
+        response.media = {'ok': True, 'layouts': rows,
+                          'count': len(rows)}
+
+    def on_get_layout_network(self, request, response, layout_name):
+        from magnetics.magnet_layout import solve_layout
+        try:
+            out = solve_layout(self.manager, layout_name)
+        except ValueError as exc:
+            out = {'ok': False, 'refusal': str(exc)}
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_layout_cost(self, request, response, layout_name):
+        from magnetics.magnet_layout import layout_cost
+        out = layout_cost(self.manager, layout_name,
+                          policy_name=request.params.get('policy',
+                                                         ''))
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_layout_dryfit(self, request, response, layout_name):
+        from magnetics.magnet_layout import dry_fit_report
+        try:
+            out = dry_fit_report(self.manager, layout_name)
+        except ValueError as exc:
+            out = {'ok': False, 'refusal': str(exc)}
+        if not out.get('ok'):
+            response.status = '404 Not Found'
         response.media = out

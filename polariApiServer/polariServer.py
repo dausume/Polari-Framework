@@ -801,6 +801,12 @@ try:
         MagneticElementDefinition, SEED_FLUX_NODES,
         SEED_MAGNETIC_CIRCUITS, SEED_MAGNETIC_ELEMENTS,
     )
+    from magnetics.magnet_block_basis import (
+        BlockLayoutDefinition, BlockPlacement, BlockSizeVariant,
+        JointMortarAssignment, SEED_BLOCK_LAYOUTS,
+        SEED_BLOCK_PLACEMENTS, SEED_BLOCK_VARIANTS,
+        SEED_JOINT_MORTARS,
+    )
 except ImportError as _exc:
     _stub_missing_feature('magnetics', _exc, globals(), (
         'MagneticMaterialOption', 'MagneticPowderDefinition',
@@ -809,6 +815,10 @@ except ImportError as _exc:
         'FluxNodeDefinition', 'MagneticCircuitDefinition',
         'MagneticElementDefinition', 'SEED_FLUX_NODES',
         'SEED_MAGNETIC_CIRCUITS', 'SEED_MAGNETIC_ELEMENTS',
+        'BlockLayoutDefinition', 'BlockPlacement',
+        'BlockSizeVariant', 'JointMortarAssignment',
+        'SEED_BLOCK_LAYOUTS', 'SEED_BLOCK_PLACEMENTS',
+        'SEED_BLOCK_VARIANTS', 'SEED_JOINT_MORTARS',
     ))
 # Odoo ERP connector — instance configs + sim/ops write guards (od-3).
 try:
@@ -1941,6 +1951,9 @@ class polariServer(treeObject):
             MaterialUseRole, MagneticMaterialOption,
             MagneticPowderDefinition, MagneticCircuitDefinition,
             MagneticElementDefinition, FluxNodeDefinition,
+            # Slot-matrix assembly (mag-4).
+            BlockSizeVariant, BlockLayoutDefinition,
+            BlockPlacement, JointMortarAssignment,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -3318,6 +3331,16 @@ class polariServer(treeObject):
              SEED_FLUX_NODES),
             ('MagneticElementDefinition', MagneticElementDefinition,
              SEED_MAGNETIC_ELEMENTS),
+            # mag-4: variants before placements; layouts before
+            # placements/joints that name them.
+            ('BlockSizeVariant', BlockSizeVariant,
+             SEED_BLOCK_VARIANTS),
+            ('BlockLayoutDefinition', BlockLayoutDefinition,
+             SEED_BLOCK_LAYOUTS),
+            ('BlockPlacement', BlockPlacement,
+             SEED_BLOCK_PLACEMENTS),
+            ('JointMortarAssignment', JointMortarAssignment,
+             SEED_JOINT_MORTARS),
             # chain-1: nodes + flows before the chain that binds them.
             ('SupplyNode', SupplyNode, SEED_SUPPLY_NODES),
             ('SupplyFlow', SupplyFlow, SEED_SUPPLY_FLOWS),

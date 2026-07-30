@@ -133,6 +133,33 @@ r = client.simulate_get('/api/magnetics/solve/nope')
 check('solve of unknown circuit = 404 refusal',
       r.status_code == 404 and not r.json.get('ok'))
 
+# mag-4: slot-matrix seeded, generated network solves, bill prices
+layouts = manager.objectTables.get('BlockLayoutDefinition', {})
+placements = manager.objectTables.get('BlockPlacement', {})
+mortars = manager.objectTables.get('JointMortarAssignment', {})
+check('mag-4 seeds landed (1 layout, 5 placements, 5 joints, 4 '
+      'variants)',
+      len(layouts) == 1 and len(placements) == 5
+      and len(mortars) == 5
+      and len(manager.objectTables.get('BlockSizeVariant', {}))
+      == 4)
+r = client.simulate_get(
+    '/api/magnetics/layout/ring-core-demo/network')
+check('layout network route: generated + solved, dead-end seat '
+      'branch ~zero flux',
+      r.status_code == 200 and r.json.get('ok')
+      and abs(next(e for e in r.json['elements']
+                   if e['element'] == 'ring-joint-seat-mortar')
+              ['fluxWb']) < 1e-12)
+r = client.simulate_get('/api/magnetics/layout/ring-core-demo/cost')
+check('layout cost route: 10 parts priced, exclusions stated',
+      r.status_code == 200 and r.json.get('ok')
+      and len(r.json['parts']) == 10 and 'excluded' in r.json)
+r = client.simulate_get(
+    '/api/magnetics/layout/ring-core-demo/dryfit')
+check('dry-fit route: 5 adjacencies all mortared',
+      r.status_code == 200 and r.json.get('mortaredJoints') == 5)
+
 failed = results.count(False)
 print(f'\n{len(results) - failed}/{len(results)} live-boot checks '
       'passed')
