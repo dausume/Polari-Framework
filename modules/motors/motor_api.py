@@ -40,6 +40,10 @@ class MotorsAPI(treeObject):
                 suffix='verify')
             add('/api/motors/parts/{design_name}', self,
                 suffix='parts')
+            add('/api/motors/loads/{design_name}', self,
+                suffix='loads')
+            add('/api/motors/criterion/{material}', self,
+                suffix='criterion')
             add('/api/motors/winding/{design_name}', self,
                 suffix='winding')
             add('/api/motors/winding-sweep/{design_name}', self,
@@ -140,6 +144,25 @@ class MotorsAPI(treeObject):
     def on_get_parts(self, request, response, design_name):
         from motors.motor_parts import part_report
         out = part_report(self.manager, design_name)
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_loads(self, request, response, design_name):
+        from motors.motor_stress import load_cases
+        try:
+            handling = float(request.params.get('handlingN', 5.0))
+        except (TypeError, ValueError):
+            handling = 5.0
+        out = load_cases(self.manager, design_name,
+                         handling_force_n=handling)
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_criterion(self, request, response, material):
+        from motors.motor_stress import failure_criterion
+        out = failure_criterion(self.manager, material)
         if not out.get('ok'):
             response.status = '404 Not Found'
         response.media = out
