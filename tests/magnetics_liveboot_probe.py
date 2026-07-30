@@ -14,7 +14,7 @@ import os
 import sys
 
 os.environ['POLARI_MODULES'] = (
-    'materialsScience,supplychain,magnetics')
+    'materialsScience,supplychain,magnetics,motors')
 os.environ.setdefault('POLARI_DB_BACKEND', 'sqlite')
 
 FRAMEWORK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -183,6 +183,36 @@ check('group route: 3 views in order, flux tubes included',
       r.status_code == 200 and len(r.json['views']) == 3
       and r.json['views'][2]['payload']['displayMode']
       == 'flux-tubes')
+
+# motors (Section C): the ladder + the clock control case live
+check('4 MotorDesignDefinition rows seeded (M0..M3), zero '
+      'verification runs (observed state, never seeded)',
+      len(manager.objectTables.get('MotorDesignDefinition', {}))
+      == 4
+      and len(manager.objectTables.get('MotorVerificationRun', {}))
+      == 0)
+r = client.simulate_get('/api/motors/designs')
+check('GET /api/motors/designs 200, ladder ordered M0 first',
+      r.status_code == 200 and r.json['count'] == 4
+      and r.json['designs'][0]['ladderRung'] == 'M0')
+r = client.simulate_get('/api/motors/clock-sim/clock-lavet-m0',
+                        params={'pulses': '20'})
+check('M0 clock sim on the live app: 20/20 steps, zero clock '
+      'error vs time progression',
+      r.status_code == 200 and r.json['stepsTaken'] == 20
+      and r.json['clockComparison']['clockErrorS'] == 0.0)
+r = client.simulate_get('/api/motors/torque/dual-stator-axial-m3')
+check('M3 torque curve answers with dual-gap + validity honesty',
+      r.status_code == 200 and r.json['dualGap']
+      and 'QUASI-STATIC' in r.json['validity'])
+r = client.simulate_get('/api/motors/parity',
+                        params={'cheap':
+                                'opt-sintered-hexaferrite',
+                                'dualGap': 'true'})
+check('torque_parity live: ~3.33x, dual gap ~1.67x, watermarks',
+      r.status_code == 200
+      and abs(r.json['areaMultiplierForParity'] - 3.333) < 0.01
+      and abs(r.json['withDualGap'] - 1.667) < 0.01)
 
 failed = results.count(False)
 print(f'\n{len(results) - failed}/{len(results)} live-boot checks '

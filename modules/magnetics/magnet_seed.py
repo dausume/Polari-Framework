@@ -593,6 +593,9 @@ SEED_MATERIAL_OPTIONS = [
                    'isotropic bonded at ~50-60wt% — literature '
                    'order for bonded magnets, OUR matrix untested'),
             h_c_ka_m=(200.0, 'kA/m', 'literature-est'),
+            mu_r_eff=(1.15, '', 'literature-est',
+                      'recoil permeability order for bonded '
+                      'hexaferrite'),
             density_kg_m3=(3200.0, 'kg/m3', 'literature-est')),
         'role_overrides_json': '{}',
         'is_prior': True, 'provenance_id': PROV,

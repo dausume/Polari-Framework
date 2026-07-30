@@ -252,6 +252,17 @@
       ],
       "wave": 3,
       "description": "Magnetic materials Section A: option catalog with realization ladder, functional role taxonomy (derived viability), theoretical powder designer (MAGNETIC_MATERIALS_PLAN.md)."
+    },
+    "motors": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/motors",
+      "repo": "",
+      "requires": [
+        "magnetics"
+      ],
+      "wave": 4,
+      "description": "Electric motors Section C: the M0-M3 ladder of buildable samples (Lavet clock stepper -> reluctance -> ferrite-PM -> dual-stator axial flux), clock control-case sim, torque curves, torque_parity (MAGNETIC_MATERIALS_PLAN.md)."
     }
   }
 }

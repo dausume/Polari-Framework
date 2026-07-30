@@ -1,0 +1,173 @@
+"""
+@module motors.selftest_motors
+
+Section-C selftests: the ladder shape (easiest buildable sample
+first, builder specs as data), design-time role checks, THE M0
+CLOCK CONTROL CASE (alternating pulses advance 180 deg/step; a
+same-polarity repeat honestly fails to advance; a dead coil takes
+zero steps and the clock error says so), torque curves (reluctance
+positive-mean, saliency-1 rotor has no reluctance torque, PM term
+takes over, dual gap doubles), and torque_parity hand math.
+
+Run from polari-framework/: python3 -m motors.selftest_motors
+"""
+
+import json
+import types
+
+from magnetics.magnet_seed import (
+    SEED_MAGNETIC_POWDERS, SEED_MATERIAL_OPTIONS, SEED_USE_ROLES,
+)
+from motors.motor_basis import SEED_MOTOR_DESIGNS
+from motors.motor_designer import (
+    clock_sim, design_report, torque_curve, torque_parity,
+)
+
+PASS = '\033[92mPASS\033[0m'
+FAIL = '\033[91mFAIL\033[0m'
+_results = []
+
+
+def check(label, cond, extra=''):
+    _results.append(bool(cond))
+    print(f'{PASS if cond else FAIL}: {label}'
+          + (f'  [{extra}]' if extra and not cond else ''))
+
+
+def _mgr():
+    m = types.SimpleNamespace()
+
+    def table(seed):
+        return {s['name']: types.SimpleNamespace(**s) for s in seed}
+    m.objectTables = {
+        'MaterialUseRole': table(SEED_USE_ROLES),
+        'MagneticMaterialOption': table(SEED_MATERIAL_OPTIONS),
+        'MagneticPowderDefinition': table(SEED_MAGNETIC_POWDERS),
+        'MotorDesignDefinition': table(SEED_MOTOR_DESIGNS),
+    }
+    return m
+
+
+mgr = _mgr()
+
+print('== suite: the ladder shape ==')
+check('four rungs seeded M0..M3', len(SEED_MOTOR_DESIGNS) == 4
+      and [d['ladder_rung'] for d in SEED_MOTOR_DESIGNS]
+      == ['M0', 'M1', 'M2', 'M3'])
+check('every rung carries a builder spec (tools/materials/skills/'
+      'hours) — samples people can build, easiest first',
+      all(set(json.loads(d['build_requirements_json']))
+          >= {'tools', 'materials', 'skills', 'rough_hours'}
+          for d in SEED_MOTOR_DESIGNS)
+      and json.loads(SEED_MOTOR_DESIGNS[0]
+                     ['build_requirements_json'])['rough_hours']
+      < json.loads(SEED_MOTOR_DESIGNS[3]
+                   ['build_requirements_json'])['rough_hours'])
+
+print('== suite: design-time role checks ==')
+out = design_report(mgr, 'clock-lavet-m0')
+check('M0 report: bonded-hexaferrite rotor VIABLE as torque-magnet,'
+      ' geopolymer-ferrite stator viable conductor, zero flags',
+      out['ok'] and out['flags'] == []
+      and all(s['verdict'] == 'viable'
+              for s in out['materialSlots']))
+check('realization travels: rotor literature-demonstrated -> '
+      'business NOT allowed (made-and-measured pending)',
+      any(s['material'] == 'opt-bonded-hexaferrite-geopolymer'
+          and not s['businessAllowed']
+          for s in out['materialSlots']))
+design = mgr.objectTables['MotorDesignDefinition']['clock-lavet-m0']
+saved = design.params_json
+design.params_json = saved.replace(
+    'opt-bonded-hexaferrite-geopolymer', 'opt-magnetite-powder')
+out = design_report(mgr, 'clock-lavet-m0')
+check('a MAGNETITE rotor flags at design time (soft — fails '
+      'torque-magnet) with the pick-from-viable suggestion',
+      any(f.get('role') == 'torque-magnet'
+          and f['verdict'] == 'unviable' for f in out['flags']))
+design.params_json = saved
+
+print('== suite: M0 clock sim — THE control case ==')
+out = clock_sim(mgr, 'clock-lavet-m0', pulses=10)
+check('10 alternating pulses -> 10 steps, zero missed, zero clock '
+      'error',
+      out['ok'] and out['stepsTaken'] == 10
+      and out['stepsMissed'] == 0
+      and out['clockComparison']['clockErrorS'] == 0.0,
+      extra=json.dumps(out.get('clockComparison', {})))
+check('each step advances ~180 deg (the Lavet stride)',
+      all(150.0 < h['advancedDeg'] < 210.0
+          for h in out['history'][1:]))
+check('clock comparison speaks the verification method (the clock '
+      'IS the instrument)',
+      'instrument' in out['clockComparison']['note'])
+out = clock_sim(mgr, 'clock-lavet-m0', pulses=6,
+                alternating=False)
+check('SAME-polarity pulses honestly fail to advance (the Lavet '
+      'mechanism needs alternation) — misses counted, clock error '
+      'nonzero',
+      out['ok'] and out['stepsTaken'] <= 1
+      and out['clockComparison']['clockErrorS'] >= 5.0,
+      extra=json.dumps({'taken': out['stepsTaken']}))
+design.params_json = saved.replace('"coil_amps": 0.02',
+                                   '"coil_amps": 0.0')
+out = clock_sim(mgr, 'clock-lavet-m0', pulses=10)
+check('a DEAD coil takes zero steps; clock error = the full 10 s',
+      out['ok'] and out['stepsTaken'] == 0
+      and out['clockComparison']['clockErrorS'] == 10.0)
+design.params_json = saved
+check('quasi-static validity stated (no dynamics, rate not '
+      'predicted)', 'QUASI-STATIC' in out['validity'])
+out = clock_sim(mgr, 'reluctance-6s4p-m1')
+check('clock sim refuses non-M0 topologies (it is the M0 rung)',
+      not out['ok'] and 'M0' in out['refusal'])
+
+print('== suite: torque curves M1..M3 ==')
+m1 = torque_curve(mgr, 'reluctance-6s4p-m1')
+check('M1 reluctance: positive mean torque at synchronous '
+      'excitation, ripple reported, honesty rider present',
+      m1['ok'] and m1['meanTorqueNm'] > 0
+      and m1['ripplePct'] is not None
+      and 'SMALL' in m1['validity'],
+      extra=str(m1.get('meanTorqueNm')))
+m2 = torque_curve(mgr, 'ferrite-pm-m2')
+check('M2: saliency 1.0 kills the reluctance term; the PM term '
+      'carries the torque (hexaferrite rotor MMF on record)',
+      m2['ok'] and m2['pmMmfAt'] > 0 and m2['meanTorqueNm'] > 0)
+m3 = torque_curve(mgr, 'dual-stator-axial-m3')
+check('M3 dual-stator flagged dualGap with PM MMF',
+      m3['ok'] and m3['dualGap'] and m3['pmMmfAt'] > 0)
+# dual-gap doubling: same design with dual_gap stripped -> half.
+d3 = mgr.objectTables['MotorDesignDefinition']['dual-stator-axial-m3']
+saved3 = d3.params_json
+d3.params_json = saved3.replace('"dual_gap": true',
+                                '"dual_gap": false')
+m3_single = torque_curve(mgr, 'dual-stator-axial-m3')
+d3.params_json = saved3
+check('dual gaps DOUBLE the mean torque vs the identical '
+      'single-gap machine (the §2d parity lever, computed)',
+      abs(m3['meanTorqueNm'] / m3_single['meanTorqueNm'] - 2.0)
+      < 0.05,
+      extra=f"{m3['meanTorqueNm']} vs {m3_single['meanTorqueNm']}")
+
+print('== suite: torque_parity (§2d hand math) ==')
+out = torque_parity(mgr, 'opt-sintered-hexaferrite')
+check('sintered hexaferrite (0.39 T) vs NdFeB (1.3 T) -> ~3.33x '
+      'area multiplier',
+      out['ok'] and abs(out['areaMultiplierForParity'] - 3.333)
+      < 0.01)
+out = torque_parity(mgr, 'opt-sintered-hexaferrite',
+                    dual_gap=True)
+check('dual gap credits a clean 2x (-> ~1.67x)',
+      abs(out['withDualGap'] - 1.667) < 0.01)
+check('watermarks of BOTH rows + assumptions printed',
+      'realization' in out['cheap']['watermark']
+      and 'realization' in out['reference']['watermark']
+      and 'equal electrical loading' in out['assumptions'])
+out = torque_parity(mgr, 'opt-plain-geopolymer')
+check('a material with no B_r refuses parity (nothing invented)',
+      not out['ok'] and 'b_r_t' in out['refusal'])
+
+failed = _results.count(False)
+print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
+raise SystemExit(1 if failed else 0)

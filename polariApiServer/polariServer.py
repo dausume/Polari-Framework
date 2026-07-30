@@ -827,6 +827,18 @@ except ImportError as _exc:
         'FieldViewGroup', 'SEED_FIELD_BANDS', 'SEED_FIELD_GROUPS',
         'SEED_FIELD_VIEWS',
     ))
+# Electric motors Section C — the M0..M3 ladder of buildable
+# samples (mag-5).
+try:
+    from motors.motor_basis import (
+        MotorDesignDefinition, MotorVerificationRun,
+        SEED_MOTOR_DESIGNS,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('motors', _exc, globals(), (
+        'MotorDesignDefinition', 'MotorVerificationRun',
+        'SEED_MOTOR_DESIGNS',
+    ))
 # Odoo ERP connector — instance configs + sim/ops write guards (od-3).
 try:
     from odooconnect.odoo_basis import OdooInstanceConfig
@@ -1672,6 +1684,12 @@ class polariServer(treeObject):
             from magnetics.magnet_api import MagneticsAPI
             magneticsEndpoint = MagneticsAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('motors'):
+            # Motors Section C: ladder designs, clock control case,
+            # torque curves, parity (mag-5).
+            from motors.motor_api import MotorsAPI
+            motorsEndpoint = MotorsAPI(
+                polServer=self, manager=self.manager)
         if _feature_available('supplychain'):
             # The unifying bio supply-chain ledger — materials + food +
             # carbon accounting (chain-1).
@@ -1962,6 +1980,8 @@ class polariServer(treeObject):
             BlockSizeVariant, BlockLayoutDefinition,
             BlockPlacement, JointMortarAssignment,
             FieldViewDefinition, FieldThresholdBand, FieldViewGroup,
+            # Motors Section C (mag-5).
+            MotorDesignDefinition, MotorVerificationRun,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -3355,6 +3375,11 @@ class polariServer(treeObject):
             ('FieldThresholdBand', FieldThresholdBand,
              SEED_FIELD_BANDS),
             ('FieldViewGroup', FieldViewGroup, SEED_FIELD_GROUPS),
+            # mag-5: the ladder designs; verification runs NEVER
+            # seeded (observed state).
+            ('MotorDesignDefinition', MotorDesignDefinition,
+             SEED_MOTOR_DESIGNS),
+            ('MotorVerificationRun', MotorVerificationRun, []),
             # chain-1: nodes + flows before the chain that binds them.
             ('SupplyNode', SupplyNode, SEED_SUPPLY_NODES),
             ('SupplyFlow', SupplyFlow, SEED_SUPPLY_FLOWS),
