@@ -343,6 +343,104 @@ check('solid cylinders (rotor disc, shaft, coil outer) request end '
           for n in ('motor-m0-rotor-disc', 'motor-m0-shaft',
                     'motor-m0-coil-outer')))
 
+print('== suite: mag-9 WINDING REALITY (the asserted amps) ==')
+import math as _math  # noqa: E402
+from motors.motor_winding import (  # noqa: E402
+    AWG_DIAMETER_MM, RHO_CU_20C, gauge_sweep, winding_report,
+)
+
+mgrw = _mgr()
+mgrw.objectTables['PriceCitation'] = {
+    c['name']: types.SimpleNamespace(**c) for c in SEED_PRICE_CITATIONS}
+
+_a30 = _math.pi * (AWG_DIAMETER_MM[30] / 2000.0) ** 2
+check('resistance DERIVES from copper resistivity and reproduces '
+      'the published 30 AWG value (0.3386 ohm/m) — the check that '
+      'the constant is the right one',
+      abs(RHO_CU_20C / _a30 - 0.3386) < 5e-4,
+      extra=str(RHO_CU_20C / _a30))
+
+out = winding_report(mgrw, 'clock-lavet-m0')
+check('M0 winding: 1500 turns of 44 AWG on the stated 12 mm2 '
+      'bobbin fills 0.56 — hand-windable',
+      out['ok'] and abs(out['fillFactor'] - 0.5567) < 1e-3
+      and out['fitVerdict'] == 'hand-windable',
+      extra=str(out.get('fillFactor')))
+check('M0 needs ~3.64 V to push 20 mA through ~182 ohm, and the '
+      'seeded 12 V supply carries it',
+      abs(out['resistanceOhm'] - 182.19) < 0.5
+      and abs(out['voltageNeededV'] - 3.644) < 0.01
+      and out['driveAchievable'] is True,
+      extra=f"{out['resistanceOhm']} / {out['voltageNeededV']}")
+check('the winding costs real money from the mag-1 CITED spool',
+      bool(out['cost']) and out['cost']['wireCostUsd'] > 0
+      and bool(out['cost']['citation']))
+check('temperature is applied EXPLICITLY: the same coil at 100 C '
+      'carries ~1.31x the resistance',
+      abs(winding_report(mgrw, 'clock-lavet-m0',
+                         temp_c=100.0)['resistanceOhm']
+          / out['resistanceOhm'] - 1.3144) < 1e-3)
+check('no temperature is PREDICTED — watts and watts/cm2 only, '
+      'because no thermal model of a cast composite exists',
+      'never a predicted temperature' in out['validity']
+      and out['powerDissipatedW'] > 0)
+check('back-EMF named as NOT modelled (a spinning machine needs '
+      'more voltage than this)', 'back-EMF' in out['validity'])
+
+for _d in ('reluctance-6s4p-m1', 'ferrite-pm-m2',
+           'dual-stator-axial-m3'):
+    _r = winding_report(mgrw, _d)
+    check(f'{_d} is buildable as specified (fill '
+          f'{_r["fillFactor"]}, {_r["voltageNeededV"]} V)',
+          _r['ok'] and _r['buildable'] and _r['judgeable'],
+          extra=str(_r.get('fitNote')))
+
+out = winding_report(mgrw, 'clock-lavet-m0', awg=20)
+check('20 AWG in the clock bobbin is IMPOSSIBLE — and because the '
+      'bobbin is STATED, it may condemn the number it invalidates '
+      'BY NAME',
+      out['fitVerdict'] == 'IMPOSSIBLE' and not out['buildable']
+      and any('clock-sim' in i for i in out['invalidates']),
+      extra=str(out.get('fitVerdict')))
+
+_saved = mgrw.objectTables['MotorDesignDefinition'][
+    'clock-lavet-m0'].params_json
+mgrw.objectTables['MotorDesignDefinition']['clock-lavet-m0'] \
+    .params_json = _saved.replace('"bobbin_window_mm2": 12.0, ', '')
+out = winding_report(mgrw, 'clock-lavet-m0', awg=20)
+check('with the bobbin UNSTATED the verdict is window-unknown and '
+      'invalidates NOTHING — our own crude assumption is not '
+      'allowed to condemn somebody\'s design',
+      out['fitVerdict'] == 'window-unknown'
+      and out['invalidates'] == [] and out['judgeable'] is False
+      and any('bobbin' in a for a in out['assumptions']),
+      extra=str(out.get('fitVerdict')))
+mgrw.objectTables['MotorDesignDefinition']['clock-lavet-m0'] \
+    .params_json = _saved
+
+out = winding_report(mgrw, 'reluctance-6s4p-m1',
+                     supply_voltage_v=0.1)
+check('a supply that cannot push the current says so, names the '
+      'shortfall, and invalidates the torque curve BY NAME',
+      out['driveAchievable'] is False
+      and 'SHORT by' in out['driveNote']
+      and any('torque curve' in i for i in out['invalidates']))
+
+out = gauge_sweep(mgrw, 'reluctance-6s4p-m1')
+check('the gauge sweep is a TABLE across every gauge with a '
+      'recommendation, not an opinion',
+      out['ok'] and len(out['gauges']) == len(AWG_DIAMETER_MM)
+      and bool(out['recommended']) and 'SUGGESTION' in out['note'])
+check('finer wire needs MORE voltage — the trade is visible in '
+      'the table',
+      next(g for g in out['gauges'] if g['awg'] == 34)
+      ['voltageNeededV']
+      > next(g for g in out['gauges'] if g['awg'] == 22)
+      ['voltageNeededV'])
+check('unknown gauge refuses with the valid list',
+      not winding_report(mgrw, 'clock-lavet-m0',
+                         awg=99).get('ok'))
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

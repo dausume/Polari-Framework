@@ -38,6 +38,10 @@ class MotorsAPI(treeObject):
                 suffix='drive')
             add('/api/motors/verify/{design_name}', self,
                 suffix='verify')
+            add('/api/motors/winding/{design_name}', self,
+                suffix='winding')
+            add('/api/motors/winding-sweep/{design_name}', self,
+                suffix='winding_sweep')
 
     def on_get_designs(self, request, response):
         rows = []
@@ -127,6 +131,37 @@ class MotorsAPI(treeObject):
         out = simplefoc_config(
             self.manager, design_name,
             profile_name=request.params.get('profile', ''))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def _winding_params(self, request):
+        def num(param, default=None):
+            raw = request.params.get(param)
+            if raw in (None, ''):
+                return default
+            try:
+                return float(raw)
+            except (TypeError, ValueError):
+                return default
+        awg = num('awg')
+        return {'awg': int(awg) if awg is not None else None,
+                'temp_c': num('tempC', 20.0),
+                'supply_voltage_v': num('supplyV')}
+
+    def on_get_winding(self, request, response, design_name):
+        from motors.motor_winding import winding_report
+        out = winding_report(self.manager, design_name,
+                             **self._winding_params(request))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_winding_sweep(self, request, response, design_name):
+        from motors.motor_winding import gauge_sweep
+        p = self._winding_params(request)
+        p.pop('awg', None)
+        out = gauge_sweep(self.manager, design_name, **p)
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out

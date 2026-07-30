@@ -120,6 +120,9 @@ SEED_MOTOR_DESIGNS = [
                        '"gap_asym_m": 0.0004, '
                        '"overlap_area_m2": 1.2e-5, '
                        '"coil_turns": 1500, '
+                       '"wire_awg": 44, '
+                       '"bobbin_window_mm2": 12.0, '
+                       '"mean_turn_length_mm": 14.0, '
                        '"coil_amps": 0.02, '
                        '"magnet_length_m": 0.002}',
         'drive_json': '{"rate_hz": 1.0, '
@@ -169,6 +172,9 @@ SEED_MOTOR_DESIGNS = [
                        '"gap_base_m": 0.0006, '
                        '"tooth_area_m2": 4e-5, '
                        '"coil_turns": 300, "coil_amps": 0.5, '
+                       '"wire_awg": 26, '
+                       '"bobbin_window_mm2": 72.0, '
+                       '"mean_turn_length_mm": 35.0, '
                        '"saliency_ratio": 3.0, '
                        '"load_angle_deg": -45}',
         'drive_json': '{"rate_hz": 5.0, "kind": "3-phase"}',
@@ -201,6 +207,9 @@ SEED_MOTOR_DESIGNS = [
                        '"gap_base_m": 0.0004, '
                        '"tooth_area_m2": 6e-5, '
                        '"coil_turns": 200, "coil_amps": 1.0, '
+                       '"wire_awg": 22, '
+                       '"bobbin_window_mm2": 120.0, '
+                       '"mean_turn_length_mm": 35.0, '
                        '"saliency_ratio": 1.0, '
                        '"load_angle_deg": 90, '
                        '"magnet_length_m": 0.004}',
@@ -237,6 +246,9 @@ SEED_MOTOR_DESIGNS = [
                        '"gap_base_m": 0.0008, '
                        '"tooth_area_m2": 2.5e-4, '
                        '"coil_turns": 100, "coil_amps": 2.0, '
+                       '"wire_awg": 20, '
+                       '"bobbin_window_mm2": 120.0, '
+                       '"mean_turn_length_mm": 50.0, '
                        '"load_angle_deg": 90, '
                        '"magnet_length_m": 0.006, '
                        '"dual_gap": true}',
