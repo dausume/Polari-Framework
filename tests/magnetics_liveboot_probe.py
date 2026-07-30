@@ -213,6 +213,15 @@ check('torque_parity live: ~3.33x, dual gap ~1.67x, watermarks',
       r.status_code == 200
       and abs(r.json['areaMultiplierForParity'] - 3.333) < 0.01
       and abs(r.json['withDualGap'] - 1.667) < 0.01)
+r = client.simulate_get('/api/motors/materials/clock-lavet-m0')
+check('material accountability live: 3 slots, winding follows to '
+      'dated citations, rotor filler trail to srfe recipes',
+      r.status_code == 200 and r.json.get('ok')
+      and len(r.json['slots']) == 3
+      and any(s['slot'] == 'winding_material'
+              and s['supply']['citations']
+              for s in r.json['slots'])
+      and any('fillerSupply' in s for s in r.json['slots']))
 
 failed = results.count(False)
 print(f'\n{len(results) - failed}/{len(results)} live-boot checks '

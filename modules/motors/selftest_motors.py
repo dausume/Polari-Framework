@@ -22,6 +22,12 @@ from motors.motor_basis import SEED_MOTOR_DESIGNS
 from motors.motor_designer import (
     clock_sim, design_report, torque_curve, torque_parity,
 )
+from motors.motor_materials import material_accountability
+from supplychain.sourcing_seed import (
+    SEED_PRICE_CITATIONS, SEED_PRODUCT_FORMULAS,
+    SEED_PRODUCT_REQUIREMENTS, SEED_SOURCE_POLICIES,
+    SEED_SUPPLY_SOURCES,
+)
 
 PASS = '\033[92mPASS\033[0m'
 FAIL = '\033[91mFAIL\033[0m'
@@ -44,6 +50,11 @@ def _mgr():
         'MagneticMaterialOption': table(SEED_MATERIAL_OPTIONS),
         'MagneticPowderDefinition': table(SEED_MAGNETIC_POWDERS),
         'MotorDesignDefinition': table(SEED_MOTOR_DESIGNS),
+        'SupplySourceProfile': table(SEED_SUPPLY_SOURCES),
+        'PriceCitation': table(SEED_PRICE_CITATIONS),
+        'ProductInputRequirement': table(SEED_PRODUCT_REQUIREMENTS),
+        'ProductFormula': table(SEED_PRODUCT_FORMULAS),
+        'SourcePreferencePolicy': table(SEED_SOURCE_POLICIES),
     }
     return m
 
@@ -167,6 +178,46 @@ check('watermarks of BOTH rows + assumptions printed',
 out = torque_parity(mgr, 'opt-plain-geopolymer')
 check('a material with no B_r refuses parity (nothing invented)',
       not out['ok'] and 'b_r_t' in out['refusal'])
+
+print('== suite: material accountability (follow the derivation) ==')
+out = material_accountability(mgr, 'clock-lavet-m0')
+by_slot = {s['slot']: s for s in out['slots']}
+check('M0 trail covers rotor + stator + WINDING (the wire is a '
+      'real material)',
+      out['ok'] and set(by_slot) == {'rotor_material',
+                                     'stator_material',
+                                     'winding_material'})
+check('every property value carries its provenance tag',
+      all(p['provenance'] for s in out['slots']
+          for p in s.get('properties', [])))
+stator = by_slot['stator_material']
+check('stator mu follows to the msci FEM homogenization BY '
+      'REFERENCE (geopolymer-ferrite-permeability model named)',
+      stator['msci']['msciMaterialRef'] == 'geopolymer-ferrite')
+check('stator supply trail: recipe + cascade with self-made '
+      'intermediates named and the energy exclusion stated',
+      any(r['name'] == 'magnetic-geopolymer-35vol-v0'
+          for r in stator['supply']['recipes'])
+      and 'EXCLUDED-LOUD' in stator['supply']['cascade']['note'])
+winding = by_slot['winding_material']
+check('winding follows to DATED magnet-wire citations with URLs',
+      winding['supply']['citations']
+      and all(c['url'] and c['observedAt']
+              for c in winding['supply']['citations']))
+rotor = by_slot['rotor_material']
+check('rotor (derived composite, no own listing): honest note + '
+      'the FILLER powder trail follows to the srfe12o19 recipes',
+      rotor['supply']['itemRef'] is None
+      and 'fillerSupply' in rotor
+      and any(r['name'] == 'srfe12o19-solidstate-v0'
+              for r in rotor['fillerSupply']['recipes']))
+check('rotor realization travels (literature-demonstrated, '
+      'business gated)', rotor['realizationLevel']
+      == 'literature-demonstrated'
+      and not rotor['businessAllowed'])
+check('the trail note states the whole chain + absence honesty',
+      'never' in out['trailNote'] and 'provenance' in
+      out['trailNote'])
 
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')

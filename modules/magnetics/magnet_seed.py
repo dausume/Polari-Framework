@@ -587,6 +587,7 @@ SEED_MATERIAL_OPTIONS = [
         'family': 'hard-magnetic',
         'realization_level': 'literature-demonstrated',
         'item_ref': '',
+        'powder_ref': 'srfe12o19-powder-def',
         'forms_json': json.dumps(['castable-block']),
         'properties_json': _props(
             b_r_t=(0.12, 'T', 'literature-est',

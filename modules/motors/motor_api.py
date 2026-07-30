@@ -32,6 +32,8 @@ class MotorsAPI(treeObject):
             add('/api/motors/torque/{design_name}', self,
                 suffix='torque')
             add('/api/motors/parity', self, suffix='parity')
+            add('/api/motors/materials/{design_name}', self,
+                suffix='materials')
 
     def on_get_designs(self, request, response):
         rows = []
@@ -105,6 +107,13 @@ class MotorsAPI(treeObject):
             reference=request.params.get('reference', 'opt-ndfeb'),
             dual_gap=request.params.get('dualGap', '').lower()
             == 'true')
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_materials(self, request, response, design_name):
+        from motors.motor_materials import material_accountability
+        out = material_accountability(self.manager, design_name)
         if not out.get('ok'):
             response.status = '404 Not Found'
         response.media = out
