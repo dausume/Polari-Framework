@@ -543,6 +543,59 @@ check('the v2 scene exists alongside v1 and the schematic — three '
       and len(json.loads(SEED_LAVET_V2_SIM_SPACES[0]['definition'])
               ['freestanding']) == 9)
 
+print('== suite: mag-11 the per-part bill ==')
+from motors.motor_parts import SEED_MOTOR_PARTS, part_report  # noqa
+from motors.motor_shapes import SEED_LAVET_V2_PART_SHAPES as _V2S
+
+mgrp = _mgr()
+mgrp.objectTables['MotorPartDefinition'] = {
+    p['name']: types.SimpleNamespace(**p) for p in SEED_MOTOR_PARTS}
+mgrp.objectTables['MathShapeDefinition'] = {
+    p['name']: types.SimpleNamespace(**p) for p in _V2S}
+rep = part_report(mgrp, 'clock-lavet-m0')
+_by = {p['part']: p for p in rep['parts']}
+check('every piece carries a PURPOSE — what it is for in the '
+      'clock, not just what it is',
+      rep['ok'] and all(p['purpose'] for p in rep['parts']))
+check('and a functional role, so two same-shaped parts with '
+      'different jobs stay distinguishable',
+      {'torque-producing', 'mmf-source', 'flux-shaping',
+       'power-transmission'} <= set(rep['byFunction']))
+check('volumes DERIVE from each part\'s own shape row — the bill '
+      'and the 3D view cannot disagree',
+      all(p['volumeCm3'] is not None for p in rep['parts']))
+check('UNITS are explicit: the v2 geometry is authored in mm, and '
+      'reading it as cm silently made a 1.1 kg clock motor — the '
+      'whole motor is ~1.15 g',
+      all(p['shapeUnits'] == 'mm' for p in rep['parts'])
+      and 1.0 < rep['totalMassG'] < 1.5,
+      extra=str(rep['totalMassG']))
+check('mass = volume x the material row\'s density: the rotor '
+      'magnet is ~0.106 g of bonded hexaferrite',
+      abs(_by['lavet-v2-rotor-magnet']['massG'] - 0.1064) < 1e-3,
+      extra=str(_by['lavet-v2-rotor-magnet']['massG']))
+check('each part says WHY that material — the deciding property, '
+      'not a description',
+      'HARD magnetic'
+      in _by['lavet-v2-rotor-magnet']['whyThisMaterial']
+      and 'Non-magnetic ON PURPOSE'
+      in _by['lavet-v2-pinion']['whyThisMaterial'])
+check('material PROPERTIES resolve with their provenance tags',
+      _by['lavet-v2-stator']['properties']
+      and all(pr['provenance']
+              for pr in _by['lavet-v2-stator']['properties']))
+check('the viz-only index mark is listed but EXCLUDED from mass — '
+      'a scribe is not a piece',
+      _by['lavet-v2-index']['function'] == 'viz-only'
+      and 'viz-only parts are excluded' in rep['massNote'])
+check('parts whose material is a supplychain item (copper wire) '
+      'report an honest GAP instead of a fake density',
+      _by['lavet-v2-coil'].get('materialGap')
+      and _by['lavet-v2-coil']['massG'] is None
+      and any('lavet-v2-coil' in g for g in rep['gaps']))
+check('a design with no part rows refuses and names the knob',
+      not part_report(_mgr(), 'clock-lavet-m0').get('ok'))
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

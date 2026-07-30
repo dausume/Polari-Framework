@@ -840,6 +840,9 @@ try:
         SEED_MOTOR_MATERIALS_3D, SEED_MOTOR_PART_SHAPES,
         SEED_MOTOR_SIM_SPACES,
     )
+    from motors.motor_parts import (
+        MotorPartDefinition, SEED_MOTOR_PARTS,
+    )
     from motors.motor_drive import (
         MotorControllerProfile, PhaseBindingDefinition,
         SEED_CONTROLLER_PROFILES, SEED_PHASE_BINDINGS,
@@ -858,6 +861,7 @@ except ImportError as _exc:
         'SEED_MOTOR_PART_SHAPES', 'SEED_MOTOR_SIM_SPACES',
         'SEED_LAVET_PART_SHAPES', 'SEED_LAVET_SIM_SPACES',
         'SEED_LAVET_V2_PART_SHAPES', 'SEED_LAVET_V2_SIM_SPACES',
+        'MotorPartDefinition', 'SEED_MOTOR_PARTS',
     ))
 # mesh-1: license-GATED external mesh catalog + the fit engine
 # (borrowed meshes measured against our vector organ definitions).
@@ -3466,6 +3470,9 @@ class polariServer(treeObject):
              SEED_CONTROLLER_PROFILES),
             ('PhaseBindingDefinition', PhaseBindingDefinition,
              SEED_PHASE_BINDINGS),
+            # mag-11: parts AFTER designs (they reference them).
+            ('MotorPartDefinition', MotorPartDefinition,
+             SEED_MOTOR_PARTS),
             # mesh-1: sources carry the licence finding, so they
             # seed BEFORE the assets that cite them. Picks
             # (OrganMeshChoice) are never seeded — choosing an

@@ -38,6 +38,8 @@ class MotorsAPI(treeObject):
                 suffix='drive')
             add('/api/motors/verify/{design_name}', self,
                 suffix='verify')
+            add('/api/motors/parts/{design_name}', self,
+                suffix='parts')
             add('/api/motors/winding/{design_name}', self,
                 suffix='winding')
             add('/api/motors/winding-sweep/{design_name}', self,
@@ -133,6 +135,13 @@ class MotorsAPI(treeObject):
             profile_name=request.params.get('profile', ''))
         if not out.get('ok'):
             response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_parts(self, request, response, design_name):
+        from motors.motor_parts import part_report
+        out = part_report(self.manager, design_name)
+        if not out.get('ok'):
+            response.status = '404 Not Found'
         response.media = out
 
     def _winding_params(self, request):
