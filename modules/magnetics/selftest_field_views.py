@@ -154,6 +154,12 @@ check('group carries all three views IN ORDER, each rendered by '
       and [v['payload']['displayMode'] for v in out['views']]
       == ['vector-dispersion', 'threshold-shapes', 'flux-tubes'])
 
+check('every seed ROW\'s display_mode matches its payload mode '
+      '(the list route must never disagree with the payload — '
+      'the ring-core row said vector-dispersion until mag-7)',
+      [s['display_mode'] for s in SEED_FIELD_VIEWS]
+      == ['vector-dispersion', 'threshold-shapes', 'flux-tubes'])
+
 print('== suite: refusal ladder ==')
 view = mgr.objectTables['FieldViewDefinition']['dipole-b-dispersion']
 saved_kind = view.source_kind

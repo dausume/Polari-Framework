@@ -31,7 +31,8 @@ from objectTreeDecorators import treeObject, treeObjectInit
 
 FIELD_KINDS = ('B', 'H', 'E', 'J')
 SOURCE_KINDS = ('analytic', 'reluctance-solve', 'fem-2d')
-DISPLAY_MODES = ('vector-dispersion', 'threshold-shapes')
+DISPLAY_MODES = ('vector-dispersion', 'threshold-shapes',
+                 'flux-tubes')
 
 
 class FieldViewDefinition(treeObject):
@@ -175,7 +176,11 @@ SEED_FIELD_VIEWS = [
         'device_kind': 'block-layout',
         'device_ref': 'ring-core-demo',
         'source_params_json': '{}',
-        'display_mode': 'vector-dispersion',
+        # was 'vector-dispersion' (mag-fv seed bug caught by the
+        # mag-7 fields page: DISPLAY_MODES lacked the value, so the
+        # guard silently coerced it — the LIST route then disagreed
+        # with the payload's own mode).
+        'display_mode': 'flux-tubes',
         'sample_json': '{}',
         'is_prior': True, 'provenance_id': 'mag-fv',
         'notes': '1D-per-path honesty: tubes along the solved '
