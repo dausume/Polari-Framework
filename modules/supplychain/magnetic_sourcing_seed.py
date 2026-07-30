@@ -14,15 +14,20 @@ range, or a size-ambiguous listing rather than a fetched exact price.
 Non-USD citations carry their currency and are REFUSED by
 normalization (sourcing_analysis) rather than silently treated as USD.
 
-THE HONEST HEADLINE FINDING of the hunt: the plan's §1b pre-hunt said
-"under $5/kg feedstock" for SrFe12O19 — the EXACT cites land nearer
-~$12/kg (glaze-grade Fe2O3 runs $5.5-6.0/lb retail, not the ~$2/lb the
-pre-hunt assumed). Cheaper Fe2O3 channels (construction/pigment-grade
-red iron oxide, e.g. the Alpha Chemicals channel that supplies our
-magnetite) are the named follow-up hunt. Bought magnetite (9.70/kg)
-remains cheaper than hexaferrite FEEDSTOCK — but magnetite is soft
-(cores), hexaferrite is hard (torque magnets); they answer different
-roles and the premium buys coercivity.
+THE HONEST HEADLINE FINDING of the hunt (2026-07-28): the plan's §1b
+pre-hunt said "under $5/kg feedstock" for SrFe12O19 — the EXACT
+pottery-channel cites landed nearer ~$12/kg (glaze-grade Fe2O3 runs
+$5.5-6.0/lb retail, not the ~$2/lb the pre-hunt assumed).
+HUNT CLOSED 2026-07-30: the pigment channel (Alpha Chemicals, the
+same house that supplies our magnetite) lists red iron oxide EXACT at
+$1.06/lb = 2.34 USD/kg in 50 lb bags — solid-state feed drops to
+~2.9/kg and the pre-hunt claim lands TRUE through this channel, WITH
+the standing caveat that the "natural" grade states no Fe2O3 assay
+(verify before stoichiometry; the glaze row documents 81% for its
+channel). Bought magnetite (9.70/kg) vs hexaferrite feedstock is now
+reversed on price — but the roles remain different: magnetite is soft
+(cores), hexaferrite is hard (torque magnets); the premium (now a
+discount) was always about coercivity, not the per-kg number.
 
 @consumers supplychain.sourcing_seed (list extension), polariServer
 seed_pairs (indirect)
@@ -42,6 +47,27 @@ OBS = '2026-07-28T18:00:00'
 #: wax-ferrite-feedstock, ferrite-cnt-solgel-mortar.
 
 SEED_MAGNETIC_SOURCES = [
+    {
+        'name': 'alpha-chemicals',
+        'display_name': 'Alpha Chemicals (alphachemicals.com)',
+        'supplier_name': 'Alpha Chemicals',
+        'url': 'https://alphachemicals.com/',
+        'is_open_source': False, 'is_commercial': True,
+        'is_local': False, 'is_polari': False,
+        'is_eco_friendly': False,
+        'availability': 'available',
+        'supplies_json': json.dumps(['red-iron-oxide']),
+        'demands_json': '[]',
+        'business_model_ref': '',
+        'locality_note': 'Cadet MO — ships; the PIGMENT/industrial '
+                         'channel (vs the pottery-glaze channel)',
+        'is_prior': True, 'provenance_id': PROV,
+        'notes': 'The mag-1 named cheaper-Fe2O3 hunt, CLOSED '
+                 '2026-07-30: Shopify storefront exposes exact '
+                 'variant prices 1 lb-4000 lb. "Natural" grade — '
+                 'assay NOT stated on the listing (the caveat '
+                 'travels on the citations).',
+    },
     {
         'name': 'evans-ceramic-supply',
         'display_name': 'Evans Ceramic Supply (evansceramics.com)',
@@ -389,12 +415,52 @@ SEED_MAGNETIC_CITATIONS = [
         'citation_url': 'https://www.clay-king.com/product/'
                         'red-iron-oxide-nr-4284/',
         'citation_note': 'Fetched tier $5.54/lb at 5+ lb (NR-4284, '
-                         '~81% Fe2O3 glaze grade) = 12.21 USD/kg — '
-                         'the cheapest cited Fe2O3. The ~81% assay '
-                         'means stoichiometric feed needs ~1.23x '
-                         'mass OR a purer pigment channel: the '
-                         'named follow-up hunt (Alpha Chemicals '
-                         'pigment channel, uncited).',
+                         '~81% Fe2O3 glaze grade) = 12.21 USD/kg. '
+                         'Was the cheapest cited Fe2O3 until the '
+                         'pigment-channel hunt closed (Alpha '
+                         'Chemicals, 2026-07-30, ~2.34/kg at 50 '
+                         'lb); the ~81% assay means stoichiometric '
+                         'feed needs ~1.23x mass from THIS row.',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': PROV, 'notes': '',
+    },
+    # --- the named pigment-channel hunt, CLOSED 2026-07-30 ---
+    {
+        'name': 'alpha-fe2o3-5lb-2026-07-30',
+        'source_ref': 'alpha-chemicals',
+        'item_ref': 'red-iron-oxide',
+        'price': 9.50, 'currency': 'USD',
+        'amount': 5.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-30T13:00:00',
+        'citation_url': 'https://alphachemicals.com/products/'
+                        'red-iron-oxide',
+        'citation_note': 'Shopify variant price EXACT ($1.90/lb = '
+                         '4.19 USD/kg, resealable foil bag; '
+                         'storefront JSON updated same day). '
+                         '"Natural" pigment grade — Fe2O3 assay '
+                         'NOT stated on the listing: verify before '
+                         'trusting stoichiometric feed math (glaze '
+                         'row documents 81% for that channel).',
+        'is_estimate': False,
+        'is_prior': True, 'provenance_id': PROV, 'notes': '',
+    },
+    {
+        'name': 'alpha-fe2o3-50lb-2026-07-30',
+        'source_ref': 'alpha-chemicals',
+        'item_ref': 'red-iron-oxide',
+        'price': 53.00, 'currency': 'USD',
+        'amount': 50.0, 'amount_unit': 'lb',
+        'observed_at': '2026-07-30T13:00:00',
+        'citation_url': 'https://alphachemicals.com/products/'
+                        'red-iron-oxide',
+        'citation_note': 'Shopify variant price EXACT ($1.06/lb = '
+                         '2.34 USD/kg at the 50 lb commitment; '
+                         'tiers continue to $0.69/lb at 4000 lb — '
+                         'documented, not cited as rows). Same '
+                         'assay-unstated caveat as the 5 lb row. '
+                         'THE cheapest cited Fe2O3: the §1b '
+                         'pre-hunt "<$5/kg feed" claim lands TRUE '
+                         'through this channel.',
         'is_estimate': False,
         'is_prior': True, 'provenance_id': PROV, 'notes': '',
     },
@@ -743,12 +809,15 @@ SEED_MAGNETIC_REQUIREMENTS = [
         'notes': 'Both routes calcine at pottery-kiln temperatures '
                  '(Route A citrate gel ~800-1000C, Route B solid-'
                  'state 1100-1250C = cone 8-10). KILN ENERGY '
-                 'EXCLUDED-LOUD as always. Feedstock honesty: exact '
-                 'cites land ~12 USD/kg feed (glaze-grade Fe2O3 '
-                 '$5.54/lb) — the plan pre-hunt said <$5/kg; '
-                 'pigment-channel Fe2O3 is the named cheaper hunt. '
-                 'Magnetizing pulse required after cure/sinter '
-                 '(§1b: the magnetizer is itself a buildable tool).',
+                 'EXCLUDED-LOUD as always. Feedstock honesty: the '
+                 'pigment-channel hunt CLOSED 2026-07-30 (Alpha '
+                 'Chemicals 2.34/kg at 50 lb, exact) — solid-state '
+                 'feed ~2.9/kg, the plan pre-hunt <$5/kg lands '
+                 'TRUE; assay unstated on the pigment listing '
+                 '(verify before stoichiometry — glaze channel '
+                 'documents 81%). Magnetizing pulse required after '
+                 'cure/sinter (§1b: the magnetizer is itself a '
+                 'buildable tool).',
     },
     {
         'name': 'magnetic-geopolymer-mix-requirements',

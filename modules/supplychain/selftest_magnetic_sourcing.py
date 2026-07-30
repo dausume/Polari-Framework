@@ -64,9 +64,11 @@ mag_sources = [s for s in SEED_SUPPLY_SOURCES
                if s.get('provenance_id') == 'mag-1']
 mag_cites = [c for c in SEED_PRICE_CITATIONS
              if c.get('provenance_id') == 'mag-1']
-check('14 mag-1 sources seeded', len(mag_sources) == 14,
+check('15 mag-1 sources seeded (+alpha-chemicals, the closed '
+      'pigment hunt)', len(mag_sources) == 15,
       extra=str(len(mag_sources)))
-check('24 mag-1 citations seeded', len(mag_cites) == 24,
+check('26 mag-1 citations seeded (+2 Alpha Fe2O3 tiers, '
+      '2026-07-30)', len(mag_cites) == 26,
       extra=str(len(mag_cites)))
 check('every mag-1 citation names a seeded source',
       all(any(s['name'] == c['source_ref']
@@ -79,8 +81,16 @@ v, u = normalized_price(cites['clayking-srco3-50lb-2026-07-28'])
 check('cheapest SrCO3 = Clay King 50 lb tier ~5.67 USD/kg',
       u == 'USD/kg' and abs(v - 5.6659) < 0.01, extra=f'{v} {u}')
 v, u = normalized_price(cites['clayking-fe2o3-5lb-2026-07-28'])
-check('cheapest Fe2O3 = Clay King 5 lb tier ~12.21 USD/kg',
+check('glaze-channel Fe2O3 = Clay King 5 lb tier ~12.21 USD/kg '
+      '(81% assay documented)',
       u == 'USD/kg' and abs(v - 12.2136) < 0.01, extra=f'{v} {u}')
+v, u = normalized_price(cites['alpha-fe2o3-50lb-2026-07-30'])
+check('pigment-channel hunt CLOSED: Alpha 50 lb tier ~2.34 USD/kg '
+      'EXACT (assay-unstated caveat on the row)',
+      u == 'USD/kg' and abs(v - 2.3369) < 0.01
+      and 'assay' in cites['alpha-fe2o3-50lb-2026-07-30']
+          .citation_note.lower(),
+      extra=f'{v} {u}')
 v, u = normalized_price(cites['evans-srco3-1lb-2026-07-28'])
 check('Evans 1 lb SrCO3 ~8.27 USD/kg (small-lot premium visible)',
       u == 'USD/kg' and abs(v - 8.2673) < 0.01, extra=f'{v} {u}')
@@ -97,17 +107,20 @@ check('piece-priced USD citation still normalizes per unit',
 
 print('== suite: the §1b Rung-1 honest headline ==')
 out = formula_cost(mgr, formulas['srfe12o19-solidstate-v0'])
-check('solid-state hexaferrite feed costs (~11.81/kg, kiln '
-      'excluded-loud)',
-      out.get('ok') and abs(out['usdPerKg'] - 11.8085) < 0.02,
+check('solid-state hexaferrite feed costs ~2.90/kg through the '
+      'pigment channel (kiln excluded-loud; was 11.81 on glaze '
+      'Fe2O3)',
+      out.get('ok') and abs(out['usdPerKg'] - 2.8990) < 0.02,
       extra=str(out.get('usdPerKg')))
-check('the pre-hunt "<$5/kg" was WRONG and the row says so: feed '
-      'costs MORE than bought magnetite 9.70',
-      out.get('ok') and out['usdPerKg'] > 9.70)
+check('the pre-hunt "<$5/kg" now lands TRUE — and feed is CHEAPER '
+      'than bought magnetite 9.70 (the coercivity premium became '
+      'a discount)',
+      out.get('ok') and out['usdPerKg'] < 5.0
+      and out['usdPerKg'] < 9.70)
 out2 = formula_cost(mgr, formulas['srfe12o19-solgel-v0'])
-check('citrate sol-gel route costs (~16.94/kg; nanoscale at kiln '
-      'temps is what the premium buys)',
-      out2.get('ok') and abs(out2['usdPerKg'] - 16.9417) < 0.02,
+check('citrate sol-gel route costs ~8.04/kg (was 16.94; nanoscale '
+      'at kiln temps is what the premium buys)',
+      out2.get('ok') and abs(out2['usdPerKg'] - 8.0374) < 0.02,
       extra=str(out2.get('usdPerKg')))
 check('scoring-term block rides the hexaferrite cost',
       out.get('scoreTerm', {}).get('term') == 'material-cost-per-kg')
