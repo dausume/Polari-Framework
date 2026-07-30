@@ -47,6 +47,29 @@ CHAINABLE_TYPES = ('spur', 'helical', 'internal', 'bevel-straight',
                    'worm', 'rack-pinion')
 
 
+def _sig(value, digits=12):
+    """Round to SIGNIFICANT FIGURES, not decimal places.
+
+    Fixed-decimal rounding is wrong for any payload that mixes
+    scales, and a drivetrain mixes scales BY DEFINITION — that is
+    what a ratio does. round(x, 9) quantized a clock's 1/60 rpm
+    output shaft; round(x, 12) then quantized a 4e-6 Nm motor torque
+    once the gr-5 splice multiplied it through. Both were the same
+    bug wearing different decimals (and mag-3 hit it a third time on
+    flux density). Significant-figure rounding keeps the payload
+    tidy without eating the small end."""
+    if value is None:
+        return None
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return value
+    if v == 0.0 or v != v or v in (float('inf'), float('-inf')):
+        return v
+    exponent = math.floor(math.log10(abs(v)))
+    return round(v, int(digits - 1 - exponent))
+
+
 def _rows(manager, class_name):
     table = (getattr(manager, 'objectTables', None) or {}).get(
         class_name, {})
@@ -252,16 +275,16 @@ def solve_train(manager, train_name, input_torque_nm=None,
                 'drivenGear': getattr(driven, 'name', ''),
                 'fromShaft': src, 'toShaft': dst,
                 'teeth': [int(n1), int(n2)],
-                'stageRatio': round(ratio, 6),
+                'stageRatio': _sig(ratio),
                 'reversesDirection': reverses,
-                'efficiency': round(eff, 6),
+                'efficiency': _sig(eff),
                 'efficiencyIsPrior': eff_is_prior,
                 'efficiencyNote': eff_note,
-                'centreDistanceMm': round(cd, 4),
+                'centreDistanceMm': _sig(cd),
                 'centreDistanceNote': cd_note,
-                'powerInW': round(p_in, 9),
-                'powerOutW': round(p_out, 9),
-                'powerLostW': round(p_in - p_out, 9),
+                'powerInW': _sig(p_in),
+                'powerOutW': _sig(p_out),
+                'powerLostW': _sig(p_in - p_out),
                 'producesThrust': bool(getattr(gtype,
                                                'produces_thrust',
                                                False)),
@@ -294,15 +317,15 @@ def solve_train(manager, train_name, input_torque_nm=None,
             # rounding that quantized mT values — small quantities
             # in a mixed-scale payload need the precision, and a
             # reduction train is mixed-scale by definition.
-            'speedRpm': round(s['speedRpm'], 12),
+            'speedRpm': _sig(s['speedRpm']),
             'direction': ('input' if shaft == in_shaft
                           else ('same-as-input' if s['speedRpm'] *
                                 (speed or 1.0) >= 0 else 'reversed')),
-            'torqueNm': round(s['torqueNm'], 12),
-            'ratioFromInput': round(s['ratioFromInput'], 6),
-            'efficiencyFromInput': round(
-                s['efficiencyFromInput'], 6),
-            'backlashMm': round(s['backlashMm'], 6),
+            'torqueNm': _sig(s['torqueNm']),
+            'ratioFromInput': _sig(s['ratioFromInput']),
+            'efficiencyFromInput': _sig(
+                s['efficiencyFromInput']),
+            'backlashMm': _sig(s['backlashMm']),
             'isInput': shaft == in_shaft,
             'isOutput': shaft == out_shaft,
         })
@@ -327,19 +350,19 @@ def solve_train(manager, train_name, input_torque_nm=None,
         'inputShaft': in_shaft, 'outputShaft': out_shaft,
         'inputTorqueNm': torque, 'inputSpeedRpm': speed,
         'shafts': shafts, 'meshes': mesh_results,
-        'totalRatio': (round(out_state['ratioFromInput'], 6)
+        'totalRatio': (_sig(out_state['ratioFromInput'])
                        if out_state else None),
-        'totalEfficiency': (round(out_state['efficiencyFromInput'],
-                                  6) if out_state else None),
-        'outputTorqueNm': (round(out_state['torqueNm'], 12)
+        'totalEfficiency': (_sig(out_state['efficiencyFromInput'])
+                            if out_state else None),
+        'outputTorqueNm': (_sig(out_state['torqueNm'])
                            if out_state else None),
-        'outputSpeedRpm': (round(out_state['speedRpm'], 12)
+        'outputSpeedRpm': (_sig(out_state['speedRpm'])
                            if out_state else None),
-        'outputBacklashMm': (round(out_state['backlashMm'], 6)
+        'outputBacklashMm': (_sig(out_state['backlashMm'])
                              if out_state else None),
-        'power': {'inW': round(p_in_total, 9),
-                  'outW': round(p_out_total, 9),
-                  'lostW': round(lost, 9),
+        'power': {'inW': _sig(p_in_total),
+                  'outW': _sig(p_out_total),
+                  'lostW': _sig(lost),
                   'conserved': conserved,
                   'note': 'no gear ratio invents torque: the speed '
                           'given up and the efficiency lost are on '

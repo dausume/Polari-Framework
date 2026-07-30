@@ -25,6 +25,8 @@ class GearsAPI(treeObject):
             add('/api/gears/trains', self, suffix='trains')
             add('/api/gears/solve/{train_name}', self,
                 suffix='solve')
+            add('/api/gears/motor-drive/{train_name}', self,
+                suffix='motor_drive')
 
     def on_get_types(self, request, response):
         response.media = type_catalog(self.manager)
@@ -45,6 +47,30 @@ class GearsAPI(treeObject):
         out = solve_train(self.manager, train_name,
                           input_torque_nm=_num('torqueNm'),
                           input_speed_rpm=_num('speedRpm'))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_motor_drive(self, request, response, train_name):
+        # Imported here, not at module import: the splice reaches
+        # into motors, and gears must stay usable with motors off
+        # (the refusal inside says so by name).
+        from gears.gear_motor import motor_driven_train
+
+        def _num(param):
+            raw = request.params.get(param)
+            if raw in (None, ''):
+                return None
+            try:
+                return float(raw)
+            except (TypeError, ValueError):
+                return None
+
+        out = motor_driven_train(
+            self.manager, train_name,
+            design_name=request.params.get('design', ''),
+            speed_rpm=_num('speedRpm'),
+            required_output_torque_nm=_num('requiredTorqueNm'))
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out

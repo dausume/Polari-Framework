@@ -106,6 +106,16 @@ check('unknown train = 400 + refusal sentence',
       r.status_code == 400 and r.json.get('refusal'),
       extra=r.status)
 
+# gr-5: the splice needs motors, which this probe does NOT enable —
+# so the honest refusal IS the expected live result here (the
+# motors-enabled path is covered by selftest_gears).
+r = client.simulate_get('/api/gears/motor-drive/clock-train-m0')
+check('motor-drive route registered; with motors gated OFF it '
+      'refuses by name instead of 500-ing',
+      r.status_code == 400
+      and 'motors module' in r.json.get('refusal', ''),
+      extra=f'{r.status} {r.json.get("refusal", "")[:60]}')
+
 failed = results.count(False)
 print(f'\n{len(results) - failed}/{len(results)} live-boot checks '
       'passed')

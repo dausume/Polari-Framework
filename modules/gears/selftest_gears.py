@@ -236,6 +236,121 @@ check('internal centre distance is a DIFFERENCE of pitch radii '
       abs(out['meshes'][0]['centreDistanceMm'] - 12.0) < 1e-9,
       extra=str(out['meshes'][0]['centreDistanceMm']))
 
+print('== suite: significant-figure rounding (the bug that bit '
+      'three times) ==')
+from gears.gear_kinematics import _sig  # noqa: E402
+
+check('_sig keeps 12 significant figures at ANY scale — a clock '
+      'speed and a micro-newton-metre survive the same call',
+      _sig(1.0 / 60.0) == round(1.0 / 60.0, 13)
+      and abs(_sig(4.3512345678901e-6) - 4.35123456789e-06)
+      < 1e-20)
+check('fixed-decimal rounding would have EATEN both (this is the '
+      'comparison, kept as evidence rather than a memory)',
+      round(1.0 / 60.0, 9) != _sig(1.0 / 60.0)
+      and round(4.3512345678901e-6, 12) != _sig(4.3512345678901e-6))
+check('degenerate inputs pass through instead of exploding',
+      _sig(0.0) == 0.0 and _sig(None) is None
+      and _sig('n/a') == 'n/a')
+
+print('== suite: gr-5 THE MOTOR SPLICE ==')
+from motors.motor_basis import SEED_MOTOR_DESIGNS  # noqa: E402
+from magnetics.magnet_seed import (  # noqa: E402
+    SEED_MAGNETIC_POWDERS, SEED_MATERIAL_OPTIONS, SEED_USE_ROLES,
+)
+from gears.gear_motor import motor_driven_train  # noqa: E402
+
+mgr7 = _mgr()
+for cls, seed in (('MotorDesignDefinition', SEED_MOTOR_DESIGNS),
+                  ('MaterialUseRole', SEED_USE_ROLES),
+                  ('MagneticMaterialOption', SEED_MATERIAL_OPTIONS),
+                  ('MagneticPowderDefinition', SEED_MAGNETIC_POWDERS)):
+    mgr7.objectTables[cls] = {s['name']:
+                              types.SimpleNamespace(**s)
+                              for s in seed}
+
+out = motor_driven_train(mgr7, 'clock-train-m0')
+check('M0 drives its clock train: speed is EXACT (30 rpm from a '
+      '1 Hz Lavet pulse), not an assumption',
+      out.get('ok') and abs(out['inputSpeedRpm'] - 30.0) < 1e-9
+      and 'EXACT' in out['speedBasis'],
+      extra=str(out.get('refusal') or out.get('inputSpeedRpm')))
+check('and it still lands one turn per hour at the minute shaft — '
+      'motor + gears agreeing on the clock',
+      abs(abs(out['envelope'][0]['outputSpeedRpm'])
+          - (1.0 / 60.0)) < 1e-12,
+      extra=str(out['envelope'][0]['outputSpeedRpm']))
+check('the stepper\'s torque is called what it is (a co-energy '
+      'AMPLITUDE, not a continuous rating) instead of being '
+      'quietly used as one',
+      'co-energy' in out['torqueBasis']
+      and 'not a continuous rating' in out['torqueBasis'])
+
+out = motor_driven_train(mgr7, 'two-stage-spur-demo',
+                         design_name='reluctance-6s4p-m1')
+check('M1 drives the demo train: torque envelope carries mean, '
+      'peak AND worst-case-in-curve — never one flattering number',
+      out.get('ok')
+      and {e['point'] for e in out['envelope']}
+      == {'mean', 'peak', 'worst-case-in-curve'},
+      extra=str(out.get('refusal')))
+check('SPEED is honestly an ASSUMPTION for M1 (quasi-static sim '
+      'does not predict it) and the payload says so',
+      'ASSUMED' in out['speedBasis']
+      and 'does NOT predict speed' in out['speedBasis'])
+check('output torque = motor mean x 12 x 0.950625 (the ratio '
+      'transforms torque EXACTLY even when speed cannot)',
+      abs(next(e['outputTorqueNm'] for e in out['envelope']
+               if e['point'] == 'mean')
+          - out['motor']['meanTorqueNm'] * 12.0 * 0.950625) < 1e-15)
+check('THE PRICE OF THE RATIO is always shown: speed divided, '
+      'efficiency multiplier, backlash added',
+      out['priceOfTheRatio']['speedDividedBy'] == 12.0
+      and out['priceOfTheRatio']['efficiencyMultiplier'] < 1.0
+      and out['priceOfTheRatio']['backlashAddedMm'] > 0)
+check('the motor\'s own mu~2 smallness watermark travels through '
+      'the splice', 'SMALL' in out['motor']['motorValidity'])
+
+out = motor_driven_train(mgr7, 'two-stage-spur-demo',
+                         design_name='reluctance-6s4p-m1',
+                         required_output_torque_nm=1e-9)
+check('a duty the machine meets everywhere reads met',
+      out['duty']['met'] is True)
+out = motor_driven_train(mgr7, 'two-stage-spur-demo',
+                         design_name='reluctance-6s4p-m1',
+                         required_output_torque_nm=1.0)
+check('an impossible duty is UNMET with the binding constraint '
+      'named and the multiplier stated (motor torque, or ratio '
+      'paid for in speed)',
+      out['duty']['met'] is False
+      and out['duty']['bindingConstraint'] == 'motor-torque'
+      and 'more ratio' in out['duty']['note'])
+peak = next(e['outputTorqueNm'] for e in out['envelope']
+            if e['point'] == 'peak')
+worst = next(e['outputTorqueNm'] for e in out['envelope']
+             if e['point'] == 'worst-case-in-curve')
+out2 = motor_driven_train(
+    mgr7, 'two-stage-spur-demo', design_name='reluctance-6s4p-m1',
+    required_output_torque_nm=(peak + worst) / 2.0)
+check('a duty met only at PEAK is honestly treated as unmet — the '
+      'machine would stall at the wrong rotor angle',
+      out2['duty']['met'] is False
+      and out2['duty']['bindingConstraint'] == 'motor-torque-ripple'
+      and 'stall' in out2['duty']['note'])
+check('friction/seal-drag/starting torque named as NOT in the '
+      'comparison', 'not modeled' in out2['duty']['unmodeled']
+      or 'NOT in this comparison' in out2['duty']['unmodeled'])
+
+out = motor_driven_train(mgr7, 'two-stage-spur-demo')
+check('a train with no motor named (and none given) refuses with '
+      'the knob',
+      not out.get('ok')
+      and out['suggestion']['knob'].endswith('motor_design_ref'))
+out = motor_driven_train(mgr, 'clock-train-m0')
+check('with motors absent from the object tree, the splice refuses '
+      'by name instead of crashing',
+      not out.get('ok') and 'motors module' in out['refusal'])
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
