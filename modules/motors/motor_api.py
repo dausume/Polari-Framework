@@ -46,6 +46,10 @@ class MotorsAPI(treeObject):
                 suffix='criterion')
             add('/api/motors/stress/{design_name}/{part_name}',
                 self, suffix='stress')
+            add('/api/motors/fatigue/{design_name}/{part_name}',
+                self, suffix='fatigue')
+            add('/api/motors/substitutes/{design_name}/'
+                '{part_name}', self, suffix='substitutes')
             add('/api/motors/winding/{design_name}', self,
                 suffix='winding')
             add('/api/motors/winding-sweep/{design_name}', self,
@@ -183,6 +187,36 @@ class MotorsAPI(treeObject):
             handling_force_n=num('handlingN', 5.0),
             assumption=request.params.get('assumption',
                                           'plane-stress'))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def _fatigue_kw(self, request):
+        def num(k, d):
+            try:
+                return float(request.params.get(k, d))
+            except (TypeError, ValueError):
+                return d
+        return {'years': num('years', 10.0),
+                'survival': num('survival', 0.99),
+                'required_sf': num('requiredSf', 4.0),
+                'handling_force_n': num('handlingN', 5.0)}
+
+    def on_get_fatigue(self, request, response, design_name,
+                       part_name):
+        from motors.motor_fatigue import part_fatigue
+        out = part_fatigue(self.manager, design_name, part_name,
+                           **self._fatigue_kw(request))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_substitutes(self, request, response, design_name,
+                           part_name):
+        from motors.motor_fatigue import substitution_search
+        out = substitution_search(self.manager, design_name,
+                                  part_name,
+                                  **self._fatigue_kw(request))
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out

@@ -421,6 +421,9 @@ SEED_MATERIAL_OPTIONS = [
         'msci_material_ref': 'geopolymer-ferrite',
         'forms_json': json.dumps(['castable-block']),
         'properties_json': _props(
+            fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
+            scg_exponent_n=(15, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
+            weibull_modulus=(7, '', 'literature-est', 'brittle strength SCATTERS; a design must target a survival PROBABILITY, not the mean. Lower m = wider scatter = bigger derate'),
             tensile_mpa=(3.5, 'MPa', 'literature-est', 'literature CLASS value; our castings are untested, and brittle strength scatters widely (Weibull) so the mean is not the design number'),
             youngs_modulus_mpa=(16000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
             poisson_ratio=(0.2, '', 'literature-est'),
@@ -508,6 +511,9 @@ SEED_MATERIAL_OPTIONS = [
         'forms_json': json.dumps(['sintered-part',
                                   'castable-block']),
         'properties_json': _props(
+            fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
+            scg_exponent_n=(32, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
+            weibull_modulus=(11, '', 'literature-est', 'brittle strength SCATTERS; a design must target a survival PROBABILITY, not the mean. Lower m = wider scatter = bigger derate'),
             tensile_mpa=(35.0, 'MPa', 'literature-est', 'literature CLASS value; our castings are untested, and brittle strength scatters widely (Weibull) so the mean is not the design number'),
             youngs_modulus_mpa=(110000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
             poisson_ratio=(0.24, '', 'literature-est'),
@@ -536,6 +542,8 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': '',
         'forms_json': json.dumps(['sintered-part']),
         'properties_json': _props(
+            fatigue_class=('ductile-endurance-limit', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
+            endurance_limit_ratio=(0.45, '', 'literature-est', 'steel has a true endurance limit ~0.45 UTS; below it, life is effectively infinite'),
             tensile_mpa=(350.0, 'MPa', 'literature-est', 'literature CLASS value; our castings are untested, and brittle strength scatters widely (Weibull) so the mean is not the design number'),
             youngs_modulus_mpa=(200000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
             poisson_ratio=(0.29, '', 'literature-est'),
@@ -605,6 +613,9 @@ SEED_MATERIAL_OPTIONS = [
         'powder_ref': 'srfe12o19-powder-def',
         'forms_json': json.dumps(['castable-block']),
         'properties_json': _props(
+            fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
+            scg_exponent_n=(14, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
+            weibull_modulus=(7, '', 'literature-est', 'brittle strength SCATTERS; a design must target a survival PROBABILITY, not the mean. Lower m = wider scatter = bigger derate'),
             tensile_mpa=(3.0, 'MPa', 'literature-est', 'literature CLASS value; our castings are untested, and brittle strength scatters widely (Weibull) so the mean is not the design number'),
             youngs_modulus_mpa=(14000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
             poisson_ratio=(0.22, '', 'literature-est'),
@@ -635,6 +646,9 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': 'ceramic-ring-magnet',
         'forms_json': json.dumps(['sintered-part']),
         'properties_json': _props(
+            fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
+            scg_exponent_n=(30, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
+            weibull_modulus=(12, '', 'literature-est', 'brittle strength SCATTERS; a design must target a survival PROBABILITY, not the mean. Lower m = wider scatter = bigger derate'),
             tensile_mpa=(35.0, 'MPa', 'literature-est', 'literature CLASS value; our castings are untested, and brittle strength scatters widely (Weibull) so the mean is not the design number'),
             youngs_modulus_mpa=(150000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
             poisson_ratio=(0.28, '', 'literature-est'),
@@ -756,6 +770,9 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': '',
         'forms_json': json.dumps(['sintered-part']),
         'properties_json': _props(
+            fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
+            scg_exponent_n=(30, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
+            weibull_modulus=(10, '', 'literature-est', 'brittle strength SCATTERS; a design must target a survival PROBABILITY, not the mean. Lower m = wider scatter = bigger derate'),
             tensile_mpa=(80.0, 'MPa', 'literature-est', 'literature CLASS value; our castings are untested, and brittle strength scatters widely (Weibull) so the mean is not the design number'),
             youngs_modulus_mpa=(160000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
             poisson_ratio=(0.24, '', 'literature-est'),
@@ -782,6 +799,7 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': 'magnet-wire-copper',
         'forms_json': json.dumps(['wire']),
         'properties_json': _props(
+            fatigue_class=('ductile-no-endurance-limit', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
             tensile_mpa=(210.0, 'MPa', 'literature-est', 'literature CLASS value; our castings are untested, and brittle strength scatters widely (Weibull) so the mean is not the design number'),
             youngs_modulus_mpa=(117000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
             poisson_ratio=(0.34, '', 'literature-est'),
@@ -883,6 +901,9 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': 'geopolymer-mix',
         'forms_json': json.dumps(['castable-block', 'mortar']),
         'properties_json': _props(
+            fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
+            scg_exponent_n=(15, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
+            weibull_modulus=(8, '', 'literature-est', 'brittle strength SCATTERS; a design must target a survival PROBABILITY, not the mean. Lower m = wider scatter = bigger derate'),
             youngs_modulus_mpa=(18000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
             poisson_ratio=(0.2, '', 'literature-est'),
             compressive_mpa=(60.0, 'MPa', 'literature-est', 'the compressive/tensile ASYMMETRY here is exactly why von Mises is the wrong criterion for this material'),
@@ -910,6 +931,9 @@ SEED_MATERIAL_OPTIONS = [
         'forms_json': json.dumps(['sintered-part',
                                   'castable-block']),
         'properties_json': _props(
+            fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
+            scg_exponent_n=(30, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
+            weibull_modulus=(10, '', 'literature-est', 'brittle strength SCATTERS; a design must target a survival PROBABILITY, not the mean. Lower m = wider scatter = bigger derate'),
             youngs_modulus_mpa=(90000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
             poisson_ratio=(0.22, '', 'literature-est'),
             compressive_mpa=(400.0, 'MPa', 'literature-est', 'the compressive/tensile ASYMMETRY here is exactly why von Mises is the wrong criterion for this material'),
@@ -948,6 +972,9 @@ SEED_MATERIAL_OPTIONS = [
         'msci_material_ref': 'alumina-geopolymer',
         'forms_json': json.dumps(['sintered-part']),
         'properties_json': _props(
+            fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
+            scg_exponent_n=(45, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
+            weibull_modulus=(15, '', 'literature-est', 'brittle strength SCATTERS; a design must target a survival PROBABILITY, not the mean. Lower m = wider scatter = bigger derate'),
             youngs_modulus_mpa=(370000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
             poisson_ratio=(0.22, '', 'literature-est'),
             compressive_mpa=(2500.0, 'MPa', 'literature-est', 'the compressive/tensile ASYMMETRY here is exactly why von Mises is the wrong criterion for this material'),

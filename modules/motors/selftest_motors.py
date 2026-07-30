@@ -875,6 +875,70 @@ check('a part whose material lacks E/nu REFUSES — a stress number '
       not part_stress(mgrf, 'clock-lavet-m0',
                       'lavet-v2-coil').get('ok'))
 
+print('== suite: mag-16 FATIGUE + substitution ==')
+from motors.motor_fatigue import (  # noqa: E402
+    fatigue_derate, part_fatigue, substitution_search,
+)
+
+de = fatigue_derate(mgrf, 'opt-geopolymer-ferrite', 3.16e8)
+check('a brittle casting has NO endurance limit — subcritical crack '
+      'growth keeps eating strength, and the Weibull scatter derate '
+      'multiplies on top',
+      de['ok'] and de['fatigueClass'] == 'brittle-scg'
+      and de['scgOrEnduranceFactor'] < 0.30
+      and de['weibullFactor'] < 0.60
+      and de['totalDerate'] < 0.20,
+      extra=str(de.get('totalDerate')))
+check('steel DOES have a real endurance limit, and no Weibull '
+      'derate applies to it',
+      fatigue_derate(mgrf, 'opt-electrical-steel', 3.16e8)
+      ['fatigueClass'] == 'ductile-endurance-limit')
+check('copper has NO endurance limit and the payload says '
+      'surviving 1e7 is not a promise about 1e9',
+      'not a promise' in fatigue_derate(
+          mgrf, 'opt-copper-magnet-wire', 3.16e8)['why'])
+
+fs = part_fatigue(mgrf, 'clock-lavet-m0', 'lavet-v2-stator')
+check('THE FINDING: the stator PASSED static at SF 10.5 and FAILS '
+      'fatigue at ~1.5 — 3.2e8 clock cycles change the answer',
+      fs['ok'] and not fs['passes']
+      and fs['staticSafetyFactor'] > 4.0
+      and fs['fatigueSafetyFactor'] < 4.0,
+      extra=f"{fs.get('staticSafetyFactor')} -> "
+            f"{fs.get('fatigueSafetyFactor')}")
+fp = part_fatigue(mgrf, 'clock-lavet-m0', 'lavet-v2-pinion')
+check('and the pinion falls BELOW 1.0 — it does not merely lack '
+      'margin, it is predicted to fail',
+      fp['fatigueSafetyFactor'] < 1.0, extra=str(fp['fatigueSafetyFactor']))
+check('a shorter service life is less punishing — the cycle count '
+      'genuinely drives the answer',
+      part_fatigue(mgrf, 'clock-lavet-m0', 'lavet-v2-pinion',
+                   years=0.1)['fatigueSafetyFactor']
+      > fp['fatigueSafetyFactor'])
+check('moisture/stress-corrosion named as making real n WORSE than '
+      'the value used',
+      'MOISTURE' in fs['validity'])
+
+sub = substitution_search(mgrf, 'clock-lavet-m0',
+                          'lavet-v2-pinion')
+check('substitution ranks the whole catalog with geometry and load '
+      'held FIXED, so it compares materials not designs',
+      sub['ok'] and sub['count'] >= 8
+      and 'held FIXED' in sub['honesty'])
+check('steel and alumina top the ranking — which is exactly what '
+      'real clock movements use for pinions',
+      sub['candidates'][0]['material'] in ('opt-electrical-steel',
+                                           'opt-alumina'))
+check('AND THE USEFUL ANSWER: a MAKEABLE option clears it too — '
+      'fired ferrite ceramic, i.e. the Table 8.8 fire-the-casting '
+      'escalation rung we already have',
+      sub['bestMakeable']
+      and sub['bestMakeable']['fatigueSafetyFactor'] >= 4.0,
+      extra=str((sub.get('bestMakeable') or {}).get('material')))
+check('the current material is in the list and marked, so the '
+      'comparison includes what we have now',
+      any(c['isCurrent'] for c in sub['candidates']))
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
