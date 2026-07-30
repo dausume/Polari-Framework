@@ -263,6 +263,17 @@
       ],
       "wave": 4,
       "description": "Electric motors Section C: the M0-M3 ladder of buildable samples (Lavet clock stepper -> reluctance -> ferrite-PM -> dual-stator axial flux), clock control-case sim, torque curves, torque_parity (MAGNETIC_MATERIALS_PLAN.md)."
+    },
+    "gears": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/gears",
+      "repo": "",
+      "requires": [
+        "mathshapes"
+      ],
+      "wave": 4,
+      "description": "Gear trains as data (GEARS_PLAN.md): the gear-type taxonomy with ratio laws + literature efficiency bands + how each type would be MADE in our stack, and the abstract kinematic solve over a shaft-node/mesh-edge graph (speeds with direction, torque after the efficiency chain, power conservation, accumulated backlash). Motor splice = gr-5."
     }
   }
 }

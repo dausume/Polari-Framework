@@ -843,15 +843,38 @@ try:
         SEED_CONTROLLER_PROFILES, SEED_PHASE_BINDINGS,
     )
 except ImportError as _exc:
+    # The stub tuple must list EVERY name the try block imports —
+    # stub_feature_symbols already maps SEED_* to [] and everything
+    # else to None, so the three SEED_MOTOR_* names belong here
+    # rather than in hand-written `= []` lines after the block
+    # (which is what the lazy-import selftest was flagging).
     _stub_missing_feature('motors', _exc, globals(), (
         'MotorDesignDefinition', 'MotorVerificationRun',
         'SEED_MOTOR_DESIGNS', 'MotorControllerProfile',
         'PhaseBindingDefinition', 'SEED_CONTROLLER_PROFILES',
-        'SEED_PHASE_BINDINGS',
+        'SEED_PHASE_BINDINGS', 'SEED_MOTOR_MATERIALS_3D',
+        'SEED_MOTOR_PART_SHAPES', 'SEED_MOTOR_SIM_SPACES',
     ))
-    SEED_MOTOR_MATERIALS_3D = []
-    SEED_MOTOR_PART_SHAPES = []
-    SEED_MOTOR_SIM_SPACES = []
+# Gear trains (gr-1) — the mechanical twin of the reluctance
+# network: shaft nodes as graph nodes, meshes as edges.
+try:
+    from gears.gear_basis import (
+        GearDefinition, GearMeshDefinition, GearTrainDefinition,
+        GearTypeDefinition, GearVerificationRun,
+        ShaftNodeDefinition,
+    )
+    from gears.gear_seed import (
+        SEED_GEAR_MESHES, SEED_GEAR_TRAINS, SEED_GEAR_TYPES,
+        SEED_GEARS, SEED_SHAFT_NODES,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('gears', _exc, globals(), (
+        'GearTypeDefinition', 'GearDefinition',
+        'GearMeshDefinition', 'ShaftNodeDefinition',
+        'GearTrainDefinition', 'GearVerificationRun',
+        'SEED_GEAR_TYPES', 'SEED_GEARS', 'SEED_GEAR_MESHES',
+        'SEED_SHAFT_NODES', 'SEED_GEAR_TRAINS',
+    ))
 # Odoo ERP connector — instance configs + sim/ops write guards (od-3).
 try:
     from odooconnect.odoo_basis import OdooInstanceConfig
@@ -1703,6 +1726,12 @@ class polariServer(treeObject):
             from motors.motor_api import MotorsAPI
             motorsEndpoint = MotorsAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('gears'):
+            # Gear trains: taxonomy + the abstract kinematic solve
+            # (gr-1); the motor splice lands at gr-5.
+            from gears.gear_api import GearsAPI
+            gearsEndpoint = GearsAPI(
+                polServer=self, manager=self.manager)
         if _feature_available('supplychain'):
             # The unifying bio supply-chain ledger — materials + food +
             # carbon accounting (chain-1).
@@ -1996,6 +2025,11 @@ class polariServer(treeObject):
             # Motors Section C (mag-5/6).
             MotorDesignDefinition, MotorVerificationRun,
             MotorControllerProfile, PhaseBindingDefinition,
+            # Gear trains (gr-1): types before bodies, bodies before
+            # the meshes that reference them.
+            GearTypeDefinition, ShaftNodeDefinition,
+            GearTrainDefinition, GearDefinition,
+            GearMeshDefinition, GearVerificationRun,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -3402,6 +3436,19 @@ class polariServer(treeObject):
              SEED_CONTROLLER_PROFILES),
             ('PhaseBindingDefinition', PhaseBindingDefinition,
              SEED_PHASE_BINDINGS),
+            # gr-1: the type taxonomy first (bodies reference it),
+            # then shafts, trains, bodies, meshes. Verification runs
+            # NEVER seeded (observed state, the motors rule).
+            ('GearTypeDefinition', GearTypeDefinition,
+             SEED_GEAR_TYPES),
+            ('ShaftNodeDefinition', ShaftNodeDefinition,
+             SEED_SHAFT_NODES),
+            ('GearTrainDefinition', GearTrainDefinition,
+             SEED_GEAR_TRAINS),
+            ('GearDefinition', GearDefinition, SEED_GEARS),
+            ('GearMeshDefinition', GearMeshDefinition,
+             SEED_GEAR_MESHES),
+            ('GearVerificationRun', GearVerificationRun, []),
             # chain-1: nodes + flows before the chain that binds them.
             ('SupplyNode', SupplyNode, SEED_SUPPLY_NODES),
             ('SupplyFlow', SupplyFlow, SEED_SUPPLY_FLOWS),

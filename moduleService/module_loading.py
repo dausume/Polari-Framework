@@ -36,8 +36,8 @@ from polariApiServer.module_gating import module_enabled
 # always required and their imports stay static.
 FEATURE_MODULES = frozenset({
     'aquaponics', 'biomining', 'bizops', 'dmvdata', 'electrodevice',
-    'grpcbridge', 'hwdigital', 'hwfpga', 'magnetics', 'mathshapes',
-    'microalgae', 'motors',
+    'gears', 'grpcbridge', 'hwdigital', 'hwfpga', 'magnetics',
+    'mathshapes', 'microalgae', 'motors',
     'nutrition', 'odooconnect', 'plant_morphology', 'polariapps',
     'scoring',
     'supplychain', 'tanks', 'techtree', 'testing', 'waxprint',
@@ -53,6 +53,10 @@ FEATURE_REQUIRES = {
     'dmvdata': ('scoring',),
     'magnetics': ('supplychain',),
     'motors': ('magnetics',),
+    # gr-1: gears imports nothing from mathshapes YET (the geometry
+    # generator is gr-3), but the registry entry names the coupling
+    # so a drop refuses honestly once gr-3 lands.
+    'gears': ('mathshapes',),
     'mathshapes': ('aquaponics', 'plant_morphology'),
     'electrodevice': ('hwdigital',),
     'zones': ('scoring',),
