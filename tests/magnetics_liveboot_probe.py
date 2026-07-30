@@ -213,6 +213,14 @@ check('torque_parity live: ~3.33x, dual gap ~1.67x, watermarks',
       r.status_code == 200
       and abs(r.json['areaMultiplierForParity'] - 3.333) < 0.01
       and abs(r.json['withDualGap'] - 1.667) < 0.01)
+r = client.simulate_get('/api/motors/drive/reluctance-6s4p-m1')
+check('mag-6 drive route: generated SimpleFOC config + 3 bindings',
+      r.status_code == 200 and r.json.get('ok')
+      and 'SimpleFOC.h' in r.json['configSnippet']
+      and len(r.json['phaseBindings']) == 3)
+r = client.simulate_get('/api/motors/drive/clock-lavet-m0')
+check('mag-6: M0 FOC refusal live',
+      r.status_code == 400 and 'pulse' in r.json['refusal'])
 r = client.simulate_get('/api/motors/materials/clock-lavet-m0')
 check('material accountability live: 3 slots, winding follows to '
       'dated citations, rotor filler trail to srfe recipes',

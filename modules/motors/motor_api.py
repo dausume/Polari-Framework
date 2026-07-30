@@ -34,6 +34,8 @@ class MotorsAPI(treeObject):
             add('/api/motors/parity', self, suffix='parity')
             add('/api/motors/materials/{design_name}', self,
                 suffix='materials')
+            add('/api/motors/drive/{design_name}', self,
+                suffix='drive')
 
     def on_get_designs(self, request, response):
         rows = []
@@ -116,4 +118,13 @@ class MotorsAPI(treeObject):
         out = material_accountability(self.manager, design_name)
         if not out.get('ok'):
             response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_drive(self, request, response, design_name):
+        from motors.motor_drive import simplefoc_config
+        out = simplefoc_config(
+            self.manager, design_name,
+            profile_name=request.params.get('profile', ''))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
         response.media = out

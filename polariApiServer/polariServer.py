@@ -837,10 +837,16 @@ try:
     from motors.motor_shapes import (
         SEED_MOTOR_MATERIALS_3D, SEED_MOTOR_PART_SHAPES,
     )
+    from motors.motor_drive import (
+        MotorControllerProfile, PhaseBindingDefinition,
+        SEED_CONTROLLER_PROFILES, SEED_PHASE_BINDINGS,
+    )
 except ImportError as _exc:
     _stub_missing_feature('motors', _exc, globals(), (
         'MotorDesignDefinition', 'MotorVerificationRun',
-        'SEED_MOTOR_DESIGNS',
+        'SEED_MOTOR_DESIGNS', 'MotorControllerProfile',
+        'PhaseBindingDefinition', 'SEED_CONTROLLER_PROFILES',
+        'SEED_PHASE_BINDINGS',
     ))
     SEED_MOTOR_MATERIALS_3D = []
     SEED_MOTOR_PART_SHAPES = []
@@ -1985,8 +1991,9 @@ class polariServer(treeObject):
             BlockSizeVariant, BlockLayoutDefinition,
             BlockPlacement, JointMortarAssignment,
             FieldViewDefinition, FieldThresholdBand, FieldViewGroup,
-            # Motors Section C (mag-5).
+            # Motors Section C (mag-5/6).
             MotorDesignDefinition, MotorVerificationRun,
+            MotorControllerProfile, PhaseBindingDefinition,
             # Topology orchestration (top-1).
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
@@ -3387,6 +3394,11 @@ class polariServer(treeObject):
             ('MotorDesignDefinition', MotorDesignDefinition,
              SEED_MOTOR_DESIGNS),
             ('MotorVerificationRun', MotorVerificationRun, []),
+            # mag-6: drive profiles + phase bindings.
+            ('MotorControllerProfile', MotorControllerProfile,
+             SEED_CONTROLLER_PROFILES),
+            ('PhaseBindingDefinition', PhaseBindingDefinition,
+             SEED_PHASE_BINDINGS),
             # chain-1: nodes + flows before the chain that binds them.
             ('SupplyNode', SupplyNode, SEED_SUPPLY_NODES),
             ('SupplyFlow', SupplyFlow, SEED_SUPPLY_FLOWS),

@@ -23,6 +23,10 @@ from motors.motor_designer import (
     clock_sim, design_report, torque_curve, torque_parity,
 )
 from motors.motor_materials import material_accountability
+from motors.motor_drive import (
+    SEED_CONTROLLER_PROFILES, SEED_PHASE_BINDINGS,
+    simplefoc_config,
+)
 from supplychain.sourcing_seed import (
     SEED_PRICE_CITATIONS, SEED_PRODUCT_FORMULAS,
     SEED_PRODUCT_REQUIREMENTS, SEED_SOURCE_POLICIES,
@@ -50,6 +54,8 @@ def _mgr():
         'MagneticMaterialOption': table(SEED_MATERIAL_OPTIONS),
         'MagneticPowderDefinition': table(SEED_MAGNETIC_POWDERS),
         'MotorDesignDefinition': table(SEED_MOTOR_DESIGNS),
+        'MotorControllerProfile': table(SEED_CONTROLLER_PROFILES),
+        'PhaseBindingDefinition': table(SEED_PHASE_BINDINGS),
         'SupplySourceProfile': table(SEED_SUPPLY_SOURCES),
         'PriceCitation': table(SEED_PRICE_CITATIONS),
         'ProductInputRequirement': table(SEED_PRODUCT_REQUIREMENTS),
@@ -218,6 +224,32 @@ check('rotor realization travels (literature-demonstrated, '
 check('the trail note states the whole chain + absence honesty',
       'never' in out['trailNote'] and 'provenance' in
       out['trailNote'])
+
+print('== suite: mag-6 drive (SimpleFOC as data) ==')
+out = simplefoc_config(mgr, 'reluctance-6s4p-m1')
+check('M1 config generates: pole pairs from the DESIGN row, '
+      'limits from the profile, snippet says edit-the-rows',
+      out['ok'] and out['polePairs'] == 2
+      and 'BLDCMotor motor = BLDCMotor(2);' in out['configSnippet']
+      and 'motor.current_limit = 1.0' in out['configSnippet']
+      and 'edit the ROWS' in out['configSnippet'])
+check('M1 phase bindings A/B/C on shield terminals; FPGA channel '
+      'honestly named-not-wired',
+      [b['phase'] for b in out['phaseBindings']] == ['A', 'B', 'C']
+      and all('escalation' in b['fpgaPwmChannel']
+              for b in out['phaseBindings']))
+check('hardware honesty rider present (config-generation only)',
+      'no hardware is acted on' in out['honesty'])
+out = simplefoc_config(mgr, 'clock-lavet-m0')
+check('M0 REFUSES FOC — a Lavet stepper wants a plain alternating '
+      'pulse, and the refusal says so',
+      not out['ok'] and '1 Hz alternating pulse' in out['refusal'])
+out = simplefoc_config(mgr, 'dual-stator-axial-m3',
+                       profile_name='mks-clone-default')
+check('M3 with the named clone profile: 4 pole pairs, parallel '
+      'note on bindings',
+      out['ok'] and out['polePairs'] == 4
+      and out['board'] == 'mks-dual-foc-clone')
 
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
