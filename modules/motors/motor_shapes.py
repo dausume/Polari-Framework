@@ -415,3 +415,235 @@ SEED_LAVET_SIM_SPACES = [
      'axis_labels_json': '{}', 'camera_json': '',
      'category': 'motors', 'owning_module': 'motors'},
 ]
+
+#: ------------------------------------------------------------
+#: LAVET v2 (mag-10b) — built from Dustin's reference photographs
+#: (Prof MAD, "Lavet type stepper motor in clock").
+#:
+#: v1 was still wrong in four specific ways, each visible in the
+#: reference and each fixed here:
+#:   1. STATOR SHAPE. v1 was a plain slab with a centred hole. The
+#:      real part is a squared-C BRACKET: a plate with a large
+#:      rectangular window cut out of it, and the rotor bore at
+#:      ONE END, joined to that window by a narrow neck. The
+#:      window and neck are not decoration — they are what forces
+#:      the flux around the rotor instead of straight across.
+#:   2. COIL SIZE AND FORM. v1 had a small ring on a leg. The real
+#:      coil is a BIG flanged bobbin — a thread-spool — lying
+#:      alongside the stator, comparable in length to the plate
+#:      itself, with two lead wires off the top.
+#:   3. ROTOR. v1 was a bare cylinder. The real rotor is a stepped
+#:      part: the magnet cylinder below, an integrated PINION
+#:      above, and an index mark on top.
+#:   4. LAYOUT. v1 centred everything. The real device puts the
+#:      rotor at one END and the coil at the other, both on the
+#:      same flat plate.
+#:
+#: Teeth are still NOT drawn on the pinion. The reference clearly
+#: shows them, and it is still the right call: gear geometry is
+#: GENERATED (gears gr-3), and modelling decorative teeth that
+#: mesh with nothing is exactly the "close enough gear" mistake
+#: the mesh-asset catalog refuses. The pitch cylinder is honest
+#: about being a pitch cylinder.
+#:
+#: Units: 1 unit = 1 mm.
+#: ------------------------------------------------------------
+SEED_LAVET_V2_PART_SHAPES = [
+    {'name': 'motor-m0v2-plate-blank',
+     'display_name': 'v2 stator plate blank (CSG component)',
+     'family': 'primitive', 'primitive_kind': 'box',
+     'parameters_json': json.dumps(
+         {'size': [26.0, 14.0, 1.2], 'center': [0.0, 0.0, 0.0]}),
+     'provenance_id': 'mag-10b'},
+    {'name': 'motor-m0v2-plate-window',
+     'display_name': 'v2 stator window (CSG component)',
+     'family': 'primitive', 'primitive_kind': 'box',
+     'parameters_json': json.dumps(
+         {'size': [17.0, 6.0, 3.0], 'center': [2.5, 0.0, 0.0]}),
+     'notes': 'The big rectangular cut-out that makes the plate a '
+              'squared C — clearly visible in the reference.',
+     'provenance_id': 'mag-10b'},
+    {'name': 'motor-m0v2-plate-bore',
+     'display_name': 'v2 rotor bore (CSG component)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 2.6, 'height': 3.0, 'axis': 'z',
+          'center': [-9.5, 0.0, 0.0], 'cap_base': True,
+          'cap_top': True}),
+     'notes': 'At the LEFT END of the plate, as in the reference — '
+              'not centred.',
+     'provenance_id': 'mag-10b'},
+    {'name': 'motor-m0v2-stator',
+     'display_name': 'Lavet v2 stator (C-bracket plate, bored)',
+     'family': 'csg',
+     'csg_json': json.dumps(
+         {'op': 'difference',
+          'shapes': ['motor-m0v2-plate-blank',
+                     'motor-m0v2-plate-window',
+                     'motor-m0v2-plate-bore']}),
+     'bounds_json': json.dumps(
+         [[-13.5, 13.5], [-7.5, 7.5], [-1.0, 1.0]]),
+     'notes': 'Plate MINUS window MINUS bore — an n-ary CSG '
+              'difference (base minus all the rest). Renders '
+              'through the voxel-face mesher, blocky and labelled '
+              'so.',
+     'provenance_id': 'mag-10b'},
+    # --- the big flanged bobbin, the reference\'s most obvious
+    # --- correction to v1
+    {'name': 'motor-m0v2-coil-outer',
+     'display_name': 'v2 coil winding outer (CSG component)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 3.4, 'height': 13.0, 'axis': 'x',
+          'center': [4.0, 0.0, 0.0], 'cap_base': True,
+          'cap_top': True}),
+     'provenance_id': 'mag-10b'},
+    {'name': 'motor-m0v2-coil-bore',
+     'display_name': 'v2 coil bore (CSG component)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 1.1, 'height': 13.6, 'axis': 'x',
+          'center': [4.0, 0.0, 0.0], 'cap_base': True,
+          'cap_top': True}),
+     'provenance_id': 'mag-10b'},
+    {'name': 'motor-m0v2-coil',
+     'display_name': 'Lavet v2 coil winding (the spool body)',
+     'family': 'csg',
+     'csg_json': json.dumps(
+         {'op': 'difference',
+          'shapes': ['motor-m0v2-coil-outer',
+                     'motor-m0v2-coil-bore']}),
+     'bounds_json': json.dumps(
+         [[-3.0, 11.0], [-3.6, 3.6], [-3.6, 3.6]]),
+     'notes': 'Coaxial difference => the EXACT tube mesh. Big, '
+              'like the reference: 13 mm long against a 26 mm '
+              'plate, not the small ring v1 had.',
+     'provenance_id': 'mag-10b'},
+    {'name': 'motor-m0v2-bobbin-flange-a',
+     'display_name': 'v2 bobbin flange (rotor side)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 4.0, 'height': 0.7, 'axis': 'x',
+          'center': [-2.7, 0.0, 0.0], 'cap_base': True,
+          'cap_top': True}),
+     'provenance_id': 'mag-10b'},
+    {'name': 'motor-m0v2-bobbin-flange-b',
+     'display_name': 'v2 bobbin flange (far side)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 4.0, 'height': 0.7, 'axis': 'x',
+          'center': [10.7, 0.0, 0.0], 'cap_base': True,
+          'cap_top': True}),
+     'provenance_id': 'mag-10b'},
+    {'name': 'motor-m0v2-lead-a',
+     'display_name': 'v2 coil lead wire A',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 0.22, 'height': 7.0, 'axis': 'z',
+          'center': [-1.5, 0.0, 6.5], 'cap_base': True,
+          'cap_top': True}),
+     'notes': 'The two leads rising off the bobbin — small, but '
+              'they are the first thing you see in the reference '
+              'and they say which end is electrical.',
+     'provenance_id': 'mag-10b'},
+    {'name': 'motor-m0v2-lead-b',
+     'display_name': 'v2 coil lead wire B',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 0.22, 'height': 7.0, 'axis': 'z',
+          'center': [9.5, 0.0, 6.5], 'cap_base': True,
+          'cap_top': True}),
+     'provenance_id': 'mag-10b'},
+    # --- the stepped rotor: magnet below, pinion above ---
+    {'name': 'motor-m0v2-rotor-magnet',
+     'display_name': 'v2 rotor magnet (diametric cylinder)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 2.1, 'height': 2.4, 'axis': 'z',
+          'center': [-9.5, 0.0, -0.2], 'cap_base': True,
+          'cap_top': True}),
+     'notes': 'Sits IN the bore. Magnetised across its diameter — '
+              'the A/B reference frames show exactly this flipping '
+              'with the alternating pulse.',
+     'provenance_id': 'mag-10b'},
+    {'name': 'motor-m0v2-rotor-pinion',
+     'display_name': 'v2 rotor pinion (pitch cylinder, 8t @ m0.3)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 1.2, 'height': 1.6, 'axis': 'z',
+          'center': [-9.5, 0.0, 1.8], 'cap_base': True,
+          'cap_top': True}),
+     'notes': 'Integrated above the magnet, as the reference '
+              'shows. PITCH cylinder only — the involute teeth '
+              'come from gears gr-3; decorative teeth that mesh '
+              'with nothing would be the mistake the mesh-asset '
+              'catalog exists to refuse.',
+     'provenance_id': 'mag-10b'},
+    {'name': 'motor-m0v2-rotor-index',
+     'display_name': 'v2 rotor index mark (N side)',
+     'family': 'primitive', 'primitive_kind': 'box',
+     'parameters_json': json.dumps(
+         {'size': [1.9, 0.45, 0.3], 'center': [-8.6, 0.0, 2.7]}),
+     'notes': 'The little scribe on the rotor top in the '
+              'reference — viz only, and it is what makes the '
+              '180 deg step legible.',
+     'provenance_id': 'mag-10b'},
+]
+
+SEED_LAVET_V2_SIM_SPACES = [
+    {'name': 'motor-m0-lavet-v2-viz',
+     'description': 'Lavet-type stepping motor, v2 — modelled from '
+                    'reference photographs: a squared-C stator '
+                    'plate with the rotor bore at one end, the big '
+                    'flanged coil bobbin alongside with its two '
+                    'leads, and the stepped rotor (diametric '
+                    'magnet + integrated pinion + index mark). The '
+                    'rotor group turns from the clock-sim replay.',
+     'dimensionality': '3d', 'coordinate_system': 'math',
+     'unit_scale': 1.0,
+     'viewport_json': json.dumps(
+         {'center': [0.0, 0.0, 1.0], 'extent': [34.0, 22.0, 16.0]}),
+     'bound_classes_json': '[]',
+     'definition': json.dumps({
+         'freestandingOnly': True,
+         'freestanding': [
+             {'id': 'stator',
+              'shapeRef': 'mathshape:motor-m0v2-stator',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'bobbin-flange-a',
+              'shapeRef': 'mathshape:motor-m0v2-bobbin-flange-a',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'bobbin-flange-b',
+              'shapeRef': 'mathshape:motor-m0v2-bobbin-flange-b',
+              'styleRef': 'motor-part-gray',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'coil',
+              'shapeRef': 'mathshape:motor-m0v2-coil',
+              'styleRef': 'motor-coil-idle',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'lead-a',
+              'shapeRef': 'mathshape:motor-m0v2-lead-a',
+              'styleRef': 'motor-coil-idle',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'lead-b',
+              'shapeRef': 'mathshape:motor-m0v2-lead-b',
+              'styleRef': 'motor-coil-idle',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'rotor-magnet',
+              'shapeRef': 'mathshape:motor-m0v2-rotor-magnet',
+              'styleRef': 'motor-rotor-dark',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'rotor-pinion',
+              'shapeRef': 'mathshape:motor-m0v2-rotor-pinion',
+              'styleRef': 'motor-shaft-steel',
+              'position': [0.0, 0.0, 0.0]},
+             {'id': 'rotor-index',
+              'shapeRef': 'mathshape:motor-m0v2-rotor-index',
+              'styleRef': 'motor-pointer-red',
+              'position': [0.0, 0.0, 0.0]},
+         ]}),
+     'axis_labels_json': '{}', 'camera_json': '',
+     'category': 'motors', 'owning_module': 'motors'},
+]

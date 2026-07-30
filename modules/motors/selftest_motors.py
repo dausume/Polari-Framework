@@ -492,6 +492,57 @@ check('the realistic scene row exists, freestandingOnly, with all '
       and len(json.loads(SEED_LAVET_SIM_SPACES[0]['definition'])
               ['freestanding']) == 8)
 
+print('== suite: mag-10b Lavet v2 (from the reference photos) ==')
+from motors.motor_shapes import (  # noqa: E402
+    SEED_LAVET_V2_PART_SHAPES, SEED_LAVET_V2_SIM_SPACES,
+)
+
+_v2 = {p['name']: p for p in SEED_LAVET_V2_PART_SHAPES}
+check('the stator is a squared-C: plate MINUS window MINUS bore '
+      '(n-ary CSG difference), not a slab with a hole',
+      _v2['motor-m0v2-stator']['family'] == 'csg'
+      and len(json.loads(
+          _v2['motor-m0v2-stator']['csg_json'])['shapes']) == 3)
+_bore = json.loads(_v2['motor-m0v2-plate-bore']['parameters_json'])
+_plate = json.loads(
+    _v2['motor-m0v2-plate-blank']['parameters_json'])
+check('the rotor bore is at ONE END of the plate, as in the '
+      'reference — not centred',
+      abs(_bore['center'][0]) > _plate['size'][0] * 0.3,
+      extra=str(_bore['center'][0]))
+_coil = json.loads(_v2['motor-m0v2-coil-outer']['parameters_json'])
+check('the coil is a BIG flanged bobbin — half the plate length, '
+      'the reference\'s most obvious correction to v1',
+      _coil['height'] / _plate['size'][0] > 0.45
+      and _coil['height'] > json.loads(
+          _v2['motor-m0v2-coil-bore']['parameters_json'])['height']
+      - 1.0,
+      extra=f"coil {_coil['height']} vs plate {_plate['size'][0]}")
+check('the bobbin has TWO flanges and TWO lead wires',
+      all(n in _v2 for n in ('motor-m0v2-bobbin-flange-a',
+                             'motor-m0v2-bobbin-flange-b',
+                             'motor-m0v2-lead-a',
+                             'motor-m0v2-lead-b')))
+_mag = json.loads(_v2['motor-m0v2-rotor-magnet']['parameters_json'])
+_pin = json.loads(_v2['motor-m0v2-rotor-pinion']['parameters_json'])
+check('the rotor is STEPPED: magnet below, pinion above, sharing '
+      'one axis',
+      _pin['center'][2] > _mag['center'][2]
+      and _pin['center'][0] == _mag['center'][0]
+      and _pin['radius'] < _mag['radius'])
+check('the rotor sits IN the bore (same axis, and it fits)',
+      _mag['center'][0] == _bore['center'][0]
+      and _mag['radius'] < _bore['radius'])
+check('teeth are STILL not faked — the pitch cylinder says it is '
+      'a pitch cylinder, and gr-3 generates the real ones',
+      'PITCH cylinder only'
+      in _v2['motor-m0v2-rotor-pinion']['notes'])
+check('the v2 scene exists alongside v1 and the schematic — three '
+      'geometries, each labelled for what it is',
+      len(SEED_LAVET_V2_SIM_SPACES) == 1
+      and len(json.loads(SEED_LAVET_V2_SIM_SPACES[0]['definition'])
+              ['freestanding']) == 9)
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

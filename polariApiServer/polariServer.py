@@ -836,6 +836,7 @@ try:
     )
     from motors.motor_shapes import (
         SEED_LAVET_PART_SHAPES, SEED_LAVET_SIM_SPACES,
+        SEED_LAVET_V2_PART_SHAPES, SEED_LAVET_V2_SIM_SPACES,
         SEED_MOTOR_MATERIALS_3D, SEED_MOTOR_PART_SHAPES,
         SEED_MOTOR_SIM_SPACES,
     )
@@ -856,6 +857,7 @@ except ImportError as _exc:
         'SEED_PHASE_BINDINGS', 'SEED_MOTOR_MATERIALS_3D',
         'SEED_MOTOR_PART_SHAPES', 'SEED_MOTOR_SIM_SPACES',
         'SEED_LAVET_PART_SHAPES', 'SEED_LAVET_SIM_SPACES',
+        'SEED_LAVET_V2_PART_SHAPES', 'SEED_LAVET_V2_SIM_SPACES',
     ))
 # mesh-1: license-GATED external mesh catalog + the fit engine
 # (borrowed meshes measured against our vector organ definitions).
@@ -2964,7 +2966,8 @@ class polariServer(treeObject):
              SEED_MATERIAL_PHASE_APPEARANCES),
             ('SimSpaceDefinition', SimSpaceDefinition,
              SEED_SIM_SPACES_3D + SEED_MOTOR_SIM_SPACES
-             + SEED_LAVET_SIM_SPACES),
+             + SEED_LAVET_SIM_SPACES
+             + SEED_LAVET_V2_SIM_SPACES),
             # Materials Science: the periodic table as objects + its
             # selection-space demo page.
             ('ChemicalElementDefinition', ChemicalElementDefinition,
@@ -3358,7 +3361,8 @@ class polariServer(treeObject):
             # shape-1: math-defined shapes (quadric/primitive/CSG).
             ('MathShapeDefinition', MathShapeDefinition,
              SEED_MATH_SHAPES + SEED_MOTOR_PART_SHAPES
-             + SEED_LAVET_PART_SHAPES),
+             + SEED_LAVET_PART_SHAPES
+             + SEED_LAVET_V2_PART_SHAPES),
             # shape-2: aquaponic towers (reference math-defined pots).
             ('AquaponicTowerDefinition', AquaponicTowerDefinition,
              SEED_TOWERS),
