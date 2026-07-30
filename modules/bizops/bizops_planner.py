@@ -55,14 +55,73 @@ def _scale(volume_l, exponent=PLAN_PRIORS['volume_exponent']):
 
 #: Stage-0 exploration variants (the "try different products"
 #: axiom as data) — market price prior scales from the scenario's
-#: 18.00 at the 1 L class.
+#: 18.00 at the 1 L class. mag-8 adds the magnetic-goods variants:
+#: `material_ref` overrides the cast material (default
+#: geopolymer-mix), `price_ref` overrides the scaled price prior
+#: (small technical parts do not price like planters — still a
+#: PRIOR until MarketSessionRecord rows land),
+#: `magnetics_option_ref` names the catalog row whose realization
+#: gate decides whether SELLING is open (numbers always shown),
+#: and `excluded_note` states costs this plan does NOT include.
 PRESTAGE_VARIANTS = [
     {'variant': 'small-pot', 'volume_l': 0.5},
     {'variant': 'planter-1l', 'volume_l': 1.0},
     {'variant': 'large-planter', 'volume_l': 4.0},
+    # --- mag-8 magnetic goods (same casting workflow, magnetic
+    # castable, wax molds unchanged) ---
+    {'variant': 'inductor-core-toroid', 'volume_l': 0.05,
+     'material_ref': 'magnetic-geopolymer-mix',
+     'magnetics_option_ref': 'opt-geopolymer-ferrite',
+     'price_ref': 4.0},
+    {'variant': 'sensor-core-set', 'volume_l': 0.02,
+     'material_ref': 'magnetic-geopolymer-mix',
+     'magnetics_option_ref': 'opt-geopolymer-ferrite',
+     'price_ref': 6.0},
+    {'variant': 'flux-guide-set', 'volume_l': 0.2,
+     'material_ref': 'magnetic-geopolymer-mix',
+     'magnetics_option_ref': 'opt-geopolymer-ferrite',
+     'price_ref': 12.0},
+    {'variant': 'motor-kit-m0-clock', 'volume_l': 0.1,
+     'material_ref': 'magnetic-geopolymer-mix',
+     'magnetics_option_ref': 'opt-bonded-hexaferrite-geopolymer',
+     'price_ref': 25.0,
+     'excluded_note': 'castings only — magnet wire, 1 Hz driver '
+                      'and hardware are EXCLUDED from this '
+                      'number; the kit BOM lives in the motor '
+                      'design build_requirements '
+                      '(/api/motors/materials/clock-lavet-m0)'},
 ]
 MARKET_PRICE_REF = 18.0
 WAX_MOLD_CYCLES = 10
+
+
+def _magnetics_gate(manager, option_ref):
+    """Realization gate for a magnetic variant, read at DATA level
+    (bizops does not import magnetics — the table is simply absent
+    when the module is off, and the gate says so honestly).
+    Selling opens only at made-and-measured; the plan's numbers
+    show either way."""
+    if not option_ref:
+        return None
+    table = (getattr(manager, 'objectTables', None) or {}).get(
+        'MagneticMaterialOption') or {}
+    opt = next((row for row in table.values()
+                if getattr(row, 'name', '') == option_ref), None)
+    if opt is None:
+        return {'option': option_ref, 'businessAllowed': False,
+                'note': 'magnetics module off (or option row '
+                        'missing) — realization gate unassessed; '
+                        'numbers are planning-only'}
+    level = getattr(opt, 'realization_level', 'theoretical')
+    made = level == 'made-and-measured'
+    return {'option': option_ref, 'realizationLevel': level,
+            'businessAllowed': made,
+            'note': ('made-and-measured — selling open' if made
+                     else f'realization "{level}" — numbers shown, '
+                          'SELLING gated until measured batches '
+                          '(qa-wound-core-inductance / '
+                          'qa-magnet-remanence) earn '
+                          'made-and-measured')}
 
 
 def _sell_through(manager, business_name):
@@ -109,6 +168,14 @@ def prestage_plan(manager, business_name, budget_usd=100.0,
                 'refusal': 'costs or workflows unresolvable — the '
                            'cited stack and workflow seeds must '
                            'exist first'}
+    # Per-material make-costs (mag-8): variants may override the
+    # cast material; an unresolvable override refuses THAT variant,
+    # never the whole plan.
+    mat_costs = {'geopolymer-mix': geo_cost}
+    for var in PRESTAGE_VARIANTS:
+        ref = var.get('material_ref', 'geopolymer-mix')
+        if ref not in mat_costs:
+            mat_costs[ref] = make_cost(manager, ref)
     weekly = getattr(biz, 'weekly_hours', 10.0)
     hours_budget = weekly * horizon_days / 7.0
     weights = _sell_through(manager, business_name)
@@ -129,8 +196,22 @@ def prestage_plan(manager, business_name, budget_usd=100.0,
         share = shares[var['variant']] / total_w
         b_share = budget_usd * share
         h_share = hours_budget * share
+        mat_ref = var.get('material_ref', 'geopolymer-mix')
+        mat_cost = mat_costs.get(mat_ref)
+        gate = _magnetics_gate(manager,
+                               var.get('magnetics_option_ref', ''))
+        if mat_cost is None or not mat_cost.get('usdPerKg'):
+            batch.append({'variant': var['variant'],
+                          'volumeL': vol, 'units': 0,
+                          'material': mat_ref,
+                          'refusal': f'make-cost for "{mat_ref}" '
+                                     'unresolvable — its recipe/'
+                                     'citations must seed first '
+                                     '(magnetic seeds ride the '
+                                     'supplychain mag-1 lists)'})
+            continue
         unit_kg = PLAN_PRIORS['product_mass_kg_ref'] * scale
-        unit_cost = unit_kg * geo_cost['usdPerKg']
+        unit_cost = unit_kg * mat_cost['usdPerKg']
         unit_h = (getattr(cast_wf, 'hours_per_unit_ref', 0.8)
                   * scale)
         mold_kg = PLAN_PRIORS['wax_mold_mass_kg_ref'] * scale
@@ -160,18 +241,25 @@ def prestage_plan(manager, business_name, budget_usd=100.0,
         molds = max(1, -(-units // WAX_MOLD_CYCLES))
         cost = round(units * unit_cost + molds * mold_cost, 2)
         hours = round(units * unit_h + molds * mold_h, 1)
-        price = round(MARKET_PRICE_REF * scale, 2)
+        price = round(var.get('price_ref')
+                      or MARKET_PRICE_REF * scale, 2)
         spent += cost
         hours_used += hours
-        batch.append({
+        entry = {
             'variant': var['variant'], 'volumeL': vol,
             'units': units, 'molds': molds,
+            'material': mat_ref,
             'materialCost': cost, 'laborHours': hours,
             'marketPriceEach': price,
             'revenueIfAllSells': round(units * price, 2),
             'marginIfAllSells': round(units * price - cost, 2),
             'sellThroughWeight': round(shares[var['variant']]
-                                       / total_w, 3)})
+                                       / total_w, 3)}
+        if gate is not None:
+            entry['businessGate'] = gate
+        if var.get('excluded_note'):
+            entry['excludedNote'] = var['excluded_note']
+        batch.append(entry)
     return {
         'ok': True, 'business': business_name,
         'workMode': work_mode,

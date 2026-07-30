@@ -256,7 +256,23 @@ SEED_TECH_NODES = [
     _node(_E, 'electromagnetic-systems', 'Electromagnetic systems',
           deps=('ceramics-composites',),
           description='Ferrite/magnetics + electromagnetic '
-                      'hardware.'),
+                      'hardware, filled by the mag arc: cast '
+                      'magnetic composites (msci ferrite ladder, '
+                      'mu ~1.7-2.5) -> reluctance circuits + '
+                      'slot-matrix selective mortar -> the M0-M3 '
+                      'motor ladder (Lavet clock control case; '
+                      'dual-stator axial flux = the §2d end goal). '
+                      'ESCALATION = cast (T0) -> lapped (T1) -> '
+                      'fired-to-ceramic (Table 8.8, the mu rung) '
+                      '-> sintered hexaferrite (cone 8-10). Hard '
+                      'magnets from POTTERY CHEMICALS (§1b): the '
+                      'pigment-channel Fe2O3 hunt closed '
+                      '2026-07-30 at 2.34/kg — feed ~2.9/kg. '
+                      'Named data gaps ride data_deps: measured '
+                      'B-H curves for OUR casts (the inductance/'
+                      'hall QA rows are how they get measured).',
+          data_deps=('bh-curve-geopolymer-ferrite-cast',
+                     'bh-curve-sintered-hexaferrite-own')),
     _node(_E, 'open-source-hardware', 'Open-source hardware',
           description='MCU+FPGA stack, safety MCU, hwsim digital '
                       'twins.'),
@@ -420,6 +436,9 @@ SEED_TECH_SEGMENT_ASSIGNMENTS = [
     _theory(_E, 'ceramics-composites', 'materialsScience'),
     _theory(_E, 'electromagnetic-systems', 'materialsScience'),
     _theory(_E, 'electromagnetic-systems', 'electrodevice'),
+    # mag-8: the mag-arc modules ARE this node's theory substrate
+    _theory(_E, 'electromagnetic-systems', 'magnetics'),
+    _theory(_E, 'electromagnetic-systems', 'motors'),
     _theory(_E, 'open-source-hardware', 'hwdigital'),
     _theory(_E, 'open-source-hardware', 'hwfpga'),
     _theory(_E, 'open-source-hardware', 'grpcbridge'),
@@ -540,6 +559,14 @@ SEED_OSEB_POLARI_MODULES = [
             '+ ceramics families.'),
     _module('waxsupply', _E, 'wax-materials',
             'Bio wax sources + supply routes.'),
+    _module('magnetics', _E, 'electromagnetic-systems',
+            'Magnetic materials + circuits: mag-2r roles/catalog/'
+            'powders, MNA reluctance solve, slot-matrix selective '
+            'mortar, field views.'),
+    _module('motors', _E, 'electromagnetic-systems',
+            'The M0-M3 motor ladder: designs w/ builder specs, '
+            'Lavet clock control case, torque curves + parity, '
+            'SimpleFOC drive rows, verification runs.'),
     _module('electrodevice', _E, 'battery-semiconductors',
             'Electronic devices: circuits, breadboards, '
             'semiconductor stack.'),

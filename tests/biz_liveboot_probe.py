@@ -40,11 +40,12 @@ def check(label, cond, extra=''):
 # seeds landed through the REAL seed_pairs path
 reqs = manager.objectTables.get('ComplianceRequirement', {})
 checks_tbl = manager.objectTables.get('QualityCheckDefinition', {})
-check('6 ComplianceRequirement rows seeded by polariServer',
-      len(reqs) == 6, extra=str(len(reqs)))
-check('6 QualityCheckDefinition rows seeded by polariServer '
-      '(5 biz-4 + wound-core-inductance mag-2)',
-      len(checks_tbl) == 6, extra=str(len(checks_tbl)))
+check('8 ComplianceRequirement rows seeded by polariServer '
+      '(6 biz-4 + magnet-ingestion + emc-claim mag-8)',
+      len(reqs) == 8, extra=str(len(reqs)))
+check('7 QualityCheckDefinition rows seeded by polariServer '
+      '(5 biz-4 + wound-core mag-2 + remanence mag-8)',
+      len(checks_tbl) == 7, extra=str(len(checks_tbl)))
 food = next((r for r in reqs.values()
              if getattr(r, 'name', '') == 'req-food-contact'), None)
 check('food-contact row demands certified-third-party-pass',
@@ -67,10 +68,10 @@ check('food-contact context blocked at unassessed on the live app',
 
 r = client.simulate_get('/api/bizops/qa/wax-mold-goods')
 body = r.json
-check('GET /api/bizops/qa/{biz} 200 + 6 checks all honestly '
+check('GET /api/bizops/qa/{biz} 200 + 7 checks all honestly '
       'unmeasured',
       r.status_code == 200 and body.get('ok')
-      and len(body.get('checks', [])) == 6
+      and len(body.get('checks', [])) == 7
       and all(c['passRatePct'] is None for c in body['checks']),
       extra=r.status)
 
@@ -90,10 +91,10 @@ check('walkthrough sell-and-log embeds live sellability on the '
 # neighboring routes still alive after the wiring edits
 r = client.simulate_get('/api/bizops/deal-pricing')
 body = r.json
-check('GET /api/bizops/deal-pricing 200: 3 deals, biomass window '
-      'suggests 2.40 on the live app',
+check('GET /api/bizops/deal-pricing 200: 4 deals (+wire co-op '
+      'mag-8), biomass window suggests 2.40 on the live app',
       r.status_code == 200 and body.get('ok')
-      and len(body.get('deals', [])) == 3
+      and len(body.get('deals', [])) == 4
       and any(f.get('suggestedUsdPerKg') == 2.4
               for d in body['deals'] for f in d['flows']),
       extra=r.status)

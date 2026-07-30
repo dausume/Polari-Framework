@@ -27,12 +27,16 @@ def _risks_for(manager, step_ref):
 
 
 def _shopping_list(manager):
-    """Concrete buy-list from the CITED coverage of the two core
+    """Concrete buy-list from the CITED coverage of the core
     recipes — store names, prices, citation URLs. Stage-0 posture
     is retail-available: BUY everything; self-made intermediaries
-    are later-stage upgrades."""
+    are later-stage upgrades. mag-8 adds the magnetic castable so
+    the magnetite bag (and, via the srfe12o19 chain, the pottery
+    feedstocks) surface once the magnetic variants exist; absent
+    seeds (magnetics lists not loaded) simply contribute nothing."""
     items = []
-    for product in ('geopolymer-mix', 'natural-print-wax-blend'):
+    for product in ('geopolymer-mix', 'natural-print-wax-blend',
+                    'magnetic-geopolymer-mix'):
         cov = requirement_coverage(manager, product)
         if not cov.get('ok'):
             continue

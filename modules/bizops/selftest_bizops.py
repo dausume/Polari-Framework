@@ -218,6 +218,39 @@ if __name__ == '__main__':
           'EVEN split' in out['learning'])
     check('speculation named: revenue lines assume everything '
           'sells', any('tuition' in a for a in out['assumptions']))
+    by_var = {b['variant']: b for b in out['batch']}
+    check('mag-8 variants present: cores, sensor set, flux guides, '
+          'M0 kit (7 variants total)',
+          {'inductor-core-toroid', 'sensor-core-set',
+           'flux-guide-set', 'motor-kit-m0-clock'} <= set(by_var)
+          and len(out['batch']) == 7)
+    core = by_var['inductor-core-toroid']
+    check('magnetic variant costs from magnetic-geopolymer-mix '
+          '(the cascaded castable), not the plain mix',
+          core.get('material') == 'magnetic-geopolymer-mix'
+          and core.get('units', 0) > 0)
+    check('business gate travels: fixture has no magnetics table '
+          '-> gate honestly unassessed, selling NOT allowed',
+          core.get('businessGate', {}).get('businessAllowed')
+          is False
+          and 'magnetics module off'
+          in core['businessGate']['note'])
+    check('M0 kit states its exclusions (wire/driver/hardware NOT '
+          'in this number)',
+          'EXCLUDED' in by_var['motor-kit-m0-clock']
+          .get('excludedNote', ''))
+    mgr2.objectTables['MagneticMaterialOption'] = {
+        'opt-geopolymer-ferrite': types.SimpleNamespace(
+            name='opt-geopolymer-ferrite',
+            realization_level='made-and-measured')}
+    out_g = prestage_plan(mgr2, 'wax-mold-goods', budget_usd=120.0,
+                          horizon_days=30)
+    core_g = {b['variant']: b for b in out_g['batch']}[
+        'inductor-core-toroid']
+    check('made-and-measured option OPENS selling (the gate is '
+          'earned, read live from the catalog row)',
+          core_g['businessGate']['businessAllowed'] is True)
+    del mgr2.objectTables['MagneticMaterialOption']
     mgr2.objectTables['MarketSessionRecord'] = {
         'm1': types.SimpleNamespace(
             business_ref='wax-mold-goods', channel='farmer-market',
@@ -341,9 +374,15 @@ if __name__ == '__main__':
     print('== suite: partnerships ==')
     out = partnership_report(mgr3)
     by = {d['name']: d for d in out['deals']}
-    check('three archetype deals seeded, all proposed',
-          len(out['deals']) == 3
+    check('four archetype deals seeded (3 biz-3 + magnet-wire '
+          'co-op mag-8), all proposed',
+          len(out['deals']) == 4
           and all(d['status'] == 'proposed' for d in out['deals']))
+    wire = by['deal-magnet-wire-coop']
+    check('magnet-wire co-op: partner honestly unresolved (to be '
+          'found), flow names the mag-1 item',
+          not wire['partyAResolved']
+          and wire['flows'][0]['item_ref'] == 'magnet-wire-copper')
     hydro = by['deal-hydro-mold-loop']
     check('hydro<->mold deal: both parties RESOLVE and the biomass '
           'flow is coherent with the farm supplies',
@@ -448,10 +487,10 @@ if __name__ == '__main__':
 
     print('== suite: quality assurance tracking (biz-4) ==')
     out = qa_report(mgr4, 'wax-mold-goods')
-    check('all six seeded checks reported (5 biz-4 + wound-core '
-          'mag-2); zero records = honestly unmeasured, never a '
-          'fake 100%',
-          out.get('ok') and len(out['checks']) == 6
+    check('all seven seeded checks reported (5 biz-4 + wound-core '
+          'mag-2 + remanence mag-8); zero records = honestly '
+          'unmeasured, never a fake 100%',
+          out.get('ok') and len(out['checks']) == 7
           and all(c['passRatePct'] is None and 'unmeasured'
                   in c['note'] for c in out['checks']))
     mgr4.objectTables['QualityCheckRecord'] = {
@@ -521,9 +560,16 @@ if __name__ == '__main__':
           husk['ceilingEstimate'] is True
           and abs(husk['ceilingUsdPerKg'] - 1.3228) < 0.01
           and husk['viable'] is True)
-    check('unknown deal refused; catalog covers all three deals',
+    check('unknown deal refused; catalog covers all four deals',
           not deal_price_window(mgr5, 'nope').get('ok')
-          and len(deal_pricing_catalog(mgr5)['deals']) == 3)
+          and len(deal_pricing_catalog(mgr5)['deals']) == 4)
+    wirew = deal_price_window(mgr5, 'deal-magnet-wire-coop')
+    check('wire co-op window: ceiling from the CITED retail spool '
+          '(magnet wire is the un-makeable input), floor honest '
+          'supplier-must-confirm',
+          wirew.get('ok')
+          and wirew['flows'][0]['ceilingUsdPerKg'] is not None
+          and wirew['flows'][0]['floorUsdPerKg'] == 0.0)
 
     print('== suite: sellability embedded in the walkthrough ==')
     out = startup_walkthrough(_mgr(), 'wax-mold-goods',

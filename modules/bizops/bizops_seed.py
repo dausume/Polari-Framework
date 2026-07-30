@@ -370,6 +370,35 @@ SEED_PARTNERSHIPS = [
                  'is the seed; the open-hardware wax printer work '
                  'is where these groups come from.',
     },
+    # --- mag-8: the magnetic-goods supply shape ---
+    {
+        'name': 'deal-magnet-wire-coop',
+        'display_name': 'Magnet-wire bulk co-op (partners to be '
+                        'found)',
+        'party_a': 'local-maker-coop (to be found)',
+        'party_b': 'wax-mold-goods',
+        'kind': 'supply-deal',
+        'flows_json': json.dumps([
+            {'from': 'local-maker-coop (to be found)',
+             'to': 'wax-mold-goods',
+             'item_ref': 'magnet-wire-copper',
+             'terms_note': 'pool a 10 lb spool commitment per '
+                           'gauge (the mag-1 applied-magnets '
+                           'tier) and split by weight — a solo '
+                           'stage-0 winder never needs 10 lb of '
+                           'one gauge'}]),
+        'terms_note': 'deal_price_window applies unchanged: floor '
+                      '= split spool cost + margin, ceiling = the '
+                      'cited 1 lb retail spool (remington row). '
+                      'Copper is the ONE motor input the local '
+                      'stack cannot make — pooling is the honest '
+                      'lever on it.',
+        'status': 'proposed',
+        'is_prior': True, 'provenance_id': 'mag-8',
+        'notes': 'The motor-goods variants (mag-8) are what create '
+                 'this demand; hard-ferrite feedstock rides the '
+                 'existing pottery-channel shopping list instead.',
+    },
 ]
 
 SEED_COMPLIANCE_REQUIREMENTS = [
@@ -439,6 +468,42 @@ SEED_COMPLIANCE_REQUIREMENTS = [
      'reference_note': 'Internal standard — the honest-claims '
                        'principle applied to planters.',
      'is_prior': True, 'provenance_id': 'biz-4', 'notes': ''},
+    # --- mag-8: the magnetic-goods splice ---
+    {'name': 'req-magnet-ingestion', 'display_name': 'Loose-magnet '
+     'ingestion hazard (CPSC)', 'kind': 'legal-mandatory',
+     'applies_context': 'sold-with-loose-magnets',
+     'required_level': 'self-test-pass',
+     'requirement': 'US 16 CFR Part 1262 bans loose hazardous '
+                    'magnets that fit the small-parts cylinder AND '
+                    'exceed a 50 kG^2*mm^2 flux index. Ceramic '
+                    'ferrite parts are usually below that flux '
+                    'index and our castings are large — but VERIFY '
+                    'per product (size gauge + the hall-probe '
+                    'numbers), and never ship loose strong small '
+                    'magnets in a kit.',
+     'reference_note': 'US 16 CFR 1262 (Safety Standard for '
+                       'Magnets). NOT LEGAL ADVICE — verify '
+                       'against the current rule text.',
+     'is_prior': True, 'provenance_id': 'mag-8',
+     'notes': 'Motor kits with a separate rotor magnet are the '
+              'context this exists for; assembled/potted motors '
+              'read as general-goods.'},
+    {'name': 'req-emc-claim', 'display_name': 'EMC / interference-'
+     'suppression claims', 'kind': 'voluntary-standard',
+     'applies_context': 'sold-as-emc-suppression',
+     'required_level': 'certified-third-party-pass',
+     'requirement': 'Selling a core/bead AS an EMI/EMC suppression '
+                    'product with performance claims requires '
+                    'accredited-lab test data — same shape as the '
+                    'plant-safe rule: the unmet requirement blocks '
+                    'the CLAIM, plain cores sell as general goods. '
+                    'Likewise no medical-device framing, ever.',
+     'reference_note': 'FCC Part 15 context / FTC substantiation '
+                       'doctrine. NOT LEGAL ADVICE.',
+     'is_prior': True, 'provenance_id': 'mag-8',
+     'notes': 'Our inductance QA row proves mu to OURSELVES; an '
+              'EMC performance claim needs a lab, and the ladder '
+              'says exactly which level buys which sentence.'},
 ]
 
 SEED_QUALITY_CHECKS = [
@@ -488,6 +553,22 @@ SEED_QUALITY_CHECKS = [
               'mu only through this row — and passing batches are '
               'exactly what earns made-and-measured on the '
               'magnetics catalog.'},
+    {'name': 'qa-magnet-remanence', 'display_name': 'Magnetized-'
+     'part remanence (hall probe)', 'product_kind':
+     'magnetic-cast',
+     'method': 'hall gaussmeter (research-tools tree, ~$2-15 '
+               'sensor) at a fixed jig distance after the '
+               'magnetizing pulse',
+     'acceptance': 'surface field within ±30% of the option\'s '
+                   'B_r-derived prediction AND stable on re-test '
+                   'after 24 h (self-demagnetization flags the '
+                   'grade)',
+     'frequency': 'per-batch', 'is_prior': True,
+     'provenance_id': 'mag-8',
+     'notes': 'The PM twin of the inductance row: a bonded/'
+              'sintered rotor claims hard-magnet behavior only '
+              'through this measurement — MotorVerificationRun '
+              'measured rows are the assembled-motor complement.'},
 ]
 
 SEED_PROCESS_WORKFLOWS = [
