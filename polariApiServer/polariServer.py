@@ -834,11 +834,16 @@ try:
         MotorDesignDefinition, MotorVerificationRun,
         SEED_MOTOR_DESIGNS,
     )
+    from motors.motor_shapes import (
+        SEED_MOTOR_MATERIALS_3D, SEED_MOTOR_PART_SHAPES,
+    )
 except ImportError as _exc:
     _stub_missing_feature('motors', _exc, globals(), (
         'MotorDesignDefinition', 'MotorVerificationRun',
         'SEED_MOTOR_DESIGNS',
     ))
+    SEED_MOTOR_MATERIALS_3D = []
+    SEED_MOTOR_PART_SHAPES = []
 # Odoo ERP connector — instance configs + sim/ops write guards (od-3).
 try:
     from odooconnect.odoo_basis import OdooInstanceConfig
@@ -2886,7 +2891,8 @@ class polariServer(treeObject):
             ('Mesh3DDefinition', Mesh3DDefinition, SEED_MESHES_3D),
             # Textures BEFORE materials — materials reference them.
             ('Texture3DDefinition', Texture3DDefinition, SEED_TEXTURES_3D),
-            ('Material3DDefinition', Material3DDefinition, SEED_MATERIALS_3D),
+            ('Material3DDefinition', Material3DDefinition,
+             SEED_MATERIALS_3D + SEED_MOTOR_MATERIALS_3D),
             ('MaterialPhaseAppearance', MaterialPhaseAppearance,
              SEED_MATERIAL_PHASE_APPEARANCES),
             ('SimSpaceDefinition', SimSpaceDefinition, SEED_SIM_SPACES_3D),
@@ -3281,7 +3287,8 @@ class polariServer(treeObject):
             ('StressResponseCurve', StressResponseCurve,
              SEED_STRESS_CURVES),
             # shape-1: math-defined shapes (quadric/primitive/CSG).
-            ('MathShapeDefinition', MathShapeDefinition, SEED_MATH_SHAPES),
+            ('MathShapeDefinition', MathShapeDefinition,
+             SEED_MATH_SHAPES + SEED_MOTOR_PART_SHAPES),
             # shape-2: aquaponic towers (reference math-defined pots).
             ('AquaponicTowerDefinition', AquaponicTowerDefinition,
              SEED_TOWERS),
