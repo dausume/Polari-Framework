@@ -421,6 +421,11 @@ SEED_MATERIAL_OPTIONS = [
         'msci_material_ref': 'geopolymer-ferrite',
         'forms_json': json.dumps(['castable-block']),
         'properties_json': _props(
+            tensile_mpa=(3.5, 'MPa', 'literature-est', 'literature CLASS value; our castings are untested, and brittle strength scatters widely (Weibull) so the mean is not the design number'),
+            youngs_modulus_mpa=(16000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
+            poisson_ratio=(0.2, '', 'literature-est'),
+            compressive_mpa=(50.0, 'MPa', 'literature-est', 'the compressive/tensile ASYMMETRY here is exactly why von Mises is the wrong criterion for this material'),
+            failure_class=('brittle', '', 'literature-est', 'decides the criterion: brittle -> max PRINCIPAL stress, ductile -> von Mises'),
             mu_r_eff=(2.196, '', 'literature-est',
                       'OUR msci-22 FEM homogenization @35vol% — '
                       'simulated, not measured'),
@@ -503,6 +508,11 @@ SEED_MATERIAL_OPTIONS = [
         'forms_json': json.dumps(['sintered-part',
                                   'castable-block']),
         'properties_json': _props(
+            tensile_mpa=(35.0, 'MPa', 'literature-est', 'literature CLASS value; our castings are untested, and brittle strength scatters widely (Weibull) so the mean is not the design number'),
+            youngs_modulus_mpa=(110000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
+            poisson_ratio=(0.24, '', 'literature-est'),
+            compressive_mpa=(450.0, 'MPa', 'literature-est', 'the compressive/tensile ASYMMETRY here is exactly why von Mises is the wrong criterion for this material'),
+            failure_class=('brittle', '', 'literature-est', 'decides the criterion: brittle -> max PRINCIPAL stress, ductile -> von Mises'),
             mu_r_eff=(2.484, '', 'literature-est',
                       'msci FEM @40vol% — the cast-composite '
                       'ceiling; SINTERED ferrite parts run '
@@ -526,6 +536,11 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': '',
         'forms_json': json.dumps(['sintered-part']),
         'properties_json': _props(
+            tensile_mpa=(350.0, 'MPa', 'literature-est', 'literature CLASS value; our castings are untested, and brittle strength scatters widely (Weibull) so the mean is not the design number'),
+            youngs_modulus_mpa=(200000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
+            poisson_ratio=(0.29, '', 'literature-est'),
+            compressive_mpa=(350.0, 'MPa', 'literature-est', 'the compressive/tensile ASYMMETRY here is exactly why von Mises is the wrong criterion for this material'),
+            failure_class=('ductile', '', 'literature-est', 'decides the criterion: brittle -> max PRINCIPAL stress, ductile -> von Mises'),
             mu_r_eff=(4000.0, '', 'literature-est'),
             b_sat_t=(2.0, 'T', 'literature-est'),
             h_c_ka_m=(0.06, 'kA/m', 'literature-est'),
@@ -590,6 +605,11 @@ SEED_MATERIAL_OPTIONS = [
         'powder_ref': 'srfe12o19-powder-def',
         'forms_json': json.dumps(['castable-block']),
         'properties_json': _props(
+            tensile_mpa=(3.0, 'MPa', 'literature-est', 'literature CLASS value; our castings are untested, and brittle strength scatters widely (Weibull) so the mean is not the design number'),
+            youngs_modulus_mpa=(14000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
+            poisson_ratio=(0.22, '', 'literature-est'),
+            compressive_mpa=(45.0, 'MPa', 'literature-est', 'the compressive/tensile ASYMMETRY here is exactly why von Mises is the wrong criterion for this material'),
+            failure_class=('brittle', '', 'literature-est', 'decides the criterion: brittle -> max PRINCIPAL stress, ductile -> von Mises'),
             b_r_t=(0.12, 'T', 'literature-est',
                    'isotropic bonded at ~50-60wt% — literature '
                    'order for bonded magnets, OUR matrix untested'),
@@ -615,6 +635,11 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': 'ceramic-ring-magnet',
         'forms_json': json.dumps(['sintered-part']),
         'properties_json': _props(
+            tensile_mpa=(35.0, 'MPa', 'literature-est', 'literature CLASS value; our castings are untested, and brittle strength scatters widely (Weibull) so the mean is not the design number'),
+            youngs_modulus_mpa=(150000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
+            poisson_ratio=(0.28, '', 'literature-est'),
+            compressive_mpa=(600.0, 'MPa', 'literature-est', 'the compressive/tensile ASYMMETRY here is exactly why von Mises is the wrong criterion for this material'),
+            failure_class=('brittle', '', 'literature-est', 'decides the criterion: brittle -> max PRINCIPAL stress, ductile -> von Mises'),
             b_r_t=(0.39, 'T', 'literature-est',
                    'grade 5 ceramic order'),
             h_c_ka_m=(260.0, 'kA/m', 'literature-est'),
@@ -731,6 +756,11 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': '',
         'forms_json': json.dumps(['sintered-part']),
         'properties_json': _props(
+            tensile_mpa=(80.0, 'MPa', 'literature-est', 'literature CLASS value; our castings are untested, and brittle strength scatters widely (Weibull) so the mean is not the design number'),
+            youngs_modulus_mpa=(160000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
+            poisson_ratio=(0.24, '', 'literature-est'),
+            compressive_mpa=(1100.0, 'MPa', 'literature-est', 'the compressive/tensile ASYMMETRY here is exactly why von Mises is the wrong criterion for this material'),
+            failure_class=('brittle', '', 'literature-est', 'decides the criterion: brittle -> max PRINCIPAL stress, ductile -> von Mises'),
             b_r_t=(1.3, 'T', 'literature-est'),
             h_c_ka_m=(900.0, 'kA/m', 'literature-est'),
             density_kg_m3=(7500.0, 'kg/m3', 'literature-est')),
@@ -752,6 +782,11 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': 'magnet-wire-copper',
         'forms_json': json.dumps(['wire']),
         'properties_json': _props(
+            tensile_mpa=(210.0, 'MPa', 'literature-est', 'literature CLASS value; our castings are untested, and brittle strength scatters widely (Weibull) so the mean is not the design number'),
+            youngs_modulus_mpa=(117000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
+            poisson_ratio=(0.34, '', 'literature-est'),
+            compressive_mpa=(210.0, 'MPa', 'literature-est', 'the compressive/tensile ASYMMETRY here is exactly why von Mises is the wrong criterion for this material'),
+            failure_class=('ductile', '', 'literature-est', 'decides the criterion: brittle -> max PRINCIPAL stress, ductile -> von Mises'),
             sigma_s_m=(5.96e7, 'S/m', 'literature-est',
                        'IACS copper — the one number nobody '
                        'disputes'),
@@ -848,6 +883,10 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': 'geopolymer-mix',
         'forms_json': json.dumps(['castable-block', 'mortar']),
         'properties_json': _props(
+            youngs_modulus_mpa=(18000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
+            poisson_ratio=(0.2, '', 'literature-est'),
+            compressive_mpa=(60.0, 'MPa', 'literature-est', 'the compressive/tensile ASYMMETRY here is exactly why von Mises is the wrong criterion for this material'),
+            failure_class=('brittle', '', 'literature-est', 'decides the criterion: brittle -> max PRINCIPAL stress, ductile -> von Mises'),
             mu_r_eff=(1.0, '', 'literature-est'),
             tensile_mpa=(4.0, 'MPa', 'literature-est',
                          'flexural/tensile literature order for '
@@ -871,6 +910,10 @@ SEED_MATERIAL_OPTIONS = [
         'forms_json': json.dumps(['sintered-part',
                                   'castable-block']),
         'properties_json': _props(
+            youngs_modulus_mpa=(90000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
+            poisson_ratio=(0.22, '', 'literature-est'),
+            compressive_mpa=(400.0, 'MPa', 'literature-est', 'the compressive/tensile ASYMMETRY here is exactly why von Mises is the wrong criterion for this material'),
+            failure_class=('brittle', '', 'literature-est', 'decides the criterion: brittle -> max PRINCIPAL stress, ductile -> von Mises'),
             mu_r_eff=(1.0, '', 'literature-est'),
             tensile_mpa=(30.0, 'MPa', 'literature-est'),
             density_kg_m3=(2400.0, 'kg/m3', 'literature-est')),
@@ -905,6 +948,10 @@ SEED_MATERIAL_OPTIONS = [
         'msci_material_ref': 'alumina-geopolymer',
         'forms_json': json.dumps(['sintered-part']),
         'properties_json': _props(
+            youngs_modulus_mpa=(370000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
+            poisson_ratio=(0.22, '', 'literature-est'),
+            compressive_mpa=(2500.0, 'MPa', 'literature-est', 'the compressive/tensile ASYMMETRY here is exactly why von Mises is the wrong criterion for this material'),
+            failure_class=('brittle', '', 'literature-est', 'decides the criterion: brittle -> max PRINCIPAL stress, ductile -> von Mises'),
             tensile_mpa=(260.0, 'MPa', 'literature-est'),
             mu_r_eff=(1.0, '', 'literature-est'),
             density_kg_m3=(3950.0, 'kg/m3', 'literature-est')),

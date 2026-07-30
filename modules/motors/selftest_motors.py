@@ -744,6 +744,74 @@ check('both rungs\' shafts are BOUGHT steel, reported as an '
       _m1rep['m1-shaft']['massG'] is None
       and _m3rep['m3-shaft']['massG'] is None)
 
+print('== suite: mag-15 stress — the CRITERION correction ==')
+from motors.motor_stress import (  # noqa: E402
+    failure_criterion, load_cases,
+)
+from gears.gear_seed import (  # noqa: E402
+    SEED_GEARS as _GRS, SEED_GEAR_TRAINS as _GTR,
+)
+
+mgrs = _mgr()
+mgrs.objectTables['GearTrainDefinition'] = {
+    g['name']: types.SimpleNamespace(**g) for g in _GTR}
+mgrs.objectTables['GearDefinition'] = {
+    g['name']: types.SimpleNamespace(**g) for g in _GRS}
+mgrs.objectTables['MotorPartDefinition'] = {}
+
+fc = failure_criterion(mgrs, 'opt-geopolymer-ferrite')
+check('a BRITTLE casting is judged by MAX PRINCIPAL stress, NOT '
+      'von Mises — asking for von Mises and getting it here would '
+      'be answering the question and getting the engineering wrong',
+      fc['ok'] and fc['failureClass'] == 'brittle'
+      and 'max-principal' in fc['criterion'])
+check('and the reason is quantified: ~14x stronger in compression '
+      'than tension, which is exactly the asymmetry von Mises is '
+      'blind to',
+      abs(fc['asymmetryRatio'] - 14.3) < 0.2
+      and 'blind to hydrostatic' in fc['why'],
+      extra=str(fc['asymmetryRatio']))
+fc_cu = failure_criterion(mgrs, 'opt-copper-magnet-wire')
+check('a DUCTILE metal IS judged by von Mises — the criterion '
+      'matches the failure mode, and the asymmetry is 1.0x',
+      fc_cu['failureClass'] == 'ductile'
+      and 'von-Mises' in fc_cu['criterion']
+      and abs(fc_cu['asymmetryRatio'] - 1.0) < 1e-9)
+check('a material with no failure_class REFUSES rather than '
+      'silently picking a criterion',
+      not failure_criterion(mgrs, 'opt-magnetite-powder').get('ok')
+      or failure_criterion(mgrs, 'opt-magnetite-powder')
+      .get('failureClass') is not None)
+
+lc = load_cases(mgrs, 'clock-lavet-m0')
+check('loads DERIVE from the machine: tooth load F = T/r_pitch off '
+      'the gear train it drives',
+      lc['ok'] and any(c['case'] == 'tooth-load'
+                       and abs(c['forceN'] - 8.333e-4) < 1e-6
+                       for c in lc['cases']),
+      extra=str([c.get('forceN') for c in lc['cases']]))
+check('magnetic pull uses Maxwell stress B^2A/(2mu0) and says it '
+      'is deliberately conservative (B taken as remanence)',
+      any(c['case'] == 'magnetic-pull'
+          and 'OVERSTATES' in c['note'] for c in lc['cases']))
+check('THE HONEST HEADLINE: at clock scale ASSEMBLY governs, not '
+      'operation — it will not break doing its job, it will break '
+      'being built',
+      lc['governingCase'] == 'assembly'
+      and 'break being built' in lc['headline'],
+      extra=lc['headline'][:90])
+check('the handling force is a KNOB, and doubling it keeps it '
+      'governing while the operating loads do not move',
+      load_cases(mgrs, 'clock-lavet-m0',
+                 handling_force_n=10.0)['maxAssemblyN'] == 10.0)
+check('fatigue is named as NOT modelled — a clock steps ~31.5 '
+      'million times a year and this check does not address that',
+      'fatigue' in lc['validity'] and 'MILLION' in lc['validity'])
+check('strength values are labelled literature-est for the CLASS, '
+      'with our castings untested',
+      'literature-est' in lc['validity']
+      or 'none of our' in lc['validity'])
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
