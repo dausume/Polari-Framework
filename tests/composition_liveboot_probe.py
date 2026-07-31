@@ -106,6 +106,28 @@ check('ratio-trap finding surfaces live (stronger magnet != '
       any(f.get('kind') == 'ratio-trap'
           for f in r.json.get('findings', [])))
 
+# goal-1..3 live: the scale study runs off composition's matrix +
+# equation rows through the real server.
+r = client.simulate_get('/api/motors/goal/goal-local-wall-clock')
+check('wall-clock goal live: zero blockers, the SrFe12O19 gap, '
+      'order from the matrix',
+      r.status_code == 200 and r.json.get('verdict') == 'unassessed'
+      and not r.json.get('blockers')
+      and r.json.get('tuningOrder') == ['gauge', 'window', 'turns'],
+      extra=str(r.json.get('blockers'))[:200])
+r = client.simulate_get('/api/motors/goal/goal-local-watch')
+check('watch goal live: BLOCKED with named blockers',
+      r.status_code == 200 and r.json.get('verdict') == 'blocked'
+      and len(r.json.get('blockers', [])) == 2)
+r = client.simulate_get(
+    '/api/motors/scale-study?policy=local-plus-imported-wire')
+check('scale study live: five scales swept',
+      r.status_code == 200
+      and len(r.json.get('summary', [])) == 5)
+check('goal seed rows landed via the upsert path',
+      len(manager.objectTables.get('ClockScaleDefinition', {})) == 5
+      and len(manager.objectTables.get('MotorGoalSpec', {})) == 6)
+
 # THE arch-1 live proof: drift a prior row, re-seed, watch it
 # converge — the ten-strikes gotcha ending on a LIVE table.
 node = next(iter(

@@ -557,7 +557,9 @@ def selftest_arch5():
           rep['ok']
           and [r['role'] for r in rep['roles']]
           == ['current-carrying', 'static-structural']
-          and len(rep['equationsByLevel'].get('part', [])) == 4
+          and len(rep['equationsByLevel'].get('part', [])) == 6
+          and 'eq-coil-voltage-gauge'
+          in rep['equationsByLevel']['part']
           and rep['designMatrix']['classification'] == 'decoupled')
     check('selection procedure step 2 checks voltage BEFORE '
           'optimisation (the mag-22 fix, as data)',

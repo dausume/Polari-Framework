@@ -1676,6 +1676,123 @@ check('the working gap is BLOCKED because its members must move — '
       not gap['promotable']
       and 'move relative' in ' '.join(gap['blockers']))
 
+
+# ---------------------------------------------------------------
+# goal-1..3: goals + constraints over composition's equations
+# ---------------------------------------------------------------
+print('\n-- goals: what is possible at which scale --')
+import composition.composition_seed as _ccs   # noqa: E402
+from motors.scale_goals import (              # noqa: E402
+    SEED_CLOCK_SCALES, SEED_MOTOR_GOALS, gauge_sweep,
+    goal_feasibility, scale_study,
+)
+from motors.simple_first import coil_voltage as _cv_closed  # noqa: E402
+
+
+def _goal_mgr():
+    m = _mgr()
+    m.objectTables['ClockScaleDefinition'] = {
+        s['name']: types.SimpleNamespace(**s)
+        for s in SEED_CLOCK_SCALES}
+    m.objectTables['MotorGoalSpec'] = {
+        s['name']: types.SimpleNamespace(**s)
+        for s in SEED_MOTOR_GOALS}
+    m.objectTables['PartArchetypeDefinition'] = {
+        s['name']: types.SimpleNamespace(**s)
+        for s in _ccs.SEED_PART_ARCHETYPES}
+    m.objectTables['DesignMatrixDefinition'] = {
+        s['name']: types.SimpleNamespace(**s)
+        for s in _ccs.SEED_DESIGN_MATRICES}
+    m.objectTypingDict = {k: object() for k in m.objectTables}
+    return m
+
+
+_gm = _goal_mgr()
+wall = goal_feasibility(_gm, 'goal-local-wall-clock')
+check('CONTROL: the wall clock (M0 scale) has ZERO blockers',
+      wall.get('ok') and not wall['blockers'])
+check('its one GAP is the mag-22 named promotion, rediscovered: '
+      'measure the recipe-seeded SrFe12O19',
+      wall['verdict'] == 'unassessed' and len(wall['gaps']) == 1
+      and 'opt-srfe12o19' in wall['gaps'][0])
+check('a gap is NOT a blocker — the verdict distinguishes '
+      'unassessed from blocked',
+      'gaps' in wall and wall['verdict'] != 'blocked')
+_wc = wall['chosenDesignPoint']
+check('chosen design point: coarsest workable gauge on W2, runs '
+      'off the cell, clears 4 yr',
+      _wc['awg'] == 34 and _wc['rung'] == 'W2'
+      and _wc['runsOffCell'] and _wc['lifeYr'] >= 4.0)
+check('the tuning order comes FROM the archetype design matrix '
+      '(composition), not from this engine',
+      wall['tuningOrder'] == ['gauge', 'window', 'turns']
+      and wall['matrixClassification'] == 'decoupled'
+      and len(wall['equationsUsed']) == 4)
+_scale_row = _gm.objectTables['ClockScaleDefinition']['sc-wall-clock']
+_sw = gauge_sweep(_gm, _scale_row)
+check('the equation-table route agrees with the closed form on '
+      'EVERY gauge (two modules, one fact, tested — mag-25 rule)',
+      _sw['ok'] and all(
+          abs(r['coilVoltageV']
+              - _cv_closed(21.45, r['awg'])) < 5e-4
+          for r in _sw['rows']))
+
+watch = goal_feasibility(_gm, 'goal-local-watch')
+check('the WATCH is BLOCKED with its blockers NAMED: beyond-table '
+      'wire and T4 tolerance',
+      watch['verdict'] == 'blocked'
+      and any('T4' in b for b in watch['blockers'])
+      and any('finer wire than the table' in b
+              for b in watch['blockers'])
+      and watch['score'] < 0.3)
+tower = goal_feasibility(_gm, 'goal-local-tower')
+check('the TOWER is blocked at a TABLE EDGE, not a physics wall — '
+      'coarser wire (W1-easy) is the named fix',
+      tower['verdict'] == 'blocked'
+      and any('table edge, not a physics wall' in b
+              for b in tower['blockers']))
+large = goal_feasibility(_gm, 'goal-local-large-wall')
+check('gauge COARSENS as the clock grows (24 AWG at station scale '
+      'vs 34 at wall) — local production improves with size',
+      large['chosenDesignPoint']['awg'] == 24
+      and large['chosenDesignPoint']['rung'] == 'W1')
+strict = goal_feasibility(_gm, 'goal-strict-local-wall-clock')
+check('strict local (no imported wire) is blocked by the mag-24 '
+      'finding: drawing is the wall, bare wire the import',
+      strict['verdict'] == 'blocked'
+      and any('mag-24' in b for b in strict['blockers']))
+study = scale_study(_gm, 'local-plus-imported-wire')
+check('the scale study sweeps all five scales, ordered by size',
+      [s['scale'] for s in study['summary']]
+      == ['sc-wristwatch', 'sc-desk-clock', 'sc-wall-clock',
+          'sc-large-wall', 'sc-tower-clock'])
+check('requirements come out PER KNOWN PART (archetype refs)',
+      {r['archetype'] for r in wall['requirements']}
+      == {'at-bobbin', 'at-magnet-rotor', 'at-coil-winding',
+          'at-pinion'})
+
+# A COUPLED matrix must refuse the sweep (mag-22 shape).
+_gm2 = _goal_mgr()
+import json as _json
+_gm2.objectTables['DesignMatrixDefinition']['dm-coil-winding']\
+    .entries_json = _json.dumps([
+        {'knob': 'gauge', 'outcome': 'voltage', 'coupling': 'direct'},
+        {'knob': 'turns', 'outcome': 'voltage', 'coupling': 'direct'},
+        {'knob': 'gauge', 'outcome': 'life', 'coupling': 'direct'},
+        {'knob': 'turns', 'outcome': 'life', 'coupling': 'direct'}])
+_coupled = goal_feasibility(_gm2, 'goal-local-wall-clock')
+check('a COUPLED coil matrix REFUSES the whole sweep, citing the '
+      'mag-22 failure shape',
+      not _coupled.get('ok') and 'COUPLED' in _coupled['refusal'])
+# Composition gated off -> honest module-not-booted refusal.
+_gm3 = _goal_mgr()
+del _gm3.objectTables['PartArchetypeDefinition']
+del _gm3.objectTypingDict['PartArchetypeDefinition']
+_off = goal_feasibility(_gm3, 'goal-local-wall-clock')
+check('composition gated off -> module-not-booted refusal, not a '
+      'silent fallback',
+      not _off.get('ok') and _off.get('kind') == 'module-not-booted')
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

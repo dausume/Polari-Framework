@@ -38,6 +38,12 @@ class MotorsAPI(treeObject):
                 suffix='drive')
             add('/api/motors/stator-variants', self,
                 suffix='stator_variants')
+            # goal-1..3: goals + constraints over composition's
+            # equations — the scale study.
+            add('/api/motors/goals', self, suffix='goals')
+            add('/api/motors/goal/{goal_name}', self, suffix='goal')
+            add('/api/motors/scale-study', self,
+                suffix='scale_study')
             # arch-8: the design as a composition view (wrap, not
             # port) + Boothroyd-gated promotion suggestions.
             add('/api/motors/composition-view/{design_name}', self,
@@ -494,6 +500,30 @@ class MotorsAPI(treeObject):
     def on_get_road_to_advanced(self, request, response):
         from motors.simple_first import road_to_advanced
         response.media = road_to_advanced(self.manager)
+
+    def on_get_goals(self, request, response):
+        from composition.data_refs import rows as _crows
+        out = []
+        for g in _crows(self.manager, 'MotorGoalSpec'):
+            out.append({'name': getattr(g, 'name', ''),
+                        'displayName': getattr(g, 'display_name',
+                                               ''),
+                        'scale': getattr(g, 'scale_ref', ''),
+                        'policy': getattr(g, 'material_policy', ''),
+                        'lifeTargetYr': getattr(
+                            g, 'battery_life_target_yr', None)})
+        response.media = {'ok': True, 'goals': out,
+                          'count': len(out)}
+
+    def on_get_goal(self, request, response, goal_name):
+        from motors.scale_goals import goal_feasibility
+        response.media = goal_feasibility(self.manager, goal_name)
+
+    def on_get_scale_study(self, request, response):
+        from motors.scale_goals import scale_study
+        policy = request.params.get('policy',
+                                    'local-plus-imported-wire')
+        response.media = scale_study(self.manager, policy)
 
     def on_get_composition_view(self, request, response,
                                 design_name):

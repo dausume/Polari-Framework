@@ -259,6 +259,64 @@ SEED_PHYSICS_EQUATIONS = [
         'symbols': {'T': 'torque, Nm', 'r': 'pitch radius, m'},
         'returns': 'tangential force, N',
     },
+    # goal-2 (MOTOR_GOALS_PLAN): the mag-25 winding relations join
+    # the table, so the goal engine evaluates THE SAME configuration
+    # rows the archetype references — composition provides the
+    # equations, the goal engine only binds and follows the matrix.
+    {
+        'name': 'eq-coil-voltage-gauge',
+        'description': 'Coil voltage V = MMF*rho*MTL/A_copper — '
+                       'TURNS CANCEL (mag-25), so gauge alone '
+                       'decides whether a cell can drive the coil. '
+                       'The single most useful result of the arc, '
+                       'as a row.',
+        'source_class': 'ClockScaleDefinition',
+        'latex': r'\frac{M \cdot q \cdot L}{A}',
+        'operation_type': 'evaluate',
+        'symbols': {'M': 'MMF, ampere-turns',
+                    'q': 'conductor resistivity, ohm-m',
+                    'L': 'mean turn length, m',
+                    'A': 'bare conductor area, m^2'},
+        'returns': 'coil voltage, V',
+    },
+    {
+        'name': 'eq-turns-in-window',
+        'description': 'Turns that fit: N = f*W/A_wound. Fill f is '
+                       'a property of the CONSTRUCTION (mag-26); '
+                       'A_wound includes the coating build, which '
+                       'is why build costs window as a square.',
+        'source_class': 'ClockScaleDefinition',
+        'latex': r'\frac{f \cdot W}{a}',
+        'operation_type': 'evaluate',
+        'symbols': {'f': 'fill factor, construction-dependent',
+                    'W': 'winding window area',
+                    'a': 'wound wire area, SAME units as W'},
+        'returns': 'turns, count',
+    },
+    {
+        'name': 'eq-average-current',
+        'description': 'Duty-cycle average drive current '
+                       'I_avg = (MMF/N)*pulse*rate — TURNS set '
+                       'battery life, independent of gauge '
+                       '(mag-25).',
+        'source_class': 'ClockScaleDefinition',
+        'latex': r'\frac{M \cdot p \cdot r}{N}',
+        'operation_type': 'evaluate',
+        'symbols': {'M': 'MMF, ampere-turns', 'N': 'turns',
+                    'p': 'pulse width, s', 'r': 'step rate, Hz'},
+        'returns': 'average current, A',
+    },
+    {
+        'name': 'eq-battery-life-hours',
+        'description': 'Battery life = capacity/I_avg — CHARGE, '
+                       'not energy (handover 2.3).',
+        'source_class': 'ClockScaleDefinition',
+        'latex': r'\frac{C}{I}',
+        'operation_type': 'evaluate',
+        'symbols': {'C': 'cell capacity, mAh',
+                    'I': 'average current, mA'},
+        'returns': 'life, hours',
+    },
 ]
 
 _BY_NAME = {e['name']: e for e in SEED_PHYSICS_EQUATIONS}

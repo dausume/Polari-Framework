@@ -876,6 +876,9 @@ try:
         MotorControllerProfile, PhaseBindingDefinition,
         SEED_CONTROLLER_PROFILES, SEED_PHASE_BINDINGS,
     )
+    from motors.scale_goals import (
+        ClockScaleDefinition, MotorGoalSpec,
+    )
 except ImportError as _exc:
     # The stub tuple must list EVERY name the try block imports —
     # stub_feature_symbols already maps SEED_* to [] and everything
@@ -894,6 +897,7 @@ except ImportError as _exc:
         'SEED_M3_PART_SHAPES', 'SEED_M3_SIM_SPACES',
         'MotorPartDefinition', 'SEED_MOTOR_PARTS',
         'SEED_EQUATION_ROWS',
+        'ClockScaleDefinition', 'MotorGoalSpec',
     ))
 # mesh-1: license-GATED external mesh catalog + the fit engine
 # (borrowed meshes measured against our vector organ definitions).
@@ -2098,6 +2102,8 @@ class polariServer(treeObject):
             MotorControllerProfile, PhaseBindingDefinition,
             # mag-11: the per-piece bill (part -> material -> job).
             MotorPartDefinition,
+            # goal-1: the size ladder + goal specs.
+            ClockScaleDefinition, MotorGoalSpec,
             # mesh-1: licence findings, the assets under them, and
             # the human's accepted picks.
             MeshAssetSource, MeshAssetReference, OrganMeshChoice,
@@ -3680,6 +3686,20 @@ class polariServer(treeObject):
                           flush=True)
             except Exception as e:
                 print(f'[CompositionSeed] failed: {e}', flush=True)
+        # goal-1: scale/goal seeds, same upsert path, motors-gated.
+        if _feature_available('motors') and (
+                only_classes is None
+                or 'ClockScaleDefinition' in only_classes):
+            try:
+                from motors.scale_goals import seed_scale_goals
+                for r in seed_scale_goals(self.manager):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[ScaleGoalsSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[ScaleGoalsSeed] failed: {e}', flush=True)
         # tt-8: the single 'oseb' tree became three DOMAIN trees —
         # retire its persisted rows (idempotent no-op once gone) and
         # remap stale PolariModule.tech_node_ref hints.

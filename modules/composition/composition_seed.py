@@ -510,6 +510,10 @@ SEED_PART_ARCHETYPES = [
          {'name': 'fill', 'unit': 'fraction',
           'summary': 'property of the CONSTRUCTION, not the wire'}]),
      'equation_refs_json': _j([
+         {'name': 'eq-coil-voltage-gauge', 'level': 'part'},
+         {'name': 'eq-turns-in-window', 'level': 'part'},
+         {'name': 'eq-average-current', 'level': 'assembly'},
+         {'name': 'eq-battery-life-hours', 'level': 'assembly'},
          {'name': 'eq-inductance-from-reluctance', 'level': 'part'},
          {'name': 'eq-inductance-from-energy', 'level': 'part'},
          {'name': 'eq-rl-time-constant', 'level': 'part'},
