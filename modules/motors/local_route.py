@@ -687,10 +687,12 @@ def producible_clock(manager, design_name='clock-lavet-m0',
         'mustDemonstrate': route['route']['demonstrationsRequired'],
         'processesNeeded': route['route']['processesRequired'],
         'stillUnknown': [
-            'INDUCTANCE is not modelled. A 10k-turn coil is many '
-            'henries, and a 30 ms pulse may not reach its final '
-            'current — which would eat into the power win. This is '
-            'the largest single risk to the claim above.',
+            'the material properties are literature class values and '
+            'the LUMPED RELUCTANCE MODEL that most of magnetics '
+            'rests on is ~4.7x off the field solve at our castings\' '
+            'mu~2 (mag-23 model_validity) — because a core that '
+            'barely beats air does not confine flux. Ratios computed '
+            'the same way partly cancel it; absolute figures do not.',
             'no casting or firing of ours has been MEASURED; every '
             'material property here is a literature class value, '
             'and the fatigue exponent amplifies error in them.',
@@ -710,6 +712,13 @@ def producible_clock(manager, design_name='clock-lavet-m0',
             if pick else
             'no configuration in this search reaches the power '
             'target; the bobbin window is the binding constraint'),
+        'inductanceChecked': (
+            'mag-23 SOLVED IT rather than leaving it named: 2D '
+            'magnetostatic FEM on the magnetic circuit gives tau = '
+            '33 us at 1500 turns rising to 110 us at 20000, against '
+            'a 30 ms pulse — 274 time constants at the deepest '
+            'winding, 100% of final current reached. Inductance does '
+            'NOT break this claim. See /api/motors/inductance-turns.'),
         'honesty': (
             'the strong rotor makes power WORSE, not better, and '
             'that is worth stating because the opposite is the '

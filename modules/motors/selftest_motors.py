@@ -1343,13 +1343,129 @@ check('it states all three costs of "local": the import, the '
       'demonstration, and the processes',
       pc['imported'] and pc['mustDemonstrate']
       and pc['processesNeeded'])
-check('inductance is named as the largest risk to the power claim '
-      'rather than left out of a favourable result',
-      any('NDUCTANCE' in u.upper() for u in pc['stillUnknown']))
+check('inductance is no longer merely NAMED as a risk — mag-23 '
+      'solved it, and the route says so with numbers instead of '
+      'carrying a caveat it never discharged',
+      'inductanceChecked' in pc
+      and 'tau' in pc['inductanceChecked']
+      and not any('INDUCTANCE is not modelled' in u
+                  for u in pc['stillUnknown']))
+check('and the caveat that REPLACED it is the real one: the lumped '
+      'reluctance model is ~4.7x off at our castings mu~2',
+      any('4.7x' in u or 'LUMPED' in u for u in pc['stillUnknown']))
 check('and the counterintuitive finding is stated plainly: a '
       'stronger magnet makes power WORSE, because the magnet that '
       'makes the torque also makes the detent',
       'WORSE' in pc['honesty'] and 'detent' in pc['honesty'])
+
+# ---- mag-23: inductance, actually solved ------------------------
+print('\n-- mag-23 inductance (FEM + config) --')
+from materialsScience.engines.fem_engine import (   # noqa: E402
+    MU0, magnetostatic_capability, solve_magnetostatic_2d,
+)
+from motors.inductance import (                     # noqa: E402
+    inductance_across_turns, model_validity, pulse_response,
+    solve_inductance,
+)
+
+cap = magnetostatic_capability()
+check('the magnetostatic solver states what it CANNOT do — '
+      'saturation, eddy currents, hysteresis, 3D leakage',
+      cap['ok'] and len(cap['doesNot']) >= 4
+      and any('SATURATION' in d for d in cap['doesNot']))
+
+# VALIDATION against a closed form: a gap-dominated C-core should
+# approach N^2 mu0 A / g, exceeding it by fringing and leakage.
+mm = 1e-3
+_core = [{'x0': 5 * mm, 'y0': 5 * mm, 'x1': 35 * mm, 'y1': 35 * mm,
+          'mu_r': 1e4},
+         {'x0': 12 * mm, 'y0': 12 * mm, 'x1': 28 * mm, 'y1': 28 * mm,
+          'mu_r': 1.0},
+         {'x0': 28 * mm, 'y0': 19 * mm, 'x1': 35 * mm, 'y1': 21 * mm,
+          'mu_r': 1.0}]
+_coils = [{'x0': 12 * mm, 'y0': 15 * mm, 'x1': 16 * mm,
+           'y1': 25 * mm, 'sign': 1},
+          {'x0': 1 * mm, 'y0': 15 * mm, 'x1': 5 * mm, 'y1': 25 * mm,
+           'sign': -1}]
+_cut = ((20 * mm, 20 * mm), (37 * mm, 20 * mm))
+fem = solve_magnetostatic_2d(40 * mm, 40 * mm, _core, _coils,
+                             turns=100.0, current=0.1, depth=7 * mm,
+                             refine=16, flux_cut=_cut)
+_ideal = 100.0 ** 2 * MU0 * (7 * mm * 7 * mm) / (2 * mm)
+check('VALIDATION: a gapped C-core lands within 1.2-2.5x of the '
+      'closed-form ideal gap — ABOVE it, because the formula omits '
+      'the fringing and window leakage the field solve captures',
+      fem['ok'] and 1.2 < fem['inductanceH'] / _ideal < 2.5,
+      extra=f"{fem['inductanceH'] / _ideal:.2f}x")
+check('and L from stored ENERGY agrees with L from an independent '
+      'flux CUT — two routes through one solution, not the same '
+      'quadratic form computed twice',
+      0.6 < fem['crossCheckRatio'] < 1.4,
+      extra=str(round(fem['crossCheckRatio'], 3)))
+
+coarse = solve_magnetostatic_2d(40 * mm, 40 * mm, _core, _coils,
+                                turns=100.0, current=0.1,
+                                depth=7 * mm, refine=4,
+                                flux_cut=_cut)
+check('the mesh is ALIGNED to region boundaries, so a coarse run '
+      'stays within 15% of the fine one — a uniform mesh let '
+      'elements straddle the gap and short it out, wrong by 150x',
+      coarse['ok'] and coarse.get('meshAlignedToFeatures')
+      and abs(coarse['inductanceH'] - fem['inductanceH'])
+      / fem['inductanceH'] < 0.15)
+
+one_sided = solve_magnetostatic_2d(40 * mm, 40 * mm, _core,
+                                   [_coils[0]], turns=100.0,
+                                   current=0.1, depth=7 * mm,
+                                   refine=8)
+check('a single-sided coil is WARNED about rather than silently '
+      'solved: a planar slice cuts a real coil twice',
+      one_sided['ok'] and any('ONE coil sign' in w
+                              for w in one_sided['warnings']))
+check('and no coil at all REFUSES, because a zero source would give '
+      'an inductance that is purely a mesh artefact',
+      solve_magnetostatic_2d(40 * mm, 40 * mm, _core, [],
+                             turns=100.0, current=0.1)['ok'] is False)
+
+ind = solve_inductance(mgrp2)
+check('the M0 inductance solves from the design row\'s OWN stated '
+      'pole area, gap and thickness — geometry that moves when the '
+      'design moves',
+      ind['ok'] and ind['inductanceH'] > 0
+      and ind['geometry']['gapM'] > 0)
+
+pr = pulse_response(mgrp2)
+check('THE mag-22 QUESTION ANSWERED: the coil reaches its current '
+      'well inside the 30 ms pulse (tau ~ tens of us), so '
+      'inductance does NOT limit this drive',
+      pr['ok'] and pr['pulseOverTau'] > 100
+      and pr['fractionOfFinalReached'] > 0.99
+      and pr['inductanceLimits'] is False)
+check('and the RL arithmetic runs through CONFIGURED equation rows, '
+      'not Python formulas retyped in this module',
+      set(pr['equationsUsed']) >= {'eq-rl-time-constant',
+                                   'eq-rl-current-rise'})
+
+it = inductance_across_turns(mgrp2)
+check('the deep-winding claim SURVIVES its own inductance: even at '
+      'the deepest turns the pulse is many time constants',
+      it['ok'] and it['claimSurvives']
+      and it['worst']['pulseOverTau'] > 50)
+check('and the tau scaling is MEASURED across the sweep rather than '
+      'predicted from the naive floored-gauge argument',
+      it['tauScaling'] is not None
+      and 'MEASURED' in it['finding'])
+
+mv = model_validity(mgrp2)
+check('THE FINDING BEYOND INDUCTANCE: FEM and the lumped reluctance '
+      'model agree to a constant once mu_r >= 200, and diverge ~4x '
+      'at our castings\' mu~2 — a core that barely beats air does '
+      'not CONFINE flux, so the network has no branch for it',
+      mv['ok'] and mv['highMuAgreement'] is not None
+      and mv['lowMuDisagreement'] > 2.5 * mv['highMuAgreement'])
+check('and it says what would settle it: one LCR measurement on a '
+      'wound core, ten minutes of bench time',
+      'LCR' in mv['whatWouldSettleIt'])
 
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')

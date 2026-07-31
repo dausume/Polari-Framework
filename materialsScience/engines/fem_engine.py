@@ -583,3 +583,370 @@ def elasticity_mesh_convergence(refines=(1, 2, 3), **kwargs):
                  'converged value exists'),
         'validity': ELASTICITY_VALIDITY,
     }
+
+
+# ---------------------------------------------------------------- #
+# MAGNETOSTATICS — 2D vector-potential solve, for INDUCTANCE
+#
+# mag-23. The mag-22 power claim rested on a coil reaching its final
+# current inside a 30 ms pulse, and named INDUCTANCE as the largest
+# unmodelled risk to it. Naming a risk is not modelling it, so this
+# solves the field.
+#
+# Formulation: in 2D the vector potential has one component, A_z, and
+# curl-curl collapses to a variable-coefficient Poisson problem
+#     -div( nu grad A_z ) = J_z ,   nu = 1/mu
+# with B = curl A = (dA/dy, -dA/dx), so |B| = |grad A_z|. Stored
+# energy is W = 1/2 * integral( nu |grad A_z|^2 ), and the inductance
+# follows from W = 1/2 L i^2.
+#
+# Regions carry their own mu_r as DATA — a list of rectangles, not a
+# hard-coded geometry — so the same solver serves any planar magnetic
+# circuit the catalogue can describe.
+# ---------------------------------------------------------------- #
+
+MU0 = 4.0e-7 * 3.141592653589793
+
+
+def magnetostatic_capability():
+    """What this solver does and, more usefully, what it does not."""
+    try:
+        import skfem                                    # noqa: F401
+        available = True
+        why = ''
+    except ImportError as exc:                          # pragma: no cover
+        available, why = False, str(exc)
+    return {
+        'ok': True, 'available': available, 'why': why,
+        'formulation': '2D magnetostatic vector potential A_z, '
+                       'variable-coefficient Poisson, linear',
+        'solves': ['flux density field B = |grad A_z|',
+                   'stored magnetic energy W',
+                   'inductance L = 2W / i^2',
+                   'flux linkage lambda = N * Phi'],
+        'doesNot': [
+            'SATURATION — mu is constant per region, so a core driven '
+            'past its knee is modelled as if it were not. For a clock '
+            'coil at milliamps this is comfortable; for a motor at '
+            'rated torque it is not.',
+            'EDDY CURRENTS and any frequency dependence — this is '
+            'magnetoSTATIC. Inductance from it is the low-frequency '
+            'value.',
+            'HYSTERESIS, and therefore core loss.',
+            '3D leakage. A planar slice through a device whose flux '
+            'leaves the plane will UNDERSTATE reluctance and so '
+            'OVERSTATE inductance.',
+        ],
+    }
+
+
+def _mesh_aligned_to_features(width, height, rects, refine):
+    """Tensor mesh whose grid LINES fall on every region boundary.
+
+    This is the structural fix to the gap-shorting failure. A uniform
+    mesh assigns each element the permeability at its centroid, so an
+    element straddling a 0.8 mm gap can take the CORE value and short
+    the gap out — the solve then returns a confident number that was
+    wrong by two orders in testing. Detecting that afterwards is
+    second best; making it impossible is better.
+
+    Every region edge becomes a grid line, so no element spans two
+    materials no matter how coarse the mesh. Refinement then controls
+    ACCURACY only, not correctness, and small features stay cheap
+    because only the interval containing them is subdivided finely.
+    """
+    import numpy as np
+    from skfem import MeshTri
+
+    def axis(lo, hi, cuts):
+        pts = sorted({round(float(c), 12) for c in cuts
+                      if lo - 1e-15 <= c <= hi + 1e-15}
+                     | {float(lo), float(hi)})
+        target = (hi - lo) / max(4, 4 * int(refine))
+        out = []
+        for a, b in zip(pts[:-1], pts[1:]):
+            span = b - a
+            if span <= 0:
+                continue
+            k = max(1, int(np.ceil(span / target)))
+            out.extend(np.linspace(a, b, k + 1)[:-1])
+        out.append(pts[-1])
+        return np.array(out)
+
+    xs = axis(0.0, float(width),
+              [c for r in rects for c in (r['x0'], r['x1'])])
+    ys = axis(0.0, float(height),
+              [c for r in rects for c in (r['y0'], r['y1'])])
+    return MeshTri.init_tensor(xs, ys)
+
+
+def _region_nu(mesh, regions, background_mu_r):
+    """Per-element reluctivity from a list of rectangular regions.
+
+    Regions are tested in order and the LAST match wins, so a caller
+    may lay a gap over a core the way one draws it."""
+    import numpy as np
+    centres = mesh.p[:, mesh.t].mean(axis=1)
+    mu_r = np.full(mesh.t.shape[1], float(background_mu_r))
+    for reg in regions:
+        x0, y0, x1, y1 = (float(reg['x0']), float(reg['y0']),
+                          float(reg['x1']), float(reg['y1']))
+        inside = ((centres[0] >= x0) & (centres[0] <= x1)
+                  & (centres[1] >= y0) & (centres[1] <= y1))
+        mu_r[inside] = float(reg['mu_r'])
+    return 1.0 / (MU0 * mu_r), mu_r
+
+
+def solve_magnetostatic_2d(width, height, regions=(), coils=(),
+                           turns=1.0, current=1.0, depth=None,
+                           background_mu_r=1.0, refine=3,
+                           include_field=False, flux_cut=None):
+    """Solve -div(nu grad A_z) = J_z and report the INDUCTANCE.
+
+    `regions`  : rectangles {x0,y0,x1,y1,mu_r} — the magnetic circuit.
+    `coils`    : rectangles {x0,y0,x1,y1,sign} — conductor windows. A
+                 planar slice cuts a coil TWICE, so the go and return
+                 sides carry opposite sign; a caller giving only one
+                 side gets a warning rather than a silently wrong L.
+    `turns`    : N. Current density is N*i/area, so L comes out with
+                 its N^2 already in it.
+    `flux_cut` : ((x0,y0),(x1,y1)) spanning the flux path, for the
+                 independent cross-check. Strongly recommended.
+    `depth`    : out-of-plane length (m). Defaults to width, and the
+                 payload says so, because L scales linearly with it.
+
+    Outer boundary is A_z = 0: flux is confined to the domain. That is
+    a MODELLING CHOICE — too tight a box squeezes the return path and
+    overstates reluctance. Grow the domain and watch L settle.
+    """
+    try:
+        import numpy as np
+        from skfem import (Basis, BilinearForm, ElementTriP0,
+                           ElementTriP1, LinearForm, asm, condense,
+                           solve)
+        from skfem.helpers import dot, grad
+    except ImportError as exc:
+        return {'ok': False,
+                'refusal': f'scikit-fem is not available ({exc}) — '
+                           f'this returns NO inductance rather than a '
+                           f'closed-form guess dressed as a solve'}
+    if current == 0:
+        return {'ok': False,
+                'refusal': 'inductance is defined from energy at a '
+                           'stated current; zero current gives 0/0'}
+    depth = float(depth if depth else width)
+
+    # RESOLUTION GUARD. This is not a nicety: a mesh too coarse for
+    # the smallest feature does not degrade gracefully. Elements
+    # straddling a gap take the core's mu_r from their centroid and
+    # SHORT THE GAP OUT, and the solver returns a confident number
+    # that was wrong by 150x in testing — larger domain, same refine,
+    # inductance up two orders. Nothing in the solution looks amiss.
+    # So the smallest feature must be measured against the element
+    # size and the solve REFUSED when it cannot be resolved.
+    features = []
+    for reg in list(regions) + list(coils):
+        w_r = abs(float(reg['x1']) - float(reg['x0']))
+        h_r = abs(float(reg['y1']) - float(reg['y0']))
+        features.extend([w_r, h_r])
+    features = [f for f in features if f > 0]
+    if features:
+        smallest = min(features)
+        n_cells = max(4, 4 * int(refine))
+        h_elem = max(float(width), float(height)) / n_cells
+        spans = smallest / h_elem
+        # With a feature-aligned mesh no element straddles a material
+        # boundary, so a coarse mesh costs ACCURACY rather than
+        # correctness. The refusal is kept only for the degenerate
+        # case where a feature gets no interior resolution at all.
+        if spans < 0.5:
+            needed = int(-(-(3.0 * max(float(width), float(height))
+                             / smallest) // 4))
+            return {
+                'ok': False, 'kind': 'under-resolved',
+                'refusal': (
+                    f'the mesh cannot resolve this geometry: the '
+                    f'smallest feature is {smallest * 1e3:.3g} mm and '
+                    f'an element is {h_elem * 1e3:.3g} mm, so only '
+                    f'{spans:.1f} elements span it (3 is the '
+                    f'minimum). Elements straddling a gap take the '
+                    f'CORE permeability from their centroid and short '
+                    f'the gap out — the solve would return a '
+                    f'confidently wrong inductance, not a noisy one.'),
+                'smallestFeatureM': smallest,
+                'elementSizeM': h_elem,
+                'suggestion': {
+                    'knob': 'refine',
+                    'action': f'raise refine to at least {needed}, or '
+                              f'shrink the domain — cost grows as '
+                              f'refine^2'},
+            }
+    mesh = _mesh_aligned_to_features(
+        float(width), float(height),
+        list(regions) + list(coils), refine)
+    basis = Basis(mesh, ElementTriP1())
+    p0 = Basis(mesh, ElementTriP0())
+    nu_vec, mu_r_vec = _region_nu(mesh, regions, background_mu_r)
+
+    centres = mesh.p[:, mesh.t].mean(axis=1)
+    j_vec = np.zeros(mesh.t.shape[1])
+    signs = set()
+    total_coil_area = 0.0
+    for coil in coils:
+        x0, y0, x1, y1 = (float(coil['x0']), float(coil['y0']),
+                          float(coil['x1']), float(coil['y1']))
+        sign = float(coil.get('sign', 1.0))
+        signs.add(1 if sign > 0 else -1)
+        inside = ((centres[0] >= x0) & (centres[0] <= x1)
+                  & (centres[1] >= y0) & (centres[1] <= y1))
+        area = float((x1 - x0) * (y1 - y0))
+        if area <= 0 or not inside.any():
+            continue
+        total_coil_area += area
+        j_vec[inside] = sign * float(turns) * float(current) / area
+
+    if not coils or not np.any(j_vec):
+        return {'ok': False,
+                'refusal': 'no coil region carries current — there is '
+                           'no source, so A_z is identically zero and '
+                           'any inductance reported would be an '
+                           'artefact of the mesh'}
+
+    @BilinearForm
+    def stiffness(u, v, w):
+        return w['nu'] * dot(grad(u), grad(v))
+
+    @LinearForm
+    def source(v, w):
+        return w['j'] * v
+
+    nu_f = p0.interpolate(nu_vec)
+    j_f = p0.interpolate(j_vec)
+    K = asm(stiffness, basis, nu=nu_f)
+    f = asm(source, basis, j=j_f)
+    boundary = basis.get_dofs()
+    a_z = solve(*condense(K, f, D=boundary))
+
+    # W = 1/2 integral(nu |grad A|^2) per unit depth. The stiffness
+    # form IS that integral, so the quadratic form gives it exactly
+    # and consistently with the discretisation that produced A.
+    energy_per_m = 0.5 * float(a_z @ (K @ a_z))
+    energy = energy_per_m * depth
+    inductance = 2.0 * energy / (float(current) ** 2)
+
+    # GENUINELY INDEPENDENT CROSS-CHECK, and it has to be earned: an
+    # earlier pass computed a_z @ f and called it flux linkage, but
+    # for a linear system a.K.a == a.f, so that number IS 2W and
+    # re-derives the energy route rather than testing it.
+    #
+    # The real identity: in 2D, the flux crossing any surface
+    # spanning two points equals A_z(P1) - A_z(P2) per unit depth.
+    # So a cut placed across the flux path gives Phi directly, and
+    # L = N*Phi/i is computed from the FIELD, not from the energy.
+    linkage = None
+    l_from_linkage = None
+    if flux_cut:
+        (px0, py0), (px1, py1) = flux_cut
+        probe = np.array([[float(px0), float(px1)],
+                          [float(py0), float(py1)]])
+        try:
+            vals = basis.probes(probe) @ a_z
+            phi = float(vals[0] - vals[1]) * depth
+            linkage = float(turns) * phi
+            l_from_linkage = linkage / float(current)
+        except Exception:                               # noqa: BLE001
+            linkage = l_from_linkage = None
+
+    grad_a = basis.interpolate(a_z).grad
+    b_mag = np.sqrt(grad_a[0] ** 2 + grad_a[1] ** 2)
+    b_peak = float(np.max(b_mag))
+
+    warnings = []
+    if features and smallest / (max(float(width), float(height))
+                                / max(4, 4 * int(refine))) < 3.0:
+        warnings.append(
+            f'the smallest feature ({smallest * 1e3:.2g} mm) gets few '
+            f'elements across it. The mesh is ALIGNED to region '
+            f'boundaries so no element straddles two materials — the '
+            f'result is not corrupted — but the gradient inside that '
+            f'feature is coarsely resolved. Raise refine and confirm '
+            f'L settles.')
+    if len(signs) < 2:
+        warnings.append(
+            'only ONE coil sign was given. A planar slice cuts a real '
+            'coil twice, and a single-sided source drives flux out of '
+            'the domain instead of around a circuit — L from this is '
+            'not the device inductance.')
+    if b_peak > 1.2:
+        warnings.append(
+            f'peak |B| is {b_peak:.2f} T, which is at or past the knee '
+            f'of most soft magnetic materials. This solver is LINEAR, '
+            f'so it does not saturate and therefore OVERSTATES both '
+            f'flux and inductance here.')
+
+    out = {
+        'ok': True,
+        'inductanceH': inductance,
+        'inductanceFromLinkageH': l_from_linkage,
+        'crossCheckRatio': (l_from_linkage / inductance
+                            if (inductance and l_from_linkage)
+                            else None),
+        'crossCheckNote': (
+            'L from a flux CUT (A_z difference across the path) '
+            'against L from stored ENERGY — two different routes '
+            'through the same solution. Agreement near 1.0 means the '
+            'field is self-consistent; it does NOT mean the geometry '
+            'or the permeabilities are right.'
+            if l_from_linkage else
+            'no flux_cut given, so the energy route stands '
+            'UNCHECKED — pass two points spanning the flux path'),
+        'energyJ': energy, 'peakBT': b_peak,
+        'fluxLinkageWb': linkage,
+        'turns': float(turns), 'currentA': float(current),
+        'depthM': depth, 'depthWasDefaulted': not bool(depth),
+        'coilAreaM2': total_coil_area,
+        'muRRange': [float(mu_r_vec.min()), float(mu_r_vec.max())],
+        'dofs': int(basis.N), 'elements': int(mesh.t.shape[1]),
+        'refine': refine,
+        'meshAlignedToFeatures': True,
+        'warnings': warnings,
+        'method': 'scikit-fem P1 vector potential, variable-nu '
+                  'Poisson; L from stored energy, cross-checked '
+                  'against flux linkage',
+        'validity': 'LINEAR magnetostatics: no saturation, no eddy '
+                    'currents, no hysteresis, and a Dirichlet box '
+                    'that confines flux. L is the low-frequency '
+                    'value.',
+    }
+    if include_field:
+        out['field'] = {
+            'aZ': a_z.tolist(),
+            'points': mesh.p.T.tolist(),
+            'triangles': mesh.t.T.tolist(),
+        }
+    return out
+
+
+def inductance_mesh_convergence(refines=(2, 3, 4), **kwargs):
+    """L against mesh refinement. A number that moves with the mesh
+    is a mesh artefact, and this is how you tell."""
+    runs = []
+    for r in refines:
+        out = solve_magnetostatic_2d(refine=r, **kwargs)
+        if not out.get('ok'):
+            return out
+        runs.append({'refine': r, 'dofs': out['dofs'],
+                     'inductanceH': out['inductanceH'],
+                     'peakBT': out['peakBT']})
+    values = [r['inductanceH'] for r in runs]
+    drift = (abs(values[-1] - values[-2]) / abs(values[-1])
+             if len(values) > 1 and values[-1] else None)
+    return {
+        'ok': True, 'runs': runs,
+        'finestH': values[-1],
+        'relativeChangeLastStep': drift,
+        'converged': bool(drift is not None and drift < 0.05),
+        'note': 'convergence here means the DISCRETISATION has '
+                'settled. It says nothing about whether the geometry, '
+                'the permeabilities or the boundary box are right.',
+    }

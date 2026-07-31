@@ -143,6 +143,69 @@ SEED_PHYSICS_EQUATIONS = [
         'returns': 'loss density, W/m^3',
     },
     {
+        'name': 'eq-inductance-from-energy',
+        'description': 'Inductance from stored magnetic energy — the '
+                       'route a field solve takes, since FEM gives '
+                       'energy directly and L is a derived quantity.',
+        'source_class': 'MotorDesignDefinition',
+        'latex': r'\frac{2 \cdot W}{i^{2}}',
+        'operation_type': 'evaluate',
+        'symbols': {'W': 'stored magnetic energy, J',
+                    'i': 'coil current, A'},
+        'returns': 'inductance, H',
+    },
+    {
+        'name': 'eq-inductance-from-reluctance',
+        'description': 'Inductance from the magnetic circuit. Note '
+                       'the N SQUARED: turns raise inductance '
+                       'quadratically, which is what makes the '
+                       'deep-winding strategy an inductance question '
+                       'at all.',
+        'source_class': 'MagneticCircuitDefinition',
+        'latex': r'\frac{N^{2}}{R}',
+        'operation_type': 'evaluate',
+        'symbols': {'N': 'turns',
+                    'R': 'total reluctance seen by the coil, A/Wb'},
+        'returns': 'inductance, H',
+    },
+    {
+        'name': 'eq-rl-time-constant',
+        'description': 'The L/R time constant — how long the coil '
+                       'takes to reach its current. Compared against '
+                       'the PULSE WIDTH, this decides whether a '
+                       'stated drive current is ever actually '
+                       'reached.',
+        'source_class': 'MotorDesignDefinition',
+        'latex': r'\frac{L}{R}',
+        'operation_type': 'evaluate',
+        'symbols': {'L': 'inductance, H',
+                    'R': 'coil resistance, ohm'},
+        'returns': 'time constant, s',
+    },
+    {
+        'name': 'eq-rl-current-rise',
+        'description': 'Current reached by an RL coil at time t under '
+                       'a step voltage. The mag-22 power claim '
+                       'assumed this equals V/R at the end of the '
+                       'pulse; this is the equation that checks it.',
+        'source_class': 'MotorDesignDefinition',
+        'latex': r'\frac{V}{R} \cdot \left(1 - c^{- \frac{t \cdot R}{L}}\right)',
+        'operation_type': 'evaluate',
+        'symbols': {'V': 'applied voltage, V',
+                    'R': 'coil resistance, ohm',
+                    'L': 'inductance, H',
+                    't': 'time since the pulse started, s',
+                    'c': "Euler's number, bound EXPLICITLY as a "
+                         "symbol. Written as e^x sympy keeps it "
+                         "symbolic and the executor returns an "
+                         "EXPRESSION with no numeric — the same trap "
+                         "pi sprang on the Hertz formula. Bound as a "
+                         "value it evaluates, and underflows "
+                         "cleanly to zero for large t/tau, which is "
+                         "the physically right answer."},
+        'returns': 'current, A',
+    },
+    {
         'name': 'eq-maxwell-pull',
         'description': 'Magnetic attraction across a gap.',
         'source_class': 'MotorDesignDefinition',

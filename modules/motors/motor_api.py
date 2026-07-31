@@ -36,6 +36,12 @@ class MotorsAPI(treeObject):
                 suffix='materials')
             add('/api/motors/drive/{design_name}', self,
                 suffix='drive')
+            add('/api/motors/inductance', self,
+                suffix='inductance')
+            add('/api/motors/inductance-turns', self,
+                suffix='inductance_turns')
+            add('/api/motors/model-validity', self,
+                suffix='model_validity')
             add('/api/motors/local-route', self,
                 suffix='local_route')
             add('/api/motors/producible-clock', self,
@@ -392,6 +398,35 @@ class MotorsAPI(treeObject):
             request.params.get('design', 'clock-lavet-m0'),
             rotor_material=request.params.get('rotor', ''),
             stator_material=request.params.get('stator', ''))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_inductance(self, request, response):
+        from motors.inductance import pulse_response
+        out = pulse_response(
+            self.manager,
+            request.params.get('design', 'clock-lavet-m0'),
+            stator_material=request.params.get('stator', ''))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_inductance_turns(self, request, response):
+        from motors.inductance import inductance_across_turns
+        out = inductance_across_turns(
+            self.manager,
+            request.params.get('design', 'clock-lavet-m0'),
+            stator_material=request.params.get('stator', ''))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_model_validity(self, request, response):
+        from motors.inductance import model_validity
+        out = model_validity(
+            self.manager,
+            request.params.get('design', 'clock-lavet-m0'))
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out
