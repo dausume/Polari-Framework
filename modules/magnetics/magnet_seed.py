@@ -596,6 +596,8 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': 'barium-carbonate',
         'forms_json': json.dumps(['powder']),
         'properties_json': _props(
+            mu_r_eff=(1.1, '', 'literature-est',
+                      'RECOIL permeability of a sintered hard ferrite — near 1 because a saturated hard magnet barely responds to an applied field. Standard class value (1.05-1.15) across sintered Sr/Ba grades. This is mu_rec, NOT the initial permeability of a SOFT ferrite, and the two are routinely confused: a soft MnZn reads ~800, this reads ~1.1.'),
             b_r_t=(0.38, 'T', 'literature-est'),
             h_c_ka_m=(240.0, 'kA/m', 'literature-est'),
             density_kg_m3=(5300.0, 'kg/m3', 'literature-est')),
@@ -650,6 +652,8 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': 'ceramic-ring-magnet',
         'forms_json': json.dumps(['sintered-part']),
         'properties_json': _props(
+            mu_r_eff=(1.1, '', 'literature-est',
+                      'RECOIL permeability of a sintered hard ferrite — near 1 because a saturated hard magnet barely responds to an applied field. Standard class value (1.05-1.15) across sintered Sr/Ba grades. This is mu_rec, NOT the initial permeability of a SOFT ferrite, and the two are routinely confused: a soft MnZn reads ~800, this reads ~1.1.'),
             hardness_hv=(550, 'HV', 'literature-est', 'Vickers, literature CLASS value. Contact/tooth faces fail at the SURFACE — this is what resists it'),
             fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
             scg_exponent_n=(30, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
@@ -735,6 +739,8 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': '',
         'forms_json': json.dumps(['sintered-part']),
         'properties_json': _props(
+            mu_r_eff=(4.0, '', 'literature-est',
+                      'RECOIL permeability. Alnico is the EXCEPTION among hard magnets: its recoil permeability is genuinely several — ~2-6 across grades — not the ~1.1 of a ceramic or NdFeB. A single value applied across the hard-magnet family would be wrong HERE specifically, which is why it is stated per material.'),
             b_r_t=(1.25, 'T', 'literature-est',
                    'HIGH B_r...'),
             h_c_ka_m=(50.0, 'kA/m', 'literature-est',
@@ -775,6 +781,8 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': '',
         'forms_json': json.dumps(['sintered-part']),
         'properties_json': _props(
+            mu_r_eff=(1.1, '', 'literature-est',
+                      'RECOIL permeability of a sintered hard ferrite — near 1 because a saturated hard magnet barely responds to an applied field. Standard class value (1.05-1.15) across sintered Sr/Ba grades. This is mu_rec, NOT the initial permeability of a SOFT ferrite, and the two are routinely confused: a soft MnZn reads ~800, this reads ~1.1.'),
             hardness_hv=(600, 'HV', 'literature-est', 'Vickers, literature CLASS value. Contact/tooth faces fail at the SURFACE — this is what resists it'),
             fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
             scg_exponent_n=(30, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
@@ -964,6 +972,8 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': 'ceramic-ring-magnet',
         'forms_json': json.dumps(['sintered-part']),
         'properties_json': _props(
+            mu_r_eff=(1.1, '', 'literature-est',
+                      'RECOIL permeability of a sintered hard ferrite — near 1 because a saturated hard magnet barely responds to an applied field. Standard class value (1.05-1.15) across sintered Sr/Ba grades. This is mu_rec, NOT the initial permeability of a SOFT ferrite, and the two are routinely confused: a soft MnZn reads ~800, this reads ~1.1.'),
             b_r_t=(0.39, 'T', 'literature-est'),
             h_c_ka_m=(260.0, 'kA/m', 'literature-est'),
             density_kg_m3=(4900.0, 'kg/m3', 'literature-est')),

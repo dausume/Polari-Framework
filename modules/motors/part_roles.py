@@ -117,6 +117,15 @@ ROLE_REQUIREMENTS = {
             ('mu_r_eff', 'max', 1.2,
              'high permeability offers the flux a parallel path '
              'and steals it from the working gap'),
+            ('b_r_t', 'max-if-stated', 0.01,
+             'REMANENCE, not just permeability. A sintered ceramic '
+             'magnet has mu_rec ~1.1 and would sail through a '
+             'permeability-only check while being the most '
+             'magnetically active object in the machine — it '
+             'carries its own field and will pull on the rotor '
+             'whatever its permeability says. A route search '
+             'genuinely proposed a permanent magnet as the PINION '
+             'through exactly this hole.'),
             ('sigma_s_m', 'max', 1.0e3,
              'a conductor moving in a changing field carries EDDY '
              'CURRENTS: drag on the rotor and heat in the part. '
@@ -135,6 +144,15 @@ ROLE_REQUIREMENTS = {
              'still must not be FERROMAGNETIC: distance does not '
              'save you from a part that offers the flux a whole '
              'parallel path'),
+            ('b_r_t', 'max-if-stated', 0.01,
+             'REMANENCE, not just permeability. A sintered ceramic '
+             'magnet has mu_rec ~1.1 and would sail through a '
+             'permeability-only check while being the most '
+             'magnetically active object in the machine — it '
+             'carries its own field and will pull on the rotor '
+             'whatever its permeability says. A route search '
+             'genuinely proposed a permanent magnet as the PINION '
+             'through exactly this hole.'),
         ],
         'requires_evidence': [
             ('field_buffer_mm',
@@ -147,17 +165,46 @@ ROLE_REQUIREMENTS = {
         'analyses': ['eddy drag at the stated buffer (NOT BUILT — '
                      'named)'],
     },
+    'torque-magnet-active': {
+        'domain': 'magnetic',
+        'summary': 'IS the permanent magnet — it supplies the field '
+                   'the machine works against',
+        'checks': [
+            ('b_r_t', 'min', 0.05,
+             'remanence IS the torque; below ~0.05 T there is not '
+             'enough field to step a rotor against any detent'),
+            ('h_c_ka_m', 'min', 100.0,
+             'coercivity is what stops the drive coil from '
+             'demagnetising it — the mag-2r hard/soft split, and '
+             'the reason a soft ferrite fails here outright'),
+        ],
+        'analyses': ['clock_sim (mag-5)', 'torque_parity'],
+    },
     'flux-carrying': {
         'domain': 'magnetic',
         'summary': 'ACTIVELY carries flux — the opposite demand to '
                    'field-inert, and the same material can be '
                    'excellent here and disqualified there',
+        # GRADED, not binary. An earlier pass demanded mu >= 100 and
+        # thereby declared that no local material can build a
+        # stator — which is false: the M0 clock sim demonstrably
+        # STEPS at mu~2.2. The physics here is continuous, so the
+        # role reports DEGREE. Below `functional` it genuinely does
+        # not work; between functional and good it works with a
+        # stated penalty; above good it is efficient.
         'checks': [
-            ('mu_r_eff', 'min', 100.0,
-             'a flux path wants the HIGHEST permeability available; '
-             'our mu~2 castings are three orders below the '
-             'laminated steel a commercial movement uses'),
+            ('mu_r_eff', 'min', 1.5,
+             'below mu~1.5 the core offers no advantage over air '
+             'and the machine does not step at all — this is the '
+             'REAL disqualifier'),
         ],
+        'graded': ('mu_r_eff', 1.5, 100.0,
+                   'functional from mu 1.5; GOOD from mu 100. Our '
+                   'castings sit at 2.2-2.5, so they work and cost '
+                   'roughly 40x the current a laminated-steel '
+                   'movement needs. That penalty is the honest '
+                   'price of a local stator, not a reason to call '
+                   'it unbuildable.'),
         'analyses': ['magnetic-netlist solve (mag-3)'],
     },
     'current-carrying': {
@@ -211,7 +258,11 @@ ROLE_REQUIREMENTS = {
 PART_ROLE_ASSIGNMENTS = {
     'lavet-v2-stator': ['static-structural',
                         'flux-carrying'],
-    'lavet-v2-rotor-magnet': ['moving', 'press-fitted'],
+    # The magnetic role was MISSING here, and its absence let a
+    # search propose a COPPER rotor magnet — copper passed because
+    # nothing was checking that a magnet must be magnetic.
+    'lavet-v2-rotor-magnet': ['moving', 'press-fitted',
+                              'torque-magnet-active'],
     # The pinion is mechanical FIRST and field-isolated by
     # GEOMETRY (it sits above the plate, clear of the gap) — the
     # intersectional case, and it must STATE its buffer.
@@ -227,7 +278,14 @@ PART_ROLE_ASSIGNMENTS = {
 
 def _check(value, test, threshold):
     if value is None:
-        return 'unassessed'
+        # A DISQUALIFIER asks "does this material declare something
+        # that rules it out?". Silence is not evidence of guilt: a
+        # structural ceramic states no remanence because it is not
+        # a magnet, and demanding the property would make every
+        # honest non-magnet unassessable. Contrast 'max', which
+        # asks a material to PROVE it stays under a limit.
+        return 'not-applicable' if test == 'max-if-stated' \
+            else 'unassessed'
     try:
         v = float(value)
     except (TypeError, ValueError):
@@ -236,7 +294,7 @@ def _check(value, test, threshold):
         return 'pass'
     if test == 'min':
         return 'pass' if v >= threshold else 'fail'
-    if test == 'max':
+    if test in ('max', 'max-if-stated'):
         return 'pass' if v <= threshold else 'fail'
     return 'unassessed'
 
@@ -273,6 +331,24 @@ def role_viability(manager, material, roles, part_row=None):
                 'threshold': thr, 'value': value,
                 'provenance': prov, 'verdict': verdict,
                 'why': why})
+    grades = []
+    for role in roles:
+        req = ROLE_REQUIREMENTS.get(role) or {}
+        g = req.get('graded')
+        if not g:
+            continue
+        prop, functional, good, why = g
+        value, _ = _prop(manager, material, prop)
+        if value is None:
+            continue
+        v = float(value)
+        grade = ('good' if v >= good else
+                 'functional-with-penalty' if v >= functional
+                 else 'below-functional')
+        grades.append({'role': role, 'property': prop,
+                       'value': v, 'functionalMin': functional,
+                       'goodMin': good, 'grade': grade,
+                       'why': why})
     fails = [c for c in checks if c.get('verdict') == 'fail']
     unassessed = [c for c in checks
                   if c.get('verdict') == 'unassessed']
@@ -284,7 +360,9 @@ def role_viability(manager, material, roles, part_row=None):
         overall = 'viable'
     return {
         'ok': True, 'material': material, 'roles': list(roles),
-        'verdict': overall, 'checks': checks,
+        'verdict': overall, 'checks': checks, 'grades': grades,
+        'degraded': [g for g in grades
+                     if g['grade'] == 'functional-with-penalty'],
         'failedOn': [f'{c["role"]}/{c["property"]}' for c in fails],
         'unassessedOn': [f'{c["role"]}/{c["property"]}'
                          for c in unassessed],

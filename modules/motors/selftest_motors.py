@@ -1233,11 +1233,123 @@ check('and it reaches a PRODUCT verdict rather than a pile of '
       and any('fatigue' in b for b in ds['blockers'])
       and any('power' in b or 'thirst' in b or 'cell' in b
               for b in ds['blockers']))
+check('a verdict of NOT SHIPPABLE now carries the ROUTE past the '
+      'blockers, because half an answer is naming a wall without '
+      'naming the door',
+      ds['routePastTheBlockers'] is not None
+      and ds['routePastTheBlockers'].get('answerable') is True
+      and 'A ROUTE EXISTS' in ds['verdict'])
 check('the honesty rider says the caveats COMPOUND across composed '
       'sections and this is a design review, not a datasheet for a '
       'buyer',
       'COMPOUND' in ds['honesty']
       and 'not a datasheet' in ds['honesty'])
+
+# ---- mag-22: the locally producible route ------------------------
+print('\n-- mag-22 local route --')
+from motors.part_roles import (               # noqa: E402
+    PART_ROLE_ASSIGNMENTS, role_viability,
+)
+from motors.local_route import (          # noqa: E402
+    locally_producible, minimum_drive_current, producible_clock,
+    solve_local_route, turns_sweep,
+)
+
+lp = locally_producible(mgrp2)
+check('the local set admits only recipe-seeded / made-and-measured '
+      'options — a route we have, not a paper we read',
+      lp['ok'] and lp['count'] >= 5
+      and all(m['realizationLevel'] in
+              ('recipe-seeded', 'made-and-measured')
+              or m['promotion'] for m in lp['materials']))
+check('NdFeB is excluded even though it would obviously work, '
+      'because "it would work" is not an answer to "can we make it"',
+      not any(m['material'] == 'opt-ndfeb'
+              for m in lp['materials']))
+check('a promotable material is carried with the DEMONSTRATION that '
+      'would earn it, so reachable is never confused with achieved',
+      any(m['promotion'] for m in lp['materials'])
+      and all('MEASURE' in m['promotion']['demonstration']
+              or 'measured' in m['promotion']['demonstration']
+              for m in lp['materials'] if m['promotion']))
+
+lr = solve_local_route(mgrp2)
+check('a local route SOLVES, and the kiln is what unlocks it',
+      lr['ok'] and lr['solved']
+      and all(v['process'] == 'kiln-fire'
+              for v in lr['route']['assignment'].values()))
+check('a PERMANENT MAGNET can never be proposed as the field-inert '
+      'pinion: mu_rec ~1.1 sails through a permeability-only check, '
+      'so field-inert also disqualifies on stated REMANENCE',
+      lr['route']['assignment']['lavet-v2-pinion']['material']
+      == 'opt-fired-ceramic')
+check('and the disqualifier does not demand the property EXIST — a '
+      'structural ceramic states no remanence because it is not a '
+      'magnet, and silence is not evidence of guilt',
+      role_viability(mgrp2, 'opt-fired-ceramic',
+                     PART_ROLE_ASSIGNMENTS['lavet-v2-pinion'],
+                     part_row=mgrp2.objectTables[
+                         'MotorPartDefinition']['lavet-v2-pinion'],
+                     )['verdict']
+      == 'viable')
+check('the pinion clears fatigue once fired — the blocker that '
+      'read as a materials limit was a FIRING choice (SF 0.39 -> >1)',
+      lr['route']['assignment']['lavet-v2-pinion'][
+          'fatigueSafetyFactor'] > 1.0)
+check('copper is declared IMPORTED rather than quietly counted as '
+      'local, because a route that hides its one import is not one',
+      any('copper' in x.lower()
+          for x in lr['route']['importedParts']))
+check('the route is NOT claimed as fully proven today — it names '
+      'the one demonstration it rests on',
+      lr['route']['fullyProvenToday'] is False
+      and len(lr['route']['demonstrationsRequired']) == 1)
+
+md = minimum_drive_current(mgrp2)
+check('the drive current is DERIVED by bisecting the existing step '
+      'condition, not asserted — the design stated 0.02 A and never '
+      'solved for it',
+      md['ok'] and md['thresholdAmps'] < md['statedAmps']
+      and md['designedAmps'] < md['statedAmps'])
+check('and it carries a stated design MARGIN rather than shipping '
+      'the bare stepping threshold',
+      md['designedAmps'] > md['thresholdAmps'])
+
+gap = minimum_drive_current(mgrp2, rotor_material='opt-carbonyl-iron')
+check('a missing property is reported as a DATA GAP, never as a '
+      'finding that the motor fails — the two are different claims',
+      (gap['ok'] or gap.get('kind') in ('data-gap',
+                                        'does-not-step')))
+
+ts = turns_sweep(mgrp2)
+check('the turns sweep holds the stepping MMF fixed and shows '
+      'current falling as 1/N — the power lever the M0 never pulled',
+      ts['ok'] and len(ts['candidates']) >= 4
+      and ts['candidates'][-1]['ampsForSameMmf']
+      < ts['candidates'][0]['ampsForSameMmf'])
+check('and it reads winding_report\'s REAL fit verdict: the stated '
+      '12 mm2 bobbin holds no candidate, not even the baseline',
+      all(c['fitVerdict'] == 'IMPOSSIBLE' for c in ts['candidates'])
+      and all(c['windowNeededMm2'] > c['statedWindowMm2']
+              for c in ts['candidates']))
+
+pc = producible_clock(mgrp2)
+check('the composed answer reaches a WORKING clock: within 5x a '
+      'commercial wall movement, years on a cell, not months',
+      pc['ok'] and pc['answerable']
+      and pc['winding']['timesThirstierThanWallClock'] <= 5.0
+      and pc['winding']['aaYears'] > 2.0)
+check('it states all three costs of "local": the import, the '
+      'demonstration, and the processes',
+      pc['imported'] and pc['mustDemonstrate']
+      and pc['processesNeeded'])
+check('inductance is named as the largest risk to the power claim '
+      'rather than left out of a favourable result',
+      any('NDUCTANCE' in u.upper() for u in pc['stillUnknown']))
+check('and the counterintuitive finding is stated plainly: a '
+      'stronger magnet makes power WORSE, because the magnet that '
+      'makes the torque also makes the detent',
+      'WORSE' in pc['honesty'] and 'detent' in pc['honesty'])
 
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')

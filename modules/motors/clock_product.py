@@ -226,8 +226,22 @@ def product_datasheet(manager, design_name='clock-lavet-m0',
         blockers.append(f'{len(bom["gaps"])} part(s) cannot be '
                         f'costed or massed yet')
 
+    # A verdict of NOT SHIPPABLE is only half an answer if a route
+    # past it exists. mag-22 searched for one, so the product view
+    # carries it rather than leaving the reader at the blockers.
+    route = None
+    if blockers:
+        try:
+            from motors.local_route import producible_clock
+            route = producible_clock(manager, design_name,
+                                     train_name)
+        except Exception as exc:            # noqa: BLE001
+            route = {'ok': False,
+                     'refusal': f'{type(exc).__name__}: {exc}'}
+
     return {
         'ok': True, 'product': 'Lavet-type clock movement (M0)',
+        'routePastTheBlockers': route,
         'design': design_name, 'train': train_name,
         'classification': (cls.get('classification')
                            if cls.get('ok') else None),
@@ -246,6 +260,8 @@ def product_datasheet(manager, design_name='clock-lavet-m0',
         'gaps': gaps,
         'verdict': (
             'NOT SHIPPABLE AS IS. ' + ' '.join(blockers)
+            + (f' BUT A ROUTE EXISTS: {route["headline"]}'
+               if route and route.get('answerable') else '')
             if blockers else
             'every composed check passes'),
         'honesty': (

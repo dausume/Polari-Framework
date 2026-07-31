@@ -36,6 +36,12 @@ class MotorsAPI(treeObject):
                 suffix='materials')
             add('/api/motors/drive/{design_name}', self,
                 suffix='drive')
+            add('/api/motors/local-route', self,
+                suffix='local_route')
+            add('/api/motors/producible-clock', self,
+                suffix='producible_clock')
+            add('/api/motors/turns-sweep', self,
+                suffix='turns_sweep')
             add('/api/motors/verify/{design_name}', self,
                 suffix='verify')
             add('/api/motors/parts/{design_name}', self,
@@ -359,4 +365,33 @@ class MotorsAPI(treeObject):
             notes=payload.get('notes', ''))
         if not out.get('ok'):
             response.status = '422 Unprocessable Entity'
+        response.media = out
+
+    def on_get_local_route(self, request, response):
+        from motors.local_route import solve_local_route
+        out = solve_local_route(
+            self.manager,
+            request.params.get('design', 'clock-lavet-m0'))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_producible_clock(self, request, response):
+        from motors.local_route import producible_clock
+        out = producible_clock(
+            self.manager,
+            request.params.get('design', 'clock-lavet-m0'))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_turns_sweep(self, request, response):
+        from motors.local_route import turns_sweep
+        out = turns_sweep(
+            self.manager,
+            request.params.get('design', 'clock-lavet-m0'),
+            rotor_material=request.params.get('rotor', ''),
+            stator_material=request.params.get('stator', ''))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
         response.media = out

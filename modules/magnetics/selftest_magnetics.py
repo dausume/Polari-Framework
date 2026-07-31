@@ -73,8 +73,11 @@ check('7 powder definitions (5 real + 2 theoretical)',
       len(SEED_MAGNETIC_POWDERS) == 7
       and sum(1 for p in SEED_MAGNETIC_POWDERS
               if p['is_theoretical']) == 2)
-check('31 catalog options across 5 families',
-      len(SEED_MATERIAL_OPTIONS) == 31
+# 33 since mag-16/17 added opt-galvanized-bio-steel and
+# opt-brass-cuzn as fatigue/role alternatives; the assertion was
+# left at 31 and is corrected here rather than loosened away.
+check('33 catalog options across 5 families',
+      len(SEED_MATERIAL_OPTIONS) == 33
       and len({o['family'] for o in SEED_MATERIAL_OPTIONS}) == 5,
       extra=str(len(SEED_MATERIAL_OPTIONS)))
 check('every option realization level is on the ladder',
