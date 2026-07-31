@@ -292,6 +292,47 @@ if __name__ == '__main__':
           '(something imports polariDataTyping)',
           nodes.get('polariDataTyping', {}).get('boundaryDependents'))
 
+    print('== suite: mod-env-1 rows-derived POLARI_MODULES ==')
+    from topology.topology_analysis import modules_env_for_instance
+
+    def _amgr(assignments):
+        return types.SimpleNamespace(objectTables={
+            'ModuleAssignment': {a.name: a for a in assignments},
+            'TopologyDefinition': {'staging-a': types.SimpleNamespace(
+                name='staging-a', is_active=True)},
+        })
+
+    def _assign(module, instance='prf-a', state='enabled'):
+        return types.SimpleNamespace(
+            name=f'{module}@{instance}', module_name=module,
+            instance_name=instance, state=state,
+            topology_name='staging-a')
+
+    env = modules_env_for_instance(
+        _amgr([_assign('scoring'), _assign('composition'),
+               _assign('materialsScience.fem'),
+               _assign('waxprint', state='disabled'),
+               _assign('gears', instance='other')]), 'prf-a')
+    check('rows -> env: enabled rows only, this instance only, '
+          'dotted names collapse to their package',
+          env.get('ok') and env['assigned']
+          == ['composition', 'materialsScience', 'scoring'])
+    check('requires closure added, each addition NAMING who '
+          'pulled it in',
+          'mathshapes' in env['env'].split(',')
+          and 'composition' in env['addedByRequires'].get(
+              'mathshapes', []),
+          extra=str(env.get('addedByRequires')))
+    check('env is the sorted comma list the deploy consumes',
+          env['env'] == ','.join(sorted(env['env'].split(',')))
+          and env['count'] == len(env['env'].split(',')))
+    empty = modules_env_for_instance(_amgr([]), 'prf-a')
+    check('ZERO rows REFUSES (empty env would boot monolithic), '
+          'naming the assign knob',
+          not empty.get('ok')
+          and 'monolithic' in empty.get('refusal', '')
+          and 'pol topology assign' in str(empty.get('suggestion')))
+
     failed = [label for label, ok in _results if not ok]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} checks '
           f'passed' + (f'; FAILED: {failed}' if failed else ''))

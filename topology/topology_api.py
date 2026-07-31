@@ -22,7 +22,8 @@ from objectTreeDecorators import treeObject, treeObjectInit
 
 from topology.topology_analysis import (
     active_topology_name, drift_report, graph_payload,
-    placement_check, plan_move, resolve_edges, validate_topology,
+    modules_env_for_instance, placement_check, plan_move,
+    resolve_edges, validate_topology,
 )
 from topology.topology_basis import (
     InstanceDefinition, OrchestrationTarget, PolariNodeMachine,
@@ -66,6 +67,8 @@ class TopologyAPI(treeObject):
             add('/api/topology/module-graph', self,
                 suffix='module_graph')
             add('/api/topology/machines', self, suffix='machines')
+            add('/api/topology/modules-env/{instance}', self,
+                suffix='modules_env')
             add('/api/topology/validate', self, suffix='validate')
             add('/api/topology/resolve', self, suffix='resolve')
             add('/api/topology/assign', self, suffix='assign')
@@ -127,6 +130,17 @@ class TopologyAPI(treeObject):
         response.media = {'ok': False, 'error': error}
 
     # ---- reads ------------------------------------------------------
+
+    def on_get_modules_env(self, request, response, instance):
+        """mod-env-1: the rows-derived POLARI_MODULES for one
+        instance (?name= scopes the topology). The deploy path
+        reads THIS; a hand-set env var is an explicit override."""
+        report = modules_env_for_instance(
+            self.manager, instance,
+            request.params.get('name', ''))
+        if not report.get('ok'):
+            response.status = '409 Conflict'
+        response.media = report
 
     def on_get_summary(self, request, response):
         active = active_topology_name(self.manager)

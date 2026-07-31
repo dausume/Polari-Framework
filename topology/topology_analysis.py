@@ -60,6 +60,76 @@ def active_topology_name(manager):
     return ''
 
 
+def modules_env_for_instance(manager, instance, topology_name=''):
+    """mod-env-1: derive the POLARI_MODULES env for one instance
+    from its enabled ModuleAssignment rows — module enablement is
+    ROWS, not a hand-maintained env string (the env var stays as an
+    explicit, warned OVERRIDE at deploy time only).
+
+    - dotted assignments count as their top-level package (matching
+      module_gating's behavior);
+    - the requires closure from the registry is added, each addition
+      naming which assigned module pulled it in — a row for
+      'composition' must not silently boot without 'mathshapes';
+    - ZERO rows REFUSES rather than returning '' — an empty
+      POLARI_MODULES means the monolithic ALL-modules default at
+      boot, which is never what a rows-driven deploy intends.
+    """
+    topology_name = topology_name or active_topology_name(manager)
+    direct = set()
+    for row in _scoped(manager, 'ModuleAssignment', topology_name):
+        if (getattr(row, 'instance_name', '') == instance
+                and getattr(row, 'state', '') == 'enabled'):
+            module = getattr(row, 'module_name', '')
+            if module:
+                direct.add(module.split('.')[0])
+    if not direct:
+        return {
+            'ok': False, 'topology': topology_name,
+            'instance': instance,
+            'refusal': f'no enabled ModuleAssignment rows for '
+                       f'"{instance}" on "{topology_name}" — an '
+                       f'empty POLARI_MODULES boots the monolithic '
+                       f'ALL-modules default, never what a '
+                       f'rows-driven deploy intends',
+            'suggestion': {
+                'knob': 'ModuleAssignment',
+                'action': f'pol topology assign <module> {instance}'},
+        }
+    added_by = {}
+    requires_readable = True
+    try:
+        from moduleService.module_boot_records import (
+            load_module_requires,
+        )
+        requires = {m: sorted(reqs) for m, reqs
+                    in load_module_requires().items()}
+    except Exception:
+        requires = {}
+        requires_readable = False
+    enabled = set(direct)
+    frontier = sorted(direct)
+    while frontier:
+        module = frontier.pop(0)
+        for req in requires.get(module, ()):
+            base = req.split('.')[0]
+            if base not in enabled:
+                enabled.add(base)
+                added_by.setdefault(base, []).append(module)
+                frontier.append(base)
+    return {
+        'ok': True, 'topology': topology_name, 'instance': instance,
+        'assigned': sorted(direct),
+        'addedByRequires': added_by,
+        'requiresReadable': requires_readable,
+        'count': len(enabled),
+        'env': ','.join(sorted(enabled)),
+        'note': 'assignments are the truth; addedByRequires names '
+                'every module the registry closure pulled in so a '
+                'dependency never silently fails to boot',
+    }
+
+
 def _finding(severity, check, subject, evidence, knob, action):
     return {'severity': severity, 'check': check, 'subject': subject,
             'evidence': evidence, 'knob': knob, 'action': action}
