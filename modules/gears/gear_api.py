@@ -27,6 +27,9 @@ class GearsAPI(treeObject):
                 suffix='solve')
             add('/api/gears/motor-drive/{train_name}', self,
                 suffix='motor_drive')
+            add('/api/gears/planetary', self, suffix='planetary')
+            add('/api/gears/clock-face/{train_name}', self,
+                suffix='clock_face')
 
     def on_get_types(self, request, response):
         response.media = type_catalog(self.manager)
@@ -47,6 +50,36 @@ class GearsAPI(treeObject):
         out = solve_train(self.manager, train_name,
                           input_torque_nm=_num('torqueNm'),
                           input_speed_rpm=_num('speedRpm'))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_planetary(self, request, response):
+        from gears.planetary import (
+            motion_works_ratio, planetary_ratio,
+        )
+        def i(k, d):
+            try:
+                return int(request.params.get(k, d))
+            except (TypeError, ValueError):
+                return d
+        out = planetary_ratio(
+            i('sun', 12), i('ring', 132),
+            configuration=request.params.get('configuration',
+                                             'ring-fixed'),
+            n_planets=i('planets', 3))
+        if out.get('ok'):
+            out['motionWorksAlternative'] = motion_works_ratio()
+        else:
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_clock_face(self, request, response, train_name):
+        from gears.planetary import clock_face_sizing
+        cb = request.params.get('counterbalanced', '').lower() \
+            == 'true'
+        out = clock_face_sizing(self.manager, train_name,
+                                counterbalanced=cb)
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out

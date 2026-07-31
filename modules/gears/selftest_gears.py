@@ -351,6 +351,64 @@ check('with motors absent from the object tree, the splice refuses '
       'by name instead of crashing',
       not out.get('ok') and 'motors module' in out['refusal'])
 
+print('== suite: gr-6 planetary + the clock-face question ==')
+from gears.planetary import (  # noqa: E402
+    PLANETARY_CONFIGURATIONS, clock_face_sizing,
+    motion_works_ratio, planetary_ratio,
+)
+
+pl = planetary_ratio(12, 132, 'ring-fixed')
+check('the planetary ratio table gr-1 refused to guess is now '
+      'DATA: ring-fixed gives 1 + N_ring/N_sun = 12:1',
+      pl['ok'] and abs(pl['ratio'] - 12.0) < 1e-9
+      and pl['held'] == 'ring')
+check('and WHICH member is held changes both the ratio AND the '
+      'direction — carrier-fixed REVERSES, which is a design '
+      'outcome not a bookkeeping detail',
+      planetary_ratio(12, 132, 'carrier-fixed')['ratio'] < 0
+      and PLANETARY_CONFIGURATIONS['carrier-fixed']['direction']
+      == 'REVERSED')
+check('buildability is checked, not assumed: the planet must fit '
+      'the annulus as a WHOLE tooth count, and equally spaced '
+      'planets only mesh if (ring+sun) divides by the planet count',
+      pl['buildable'] and pl['planetTeeth'] == 60
+      and not planetary_ratio(12, 133, 'ring-fixed')['geometryOk'])
+
+mw = motion_works_ratio()
+check('THE HONEST COMPARISON: the classical motion works reaches '
+      'the SAME exact 12:1 from two small meshes and is already '
+      'CONCENTRIC — the hour wheel is a tube over the cannon '
+      'pinion, which is the thing a planetary would have been '
+      'chosen for',
+      mw['exact12'] and mw['concentric']
+      and 'TUBE' in mw['why'])
+check('while the single-stage planetary needs a ring 11x the sun '
+      'diameter to do it — the size argument, stated as a number',
+      '11' in pl['sizeNote'])
+
+sz = clock_face_sizing(mgr, 'clock-train-m0')
+check('THE SIZING ANSWER IS COMPUTED from our own torque: at '
+      '~1.7e-3 Nm the longest drivable hand is ~120 mm, i.e. a '
+      'face about 260 mm — a WALL CLOCK, not a tower clock',
+      sz['ok'] and 100 <= sz['maxHandLengthMm'] <= 150
+      and 'WALL CLOCK' in sz['verdict'],
+      extra=str(sz.get('maxFaceDiameterMm')))
+check('the sweep shows the limit being crossed rather than just '
+      'the answer: a 100 mm hand clears it, a 200 mm hand does not',
+      any(r['drivable'] for r in sz['sweep']
+          if r['handLengthMm'] == 100)
+      and not any(r['drivable'] for r in sz['sweep']
+                  if r['handLengthMm'] == 200))
+cb = clock_face_sizing(mgr, 'clock-train-m0', counterbalanced=True)
+check('COUNTERBALANCING more than doubles the drivable face — '
+      'which is exactly why large dials use counterweighted hands',
+      cb['maxFaceDiameterMm'] > sz['maxFaceDiameterMm'] * 2,
+      extra=f"{sz['maxFaceDiameterMm']} -> "
+            f"{cb['maxFaceDiameterMm']}")
+check('stiction is named as the real-world limit a stepper faces '
+      'EVERY step, and not modelled here',
+      'stiction' in sz['honesty'])
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
