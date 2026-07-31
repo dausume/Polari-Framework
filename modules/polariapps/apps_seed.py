@@ -39,8 +39,20 @@ def _app(name, title, use_case, description, modules, pages,
             'discipline': discipline, 'notes': ''}
 
 
-def _grp(group, *items):
-    return {'group': group, 'items': list(items)}
+def _grp(group, *items, top=False):
+    """A nav group. The side menu always renders every group (the
+    complete map); top=True ADDITIONALLY promotes the group to the
+    shell's top bar as a dropdown — apps leverage BOTH menus, they
+    replace neither (Dustin 2026-07-31)."""
+    grp = {'group': group, 'items': list(items)}
+    if top:
+        grp['top_menu'] = True
+    return grp
+
+
+def _tgrp(group, *items):
+    """A group promoted to the top bar (and still in the side map)."""
+    return _grp(group, *items, top=True)
 
 
 def _it(label, kind, route='', requires_module='', ref=''):
@@ -99,7 +111,7 @@ SEED_POLARI_APPS = [
          ('magnetics', 'motors', 'composition', 'gears'),
          ('/magnetics/motor', '/magnetics/clock-views'),
          nav=(
-             _grp('Studies',
+             _tgrp('Studies',
                   _it('M0 clock motor — running', 'page',
                       route='/magnetics/motor', requires_module='motors'),
                   _it('Motor scene (3D)', 'simspace',
@@ -127,7 +139,7 @@ SEED_POLARI_APPS = [
          ('gears', 'composition', 'motors', 'mathshapes'),
          ('/magnetics/clock-views',),
          nav=(
-             _grp('Studies',
+             _tgrp('Studies',
                   _it('Clock views — mechanical sections', 'view',
                       route='/magnetics/clock-views',
                       requires_module='composition'),
@@ -158,12 +170,12 @@ SEED_POLARI_APPS = [
          ('materialsScience', 'pspp', 'mathshapes'),
          ('/pspp', '/multi-scale-sims'),
          nav=(
-             _grp('Materials',
+             _tgrp('Materials',
                   _it('Materials catalog', 'page',
                       route='/class-main-page/Material',
                       requires_module='materialsScience'),
                   _it('Equations', 'page', route='/equations')),
-             _grp('Simulations',
+             _tgrp('Simulations',
                   _it('Multi-scale sims', 'page',
                       route='/multi-scale-sims'),
                   _it('Sim spaces', 'simspace', route='/sim-spaces')),
@@ -201,7 +213,7 @@ SEED_POLARI_APPS = [
          ('bizops', 'odooconnect', 'supplychain'),
          ('/business/start', '/business/odoo'),
          nav=(
-             _grp('Operations',
+             _tgrp('Operations',
                   _it('Business start', 'page', route='/business/start',
                       requires_module='bizops'),
                   _it('Odoo business', 'page', route='/business/odoo',
@@ -216,7 +228,7 @@ SEED_POLARI_APPS = [
          ('dmvdata', 'scoring'),
          ('/scoring/survival', '/maps'),
          nav=(
-             _grp('Evidence',
+             _tgrp('Evidence',
                   _it('Cost of living — survival costs', 'page',
                       route='/scoring/survival',
                       requires_module='scoring'),
@@ -244,7 +256,7 @@ SEED_POLARI_APPS = [
          ('scoring', 'dmvdata'),
          ('/scoring', '/datasets'),
          nav=(
-             _grp('Scorecards',
+             _tgrp('Scorecards',
                   _it('Scoring home', 'page', route='/scoring',
                       requires_module='scoring'),
                   _it('Accountability', 'page',
@@ -270,7 +282,7 @@ SEED_POLARI_APPS = [
          ('polariNoCode',),
          ('/displays', '/custom-no-code'),
          nav=(
-             _grp('Build',
+             _tgrp('Build',
                   _it('Create class', 'page', route='/create-class'),
                   _it('Custom no-code', 'page',
                       route='/custom-no-code'),
@@ -297,10 +309,10 @@ SEED_POLARI_APPS = [
          ('polariapps', 'techtree'),
          ('/topology', '/module-management'),
          nav=(
-             _grp('Topology',
+             _tgrp('Topology',
                   _it('Topology home', 'page', route='/topology'),
                   _it('Polari config', 'page', route='/polari-config')),
-             _grp('Modules & deployment',
+             _tgrp('Modules & deployment',
                   _it('Module management', 'page',
                       route='/module-management'),
                   _it('Module bringup', 'page',

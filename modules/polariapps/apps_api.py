@@ -24,6 +24,7 @@ from objectTreeDecorators import treeObject, treeObjectInit
 from polariapps.apps_analysis import (
     app_plan, apply_app, export_app, validate_app_document,
 )
+from polariapps.apps_nav import app_nav_report, apps_nav
 from polariapps.apps_basis import (
     AppDeploymentPlan, PolariAppDefinition,
 )
@@ -47,6 +48,8 @@ class AppsAPI(treeObject):
         if polServer is not None:
             add = polServer.falconServer.add_route
             add('/api/apps', self, suffix='list')
+            add('/api/apps/nav', self, suffix='nav')
+            add('/api/apps/nav/{app}', self, suffix='nav_app')
             add('/api/apps/plan', self, suffix='plan')
             add('/api/apps/export', self, suffix='export')
             add('/api/apps/definition', self, suffix='definition')
@@ -97,6 +100,19 @@ class AppsAPI(treeObject):
              'pages': json.loads(
                  getattr(a, 'pages_json', '[]') or '[]')}
             for a in self._table('PolariAppDefinition').values()]}
+
+    def on_get_nav(self, request, response):
+        """nav-2: every app's nav tree with tri-state availability
+        (enabled | absent | unknown) + persona index. Absent modules
+        keep their items, carrying bringup affordances — the map
+        survives the missing territory."""
+        response.media = apps_nav(self.manager)
+
+    def on_get_nav_app(self, request, response, app):
+        report = app_nav_report(self.manager, app)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
 
     def on_get_plan(self, request, response):
         name = request.params.get('name', '')

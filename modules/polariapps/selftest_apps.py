@@ -15,6 +15,7 @@ import types
 from polariapps.apps_analysis import (
     app_plan, apply_app, export_app, validate_app_document,
 )
+from polariapps.apps_nav import app_nav_report, apps_nav
 from polariapps.apps_seed import SEED_POLARI_APPS
 
 _results = []
@@ -137,6 +138,13 @@ if __name__ == '__main__':
           and any(it['route'] == '/testing'
                   and it['requires_module'] == 'testing'
                   for it in sw_items))
+    check('every discipline app promotes at least one group to the '
+          'top bar, and none promotes all of them (the side map '
+          'stays the complete map)',
+          all(0 < sum(1 for g in json.loads(s['nav_json'])
+                      if g.get('top_menu'))
+              <= max(1, len(json.loads(s['nav_json'])) - 1)
+              for s in discipline_apps))
     personas = {p for s in SEED_POLARI_APPS
                 for p in json.loads(s['personas_json'])}
     check('personas cover nav-0 §4.4 plus software + network/cloud',
@@ -201,6 +209,70 @@ if __name__ == '__main__':
               and not hasattr(stale['judicial-lean'], 'nav_json'))
         check('no insert/update errors from the upsert pass',
               not report['errors'] and not report['inserted'])
+
+    print('== suite: nav-2 tri-state availability ==')
+    navmgr = _ns(objectTables={
+        'PolariAppDefinition': {
+            s['name']: _ns(**s) for s in SEED_POLARI_APPS}})
+    # Fake gating: composition absent, everything else enabled.
+    gate = lambda m: m != 'composition'
+    reqs = {'composition': ['mathshapes']}
+    result = apps_nav(navmgr, feature_check=gate, requires_map=reqs)
+    napps = {a['name']: a for a in result['apps']}
+    check('nav payload covers all 11 apps, gating readable',
+          result['ok'] and result['gatingReadable']
+          and len(napps) == 11)
+    check('discipline apps sort before use-case apps',
+          [a['discipline'] != '' for a in result['apps']].index(False)
+          == 8)
+    mag = napps['app-magnetics']
+    mag_items = [it for g in mag['nav'] for it in g['items']]
+    absent = [it for it in mag_items
+              if it['availability'] == 'absent']
+    check('absent module item KEPT with bringup affordance + '
+          'requires chain',
+          len(absent) == 1
+          and absent[0]['requiresModule'] == 'composition'
+          and absent[0]['bringup']['route'] == '/modules/bringup'
+          and absent[0]['bringup']['requires'] == ['mathshapes'])
+    check('ungated + enabled-module items are enabled',
+          all(it['availability'] == 'enabled'
+              for it in mag_items if it not in absent))
+    check('topMenu placement carried through',
+          [g['topMenu'] for g in mag['nav']] == [True, False])
+    check('persona index maps EE to app-magnetics',
+          result['personas']['electrical-engineer']
+          == ['app-magnetics'])
+    check('use-case app gets a SYNTHESIZED pages group',
+          napps['wax-print-shop']['navSynthesized']
+          and napps['wax-print-shop']['nav'][0]['group'] == 'Pages'
+          and napps['wax-print-shop']['nav'][0]['items'][0]['route']
+          == '/wax-print-sim')
+    # Gating machinery unavailable => tri-state unknown, never
+    # guessed; ungated core items stay enabled.
+    unknown = apps_nav(navmgr, feature_check=None, requires_map={})
+    uit = [it for a in unknown['apps'] for g in a['nav']
+           for it in g['items']]
+    check('gating unreadable => gated items unknown, core items '
+          'still enabled, flagged in payload',
+          not unknown['gatingReadable']
+          and all(it['availability'] == 'unknown'
+                  for it in uit if it.get('requiresModule'))
+          and all(it['availability'] == 'enabled'
+                  for it in uit if not it.get('requiresModule')))
+    one = app_nav_report(navmgr, 'app-software-engineering',
+                         feature_check=lambda m: m != 'testing',
+                         requires_map={})
+    check('single-app report works; testing item absent, no chain '
+          'when registry unreadable',
+          one['ok'] and any(
+              it.get('requiresModule') == 'testing'
+              and it['availability'] == 'absent'
+              and it['bringup'] == {'route': '/modules/bringup'}
+              for g in one['nav'] for it in g['items']))
+    check('unknown app refused honestly',
+          not app_nav_report(navmgr, 'nope',
+                             feature_check=gate)['ok'])
 
     print('== suite: plan computation ==')
     mgr = _mgr()
