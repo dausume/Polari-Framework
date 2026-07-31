@@ -52,6 +52,10 @@ class PolariAppDefinition(treeObject):
         personas_json: str = '[]',
         # nav-1: discipline tag ('' for use-case apps).
         discipline: str = '',
+        # nav-1: seeds are priors, people's edits are not — flip to
+        # False on a customized row and the upsert seed pass will
+        # never touch it again (composition.seed_upsert contract).
+        is_prior: bool = True,
         notes: str = '',
         manager=None,
     ):
@@ -64,6 +68,7 @@ class PolariAppDefinition(treeObject):
         self.nav_json = nav_json
         self.personas_json = personas_json
         self.discipline = discipline
+        self.is_prior = is_prior
         self.notes = notes
 
 

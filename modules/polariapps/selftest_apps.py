@@ -59,16 +59,144 @@ def _mgr():
     })
 
 
+NAV_KINDS = ('page', 'simspace', 'view', 'tech-node')
+
+
 if __name__ == '__main__':
     print('== suite: seeds ==')
-    check('three apps seeded (wax shop, judicial, dmv)',
-          sorted(s['name'] for s in SEED_POLARI_APPS)
+    use_case_apps = [s for s in SEED_POLARI_APPS if not s['discipline']]
+    discipline_apps = [s for s in SEED_POLARI_APPS if s['discipline']]
+    check('three use-case apps still seeded (wax shop, judicial, dmv)',
+          sorted(s['name'] for s in use_case_apps)
           == ['dmv-policy-analysis', 'judicial-lean',
               'wax-print-shop'])
+    check('eight discipline apps seeded (nav-1)',
+          sorted(s['name'] for s in discipline_apps)
+          == ['app-business', 'app-magnetics',
+              'app-materials-science', 'app-mechanical',
+              'app-policy', 'app-scorecards-data-analysis',
+              'app-software-engineering', 'app-topology-network'])
     check('every seed carries modules + pages + use case',
           all(json.loads(s['modules_json'])
               and json.loads(s['pages_json']) and s['use_case']
               for s in SEED_POLARI_APPS))
+
+    print('== suite: nav-1 menus ==')
+    check('every discipline app carries personas + a nav menu',
+          all(json.loads(s['personas_json'])
+              and json.loads(s['nav_json'])
+              for s in discipline_apps))
+    items = [(s['name'], it)
+             for s in SEED_POLARI_APPS
+             for grp in json.loads(s['nav_json'])
+             for it in grp['items']]
+    check('every nav group has a name and items',
+          all(grp['group'] and grp['items']
+              for s in SEED_POLARI_APPS
+              for grp in json.loads(s['nav_json'])))
+    check('every nav item has a label and a known kind',
+          all(it['label'] and it['kind'] in NAV_KINDS
+              for _, it in items))
+    check('routed kinds carry a rooted route; tech-node carries a '
+          'ref and no route',
+          all((it['kind'] == 'tech-node'
+               and it.get('ref') and not it.get('route'))
+              or (it['kind'] != 'tech-node'
+                  and it.get('route', '').startswith('/'))
+              for _, it in items))
+    by_name = {s['name']: s for s in SEED_POLARI_APPS}
+    mag_items = [it for grp in
+                 json.loads(by_name['app-magnetics']['nav_json'])
+                 for it in grp['items']]
+    check('magnetics: clock-views is a composition-gated VIEW '
+          'plus an electromagnetic-systems tree node',
+          any(it['kind'] == 'view'
+              and it['route'] == '/magnetics/clock-views'
+              and it['requires_module'] == 'composition'
+              for it in mag_items)
+          and any(it['kind'] == 'tech-node'
+                  and it['ref'] == 'electromagnetic-systems'
+                  for it in mag_items))
+    pspp_grps = [g for g in
+                 json.loads(by_name['app-materials-science']
+                            ['nav_json'])
+                 if g['group'] == 'PSPP']
+    check('materials-science: PSPP group holds the 11 pspp routes, '
+          'all pspp-gated',
+          len(pspp_grps) == 1 and len(pspp_grps[0]['items']) == 11
+          and all(it['requires_module'] == 'pspp'
+                  for it in pspp_grps[0]['items']))
+    sw_items = [it for grp in
+                json.loads(by_name['app-software-engineering']
+                           ['nav_json'])
+                for it in grp['items']]
+    check('software-engineering: core no-code items carry no module '
+          'gate; the test surface is gated on testing',
+          all(not it.get('requires_module')
+              for it in sw_items if it['route'] != '/testing')
+          and any(it['route'] == '/testing'
+                  and it['requires_module'] == 'testing'
+                  for it in sw_items))
+    personas = {p for s in SEED_POLARI_APPS
+                for p in json.loads(s['personas_json'])}
+    check('personas cover nav-0 §4.4 plus software + network/cloud',
+          personas >= {'electrical-engineer', 'mechanical-engineer',
+                       'materials-scientist', 'business-operator',
+                       'policy-analyst', 'software-engineer',
+                       'network-engineer', 'cloud-engineer'})
+
+    print('== suite: upsert convergence (nav-1 seed path) ==')
+    # The three live use-case rows predate the nav fields — prove the
+    # composition upsert path DELIVERS them (the ten-strikes gotcha)
+    # while honoring is_prior=False as a human's row.
+    try:
+        from composition.seed_upsert import upsert_seed_pairs
+    except ImportError:
+        upsert_seed_pairs = None
+    if upsert_seed_pairs is None:
+        check('composition.seed_upsert importable for the nav-1 '
+              'seed pass', False)
+    else:
+        # Use-case rows are STALE (predate the nav fields, like the
+        # three live rows); discipline rows are complete.
+        stale = {}
+        for s in SEED_POLARI_APPS:
+            if s['discipline']:
+                stale[s['name']] = _ns(**s)
+            else:
+                stale[s['name']] = _ns(**{
+                    k: v for k, v in s.items()
+                    if k not in ('nav_json', 'personas_json',
+                                 'discipline')})
+        stale['judicial-lean'].is_prior = False
+        stale['judicial-lean'].use_case = 'human-edited'
+        mgr = _ns(objectTables={'PolariAppDefinition': stale},
+                  objectTypingDict={'PolariAppDefinition': object})
+
+        class _FakeApp:
+            def __init__(self, manager=None, **fields):
+                self.__dict__.update(fields)
+
+        [report] = upsert_seed_pairs(
+            mgr, [('PolariAppDefinition', _FakeApp,
+                   SEED_POLARI_APPS)], tag='SelftestAppsNav')
+        updated = {u['name']: u['fields']
+                   for u in report['updated']}
+        check('stale prior rows gain exactly the missing nav fields',
+              set(updated.get('wax-print-shop', []))
+              == {'nav_json', 'personas_json', 'discipline'}
+              and 'app-magnetics' not in updated)
+        check('delivered fields now live on the stale row',
+              stale['wax-print-shop'].nav_json == '[]'
+              and stale['wax-print-shop'].discipline == ''
+              and stale['dmv-policy-analysis'].personas_json == '[]')
+        check('is_prior=False row is skipped as customized, '
+              'edits intact',
+              'judicial-lean' in report['skipped_custom']
+              and stale['judicial-lean'].use_case == 'human-edited'
+              and not hasattr(stale['judicial-lean'], 'nav_json'))
+        check('no insert/update errors from the upsert pass',
+              not report['errors'] and not report['inserted'])
 
     print('== suite: plan computation ==')
     mgr = _mgr()

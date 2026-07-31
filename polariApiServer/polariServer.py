@@ -3706,6 +3706,30 @@ class polariServer(treeObject):
                               flush=True)
             except Exception as e:
                 print(f'[ScaleGoalsSeed] failed: {e}', flush=True)
+        # nav-1: polariapps rows ride the SAME upsert path — the three
+        # live use-case rows predate nav_json/personas_json/discipline
+        # and the legacy insert-only pass would never deliver the new
+        # fields (the ten-strikes gotcha). The legacy entry stays as
+        # the no-composition fallback; this pass converges live rows.
+        if (_feature_available('composition')
+                and _feature_available('polariapps') and (
+                only_classes is None
+                or 'PolariAppDefinition' in only_classes)):
+            try:
+                from composition.seed_upsert import upsert_seed_pairs
+                from polariapps.apps_basis import PolariAppDefinition
+                from polariapps.apps_seed import SEED_POLARI_APPS
+                for r in upsert_seed_pairs(
+                        self.manager,
+                        [('PolariAppDefinition', PolariAppDefinition,
+                          SEED_POLARI_APPS)], tag='AppsNavSeed'):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[AppsNavSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[AppsNavSeed] failed: {e}', flush=True)
         # tt-8: the single 'oseb' tree became three DOMAIN trees —
         # retire its persisted rows (idempotent no-op once gone) and
         # remap stale PolariModule.tech_node_ref hints.
