@@ -38,6 +38,12 @@ class MotorsAPI(treeObject):
                 suffix='drive')
             add('/api/motors/stator-variants', self,
                 suffix='stator_variants')
+            # arch-8: the design as a composition view (wrap, not
+            # port) + Boothroyd-gated promotion suggestions.
+            add('/api/motors/composition-view/{design_name}', self,
+                suffix='composition_view')
+            add('/api/motors/promotion-candidates/{design_name}',
+                self, suffix='promotion_candidates')
             add('/api/motors/simplest', self,
                 suffix='simplest')
             add('/api/motors/road-to-advanced', self,
@@ -488,6 +494,17 @@ class MotorsAPI(treeObject):
     def on_get_road_to_advanced(self, request, response):
         from motors.simple_first import road_to_advanced
         response.media = road_to_advanced(self.manager)
+
+    def on_get_composition_view(self, request, response,
+                                design_name):
+        from motors.composition_splice import composition_view
+        response.media = composition_view(self.manager, design_name)
+
+    def on_get_promotion_candidates(self, request, response,
+                                    design_name):
+        from motors.composition_splice import promotion_candidates
+        response.media = promotion_candidates(self.manager,
+                                              design_name)
 
     def on_get_stator_variants(self, request, response):
         from motors.stator_construction import (

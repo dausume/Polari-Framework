@@ -1639,6 +1639,43 @@ check('and it notes two independent arguments converging on coarse '
       'gauge — groove walls, and the cell voltage from mag-25',
       'mag-25' in cv['convergence'])
 
+
+# ---------------------------------------------------------------
+# arch-8: the composition splice — wrap, not port
+# ---------------------------------------------------------------
+print('\n-- arch-8: M0 as a composition view --')
+from motors.composition_splice import (       # noqa: E402
+    composition_view, promotion_candidates,
+)
+_cv_mgr = _mgr()
+_cv_mgr.objectTables['MotorPartDefinition'] = {
+    s['name']: types.SimpleNamespace(**s) for s in SEED_MOTOR_PARTS}
+view = composition_view(_cv_mgr, 'clock-lavet-m0')
+check('M0 movement derives ASSEMBLY from its stated interfaces',
+      view.get('ok') and view['level'].get('derived') == 'assembly')
+check('parity: every bill part appears with the SAME material and '
+      'shape refs (wrap, not port)',
+      view['parity']['partCount'] == view['parity']['memberCount']
+      and view['parity']['allMaterialsMatch']
+      and view['parity']['allShapesMatch'])
+check('all five M0 interfaces stated, incl. the working gap as a '
+      'zero-DOF designed relation',
+      len(view['interfaces']) == 5
+      and 'ifm0-working-gap' in view['interfaces'])
+check('parts without role assignments are NAMED, not silently '
+      'roleless',
+      view['rolesMissingOn'] == ['lavet-v2-index'])
+cand = promotion_candidates(_cv_mgr, 'clock-lavet-m0')
+check('exactly ONE interface is promotable: the coil-bobbin joint '
+      '(the mag-26 bound stator)',
+      cand['promotable'] == ['ifm0-coil-bobbin'])
+gap = next(c for c in cand['candidates']
+           if c['interface'] == 'ifm0-working-gap')
+check('the working gap is BLOCKED because its members must move — '
+      'the gate refusing it is the model working',
+      not gap['promotable']
+      and 'move relative' in ' '.join(gap['blockers']))
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
