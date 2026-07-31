@@ -46,6 +46,8 @@ class MotorsAPI(treeObject):
                 suffix='criterion')
             add('/api/motors/stress/{design_name}/{part_name}',
                 self, suffix='stress')
+            add('/api/motors/true-price/{design_name}/'
+                '{part_name}', self, suffix='true_price')
             add('/api/motors/contact/{design_name}/{part_name}',
                 self, suffix='contact')
             add('/api/motors/roles/{part_name}', self,
@@ -193,6 +195,21 @@ class MotorsAPI(treeObject):
             handling_force_n=num('handlingN', 5.0),
             assumption=request.params.get('assumption',
                                           'plane-stress'))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_true_price(self, request, response, design_name,
+                          part_name):
+        from motors.lifecycle_cost import cheapest_configuration
+        try:
+            hz = float(request.params.get('horizonYears', 10.0))
+        except (TypeError, ValueError):
+            hz = 10.0
+        out = cheapest_configuration(
+            self.manager, design_name, part_name,
+            kind=request.params.get('kind', 'timekeeper'),
+            horizon_years=hz)
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out

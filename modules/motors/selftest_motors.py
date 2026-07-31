@@ -1001,6 +1001,7 @@ mgrc = _mgr()
 for _cls, _seed in (('GearTrainDefinition', _GTR),
                     ('GearDefinition', _GRS),
                     ('GearMeshDefinition', _GMS),
+                    ('MathShapeDefinition', _V2S),
                     ('MotorPartDefinition', SEED_MOTOR_PARTS)):
     mgrc.objectTables[_cls] = {r['name']:
                                types.SimpleNamespace(**r)
@@ -1061,6 +1062,70 @@ check('a part with NO stated buffer REFUSES the eddy check — the '
       'role demanded geometry and the analysis enforces it',
       not eddy_drag(mgrc, 'lavet-v2-stator', b_gap_t=0.005,
                     frequency_hz=1.0).get('ok'))
+
+print('== suite: mag-19 TRUE PRICE per lifespan unit ==')
+from motors.lifecycle_cost import (  # noqa: E402
+    EXTRAPOLATION_CAP_CYCLES, cheapest_configuration,
+    cost_per_lifespan_unit, fatigue_life_cycles, lifespan_unit_for,
+)
+
+u = lifespan_unit_for('timekeeper')
+check('STEP ONE is choosing the UNIT, and the reasoning travels '
+      'with it: a clock produces TIME KEPT, not runtime hours '
+      '(it never stops) and not mass (it consumes nothing)',
+      u['ok'] and u['unit'] == 'year-of-timekeeping'
+      and 'never stops' in u['why'])
+check('an undefined product kind REFUSES rather than guessing a '
+      'denominator — picking it IS the modelling decision',
+      not lifespan_unit_for('mystery-widget').get('ok'))
+
+lf = fatigue_life_cycles(mgrc, 'opt-plain-geopolymer', 1.58)
+check('life INVERTS the crack-growth law (N = (S/s)^n) instead of '
+      'only passing/failing a fixed horizon',
+      lf['ok'] and lf['model'] == 'brittle-scg'
+      and 'N_fail' in lf['why'])
+check('extrapolation is CAPPED: a law pushed far past any data is '
+      'arithmetic, not knowledge, and the cap is reported as the '
+      'cap',
+      fatigue_life_cycles(mgrc, 'opt-alumina', 0.5)
+      ['cyclesToFailure'] == EXTRAPOLATION_CAP_CYCLES)
+
+cp = cost_per_lifespan_unit(mgrc, 'clock-lavet-m0',
+                            'lavet-v2-pinion')
+check('THE HEADLINE: the cast pinion costs ~1 cent upfront and over '
+      '1.5 MILLION replacements in ten years — a true price near '
+      '$1600 per year-of-timekeeping. The cheapest part is the most '
+      'expensive product.',
+      cp['ok'] and cp['upfrontUsd'] < 0.05
+      and cp['costPerUnitUsd'] > 100,
+      extra=f"upfront {cp.get('upfrontUsd')} true "
+            f"{cp.get('costPerUnitUsd')}")
+check('BOTH numbers are kept and the payload says which question '
+      'each answers — upfront for low budget/urgency, per-unit as '
+      'the true price',
+      'low budget' in cp['bothNumbersNote']
+      and 'true price' in cp['bothNumbersNote'])
+
+rank = cheapest_configuration(
+    mgrc, 'clock-lavet-m0', 'lavet-v2-pinion',
+    costs_usd={'opt-brass-cuzn': 0.35, 'opt-alumina': 2.50,
+               'opt-fired-ceramic': 0.08})
+check('candidates are ROLE-SCREENED first: a material that cannot '
+      'do the job is not made a bargain by being cheap',
+      rank['ok'] and set(rank['roleViableOnly'])
+      == {'opt-fired-ceramic', 'opt-alumina', 'opt-brass-cuzn'})
+check('both orderings are produced so they CAN disagree, and a '
+      'disagreement is reported as the finding',
+      rank['cheapestTruePrice'] and rank['cheapestUpfront']
+      and 'ordersDisagree' in rank)
+check('capped and prior-based lifespans are FLAGGED in the '
+      'ranking, so an unearned number cannot quietly win',
+      any(c['lifeIsCapped'] for c in rank['candidates'])
+      and any(c['lifeIsPrior'] for c in rank['candidates']))
+check('the honesty rider says to trust the ORDERING, not the '
+      'absolute number — the crack-growth exponent amplifies every '
+      'input uncertainty',
+      'ORDERING' in cp['honesty'])
 
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
