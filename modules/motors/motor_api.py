@@ -38,6 +38,14 @@ class MotorsAPI(treeObject):
                 suffix='drive')
             add('/api/motors/stator-variants', self,
                 suffix='stator_variants')
+            # view-1: discipline-split views as data + the
+            # component-focused view.
+            add('/api/motors/clock-views', self,
+                suffix='clock_views')
+            add('/api/motors/clock-view/{view_name}', self,
+                suffix='clock_view')
+            add('/api/motors/component-view/{part_name}', self,
+                suffix='component_view')
             # goal-1..3: goals + constraints over composition's
             # equations — the scale study.
             add('/api/motors/goals', self, suffix='goals')
@@ -500,6 +508,37 @@ class MotorsAPI(treeObject):
     def on_get_road_to_advanced(self, request, response):
         from motors.simple_first import road_to_advanced
         response.media = road_to_advanced(self.manager)
+
+    def on_get_clock_views(self, request, response):
+        from composition.data_refs import rows as _crows
+        out = []
+        for v in _crows(self.manager, 'ClockViewDefinition'):
+            out.append({'name': getattr(v, 'name', ''),
+                        'displayName': getattr(v, 'display_name',
+                                               ''),
+                        'discipline': getattr(v, 'discipline', ''),
+                        'scaleSupport': getattr(v, 'scale_support',
+                                                ''),
+                        'description': getattr(v, 'description',
+                                               '')})
+        out.sort(key=lambda r: r['name'])
+        response.media = {'ok': True, 'views': out,
+                          'count': len(out)}
+
+    def on_get_clock_view(self, request, response, view_name):
+        from motors.clock_views import view_payload
+        response.media = view_payload(
+            self.manager, view_name,
+            design=request.params.get('design', 'clock-lavet-m0'),
+            goal=request.params.get('goal', ''),
+            component=request.params.get('component', ''),
+            policy=request.params.get('policy', ''))
+
+    def on_get_component_view(self, request, response, part_name):
+        from motors.clock_views import component_view
+        response.media = component_view(
+            self.manager, part_name,
+            design=request.params.get('design', 'clock-lavet-m0'))
 
     def on_get_goals(self, request, response):
         from composition.data_refs import rows as _crows

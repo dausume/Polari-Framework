@@ -1793,6 +1793,77 @@ check('composition gated off -> module-not-booted refusal, not a '
       'silent fallback',
       not _off.get('ok') and _off.get('kind') == 'module-not-booted')
 
+
+# ---------------------------------------------------------------
+# view-1: discipline views as data
+# ---------------------------------------------------------------
+print('\n-- views: the discipline split, as rows --')
+import json as _vjson                          # noqa: E402
+from motors.clock_views import (              # noqa: E402
+    SECTION_SOURCES, SEED_CLOCK_VIEWS, component_view, view_payload,
+)
+
+check('8 discipline views seeded: goals/mech/elec/mag/materials/'
+      'mass/motion/cost',
+      len(SEED_CLOCK_VIEWS) == 8
+      and {v['discipline'] for v in SEED_CLOCK_VIEWS}
+      == {'goals', 'mechanical', 'electrical', 'magnetic',
+          'materials-sourcing', 'mass', 'motion', 'cost'})
+check('electrical and magnetic are SEPARABLE views (distinct '
+      'rows, distinct sections)',
+      not set(s['source'] for v in SEED_CLOCK_VIEWS
+              if v['name'] == 'view-electrical'
+              for s in _vjson.loads(v['sections_json']))
+      & set(s['source'] for v in SEED_CLOCK_VIEWS
+            if v['name'] == 'view-magnetic'
+            for s in _vjson.loads(v['sections_json'])))
+check('every seeded section source resolves in the dispatch table',
+      all(s['source'] in SECTION_SOURCES
+          for v in SEED_CLOCK_VIEWS
+          for s in _vjson.loads(v['sections_json'])))
+
+_vm = _goal_mgr()
+_vm.objectTables['ClockViewDefinition'] = {
+    s['name']: types.SimpleNamespace(**s) for s in SEED_CLOCK_VIEWS}
+_vm.objectTables['MotorPartDefinition'] = {
+    s['name']: types.SimpleNamespace(**s) for s in SEED_MOTOR_PARTS}
+_vm.objectTypingDict = {k: object() for k in _vm.objectTables}
+goals_view = view_payload(_vm, 'view-goal-explorer')
+check('goal-explorer view assembles both sections from the fixture',
+      goals_view.get('ok')
+      and not goals_view['refusedSections'])
+goals_view2 = view_payload(_vm, 'view-goal-explorer',
+                           goal='goal-local-watch')
+check('caller overrides modulate the goal (watch swaps in)',
+      goals_view2['sections'][1]['payload']['goal']
+      == 'goal-local-watch')
+mech = view_payload(_vm, 'view-mechanical')
+check('the tensor-field section is a NAMED GAP with its wiring '
+      'suggestion — refused IN the payload, never dropped',
+      'stress-tensor-field' in mech['refusedSections']
+      and any(s.get('suggestion', {}) and 'fem_engine'
+              in str(s.get('suggestion'))
+              for s in mech['sections']
+              if s['section'] == 'stress-tensor-field'))
+check('failure-conditions section reports observable conditions '
+      'with locus + what you would SEE fields',
+      any(s['section'] == 'failure-conditions'
+          and s.get('payload', {}).get('count', 0) >= 5
+          and all('youWouldObserve' in c
+                  for c in s['payload']['conditions'])
+          for s in mech['sections']))
+check('unknown view refuses; unknown source refuses inside the '
+      'payload',
+      not view_payload(_vm, 'view-nonexistent').get('ok'))
+comp = component_view(_vm, 'lavet-v2-pinion')
+check('component view: one part, every discipline answered or '
+      'refused by name',
+      comp.get('ok')
+      and [s['section'] for s in comp['sections']]
+      == ['roles-and-viability', 'stress', 'fatigue',
+          'lifecycle-cost', 'mass-and-geometry']
+      and any(s.get('payload') for s in comp['sections']))
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

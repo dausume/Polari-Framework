@@ -17,7 +17,7 @@ import sys
 os.environ['POLARI_MODULES'] = (
     'materialsScience,supplychain,magnetics,motors,'
     'scoring,plant_morphology,aquaponics,mathshapes,techtree,'
-    'composition')
+    'composition,gears')
 os.environ.setdefault('POLARI_DB_BACKEND', 'sqlite')
 
 FRAMEWORK = os.path.dirname(os.path.dirname(os.path.abspath(
@@ -127,6 +127,34 @@ check('scale study live: five scales swept',
 check('goal seed rows landed via the upsert path',
       len(manager.objectTables.get('ClockScaleDefinition', {})) == 5
       and len(manager.objectTables.get('MotorGoalSpec', {})) == 6)
+
+# view-1 live: discipline views assemble against the REAL booted
+# engines — the deep sections must actually answer here.
+r = client.simulate_get('/api/motors/clock-views')
+check('8 discipline views seeded live', r.status_code == 200
+      and r.json.get('count') == 8, extra=str(r.json)[:120])
+r = client.simulate_get('/api/motors/clock-view/view-mechanical')
+if r.status_code == 200 and r.json.get('ok'):
+    refused = r.json['refusedSections']
+    check('mechanical view live: only the NAMED tensor gap '
+          'refuses; stress/fatigue/contact answer',
+          refused == ['stress-tensor-field'], extra=str(refused))
+else:
+    check('mechanical view live', False, extra=r.status)
+for vn in ('view-electrical', 'view-magnetic',
+           'view-materials-sourcing', 'view-mass', 'view-motion',
+           'view-cost'):
+    r = client.simulate_get(f'/api/motors/clock-view/{vn}')
+    check(f'{vn} live: every section answers',
+          r.status_code == 200 and r.json.get('ok')
+          and not r.json.get('refusedSections'),
+          extra=str(r.json.get('refusedSections'))[:150])
+r = client.simulate_get(
+    '/api/motors/component-view/lavet-v2-pinion')
+check('pinion component view live: all five sections answer',
+      r.status_code == 200 and r.json.get('ok')
+      and not r.json.get('refusedSections'),
+      extra=str(r.json.get('refusedSections'))[:150])
 
 # THE arch-1 live proof: drift a prior row, re-seed, watch it
 # converge — the ten-strikes gotcha ending on a LIVE table.
