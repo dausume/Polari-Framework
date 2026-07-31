@@ -93,6 +93,21 @@ def selftest_upsert():
           row.value == 'measured'
           and rep['skipped_custom'] == ['d'] and not m.saved)
 
+    # 4b. is_prior=None is a NULL backfill (row predates the
+    #     column), NOT a human's mark — such a row is still a prior
+    #     and converges. Caught live on PolariAppDefinition (nav-1):
+    #     treating NULL as customized exempted exactly the legacy
+    #     rows the upsert exists to reach.
+    row = _row(name='d2', value='stale', is_prior=None)
+    m = _mgr([row])
+    rep = upsert_seed_rows(m, 'FakeRow', _FakeRow,
+                           [{'name': 'd2', 'value': 'prior'}])
+    check('is_prior=None (NULL backfill) row still converges',
+          row.value == 'prior'
+          and rep['updated'] == [{'name': 'd2',
+                                  'fields': ['value']}]
+          and not rep['skipped_custom'])
+
     # 5. Identical row reports unchanged, no db write.
     row = _row(name='e', value=3, is_prior=True)
     m = _mgr([row])

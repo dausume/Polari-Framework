@@ -14,10 +14,14 @@ first to ship with the fix designed in rather than worked around.
 THE RULES (knobs ethos — seeds are priors, people's edits are not):
 
 - A row missing from the table is CREATED from its seed.
-- An existing row whose `is_prior` is False is NEVER touched: the
-  flag means a human customized it or a measurement replaced the
-  prior, and a seed must not clobber either. Reported as
-  `skipped_custom`, loudly.
+- An existing row whose `is_prior` is EXPLICITLY False (or 0) is
+  NEVER touched: the flag means a human customized it or a
+  measurement replaced the prior, and a seed must not clobber
+  either. Reported as `skipped_custom`, loudly. A row restored with
+  is_prior=None predates the column (NULL backfill) — that is NOT a
+  human's mark, so it counts as a prior; treating NULL as customized
+  would silently exempt exactly the legacy rows this module exists
+  to converge (caught live on PolariAppDefinition, nav-1).
 - An existing prior row is DIFFED field-by-field against the seed
   dict; only fields present in the seed AND different on the row are
   written. Fields the seed does not mention survive untouched.
@@ -72,7 +76,8 @@ def upsert_seed_rows(manager, class_name, cls, seed_list,
                 print(f'[{tag}] {class_name} "{name}" INSERT FAILED: '
                       f'{e}', flush=True)
             continue
-        if not getattr(row, 'is_prior', True):
+        prior_flag = getattr(row, 'is_prior', True)
+        if prior_flag is not None and not prior_flag:
             report['skipped_custom'].append(name)
             print(f'[{tag}] {class_name} "{name}" is_prior=False — '
                   f'customized/measured, seed will not touch it',

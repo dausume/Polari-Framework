@@ -168,6 +168,10 @@ if __name__ == '__main__':
                     k: v for k, v in s.items()
                     if k not in ('nav_json', 'personas_json',
                                  'discipline')})
+        # The live legacy rows restore with is_prior=None (NULL —
+        # they predate the column); None is a backfill, not a
+        # human's mark, so the row must still converge.
+        stale['wax-print-shop'].is_prior = None
         stale['judicial-lean'].is_prior = False
         stale['judicial-lean'].use_case = 'human-edited'
         mgr = _ns(objectTables={'PolariAppDefinition': stale},
