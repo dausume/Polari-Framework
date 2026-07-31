@@ -42,6 +42,16 @@ class PolariAppDefinition(treeObject):
         # JSON list of frontend routes the app centers on
         # (['/wax-print-sim', ...]) — the app's front doors.
         pages_json: str = '[]',
+        # nav-1: the app's OWN navigation menu as data —
+        # [{group, items: [{label, route?, kind:
+        #   page|simspace|view|tech-node, requires_module?, ref?}]}]
+        # Item availability is DERIVED live; absent modules render
+        # as bring-online affordances, never hidden.
+        nav_json: str = '[]',
+        # nav-1: who enters here (['electrical-engineer', ...]).
+        personas_json: str = '[]',
+        # nav-1: discipline tag ('' for use-case apps).
+        discipline: str = '',
         notes: str = '',
         manager=None,
     ):
@@ -51,6 +61,9 @@ class PolariAppDefinition(treeObject):
         self.description = description
         self.modules_json = modules_json
         self.pages_json = pages_json
+        self.nav_json = nav_json
+        self.personas_json = personas_json
+        self.discipline = discipline
         self.notes = notes
 
 

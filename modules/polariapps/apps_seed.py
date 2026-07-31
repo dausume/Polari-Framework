@@ -16,11 +16,30 @@ the use-case and its front doors.
 import json as _json
 
 
-def _app(name, title, use_case, description, modules, pages):
+def _app(name, title, use_case, description, modules, pages,
+         nav=(), personas=(), discipline=''):
     return {'name': name, 'title': title, 'use_case': use_case,
             'description': description,
             'modules_json': _json.dumps(list(modules)),
-            'pages_json': _json.dumps(list(pages)), 'notes': ''}
+            'pages_json': _json.dumps(list(pages)),
+            'nav_json': _json.dumps(list(nav)),
+            'personas_json': _json.dumps(list(personas)),
+            'discipline': discipline, 'notes': ''}
+
+
+def _grp(group, *items):
+    return {'group': group, 'items': list(items)}
+
+
+def _it(label, kind, route='', requires_module='', ref=''):
+    item = {'label': label, 'kind': kind}
+    if route:
+        item['route'] = route
+    if requires_module:
+        item['requires_module'] = requires_module
+    if ref:
+        item['ref'] = ref
+    return item
 
 
 SEED_POLARI_APPS = [
