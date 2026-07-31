@@ -220,7 +220,12 @@ def _vector_field(manager, params):
               for b in rep.get('bands', [])]
     return {'ok': True, 'vectors': rep.get('vectors', []),
             'legend': legend, 'fieldView': view_name,
-            'note': rep.get('note', '')}
+            'placement': params.get('placement', {}),
+            'note': (rep.get('note', '') +
+                     ' | placement is ILLUSTRATIVE: the view '
+                     'samples its own region in meters and is '
+                     'scaled into the scene at the declared '
+                     'anchor, not spatially registered')}
 
 
 def _markers(manager, params):
@@ -412,7 +417,9 @@ SEED_CLOCK_SCENE_LAYERS = [
     {'name': 'layer-field-dispersion',
      'display_name': 'B field — banded dispersion',
      'kind': 'vector-field', 'source': 'magnetics-fieldview',
-     'params_json': _j({'field_view': 'dipole-b-dispersion'}),
+     'params_json': _j({'field_view': 'dipole-b-dispersion',
+                        'placement': {'anchor': [-9.5, 0, 0],
+                                      'fitExtent': 8.0}}),
      'style_json': '{}',
      'description': 'The mag-fv threshold-gated vector dispersion, '
                     'overlaid on the motor scene.',
