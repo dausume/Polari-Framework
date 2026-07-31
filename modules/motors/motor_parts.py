@@ -56,6 +56,7 @@ class MotorPartDefinition(treeObject):
     @treeObjectInit
     def __init__(self, name='', display_name='', design_ref='',
                  shape_ref='', shape_units='cm', material_ref='',
+                 field_buffer_mm=None,
                  function='flux-path',
                  purpose='', why_this_material='', quantity=1,
                  is_prior=True, provenance_id='', notes='',
@@ -64,6 +65,11 @@ class MotorPartDefinition(treeObject):
         self.display_name = display_name
         self.design_ref = design_ref
         self.shape_ref = shape_ref
+        #: Distance from the working gap. REQUIRED by the
+        #: field-buffered role: a conductive part is acceptable
+        #: only where dB/dt is small, and that is geometry, not a
+        #: material property.
+        self.field_buffer_mm = field_buffer_mm
         #: Units the SHAPE row is authored in. mathshapes'
         #: shape_properties reports volumeCm3, i.e. it assumes cm —
         #: but the Lavet v2 geometry is authored in mm (1 unit =
@@ -162,6 +168,7 @@ SEED_MOTOR_PARTS = [
     {'name': 'lavet-v2-pinion', 'design_ref': 'clock-lavet-m0',
      'display_name': 'Rotor pinion (8 teeth, module 0.3)',
      'shape_units': 'mm', 'shape_ref': 'motor-m0v2-rotor-pinion',
+     'field_buffer_mm': 2.6,
      'material_ref': 'opt-plain-geopolymer',
      'function': 'power-transmission',
      'purpose': 'Hands the rotor\'s motion to the gear train. This '

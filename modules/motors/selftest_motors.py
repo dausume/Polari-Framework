@@ -939,6 +939,58 @@ check('the current material is in the list and marked, so the '
       'comparison includes what we have now',
       any(c['isCurrent'] for c in sub['candidates']))
 
+print('== suite: mag-17 ROLES by domain + intersectional ==')
+from motors.part_roles import (  # noqa: E402
+    DOMAINS, ROLE_REQUIREMENTS, part_role_report, screen_candidates,
+)
+
+check('roles are grouped by physical DOMAIN, and every role '
+      'declares one',
+      all(r.get('domain') in DOMAINS
+          for r in ROLE_REQUIREMENTS.values())
+      and {'mechanical', 'magnetic', 'electrical', 'intersectional'}
+      <= {r['domain'] for r in ROLE_REQUIREMENTS.values()})
+check('the SAME property can be demanded in opposite directions by '
+      'different domains: flux-carrying wants HIGH mu, field-inert '
+      'wants LOW — so one material is excellent in one role and '
+      'disqualified in another',
+      ROLE_REQUIREMENTS['flux-carrying']['checks'][0][1] == 'min'
+      and ROLE_REQUIREMENTS['field-inert']['checks'][0][1] == 'max')
+
+pin = part_role_report(mgrf, 'lavet-v2-pinion')
+check('the pinion performs FOUR roles across two domains — '
+      'mechanical (moving, colliding, press-fitted) plus an '
+      'INTERSECTIONAL one',
+      pin['ok'] and len(pin['roles']) == 4
+      and any(r['domain'] == 'intersectional' for r in pin['roles']))
+check('the intersectional field-buffered role DEMANDS the geometry '
+      'be stated (field_buffer_mm) — without it the role is a '
+      'loophole, not an argument',
+      any('field_buffer_mm' in str(c.get('property'))
+          for c in pin['viability']['checks']))
+
+sc = screen_candidates(mgrf, 'lavet-v2-pinion')
+check('THE FIX for the copper-pinion bug: copper is now UNVIABLE '
+      'on hardness (it would wear as a tooth face), so a fatigue '
+      'number alone can no longer recommend it',
+      'opt-copper-magnet-wire' not in sc['viable'])
+check('and BRASS is viable — which is what real clock movements '
+      'actually use for pinions',
+      'opt-brass-cuzn' in sc['viable'])
+
+st = screen_candidates(mgrf, 'lavet-v2-stator')
+check('galvanized bio-steel is VIABLE for the stator (mu~2000 '
+      'carries flux far better than our mu~2 castings) and UNVIABLE '
+      'for the pinion (ferromagnetic steals flux) — same material, '
+      'opposite verdicts, decided by the ROLE',
+      'opt-galvanized-bio-steel' in st['viable']
+      and 'opt-galvanized-bio-steel' not in sc['viable'])
+check('UNASSESSED is never a pass — a property nobody measured '
+      'cannot clear a requirement',
+      all(v != 'viable' for v in
+          [x['verdict'] for x in sc['screened']
+           if x['unassessedOn']]))
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

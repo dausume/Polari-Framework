@@ -46,6 +46,10 @@ class MotorsAPI(treeObject):
                 suffix='criterion')
             add('/api/motors/stress/{design_name}/{part_name}',
                 self, suffix='stress')
+            add('/api/motors/roles/{part_name}', self,
+                suffix='roles')
+            add('/api/motors/role-screen/{part_name}', self,
+                suffix='role_screen')
             add('/api/motors/fatigue/{design_name}/{part_name}',
                 self, suffix='fatigue')
             add('/api/motors/substitutes/{design_name}/'
@@ -189,6 +193,20 @@ class MotorsAPI(treeObject):
                                           'plane-stress'))
         if not out.get('ok'):
             response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_roles(self, request, response, part_name):
+        from motors.part_roles import part_role_report
+        out = part_role_report(self.manager, part_name)
+        if not out.get('ok'):
+            response.status = '404 Not Found'
+        response.media = out
+
+    def on_get_role_screen(self, request, response, part_name):
+        from motors.part_roles import screen_candidates
+        out = screen_candidates(self.manager, part_name)
+        if not out.get('ok'):
+            response.status = '404 Not Found'
         response.media = out
 
     def _fatigue_kw(self, request):

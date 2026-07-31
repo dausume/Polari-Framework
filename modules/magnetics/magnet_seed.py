@@ -421,6 +421,7 @@ SEED_MATERIAL_OPTIONS = [
         'msci_material_ref': 'geopolymer-ferrite',
         'forms_json': json.dumps(['castable-block']),
         'properties_json': _props(
+            hardness_hv=(85, 'HV', 'literature-est', 'Vickers, literature CLASS value. Contact/tooth faces fail at the SURFACE — this is what resists it'),
             fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
             scg_exponent_n=(15, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
             weibull_modulus=(7, '', 'literature-est', 'brittle strength SCATTERS; a design must target a survival PROBABILITY, not the mean. Lower m = wider scatter = bigger derate'),
@@ -511,6 +512,7 @@ SEED_MATERIAL_OPTIONS = [
         'forms_json': json.dumps(['sintered-part',
                                   'castable-block']),
         'properties_json': _props(
+            hardness_hv=(650, 'HV', 'literature-est', 'Vickers, literature CLASS value. Contact/tooth faces fail at the SURFACE — this is what resists it'),
             fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
             scg_exponent_n=(32, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
             weibull_modulus=(11, '', 'literature-est', 'brittle strength SCATTERS; a design must target a survival PROBABILITY, not the mean. Lower m = wider scatter = bigger derate'),
@@ -542,6 +544,7 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': '',
         'forms_json': json.dumps(['sintered-part']),
         'properties_json': _props(
+            hardness_hv=(150, 'HV', 'literature-est', 'Vickers, literature CLASS value. Contact/tooth faces fail at the SURFACE — this is what resists it'),
             fatigue_class=('ductile-endurance-limit', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
             endurance_limit_ratio=(0.45, '', 'literature-est', 'steel has a true endurance limit ~0.45 UTS; below it, life is effectively infinite'),
             tensile_mpa=(350.0, 'MPa', 'literature-est', 'literature CLASS value; our castings are untested, and brittle strength scatters widely (Weibull) so the mean is not the design number'),
@@ -613,6 +616,7 @@ SEED_MATERIAL_OPTIONS = [
         'powder_ref': 'srfe12o19-powder-def',
         'forms_json': json.dumps(['castable-block']),
         'properties_json': _props(
+            hardness_hv=(80, 'HV', 'literature-est', 'Vickers, literature CLASS value. Contact/tooth faces fail at the SURFACE — this is what resists it'),
             fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
             scg_exponent_n=(14, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
             weibull_modulus=(7, '', 'literature-est', 'brittle strength SCATTERS; a design must target a survival PROBABILITY, not the mean. Lower m = wider scatter = bigger derate'),
@@ -646,6 +650,7 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': 'ceramic-ring-magnet',
         'forms_json': json.dumps(['sintered-part']),
         'properties_json': _props(
+            hardness_hv=(550, 'HV', 'literature-est', 'Vickers, literature CLASS value. Contact/tooth faces fail at the SURFACE — this is what resists it'),
             fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
             scg_exponent_n=(30, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
             weibull_modulus=(12, '', 'literature-est', 'brittle strength SCATTERS; a design must target a survival PROBABILITY, not the mean. Lower m = wider scatter = bigger derate'),
@@ -770,6 +775,7 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': '',
         'forms_json': json.dumps(['sintered-part']),
         'properties_json': _props(
+            hardness_hv=(600, 'HV', 'literature-est', 'Vickers, literature CLASS value. Contact/tooth faces fail at the SURFACE — this is what resists it'),
             fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
             scg_exponent_n=(30, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
             weibull_modulus=(10, '', 'literature-est', 'brittle strength SCATTERS; a design must target a survival PROBABILITY, not the mean. Lower m = wider scatter = bigger derate'),
@@ -799,6 +805,7 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': 'magnet-wire-copper',
         'forms_json': json.dumps(['wire']),
         'properties_json': _props(
+            hardness_hv=(50, 'HV', 'literature-est', 'Vickers, literature CLASS value. Contact/tooth faces fail at the SURFACE — this is what resists it'),
             fatigue_class=('ductile-no-endurance-limit', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
             tensile_mpa=(210.0, 'MPa', 'literature-est', 'literature CLASS value; our castings are untested, and brittle strength scatters widely (Weibull) so the mean is not the design number'),
             youngs_modulus_mpa=(117000.0, 'MPa', 'literature-est', 'FEM elasticity needs E; literature order for this material CLASS, never measured on our castings'),
@@ -901,6 +908,7 @@ SEED_MATERIAL_OPTIONS = [
         'item_ref': 'geopolymer-mix',
         'forms_json': json.dumps(['castable-block', 'mortar']),
         'properties_json': _props(
+            hardness_hv=(90, 'HV', 'literature-est', 'Vickers, literature CLASS value. Contact/tooth faces fail at the SURFACE — this is what resists it'),
             fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
             scg_exponent_n=(15, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
             weibull_modulus=(8, '', 'literature-est', 'brittle strength SCATTERS; a design must target a survival PROBABILITY, not the mean. Lower m = wider scatter = bigger derate'),
@@ -931,6 +939,7 @@ SEED_MATERIAL_OPTIONS = [
         'forms_json': json.dumps(['sintered-part',
                                   'castable-block']),
         'properties_json': _props(
+            hardness_hv=(600, 'HV', 'literature-est', 'Vickers, literature CLASS value. Contact/tooth faces fail at the SURFACE — this is what resists it'),
             fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
             scg_exponent_n=(30, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
             weibull_modulus=(10, '', 'literature-est', 'brittle strength SCATTERS; a design must target a survival PROBABILITY, not the mean. Lower m = wider scatter = bigger derate'),
@@ -972,6 +981,7 @@ SEED_MATERIAL_OPTIONS = [
         'msci_material_ref': 'alumina-geopolymer',
         'forms_json': json.dumps(['sintered-part']),
         'properties_json': _props(
+            hardness_hv=(1600, 'HV', 'literature-est', 'Vickers, literature CLASS value. Contact/tooth faces fail at the SURFACE — this is what resists it'),
             fatigue_class=('brittle-scg', '', 'literature-est', 'decides the fatigue MODEL: brittle ceramics have no metal-style endurance limit — they fail by SUBCRITICAL CRACK GROWTH, so allowable stress keeps falling with cycles forever'),
             scg_exponent_n=(45, '', 'literature-est', 'crack-growth exponent; LOWER is worse. Allowable = strength x N^(-1/n)'),
             weibull_modulus=(15, '', 'literature-est', 'brittle strength SCATTERS; a design must target a survival PROBABILITY, not the mean. Lower m = wider scatter = bigger derate'),
@@ -1002,5 +1012,106 @@ SEED_MATERIAL_OPTIONS = [
         'is_prior': True, 'provenance_id': PROV,
         'notes': 'The humble constrained-axis option (uncited — '
                  'hunt named); often beats cleverness.',
+    },
+    {
+        'name': 'opt-galvanized-bio-steel',
+        'display_name': 'Galvanized bio-steel (biocarbon-reduced, '
+                        'zinc-coated)',
+        'family': 'containment-structural',
+        'realization_level': 'literature-demonstrated',
+        'item_ref': '',
+        'forms_json': json.dumps(['sheet', 'rod', 'cut-part']),
+        'properties_json': _props(
+            hardness_hv=(150, 'HV', 'literature-est',
+                         'mild steel; the zinc layer itself is much '
+                         'softer (~40 HV) and wears off a contact '
+                         'face first'),
+            fatigue_class=('ductile-endurance-limit', '',
+                           'literature-est',
+                           'a REAL endurance limit — the property '
+                           'our cast brittle parts do not have'),
+            endurance_limit_ratio=(0.45, '', 'literature-est'),
+            youngs_modulus_mpa=(200e3, 'MPa', 'literature-est'),
+            poisson_ratio=(0.29, '', 'literature-est'),
+            tensile_mpa=(350.0, 'MPa', 'literature-est'),
+            compressive_mpa=(350.0, 'MPa', 'literature-est'),
+            failure_class=('ductile', '', 'literature-est'),
+            weibull_modulus=(None, '', 'n/a',
+                             'ductile metals are not Weibull-'
+                             'governed; they yield rather than '
+                             'failing from the worst flaw'),
+            mu_r_eff=(2000.0, '', 'literature-est',
+                      'FERROMAGNETIC — excellent as a flux path, '
+                      'DISQUALIFYING as a field-transparent part'),
+            sigma_s_m=(6.99e6, 'S/m', 'literature-est',
+                       'conductive: eddy currents in a changing '
+                       'field. The zinc coat (1.7e7 S/m) is worse '
+                       'still'),
+            density_kg_m3=(7850.0, 'kg/m3', 'literature-est')),
+        'role_overrides_json': '{}',
+        'is_prior': True, 'provenance_id': 'mag-17',
+        'notes': 'BIO ROUTE, honestly: iron ore reduced with '
+                 'BIOCHAR/charcoal instead of coke is real and was '
+                 'historically the ONLY route (charcoal blast '
+                 'furnaces predate coke); modern green steel uses '
+                 'biocarbon or hydrogen. So the CARBON can be bio. '
+                 'The ZINC cannot — galvanizing needs smelted zinc, '
+                 'and no bio route to it exists in this stack '
+                 '(bioleaching recovers zinc from tailings, which '
+                 'is recovery, not production). Call it '
+                 'bio-CARBON steel, not bio steel, or the name '
+                 'overclaims. MAGNETICALLY: mu~2000 makes this an '
+                 'EXCELLENT stator/flux-path material — far better '
+                 'than our mu~2 castings — and simultaneously '
+                 'disqualifies it for any field-transparent role '
+                 'like a pinion. Same material, opposite verdicts, '
+                 'which is exactly why roles are per-PART.',
+    },
+    {
+        'name': 'opt-brass-cuzn',
+        'display_name': 'Brass (Cu-Zn) — the clock-pinion alloy',
+        'family': 'containment-structural',
+        'realization_level': 'literature-demonstrated',
+        'item_ref': '',
+        'forms_json': json.dumps(['rod', 'cut-part']),
+        'properties_json': _props(
+            hardness_hv=(120, 'HV', 'literature-est',
+                         'cold-worked CuZn37; hard enough to hold a '
+                         'tooth profile where pure copper (50 HV) '
+                         'brinells'),
+            fatigue_class=('ductile-no-endurance-limit', '',
+                           'literature-est',
+                           'copper alloys have NO true endurance '
+                           'limit — the S-N curve keeps falling'),
+            youngs_modulus_mpa=(100e3, 'MPa', 'literature-est'),
+            poisson_ratio=(0.34, '', 'literature-est'),
+            tensile_mpa=(340.0, 'MPa', 'literature-est'),
+            compressive_mpa=(340.0, 'MPa', 'literature-est'),
+            failure_class=('ductile', '', 'literature-est'),
+            mu_r_eff=(1.0, '', 'literature-est',
+                      'NON-magnetic — the property that makes it a '
+                      'pinion material inside a magnetic machine'),
+            sigma_s_m=(1.5e7, 'S/m', 'literature-est',
+                       'STILL CONDUCTIVE: brass fails a strict '
+                       'field-transparent test on eddy currents. '
+                       'Real movements accept this because the '
+                       'pinion sits OUTSIDE the working gap where '
+                       'dB/dt is small — a geometry argument this '
+                       'property-only screen cannot make'),
+            density_kg_m3=(8470.0, 'kg/m3', 'literature-est')),
+        'role_overrides_json': '{}',
+        'is_prior': True, 'provenance_id': 'mag-17',
+        'notes': 'WHAT REAL CLOCK MOVEMENTS USE for pinions and '
+                 'wheels, and the answer the role screen was '
+                 'reaching for: non-magnetic, hard enough to hold a '
+                 'tooth, ductile so it yields rather than shatters. '
+                 'BIO ROUTE: the copper half is genuinely '
+                 'bio-reachable — BIOLEACHING with Acidithiobacillus '
+                 'is ~20% of world copper production TODAY and the '
+                 'biomining module already seeds that agent; zinc '
+                 'is bio-RECOVERABLE from tailings but not '
+                 'bio-produced. So brass is partly bio-sourceable '
+                 'and the honest claim is "bioleached copper", not '
+                 '"bio brass".',
     },
 ]
