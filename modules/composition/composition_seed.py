@@ -23,6 +23,9 @@ from composition.component_basis import PartComponentDefinition
 from composition.failure_modes import (
     FailureModeDefinition, SEED_FAILURE_MODES,
 )
+from composition.functional_basis import (
+    ConstructionVariantDefinition, FunctionalPartDefinition,
+)
 from composition.interface_basis import InterfaceDefinition
 from composition.node_basis import CompositionNode
 from composition.seed_upsert import upsert_seed_pairs
@@ -192,7 +195,7 @@ SEED_COMPOSITION_NODES = [
           'quantity': 1},
          {'ref': 'pc-spool-core', 'kind': 'component',
           'quantity': 1}]),
-     'functional_ref': '', 'genealogy_ref': '',
+     'functional_ref': 'fp-m0-stator', 'genealogy_ref': '',
      'bulk_failure_mode_refs_json': _j([]),
      'is_prior': True, 'provenance_id': PROV,
      'notes': '1 process step; fully repairable.'},
@@ -206,7 +209,7 @@ SEED_COMPOSITION_NODES = [
           'quantity': 1},
          {'ref': 'pc-sol-gel-binder', 'kind': 'component',
           'quantity': 1}]),
-     'functional_ref': '',
+     'functional_ref': 'fp-m0-stator',
      # arch-4 will make this a recorded PROMOTE operation; the
      # genealogy pointer is already true today.
      'genealogy_ref': 'stator-simple',
@@ -229,7 +232,7 @@ SEED_COMPOSITION_NODES = [
           'quantity': 3},
          {'ref': 'pc-sol-gel-binder', 'kind': 'component',
           'quantity': 3}]),
-     'functional_ref': '', 'genealogy_ref': '',
+     'functional_ref': 'fp-m0-stator', 'genealogy_ref': '',
      'bulk_failure_mode_refs_json': _j([
          'fm-potted-winding-crack-short',
          'fm-brittle-fracture']),
@@ -237,6 +240,63 @@ SEED_COMPOSITION_NODES = [
      'notes': 'promoted per layer, separable between layers — one '
               'object, two separability regimes. A defective layer '
               'is discarded instead of a whole coil.'},
+]
+
+
+# ----- arch-3: the EBOM/MBOM split — ONE functional stator, -----
+# ----- three constructions as first-class alternatives      -----
+
+SEED_FUNCTIONAL_PARTS = [
+    {'name': 'fp-m0-stator',
+     'display_name': 'M0 stator (functional)',
+     'purpose': 'hold the drive winding and carry its flux to the '
+                'rotor gap',
+     'allocated_role_refs_json': _j(['static-structural',
+                                     'flux-carrying']),
+     'archetype_ref': '',
+     'tunable_toward': 'flux linkage per amp within the stated '
+                       'winding window',
+     'is_prior': True, 'provenance_id': 'arch-3',
+     'notes': 'the ONE engineering-BOM row all three constructions '
+              'realize — same roles as lavet-v2-stator.'},
+]
+
+SEED_CONSTRUCTION_VARIANTS = [
+    {'name': 'cv-stator-simple',
+     'display_name': 'Simple — enamelled wire on a spool',
+     'functional_ref': 'fp-m0-stator', 'node_ref': 'stator-simple',
+     'routing_ref': '', 'fill_factor_class': 'scramble',
+     'selection_rationale': 'the honest baseline: one operation, no '
+                            'chemistry after winding, and the wire '
+                            'is recoverable. Everything else is '
+                            'measured against this.',
+     'is_prior': True, 'provenance_id': 'arch-3', 'notes': ''},
+    {'name': 'cv-stator-bound',
+     'display_name': 'Bound — wound, then sol-gel over',
+     'functional_ref': 'fp-m0-stator', 'node_ref': 'stator-bound',
+     'routing_ref': '', 'fill_factor_class': 'scramble',
+     'selection_rationale': 'choose it to DELETE fretting and '
+                            'crossover abrasion outright over 3.2e8 '
+                            'cycles, and to make the coil '
+                            'structural; it spends repairability '
+                            'and takes on the brittle crack-short '
+                            'mode.',
+     'is_prior': True, 'provenance_id': 'arch-3', 'notes': ''},
+    {'name': 'cv-stator-layered-bound',
+     'display_name': 'Layered bound — grooved snap-on layers',
+     'functional_ref': 'fp-m0-stator', 'node_ref': 'stator-layered',
+     'routing_ref': '',
+     # Snap-on = rigid floor: the construction CLASS carries the
+     # packing consequence (0.785 ceiling, not 0.907).
+     'fill_factor_class': 'ordered-rigid-floor',
+     'selection_rationale': 'choose it for PER-LAYER INSPECTABILITY '
+                            'and yield — a defective layer is '
+                            'discarded instead of a whole coil — '
+                            'NOT for packing: snapping forfeits '
+                            '~13% of the fill nesting would reach, '
+                            'and past ~14% wall it is worse than '
+                            'scramble.',
+     'is_prior': True, 'provenance_id': 'arch-3', 'notes': ''},
 ]
 
 
@@ -251,4 +311,8 @@ def seed_composition(manager):
          SEED_COMPOSITION_NODES),
         ('InterfaceDefinition', InterfaceDefinition,
          SEED_INTERFACES),
+        ('FunctionalPartDefinition', FunctionalPartDefinition,
+         SEED_FUNCTIONAL_PARTS),
+        ('ConstructionVariantDefinition',
+         ConstructionVariantDefinition, SEED_CONSTRUCTION_VARIANTS),
     ], tag='CompositionSeed')

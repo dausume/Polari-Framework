@@ -144,6 +144,9 @@ def _seed_mgr():
         'CompositionNode': table(cs.SEED_COMPOSITION_NODES),
         'InterfaceDefinition': table(cs.SEED_INTERFACES),
         'FailureModeDefinition': table(cs.SEED_FAILURE_MODES),
+        'FunctionalPartDefinition': table(cs.SEED_FUNCTIONAL_PARTS),
+        'ConstructionVariantDefinition':
+            table(cs.SEED_CONSTRUCTION_VARIANTS),
     }
     m.objectTypingDict = {k: object() for k in m.objectTables}
     return m
@@ -290,13 +293,98 @@ def selftest_arch2():
                                   objectTypingDict={})
     reports = cs.seed_composition(empty)
     check('seed_composition runs the upsert path per class',
-          len(reports) == 4
+          len(reports) == 6
           and all(r.get('skipped') for r in reports))
+
+
+# ---------------------------------------------------------------
+# arch-3: EBOM/MBOM split — one functional part, three builds
+# ---------------------------------------------------------------
+
+def selftest_arch3():
+    import types as _t
+
+    from composition.fill_models import (
+        SCRAMBLE_FILL, fill_for_class, groove_viability,
+    )
+    from composition.functional_basis import variant_report
+
+    print('\n-- arch-3: EBOM/MBOM split --')
+    m = _seed_mgr()
+    rep = variant_report(m, 'fp-m0-stator')
+    check('one functional stator, three construction variants',
+          rep.get('ok') and rep['count'] == 3)
+    by = {v['variant']: v for v in rep['variants']}
+    check('variants carry their DERIVED levels (not stamps)',
+          by['cv-stator-simple']['level'] == 'assembly'
+          and by['cv-stator-bound']['level'] == 'part'
+          and by['cv-stator-layered-bound']['level']
+          == 'part-with-separable-sub-parts')
+    check('repairability FOLLOWS from separability',
+          by['cv-stator-simple']['repairable'] is True
+          and by['cv-stator-bound']['repairable'] is False
+          and by['cv-stator-layered-bound']['repairable'] is False)
+    check('scramble fill known without geometry; ordered fill '
+          'REFUSED without it',
+          by['cv-stator-simple']['fill'] == SCRAMBLE_FILL
+          and by['cv-stator-layered-bound']['fill'] is None
+          and 'unstated' in
+          by['cv-stator-layered-bound']['fillNote'])
+
+    # THE mag-26 acceptance numbers, from the extracted model.
+    d_wound = 0.2019 + 0.025  # 32 AWG bare + enamel build (mm)
+    rep50 = variant_report(m, 'fp-m0-stator',
+                           wound_diameter_mm=d_wound, wall_mm=0.05)
+    by50 = {v['variant']: v for v in rep50['variants']}
+    check('50 um wall: grooved 0.5274 is WORSE than scramble 0.600 '
+          '(the mag-26 result, intact)',
+          by50['cv-stator-layered-bound']['fill'] == 0.5274
+          and by50['cv-stator-simple']['fill'] == 0.600)
+    g = groove_viability(d_wound, 0.05)
+    check('break-even wall ~14% of wound diameter (derived)',
+          g['maxWallAsFractionOfWire'] == 0.1441
+          and not g['beatsScramble'])
+    check('just under the ~33 um break-even wall it still beats '
+          'scramble; just over, it loses',
+          groove_viability(d_wound, 0.032)['beatsScramble']
+          and not groove_viability(d_wound, 0.034)['beatsScramble'])
+    nested = groove_viability(d_wound, 0.05, nested=True)
+    check('rigid floor forfeits fill vs nesting (0.785 vs 0.907 '
+          'ceilings)',
+          nested['orderedFill'] > g['orderedFill']
+          and g['packingCeilingNoWalls'] == 0.7854
+          and nested['packingCeilingNoWalls'] == 0.9069)
+
+    # Cross-module agreement: motors uses THE SAME model object.
+    import motors.stator_construction as sc
+    check('motors re-imports the SAME fill model (no fork)',
+          sc.groove_viability is groove_viability
+          and sc.SCRAMBLE_FILL is SCRAMBLE_FILL)
+    cmp_ = sc.compare_variants(awg=32, wall_mm=0.05)
+    check('compare_variants reproduces from the extracted model '
+          '(0.5274, not justified at this wall)',
+          cmp_['groove']['orderedFill'] == 0.5274
+          and 'WORSE than' in cmp_['finding'])
+
+    # Refusals.
+    check('unknown fill class refuses',
+          not fill_for_class('tidy')['ok'])
+    m2 = _seed_mgr()
+    m2.objectTables['FunctionalPartDefinition']['fp-lonely'] = \
+        _t.SimpleNamespace(name='fp-lonely', purpose='x',
+                           allocated_role_refs_json='[]',
+                           tunable_toward='')
+    lonely = variant_report(m2, 'fp-lonely')
+    check('functional part with no variants refuses (a requirement '
+          'is not a design)',
+          not lonely.get('ok')
+          and 'no construction variants' in lonely['refusal'])
 
 
 def main():
     selftest_upsert()
     selftest_arch2()
+    selftest_arch3()
     total, passed = len(_results), sum(_results)
     print(f'\n{passed}/{total} checks passed')
     return 0 if passed == total else 1

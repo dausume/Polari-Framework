@@ -41,10 +41,15 @@ asserted — see groove_viability().
 
 import math
 
-PROV = 'mag-26'
+# arch-3 (PART_ARCHETYPES_PLAN §3.3): fill is a property of the
+# CONSTRUCTION, so the packing geometry moved DOWN into composition
+# (same extraction as part_roles). Re-exported here so existing
+# imports keep working.
+from composition.fill_models import (  # noqa: F401 — re-exports
+    CLOSE_PACKED_CEILING, SCRAMBLE_FILL, groove_viability,
+)
 
-SCRAMBLE_FILL = 0.60
-CLOSE_PACKED_CEILING = math.pi / (2.0 * math.sqrt(3.0))
+PROV = 'mag-26'
 
 #: The three constructions. `promotedInterfaces` is the field that
 #: matters: it names WHICH interfaces the process fuses, leaving the
@@ -163,78 +168,6 @@ VARIANTS = [
 ]
 
 _BY_NAME = {v['name']: v for v in VARIANTS}
-
-
-def groove_viability(wound_diameter_mm, wall_mm, floor_mm=None,
-                     nested=False):
-    """Does grooving actually beat scramble winding at this size?
-
-        fill = (pi/4)*d^2 / ((d + wall) * (radial_pitch + floor))
-
-    Grooves buy ordered packing and spend window on walls, and the
-    balance is pure geometry.
-
-    NESTING IS THE HALF THAT MATTERS AND THE SNAP-ON CONSTRUCTION
-    FORFEITS IT. Where each layer settles into the valleys of the
-    one below, the radial pitch is d*sqrt(3)/2 = 0.866d and packing
-    approaches the hexagonal ceiling of 0.907. Where layers sit
-    squarely on a rigid floor — which is exactly what a separate
-    grooved layer that SNAPS ON imposes — the radial pitch is a full
-    d and the ceiling drops to pi/4 = 0.785 before any wall is
-    charged. Most of the ordered-winding advantage lives in the
-    nesting, not in the ordering.
-    """
-    d = float(wound_diameter_mm)
-    w = float(wall_mm)
-    f = float(floor_mm if floor_mm is not None else wall_mm)
-    if d <= 0:
-        return {'ok': False,
-                'refusal': 'a wire of zero diameter has no packing'}
-    radial_pitch = (math.sqrt(3.0) / 2.0) * d if nested else d
-    fill = (math.pi / 4.0) * d * d / ((d + w) * (radial_pitch + f))
-    # Break-even against scramble, solved for equal wall and floor.
-    if nested:
-        # (pi/4)d^2 = F*(d+x)*(0.866d+x) -> solve the quadratic in x
-        k = (math.pi / 4.0) * d * d / SCRAMBLE_FILL
-        b = d * (1.0 + math.sqrt(3.0) / 2.0)
-        c = (math.sqrt(3.0) / 2.0) * d * d - k
-        max_wall = (-b + math.sqrt(b * b - 4.0 * c)) / 2.0
-    else:
-        max_wall = d * (math.sqrt((math.pi / 4.0) / SCRAMBLE_FILL)
-                        - 1.0)
-    return {
-        'ok': True, 'nested': bool(nested),
-        'radialPitchMm': round(radial_pitch, 5),
-        'packingCeilingNoWalls': round(
-            CLOSE_PACKED_CEILING if nested else math.pi / 4.0, 4),
-        'woundDiameterMm': d, 'wallMm': w, 'floorMm': f,
-        'orderedFill': round(fill, 4),
-        'scrambleFill': SCRAMBLE_FILL,
-        'closePackedCeiling': round(CLOSE_PACKED_CEILING, 4),
-        'beatsScramble': fill > SCRAMBLE_FILL,
-        'gainVsScramble': round(fill / SCRAMBLE_FILL, 3),
-        'maxWallForBreakEvenMm': round(max_wall, 4),
-        'maxWallAsFractionOfWire': round(max_wall / d, 4),
-        'rule': (
-            f'grooving beats scramble winding only while the wall '
-            f'stays under {max_wall / d * 100:.1f}% of the WOUND '
-            f'wire diameter — here {max_wall * 1000:.0f} um. Thicker '
-            f'than that and the ordered packing loses more window to '
-            f'walls than it gains in order.'),
-        'nestingNote': (
-            'NESTED layers reach a ceiling of 0.907; layers sitting '
-            'squarely on a rigid floor reach only 0.785 before any '
-            'wall is charged. A grooved layer that SNAPS ON is a '
-            'rigid floor by construction, so that variant forfeits '
-            'most of the ordered-winding gain in exchange for its '
-            'separability and per-layer inspectability. That is a '
-            'real trade, not an oversight — but it should be made '
-            'knowingly.'),
-        'sameShapeAs': (
-            'this is the mag-24 insulation result again: a thickness '
-            'that adds to a diameter costs area as a SQUARE. Cotton '
-            'covering was ruled out the same way.'),
-    }
 
 
 def variant_catalog():
