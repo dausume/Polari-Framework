@@ -149,6 +149,8 @@ def _seed_mgr():
             table(cs.SEED_CONSTRUCTION_VARIANTS),
         'RoutingDefinition': table(cs.SEED_ROUTINGS),
         'RoutingOperation': table(cs.SEED_ROUTING_OPS),
+        'DesignMatrixDefinition': table(cs.SEED_DESIGN_MATRICES),
+        'PartArchetypeDefinition': table(cs.SEED_PART_ARCHETYPES),
     }
     m.objectTypingDict = {k: object() for k in m.objectTables}
     return m
@@ -295,7 +297,7 @@ def selftest_arch2():
                                   objectTypingDict={})
     reports = cs.seed_composition(empty)
     check('seed_composition runs the upsert path per class',
-          len(reports) == 8
+          len(reports) == 10
           and all(r.get('skipped') for r in reports))
 
 
@@ -486,11 +488,118 @@ def selftest_arch4():
           not routing_report(_seed_mgr(), 'rt-nonexistent').get('ok'))
 
 
+# ---------------------------------------------------------------
+# arch-5: archetypes + design matrices
+# ---------------------------------------------------------------
+
+def selftest_arch5():
+    import json
+
+    from composition.archetype_basis import archetype_report
+    from composition.design_matrix import classify, matrix_report
+    import composition.composition_seed as cs
+
+    print('\n-- arch-5: design matrices (cancellation as data) --')
+    m = _seed_mgr()
+
+    # THE acceptance: the M0 derives DECOUPLED with the tuning
+    # order gauge → window → turns.
+    m0 = matrix_report(m, 'dm-coil-winding')
+    check('M0 matrix derives DECOUPLED (not uncoupled — turns '
+          'depend on gauge via A_wound)',
+          m0.get('ok') and m0['classification'] == 'decoupled')
+    check('tuning order derives gauge → window → turns',
+          m0['tuningOrder'] == ['gauge', 'window', 'turns'])
+    check('the voltage cancellation is on the record (turns '
+          'cancel)',
+          any('TURNS CANCEL' in e.get('via', '')
+              for e in m0['entries']))
+
+    # The Lavet ratio trap surfaces as a finding.
+    lavet = matrix_report(m, 'dm-lavet-magnet')
+    traps = [f for f in lavet['findings']
+             if f['kind'] == 'ratio-trap']
+    check('remanence ratio-trap surfaces as a FINDING '
+          '(stronger magnet ≠ better motor)',
+          len(traps) == 1 and traps[0]['knob'] == 'remanence'
+          and 'NOT' in traps[0]['warning'])
+
+    # Toy matrices pin the classifier itself.
+    check('diagonal matrix classifies UNCOUPLED',
+          classify([{'knob': 'a', 'outcome': 'x',
+                     'coupling': 'direct'},
+                    {'knob': 'b', 'outcome': 'y',
+                     'coupling': 'direct'}])['classification']
+          == 'uncoupled')
+    full = classify([{'knob': 'a', 'outcome': 'x',
+                      'coupling': 'direct'},
+                     {'knob': 'b', 'outcome': 'x',
+                      'coupling': 'direct'},
+                     {'knob': 'a', 'outcome': 'y',
+                      'coupling': 'direct'},
+                     {'knob': 'b', 'outcome': 'y',
+                      'coupling': 'inverse'}])
+    check('full matrix classifies COUPLED with the block named as '
+          'a finding',
+          full['classification'] == 'coupled'
+          and sorted(full['coupledOutcomes']) == ['x', 'y']
+          and any(f['kind'] == 'coupled-block'
+                  for f in full['findings']))
+    check('empty and malformed matrices refuse',
+          not classify([])['ok']
+          and not classify([{'knob': 'a', 'outcome': 'x',
+                             'coupling': 'sideways'}])['ok'])
+
+    print('\n-- arch-5: archetypes (the machine-elements join) --')
+    rep = archetype_report(m, 'at-coil-winding')
+    check('coil archetype joins roles + levelled equations + '
+          'matrix + failure modes',
+          rep['ok']
+          and [r['role'] for r in rep['roles']]
+          == ['current-carrying', 'static-structural']
+          and len(rep['equationsByLevel'].get('part', [])) == 4
+          and rep['designMatrix']['classification'] == 'decoupled')
+    check('selection procedure step 2 checks voltage BEFORE '
+          'optimisation (the mag-22 fix, as data)',
+          'BEFORE optimising' in
+          rep['selectionProcedure'][1]['what'])
+    all_ok = [archetype_report(m, s['name'])
+              for s in cs.SEED_PART_ARCHETYPES]
+    check('all five archetype seeds report clean',
+          len(all_ok) == 5 and all(r['ok'] for r in all_ok),
+          str([r['problems'] for r in all_ok if not r['ok']]))
+    check('an archetype without a matrix says so honestly '
+          '(folklore, not data)',
+          'folklore' in archetype_report(m, 'at-bobbin')
+          ['designMatrix']['refusal'])
+    # Cross-module agreement (the mag-25 lesson, again).
+    from motors.physics_equations import SEED_PHYSICS_EQUATIONS
+    eq_names = {e['name'] for e in SEED_PHYSICS_EQUATIONS}
+    cited = {e['name'] for s in cs.SEED_PART_ARCHETYPES
+             for e in json.loads(s['equation_refs_json'])}
+    check('every archetype equation ref exists in '
+          'physics_equations',
+          cited and cited <= eq_names,
+          f'missing: {cited - eq_names}')
+    # A stale role name is a problem, not a silence.
+    import types as _t
+    m2 = _seed_mgr()
+    m2.objectTables['PartArchetypeDefinition']['at-bad'] = \
+        _t.SimpleNamespace(
+            name='at-bad', summary='', parameter_set_json='[]',
+            equation_refs_json='[]', failure_mode_refs_json='[]',
+            role_refs_json=json.dumps(['no-such-role']),
+            selection_procedure_json='[]', design_matrix_ref='')
+    check('unknown role on an archetype is a named problem',
+          not archetype_report(m2, 'at-bad')['ok'])
+
+
 def main():
     selftest_upsert()
     selftest_arch2()
     selftest_arch3()
     selftest_arch4()
+    selftest_arch5()
     total, passed = len(_results), sum(_results)
     print(f'\n{passed}/{total} checks passed')
     return 0 if passed == total else 1

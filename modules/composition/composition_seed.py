@@ -23,6 +23,8 @@ from composition.component_basis import PartComponentDefinition
 from composition.failure_modes import (
     FailureModeDefinition, SEED_FAILURE_MODES,
 )
+from composition.archetype_basis import PartArchetypeDefinition
+from composition.design_matrix import DesignMatrixDefinition
 from composition.functional_basis import (
     ConstructionVariantDefinition, FunctionalPartDefinition,
 )
@@ -256,7 +258,7 @@ SEED_FUNCTIONAL_PARTS = [
                 'rotor gap',
      'allocated_role_refs_json': _j(['static-structural',
                                      'flux-carrying']),
-     'archetype_ref': '',
+     'archetype_ref': 'at-coil-winding',
      'tunable_toward': 'flux linkage per amp within the stated '
                        'winding window',
      'is_prior': True, 'provenance_id': 'arch-3',
@@ -447,6 +449,202 @@ SEED_ROUTING_OPS = [
 ]
 
 
+# ----- arch-5: archetypes (machine-elements schema) + design -----
+# ----- matrices (cancellation as data)                       -----
+
+SEED_DESIGN_MATRICES = [
+    {'name': 'dm-coil-winding',
+     'display_name': 'Coil winding — the M0 tuning structure',
+     'archetype_ref': 'at-coil-winding',
+     'entries_json': _j([
+         {'knob': 'gauge', 'outcome': 'voltage',
+          'coupling': 'direct',
+          'via': 'V = MMF·ρ·MTL/A_copper — TURNS CANCEL, so gauge '
+                 'ALONE sets voltage (mag-25, the arc\'s most '
+                 'useful result)'},
+         {'knob': 'gauge', 'outcome': 'max-turns',
+          'coupling': 'inverse',
+          'via': 'turns = f·W/A_wound — thicker wire, fewer fit'},
+         {'knob': 'window', 'outcome': 'max-turns',
+          'coupling': 'direct', 'via': 'same equation, W term'},
+         {'knob': 'window', 'outcome': 'battery-life',
+          'coupling': 'direct',
+          'via': 'window sets the turns budget the next knob '
+                 'spends'},
+         {'knob': 'turns', 'outcome': 'battery-life',
+          'coupling': 'direct',
+          'via': 'charge per pulse = MMF·t/N — turns set battery '
+                 'life, independent of gauge'}]),
+     'is_prior': True, 'provenance_id': 'arch-5',
+     'notes': 'must classify DECOUPLED with order gauge → window → '
+              'turns (the arch-5 acceptance).'},
+    {'name': 'dm-lavet-magnet',
+     'display_name': 'Lavet rotor magnet — the ratio trap',
+     'archetype_ref': 'at-magnet-rotor',
+     'entries_json': _j([
+         {'knob': 'remanence', 'outcome': 'step-margin',
+          'coupling': 'both',
+          'via': 'the magnet that makes the drive torque ALSO '
+                 'makes the detent it must overcome — coil/detent '
+                 'fell 4.81→3.42 going bonded→sintered (mag-22)'},
+         {'knob': 'remanence', 'outcome': 'structural-margin',
+          'coupling': 'direct',
+          'via': 'a stronger sintered body survives pressing'}]),
+     'is_prior': True, 'provenance_id': 'arch-5',
+     'notes': 'stronger magnet ≠ better motor; the ratio-trap '
+              'finding must surface on every report.'},
+]
+
+SEED_PART_ARCHETYPES = [
+    {'name': 'at-coil-winding',
+     'display_name': 'Coil / winding',
+     'summary': 'turns of insulated conductor in a window, driven '
+                'to make MMF',
+     'parameter_set_json': _j([
+         {'name': 'gauge', 'unit': 'AWG',
+          'summary': 'sets voltage alone (turns cancel)'},
+         {'name': 'turns', 'unit': 'count',
+          'summary': 'sets battery life alone'},
+         {'name': 'window', 'unit': 'mm2',
+          'summary': 'sets the turns budget'},
+         {'name': 'fill', 'unit': 'fraction',
+          'summary': 'property of the CONSTRUCTION, not the wire'}]),
+     'equation_refs_json': _j([
+         {'name': 'eq-inductance-from-reluctance', 'level': 'part'},
+         {'name': 'eq-inductance-from-energy', 'level': 'part'},
+         {'name': 'eq-rl-time-constant', 'level': 'part'},
+         {'name': 'eq-rl-current-rise', 'level': 'part'}]),
+     'failure_mode_refs_json': _j(['fm-turn-to-turn-abrasion',
+                                   'fm-potted-winding-crack-short']),
+     'role_refs_json': _j(['current-carrying',
+                           'static-structural']),
+     'selection_procedure_json': _j([
+         {'step': 1, 'what': 'screen conductor by roles '
+                             '(role_viability)',
+          'refuses_on': 'unassessed or failed predicate'},
+         {'step': 2, 'what': 'voltage vs supply at chosen gauge '
+                             '(turns cancel — check BEFORE '
+                             'optimising anything)',
+          'refuses_on': 'V_coil > V_supply (the mag-22 hidden '
+                        'step-up converter)'},
+         {'step': 3, 'what': 'turns vs window at construction fill',
+          'refuses_on': 'coil does not fit the stated window'},
+         {'step': 4, 'what': 'declare the wire-ladder rung',
+          'refuses_on': 'rung unstated (inadmissible)'}]),
+     'design_matrix_ref': 'dm-coil-winding',
+     'is_prior': True, 'provenance_id': 'arch-5', 'notes': ''},
+    {'name': 'at-bobbin',
+     'display_name': 'Bobbin / spool',
+     'summary': 'field-inert body that owns the winding window and '
+                'carries the coil',
+     'parameter_set_json': _j([
+         {'name': 'window', 'unit': 'mm2',
+          'summary': 'the resource every insulation build and '
+                     'groove wall spends (square law)'},
+         {'name': 'flange-thickness', 'unit': 'mm',
+          'summary': 'structural until a promotion makes the coil '
+                     'structural, then it can thin'}]),
+     'equation_refs_json': _j([
+         {'name': 'eq-weibull-survival-derate',
+          'level': 'component'}]),
+     'failure_mode_refs_json': _j(['fm-brittle-fracture']),
+     'role_refs_json': _j(['static-structural', 'field-inert']),
+     'selection_procedure_json': _j([
+         {'step': 1, 'what': 'screen body material by roles',
+          'refuses_on': 'stated remanence or conductivity over '
+                        'limit (disqualifiers)'},
+         {'step': 2, 'what': 'Weibull-derate the design strength',
+          'refuses_on': 'no Weibull modulus for a brittle body'}]),
+     'design_matrix_ref': '',
+     'is_prior': True, 'provenance_id': 'arch-5', 'notes': ''},
+    {'name': 'at-pinion',
+     'display_name': 'Pinion / gear tooth part',
+     'summary': 'transmits torque tooth-on-tooth inside a field it '
+                'must not join',
+     'parameter_set_json': _j([
+         {'name': 'module', 'unit': 'mm',
+          'summary': 'tooth size — sets contact patch'},
+         {'name': 'teeth', 'unit': 'count', 'summary': 'ratio'},
+         {'name': 'face-width', 'unit': 'mm',
+          'summary': 'spreads the line contact'}]),
+     'equation_refs_json': _j([
+         {'name': 'eq-tooth-load', 'level': 'assembly'},
+         {'name': 'eq-hertz-line-contact-pmax', 'level': 'part'},
+         {'name': 'eq-hertz-surface-tensile', 'level': 'part'},
+         {'name': 'eq-scg-life-cycles', 'level': 'component'}]),
+     'failure_mode_refs_json': _j(['fm-archard-wear',
+                                   'fm-subcritical-crack-growth',
+                                   'fm-brittle-fracture']),
+     'role_refs_json': _j(['moving', 'colliding', 'field-buffered',
+                           'press-fitted']),
+     'selection_procedure_json': _j([
+         {'step': 1, 'what': 'screen by the UNION of roles',
+          'refuses_on': 'any failed role — fatigue alone proposed '
+                        'a copper pinion (mag-17)'},
+         {'step': 2, 'what': 'state the field buffer distance',
+          'refuses_on': 'field_buffer_mm unstated (the '
+                        'anti-loophole)'},
+         {'step': 3, 'what': 'contact pressure vs hardness, then '
+                             'SCG life at the firing chosen',
+          'refuses_on': 'SF < 1 — and remember the fix was a '
+                        'FIRING choice (SF 0.39→6.12), not a '
+                        'material change'}]),
+     'design_matrix_ref': '',
+     'is_prior': True, 'provenance_id': 'arch-5', 'notes': ''},
+    {'name': 'at-shaft',
+     'display_name': 'Shaft / arbor',
+     'summary': 'locates rotating parts and carries their loads '
+                'through bearings',
+     'parameter_set_json': _j([
+         {'name': 'diameter', 'unit': 'mm',
+          'summary': 'stiffness and bearing seat'},
+         {'name': 'length', 'unit': 'mm', 'summary': 'span'}]),
+     'equation_refs_json': _j([
+         {'name': 'eq-scg-allowable-stress', 'level': 'component'},
+         {'name': 'eq-hand-imbalance-torque', 'level': 'assembly'}]),
+     'failure_mode_refs_json': _j(['fm-subcritical-crack-growth',
+                                   'fm-archard-wear']),
+     'role_refs_json': _j(['moving', 'press-fitted', 'sliding']),
+     'selection_procedure_json': _j([
+         {'step': 1, 'what': 'screen by roles incl. sliding '
+                             '(journal surfaces wear)',
+          'refuses_on': 'no friction pair value'},
+         {'step': 2, 'what': 'press-fit hoop stress at assembly',
+          'refuses_on': 'assembly load exceeds allowable — '
+                        'assembly GOVERNS at clock scale '
+                        '(mag-15)'}]),
+     'design_matrix_ref': '',
+     'is_prior': True, 'provenance_id': 'arch-5', 'notes': ''},
+    {'name': 'at-magnet-rotor',
+     'display_name': 'Permanent-magnet rotor',
+     'summary': 'supplies the field the machine works against — '
+                'and the detent it must overcome',
+     'parameter_set_json': _j([
+         {'name': 'remanence', 'unit': 'T',
+          'summary': 'feeds BOTH terms of the step margin — the '
+                     'ratio trap'},
+         {'name': 'coercivity', 'unit': 'kA/m',
+          'summary': 'survives the drive coil'},
+         {'name': 'diameter', 'unit': 'mm', 'summary': 'inertia'}]),
+     'equation_refs_json': _j([
+         {'name': 'eq-maxwell-pull', 'level': 'part'}]),
+     'failure_mode_refs_json': _j(['fm-brittle-fracture']),
+     'role_refs_json': _j(['moving', 'press-fitted',
+                           'torque-magnet-active']),
+     'selection_procedure_json': _j([
+         {'step': 1, 'what': 'screen by roles (hard-magnet '
+                             'predicates)',
+          'refuses_on': 'coercivity below the soft/hard split — a '
+                        'soft ferrite fails outright'},
+         {'step': 2, 'what': 'run the RATIO, not the numerator: '
+                             'coil/detent margin via clock_sim',
+          'refuses_on': 'assuming stronger magnet = better motor '
+                        '(it fell 4.81→3.42, mag-22)'}]),
+     'design_matrix_ref': 'dm-lavet-magnet',
+     'is_prior': True, 'provenance_id': 'arch-5', 'notes': ''},
+]
+
+
 def seed_composition(manager):
     """All composition seeds, through the arch-1 upsert path."""
     return upsert_seed_pairs(manager, [
@@ -464,4 +662,8 @@ def seed_composition(manager):
          ConstructionVariantDefinition, SEED_CONSTRUCTION_VARIANTS),
         ('RoutingDefinition', RoutingDefinition, SEED_ROUTINGS),
         ('RoutingOperation', RoutingOperation, SEED_ROUTING_OPS),
+        ('DesignMatrixDefinition', DesignMatrixDefinition,
+         SEED_DESIGN_MATRICES),
+        ('PartArchetypeDefinition', PartArchetypeDefinition,
+         SEED_PART_ARCHETYPES),
     ], tag='CompositionSeed')
