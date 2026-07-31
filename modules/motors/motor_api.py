@@ -36,6 +36,10 @@ class MotorsAPI(treeObject):
                 suffix='materials')
             add('/api/motors/drive/{design_name}', self,
                 suffix='drive')
+            add('/api/motors/wire-insulation', self,
+                suffix='wire_insulation')
+            add('/api/motors/local-wire-route', self,
+                suffix='local_wire_route')
             add('/api/motors/inductance', self,
                 suffix='inductance')
             add('/api/motors/inductance-turns', self,
@@ -425,6 +429,34 @@ class MotorsAPI(treeObject):
     def on_get_model_validity(self, request, response):
         from motors.inductance import model_validity
         out = model_validity(
+            self.manager,
+            request.params.get('design', 'clock-lavet-m0'))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_wire_insulation(self, request, response):
+        from motors.wire_insulation import (
+            insulated_winding_effect, insulation_catalog,
+        )
+        def i(k, d):
+            try:
+                return int(request.params.get(k, d))
+            except (TypeError, ValueError):
+                return d
+        out = insulated_winding_effect(
+            self.manager,
+            request.params.get('design', 'clock-lavet-m0'),
+            turns=i('turns', 15000), awg=i('awg', 46))
+        if out.get('ok'):
+            out['catalog'] = insulation_catalog()
+        else:
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_local_wire_route(self, request, response):
+        from motors.wire_insulation import local_wire_route
+        out = local_wire_route(
             self.manager,
             request.params.get('design', 'clock-lavet-m0'))
         if not out.get('ok'):

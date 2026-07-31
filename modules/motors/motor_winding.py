@@ -152,7 +152,7 @@ def _wire_cost_usd_per_kg(manager):
 
 
 def winding_report(manager, design_name, awg=None, temp_c=20.0,
-                   supply_voltage_v=None):
+                   supply_voltage_v=None, enamel_mm=None):
     """Can this design's coil actually be wound and driven?
 
     Geometry comes from the design's params_json where stated, and
@@ -195,7 +195,15 @@ def winding_report(manager, design_name, awg=None, temp_c=20.0,
             f'{gauge} AWG is not in the gauge table',
             {'knob': 'awg', 'action': f'use one of '
                                       f'{sorted(AWG_DIAMETER_MM)}'})
-    wire = _wire_props(gauge, temp_c=temp_c)
+    # Insulation build is a PARAMETER, not a module constant. It was
+    # only a default argument, which meant a caller exploring
+    # alternative insulations (mag-24) could patch the module global
+    # and change nothing — defaults bind at definition time, so every
+    # candidate silently returned the commercial figure. Same family
+    # of trap as a flipped seed default not reaching a live row.
+    wire = _wire_props(gauge, temp_c=temp_c,
+                       enamel_mm=(ENAMEL_BUILD_MM if enamel_mm is None
+                                  else float(enamel_mm)))
 
     # --- bobbin window + mean turn length -----------------------
     window_mm2 = params.get('bobbin_window_mm2')
@@ -326,6 +334,8 @@ def winding_report(manager, design_name, awg=None, temp_c=20.0,
     return {
         'ok': True, 'design': design_name,
         'ladderRung': getattr(design, 'ladder_rung', ''),
+        'enamelBuildMm': (ENAMEL_BUILD_MM if enamel_mm is None
+                          else float(enamel_mm)),
         'turns': turns, 'amps': amps,
         'mmfAt': round(turns * amps, 4),
         'wire': wire, 'temperatureC': temp_c,

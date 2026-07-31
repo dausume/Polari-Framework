@@ -1467,6 +1467,68 @@ check('and it says what would settle it: one LCR measurement on a '
       'wound core, ten minutes of bench time',
       'LCR' in mv['whatWouldSettleIt'])
 
+# ---- mag-24: a research route to local magnet wire ---------------
+print('\n-- mag-24 wire insulation --')
+from motors.wire_insulation import (            # noqa: E402
+    drawing_capability, insulated_winding_effect, insulation_catalog,
+    local_wire_route,
+)
+
+cat = insulation_catalog()
+check('the catalog carries the HISTORY as evidence: oleoresinous '
+      'varnish WAS the industry standard until 1939, so an oil-based '
+      'magnet wire enamel is the original, not a novelty',
+      cat['ok'] and '1939' in cat['historyNote']
+      and any(o['name'] == 'ins-oleoresinous-tung'
+              for o in cat['options']))
+check('every option carries a BLOCKER, including the ones we like — '
+      'a candidate with no stated obstacle has not been thought '
+      'about',
+      all(o.get('blocker') for o in cat['options']))
+check('nothing here is claimed above literature-demonstrated, '
+      'because we have enamelled no wire',
+      all(o['realization_level'] in ('literature-demonstrated',
+                                     'buyable-cited')
+          for o in cat['options']))
+
+eff = insulated_winding_effect(mgrp2)
+rows = {r['insulation']: r for r in eff['rows'] if r.get('ok')}
+check('insulation build actually MOVES the window — an earlier pass '
+      'patched a module global that was already bound as a default '
+      'argument, so every candidate silently returned the same '
+      'commercial figure',
+      len({round(r['windowNeededMm2'], 1)
+           for r in rows.values()}) >= 4)
+check('COTTON is ruled out by arithmetic, not taste: at 0.075 mm '
+      'build it needs ~3x the window because thickness enters as a '
+      'SQUARE',
+      rows['ins-cotton-covered']['windowVsCommercial'] > 2.5)
+check('and sol-gel silica is the THINNEST local option — thinner '
+      'than the commercial enamel it would replace',
+      rows['ins-solgel-silica']['windowVsCommercial'] < 1.0)
+check('but its brittleness is stated as the thing to TEST rather '
+      'than assumed away, because a cracked ceramic film is a short',
+      'BRITTLE' in rows['ins-solgel-silica']['flexibility'].upper()
+      or 'BRITTLE' in rows['ins-solgel-silica']['blocker'])
+
+draw = drawing_capability()
+check('THE FINDING: insulation is the TRACTABLE half and DRAWING is '
+      'the wall — the opposite of the intuitive order',
+      draw['ok'] and draw['localCeilingAwg'] < draw['mag22NeedsAwg']
+      and 'WALL' in draw['finding'].upper())
+
+route = local_wire_route(mgrp2)
+check('the research route orders the CHEAP decisive tests first — '
+      'bend a sol-gel sample before building a draw bench',
+      route['ok'] and len(route['researchOrder']) >= 4
+      and all(s.get('proves') for s in route['researchOrder']))
+check('and it states the honest expected outcome up front: '
+      'insulation goes local, drawing does not, so BARE wire '
+      'replaces finished magnet wire as the import — a smaller '
+      'dependency, not a closed loop',
+      'not the same as closing the loop' in
+      route['honestExpectation'])
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
