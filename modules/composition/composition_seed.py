@@ -28,6 +28,9 @@ from composition.functional_basis import (
 )
 from composition.interface_basis import InterfaceDefinition
 from composition.node_basis import CompositionNode
+from composition.routing_basis import (
+    RoutingDefinition, RoutingOperation,
+)
 from composition.seed_upsert import upsert_seed_pairs
 
 PROV = 'arch-2'
@@ -265,7 +268,7 @@ SEED_CONSTRUCTION_VARIANTS = [
     {'name': 'cv-stator-simple',
      'display_name': 'Simple — enamelled wire on a spool',
      'functional_ref': 'fp-m0-stator', 'node_ref': 'stator-simple',
-     'routing_ref': '', 'fill_factor_class': 'scramble',
+     'routing_ref': 'rt-stator-simple', 'fill_factor_class': 'scramble',
      'selection_rationale': 'the honest baseline: one operation, no '
                             'chemistry after winding, and the wire '
                             'is recoverable. Everything else is '
@@ -274,7 +277,7 @@ SEED_CONSTRUCTION_VARIANTS = [
     {'name': 'cv-stator-bound',
      'display_name': 'Bound — wound, then sol-gel over',
      'functional_ref': 'fp-m0-stator', 'node_ref': 'stator-bound',
-     'routing_ref': '', 'fill_factor_class': 'scramble',
+     'routing_ref': 'rt-stator-bound', 'fill_factor_class': 'scramble',
      'selection_rationale': 'choose it to DELETE fretting and '
                             'crossover abrasion outright over 3.2e8 '
                             'cycles, and to make the coil '
@@ -285,7 +288,7 @@ SEED_CONSTRUCTION_VARIANTS = [
     {'name': 'cv-stator-layered-bound',
      'display_name': 'Layered bound — grooved snap-on layers',
      'functional_ref': 'fp-m0-stator', 'node_ref': 'stator-layered',
-     'routing_ref': '',
+     'routing_ref': 'rt-stator-layered',
      # Snap-on = rigid floor: the construction CLASS carries the
      # packing consequence (0.785 ceiling, not 0.907).
      'fill_factor_class': 'ordered-rigid-floor',
@@ -297,6 +300,150 @@ SEED_CONSTRUCTION_VARIANTS = [
                             'and past ~14% wall it is worse than '
                             'scramble.',
      'is_prior': True, 'provenance_id': 'arch-3', 'notes': ''},
+]
+
+
+# ----- arch-4: routings — step counts DERIVE, promotion is a -----
+# ----- recorded operation with the Boothroyd-Dewhurst gate   -----
+
+SEED_ROUTINGS = [
+    {'name': 'rt-stator-simple', 'display_name': 'Wind on spool',
+     'variant_ref': 'cv-stator-simple', 'per_unit': 'part',
+     'is_prior': True, 'provenance_id': 'arch-4', 'notes': ''},
+    {'name': 'rt-stator-bound',
+     'display_name': 'Wind, impregnate, cure',
+     'variant_ref': 'cv-stator-bound', 'per_unit': 'part',
+     'is_prior': True, 'provenance_id': 'arch-4', 'notes': ''},
+    {'name': 'rt-stator-layered',
+     'display_name': 'Form, lay, bind, snap — per layer',
+     'variant_ref': 'cv-stator-layered-bound', 'per_unit': 'layer',
+     'is_prior': True, 'provenance_id': 'arch-4',
+     'notes': 'mag-26: four process steps PER LAYER instead of one '
+              'for the whole coil.'},
+]
+
+SEED_ROUTING_OPS = [
+    # -- simple: one step, no chemistry after winding --
+    {'name': 'op-simple-wind', 'display_name': 'Wind wire on spool',
+     'routing_ref': 'rt-stator-simple', 'sequence': 1,
+     'kind': 'join',
+     'summary': 'scramble-wind enamelled wire onto the spool',
+     'capability_rung_ref': 'W2', 'purpose_class': 'physics',
+     'is_prior': True, 'provenance_id': 'arch-4',
+     'notes': 'W2 = fine wire (32-38 AWG, carbide dies) per '
+              'wire_ladder — the mag-25 correction.'},
+    # -- bound: wind, impregnate, then THE promotion --
+    {'name': 'op-bound-wind', 'display_name': 'Wind wire on spool',
+     'routing_ref': 'rt-stator-bound', 'sequence': 1,
+     'kind': 'join', 'summary': 'as op-simple-wind',
+     'capability_rung_ref': 'W2', 'purpose_class': 'physics',
+     'is_prior': True, 'provenance_id': 'arch-4', 'notes': ''},
+    {'name': 'op-bound-impregnate',
+     'display_name': 'Impregnate winding with sol-gel',
+     'routing_ref': 'rt-stator-bound', 'sequence': 2,
+     'kind': 'join',
+     'summary': 'wick sol-gel silica through the wound coil',
+     'capability_rung_ref': 'T0', 'purpose_class': 'physics',
+     'is_prior': True, 'provenance_id': 'arch-4',
+     'notes': 'T0 = cast/bench tolerance rung; a dip tank, not a '
+              'line — batch suffices at our volume (§3.8).'},
+    {'name': 'op-bound-cure',
+     'display_name': 'Cure — the promotion',
+     'routing_ref': 'rt-stator-bound', 'sequence': 3,
+     'kind': 'promote',
+     'summary': 'cure fuses the winding into one solid body; the '
+                'assembly stops existing and a part begins',
+     'capability_rung_ref': 'T0', 'purpose_class': 'physics',
+     'consumes_interface_refs_json': _j(['if-simple-wire-spool']),
+     'fused_interface_refs_json': _j(['if-bound-wire-wire',
+                                      'if-bound-wire-spool']),
+     'emits_node_ref': 'stator-bound',
+     'modes_deleted_refs_json': _j(['fm-turn-to-turn-abrasion',
+                                    'fm-fretting']),
+     'modes_introduced_refs_json': _j([
+         'fm-potted-winding-crack-short',
+         'fm-thermal-mismatch-stress']),
+     'reversibility_spent': 'the wire is not recoverable: the whole '
+                            'cost amortises over ONE life — a '
+                            'lifecycle_cost term, not a footnote',
+     'dfa_justification_json': _j({
+         'if-bound-wire-wire': {
+             'moves_relative': False, 'different_material': False,
+             'separable_for_service': False,
+             'why': 'turns must NOT move (fretting over 3.2e8 '
+                    'cycles is the enemy), and the service model '
+                    'for a failed coil is rewind-from-new, which '
+                    'the simple variant keeps available'},
+         'if-bound-wire-spool': {
+             'moves_relative': False, 'different_material': True,
+             'separable_for_service': False,
+             'why': 'different materials (copper on ceramic) is a '
+                    'reason to keep separate PARTS, not separate '
+                    'MOTION — fusing is allowed, and the thermal '
+                    'mismatch it locks in is on the record as '
+                    'introduced stress'}}),
+     'qualifying_act': 'bend a dipped winding sample round a 3 mm '
+                       'former without crazing (mag-24) — opens or '
+                       'closes the sol-gel option in one afternoon',
+     'is_prior': True, 'provenance_id': 'arch-4', 'notes': ''},
+    # -- layered: four steps PER LAYER, promotion per layer --
+    {'name': 'op-layer-form',
+     'display_name': 'Form grooved layer shell',
+     'routing_ref': 'rt-stator-layered', 'sequence': 1,
+     'kind': 'shape',
+     'summary': 'mould a grooved shell at pitch near the wound '
+                'wire diameter',
+     'capability_rung_ref': 'T2', 'purpose_class': 'tolerance',
+     'is_prior': True, 'provenance_id': 'arch-4',
+     'notes': 'the groove pitch is a TOLERANCE spec: wall under '
+              '~14% of wound diameter or the ordering loses to '
+              'scramble.'},
+    {'name': 'op-layer-lay-wire',
+     'display_name': 'Lay wire into grooves',
+     'routing_ref': 'rt-stator-layered', 'sequence': 2,
+     'kind': 'join', 'summary': 'one turn per groove, ordered',
+     'capability_rung_ref': 'W2', 'purpose_class': 'physics',
+     'is_prior': True, 'provenance_id': 'arch-4', 'notes': ''},
+    {'name': 'op-layer-bind',
+     'display_name': 'Bind layer — promotion per layer',
+     'routing_ref': 'rt-stator-layered', 'sequence': 3,
+     'kind': 'promote',
+     'summary': 'sol-gel over the laid wire fuses THIS layer; the '
+                'layers themselves stay separable',
+     'capability_rung_ref': 'T0', 'purpose_class': 'yield',
+     'consumes_interface_refs_json': _j([]),
+     'fused_interface_refs_json': _j(['if-layer-wire-groove']),
+     'emits_node_ref': 'stator-layered',
+     'modes_deleted_refs_json': _j([]),
+     'modes_introduced_refs_json': _j([
+         'fm-potted-winding-crack-short']),
+     'reversibility_spent': 'a bound layer cannot be unwound — but '
+                            'the yield unit shrinks to the LAYER: '
+                            'a defective layer is discarded '
+                            'instead of a whole coil',
+     'dfa_justification_json': _j({
+         'if-layer-wire-groove': {
+             'moves_relative': False, 'different_material': True,
+             'separable_for_service': False,
+             'why': 'service model is replace-the-layer, not '
+                    'unwind-the-wire — separability moved UP one '
+                    'level to the snap, where it is kept'}}),
+     'qualifying_act': 'wind + bind ONE grooved layer and measure '
+                       'its fill against the derived 0.527/0.600 '
+                       'crossover',
+     'is_prior': True, 'provenance_id': 'arch-4',
+     'notes': 'purpose_class=yield: this step exists to shrink the '
+              'scrap unit, not for physics.'},
+    {'name': 'op-layer-snap',
+     'display_name': 'Snap next layer on',
+     'routing_ref': 'rt-stator-layered', 'sequence': 4,
+     'kind': 'join',
+     'summary': 'concentric snap onto the layer below — DESIGNED '
+                'separable, deliberately not promoted',
+     'capability_rung_ref': 'T2', 'purpose_class': 'tolerance',
+     'is_prior': True, 'provenance_id': 'arch-4',
+     'notes': 'the elastic-deflection-vs-brittle-body conflict '
+              'lives on if-layer-snap, unresolved and recorded.'},
 ]
 
 
@@ -315,4 +462,6 @@ def seed_composition(manager):
          SEED_FUNCTIONAL_PARTS),
         ('ConstructionVariantDefinition',
          ConstructionVariantDefinition, SEED_CONSTRUCTION_VARIANTS),
+        ('RoutingDefinition', RoutingDefinition, SEED_ROUTINGS),
+        ('RoutingOperation', RoutingOperation, SEED_ROUTING_OPS),
     ], tag='CompositionSeed')

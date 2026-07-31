@@ -147,6 +147,8 @@ def _seed_mgr():
         'FunctionalPartDefinition': table(cs.SEED_FUNCTIONAL_PARTS),
         'ConstructionVariantDefinition':
             table(cs.SEED_CONSTRUCTION_VARIANTS),
+        'RoutingDefinition': table(cs.SEED_ROUTINGS),
+        'RoutingOperation': table(cs.SEED_ROUTING_OPS),
     }
     m.objectTypingDict = {k: object() for k in m.objectTables}
     return m
@@ -293,7 +295,7 @@ def selftest_arch2():
                                   objectTypingDict={})
     reports = cs.seed_composition(empty)
     check('seed_composition runs the upsert path per class',
-          len(reports) == 6
+          len(reports) == 8
           and all(r.get('skipped') for r in reports))
 
 
@@ -381,10 +383,114 @@ def selftest_arch3():
           and 'no construction variants' in lonely['refusal'])
 
 
+# ---------------------------------------------------------------
+# arch-4: routings — derived step counts, audited promotion
+# ---------------------------------------------------------------
+
+def selftest_arch4():
+    import json
+    import types as _t
+
+    from composition.routing_basis import (
+        audit_promotion, routing_report, variant_step_counts,
+    )
+
+    print('\n-- arch-4: routings + the promotion record --')
+    m = _seed_mgr()
+
+    counts = variant_step_counts(m, 'fp-m0-stator')
+    by = {v['variant']: v for v in counts['variants']}
+    check('step counts 1 / 3 / 4 DERIVE from routings (mag-26 cost '
+          'axis)',
+          by['cv-stator-simple']['stepCount'] == 1
+          and by['cv-stator-bound']['stepCount'] == 3
+          and by['cv-stator-layered-bound']['stepCount'] == 4)
+    check('layered routing is per LAYER; every routing admissible '
+          '(all rungs stated)',
+          by['cv-stator-layered-bound']['perUnit'] == 'layer'
+          and all(v['admissible'] for v in counts['variants']))
+    check('promote steps identified per routing',
+          by['cv-stator-bound']['promoteSteps'] == ['op-bound-cure']
+          and by['cv-stator-layered-bound']['promoteSteps']
+          == ['op-layer-bind'])
+
+    # THE promotion audit: the bound-stator record is complete.
+    audit = audit_promotion(m, 'op-bound-cure')
+    check('bound-stator promotion audits CLEAN', audit['ok'],
+          str(audit.get('problems')))
+    check('it deletes exactly what the consumed interface carried',
+          audit['modesDeleted'] == ['fm-fretting',
+                                    'fm-turn-to-turn-abrasion'])
+    check('it names genealogy, spent repairability and the '
+          'qualifying act',
+          audit['genealogySource'] == 'stator-simple'
+          and 'ONE life' in audit['reversibilitySpent']
+          and '3 mm former' in audit['qualifyingAct'])
+    check('per-layer promotion audits clean (partial promotion)',
+          audit_promotion(m, 'op-layer-bind')['ok'])
+
+    # Refusals.
+    check('auditing a non-promote op refuses',
+          not audit_promotion(m, 'op-simple-wind').get('ok'))
+    # The DFA gate: fusing the snap interface must REFUSE — its
+    # members must separate for service (per-layer inspectability
+    # is the whole point of the snap).
+    m2 = _seed_mgr()
+    m2.objectTables['RoutingOperation']['op-bad-fuse-snap'] = \
+        _t.SimpleNamespace(
+            name='op-bad-fuse-snap', routing_ref='rt-stator-layered',
+            sequence=9, kind='promote',
+            consumes_interface_refs_json='[]',
+            fused_interface_refs_json=json.dumps(['if-layer-snap']),
+            emits_node_ref='stator-layered',
+            modes_deleted_refs_json='[]',
+            modes_introduced_refs_json='[]',
+            reversibility_spent='claims none',
+            dfa_justification_json=json.dumps({
+                'if-layer-snap': {
+                    'moves_relative': False,
+                    'different_material': False,
+                    'separable_for_service': True,
+                    'why': 'layers must come apart for per-layer '
+                           'inspection and discard'}}),
+            qualifying_act='n/a')
+    bad = audit_promotion(m2, 'op-bad-fuse-snap')
+    check('DFA gate REFUSES fusing the snap (separable-for-service)',
+          not bad['ok']
+          and any('SEPARATE for service' in p
+                  for p in bad['problems']))
+    check('and the contradiction is caught structurally too '
+          '(fusing a separable-marked interface)',
+          any('designed_separable=True' in p
+              for p in bad['problems']))
+    # A promotion that hides a mode the consumed interface carried
+    # is caught.
+    m3 = _seed_mgr()
+    m3.objectTables['RoutingOperation']['op-bound-cure']\
+        .modes_deleted_refs_json = json.dumps(['fm-fretting'])
+    hid = audit_promotion(m3, 'op-bound-cure')
+    check('a promotion that under-reports deleted modes is caught',
+          not hid['ok']
+          and any('fm-turn-to-turn-abrasion' in p
+                  for p in hid['problems']))
+    # A routing with an unstated rung is inadmissible, loudly.
+    m4 = _seed_mgr()
+    m4.objectTables['RoutingOperation']['op-simple-wind']\
+        .capability_rung_ref = ''
+    inadm = routing_report(m4, 'rt-stator-simple')
+    check('unstated capability rung -> routing INADMISSIBLE '
+          '(the mag-22 lesson)',
+          inadm['ok'] and inadm['admissible'] is False
+          and 'INADMISSIBLE' in inadm['admissibilityNote'])
+    check('empty routing refuses',
+          not routing_report(_seed_mgr(), 'rt-nonexistent').get('ok'))
+
+
 def main():
     selftest_upsert()
     selftest_arch2()
     selftest_arch3()
+    selftest_arch4()
     total, passed = len(_results), sum(_results)
     print(f'\n{passed}/{total} checks passed')
     return 0 if passed == total else 1
