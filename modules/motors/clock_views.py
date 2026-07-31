@@ -48,13 +48,18 @@ class ClockViewDefinition(treeObject):
     @treeObjectInit
     def __init__(self, name='', display_name='', discipline='goals',
                  description='', sections_json='[]',
-                 scale_support='m0-only', is_prior=True,
-                 provenance_id='', notes='', manager=None):
+                 scene_json='', scale_support='m0-only',
+                 is_prior=True, provenance_id='', notes='',
+                 manager=None):
         self.name = name
         self.display_name = display_name
         self.discipline = (discipline if discipline in DISCIPLINES
                            else 'goals')
         self.description = description
+        #: viz-1: {'base': <SimSpaceDefinition>, 'layers': [names],
+        #: 'defaultOn': [names]} — the view's 3D assembly; layers
+        #: are ClockSceneLayerDefinition rows, stackable.
+        self.scene_json = scene_json
         #: [{'name', 'source', 'args': {...}}] — source is a key in
         #: SECTION_SOURCES; args merge under any caller overrides.
         self.sections_json = sections_json
@@ -537,6 +542,16 @@ SEED_CLOCK_VIEWS = [
               'supply sources, dated citations, make-vs-buy '
               'cascade, realization/business gates per material.'},
 ]
+
+# viz-1: every view gains its 3D assembly (base scene + stackable
+# layers). Kept beside the seeds so a new view must decide its
+# scene deliberately — scene_json_for_view returns '' for unknown
+# names and the payload refuses honestly.
+from motors.clock_scene import scene_json_for_view  # noqa: E402
+
+for _view_seed in SEED_CLOCK_VIEWS:
+    _view_seed['scene_json'] = scene_json_for_view(
+        _view_seed['name'])
 
 
 def seed_clock_views(manager):

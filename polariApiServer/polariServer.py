@@ -880,6 +880,7 @@ try:
         ClockScaleDefinition, MotorGoalSpec,
     )
     from motors.clock_views import ClockViewDefinition
+    from motors.clock_scene import ClockSceneLayerDefinition
 except ImportError as _exc:
     # The stub tuple must list EVERY name the try block imports —
     # stub_feature_symbols already maps SEED_* to [] and everything
@@ -899,7 +900,7 @@ except ImportError as _exc:
         'MotorPartDefinition', 'SEED_MOTOR_PARTS',
         'SEED_EQUATION_ROWS',
         'ClockScaleDefinition', 'MotorGoalSpec',
-        'ClockViewDefinition',
+        'ClockViewDefinition', 'ClockSceneLayerDefinition',
     ))
 # mesh-1: license-GATED external mesh catalog + the fit engine
 # (borrowed meshes measured against our vector organ definitions).
@@ -2108,6 +2109,8 @@ class polariServer(treeObject):
             ClockScaleDefinition, MotorGoalSpec,
             # view-1: discipline views as rows.
             ClockViewDefinition,
+            # viz-1: 3D visualization layers as rows.
+            ClockSceneLayerDefinition,
             # mesh-1: licence findings, the assets under them, and
             # the human's accepted picks.
             MeshAssetSource, MeshAssetReference, OrganMeshChoice,
@@ -3695,10 +3698,12 @@ class polariServer(treeObject):
                 only_classes is None
                 or 'ClockScaleDefinition' in only_classes):
             try:
+                from motors.clock_scene import seed_clock_scene
                 from motors.clock_views import seed_clock_views
                 from motors.scale_goals import seed_scale_goals
                 for r in (seed_scale_goals(self.manager)
-                          + seed_clock_views(self.manager)):
+                          + seed_clock_views(self.manager)
+                          + seed_clock_scene(self.manager)):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[ScaleGoalsSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '

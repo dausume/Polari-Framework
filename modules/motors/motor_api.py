@@ -44,6 +44,8 @@ class MotorsAPI(treeObject):
                 suffix='clock_views')
             add('/api/motors/clock-view/{view_name}', self,
                 suffix='clock_view')
+            add('/api/motors/clock-scene/{view_name}', self,
+                suffix='clock_scene')
             add('/api/motors/component-view/{part_name}', self,
                 suffix='component_view')
             # goal-1..3: goals + constraints over composition's
@@ -533,6 +535,14 @@ class MotorsAPI(treeObject):
             goal=request.params.get('goal', ''),
             component=request.params.get('component', ''),
             policy=request.params.get('policy', ''))
+
+    def on_get_clock_scene(self, request, response, view_name):
+        """viz-1: the view's 3D assembly — base scene + stackable
+        layer data. Refused layers stay listed with reasons."""
+        from motors.clock_scene import clock_scene_payload
+        response.media = clock_scene_payload(
+            self.manager, view_name,
+            design=request.params.get('design', 'clock-lavet-m0'))
 
     def on_get_component_view(self, request, response, part_name):
         from motors.clock_views import component_view

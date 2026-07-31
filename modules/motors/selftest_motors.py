@@ -1890,6 +1890,88 @@ check('component view: one part, every discipline answered or '
           'lifecycle-cost', 'mass-and-geometry']
       and any(s.get('payload') for s in comp['sections']))
 
+print('\n-- viz-1: scene layers as data --')
+from motors.clock_scene import (          # noqa: E402
+    SEED_CLOCK_SCENE_LAYERS, V2_PART_BODIES, VIEW_SCENES,
+    ClockSceneLayerDefinition, clock_scene_payload,
+)
+from motors.motor_parts import SEED_MOTOR_PARTS as _SMP  # noqa: E402
+
+check('every discipline view declares its 3D scene (base + all '
+      'layers, defaultOn non-empty)',
+      set(VIEW_SCENES) == {v['name'] for v in SEED_CLOCK_VIEWS}
+      and all(v['scene_json'] for v in SEED_CLOCK_VIEWS)
+      and all(_vjson.loads(v['scene_json'])['defaultOn']
+              for v in SEED_CLOCK_VIEWS))
+check('the part→body map covers every v2 part of the bill '
+      '(the one copy; the Angular table retires)',
+      set(V2_PART_BODIES)
+      == {p['name'] for p in _SMP
+          if p['name'].startswith('lavet-v2-')})
+check('six layers seeded across the four renderer-backed kinds',
+      len(SEED_CLOCK_SCENE_LAYERS) == 6
+      and {l['kind'] for l in SEED_CLOCK_SCENE_LAYERS}
+      == {'part-coloring', 'vector-field', 'replay', 'markers'})
+
+_sm = _vm
+_sm.objectTables['ClockSceneLayerDefinition'] = {
+    s['name']: types.SimpleNamespace(**s)
+    for s in SEED_CLOCK_SCENE_LAYERS}
+scene = clock_scene_payload(_sm, 'view-mass')
+check('mass view scene assembles on the v2 base with all layers '
+      'listed, mass defaultOn',
+      scene.get('ok')
+      and scene['baseScene'] == 'motor-m0-lavet-v2-viz'
+      and len(scene['layers']) == 6
+      and any(l['name'] == 'layer-mass-coloring'
+              and l.get('defaultOn') for l in scene['layers']))
+mass_layer = next(l for l in scene['layers']
+                  if l['name'] == 'layer-mass-coloring')
+check('mass coloring REFUSES in the fixture (no shape rows -> no '
+      'masses) instead of painting nothing',
+      not mass_layer.get('ok')
+      and 'mass' in mass_layer.get('refusal', ''))
+from motors.clock_scene import mass_bodies  # noqa: E402
+_mb, _ml = mass_bodies(
+    {'lavet-v2-stator': 0.8, 'lavet-v2-rotor-magnet': 0.1,
+     'lavet-v2-leads': 0.05}, V2_PART_BODIES)
+check('mass coloring math: heaviest part reddest, multi-body '
+      'parts painted on every body, legend carries shares',
+      _mb['stator']['color'] != _mb['rotor-magnet']['color']
+      and _mb['lead-a']['color'] == _mb['lead-b']['color']
+      and '84%' in _ml[0]['label'])
+mat_layer = next(l for l in scene['layers']
+                 if l['name'] == 'layer-material-coloring')
+check('material coloring: distinct colors, click-through routes '
+      'to /materials/:name',
+      mat_layer.get('ok')
+      and any(b.get('route', '').startswith('/materials/')
+              for b in mat_layer['bodies'].values()))
+mark_layer = next(l for l in scene['layers']
+                  if l['name'] == 'layer-interface-markers')
+check('interface markers: one per seeded M0 joint, amber when '
+      'modes are unmodelled, positions honest as approximations',
+      mark_layer.get('ok') and len(mark_layer['markers']) == 5
+      and 'approximation' in mark_layer['note'])
+replay_layer = next(l for l in scene['layers']
+                    if l['name'] == 'layer-motion-replay')
+check('replay layer carries the geometry config as DATA '
+      '(rotor bodies + axis + coil styles)',
+      replay_layer.get('ok')
+      and replay_layer['geometry']['rotorBodies']
+      == ['rotor-magnet', 'rotor-pinion', 'rotor-index']
+      and replay_layer['geometry']['coilStyles']['pos']
+      == 'motor-coil-pos')
+field_layer = next(l for l in scene['layers']
+                   if l['name'] == 'layer-field-dispersion')
+check('field layer refuses honestly in the fixture (no magnetics '
+      'rows booted here) and stays LISTED',
+      not field_layer.get('ok') and field_layer.get('refusal')
+      and 'layer-field-dispersion' in scene['refusedLayers'])
+check('unknown view refuses; a view without scene_json names the '
+      'knob',
+      not clock_scene_payload(_sm, 'view-nope').get('ok'))
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
