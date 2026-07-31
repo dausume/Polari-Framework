@@ -127,7 +127,7 @@ SEED_POLARI_APPS = [
                       requires_module='motors')),
              _grp('Tree',
                   _it('Electromagnetic systems', 'tech-node',
-                      ref='electromagnetic-systems'))),
+                      ref='electronics/electromagnetic-systems'))),
          personas=('electrical-engineer',), discipline='magnetics'),
     _app('app-mechanical', 'Mechanical Engineering',
          'Mechanical engineers working gear trains, part composition '

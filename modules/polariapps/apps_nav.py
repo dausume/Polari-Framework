@@ -130,6 +130,7 @@ def _app_nav(row, feature_check, requires_map):
             'topMenu': bool(grp.get('top_menu')),
             'items': [_nav_item(i, feature_check, requires_map)
                       for i in grp.get('items', [])]})
+    modules = _loads(row, 'modules_json', [])
     return {
         'name': getattr(row, 'name', ''),
         'title': getattr(row, 'title', ''),
@@ -137,7 +138,11 @@ def _app_nav(row, feature_check, requires_map):
         'discipline': getattr(row, 'discipline', '') or '',
         'personas': _loads(row, 'personas_json', []),
         'pages': _loads(row, 'pages_json', []),
-        'modules': _loads(row, 'modules_json', []),
+        'modules': modules,
+        # The app-home module strip: same derivation as the items,
+        # computed server-side so the shell never guesses.
+        'moduleStates': {m: _availability(m, feature_check)
+                         for m in modules},
         'navSynthesized': synthesized,
         'nav': groups,
     }

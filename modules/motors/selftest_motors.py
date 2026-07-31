@@ -1821,6 +1821,27 @@ check('every seeded section source resolves in the dispatch table',
       all(s['source'] in SECTION_SOURCES
           for v in SEED_CLOCK_VIEWS
           for s in _vjson.loads(v['sections_json'])))
+check('nav-4: every seeded section LEADS with a 2-3 line insight',
+      all(s.get('lead')
+          for v in SEED_CLOCK_VIEWS
+          for s in _vjson.loads(v['sections_json'])))
+check('nav-4: the plan-named links are data — motion into the '
+      'simspace, magnetics into field views, sourcing into the '
+      'parts page',
+      any(lk['route'] == '/sim-spaces/motor-m0-viz'
+          for v in SEED_CLOCK_VIEWS if v['name'] == 'view-motion'
+          for s in _vjson.loads(v['sections_json'])
+          for lk in s.get('links', []))
+      and any(lk['route'] == '/magnetics/fields'
+              for v in SEED_CLOCK_VIEWS
+              if v['name'] == 'view-magnetic'
+              for s in _vjson.loads(v['sections_json'])
+              for lk in s.get('links', []))
+      and any(lk['route'] == '/magnetics/clock-motor'
+              for v in SEED_CLOCK_VIEWS
+              if v['name'] == 'view-materials-sourcing'
+              for s in _vjson.loads(v['sections_json'])
+              for lk in s.get('links', [])))
 
 _vm = _goal_mgr()
 _vm.objectTables['ClockViewDefinition'] = {
@@ -1837,6 +1858,11 @@ goals_view2 = view_payload(_vm, 'view-goal-explorer',
 check('caller overrides modulate the goal (watch swaps in)',
       goals_view2['sections'][1]['payload']['goal']
       == 'goal-local-watch')
+check('nav-4: lead + links pass through the assembled payload',
+      all(s.get('lead') for s in goals_view['sections'])
+      and any(lk.get('route') == '/magnetics/motor'
+              for s in goals_view['sections']
+              for lk in s.get('links', [])))
 mech = view_payload(_vm, 'view-mechanical')
 check('the tensor-field section is a NAMED GAP with its wiring '
       'suggestion — refused IN the payload, never dropped',

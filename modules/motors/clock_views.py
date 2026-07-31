@@ -190,6 +190,21 @@ SECTION_SOURCES = {
 }
 
 
+def _derived_links(source, payload):
+    """nav-4: links a section can only know from its LIVE payload —
+    the mass bill links every part to its material's page. Seeded
+    links stay data on the section; this adds what data can't."""
+    links = []
+    if source == 'mass-bill':
+        for p in payload.get('parts', []):
+            mat = p.get('material')
+            if mat:
+                links.append({'label': f"{p.get('part')} → {mat}",
+                              'route': f'/materials/{mat}',
+                              'kind': 'material'})
+    return links
+
+
 def view_payload(manager, view_name, design='clock-lavet-m0',
                  goal='', component='', policy=''):
     """Assemble one view: run its sections, keep refusals IN the
@@ -228,8 +243,17 @@ def view_payload(manager, view_name, design='clock-lavet-m0',
         except Exception as e:
             payload = {'ok': False,
                        'refusal': f'section raised: {e}'}
+        # nav-4: sections LEAD with their seeded 2-3 line insight +
+        # links INTO the visuals (simspaces, materials, tech nodes);
+        # the payload is the expander, not the face.
+        links = list(s.get('links') or [])
+        if payload.get('ok'):
+            links += _derived_links(source, payload)
         out.append({'section': s.get('name', source),
-                    'source': source, 'args': {
+                    'source': source,
+                    'lead': s.get('lead', ''),
+                    'links': links,
+                    'args': {
                         k: v for k, v in args.items()
                         if k != 'design'},
                     **({'payload': payload} if payload.get('ok')
@@ -316,9 +340,18 @@ SEED_CLOCK_VIEWS = [
                     'verdicts with blockers and gaps named',
      'sections_json': _j([
          {'name': 'scale-study', 'source': 'scale-study',
-          'args': {}},
+          'args': {},
+          'lead': 'Which clock scales are OPEN with what we can '
+                  'make today: a verdict per scale with its binding '
+                  'blocker and measurement gap named — the design '
+                  'matrix, not a wish list.',
+          'links': [{'label': 'M0 running', 'kind': 'page',
+                     'route': '/magnetics/motor'}]},
          {'name': 'goal-detail', 'source': 'goal-feasibility',
-          'args': {'goal': 'goal-local-wall-clock'}}]),
+          'args': {'goal': 'goal-local-wall-clock'},
+          'lead': 'One goal end-to-end: is the local wall clock '
+                  'feasible, what blocks it, and which knob would '
+                  'move the verdict.'}]),
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'view-mechanical',
      'display_name': 'Mechanical engineering',
@@ -329,16 +362,39 @@ SEED_CLOCK_VIEWS = [
                     'gap',
      'sections_json': _j([
          {'name': 'failure-conditions',
-          'source': 'failure-conditions', 'args': {}},
-         {'name': 'load-cases', 'source': 'load-cases', 'args': {}},
+          'source': 'failure-conditions', 'args': {},
+          'lead': 'Every failure mode the M0 carries at its '
+                  'interfaces, with what you would actually SEE '
+                  'when it happens; unmodelled modes are marked, '
+                  'never hidden.'},
+         {'name': 'load-cases', 'source': 'load-cases', 'args': {},
+          'lead': 'The loads the machine really sees. Operating '
+                  'peaks are tiny — ASSEMBLY handling governs: it '
+                  'will not break doing its job, it can break '
+                  'being built.'},
          {'name': 'pinion-stress', 'source': 'part-stress',
-          'args': {'part_name': 'lavet-v2-pinion'}},
+          'args': {'part_name': 'lavet-v2-pinion'},
+          'lead': 'The governing part under its worst load, judged '
+                  'by the criterion its failure class demands '
+                  '(max-principal for brittle, von Mises for '
+                  'ductile).',
+          'links': [{'label': 'Pinion in 3D', 'kind': 'simspace',
+                     'route': '/sim-spaces/motor-m0-viz'}]},
          {'name': 'pinion-fatigue', 'source': 'part-fatigue',
-          'args': {'part_name': 'lavet-v2-pinion'}},
+          'args': {'part_name': 'lavet-v2-pinion'},
+          'lead': 'A clock steps 3.2e8 times in ten years — '
+                  'fatigue REVERSES the static answer for brittle '
+                  'castings (SCG + Weibull derates multiply).'},
          {'name': 'pinion-contact', 'source': 'contact-stress',
-          'args': {'part_name': 'lavet-v2-pinion'}},
+          'args': {'part_name': 'lavet-v2-pinion'},
+          'lead': 'The whole tooth load rides a micron-scale '
+                  'patch; a brittle tooth is judged by trailing-'
+                  'edge TENSION, not peak pressure.'},
          {'name': 'stress-tensor-field',
-          'source': 'stress-tensor-field', 'args': {}}]),
+          'source': 'stress-tensor-field', 'args': {},
+          'lead': 'The full tensor field over a part is a NAMED '
+                  'gap — the refusal states the exact seam that '
+                  'would wire it.'}]),
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'view-electrical',
      'display_name': 'Electrical engineering',
@@ -347,11 +403,22 @@ SEED_CLOCK_VIEWS = [
                     'sweep, drive pulse — SEPARATE from the '
                     'magnetic view by design',
      'sections_json': _j([
-         {'name': 'winding', 'source': 'winding', 'args': {}},
+         {'name': 'winding', 'source': 'winding', 'args': {},
+          'lead': 'Does the copper FIT and can a cell drive it: '
+                  'fill factor, resistance, voltage against the '
+                  'supply, dissipation as watts — never a guessed '
+                  'temperature.'},
          {'name': 'gauge-sweep', 'source': 'winding-gauge-sweep',
-          'args': {}},
+          'args': {},
+          'lead': 'GAUGE sets voltage, TURNS set battery life, '
+                  'WINDOW sets turns — independent levers, so '
+                  'coarse wire costs only bobbin size. Turns '
+                  'CANCEL out of coil voltage.'},
          {'name': 'pulse-response',
-          'source': 'drive-pulse-response', 'args': {}}]),
+          'source': 'drive-pulse-response', 'args': {},
+          'lead': 'Does the 30 ms pulse reach final current '
+                  'through the coil inductance — the time-constant '
+                  'answer that retires the deep-turns risk.'}]),
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'view-magnetic',
      'display_name': 'Magnetics',
@@ -359,11 +426,25 @@ SEED_CLOCK_VIEWS = [
      'description': 'inductance by FEM with its validity regime, '
                     'and the torque curve',
      'sections_json': _j([
-         {'name': 'inductance', 'source': 'inductance', 'args': {}},
+         {'name': 'inductance', 'source': 'inductance', 'args': {},
+          'lead': 'Inductance actually SOLVED by 2D FEM '
+                  '(feature-aligned mesh, energy route cross-'
+                  'checked by a real flux cut) — not asserted.',
+          'links': [{'label': 'Field views', 'kind': 'page',
+                     'route': '/magnetics/fields'}]},
          {'name': 'model-validity', 'source': 'model-validity',
-          'args': {}},
+          'args': {},
+          'lead': 'Where the lumped reluctance model STOPS '
+                  'APPLYING: low-mu cores do not confine flux, and '
+                  'our locally producible materials are exactly '
+                  'the low-mu ones.',
+          'links': [{'label': 'Field views', 'kind': 'page',
+                     'route': '/magnetics/fields'}]},
          {'name': 'torque-curve-m1', 'source': 'torque-curve',
-          'args': {'design': 'reluctance-6s4p-m1'}}]),
+          'args': {'design': 'reluctance-6s4p-m1'},
+          'lead': 'The M1 torque curve from the reluctance '
+                  'network — ratios survive the model caveat '
+                  'better than absolutes.'}]),
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'view-materials-sourcing',
      'display_name': 'Materials, provenance & sourcing',
@@ -374,27 +455,55 @@ SEED_CLOCK_VIEWS = [
                     'composition structure',
      'sections_json': _j([
          {'name': 'accountability-chain',
-          'source': 'materials-accountability', 'args': {}},
+          'source': 'materials-accountability', 'args': {},
+          'lead': 'Part → option → per-value provenance → dated '
+                  'citations → make-vs-buy: every material claim '
+                  'traceable to where it came from.',
+          'links': [{'label': 'Parts & materials (3D)',
+                     'kind': 'page',
+                     'route': '/magnetics/clock-motor'}]},
          {'name': 'composition-structure',
-          'source': 'composition-structure', 'args': {}},
+          'source': 'composition-structure', 'args': {},
+          'lead': 'The M0 as a composition tree: components, '
+                  'interfaces with their failure modes, and the '
+                  'separability levels the arc established.'},
          {'name': 'promotion-candidates',
-          'source': 'promotion-candidates', 'args': {}}]),
+          'source': 'promotion-candidates', 'args': {},
+          'lead': 'Where PROMOTION (processing an assembly into '
+                  'one part) is on the table, and what each trade '
+                  'buys and spends — repairability included.'}]),
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'view-mass', 'display_name': 'Mass & geometry',
      'discipline': 'mass', 'scale_support': 'm0-only',
      'description': 'per-part volumes and masses from the SAME '
                     'shape rows the 3D view renders',
      'sections_json': _j([
-         {'name': 'mass-bill', 'source': 'mass-bill', 'args': {}}]),
+         {'name': 'mass-bill', 'source': 'mass-bill', 'args': {},
+          'lead': 'Per-part volume and mass from the SAME shape '
+                  'rows the 3D scene draws — bill and picture '
+                  'cannot disagree. Each part links to its '
+                  'material below.',
+          'links': [{'label': 'Motor scene (3D)',
+                     'kind': 'simspace',
+                     'route': '/sim-spaces/motor-m0-viz'}]}]),
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'view-motion', 'display_name': 'Movement simulation',
      'discipline': 'motion', 'scale_support': 'm0-only',
      'description': 'the clock sim (steps vs time, the control '
                     'case) and the bench verification record',
      'sections_json': _j([
-         {'name': 'clock-sim', 'source': 'clock-sim', 'args': {}},
+         {'name': 'clock-sim', 'source': 'clock-sim', 'args': {},
+          'lead': 'The solver stepping the M0 — the control case '
+                  'the whole arc rests on. The 3D scene replays '
+                  'THIS step history, never a canned spin.',
+          'links': [{'label': 'Motor scene (3D)',
+                     'kind': 'simspace',
+                     'route': '/sim-spaces/motor-m0-viz'}]},
          {'name': 'verification', 'source': 'verification',
-          'args': {}}]),
+          'args': {},
+          'lead': 'What has actually been MEASURED vs replayed: '
+                  'made-and-measured is earned by bench records '
+                  'only; sim replays are provenance, not proof.'}]),
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'view-cost',
      'display_name': 'Cost & dependency trace',
@@ -405,12 +514,24 @@ SEED_CLOCK_VIEWS = [
      'sections_json': _j([
          {'name': 'pinion-lifecycle-cost',
           'source': 'lifecycle-cost',
-          'args': {'part_name': 'lavet-v2-pinion'}},
+          'args': {'part_name': 'lavet-v2-pinion'},
+          'lead': 'The TRUE price per year-of-timekeeping: the '
+                  '1-cent cast pinion costs ~$1600/yr to own; '
+                  'fired ceramic is 8x dearer to buy and five '
+                  'orders cheaper to keep.'},
          {'name': 'cheapest-configuration',
           'source': 'cheapest-configuration',
-          'args': {'part_name': 'lavet-v2-pinion'}},
+          'args': {'part_name': 'lavet-v2-pinion'},
+          'lead': 'Upfront vs lifetime orderings computed '
+                  'SEPARATELY so they can disagree — and the '
+                  'disagreement is the finding.'},
          {'name': 'dependency-trace',
-          'source': 'materials-accountability', 'args': {}}]),
+          'source': 'materials-accountability', 'args': {},
+          'lead': 'The same accountability chain read as a '
+                  'dependency trace: supply sources, business '
+                  'gates and dated citations under every cost.',
+          'links': [{'label': 'Business start', 'kind': 'page',
+                     'route': '/business/start'}]}]),
      'is_prior': True, 'provenance_id': PROV,
      'notes': 'the accountability chain IS the dependency trace: '
               'supply sources, dated citations, make-vs-buy '

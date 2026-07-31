@@ -116,7 +116,7 @@ if __name__ == '__main__':
               and it['requires_module'] == 'composition'
               for it in mag_items)
           and any(it['kind'] == 'tech-node'
-                  and it['ref'] == 'electromagnetic-systems'
+                  and it['ref'] == 'electronics/electromagnetic-systems'
                   for it in mag_items))
     pspp_grps = [g for g in
                  json.loads(by_name['app-materials-science']
@@ -243,6 +243,11 @@ if __name__ == '__main__':
     check('persona index maps EE to app-magnetics',
           result['personas']['electrical-engineer']
           == ['app-magnetics'])
+    check('per-module tri-state strip computed server-side',
+          mag['moduleStates'] == {'magnetics': 'enabled',
+                                  'motors': 'enabled',
+                                  'composition': 'absent',
+                                  'gears': 'enabled'})
     check('use-case app gets a SYNTHESIZED pages group',
           napps['wax-print-shop']['navSynthesized']
           and napps['wax-print-shop']['nav'][0]['group'] == 'Pages'
