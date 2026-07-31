@@ -3716,9 +3716,11 @@ class polariServer(treeObject):
                 only_classes is None
                 or 'PolariAppDefinition' in only_classes)):
             try:
+                # NOTE: PolariAppDefinition / SEED_POLARI_APPS are the
+                # MODULE-LEVEL imports — re-importing them here would
+                # make the names function-local and break the legacy
+                # seed list above (UnboundLocalError at boot).
                 from composition.seed_upsert import upsert_seed_pairs
-                from polariapps.apps_basis import PolariAppDefinition
-                from polariapps.apps_seed import SEED_POLARI_APPS
                 for r in upsert_seed_pairs(
                         self.manager,
                         [('PolariAppDefinition', PolariAppDefinition,
