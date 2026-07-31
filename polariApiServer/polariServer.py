@@ -845,6 +845,7 @@ try:
     from motors.motor_parts import (
         MotorPartDefinition, SEED_MOTOR_PARTS,
     )
+    from motors.physics_equations import SEED_EQUATION_ROWS
     from motors.motor_drive import (
         MotorControllerProfile, PhaseBindingDefinition,
         SEED_CONTROLLER_PROFILES, SEED_PHASE_BINDINGS,
@@ -866,6 +867,7 @@ except ImportError as _exc:
         'SEED_M1_PART_SHAPES', 'SEED_M1_SIM_SPACES',
         'SEED_M3_PART_SHAPES', 'SEED_M3_SIM_SPACES',
         'MotorPartDefinition', 'SEED_MOTOR_PARTS',
+        'SEED_EQUATION_ROWS',
     ))
 # mesh-1: license-GATED external mesh catalog + the fit engine
 # (borrowed meshes measured against our vector organ definitions).
@@ -3747,7 +3749,11 @@ class polariServer(treeObject):
             # per-step math each CalculusOperation references. Must seed
             # before the SolutionDefinitions that point at them by name.
             ('EquationDefinition', EquationDefinition,
-             SEED_PENDULUM_EQUATIONS + SEED_PENDULUM_STEP_EQUATIONS),
+             SEED_PENDULUM_EQUATIONS + SEED_PENDULUM_STEP_EQUATIONS
+             # mag-20: the motor/gear physics held as CONFIGURATION
+             # rather than Python — inspectable and editable without
+             # a deploy.
+             + SEED_EQUATION_ROWS),
             ('SimSpaceDefinition', SimSpaceDefinition, SEED_PENDULUM_SIMSPACES),
             ('SimSpaceBindingDefinition', SimSpaceBindingDefinition, SEED_PENDULUM_BINDINGS),
             ('SimSpaceEvaluationEquation', SimSpaceEvaluationEquation, SEED_PENDULUM_EVALUATION_EQUATIONS),

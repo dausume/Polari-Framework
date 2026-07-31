@@ -50,6 +50,7 @@ class MotorsAPI(treeObject):
                 '{part_name}', self, suffix='true_price')
             add('/api/motors/contact/{design_name}/{part_name}',
                 self, suffix='contact')
+            add('/api/motors/equations', self, suffix='equations')
             add('/api/motors/roles/{part_name}', self,
                 suffix='roles')
             add('/api/motors/role-screen/{part_name}', self,
@@ -220,6 +221,27 @@ class MotorsAPI(treeObject):
         out = contact_stress(
             self.manager, design_name, part_name,
             mating_material=request.params.get('mate') or None)
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_equations(self, request, response):
+        from motors.physics_equations import (
+            equation_catalog, evaluate_named,
+        )
+        name = request.params.get('evaluate')
+        if not name:
+            response.media = equation_catalog()
+            return
+        bindings = {}
+        for k, v in request.params.items():
+            if k == 'evaluate':
+                continue
+            try:
+                bindings[k] = float(v)
+            except (TypeError, ValueError):
+                bindings[k] = v
+        out = evaluate_named(name, bindings, manager=self.manager)
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out

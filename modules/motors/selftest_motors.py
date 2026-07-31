@@ -1127,6 +1127,55 @@ check('the honesty rider says to trust the ORDERING, not the '
       'input uncertainty',
       'ORDERING' in cp['honesty'])
 
+print('== suite: mag-20 physics as CONFIGURATION, not code ==')
+import math as _m2  # noqa: E402
+from motors.physics_equations import (  # noqa: E402
+    equation_catalog, evaluate_named,
+)
+
+cat = equation_catalog()
+check('the closed-form physics is held as CONFIGURATION — LaTeX '
+      'rows evaluated by the EXISTING no-code executor, not '
+      're-implemented in Python',
+      cat['count'] >= 12
+      and all(e['latex'] and e['symbols'] for e in cat['equations']))
+check('and the code/config boundary is stated as a DECISION: '
+      'refusals, criterion selection, role predicates and units '
+      'stay code; formulas do not',
+      'policy' in cat['principle']
+      and 're-implementing one are opposite acts'
+      in cat['principle'])
+
+ev = evaluate_named('eq-scg-life-cycles',
+                    {'S': 2.25, 's': 1.58, 'n': 15})
+check('the configured crack-growth life reproduces the Python '
+      'result it replaces (~200 cycles) — the migration is '
+      'verified, not asserted',
+      ev['ok']
+      and abs(ev['result']['result_numeric'] - 200.85) < 1.0,
+      extra=str(ev['result'].get('result_numeric')))
+check('the Weibull derate likewise matches (0.5627)',
+      abs(evaluate_named('eq-weibull-survival-derate',
+                         {'P': 0.99, 'm': 8})
+          ['result']['result_numeric'] - 0.5627) < 1e-3)
+check('and the planetary ratio: ring 132 / sun 12 -> 12:1',
+      abs(evaluate_named('eq-planetary-ring-fixed',
+                         {'R': 132, 'S': 12})
+          ['result']['result_numeric'] - 12.0) < 1e-9)
+check('pi is bound EXPLICITLY so the executor returns a number '
+      'rather than a symbolic expression — the lesson from the '
+      'first Hertz attempt',
+      evaluate_named('eq-hertz-line-contact-pmax',
+                     {'F': 0.833, 'E': 8.33e9, 'R': 3.97e-4,
+                      'c': _m2.pi})['result']['result_numeric']
+      > 1e6)
+check('an unknown equation refuses and names what IS available',
+      not evaluate_named('eq-nonsense', {}).get('ok'))
+check('every equation documents what each symbol MEANS — a formula '
+      'without its variable meanings is a puzzle, not a spec',
+      all(all(v for v in e['symbols'].values())
+          for e in cat['equations']))
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
