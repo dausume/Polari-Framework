@@ -241,6 +241,18 @@
       ],
       "description": "PSPP foundation: evidence methods, claims-not-values, digitized book datasets + interpolation (PSPP_MATERIALS_PLAN.md)."
     },
+    "composition": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/composition",
+      "repo": "",
+      "requires": [
+        "mathshapes",
+        "techtree"
+      ],
+      "wave": 2,
+      "description": "Part composition (PART_ARCHETYPES_PLAN.md): components/interfaces with DERIVED levels by separability, promotion as a recorded operation, EBOM/MBOM split, archetypes + design matrices, and the generic role engine (extracted from motors). Material/equation refs are DATA references, never imports."
+    },
     "magnetics": {
       "kind": "official",
       "downloaded": true,
@@ -259,7 +271,8 @@
       "path": "modules/motors",
       "repo": "",
       "requires": [
-        "magnetics"
+        "magnetics",
+        "composition"
       ],
       "wave": 4,
       "description": "Electric motors Section C: the M0-M3 ladder of buildable samples (Lavet clock stepper -> reluctance -> ferrite-PM -> dual-stator axial flux), clock control-case sim, torque curves, torque_parity (MAGNETIC_MATERIALS_PLAN.md)."

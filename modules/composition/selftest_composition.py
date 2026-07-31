@@ -127,8 +127,176 @@ def selftest_upsert():
           == ['added'])
 
 
+# ---------------------------------------------------------------
+# arch-2: core rows, derived levels, extraction
+# ---------------------------------------------------------------
+
+def _seed_mgr():
+    """Fake manager over the real seeds — the magnetics selftest
+    pattern."""
+    import composition.composition_seed as cs
+
+    def table(seed):
+        return {s['name']: types.SimpleNamespace(**s) for s in seed}
+    m = types.SimpleNamespace()
+    m.objectTables = {
+        'PartComponentDefinition': table(cs.SEED_PART_COMPONENTS),
+        'CompositionNode': table(cs.SEED_COMPOSITION_NODES),
+        'InterfaceDefinition': table(cs.SEED_INTERFACES),
+        'FailureModeDefinition': table(cs.SEED_FAILURE_MODES),
+    }
+    m.objectTypingDict = {k: object() for k in m.objectTables}
+    return m
+
+
+def selftest_arch2():
+    import json
+
+    from composition.data_refs import resolve_named
+    from composition.node_basis import (
+        CompositionNode, derive_level, composition_report,
+    )
+    import composition.composition_seed as cs
+
+    print('\n-- arch-2: derived levels (mag-26 acceptance) --')
+    m = _seed_mgr()
+
+    # THE acceptance: three constructions, three levels, derived
+    # from interface rows alone.
+    simple = derive_level(m, 'stator-simple')
+    bound = derive_level(m, 'stator-bound')
+    layered = derive_level(m, 'stator-layered')
+    check('simple stator derives ASSEMBLY',
+          simple.get('ok') and simple['derived'] == 'assembly')
+    check('bound stator derives PART',
+          bound.get('ok') and bound['derived'] == 'part')
+    check('layered stator derives PART-WITH-SEPARABLE-SUB-PARTS',
+          layered.get('ok')
+          and layered['derived'] == 'part-with-separable-sub-parts')
+    check('layered separable set names the snap, bound set the '
+          'groove',
+          layered.get('separableSet') == ['if-layer-snap']
+          and layered.get('boundSet') == ['if-layer-wire-groove'])
+    check('every declared level matched its derivation',
+          all(r.get('declared') in ('', r.get('derived'))
+              or r.get('declared') == 'subassembly'
+              for r in (simple, bound, layered)))
+
+    print('\n-- arch-2: refusals are informative --')
+    # Declared label may not overrule structure.
+    m2 = _seed_mgr()
+    m2.objectTables['CompositionNode']['stator-simple']\
+        .declared_level = 'part'
+    mismatch = derive_level(m2, 'stator-simple')
+    check('declared-vs-derived mismatch refuses, naming interfaces',
+          not mismatch.get('ok')
+          and 'may not overrule' in mismatch.get('refusal', '')
+          and mismatch.get('decidingInterfaces'))
+    # Interfaces unstated = I-do-not-know, with the pairs to state.
+    m3 = _seed_mgr()
+    m3.objectTables['CompositionNode']['no-ifaces'] = \
+        types.SimpleNamespace(
+            name='no-ifaces', declared_level='',
+            members_json=json.dumps([
+                {'ref': 'pc-spool-core', 'kind': 'component',
+                 'quantity': 1},
+                {'ref': 'pc-sol-gel-binder', 'kind': 'component',
+                 'quantity': 1}]))
+    unk = derive_level(m3, 'no-ifaces')
+    check('missing interfaces refuse with the pairs that need rows',
+          not unk.get('ok')
+          and unk.get('suggestion', {}).get('pairs'))
+    # Unresolved member refuses rather than guessing.
+    m4 = _seed_mgr()
+    m4.objectTables['CompositionNode']['ghost'] = \
+        types.SimpleNamespace(
+            name='ghost', declared_level='',
+            members_json=json.dumps([
+                {'ref': 'no-such-component', 'kind': 'component',
+                 'quantity': 1}]))
+    ghost = derive_level(m4, 'ghost')
+    check('unresolved member refuses',
+          not ghost.get('ok') and ghost.get('unresolved'))
+    # Single-component wrapper derives component.
+    m5 = _seed_mgr()
+    m5.objectTables['CompositionNode']['bare'] = \
+        types.SimpleNamespace(
+            name='bare', declared_level='',
+            members_json=json.dumps([
+                {'ref': 'pc-spool-core', 'kind': 'component',
+                 'quantity': 1}]))
+    check('single-component node derives COMPONENT',
+          derive_level(m5, 'bare').get('derived') == 'component')
+    # Module-not-booted is distinguished from no-such-row.
+    _, ref1 = resolve_named(m, 'NotBootedClass', 'x')
+    _, ref2 = resolve_named(m, 'CompositionNode', 'no-such-node')
+    check('module-not-booted vs no-such-row distinguished',
+          ref1['kind'] == 'module-not-booted'
+          and ref2['kind'] == 'no-such-row')
+    rep = composition_report(m)
+    check('composition report covers all seeded nodes, no refusals',
+          rep['count'] == 3 and not rep['refusals'])
+
+    print('\n-- arch-2: extraction + cross-module data agreement --')
+    from composition.part_roles import (
+        ROLE_REQUIREMENTS as C_ROLES, role_viability as c_via,
+    )
+    from motors.part_roles import (
+        ROLE_REQUIREMENTS as M_ROLES, role_viability as m_via,
+    )
+    check('motors re-exports the SAME role engine (no fork)',
+          C_ROLES is M_ROLES and c_via is m_via
+          and len(C_ROLES) == 10)
+    # Failure-mode refs resolve, with the right locus at the right
+    # place.
+    fm = {s['name']: s for s in cs.SEED_FAILURE_MODES}
+    iface_refs = [r for s in cs.SEED_INTERFACES
+                  for r in json.loads(s['failure_mode_refs_json'])]
+    bulk_refs = [r for s in cs.SEED_COMPOSITION_NODES
+                 for r in json.loads(
+                     s['bulk_failure_mode_refs_json'])]
+    check('interface rows cite only interface-locus modes',
+          iface_refs and all(
+              fm[r]['locus'] == 'interface' for r in iface_refs))
+    check('nodes cite only bulk-locus modes',
+          bulk_refs and all(
+              fm[r]['locus'] == 'bulk' for r in bulk_refs))
+    # Two modules asserting the same fact must AGREE (mag-25
+    # lesson): equation refs must be live physics_equations names.
+    from motors.physics_equations import SEED_PHYSICS_EQUATIONS
+    eq_names = {e['name'] for e in SEED_PHYSICS_EQUATIONS}
+    cited = {s['equation_ref'] for s in cs.SEED_FAILURE_MODES
+             if s['equation_ref']}
+    cited |= {r for s in cs.SEED_INTERFACES
+              for r in json.loads(s['equation_refs_json'])}
+    check('every cited equation exists in physics_equations',
+          cited and cited <= eq_names,
+          f'missing: {cited - eq_names}')
+    # Material refs are live catalog names.
+    from magnetics.magnet_seed import SEED_MATERIAL_OPTIONS
+    opts = {s['name'] for s in SEED_MATERIAL_OPTIONS}
+    mats = {s['material_ref'] for s in cs.SEED_PART_COMPONENTS}
+    check('every component material_ref is a live catalog name',
+          mats <= opts, f'missing: {mats - opts}')
+    # The promoted node records its genealogy and its bulk debt.
+    check('bound stator carries genealogy + the crack-short mode it '
+          'traded for',
+          cs.SEED_COMPOSITION_NODES[1]['genealogy_ref']
+          == 'stator-simple'
+          and 'fm-potted-winding-crack-short' in bulk_refs)
+    # Seeds flow through the arch-1 upsert (smoke, real classes not
+    # needed: gated-off tables skip loudly).
+    empty = types.SimpleNamespace(objectTables={},
+                                  objectTypingDict={})
+    reports = cs.seed_composition(empty)
+    check('seed_composition runs the upsert path per class',
+          len(reports) == 4
+          and all(r.get('skipped') for r in reports))
+
+
 def main():
     selftest_upsert()
+    selftest_arch2()
     total, passed = len(_results), sum(_results)
     print(f'\n{passed}/{total} checks passed')
     return 0 if passed == total else 1
