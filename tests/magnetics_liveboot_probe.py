@@ -46,14 +46,15 @@ options = manager.objectTables.get('MagneticMaterialOption', {})
 powders = manager.objectTables.get('MagneticPowderDefinition', {})
 check('10 MaterialUseRole rows seeded by polariServer',
       len(roles) == 10, extra=str(len(roles)))
-check('31 MagneticMaterialOption rows seeded',
-      len(options) == 31, extra=str(len(options)))
+# 33 since mag-22 added brass + galvanized steel (was 31).
+check('33 MagneticMaterialOption rows seeded',
+      len(options) == 33, extra=str(len(options)))
 check('7 MagneticPowderDefinition rows seeded',
       len(powders) == 7, extra=str(len(powders)))
 
 r = client.simulate_get('/api/magnetics/catalog')
-check('GET /api/magnetics/catalog 200 + 31 options with gates',
-      r.status_code == 200 and r.json.get('count') == 31
+check('GET /api/magnetics/catalog 200 + 33 options with gates',
+      r.status_code == 200 and r.json.get('count') == 33
       and all('costing' in o for o in r.json['options']),
       extra=r.status)
 r = client.simulate_get('/api/magnetics/roles')

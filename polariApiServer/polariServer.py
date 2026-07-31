@@ -786,6 +786,32 @@ except ImportError as _exc:
         'SEED_PARTNERSHIPS', 'SEED_COMPLIANCE_REQUIREMENTS',
         'SEED_QUALITY_CHECKS',
     ))
+# Part composition (arch-2..5): components/interfaces with derived
+# levels, EBOM/MBOM split, routings + promotion, archetypes +
+# design matrices. Seeds are NOT listed in the legacy insert-only
+# pass — composition seeds itself through its arch-1 upsert path
+# (see the seed_composition call in _seedSimSpace3D).
+try:
+    from composition.archetype_basis import PartArchetypeDefinition
+    from composition.component_basis import PartComponentDefinition
+    from composition.design_matrix import DesignMatrixDefinition
+    from composition.failure_modes import FailureModeDefinition
+    from composition.functional_basis import (
+        ConstructionVariantDefinition, FunctionalPartDefinition,
+    )
+    from composition.interface_basis import InterfaceDefinition
+    from composition.node_basis import CompositionNode
+    from composition.routing_basis import (
+        RoutingDefinition, RoutingOperation,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('composition', _exc, globals(), (
+        'PartArchetypeDefinition', 'PartComponentDefinition',
+        'DesignMatrixDefinition', 'FailureModeDefinition',
+        'ConstructionVariantDefinition', 'FunctionalPartDefinition',
+        'InterfaceDefinition', 'CompositionNode',
+        'RoutingDefinition', 'RoutingOperation',
+    ))
 # Magnetic materials Section A — option catalog + role taxonomy +
 # powder designer (mag-2/2r/2t).
 try:
@@ -1742,6 +1768,12 @@ class polariServer(treeObject):
             from waxsupply.wax_api import WaxSupplyAPI
             waxSupplyEndpoint = WaxSupplyAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('composition'):
+            # Part composition (arch-7): derived levels, variant
+            # reports, routings, audited promotions, archetypes.
+            from composition.composition_api import CompositionAPI
+            compositionEndpoint = CompositionAPI(
+                polServer=self, manager=self.manager)
         if _feature_available('magnetics'):
             # Magnetic materials Section A: catalog gates, role
             # search, powder designer (mag-2/2r/2t).
@@ -2046,6 +2078,12 @@ class polariServer(treeObject):
             PartnershipAgreement, BusinessRiskNote,
             ComplianceRequirement, ComplianceRecord,
             QualityCheckDefinition, QualityCheckRecord,
+            # Part composition (arch-2..5).
+            PartComponentDefinition, CompositionNode,
+            InterfaceDefinition, FailureModeDefinition,
+            FunctionalPartDefinition, ConstructionVariantDefinition,
+            RoutingDefinition, RoutingOperation,
+            PartArchetypeDefinition, DesignMatrixDefinition,
             # Magnetic materials Section A (mag-2/2r/2t) + circuits
             # (mag-3).
             MaterialUseRole, MagneticMaterialOption,
@@ -3620,6 +3658,28 @@ class polariServer(treeObject):
                     print(f'[SeedSimSpace3D] Failed to create {class_name} "{name}": {e}', flush=True)
                     import traceback
                     traceback.print_exc()
+        # arch-1: composition seeds go through the UPSERT path —
+        # changed seed fields REACH live prior rows instead of
+        # requiring hand CRUDE PUTs (the ten-strikes gotcha, ended
+        # for these tables). Runs in composition's admission pass.
+        if _feature_available('composition') and (
+                only_classes is None
+                or 'CompositionNode' in only_classes):
+            try:
+                from composition.composition_seed import (
+                    seed_composition,
+                )
+                reports = seed_composition(self.manager)
+                changed = [
+                    (r['class'], len(r.get('inserted', [])),
+                     len(r.get('updated', [])))
+                    for r in reports
+                    if r.get('inserted') or r.get('updated')]
+                if changed:
+                    print(f'[CompositionSeed] converged: {changed}',
+                          flush=True)
+            except Exception as e:
+                print(f'[CompositionSeed] failed: {e}', flush=True)
         # tt-8: the single 'oseb' tree became three DOMAIN trees —
         # retire its persisted rows (idempotent no-op once gone) and
         # remap stale PolariModule.tech_node_ref hints.
