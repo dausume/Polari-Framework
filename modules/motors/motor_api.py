@@ -51,6 +51,8 @@ class MotorsAPI(treeObject):
             add('/api/motors/contact/{design_name}/{part_name}',
                 self, suffix='contact')
             add('/api/motors/equations', self, suffix='equations')
+            add('/api/motors/product/{design_name}', self,
+                suffix='product')
             add('/api/motors/roles/{part_name}', self,
                 suffix='roles')
             add('/api/motors/role-screen/{part_name}', self,
@@ -221,6 +223,16 @@ class MotorsAPI(treeObject):
         out = contact_stress(
             self.manager, design_name, part_name,
             mating_material=request.params.get('mate') or None)
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_product(self, request, response, design_name):
+        from motors.clock_product import product_datasheet
+        out = product_datasheet(
+            self.manager, design_name,
+            train_name=request.params.get('train',
+                                          'clock-train-m0'))
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out

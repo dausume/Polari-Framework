@@ -995,7 +995,10 @@ print('== suite: mag-18 contact / wear / eddy (the named gaps) ==')
 from motors.contact_wear import (  # noqa: E402
     WEAR_K_BANDS, contact_stress, eddy_drag, wear_life,
 )
-from gears.gear_seed import SEED_GEAR_MESHES as _GMS  # noqa: E402
+from gears.gear_seed import (  # noqa: E402
+    SEED_GEAR_MESHES as _GMS, SEED_GEAR_TYPES as _GTY,
+    SEED_SHAFT_NODES as _GSN,
+)
 
 mgrc = _mgr()
 for _cls, _seed in (('GearTrainDefinition', _GTR),
@@ -1175,6 +1178,66 @@ check('every equation documents what each symbol MEANS — a formula '
       'without its variable meanings is a puzzle, not a spec',
       all(all(v for v in e['symbols'].values())
           for e in cat['equations']))
+
+print('== suite: mag-21 THE CLOCK AS A PRODUCT ==')
+from motors.clock_product import (  # noqa: E402
+    movement_class, power_budget, product_datasheet,
+)
+
+mgrp2 = _mgr()
+for _c, _s in (('GearTrainDefinition', _GTR),
+               ('GearDefinition', _GRS),
+               ('GearMeshDefinition', _GMS),
+               ('GearTypeDefinition', _GTY),
+               ('ShaftNodeDefinition', _GSN),
+               ('MathShapeDefinition', _V2S),
+               ('MotorPartDefinition', SEED_MOTOR_PARTS),
+               ('PriceCitation', SEED_PRICE_CITATIONS)):
+    mgrp2.objectTables[_c] = {r['name']: types.SimpleNamespace(**r)
+                              for r in _s}
+
+pw = power_budget(mgrp2)
+check('power is DERIVED from the winding, not asserted: 20 mA for '
+      'a 30 ms pulse at 1 Hz = 3% duty = 0.6 mA average',
+      pw['ok'] and abs(pw['dutyPct'] - 3.0) < 0.01
+      and abs(pw['averageCurrentMa'] - 0.6) < 0.01,
+      extra=str(pw.get('averageCurrentMa')))
+check('battery life falls out of it — and an AA lasts MONTHS, not '
+      'the years a bought movement gives',
+      2 < pw['cells']['AA-alkaline']['monthsOfService'] < 12)
+
+mc = movement_class(mgrp2)
+check('THE ANSWER TO "is this a watch": NO, and by the numbers — '
+      'the rotor IS watch-scale but the widest wheel is 180 mm, it '
+      'drives a 260 mm face, and a watch cell would last days',
+      mc['ok'] and mc['isWatch'] is False
+      and mc['classification'] == 'wall-clock movement'
+      and mc['watchCellMonths'] < 0.5,
+      extra=str(mc.get('watchCellMonths')))
+check('and it says HOW to make it a watch rather than just saying '
+      'no — more, smaller stages plus closing the permeability gap',
+      'smaller stages' in mc['howToMakeItAWatch']
+      and 'permeability' in mc['howToMakeItAWatch'])
+check('the power gap is explained by the PHYSICS already on record: '
+      'mu~2 castings need mA where laminated steel needs uA',
+      'permeability gap' in pw['whyThirsty'])
+
+ds = product_datasheet(mgrp2)
+check('the product view COMPOSES every analysis and all sections '
+      'resolve',
+      ds['ok'] and all(v.get('ok') for v in ds['sections'].values())
+      and len(ds['sections']) >= 9)
+check('and it reaches a PRODUCT verdict rather than a pile of '
+      'numbers: NOT SHIPPABLE, with the blockers named',
+      ds['shippable'] is False and len(ds['blockers']) >= 2
+      and any('fatigue' in b for b in ds['blockers'])
+      and any('power' in b or 'thirst' in b or 'cell' in b
+              for b in ds['blockers']))
+check('the honesty rider says the caveats COMPOUND across composed '
+      'sections and this is a design review, not a datasheet for a '
+      'buyer',
+      'COMPOUND' in ds['honesty']
+      and 'not a datasheet' in ds['honesty'])
 
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
