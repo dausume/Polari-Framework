@@ -36,6 +36,8 @@ class MotorsAPI(treeObject):
                 suffix='materials')
             add('/api/motors/drive/{design_name}', self,
                 suffix='drive')
+            add('/api/motors/stator-variants', self,
+                suffix='stator_variants')
             add('/api/motors/simplest', self,
                 suffix='simplest')
             add('/api/motors/road-to-advanced', self,
@@ -486,3 +488,23 @@ class MotorsAPI(treeObject):
     def on_get_road_to_advanced(self, request, response):
         from motors.simple_first import road_to_advanced
         response.media = road_to_advanced(self.manager)
+
+    def on_get_stator_variants(self, request, response):
+        from motors.stator_construction import (
+            compare_variants, variant_catalog,
+        )
+        def f(k, d):
+            try:
+                return float(request.params.get(k, d))
+            except (TypeError, ValueError):
+                return d
+        out = compare_variants(
+            self.manager, awg=int(f('awg', 32)),
+            wall_mm=f('wallMm', 0.03),
+            window_mm2=f('windowMm2', 606.0),
+            nested=request.params.get('nested', '').lower() == 'true')
+        if out.get('ok'):
+            out['catalog'] = variant_catalog()
+        else:
+            response.status = '400 Bad Request'
+        response.media = out

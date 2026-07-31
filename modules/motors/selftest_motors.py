@@ -1582,6 +1582,63 @@ check('and the learning order starts by MEASURING a working '
       'MEASURE' in road['learningOrder'][0]['act']
       and 'reluctance' in road['learningOrder'][0]['why'])
 
+# ---- mag-26: stator construction variants -----------------------
+print('\n-- mag-26 stator construction --')
+from motors.stator_construction import (       # noqa: E402
+    compare_variants, groove_viability, variant_catalog,
+)
+
+vc = variant_catalog()
+check('the three constructions are distinguished by SEPARABILITY, '
+      'not by difficulty — assembly, promoted part, and a part '
+      'whose sub-parts stay separable',
+      vc['ok'] and len(vc['variants']) == 3
+      and 'SEPARABILITY' in vc['separabilityIsTheAxis'])
+check('THE LAYERED VARIANT SETTLES PARTIAL PROMOTION: wire is fused '
+      'into each layer irreversibly while the layers themselves '
+      'snap apart, so promotion attaches to a NAMED INTERFACE SET '
+      'rather than to a whole assembly',
+      'NOT all-or-nothing' in vc['partialPromotionFinding']
+      and vc['variants'][2]['promotedInterfaces']
+      and vc['variants'][2]['separable'])
+check('promotion records what it GAINS and what it LOSES, and '
+      'repairability is spent at the second variant',
+      vc['variants'][0]['repairable'] is True
+      and vc['variants'][1]['repairable'] is False
+      and any('REPAIRABILITY' in x for x in vc['variants'][1]['losses'])
+      and any('fretting' in x.lower()
+              for x in vc['variants'][1]['gains']))
+check('and the brittle SNAP FIT is named as an unresolved conflict '
+      'rather than glossed — a snap needs elastic deflection and '
+      'fired ceramic cracks instead of flexing',
+      any('SNAP FIT IN A BRITTLE' in x
+          for x in vc['variants'][2]['failureModesPresent']))
+
+gv = groove_viability(0.2269, 0.050)
+check('grooving can LOSE to scramble winding: at a 50 um wall on '
+      '32 AWG the walls cost more window than the ordering gains',
+      gv['ok'] and gv['beatsScramble'] is False
+      and gv['orderedFill'] < 0.60)
+check('and the break-even is DERIVED, not asserted — a wall under '
+      '~14% of the wound diameter',
+      0.13 < gv['maxWallAsFractionOfWire'] < 0.16)
+
+snap = groove_viability(0.2269, 0.030, nested=False)
+nest = groove_viability(0.2269, 0.030, nested=True)
+check('THE FINDING ON THE PROPOSED CONSTRUCTION: a layer that SNAPS '
+      'ON is a rigid floor, and rigid floors forbid nesting — so '
+      'the snap-on variant forfeits most of the ordered-packing '
+      'gain it was adopted for',
+      nest['orderedFill'] > snap['orderedFill']
+      and nest['packingCeilingNoWalls'] > snap['packingCeilingNoWalls'])
+cv = compare_variants(awg=32, wall_mm=0.03)
+check('so the payload says to choose snap-on layering for '
+      'INSPECTABILITY and yield, not for packing',
+      'INSPECTABILITY' in cv['snapOnVerdict'])
+check('and it notes two independent arguments converging on coarse '
+      'gauge — groove walls, and the cell voltage from mag-25',
+      'mag-25' in cv['convergence'])
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
