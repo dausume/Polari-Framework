@@ -57,10 +57,17 @@ def resolve_named(manager, class_name, name):
     return row, None
 
 
-def material_prop(manager, material_ref, key):
+def material_prop(manager, material_ref, key, condition=''):
     """(value, provenance) for one property of a material row,
     searched across MATERIAL_PROPERTY_CLASSES. Missing anywhere =
-    (None, '') — callers treat that as UNASSESSED, never a pass."""
+    (None, '') — callers treat that as UNASSESSED, never a pass.
+
+    CONDITION IS A KEY (arch-6, practice map §1.2: C11000-H02 vs
+    O60 are different property rows under one material). An entry
+    may carry 'conditions': {condition: {value, provenance, ...}};
+    for such an entry an UNSTATED condition returns (None, '') —
+    a condition-dependent property with the condition unknown is
+    unknown, not the entry's headline value."""
     for class_name in MATERIAL_PROPERTY_CLASSES:
         opt = named(manager, class_name, material_ref)
         if opt is None:
@@ -73,5 +80,11 @@ def material_prop(manager, material_ref, key):
         entry = props.get(key)
         if not isinstance(entry, dict):
             return None, ''
+        conditions = entry.get('conditions')
+        if isinstance(conditions, dict):
+            sub = conditions.get(condition)
+            if not isinstance(sub, dict):
+                return None, ''
+            return sub.get('value'), sub.get('provenance', '')
         return entry.get('value'), entry.get('provenance', '')
     return None, ''

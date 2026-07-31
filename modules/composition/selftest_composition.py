@@ -594,12 +594,88 @@ def selftest_arch5():
           not archetype_report(m2, 'at-bad')['ok'])
 
 
+# ---------------------------------------------------------------
+# arch-6: derived realization + the condition key
+# ---------------------------------------------------------------
+
+def selftest_arch6():
+    import json
+
+    from composition.data_refs import material_prop
+    from composition.realization import (
+        REALIZATION_LEVELS, node_realization,
+    )
+
+    print('\n-- arch-6: realization rolls up, derived --')
+    # Two modules assert the same ladder — test that they agree.
+    from magnetics.magnet_basis import (
+        REALIZATION_LEVELS as MAG_LEVELS,
+    )
+    check('composition and magnetics agree on the realization '
+          'ladder',
+          tuple(REALIZATION_LEVELS) == tuple(MAG_LEVELS))
+
+    m = _seed_mgr()
+    from magnetics.magnet_seed import SEED_MATERIAL_OPTIONS
+    m.objectTables['MagneticMaterialOption'] = {
+        s['name']: types.SimpleNamespace(**s)
+        for s in SEED_MATERIAL_OPTIONS}
+    simple = node_realization(m, 'stator-simple')
+    check('simple stator floor = recipe-seeded, limited by the '
+          'FIRED CERAMIC spool (copper wire is made-and-measured)',
+          simple.get('ok') and simple['level'] == 'recipe-seeded'
+          and any(c.get('material') == 'opt-fired-ceramic'
+                  for c in simple['limitedBy']))
+    layered = node_realization(m, 'stator-layered')
+    check('layered stator floor = THEORETICAL, limited by its '
+          'unbuilt interfaces (IRL: the interface is what has not '
+          'been demonstrated)',
+          layered['level'] == 'theoretical'
+          and all(c['kind'] == 'interface'
+                  for c in layered['limitedBy']))
+    check('the limiting interface names its advancing act',
+          'measure' in layered['nextAct']
+          or 'fill' in layered['nextAct'])
+    # A missing material is unassessed, never the floor.
+    m2 = _seed_mgr()  # no MagneticMaterialOption table at all
+    gap = node_realization(m2, 'stator-simple')
+    check('unresolvable material -> level UNASSESSED with the gap '
+          'named (never a silent floor)',
+          gap['level'] == 'unassessed' and gap['unassessed'])
+
+    print('\n-- arch-6: material condition is a KEY --')
+    mm = types.SimpleNamespace(objectTables={
+        'MagneticMaterialOption': {'cu': types.SimpleNamespace(
+            name='cu',
+            properties_json=json.dumps({
+                'tensile_mpa': {'conditions': {
+                    'drawn': {'value': 380.0,
+                              'provenance': 'literature-est'},
+                    'annealed': {'value': 210.0,
+                                 'provenance': 'literature-est'}}},
+                'sigma_s_m': {'value': 5.96e7,
+                              'provenance': 'literature-est'}}))}},
+        objectTypingDict={'MagneticMaterialOption': object()})
+    check('stated condition selects its own property row '
+          '(drawn 380 vs annealed 210)',
+          material_prop(mm, 'cu', 'tensile_mpa', 'drawn')[0] == 380.0
+          and material_prop(mm, 'cu', 'tensile_mpa',
+                            'annealed')[0] == 210.0)
+    check('UNSTATED condition on a condition-dependent property is '
+          'unassessed, not the headline value',
+          material_prop(mm, 'cu', 'tensile_mpa')[0] is None)
+    check('condition-independent properties answer regardless',
+          material_prop(mm, 'cu', 'sigma_s_m',
+                        'drawn')[0] == 5.96e7)
+
+
 def main():
     selftest_upsert()
     selftest_arch2()
     selftest_arch3()
     selftest_arch4()
     selftest_arch5()
+    selftest_arch6()
     total, passed = len(_results), sum(_results)
     print(f'\n{passed}/{total} checks passed')
     return 0 if passed == total else 1
