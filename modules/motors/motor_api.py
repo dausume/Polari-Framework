@@ -36,6 +36,10 @@ class MotorsAPI(treeObject):
                 suffix='materials')
             add('/api/motors/drive/{design_name}', self,
                 suffix='drive')
+            add('/api/motors/simplest', self,
+                suffix='simplest')
+            add('/api/motors/road-to-advanced', self,
+                suffix='road_to_advanced')
             add('/api/motors/wire-insulation', self,
                 suffix='wire_insulation')
             add('/api/motors/local-wire-route', self,
@@ -462,3 +466,23 @@ class MotorsAPI(treeObject):
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out
+
+    def on_get_simplest(self, request, response):
+        from motors.simple_first import manufacturable_ladder
+        def f(k, d):
+            try:
+                return float(request.params.get(k, d))
+            except (TypeError, ValueError):
+                return d
+        out = manufacturable_ladder(
+            self.manager, mmf=f('mmf', 21.45),
+            supply=request.params.get('supply', 'one-alkaline-cell'),
+            target_years=f('targetYears', 4.0),
+            max_window_mm2=f('maxWindowMm2', 900.0))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_road_to_advanced(self, request, response):
+        from motors.simple_first import road_to_advanced
+        response.media = road_to_advanced(self.manager)

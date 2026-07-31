@@ -58,6 +58,11 @@ class TechTreeAPI(treeObject):
             add('/api/techtree/completion', self, suffix='completion')
             add('/api/techtree/baseline', self, suffix='baseline')
             add('/api/techtree/validate', self, suffix='validate')
+            # wire-1: the DRAWING strain of manufacturing-tools —
+            # a capability four trees pull on, so it gets a surface
+            # of its own rather than living inside one consumer.
+            add('/api/techtree/wire-strain', self,
+                suffix='wire_strain')
             add('/api/techtree/node', self, suffix='node')
             add('/api/techtree/segment', self, suffix='segment')
             add('/api/techtree/assignment', self, suffix='assignment')
@@ -260,3 +265,7 @@ class TechTreeAPI(treeObject):
     def on_post_policy(self, request, response):
         self._upsert(request, response, 'PolicyDefinition',
                      self._POLICY_FIELDS)
+
+    def on_get_wire_strain(self, request, response):
+        from techtree.wire_ladder import drawing_strain
+        response.media = drawing_strain()

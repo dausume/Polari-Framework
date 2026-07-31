@@ -492,6 +492,48 @@ if __name__ == '__main__':
     check('render payload carries dataGaps per node',
           len(p3d['dataGaps']) == 2)
 
+    print('\n== suite: wire-1 drawing strain ==')
+    from techtree.wire_ladder import (
+        bootstrap_loops, drawing_strain, pcd_route, unlock_analysis,
+    )
+    ds = drawing_strain()
+    check('wire manufacturing is a STRAIN of manufacturing-tools, '
+          'not a rival tree — that tree already exists for the '
+          'cross-cutting apparatus many domains pull on',
+          ds['ok'] and 'manufacturing-tools' in ds['answer'])
+    un = unlock_analysis()
+    check('consumers span 3+ trees, which IS the argument for a '
+          'shared node — otherwise each domain rediscovers wire '
+          'drawing separately',
+          un['ok'] and un['totalConsumers'] >= 6
+          and len({t for r in un['byRung'] for t in r['trees']}) >= 3)
+    loops = bootstrap_loops()
+    check('every circular dependency is carried WITH its break — a '
+          'loop without an entry point is a dead end, with one it '
+          'is only an ordering problem',
+          loops['ok'] and loops['count'] >= 3
+          and not loops['unbroken'])
+    check('the kiln loop breaks on PYROMETRIC CONES, which is how '
+          'our ceramics rung was ALREADY specified — the loop was '
+          'broken before we noticed it was a loop',
+          any('CONES' in lp['break'].upper()
+              for lp in loops['loops']))
+    from techtree.wire_ladder import WIRE_CONSUMERS
+    check('the clock sits at W2, not W3 — mag-25 corrected an '
+          'earlier pass that optimised for power and landed on wire '
+          'too fine to run off a cell',
+          next(c['rung'] for c in WIRE_CONSUMERS
+               if 'magnet wire' in c['consumer']) == 'W2')
+    pcd = pcd_route()
+    check('every step of the diamond chain has a shortcut EXCEPT '
+          'boring the die, so that is the capability to attack',
+          pcd['ok'] and len(pcd['irreducible']) == 1
+          and 'BORE' in pcd['irreducible'][0]['act'].upper())
+    check('industrial specs are reframed against OUR volume: die '
+          'life and in-line annealing keep a LINE running fast, and '
+          'we need 210 m once',
+          '210 m' in pcd['reframing'])
+
     failed = [label for label, ok in _results if not ok]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} checks '
           f'passed' + (f'; FAILED: {failed}' if failed else ''))

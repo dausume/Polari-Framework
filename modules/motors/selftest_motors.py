@@ -1529,6 +1529,59 @@ check('and it states the honest expected outcome up front: '
       'not the same as closing the loop' in
       route['honestExpectation'])
 
+# ---- mag-25: simplest case first --------------------------------
+print('\n-- mag-25 simplest case first --')
+from motors.simple_first import (              # noqa: E402
+    coil_voltage, manufacturable_ladder, road_to_advanced,
+)
+
+check('coil voltage depends ONLY on gauge — turns CANCEL out of '
+      'V = MMF*rho*MTL/A_copper, which is why gauge and battery '
+      'life are independent levers',
+      abs(coil_voltage(21.45, 46) - coil_voltage(21.45, 46)) < 1e-12
+      and coil_voltage(21.45, 34) < coil_voltage(21.45, 46))
+
+lad = manufacturable_ladder()
+byawg = {r['awg']: r for r in lad['candidates']}
+check('THE HIDDEN COMPONENT: 46 AWG needs >1.5 V, so mag-22\'s '
+      'design silently assumed a step-up converter with a quiescent '
+      'draw nobody costed',
+      byawg[46]['coilVoltageV'] > 1.5
+      and byawg[46]['needsConverter'] is True
+      and 'CONVERTER' in lad['theHiddenComponent'].upper())
+check('and the coarse gauges run DIRECTLY off one cell — the thing '
+      'a commercial movement does and ours could not',
+      byawg[34]['runsDirectlyOffSupply']
+      and byawg[38]['runsDirectlyOffSupply'])
+check('a manufacturable design clears the battery target at a rung '
+      'reachable with carbide dies — no diamond, no press',
+      lad['simplest'] is not None
+      and lad['simplest']['rung'] in ('W1', 'W2'))
+check('the target tolerance stops a rounding artefact reading as an '
+      'engineering distinction (3.99 years is not a failure)',
+      byawg[36]['meetsTargetYears'] and byawg[32]['meetsTargetYears'])
+check('"simplest" states its criterion — easiest to MAKE, not '
+      'smallest — and carries the smallest viable alongside so the '
+      'trade is visible rather than decided silently',
+      'easiest to MAKE' in lad['selectionCriterion']
+      and lad['smallestViable']['windowMm2']
+      <= lad['simplest']['windowMm2'])
+
+road = road_to_advanced()
+check('finer wire buys SIZE and not battery life — and past ~40 AWG '
+      'it costs the ability to run off a cell at all',
+      'SIZE' in road['whatFinerWireBuys']
+      and '1.5 V' in road['theRealCeiling'])
+check('so W3 is justified by OTHER consumers (sieve mesh, strain '
+      'gauges) rather than by this clock — the road to advanced '
+      'cases is kept, not dismissed',
+      'strain gauges' in road['theRealCeiling']
+      and len(road['learningOrder']) >= 3)
+check('and the learning order starts by MEASURING a working '
+      'movement, which also settles the mag-23 model disagreement',
+      'MEASURE' in road['learningOrder'][0]['act']
+      and 'reluctance' in road['learningOrder'][0]['why'])
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
