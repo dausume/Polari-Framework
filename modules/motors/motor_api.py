@@ -46,6 +46,8 @@ class MotorsAPI(treeObject):
                 suffix='criterion')
             add('/api/motors/stress/{design_name}/{part_name}',
                 self, suffix='stress')
+            add('/api/motors/contact/{design_name}/{part_name}',
+                self, suffix='contact')
             add('/api/motors/roles/{part_name}', self,
                 suffix='roles')
             add('/api/motors/role-screen/{part_name}', self,
@@ -191,6 +193,16 @@ class MotorsAPI(treeObject):
             handling_force_n=num('handlingN', 5.0),
             assumption=request.params.get('assumption',
                                           'plane-stress'))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_contact(self, request, response, design_name,
+                       part_name):
+        from motors.contact_wear import contact_stress
+        out = contact_stress(
+            self.manager, design_name, part_name,
+            mating_material=request.params.get('mate') or None)
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out

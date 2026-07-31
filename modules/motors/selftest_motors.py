@@ -991,6 +991,77 @@ check('UNASSESSED is never a pass — a property nobody measured '
           [x['verdict'] for x in sc['screened']
            if x['unassessedOn']]))
 
+print('== suite: mag-18 contact / wear / eddy (the named gaps) ==')
+from motors.contact_wear import (  # noqa: E402
+    WEAR_K_BANDS, contact_stress, eddy_drag, wear_life,
+)
+from gears.gear_seed import SEED_GEAR_MESHES as _GMS  # noqa: E402
+
+mgrc = _mgr()
+for _cls, _seed in (('GearTrainDefinition', _GTR),
+                    ('GearDefinition', _GRS),
+                    ('GearMeshDefinition', _GMS),
+                    ('MotorPartDefinition', SEED_MOTOR_PARTS)):
+    mgrc.objectTables[_cls] = {r['name']:
+                               types.SimpleNamespace(**r)
+                               for r in _seed}
+
+c = contact_stress(mgrc, 'clock-lavet-m0', 'lavet-v2-pinion')
+check('Hertz contact: the whole tooth load rides a patch under a '
+      'micron wide — which is WHY hardness and not bulk strength '
+      'is what the colliding role demands',
+      c['ok'] and c['contactHalfWidthUm'] * 2 < 1.0
+      and c['peakPressureMpa'] > 1.0,
+      extra=str(c.get('contactHalfWidthUm')))
+check('a BRITTLE tooth is judged by the SURFACE TENSILE stress at '
+      'the trailing edge, NOT the peak pressure — judging by p_max '
+      'would flatter a ceramic badly, since it is 10-20x stronger '
+      'in compression',
+      c['judgedMpa'] == c['surfaceTensileMpa']
+      and c['judgedMpa'] < c['peakPressureMpa']
+      and 'trailing edge' in c['criterion'])
+check('and on THAT criterion the contact itself passes (SF ~8) — '
+      'so contact is not what threatens this tooth; fatigue is',
+      c['passes'] and c['safetyFactor'] > 4.0,
+      extra=str(c.get('safetyFactor')))
+
+w = wear_life(mgrc, 'lavet-v2-pinion', sliding_distance_m=1.58e5,
+              load_n=8.3e-4)
+check('wear is reported as a BAND because the Archard coefficient '
+      'spans six orders across pairs and lubrication — a single '
+      'number would be a lie',
+      w['ok'] and w['kBand'][1] / w['kBand'][0] >= 10
+      and 'BAND and not a prediction' in w['honesty'])
+check('THE FINDING: a DRY cast-on-cast pinion can lose ~1.5 mm3 in '
+      'ten years — against a whole pinion of only ~7 mm3, i.e. a '
+      'fifth of the part. This is the argument for oiling, or for '
+      'brass',
+      w['wornVolumeMm3Band'][1] > 1.0)
+check('a lubricated metal pair is ~4 orders better, which is '
+      'exactly why clock pivots are oiled',
+      WEAR_K_BANDS['lubricated-metal'][1]
+      < WEAR_K_BANDS['dry-brittle-on-brittle'][0] / 100)
+
+e = eddy_drag(mgrc, 'lavet-v2-pinion', b_gap_t=0.005,
+              frequency_hz=1.0)
+check('eddy drag evaluates AT THE STATED BUFFER — the promise the '
+      'field-buffered role made',
+      e['ok'] and e['bufferMm'] == 2.6 and e['decayFactor'] < 0.1)
+check('and the buffer works because loss goes as B SQUARED: the '
+      'field cut is squared into the loss',
+      'B SQUARED' in e['bufferHelps']
+      and e['lossDensityWPerM3'] < 1e-12)
+check('the 1/r^3 decay is named as the WEAKEST LINK with the '
+      'honest upgrade (read B from the mag-fv field views) rather '
+      'than presented as a result',
+      'weakestLink' in e and 'field views' in e['weakestLink'])
+mgrc.objectTables['MotorPartDefinition']['lavet-v2-stator'] \
+    .field_buffer_mm = None
+check('a part with NO stated buffer REFUSES the eddy check — the '
+      'role demanded geometry and the analysis enforces it',
+      not eddy_drag(mgrc, 'lavet-v2-stator', b_gap_t=0.005,
+                    frequency_hz=1.0).get('ok'))
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
