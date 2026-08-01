@@ -200,14 +200,25 @@ def product_datasheet(manager, design_name='clock-lavet-m0',
     section('winding', lambda: winding_report(manager, design_name))
 
     # Structural: the part we know is marginal.
+    # mp0: the governing pinion is THIS design's own part row (the
+    # M0b product carries a fired-ceramic pinion; grading the
+    # as-built cast one against it was a stale hardcode). Legacy
+    # name kept as the fallback for designs without part rows.
+    pinion_part = next(
+        (getattr(p, 'name', '')
+         for p in (getattr(manager, 'objectTables', None)
+                   or {}).get('MotorPartDefinition', {}).values()
+         if getattr(p, 'design_ref', '') == design_name
+         and getattr(p, 'function', '') == 'torque-transmission'),
+        'lavet-v2-pinion')
     from motors.motor_fatigue import part_fatigue
     fat = section('pinionFatigue',
                   lambda: part_fatigue(manager, design_name,
-                                       'lavet-v2-pinion'))
+                                       pinion_part))
     from motors.lifecycle_cost import cheapest_configuration
     price = section('truePrice',
                     lambda: cheapest_configuration(
-                        manager, design_name, 'lavet-v2-pinion'))
+                        manager, design_name, pinion_part))
 
     blockers = []
     if fat.get('ok') and not fat.get('passes'):

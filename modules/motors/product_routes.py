@@ -398,11 +398,10 @@ def product_routes(manager, design_name=M0B):
     return {
         'ok': True, 'design': design_name,
         'winding': ({
-            'fits': winding.get('fits'),
-            'coilVoltageV': winding.get('coilVoltageV')
-            or winding.get('voltageV'),
-            'supplyVoltsV': 1.5,
-            'directDrive': True,
+            'fitVerdict': winding.get('fitVerdict'),
+            'voltageNeededV': winding.get('voltageNeededV'),
+            'supplyVoltageV': winding.get('supplyVoltageV'),
+            'driveAchievable': winding.get('driveAchievable'),
             'note': 'mag-25 solved numbers; a measured coil '
                     'supersedes them'}
             if winding.get('ok') else
