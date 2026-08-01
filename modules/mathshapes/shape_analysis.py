@@ -296,6 +296,31 @@ def shape_properties(manager, shape_name, resolution=32):
                                  round(o['C'][i] + fr, 4)]
                                 for i in range(3)],
                 'method': spool['note']}
+    if family == 'gear':
+        from mathshapes.gear_geometry import gear_coherence
+        params = _params(shape)
+
+        def _resolve(ref, key):
+            props = shape_properties(manager, ref)
+            drv = props.get('derived') or {}
+            v = drv.get(key)
+            return v if isinstance(v, (int, float)) else None
+
+        coherent = gear_coherence(params, resolve_ref=_resolve)
+        if not coherent['ok']:
+            return {'ok': False, 'shape': shape_name,
+                    'family': family,
+                    'error': '; '.join(coherent['refusals'])}
+        o = coherent['object']
+        ra = coherent['derived']['tipRadius']
+        return {'ok': True, 'shape': shape_name, 'family': family,
+                'derived': coherent['derived'],
+                'centroid': [round(float(v), 4)
+                             for v in o['center']],
+                'boundingBox': [[round(o['center'][i] - ra, 4),
+                                 round(o['center'][i] + ra, 4)]
+                                for i in range(3)],
+                'method': coherent['note']}
     if family == 'derived-cylinder':
         from mathshapes.spool_geometry import derived_cylinder
         follower = derived_cylinder(manager, _params(shape),
@@ -476,6 +501,32 @@ def sample_surface(manager, shape_name, n=24):
                 'method': 'parametric spool (barrel + flanges) — '
                           'every size derived live from '
                           + params.get('winding_ref', '')}
+    if family == 'gear':
+        from mathshapes.gear_geometry import (
+            gear_coherence, gear_mesh,
+        )
+        params = _params(shape)
+
+        def _resolve(ref, key):
+            props = shape_properties(manager, ref)
+            drv = props.get('derived') or {}
+            v = drv.get(key)
+            return v if isinstance(v, (int, float)) else None
+
+        coherent = gear_coherence(params, resolve_ref=_resolve)
+        if not coherent['ok']:
+            return {'ok': False, 'shape': shape_name,
+                    'family': family,
+                    'error': '; '.join(coherent['refusals'])}
+        pts, tris = gear_mesh(coherent['object'],
+                              flank_samples=max(4, n // 4))
+        return {'ok': True, 'shape': shape_name, 'family': family,
+                'points': [[round(v, 4) for v in p] for p in pts],
+                'triangles': tris, 'count': len(pts),
+                'derived': coherent['derived'],
+                'latex': coherent['latex'],
+                'method': 'parametric involute spur gear ('
+                          + coherent['note'] + ')'}
     if family == 'derived-cylinder':
         from mathshapes.shape_geometry import axial_mesh
         from mathshapes.spool_geometry import derived_cylinder

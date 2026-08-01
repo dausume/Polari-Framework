@@ -509,7 +509,7 @@ SEED_CLOCK_SCENE_LAYERS = [
          {'body': 'coil', 'shape': 'motor-m0v2-winding'},
          {'body': 'bobbin-flange-a', 'shape': 'motor-m0v2-spool'},
          {'body': 'rotor-pinion',
-          'shape': 'motor-m0v2-pinion-coupled'}],
+          'shape': 'motor-m0v2-pinion-gear'}],
          'hide': ['bobbin-flange-b']}),
      'style_json': '{}',
      'description': 'Replaces the solid coil with the OBSERVABLE '

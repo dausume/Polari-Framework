@@ -646,18 +646,47 @@ SEED_LAVET_V2_PART_SHAPES = [
               'facts, not assertions.',
      'provenance_id': 'ws-4'},
     {'name': 'motor-m0v2-pinion-coupled',
-     'display_name': 'v2 pinion (follows the spool scale)',
+     'display_name': 'v2 pinion envelope (follows the spool scale)',
      'family': 'derived-cylinder',
      'parameters_json': json.dumps(
          {'ref': 'motor-m0v2-spool',
           'radius_from': 'flangeRadius', 'radius_ratio': 0.3,
           'height': 1.6, 'axis': 'z',
           'center': [-9.5, 0.0, 1.8]}),
-     'notes': 'The gear follows the spool: radius = flangeRadius '
-              'x 0.3 (matches the as-built 1.2 mm today, and '
-              'rescales with the engine when the winding is '
-              'modulated). Involute teeth stay the gr-3 seam.',
+     'notes': 'The toothless ENVELOPE follower (kept as the '
+              'generic cascade demo); the real toothed pinion is '
+              'motor-m0v2-pinion-gear.',
      'provenance_id': 'ws-4'},
+    # gr-3 (Dustin 2026-08-01): the gear with REAL, TUNABLE teeth.
+    # The rotor is TWO materials doing opposite jobs: the magnetic
+    # BACK (lavet-v2-rotor-magnet, torque-magnet-active) and this
+    # gear, which must be field-inert and wear-optimized (the
+    # colliding role — hardness, mag-16/17). They join at the
+    # ifm0-rotor-shaft interface: press-fit on the arbor (separable,
+    # as seeded) or a sol-gel bond (the promotion op, which trades
+    # the joint's fretting for bulk brittleness). WELDING is the
+    # option that does NOT work here: hard ferrite is a ceramic and
+    # heat near the join degrades magnetization — magnetize AFTER
+    # any hot process (the mag-22 route already orders it so).
+    {'name': 'motor-m0v2-pinion-gear',
+     'display_name': 'v2 pinion gear (8 involute teeth, follows '
+                     'the spool)',
+     'family': 'gear',
+     'parameters_json': json.dumps(
+         {'ref': 'motor-m0v2-spool',
+          'radius_from': 'flangeRadius', 'radius_ratio': 0.3,
+          'teeth': 8, 'pressure_angle_deg': 20.0,
+          'profile_shift': 0.55, 'addendum_coeff': 0.6,
+          'dedendum_coeff': 1.25,
+          'face_width': 1.6, 'bore_radius': 0.25,
+          'center': [-9.5, 0.0, 1.8], 'axis': 'z'}),
+     'notes': 'Pitch radius follows the cascade (flangeRadius x '
+              '0.3 -> module derives); 8 teeth need profile shift '
+              '0.55 against undercut and a shortened addendum '
+              'against tip sharpening — both coherence-checked. '
+              'Cycloidal (the horological low-count profile) '
+              'remains a named seam.',
+     'provenance_id': 'gr-3'},
 ]
 
 

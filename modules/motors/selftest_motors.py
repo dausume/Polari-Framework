@@ -1970,8 +1970,18 @@ check('ws-4: the winding-detail layer swaps the whole coupled '
       'flange',
       {s['shape'] for s in _lw['swaps']}
       == {'motor-m0v2-winding', 'motor-m0v2-spool',
-          'motor-m0v2-pinion-coupled'}
+          'motor-m0v2-pinion-gear'}
       and _lw['hide'] == ['bobbin-flange-b'])
+from mathshapes.gear_geometry import gear_coherence  # noqa: E402
+_gp = _vjson.loads(
+    _v2['motor-m0v2-pinion-gear']['parameters_json'])
+check('gr-3: the seeded pinion gear coheres STANDALONE at the '
+      'as-built pitch (module 0.3 x 8 teeth -> r_p 1.2) with a '
+      'positive tip land',
+      (lambda r: r['ok']
+       and abs(r['derived']['pitchRadius'] - 1.1993) < 0.01
+       and r['derived']['tipLand'] > 0)(
+          gear_coherence({**_gp, 'module': 0.29983, 'ref': None})))
 
 _sm = _vm
 _sm.objectTables['ClockSceneLayerDefinition'] = {

@@ -182,6 +182,69 @@ if __name__ == '__main__':
           wire['renderMode'] == 'wire'
           and 'turns rendered' in wire['method'])
 
+    print('== suite: gr-3 — the gear with real, tunable teeth ==')
+    from mathshapes.gear_geometry import (
+        gear_coherence, gear_mesh, gear_profile,
+    )
+    GEAR = {'module': 0.3, 'teeth': 8, 'pressure_angle_deg': 20.0,
+            'profile_shift': 0.55, 'addendum_coeff': 0.6,
+            'face_width': 1.6, 'bore_radius': 0.25,
+            'center': [0, 0, 0], 'axis': 'z'}
+    g = gear_coherence(GEAR)
+    check('a low-count clock pinion coheres with shift + short '
+          'addendum (pitch=mz/2, base=pitch cos a)',
+          g['ok']
+          and abs(g['derived']['pitchRadius'] - 1.2) < 1e-6
+          and abs(g['derived']['baseRadius']
+                  - 1.2 * math.cos(math.radians(20))) < 1e-5
+          and g['derived']['tipLand'] > 0)
+    check('UNDERCUT refuses at x=0 for 8 teeth, naming the shift '
+          'that clears it and the cycloidal seam',
+          (lambda r: not r['ok']
+           and 'UNDERCUT' in r['refusals'][0]
+           and 'cycloidal' in r['refusals'][0])(
+              gear_coherence({**GEAR, 'profile_shift': 0.0})))
+    check('a tip that sharpens to nothing refuses, naming both '
+          'knobs',
+          (lambda r: not r['ok']
+           and 'sharpens' in r['refusals'][0])(
+              gear_coherence({**GEAR, 'addendum_coeff': 1.4})))
+    check('a bore swallowing the root circle refuses',
+          not gear_coherence({**GEAR, 'bore_radius': 1.1})['ok'])
+    prof = gear_profile(g['object'])
+    radii = [math.hypot(p[0], p[1]) for p in prof]
+    check('the profile SHOWS the teeth: radius oscillates '
+          'root-to-tip 8 times around one revolution',
+          abs(max(radii) - g['derived']['tipRadius']) < 1e-6
+          and abs(min(radii) - g['derived']['rootRadius']) < 1e-6
+          and sum(1 for i in range(len(radii))
+                  if radii[i - 1] < g['object']['r_p'] <= radii[i])
+          == 8)
+    pts, tris = gear_mesh(g['object'])
+    check('the gear solid meshes closed (profile + bore, top + '
+          'bottom, 8n triangles)',
+          len(pts) == 4 * len(prof)
+          and len(tris) == 8 * len(prof))
+    g12 = gear_coherence({**GEAR, 'teeth': 12,
+                          'profile_shift': 0.3})
+    check('teeth are TUNABLE: 12 teeth at the same module widen '
+          'the pitch circle exactly (mz/2)',
+          g12['ok']
+          and abs(g12['derived']['pitchRadius'] - 1.8) < 1e-9)
+    _shape_rows['g'] = types.SimpleNamespace(
+        name='g', family='gear',
+        parameters_json=__import__('json').dumps(
+            {k: v for k, v in GEAR.items() if k != 'module'}
+            | {'ref': 's', 'radius_from': 'flangeRadius',
+               'radius_ratio': 0.5}))
+    gprops = shape_properties(_mgr, 'g')
+    check('the gear joins the CASCADE: module derives from the '
+          'spool it follows (pitch = flangeRadius x ratio)',
+          gprops.get('ok')
+          and abs(gprops['derived']['pitchRadius']
+                  - shape_properties(_mgr, 's')['derived'][
+                      'flangeRadius'] * 0.5) < 1e-6)
+
     print('== suite: matrix-equation parity — the drawn object IS '
           'the equation ==')
     spec = winding_matrix_equation(c['object'])
