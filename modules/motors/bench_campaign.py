@@ -115,13 +115,16 @@ def bench_campaign(manager, design_name=PRODUCT):
         import json as _j
         props = (_j.loads(getattr(opt, 'properties_json', '')
                           or '{}') if opt else {})
-        br = (props.get('remanence_t') or {}).get('value')
+        entry_b = props.get('b_r_t') or {}
+        br = entry_b.get('value')
         pred = ({'predictedRemanenceT': br,
+                 'provenance': entry_b.get('provenance', ''),
+                 'note': entry_b.get('note', ''),
                  'basis': 'opt-srfe12o19 catalog claim '
                           '(literature prior — this measurement '
                           'is what turns it into a made number)'}
                 if br else
-                {'refusal': 'opt-srfe12o19 states no remanence — '
+                {'refusal': 'opt-srfe12o19 states no b_r_t — '
                             'seed the property before comparing'})
     except Exception as e:
         pred = {'refusal': f'raised: {e}'}
@@ -143,8 +146,12 @@ def bench_campaign(manager, design_name=PRODUCT):
     try:
         from motors.local_route import minimum_drive_current
         mdc = minimum_drive_current(manager, CONTROL)
-        pred = ({'predictedMinMa': (mdc.get('minAmps') or 0)
-                 * 1000.0 if mdc.get('ok') else None,
+        pred = ({'predictedThresholdMa':
+                 round((mdc.get('thresholdAmps') or 0) * 1000.0,
+                       4),
+                 'designedMaWithMargin':
+                 round((mdc.get('designedAmps') or 0) * 1000.0,
+                       4),
                  'basis': 'bisection of the clock_sim step '
                           'condition (mag-22 — the stated 20 mA '
                           'was never solved for)'}
