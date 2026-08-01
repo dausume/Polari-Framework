@@ -2322,6 +2322,45 @@ check('mp0-4: the 24 h timekeeping QA gate ties measurement to '
       SEED_CLOCK_QA[0]['product_kind'] == 'm0-wall-clock'
       and 'MotorVerificationRun' in SEED_CLOCK_QA[0]['method'])
 
+print('\n-- bench-1: the W2 bench campaign --')
+from motors.bench_campaign import bench_campaign  # noqa: E402
+
+camp = bench_campaign(_pm)
+by_meas = {e['measurement']: e for e in camp['measurements']}
+check('bench-1: five measurements in the stated order, ending at '
+      'the 24 h product gate',
+      camp['ok'] and camp['order'] == [
+          'coil-resistance', 'wound-core-inductance',
+          'rotor-remanence', 'minimum-drive-current',
+          'timekeeping-24h'])
+check('bench-1: every entry names its instrument, what it '
+      'ADJUDICATES, and the record-back seam',
+      all(e['instrument'] and e['adjudicates'] and e['recordVia']
+          for e in camp['measurements']))
+check('bench-1: the resistance prediction is LIVE from the M0b '
+      'winding (~274 ohm)',
+      200 < (by_meas['coil-resistance'].get('predictedOhm') or 0)
+      < 350,
+      str(by_meas['coil-resistance'])[:150])
+check('bench-1: the inductance entry carries BOTH models (FEM + '
+      'lumped ratio) — the measurement adjudicates, it does not '
+      'confirm',
+      ('predictedFem' in by_meas['wound-core-inductance']
+       and 'predictedLumped'
+       in by_meas['wound-core-inductance'])
+      or by_meas['wound-core-inductance'].get('refusal'),
+      str(by_meas['wound-core-inductance'])[:200])
+check('bench-1: the timekeeping entry predicts from the as-3 '
+      'proof and routes to the measured-run seam',
+      by_meas['timekeeping-24h'].get('predictedVerdict')
+      == 'keeps-time'
+      and by_meas['timekeeping-24h']['recordVia'].get('kind')
+      == 'measured')
+check('bench-1: refused predictions stay LISTED, never dropped',
+      set(camp['refusedPredictions'])
+      == {e['measurement'] for e in camp['measurements']
+          if e.get('refusal')})
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

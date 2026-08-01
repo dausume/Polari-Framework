@@ -194,6 +194,11 @@ SECTION_SOURCES = {
         'motors.product_routes', fromlist=['product_routes']
     ).product_routes(m, design_name=a.get('design',
                                           'clock-lavet-m0b')),
+    # bench-1: the W2 measurement protocol.
+    'bench-campaign': lambda m, a: __import__(
+        'motors.bench_campaign', fromlist=['bench_campaign']
+    ).bench_campaign(m, design_name=a.get('design',
+                                          'clock-lavet-m0b')),
     # motion
     'clock-sim': _src_design('motors.motor_designer', 'clock_sim'),
     'verification': _src_design('motors.motor_verify',
@@ -534,7 +539,15 @@ SEED_CLOCK_VIEWS = [
           'args': {},
           'lead': 'What has actually been MEASURED vs replayed: '
                   'made-and-measured is earned by bench records '
-                  'only; sim replays are provenance, not proof.'}]),
+                  'only; sim replays are provenance, not proof.'},
+         {'name': 'bench-campaign', 'source': 'bench-campaign',
+          'args': {},
+          'lead': 'The W2 BENCH SHEET: five measurements in '
+                  'order, each with its live-computed prediction '
+                  '(both models where they disagree), its '
+                  'instrument, what it adjudicates, and the exact '
+                  'seam that records the result — the named next '
+                  'advancement past M0, ready for the bench.'}]),
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'view-cost',
      'display_name': 'Cost & dependency trace',

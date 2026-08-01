@@ -52,6 +52,8 @@ class MotorsAPI(treeObject):
                 suffix='timekeeping_proof')
             add('/api/motors/product-routes', self,
                 suffix='product_routes')
+            add('/api/motors/bench-campaign', self,
+                suffix='bench_campaign')
             add('/api/motors/component-view/{part_name}', self,
                 suffix='component_view')
             # goal-1..3: goals + constraints over composition's
@@ -570,6 +572,15 @@ class MotorsAPI(treeObject):
         commercial sourcing, gaps and blockers kept."""
         from motors.product_routes import product_routes
         response.media = product_routes(
+            self.manager,
+            design_name=request.params.get('design',
+                                           'clock-lavet-m0b'))
+
+    def on_get_bench_campaign(self, request, response):
+        """bench-1: the W2 measurement protocol with LIVE
+        predictions and record-back seams."""
+        from motors.bench_campaign import bench_campaign
+        response.media = bench_campaign(
             self.manager,
             design_name=request.params.get('design',
                                            'clock-lavet-m0b'))
