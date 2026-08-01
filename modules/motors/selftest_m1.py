@@ -1,7 +1,9 @@
 """
 @module motors.selftest_m1
 
-m1-1 selftests: the step-angle arithmetic pinned BOTH ways
+M1 selftests (m1-1 solver, m1-2 views).
+
+m1-1: the step-angle arithmetic pinned BOTH ways
 (360/(phases*poles) and the slot/pole difference formula), the
 no-load 12-step revolution, the HAND-CHECKED first-step angle,
 reversal, load lag (equilibrium settles short of aligned),
@@ -179,6 +181,101 @@ check('margin applied and honesty stated',
               - mdc['thresholdAmps'] * mdc['marginFactor'])
       < 1e-6
       and 'not a measurement' in mdc['honesty'])
+
+print('== suite: m1-2 views as rows ==')
+from motors.clock_views import (        # noqa: E402
+    DISCIPLINES, SECTION_SOURCES, view_payload,
+)
+from motors.m1_views import (           # noqa: E402
+    M1_DESIGN, M1_SECTION_SOURCES, SEED_M1_VIEWS,
+    m1_phase_electrics,
+)
+from motors.motor_drive import (        # noqa: E402
+    SEED_CONTROLLER_PROFILES, SEED_PHASE_BINDINGS,
+)
+from motors.motor_parts import SEED_MOTOR_PARTS  # noqa: E402
+
+
+def _table(seed):
+    return {s['name']: types.SimpleNamespace(**s) for s in seed}
+
+
+vm = _mgr()
+vm.objectTables['ClockViewDefinition'] = _table(SEED_M1_VIEWS)
+vm.objectTables['MotorControllerProfile'] = _table(
+    SEED_CONTROLLER_PROFILES)
+vm.objectTables['PhaseBindingDefinition'] = _table(
+    SEED_PHASE_BINDINGS)
+vm.objectTables['MotorPartDefinition'] = _table(SEED_MOTOR_PARTS)
+vm.objectTypingDict = {k: object() for k in vm.objectTables}
+
+check('six M1 views seeded, disciplines all legal, M1 names',
+      len(SEED_M1_VIEWS) == 6
+      and all(v['name'].startswith('view-m1-')
+              for v in SEED_M1_VIEWS)
+      and {v['discipline'] for v in SEED_M1_VIEWS}
+      <= set(DISCIPLINES))
+check('every M1 section source resolves in the ONE dispatch '
+      'table (registration at import, proven)',
+      all(s['source'] in SECTION_SOURCES
+          for v in SEED_M1_VIEWS
+          for s in json.loads(v['sections_json']))
+      and set(M1_SECTION_SOURCES) <= set(SECTION_SOURCES))
+check('nav-4 idiom: every section LEADS, and every section pins '
+      'design=reluctance-6s4p-m1 (no M0 leak through the caller '
+      'default)',
+      all(s.get('lead')
+          and s.get('args', {}).get('design') == M1_DESIGN
+          for v in SEED_M1_VIEWS
+          for s in json.loads(v['sections_json'])))
+
+seqv = view_payload(vm, 'view-m1-sequencing')
+_by = {s['section']: s for s in seqv.get('sections', [])}
+check('sequencing view assembles: solver, holding torque and '
+      'drive card ANSWER from the fixture',
+      seqv.get('ok')
+      and _by['sequence'].get('payload', {}).get('stepsTaken')
+      == 12
+      and _by['holding-torque'].get('payload', {})
+      .get('peakTorqueNm', 0) > 0
+      and _by['drive-profile'].get('payload', {}).get('ok'))
+check('min-current section refuses BY NAME (no load stated) — '
+      'refused in the payload, never dropped',
+      'min-current' in seqv.get('refusedSections', [])
+      and 'load' in _by['min-current'].get('refusal', ''))
+
+pe = m1_phase_electrics(vm)
+check('phase electrics: six coils -> three phases, R_phase = '
+      '2 x R_coil, phases predicted identical',
+      pe.get('ok') and pe['phaseCount'] == 3
+      and all(abs(p['rPhaseOhm']
+                  - 2.0 * pe['perCoil']['resistanceOhm']) < 1e-9
+              for p in pe['phases'])
+      and pe['imbalance']['predicted'] == 0.0)
+check('per-phase L is a NAMED GAP whose knob is the m1-7 bench',
+      pe.get('ok')
+      and all(p['lPhaseH'] is None for p in pe['phases'])
+      and 'm1-7' in str(pe['inductanceGap']['suggestion']))
+
+posv = view_payload(vm, 'view-m1-positioning')
+_pby = {s['section']: s for s in posv.get('sections', [])}
+check('positioning view: the PROOF refuses by name and its '
+      'suggestion names the m1-5 seam; the solver section '
+      'answers meanwhile',
+      posv.get('ok')
+      and 'positioning-proof' in posv.get('refusedSections', [])
+      and 'm1_positioning' in str(
+          _pby['positioning-proof'].get('suggestion'))
+      and _pby['sequence-under-load'].get('payload', {})
+      .get('ok'))
+
+_assembled = [view_payload(vm, v['name']) for v in SEED_M1_VIEWS]
+check('all six M1 views assemble; every refused section stays '
+      'NAMED with its refusal text',
+      all(a.get('ok') for a in _assembled)
+      and all(s.get('refusal')
+              for a in _assembled for s in a['sections']
+              if not s.get('payload')))
 
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')

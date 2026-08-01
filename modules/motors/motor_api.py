@@ -18,6 +18,9 @@ from motors.motor_designer import (
 from motors.m1_sequencing import (
     holding_torque, m1_minimum_drive_current, sequence_sim,
 )
+# m1-2: importing m1_views registers the M1 section sources into
+# clock_views.SECTION_SOURCES before any view payload assembles.
+import motors.m1_views  # noqa: F401
 
 
 class MotorsAPI(treeObject):
