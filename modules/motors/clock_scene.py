@@ -276,22 +276,39 @@ def _shape_swap(manager, params, design):
     CROSS-CHECK: two modules assert the coil's mean turn length
     (this math object, and motor_winding's bobbin model) — when
     they disagree, the payload says so instead of choosing."""
-    body = params.get('body', '')
-    target = params.get('shape', '')
-    if not body or not target:
+    swaps = list(params.get('swaps') or [])
+    if params.get('body') and params.get('shape'):
+        swaps.append({'body': params['body'],
+                      'shape': params['shape']})
+    if not swaps:
         return {'ok': False,
-                'refusal': 'shape-swap needs {body, shape} params'}
+                'refusal': 'shape-swap needs {swaps: [{body, '
+                           'shape}...]} params'}
     from mathshapes.shape_analysis import shape_properties
-    props = shape_properties(manager, target)
-    if not props.get('ok'):
+    resolved, problems, first_drv = [], [], {}
+    for s in swaps:
+        props = shape_properties(manager, s.get('shape', ''))
+        if not props.get('ok'):
+            problems.append(f'"{s.get("shape")}" refuses: '
+                            f'{props.get("error")}')
+            continue
+        resolved.append({'body': s.get('body', ''),
+                         'shapeRef': f'mathshape:{s["shape"]}',
+                         'derived': props.get('derived'),
+                         'note': props.get('method', '')})
+        if not first_drv:
+            first_drv = props.get('derived') or {}
+    if not resolved:
         return {'ok': False,
-                'refusal': f'target shape "{target}" refuses: '
-                           f'{props.get("error")}'}
-    out = {'ok': True, 'body': body,
-           'shapeRef': f'mathshape:{target}',
-           'derived': props.get('derived'),
-           'note': props.get('method', '')}
-    drv = props.get('derived') or {}
+                'refusal': '; '.join(problems)}
+    out = {'ok': True, 'swaps': resolved,
+           'hide': list(params.get('hide') or []),
+           'body': resolved[0]['body'],
+           'shapeRef': resolved[0]['shapeRef'],
+           'derived': resolved[0]['derived'],
+           'note': resolved[0]['note'],
+           **({'partialRefusals': problems} if problems else {})}
+    drv = first_drv
     if drv.get('meanTurnLength'):
         try:
             from motors.motor_winding import winding_report
@@ -488,14 +505,20 @@ SEED_CLOCK_SCENE_LAYERS = [
     {'name': 'layer-winding-detail',
      'display_name': 'Winding — the actual wire',
      'kind': 'shape-swap', 'source': 'mathshapes-winding',
-     'params_json': _j({'body': 'coil',
-                        'shape': 'motor-m0v2-winding'}),
+     'params_json': _j({'swaps': [
+         {'body': 'coil', 'shape': 'motor-m0v2-winding'},
+         {'body': 'bobbin-flange-a', 'shape': 'motor-m0v2-spool'},
+         {'body': 'rotor-pinion',
+          'shape': 'motor-m0v2-pinion-coupled'}],
+         'hide': ['bobbin-flange-b']}),
      'style_json': '{}',
      'description': 'Replaces the solid coil with the OBSERVABLE '
-                    'winding — the ws-1 matrix-equation math '
-                    'object (1500 turns of 44 AWG as built), with '
-                    'the geometry-vs-electrical MTL cross-check '
-                    'riding the payload.',
+                    'winding (ws-1 math object), the flanges with '
+                    'the SPOOL that derives from it, and the '
+                    'pinion with its scale-follower — the whole '
+                    'coupled family, with the geometry-vs-'
+                    'electrical MTL cross-check riding the '
+                    'payload.',
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'layer-interface-markers',
      'display_name': 'Interfaces — joints & failure modes',

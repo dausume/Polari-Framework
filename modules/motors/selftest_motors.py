@@ -1943,6 +1943,35 @@ check('the seeded winding row is a COHERENT math object '
       and _wc['derived']['layers'] >= 2
       and _wc['derived']['outerRadius'] < 3.4,
       str(_wc))
+from mathshapes.spool_geometry import (   # noqa: E402
+    spool_from_winding,
+)
+_sp = spool_from_winding(
+    _vjson.loads(_v2['motor-m0v2-winding']['parameters_json']),
+    _vjson.loads(_v2['motor-m0v2-spool']['parameters_json']))
+check('ws-4: the seeded spool follows the winding and lands on '
+      'the as-built flange (r ~4.0), utilization honest',
+      _sp['ok']
+      and abs(_sp['derived']['flangeRadius'] - 4.0) < 0.01
+      and 0 < _sp['derived']['utilization'] < 1,
+      str(_sp.get('derived') or _sp.get('refusals')))
+_pin = _vjson.loads(
+    _v2['motor-m0v2-pinion-coupled']['parameters_json'])
+check('ws-4: the pinion follows the spool (flangeRadius x 0.3 '
+      '~= the as-built 1.2)',
+      _pin['ref'] == 'motor-m0v2-spool'
+      and abs(_sp['derived']['flangeRadius'] * _pin['radius_ratio']
+              - 1.2) < 0.01)
+_lw = _vjson.loads([l for l in SEED_CLOCK_SCENE_LAYERS
+                    if l['name'] == 'layer-winding-detail'
+                    ][0]['params_json'])
+check('ws-4: the winding-detail layer swaps the whole coupled '
+      'family (winding + spool + pinion) and hides the redundant '
+      'flange',
+      {s['shape'] for s in _lw['swaps']}
+      == {'motor-m0v2-winding', 'motor-m0v2-spool',
+          'motor-m0v2-pinion-coupled'}
+      and _lw['hide'] == ['bobbin-flange-b'])
 
 _sm = _vm
 _sm.objectTables['ClockSceneLayerDefinition'] = {

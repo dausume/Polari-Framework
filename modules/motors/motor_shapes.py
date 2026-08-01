@@ -626,6 +626,38 @@ SEED_LAVET_V2_PART_SHAPES = [
               'display knobs whose values ride the method string. '
               'The equation is never decimated.',
      'provenance_id': 'ws-2'},
+    # ws-4: the COUPLED family — nothing below states a size the
+    # winding already implies. Modulate the winding (turns,
+    # fineness) and the spool flanges + the follower gear rescale
+    # on the next read: the engine-scale cascade as data.
+    {'name': 'motor-m0v2-spool',
+     'display_name': 'v2 spool (barrel + flanges, follows the '
+                     'winding)',
+     'family': 'spool',
+     'parameters_json': json.dumps(
+         {'winding_ref': 'motor-m0v2-winding',
+          'barrel_wall': 0.35,
+          'flange_thickness': 0.7,
+          'flange_clearance': 2.22}),
+     'notes': 'Barrel bore = the winding bore; window = the '
+              'winding window; flange radius = wound OUTER radius '
+              '+ clearance. A winding that overflows the flange '
+              'REFUSES. turnCapacity/utilization are derived '
+              'facts, not assertions.',
+     'provenance_id': 'ws-4'},
+    {'name': 'motor-m0v2-pinion-coupled',
+     'display_name': 'v2 pinion (follows the spool scale)',
+     'family': 'derived-cylinder',
+     'parameters_json': json.dumps(
+         {'ref': 'motor-m0v2-spool',
+          'radius_from': 'flangeRadius', 'radius_ratio': 0.3,
+          'height': 1.6, 'axis': 'z',
+          'center': [-9.5, 0.0, 1.8]}),
+     'notes': 'The gear follows the spool: radius = flangeRadius '
+              'x 0.3 (matches the as-built 1.2 mm today, and '
+              'rescales with the engine when the winding is '
+              'modulated). Involute teeth stay the gr-3 seam.',
+     'provenance_id': 'ws-4'},
 ]
 
 

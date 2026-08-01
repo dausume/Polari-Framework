@@ -92,6 +92,96 @@ if __name__ == '__main__':
           and 'of 1500 turns rendered' in mesh['method'],
           mesh['method'])
 
+    print('== suite: ws-4 — the coupled family cascades ==')
+    from mathshapes.spool_geometry import (
+        derived_cylinder, spool_from_winding,
+    )
+    SPOOL = {'barrel_wall': 0.3, 'flange_thickness': 0.5,
+             'flange_clearance': 0.5}
+    sp = spool_from_winding(GOOD, SPOOL)
+    check('spool derives every size from its winding '
+          '(flange = outer 2.5 + clearance 0.5)',
+          sp['ok']
+          and abs(sp['derived']['flangeRadius'] - 3.0) < 1e-9
+          and abs(sp['derived']['overallLength'] - 3.0) < 1e-9
+          and sp['derived']['turnCapacity'] == 16
+          and abs(sp['derived']['utilization'] - 10 / 16) < 1e-9)
+    sp2 = spool_from_winding({**GOOD, 'turns': 14}, SPOOL)
+    check('MODULATION CASCADES: +4 turns -> new layer -> flange '
+          'radius follows the wound outer',
+          sp2['ok']
+          and sp2['derived']['flangeRadius']
+          > sp['derived']['flangeRadius'])
+    over = spool_from_winding({**GOOD, 'turns': 21},
+                              {**SPOOL, 'flange_radius': 2.0})
+    check('a winding that OVERFLOWS a FIXED physical flange '
+          'refuses, naming capacity and the knobs (follow-mode '
+          'flanges grow instead — overflow impossible by '
+          'construction)',
+          not over['ok']
+          and 'OVERFLOWS' in over['refusals'][0]
+          and 'capacity 8' in over['refusals'][0],
+          str(over.get('refusals')))
+    check('wall thicker than the bore refuses',
+          not spool_from_winding(
+              GOOD, {**SPOOL, 'barrel_wall': 1.5})['ok'])
+
+    from mathshapes.shape_analysis import shape_properties
+    _shape_rows = {
+        'w': types.SimpleNamespace(
+            name='w', family='winding',
+            parameters_json=__import__('json').dumps(GOOD)),
+        's': types.SimpleNamespace(
+            name='s', family='spool',
+            parameters_json=__import__('json').dumps(
+                {'winding_ref': 'w', **SPOOL})),
+    }
+    _mgr = types.SimpleNamespace(
+        objectTables={'MathShapeDefinition': _shape_rows})
+    gear = derived_cylinder(
+        _mgr, {'ref': 's', 'radius_from': 'flangeRadius',
+               'radius_ratio': 0.5, 'height': 1.0},
+        shape_properties)
+    check('the gear FOLLOWS the spool: radius = flangeRadius x '
+          'ratio, resolved live through the reference chain',
+          gear['ok'] and abs(gear['object']['radius'] - 1.5) < 1e-9)
+    _shape_rows['w'].parameters_json = __import__('json').dumps(
+        {**GOOD, 'turns': 14})
+    gear2 = derived_cylinder(
+        _mgr, {'ref': 's', 'radius_from': 'flangeRadius',
+               'radius_ratio': 0.5, 'height': 1.0},
+        shape_properties)
+    check('tune the WINDING and the GEAR rescales — the whole '
+          'chain is live, nothing copied',
+          gear2['ok']
+          and gear2['object']['radius'] > gear['object']['radius'])
+    check('follower naming a missing derived value refuses with '
+          'the available keys',
+          not derived_cylinder(
+              _mgr, {'ref': 's', 'radius_from': 'nope',
+                     'radius_ratio': 1.0},
+              shape_properties)['ok'])
+
+    print('== suite: ws-4 — display LOD (the equation never '
+          'changes) ==')
+    from mathshapes.winding_geometry import winding_display_mesh
+    big = winding_coherence({**GOOD, 'turns': 5000,
+                             'window_length': 500.0})
+    solid = winding_display_mesh(big['object'], {})
+    check('past the wire limit auto mode draws the wound annulus '
+          'with a textureHint carrying the TRUE counts',
+          solid['renderMode'] == 'solid'
+          and solid['textureHint']['turns'] == 5000
+          and solid['textureHint']['turnsPerLayer']
+          == big['object']['tpl']
+          and 'equation is unchanged' in solid['method'])
+    wire = winding_display_mesh(big['object'],
+                                {'render_mode': 'wire'})
+    check('explicit wire mode still draws wire (decimated, '
+          'honestly)',
+          wire['renderMode'] == 'wire'
+          and 'turns rendered' in wire['method'])
+
     print('== suite: matrix-equation parity — the drawn object IS '
           'the equation ==')
     spec = winding_matrix_equation(c['object'])

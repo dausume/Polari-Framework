@@ -272,6 +272,46 @@ def shape_properties(manager, shape_name, resolution=32):
                 'boundingBox': [[round(v, 4) for v in ax] for ax in bounds],
                 'centroid': [round(v, 4) for v in centroid],
                 'method': 'analytic'}
+    if family == 'spool':
+        from mathshapes.spool_geometry import spool_from_winding
+        params = _params(shape)
+        wref = _named(manager, params.get('winding_ref', ''))
+        if wref is None:
+            return {'ok': False, 'shape': shape_name,
+                    'family': family,
+                    'error': f'winding_ref '
+                             f'"{params.get("winding_ref")}" not '
+                             f'found'}
+        spool = spool_from_winding(_params(wref), params)
+        if not spool['ok']:
+            return {'ok': False, 'shape': shape_name,
+                    'family': family,
+                    'error': '; '.join(spool['refusals'])}
+        o = spool['object']
+        fr = spool['derived']['flangeRadius']
+        return {'ok': True, 'shape': shape_name, 'family': family,
+                'derived': spool['derived'],
+                'centroid': [round(v, 4) for v in o['C']],
+                'boundingBox': [[round(o['C'][i] - fr, 4),
+                                 round(o['C'][i] + fr, 4)]
+                                for i in range(3)],
+                'method': spool['note']}
+    if family == 'derived-cylinder':
+        from mathshapes.spool_geometry import derived_cylinder
+        follower = derived_cylinder(manager, _params(shape),
+                                    shape_properties)
+        if not follower['ok']:
+            return {'ok': False, 'shape': shape_name,
+                    'family': family,
+                    'error': '; '.join(follower['refusals'])}
+        o = follower['object']
+        vol = 3.141592653589793 * o['radius'] ** 2 * o['height']
+        return {'ok': True, 'shape': shape_name, 'family': family,
+                'volumeCm3': round(vol, 4),
+                'derived': follower['derived'],
+                'centroid': [round(float(v), 4)
+                             for v in o['center']],
+                'method': follower['note']}
     if family == 'winding':
         # ws-1: analytic from the math object — the wire's own
         # volume (length x cross-section), not the bobbin envelope.
@@ -391,7 +431,7 @@ def sample_surface(manager, shape_name, n=24):
     # tuning cannot be drawn because it is not a math object.
     if family == 'winding':
         from mathshapes.winding_geometry import (
-            winding_coherence, winding_tube_mesh,
+            winding_coherence, winding_display_mesh,
         )
         params = _params(shape)
         coherent = winding_coherence(params)
@@ -399,20 +439,64 @@ def sample_surface(manager, shape_name, n=24):
             return {'ok': False, 'shape': shape_name,
                     'family': family,
                     'error': '; '.join(coherent['refusals'])}
-        mesh = winding_tube_mesh(
-            coherent['object'],
-            samples_per_turn=int(params.get(
-                'samples_per_turn', 16)),
-            turn_stride=params.get('render_turn_stride'),
-            n_ring=int(params.get('n_ring', 6)),
-            wire_scale=params.get('render_wire_scale', 1.0))
+        mesh = winding_display_mesh(coherent['object'], params)
         return {'ok': True, 'shape': shape_name, 'family': family,
                 'points': mesh['points'],
                 'triangles': mesh['triangles'],
                 'count': len(mesh['points']),
                 'method': mesh['method'],
+                'renderMode': mesh.get('renderMode'),
+                'textureHint': mesh.get('textureHint'),
                 'derived': coherent['derived'],
                 'latex': coherent['latex']}
+    # ws-4: the coupled family — spool derives from its winding,
+    # followers derive from what they follow. Refusals verbatim.
+    if family == 'spool':
+        from mathshapes.spool_geometry import (
+            spool_from_winding, spool_mesh,
+        )
+        params = _params(shape)
+        wref = _named(manager, params.get('winding_ref', ''))
+        if wref is None:
+            return {'ok': False, 'shape': shape_name,
+                    'family': family,
+                    'error': f'winding_ref '
+                             f'"{params.get("winding_ref")}" not '
+                             f'found'}
+        spool = spool_from_winding(_params(wref), params)
+        if not spool['ok']:
+            return {'ok': False, 'shape': shape_name,
+                    'family': family,
+                    'error': '; '.join(spool['refusals'])}
+        pts, tris = spool_mesh(spool, n_lon=max(n, 24))
+        return {'ok': True, 'shape': shape_name, 'family': family,
+                'points': [[round(v, 4) for v in p] for p in pts],
+                'triangles': tris, 'count': len(pts),
+                'derived': spool['derived'],
+                'method': 'parametric spool (barrel + flanges) — '
+                          'every size derived live from '
+                          + params.get('winding_ref', '')}
+    if family == 'derived-cylinder':
+        from mathshapes.shape_geometry import axial_mesh
+        from mathshapes.spool_geometry import derived_cylinder
+        follower = derived_cylinder(manager, _params(shape),
+                                    shape_properties)
+        if not follower['ok']:
+            return {'ok': False, 'shape': shape_name,
+                    'family': family,
+                    'error': '; '.join(follower['refusals'])}
+        o = follower['object']
+        pts, tris = axial_mesh(
+            'cylinder',
+            {'radius': o['radius'], 'height': o['height'],
+             'axis': o['axis'], 'center': o['center'],
+             'cap_base': True, 'cap_top': True},
+            n_lon=n, cap_base=True, cap_top=True)
+        return {'ok': True, 'shape': shape_name, 'family': family,
+                'points': [[round(v, 4) for v in p] for p in pts],
+                'triangles': tris, 'count': len(pts),
+                'derived': follower['derived'],
+                'method': follower['note']}
     if family == 'primitive':
         kind = getattr(shape, 'primitive_kind', '')
         params = _params(shape)

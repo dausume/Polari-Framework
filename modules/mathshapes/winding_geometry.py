@@ -269,6 +269,65 @@ def winding_tube_mesh(obj, samples_per_turn=16, turn_stride=None,
     }
 
 
+#: Above this many turns a wire-by-wire mesh stops being USEFUL
+#: before it stops being possible: the point cap forces a stride
+#: that draws a sparse fraction of the turns, and the payload cost
+#: grows for less and less picture. The knob `turns_wire_limit`
+#: overrides per shape.
+DEFAULT_TURNS_WIRE_LIMIT = 2500
+
+
+def winding_display_mesh(obj, params):
+    """The winding's DISPLAY representation. render_mode:
+    'wire' (swept tube, decimated), 'solid' (the exact wound
+    annulus r0..outer over the window + a textureHint carrying the
+    true counts for a procedural wire texture), or 'auto' (wire up
+    to turns_wire_limit, solid past it). The MATH DEFINITION is
+    never changed by any mode — only how it is drawn."""
+    mode = params.get('render_mode', 'auto')
+    limit = int(params.get('turns_wire_limit',
+                           DEFAULT_TURNS_WIRE_LIMIT))
+    if mode == 'auto':
+        mode = 'wire' if obj['N'] <= limit else 'solid'
+    if mode == 'wire':
+        mesh = winding_tube_mesh(
+            obj,
+            samples_per_turn=int(params.get('samples_per_turn',
+                                            16)),
+            turn_stride=params.get('render_turn_stride'),
+            n_ring=int(params.get('n_ring', 6)),
+            wire_scale=params.get('render_wire_scale', 1.0))
+        mesh['renderMode'] = 'wire'
+        return mesh
+    # solid: the exact wound annulus — geometry still DERIVES from
+    # the same object (outer radius from layers x fineness).
+    from mathshapes.shape_geometry import tube_mesh
+    layers = math.ceil(obj['N'] / obj['tpl'])
+    outer = obj['r0'] + layers * obj['d']
+    axis = ('x' if abs(obj['M'][2][0]) > 0.9 else
+            'y' if abs(obj['M'][2][1]) > 0.9 else 'z')
+    pts, tris = tube_mesh(obj['C'], axis, outer, obj['r0'],
+                          obj['L'], n_lon=48)
+    return {
+        'points': [[round(v, 4) for v in p] for p in pts],
+        'triangles': tris,
+        'renderMode': 'solid',
+        'textureHint': {
+            'kind': 'wound-wire',
+            'turns': obj['N'], 'turnsPerLayer': obj['tpl'],
+            'layers': layers, 'wireDiameter': obj['d'],
+            'stripesAcrossWindow': obj['tpl'],
+        },
+        'method': (f'wound annulus (r {obj["r0"]:g}→{outer:g} over '
+                   f'{obj["L"]:g}) — {obj["N"]} turns exceed the '
+                   f'wire-render limit ({limit}, knob '
+                   f'turns_wire_limit); the textureHint carries the '
+                   f'true counts for a striped display material. '
+                   f'The equation is unchanged — only the drawing '
+                   f'mode.'),
+    }
+
+
 def winding_matrix_equation(obj, name='winding-curve'):
     """The winding as a MatrixEquationDefinition spec: a numpy expr
     over bindings {t (vector of turn-parameters), M, C, r0, d, tpl,
