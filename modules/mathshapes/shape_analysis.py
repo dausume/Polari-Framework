@@ -272,6 +272,30 @@ def shape_properties(manager, shape_name, resolution=32):
                 'boundingBox': [[round(v, 4) for v in ax] for ax in bounds],
                 'centroid': [round(v, 4) for v in centroid],
                 'method': 'analytic'}
+    if family == 'winding':
+        # ws-1: analytic from the math object — the wire's own
+        # volume (length x cross-section), not the bobbin envelope.
+        from mathshapes.winding_geometry import winding_coherence
+        coherent = winding_coherence(_params(shape))
+        if not coherent['ok']:
+            return {'ok': False, 'shape': shape_name,
+                    'family': family,
+                    'error': '; '.join(coherent['refusals'])}
+        drv = coherent['derived']
+        obj = coherent['object']
+        outer = drv['outerRadius']
+        c = obj['C']
+        return {'ok': True, 'shape': shape_name, 'family': family,
+                'volumeCm3': drv['wireVolume'],
+                'wireLength': drv['wireLength'],
+                'boundingBox': [[round(c[i] - outer, 4),
+                                 round(c[i] + outer, 4)]
+                                for i in range(3)],
+                'centroid': [round(v, 4) for v in c],
+                'derived': drv,
+                'method': 'analytic winding (wire volume = length '
+                          'x cross-section; units follow the '
+                          'shape_units of the consuming part)'}
     bounds = _shape_bounds(manager, shape)
     if bounds is None:
         return {'ok': False,
@@ -362,6 +386,32 @@ def sample_surface(manager, shape_name, n=24):
                 f"'{shape_name}'"}
     family = getattr(shape, 'family', 'primitive')
     n = max(6, min(int(n), 64))
+    # ws-1: the wire winding — a swept tube along the matrix-equation
+    # curve. Coherence refusals surface here verbatim: an incoherent
+    # tuning cannot be drawn because it is not a math object.
+    if family == 'winding':
+        from mathshapes.winding_geometry import (
+            winding_coherence, winding_tube_mesh,
+        )
+        params = _params(shape)
+        coherent = winding_coherence(params)
+        if not coherent['ok']:
+            return {'ok': False, 'shape': shape_name,
+                    'family': family,
+                    'error': '; '.join(coherent['refusals'])}
+        mesh = winding_tube_mesh(
+            coherent['object'],
+            samples_per_turn=int(params.get(
+                'samples_per_turn', 16)),
+            turn_stride=params.get('render_turn_stride'),
+            n_ring=int(params.get('n_ring', 6)))
+        return {'ok': True, 'shape': shape_name, 'family': family,
+                'points': mesh['points'],
+                'triangles': mesh['triangles'],
+                'count': len(mesh['points']),
+                'method': mesh['method'],
+                'derived': coherent['derived'],
+                'latex': coherent['latex']}
     if family == 'primitive':
         kind = getattr(shape, 'primitive_kind', '')
         params = _params(shape)
