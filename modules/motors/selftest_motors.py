@@ -567,11 +567,12 @@ check('and a functional role, so two same-shaped parts with '
 check('volumes DERIVE from each part\'s own shape row — the bill '
       'and the 3D view cannot disagree',
       all(p['volumeCm3'] is not None for p in rep['parts']))
-check('UNITS are explicit: the v2 geometry is authored in mm, and '
-      'reading it as cm silently made a 1.1 kg clock motor — the '
-      'whole motor is ~1.15 g',
+check('UNITS are explicit: the v2 geometry is authored in mm '
+      '(reading it as cm once made a 1.1 kg motor) — the whole '
+      'motor is ~4.98 g now that the coil\'s copper weighs in '
+      '(mp0 gave the wire a real material row)',
       all(p['shapeUnits'] == 'mm' for p in rep['parts'])
-      and 1.0 < rep['totalMassG'] < 1.5,
+      and 4.5 < rep['totalMassG'] < 5.5,
       extra=str(rep['totalMassG']))
 check('mass = volume x the material row\'s density: the rotor '
       'magnet is ~0.106 g of bonded hexaferrite',
@@ -591,11 +592,14 @@ check('the viz-only index mark is listed but EXCLUDED from mass — '
       'a scribe is not a piece',
       _by['lavet-v2-index']['function'] == 'viz-only'
       and 'viz-only parts are excluded' in rep['massNote'])
-check('parts whose material is a supplychain item (copper wire) '
-      'report an honest GAP instead of a fake density',
-      _by['lavet-v2-coil'].get('materialGap')
-      and _by['lavet-v2-coil']['massG'] is None
-      and any('lavet-v2-coil' in g for g in rep['gaps']))
+check('the coil\'s long-standing mass GAP is CLOSED: its material '
+      'is a real option row now, so the copper mass resolves '
+      '(mp0; the gap-reporting path is pinned by the assembly '
+      'fixture instead)',
+      isinstance(_by['lavet-v2-coil'].get('massG'), (int, float))
+      and _by['lavet-v2-coil']['massG'] > 1.0
+      and not any('lavet-v2-coil' in g for g in rep['gaps']),
+      extra=str(_by['lavet-v2-coil'].get('massG')))
 check('a design with no part rows refuses and names the knob',
       not part_report(_mgr(), 'clock-lavet-m0').get('ok'))
 
@@ -873,10 +877,21 @@ check('the mesh is reported, and the validity names fatigue, '
       'flaws and mesh dependence as NOT covered',
       st['elements'] > 0 and 'fatigue' in st['validity']
       and 'worst flaw' in st['validity'])
+# (the coil's copper row gained E/nu in mp0, so the no-stiffness
+# refusal is pinned on a POWDER row instead — same rule, honest
+# fixture.)
+mgrf.objectTables['MotorPartDefinition']['stress-no-e-part'] = \
+    types.SimpleNamespace(
+        name='stress-no-e-part', design_ref='clock-lavet-m0',
+        display_name='fixture: powder-material part',
+        shape_ref='motor-m0v2-rotor-magnet', shape_units='mm',
+        material_ref='opt-magnetite-powder', function='structure',
+        purpose='', why_this_material='', quantity=1,
+        is_prior=True, provenance_id='', notes='')
 check('a part whose material lacks E/nu REFUSES — a stress number '
       'without a stiffness is a fiction, not an estimate',
       not part_stress(mgrf, 'clock-lavet-m0',
-                      'lavet-v2-coil').get('ok'))
+                      'stress-no-e-part').get('ok'))
 
 print('== suite: mag-16 FATIGUE + substitution ==')
 from motors.motor_fatigue import (  # noqa: E402
@@ -2155,9 +2170,9 @@ check('as-1: gear masses derive from the EXACT tooth-profile '
       str([(p['part'], p.get('massG'), p.get('gaps'))
            for p in asm['groups']['train']['parts']])[:200])
 check('as-1: hand DRIVABILITY answered with real numbers — '
-      'imbalance torque m*g*r_cg vs the solved shaft torque',
-      all(isinstance(d.get('imbalanceTorqueNm'), (int, float))
-          and 'drivable' in d
+      'net imbalance torque vs the shaft torque, basis labeled',
+      all(isinstance(d.get('netImbalanceTorqueNm'), (int, float))
+          and 'drivable' in d and d.get('torqueBasis')
           for d in _hands.get('drivability', [])),
       str(_hands.get('drivability'))[:250])
 
@@ -2197,6 +2212,115 @@ check('as-3: a WEAK drive loses time and the proof says exactly '
       and weak['crossCheck']['consistent'],
       str({k: weak.get(k) for k in ('verdict', 'stepsMissed',
                                     'timeErrorS', 'refusal')}))
+
+print('\n-- mp0: the COMPLETE PRODUCT — M0b + two sourcing routes '
+      '+ the business splice --')
+from motors.product_routes import (               # noqa: E402
+    M0B_WINDING, SEED_CLOCK_FORMULA, SEED_CLOCK_QA,
+    SEED_CLOCK_WORKFLOWS, SEED_M0B_DESIGNS, SEED_M0B_PARTS,
+    product_routes,
+)
+
+check('mp0-1: the M0b winding numbers cross-check by '
+      'construction (turns x amps = the mag-25 MMF 21.45)',
+      abs(M0B_WINDING['coil_turns'] * M0B_WINDING['coil_amps']
+          - 21.45) < 0.01)
+_pm = _asm_mgr()
+_pm.objectTables['MotorDesignDefinition'].update(
+    {s['name']: types.SimpleNamespace(**s)
+     for s in SEED_M0B_DESIGNS})
+_pm.objectTables['MotorPartDefinition'].update(
+    {s['name']: types.SimpleNamespace(**s)
+     for s in SEED_M0B_PARTS})
+from motors.motor_winding import winding_report  # noqa: E402
+wr = winding_report(_pm, 'clock-lavet-m0b')
+check('mp0-1: M0b winds and drives DIRECT off one cell '
+      '(fit verdict positive, ~0.65 V <= 1.5 V, driveAchievable)',
+      wr.get('ok')
+      and wr.get('fitVerdict') not in ('IMPOSSIBLE',
+                                       'window-unknown')
+      and 0.5 < (wr.get('voltageNeededV') or 99) < 0.8
+      and wr.get('driveAchievable') is True,
+      str({k: wr.get(k) for k in ('ok', 'fitVerdict',
+                                  'voltageNeededV',
+                                  'driveAchievable', 'refusal')}))
+check('mp0-1: M0b parts carry the product materials the analyses '
+      'landed on (fired stator, pressed SrFe12O19, fired-ceramic '
+      'pinion on the TOOTHED gear shape)',
+      {p['name']: p['material_ref'] for p in SEED_M0B_PARTS}[
+          'm0b-stator'] == 'opt-fired-ferrite-ceramic'
+      and {p['name']: p['material_ref'] for p in SEED_M0B_PARTS}[
+          'm0b-rotor-magnet'] == 'opt-srfe12o19'
+      and {p['name']: p['shape_ref'] for p in SEED_M0B_PARTS}[
+          'm0b-pinion'] == 'motor-m0v2-pinion-gear')
+
+routes = product_routes(_pm)
+by_route = {r['route']: r for r in routes['routes']}
+check('mp0-2: BOTH routes answer, differing exactly on where the '
+      'wire comes from (make w/ the draw workflow vs buy)',
+      set(by_route) == {'pure-local', 'commercial'}
+      and any(i['input'].startswith('magnet wire')
+              and i['source'] == 'make'
+              and i['workflow'] == 'clock-wire-draw-workflow'
+              for i in by_route['pure-local']['inputs'])
+      and any(i['input'].startswith('magnet wire')
+              and i['source'] == 'buy'
+              for i in by_route['commercial']['inputs']))
+check('mp0-2: the pure-local route NAMES its two blockers '
+      '(magnet demonstration, W2 drawing)',
+      len(by_route['pure-local']['blockers']) == 2
+      and any('W2' in b
+              for b in by_route['pure-local']['blockers']))
+check('mp0-2: the commercial route carries the bought-movement '
+      'IRONY instead of hiding it',
+      'movement' in by_route['commercial'].get('irony', ''))
+check('mp0-2: both routes end at the same QA gate and sell loop',
+      routes['qaGate'] == 'qa-timekeeping-24h'
+      and routes['sellLoop'] == 'clock-sell-iterate-workflow')
+
+asm2 = clock_assembly_report(_pm)
+sec = next(d for d in asm2['groups']['hands']['drivability']
+           if d['hand'] == 'asm-second-hand')
+check('mp0-3: the COUNTERWEIGHT makes the seconds hand drivable '
+      '(net moment ~cancelled; was SF 0.60 bare)',
+      sec.get('drivable') is True
+      and sec.get('counterweight', {}).get('massG')
+      and sec['netImbalanceTorqueNm']
+      < 4.9e-05 / 5,
+      str({k: sec.get(k) for k in ('drivable', 'safetyFactor',
+                                   'netImbalanceTorqueNm',
+                                   'counterweight')}))
+check('mp0-3: the drivability torque basis is LABELED (gr-5 '
+      'splice or the seeded prior, never silent)',
+      sec.get('torqueBasis')
+      and ('gr-5' in sec['torqueBasis']
+           or 'prior' in sec['torqueBasis']))
+
+check('mp0-4: five make/sell workflows seeded in the bizops '
+      'idiom, steps parse, hours flagged as priors',
+      len(SEED_CLOCK_WORKFLOWS) == 5
+      and all(_vjson.loads(w['steps_json'])
+              for w in SEED_CLOCK_WORKFLOWS)
+      and any('ESTIMATES' in w['notes']
+              for w in SEED_CLOCK_WORKFLOWS))
+check('mp0-4: the sell loop is ITERATIVE — it records market '
+      'sessions and adjusts the next batch from sell-through',
+      any('MarketSessionRecord' in s and 'adjust' in ' '.join(
+          _vjson.loads(w['steps_json']))
+          for w in SEED_CLOCK_WORKFLOWS
+          if w['name'] == 'clock-sell-iterate-workflow'
+          for s in _vjson.loads(w['steps_json'])))
+check('mp0-4: the purchase flow reads a real ProductFormula '
+      '(fractions sum to 1, wire quantity from the winding math)',
+      abs(sum(c['fraction'] for c in _vjson.loads(
+          SEED_CLOCK_FORMULA[0]['components_json'])) - 1.0) < 1e-9
+      and any('winding math' in c['note']
+              for c in _vjson.loads(
+                  SEED_CLOCK_FORMULA[0]['components_json'])))
+check('mp0-4: the 24 h timekeeping QA gate ties measurement to '
+      'made-and-measured',
+      SEED_CLOCK_QA[0]['product_kind'] == 'm0-wall-clock'
+      and 'MotorVerificationRun' in SEED_CLOCK_QA[0]['method'])
 
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')

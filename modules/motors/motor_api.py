@@ -50,6 +50,8 @@ class MotorsAPI(treeObject):
                 suffix='clock_assembly')
             add('/api/motors/timekeeping-proof', self,
                 suffix='timekeeping_proof')
+            add('/api/motors/product-routes', self,
+                suffix='product_routes')
             add('/api/motors/component-view/{part_name}', self,
                 suffix='component_view')
             # goal-1..3: goals + constraints over composition's
@@ -562,6 +564,15 @@ class MotorsAPI(treeObject):
         response.media = timekeeping_proof(
             self.manager,
             pulses=int(request.params.get('pulses', 120)))
+
+    def on_get_product_routes(self, request, response):
+        """mp0: the complete product, twice — pure-local vs
+        commercial sourcing, gaps and blockers kept."""
+        from motors.product_routes import product_routes
+        response.media = product_routes(
+            self.manager,
+            design_name=request.params.get('design',
+                                           'clock-lavet-m0b'))
 
     def on_get_component_view(self, request, response, part_name):
         from motors.clock_views import component_view

@@ -128,6 +128,16 @@ SEED_HAND_SHAPES = [
               'counter-tail). Mass and imbalance derive from this '
               'geometry in the assembly bill.',
      'provenance_id': 'as-2'},
+    {'name': 'clock-hand-second-cw',
+     'display_name': 'Seconds-hand counterweight lump',
+     'family': 'primitive', 'primitive_kind': 'box',
+     'parameters_json': json.dumps(
+         {'size': [5.5, 8.0, 8.2],
+          'center': [SHAFT_X['shaft-second'], -7.0, 2.6]}),
+     'notes': 'Sized so its moment about the shaft (~0.72 g at '
+              '7 mm) cancels the hand\'s (~0.133 g at 37.5 mm) — '
+              'the numbers ride the assembly drivability check.',
+     'provenance_id': 'mp0'},
     {'name': 'clock-hand-minute',
      'display_name': 'Minute hand (80 mm)',
      'family': 'primitive', 'primitive_kind': 'box',

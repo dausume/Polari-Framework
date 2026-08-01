@@ -123,6 +123,19 @@ SEED_ASSEMBLY_PARTS = [
                           'the shaft must overcome every step.',
      'quantity': 1, 'is_prior': True, 'provenance_id': PROV,
      'notes': ''},
+    {'name': 'asm-second-hand-cw', 'design_ref': ASSEMBLY_DESIGN,
+     'display_name': 'Seconds-hand counterweight',
+     'shape_units': 'mm', 'shape_ref': 'clock-hand-second-cw',
+     'material_ref': 'opt-plain-geopolymer',
+     'function': 'balance',
+     'purpose': 'Cancels the seconds hand\'s gravity moment so '
+                'the shaft only fights friction — the fix the '
+                'as-3 drivability finding demanded.',
+     'why_this_material': 'Mass is the point here; the cheap '
+                          'cast is exactly right.',
+     'quantity': 1, 'is_prior': True, 'provenance_id': PROV,
+     'notes': 'Sized so m_cw x r_cw ~ m_hand x r_cg (gr-6: a '
+              'balanced hand has ~zero gravity imbalance).'},
     {'name': 'asm-minute-hand', 'design_ref': ASSEMBLY_DESIGN,
      'display_name': 'Minute hand (80 mm)',
      'shape_units': 'mm', 'shape_ref': 'clock-hand-minute',
@@ -144,6 +157,14 @@ HAND_FACTS = {
     'asm-minute-hand': ('shaft-minute', 70.0, 10.0),
 }
 
+#: mp0-3: the seconds hand FAILED drivability bare (SF 0.60, the
+#: as-3 finding) — gr-6 says counterbalancing nearly erases the
+#: imbalance, so it gets a counterweight PART whose moment nearly
+#: cancels the hand's. counterweight part -> (hand part, r_cw mm).
+HAND_COUNTERWEIGHTS = {
+    'asm-second-hand-cw': ('asm-second-hand', 7.0),
+}
+
 
 def seed_clock_assembly(manager):
     from motors.motor_basis import MotorDesignDefinition
@@ -157,18 +178,41 @@ def seed_clock_assembly(manager):
         tag='ClockAssemblySeed')
 
 
-def _hand_drivability(manager, members):
-    """Imbalance torque from the REAL hand mass vs the torque its
-    shaft delivers through the solved train."""
+def _train_torques(manager):
+    """Shaft torques for the drivability check — the REAL M0
+    envelope through the gr-5 splice when it answers, else the
+    train row's seeded prior, LABELED either way."""
+    try:
+        from gears.gear_motor import motor_driven_train
+        spliced = motor_driven_train(manager, 'clock-train-m0',
+                                     MOTOR_DESIGN)
+    except Exception:
+        spliced = {'ok': False}
+    if spliced.get('ok'):
+        return ({s['shaft']: s.get('torqueNm')
+                 for s in spliced.get('shafts', [])},
+                f"gr-5 splice ({spliced.get('torqueBasis', 'M0')})")
     try:
         from gears.gear_kinematics import solve_train
         solved = solve_train(manager, 'clock-train-m0')
     except ImportError:
-        solved = {'ok': False,
-                  'refusal': 'gears module not importable'}
-    torque_of = ({s['shaft']: s.get('torqueNm')
-                  for s in solved.get('shafts', [])}
-                 if solved.get('ok') else {})
+        return {}, 'gears module not importable'
+    if not solved.get('ok'):
+        return {}, 'train did not solve'
+    return ({s['shaft']: s.get('torqueNm')
+             for s in solved.get('shafts', [])},
+            'seeded train prior (1e-6 Nm input) — the gr-5 '
+            'splice did not answer here')
+
+
+def _hand_drivability(manager, members):
+    """NET imbalance torque (hand minus its counterweight, both
+    from REAL masses) vs the torque its shaft delivers."""
+    torque_of, basis = _train_torques(manager)
+    by_name = {m['part']: m for m in members}
+    cw_of = {}
+    for cw_part, (hand_part, r_cw) in HAND_COUNTERWEIGHTS.items():
+        cw_of[hand_part] = (by_name.get(cw_part), r_cw)
     out = []
     for m in members:
         facts = HAND_FACTS.get(m['part'])
@@ -177,20 +221,33 @@ def _hand_drivability(manager, members):
         shaft, tip, tail = facts
         mass_g = m.get('massG')
         entry = {'hand': m['part'], 'shaft': shaft,
-                 'massG': mass_g}
+                 'massG': mass_g, 'torqueBasis': basis}
         if isinstance(mass_g, (int, float)):
-            # uniform hand: cg sits at the mid of (-tail..tip).
-            r_cg_m = ((tip - tail) / 2.0) / 1000.0
-            imbalance = (mass_g / 1000.0) * G * r_cg_m
-            entry['rCgMm'] = round((tip - tail) / 2.0, 3)
-            entry['imbalanceTorqueNm'] = imbalance
+            r_cg_mm = (tip - tail) / 2.0
+            moment = mass_g * r_cg_mm          # g*mm
+            cw, r_cw = cw_of.get(m['part'], (None, 0.0))
+            cw_mass = (cw or {}).get('massG')
+            if isinstance(cw_mass, (int, float)):
+                entry['counterweight'] = {
+                    'part': cw['part'], 'massG': cw_mass,
+                    'rMm': r_cw}
+                moment = moment - cw_mass * r_cw
+            imbalance = abs(moment) / 1e6 * G   # g*mm -> kg*m
+            entry['rCgMm'] = round(r_cg_mm, 3)
+            entry['netImbalanceTorqueNm'] = imbalance
             shaft_t = torque_of.get(shaft)
             if isinstance(shaft_t, (int, float)) and shaft_t:
-                sf = abs(shaft_t) / imbalance if imbalance else None
+                sf = (abs(shaft_t) / imbalance if imbalance
+                      else None)
                 entry['shaftTorqueNm'] = shaft_t
                 entry['safetyFactor'] = (round(sf, 3)
                                          if sf else None)
-                entry['drivable'] = bool(sf and sf >= 1.0)
+                entry['drivable'] = bool(sf is None or sf >= 1.0)
+                if sf is None:
+                    entry['note'] = ('balanced to ~zero gravity '
+                                     'moment — friction (not '
+                                     'modeled) is the residual '
+                                     'load, said not hidden')
             else:
                 entry['gap'] = ('shaft torque unresolved — train '
                                 'not solved here')
@@ -212,7 +269,8 @@ def clock_assembly_report(manager):
                 'refusal': extras.get('refusal',
                                       'assembly parts missing')}
     members = extras.get('parts', [])
-    hands = [m for m in members if m['function'] == 'indication']
+    hands = [m for m in members
+             if m['function'] in ('indication', 'balance')]
     train = [m for m in members if m not in hands]
     motor_mass = motor.get('totalMassG') if motor.get('ok') else None
     extra_mass = extras.get('totalMassG')

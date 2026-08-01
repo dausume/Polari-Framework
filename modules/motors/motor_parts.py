@@ -142,7 +142,7 @@ SEED_MOTOR_PARTS = [
     {'name': 'lavet-v2-coil', 'design_ref': 'clock-lavet-m0',
      'display_name': 'Coil winding (1500 t, 44 AWG)',
      'shape_units': 'mm', 'shape_ref': 'motor-m0v2-coil',
-     'material_ref': 'magnet-wire-copper',
+     'material_ref': 'opt-copper-magnet-wire',
      'function': 'mmf-source',
      'purpose': 'Turns the quartz oscillator\'s 1 Hz electrical '
                 'pulse into a magnetic one. Its ALTERNATING '
@@ -205,7 +205,7 @@ SEED_MOTOR_PARTS = [
     {'name': 'lavet-v2-leads', 'design_ref': 'clock-lavet-m0',
      'display_name': 'Coil lead wires (x2)',
      'shape_units': 'mm', 'shape_ref': 'motor-m0v2-lead-a',
-     'material_ref': 'magnet-wire-copper',
+     'material_ref': 'opt-copper-magnet-wire',
      'function': 'electrical-connection',
      'purpose': 'The two ends of the winding, brought out to the '
                 'driver. Polarity matters here and nowhere else: '
@@ -217,7 +217,7 @@ SEED_MOTOR_PARTS = [
     {'name': 'lavet-v2-index', 'design_ref': 'clock-lavet-m0',
      'display_name': 'Rotor index mark',
      'shape_units': 'mm', 'shape_ref': 'motor-m0v2-rotor-index',
-     'material_ref': '',
+     'material_ref': 'opt-plain-geopolymer',
      'function': 'viz-only',
      'purpose': 'Not a part of the motor — a scribe on the rotor '
                 'top so a viewer can SEE the 180 degree step. It is '

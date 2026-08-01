@@ -189,6 +189,11 @@ SECTION_SOURCES = {
     'timekeeping-proof': lambda m, a: __import__(
         'motors.clock_assembly', fromlist=['timekeeping_proof']
     ).timekeeping_proof(m, pulses=int(a.get('pulses', 120))),
+    # mp0: the product, twice-sourced.
+    'sourcing-routes': lambda m, a: __import__(
+        'motors.product_routes', fromlist=['product_routes']
+    ).product_routes(m, design_name=a.get('design',
+                                          'clock-lavet-m0b')),
     # motion
     'clock-sim': _src_design('motors.motor_designer', 'clock_sim'),
     'verification': _src_design('motors.motor_verify',
@@ -557,7 +562,18 @@ SEED_CLOCK_VIEWS = [
                   'dependency trace: supply sources, business '
                   'gates and dated citations under every cost.',
           'links': [{'label': 'Business start', 'kind': 'page',
-                     'route': '/business/start'}]}]),
+                     'route': '/business/start'}]},
+         {'name': 'sourcing-routes', 'source': 'sourcing-routes',
+          'args': {},
+          'lead': 'The COMPLETE PRODUCT, twice: pure-local (every '
+                  'input made here, gaps named) vs commercial '
+                  '(bought wire and magnet, cited) — both ending '
+                  'at the same 24 h timekeeping QA gate and the '
+                  'same sell-iteratively loop.',
+          'links': [{'label': 'Business start', 'kind': 'page',
+                     'route': '/business/start'},
+                    {'label': 'Odoo business', 'kind': 'page',
+                     'route': '/business/odoo'}]}]),
      'is_prior': True, 'provenance_id': PROV,
      'notes': 'the accountability chain IS the dependency trace: '
               'supply sources, dated citations, make-vs-buy '
