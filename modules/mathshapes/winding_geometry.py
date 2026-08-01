@@ -208,19 +208,23 @@ def winding_points(obj, samples_per_turn=16, turn_stride=1):
 
 
 def winding_tube_mesh(obj, samples_per_turn=16, turn_stride=None,
-                      n_ring=6):
+                      n_ring=6, wire_scale=1.0):
     """Swept tube (radius d/2) along the winding — the mesh a
     Mesh3DDefinition renders. Auto-decimates to stay under
-    MAX_MESH_POINTS, reporting exactly what was dropped."""
+    MAX_MESH_POINTS, reporting exactly what was dropped.
+    wire_scale is a DISPLAY-ONLY exaggeration knob: hair-fine
+    magnet wire is sub-pixel at scene scale, so it may be drawn
+    fatter — the method string always states the true diameter."""
     spt = max(4, int(samples_per_turn))
     ring = max(3, int(n_ring))
+    wire_scale = max(1.0, float(wire_scale or 1.0))
     if turn_stride is None:
         per_turn = spt * ring
         turn_stride = max(1, math.ceil(
             obj['N'] * per_turn / MAX_MESH_POINTS))
     segments = winding_segments(obj, samples_per_turn=spt,
                                 turn_stride=turn_stride)
-    rr = obj['d'] / 2
+    rr = obj['d'] / 2 * wire_scale
     pts, tris = [], []
     for centers in segments:
         prev_ring = None
@@ -250,13 +254,17 @@ def winding_tube_mesh(obj, samples_per_turn=16, turn_stride=None,
                     tris.append([b, dd, cidx])
             prev_ring = base
     rendered = math.ceil(obj['N'] / turn_stride)
+    scale_note = ('' if wire_scale == 1.0 else
+                  f'; wire drawn at {wire_scale:g}x diameter for '
+                  f'visibility (true d = {obj["d"]:g}, knob '
+                  f'render_wire_scale)')
     return {
         'points': [[round(v, 4) for v in p] for p in pts],
         'triangles': tris,
         'method': (f'swept wire tube — {rendered} of {obj["N"]} '
                    f'turns rendered (stride {turn_stride}, knob '
                    f'render_turn_stride); the equation is never '
-                   f'decimated, only the display'),
+                   f'decimated, only the display{scale_note}'),
         'turnStride': turn_stride,
     }
 

@@ -499,10 +499,13 @@ from motors.motor_shapes import (  # noqa: E402
 
 _v2 = {p['name']: p for p in SEED_LAVET_V2_PART_SHAPES}
 check('the stator is a squared-C: plate MINUS window MINUS bore '
-      '(n-ary CSG difference), not a slab with a hole',
+      'MINUS the left air-gap slot (ws-2) — the gap is the Lavet '
+      'asymmetry, not a drawing choice',
       _v2['motor-m0v2-stator']['family'] == 'csg'
-      and len(json.loads(
-          _v2['motor-m0v2-stator']['csg_json'])['shapes']) == 3)
+      and json.loads(
+          _v2['motor-m0v2-stator']['csg_json'])['shapes']
+      == ['motor-m0v2-plate-blank', 'motor-m0v2-plate-window',
+          'motor-m0v2-plate-bore', 'motor-m0v2-gap-slot'])
 _bore = json.loads(_v2['motor-m0v2-plate-bore']['parameters_json'])
 _plate = json.loads(
     _v2['motor-m0v2-plate-blank']['parameters_json'])
@@ -1908,10 +1911,38 @@ check('the part→body map covers every v2 part of the bill '
       set(V2_PART_BODIES)
       == {p['name'] for p in _SMP
           if p['name'].startswith('lavet-v2-')})
-check('six layers seeded across the four renderer-backed kinds',
-      len(SEED_CLOCK_SCENE_LAYERS) == 6
+check('seven layers seeded across the five renderer-backed kinds',
+      len(SEED_CLOCK_SCENE_LAYERS) == 7
       and {l['kind'] for l in SEED_CLOCK_SCENE_LAYERS}
-      == {'part-coloring', 'vector-field', 'replay', 'markers'})
+      == {'part-coloring', 'vector-field', 'replay', 'markers',
+          'shape-swap'})
+
+print('\n-- ws-2: air gap + observable winding --')
+from motors.motor_shapes import (      # noqa: E402
+    SEED_LAVET_V2_PART_SHAPES,
+)
+_v2 = {s['name']: s for s in SEED_LAVET_V2_PART_SHAPES}
+check('the stator carries the LEFT air-gap slot (the Lavet '
+      'asymmetry, not just a bore)',
+      'motor-m0v2-gap-slot' in _v2
+      and 'motor-m0v2-gap-slot' in _vjson.loads(
+          _v2['motor-m0v2-stator']['csg_json'])['shapes'])
+_slot = _vjson.loads(_v2['motor-m0v2-gap-slot']['parameters_json'])
+check('the slot spans from the bore edge through the left plate '
+      'edge (x: bore edge -12.1, plate edge -13)',
+      _slot['center'][0] - _slot['size'][0] / 2 < -13.0
+      and _slot['center'][0] + _slot['size'][0] / 2 > -12.1)
+from mathshapes.winding_geometry import (  # noqa: E402
+    winding_coherence,
+)
+_wc = winding_coherence(_vjson.loads(
+    _v2['motor-m0v2-winding']['parameters_json']))
+check('the seeded winding row is a COHERENT math object '
+      '(1500 turns of 44 AWG fit the 13 mm window)',
+      _wc['ok'] and _wc['object']['N'] == 1500
+      and _wc['derived']['layers'] >= 2
+      and _wc['derived']['outerRadius'] < 3.4,
+      str(_wc))
 
 _sm = _vm
 _sm.objectTables['ClockSceneLayerDefinition'] = {
@@ -1922,7 +1953,7 @@ check('mass view scene assembles on the v2 base with all layers '
       'listed, mass defaultOn',
       scene.get('ok')
       and scene['baseScene'] == 'motor-m0-lavet-v2-viz'
-      and len(scene['layers']) == 6
+      and len(scene['layers']) == 7
       and any(l['name'] == 'layer-mass-coloring'
               and l.get('defaultOn') for l in scene['layers']))
 mass_layer = next(l for l in scene['layers']
@@ -1971,6 +2002,15 @@ check('field layer refuses honestly in the fixture (no magnetics '
 check('unknown view refuses; a view without scene_json names the '
       'knob',
       not clock_scene_payload(_sm, 'view-nope').get('ok'))
+elec = clock_scene_payload(_sm, 'view-electrical')
+swap = next(l for l in elec['layers']
+            if l['name'] == 'layer-winding-detail')
+check('winding shape-swap layer defaultOn for the electrical '
+      'view; refuses honestly in the fixture (no shape rows) and '
+      'stays LISTED',
+      swap.get('defaultOn') and not swap.get('ok')
+      and 'refuses' in swap.get('refusal', '')
+      and 'layer-winding-detail' in elec['refusedLayers'])
 
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')

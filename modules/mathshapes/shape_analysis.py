@@ -404,7 +404,8 @@ def sample_surface(manager, shape_name, n=24):
             samples_per_turn=int(params.get(
                 'samples_per_turn', 16)),
             turn_stride=params.get('render_turn_stride'),
-            n_ring=int(params.get('n_ring', 6)))
+            n_ring=int(params.get('n_ring', 6)),
+            wire_scale=params.get('render_wire_scale', 1.0))
         return {'ok': True, 'shape': shape_name, 'family': family,
                 'points': mesh['points'],
                 'triangles': mesh['triangles'],

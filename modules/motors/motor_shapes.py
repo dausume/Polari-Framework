@@ -473,18 +473,34 @@ SEED_LAVET_V2_PART_SHAPES = [
      'notes': 'At the LEFT END of the plate, as in the reference — '
               'not centred.',
      'provenance_id': 'mag-10b'},
+    # ws-2 (Dustin): the real Lavet has an AIR GAP opening the bore
+    # to the LEFT of the rotor — the asymmetry that offsets the
+    # detent position so the pulsed field always flips the rotor the
+    # same way. The old model only bored a hole; a symmetric bore
+    # would leave the rotor with no preferred flip direction.
+    {'name': 'motor-m0v2-gap-slot',
+     'display_name': 'v2 stator air-gap slot (CSG component)',
+     'family': 'primitive', 'primitive_kind': 'box',
+     'parameters_json': json.dumps(
+         {'size': [2.6, 1.4, 3.0], 'center': [-12.3, 0.0, 0.0]}),
+     'notes': 'Cuts from the rotor bore through the left plate '
+              'edge — the working asymmetry of the Lavet stator.',
+     'provenance_id': 'ws-2'},
     {'name': 'motor-m0v2-stator',
-     'display_name': 'Lavet v2 stator (C-bracket plate, bored)',
+     'display_name': 'Lavet v2 stator (C-bracket plate, bored, '
+                     'gapped)',
      'family': 'csg',
      'csg_json': json.dumps(
          {'op': 'difference',
           'shapes': ['motor-m0v2-plate-blank',
                      'motor-m0v2-plate-window',
-                     'motor-m0v2-plate-bore']}),
+                     'motor-m0v2-plate-bore',
+                     'motor-m0v2-gap-slot']}),
      'bounds_json': json.dumps(
          [[-13.5, 13.5], [-7.5, 7.5], [-1.0, 1.0]]),
-     'notes': 'Plate MINUS window MINUS bore — an n-ary CSG '
-              'difference (base minus all the rest). Renders '
+     'notes': 'Plate MINUS window MINUS bore MINUS the left air-gap '
+              'slot — the gap is the Lavet asymmetry that makes the '
+              'flip directional, not a drawing choice. Renders '
               'through the voxel-face mesher, blocky and labelled '
               'so.',
      'provenance_id': 'mag-10b'},
@@ -588,7 +604,44 @@ SEED_LAVET_V2_PART_SHAPES = [
               'reference — viz only, and it is what makes the '
               '180 deg step legible.',
      'provenance_id': 'mag-10b'},
+    # ws-2: the ACTUAL winding — a math object (mathshapes family
+    # 'winding'), not a solid. Tunables are the coil's real
+    # as-built numbers: 1500 turns of 44 AWG (bare 0.0503 mm +
+    # 0.025 enamel build, motor_winding's own constants) on the
+    # 1.1 mm bore over the 13 mm window, leads exiting downward.
+    # render_wire_scale is DISPLAY-ONLY and says so in the payload.
+    {'name': 'motor-m0v2-winding',
+     'display_name': 'v2 coil winding (the wire itself)',
+     'family': 'winding',
+     'parameters_json': json.dumps(
+         {'center': [4.0, 0.0, 0.0], 'axis': [1.0, 0.0, 0.0],
+          'exit_dir': [0.0, -1.0, 0.0],
+          'bore_radius': 1.1,
+          'wire_diameter': 0.0753,
+          'turns': 1500, 'window_length': 13.0,
+          'render_wire_scale': 6.0,
+          'samples_per_turn': 16, 'n_ring': 5}),
+     'notes': 'The observable winding: world points from the ws-1 '
+              'matrix equation; decimation and wire-scale are '
+              'display knobs whose values ride the method string. '
+              'The equation is never decimated.',
+     'provenance_id': 'ws-2'},
 ]
+
+
+def seed_v2_shapes(manager):
+    """ws-2: the v2 shape rows ride the UPSERT path — the stator
+    csg change (air-gap slot) and any tuning of the winding row
+    must REACH live rows, not strike the seed-field gotcha an
+    11th time."""
+    from composition.seed_upsert import upsert_seed_pairs
+    from mathshapes.shape_basis import MathShapeDefinition
+    return upsert_seed_pairs(
+        manager,
+        [('MathShapeDefinition', MathShapeDefinition,
+          SEED_LAVET_V2_PART_SHAPES)],
+        tag='V2ShapeSeed')
+
 
 SEED_LAVET_V2_SIM_SPACES = [
     {'name': 'motor-m0-lavet-v2-viz',

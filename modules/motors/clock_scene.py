@@ -44,7 +44,8 @@ from objectTreeDecorators import treeObject, treeObjectInit
 from composition.data_refs import resolve_named, rows
 from composition.seed_upsert import upsert_seed_pairs
 
-LAYER_KINDS = ('part-coloring', 'vector-field', 'replay', 'markers')
+LAYER_KINDS = ('part-coloring', 'vector-field', 'replay', 'markers',
+               'shape-swap')
 
 #: The one part→scene-body map for the v2 Lavet scene
 #: (motor-m0-lavet-v2-viz). Multi-body parts list every body.
@@ -267,6 +268,64 @@ def _markers(manager, params):
                     'yet'}
 
 
+def _shape_swap(manager, params, design):
+    """ws-2: swap one scene body's shapeRef for another shape row —
+    the observable winding replaces the solid coil while the layer
+    is on. When the target is a WINDING, its coherence + derived
+    numbers ride along, plus the geometry-vs-electrical MTL
+    CROSS-CHECK: two modules assert the coil's mean turn length
+    (this math object, and motor_winding's bobbin model) — when
+    they disagree, the payload says so instead of choosing."""
+    body = params.get('body', '')
+    target = params.get('shape', '')
+    if not body or not target:
+        return {'ok': False,
+                'refusal': 'shape-swap needs {body, shape} params'}
+    from mathshapes.shape_analysis import shape_properties
+    props = shape_properties(manager, target)
+    if not props.get('ok'):
+        return {'ok': False,
+                'refusal': f'target shape "{target}" refuses: '
+                           f'{props.get("error")}'}
+    out = {'ok': True, 'body': body,
+           'shapeRef': f'mathshape:{target}',
+           'derived': props.get('derived'),
+           'note': props.get('method', '')}
+    drv = props.get('derived') or {}
+    if drv.get('meanTurnLength'):
+        try:
+            from motors.motor_winding import winding_report
+            rep = winding_report(manager, design)
+            elec_mtl = (rep.get('meanTurnLengthMm')
+                        or rep.get('mtl_mm')
+                        or (rep.get('winding') or {}).get(
+                            'meanTurnLengthMm'))
+        except Exception:
+            rep, elec_mtl = None, None
+        geom_mtl = drv['meanTurnLength']
+        cross = {'geometryMTL': geom_mtl,
+                 'electricalMTL': elec_mtl}
+        if isinstance(elec_mtl, (int, float)) and elec_mtl > 0:
+            ratio = geom_mtl / elec_mtl
+            cross['ratio'] = round(ratio, 3)
+            cross['note'] = (
+                'geometry (this math object, scene mm) and '
+                'motor_winding (the design row bobbin) assert the '
+                'coil MTL independently — '
+                + ('they AGREE' if 0.67 < ratio < 1.5 else
+                   'they DISAGREE: the drawn as-built scene and '
+                   'the design row carry different bobbin '
+                   'geometry, a modeling gap to reconcile, not '
+                   'a number to average'))
+        else:
+            cross['note'] = ('electrical MTL not resolvable from '
+                             'the design row — cross-check '
+                             'unavailable, said rather than '
+                             'skipped')
+        out['crossCheck'] = cross
+    return out
+
+
 def layer_payload(manager, layer_row,
                   design='clock-lavet-m0'):
     kind = getattr(layer_row, 'kind', '')
@@ -298,6 +357,8 @@ def layer_payload(manager, layer_row,
                             'Angular motor page'}
         elif kind == 'markers':
             data = _markers(manager, params)
+        elif kind == 'shape-swap':
+            data = _shape_swap(manager, params, design)
         else:
             data = {'ok': False,
                     'refusal': f'unknown layer kind/source '
@@ -424,6 +485,18 @@ SEED_CLOCK_SCENE_LAYERS = [
      'description': 'The mag-fv threshold-gated vector dispersion, '
                     'overlaid on the motor scene.',
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
+    {'name': 'layer-winding-detail',
+     'display_name': 'Winding — the actual wire',
+     'kind': 'shape-swap', 'source': 'mathshapes-winding',
+     'params_json': _j({'body': 'coil',
+                        'shape': 'motor-m0v2-winding'}),
+     'style_json': '{}',
+     'description': 'Replaces the solid coil with the OBSERVABLE '
+                    'winding — the ws-1 matrix-equation math '
+                    'object (1500 turns of 44 AWG as built), with '
+                    'the geometry-vs-electrical MTL cross-check '
+                    'riding the payload.',
+     'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'layer-interface-markers',
      'display_name': 'Interfaces — joints & failure modes',
      'kind': 'markers', 'source': 'composition-interfaces',
@@ -453,7 +526,8 @@ VIEW_SCENES = {
     'view-goal-explorer': ['layer-motion-replay'],
     'view-mechanical': ['layer-stress-coloring',
                         'layer-interface-markers'],
-    'view-electrical': ['layer-motion-replay'],
+    'view-electrical': ['layer-winding-detail',
+                        'layer-motion-replay'],
     'view-magnetic': ['layer-field-dispersion',
                       'layer-motion-replay'],
     'view-materials-sourcing': ['layer-material-coloring'],
