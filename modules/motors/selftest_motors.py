@@ -2083,6 +2083,121 @@ check('winding shape-swap layer defaultOn for the electrical '
       and 'refuses' in swap.get('refusal', '')
       and 'layer-winding-detail' in elec['refusedLayers'])
 
+print('\n-- as-1..3: the genuine assembly + the timekeeping '
+      'proof --')
+from gears.gear_scene import (                    # noqa: E402
+    HAND_VECTORS, SEED_HAND_SHAPES, SEED_TRAIN_GEAR_SHAPES,
+)
+from gears.gear_seed import (                     # noqa: E402
+    SEED_GEAR_MESHES, SEED_GEAR_TRAINS, SEED_GEAR_TYPES,
+    SEED_GEARS, SEED_SHAFT_NODES,
+)
+from motors.clock_assembly import (               # noqa: E402
+    HAND_FACTS, SEED_ASSEMBLY_DESIGNS, SEED_ASSEMBLY_PARTS,
+    clock_assembly_report, timekeeping_proof,
+)
+
+_hs = {s['name']: _vjson.loads(s['parameters_json'])
+       for s in SEED_HAND_SHAPES}
+check('as-2: HAND_FACTS restate the hand SHAPES exactly '
+      '(tip = center + size/2, tail = size/2 - center)',
+      all(abs(_hs[shape]['center'][1] + _hs[shape]['size'][1] / 2
+              - tip) < 1e-9
+          and abs(_hs[shape]['size'][1] / 2
+                  - _hs[shape]['center'][1] - tail) < 1e-9
+          for part, (sh, tip, tail) in HAND_FACTS.items()
+          for shape in [{'asm-second-hand': 'clock-hand-second',
+                         'asm-minute-hand': 'clock-hand-minute'
+                         }[part]]))
+check('as-2: every hand has an orientation VECTOR anchored at '
+      'its shaft',
+      {h['body'] for h in HAND_VECTORS}
+      == {'second-hand', 'minute-hand'}
+      and all(h['origin'][0] in (37.2, 128.7)
+              for h in HAND_VECTORS))
+
+
+def _asm_mgr():
+    m = _mgr()
+
+    def table(seed):
+        return {s['name']: types.SimpleNamespace(**s)
+                for s in seed}
+    m.objectTables.update({
+        'GearTypeDefinition': table(SEED_GEAR_TYPES),
+        'GearTrainDefinition': table(SEED_GEAR_TRAINS),
+        'GearDefinition': table(SEED_GEARS),
+        'GearMeshDefinition': table(SEED_GEAR_MESHES),
+        'ShaftNodeDefinition': table(SEED_SHAFT_NODES),
+        'MathShapeDefinition': table(
+            SEED_TRAIN_GEAR_SHAPES + SEED_HAND_SHAPES),
+        'MotorPartDefinition': table(
+            SEED_MOTOR_PARTS + SEED_ASSEMBLY_PARTS),
+    })
+    m.objectTables['MotorDesignDefinition'].update(
+        table(SEED_ASSEMBLY_DESIGNS))
+    return m
+
+
+_am = _asm_mgr()
+asm = clock_assembly_report(_am)
+_hands = asm['groups']['hands'] if asm.get('ok') else {}
+check('as-1: the assembly bill answers with motor + train + hands '
+      'groups and NAMES its absent members',
+      asm.get('ok')
+      and set(asm['groups']) == {'motor', 'train', 'hands'}
+      and any('frame' in a for a in asm['absent']))
+check('as-1: gear masses derive from the EXACT tooth-profile '
+      'extrusion x fired-ceramic density',
+      all(isinstance(p.get('massG'), (int, float))
+          and p['massG'] > 0
+          for p in asm['groups']['train']['parts']),
+      str([(p['part'], p.get('massG'), p.get('gaps'))
+           for p in asm['groups']['train']['parts']])[:200])
+check('as-1: hand DRIVABILITY answered with real numbers — '
+      'imbalance torque m*g*r_cg vs the solved shaft torque',
+      all(isinstance(d.get('imbalanceTorqueNm'), (int, float))
+          and 'drivable' in d
+          for d in _hands.get('drivability', [])),
+      str(_hands.get('drivability'))[:250])
+
+proof = timekeeping_proof(_am, pulses=120)
+check('as-3: THE PROOF — 120 physics-sim pulses through the '
+      'solved train land the seconds hand EXACTLY on true time '
+      '(zero missed steps, zero rev error)',
+      proof.get('ok') and proof['verdict'] == 'keeps-time'
+      and proof['stepsMissed'] == 0
+      and proof['hands']['secondsHand']['revErrorVsTrue'] < 1e-9
+      and abs(proof['hands']['secondsHand']['simulatedAngleDeg']
+              - proof['hands']['secondsHand']['trueAngleDeg'])
+      < 1e-6,
+      str({k: proof.get(k) for k in ('verdict', 'stepsMissed',
+                                     'refusal')}))
+check('as-3: the minute hand agrees too (two hands, one chain)',
+      proof['hands']['minuteHand']['revErrorVsTrue'] < 1e-9)
+check('as-3: the cross-check holds — hand-angle error and the '
+      'sim\'s own clockErrorS are the SAME number via different '
+      'paths',
+      proof['crossCheck']['consistent'])
+
+# Force MISSED steps (weak drive) and demand the loss is reported
+# EXACTLY: each missed pulse = one lost second on the seconds hand.
+_wm = _asm_mgr()
+_row = _wm.objectTables['MotorDesignDefinition']['clock-lavet-m0']
+_wp = _vjson.loads(_row.params_json)
+_wp['coil_amps'] = _wp.get('coil_amps', 0.02) / 400.0
+_row.params_json = _vjson.dumps(_wp)
+weak = timekeeping_proof(_wm, pulses=60)
+check('as-3: a WEAK drive loses time and the proof says exactly '
+      'how much (missed steps -> seconds, hand angles consistent)',
+      weak.get('ok') and weak['verdict'] == 'loses-time'
+      and weak['stepsMissed'] > 0
+      and abs(weak['timeErrorS']
+              - weak['stepsMissed'] / 1.0) < 1e-9
+      and weak['crossCheck']['consistent'],
+      str({k: weak.get(k) for k in ('verdict', 'stepsMissed',
+                                    'timeErrorS', 'refusal')}))
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

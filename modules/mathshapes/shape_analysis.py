@@ -311,16 +311,22 @@ def shape_properties(manager, shape_name, resolution=32):
             return {'ok': False, 'shape': shape_name,
                     'family': family,
                     'error': '; '.join(coherent['refusals'])}
+        from mathshapes.gear_geometry import gear_volume
         o = coherent['object']
         ra = coherent['derived']['tipRadius']
         return {'ok': True, 'shape': shape_name, 'family': family,
+                'volumeCm3': round(gear_volume(
+                    o, flank_samples=int(
+                        params.get('flank_samples') or 8)), 6),
                 'derived': coherent['derived'],
                 'centroid': [round(float(v), 4)
                              for v in o['center']],
                 'boundingBox': [[round(o['center'][i] - ra, 4),
                                  round(o['center'][i] + ra, 4)]
                                 for i in range(3)],
-                'method': coherent['note']}
+                'method': coherent['note'] + ' — volume is the '
+                          'exact profile-polygon extrusion (units '
+                          'follow the consuming part)'}
     if family == 'derived-cylinder':
         from mathshapes.spool_geometry import derived_cylinder
         follower = derived_cylinder(manager, _params(shape),

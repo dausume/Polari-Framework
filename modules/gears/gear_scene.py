@@ -54,7 +54,22 @@ TRAIN_BODIES = {
                       1.4),
     'minute-wheel': ('clock-gear-minute-wheel', 'shaft-minute',
                      1.4),
+    # as-2: the HANDS ride their shafts — they are what the whole
+    # machine exists to move, so they rotate in the same replay.
+    'second-hand': ('clock-hand-second', 'shaft-second', 2.6),
+    'minute-hand': ('clock-hand-minute', 'shaft-minute', 3.1),
 }
+
+#: as-2: hand orientation VECTORS — each hand carries an arrow at
+#: its shaft showing where it points (the rotor-orientation idiom).
+HAND_VECTORS = [
+    {'key': 'vec-second-hand', 'body': 'second-hand',
+     'origin': [37.2, 0.0, 3.2], 'length': 85.0,
+     'color': '#d33340'},
+    {'key': 'vec-minute-hand', 'body': 'minute-hand',
+     'origin': [128.7, 0.0, 3.7], 'length': 70.0,
+     'color': '#5b7fd4'},
+]
 
 
 def _gear_shape(name, teeth, center, *, shift=0.0, addendum=1.0,
@@ -98,6 +113,33 @@ SEED_TRAIN_GEAR_SHAPES = [
                      'across — the size finding of gr-6, drawn.'),
 ]
 
+#: as-1/2: the hands as geometry — thin boxes reaching from their
+#: shaft with a short counter-tail, in planes above the wheels.
+#: Real parts: the clock_assembly bill derives their MASS from
+#: these very shapes.
+SEED_HAND_SHAPES = [
+    {'name': 'clock-hand-second',
+     'display_name': 'Seconds hand (95 mm, thin)',
+     'family': 'primitive', 'primitive_kind': 'box',
+     'parameters_json': json.dumps(
+         {'size': [1.4, 95.0, 0.5],
+          'center': [SHAFT_X['shaft-second'], 37.5, 2.6]}),
+     'notes': 'Extends -10..+85 about the seconds shaft (10 mm '
+              'counter-tail). Mass and imbalance derive from this '
+              'geometry in the assembly bill.',
+     'provenance_id': 'as-2'},
+    {'name': 'clock-hand-minute',
+     'display_name': 'Minute hand (80 mm)',
+     'family': 'primitive', 'primitive_kind': 'box',
+     'parameters_json': json.dumps(
+         {'size': [2.6, 80.0, 0.6],
+          'center': [SHAFT_X['shaft-minute'], 30.0, 3.1]}),
+     'notes': 'Extends -10..+70 about the minute shaft. Mass and '
+              'imbalance derive from this geometry in the '
+              'assembly bill.',
+     'provenance_id': 'as-2'},
+]
+
 #: What each gear row of the TRAIN must agree with (the guard's
 #: source of truth is the GearDefinition rows themselves).
 SHAPE_OF_GEAR = {
@@ -128,6 +170,10 @@ SEED_GEAR_SIM_SPACES = [
               'shapeRef': f'mathshape:{shape}',
               'styleRef': ('motor-shaft-steel'
                            if body == 'driving-pinion'
+                           else 'motor-pointer-red'
+                           if body == 'second-hand'
+                           else 'motor-shaft-steel'
+                           if body == 'minute-hand'
                            else 'motor-rotor-dark'
                            if body.endswith('wheel')
                            else 'motor-part-gray'),
@@ -169,6 +215,7 @@ def gear_scene_replay(manager, train_name=TRAIN, time_scale=60.0):
         'ok': True, 'train': train_name,
         'timeScale': time_scale,
         'bodies': bodies,
+        'handVectors': HAND_VECTORS,
         'totalRatio': solved.get('totalRatio'),
         'outputSpeedRpm': solved.get('outputSpeedRpm'),
         'note': f'kinematic replay of the SOLVED shaft speeds at '
@@ -185,7 +232,7 @@ def seed_gear_scene(manager):
     reports = upsert_seed_pairs(
         manager,
         [('MathShapeDefinition', MathShapeDefinition,
-          SEED_TRAIN_GEAR_SHAPES)],
+          SEED_TRAIN_GEAR_SHAPES + SEED_HAND_SHAPES)],
         tag='GearSceneSeed')
     try:
         from simSpace.sim_space_definition import SimSpaceDefinition

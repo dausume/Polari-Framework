@@ -46,6 +46,10 @@ class MotorsAPI(treeObject):
                 suffix='clock_view')
             add('/api/motors/clock-scene/{view_name}', self,
                 suffix='clock_scene')
+            add('/api/motors/clock-assembly', self,
+                suffix='clock_assembly')
+            add('/api/motors/timekeeping-proof', self,
+                suffix='timekeeping_proof')
             add('/api/motors/component-view/{part_name}', self,
                 suffix='component_view')
             # goal-1..3: goals + constraints over composition's
@@ -544,6 +548,20 @@ class MotorsAPI(treeObject):
             self.manager, view_name,
             design=request.params.get('design', 'clock-lavet-m0'),
             scene_name=request.params.get('scene', ''))
+
+    def on_get_clock_assembly(self, request, response):
+        """as-1: the genuine assembly bill — motor + train + hands,
+        every mass from its own geometry x material density."""
+        from motors.clock_assembly import clock_assembly_report
+        response.media = clock_assembly_report(self.manager)
+
+    def on_get_timekeeping_proof(self, request, response):
+        """as-3: sim steps -> solved ratios -> hand angles vs true
+        time. ?pulses=N (default 120)."""
+        from motors.clock_assembly import timekeeping_proof
+        response.media = timekeeping_proof(
+            self.manager,
+            pulses=int(request.params.get('pulses', 120)))
 
     def on_get_component_view(self, request, response, part_name):
         from motors.clock_views import component_view

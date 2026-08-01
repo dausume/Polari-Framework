@@ -434,13 +434,14 @@ check('shaft x-positions ARE the solved centre distances '
       abs(SHAFT_X['shaft-second'] - (8 + 240) * 0.3 / 2) < 1e-9
       and abs(SHAFT_X['shaft-minute']
               - (37.2 + (10 + 600) * 0.3 / 2)) < 1e-9)
-check('the scene shares exactly ONE body with the motor: the '
-      'driving pinion',
+check('the scene shares exactly ONE body with the motor (the '
+      'driving pinion) — plus the hands it exists to move',
       [b for b in TRAIN_BODIES if 'pinion' in b
        and TRAIN_BODIES[b][1] == 'shaft-rotor']
       == ['driving-pinion']
       and len(_gsj.loads(SEED_GEAR_SIM_SPACES[0]['definition'])
-              ['freestanding']) == 4)
+              ['freestanding']) == 6
+      and {'second-hand', 'minute-hand'} <= set(TRAIN_BODIES))
 _rep = gear_scene_replay(mgr, 'clock-train-m0', time_scale=60.0)
 check('replay rides the SOLVE: rotor 30 rpm, seconds shaft '
       'lands at |1| rpm, minute at |1/60| — signs from the solve',

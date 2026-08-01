@@ -3698,6 +3698,9 @@ class polariServer(treeObject):
                 only_classes is None
                 or 'ClockScaleDefinition' in only_classes):
             try:
+                from motors.clock_assembly import (
+                    seed_clock_assembly,
+                )
                 from motors.clock_scene import seed_clock_scene
                 from motors.clock_views import seed_clock_views
                 from motors.motor_shapes import seed_v2_shapes
@@ -3705,7 +3708,8 @@ class polariServer(treeObject):
                 for r in (seed_scale_goals(self.manager)
                           + seed_clock_views(self.manager)
                           + seed_clock_scene(self.manager)
-                          + seed_v2_shapes(self.manager)):
+                          + seed_v2_shapes(self.manager)
+                          + seed_clock_assembly(self.manager)):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[ScaleGoalsSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '

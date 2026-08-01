@@ -197,6 +197,22 @@ def gear_profile(obj, flank_samples=8):
     return prof
 
 
+def gear_volume(obj, flank_samples=8):
+    """Exact volume of the extruded solid: shoelace area of the
+    tooth-profile polygon minus the bore disc, times face width —
+    the same profile the mesh draws, so bill and picture agree."""
+    prof = gear_profile(obj, flank_samples=flank_samples)
+    area2 = 0.0
+    for i in range(len(prof)):
+        x0, y0 = prof[i - 1]
+        x1, y1 = prof[i]
+        area2 += x0 * y1 - x1 * y0
+    area = abs(area2) / 2.0
+    bore_r = obj['bore'] if obj['bore'] > 0 else 0.0
+    area -= math.pi * bore_r * bore_r
+    return max(area, 0.0) * obj['face']
+
+
 def gear_mesh(obj, flank_samples=8):
     """Extruded gear solid: profile walls + bore walls + top and
     bottom annuli, one vertex set (the tube_mesh idiom)."""

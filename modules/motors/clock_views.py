@@ -182,6 +182,13 @@ SECTION_SOURCES = {
         'motors.composition_splice', 'promotion_candidates'),
     # mass
     'mass-bill': _src_design('motors.motor_parts', 'part_report'),
+    # as-1/3: the genuine assembly + the end-to-end time proof.
+    'clock-assembly': lambda m, a: __import__(
+        'motors.clock_assembly', fromlist=['clock_assembly_report']
+    ).clock_assembly_report(m),
+    'timekeeping-proof': lambda m, a: __import__(
+        'motors.clock_assembly', fromlist=['timekeeping_proof']
+    ).timekeeping_proof(m, pulses=int(a.get('pulses', 120))),
     # motion
     'clock-sim': _src_design('motors.motor_designer', 'clock_sim'),
     'verification': _src_design('motors.motor_verify',
@@ -490,13 +497,27 @@ SEED_CLOCK_VIEWS = [
                   'material below.',
           'links': [{'label': 'Motor scene (3D)',
                      'kind': 'simspace',
-                     'route': '/sim-spaces/motor-m0-viz'}]}]),
+                     'route': '/sim-spaces/motor-m0-viz'}]},
+         {'name': 'clock-assembly', 'source': 'clock-assembly',
+          'args': {},
+          'lead': 'The GENUINE assembly: motor + train gears + '
+                  'hands, every mass from its own geometry x its '
+                  'material density; each hand\'s imbalance torque '
+                  'checked against what its shaft delivers through '
+                  'the solved train. Absent members are NAMED.'}]),
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'view-motion', 'display_name': 'Movement simulation',
      'discipline': 'motion', 'scale_support': 'm0-only',
      'description': 'the clock sim (steps vs time, the control '
                     'case) and the bench verification record',
      'sections_json': _j([
+         {'name': 'timekeeping-proof', 'source': 'timekeeping-proof',
+          'args': {},
+          'lead': 'THE proof: the physics sim\'s (possibly missed) '
+                  'steps carried through the solved ratios to the '
+                  'hand angles, against true time. Zero missed '
+                  'steps = EXACT agreement; every miss = exactly '
+                  'one lost second, reported.'},
          {'name': 'clock-sim', 'source': 'clock-sim', 'args': {},
           'lead': 'The solver stepping the M0 — the control case '
                   'the whole arc rests on. The 3D scene replays '
