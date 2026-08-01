@@ -525,20 +525,30 @@ SEED_TECH_NODES = [
                       'the foundry open.',
           cross=((_MO, 'm2b-brushed-pm-dc', 'powered-by'),)),
     _node(_DV, 'miniature-traction-unit',
-          'Miniature traction unit (~100 W)',
+          'Per-axle traction unit (~100 W)',
           deps=('handheld-drill-driver',),
-          description='The M2-to-M3 bridge: continuous traction '
-                      'at survivable scale (garden/miniature '
-                      'railway class) — same physics as the '
-                      'train, failures cost a coil not a crash.',
+          description='THE BUILDING BLOCK, not just a bridge '
+                      '(dt-1): the train is N of these — one per '
+                      'axle — coordinated. Continuous traction at '
+                      'survivable scale; failures cost a coil not '
+                      'a crash; batch manufacture of identical '
+                      'units is exactly what the sell-iterate '
+                      'loop matures.',
           cross=((_MO, 'm2-pm-rotor', 'powered-by'),)),
     _node(_DV, 'electric-train-engine', 'Electric train engine',
           deps=('miniature-traction-unit',),
-          description='The horizon product: kW-class continuous '
-                      'traction on M3 axial flux. Blockers named: '
-                      'laminated magnetics at scale, the traction '
-                      'inverter, W3 wire in quantity, thermal '
-                      'management.',
+          description='DISTRIBUTED TRACTION (dt-1): one motor per '
+                      'axle, scaled by adding axles — the '
+                      'per-motor threshold falls toward the '
+                      '~100 W unit AND all-driven axles raise the '
+                      'ADHESION ceiling (weight on driven wheels '
+                      'is the cap; the real reason locomotives '
+                      'are built this way). Push per-unit '
+                      'capability regardless. What stays hard, '
+                      'named: coordinating N drives, distributing '
+                      'power, manufacturing N identical units. '
+                      'The sweep: /api/motors/'
+                      'distributed-traction.',
           cross=((_MO, 'm3-axial-flux', 'powered-by'),
                  (_MO, 'traction-inverter', 'requires'))),
 

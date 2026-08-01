@@ -2361,6 +2361,37 @@ check('bench-1: refused predictions stay LISTED, never dropped',
       == {e['measurement'] for e in camp['measurements']
           if e.get('refusal')})
 
+print('\n-- dt-1: distributed traction — the per-axle '
+      'understanding as math --')
+from motors.distributed_traction import (         # noqa: E402
+    distributed_traction,
+)
+
+dt = distributed_traction(mass_t=2.0, speed_kmh=10.0,
+                          grade_pct=2.0, max_axles=12)
+check('dt-1: tractive effort by hand — 2 t at 2% grade + rolling '
+      '= 431.6 N, 1199 W at 10 km/h',
+      abs(dt['tractiveEffortN'] - 431.6) < 0.5
+      and abs(dt['totalPowerW'] - 1199.0) < 1.5)
+check('dt-1: THE THRESHOLD FALLS: one axle needs beyond-M3 power, '
+      'twelve axles drop each unit into the ~100 W '
+      'per-axle-traction class',
+      'beyond' in dt['sweep'][0]['smallestSufficientRung']
+      and '100 W' in dt['sweep'][11]['smallestSufficientRung']
+      and abs(dt['sweep'][11]['perAxlePowerW'] - 99.9) < 0.5)
+check('dt-1: ADHESION — all-driven ceiling (4905 N) clears the '
+      'demand, and the one-driven-axle ceiling shows WHY '
+      'distribution wins',
+      dt['adhesion']['satisfiedAllDriven']
+      and abs(dt['adhesion']['ceilingAllDrivenN'] - 4905.0) < 1
+      and dt['adhesion']['ceilingOneDrivenAxleN']
+      < dt['tractiveEffortN'])
+check('dt-1: what stays hard is NAMED (coordination, power '
+      'distribution, batch manufacture) and rung powers are '
+      'flagged priors',
+      len(dt['whatStaysHard']) == 3
+      and 'PRIORS' in dt['note'])
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

@@ -54,6 +54,8 @@ class MotorsAPI(treeObject):
                 suffix='product_routes')
             add('/api/motors/bench-campaign', self,
                 suffix='bench_campaign')
+            add('/api/motors/distributed-traction', self,
+                suffix='distributed_traction')
             add('/api/motors/component-view/{part_name}', self,
                 suffix='component_view')
             # goal-1..3: goals + constraints over composition's
@@ -584,6 +586,21 @@ class MotorsAPI(treeObject):
             self.manager,
             design_name=request.params.get('design',
                                            'clock-lavet-m0b'))
+
+    def on_get_distributed_traction(self, request, response):
+        """dt-1: per-axle traction requirements swept over axle
+        count (?mass_t=&speed_kmh=&grade_pct=&wheel_radius_m=
+        &max_axles=)."""
+        from motors.distributed_traction import (
+            distributed_traction,
+        )
+        q = request.params
+        response.media = distributed_traction(
+            mass_t=float(q.get('mass_t', 2.0)),
+            speed_kmh=float(q.get('speed_kmh', 10.0)),
+            grade_pct=float(q.get('grade_pct', 2.0)),
+            wheel_radius_m=float(q.get('wheel_radius_m', 0.15)),
+            max_axles=int(q.get('max_axles', 12)))
 
     def on_get_component_view(self, request, response, part_name):
         from motors.clock_views import component_view
