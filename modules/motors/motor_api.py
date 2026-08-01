@@ -15,6 +15,9 @@ from magnetics.magnet_analysis import _rows
 from motors.motor_designer import (
     clock_sim, design_report, torque_curve, torque_parity,
 )
+from motors.m1_sequencing import (
+    holding_torque, m1_minimum_drive_current, sequence_sim,
+)
 
 
 class MotorsAPI(treeObject):
@@ -31,6 +34,14 @@ class MotorsAPI(treeObject):
                 suffix='clock_sim')
             add('/api/motors/torque/{design_name}', self,
                 suffix='torque')
+            # m1-1: the sequencing solver (clock_sim's analog for
+            # the reluctance rung).
+            add('/api/motors/m1-sequence/{design_name}', self,
+                suffix='m1_sequence')
+            add('/api/motors/m1-holding/{design_name}', self,
+                suffix='m1_holding')
+            add('/api/motors/m1-min-current/{design_name}', self,
+                suffix='m1_min_current')
             add('/api/motors/parity', self, suffix='parity')
             add('/api/motors/materials/{design_name}', self,
                 suffix='materials')
@@ -165,6 +176,51 @@ class MotorsAPI(treeObject):
                             alternating=alternating)
         except ValueError as exc:
             out = {'ok': False, 'refusal': str(exc)}
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_m1_sequence(self, request, response, design_name):
+        def num(k, d):
+            try:
+                return float(request.params.get(k, d))
+            except (TypeError, ValueError):
+                return d
+        steps = int(max(1, min(num('steps', 12), 100000)))
+        amps = request.params.get('amps')
+        try:
+            amps = float(amps) if amps is not None else None
+        except (TypeError, ValueError):
+            amps = None
+        out = sequence_sim(
+            self.manager, design_name, steps=steps,
+            load_torque_nm=num('load', 0.0),
+            direction=int(num('direction', 1)),
+            start_deg=num('start', 0.0), amps=amps)
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_m1_holding(self, request, response, design_name):
+        amps = request.params.get('amps')
+        try:
+            amps = float(amps) if amps is not None else None
+        except (TypeError, ValueError):
+            amps = None
+        out = holding_torque(self.manager, design_name, amps=amps)
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_m1_min_current(self, request, response,
+                              design_name):
+        load = request.params.get('load')
+        try:
+            load = float(load) if load is not None else None
+        except (TypeError, ValueError):
+            load = None
+        out = m1_minimum_drive_current(self.manager, design_name,
+                                       load_torque_nm=load)
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out
