@@ -47,6 +47,8 @@ TREE_MATERIALS = 'materials-science'  # mtt-1
 TREE_SIMULATION = 'simulation-methods'  # smt-1
 TREE_MANUFACTURING = 'manufacturing-tools'  # mtt-2 furnace ladder
 TREE_RESEARCH = 'research-tools'  # mtt-2 measurement instruments
+TREE_MOTORS = 'electric-motors'  # tree-1 (Dustin 2026-08-01)
+TREE_DEVICES = 'manufacturing-devices'  # tree-1
 
 
 def _node(tree, short, title, deps=(), description='', cross=(),
@@ -157,6 +159,26 @@ SEED_TECH_TREE_DEFINITIONS = [
                     'Backed by pspp.ceramics_ladder + the sintering '
                     'engine. See MTT2_SOLGEL_SINTERING_PLAN.md.',
      'is_active': False, 'is_baseline': True, 'notes': ''},
+    {'name': TREE_MOTORS,
+     'title': 'Electric Motors',
+     'owner': 'polari',
+     'description': 'The motor KINDS as a ladder: what each '
+                    'topology demands (materials mu, magnets, '
+                    'commutation, electronics) and what it '
+                    'unlocks. Devices point INTO this tree for '
+                    'their power; this tree points into materials '
+                    'and manufacturing for its own needs.',
+     'is_active': True, 'is_baseline': True, 'notes': ''},
+    {'name': TREE_DEVICES,
+     'title': 'Manufacturing Devices',
+     'owner': 'polari',
+     'description': 'The devices we intend to BUILD, ordered as a '
+                    'bootstrap chain: each device manufactures or '
+                    'enables the next (the printer prints the '
+                    'molds that cast the next motors\' parts; the '
+                    'hoist opens the foundry the drill\'s metals '
+                    'need).',
+     'is_active': True, 'is_baseline': True, 'notes': ''},
 ]
 
 _E = TREE_ELECTRONICS
@@ -166,6 +188,8 @@ _M = TREE_MATERIALS
 _SM = TREE_SIMULATION
 _MT = TREE_MANUFACTURING
 _RT = TREE_RESEARCH
+_MO = TREE_MOTORS
+_DV = TREE_DEVICES
 
 #: Electronics / Microelectronics — the original tt-5 nodes (the
 #: household-nutrition node moved to the Raw Supply Chain tree).
@@ -413,6 +437,111 @@ SEED_TECH_NODES = [
           description='Efficiency + technology tailored so each '
                       'business can be AS SMALL AS POSSIBLE. Shell '
                       '— module not built yet.'),
+    # ── tree-1: Electric Motors — the topology ladder ──────────────
+    _node(_MO, 'm0-lavet-stepper', 'M0 — Lavet clock stepper',
+          description='The control case, now a COMPLETE PRODUCT '
+                      '(clock-lavet-m0b): one coil, PM rotor, '
+                      'asymmetric gap, 1 Hz pulses. Bench '
+                      'campaign pending — the W2 build+measure is '
+                      'the rung\'s remaining act.',
+          cross=((_E, 'electromagnetic-systems', 'theory'),)),
+    _node(_MO, 'drive-electronics',
+          'Sequenced drive electronics',
+          description='PWM + phase sequencing (the simplefoc '
+                      'profile is seeded). M1 upward needs it; '
+                      'the brushed variant exists to NOT need it.',
+          cross=((_E, 'battery-semiconductors', 'builds-on'),)),
+    _node(_MO, 'm1-switched-reluctance',
+          'M1 — switched reluctance (6s/4p)',
+          deps=('m0-lavet-stepper', 'drive-electronics'),
+          description='NO permanent magnet: sequenced soft poles, '
+                      'position by step counting — a stepper\'s '
+                      'cousin, the printer-axis motor. The most '
+                      'mu-hungry topology: wants the galvanized '
+                      'bio-steel stator (mu~2000), not our mu~2 '
+                      'castings.',
+          cross=((_M, 'galvanized-bio-steel', 'requires'),)),
+    _node(_MO, 'm2-pm-rotor', 'M2 — PM-rotor motor (BLDC-style)',
+          deps=('m0-lavet-stepper', 'drive-electronics'),
+          description='Continuous rotation from the pressed-'
+                      'ferrite capability the M0 bench '
+                      'demonstrates. Electronic commutation.',
+          cross=((_E, 'ceramics-composites', 'builds-on'),)),
+    _node(_MO, 'm2b-brushed-pm-dc', 'M2b — brushed PM-DC',
+          deps=('m2-pm-rotor',),
+          description='PM stator + wound rotor + COMMUTATOR: the '
+                      'no-electronics power motor (battery, '
+                      'switch, done) — the drill\'s natural '
+                      'heart. Its blocker is honest and '
+                      'mechanical: making brushes and a '
+                      'commutator that last.',
+          cross=((_MT, 'firebrick-furnace', 'enabled-by'),)),
+    _node(_MO, 'm3-axial-flux', 'M3 — dual-stator axial flux',
+          deps=('m2-pm-rotor',),
+          description='The seeded end goal: two working gaps, '
+                      'real torque density — the traction '
+                      'topology. Needs laminated/bio-steel '
+                      'magnetics at scale and kW electronics.',
+          cross=((_M, 'galvanized-bio-steel', 'requires'),)),
+    _node(_MO, 'traction-inverter', 'kW traction inverter',
+          deps=('drive-electronics',),
+          description='The kW-class power electronics rung M3 '
+                      'traction waits on. Named early so the '
+                      'train does not pretend it away.',
+          cross=((_E, 'battery-semiconductors', 'requires'),)),
+    # ── tree-1: Manufacturing Devices — the bootstrap chain ────────
+    _node(_DV, 'm0-wall-clock', 'M0 wall clock (the product)',
+          description='COMPLETE as a product with two sourcing '
+                      'routes, workflows and the sell loop; the '
+                      'bench campaign turns it measured. The '
+                      'practice run for everything below.',
+          cross=((_MO, 'm0-lavet-stepper', 'powered-by'),)),
+    _node(_DV, 'wax-3d-printer', 'Wax 3D printer',
+          deps=('m0-wall-clock',),
+          description='THE bootstrap device: 3-4 identical M1 '
+                      'axis motors + an auger drive, and it '
+                      'PRINTS THE WAX MOLDS that cast the next '
+                      'motors\' parts (bizops mold strategy '
+                      '\'wax-printed\'). First real batch build.',
+          cross=((_MO, 'm1-switched-reluctance', 'powered-by'),
+                 (_E, '3d-printing', 'realizes'))),
+    _node(_DV, 'crucible-hoist', 'Crucible hoist + pour array',
+          deps=('wax-3d-printer',),
+          description='Safety-first foundry lift: modest M2 winch '
+                      'through a SELF-LOCKING worm stage + pulley '
+                      'advantage — power-off holding by GEOMETRY, '
+                      'not by a brake. Opens the melt-and-pour '
+                      'loop the metal parts need.',
+          cross=((_MO, 'm2-pm-rotor', 'powered-by'),
+                 (_MT, 'steelmaking-furnace', 'enables'))),
+    _node(_DV, 'handheld-drill-driver',
+          'Handheld drill / screwdriver',
+          deps=('crucible-hoist',),
+          description='The average-person power tool: M2b brushed '
+                      'motor + two-stage PLANETARY reduction '
+                      '(gr-6 algebra: ~20-60:1 to the chuck) + a '
+                      'torque clutch. Sits after the hoist '
+                      'because commutator and gear metals want '
+                      'the foundry open.',
+          cross=((_MO, 'm2b-brushed-pm-dc', 'powered-by'),)),
+    _node(_DV, 'miniature-traction-unit',
+          'Miniature traction unit (~100 W)',
+          deps=('handheld-drill-driver',),
+          description='The M2-to-M3 bridge: continuous traction '
+                      'at survivable scale (garden/miniature '
+                      'railway class) — same physics as the '
+                      'train, failures cost a coil not a crash.',
+          cross=((_MO, 'm2-pm-rotor', 'powered-by'),)),
+    _node(_DV, 'electric-train-engine', 'Electric train engine',
+          deps=('miniature-traction-unit',),
+          description='The horizon product: kW-class continuous '
+                      'traction on M3 axial flux. Blockers named: '
+                      'laminated magnetics at scale, the traction '
+                      'inverter, W3 wire in quantity, thermal '
+                      'management.',
+          cross=((_MO, 'm3-axial-flux', 'powered-by'),
+                 (_MO, 'traction-inverter', 'requires'))),
+
 ]
 
 SEED_TECH_SEGMENT_ASSIGNMENTS = [

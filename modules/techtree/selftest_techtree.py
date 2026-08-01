@@ -301,13 +301,16 @@ if __name__ == '__main__':
     by_tree = {}
     for n in SEED_TECH_NODES:
         by_tree[n['tree_name']] = by_tree.get(n['tree_name'], 0) + 1
+    from techtree.techtree_seed import TREE_DEVICES, TREE_MOTORS
     check('node counts: electronics 24 / supply 15 / economy 4 / '
           'materials 12 / simulation 9 / manufacturing 6 / '
-          'research 11 (mag-2 added gaussmeter + inductance rig)',
+          'research 11 / motors 7 / devices 6 (tree-1 added the '
+          'motor ladder + the device bootstrap chain)',
           by_tree == {TREE_ELECTRONICS: 24, TREE_SUPPLY: 15,
                       TREE_ECONOMY: 4, TREE_MATERIALS: 12,
                       TREE_SIMULATION: 9, TREE_MANUFACTURING: 6,
-                      TREE_RESEARCH: 11},
+                      TREE_RESEARCH: 11, TREE_MOTORS: 7,
+                      TREE_DEVICES: 6},
           json.dumps(by_tree))
 
     edges = domains.objectTables['TechDependencyEdge'].values()
@@ -384,11 +387,11 @@ if __name__ == '__main__':
 
     print('== suite: OSEB baseline across domain trees (tt-8) ==')
     baseline = baseline_report(domains)
-    check('baseline rolls up all seven domain trees',
+    check('baseline rolls up all nine domain trees',
           [t['name'] for t in baseline['trees']] == sorted([
               TREE_ELECTRONICS, TREE_SUPPLY, TREE_ECONOMY,
               TREE_MATERIALS, TREE_SIMULATION, TREE_MANUFACTURING,
-              TREE_RESEARCH]))
+              TREE_RESEARCH, TREE_MOTORS, TREE_DEVICES]))
     check('baseline carries domain titles',
           any(t['title'] == 'Electronics / Microelectronics'
               for t in baseline['trees'])
@@ -533,6 +536,65 @@ if __name__ == '__main__':
           'life and in-line annealing keep a LINE running fast, and '
           'we need 210 m once',
           '210 m' in pcd['reframing'])
+
+    print('== suite: tree-1 — electric motors + manufacturing '
+          'devices ==')
+    import json as _t1j
+
+    from techtree.techtree_seed import (
+        SEED_TECH_NODES as _T1N,
+        SEED_TECH_TREE_DEFINITIONS as _T1T,
+    )
+    _t1_names = {n['name'] for n in _T1N}
+    _mo = {n['name'].split('/')[1]: n for n in _T1N
+           if n['tree_name'] == 'electric-motors'}
+    _dv = {n['name'].split('/')[1]: n for n in _T1N
+           if n['tree_name'] == 'manufacturing-devices'}
+    check('both new trees seeded and ACTIVE',
+          all(any(t['name'] == nm and t['is_active']
+                  for t in _T1T)
+              for nm in ('electric-motors',
+                         'manufacturing-devices')))
+    check('the motor ladder: M1 and M2 build on M0 + drive '
+          'electronics; M2b (brushed) and M3 build on M2',
+          set(_t1j.loads(_mo['m1-switched-reluctance']
+                         ['depends_on_json']))
+          == {'electric-motors/m0-lavet-stepper',
+              'electric-motors/drive-electronics'}
+          and _t1j.loads(_mo['m2b-brushed-pm-dc']
+                         ['depends_on_json'])
+          == ['electric-motors/m2-pm-rotor']
+          and _t1j.loads(_mo['m3-axial-flux']
+                         ['depends_on_json'])
+          == ['electric-motors/m2-pm-rotor'])
+    check('the devices tree is the BOOTSTRAP CHAIN: clock -> '
+          'printer -> hoist -> drill -> mini-traction -> train',
+          [_t1j.loads(_dv[d]['depends_on_json'])
+           for d in ('wax-3d-printer', 'crucible-hoist',
+                     'handheld-drill-driver',
+                     'miniature-traction-unit',
+                     'electric-train-engine')]
+          == [[f'manufacturing-devices/{p}'] for p in
+              ('m0-wall-clock', 'wax-3d-printer',
+               'crucible-hoist', 'handheld-drill-driver',
+               'miniature-traction-unit')])
+    check('every device names its motor: a powered-by cross ref '
+          'into the electric-motors tree',
+          all(any(c['relation'] == 'powered-by'
+                  and c['tree'] == 'electric-motors'
+                  for c in _t1j.loads(n['cross_refs_json']))
+              for n in _dv.values()))
+    check('the drill is powered by the BRUSHED variant (the '
+          'no-electronics power motor)',
+          any(c['node'] == 'electric-motors/m2b-brushed-pm-dc'
+              for c in _t1j.loads(
+                  _dv['handheld-drill-driver']
+                  ['cross_refs_json'])))
+    check('no dangling deps or cross refs anywhere in the seeds',
+          all(d in _t1_names for n in _T1N
+              for d in _t1j.loads(n['depends_on_json']))
+          and all(c['node'] in _t1_names for n in _T1N
+                  for c in _t1j.loads(n['cross_refs_json'])))
 
     failed = [label for label, ok in _results if not ok]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} checks '
