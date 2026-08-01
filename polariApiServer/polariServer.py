@@ -3713,6 +3713,23 @@ class polariServer(treeObject):
                               flush=True)
             except Exception as e:
                 print(f'[ScaleGoalsSeed] failed: {e}', flush=True)
+        # gr-4: the gear-train scene rows (gear shapes + the
+        # isolated SimSpace) — upsert path, gears-gated, in gears'
+        # own admission pass.
+        if (_feature_available('gears')
+                and _feature_available('mathshapes') and (
+                only_classes is None
+                or 'GearDefinition' in only_classes)):
+            try:
+                from gears.gear_scene import seed_gear_scene
+                for r in seed_gear_scene(self.manager):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[GearSceneSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[GearSceneSeed] failed: {e}', flush=True)
         # nav-1: polariapps rows ride the SAME upsert path — the three
         # live use-case rows predate nav_json/personas_json/discipline
         # and the legacy insert-only pass would never deliver the new

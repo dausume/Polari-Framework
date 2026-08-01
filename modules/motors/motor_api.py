@@ -542,7 +542,8 @@ class MotorsAPI(treeObject):
         from motors.clock_scene import clock_scene_payload
         response.media = clock_scene_payload(
             self.manager, view_name,
-            design=request.params.get('design', 'clock-lavet-m0'))
+            design=request.params.get('design', 'clock-lavet-m0'),
+            scene_name=request.params.get('scene', ''))
 
     def on_get_component_view(self, request, response, part_name):
         from motors.clock_views import component_view

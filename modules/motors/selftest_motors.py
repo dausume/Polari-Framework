@@ -1900,22 +1900,27 @@ from motors.clock_scene import (          # noqa: E402
 )
 from motors.motor_parts import SEED_MOTOR_PARTS as _SMP  # noqa: E402
 
-check('every discipline view declares its 3D scene (base + all '
-      'layers, defaultOn non-empty)',
+def _scenes_of(view_seed):
+    blob = _vjson.loads(view_seed['scene_json'])
+    return blob.get('scenes') or [blob]
+
+
+check('every discipline view declares its 3D scene(s) (base + '
+      'layers + non-empty defaultOn per scene)',
       set(VIEW_SCENES) == {v['name'] for v in SEED_CLOCK_VIEWS}
       and all(v['scene_json'] for v in SEED_CLOCK_VIEWS)
-      and all(_vjson.loads(v['scene_json'])['defaultOn']
-              for v in SEED_CLOCK_VIEWS))
+      and all(s.get('base') and s.get('defaultOn')
+              for v in SEED_CLOCK_VIEWS for s in _scenes_of(v)))
 check('the part→body map covers every v2 part of the bill '
       '(the one copy; the Angular table retires)',
       set(V2_PART_BODIES)
       == {p['name'] for p in _SMP
           if p['name'].startswith('lavet-v2-')})
-check('seven layers seeded across the five renderer-backed kinds',
-      len(SEED_CLOCK_SCENE_LAYERS) == 7
+check('eight layers seeded across the six renderer-backed kinds',
+      len(SEED_CLOCK_SCENE_LAYERS) == 8
       and {l['kind'] for l in SEED_CLOCK_SCENE_LAYERS}
       == {'part-coloring', 'vector-field', 'replay', 'markers',
-          'shape-swap'})
+          'shape-swap', 'gear-replay'})
 
 print('\n-- ws-2: air gap + observable winding --')
 from motors.motor_shapes import (      # noqa: E402
@@ -1992,7 +1997,7 @@ check('mass view scene assembles on the v2 base with all layers '
       'listed, mass defaultOn',
       scene.get('ok')
       and scene['baseScene'] == 'motor-m0-lavet-v2-viz'
-      and len(scene['layers']) == 7
+      and len(scene['layers']) == 8
       and any(l['name'] == 'layer-mass-coloring'
               and l.get('defaultOn') for l in scene['layers']))
 mass_layer = next(l for l in scene['layers']
@@ -2041,6 +2046,33 @@ check('field layer refuses honestly in the fixture (no magnetics '
 check('unknown view refuses; a view without scene_json names the '
       'knob',
       not clock_scene_payload(_sm, 'view-nope').get('ok'))
+print('\n-- gr-4: the mechanical view carries the ISOLATED '
+      'gear-train scene --')
+mech_scene = clock_scene_payload(_sm, 'view-mechanical')
+check('mechanical view lists BOTH scenes, motor first',
+      mech_scene.get('ok')
+      and [s['name'] for s in mech_scene.get('scenes', [])]
+      == ['motor', 'gear-train']
+      and mech_scene['scene'] == 'motor'
+      and mech_scene['baseScene'] == 'motor-m0-lavet-v2-viz')
+gear_scene_p = clock_scene_payload(_sm, 'view-mechanical',
+                                   scene_name='gear-train')
+check('?scene=gear-train switches to the isolated train (its own '
+      'base, only the gear-replay layer)',
+      gear_scene_p.get('ok')
+      and gear_scene_p['baseScene'] == 'gear-train-m0-viz'
+      and [l['name'] for l in gear_scene_p['layers']]
+      == ['layer-gear-train-replay'])
+check('the gear-replay layer refuses honestly in the fixture '
+      '(no gears rows) and stays listed',
+      not gear_scene_p['layers'][0].get('ok')
+      and gear_scene_p['layers'][0].get('refusal'))
+check('an unknown scene name refuses naming the choices',
+      not clock_scene_payload(_sm, 'view-mechanical',
+                              scene_name='nope').get('ok'))
+check('single-scene views are untouched by the multi-scene shape',
+      'scenes' not in clock_scene_payload(_sm, 'view-mass'))
+
 elec = clock_scene_payload(_sm, 'view-electrical')
 swap = next(l for l in elec['layers']
             if l['name'] == 'layer-winding-detail')

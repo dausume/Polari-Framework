@@ -45,7 +45,7 @@ from composition.data_refs import resolve_named, rows
 from composition.seed_upsert import upsert_seed_pairs
 
 LAYER_KINDS = ('part-coloring', 'vector-field', 'replay', 'markers',
-               'shape-swap')
+               'shape-swap', 'gear-replay')
 
 #: The one part→scene-body map for the v2 Lavet scene
 #: (motor-m0-lavet-v2-viz). Multi-body parts list every body.
@@ -376,6 +376,20 @@ def layer_payload(manager, layer_row,
             data = _markers(manager, params)
         elif kind == 'shape-swap':
             data = _shape_swap(manager, params, design)
+        elif kind == 'gear-replay':
+            try:
+                from gears.gear_scene import gear_scene_replay
+            except ImportError:
+                data = {'ok': False,
+                        'refusal': 'gears module not importable '
+                                   'here — the gear-train replay '
+                                   'needs it enabled'}
+            else:
+                data = gear_scene_replay(
+                    manager,
+                    train_name=params.get('train',
+                                          'clock-train-m0'),
+                    time_scale=float(params.get('time_scale', 60)))
         else:
             data = {'ok': False,
                     'refusal': f'unknown layer kind/source '
@@ -391,10 +405,12 @@ def layer_payload(manager, layer_row,
 
 
 def clock_scene_payload(manager, view_name,
-                        design='clock-lavet-m0'):
+                        design='clock-lavet-m0', scene_name=''):
     """The 3D assembly for one discipline view: base scene + every
     layer's render-ready data + which layers that view turns on by
-    default. Stacking any combination is the caller's toggle."""
+    default. Stacking any combination is the caller's toggle. A
+    view may carry MULTIPLE scenes (gr-4: the isolated gear train
+    beside the motor) — ?scene= picks one, the payload lists all."""
     view, refusal = resolve_named(manager, 'ClockViewDefinition',
                                   view_name)
     if refusal:
@@ -404,6 +420,20 @@ def clock_scene_payload(manager, view_name,
     except ValueError:
         return {'ok': False, 'view': view_name,
                 'refusal': 'scene_json does not parse'}
+    scene_list = None
+    if scene.get('scenes'):
+        scene_list = [{'name': s.get('name', ''),
+                       'title': s.get('title', '')}
+                      for s in scene['scenes']]
+        wanted = scene_name or scene['scenes'][0].get('name', '')
+        picked = next((s for s in scene['scenes']
+                       if s.get('name') == wanted), None)
+        if picked is None:
+            return {'ok': False, 'view': view_name,
+                    'refusal': f'no scene "{scene_name}" on this '
+                               f'view — one of '
+                               f'{[s["name"] for s in scene_list]}'}
+        scene = picked
     if not scene.get('base'):
         return {'ok': False, 'view': view_name,
                 'refusal': 'view has no scene_json — nav-4 gave it '
@@ -426,6 +456,9 @@ def clock_scene_payload(manager, view_name,
             'discipline': getattr(view, 'discipline', ''),
             'design': design,
             'baseScene': scene['base'],
+            **({'scenes': scene_list,
+                'scene': scene.get('name', '')}
+               if scene_list else {}),
             'layers': layers,
             'refusedLayers': [l['name'] for l in layers
                               if not l.get('ok')],
@@ -520,6 +553,18 @@ SEED_CLOCK_SCENE_LAYERS = [
                     'electrical MTL cross-check riding the '
                     'payload.',
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
+    {'name': 'layer-gear-train-replay',
+     'display_name': 'Gear train — solved motion',
+     'kind': 'gear-replay', 'source': 'gears-train',
+     'params_json': _j({'train': 'clock-train-m0',
+                        'time_scale': 60.0}),
+     'style_json': '{}',
+     'description': 'Every math-defined gear of the M0 clock train '
+                    'turning at its SOLVED shaft speed (signed by '
+                    'the solve, time-scaled by a named knob) — the '
+                    'isolated mechanical story, with the driving '
+                    'pinion as the only motor piece in sight.',
+     'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'layer-interface-markers',
      'display_name': 'Interfaces — joints & failure modes',
      'kind': 'markers', 'source': 'composition-interfaces',
@@ -560,10 +605,27 @@ VIEW_SCENES = {
 }
 
 
+#: gr-4: the gear train is an ISOLATABLE scene of its own — the
+#: mechanical view carries BOTH scenes, switchable; the only motor
+#: piece in the train scene is the driving pinion.
+GEAR_TRAIN_SCENE = {
+    'name': 'gear-train',
+    'title': 'Gear train — isolated',
+    'base': 'gear-train-m0-viz',
+    'layers': ['layer-gear-train-replay'],
+    'defaultOn': ['layer-gear-train-replay'],
+}
+
+
 def scene_json_for_view(view_name):
     default_on = VIEW_SCENES.get(view_name)
     if default_on is None:
         return ''
+    motor_scene = {'name': 'motor', 'title': 'Motor (v2 as built)',
+                   'base': V2_BASE, 'layers': ALL_LAYERS,
+                   'defaultOn': default_on}
+    if view_name == 'view-mechanical':
+        return _j({'scenes': [motor_scene, GEAR_TRAIN_SCENE]})
     return _j({'base': V2_BASE, 'layers': ALL_LAYERS,
                'defaultOn': default_on})
 

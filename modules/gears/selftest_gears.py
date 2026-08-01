@@ -409,6 +409,56 @@ check('stiction is named as the real-world limit a stepper faces '
       'EVERY step, and not modelled here',
       'stiction' in sz['honesty'])
 
+print('\n-- gr-4: the isolated gear-train scene --')
+import json as _gsj                                  # noqa: E402
+
+from gears.gear_scene import (                       # noqa: E402
+    SEED_GEAR_SIM_SPACES, SEED_TRAIN_GEAR_SHAPES, SHAFT_X,
+    SHAPE_OF_GEAR, TRAIN_BODIES, gear_scene_replay,
+)
+from gears.gear_seed import SEED_GEARS               # noqa: E402
+
+_shape_by = {s['name']: s for s in SEED_TRAIN_GEAR_SHAPES}
+_gear_by = {g['name']: g for g in SEED_GEARS}
+check('TWO MODULES AGREE: every train gear shape restates its '
+      'GearDefinition row exactly (teeth + module) — drawn train '
+      'and solved train cannot drift apart',
+      all(_gsj.loads(_shape_by[shape]['parameters_json'])['teeth']
+          == _gear_by[gear]['teeth']
+          and _gsj.loads(
+              _shape_by[shape]['parameters_json'])['module']
+          == _gear_by[gear]['module_mm']
+          for gear, shape in SHAPE_OF_GEAR.items()))
+check('shaft x-positions ARE the solved centre distances '
+      '((8+240)m/2 = 37.2; +(10+600)m/2 = 128.7)',
+      abs(SHAFT_X['shaft-second'] - (8 + 240) * 0.3 / 2) < 1e-9
+      and abs(SHAFT_X['shaft-minute']
+              - (37.2 + (10 + 600) * 0.3 / 2)) < 1e-9)
+check('the scene shares exactly ONE body with the motor: the '
+      'driving pinion',
+      [b for b in TRAIN_BODIES if 'pinion' in b
+       and TRAIN_BODIES[b][1] == 'shaft-rotor']
+      == ['driving-pinion']
+      and len(_gsj.loads(SEED_GEAR_SIM_SPACES[0]['definition'])
+              ['freestanding']) == 4)
+_rep = gear_scene_replay(mgr, 'clock-train-m0', time_scale=60.0)
+check('replay rides the SOLVE: rotor 30 rpm, seconds shaft '
+      'lands at |1| rpm, minute at |1/60| — signs from the solve',
+      _rep['ok']
+      and abs(abs(next(b['trueRpm'] for b in _rep['bodies']
+                       if b['body'] == 'driving-pinion')) - 30)
+      < 1e-6
+      and abs(abs(next(b['trueRpm'] for b in _rep['bodies']
+                       if b['body'] == 'second-wheel')) - 1) < 1e-6
+      and abs(abs(next(b['trueRpm'] for b in _rep['bodies']
+                       if b['body'] == 'minute-wheel')) - 1 / 60)
+      < 1e-6, extra=str(_rep.get('bodies')))
+check('the time scale is NAMED in the payload (kinematic replay, '
+      'not a drawn animation)',
+      _rep['timeScale'] == 60.0 and 'time' in _rep['note'])
+check('an unknown train refuses honestly',
+      not gear_scene_replay(mgr, 'train-nope')['ok'])
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

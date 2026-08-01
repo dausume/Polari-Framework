@@ -518,8 +518,10 @@ def sample_surface(manager, shape_name, n=24):
             return {'ok': False, 'shape': shape_name,
                     'family': family,
                     'error': '; '.join(coherent['refusals'])}
-        pts, tris = gear_mesh(coherent['object'],
-                              flank_samples=max(4, n // 4))
+        pts, tris = gear_mesh(
+            coherent['object'],
+            flank_samples=int(params.get('flank_samples')
+                              or max(4, n // 4)))
         return {'ok': True, 'shape': shape_name, 'family': family,
                 'points': [[round(v, 4) for v in p] for p in pts],
                 'triangles': tris, 'count': len(pts),
