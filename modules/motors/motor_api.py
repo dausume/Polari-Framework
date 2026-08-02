@@ -45,6 +45,11 @@ class MotorsAPI(treeObject):
                 suffix='m1_holding')
             add('/api/motors/m1-min-current/{design_name}', self,
                 suffix='m1_min_current')
+            # m1-5: the printer-axis positioning proof.
+            add('/api/motors/m1-axis/{design_name}', self,
+                suffix='m1_axis')
+            add('/api/motors/m1-positioning-proof/{design_name}',
+                self, suffix='m1_positioning_proof')
             add('/api/motors/parity', self, suffix='parity')
             add('/api/motors/materials/{design_name}', self,
                 suffix='materials')
@@ -224,6 +229,35 @@ class MotorsAPI(treeObject):
             load = None
         out = m1_minimum_drive_current(self.manager, design_name,
                                        load_torque_nm=load)
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_m1_axis(self, request, response, design_name):
+        from motors.m1_positioning import axis_report
+        out = axis_report(self.manager, design_name)
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_m1_positioning_proof(self, request, response,
+                                    design_name):
+        from motors.m1_positioning import positioning_proof
+        def num(k, d):
+            try:
+                return float(request.params.get(k, d))
+            except (TypeError, ValueError):
+                return d
+        steps = int(max(1, min(num('steps', 48), 100000)))
+        load = request.params.get('load')
+        try:
+            load = float(load) if load is not None else None
+        except (TypeError, ValueError):
+            load = None
+        out = positioning_proof(
+            self.manager, design_name, commanded_steps=steps,
+            load_torque_nm=load,
+            direction=int(num('direction', 1)))
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out

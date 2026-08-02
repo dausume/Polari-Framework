@@ -200,6 +200,10 @@ def _table(seed):
     return {s['name']: types.SimpleNamespace(**s) for s in seed}
 
 
+from motors.m1_positioning import (     # noqa: E402
+    SEED_AXIS_REQUIREMENTS,
+)
+
 vm = _mgr()
 vm.objectTables['ClockViewDefinition'] = _table(SEED_M1_VIEWS)
 vm.objectTables['MotorControllerProfile'] = _table(
@@ -207,6 +211,8 @@ vm.objectTables['MotorControllerProfile'] = _table(
 vm.objectTables['PhaseBindingDefinition'] = _table(
     SEED_PHASE_BINDINGS)
 vm.objectTables['MotorPartDefinition'] = _table(SEED_MOTOR_PARTS)
+vm.objectTables['PrinterAxisRequirement'] = _table(
+    SEED_AXIS_REQUIREMENTS)
 vm.objectTypingDict = {k: object() for k in vm.objectTables}
 
 check('six M1 views seeded, disciplines all legal, M1 names',
@@ -259,13 +265,11 @@ check('per-phase L is a NAMED GAP whose knob is the m1-7 bench',
 
 posv = view_payload(vm, 'view-m1-positioning')
 _pby = {s['section']: s for s in posv.get('sections', [])}
-check('positioning view: the PROOF refuses by name and its '
-      'suggestion names the m1-5 seam; the solver section '
-      'answers meanwhile',
-      posv.get('ok')
-      and 'positioning-proof' in posv.get('refusedSections', [])
-      and 'm1_positioning' in str(
-          _pby['positioning-proof'].get('suggestion'))
+check('positioning view: axis requirements, the PROOF and the '
+      'solver all ANSWER from the fixture (m1-5 wired in)',
+      posv.get('ok') and not posv.get('refusedSections')
+      and _pby['positioning-proof'].get('payload', {})
+      .get('unloadedControl', {}).get('exact')
       and _pby['sequence-under-load'].get('payload', {})
       .get('ok'))
 
@@ -477,6 +481,71 @@ check('the markers layer shows all SIX M1 joints on the M1 '
       'scene (interface set follows the layer\'s pinned design)',
       _mk.get('ok') and len(_mk['markers']) == 6
       and _mk['defaultOn'])
+
+print('== suite: m1-5 the positioning proof ==')
+from motors.m1_positioning import (     # noqa: E402
+    STEPS_PER_REV, axis_report, positioning_proof,
+)
+
+check('every axis requirement is a NAMED prior: basis stated, '
+      'and the measurement that retires it stated',
+      all(s.get('basis') and s.get('replaces_with')
+          for s in SEED_AXIS_REQUIREMENTS))
+axis = axis_report(vm)
+check('steps/mm DERIVES: 12 steps/rev (m1-1 arithmetic) through '
+      'the M8x1.25 row -> 9.6 steps/mm, 0.104 mm/step, inside '
+      'the 0.2 mm tolerance',
+      axis.get('ok') and STEPS_PER_REV == 12
+      and abs(axis['stepsPerMm'] - 9.6) < 0.01
+      and abs(axis['mmPerStep'] - 1.25 / 12.0) < 1e-5
+      and 'suffices' in axis['resolutionVerdict'])
+check('THE DUTY VERDICT: today\'s mu~2 machine CANNOT hold the '
+      'axis — not-capable, with the shortfall quantified',
+      axis.get('ok') and axis['dutyVerdict'] == 'not-capable'
+      and axis['shortfall'] and axis['shortfall'] > 10)
+_knobs = {k['knob']: k for k in axis.get('knobs', [])}
+_bio = next((k for n, k in _knobs.items() if 'bio-steel' in n),
+            None)
+_gear = next((k for n, k in _knobs.items() if 'gear' in n), None)
+check('the knobs are QUANTIFIED live: bio-steel gain solved by '
+      'the same engine via material override; gear ratio derived '
+      'from the shortfall',
+      _bio is not None and _bio['gain'] > 5
+      and _gear is not None
+      and _gear['requiredRatio'] >= axis['shortfall'])
+
+proof = positioning_proof(vm, commanded_steps=24)
+check('UNLOADED CONTROL is EXACT: zero missed steps, position '
+      'error exactly zero mm (a claim, not a tolerance)',
+      proof.get('ok')
+      and proof['unloadedControl']['exact']
+      and proof['unloadedControl']['positionErrorMm'] == 0.0)
+check('the axis duty case today LOSES POSITION and says so; the '
+      'mm ledger balances by two paths and slips are NAMED',
+      proof['axisDuty']['verdict'] == 'loses-position'
+      and proof['axisDuty']['stepsMissed'] > 0
+      and proof['axisDuty']['crossCheck']['consistent']
+      and len(proof['axisDuty']['slippedSteps']) > 0)
+check('the proof carries the duty verdict and its knobs — the '
+      'answer to "which knob moves it" rides the payload',
+      proof['dutyVerdict'] == 'not-capable'
+      and len(proof['knobs']) >= 2)
+
+_peak = holding_torque(vm, M1)['peakTorqueNm']
+ok_load = positioning_proof(vm, commanded_steps=24,
+                            load_torque_nm=0.2 * _peak)
+check('under a load the machine CAN hold, the proof lands: zero '
+      'misses, sub-0.01 mm error (grid quantization only)',
+      ok_load.get('ok')
+      and ok_load['axisDuty']['stepsMissed'] == 0
+      and abs(ok_load['axisDuty']['positionErrorMm']) < 0.01)
+
+_bare = _mgr()
+_bare.objectTypingDict = {k: object() for k in _bare.objectTables}
+check('without the requirement rows the report REFUSES naming '
+      'seed_m1_axis — never a default axis',
+      not axis_report(_bare).get('ok')
+      and 'seed_m1_axis' in axis_report(_bare).get('refusal', ''))
 
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')

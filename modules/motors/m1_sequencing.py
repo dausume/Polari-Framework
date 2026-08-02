@@ -55,10 +55,13 @@ NO_DETENT_FACT = ('no unpowered detent: with no magnet, a '
                   'kept only while a phase carries current')
 
 
-def _geometry(manager, design, amps=None):
+def _geometry(manager, design, amps=None, stator_material='',
+              rotor_material=''):
     """The lumped numbers every function here shares. One reader,
     so the calibration cannot drift between sim, holding torque
-    and the bisect (two-modules-agree, inside one module)."""
+    and the bisect (two-modules-agree, inside one module).
+    Material overrides exist for KNOB QUANTIFICATION (m1-5 asks
+    what bio-steel would buy) — they never mutate the design row."""
     params = _loads(design, 'params_json', {})
     slots = int(params.get('slots', 0))
     poles = int(params.get('poles', 0))
@@ -67,8 +70,10 @@ def _geometry(manager, design, amps=None):
             f'the m1 solver knows the {SLOTS}s/{POLES}p machine; '
             f'"{getattr(design, "name", "?")}" is {slots}s/{poles}p '
             f'— other counts need their own alignment map')
-    mu_s = _prop(manager, params['stator_material'], 'mu_r_eff')
-    mu_r = _prop(manager, params['rotor_material'], 'mu_r_eff')
+    mu_s = _prop(manager, stator_material
+                 or params['stator_material'], 'mu_r_eff')
+    mu_r = _prop(manager, rotor_material
+                 or params['rotor_material'], 'mu_r_eff')
     area = float(params['tooth_area_m2'])
     gap = float(params['gap_base_m'])
     saliency = float(params.get('saliency_ratio', 1.0))
@@ -219,14 +224,18 @@ def sequence_sim(manager, design_name='reluctance-6s4p-m1',
 
 
 def holding_torque(manager, design_name='reluctance-6s4p-m1',
-                   amps=None, points=361):
+                   amps=None, points=361, stator_material='',
+                   rotor_material=''):
     """Peak static torque of ONE energized phase over a rotor-pole
     period: numerical dW'/dtheta, scanned. This is the number the
     axis load is judged against (m1-5) and the bench measures
-    (m1-7) — and at mu~2 it is honestly SMALL."""
+    (m1-7) — and at mu~2 it is honestly SMALL. Material overrides
+    quantify knobs without touching the design row."""
     try:
         design = _m1_design(manager, design_name)
-        geo = _geometry(manager, design, amps=amps)
+        geo = _geometry(manager, design, amps=amps,
+                        stator_material=stator_material,
+                        rotor_material=rotor_material)
     except (ValueError, KeyError) as exc:
         return {'ok': False, 'refusal': str(exc)}
     period = 360.0 / POLES

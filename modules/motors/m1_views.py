@@ -13,8 +13,9 @@ What is new here is only what M1 itself brings:
   the winding engine; per-phase L is a NAMED GAP until the bench
   (m1-7) measures six of them — the model predicts the phases
   EQUAL, so IMBALANCE is a thing only measurement can find,
-- the positioning proof as a NAMED GAP section until m1-5 wires
-  m1_positioning.py — the refusal states the exact seam,
+- the positioning sections (m1-5): axis requirements as rows and
+  the proof itself, with the min-current load resolving LIVE from
+  the axis report ('axis-duty') instead of a seeded copy,
 - the stator materials fork (cast mu~2 vs bio-steel vs fired) led
   by the role screen — the m1-6 decision surfaced where materials
   are discussed, not buried in a route file.
@@ -86,23 +87,20 @@ def m1_phase_electrics(manager, design_name=M1_DESIGN):
         'windingReport': rep}
 
 
-def _positioning_gap(manager, a):
-    return {'ok': False,
-            'refusal': 'the POSITIONING PROOF is not wired yet — '
-                       'm1_positioning.py (m1-5) turns printer-'
-                       'axis requirement rows (leadscrew pitch -> '
-                       'steps/mm, axis load, holding demand) plus '
-                       'the m1-1 step history into position error '
-                       'in mm vs commanded: EXACT when nothing '
-                       'misses, every missed step a named error, '
-                       'mm-error and missed-count pinned equal by '
-                       'two paths',
-            'suggestion': {'knob': 'motors.m1_positioning (m1-5)',
-                           'action': 'build the proof on the m1-1 '
-                                     'solver; it already carries '
-                                     'thetaContinuousDeg and '
-                                     'per-step shortfallDeg for '
-                                     'exactly this'}}
+def _m1_min_current(manager, a):
+    """The bisect, with 'axis-duty' resolving the load LIVE from
+    the axis report — a seeded number would drift the moment a
+    requirement row changed."""
+    from motors.m1_sequencing import m1_minimum_drive_current
+    load = a.get('load')
+    if load == 'axis-duty':
+        from motors.m1_positioning import axis_report
+        axis = axis_report(manager, a['design'])
+        if not axis.get('ok'):
+            return axis
+        load = axis['loadTorqueDemandNm']
+    return m1_minimum_drive_current(manager, a['design'],
+                                    load_torque_nm=load)
 
 
 def _src_m1(module, fn):
@@ -116,11 +114,8 @@ def _src_m1(module, fn):
 M1_SECTION_SOURCES = {
     'm1-sequence': _src_m1('motors.m1_sequencing', 'sequence_sim'),
     'm1-holding': _src_m1('motors.m1_sequencing', 'holding_torque'),
-    'm1-min-current': lambda m, a: __import__(
-        'motors.m1_sequencing',
-        fromlist=['m1_minimum_drive_current']
-    ).m1_minimum_drive_current(m, a['design'],
-                               load_torque_nm=a.get('load')),
+    'm1-min-current': _m1_min_current,
+    'm1-axis': _src_m1('motors.m1_positioning', 'axis_report'),
     'drive-profile': _src_m1('motors.motor_drive',
                              'simplefoc_config'),
     'm1-phase-electrics': _src_m1('motors.m1_views',
@@ -131,7 +126,8 @@ M1_SECTION_SOURCES = {
     'm1-construction-fork': lambda m, a: __import__(
         'motors.m1_composition', fromlist=['m1_construction_fork']
     ).m1_construction_fork(m),
-    'm1-positioning-proof': _positioning_gap,
+    'm1-positioning-proof': _src_m1('motors.m1_positioning',
+                                    'positioning_proof'),
 }
 
 # One dispatch table for every view row — M1 sources register into
@@ -183,12 +179,12 @@ SEED_M1_VIEWS = [
             'The SimpleFOC binding with pole pairs from the '
             'design row — the drive card the bench wires up.'),
          _s('min-current', 'm1-min-current',
-            'The current M1 NEEDS, bisected against the solver — '
-            'refused until a load is stated (no magnet, no '
-            'detent: against zero load the answer is zero). '
-            'PULL-IN governs, not pull-out: the weakest torque '
-            'along the travel decides, exactly like a stepper '
-            'datasheet.')]),
+            'The current M1 NEEDS against the axis duty, bisected '
+            'live (the load resolves from the m1-5 requirement '
+            'rows, never a stale copy). PULL-IN governs, not '
+            'pull-out: the weakest torque along the travel '
+            'decides, exactly like a stepper datasheet.',
+            args={'load': 'axis-duty'})]),
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'view-m1-magnetics',
      'display_name': 'M1 — magnetics',
@@ -302,21 +298,26 @@ SEED_M1_VIEWS = [
      'discipline': 'motion', 'scale_support': 'm0-only',
      'description': 'M1\'s product is POSITION: the printer-axis '
                     'proof — steps to mm through a leadscrew, '
-                    'exact-or-missed — as the view the rung is '
-                    'FOR; the proof section refuses by name until '
-                    'm1-5 builds it',
+                    'exact-or-missed — the view this rung is FOR',
      'sections_json': _j([
+         _s('axis-requirements', 'm1-axis',
+            'The printer axis as ROWS: leadscrew lead, load '
+            'force, drive efficiency, tolerance — every prior '
+            'names the measurement that retires it. Steps/mm '
+            'DERIVES from the m1-1 arithmetic; the duty verdict '
+            'names its knobs, quantified live.'),
          _s('positioning-proof', 'm1-positioning-proof',
-            'THE proof this rung exists for: command N steps, '
-            'land on the position or name exactly what was '
-            'missed — "keeps time" become "lands on the '
-            'commanded position". Refused BY NAME until m1-5 '
-            'wires m1_positioning.py.'),
+            'THE proof this rung exists for: command N steps '
+            'under the axis load, land on the position or name '
+            'exactly what was missed in mm. Zero misses = EXACT. '
+            'And M1\'s own truth: a miss is a backward pole SLIP '
+            '(no detent), so weak drive loses MORE than its '
+            'missed steps — the ledger still balances by two '
+            'paths.'),
          _s('sequence-under-load', 'm1-sequence',
-            'The solver the proof will drive — today unloaded; '
-            'the axis rows (m1-5) bring the load torque, and '
-            'the same history that replays in 3D becomes the '
-            'position ledger.',
+            'The same history the proof accounts and the 3D '
+            'scene replays — one solver, three consumers, no '
+            'copies.',
             links=_M1_SCENE_LINK)]),
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
 ]

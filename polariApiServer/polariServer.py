@@ -3703,6 +3703,7 @@ class polariServer(treeObject):
                 )
                 from motors.clock_scene import seed_clock_scene
                 from motors.clock_views import seed_clock_views
+                from motors.m1_positioning import seed_m1_axis
                 from motors.m1_scene import seed_m1_scene
                 from motors.m1_views import seed_m1_views
                 from motors.motor_shapes import seed_v2_shapes
@@ -3714,6 +3715,7 @@ class polariServer(treeObject):
                           + seed_clock_views(self.manager)
                           + seed_m1_views(self.manager)
                           + seed_m1_scene(self.manager)
+                          + seed_m1_axis(self.manager)
                           + seed_clock_scene(self.manager)
                           + seed_v2_shapes(self.manager)
                           + seed_clock_assembly(self.manager)
