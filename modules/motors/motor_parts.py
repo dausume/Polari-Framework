@@ -308,7 +308,10 @@ SEED_MOTOR_PARTS = [
     {'name': 'm1-coils', 'design_ref': 'reluctance-6s4p-m1',
      'display_name': 'Phase coils (x6, wired A-B-C-A-B-C)',
      'shape_units': 'mm', 'shape_ref': 'motor-m1-coil',
-     'material_ref': 'magnet-wire-copper',
+     # was 'magnet-wire-copper' (a supplychain item name) — the
+     # MATERIAL option is what the coloring/accountability chains
+     # resolve, caught by the '(unresolved)' legend swatch.
+     'material_ref': 'opt-copper-magnet-wire',
      'function': 'mmf-source',
      'purpose': 'Six coils on six teeth, wired as three phases of '
                 'two. Energising a phase magnetises its pair of '
@@ -331,7 +334,11 @@ SEED_MOTOR_PARTS = [
     {'name': 'm1-shaft', 'design_ref': 'reluctance-6s4p-m1',
      'display_name': 'Shaft (8 mm)',
      'shape_units': 'mm', 'shape_ref': 'motor-m1-shaft',
-     'material_ref': '',
+     # Dustin 2026-08-02: the load-bearing part gets the STEEL
+     # answer — galvanized bio-steel is our steel route, so it is
+     # the design-intent material for the one purely structural,
+     # non-flux-critical member.
+     'material_ref': 'opt-galvanized-bio-steel',
      'function': 'structural',
      'purpose': 'Holds the rotor concentric in the bore and takes '
                 'the torque out to whatever is being driven. In a '
@@ -339,16 +346,22 @@ SEED_MOTOR_PARTS = [
                 'a detail: a wobble of a few tenths is a large '
                 'fraction of the gap, and gap reluctance dominates '
                 'the circuit.',
-     'why_this_material': 'Steel rod from the mag-1 cited stock — '
-                          'bought, not cast. Nothing in our '
-                          'materials stack makes a straight, round, '
-                          'stiff 8 mm shaft, and pretending '
-                          'otherwise would be the kind of claim '
-                          'this project exists to avoid.',
+     'why_this_material': 'STEEL, twice over: today the shaft is '
+                          'a BOUGHT drawn rod (mag-1 cited stock) '
+                          'because nothing local makes a '
+                          'straight, round, stiff 8 mm shaft — '
+                          'runout at a 0.6 mm gap demands drawn/'
+                          'ground stock, and TURNING/GRINDING is '
+                          'the named missing rung, not casting. '
+                          'Galvanized bio-steel is the material '
+                          'the pure-local route would ever make '
+                          'it from, so the row carries the '
+                          'design-intent steel while the routes '
+                          'carry the buy.',
      'quantity': 1, 'is_prior': True, 'provenance_id': 'mag-12',
-     'notes': 'material_ref is a supplychain item, not a magnetic '
-              'option, so no density resolves here — the part '
-              'reports that as an honest gap.'},
+     'notes': 'load-bearing member: the bio-steel argument here '
+              'is STRUCTURAL (stiffness/runout), unlike the '
+              'stator fork where it is magnetic (mu).'},
     # ---------------- M3: dual-stator axial flux ----------------
     {'name': 'm3-stator-a-yoke', 'design_ref': 'dual-stator-axial-m3',
      'display_name': 'Stator A yoke disk (upper back-iron)',

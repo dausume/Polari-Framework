@@ -762,9 +762,13 @@ check('M3 rotor carrier is non-magnetic ON PURPOSE (a ferrous one '
       'would short the magnets through the disk)',
       'Non-magnetic ON PURPOSE'
       in _m3rep['m3-rotor-disk']['whyThisMaterial'])
-check('both rungs\' shafts are BOUGHT steel, reported as an '
-      'honest gap rather than a faked density',
-      _m1rep['m1-shaft']['massG'] is None
+check('the M1 shaft carries its design-intent STEEL (bio-steel, '
+      'Dustin 2026-08-02 — the load-bearing member) so its mass '
+      'now RESOLVES; the M3 shaft stays a bought-steel honest '
+      'gap until it gets the same decision',
+      isinstance(_m1rep['m1-shaft']['massG'], (int, float))
+      and _m1rep['m1-shaft']['massG'] > 0
+      and 'bio-steel' in _m1rep['m1-shaft']['whyThisMaterial']
       and _m3rep['m3-shaft']['massG'] is None)
 
 print('== suite: mag-15 stress — the CRITERION correction ==')
