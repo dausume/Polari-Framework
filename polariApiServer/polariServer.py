@@ -3748,17 +3748,17 @@ class polariServer(treeObject):
                 # equations: mathshapes admits before motors, so
                 # relying on the motors pass leaves this emission
                 # reading stale (pre-mq-2) geometry for one boot.
+                # NOTE: MathShapeDefinition + SEED_M1_PART_SHAPES
+                # are the MODULE-LEVEL imports — re-importing them
+                # here made them function-local and crashed the
+                # whole admission worker (UnboundLocalError at the
+                # legacy seed pairs above; the documented gotcha,
+                # hit again). Alias the one new import.
                 try:
-                    from mathshapes.shape_basis import (
-                        MathShapeDefinition,
-                    )
-                    from motors.motor_shapes import (
-                        SEED_M1_PART_SHAPES,
-                    )
                     from composition.seed_upsert import (
-                        upsert_seed_pairs,
+                        upsert_seed_pairs as _upsert_pre,
                     )
-                    upsert_seed_pairs(self.manager, [
+                    _upsert_pre(self.manager, [
                         ('MathShapeDefinition',
                          MathShapeDefinition,
                          SEED_M1_PART_SHAPES),
