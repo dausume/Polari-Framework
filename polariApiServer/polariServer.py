@@ -881,6 +881,7 @@ try:
     )
     from motors.clock_views import ClockViewDefinition
     from motors.clock_scene import ClockSceneLayerDefinition
+    from motors.m1_positioning import PrinterAxisRequirement
 except ImportError as _exc:
     # The stub tuple must list EVERY name the try block imports —
     # stub_feature_symbols already maps SEED_* to [] and everything
@@ -901,6 +902,7 @@ except ImportError as _exc:
         'SEED_EQUATION_ROWS',
         'ClockScaleDefinition', 'MotorGoalSpec',
         'ClockViewDefinition', 'ClockSceneLayerDefinition',
+        'PrinterAxisRequirement',
     ))
 # mesh-1: license-GATED external mesh catalog + the fit engine
 # (borrowed meshes measured against our vector organ definitions).
@@ -2111,6 +2113,8 @@ class polariServer(treeObject):
             ClockViewDefinition,
             # viz-1: 3D visualization layers as rows.
             ClockSceneLayerDefinition,
+            # m1-5: printer-axis requirement rows.
+            PrinterAxisRequirement,
             # mesh-1: licence findings, the assets under them, and
             # the human's accepted picks.
             MeshAssetSource, MeshAssetReference, OrganMeshChoice,
