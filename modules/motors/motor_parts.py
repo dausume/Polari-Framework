@@ -451,6 +451,58 @@ SEED_MOTOR_PARTS = [
                           'supplies 2x.',
      'quantity': 8, 'is_prior': True, 'provenance_id': 'mag-12',
      'notes': ''},
+    # m2-2: the ONLY two new parts on the second rung. Everything
+    # else in the M2 machine is an M1 part, by reference — see
+    # PART_REUSE below.
+    {'name': 'm2-magnet-ring', 'design_ref': 'ferrite-pm-m2',
+     'display_name': 'Rotor magnet ring (4-pole, ferrite)',
+     'shape_units': 'mm', 'shape_ref': 'motor-m2-magnet-ring',
+     'material_ref': 'opt-sintered-hexaferrite',
+     'function': 'torque-producing',
+     'purpose': 'THE part that makes this rung a different machine '
+                'from M1. A round ring, magnetised in four poles '
+                'around its circumference, so the stator field '
+                'always has something to pull on no matter where '
+                'the rotor is — which is why M2 spins smoothly '
+                'where M1 walks. Its radial thickness IS the '
+                'magnet length in the design row, because that '
+                'length is what sets the MMF it drives across the '
+                'gap.',
+     'why_this_material': 'Must be HARD magnetic: it has to hold '
+                          'its own field against a stator that is '
+                          'actively reversing. Sintered '
+                          'hexaferrite is the commercial-precedent '
+                          'answer (every cheap BLDC fan rotor is '
+                          'this ring), it is BUYABLE-CITED today, '
+                          'and it is the same SrFe12O19 chemistry '
+                          'M0 already has a press-sinter-magnetize '
+                          'workflow for — one named experiment, '
+                          'three rungs.',
+     'quantity': 1, 'is_prior': True, 'provenance_id': 'm2-2',
+     'notes': 'B_r is a LITERATURE PRIOR until the bench measures '
+              'it; every torque and k_e number on this rung '
+              'carries that prior.'},
+    {'name': 'm2-rotor-carrier', 'design_ref': 'ferrite-pm-m2',
+     'display_name': 'Rotor carrier hub (non-magnetic)',
+     'shape_units': 'mm', 'shape_ref': 'motor-m2-rotor-carrier',
+     'material_ref': 'opt-plain-geopolymer',
+     'function': 'structural',
+     'purpose': 'Fills the ring\'s bore and carries its torque to '
+                'the shaft. It is the piece that replaces M1\'s '
+                'salient rotor core — same job, opposite magnetic '
+                'requirement.',
+     'why_this_material': 'Non-magnetic ON PURPOSE, the M3 '
+                          'carrier\'s argument at a smaller '
+                          'radius: a ferrous hub would short the '
+                          'ring\'s four poles to each other '
+                          'through the middle instead of sending '
+                          'their flux out across the gap. Plain '
+                          'geopolymer is right here precisely '
+                          'because it is magnetically useless — '
+                          'the same conclusion as the M0 pinion.',
+     'quantity': 1, 'is_prior': True, 'provenance_id': 'm2-2',
+     'notes': 'Bonded to the ring (ifm2-ring-carrier) and pressed '
+              'onto the reused M1 shaft (ifm2-carrier-shaft).'},
     {'name': 'm3-rotor-disk', 'design_ref': 'dual-stator-axial-m3',
      'display_name': 'Rotor carrier disk',
      'shape_units': 'mm', 'shape_ref': 'motor-m3-rotor-disk',
@@ -538,16 +590,46 @@ def _part_volume_cm3(manager, shape_ref, units='cm'):
     return (None if raw is None else raw * factor), ''
 
 
+#: PARTS REUSED ACROSS RUNGS, declared rather than duplicated.
+#: M2 is the SAME 6s/4p stator as M1 — same molds, same coil
+#: family, same shaft — and only the rotor is new. Copying the
+#: stator rows would have made that story a coincidence between
+#: two bills; naming the reuse makes it a fact the bill carries
+#: (and the m2 selftest guards that the shared design params
+#: really are identical, so the claim cannot go stale).
+PART_REUSE = {
+    'ferrite-pm-m2': {
+        'from': 'reluctance-6s4p-m1',
+        'parts': ['m1-stator-yoke', 'm1-stator-teeth', 'm1-coils',
+                  'm1-shaft'],
+        'why': 'THE LADDER STORY, as rows: M2 changes the ROTOR '
+               'and nothing else. The yoke, the six teeth, the '
+               'six coils and the shaft are the same parts off '
+               'the same molds — so the second rung costs one '
+               'new mold and a magnet, not a new machine.',
+    },
+}
+
+
 def part_report(manager, design_name):
     """Every piece of one design: what it is, what it is made of,
-    what that makes it, and WHAT IT IS FOR."""
+    what that makes it, and WHAT IT IS FOR. Parts a rung REUSES
+    from a lower rung are included by reference (PART_REUSE) and
+    marked — they count toward the mass, because they are really
+    in the machine."""
     design = _named(manager, 'MotorDesignDefinition', design_name)
     if design is None:
         return {'ok': False,
                 'refusal': f'no MotorDesignDefinition named '
                            f'"{design_name}"'}
-    parts = [p for p in _rows(manager, 'MotorPartDefinition')
+    all_rows = _rows(manager, 'MotorPartDefinition')
+    parts = [p for p in all_rows
              if getattr(p, 'design_ref', '') == design_name]
+    reuse = PART_REUSE.get(design_name)
+    reused_names = set(reuse['parts']) if reuse else set()
+    if reused_names:
+        parts = parts + [p for p in all_rows
+                         if getattr(p, 'name', '') in reused_names]
     if not parts:
         return {'ok': False,
                 'refusal': f'no MotorPartDefinition rows for '
@@ -619,6 +701,9 @@ def part_report(manager, design_name):
             'properties': props,
             'notes': getattr(p, 'notes', ''),
         }
+        if name in reused_names:
+            entry['reusedFrom'] = reuse['from']
+            entry['reuseNote'] = reuse['why']
         if vol is None and getattr(p, 'function', '') != 'viz-only':
             entry['volumeGap'] = vol_gap
             gaps.append(f'{name}: {vol_gap}')
@@ -644,6 +729,12 @@ def part_report(manager, design_name):
         'ladderRung': getattr(design, 'ladder_rung', ''),
         'parts': entries, 'count': len(entries),
         'byFunction': by_function,
+        'reuse': ({'from': reuse['from'],
+                   'parts': sorted(reused_names),
+                   'newHere': sorted(
+                       e['part'] for e in entries
+                       if e['part'] not in reused_names),
+                   'why': reuse['why']} if reuse else None),
         'totalMassG': round(total_mass_g, 4),
         'massNote': 'viz-only parts are excluded from the total — '
                     'a mark on the rotor is not a piece',

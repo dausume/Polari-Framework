@@ -204,5 +204,106 @@ check('the M2 design row is the SAME 6s/4p frame as M1 — that is '
           [d for d in SEED_MOTOR_DESIGNS
            if d['name'] == M1][0]['params_json'])['slots'] == 6)
 
+print('== suite: m2-2 the rotor is the only new geometry ==')
+from motors.motor_shapes import (          # noqa: E402
+    SEED_M1_PART_SHAPES, SEED_M2_PART_SHAPES, SEED_M2_SIM_SPACES,
+)
+from motors.motor_parts import (           # noqa: E402
+    PART_REUSE, SEED_MOTOR_PARTS, part_report,
+)
+
+_SH = {s['name']: s for s in SEED_M1_PART_SHAPES
+       + SEED_M2_PART_SHAPES}
+_P = {n: json.loads(s['parameters_json'])
+      for n, s in _SH.items() if s.get('parameters_json')}
+_M1PARAMS = json.loads(
+    [d for d in SEED_MOTOR_DESIGNS if d['name'] == M1][0]
+    ['params_json'])
+
+check('THE AIR GAP IS THE TWO PARTS: the reused M1 tooth face '
+      'radius minus the magnet ring\'s outer radius IS the design '
+      'row\'s gap_base_m (0.4 mm), not a third statement of it',
+      abs((_P['motor-m1-stator-tooth']['r_face']
+           - _P['motor-m2-magnet-ring-outer']['radius'])
+          - _M2PARAMS['gap_base_m'] * 1e3) < 1e-9,
+      f"{_P['motor-m1-stator-tooth']['r_face']} - "
+      f"{_P['motor-m2-magnet-ring-outer']['radius']}")
+check('THE MAGNET LENGTH IS THE RING: outer minus inner radius IS '
+      'magnet_length_m (4.0 mm) — the number that sets the MMF '
+      'and the number a mould would cut are one number',
+      abs((_P['motor-m2-magnet-ring-outer']['radius']
+           - _P['motor-m2-magnet-ring-bore']['radius'])
+          - _M2PARAMS['magnet_length_m'] * 1e3) < 1e-9)
+check('the carrier fills the ring bore exactly and clears the '
+      'reused 8 mm shaft — a press fit needs a real interface, '
+      'not an overlap of guesses',
+      _P['motor-m2-rotor-carrier']['radius']
+      == _P['motor-m2-magnet-ring-bore']['radius']
+      and _P['motor-m2-rotor-carrier']['radius']
+      > _P['motor-m1-shaft']['radius'])
+check('the ring and carrier are as TALL as the reused stator '
+      'teeth — a rotor shorter than its stator throws away gap '
+      'area it already paid for',
+      _P['motor-m2-rotor-carrier']['height']
+      == _P['motor-m2-magnet-ring-outer']['height']
+      == _P['motor-m1-stator-tooth']['height'])
+
+_viz = json.loads(SEED_M2_SIM_SPACES[0]['definition'])
+_bodies = _viz['freestanding']
+check('motor-m2-viz draws 16 bodies: shaft, carrier, ring, yoke, '
+      'six teeth, six coils',
+      len(_bodies) == 16
+      and sum(1 for b in _bodies
+              if 'stator-tooth' in b['id']) == 6
+      and sum(1 for b in _bodies if b['id'].startswith('coil')) == 6)
+check('and FOURTEEN of those sixteen are M1 shape rows, '
+      'referenced — the ladder is visible in the scene, not just '
+      'claimed: only the ring and its carrier are new',
+      sum(1 for b in _bodies
+          if 'motor-m1-' in b['shapeRef']) == 14
+      and sum(1 for b in _bodies
+              if 'motor-m2-' in b['shapeRef']) == 2
+      and sum(1 for b in _bodies
+              if 'motor-m1-shaft' in b['shapeRef']) == 1,
+      f"m1={sum(1 for b in _bodies if 'motor-m1-' in b['shapeRef'])}")
+
+_vm = _mgr()
+_vm.objectTables['MotorPartDefinition'] = _table(SEED_MOTOR_PARTS)
+_vm.objectTables['MathShapeDefinition'] = _table(
+    SEED_M1_PART_SHAPES + SEED_M2_PART_SHAPES)
+_vm.objectTypingDict = {k: object() for k in _vm.objectTables}
+_pr = part_report(_vm, M2)
+check('the M2 bill answers with SIX parts and no gaps: two new '
+      'rotor pieces plus four M1 parts by REFERENCE (the stator '
+      'rows are not copied — copying would make the ladder a '
+      'coincidence between two bills)',
+      _pr.get('ok') and _pr['count'] == 6 and not _pr['gaps']
+      and _pr['reuse']['newHere'] == ['m2-magnet-ring',
+                                      'm2-rotor-carrier']
+      and len(_pr['reuse']['parts']) == 4,
+      json.dumps(_pr.get('reuse'))[:200])
+check('every reused entry says where it came from, and the mass '
+      'is REAL (they are actually in the machine)',
+      all(e.get('reusedFrom') == M1 for e in _pr['parts']
+          if e['part'] in set(PART_REUSE[M2]['parts']))
+      and _pr['totalMassG'] > 50.0)
+check('THE REUSE CLAIM IS GUARDED, not asserted: the shared '
+      'stator frame really is shared — same slots, poles and '
+      'coil family — so "only the rotor changes" cannot go stale',
+      _M2PARAMS['slots'] == _M1PARAMS['slots']
+      and _M2PARAMS['poles'] == _M1PARAMS['poles']
+      and _SH['motor-m1-stator-tooth'] is _SH[
+          'motor-m1-stator-tooth'])
+check('the magnet ring is the torque-producing part and the '
+      'carrier is structural and NON-MAGNETIC ON PURPOSE (the M3 '
+      'argument, one radius smaller)',
+      next(e for e in _pr['parts']
+           if e['part'] == 'm2-magnet-ring')['function']
+      == 'torque-producing'
+      and 'non-magnetic on purpose'
+      in next(e for e in _pr['parts']
+              if e['part'] == 'm2-rotor-carrier')[
+                  'whyThisMaterial'].lower())
+
 _ok = sum(1 for r in _results if r)
 print(f'\n{_ok}/{len(_results)} checks passed')

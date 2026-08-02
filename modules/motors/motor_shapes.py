@@ -22,6 +22,7 @@ which is itself gated on the mathshapes module.
 """
 
 import json
+import math
 
 PROV = 'mag-7b'
 
@@ -1051,6 +1052,117 @@ SEED_M1_SIM_SPACES = [
 #: would be worse than drawing none. The mag-9 winding report
 #: still judges the real 100 t / 20 AWG winding.
 #: ------------------------------------------------------------
+#: m2-2: ONLY THE ROTOR IS NEW. The M2 stator IS M1's — same yoke
+#: row, same tooth row, same coil rows, same shaft (see
+#: motor_parts.PART_REUSE). What changes is that the salient
+#: clover becomes a round magnet ring on a non-magnetic carrier,
+#: which is exactly why saliency drops to 1.0 and the torque stops
+#: coming from geometry and starts coming from the magnet.
+SEED_M2_PART_SHAPES = [
+    {'name': 'motor-m2-magnet-ring-outer',
+     'display_name': 'M2 magnet ring outer (CSG component)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 12.2, 'height': 6.7, 'axis': 'z',
+          'center': [0.0, 0.0, 0.0], 'cap_base': True,
+          'cap_top': True}),
+     'provenance_id': 'm2-2'},
+    {'name': 'motor-m2-magnet-ring-bore',
+     'display_name': 'M2 magnet ring bore (CSG component)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 8.2, 'height': 7.2, 'axis': 'z',
+          'center': [0.0, 0.0, 0.0], 'cap_base': True,
+          'cap_top': True}),
+     'provenance_id': 'm2-2'},
+    {'name': 'motor-m2-magnet-ring',
+     'display_name': 'M2 rotor magnet ring (4-pole, ferrite)',
+     'family': 'csg',
+     'csg_json': json.dumps(
+         {'op': 'difference',
+          'shapes': ['motor-m2-magnet-ring-outer',
+                     'motor-m2-magnet-ring-bore']}),
+     'bounds_json': json.dumps(
+         [[-12.7, 12.7], [-12.7, 12.7], [-3.8, 3.8]]),
+     'notes': 'A FULL RING, not four lumps — that is the whole '
+              'difference between this rung and M1. Outer radius '
+              '12.2 mm sits 0.4 mm inside the reused M1 tooth '
+              'face at 12.6 (the design row\'s gap_base_m, '
+              'guard-tested as a relation between the two parts\' '
+              'matrices). Radial thickness 12.2 - 8.2 = 4.0 mm IS '
+              'the design\'s magnet_length_m: the magnet\'s own '
+              'length is what sets its MMF, so the shape row and '
+              'the design row are one fact. Magnetised in four '
+              'poles around the circumference AFTER assembly '
+              '(op-m2-magnetize) — the gr-3 two-material lesson.',
+     'provenance_id': 'm2-2'},
+    {'name': 'motor-m2-rotor-carrier',
+     'display_name': 'M2 rotor carrier (non-magnetic hub)',
+     'family': 'primitive', 'primitive_kind': 'cylinder',
+     'parameters_json': json.dumps(
+         {'radius': 8.2, 'height': 6.7, 'axis': 'z',
+          'center': [0.0, 0.0, 0.0], 'cap_base': True,
+          'cap_top': True}),
+     'notes': 'Fills the ring bore exactly (8.2 mm) and grips the '
+              'reused 8 mm M1 shaft. NON-MAGNETIC ON PURPOSE, the '
+              'M3 carrier\'s argument at a smaller radius: a '
+              'ferrous hub would short the ring\'s poles to each '
+              'other through the middle instead of sending their '
+              'flux across the gap. Plain geopolymer is right '
+              'here precisely because it is magnetically useless.',
+     'provenance_id': 'm2-2'},
+]
+
+SEED_M2_SIM_SPACES = [
+    {'name': 'motor-m2-viz',
+     'description': 'M2 6-slot/4-pole ferrite-PM motor: a round '
+                    'magnet ring on a non-magnetic carrier, '
+                    'inside THE SAME six wound stator teeth and '
+                    'ring yoke M1 uses. Put it beside motor-m1-'
+                    'viz and only the middle has changed — that '
+                    'is the ladder, drawn.',
+     'dimensionality': '3d', 'coordinate_system': 'math',
+     'unit_scale': 1.0,
+     'viewport_json': json.dumps(
+         {'center': [0.0, 0.0, 0.0], 'extent': [60.0, 60.0, 40.0]}),
+     'bound_classes_json': '[]',
+     'definition': json.dumps({
+         'freestandingOnly': True,
+         'freestanding': (
+             [{'id': 'shaft',
+               'shapeRef': 'mathshape:motor-m1-shaft',
+               'styleRef': 'motor-shaft-steel',
+               'position': [0.0, 0.0, 0.0]},
+              {'id': 'rotor-carrier',
+               'shapeRef': 'mathshape:motor-m2-rotor-carrier',
+               'styleRef': 'motor-part-gray',
+               'position': [0.0, 0.0, 0.0]},
+              {'id': 'magnet-ring',
+               'shapeRef': 'mathshape:motor-m2-magnet-ring',
+               'styleRef': 'motor-rotor-dark',
+               'position': [0.0, 0.0, 0.0]},
+              {'id': 'yoke',
+               'shapeRef': 'mathshape:motor-m1-yoke',
+               'styleRef': 'motor-part-gray',
+               'position': [0.0, 0.0, 0.0]}]
+             + [{'id': f'stator-tooth-{i}',
+                 'shapeRef': 'mathshape:motor-m1-stator-tooth',
+                 'styleRef': 'motor-part-gray',
+                 'position': [0.0, 0.0, 0.0],
+                 'rotation': [0.0, 0.0,
+                              round(i * math.pi / 3.0, 6)]}
+                for i in range(6)]
+             + [{'id': f'coil-{i}',
+                 'shapeRef': 'mathshape:motor-m1-coil',
+                 'styleRef': 'motor-coil-idle',
+                 'position': [0.0, 0.0, 0.0],
+                 'rotation': [0.0, 0.0,
+                              round(i * math.pi / 3.0, 6)]}
+                for i in range(6)]),
+     }),
+     'is_prior': True, 'provenance_id': 'm2-2'},
+]
+
 SEED_M3_PART_SHAPES = [
     {'name': 'motor-m3-shaft',
      'display_name': 'M3 shaft',

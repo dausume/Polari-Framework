@@ -864,6 +864,7 @@ try:
         SEED_LAVET_PART_SHAPES, SEED_LAVET_SIM_SPACES,
         SEED_LAVET_V2_PART_SHAPES, SEED_LAVET_V2_SIM_SPACES,
         SEED_M1_PART_SHAPES, SEED_M1_SIM_SPACES,
+        SEED_M2_PART_SHAPES, SEED_M2_SIM_SPACES,
         SEED_M3_PART_SHAPES, SEED_M3_SIM_SPACES,
         SEED_MOTOR_MATERIALS_3D, SEED_MOTOR_PART_SHAPES,
         SEED_MOTOR_SIM_SPACES,
@@ -897,6 +898,7 @@ except ImportError as _exc:
         'SEED_LAVET_PART_SHAPES', 'SEED_LAVET_SIM_SPACES',
         'SEED_LAVET_V2_PART_SHAPES', 'SEED_LAVET_V2_SIM_SPACES',
         'SEED_M1_PART_SHAPES', 'SEED_M1_SIM_SPACES',
+        'SEED_M2_PART_SHAPES', 'SEED_M2_SIM_SPACES',
         'SEED_M3_PART_SHAPES', 'SEED_M3_SIM_SPACES',
         'MotorPartDefinition', 'SEED_MOTOR_PARTS',
         'SEED_EQUATION_ROWS',
@@ -3035,7 +3037,8 @@ class polariServer(treeObject):
              SEED_SIM_SPACES_3D + SEED_MOTOR_SIM_SPACES
              + SEED_LAVET_SIM_SPACES
              + SEED_LAVET_V2_SIM_SPACES
-             + SEED_M1_SIM_SPACES + SEED_M3_SIM_SPACES),
+             + SEED_M1_SIM_SPACES + SEED_M2_SIM_SPACES
+             + SEED_M3_SIM_SPACES),
             # Materials Science: the periodic table as objects + its
             # selection-space demo page.
             ('ChemicalElementDefinition', ChemicalElementDefinition,
@@ -3431,7 +3434,8 @@ class polariServer(treeObject):
              SEED_MATH_SHAPES + SEED_MOTOR_PART_SHAPES
              + SEED_LAVET_PART_SHAPES
              + SEED_LAVET_V2_PART_SHAPES
-             + SEED_M1_PART_SHAPES + SEED_M3_PART_SHAPES),
+             + SEED_M1_PART_SHAPES + SEED_M2_PART_SHAPES
+             + SEED_M3_PART_SHAPES),
             # shape-2: aquaponic towers (reference math-defined pots).
             ('AquaponicTowerDefinition', AquaponicTowerDefinition,
              SEED_TOWERS),
@@ -3761,7 +3765,8 @@ class polariServer(treeObject):
                     _upsert_pre(self.manager, [
                         ('MathShapeDefinition',
                          MathShapeDefinition,
-                         SEED_M1_PART_SHAPES),
+                         SEED_M1_PART_SHAPES
+                         + SEED_M2_PART_SHAPES),
                     ], tag='ShapeEquationSeed-pre')
                 except ImportError:
                     pass
