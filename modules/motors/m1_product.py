@@ -35,10 +35,13 @@ from composition.seed_upsert import upsert_seed_pairs
 M1_DESIGN = 'reluctance-6s4p-m1'
 PRODUCT = 'm1-axis-drive'
 UNITS_PER_PRINTER = 4
-#: ceil(65 shortfall x 1.5 margin) at the seeded axis rows — the
-#: selftest re-derives this from the LIVE axis report and fails
-#: if they drift (the wire-ladder lesson).
-GEAR_RATIO = 98
+#: ceil(demand / (PULL-IN limit / 1.5)) at the seeded axis rows —
+#: sized by the pull-in limit, NOT holding torque: the live probe
+#: proved a holding-sized 98:1 still loses steps (pull-in is
+#: ~0.32x holding, the m1-1 finding). The selftest re-derives
+#: this from the LIVE axis report and fails if they drift (the
+#: wire-ladder lesson).
+GEAR_RATIO = 304
 PROV = 'm1-6'
 
 
@@ -77,7 +80,7 @@ SEED_M1_WORKFLOWS = [
      'notes': '26 AWG is W2-EASY (coarse) — no drawing drama; '
               '24 coils per printer batch.'},
     {'name': 'm1-gear-reduction-workflow',
-     'display_name': 'Build the ~98:1 reduction',
+     'display_name': 'Build the ~304:1 reduction',
      'product_item_ref': PRODUCT,
      'mold_strategy': 'ceramic-fired',
      'hours_per_unit_ref': 3.0, 'hours_per_mold_ref': 0.0,
@@ -85,15 +88,19 @@ SEED_M1_WORKFLOWS = [
      'volume_exponent': 0.667,
      'steps_json': json.dumps(
          ['solve stages with the gears module (gr-1 train '
-          'machinery; two ~10:1 stages)',
+          'machinery; three ~7:1 stages)',
           'cast/fire gear blanks (pd-gears profiles — generate, '
           'never approximate)', 'assemble train',
           'backlash check (a positioning term, recorded)']),
      'is_prior': True, 'provenance_id': PROV,
-     'notes': 'the m1-5 knob APPLIED: reduction closes the ~65x '
-              'torque shortfall AND multiplies resolution; speed '
-              'falls by the same ratio and speed is already an '
-              'assumption (named).'},
+     'notes': 'the m1-5 knob APPLIED, sized by PULL-IN (~202x '
+              'demand/limit x 1.5 margin — holding torque would '
+              'have said 98:1 and lost steps). Resolution '
+              'multiplies by the ratio; travel speed falls by it '
+              'and is honestly SLOW at the assumed 5 Hz rate — '
+              'the dynamic model that would permit faster '
+              'stepping is a named gap, and the bio-steel fork '
+              'is the ratio\'s other knob.'},
     {'name': 'm1-axis-assemble-workflow',
      'display_name': 'Assemble + QA four axis units per printer',
      'product_item_ref': PRODUCT,
@@ -234,9 +241,10 @@ def m1_product_routes(manager, design_name=M1_DESIGN):
     axis = axis_report(manager, design_name)
     drivetrain = {
         'gearRatio': GEAR_RATIO,
-        'basis': 'ceil(live shortfall x 1.5 margin) at the seeded '
-                 'axis rows — guard-tested against axis_report so '
-                 'it cannot silently go stale',
+        'basis': 'ceil(demand / (pull-in limit / 1.5)) at the '
+                 'seeded axis rows — sized by PULL-IN, never '
+                 'holding torque; guard-tested against '
+                 'axis_report so it cannot silently go stale',
         'live': ({'shortfall': axis.get('shortfall'),
                   'requiredNow': next(
                       (k['requiredRatio'] for k in
@@ -256,7 +264,7 @@ def m1_product_routes(manager, design_name=M1_DESIGN):
          'workflow': 'm1-wind-six-coils-workflow',
          'capability': 'hand winding, 300 turns x6 — 26 AWG, '
                        'W2-EASY (no drawing drama)'},
-        {'input': 'gear reduction (~98:1)', 'source': 'make',
+        {'input': 'gear reduction (~304:1)', 'source': 'make',
          'workflow': 'm1-gear-reduction-workflow',
          'capability': 'gr-1 train solve + cast/fired gears '
                        '(generate, never approximate)'},

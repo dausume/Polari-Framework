@@ -148,7 +148,8 @@ def _m1_design(manager, design_name):
 
 def sequence_sim(manager, design_name='reluctance-6s4p-m1',
                  steps=12, load_torque_nm=0.0, direction=1,
-                 start_deg=0.0, amps=None):
+                 start_deg=0.0, amps=None, stator_material='',
+                 rotor_material=''):
     """THE M1 CONTROL CASE: latch phase 0, then command N phase
     advances and settle the rotor per excitation, counting
     stepped/missed under the load torque. The step history is the
@@ -157,7 +158,9 @@ def sequence_sim(manager, design_name='reluctance-6s4p-m1',
     every missed step is a NAMED shortfall, not a silent drift."""
     try:
         design = _m1_design(manager, design_name)
-        geo = _geometry(manager, design, amps=amps)
+        geo = _geometry(manager, design, amps=amps,
+                        stator_material=stator_material,
+                        rotor_material=rotor_material)
     except (ValueError, KeyError) as exc:
         return {'ok': False, 'refusal': str(exc)}
     steps = int(steps)
@@ -258,6 +261,48 @@ def holding_torque(manager, design_name='reluctance-6s4p-m1',
                    'little and the torque is honestly feeble — '
                    'that is the rung, not a bug',
         'noUnpoweredDetent': NO_DETENT_FACT,
+        'validity': M1_VALIDITY}
+
+
+def pull_in_load_limit(manager,
+                       design_name='reluctance-6s4p-m1',
+                       amps=None, steps=12, stator_material='',
+                       rotor_material=''):
+    """The largest load torque at which EVERY commanded step still
+    LANDS at this current — bisected with the sequencing sim as
+    judge. STRICTER than holding torque (~0.32x of it on the
+    seeded design at rated current): the load-lagged start sits in
+    the next phase's weak-torque zone, so PULL-IN governs the duty
+    a drivetrain must be sized against — never holding torque.
+    Material overrides quantify the m1-6 fork options."""
+    hold = holding_torque(manager, design_name, amps=amps,
+                          stator_material=stator_material,
+                          rotor_material=rotor_material)
+    if not hold.get('ok'):
+        return hold
+    peak = hold['peakTorqueNm']
+    lo, hi = 0.0, peak
+    for _ in range(40):
+        mid = (lo + hi) / 2.0
+        out = sequence_sim(manager, design_name, steps=steps,
+                           load_torque_nm=mid, amps=amps,
+                           stator_material=stator_material,
+                           rotor_material=rotor_material)
+        if out.get('ok') and out.get('stepsMissed') == 0:
+            lo = mid
+        else:
+            hi = mid
+    return {
+        'ok': True, 'design': design_name,
+        'pullInLimitNm': lo,
+        'holdingTorqueNm': peak,
+        'ratioToHolding': round(lo / peak, 3) if peak else None,
+        'basis': f'bisection of the load against the sequencing '
+                 f'sim over {steps} steps — the same judge that '
+                 f'decides missed steps decides the duty limit',
+        'note': 'size drivetrains by THIS number, not holding '
+                'torque: a motor that holds a load it cannot '
+                'step under does not position anything',
         'validity': M1_VALIDITY}
 
 

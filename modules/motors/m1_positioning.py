@@ -41,7 +41,7 @@ from composition.data_refs import rows
 from composition.seed_upsert import upsert_seed_pairs
 
 from motors.m1_sequencing import (
-    STEP_DEG, holding_torque, sequence_sim,
+    STEP_DEG, holding_torque, pull_in_load_limit, sequence_sim,
 )
 
 M1_DESIGN = 'reluctance-6s4p-m1'
@@ -137,35 +137,45 @@ def axis_report(manager, design_name=M1_DESIGN):
     # efficiency eta: T = F*L/(2*pi*eta) — the standard screw
     # relation, with the lossy eta carried as its own row.
     demand_nm = force * (lead / 1000.0) / (2.0 * math.pi * eff)
-    hold = holding_torque(manager, design_name)
-    if not hold.get('ok'):
-        return hold
-    supply_nm = hold['peakTorqueNm']
-    capable = supply_nm > demand_nm
+    pil = pull_in_load_limit(manager, design_name)
+    if not pil.get('ok'):
+        return pil
+    supply_nm = pil['holdingTorqueNm']
+    limit_nm = pil['pullInLimitNm']
+    # PULL-IN is the duty criterion: a motor that HOLDS a load it
+    # cannot STEP under does not position anything (the m1-1
+    # finding — the limit is ~0.32x holding on this design).
+    capable = limit_nm > demand_nm
     knobs = []
-    better = holding_torque(
+    better = pull_in_load_limit(
         manager, design_name,
         stator_material='opt-galvanized-bio-steel',
         rotor_material='opt-galvanized-bio-steel')
     if better.get('ok'):
         knobs.append({
             'knob': 'bio-steel stator + rotor (the m1-6 fork)',
-            'holdingTorqueNm': better['peakTorqueNm'],
-            'gain': round(better['peakTorqueNm'] / supply_nm, 1),
-            'closes': better['peakTorqueNm'] > demand_nm,
-            'evidence': 'holding_torque re-solved live with '
+            'pullInLimitNm': better['pullInLimitNm'],
+            'gain': round(better['pullInLimitNm'] / limit_nm, 1)
+            if limit_nm else None,
+            'closes': better['pullInLimitNm'] > demand_nm,
+            'evidence': 'pull-in limit re-solved live with '
                         'opt-galvanized-bio-steel via material '
                         'override — same engine, same geometry'})
-    ratio = demand_nm / supply_nm if supply_nm > 0 else None
+    ratio = demand_nm / limit_nm if limit_nm > 0 else None
     if ratio and ratio > 1.0:
         knobs.append({
             'knob': 'gear reduction between motor and screw',
             'requiredRatio': math.ceil(ratio * 1.5),
-            'evidence': f'demand/supply = {ratio:.0f}x, times the '
-                        f'1.5 drive margin — the gears module '
-                        f'(gr-1) has the train machinery',
-            'cost': 'resolution IMPROVES by the same ratio; speed '
-                    'falls by it (speed is already an assumption)'})
+            'evidence': f'demand/pull-in = {ratio:.0f}x, times '
+                        f'the 1.5 drive margin — sized by the '
+                        f'PULL-IN limit, never holding torque; '
+                        f'the gears module (gr-1) has the train '
+                        f'machinery',
+            'cost': 'resolution IMPROVES by the same ratio; '
+                    'travel speed falls by it — at the ASSUMED '
+                    '5 Hz step rate this ratio is honestly very '
+                    'slow, and the dynamic model that would '
+                    'permit faster stepping is a named gap'})
     return {
         'ok': True, 'design': design_name,
         'stepsPerRev': STEPS_PER_REV,
@@ -179,9 +189,10 @@ def axis_report(manager, design_name=M1_DESIGN):
             'inside it'),
         'loadTorqueDemandNm': demand_nm,
         'holdingTorqueNm': supply_nm,
+        'pullInLimitNm': limit_nm,
         'dutyVerdict': ('capable' if capable else 'not-capable'),
         'shortfall': (None if capable
-                      else round(demand_nm / supply_nm, 1)),
+                      else round(demand_nm / limit_nm, 1)),
         'knobs': knobs,
         'requirements': [
             {'name': s['name'], 'value': s['value'],
