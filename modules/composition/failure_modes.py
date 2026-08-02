@@ -135,6 +135,28 @@ SEED_FAILURE_MODES = [
      'evidence_note': 'bend a dipped sample round a 3 mm former — '
                       'the one-afternoon test (mag-24)',
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
+    {'name': 'fm-bond-line-shear',
+     'display_name': 'Adhesive bond line fails in shear',
+     'domain': 'mechanical', 'locus': 'interface',
+     'summary': 'THE MODE A BONDED PROMOTION KEEPS. A mold-fused '
+                'boundary has no interface left to fail — a bonded '
+                'one does: the adhesive layer carries the torque '
+                'in shear, and it is the weakest material in the '
+                'stack even when both parts it joins are strong. '
+                'M2\'s magnet ring is bonded to its carrier '
+                '(ifm2-ring-carrier), so this is the price of '
+                'joining two materials that cannot be poured '
+                'together',
+     'equation_ref': '',
+     'evidence_note': 'bond one ring to one carrier and twist it '
+                      'off on the shaft: the torque it takes IS '
+                      'the measurement, and it must beat the '
+                      'motor\'s pull-out torque with margin',
+     'is_prior': True, 'provenance_id': PROV,
+     'notes': 'm2-4 named this mode on the interface row before a '
+              'FailureModeDefinition existed for it — the marker '
+              'layer reported it as modeRowsMissing, which is the '
+              'gap-naming machinery catching its own author.'},
     {'name': 'fm-thermal-mismatch-stress',
      'display_name': 'Thermal-expansion mismatch → internal stress',
      'domain': 'thermal', 'locus': 'bulk',

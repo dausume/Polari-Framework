@@ -368,6 +368,21 @@ check('a view that is not M2\'s gets no M2 scene (the scene map '
       'refuses by absence, never by defaulting)',
       m2_scene_json_for_view('view-m1-sequencing') == ''
       and len(M2_ALL_LAYERS) == 5)
+check('THE REPLAY CONTRACT (live-caught in the browser pass): '
+      'every M2 history entry carries the keys the scene '
+      'component animates on — phase, stepped, thetaDeg — so the '
+      'PM rung replays with NO new component code',
+      all({'phase', 'stepped', 'thetaDeg'} <= set(h)
+          for h in sim['history'])
+      and sim['history'][1]['phase'] in M2_PHASE_COILS)
+check('and the layer NAMES ITS ENGINE: historySource is the m2 '
+      'route, not M1\'s — hardcoding m1-sequence ran the '
+      'RELUCTANCE solver on a saliency-1.0 design, which has no '
+      'torque at all, so the coils lit and the rotor sat still',
+      json.loads(SEED_M2_SCENE_LAYERS[0]['params_json'])
+      ['historySource'] == 'm2-rotation'
+      and json.loads(SEED_M2_SCENE_LAYERS[0]['params_json'])
+      ['design'] == M2)
 
 print('== suite: m2-4 composition splice ==')
 from motors.composition_splice import (         # noqa: E402

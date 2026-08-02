@@ -125,15 +125,18 @@ SEED_M1_SCENE_LAYERS = [
      # mq-3: positions DERIVE from the same shape rows the scene
      # renders (m1_relations.derived_marker_positions) — the
      # seeded-approximation era is over.
-     'params_json': _j({'design': M1_DESIGN, 'markers': [
-         {'interface': name, 'position': pos,
-          'radius': {'ifm1-working-gap': 2.0,
-                     'ifm1-coil-clearance': 2.0,
-                     'ifm1-poles-core': 2.2}.get(name, 2.6)}
-         for name, pos in sorted(
-             __import__('motors.m1_relations',
-                        fromlist=['derived_marker_positions'])
-             .derived_marker_positions().items())]}),
+     'params_json': _j({
+         'design': M1_DESIGN, 'positions_derived': True,
+         'markers': [
+             {'interface': name, 'position': pos,
+              'radius': {'ifm1-working-gap': 2.0,
+                         'ifm1-coil-clearance': 2.0,
+                         'ifm1-poles-core': 2.2}.get(name, 2.6)}
+             for name, pos in sorted(
+                 __import__(
+                     'motors.m1_relations',
+                     fromlist=['derived_marker_positions'])
+                 .derived_marker_positions().items())]}),
      'style_json': '{}',
      'description': 'A sphere per M1 joint — including the TWO '
                     'designed non-contact gaps (working gap + '

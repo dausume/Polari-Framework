@@ -124,13 +124,17 @@ SEED_M2_SCENE_LAYERS = [
     {'name': 'layer-m2-interface-markers',
      'display_name': 'Interfaces — joints, gaps & failure modes',
      'kind': 'markers', 'source': 'composition-interfaces',
-     'params_json': _j({'design': M2_DESIGN, 'markers': [
-         {'interface': name, 'position': pos,
-          'radius': 2.0 if name == 'ifm2-working-gap' else 2.4}
-         for name, pos in sorted(
-             __import__('motors.m2_composition',
-                        fromlist=['derived_m2_marker_positions'])
-             .derived_m2_marker_positions().items())]}),
+     'params_json': _j({
+         'design': M2_DESIGN, 'positions_derived': True,
+         'markers': [
+             {'interface': name, 'position': pos,
+              'radius': (2.0 if name == 'ifm2-working-gap'
+                         else 2.4)}
+             for name, pos in sorted(
+                 __import__(
+                     'motors.m2_composition',
+                     fromlist=['derived_m2_marker_positions'])
+                 .derived_m2_marker_positions().items())]}),
      'style_json': '{}',
      'description': 'A sphere per M2 joint. There is exactly ONE '
                     'designed non-contact gap here where M1 had '

@@ -239,6 +239,7 @@ def rotation_sim(manager, design_name=M2_DESIGN, steps=12,
     phi_r = _settle(geo, phi_c, geo['gamma'], load)
     latch = phi_r
     history = [{'step': 0, 'phiElecDeg': 0.0,
+                'phase': '0', 'stepped': False,
                 'thetaDeg': round(
                     math.degrees(phi_r / pole_pairs) % 360.0, 3),
                 'thetaContinuousDeg': round(
@@ -259,6 +260,16 @@ def rotation_sim(manager, design_name=M2_DESIGN, steps=12,
             (phi_r - before) / pole_pairs) * direction
         history.append({
             'step': n,
+            # 'phase' and 'stepped' exist to match the REPLAY
+            # CONTRACT M0/M1 established, so the scene component
+            # animates M2 with no new code: phase '0' is the
+            # single group that lights all six coils (a
+            # synchronous drive energises them together), and
+            # 'stepped' is the synchronism verdict — the thing
+            # that, on this rung, decides whether the commanded
+            # motion actually happened.
+            'phase': '0',
+            'stepped': step_sync,
             'phiElecDeg': round(math.degrees(phi_c) * direction,
                                 3),
             'thetaDeg': round(

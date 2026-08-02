@@ -265,10 +265,17 @@ def _markers(manager, params):
         {'label': 'unmodelled modes present (named in the marker)',
          'color': '#c98a00'}]
     return {'ok': True, 'markers': out, 'legend': legend,
-            'note': 'positions are seeded approximations of the '
-                    'joints, not derived geometry — the shape rows '
-                    'carry absolute coords the markers do not read '
-                    'yet'}
+            'positionsDerived': bool(params.get(
+                'positions_derived')),
+            'note': ('positions are DERIVED from the same shape '
+                     'rows the scene draws (mq-3 / m2-4), so a '
+                     'marker cannot drift away from the joint it '
+                     'marks'
+                     if params.get('positions_derived') else
+                     'positions are seeded approximations of the '
+                     'joints, not derived geometry — the shape '
+                     'rows carry absolute coords these markers '
+                     'do not read yet')}
 
 
 def _shape_swap(manager, params, design):
