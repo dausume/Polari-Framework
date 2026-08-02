@@ -77,6 +77,13 @@ class MathShapesAPI(treeObject):
                 '/api/shapes/{name}/modify', self, suffix='modify')
             polServer.falconServer.add_route(
                 '/api/shapes/from-pot/{pot_name}', self, suffix='from_pot')
+            # mq-1: the shape→equation bridge.
+            polServer.falconServer.add_route(
+                '/api/shapes/{name}/equations', self,
+                suffix='equations')
+            polServer.falconServer.add_route(
+                '/api/shapes/{name}/equation-parity', self,
+                suffix='equation_parity')
 
     def _shapes(self):
         table = (getattr(self.manager, 'objectTables', None) or {}).get(
@@ -94,6 +101,24 @@ class MathShapesAPI(treeObject):
         } for s in self._shapes()]
         response.media = {'ok': True, 'count': len(catalogue),
                           'shapes': catalogue}
+
+    def on_get_equations(self, request, response, name):
+        from mathshapes.shape_equations import shape_equation_rows
+        out = shape_equation_rows(self.manager, name)
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_equation_parity(self, request, response, name):
+        from mathshapes.shape_equations import equation_parity
+        try:
+            n = int(request.params.get('n', 24))
+        except (TypeError, ValueError):
+            n = 24
+        out = equation_parity(self.manager, name, n=n)
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
 
     def on_get_properties(self, request, response, name):
         params = request.params or {}

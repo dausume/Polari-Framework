@@ -536,7 +536,10 @@ def sample_surface(manager, shape_name, n=24):
                 'method': 'parametric involute spur gear ('
                           + coherent['note'] + ')'}
     if family == 'derived-cylinder':
-        from mathshapes.shape_geometry import axial_mesh
+        # NOTE: axial_mesh is the MODULE-LEVEL import — a local
+        # re-import here shadowed it for the whole function and
+        # crashed every cylinder/cone/frustum sample below
+        # (UnboundLocalError, caught by the mq-1 parity work).
         from mathshapes.spool_geometry import derived_cylinder
         follower = derived_cylinder(manager, _params(shape),
                                     shape_properties)

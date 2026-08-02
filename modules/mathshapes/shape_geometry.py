@@ -737,3 +737,63 @@ def hollow_frustum_shell_mesh(params, n_lon=32, n_stack=16,
         tris.append([ob, ia, ib])
 
     return pts, tris
+
+
+# --------------------------------------------------------------------------
+# mq-1: quadric matrices for EVERY bounding surface — planes are
+# degenerate quadrics, so a box is six 4x4 matrices and a capped
+# cylinder is three. Sign convention throughout: pᵀQp < 0 inside
+# (outward normals), so intersection composes as max().
+# --------------------------------------------------------------------------
+def plane_quadric_matrix(normal, point):
+    """Degenerate 4x4 Q for the half-space n·(p - point) <= 0 with
+    OUTWARD normal n: pᵀQp = n·p - n·point (linear terms only)."""
+    n = list(normal)
+    d = sum(n[i] * point[i] for i in range(3))
+    Q = [[0.0] * 4 for _ in range(4)]
+    for i in range(3):
+        Q[i][3] = Q[3][i] = n[i] / 2.0
+    Q[3][3] = -d
+    return Q
+
+
+def sphere_quadric_matrix(center, radius):
+    """(p-c)·(p-c) - r² as pᵀQp."""
+    c = list(center)
+    Q = [[0.0] * 4 for _ in range(4)]
+    for i in range(3):
+        Q[i][i] = 1.0
+        Q[i][3] = Q[3][i] = -c[i]
+    Q[3][3] = sum(x * x for x in c) - radius * radius
+    return Q
+
+
+def ellipsoid_quadric_matrix(center, radii):
+    """Σ (p_i - c_i)²/s_i² - 1 as pᵀQp."""
+    c = list(center)
+    s = list(radii)
+    Q = [[0.0] * 4 for _ in range(4)]
+    for i in range(3):
+        k = 1.0 / (s[i] * s[i])
+        Q[i][i] = k
+        Q[i][3] = Q[3][i] = -c[i] * k
+    Q[3][3] = sum((c[i] * c[i]) / (s[i] * s[i])
+                  for i in range(3)) - 1.0
+    return Q
+
+
+def box_plane_quadrics(center, size):
+    """Six outward plane quadrics (labels ±x/±y/±z) whose max() is
+    the box's implicit field."""
+    out = []
+    axes = ('x', 'y', 'z')
+    for i in range(3):
+        h = size[i] / 2.0
+        for sign, tag in ((1.0, '+'), (-1.0, '-')):
+            n = [0.0, 0.0, 0.0]
+            n[i] = sign
+            pt = list(center)
+            pt[i] += sign * h
+            out.append((f'face-{tag}{axes[i]}',
+                        plane_quadric_matrix(n, pt)))
+    return out

@@ -3733,6 +3733,28 @@ class polariServer(treeObject):
                               flush=True)
             except Exception as e:
                 print(f'[ScaleGoalsSeed] failed: {e}', flush=True)
+        # mq-1: every math shape's surfaces as quadric matrices +
+        # implicit-field equations, as NO-CODE rows (matrices
+        # classes; refusals reported per shape, never dropped).
+        if (_feature_available('mathshapes')
+                and _feature_available('composition') and (
+                only_classes is None
+                or 'MathShapeDefinition' in only_classes)):
+            try:
+                from mathshapes.shape_equations import (
+                    seed_shape_equations,
+                )
+                for r in seed_shape_equations(self.manager):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[ShapeEquationSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))} '
+                              f'(refused shapes: '
+                              f'{len(r.get("shapeRefusals", []))})',
+                              flush=True)
+            except Exception as e:
+                print(f'[ShapeEquationSeed] failed: {e}',
+                      flush=True)
         # m1-4: the M1 composition splice rows (wound-tooth
         # construction fork) — needs BOTH modules: the classes are
         # composition's, the knowledge is motors'.
