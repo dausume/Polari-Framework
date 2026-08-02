@@ -124,17 +124,17 @@ SEED_M1_SCENE_LAYERS = [
      'kind': 'markers', 'source': 'composition-interfaces',
      'params_json': _j({'design': M1_DESIGN, 'markers': [
          {'interface': 'ifm1-rotor-shaft',
-          'position': [0, 0, 6], 'radius': 1.5},
+          'position': [0, 0, 9], 'radius': 1.5},
          {'interface': 'ifm1-winding-tooth',
-          'position': [15, 3, 0], 'radius': 1.5},
+          'position': [15, 3, 9], 'radius': 1.5},
          {'interface': 'ifm1-poles-core',
-          'position': [6, 0, 0], 'radius': 1.2},
+          'position': [6, 0, 9], 'radius': 1.2},
          {'interface': 'ifm1-teeth-yoke',
-          'position': [21, 0, 0], 'radius': 1.5},
+          'position': [21, 0, 9], 'radius': 1.5},
          {'interface': 'ifm1-working-gap',
-          'position': [11, 0, 0], 'radius': 1.0},
+          'position': [11, 0, 9], 'radius': 1.0},
          {'interface': 'ifm1-coil-clearance',
-          'position': [13, 5, 0], 'radius': 1.0}]}),
+          'position': [13, 5, 9], 'radius': 1.0}]}),
      'style_json': '{}',
      'description': 'A sphere per M1 joint — including the TWO '
                     'designed non-contact gaps (working gap + '
