@@ -151,10 +151,14 @@ def relation_report(manager, design_name=M1_DESIGN):
                 'refusal': 'design row carries no gap_base_m'}
     eq_table = (getattr(manager, 'objectTables', None)
                 or {}).get('MatrixEquationDefinition', {})
+    eq_rows = (list(eq_table.values())
+               if isinstance(eq_table, dict) else list(eq_table))
+    # live tables key by id, fixtures by name — match on the
+    # row's own name either way.
+    by_name = {getattr(r, 'name', ''): r for r in eq_rows}
     out = []
     for seed in SEED_M1_RELATIONS:
-        row = (eq_table.get(seed['name'])
-               if isinstance(eq_table, dict) else None)
+        row = by_name.get(seed['name'])
         if row is None:
             out.append({'relation': seed['name'], 'ok': False,
                         'refusal': 'relation row not booted '
