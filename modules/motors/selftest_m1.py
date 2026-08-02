@@ -245,10 +245,13 @@ check('sequencing view assembles: solver, holding torque and '
       and _by['holding-torque'].get('payload', {})
       .get('peakTorqueNm', 0) > 0
       and _by['drive-profile'].get('payload', {}).get('ok'))
-check('min-current section refuses BY NAME (no load stated) — '
-      'refused in the payload, never dropped',
-      'min-current' in seqv.get('refusedSections', [])
-      and 'load' in _by['min-current'].get('refusal', ''))
+check('min-current section ANSWERS at the motor shaft: the axis '
+      'demand through the m1-6 reduction, its basis stating that '
+      'the bare axis load refuses by design (the m1-5 verdict)',
+      'min-current' not in seqv.get('refusedSections', [])
+      and _by['min-current'].get('payload', {}).get('ok')
+      and 'reduction' in _by['min-current']['payload']
+      .get('loadBasis', ''))
 
 pe = m1_phase_electrics(vm)
 check('phase electrics: six coils -> three phases, R_phase = '

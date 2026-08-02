@@ -89,18 +89,32 @@ def m1_phase_electrics(manager, design_name=M1_DESIGN):
 
 def _m1_min_current(manager, a):
     """The bisect, with 'axis-duty' resolving the load LIVE from
-    the axis report — a seeded number would drift the moment a
-    requirement row changed."""
+    the axis report THROUGH the m1-6 reduction — the load the
+    motor actually sees in the shipped unit. (The BARE axis load
+    refuses by design: no current lands a 65x shortfall — that is
+    the m1-5 verdict, and the reduction is its knob.) A seeded
+    number would drift the moment a requirement row changed."""
     from motors.m1_sequencing import m1_minimum_drive_current
     load = a.get('load')
+    basis = ''
     if load == 'axis-duty':
         from motors.m1_positioning import axis_report
+        from motors.m1_product import GEAR_RATIO
         axis = axis_report(manager, a['design'])
         if not axis.get('ok'):
             return axis
-        load = axis['loadTorqueDemandNm']
-    return m1_minimum_drive_current(manager, a['design'],
-                                    load_torque_nm=load)
+        load = axis['loadTorqueDemandNm'] / GEAR_RATIO
+        basis = (f'axis demand '
+                 f'{axis["loadTorqueDemandNm"]:.4g} Nm through '
+                 f'the {GEAR_RATIO}:1 reduction (m1-6) — the '
+                 f'load at the MOTOR shaft; the bare axis load '
+                 f'refuses by design (the m1-5 verdict, whose '
+                 f'knob this reduction is)')
+    out = m1_minimum_drive_current(manager, a['design'],
+                                   load_torque_nm=load)
+    if basis and isinstance(out, dict):
+        out['loadBasis'] = basis
+    return out
 
 
 def _src_m1(module, fn):
@@ -179,11 +193,12 @@ SEED_M1_VIEWS = [
             'The SimpleFOC binding with pole pairs from the '
             'design row — the drive card the bench wires up.'),
          _s('min-current', 'm1-min-current',
-            'The current M1 NEEDS against the axis duty, bisected '
-            'live (the load resolves from the m1-5 requirement '
-            'rows, never a stale copy). PULL-IN governs, not '
-            'pull-out: the weakest torque along the travel '
-            'decides, exactly like a stepper datasheet.',
+            'The current M1 NEEDS at the motor shaft — the axis '
+            'demand through the m1-6 reduction, resolved live '
+            'from the requirement rows, never a stale copy. '
+            'PULL-IN governs, not pull-out: the weakest torque '
+            'along the travel decides, exactly like a stepper '
+            'datasheet.',
             args={'load': 'axis-duty'}),
          _s('bench-campaign', 'bench-campaign',
             'THE M1 BENCH SHEET (m1-7): five measurements with '
