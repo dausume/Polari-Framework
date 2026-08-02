@@ -83,6 +83,16 @@ PART_ROLE_ASSIGNMENTS = {
     'lavet-v2-coil': ['static-structural',
                       'current-carrying'],
     'lavet-v2-leads': ['static-structural'],
+    # m1-8 (live-caught): the M1 parts had NO role rows, so the
+    # stator fork's role screen refused. No magnet anywhere — the
+    # torque parts are flux-carriers, and the ROTOR's flux role is
+    # the whole machine (saliency wants a SOFT conductor).
+    'm1-stator-yoke': ['static-structural', 'flux-carrying'],
+    'm1-stator-teeth': ['static-structural', 'flux-carrying'],
+    'm1-rotor-poles': ['moving', 'flux-carrying'],
+    'm1-rotor-core': ['moving', 'flux-carrying', 'press-fitted'],
+    'm1-coils': ['static-structural', 'current-carrying'],
+    'm1-shaft': ['moving', 'press-fitted'],
 }
 
 def part_role_report(manager, part_name):

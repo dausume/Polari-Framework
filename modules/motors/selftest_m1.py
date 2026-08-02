@@ -19,7 +19,9 @@ import json
 import math
 import types
 
-from magnetics.magnet_seed import SEED_MATERIAL_OPTIONS
+from magnetics.magnet_seed import (
+    SEED_MATERIAL_OPTIONS, SEED_USE_ROLES,
+)
 from motors.motor_basis import SEED_MOTOR_DESIGNS
 from motors.m1_sequencing import (
     PHASES, POLES, SLOTS, STEP_DEG, holding_torque,
@@ -213,6 +215,7 @@ vm.objectTables['PhaseBindingDefinition'] = _table(
 vm.objectTables['MotorPartDefinition'] = _table(SEED_MOTOR_PARTS)
 vm.objectTables['PrinterAxisRequirement'] = _table(
     SEED_AXIS_REQUIREMENTS)
+vm.objectTables['MaterialUseRole'] = _table(SEED_USE_ROLES)
 vm.objectTypingDict = {k: object() for k in vm.objectTables}
 
 check('six M1 views seeded, disciplines all legal, M1 names',
@@ -617,6 +620,13 @@ check('the formula DERIVES its copper (63 m of 26 AWG stated as '
       and {q['name'] for q in SEED_M1_QA}
       == {'qa-positioning-100-steps', 'qa-phase-resistance-six'}
       and prod['qaGate'] == 'qa-positioning-100-steps')
+from motors.part_roles import screen_candidates  # noqa: E402
+_scr = screen_candidates(vm, 'm1-stator-teeth')
+check('the stator role screen ANSWERS (live-caught: M1 parts had '
+      'no role rows) and bio-steel is among its viable options — '
+      'the fork\'s evidence surface works',
+      _scr.get('ok') and _scr['viableCount'] >= 3
+      and 'opt-galvanized-bio-steel' in _scr['viable'])
 check('the sell loop is the SAME loop as the clock (one loop, '
       'two products) and the sourcing section rides the '
       'materials view',
