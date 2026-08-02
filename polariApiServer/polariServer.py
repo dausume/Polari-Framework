@@ -3707,6 +3707,7 @@ class polariServer(treeObject):
                 from motors.m1_scene import seed_m1_scene
                 from motors.m1_views import seed_m1_views
                 from motors.motor_shapes import seed_v2_shapes
+                from motors.m1_product import seed_m1_product
                 from motors.product_routes import (
                     seed_product_routes,
                 )
@@ -3719,7 +3720,8 @@ class polariServer(treeObject):
                           + seed_clock_scene(self.manager)
                           + seed_v2_shapes(self.manager)
                           + seed_clock_assembly(self.manager)
-                          + seed_product_routes(self.manager)):
+                          + seed_product_routes(self.manager)
+                          + seed_m1_product(self.manager)):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[ScaleGoalsSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '

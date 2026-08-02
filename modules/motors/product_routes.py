@@ -336,7 +336,13 @@ def product_routes(manager, design_name=M0B):
     as MAKE (naming its workflow + capability rung) or BUY (naming
     its citation), with the route's own gaps and blockers kept in
     the payload. Neither route is preferred by the code — the
-    comparison IS the product decision."""
+    comparison IS the product decision.
+
+    m1-6: the M1 design dispatches to its own product (the axis
+    drive) — same contract, its own rows and fork."""
+    if design_name == 'reluctance-6s4p-m1':
+        from motors.m1_product import m1_product_routes
+        return m1_product_routes(manager, design_name)
     from motors.motor_winding import winding_report
     winding = winding_report(manager, design_name)
     wire_buy = _wire_price(manager)

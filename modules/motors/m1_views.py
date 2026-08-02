@@ -291,7 +291,15 @@ SEED_M1_VIEWS = [
             'phase is a swapped coil) vs wound-in-place sol-gel '
             'PROMOTION (fretting deleted, repairability spent '
             'x6, crack-is-a-short taken on). Both constructions '
-            'are rows; levels DERIVE live from their interfaces.')]),
+            'are rows; levels DERIVE live from their interfaces.'),
+         _s('sourcing-routes', 'sourcing-routes',
+            'The COMPLETE axis-drive product, twice (m1-6): '
+            'pure-local vs commercial, differing on the STATOR '
+            '(cast mu~2 / bio-steel / fired — each quantified '
+            'live) and NOT on a magnet, because there is none. '
+            'Four units per printer — the first real batch.',
+            links=[{'label': 'Business start', 'kind': 'page',
+                    'route': '/business/start'}])]),
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'view-m1-positioning',
      'display_name': 'M1 — positioning (the product)',

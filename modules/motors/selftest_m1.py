@@ -547,6 +547,82 @@ check('without the requirement rows the report REFUSES naming '
       not axis_report(_bare).get('ok')
       and 'seed_m1_axis' in axis_report(_bare).get('refusal', ''))
 
+print('== suite: m1-6 the axis-drive product ==')
+import math                              # noqa: E402
+from motors.m1_product import (          # noqa: E402
+    GEAR_RATIO, SEED_M1_FORMULA, SEED_M1_QA, SEED_M1_WORKFLOWS,
+    UNITS_PER_PRINTER, m1_product_routes, stator_fork,
+)
+from motors.product_routes import product_routes  # noqa: E402
+
+prod = product_routes(vm, M1_DESIGN)
+check('the M0 route surface dispatches the M1 design to the '
+      'axis-drive product (one endpoint, both rungs)',
+      prod.get('ok') and prod.get('product') == 'm1-axis-drive'
+      and prod['unitsPerPrinter'] == UNITS_PER_PRINTER == 4)
+check('GUARD (wire-ladder lesson): the seeded gear ratio still '
+      'covers the LIVE shortfall x1.5 — a moved requirement row '
+      'fails here instead of shipping stale',
+      prod['drivetrain']['gearRatio'] == GEAR_RATIO
+      and prod['drivetrain']['live'].get('requiredNow')
+      is not None
+      and GEAR_RATIO >= prod['drivetrain']['live']['requiredNow'])
+
+fork = stator_fork(vm)
+_opts = {o['option']: o for o in fork.get('options', [])}
+check('the STATOR FORK: three options, each holding torque '
+      'solved LIVE — and none of them is a magnet',
+      fork.get('ok') and len(_opts) == 3
+      and all('holdingTorqueNm' in o or 'gap' in o
+              for o in fork['options'])
+      and 'magnet' not in json.dumps(fork['options']).lower())
+check('the fork is honest about TODAY: cast geopolymer does not '
+      'cover the axis bare (the reduction exists for it), and '
+      'each stronger option carries a number, not an adjective',
+      _opts['cast-geopolymer'].get('bareMotorCoversAxis') is False
+      and _opts['cast-geopolymer'].get('reductionStillNeeded')
+      and _opts['galvanized-bio-steel'].get('holdingTorqueNm', 0)
+      > _opts['cast-geopolymer'].get('holdingTorqueNm', 0))
+
+_routes = {r['route']: r for r in prod['routes']}
+check('both routes answer; the pure-local route has NO magnet '
+      'blocker (the rung\'s point, visible) and shares the W2 '
+      'wire rung with M0',
+      set(_routes) == {'pure-local', 'commercial'}
+      and not any('magnet' in b.lower()
+                  for b in _routes['pure-local']['blockers'])
+      and any('W2' in b for b in _routes['pure-local']['blockers']))
+check('the commercial irony is kept (the $10 NEMA17), judged as '
+      'a local-capability product',
+      'NEMA17' in _routes['commercial'].get('irony', ''))
+check('every make-input names its workflow, and the named '
+      'workflows are all seeded rows (two modules, one fact)',
+      all(i.get('workflow') in
+          {w['name'] for w in SEED_M1_WORKFLOWS} | {
+              'clock-wire-draw-workflow'}
+          for r in prod['routes'] for i in r['inputs']
+          if i.get('source') == 'make'))
+check('the formula DERIVES its copper (63 m of 26 AWG stated as '
+      'the winding math\'s number) and carries no magnet line; '
+      'QA gates: positioning per unit + six-R imbalance seam',
+      any('63 m' in c['note'] for c in json.loads(
+          SEED_M1_FORMULA[0]['components_json']))
+      and not any('magnet' in c['role']
+                  or 'srfe' in c['item_ref'].lower()
+                  for c in json.loads(
+                      SEED_M1_FORMULA[0]['components_json']))
+      and {q['name'] for q in SEED_M1_QA}
+      == {'qa-positioning-100-steps', 'qa-phase-resistance-six'}
+      and prod['qaGate'] == 'qa-positioning-100-steps')
+check('the sell loop is the SAME loop as the clock (one loop, '
+      'two products) and the sourcing section rides the '
+      'materials view',
+      prod['sellLoop'] == 'clock-sell-iterate-workflow'
+      and any(s['source'] == 'sourcing-routes'
+              for v in SEED_M1_VIEWS
+              if v['name'] == 'view-m1-materials-sourcing'
+              for s in json.loads(v['sections_json'])))
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
