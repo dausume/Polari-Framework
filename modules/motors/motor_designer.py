@@ -279,6 +279,38 @@ def clock_sim(manager, design_name, pulses=10,
 # M1..M3 — torque curves via co-energy
 # ---------------------------------------------------------------- #
 
+def reluctance_total(params, mu_stator, overlap):
+    """The lumped loop reluctance at a given gap-area overlap —
+    ONE statement of it, so the torque curve, the M2 rotation
+    solver and the back-EMF constant cannot drift apart."""
+    area0 = float(params['tooth_area_m2'])
+    gap = float(params['gap_base_m'])
+    dual = 1.0 + (1.0 if params.get('dual_gap') else 0.0)
+    area = area0 * max(overlap, 1e-6) * dual
+    return (gap / (MU0 * area)
+            + 0.03 / (MU0 * mu_stator * area0 * dual))
+
+
+def coil_and_magnet_mmf(manager, params):
+    """(coil mmf amplitude, magnet mmf) for a design's params.
+    The magnet term exists only when the rotor material is
+    actually hard (H_c >= 100 kA/m) AND the design states a magnet
+    length — the same test the torque curve has always used, now
+    in one place so M2 asks it rather than re-deriving it."""
+    mmf_c = (float(params['coil_turns'])
+             * float(params['coil_amps']))
+    mmf_m = 0.0
+    try:
+        rotor_hc = _prop(manager, params.get('rotor_material', ''),
+                         'h_c_ka_m')
+    except ValueError:
+        rotor_hc = None
+    if rotor_hc and rotor_hc >= 100.0 \
+            and params.get('magnet_length_m'):
+        mmf_m = rotor_hc * 1000.0 * float(params['magnet_length_m'])
+    return mmf_c, mmf_m
+
+
 def _phase_coenergy(phi_rotor, phi_current, phase_idx, params,
                     mmfs, mu_stator, gamma):
     """One phase's co-energy: GEOMETRY at the rotor electrical
@@ -287,19 +319,14 @@ def _phase_coenergy(phi_rotor, phi_current, phase_idx, params,
     constant currents — differentiating the total through the
     current variation averages to zero over a period and is
     wrong). gamma = load angle (drive knob)."""
-    area0 = float(params['tooth_area_m2'])
-    gap = float(params['gap_base_m'])
     saliency = float(params.get('saliency_ratio', 1.0))
-    dual = 1.0 + (1.0 if params.get('dual_gap') else 0.0)
     mod_depth = 1.0 - 1.0 / max(saliency, 1.0)
     shift = phase_idx * TWO_PI / 3.0
     u_r = phi_rotor - shift
     u_i = phi_current - shift
     overlap = (1.0 - mod_depth) + mod_depth * (
         1.0 + math.cos(2.0 * u_r)) / 2.0
-    area = area0 * max(overlap, 1e-6) * dual
-    r_total = (gap / (MU0 * area)
-               + 0.03 / (MU0 * mu_stator * area0 * dual))
+    r_total = reluctance_total(params, mu_stator, overlap)
     mmf_c, mmf_m = mmfs
     i_k = mmf_c * math.sin(u_i + gamma)
     w_rel = 0.5 * i_k ** 2 / r_total
@@ -324,19 +351,7 @@ def torque_curve(manager, design_name, points=73):
     try:
         mu_stator = _prop(manager, params['stator_material'],
                           'mu_r_eff')
-        mmf_c = (float(params['coil_turns'])
-                 * float(params['coil_amps']))
-        mmf_m = 0.0
-        rotor = params.get('rotor_material', '')
-        rotor_hc = None
-        try:
-            rotor_hc = _prop(manager, rotor, 'h_c_ka_m')
-        except ValueError:
-            rotor_hc = None
-        if rotor_hc and rotor_hc >= 100.0 \
-                and params.get('magnet_length_m'):
-            mmf_m = rotor_hc * 1000.0 * float(
-                params['magnet_length_m'])
+        mmf_c, mmf_m = coil_and_magnet_mmf(manager, params)
     except (ValueError, KeyError) as exc:
         return {'ok': False, 'refusal': str(exc)}
     poles = int(params.get('poles', 4))
