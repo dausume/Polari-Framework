@@ -184,7 +184,14 @@ SEED_M1_VIEWS = [
             'rows, never a stale copy). PULL-IN governs, not '
             'pull-out: the weakest torque along the travel '
             'decides, exactly like a stepper datasheet.',
-            args={'load': 'axis-duty'})]),
+            args={'load': 'axis-duty'}),
+         _s('bench-campaign', 'bench-campaign',
+            'THE M1 BENCH SHEET (m1-7): five measurements with '
+            'live predictions — six R and six L (imbalance is a '
+            'FINDING the model cannot make), holding torque, the '
+            'step angle (the positioning proof\'s physical half) '
+            'and a thermal rise no model predicts. Record-back '
+            'seams named per entry.')]),
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'view-m1-magnetics',
      'display_name': 'M1 — magnetics',

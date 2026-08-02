@@ -28,6 +28,7 @@ motors.clock_views (motion-view section), motors.selftest_motors
 
 PRODUCT = 'clock-lavet-m0b'
 CONTROL = 'clock-lavet-m0'
+M1 = 'reluctance-6s4p-m1'
 
 
 def _entry(name, instrument, adjudicates, record_via, acceptance,
@@ -41,7 +42,10 @@ def _entry(name, instrument, adjudicates, record_via, acceptance,
 
 
 def bench_campaign(manager, design_name=PRODUCT):
-    """The ordered W2 bench protocol with live predictions."""
+    """The ordered W2 bench protocol with live predictions.
+    m1-7: the M1 design dispatches to its own sheet."""
+    if design_name == M1:
+        return m1_bench_campaign(manager, design_name)
     entries = []
 
     # 1. Coil resistance — the cheapest sanity gate.
@@ -194,19 +198,187 @@ def bench_campaign(manager, design_name=PRODUCT):
          'qaGate': 'qa-timekeeping-24h'},
         '<= 2 s error per 24 h (86400 pulses, <= 2 missed)', pred))
 
+    return _campaign(design_name, 'w2-bench', entries,
+                     'The build steps themselves are the mp0 '
+                     'workflows (clock-fire-parts, '
+                     'clock-magnet-press, clock-wind-assemble); '
+                     'this sheet is the MEASUREMENT half.')
+
+
+def m1_bench_campaign(manager, design_name=M1):
+    """m1-7: the M1 bench sheet. What is DIFFERENT from the clock:
+    six of everything (imbalance is a FINDING — the model builds
+    identical phases, only the bench can see spread), torque as a
+    number instead of a step/no-step, the step angle as the
+    positioning proof's physical half, and a thermal question the
+    model honestly does not answer."""
+    entries = []
+
+    # 1+2. Per-phase R and L — SIX of each, spread is the finding.
+    try:
+        from motors.m1_views import m1_phase_electrics
+        pe = m1_phase_electrics(manager, design_name)
+        pred_r = ({'predictedPhaseOhm':
+                   pe['phases'][0]['rPhaseOhm'],
+                   'predictedSpread': 0.0,
+                   'basis': 'm1_phase_electrics: the same winding '
+                            'engine, two coils in series — the '
+                            'model builds SIX IDENTICAL phases, '
+                            'so any measured spread is a '
+                            'manufacturing finding with a '
+                            'per-coil paper trail'}
+                  if pe.get('ok') else
+                  {'refusal': pe.get('refusal', 'refused')})
+    except Exception as e:
+        pred_r = {'refusal': f'raised: {e}'}
+    entries.append(_entry(
+        'phase-resistance-six', 'multimeter (any) — ALL SIX coils',
+        'coil-to-coil manufacturing spread: the model cannot '
+        'predict imbalance, which is exactly why all six are '
+        'measured, not one',
+        {'row': 'QualityCheckRecord',
+         'check': 'qa-phase-resistance-six'},
+        'each within 15% of prediction; SPREAD <= 5% of mean — '
+        'above that, the winding process (not the design) is the '
+        'finding', pred_r))
+    try:
+        from motors.inductance import solve_inductance
+        fem = solve_inductance(manager, design_name)
+        pred_l = ({'predictedL': fem.get('inductanceH')
+                   or fem.get('L_h') or fem.get('L'),
+                   'basis': 'the mag-23 machinery on the M1 '
+                            'winding'}
+                  if fem.get('ok') else
+                  {'refusal': fem.get('refusal',
+                                      'inductance refused'),
+                   'note': 'at mu~2 the lumped network is outside '
+                           'its validity regime (mag-23) — six '
+                           'MEASURED L values are the answer, '
+                           'not a better guess'})
+    except Exception as e:
+        pred_l = {'refusal': f'raised: {e}'}
+    entries.append(_entry(
+        'phase-inductance-six',
+        'tech-node: research-tools/inductance-test-rig — ALL SIX',
+        'feeds the SAME mag-23 adjudication the clock L does — '
+        'six more points on the low-mu validity map, plus the '
+        'phase-to-phase spread',
+        {'row': 'QualityCheckRecord',
+         'check': 'qa-phase-resistance-six',
+         'alsoUpdates': 'model_validity trust ordering (mag-23)'},
+        'report all six; no pass band — the measurements '
+        'ADJUDICATE the models', pred_l))
+
+    # 3. Holding torque — the number the axis duty rests on.
+    try:
+        from motors.m1_sequencing import holding_torque
+        hold = holding_torque(manager, design_name)
+        pred_h = ({'predictedNm': hold['peakTorqueNm'],
+                   'basis': 'the m1-1 co-energy scan at rated '
+                            'current — honestly feeble at mu~2, '
+                            'and the whole m1-5 verdict rests on '
+                            'this number being roughly right'}
+                  if hold.get('ok') else
+                  {'refusal': hold.get('refusal', 'refused')})
+    except Exception as e:
+        pred_h = {'refusal': f'raised: {e}'}
+    entries.append(_entry(
+        'holding-torque-rated',
+        'lever + gram scale (W2): stall the energized rotor '
+        'through a known arm',
+        'the reluctance network\'s torque amplitude on exactly '
+        'the low-mu material where the model is weakest — and '
+        'the number the positioning duty verdict (m1-5) divides '
+        'by',
+        {'row': 'MotorVerificationRun',
+         'api': 'POST /api/motors/verify/' + M1,
+         'kind': 'measured'},
+        'within 2x of prediction (ratios survive the low-mu '
+        'caveat better than absolutes)', pred_h))
+
+    # 4. Step angle over a revolution — the proof's physical half.
+    try:
+        from motors.m1_sequencing import STEP_DEG, sequence_sim
+        seq = sequence_sim(manager, design_name, steps=12)
+        pred_s = ({'predictedStepDeg': STEP_DEG,
+                   'predictedFullRevDeg':
+                   seq['positionComparison']
+                   ['actualRotationDeg'],
+                   'basis': '360/(3 phases x 4 poles) — the m1-1 '
+                            'arithmetic, pinned both ways in the '
+                            'selftest'}
+                  if seq.get('ok') else
+                  {'refusal': seq.get('refusal', 'refused')})
+    except Exception as e:
+        pred_s = {'refusal': f'raised: {e}'}
+    entries.append(_entry(
+        'step-angle-revolution',
+        'printed protractor + pointer on the shaft: 12 commanded '
+        'steps, landed angle recorded at each',
+        'the POSITIONING PROOF\'s physical half: per-step angle '
+        'accuracy is what steps/mm rests on, and a slipped pole '
+        '(-60 deg, the no-detent failure) is unmistakable on a '
+        'protractor',
+        {'row': 'MotorVerificationRun',
+         'api': 'POST /api/motors/verify/' + M1,
+         'kind': 'measured',
+         'qaGate': 'qa-positioning-100-steps'},
+        'each landed angle within 2 deg of n x 30; cumulative '
+        '360 +- 2 after 12 steps; ZERO slips', pred_s))
+
+    # 5. Thermal rise at duty — the model honestly does not know.
+    try:
+        from motors.m1_views import m1_phase_electrics
+        pe = m1_phase_electrics(manager, design_name)
+        if pe.get('ok'):
+            r_phase = pe['phases'][0]['rPhaseOhm']
+            amps = 0.5
+            pred_t = {
+                'predictedDissipationW':
+                round(amps * amps * r_phase, 3),
+                'predictedRiseK': None,
+                'basis': 'I^2 R at rated current, ONE phase on at '
+                         'a time (the SRM duty) — dissipation is '
+                         'solved; the RISE is UNMODELED (no '
+                         'thermal model exists in this stack, '
+                         'named, not estimated)'}
+        else:
+            pred_t = {'refusal': pe.get('refusal', 'refused')}
+    except Exception as e:
+        pred_t = {'refusal': f'raised: {e}'}
+    entries.append(_entry(
+        'thermal-rise-duty',
+        'thermocouple on a tooth (the W2 thermocouple — the same '
+        'wire rung that makes the kiln controllable) + 30 min at '
+        'stepping duty',
+        'whether continuous duty cooks the enamel or the '
+        'geopolymer — the first thermal FACT in the motor stack, '
+        'measured where no model exists',
+        {'row': 'MotorVerificationRun',
+         'api': 'POST /api/motors/verify/' + M1,
+         'kind': 'measured'},
+        'rise <= 40 K at rated duty (enamel class prior, NAMED) '
+        '— above it, duty cycle becomes a design row', pred_t))
+
+    return _campaign(
+        design_name, 'm1-bench', entries,
+        'The build steps are the m1-6 workflows (cast, wind-six, '
+        'gear-reduction, assemble); this sheet is the MEASUREMENT '
+        'half. SIX-of-everything is the difference from the '
+        'clock: unit statistics begin here.')
+
+
+def _campaign(design_name, campaign, entries, closing_note):
     refused = [e['measurement'] for e in entries
                if e.get('refusal')]
     return {
         'ok': True, 'design': design_name,
-        'campaign': 'w2-bench',
+        'campaign': campaign,
         'order': [e['measurement'] for e in entries],
         'measurements': entries,
         'refusedPredictions': refused,
         'note': 'predictions are computed LIVE at request time — '
-                'a re-seeded material or a retuned winding changes '
-                'the sheet, never a stale copy. The build steps '
-                'themselves are the mp0 workflows '
-                '(clock-fire-parts, clock-magnet-press, '
-                'clock-wind-assemble); this sheet is the '
-                'MEASUREMENT half.',
+                'a re-seeded material or a retuned winding '
+                'changes the sheet, never a stale copy. '
+                + closing_note,
     }

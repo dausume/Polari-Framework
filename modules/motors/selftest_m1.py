@@ -623,6 +623,59 @@ check('the sell loop is the SAME loop as the clock (one loop, '
               if v['name'] == 'view-m1-materials-sourcing'
               for s in json.loads(v['sections_json'])))
 
+print('== suite: m1-7 the M1 bench sheet ==')
+from motors.bench_campaign import (      # noqa: E402
+    bench_campaign, m1_bench_campaign,
+)
+
+bench = bench_campaign(vm, M1_DESIGN)
+check('the bench surface dispatches the M1 design to its own '
+      'sheet: five measurements, in order, each with instrument '
+      '+ adjudicates + record-back seam + acceptance',
+      bench.get('ok') and bench['campaign'] == 'm1-bench'
+      and bench['order'] == [
+          'phase-resistance-six', 'phase-inductance-six',
+          'holding-torque-rated', 'step-angle-revolution',
+          'thermal-rise-duty']
+      and all(e.get('instrument') and e.get('adjudicates')
+              and e.get('recordVia') and e.get('acceptance')
+              for e in bench['measurements']))
+_bm = {e['measurement']: e for e in bench['measurements']}
+check('six-R prediction: identical phases (spread 0 predicted) '
+      'and the prediction IS m1_phase_electrics\' number (one '
+      'engine, no copies)',
+      _bm['phase-resistance-six'].get('predictedSpread') == 0.0
+      and abs(_bm['phase-resistance-six']['predictedPhaseOhm']
+              - pe['phases'][0]['rPhaseOhm']) < 1e-9)
+check('the six-L entry feeds the SAME mag-23 adjudication and '
+      'refuses honestly if the solver cannot answer at mu~2',
+      'mag-23' in json.dumps(_bm['phase-inductance-six'])
+      and ('predictedL' in _bm['phase-inductance-six']
+           or 'refusal' in _bm['phase-inductance-six']))
+check('holding-torque prediction equals the live m1-1 number '
+      '(the one the m1-5 verdict divides by)',
+      abs(_bm['holding-torque-rated'].get('predictedNm', 0)
+          - holding_torque(vm, M1)['peakTorqueNm']) < 1e-12)
+check('step-angle entry predicts exactly 30 deg/step, 360/rev — '
+      'the positioning proof\'s physical half, slips named in '
+      'the acceptance',
+      _bm['step-angle-revolution'].get('predictedStepDeg') == 30.0
+      and abs(_bm['step-angle-revolution']
+              .get('predictedFullRevDeg', 0) - 360.0) < 1.0
+      and 'slip' in _bm['step-angle-revolution']['adjudicates']
+      .lower())
+check('thermal entry: dissipation SOLVED (I^2R, one phase on), '
+      'rise honestly UNMODELED — a named prior, not an estimate',
+      _bm['thermal-rise-duty'].get('predictedDissipationW', 0)
+      > 0.1
+      and _bm['thermal-rise-duty'].get('predictedRiseK') is None
+      and 'UNMODELED' in _bm['thermal-rise-duty']['basis'])
+check('the bench section rides the sequencing view',
+      any(s['source'] == 'bench-campaign'
+          for v in SEED_M1_VIEWS
+          if v['name'] == 'view-m1-sequencing'
+          for s in json.loads(v['sections_json'])))
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
