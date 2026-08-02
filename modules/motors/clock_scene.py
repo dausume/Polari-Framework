@@ -45,7 +45,7 @@ from composition.data_refs import resolve_named, rows
 from composition.seed_upsert import upsert_seed_pairs
 
 LAYER_KINDS = ('part-coloring', 'vector-field', 'replay', 'markers',
-               'shape-swap', 'gear-replay')
+               'shape-swap', 'gear-replay', 'phase-replay')
 
 #: The one part→scene-body map for the v2 Lavet scene
 #: (motor-m0-lavet-v2-viz). Multi-body parts list every body.
@@ -354,6 +354,10 @@ def layer_payload(manager, layer_row,
     except ValueError:
         return {'ok': False, 'refusal': 'layer params do not parse'}
     part_bodies = params.get('part_bodies', V2_PART_BODIES)
+    # m1-3: a layer may PIN its design (M1 layers do) so a
+    # caller's M0 default can never silently color another
+    # design's bodies from the wrong bill.
+    design = params.get('design') or design
     source = getattr(layer_row, 'source', '')
     try:
         if kind == 'part-coloring' and source == 'mass-bill':
@@ -372,6 +376,14 @@ def layer_payload(manager, layer_row,
                             'layer carries the geometry config '
                             'that used to live hard-coded in the '
                             'Angular motor page'}
+        elif kind == 'phase-replay':
+            data = {'ok': True, 'geometry': params,
+                    'note': 'the page drives rotor angle AND coil '
+                            'excitation from the m1-sequence step '
+                            'history — each entry names its '
+                            'excited phase; this layer carries '
+                            'the phase→coil-body map and the '
+                            'excited/idle styles'}
         elif kind == 'markers':
             data = _markers(manager, params)
         elif kind == 'shape-swap':

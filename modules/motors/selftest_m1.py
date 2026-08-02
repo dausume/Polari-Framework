@@ -277,6 +277,87 @@ check('all six M1 views assemble; every refused section stays '
               for a in _assembled for s in a['sections']
               if not s.get('payload')))
 
+print('== suite: m1-3 scene layers ==')
+from motors.clock_scene import (        # noqa: E402
+    LAYER_KINDS, clock_scene_payload,
+)
+from motors.m1_scene import (           # noqa: E402
+    M1_ALL_LAYERS, M1_BASE, M1_PART_BODIES, M1_PHASE_COILS,
+    M1_VIEW_SCENES, SEED_M1_SCENE_LAYERS,
+)
+from motors.motor_shapes import (       # noqa: E402
+    SEED_M1_SIM_SPACES,
+)
+
+_m1_space = next(s for s in SEED_M1_SIM_SPACES
+                 if s['name'] == M1_BASE)
+_scene_ids = {b['id'] for b in
+              json.loads(_m1_space['definition'])['freestanding']}
+
+check('TWO-MODULES-AGREE: the part→body map covers exactly the '
+      'M1 part rows (motor_parts) — no orphan, no gap',
+      set(M1_PART_BODIES)
+      == {p['name'] for p in SEED_MOTOR_PARTS
+          if p.get('design_ref') == M1_DESIGN})
+check('TWO-MODULES-AGREE: every mapped body id exists in the '
+      'motor-m1-viz sim space, and the map covers ALL 19 bodies',
+      set(b for bodies in M1_PART_BODIES.values()
+          for b in bodies) == _scene_ids
+      and len(_scene_ids) == 19)
+check('TWO-MODULES-AGREE: the phase→coil map pairs opposite '
+      'coils exactly as m1_phase_electrics pairs teeth (k, k+3)',
+      set(b for pair in M1_PHASE_COILS.values() for b in pair)
+      == set(M1_PART_BODIES['m1-coils'])
+      and all(len(pair) == 2
+              for pair in M1_PHASE_COILS.values())
+      and sorted(M1_PHASE_COILS) == ['0', '1', '2'])
+check('phase-replay is a REGISTERED kind (the constructor will '
+      'not silently downgrade it)',
+      'phase-replay' in LAYER_KINDS
+      and all(l['kind'] in LAYER_KINDS
+              for l in SEED_M1_SCENE_LAYERS))
+check('every M1 layer PINS its design in params — an M0 caller '
+      'default can never color M1 bodies from the wrong bill',
+      all(json.loads(l['params_json']).get('design') == M1_DESIGN
+          for l in SEED_M1_SCENE_LAYERS))
+check('every M1 view declares its scene: base motor-m1-viz, all '
+      'M1 layers listed, non-empty defaultOn',
+      set(M1_VIEW_SCENES) == {v['name'] for v in SEED_M1_VIEWS}
+      and all(v['scene_json'] for v in SEED_M1_VIEWS)
+      and all(json.loads(v['scene_json'])['base'] == M1_BASE
+              and json.loads(v['scene_json'])['layers']
+              == M1_ALL_LAYERS
+              and json.loads(v['scene_json'])['defaultOn']
+              for v in SEED_M1_VIEWS))
+
+vm.objectTables['ClockSceneLayerDefinition'] = _table(
+    SEED_M1_SCENE_LAYERS)
+vm.objectTypingDict = {k: object() for k in vm.objectTables}
+_sc = clock_scene_payload(vm, 'view-m1-sequencing')
+_lay = {l['name']: l for l in _sc.get('layers', [])}
+check('scene payload assembles: base motor-m1-viz, the sequence '
+      'replay layer answers with the phase→coil geometry and is '
+      'defaultOn for the sequencing view',
+      _sc.get('ok') and _sc['baseScene'] == M1_BASE
+      and _lay['layer-m1-sequence-replay'].get('ok')
+      and _lay['layer-m1-sequence-replay']['geometry']
+      ['phaseCoils'] == M1_PHASE_COILS
+      and _lay['layer-m1-sequence-replay']['defaultOn'])
+check('material coloring answers from part rows alone: every '
+      'M1 body colored, no magnet in the legend (the point of '
+      'the rung, visible)',
+      _lay['layer-m1-material-coloring'].get('ok')
+      and set(_lay['layer-m1-material-coloring']['bodies'])
+      == _scene_ids
+      and not any('ndfeb' in e['label'].lower()
+                  or 'srfe' in e['label'].lower()
+                  for e in _lay['layer-m1-material-coloring']
+                  ['legend']))
+check('a layer the fixture cannot feed refuses WITH its reason, '
+      'never a blank canvas',
+      all(l.get('refusal')
+          for l in _sc.get('layers', []) if not l.get('ok')))
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

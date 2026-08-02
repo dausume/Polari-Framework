@@ -313,14 +313,12 @@ SEED_M1_VIEWS = [
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
 ]
 
-# viz-1 discipline: a view must decide its 3D scene deliberately.
-# scene_json_for_view returns '' until m1-3 registers the M1
-# scenes — the payload refuses honestly in the meantime, and the
-# same seed pass delivers the scenes once they exist.
-from motors.clock_scene import scene_json_for_view  # noqa: E402
+# viz-1 discipline: a view must decide its 3D scene deliberately —
+# m1-3's m1_scene owns the M1 base + layers + defaultOn.
+from motors.m1_scene import m1_scene_json_for_view  # noqa: E402
 
 for _view_seed in SEED_M1_VIEWS:
-    _view_seed['scene_json'] = scene_json_for_view(
+    _view_seed['scene_json'] = m1_scene_json_for_view(
         _view_seed['name'])
 
 
