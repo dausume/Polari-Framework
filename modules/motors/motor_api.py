@@ -55,6 +55,9 @@ class MotorsAPI(treeObject):
                 suffix='m1_relations')
             add('/api/motors/m1-overlap-gap', self,
                 suffix='m1_overlap_gap')
+            # mq-4: the engine-number accountability report.
+            add('/api/motors/materials-audit', self,
+                suffix='materials_audit')
             add('/api/motors/parity', self, suffix='parity')
             add('/api/motors/materials/{design_name}', self,
                 suffix='materials')
@@ -277,6 +280,15 @@ class MotorsAPI(treeObject):
     def on_get_m1_overlap_gap(self, request, response):
         from motors.m1_relations import overlap_model_gap
         out = overlap_model_gap(self.manager)
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_materials_audit(self, request, response):
+        from motors.materials_audit import materials_audit
+        out = materials_audit(
+            self.manager,
+            request.params.get('design', 'reluctance-6s4p-m1'))
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out

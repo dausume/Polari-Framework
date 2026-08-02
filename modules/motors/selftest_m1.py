@@ -785,6 +785,50 @@ check('the scene markers layer carries the DERIVED positions '
           if m['interface'] == 'ifm1-working-gap')['position']
       == _pos['ifm1-working-gap'])
 
+print('== suite: mq-4 the engine-number audit ==')
+from motors.materials_audit import (       # noqa: E402
+    NAMED_PRIORS, materials_audit,
+)
+
+aud = materials_audit(vm)
+check('the audit answers CLEAN on the fixture: every engine '
+      'number traced (material-row / design-row / '
+      'requirement-row / named-prior), zero holes',
+      aud.get('ok') and aud['allTraced']
+      and all(aud['counts'][s] > 0 for s in aud['counts']),
+      json.dumps(aud.get('holes'))[:200])
+_mu = next(e for e in aud['entries']
+           if e['source'] == 'material-row'
+           and e['slot'] == 'stator_material')
+check('the stator mu carries ITS OWN provenance from the '
+      'material row — the msci FEM homogenization, not an '
+      'anonymous constant',
+      _mu['ok'] and _mu['value'] > 1.0
+      and 'FEM homogenization' in _mu['note'])
+check('every named in-code prior states what RETIRES it, and '
+      'the 0.03 m core path names its shape-equation derivation',
+      all(p.get('retirement') for p in NAMED_PRIORS)
+      and any('shape' in p['retirement']
+              and p['symbol'] == 'core_path_m'
+              for p in NAMED_PRIORS))
+check('every axis requirement prior appears with its retiring '
+      'measurement (the m1-5 rows ride the audit)',
+      sum(1 for e in aud['entries']
+          if e['source'] == 'requirement-row' and e['ok']) == 4)
+_hole_mgr = _mgr()
+_hole_mgr.objectTables['MotorDesignDefinition'] = {
+    M1_DESIGN: types.SimpleNamespace(
+        name=M1_DESIGN, topology='radial-reluctance',
+        params_json=json.dumps({'stator_material': 'opt-nonsense',
+                                'rotor_material': 'opt-nonsense',
+                                'slots': 6, 'poles': 4}))}
+_hole_mgr.objectTypingDict = {
+    k: object() for k in _hole_mgr.objectTables}
+_bad = materials_audit(_hole_mgr)
+check('a missing property is a HOLE said out loud, never a pass',
+      _bad.get('ok') and not _bad['allTraced']
+      and len(_bad['holes']) >= 2)
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
