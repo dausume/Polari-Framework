@@ -1152,13 +1152,17 @@ SEED_M2_SIM_SPACES = [
                  'rotation': [0.0, 0.0,
                               round(i * math.pi / 3.0, 6)]}
                 for i in range(6)]
-             + [{'id': f'coil-{i}',
+             # Coil body ids are M1's VERBATIM (A0 B0 C0 A1 B1 C1
+             # around the ring): same six coils, same three-phase
+             # pairing, so the phase→coil map and the replay layer
+             # machinery carry over untouched.
+             + [{'id': f'coil-{p}{i // 3}',
                  'shapeRef': 'mathshape:motor-m1-coil',
                  'styleRef': 'motor-coil-idle',
                  'position': [0.0, 0.0, 0.0],
                  'rotation': [0.0, 0.0,
                               round(i * math.pi / 3.0, 6)]}
-                for i in range(6)]),
+                for i, p in enumerate('ABCABC')]),
      }),
      'is_prior': True, 'provenance_id': 'm2-2'},
 ]

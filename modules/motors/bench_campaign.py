@@ -29,6 +29,7 @@ motors.clock_views (motion-view section), motors.selftest_motors
 PRODUCT = 'clock-lavet-m0b'
 CONTROL = 'clock-lavet-m0'
 M1 = 'reluctance-6s4p-m1'
+M2 = 'ferrite-pm-m2'
 
 
 def _entry(name, instrument, adjudicates, record_via, acceptance,
@@ -46,6 +47,8 @@ def bench_campaign(manager, design_name=PRODUCT):
     m1-7: the M1 design dispatches to its own sheet."""
     if design_name == M1:
         return m1_bench_campaign(manager, design_name)
+    if design_name == M2:
+        return m2_bench_campaign(manager, design_name)
     entries = []
 
     # 1. Coil resistance — the cheapest sanity gate.
@@ -402,6 +405,214 @@ def m1_bench_campaign(manager, design_name=M1):
         'gear-reduction, assemble); this sheet is the MEASUREMENT '
         'half. SIX-of-everything is the difference from the '
         'clock: unit statistics begin here.')
+
+
+def m2_bench_campaign(manager, design_name=M2):
+    """m2-7: the M2 bench sheet. What is DIFFERENT from M1: the
+    magnet is on the bill, so two measurements exist that could
+    not before — the BACK-EMF CONSTANT, which isolates the
+    magnet-and-turns product from everything else and is
+    therefore the model-adjudicating measurement of the rung, and
+    the COGGING MAP, where the model predicts exactly zero and so
+    whatever the bench finds is pure slotting reality: a finding
+    by construction."""
+    entries = []
+
+    # 1. Per-phase R, six of them — imbalance is the finding.
+    try:
+        from motors.m1_views import m1_phase_electrics
+        pe = m1_phase_electrics(manager, design_name)
+        pred_r = ({'predictedPhaseOhm':
+                   pe['phases'][0]['rPhaseOhm'],
+                   'predictedSpread': 0.0,
+                   'basis': 'm1_phase_electrics on the M2 design '
+                            'row (200 t of 22 AWG) — the SAME '
+                            'engine M1 uses, called with a '
+                            'different design; the model builds '
+                            'six identical phases, so any spread '
+                            'is a manufacturing finding'}
+                  if pe.get('ok') else
+                  {'refusal': pe.get('refusal', 'refused')})
+    except Exception as e:
+        pred_r = {'refusal': f'raised: {e}'}
+    entries.append(_entry(
+        'phase-resistance-six', 'multimeter (any)',
+        'the winding engine at a coarser gauge — and the SPREAD, '
+        'which no model can predict because the model builds six '
+        'identical coils',
+        {'row': 'MotorVerificationRun',
+         'api': 'POST /api/motors/verify/' + M2,
+         'kind': 'measured',
+         'qaGate': 'qa-phase-resistance-six'},
+        'each phase within 10% of prediction; spread across the '
+        'six <= 5% of their mean', pred_r))
+
+    # 2. THE ONE THAT ADJUDICATES: back-EMF constant.
+    try:
+        from motors.m2_rotation import back_emf_constant
+        ke = back_emf_constant(manager, design_name)
+        pred_k = ({'predictedKeVoltSPerRad':
+                   ke['kEVoltSPerRad'],
+                   'predictedFluxWb': ke['fluxPerPoleWb'],
+                   'magnetBrT': ke.get('magnetBrT'),
+                   'materialConsistency':
+                   ke.get('materialConsistency'),
+                   'basis': ke['derivation']}
+                  if ke.get('ok') else
+                  {'refusal': ke.get('refusal', 'refused')})
+    except Exception as e:
+        pred_k = {'refusal': f'raised: {e}'}
+    entries.append(_entry(
+        'back-emf-constant', 'oscilloscope + a hand (spin the '
+        'rotor at a timed rate, scope one phase open-circuit)',
+        'THE MODEL-ADJUDICATING MEASUREMENT OF THIS RUNG: k_e '
+        'isolates the magnet-and-turns product from resistance, '
+        'inductance, load and friction — nothing else can absorb '
+        'a disagreement. If it comes in low, either the magnet '
+        'prior is wrong or the magnetiser did not take, and the '
+        'B_r entry below separates those two.',
+        {'row': 'MotorVerificationRun',
+         'api': 'POST /api/motors/verify/' + M2,
+         'kind': 'measured',
+         'qaGate': 'qa-back-emf-spin'},
+        'within 2x of prediction (ratios survive the lumped-model '
+        'caveat better than absolutes); a NULL reading is a '
+        'failed magnetisation, not a model error', pred_k))
+
+    # 3. THE COGGING MAP — the model says zero, by construction.
+    try:
+        from motors.m2_rotation import (
+            NO_COGGING_FACT, pull_out_load_limit,
+        )
+        po = pull_out_load_limit(manager, design_name)
+        pred_c = {'predictedDetentNm': 0.0,
+                  'predictedPeakTorqueNm': (po.get('peakTorqueNm')
+                                            if po.get('ok')
+                                            else None),
+                  'basis': NO_COGGING_FACT}
+    except Exception as e:
+        pred_c = {'refusal': f'raised: {e}'}
+    entries.append(_entry(
+        'cogging-map', 'torque wrench or a string-and-weight on '
+        'the shaft, unpowered, every 5 deg through one '
+        'revolution',
+        'A FINDING BY CONSTRUCTION: the model predicts EXACTLY '
+        'ZERO detent (a first-harmonic gap model of a round ring '
+        'has no slotting in it), so whatever the bench measures '
+        'is pure slotting reality with no model to argue with. '
+        'It also sets the floor on smooth running — and it is '
+        'NOT what holds the crucible up, which is the worm.',
+        {'row': 'MotorVerificationRun',
+         'api': 'POST /api/motors/verify/' + M2,
+         'kind': 'measured'},
+        'record the map whatever it is; a peak above 10% of the '
+        'predicted running torque means slotting matters and the '
+        'model needs a term it does not have', pred_c))
+
+    # 4. Remanence — the shared M0 experiment.
+    try:
+        from magnetics.magnet_analysis import _named
+        opt = _named(manager, 'MagneticMaterialOption',
+                     'opt-sintered-hexaferrite')
+        import json as _json
+        props = _json.loads(getattr(opt, 'properties_json', '')
+                            or '{}') if opt is not None else {}
+        b_r = (props.get('b_r_t') or {}).get('value')
+        pred_b = ({'predictedBrT': b_r,
+                   'provenance': (props.get('b_r_t') or {})
+                   .get('provenance'),
+                   'basis': 'the material row prior — the SAME '
+                            'entry M0 carries: one experiment '
+                            '(press, sinter, magnetise, measure) '
+                            'retires the prior on M0, M2 and M3 '
+                            'at once'}
+                  if b_r else
+                  {'refusal': 'no b_r_t on the hexaferrite row'})
+    except Exception as e:
+        pred_b = {'refusal': f'raised: {e}'}
+    entries.append(_entry(
+        'remanence-br', 'gaussmeter or a calibrated pull test on '
+        'the sintered blank, BEFORE assembly',
+        'the literature prior every torque and k_e number on this '
+        'rung rides — and measuring it on the BLANK separates a '
+        'weak magnet from a failed magnetisation, which the '
+        'assembled k_e cannot',
+        {'row': 'MotorVerificationRun',
+         'api': 'POST /api/motors/verify/' + M2,
+         'kind': 'measured'},
+        'within the 0.2-0.4 T class band for sintered '
+        'hexaferrite; below it, the sinter or the powder is the '
+        'problem', pred_b))
+
+    # 5. Pull-out torque — the duty limit, physically.
+    try:
+        from motors.m2_rotation import pull_out_load_limit as _po
+        po2 = _po(manager, design_name)
+        pred_p = ({'predictedPullOutNm': po2['pullOutLimitNm'],
+                   'predictedPeakNm': po2['peakTorqueNm'],
+                   'atLagDeg': po2['atLagDeg'],
+                   'crossCheck': po2.get('crossCheck'),
+                   'basis': po2['basis']}
+                  if po2.get('ok') else
+                  {'refusal': po2.get('refusal', 'refused')})
+    except Exception as e:
+        pred_p = {'refusal': f'raised: {e}'}
+    entries.append(_entry(
+        'pull-out-torque', 'a rope, a pulley and known weights on '
+        'the shaft while the drive runs at a fixed rate',
+        'THE duty number the hoist is sized against — and the '
+        'failure mode is the point: past it the machine does not '
+        'slow down, it falls out of step and drops the load. The '
+        'measurement is a step change, not a curve.',
+        {'row': 'MotorVerificationRun',
+         'api': 'POST /api/motors/verify/' + M2,
+         'kind': 'measured'},
+        'within 2x of prediction, and the LOSS OF SYNC must be '
+        'abrupt — a gradual droop would mean the machine is not '
+        'running synchronously at all', pred_p))
+
+    # 6. Thermal rise at duty — no model, honestly.
+    try:
+        from motors.m1_views import m1_phase_electrics as _pe
+        pe2 = _pe(manager, design_name)
+        if pe2.get('ok'):
+            r_phase = pe2['phases'][0]['rPhaseOhm']
+            import json as _json2
+            from motors.motor_designer import _design, _loads
+            amps = float(_loads(_design(manager, design_name),
+                                'params_json', {})['coil_amps'])
+            pred_t = {'predictedDissipationW': r_phase * amps ** 2,
+                      'predictedRiseK': None,
+                      'basis': 'I^2R with all three phases '
+                               'carrying — SOLVED. The '
+                               'temperature RISE is not modelled '
+                               'at all: no thermal path, no '
+                               'convection, no mass.'}
+        else:
+            pred_t = {'refusal': pe2.get('refusal', 'refused')}
+    except Exception as e:
+        pred_t = {'refusal': f'raised: {e}'}
+    entries.append(_entry(
+        'thermal-rise-duty', 'thermocouple (the W2 instrument the '
+        'wire rung unlocks) on a coil and on the magnet ring',
+        'dissipation is SOLVED and rise is UNMODELLED — and on '
+        'THIS rung the ring is the part to watch: ferrite loses '
+        'remanence with temperature and comes back weaker, so a '
+        'hot hoist is a hoist that lifts less next time',
+        {'row': 'MotorVerificationRun',
+         'api': 'POST /api/motors/verify/' + M2,
+         'kind': 'measured'},
+        'coil rise <= 40 K (enamel class prior, NAMED); ring '
+        'temperature well under the ferrite Curie margin — above '
+        'it, duty cycle becomes a design row', pred_t))
+
+    return _campaign(
+        design_name, 'm2-bench', entries,
+        'The build steps are the m2-6 workflows (press-sinter, '
+        'worm stage, assemble-then-MAGNETISE); this sheet is the '
+        'MEASUREMENT half. The magnet is what is new, and it '
+        'brings both the measurement that adjudicates the model '
+        '(k_e) and the one the model refuses to make (cogging).')
 
 
 def _campaign(design_name, campaign, entries, closing_note):

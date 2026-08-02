@@ -93,6 +93,15 @@ PART_ROLE_ASSIGNMENTS = {
     'm1-rotor-core': ['moving', 'flux-carrying', 'press-fitted'],
     'm1-coils': ['static-structural', 'current-carrying'],
     'm1-shaft': ['moving', 'press-fitted'],
+    # m2-4: the second rung adds exactly two rows, because it adds
+    # exactly two parts. The ring is the first ACTIVE MAGNET on
+    # this ladder above M0 — the role that refuses a soft
+    # material outright — and the carrier is the mirror case: it
+    # must be structural and magnetically INERT, because a
+    # ferrous hub would short the ring's poles to each other.
+    'm2-magnet-ring': ['moving', 'torque-magnet-active'],
+    'm2-rotor-carrier': ['moving', 'press-fitted', 'field-inert',
+                         'static-structural'],
 }
 
 def part_role_report(manager, part_name):

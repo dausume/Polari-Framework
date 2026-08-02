@@ -127,6 +127,13 @@ SEED_POLARI_APPS = [
                   _it('M1 motor scene (3D)', 'simspace',
                       route='/sim-spaces/motor-m1-viz',
                       requires_module='motors'),
+                  _it('M2 PM rotor — rotation & lift', 'view',
+                      route='/magnetics/clock-views'
+                            '?view=view-m2-rotation',
+                      requires_module='composition'),
+                  _it('M2 motor scene (3D)', 'simspace',
+                      route='/sim-spaces/motor-m2-viz',
+                      requires_module='motors'),
                   _it('Field views', 'page', route='/magnetics/fields',
                       requires_module='magnetics'),
                   _it('Clock motor — parts & materials', 'page',
@@ -157,6 +164,10 @@ SEED_POLARI_APPS = [
                   _it('M1 — positioning proof', 'view',
                       route='/magnetics/clock-views'
                             '?view=view-m1-positioning',
+                      requires_module='composition'),
+                  _it('M2 — lifting (the hoist proof)', 'view',
+                      route='/magnetics/clock-views'
+                            '?view=view-m2-lift',
                       requires_module='composition'),
                   _it('Motor scene (3D)', 'simspace',
                       route='/sim-spaces/motor-m0-viz',

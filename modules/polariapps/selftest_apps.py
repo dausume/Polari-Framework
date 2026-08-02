@@ -231,8 +231,10 @@ if __name__ == '__main__':
               if it['availability'] == 'absent']
     check('absent module item KEPT with bringup affordance + '
           'requires chain (m1-8: the M1 view joins the goals '
-          'view behind composition — two now)',
-          len(absent) == 2
+          'view behind composition; m2-8 adds the M2 rotation '
+          'view — three now, and the count is pinned on purpose '
+          'so a new gated item cannot slip in unnoticed)',
+          len(absent) == 3
           and all(it['requiresModule'] == 'composition'
                   and it['bringup']['route'] == '/modules/bringup'
                   and it['bringup']['requires'] == ['mathshapes']

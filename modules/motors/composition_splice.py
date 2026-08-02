@@ -84,6 +84,9 @@ def interface_specs(design_name):
     if design_name == 'reluctance-6s4p-m1':
         from motors.m1_composition import M1_INTERFACES
         return M1_INTERFACES
+    if design_name == 'ferrite-pm-m2':
+        from motors.m2_composition import M2_INTERFACES
+        return M2_INTERFACES
     return []
 
 
@@ -91,6 +94,9 @@ def _declared_level(design_name):
     if design_name == 'reluctance-6s4p-m1':
         from motors.m1_composition import M1_DECLARED_LEVEL
         return M1_DECLARED_LEVEL
+    if design_name == 'ferrite-pm-m2':
+        from motors.m2_composition import M2_DECLARED_LEVEL
+        return M2_DECLARED_LEVEL
     return 'assembly'
 
 
@@ -100,6 +106,9 @@ def _promotion_answers(design_name):
     if design_name == 'reluctance-6s4p-m1':
         from motors.m1_composition import M1_PROMOTION_ANSWERS
         return M1_PROMOTION_ANSWERS
+    if design_name == 'ferrite-pm-m2':
+        from motors.m2_composition import M2_PROMOTION_ANSWERS
+        return M2_PROMOTION_ANSWERS
     return {}
 
 
@@ -110,8 +119,19 @@ class _Row:
 
 
 def _movement_parts(manager, design_name):
-    return [p for p in _rows(manager, 'MotorPartDefinition')
-            if getattr(p, 'design_ref', '') == design_name]
+    """The parts of one movement — INCLUDING the ones the design
+    reuses from a lower rung (motor_parts.PART_REUSE). M2's
+    interfaces name m1-shaft, m1-coils and m1-stator-teeth, and
+    they name them because those parts are really in the machine;
+    a movement that dropped them would derive its level from two
+    bonded rotor pieces and call the whole motor a single part."""
+    from motors.motor_parts import PART_REUSE
+    rows = _rows(manager, 'MotorPartDefinition')
+    reuse = PART_REUSE.get(design_name) or {}
+    reused = set(reuse.get('parts', ()))
+    return [p for p in rows
+            if getattr(p, 'design_ref', '') == design_name
+            or getattr(p, 'name', '') in reused]
 
 
 def composition_view(manager, design_name='clock-lavet-m0'):

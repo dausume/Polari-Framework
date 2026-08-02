@@ -174,6 +174,13 @@ def analytic_peak_torque(geo):
 
 
 SETTLE_GRID_DEG = 0.1
+#: Coarse-to-fine walk: the same descent M1 does, but stepped down
+#: through three grids. A single fine grid costs thousands of
+#: co-energy evaluations per settle, and the pull-out bisect runs
+#: forty sims of thirteen settles each — the refinement keeps the
+#: semantics (descend to the local minimum) and makes the report
+#: answer in a page load instead of a coffee break.
+SETTLE_GRIDS_DEG = (2.0, 0.5, SETTLE_GRID_DEG)
 
 
 def _settle(geo, phi_current, phi_rotor, load_nm=0.0):
@@ -181,24 +188,29 @@ def _settle(geo, phi_current, phi_rotor, load_nm=0.0):
     commutation angle: minimise U = -W'(phi_r) + load*theta_mech,
     the same walk M1 does (quasi-static, no inertia). phi angles
     are ELECTRICAL radians; the load acts on the MECHANICAL
-    angle, hence the division by pole pairs."""
-    g = math.radians(SETTLE_GRID_DEG)
+    angle, hence the division by pole pairs.
 
+    Out of synchronism there IS no local minimum ahead — the load
+    beats the torque everywhere — so the walk runs to its cap and
+    the caller sees a rotor that fell behind. That is the honest
+    shape of losing sync in a quasi-static model, not a bug."""
     def u_at(p):
         return (-_total_w(geo, p, phi_current)
                 + load_nm * p / geo['polePairs'])
 
     phi = phi_rotor
-    for _ in range(4000):
-        here = u_at(phi)
-        fwd = u_at(phi + g)
-        back = u_at(phi - g)
-        if fwd < here and fwd <= back:
-            phi += g
-        elif back < here:
-            phi -= g
-        else:
-            return phi
+    for grid_deg in SETTLE_GRIDS_DEG:
+        g = math.radians(grid_deg)
+        for _ in range(400):
+            here = u_at(phi)
+            fwd = u_at(phi + g)
+            back = u_at(phi - g)
+            if fwd < here and fwd <= back:
+                phi += g
+            elif back < here:
+                phi -= g
+            else:
+                break
     return phi
 
 

@@ -343,6 +343,9 @@ def product_routes(manager, design_name=M0B):
     if design_name == 'reluctance-6s4p-m1':
         from motors.m1_product import m1_product_routes
         return m1_product_routes(manager, design_name)
+    if design_name == 'ferrite-pm-m2':
+        from motors.m2_product import m2_product_routes
+        return m2_product_routes(manager, design_name)
     from motors.motor_winding import winding_report
     winding = winding_report(manager, design_name)
     wire_buy = _wire_price(manager)

@@ -883,6 +883,7 @@ try:
     from motors.clock_views import ClockViewDefinition
     from motors.clock_scene import ClockSceneLayerDefinition
     from motors.m1_positioning import PrinterAxisRequirement
+    from motors.m2_lift import CrucibleHoistRequirement
 except ImportError as _exc:
     # The stub tuple must list EVERY name the try block imports —
     # stub_feature_symbols already maps SEED_* to [] and everything
@@ -904,7 +905,7 @@ except ImportError as _exc:
         'SEED_EQUATION_ROWS',
         'ClockScaleDefinition', 'MotorGoalSpec',
         'ClockViewDefinition', 'ClockSceneLayerDefinition',
-        'PrinterAxisRequirement',
+        'PrinterAxisRequirement', 'CrucibleHoistRequirement',
     ))
 # mesh-1: license-GATED external mesh catalog + the fit engine
 # (borrowed meshes measured against our vector organ definitions).
@@ -2117,6 +2118,10 @@ class polariServer(treeObject):
             ClockSceneLayerDefinition,
             # m1-5: printer-axis requirement rows.
             PrinterAxisRequirement,
+            # m2-5: crucible-hoist requirement rows (a NEW class
+            # gets all THREE registrations — import, stub tuple
+            # and this list — or its seeds silently never land).
+            CrucibleHoistRequirement,
             # mesh-1: licence findings, the assets under them, and
             # the human's accepted picks.
             MeshAssetSource, MeshAssetReference, OrganMeshChoice,
@@ -3716,6 +3721,10 @@ class polariServer(treeObject):
                 from motors.m1_views import seed_m1_views
                 from motors.motor_shapes import seed_v2_shapes
                 from motors.m1_product import seed_m1_product
+                from motors.m2_lift import seed_m2_hoist
+                from motors.m2_scene import seed_m2_scene
+                from motors.m2_views import seed_m2_views
+                from motors.m2_product import seed_m2_product
                 from motors.product_routes import (
                     seed_product_routes,
                 )
@@ -3729,7 +3738,11 @@ class polariServer(treeObject):
                           + seed_v2_shapes(self.manager)
                           + seed_clock_assembly(self.manager)
                           + seed_product_routes(self.manager)
-                          + seed_m1_product(self.manager)):
+                          + seed_m1_product(self.manager)
+                          + seed_m2_views(self.manager)
+                          + seed_m2_scene(self.manager)
+                          + seed_m2_hoist(self.manager)
+                          + seed_m2_product(self.manager)):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[ScaleGoalsSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '
@@ -3809,7 +3822,11 @@ class polariServer(treeObject):
                 from motors.m1_composition import (
                     seed_m1_composition,
                 )
-                for r in seed_m1_composition(self.manager):
+                from motors.m2_composition import (
+                    seed_m2_composition,
+                )
+                for r in (seed_m1_composition(self.manager)
+                          + seed_m2_composition(self.manager)):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[M1CompositionSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '

@@ -21,6 +21,9 @@ from motors.m1_sequencing import (
 # m1-2: importing m1_views registers the M1 section sources into
 # clock_views.SECTION_SOURCES before any view payload assembles.
 import motors.m1_views  # noqa: F401
+# m2-3: the same registration for the M2 rung — one import, and
+# every view-m2-* row's sections can find their engines.
+import motors.m2_views  # noqa: F401
 
 
 class MotorsAPI(treeObject):
@@ -57,6 +60,20 @@ class MotorsAPI(treeObject):
                 suffix='m1_overlap_gap')
             add('/api/motors/m1-arc-rule', self,
                 suffix='m1_arc_rule')
+            # m2-1/m2-5: the PM rung — rotation, its duty limit,
+            # the back-EMF constant, and THE LIFT PROOF.
+            add('/api/motors/m2-rotation/{design_name}', self,
+                suffix='m2_rotation')
+            add('/api/motors/m2-pull-out/{design_name}', self,
+                suffix='m2_pull_out')
+            add('/api/motors/m2-back-emf/{design_name}', self,
+                suffix='m2_back_emf')
+            add('/api/motors/m2-hoist/{design_name}', self,
+                suffix='m2_hoist')
+            add('/api/motors/m2-lift-proof/{design_name}', self,
+                suffix='m2_lift_proof')
+            add('/api/motors/m2-relations', self,
+                suffix='m2_relations')
             # mq-4: the engine-number accountability report.
             add('/api/motors/materials-audit', self,
                 suffix='materials_audit')
@@ -292,6 +309,68 @@ class MotorsAPI(treeObject):
         start once the exact overlap was adopted."""
         from motors.m1_relations import arc_rule_report
         out = arc_rule_report(self.manager)
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_m2_rotation(self, request, response, design_name):
+        from motors.m2_rotation import rotation_sim
+
+        def num(k, d):
+            try:
+                return float(request.params.get(k, d))
+            except (TypeError, ValueError):
+                return d
+        steps = int(max(3, min(num('steps', 12), 10000)))
+        amps = request.params.get('amps')
+        try:
+            amps = float(amps) if amps is not None else None
+        except (TypeError, ValueError):
+            amps = None
+        out = rotation_sim(
+            self.manager, design_name, steps=steps,
+            load_torque_nm=num('load', 0.0),
+            direction=int(num('direction', 1)), amps=amps,
+            rotor_material=request.params.get('rotor', ''))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_m2_pull_out(self, request, response, design_name):
+        from motors.m2_rotation import pull_out_load_limit
+        out = pull_out_load_limit(
+            self.manager, design_name,
+            rotor_material=request.params.get('rotor', ''))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_m2_back_emf(self, request, response, design_name):
+        from motors.m2_rotation import back_emf_constant
+        out = back_emf_constant(
+            self.manager, design_name,
+            rotor_material=request.params.get('rotor', ''))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_m2_hoist(self, request, response, design_name):
+        from motors.m2_lift import hoist_report
+        out = hoist_report(self.manager, design_name)
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_m2_lift_proof(self, request, response, design_name):
+        from motors.m2_lift import lift_proof
+        out = lift_proof(self.manager, design_name)
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_m2_relations(self, request, response):
+        from motors.m2_composition import m2_relation_report
+        out = m2_relation_report(self.manager)
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out
