@@ -120,6 +120,13 @@ SEED_POLARI_APPS = [
                   _it('Goals & scales (clock views)', 'view',
                       route='/magnetics/clock-views',
                       requires_module='composition'),
+                  _it('M1 reluctance — sequencing & drive', 'view',
+                      route='/magnetics/clock-views'
+                            '?view=view-m1-sequencing',
+                      requires_module='composition'),
+                  _it('M1 motor scene (3D)', 'simspace',
+                      route='/sim-spaces/motor-m1-viz',
+                      requires_module='motors'),
                   _it('Field views', 'page', route='/magnetics/fields',
                       requires_module='magnetics'),
                   _it('Clock motor — parts & materials', 'page',
@@ -142,6 +149,14 @@ SEED_POLARI_APPS = [
              _tgrp('Studies',
                   _it('Clock views — mechanical sections', 'view',
                       route='/magnetics/clock-views',
+                      requires_module='composition'),
+                  _it('M1 — mechanical & interfaces', 'view',
+                      route='/magnetics/clock-views'
+                            '?view=view-m1-mechanical',
+                      requires_module='composition'),
+                  _it('M1 — positioning proof', 'view',
+                      route='/magnetics/clock-views'
+                            '?view=view-m1-positioning',
                       requires_module='composition'),
                   _it('Motor scene (3D)', 'simspace',
                       route='/sim-spaces/motor-m0-viz',

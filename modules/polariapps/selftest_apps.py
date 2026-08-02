@@ -230,11 +230,13 @@ if __name__ == '__main__':
     absent = [it for it in mag_items
               if it['availability'] == 'absent']
     check('absent module item KEPT with bringup affordance + '
-          'requires chain',
-          len(absent) == 1
-          and absent[0]['requiresModule'] == 'composition'
-          and absent[0]['bringup']['route'] == '/modules/bringup'
-          and absent[0]['bringup']['requires'] == ['mathshapes'])
+          'requires chain (m1-8: the M1 view joins the goals '
+          'view behind composition — two now)',
+          len(absent) == 2
+          and all(it['requiresModule'] == 'composition'
+                  and it['bringup']['route'] == '/modules/bringup'
+                  and it['bringup']['requires'] == ['mathshapes']
+                  for it in absent))
     check('ungated + enabled-module items are enabled',
           all(it['availability'] == 'enabled'
               for it in mag_items if it not in absent))
