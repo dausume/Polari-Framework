@@ -55,6 +55,8 @@ class MotorsAPI(treeObject):
                 suffix='m1_relations')
             add('/api/motors/m1-overlap-gap', self,
                 suffix='m1_overlap_gap')
+            add('/api/motors/m1-arc-rule', self,
+                suffix='m1_arc_rule')
             # mq-4: the engine-number accountability report.
             add('/api/motors/materials-audit', self,
                 suffix='materials_audit')
@@ -280,6 +282,16 @@ class MotorsAPI(treeObject):
     def on_get_m1_overlap_gap(self, request, response):
         from motors.m1_relations import overlap_model_gap
         out = overlap_model_gap(self.manager)
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_m1_arc_rule(self, request, response):
+        """cons-3: the SRM arc feasibility rules read off the LIVE
+        shape rows — the check that caught the seeded M1 unable to
+        start once the exact overlap was adopted."""
+        from motors.m1_relations import arc_rule_report
+        out = arc_rule_report(self.manager)
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out

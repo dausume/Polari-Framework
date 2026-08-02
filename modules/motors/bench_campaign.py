@@ -300,13 +300,19 @@ def m1_bench_campaign(manager, design_name=M1):
     try:
         from motors.m1_sequencing import STEP_DEG, sequence_sim
         seq = sequence_sim(manager, design_name, steps=12)
+        band = seq.get('alignmentBand', {})
         pred_s = ({'predictedStepDeg': STEP_DEG,
                    'predictedFullRevDeg':
                    seq['positionComparison']
                    ['actualRotationDeg'],
+                   'predictedRestBandDeg': band.get('bandDeg'),
                    'basis': '360/(3 phases x 4 poles) — the m1-1 '
                             'arithmetic, pinned both ways in the '
-                            'selftest'}
+                            'selftest. The cumulative angle falls '
+                            'a band half-width short of 360 '
+                            'because rest is a BAND (cons-3): '
+                            'beta_r - beta_s of flat, zero-torque '
+                            'alignment out of the two shape rows.'}
                   if seq.get('ok') else
                   {'refusal': seq.get('refusal', 'refused')})
     except Exception as e:
@@ -324,7 +330,37 @@ def m1_bench_campaign(manager, design_name=M1):
          'kind': 'measured',
          'qaGate': 'qa-positioning-100-steps'},
         'each landed angle within 2 deg of n x 30; cumulative '
-        '360 +- 2 after 12 steps; ZERO slips', pred_s))
+        '360 minus the rest band (+- 2) after 12 steps; ZERO '
+        'slips', pred_s))
+
+    # 4b. THE REST BAND itself — cons-3 predicts a number a
+    # printed protractor can actually resolve, so the arc
+    # geometry becomes directly falsifiable.
+    entries.append(_entry(
+        'reversal-backlash-band',
+        'same protractor: step forward to a landing, record the '
+        'angle, then command ONE step in each direction back to '
+        'the same phase and record again — the difference is the '
+        'lost motion',
+        'THE MOST FALSIFIABLE THING cons-3 says: the exact arc '
+        'overlap predicts a flat, zero-torque alignment exactly '
+        'beta_r - beta_s wide, so a reversal must lose that '
+        'angle and nothing more. It is a geometry claim with no '
+        'material property in it — if the bench finds a much '
+        'smaller band, fringing is doing more than the lumped '
+        'model allows; a much larger one indicts the castings\' '
+        'arcs, not the physics.',
+        {'row': 'MotorVerificationRun',
+         'api': 'POST /api/motors/verify/' + M1,
+         'kind': 'measured'},
+        'lost motion within 1 deg of the predicted band; '
+        'repeatable over 5 reversals',
+        (({'predictedBandDeg': band.get('bandDeg'),
+           'fromArcs': band.get('fromArcs'),
+           'basis': 'beta_r - beta_s straight out of the rotor '
+                    'pole and stator tooth shape rows — no '
+                    'material property enters it'})
+         if seq.get('ok') else {'refusal': 'sequencing refused'})))
 
     # 5. Thermal rise at duty — the model honestly does not know.
     try:

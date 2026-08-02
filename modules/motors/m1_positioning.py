@@ -16,7 +16,13 @@ how two copies drift.
 
 THE PROOF runs the m1-1 solver under the axis's reflected load
 torque and turns the step history into a POSITION LEDGER in mm:
-- zero missed steps -> mm error EXACTLY zero (pinned);
+- zero missed steps -> every step advances EXACTLY one step angle,
+  so the whole error is the one-time REST-BAND offset and it does
+  NOT grow with the move (pinned by running the control twice, at
+  N and 2N steps: same error, not double). The band itself came
+  out of cons-3's exact arc overlap — beta_r - beta_s of flat,
+  zero-torque alignment — and it is also the axis's BACKLASH on
+  reversal, in mm, from geometry rather than from a gear;
 - a missed step is not M0's gentle non-event: with no detent, a
   reluctance machine that misses SLIPS BACKWARD a full pole pitch
   (loss of synchronism, exactly as real stepper datasheets warn) —
@@ -224,6 +230,8 @@ def positioning_proof(manager, design_name=M1_DESIGN,
 
     def ledger(sim):
         pos = sim['positionComparison']
+        band = sim.get('alignmentBand', {})
+        offset_mm = float(band.get('halfBandDeg', 0.0)) * mm_per_deg
         commanded_mm = pos['expectedRotationDeg'] * mm_per_deg
         actual_mm = pos['actualRotationDeg'] * mm_per_deg
         error_a = commanded_mm - actual_mm
@@ -239,6 +247,9 @@ def positioning_proof(manager, design_name=M1_DESIGN,
             'commandedMm': round(commanded_mm, 5),
             'actualMm': round(actual_mm, 5),
             'positionErrorMm': round(error_a, 5),
+            'restBandOffsetMm': round(offset_mm, 5),
+            'errorBeyondBandMm': round(
+                abs(error_a) - offset_mm, 5),
             'crossCheck': {
                 'pathA_finalPositionMm': round(error_a, 5),
                 'pathB_sumOfShortfallsMm': round(error_b, 5),
@@ -260,8 +271,22 @@ def positioning_proof(manager, design_name=M1_DESIGN,
                         load_torque_nm=load, direction=direction)
     control_ledger = ledger(control)
     duty_ledger = ledger(duty)
+    # THE EXACTNESS CLAIM, restated for a machine with a rest
+    # band: the error lies inside the band and does not GROW —
+    # run the same control at twice the steps and it must not
+    # double. (Before cons-3 the claim was a bare zero; the band
+    # is real geometry, so the claim now has to survive it.)
+    double = sequence_sim(manager, design_name,
+                          steps=int(commanded_steps) * 2,
+                          load_torque_nm=0.0, direction=direction)
+    double_ledger = ledger(double) if double.get('ok') else {}
     exact = (control_ledger['stepsMissed'] == 0
-             and abs(control_ledger['positionErrorMm']) < 1e-6)
+             and control_ledger['errorBeyondBandMm'] <= 0.0)
+    accumulates = (
+        abs(double_ledger.get('positionErrorMm', 1.0)
+            - control_ledger['positionErrorMm']) > 1e-6
+        if double_ledger else None)
+    band = control.get('alignmentBand', {})
     return {
         'ok': True, 'design': design_name,
         'target': 'wax-3d-printer axis '
@@ -272,9 +297,34 @@ def positioning_proof(manager, design_name=M1_DESIGN,
         'unloadedControl': {
             **control_ledger,
             'exact': exact,
-            'claim': 'zero missed steps -> position error '
-                     'EXACTLY zero; anything else is a solver '
-                     'bug, not a tolerance'},
+            'accumulates': accumulates,
+            'atDoubleTheSteps': {
+                'steps': double_ledger.get('steps'),
+                'positionErrorMm': double_ledger.get(
+                    'positionErrorMm')},
+            'claim': 'zero missed steps -> every step advances '
+                     'exactly one step angle, so the position '
+                     'error stays INSIDE the rest band and is '
+                     'the same at 2N steps as at N (a one-time '
+                     'home offset, not drift). Anything outside '
+                     'the band, or any growth with distance, is '
+                     'a solver bug rather than a tolerance.'},
+        'restBand': {
+            **band,
+            'offsetMm': control_ledger['restBandOffsetMm'],
+            'reversalBacklashMm': round(
+                float(band.get('bandDeg', 0.0)) * mm_per_deg, 5),
+            'vsToleranceMm': axis['toleranceMm'],
+            'insideTolerance': (
+                float(band.get('bandDeg', 0.0)) * mm_per_deg
+                < axis['toleranceMm']),
+            'note': 'the axis inherits the motor\'s zero-torque '
+                    'alignment band as LOST MOTION on reversal — '
+                    'backlash with no gear involved, straight '
+                    'out of beta_r - beta_s. It is a one-way-'
+                    'move product unless the ratio or the arcs '
+                    'change, and the gear train the m1-6 product '
+                    'ships divides this band by its ratio.'},
         'axisDuty': {
             **duty_ledger,
             'verdict': ('lands-on-position'

@@ -811,12 +811,14 @@ SEED_M1_PART_SHAPES = [
      'family': 'primitive', 'primitive_kind': 'annular_sector',
      'parameters_json': json.dumps(
          {'r_inner': 6.0, 'r_outer': 12.0,
-          'half_angle_deg': 16.0, 'azimuth_deg': 0.0,
+          'half_angle_deg': 18.0, 'azimuth_deg': 0.0,
           'height': 6.7, 'axis': 'z',
           'center': [0.0, 0.0, 0.0]}),
      'notes': 'mq-2: the REAL cast pole — an annular sector, '
-              'radius 6.0 to 12.0 mm, 32 deg arc (the SRM '
-              'beta_r > beta_s rule), arc TIP facing the gap. '
+              'radius 6.0 to 12.0 mm, 36 deg arc (the SRM '
+              'beta_r > beta_s rule; widened from 32 in cons-3 '
+              'to stay above the tooth\'s new 32 deg), arc TIP '
+              'facing the gap. '
               'FOUR of these, 90 deg apart, fused to the core in '
               'one pour (ifm1-poles-core) — the salient clover, '
               'not four boxes. The lumps want to line up with an '
@@ -827,7 +829,7 @@ SEED_M1_PART_SHAPES = [
      'display_name': 'M1 stator tooth (x6 by rotation)',
      'family': 'primitive', 'primitive_kind': 'arc_faced_bar',
      'parameters_json': json.dumps(
-         {'width': 6.0, 'r_face': 12.6, 'r_back': 20.0,
+         {'width': 6.95, 'r_face': 12.6, 'r_back': 20.0,
           'azimuth_deg': 0.0, 'height': 6.7, 'axis': 'z',
           'center': [0.0, 0.0, 0.0]}),
      'notes': 'mq-2: the REAL tooth — PARALLEL-SIDED (a round '
@@ -835,11 +837,19 @@ SEED_M1_PART_SHAPES = [
               'the 5.0 mm coil bore) with the gap face GROUND to '
               'an arc at radius 12.6 mm, 0.6 mm clear of the '
               'pole tip = the solver\'s gap_base_m. Arc-face '
-              'area 2·asin(w/2r)·r·h = 40.59 mm2 vs the '
-              'design\'s stated 4e-5 m2 (the old chord-face box '
-              'said 40.2) — one fact, three statements, '
+              'area 2·asin(w/2r)·r·h = 47.18 mm2 = the design\'s '
+              'tooth_area_m2 — one fact, two statements, '
               'guard-tested. Back merges into the yoke bore at '
-              'r=20 (mold-fused, ifm1-teeth-yoke).',
+              'r=20 (mold-fused, ifm1-teeth-yoke). WIDTH 6.95, '
+              'not the original 6.0: cons-3 adopted the exact '
+              'arc overlap and the ARC RULE beta_s >= the 30 deg '
+              'step angle went false (27.55 deg gave literally '
+              'zero overlap where every step begins — 4 of 12 '
+              'steps landed). 6.95 mm subtends 32.02 deg; the '
+              'bobbin still slides on, but the clearance is now '
+              '5.0 mm bore vs a 4.83 mm half-diagonal (0.17 mm, '
+              'was 0.5) — the tooth cannot get wider without a '
+              'bigger bobbin.',
      'provenance_id': 'mq-2'},
     {'name': 'motor-m1-yoke-outer',
      'display_name': 'M1 stator yoke outer (CSG component)',

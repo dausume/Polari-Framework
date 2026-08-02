@@ -25,8 +25,11 @@ from magnetics.magnet_seed import (
 from motors.motor_basis import SEED_MOTOR_DESIGNS
 from motors.m1_sequencing import (
     PHASES, POLES, SLOTS, STEP_DEG, holding_torque,
-    m1_minimum_drive_current, sequence_sim,
+    m1_minimum_drive_current, pull_in_load_limit, sequence_sim,
 )
+from motors.m1_sequencing import _geometry, _m1_design, _settle
+from motors.m1_relations import arc_rule_report, overlap_model_gap
+from motors.motor_shapes import SEED_M1_PART_SHAPES
 
 PASS = '\033[92mPASS\033[0m'
 FAIL = '\033[91mFAIL\033[0m'
@@ -53,6 +56,12 @@ def _mgr():
 
 mgr = _mgr()
 M1 = 'reluctance-6s4p-m1'
+_TOOTH_P = json.loads(
+    [s for s in SEED_M1_PART_SHAPES
+     if s['name'] == 'motor-m1-stator-tooth'][0]['parameters_json'])
+_M1PARAMS = json.loads(
+    [d for d in SEED_MOTOR_DESIGNS if d['name'] == M1][0]
+    ['params_json'])
 
 print('== suite: m1-1 step arithmetic ==')
 check('30 deg/step from 360/(phases*poles)',
@@ -62,26 +71,68 @@ check('the slot/pole difference formula agrees: '
       '360*(1/poles - 1/slots) is the SAME 30',
       abs(360.0 * (1.0 / POLES - 1.0 / SLOTS) - STEP_DEG) < 1e-12)
 
+print('== suite: cons-3 the exact arc overlap (adopted) ==')
+_rule = arc_rule_report(mgr, M1)
+check('the SRM ARC RULES all hold on the seeded shapes — and the '
+      'binding one is beta_s >= the step angle (this is the rule '
+      'the adoption caught false at 27.55 deg: widened to 32)',
+      _rule.get('ok') and _rule['allHold']
+      and _rule['toothArcDeg'] >= _rule['stepAngleDeg'],
+      json.dumps(_rule.get('checks'))[:300])
+check('the tooth arc comes OUT of the tooth shape row (width / '
+      'r_face), not a restated number',
+      abs(_rule['toothArcDeg']
+          - math.degrees(2.0 * math.asin(
+              _TOOTH_P['width'] / 2.0 / _TOOTH_P['r_face'])))
+      < 1e-3)
+_gapr = overlap_model_gap(mgr, M1)
+check('ADOPTION GUARD: the solver\'s own overlap and the exact '
+      'arc overlap are the SAME curve (deviation ~0) — what used '
+      'to be a named gap is now a regression guard',
+      _gapr.get('ok') and _gapr['adopted']
+      and _gapr['worstDeviation'] < 1e-9,
+      json.dumps(_gapr)[:200])
+check('and the RETIRED first-harmonic stand-in is still visible '
+      'in the report, deviating by a stated amount',
+      _gapr.get('ok') and _gapr['retiredModelDeviation'] > 0.05
+      and 'retiredFirstHarmonic' in _gapr['samples'][0])
+check('two-modules-agree: the tooth arc face area IS the design '
+      'row\'s tooth_area_m2 (one geometry, two statements)',
+      abs(math.radians(_rule['toothArcDeg'])
+          * _TOOTH_P['r_face'] * _TOOTH_P['height']
+          - _M1PARAMS['tooth_area_m2'] * 1e6) < 0.05,
+      f"arc={math.radians(_rule['toothArcDeg']) * 84.42:.3f}")
+
 print('== suite: m1-1 no-load sequencing ==')
 seq = sequence_sim(mgr, M1, steps=12)
+_HALF_BAND = seq['alignmentBand']['halfBandDeg']
 check('12 commanded steps all land (no load, rated current)',
       seq.get('ok') and seq['stepsTaken'] == 12
       and seq['stepsMissed'] == 0, json.dumps(seq)[:200])
-check('one full revolution: actual rotation 360 deg, error 0',
+check('THE REST BAND is beta_r - beta_s straight out of the two '
+      'shape rows — a flat, zero-torque alignment, so rest is a '
+      'band and not a point',
+      abs(seq['alignmentBand']['bandDeg']
+          - (_rule['poleArcDeg'] - _rule['toothArcDeg'])) < 1e-9
+      and seq['alignmentBand']['reversalBacklashDeg']
+      == seq['alignmentBand']['bandDeg'])
+check('one full revolution: actual rotation is 360 deg less the '
+      'one-time band offset (the walk rests at the edge it '
+      'arrives at), never more',
       seq.get('ok')
-      and abs(seq['positionComparison']['actualRotationDeg']
-              - 360.0) < 1.0
-      and abs(seq['positionComparison']['positionErrorDeg']) < 1.0)
+      and 0.0 <= (360.0 - seq['positionComparison']
+                  ['actualRotationDeg']) <= _HALF_BAND)
 check('HAND CHECK: latch holds phase-0 aligned (0 deg), first '
-      'step settles at 30 deg',
+      'step settles a band half-width short of 30 deg',
       seq.get('ok')
       and abs(seq['history'][0]['thetaDeg']) < 0.6
-      and abs(seq['history'][1]['thetaDeg'] - 30.0) < 0.6)
-check('every step advances ~30 deg (first-harmonic landscape, '
-      'grid-settled)',
+      and abs(seq['history'][1]['thetaDeg']
+              - (30.0 - _HALF_BAND)) <= 0.3)
+check('and every step AFTER the first advances EXACTLY 30 deg — '
+      'the band offsets position once, it does not accumulate',
       seq.get('ok')
-      and all(abs(h['advancedDeg'] - 30.0) < 1.0
-              for h in seq['history'][1:]))
+      and all(abs(h['advancedDeg'] - 30.0) < 1e-9
+              for h in seq['history'][2:]))
 check('the payload states its honesty: named gaps + speed '
       'assumption + no-unpowered-detent fact',
       seq.get('ok') and len(seq['namedGaps']) == 3
@@ -89,12 +140,23 @@ check('the payload states its honesty: named gaps + speed '
       and 'holds NOTHING' in seq['noUnpoweredDetent'])
 
 rev = sequence_sim(mgr, M1, steps=12, direction=-1)
-check('reversed phase order walks -30 deg/step to -360',
+check('reversed phase order walks -30 deg/step to -360 (mirror '
+      'image, band offset included)',
       rev.get('ok') and rev['stepsTaken'] == 12
-      and abs(rev['positionComparison']['actualRotationDeg']
-              - 360.0) < 1.0
-      and abs(rev['history'][1]['thetaDeg'] - (360.0 - 30.0))
-      < 0.6)
+      and 0.0 <= (360.0 - rev['positionComparison']
+                  ['actualRotationDeg']) <= _HALF_BAND
+      and abs(rev['history'][1]['thetaDeg']
+              - (360.0 - 30.0 + _HALF_BAND)) <= 0.3)
+_geo = _geometry(mgr, _m1_design(mgr, M1))
+_from_below = _settle(_geo, 1, 20.0)
+_from_above = _settle(_geo, 1, 40.0)
+check('BACKLASH, DIRECTLY: settling into the SAME phase-1 '
+      'alignment from below and from above rests a full band '
+      'apart — the lost motion a reversal costs, from geometry '
+      'and nothing else',
+      abs((_from_above - _from_below)
+          - seq['alignmentBand']['bandDeg']) <= 2 * 0.25,
+      f'below={_from_below} above={_from_above}')
 
 print('== suite: m1-1 holding torque + load behavior ==')
 hold = holding_torque(mgr, M1)
@@ -108,15 +170,27 @@ check('torque scales as current squared (2x amps -> ~4x torque)',
       hold2.get('ok')
       and abs(hold2['peakTorqueNm'] / peak - 4.0) < 0.2)
 
+_pil = pull_in_load_limit(mgr, M1)
+check('PULL-IN sits well below holding torque — and cons-3 made '
+      'the split WIDER (0.17x, was 0.32x under the smooth '
+      'stand-in): peak torque lives at the dead-zone edge, but '
+      'the rotor has to finish near alignment where the exact '
+      'profile has flattened out',
+      _pil.get('ok') and 0.10 < _pil['ratioToHolding'] < 0.25,
+      f"ratio={_pil.get('ratioToHolding')}")
 lag = sequence_sim(mgr, M1, steps=12,
-                   load_torque_nm=0.3 * peak)
-check('moderate load: all 12 steps still land',
-      lag.get('ok') and lag['stepsMissed'] == 0)
-check('but the rotor settles SHORT of aligned (load-angle lag — '
-      'and MORE than a sinusoid would give: the real landscape '
-      'is flat between poles)',
+                   load_torque_nm=0.99 * _pil['pullInLimitNm'])
+check('a load just inside the pull-in limit: all 12 steps still '
+      'land',
+      lag.get('ok') and lag['stepsMissed'] == 0,
+      json.dumps(lag.get('history', [])[:3]))
+check('but the rotor settles SHORT of the band (load-angle lag '
+      '— it hangs on the flank where torque balances the load, '
+      'instead of coasting into the flat)',
       lag.get('ok')
-      and 14.0 < lag['history'][1]['thetaDeg'] < 24.0)
+      and 14.0 < lag['history'][1]['thetaDeg']
+      < seq['history'][1]['thetaDeg'] - 1.0,
+      f"theta1={lag.get('history', [{}, {}])[1].get('thetaDeg')}")
 
 over = sequence_sim(mgr, M1, steps=6,
                     load_torque_nm=3.0 * peak)
@@ -156,7 +230,7 @@ check('zero load is a REFUSAL, not a zero-amp answer (no detent, '
       'no friction — nothing to bisect against)',
       not zero.get('ok')
       and 'no detent' in zero.get('refusal', ''))
-load = 0.25 * peak
+load = 0.5 * _pil['pullInLimitNm']
 mdc = m1_minimum_drive_current(mgr, M1, load_torque_nm=load)
 pull_out = 0.5 * math.sqrt(load / peak)
 check('bisect solves a threshold below the stated 0.5 A',
@@ -521,11 +595,27 @@ check('the knobs are QUANTIFIED live: bio-steel gain solved by '
       and _gear['requiredRatio'] >= axis['shortfall'])
 
 proof = positioning_proof(vm, commanded_steps=24)
-check('UNLOADED CONTROL is EXACT: zero missed steps, position '
-      'error exactly zero mm (a claim, not a tolerance)',
+check('UNLOADED CONTROL is EXACT in the sense the geometry '
+      'allows: zero missed steps and the whole error lies INSIDE '
+      'the rest band (a claim, not a tolerance)',
       proof.get('ok')
       and proof['unloadedControl']['exact']
-      and proof['unloadedControl']['positionErrorMm'] == 0.0)
+      and proof['unloadedControl']['stepsMissed'] == 0
+      and proof['unloadedControl']['errorBeyondBandMm'] <= 0.0,
+      json.dumps(proof.get('unloadedControl'))[:300])
+check('and it DOES NOT ACCUMULATE: twice the commanded steps, '
+      'the same error — a one-time home offset, not drift',
+      proof['unloadedControl']['accumulates'] is False
+      and proof['unloadedControl']['atDoubleTheSteps']['steps']
+      == 2 * proof['unloadedControl']['steps'])
+check('BACKLASH IN MM: the axis inherits beta_r - beta_s as lost '
+      'motion on reversal, quantified against the tolerance row '
+      '(a positioning term that owes nothing to a gear)',
+      proof['restBand']['reversalBacklashMm'] > 0.0
+      and abs(proof['restBand']['reversalBacklashMm']
+              - proof['restBand']['bandDeg'] * 1.25 / 360.0)
+      < 1e-4
+      and isinstance(proof['restBand']['insideTolerance'], bool))
 check('the axis duty case today LOSES POSITION and says so; the '
       'mm ledger balances by two paths and slips are NAMED',
       proof['axisDuty']['verdict'] == 'loses-position'
@@ -538,10 +628,13 @@ check('the proof carries the duty verdict and its knobs — the '
       and len(proof['knobs']) >= 2)
 
 _peak = holding_torque(vm, M1)['peakTorqueNm']
-ok_load = positioning_proof(vm, commanded_steps=24,
-                            load_torque_nm=0.2 * _peak)
-check('under a load the machine CAN hold, the proof lands: zero '
-      'misses, sub-0.01 mm error (grid quantization only)',
+ok_load = positioning_proof(
+    vm, commanded_steps=24,
+    load_torque_nm=0.5 * pull_in_load_limit(vm, M1)['pullInLimitNm'])
+check('under a load the machine CAN step under, the proof lands: '
+      'zero misses, sub-0.01 mm error (the load pulls latch and '
+      'steps to the SAME point on the flank, so even the band '
+      'offset cancels)',
       ok_load.get('ok')
       and ok_load['axisDuty']['stepsMissed'] == 0
       and abs(ok_load['axisDuty']['positionErrorMm']) < 0.01)
@@ -572,7 +665,9 @@ check('GUARD (wire-ladder lesson): the seeded gear ratio still '
       prod['drivetrain']['gearRatio'] == GEAR_RATIO
       and prod['drivetrain']['live'].get('requiredNow')
       is not None
-      and GEAR_RATIO >= prod['drivetrain']['live']['requiredNow'])
+      and GEAR_RATIO == prod['drivetrain']['live']['requiredNow'],
+      f"seeded={GEAR_RATIO} "
+      f"live={prod['drivetrain']['live'].get('requiredNow')}")
 
 fork = stator_fork(vm)
 _opts = {o['option']: o for o in fork.get('options', [])}
@@ -650,13 +745,13 @@ from motors.bench_campaign import (      # noqa: E402
 
 bench = bench_campaign(vm, M1_DESIGN)
 check('the bench surface dispatches the M1 design to its own '
-      'sheet: five measurements, in order, each with instrument '
+      'sheet: six measurements, in order, each with instrument '
       '+ adjudicates + record-back seam + acceptance',
       bench.get('ok') and bench['campaign'] == 'm1-bench'
       and bench['order'] == [
           'phase-resistance-six', 'phase-inductance-six',
           'holding-torque-rated', 'step-angle-revolution',
-          'thermal-rise-duty']
+          'reversal-backlash-band', 'thermal-rise-duty']
       and all(e.get('instrument') and e.get('adjudicates')
               and e.get('recordVia') and e.get('acceptance')
               for e in bench['measurements']))
@@ -676,14 +771,24 @@ check('holding-torque prediction equals the live m1-1 number '
       '(the one the m1-5 verdict divides by)',
       abs(_bm['holding-torque-rated'].get('predictedNm', 0)
           - holding_torque(vm, M1)['peakTorqueNm']) < 1e-12)
-check('step-angle entry predicts exactly 30 deg/step, 360/rev — '
-      'the positioning proof\'s physical half, slips named in '
-      'the acceptance',
+check('step-angle entry predicts exactly 30 deg/step and a '
+      'revolution one band half-width short of 360 — the '
+      'positioning proof\'s physical half, slips named in the '
+      'acceptance',
       _bm['step-angle-revolution'].get('predictedStepDeg') == 30.0
-      and abs(_bm['step-angle-revolution']
-              .get('predictedFullRevDeg', 0) - 360.0) < 1.0
+      and 0.0 <= (360.0 - _bm['step-angle-revolution']
+                  .get('predictedFullRevDeg', 0)) <= _HALF_BAND
       and 'slip' in _bm['step-angle-revolution']['adjudicates']
       .lower())
+check('and the REST BAND is its own bench entry: a geometry-only '
+      'prediction (beta_r - beta_s, no material property in it) '
+      'that a printed protractor can falsify',
+      _bm['reversal-backlash-band'].get('predictedBandDeg')
+      == seq['alignmentBand']['bandDeg']
+      and 'falsifiable' in _bm['reversal-backlash-band'][
+          'adjudicates'].lower()
+      and 'no material property' in json.dumps(
+          _bm['reversal-backlash-band']))
 check('thermal entry: dissipation SOLVED (I^2R, one phase on), '
       'rise honestly UNMODELED — a named prior, not an estimate',
       _bm['thermal-rise-duty'].get('predictedDissipationW', 0)
@@ -760,16 +865,19 @@ else:
           '(runs in-container)', True)
 
 og = overlap_model_gap(vm)
-check('the overlap MODEL GAP has a number now: exact trapezoidal '
-      'arc overlap vs the solver\'s first harmonic, arcs stated '
-      '(tooth ~27.1, pole 32), solver deliberately unchanged',
+check('the overlap report ADOPTED (cons-3): the solver rides the '
+      'exact trapezoidal arc overlap (deviation ~0), the arcs '
+      'come from the shape rows (tooth 32.02, pole 36), and the '
+      'retired first harmonic keeps its stated deviation',
       og.get('ok')
       and abs(og['toothArcDeg']
-              - math.degrees(2.0 * math.asin(3.0 / 12.6)))
+              - math.degrees(2.0 * math.asin(
+                  _TOOTH_P['width'] / 2.0 / _TOOTH_P['r_face'])))
       < 1e-3
-      and og['poleArcDeg'] == 32.0
-      and 0.01 < og['worstDeviation'] < 0.5
-      and 'decision, not a side effect' in og['namedGap'])
+      and og['poleArcDeg'] == 36.0
+      and og['worstDeviation'] < 1e-9
+      and 0.01 < og['retiredModelDeviation'] < 0.5
+      and 'ADOPTED' in og['namedGap'])
 
 _pos = derived_marker_positions()
 check('marker positions DERIVE from the shape rows and cover '

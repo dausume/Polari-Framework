@@ -38,10 +38,13 @@ UNITS_PER_PRINTER = 4
 #: ceil(demand / (PULL-IN limit / 1.5)) at the seeded axis rows —
 #: sized by the pull-in limit, NOT holding torque: the live probe
 #: proved a holding-sized 98:1 still loses steps (pull-in is
-#: ~0.32x holding, the m1-1 finding). The selftest re-derives
-#: this from the LIVE axis report and fails if they drift (the
-#: wire-ladder lesson).
-GEAR_RATIO = 304
+#: ~0.17x holding, the m1-1 finding, widened by cons-3's exact
+#: overlap). 265, down from 304, because widening the tooth arc
+#: to satisfy the SRM arc rule also bought 18% more tooth face.
+#: The selftest re-derives this from the LIVE axis report and
+#: fails if they drift, EQUALITY not >= (the wire-ladder lesson:
+#: a ratio that merely covers the need hides the need moving).
+GEAR_RATIO = 265
 PROV = 'm1-6'
 
 
@@ -80,7 +83,7 @@ SEED_M1_WORKFLOWS = [
      'notes': '26 AWG is W2-EASY (coarse) — no drawing drama; '
               '24 coils per printer batch.'},
     {'name': 'm1-gear-reduction-workflow',
-     'display_name': 'Build the ~304:1 reduction',
+     'display_name': 'Build the ~265:1 reduction',
      'product_item_ref': PRODUCT,
      'mold_strategy': 'ceramic-fired',
      'hours_per_unit_ref': 3.0, 'hours_per_mold_ref': 0.0,
@@ -264,7 +267,7 @@ def m1_product_routes(manager, design_name=M1_DESIGN):
          'workflow': 'm1-wind-six-coils-workflow',
          'capability': 'hand winding, 300 turns x6 — 26 AWG, '
                        'W2-EASY (no drawing drama)'},
-        {'input': 'gear reduction (~304:1)', 'source': 'make',
+        {'input': 'gear reduction (~265:1)', 'source': 'make',
          'workflow': 'm1-gear-reduction-workflow',
          'capability': 'gr-1 train solve + cast/fired gears '
                        '(generate, never approximate)'},

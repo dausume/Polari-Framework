@@ -28,18 +28,21 @@ import math
 from magnetics.magnetic_netlist import MU0
 from motors.motor_designer import _design, _loads, _prop
 from motors.local_route import DRIVE_MARGIN
+from motors.m1_relations import arc_overlap_fraction, shape_arcs
 
 #: The 6s/4p machine this solver knows. Other slot/pole counts need
 #: their own alignment map and get a refusal, not a guess.
 SLOTS, POLES, PHASES = 6, 4, 3
 STEP_DEG = 360.0 / (PHASES * POLES)
 
-M1_VALIDITY = ('quasi-static co-energy; first-harmonic overlap '
-               'modulation with amplitudes from the lumped '
-               'reluctance network at gap extremes; linear '
-               'magnetostatics; load torque = constant opposing '
-               'tilt; inertia/friction unmodeled — max step rate '
-               '/ speed NOT predicted')
+M1_VALIDITY = ('quasi-static co-energy; EXACT tooth/pole arc '
+               'overlap read out of the shape rows (cons-3 '
+               'adoption — trapezoidal, with a flat aligned band '
+               'and a true zero-overlap dead zone) with '
+               'amplitudes from the lumped reluctance network at '
+               'gap extremes; linear magnetostatics; load torque '
+               '= constant opposing tilt; inertia/friction '
+               'unmodeled — max step rate / speed NOT predicted')
 
 M1_NAMED_GAPS = [
     'speed is an assumption — the solver is quasi-static and the '
@@ -80,6 +83,15 @@ def _geometry(manager, design, amps=None, stator_material='',
     turns = float(params['coil_turns'])
     rated = float(params['coil_amps'])
     drive_amps = rated if amps is None else float(amps)
+    # The arcs the overlap rides on come OUT of the tooth and pole
+    # shape rows (cons-3) — the solver and the geometry cannot
+    # disagree, because there is only one statement of them.
+    arcs = shape_arcs(manager)
+    if arcs is None:
+        raise ValueError(
+            'the M1 tooth/pole shape rows are not available, so '
+            'the arc overlap the solver runs on has no geometry '
+            'to come from — seed the shapes before sequencing')
     # Two coils per phase in series on opposite teeth; the loop
     # crosses the gap twice. Core path prior 0.03 m total, split
     # stator 0.02 / rotor 0.01 — the same 0.03 torque_curve uses.
@@ -91,24 +103,70 @@ def _geometry(manager, design, amps=None, stator_material='',
                    + 0.01 / (MU0 * mu_r * area)),
         'ratedAmps': rated, 'driveAmps': drive_amps,
         'saliency': saliency,
+        'beta_s': arcs['beta_s'], 'beta_r': arcs['beta_r'],
     }
 
 
+def _overlap(geo, u_rad):
+    """The gap-permeance modulation at relative angle u: between 1
+    (aligned) and 1/saliency (unaligned), shaped by the EXACT
+    tooth/pole arc overlap (cons-3 adoption — one copy of that
+    geometry, in m1_relations)."""
+    return ((1.0 - geo['mod_depth'])
+            + geo['mod_depth'] * arc_overlap_fraction(
+                u_rad, geo['beta_s'], geo['beta_r'], POLES))
+
+
 def _phase_coenergy(geo, phase_idx, theta_deg):
-    """W'_k(theta): one excited phase. Overlap is first-harmonic
-    between 1 (aligned) and 1/saliency (unaligned), period
-    360/POLES deg; phase k's aligned positions sit at
-    k*STEP_DEG + n*(360/POLES)."""
+    """W'_k(theta): one excited phase. Phase k's aligned positions
+    sit at k*STEP_DEG + n*(360/POLES); the overlap between them is
+    the trapezoid the arcs actually sweep."""
     u = math.radians(theta_deg - phase_idx * STEP_DEG)
-    overlap = ((1.0 - geo['mod_depth'])
-               + geo['mod_depth'] * (1.0 + math.cos(POLES * u))
-               / 2.0)
     r_gap = 2.0 * geo['gap'] / (MU0 * geo['area']
-                                * max(overlap, 1e-6))
+                                * max(_overlap(geo, u), 1e-6))
     return 0.5 * geo['mmf'] ** 2 / (r_gap + geo['r_core'])
 
 
+def solver_overlap(manager, u_rad, design_name='reluctance-6s4p-m1'):
+    """The overlap term THIS solver runs on, at relative angle u —
+    exposed so m1_relations.overlap_model_gap can guard the cons-3
+    adoption against the exact arcs without restating anything."""
+    geo = _geometry(manager, _m1_design(manager, design_name))
+    return _overlap(geo, u_rad)
+
+
 SETTLE_GRID_DEG = 0.25
+
+
+def alignment_band(geo):
+    """THE REST BAND — the second thing cons-3's exact overlap
+    made visible. While the narrower arc lies wholly inside the
+    wider one the overlap is FLAT at 1.0, so co-energy is flat,
+    so torque is exactly zero: the rotor is aligned anywhere
+    across beta_r - beta_s and nothing pushes it to the middle.
+
+    Consequences, both real and both new:
+    - absolute rest carries a fixed offset (the walk stops at the
+      edge it arrives at) — a home offset, calibrated out once;
+    - a REVERSAL costs the whole band as LOST MOTION, because the
+      rotor must be pushed across the flat before the other flank
+      bites. That is backlash, produced by geometry rather than
+      by a gear, and the m1-5 axis proof carries it in mm.
+    Every step in one direction still advances exactly one step
+    angle: the band offsets position, it does not accumulate."""
+    band = math.degrees(geo['beta_r'] - geo['beta_s'])
+    return {
+        'bandDeg': round(band, 3),
+        'halfBandDeg': round(band / 2.0, 3),
+        'fromArcs': {
+            'toothArcDeg': round(math.degrees(geo['beta_s']), 3),
+            'poleArcDeg': round(math.degrees(geo['beta_r']), 3)},
+        'reversalBacklashDeg': round(band, 3),
+        'note': 'zero-torque flat at alignment = beta_r - beta_s '
+                'straight out of the two shape rows: rest is a '
+                'BAND, not a point. One-way steps stay exact '
+                '(the offset is constant); reversing loses the '
+                'band as backlash before the other flank bites.'}
 
 
 def _settle(geo, phase_idx, theta_deg, load_nm=0.0):
@@ -222,6 +280,7 @@ def sequence_sim(manager, design_name='reluctance-6s4p-m1',
             'saliencyRatio': geo['saliency'],
             'coreReluctancePerH': geo['r_core']},
         'noUnpoweredDetent': NO_DETENT_FACT,
+        'alignmentBand': alignment_band(geo),
         'history': history,
         'namedGaps': M1_NAMED_GAPS, 'validity': M1_VALIDITY}
 
@@ -356,15 +415,17 @@ def m1_minimum_drive_current(manager,
             hi = mid
         else:
             lo = mid
-    threshold = hi
+    # Round ONCE, then derive: the payload's own two numbers have
+    # to satisfy the relation it states between them.
+    threshold = float(f'{hi:.4g}')
     designed = threshold * margin
     return {
         'ok': True, 'design': design_name,
         'loadTorqueNm': load,
         'statedAmps': stated,
-        'thresholdAmps': float(f'{threshold:.4g}'),
+        'thresholdAmps': threshold,
         'marginFactor': margin,
-        'designedAmps': float(f'{designed:.4g}'),
+        'designedAmps': designed,
         'reductionVsStated': (float(f'{stated / designed:.3g}')
                               if designed else None),
         'method': f'bisection over the m1 sequencing sim across '
@@ -381,7 +442,8 @@ def m1_minimum_drive_current(manager,
                        '— the same pull-in/pull-out distinction '
                        'real stepper datasheets carry',
         'honesty': 'only as good as the co-energy landscape it is '
-                   'bisected against: first-harmonic overlap, no '
+                   'bisected against: exact arc overlap (cons-3) '
+                   'but lumped reluctance, no fringing, no '
                    'friction, no dynamics, constant load. A real '
                    'axis needs MORE than this. A defensible design '
                    'current in place of an asserted one, not a '

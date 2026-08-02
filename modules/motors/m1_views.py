@@ -142,6 +142,13 @@ M1_SECTION_SOURCES = {
     ).m1_construction_fork(m),
     'm1-positioning-proof': _src_m1('motors.m1_positioning',
                                     'positioning_proof'),
+    # cons-3: the arc rules, live off the shape rows.
+    'm1-arc-rule': lambda m, a: __import__(
+        'motors.m1_relations', fromlist=['arc_rule_report']
+    ).arc_rule_report(m),
+    'm1-overlap-adoption': lambda m, a: __import__(
+        'motors.m1_relations', fromlist=['overlap_model_gap']
+    ).overlap_model_gap(m),
 }
 
 # One dispatch table for every view row — M1 sources register into
@@ -229,7 +236,21 @@ SEED_M1_VIEWS = [
          _s('inductance', 'inductance',
             'The network\'s inductance for the M1 winding — '
             'carried WITH its validity regime; the bench (m1-7) '
-            'measures six real ones and adjudicates.')]),
+            'measures six real ones and adjudicates.'),
+         _s('m1-arc-rule', 'm1-arc-rule',
+            'THE ARC RULES, read off the shape rows. Adopting '
+            'the exact tooth/pole overlap (cons-3) made these '
+            'checkable — and immediately made one of them FALSE: '
+            'a 27.55 deg tooth arc has zero overlap 30 deg away, '
+            'so the rotor felt nothing at the instant each step '
+            'began and 8 of 12 steps never happened. The arcs '
+            'were widened to 32/36 deg; the rule is now a guard.'),
+         _s('m1-overlap-adoption', 'm1-overlap-adoption',
+            'The adoption itself: the solver\'s overlap and the '
+            'exact arc overlap, sampled together (they must '
+            'agree), with the RETIRED first-harmonic stand-in '
+            'kept in the third column — what the torque numbers '
+            'used to ride on, still visible.')]),
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'view-m1-electrical',
      'display_name': 'M1 — electrical',

@@ -170,7 +170,7 @@ SEED_MOTOR_DESIGNS = [
                        '"opt-geopolymer-ferrite", '
                        '"slots": 6, "poles": 4, '
                        '"gap_base_m": 0.0006, '
-                       '"tooth_area_m2": 4e-5, '
+                       '"tooth_area_m2": 4.718e-5, '
                        '"coil_turns": 300, "coil_amps": 0.5, '
                        '"wire_awg": 26, '
                        '"bobbin_window_mm2": 72.0, '
@@ -189,7 +189,15 @@ SEED_MOTOR_DESIGNS = [
                        '"winding", "SimpleFOC setup"], '
                        '"rough_hours": 12}',
         'is_prior': True, 'provenance_id': 'mag-5',
-        'notes': 'The no-PM proof rung.',
+        'notes': 'The no-PM proof rung. tooth_area_m2 4.718e-5 is '
+                 'the tooth shape row\'s own ground arc face '
+                 '(2·asin(w/2r)·r·h at w=6.95, r=12.6, h=6.7) — '
+                 'it moved from 4e-5 in cons-3 when the tooth was '
+                 'widened to satisfy the SRM arc rule (beta_s >= '
+                 'the 30 deg step angle) that adopting the exact '
+                 'overlap made binding. The area is DERIVED from '
+                 'the geometry, not chosen: guard-tested against '
+                 'the shape row.',
     },
     {
         'name': 'ferrite-pm-m2',

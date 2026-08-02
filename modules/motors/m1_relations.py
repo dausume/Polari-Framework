@@ -22,12 +22,25 @@ Seeded relations (each with the fact it must agree with):
   bore radius == 0 — the MOLD-FUSED boundary is only real if the
   two castings' surfaces coincide exactly.
 
-Also here, because it is a shape correlation the solver ASSUMES:
-overlap_model_gap() — the EXACT pole/tooth arc overlap over a
-rotor period versus the first-harmonic modulation m1_sequencing
-uses. The difference is THE named model gap, now with a number on
-it; the solver's model is not changed by this (deliberate — see
-the plan's honesty ledger).
+Also here, because it is the shape correlation the solver RUNS ON:
+arc_overlap_fraction() — the EXACT pole/tooth arc overlap over a
+rotor period. cons-3 (2026-08-02) ADOPTED it: m1_sequencing's
+co-energy now calls this function, so the overlap profile the
+torque comes from and the overlap profile the shapes imply are
+ONE object. overlap_model_gap() consequently changed job — it
+used to name the deviation of the retired first-harmonic model,
+and now GUARDS that the solver still rides the exact arcs (the
+harmonic stays in the report as the third column, so what was
+retired stays visible).
+
+And the rule the adoption made binding: arc_rule_report() — the
+switched-reluctance arc feasibility conditions (beta_s >= the
+step angle, beta_r >= beta_s, beta_s + beta_r <= the rotor pole
+pitch) checked against the LIVE shape rows. The first of those is
+what caught the seeded M1 geometry: a 27.55 deg tooth arc has
+literally zero overlap 30 deg away, so the exact model's rotor
+felt no torque at the moment each step began (see cons-3 in the
+git log — the arcs were widened to 32/36 deg because of this).
 
 Marker positions DERIVE: derived_marker_positions() computes the
 scene markers from the same shape parameters, retiring the
@@ -197,14 +210,136 @@ def relation_report(manager, design_name=M1_DESIGN):
                 'shape row and the design row cannot hide'}
 
 
-def overlap_model_gap(manager, design_name=M1_DESIGN, points=181):
-    """EXACT pole/tooth arc overlap over one rotor-pole period vs
-    the first-harmonic modulation the m1-1 solver uses — the named
-    model gap, with a number. The solver is NOT changed by this
-    (deliberate; model changes are decisions, not side effects)."""
-    tooth = _shape_params(manager, 'motor-m1-stator-tooth')
-    pole = _shape_params(manager, 'motor-m1-rotor-pole')
+def arc_overlap_fraction(u_rad, beta_s, beta_r, poles):
+    """THE overlap profile, exact: what fraction of the smaller
+    arc a rotor pole shares with a stator tooth when the pole
+    centre sits u_rad away from the tooth centre. Trapezoidal by
+    construction — flat 1.0 while the narrower arc is wholly
+    inside the wider one, linear flanks as it slides out, and
+    EXACTLY ZERO once they are further apart than (beta_s +
+    beta_r)/2. Periodic in the rotor pole pitch 2*pi/poles.
+
+    ONE copy of this logic, called by both the m1-1 solver (the
+    torque comes from it) and overlap_model_gap (the report that
+    guards it). cons-3 adopted it; before that the solver rode a
+    first-harmonic stand-in."""
+    period = 2.0 * math.pi / poles
+    u = ((u_rad + period / 2.0) % period) - period / 2.0
+    lo = max(u - beta_r / 2.0, -beta_s / 2.0)
+    hi = min(u + beta_r / 2.0, beta_s / 2.0)
+    return max(0.0, hi - lo) / min(beta_s, beta_r)
+
+
+def _seed_shape_params(shape_name):
+    """The same parameters the seed pass delivers — the fallback
+    when a caller has no booted shape table (fixtures, in-process
+    probes before the seed pass)."""
+    from motors.motor_shapes import SEED_M1_PART_SHAPES
+    for s in SEED_M1_PART_SHAPES:
+        if s.get('name') == shape_name and s.get('parameters_json'):
+            return json.loads(s['parameters_json'])
+    return None
+
+
+def shape_arcs(manager=None):
+    """(beta_s, beta_r) in radians, OUT of the tooth and pole shape
+    rows — live rows when the manager carries them, else the seed
+    dicts those rows come from. Nothing here restates an arc: the
+    tooth's is the chord/r_face subtense of its ground face, the
+    pole's is twice its half-angle."""
+    tooth = (_shape_params(manager, 'motor-m1-stator-tooth')
+             if manager is not None else None) \
+        or _seed_shape_params('motor-m1-stator-tooth')
+    pole = (_shape_params(manager, 'motor-m1-rotor-pole')
+            if manager is not None else None) \
+        or _seed_shape_params('motor-m1-rotor-pole')
     if not tooth or not pole:
+        return None
+    return {
+        'beta_s': 2.0 * math.asin(tooth['width'] / 2.0
+                                  / tooth['r_face']),
+        'beta_r': math.radians(2.0 * pole['half_angle_deg']),
+    }
+
+
+def arc_rule_report(manager=None, design_name=M1_DESIGN):
+    """The switched-reluctance ARC FEASIBILITY RULES, checked
+    against the shapes themselves. These only became binding when
+    cons-3 adopted the exact overlap: under a first-harmonic
+    stand-in every geometry produces torque everywhere, so a
+    machine that physically cannot start looks fine.
+
+    1. beta_s >= the step angle 360/(phases*poles). The rotor
+       begins each step one step angle away from the tooth about
+       to be energised; if the arcs do not still overlap there,
+       the torque at the start of the step is ZERO and the step
+       never begins. This is the rule the seeded M1 broke
+       (27.55 deg tooth arc, 30 deg step) — caught by the model
+       change, fixed by widening the arcs.
+    2. beta_r >= beta_s — the wider rotor arc gives a flat-topped
+       aligned region instead of a single point.
+    3. beta_s + beta_r <= 360/poles, the rotor pole pitch, or
+       there is no fully-unaligned position and the saliency the
+       machine runs on is never realised."""
+    arcs = shape_arcs(manager)
+    if arcs is None:
+        return {'ok': False,
+                'refusal': 'M1 tooth/pole shape rows not booted'}
+    from magnetics.magnet_analysis import _named
+    design = _named(manager, 'MotorDesignDefinition', design_name) \
+        if manager is not None else None
+    try:
+        params = json.loads(design.params_json)
+        poles = int(params.get('poles', 4))
+        slots = int(params.get('slots', 6))
+    except (TypeError, ValueError, AttributeError):
+        poles, slots = 4, 6
+    phases = slots // 2
+    step_deg = 360.0 / (phases * poles)
+    pitch_deg = 360.0 / poles
+    bs = math.degrees(arcs['beta_s'])
+    br = math.degrees(arcs['beta_r'])
+    checks = [
+        {'rule': 'beta_s >= step angle',
+         'valueDeg': round(bs, 3), 'limitDeg': step_deg,
+         'holds': bs >= step_deg,
+         'why': 'each step starts one step angle away from the '
+                'tooth being energised — no overlap there means '
+                'no starting torque, so the step never begins'},
+        {'rule': 'beta_r >= beta_s',
+         'valueDeg': round(br, 3), 'limitDeg': round(bs, 3),
+         'holds': br >= bs,
+         'why': 'the wider rotor arc gives a flat-topped aligned '
+                'region rather than a knife-edge alignment'},
+        {'rule': 'beta_s + beta_r <= rotor pole pitch',
+         'valueDeg': round(bs + br, 3), 'limitDeg': pitch_deg,
+         'holds': (bs + br) <= pitch_deg,
+         'why': 'otherwise there is no fully-unaligned position '
+                'and the saliency the machine runs on is never '
+                'realised'},
+    ]
+    return {
+        'ok': True, 'design': design_name,
+        'toothArcDeg': round(bs, 3), 'poleArcDeg': round(br, 3),
+        'stepAngleDeg': step_deg, 'rotorPolePitchDeg': pitch_deg,
+        'checks': checks,
+        'allHold': all(c['holds'] for c in checks),
+        'note': 'these are conditions on the SHAPES, read out of '
+                'the shape rows — they became checkable (and one '
+                'of them, false) only once the solver ran on the '
+                'exact arc overlap instead of a smooth stand-in'}
+
+
+def overlap_model_gap(manager, design_name=M1_DESIGN, points=181):
+    """ADOPTED 2026-08-02 (cons-3): the m1-1 solver's overlap IS
+    this exact arc overlap, so this report's job changed from
+    naming a model gap to GUARDING that adoption — it evaluates
+    the solver's own overlap term and the exact arc form and the
+    deviation must stay ~0. The retired first-harmonic curve stays
+    in the samples as the third column: what the torque numbers
+    used to ride on, kept visible rather than deleted."""
+    arcs = shape_arcs(manager)
+    if arcs is None:
         return {'ok': False,
                 'refusal': 'M1 tooth/pole shape rows not booted'}
     from magnetics.magnet_analysis import _named
@@ -215,43 +350,48 @@ def overlap_model_gap(manager, design_name=M1_DESIGN, points=181):
         poles = int(params.get('poles', 4))
     except (TypeError, ValueError, AttributeError):
         return {'ok': False, 'refusal': 'design params unreadable'}
-    beta_s = 2.0 * math.asin(tooth['width'] / 2.0
-                             / tooth['r_face'])
-    beta_r = math.radians(2.0 * pole['half_angle_deg'])
+    from motors.m1_sequencing import solver_overlap
+    beta_s, beta_r = arcs['beta_s'], arcs['beta_r']
     period = 2.0 * math.pi / poles
     mod_depth = 1.0 - 1.0 / max(saliency, 1.0)
     floor = 1.0 - mod_depth
     rows = []
     worst = 0.0
+    worst_harmonic = 0.0
     for i in range(points):
         th = period * i / (points - 1) - period / 2.0
-        lo = max(th - beta_r / 2.0, -beta_s / 2.0)
-        hi = min(th + beta_r / 2.0, beta_s / 2.0)
-        exact_frac = max(0.0, hi - lo) / min(beta_s, beta_r)
-        exact = floor + mod_depth * exact_frac
+        exact = floor + mod_depth * arc_overlap_fraction(
+            th, beta_s, beta_r, poles)
+        solver = solver_overlap(manager, th, design_name)
         harmonic = floor + mod_depth * (1.0
                                         + math.cos(poles * th)) \
             / 2.0
-        dev = abs(exact - harmonic)
-        worst = max(worst, dev)
+        worst = max(worst, abs(exact - solver))
+        worst_harmonic = max(worst_harmonic, abs(exact - harmonic))
         if i % 30 == 0:
             rows.append({'thetaDeg': round(math.degrees(th), 1),
                          'exactOverlap': round(exact, 4),
-                         'firstHarmonic': round(harmonic, 4)})
+                         'solverOverlap': round(solver, 4),
+                         'retiredFirstHarmonic': round(harmonic, 4)})
     return {
         'ok': True, 'design': design_name,
         'toothArcDeg': round(math.degrees(beta_s), 3),
         'poleArcDeg': round(math.degrees(beta_r), 3),
         'samples': rows,
-        'worstDeviation': round(worst, 4),
-        'namedGap': f'the m1-1 solver\'s first-harmonic overlap '
-                    f'differs from the EXACT arc overlap by up '
-                    f'to {worst:.2%} of full modulation — the '
-                    f'real profile is trapezoidal (flat top '
-                    f'while arcs fully overlap, linear flanks). '
-                    f'A quantified prior on every torque number; '
-                    f'replacing the model is a decision, not a '
-                    f'side effect of this report.'}
+        'worstDeviation': round(worst, 6),
+        'adopted': True,
+        'retiredModelDeviation': round(worst_harmonic, 4),
+        'namedGap': f'ADOPTED 2026-08-02: the m1-1 solver runs on '
+                    f'the EXACT arc overlap (deviation '
+                    f'{worst:.2e} — this report now guards the '
+                    f'adoption instead of naming a gap). The '
+                    f'retired first-harmonic stand-in differs '
+                    f'from the exact profile by up to '
+                    f'{worst_harmonic:.2%} of full modulation, '
+                    f'and its smoothness hid a machine that '
+                    f'could not start: at the 30 deg step angle '
+                    f'the old 27.55 deg tooth arc had zero real '
+                    f'overlap. See arc_rule_report.'}
 
 
 def derived_marker_positions():
