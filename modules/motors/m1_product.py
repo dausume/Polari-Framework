@@ -333,8 +333,19 @@ def m1_product_routes(manager, design_name=M1_DESIGN):
 
 def seed_m1_product(manager):
     """m1-6 rows via the upsert path; bizops/supplychain classes
-    guarded exactly as the M0 product seeds are."""
+    guarded exactly as the M0 product seeds are. Also converges
+    the M1 SHAPE rows (mq-2): they were legacy-seeded insert-only,
+    so the box→annular_sector/arc_faced_bar reshape never reached
+    live rows until they rode the upsert path too — the
+    ten-strikes gotcha, caught an eleventh time, on shapes."""
     pairs = []
+    try:
+        from mathshapes.shape_basis import MathShapeDefinition
+        from motors.motor_shapes import SEED_M1_PART_SHAPES
+        pairs.append(('MathShapeDefinition', MathShapeDefinition,
+                      SEED_M1_PART_SHAPES))
+    except ImportError:
+        pass
     try:
         from bizops.bizops_basis import ProcessWorkflowDefinition
         pairs.append(('ProcessWorkflowDefinition',

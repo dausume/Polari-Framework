@@ -627,6 +627,13 @@ check('the stator role screen ANSWERS (live-caught: M1 parts had '
       'the fork\'s evidence surface works',
       _scr.get('ok') and _scr['viableCount'] >= 3
       and 'opt-galvanized-bio-steel' in _scr['viable'])
+from motors.m1_product import seed_m1_product as _smp  # noqa: E402
+_smp_report = _smp(_mgr())
+check('the M1 SHAPE rows ride the upsert path (ten-strikes, '
+      'eleventh catch: legacy insert-only seeding kept the box '
+      'tooth alive after the mq-2 reshape)',
+      any(r['class'] == 'MathShapeDefinition'
+          for r in _smp_report))
 check('the sell loop is the SAME loop as the clock (one loop, '
       'two products) and the sourcing section rides the '
       'materials view',
