@@ -808,25 +808,39 @@ SEED_M1_PART_SHAPES = [
      'provenance_id': 'mag-12'},
     {'name': 'motor-m1-rotor-pole',
      'display_name': 'M1 rotor salient pole (x4 by rotation)',
-     'family': 'primitive', 'primitive_kind': 'box',
+     'family': 'primitive', 'primitive_kind': 'annular_sector',
      'parameters_json': json.dumps(
-         {'size': [6.0, 6.0, 6.7], 'center': [9.0, 0.0, 0.0]}),
-     'notes': 'Spans radius 6.0 to 12.0 mm. FOUR of these, 90 deg '
-              'apart, are the whole torque mechanism: the lumps '
-              'want to line up with an energised tooth, and the '
-              'gaps between them are what makes lining up mean '
-              'something.',
-     'provenance_id': 'mag-12'},
+         {'r_inner': 6.0, 'r_outer': 12.0,
+          'half_angle_deg': 16.0, 'azimuth_deg': 0.0,
+          'height': 6.7, 'axis': 'z',
+          'center': [0.0, 0.0, 0.0]}),
+     'notes': 'mq-2: the REAL cast pole — an annular sector, '
+              'radius 6.0 to 12.0 mm, 32 deg arc (the SRM '
+              'beta_r > beta_s rule), arc TIP facing the gap. '
+              'FOUR of these, 90 deg apart, fused to the core in '
+              'one pour (ifm1-poles-core) — the salient clover, '
+              'not four boxes. The lumps want to line up with an '
+              'energised tooth; the gaps between them are what '
+              'makes lining up mean something.',
+     'provenance_id': 'mq-2'},
     {'name': 'motor-m1-stator-tooth',
      'display_name': 'M1 stator tooth (x6 by rotation)',
-     'family': 'primitive', 'primitive_kind': 'box',
+     'family': 'primitive', 'primitive_kind': 'arc_faced_bar',
      'parameters_json': json.dumps(
-         {'size': [7.4, 6.0, 6.7], 'center': [16.3, 0.0, 0.0]}),
-     'notes': 'Face sits at radius 12.6 mm — 0.6 mm clear of the '
-              'rotor pole tip, which IS the gap_base_m the solver '
-              'uses. Face area 6.0 x 6.7 = 40.2 mm2, the design\'s '
-              'tooth_area_m2 of 4e-5.',
-     'provenance_id': 'mag-12'},
+         {'width': 6.0, 'r_face': 12.6, 'r_back': 20.0,
+          'azimuth_deg': 0.0, 'height': 6.7, 'axis': 'z',
+          'center': [0.0, 0.0, 0.0]}),
+     'notes': 'mq-2: the REAL tooth — PARALLEL-SIDED (a round '
+              'bobbin must slide on: a tapered sector would jam '
+              'the 5.0 mm coil bore) with the gap face GROUND to '
+              'an arc at radius 12.6 mm, 0.6 mm clear of the '
+              'pole tip = the solver\'s gap_base_m. Arc-face '
+              'area 2·asin(w/2r)·r·h = 40.59 mm2 vs the '
+              'design\'s stated 4e-5 m2 (the old chord-face box '
+              'said 40.2) — one fact, three statements, '
+              'guard-tested. Back merges into the yoke bore at '
+              'r=20 (mold-fused, ifm1-teeth-yoke).',
+     'provenance_id': 'mq-2'},
     {'name': 'motor-m1-yoke-outer',
      'display_name': 'M1 stator yoke outer (CSG component)',
      'family': 'primitive', 'primitive_kind': 'cylinder',

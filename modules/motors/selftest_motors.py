@@ -620,19 +620,32 @@ _m1params = json.loads(
     mgr.objectTables['MotorDesignDefinition'][
         'reluctance-6s4p-m1'].params_json)
 _tooth = json.loads(_m1['motor-m1-stator-tooth']['parameters_json'])
-check('M1 tooth FACE matches the design\'s tooth_area_m2 (6.0 x '
-      '6.7 mm = 40.2 mm2 vs the stated 4e-5 m2)',
-      abs(_tooth['size'][1] * _tooth['size'][2]
-          - _m1params['tooth_area_m2'] * 1e6) < 1.0,
-      extra=str(_tooth['size'][1] * _tooth['size'][2]))
+_tooth_arc_area = (2.0 * _m12.asin(_tooth['width'] / 2.0
+                                   / _tooth['r_face'])
+                   * _tooth['r_face'] * _tooth['height'])
+check('mq-2: M1 tooth is the REAL arc-faced bar and its GROUND '
+      'ARC FACE area (2·asin(w/2r)·r·h = 40.59 mm2) matches the '
+      'design\'s stated 4e-5 m2',
+      _m1['motor-m1-stator-tooth']['primitive_kind']
+      == 'arc_faced_bar'
+      and abs(_tooth_arc_area
+              - _m1params['tooth_area_m2'] * 1e6) < 1.0,
+      extra=str(_tooth_arc_area))
 _pole = json.loads(_m1['motor-m1-rotor-pole']['parameters_json'])
-_pole_tip = _pole['center'][0] + _pole['size'][0] / 2.0
-_tooth_face = _tooth['center'][0] - _tooth['size'][0] / 2.0
-check('M1 AIR GAP is the design\'s gap_base_m: tooth face at 12.6 '
-      'mm minus pole tip at 12.0 mm = 0.6 mm',
-      abs((_tooth_face - _pole_tip)
-          - _m1params['gap_base_m'] * 1000.0) < 1e-6,
-      extra=f'{_tooth_face} - {_pole_tip}')
+check('mq-2: M1 AIR GAP is between TWO ARCS now — tooth face '
+      'radius 12.6 minus pole tip radius 12.0 = the design\'s '
+      'gap_base_m (one fact, three statements)',
+      _m1['motor-m1-rotor-pole']['primitive_kind']
+      == 'annular_sector'
+      and abs((_tooth['r_face'] - _pole['r_outer'])
+              - _m1params['gap_base_m'] * 1000.0) < 1e-6,
+      extra=f"{_tooth['r_face']} - {_pole['r_outer']}")
+check('mq-2: pole arc 32 deg > tooth arc (the SRM beta_r >= '
+      'beta_s rule), and the pole roots into the core radius',
+      2.0 * _pole['half_angle_deg'] > _m12.degrees(
+          2.0 * _m12.asin(_tooth['width'] / 2.0
+                          / _tooth['r_face']))
+      and _pole['r_inner'] == 6.0)
 check('M1 arrays by SCENE ROTATION, not by 14 near-identical shape '
       'rows: ONE tooth row placed 6 times, ONE pole row placed 4',
       sum(1 for b in _m1scene['freestanding']
@@ -656,11 +669,14 @@ check('M1 yoke is a coaxial-cylinder difference, so it renders '
       and json.loads(_m1['motor-m1-yoke']['csg_json'])['op']
       == 'difference')
 _cbore = json.loads(_m1['motor-m1-coil-bore']['parameters_json'])
-check('M1 coil bore CLEARS its tooth (bore 5.0 mm vs the tooth\'s '
-      '4.5 mm half-diagonal) — the coil actually fits',
+check('M1 coil bore CLEARS its tooth (bore 5.0 mm vs the '
+      'PARALLEL-SIDED bar\'s 4.5 mm half-diagonal) — the coil '
+      'slides on, which is exactly WHY the tooth is not a '
+      'tapered sector',
       _cbore['radius']
-      > _m12.hypot(_tooth['size'][1], _tooth['size'][2]) / 2.0,
-      extra=str(_m12.hypot(_tooth['size'][1], _tooth['size'][2]) / 2))
+      > _m12.hypot(_tooth['width'], _tooth['height']) / 2.0,
+      extra=str(_m12.hypot(_tooth['width'],
+                           _tooth['height']) / 2))
 check('six coils are placed, wired A-B-C-A-B-C = three phases of '
       'two',
       sum(1 for b in _m1scene['freestanding']

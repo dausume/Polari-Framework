@@ -44,7 +44,7 @@ SHAPE_FAMILIES = ('quadric', 'primitive', 'csg')
 
 #: Analytic primitive kinds — each has a closed-form volume/area/inside.
 PRIMITIVE_KINDS = ('box', 'sphere', 'cylinder', 'cone', 'frustum',
-                   'ellipsoid')
+                   'ellipsoid', 'annular_sector', 'arc_faced_bar')
 
 #: Boolean operations for a csg-family shape.
 CSG_OPS = ('union', 'difference', 'intersection')

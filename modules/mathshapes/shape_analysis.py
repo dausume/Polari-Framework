@@ -579,6 +579,20 @@ def sample_surface(manager, shape_name, n=24):
         elif kind == 'hollow_frustum':
             pts, tris = hollow_frustum_shell_mesh(
                 params, n_lon=n, n_stack=max(6, n // 2))
+        elif kind == 'annular_sector':
+            from mathshapes.shape_geometry import (
+                _center as _ctr, annular_sector_mesh,
+            )
+            pts, tris = annular_sector_mesh(
+                params, _ctr(params), params.get('axis', 'z'),
+                n_arc=n)
+        elif kind == 'arc_faced_bar':
+            from mathshapes.shape_geometry import (
+                _center as _ctr2, arc_faced_bar_mesh,
+            )
+            pts, tris = arc_faced_bar_mesh(
+                params, _ctr2(params), params.get('axis', 'z'),
+                n_arc=n)
         else:                                 # cylinder / cone / frustum
             pts, tris = axial_mesh(
                 kind, params, n_lon=n,

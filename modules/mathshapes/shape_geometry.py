@@ -102,6 +102,10 @@ def primitive_inside(kind, params, x, y, z):
                 + ((z - center[2]) / c) ** 2) <= 1.0 + 1e-9
     if kind == 'hollow_frustum':
         return _hollow_frustum_inside(params, center, axis, x, y, z)
+    if kind == 'annular_sector':
+        return annular_sector_inside(params, center, axis, x, y, z)
+    if kind == 'arc_faced_bar':
+        return arc_faced_bar_inside(params, center, axis, x, y, z)
     # axial primitives share the along/perp decomposition
     along, perp = _decompose(x, y, z, center, axis)
     h = _num(params, 'height', 1.0)
@@ -211,6 +215,10 @@ def primitive_properties(kind, params):
         return vol, area, bounds, list(center)
     if kind == 'hollow_frustum':
         return _hollow_frustum_properties(params, center, axis, ai)
+    if kind == 'annular_sector':
+        return annular_sector_properties(params, center, axis)
+    if kind == 'arc_faced_bar':
+        return arc_faced_bar_properties(params, center, axis)
     # axial primitives
     h = _num(params, 'height', 1.0)
     perp = _perp_axes(axis)
@@ -797,3 +805,253 @@ def box_plane_quadrics(center, size):
             out.append((f'face-{tag}{axes[i]}',
                         plane_quadric_matrix(n, pt)))
     return out
+
+
+# --------------------------------------------------------------------------
+# mq-2: annular_sector — the primitive real radial machines are made
+# of. A salient rotor pole and an arc-faced stator tooth are BOTH an
+# annular sector (r_inner..r_outer, +-half_angle about an azimuth);
+# giving it exact closed forms, an exact mesh and a quadric emission
+# means the M1 renders as the casting the mold pours instead of the
+# box that approximated it.
+# --------------------------------------------------------------------------
+def _sector_params(params, center, axis):
+    ai = _axis_index(axis)
+    perp = _perp_axes(axis)
+    return {
+        'ai': ai, 'p0': perp[0], 'p1': perp[1],
+        'r_in': max(0.0, _num(params, 'r_inner', 0.0)),
+        'r_out': _num(params, 'r_outer', 1.0),
+        'half': math.radians(_num(params, 'half_angle_deg', 30.0)),
+        'az': math.radians(_num(params, 'azimuth_deg', 0.0)),
+        'h': _num(params, 'height', 1.0),
+        'center': center,
+    }
+
+
+def annular_sector_inside(params, center, axis, x, y, z):
+    s = _sector_params(params, center, axis)
+    p = (x, y, z)
+    along = p[s['ai']] - center[s['ai']]
+    if abs(along) > s['h'] / 2.0 + 1e-12:
+        return False
+    v0 = p[s['p0']] - center[s['p0']]
+    v1 = p[s['p1']] - center[s['p1']]
+    rho = math.hypot(v0, v1)
+    if rho < s['r_in'] - 1e-9 or rho > s['r_out'] + 1e-9:
+        return False
+    dth = math.atan2(v1, v0) - s['az']
+    while dth > math.pi:
+        dth -= 2.0 * math.pi
+    while dth < -math.pi:
+        dth += 2.0 * math.pi
+    return abs(dth) <= s['half'] + 1e-9
+
+
+def annular_sector_properties(params, center, axis):
+    """Closed forms: cross-section A = half_total·(r_out²-r_in²)
+    (half_total in rad), V = A·h; centroid on the azimuth ray at
+    the standard annular-sector radius."""
+    s = _sector_params(params, center, axis)
+    a, r_in, r_out, h = s['half'], s['r_in'], s['r_out'], s['h']
+    cross = a * (r_out * r_out - r_in * r_in)
+    vol = cross * h
+    area = (2.0 * cross
+            + 2.0 * a * r_out * h + 2.0 * a * r_in * h
+            + 2.0 * (r_out - r_in) * h)
+    bounds = [[0.0, 0.0]] * 3
+    bounds = [list(b) for b in bounds]
+    bounds[s['ai']] = [center[s['ai']] - h / 2.0,
+                       center[s['ai']] + h / 2.0]
+    for i in (s['p0'], s['p1']):
+        bounds[i] = [center[i] - r_out, center[i] + r_out]
+    denom = (r_out * r_out - r_in * r_in) or 1.0
+    r_bar = ((2.0 * math.sin(a) / (3.0 * a))
+             * (r_out ** 3 - r_in ** 3) / denom) if a > 1e-12 \
+        else 0.0
+    centroid = list(center)
+    centroid[s['p0']] += r_bar * math.cos(s['az'])
+    centroid[s['p1']] += r_bar * math.sin(s['az'])
+    return vol, area, bounds, centroid
+
+
+def annular_sector_mesh(params, center, axis, n_arc=24):
+    """Exact parametric mesh: two arc walls, two radial end walls,
+    two annular-sector caps — no voxel fallback on a real part."""
+    s = _sector_params(params, center, axis)
+    n = max(4, int(n_arc))
+    thetas = [s['az'] - s['half']
+              + 2.0 * s['half'] * j / n for j in range(n + 1)]
+    zs = (center[s['ai']] - s['h'] / 2.0,
+          center[s['ai']] + s['h'] / 2.0)
+
+    def pt(rho, th, zval):
+        p = [0.0, 0.0, 0.0]
+        p[s['p0']] = center[s['p0']] + rho * math.cos(th)
+        p[s['p1']] = center[s['p1']] + rho * math.sin(th)
+        p[s['ai']] = zval
+        return p
+
+    pts, idx = [], {}
+
+    def vid(rho_key, j, k):
+        key = (rho_key, j, k)
+        if key not in idx:
+            rho = s['r_in'] if rho_key == 'in' else s['r_out']
+            idx[key] = len(pts)
+            pts.append(pt(rho, thetas[j], zs[k]))
+        return idx[key]
+
+    tris = []
+    for j in range(n):
+        # outer wall (outward), inner wall (reversed)
+        a0, a1 = vid('out', j, 0), vid('out', j + 1, 0)
+        b0, b1 = vid('out', j, 1), vid('out', j + 1, 1)
+        tris += [[a0, a1, b1], [a0, b1, b0]]
+        c0, c1 = vid('in', j, 0), vid('in', j + 1, 0)
+        d0, d1 = vid('in', j, 1), vid('in', j + 1, 1)
+        tris += [[c0, d1, c1], [c0, d0, d1]]
+        # caps (top outward +axis, base reversed)
+        tris += [[vid('in', j, 1), vid('out', j, 1),
+                  vid('out', j + 1, 1)],
+                 [vid('in', j, 1), vid('out', j + 1, 1),
+                  vid('in', j + 1, 1)]]
+        tris += [[vid('in', j, 0), vid('out', j + 1, 0),
+                  vid('out', j, 0)],
+                 [vid('in', j, 0), vid('in', j + 1, 0),
+                  vid('out', j + 1, 0)]]
+    # radial end walls at the two extreme thetas
+    for j, flip in ((0, False), (n, True)):
+        e = [vid('in', j, 0), vid('out', j, 0),
+             vid('out', j, 1), vid('in', j, 1)]
+        if flip:
+            tris += [[e[0], e[1], e[2]], [e[0], e[2], e[3]]]
+        else:
+            tris += [[e[0], e[2], e[1]], [e[0], e[3], e[2]]]
+    return pts, tris
+
+
+# --------------------------------------------------------------------------
+# mq-2: arc_faced_bar — a parallel-sided prismatic bar whose inner
+# end is a CONCAVE cylindrical face (the real SRM stator tooth: cast
+# parallel-sided so a round bobbin can slide on, gap face ground to
+# an arc on a spinning fixture). Solid, in the azimuth frame
+# (u toward azimuth, v across, along the axis):
+#   |v| <= width/2, |along| <= height/2, u <= r_back, rho >= r_face
+# --------------------------------------------------------------------------
+def _bar_params(params, center, axis):
+    ai = _axis_index(axis)
+    perp = _perp_axes(axis)
+    return {
+        'ai': ai, 'p0': perp[0], 'p1': perp[1],
+        'w': _num(params, 'width', 1.0),
+        'r_face': _num(params, 'r_face', 1.0),
+        'r_back': _num(params, 'r_back', 2.0),
+        'az': math.radians(_num(params, 'azimuth_deg', 0.0)),
+        'h': _num(params, 'height', 1.0),
+        'center': center,
+    }
+
+
+def _bar_frame(s, x, y, z):
+    v0 = (x, y, z)[s['p0']] - s['center'][s['p0']]
+    v1 = (x, y, z)[s['p1']] - s['center'][s['p1']]
+    u = v0 * math.cos(s['az']) + v1 * math.sin(s['az'])
+    v = -v0 * math.sin(s['az']) + v1 * math.cos(s['az'])
+    along = (x, y, z)[s['ai']] - s['center'][s['ai']]
+    return u, v, along
+
+
+def arc_faced_bar_inside(params, center, axis, x, y, z):
+    s = _bar_params(params, center, axis)
+    u, v, along = _bar_frame(s, x, y, z)
+    # u >= 0 guards against the MIRROR ghost (rho >= r_face also
+    # holds on the far side of the center; the bar lives on the
+    # +azimuth side only).
+    if u < -1e-9 or abs(v) > s['w'] / 2.0 + 1e-9 \
+            or abs(along) > s['h'] / 2.0 + 1e-9 \
+            or u > s['r_back'] + 1e-9:
+        return False
+    return math.hypot(u, v) >= s['r_face'] - 1e-9
+
+
+def arc_faced_bar_properties(params, center, axis):
+    """Closed forms; the ARC FACE area (2·asin(w/2r)·r·h) is the
+    quantity motor design rows state as tooth_area."""
+    s = _bar_params(params, center, axis)
+    a = s['w'] / 2.0
+    r, rb, h, w = s['r_face'], s['r_back'], s['h'], s['w']
+    a = min(a, r)
+    seg = a * math.sqrt(max(0.0, r * r - a * a)) \
+        + r * r * math.asin(a / r)
+    cross = w * rb - seg
+    beta = math.asin(a / r)
+    arc_len = 2.0 * beta * r
+    side_len = rb - math.sqrt(max(0.0, r * r - a * a))
+    area = (2.0 * cross + arc_len * h + w * h
+            + 2.0 * side_len * h)
+    vol = cross * h
+    bounds = [[0.0, 0.0]] * 3
+    bounds = [list(b) for b in bounds]
+    bounds[s['ai']] = [center[s['ai']] - h / 2.0,
+                       center[s['ai']] + h / 2.0]
+    for i in (s['p0'], s['p1']):
+        bounds[i] = [center[i] - rb, center[i] + rb]
+    num = (rb * rb * w - (r * r * w - (w ** 3) / 12.0)) / 2.0
+    u_bar = num / cross if cross else 0.0
+    centroid = list(center)
+    centroid[s['p0']] += u_bar * math.cos(s['az'])
+    centroid[s['p1']] += u_bar * math.sin(s['az'])
+    return vol, area, bounds, centroid
+
+
+def arc_faced_bar_mesh(params, center, axis, n_arc=16):
+    """Exact mesh: concave arc face, flat back, two sides, two
+    arc-bounded caps."""
+    s = _bar_params(params, center, axis)
+    n = max(4, int(n_arc))
+    a = min(s['w'] / 2.0, s['r_face'])
+    vs = [-a + 2.0 * a * j / n for j in range(n + 1)]
+    zs = (center[s['ai']] - s['h'] / 2.0,
+          center[s['ai']] + s['h'] / 2.0)
+
+    def pt(u, v, zval):
+        p = [0.0, 0.0, 0.0]
+        cu = math.cos(s['az'])
+        su = math.sin(s['az'])
+        p[s['p0']] = center[s['p0']] + u * cu - v * su
+        p[s['p1']] = center[s['p1']] + u * su + v * cu
+        p[s['ai']] = zval
+        return p
+
+    pts, idx = [], {}
+
+    def vid(tag, j, k):
+        key = (tag, j, k)
+        if key not in idx:
+            v = vs[j]
+            u = (math.sqrt(max(0.0,
+                               s['r_face'] ** 2 - v * v))
+                 if tag == 'face' else s['r_back'])
+            idx[key] = len(pts)
+            pts.append(pt(u, v, zs[k]))
+        return idx[key]
+
+    tris = []
+    for j in range(n):
+        f00, f10 = vid('face', j, 0), vid('face', j + 1, 0)
+        f01, f11 = vid('face', j, 1), vid('face', j + 1, 1)
+        b00, b10 = vid('back', j, 0), vid('back', j + 1, 0)
+        b01, b11 = vid('back', j, 1), vid('back', j + 1, 1)
+        tris += [[f00, f11, f10], [f00, f01, f11]]     # arc face
+        tris += [[b00, b10, b11], [b00, b11, b01]]     # back
+        tris += [[f00, f10, b10], [f00, b10, b00]]     # base cap
+        tris += [[f01, b11, f11], [f01, b01, b11]]     # top cap
+    for j, flip in ((0, False), (n, True)):
+        e = [vid('face', j, 0), vid('back', j, 0),
+             vid('back', j, 1), vid('face', j, 1)]
+        if flip:
+            tris += [[e[0], e[2], e[1]], [e[0], e[3], e[2]]]
+        else:
+            tris += [[e[0], e[1], e[2]], [e[0], e[2], e[3]]]
+    return pts, tris

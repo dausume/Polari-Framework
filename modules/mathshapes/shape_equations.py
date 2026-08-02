@@ -123,6 +123,78 @@ def surface_quadrics(shape):
                 ('surface', ellipsoid_quadric_matrix(
                     center, [float(c) for c in
                              params.get('radii', [1, 1, 1])]))]}
+        if kind == 'annular_sector':
+            r_in = float(params.get('r_inner', 0.0))
+            r_out = float(params.get('r_outer', 1.0))
+            half = math.radians(
+                float(params.get('half_angle_deg', 30.0)))
+            az = math.radians(
+                float(params.get('azimuth_deg', 0.0)))
+            h = float(params.get('height', 1.0))
+            axis = params.get('axis', 'z')
+            ai = _AXIS_INDEX.get(axis, 2)
+            perp = [i for i in range(3) if i != ai]
+            surfaces = [('lateral-outer', cone_quadric_matrix(
+                r_out, r_out, h, axis=axis, center=center))]
+            if r_in > 0.0:
+                # the BORE: same quadric, sign flipped — inside
+                # the sector means OUTSIDE the inner cylinder.
+                Q_in = cone_quadric_matrix(r_in, r_in, h,
+                                           axis=axis,
+                                           center=center)
+                surfaces.append(('lateral-inner',
+                                 [[-v for v in row]
+                                  for row in Q_in]))
+            for tag, th in (('cut-ccw', az + half),
+                            ('cut-cw', az - half)):
+                n = [0.0, 0.0, 0.0]
+                sign = 1.0 if tag == 'cut-ccw' else -1.0
+                n[perp[0]] = -sign * math.sin(th)
+                n[perp[1]] = sign * math.cos(th)
+                surfaces.append((tag, plane_quadric_matrix(
+                    n, center)))
+            return {'ok': True,
+                    'surfaces': surfaces + _axis_caps(params)}
+        if kind == 'arc_faced_bar':
+            w = float(params.get('width', 1.0))
+            r_face = float(params.get('r_face', 1.0))
+            r_back = float(params.get('r_back', 2.0))
+            az = math.radians(
+                float(params.get('azimuth_deg', 0.0)))
+            axis = params.get('axis', 'z')
+            ai = _AXIS_INDEX.get(axis, 2)
+            perp = [i for i in range(3) if i != ai]
+            e_u = [0.0, 0.0, 0.0]
+            e_u[perp[0]] = math.cos(az)
+            e_u[perp[1]] = math.sin(az)
+            e_v = [0.0, 0.0, 0.0]
+            e_v[perp[0]] = -math.sin(az)
+            e_v[perp[1]] = math.cos(az)
+            back_pt = [center[i] + r_back * e_u[i]
+                       for i in range(3)]
+            side_a = [center[i] + (w / 2.0) * e_v[i]
+                      for i in range(3)]
+            side_b = [center[i] - (w / 2.0) * e_v[i]
+                      for i in range(3)]
+            h = float(params.get('height', 1.0))
+            Q_face = cone_quadric_matrix(r_face, r_face, h,
+                                         axis=axis,
+                                         center=center)
+            surfaces = [
+                ('arc-face', [[-v for v in row]
+                              for row in Q_face]),
+                ('back', plane_quadric_matrix(e_u, back_pt)),
+                ('side-ccw', plane_quadric_matrix(e_v, side_a)),
+                ('side-cw', plane_quadric_matrix(
+                    [-c for c in e_v], side_b)),
+                # guards the MIRROR ghost: rho >= r_face also
+                # holds behind the center; the bar lives on the
+                # +azimuth side only.
+                ('front-guard', plane_quadric_matrix(
+                    [-c for c in e_u], center)),
+            ]
+            return {'ok': True,
+                    'surfaces': surfaces + _axis_caps(params)}
         if kind in ('cylinder', 'cone', 'frustum'):
             h = float(params.get('height', 1.0))
             axis = params.get('axis', 'z')
