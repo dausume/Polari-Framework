@@ -128,6 +128,9 @@ M1_SECTION_SOURCES = {
     'role-screen': lambda m, a: __import__(
         'motors.part_roles', fromlist=['screen_candidates']
     ).screen_candidates(m, a['part_name']),
+    'm1-construction-fork': lambda m, a: __import__(
+        'motors.m1_composition', fromlist=['m1_construction_fork']
+    ).m1_construction_fork(m),
     'm1-positioning-proof': _positioning_gap,
 }
 
@@ -283,11 +286,16 @@ SEED_M1_VIEWS = [
             'modes, separability. Refuses by name until the '
             'm1-4 splice states M1\'s joints.'),
          _s('promotion-candidates', 'promotion-candidates',
-            'The promotion M1 actually poses: wind the teeth as '
-            'separable bobbins, or PROMOTE wound teeth into the '
-            'stator (sol-gel over the winding) and trade '
-            'interface failures for bulk ones? m1-4 states both '
-            'constructions as rows.')]),
+            'Which M1 joints COULD be promoted, per the Boothroyd '
+            'gate — the mold-fused castings are listed as ALREADY '
+            'promoted (their promotion happened in the pour), '
+            'and the two gaps are the standing counterexamples.'),
+         _s('construction-fork', 'm1-construction-fork',
+            'THE fork: six coils on separable bobbins (a bad '
+            'phase is a swapped coil) vs wound-in-place sol-gel '
+            'PROMOTION (fretting deleted, repairability spent '
+            'x6, crack-is-a-short taken on). Both constructions '
+            'are rows; levels DERIVE live from their interfaces.')]),
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
     {'name': 'view-m1-positioning',
      'display_name': 'M1 — positioning (the product)',

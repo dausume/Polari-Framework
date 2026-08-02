@@ -19,8 +19,9 @@ the two-modules-agree rule). M1 layers PIN their design in params
 so a caller's M0 default can never silently color M1 bodies from
 the wrong bill.
 
-Interface markers arrive with the m1-4 splice (markers need M1's
-interfaces stated first) — absent here BY PLAN, not oversight.
+Interface markers ride the m1-4 splice: the markers layer reads
+interface_specs(design), so the SAME layer machinery shows M1's
+six joints — including the two designed NON-CONTACT gaps.
 
 @consumers motors.m1_views (scene_json per view), motor_api via
 clock_scene_payload, polariServer seed pass (seed_m1_scene)
@@ -118,6 +119,29 @@ SEED_M1_SCENE_LAYERS = [
                     'legend of a machine with NO magnet is the '
                     'point of the rung, visible.',
      'is_prior': True, 'provenance_id': PROV, 'notes': ''},
+    {'name': 'layer-m1-interface-markers',
+     'display_name': 'Interfaces — joints, gaps & failure modes',
+     'kind': 'markers', 'source': 'composition-interfaces',
+     'params_json': _j({'design': M1_DESIGN, 'markers': [
+         {'interface': 'ifm1-rotor-shaft',
+          'position': [0, 0, 6], 'radius': 1.5},
+         {'interface': 'ifm1-winding-tooth',
+          'position': [15, 3, 0], 'radius': 1.5},
+         {'interface': 'ifm1-poles-core',
+          'position': [6, 0, 0], 'radius': 1.2},
+         {'interface': 'ifm1-teeth-yoke',
+          'position': [21, 0, 0], 'radius': 1.5},
+         {'interface': 'ifm1-working-gap',
+          'position': [11, 0, 0], 'radius': 1.0},
+         {'interface': 'ifm1-coil-clearance',
+          'position': [13, 5, 0], 'radius': 1.0}]}),
+     'style_json': '{}',
+     'description': 'A sphere per M1 joint — including the TWO '
+                    'designed non-contact gaps (working gap + '
+                    'coil clearance) and the two MOLD-FUSED cast '
+                    'boundaries; green when every failure mode '
+                    'is modelled.',
+     'is_prior': True, 'provenance_id': 'm1-4', 'notes': ''},
 ]
 
 M1_ALL_LAYERS = [l['name'] for l in SEED_M1_SCENE_LAYERS]
@@ -128,7 +152,8 @@ M1_VIEW_SCENES = {
     'view-m1-sequencing': ['layer-m1-sequence-replay'],
     'view-m1-magnetics': ['layer-m1-sequence-replay'],
     'view-m1-electrical': ['layer-m1-sequence-replay'],
-    'view-m1-mechanical': ['layer-m1-stress-coloring'],
+    'view-m1-mechanical': ['layer-m1-stress-coloring',
+                           'layer-m1-interface-markers'],
     'view-m1-materials-sourcing': ['layer-m1-material-coloring'],
     'view-m1-positioning': ['layer-m1-sequence-replay'],
 }

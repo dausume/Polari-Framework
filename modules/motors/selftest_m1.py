@@ -358,6 +358,126 @@ check('a layer the fixture cannot feed refuses WITH its reason, '
       all(l.get('refusal')
           for l in _sc.get('layers', []) if not l.get('ok')))
 
+print('== suite: m1-4 composition splice ==')
+from composition.composition_seed import (   # noqa: E402
+    SEED_FAILURE_MODES, SEED_PART_COMPONENTS,
+)
+from motors.composition_splice import (      # noqa: E402
+    composition_view, interface_specs, promotion_candidates,
+)
+from motors.m1_composition import (          # noqa: E402
+    M1_INTERFACES, SEED_M1_COMPOSITION_NODES,
+    SEED_M1_CONSTRUCTION_VARIANTS, SEED_M1_INTERFACES,
+    SEED_M1_PART_COMPONENTS, SEED_M1_ROUTING_OPS,
+    m1_construction_fork,
+)
+from motors.m1_scene import SEED_M1_SCENE_LAYERS as _L4  # noqa: E402
+
+_fused = {s['name'] for s in M1_INTERFACES
+          if not s['designed_separable']}
+_gaps = [s for s in M1_INTERFACES
+         if s['retention_scheme'] == 'none']
+
+check('six M1 joints stated; members all real M1 part rows '
+      '(two-modules-agree with motor_parts)',
+      len(M1_INTERFACES) == 6
+      and {m for s in M1_INTERFACES
+           for m in (s['member_a'], s['member_b'])}
+      <= {p['name'] for p in SEED_MOTOR_PARTS
+          if p.get('design_ref') == M1_DESIGN})
+check('the TWO designed non-contact gaps: zero DOF removed, '
+      'retention none, and the working gap is one of them',
+      len(_gaps) == 2
+      and all(s['dof_removed'] == [] for s in _gaps)
+      and {s['name'] for s in _gaps}
+      == {'ifm1-working-gap', 'ifm1-coil-clearance'})
+check('every M1 interface is THEORETICAL — made-and-measured '
+      'does not leak onto an unbuilt machine',
+      all(s.get('realization_level') == 'theoretical'
+          and s.get('qualifying_act')
+          for s in M1_INTERFACES))
+
+cvw = composition_view(vm, M1_DESIGN)
+check('the movement derives part-with-separable-sub-parts and '
+      'MATCHES its declaration: mold-fused castings bound, '
+      'shaft/coils/gaps separable',
+      cvw.get('ok')
+      and cvw['level']['derived']
+      == 'part-with-separable-sub-parts'
+      and cvw['level']['ok']
+      and cvw['level']['declared'] == cvw['level']['derived']
+      and set(cvw['level']['boundSet']) == _fused
+      and len(cvw['level']['separableSet']) == 4)
+check('parity holds: every M1 part exposed with its own material '
+      'and shape refs (wrap, not port)',
+      cvw['parity']['allMaterialsMatch']
+      and cvw['parity']['allShapesMatch']
+      and cvw['parity']['partCount'] == 6)
+m0w = composition_view(vm, 'clock-lavet-m0')
+check('M0 REGRESSION: still derives assembly (all five joints '
+      'separable) with the made-and-measured default intact',
+      m0w.get('ok') and m0w['level']['derived'] == 'assembly')
+
+pc = promotion_candidates(vm, M1_DESIGN)
+check('promotion: the winding→tooth joint is THE candidate; the '
+      'mold-fused boundaries are listed as ALREADY promoted, '
+      'not re-asked',
+      pc.get('ok') and pc['promotable'] == ['ifm1-winding-tooth']
+      and {a['interface'] for a in pc['alreadyPromoted']}
+      == _fused)
+check('both gaps are REFUSED candidates because their members '
+      'move — the gate working',
+      all(any('move relative' in b for b in c['blockers'])
+          for c in pc['candidates']
+          if c['interface'] in {'ifm1-working-gap',
+                                'ifm1-coil-clearance'}))
+
+_pc_all = {s['name']: types.SimpleNamespace(**s)
+           for s in SEED_PART_COMPONENTS + SEED_M1_PART_COMPONENTS}
+vm.objectTables['PartComponentDefinition'] = _pc_all
+vm.objectTables['CompositionNode'] = _table(
+    SEED_M1_COMPOSITION_NODES)
+vm.objectTables['InterfaceDefinition'] = _table(SEED_M1_INTERFACES)
+vm.objectTables['ConstructionVariantDefinition'] = _table(
+    SEED_M1_CONSTRUCTION_VARIANTS)
+vm.objectTables['FailureModeDefinition'] = _table(
+    SEED_FAILURE_MODES)
+vm.objectTypingDict = {k: object() for k in vm.objectTables}
+
+fork = m1_construction_fork(vm)
+_lv = {v['variant']: v['level'] for v in fork.get('variants', [])}
+check('the FORK: both constructions of ONE functional part, '
+      'levels DERIVED live — bobbin=assembly, promoted=part, '
+      'both matching their declarations',
+      fork.get('ok')
+      and _lv['cv-m1-tooth-bobbin']['derived'] == 'assembly'
+      and _lv['cv-m1-tooth-promoted']['derived'] == 'part'
+      and all(l.get('ok') and l['declared'] == l['derived']
+              for l in _lv.values())
+      and 'SIX coils' in fork['batchFact'])
+_cure = next(o for o in SEED_M1_ROUTING_OPS
+             if o['name'] == 'op-m1tp-cure')
+check('the PROMOTE op is consistent: consumes exactly the bobbin '
+      'joints, fuses exactly the promoted one (two modules, one '
+      'fact)',
+      _cure['kind'] == 'promote'
+      and set(json.loads(_cure['consumes_interface_refs_json']))
+      == {i['name'] for i in SEED_M1_INTERFACES
+          if i['node_ref'] == 'm1-tooth-bobbin'}
+      and json.loads(_cure['fused_interface_refs_json'])
+      == [i['name'] for i in SEED_M1_INTERFACES
+          if i['node_ref'] == 'm1-tooth-promoted'])
+
+vm.objectTables['ClockSceneLayerDefinition'] = _table(_L4)
+vm.objectTypingDict = {k: object() for k in vm.objectTables}
+_mech = clock_scene_payload(vm, 'view-m1-mechanical')
+_mk = next(l for l in _mech['layers']
+           if l['name'] == 'layer-m1-interface-markers')
+check('the markers layer shows all SIX M1 joints on the M1 '
+      'scene (interface set follows the layer\'s pinned design)',
+      _mk.get('ok') and len(_mk['markers']) == 6
+      and _mk['defaultOn'])
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

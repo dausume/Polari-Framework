@@ -81,15 +81,15 @@ def _failure_conditions(manager, a):
     """The PHYSICAL failure conditions: every failure mode carried
     by the design's interfaces and parts, with the observation that
     would show it (evidence_note) — what you would actually SEE."""
-    from motors.composition_splice import M0_INTERFACES, \
-        composition_view
+    from motors.composition_splice import composition_view, \
+        interface_specs
     view = composition_view(manager, a['design'])
     if not view.get('ok'):
         return view
     fm_rows = {getattr(f, 'name', ''): f
                for f in rows(manager, 'FailureModeDefinition')}
     out = []
-    for spec in M0_INTERFACES:
+    for spec in interface_specs(a['design']):
         for ref in spec['failure_modes']:
             fm = fm_rows.get(ref)
             out.append({

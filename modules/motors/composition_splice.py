@@ -64,6 +64,45 @@ M0_INTERFACES = [
 ]
 
 
+#: M0's interfaces were exercised by the bench build; a spec that
+#: does not say otherwise inherits that. M1 specs carry their own
+#: (theoretical) levels — made-and-measured must never leak onto
+#: an unbuilt machine.
+_M0_REALIZATION = {
+    'realization_level': 'made-and-measured',
+    'qualifying_act': 'the M0 bench build assembled and '
+                      'disassembled every one of these joints',
+}
+
+
+def interface_specs(design_name):
+    """The stated joints per design — motor knowledge, dispatched
+    here so every consumer (composition view, failure conditions,
+    scene markers) reads the ONE list."""
+    if design_name == 'clock-lavet-m0':
+        return M0_INTERFACES
+    if design_name == 'reluctance-6s4p-m1':
+        from motors.m1_composition import M1_INTERFACES
+        return M1_INTERFACES
+    return []
+
+
+def _declared_level(design_name):
+    if design_name == 'reluctance-6s4p-m1':
+        from motors.m1_composition import M1_DECLARED_LEVEL
+        return M1_DECLARED_LEVEL
+    return 'assembly'
+
+
+def _promotion_answers(design_name):
+    if design_name == 'clock-lavet-m0':
+        return _M0_PROMOTION_ANSWERS
+    if design_name == 'reluctance-6s4p-m1':
+        from motors.m1_composition import M1_PROMOTION_ANSWERS
+        return M1_PROMOTION_ANSWERS
+    return {}
+
+
 class _Row:
     def __init__(self, **kw):
         for k, v in kw.items():
@@ -104,7 +143,7 @@ def composition_view(manager, design_name='clock-lavet-m0'):
     interfaces = {}
     stated = []
     part_names = set(components)
-    for spec in M0_INTERFACES if design_name == 'clock-lavet-m0' else []:
+    for spec in interface_specs(design_name):
         if not {spec['member_a'], spec['member_b']} <= part_names:
             continue
         stated.append(spec['name'])
@@ -117,13 +156,16 @@ def composition_view(manager, design_name='clock-lavet-m0'):
             retention_material_requirements_json='{}',
             failure_mode_refs_json=json.dumps(spec['failure_modes']),
             equation_refs_json='[]',
-            realization_level='made-and-measured',
-            qualifying_act='the M0 bench build assembled and '
-                           'disassembled every one of these joints',
+            realization_level=spec.get(
+                'realization_level',
+                _M0_REALIZATION['realization_level']),
+            qualifying_act=spec.get(
+                'qualifying_act', _M0_REALIZATION['qualifying_act']),
             notes=spec['note'])
     overlay = _Row(objectTables={
         'CompositionNode': {node_name: _Row(
-            name=node_name, declared_level='assembly',
+            name=node_name,
+            declared_level=_declared_level(design_name),
             members_json=json.dumps(members),
             functional_ref='', genealogy_ref='',
             bulk_failure_mode_refs_json='[]')},
@@ -167,16 +209,7 @@ def composition_view(manager, design_name='clock-lavet-m0'):
     }
 
 
-def promotion_candidates(manager, design_name='clock-lavet-m0'):
-    """Which of the movement's interfaces COULD be promoted, per
-    the Boothroyd-Dewhurst questions — a suggestion surface, never
-    an action. The coil-bobbin joint is the mag-26 bound-stator
-    case; the working gap is the standing counterexample (its
-    members must move relative to each other)."""
-    view = composition_view(manager, design_name)
-    if not view.get('ok'):
-        return view
-    answers = {
+_M0_PROMOTION_ANSWERS = {
         'ifm0-coil-bobbin': {
             'moves_relative': False, 'separable_for_service': False,
             'why': 'the mag-26 bound stator: fusing deletes '
@@ -198,9 +231,30 @@ def promotion_candidates(manager, design_name='clock-lavet-m0'):
             'why': 'the rotor TURNS — this interface is the '
                    'machine. The gate refusing it is the model '
                    'working'},
-    }
-    out = []
+}
+
+
+def promotion_candidates(manager, design_name='clock-lavet-m0'):
+    """Which of the movement's interfaces COULD be promoted, per
+    the Boothroyd-Dewhurst questions — a suggestion surface, never
+    an action. Interfaces already NON-SEPARABLE (M1's mold-fused
+    castings) are not candidates: their promotion already happened,
+    and they are listed as such rather than re-asked."""
+    view = composition_view(manager, design_name)
+    if not view.get('ok'):
+        return view
+    answers = _promotion_answers(design_name)
+    specs = {s['name']: s for s in interface_specs(design_name)}
+    out, already = [], []
     for name in view['interfaces']:
+        spec = specs.get(name, {})
+        if not spec.get('designed_separable', True):
+            already.append({
+                'interface': name,
+                'note': f'already fused '
+                        f'({spec.get("retention_scheme", "?")}): '
+                        f'{spec.get("note", "")}'})
+            continue
         a = answers.get(name, {})
         blocked = a.get('moves_relative') \
             or a.get('separable_for_service')
@@ -216,6 +270,7 @@ def promotion_candidates(manager, design_name='clock-lavet-m0'):
     return {'ok': True, 'design': design_name, 'candidates': out,
             'promotable': [c['interface'] for c in out
                            if c['promotable']],
+            'alreadyPromoted': already,
             'note': 'suggestions over evidence — promoting any of '
                     'these is a human decision recorded as an '
                     'arch-4 PROMOTE operation, never an automatic '

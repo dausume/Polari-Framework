@@ -3725,6 +3725,26 @@ class polariServer(treeObject):
                               flush=True)
             except Exception as e:
                 print(f'[ScaleGoalsSeed] failed: {e}', flush=True)
+        # m1-4: the M1 composition splice rows (wound-tooth
+        # construction fork) — needs BOTH modules: the classes are
+        # composition's, the knowledge is motors'.
+        if (_feature_available('composition')
+                and _feature_available('motors') and (
+                only_classes is None
+                or 'CompositionNode' in only_classes)):
+            try:
+                from motors.m1_composition import (
+                    seed_m1_composition,
+                )
+                for r in seed_m1_composition(self.manager):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[M1CompositionSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[M1CompositionSeed] failed: {e}',
+                      flush=True)
         # gr-4: the gear-train scene rows (gear shapes + the
         # isolated SimSpace) — upsert path, gears-gated, in gears'
         # own admission pass.

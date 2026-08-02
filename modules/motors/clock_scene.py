@@ -230,13 +230,16 @@ def _vector_field(manager, params):
 
 
 def _markers(manager, params):
-    from motors.composition_splice import M0_INTERFACES
+    from motors.composition_splice import interface_specs
     fm_rows = {getattr(f, 'name', ''): f
                for f in rows(manager, 'FailureModeDefinition')}
     seeded = {m.get('interface'): m
               for m in params.get('markers', [])}
     out, legend = [], []
-    for spec in M0_INTERFACES:
+    # m1-3/4: the interface set follows the layer's design (M1
+    # layers pin theirs in params; the default stays M0).
+    for spec in interface_specs(params.get('design')
+                                or 'clock-lavet-m0'):
         mark = seeded.get(spec['name'])
         if not mark:
             continue
