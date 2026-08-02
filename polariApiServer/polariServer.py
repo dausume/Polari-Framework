@@ -3755,6 +3755,23 @@ class polariServer(treeObject):
             except Exception as e:
                 print(f'[ShapeEquationSeed] failed: {e}',
                       flush=True)
+        # mq-3: M1 inter-part relations as MatrixEquationDefinition
+        # rows over the mq-1 matrices.
+        if (_feature_available('motors')
+                and _feature_available('mathshapes')
+                and _feature_available('composition') and (
+                only_classes is None
+                or 'MathShapeDefinition' in only_classes)):
+            try:
+                from motors.m1_relations import seed_m1_relations
+                for r in seed_m1_relations(self.manager):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[M1RelationSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[M1RelationSeed] failed: {e}', flush=True)
         # m1-4: the M1 composition splice rows (wound-tooth
         # construction fork) — needs BOTH modules: the classes are
         # composition's, the knowledge is motors'.

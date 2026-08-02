@@ -50,6 +50,11 @@ class MotorsAPI(treeObject):
                 suffix='m1_axis')
             add('/api/motors/m1-positioning-proof/{design_name}',
                 self, suffix='m1_positioning_proof')
+            # mq-3: inter-part correlations + the overlap gap.
+            add('/api/motors/m1-relations', self,
+                suffix='m1_relations')
+            add('/api/motors/m1-overlap-gap', self,
+                suffix='m1_overlap_gap')
             add('/api/motors/parity', self, suffix='parity')
             add('/api/motors/materials/{design_name}', self,
                 suffix='materials')
@@ -258,6 +263,20 @@ class MotorsAPI(treeObject):
             self.manager, design_name, commanded_steps=steps,
             load_torque_nm=load,
             direction=int(num('direction', 1)))
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_m1_relations(self, request, response):
+        from motors.m1_relations import relation_report
+        out = relation_report(self.manager)
+        if not out.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = out
+
+    def on_get_m1_overlap_gap(self, request, response):
+        from motors.m1_relations import overlap_model_gap
+        out = overlap_model_gap(self.manager)
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out

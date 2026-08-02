@@ -122,26 +122,26 @@ SEED_M1_SCENE_LAYERS = [
     {'name': 'layer-m1-interface-markers',
      'display_name': 'Interfaces — joints, gaps & failure modes',
      'kind': 'markers', 'source': 'composition-interfaces',
+     # mq-3: positions DERIVE from the same shape rows the scene
+     # renders (m1_relations.derived_marker_positions) — the
+     # seeded-approximation era is over.
      'params_json': _j({'design': M1_DESIGN, 'markers': [
-         {'interface': 'ifm1-rotor-shaft',
-          'position': [0, 0, 9], 'radius': 2.6},
-         {'interface': 'ifm1-winding-tooth',
-          'position': [15, 3, 9], 'radius': 2.6},
-         {'interface': 'ifm1-poles-core',
-          'position': [6, 0, 9], 'radius': 2.2},
-         {'interface': 'ifm1-teeth-yoke',
-          'position': [21, 0, 9], 'radius': 2.6},
-         {'interface': 'ifm1-working-gap',
-          'position': [11, 0, 9], 'radius': 2.0},
-         {'interface': 'ifm1-coil-clearance',
-          'position': [13, 5, 9], 'radius': 2.0}]}),
+         {'interface': name, 'position': pos,
+          'radius': {'ifm1-working-gap': 2.0,
+                     'ifm1-coil-clearance': 2.0,
+                     'ifm1-poles-core': 2.2}.get(name, 2.6)}
+         for name, pos in sorted(
+             __import__('motors.m1_relations',
+                        fromlist=['derived_marker_positions'])
+             .derived_marker_positions().items())]}),
      'style_json': '{}',
      'description': 'A sphere per M1 joint — including the TWO '
                     'designed non-contact gaps (working gap + '
                     'coil clearance) and the two MOLD-FUSED cast '
                     'boundaries; green when every failure mode '
-                    'is modelled.',
-     'is_prior': True, 'provenance_id': 'm1-4', 'notes': ''},
+                    'is modelled. Positions DERIVE from the '
+                    'shape rows (mq-3), not seeded guesses.',
+     'is_prior': True, 'provenance_id': 'mq-3', 'notes': ''},
 ]
 
 M1_ALL_LAYERS = [l['name'] for l in SEED_M1_SCENE_LAYERS]

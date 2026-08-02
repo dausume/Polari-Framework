@@ -689,6 +689,102 @@ check('the bench section rides the sequencing view',
           if v['name'] == 'view-m1-sequencing'
           for s in json.loads(v['sections_json'])))
 
+print('== suite: mq-3 correlations between part equations ==')
+from mathshapes.shape_equations import (   # noqa: E402
+    shape_equation_rows,
+)
+from motors.motor_shapes import (          # noqa: E402
+    SEED_M1_PART_SHAPES,
+)
+from motors.m1_relations import (          # noqa: E402
+    SEED_M1_RELATIONS, derived_marker_positions,
+    overlap_model_gap, relation_report,
+)
+from motors.m1_composition import (        # noqa: E402
+    M1_INTERFACES as _RELIF,
+)
+
+_shape_defaults = {'family': 'primitive', 'primitive_kind': '',
+                   'parameters_json': '{}',
+                   'quadric_matrix_json': '', 'csg_json': '',
+                   'bounds_json': ''}
+vm.objectTables['MathShapeDefinition'] = {
+    s['name']: types.SimpleNamespace(**{**_shape_defaults, **s})
+    for s in SEED_M1_PART_SHAPES}
+_mrows, _erows = {}, {}
+for s in SEED_M1_PART_SHAPES:
+    out = shape_equation_rows(vm, s['name'])
+    if out.get('ok'):
+        _mrows.update({r['name']: types.SimpleNamespace(**r)
+                       for r in out['matrixRows']})
+        _erows.update({r['name']: types.SimpleNamespace(**r)
+                       for r in out['equationRows']})
+_erows.update({r['name']: types.SimpleNamespace(**r)
+               for r in SEED_M1_RELATIONS})
+vm.objectTables['MatrixDefinition'] = _mrows
+vm.objectTables['MatrixEquationDefinition'] = _erows
+vm.objectTypingDict = {k: object() for k in vm.objectTables}
+
+try:
+    import numpy as _np                     # noqa: F401
+    _HAVE_NP = True
+except ImportError:
+    _HAVE_NP = False
+
+if _HAVE_NP:
+    rel = relation_report(vm)
+    _byrel = {r['relation']: r for r in rel.get('relations', [])}
+    check('THE AIR GAP falls out of two parts\' MATRICES through '
+          'the no-code executor and equals the design row\'s '
+          'gap_base_m — the correlation Dustin asked for, live',
+          rel.get('ok') and rel['allConsistent']
+          and abs(_byrel['m1-rel-working-gap']['valueMm'] - 0.6)
+          < 1e-9,
+          json.dumps(rel)[:300])
+    check('the mold-fused tooth-yoke boundary is EXACTLY zero and '
+          'the coil clearance is positive (1.1 mm) — interfaces '
+          'as algebra',
+          abs(_byrel['m1-rel-tooth-yoke-merge']['valueMm'])
+          < 1e-9
+          and abs(_byrel['m1-rel-coil-clearance']['valueMm']
+                  - 1.1) < 1e-9)
+else:
+    check('relation executor leg SKIPPED — numpy not here '
+          '(runs in-container)', True)
+
+og = overlap_model_gap(vm)
+check('the overlap MODEL GAP has a number now: exact trapezoidal '
+      'arc overlap vs the solver\'s first harmonic, arcs stated '
+      '(tooth ~27.1, pole 32), solver deliberately unchanged',
+      og.get('ok')
+      and abs(og['toothArcDeg']
+              - math.degrees(2.0 * math.asin(3.0 / 12.6)))
+      < 1e-3
+      and og['poleArcDeg'] == 32.0
+      and 0.01 < og['worstDeviation'] < 0.5
+      and 'decision, not a side effect' in og['namedGap'])
+
+_pos = derived_marker_positions()
+check('marker positions DERIVE from the shape rows and cover '
+      'exactly the six m1-4 interfaces (two modules, one fact) — '
+      'the working-gap marker sits mid-gap at r=12.3',
+      set(_pos) == {s['name'] for s in _RELIF}
+      and abs(_pos['ifm1-working-gap'][0] - 12.3) < 1e-9
+      and all(len(v) == 3 for v in _pos.values()))
+check('the scene markers layer carries the DERIVED positions '
+      '(no seeded guesses left)',
+      sorted(m['interface'] for m in json.loads(
+          next(l for l in _L4
+               if l['name'] == 'layer-m1-interface-markers')
+          ['params_json'])['markers'])
+      == sorted(_pos)
+      and next(m for m in json.loads(
+          next(l for l in _L4
+               if l['name'] == 'layer-m1-interface-markers')
+          ['params_json'])['markers']
+          if m['interface'] == 'ifm1-working-gap')['position']
+      == _pos['ifm1-working-gap'])
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
