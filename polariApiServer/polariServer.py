@@ -3744,6 +3744,27 @@ class polariServer(treeObject):
                 from mathshapes.shape_equations import (
                     seed_shape_equations,
                 )
+                # Converge the M1 shape rows BEFORE emitting their
+                # equations: mathshapes admits before motors, so
+                # relying on the motors pass leaves this emission
+                # reading stale (pre-mq-2) geometry for one boot.
+                try:
+                    from mathshapes.shape_basis import (
+                        MathShapeDefinition,
+                    )
+                    from motors.motor_shapes import (
+                        SEED_M1_PART_SHAPES,
+                    )
+                    from composition.seed_upsert import (
+                        upsert_seed_pairs,
+                    )
+                    upsert_seed_pairs(self.manager, [
+                        ('MathShapeDefinition',
+                         MathShapeDefinition,
+                         SEED_M1_PART_SHAPES),
+                    ], tag='ShapeEquationSeed-pre')
+                except ImportError:
+                    pass
                 for r in seed_shape_equations(self.manager):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[ShapeEquationSeed] {r["class"]}: '
