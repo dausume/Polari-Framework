@@ -374,9 +374,53 @@ def lift_proof(manager, design_name=M2_DESIGN, steps=12,
                 'slowLiftSpeedMS': round(
                     hoist['speeds']['liftSpeedMS']
                     * assumed_rpm / need_rpm, 6)}
+    headline = [
+        {'label': 'torque the hoist asks of the motor',
+         'value': f'{load * 1000.0:.2f} mNm',
+         'note': 'crucible weight through the pulley, the drum '
+                 'and the worm — every ratio a row'},
+        {'label': 'torque the motor has (pull-out)',
+         'value': f'{hoist["motorSupplyNm"] * 1000.0:.2f} mNm',
+         'verdict': 'ok' if lifts else 'bad',
+         'note': 'past this the rotor does not slow down, it '
+                 'falls out of step and drops the load'},
+        {'label': 'bare motor on the sketched 30:1 worm',
+         'value': 'stalls' if not lifts else 'lifts',
+         'verdict': 'bad' if not lifts else 'ok',
+         'note': (f'{hoist["shortfall"]}x short — the knob is a '
+                  f'reduction stage, and it is derived below'
+                  if hoist.get('shortfall') else
+                  'no reduction stage needed')},
+    ]
+    if shipped:
+        headline.append(
+            {'label': f'AS SHIPPED ({shipped["stageRatio"]:g}:1 '
+                      f'stage x 30:1 worm)',
+             'value': shipped['verdict'],
+             'verdict': 'ok' if shipped['inSync'] else 'bad',
+             'note': f'settles at {shipped["worstLagDeg"]:.0f} deg '
+                     f'of load angle, inside the 90 deg cliff'})
+        if shipped.get('speedContradiction'):
+            sc = shipped['speedContradiction']
+            headline.append(
+                {'label': 'and the speed that reduction demands',
+                 'value': f'{sc["factor"]:g}x the assumed rate',
+                 'verdict': 'warn',
+                 'note': 'either the crucible rises that much '
+                         'slower or the drive commutates faster '
+                         'than this rung has shown — only the '
+                         'bench can say which'})
+    headline.append(
+        {'label': 'holds with the power off',
+         'value': 'yes — by the WORM',
+         'verdict': 'ok',
+         'note': 'a worm this lossy cannot be back-driven. It is '
+                 'geometry, never the motor\'s cogging (which '
+                 'this model says is zero anyway)'})
     return {
         'ok': True, 'design': design_name,
         'target': hoist['target'],
+        'headline': headline,
         'dutyTorqueNm': load,
         'atMarginNm': load * LIFT_MARGIN,
         'asShipped': shipped,

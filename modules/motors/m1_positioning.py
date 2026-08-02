@@ -287,8 +287,39 @@ def positioning_proof(manager, design_name=M1_DESIGN,
             - control_ledger['positionErrorMm']) > 1e-6
         if double_ledger else None)
     band = control.get('alignmentBand', {})
+    headline = [
+        {'label': 'unloaded control',
+         'value': ('exact' if exact else 'NOT exact'),
+         'verdict': 'ok' if exact else 'bad',
+         'note': f'{control_ledger["stepsMissed"]} missed steps; '
+                 f'the whole error sits inside the rest band, '
+                 f'and it is the same at twice the distance'},
+        {'label': 'rest band (beta_r - beta_s)',
+         'value': f'{band.get("bandDeg", 0):.2f} deg',
+         'note': 'a flat, zero-torque alignment straight out of '
+                 'the two shape rows — rest is a band, not a '
+                 'point'},
+        {'label': 'reversal backlash it causes',
+         'value': f'{control_ledger["restBandOffsetMm"] * 2:.4f} '
+                  f'mm',
+         'verdict': ('ok' if float(band.get('bandDeg', 0))
+                     * mm_per_deg < axis['toleranceMm']
+                     else 'warn'),
+         'note': f'against the {axis["toleranceMm"]} mm tolerance '
+                 f'row — lost motion from geometry, with no gear '
+                 f'involved'},
+        {'label': 'under the axis duty',
+         'value': ('lands' if duty_ledger['stepsMissed'] == 0
+                   else 'loses position'),
+         'verdict': ('ok' if duty_ledger['stepsMissed'] == 0
+                     else 'bad'),
+         'note': f'{duty_ledger["stepsMissed"]} missed, '
+                 f'{len(duty_ledger["slippedSteps"])} of them '
+                 f'backward SLIPS (no detent to catch them)'},
+    ]
     return {
         'ok': True, 'design': design_name,
+        'headline': headline,
         'target': 'wax-3d-printer axis '
                   '(manufacturing-devices tree, powered-by '
                   'electric-motors/m1-switched-reluctance)',
