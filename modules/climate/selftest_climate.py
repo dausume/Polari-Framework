@@ -2232,6 +2232,81 @@ check('a second Display PAGE covers the three eras as no-code '
       and SEED_CLIMATE_ERA_DISPLAYS[0]['isPage'] is True)
 
 
+print('== suite: co2-W — the compounding worst case ==')
+
+from climate.co2_scenarios import (
+    modern_worst_case, ventilation_offset_from_measurement,
+    worst_case_stack,
+)
+
+_w_mgr = types.SimpleNamespace(objectTables={
+    'AmbientSettingProfile': _table(SEED_AMBIENT_SETTINGS)})
+_w_mgr.objectTypingDict = {k: object() for k in _w_mgr.objectTables}
+_W = modern_worst_case(_w_mgr, 427.35)
+
+check('THE THREE ELEVATIONS STACK: background, urban enhancement '
+      'and closed-room ventilation are independent and they ADD, '
+      'so the worst modern exposure is the SUM and not any one of '
+      'them',
+      _W['ok'] and len(_W['worstCase']['terms']) == 3
+      and abs(sum(t['ppm'] for t in _W['worstCase']['terms'])
+              - _W['worstCase']['totalPpm']) < 1e-9)
+
+check('and the sum crosses lines no single term does — the worst '
+      'realistic modern stack is well past the contested '
+      'cognitive threshold at about 2700 ppm',
+      2600 < _W['worstCase']['totalPpm'] < 2900)
+
+check('THE DOUBLE-COUNT TRAP IS GUARDED: a measured indoor level '
+      'already contains its own outdoor, so stacking an urban '
+      'enhancement on top of it counts the outdoor twice. Only '
+      'the ventilation OFFSET transfers between settings.',
+      _W['measurementStripped']['ventilationOffsetPpm']
+      < _W['measurementStripped']['measuredIndoorPpm'])
+
+check('and stripping a measurement against an outdoor ABOVE it '
+      'refuses, because a zero or negative offset means the '
+      'assumed outdoor is wrong rather than the room being clean',
+      not ventilation_offset_from_measurement(400.0).get('ok'))
+
+check('VENTILATION IS THE LARGEST TERM by a wide margin — about '
+      '75 percent of the worst stack — which is why a page that '
+      'discusses only the global background is discussing the '
+      'smallest of the three',
+      _W['worstCase']['largestTerm'] == 'room ventilation'
+      and max(t['share'] for t in _W['worstCase']['terms']) > 0.6)
+
+check('THE ORDERING IS THE FINDING: the bedroom door is worth '
+      'more ppm than a century of background rise, and the levers '
+      'are ranked so a reader can see which one is theirs',
+      _W['levers'][0]['ppm'] > _W['levers'][-1]['ppm']
+      and 'window' in _W['dominantLever'])
+
+check('but the century is NOT dismissed — it is named as the one '
+      'term nobody can opt out of, that applies to every room at '
+      'once, and that never goes back down',
+      'nobody can opt out' in _W['theOrderingIsTheFinding']
+      and 'never goes back down' in _W['theOrderingIsTheFinding'])
+
+check('the closed bedroom is framed as the CHRONIC case rather '
+      'than a rare one: eight hours a night for decades is the '
+      'closest thing to sustained exposure anyone has, and '
+      'sustained is the only kind acid-base compensation answers '
+      'to',
+      'every night' in _W['whyThisIsTheChronicCase'])
+
+check('and the OPEN QUESTION is stated as the study this page '
+      'points at: the ~2000 ppm nightly contrast between a sealed '
+      'and a ventilated bedroom is exactly the exposure gradient '
+      'a national survey lacks, and nobody has measured it',
+      'NOBODY HAS MEASURED' in _W['openQuestion']
+      and 'gradient' in _W['openQuestion'])
+
+check('worst_case_stack refuses non-numeric terms rather than '
+      'summing something meaningless',
+      not worst_case_stack('x', 1, 2).get('ok'))
+
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
