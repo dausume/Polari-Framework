@@ -1321,6 +1321,142 @@ check('binding_report puts replacedValue BESIDE appliedValue on '
       json.dumps(_report['bindings'])[:240])
 
 
+print('== suite: co2-C — citing NON-government sources ==')
+
+from climate.climate_sources import SEED_CLIMATE_GOV_SOURCES
+from climate.climate_citations import (
+    SEED_CLIMATE_ACADEMIC_SOURCES, SEED_CLIMATE_JOURNALISTIC_SOURCES,
+    SEED_CLIMATE_NONPROFIT_SOURCES, resolve_citation,
+    threshold_citations,
+)
+from dmvdata.gov_sources import SOURCE_TABLES
+from dmvdata.legal_sources import AcademicSource, JournalisticSource
+
+_cm = types.SimpleNamespace(objectTables={
+    'GovSource': _table(SEED_CLIMATE_GOV_SOURCES),
+    'AcademicSource': _table(SEED_CLIMATE_ACADEMIC_SOURCES),
+    'NonProfitSource': _table(SEED_CLIMATE_NONPROFIT_SOURCES),
+    'JournalisticSource': _table([{
+        'name': 'fixture-md-explainer', 'short_name': 'MD piece',
+        'full_name': 'A physician explains indoor CO2',
+        'official_website': '', 'data_portal_url': '',
+        'requires_api_key': False, 'api_key_env': '',
+        'api_endpoint_names_json': '[]',
+        'outlet': 'A health magazine', 'author_name': 'A Physician',
+        'author_credentials': 'MD', 'author_affiliation': '',
+        'published_date': '2024', 'article_url': '',
+        'editorially_reviewed': True, 'is_opinion': False,
+        'primary_sources_json':
+            '["satish-2012-co2-decision-making"]',
+        'unsourced_claims_noted': False, 'description': '',
+        'notes': ''}]),
+    'CompanySource': {}, 'PoliticalGroupSource': {},
+    'IndividualSource': {},
+    'CO2HealthThreshold': _table(SEED_CO2_THRESHOLDS),
+})
+_cm.objectTypingDict = {k: object() for k in _cm.objectTables}
+
+check('the source registry now spans SEVEN kinds, not just '
+      'government — "source" was never a synonym for "government" '
+      'and the schema now says so',
+      SOURCE_TABLES.get('AcademicSource') == 'academic'
+      and SOURCE_TABLES.get('JournalisticSource') == 'journalistic'
+      and len(SOURCE_TABLES) == 7)
+
+_res = [resolve_citation(_cm, t['source_ref'])
+        for t in SEED_CO2_THRESHOLDS]
+check('EVERY threshold now resolves its source to a real row — '
+      'the cognitive rows used to carry an empty source_ref '
+      'because a journal is not a government agency, so their '
+      'citation survived only as prose a page cannot follow',
+      all(r.get('ok') for r in _res),
+      str([t['name'] for t, r in zip(SEED_CO2_THRESHOLDS, _res)
+           if not r.get('ok')]))
+
+_kinds = {r.get('kind') for r in _res}
+check('and they resolve across THREE different registries '
+      '(academic study, nonprofit standards body, federal '
+      'occupational limit) — which is the shape of the evidence, '
+      'made visible',
+      _kinds == {'academic', 'nonprofit', 'government'}, str(_kinds))
+
+_sat = resolve_citation(_cm, 'satish-2012-co2-decision-making')
+check('an academic citation carries its DESIGN, its n and its '
+      'replication status — a study that failed to replicate is '
+      'still a real citation and is not the same evidence it was '
+      'on publication day',
+      _sat['ok'] and _sat['sampleSize'] == 24
+      and _sat['replicationStatus'] == 'failed-to-replicate'
+      and len(_sat['replicationRefs']) == 3)
+
+check('the failed replications are NAMED as rows, not prose, so '
+      'the contest can be followed',
+      all(resolve_citation(_cm, ref).get('ok')
+          for ref in _sat['replicationRefs']))
+
+_jr = resolve_citation(_cm, 'fixture-md-explainer')
+check('a credentialed journalist resolves, and the CREDENTIAL and '
+      'the VENUE stay separate facts — expertise and peer review '
+      'are different guarantees',
+      _jr['ok'] and _jr['kind'] == 'journalistic'
+      and _jr['authorCredentials'] == 'MD'
+      and 'not peer-reviewed' in _jr['credentialCaveat'])
+
+check('and it names the PRIMARY studies it reports on, so a claim '
+      'can be followed to the evidence rather than stopping at '
+      'the person who repeated it',
+      _jr['primarySources'] == ['satish-2012-co2-decision-making'])
+
+check('ASHRAE is filed as a NONPROFIT, not a government agency — '
+      'it was originally mis-seeded as a GovSource carrying a note '
+      'apologising that it was not one, which is a comment doing a '
+      'schema\'s job',
+      resolve_citation(_cm, 'ashrae-society').get('kind')
+      == 'nonprofit'
+      and 'ashrae' not in {g['name']
+                           for g in SEED_CLIMATE_GOV_SOURCES})
+
+check('the Global Carbon Project likewise — an international '
+      'research consortium, not a US federal body',
+      resolve_citation(_cm, 'global-carbon-project-org').get('kind')
+      == 'nonprofit'
+      and 'global-carbon-project' not in {
+          g['name'] for g in SEED_CLIMATE_GOV_SOURCES})
+
+check('a source_ref naming nothing REFUSES by name rather than '
+      'resolving to a plausible-looking blank',
+      not resolve_citation(_cm, 'no-such-source').get('ok')
+      and 'no source row named' in
+      resolve_citation(_cm, 'no-such-source').get('refusal', ''))
+
+check('an EMPTY source_ref refuses too, and says what that costs: '
+      'nothing can follow the claim',
+      not resolve_citation(_cm, '').get('ok'))
+
+check('secondary-reporting is a real evidence grade, ranked BELOW '
+      'every study and every standard — a magazine paragraph must '
+      'never outrank a trial',
+      'secondary-reporting' in EVIDENCE_GRADES
+      and grade_rank('secondary-reporting')
+      > grade_rank('standard-or-guideline')
+      and grade_rank('secondary-reporting')
+      > grade_rank('contested-controlled-study'))
+
+_tc = threshold_citations(_cm)
+check('threshold_citations resolves every row and groups by '
+      'source kind, so a reader can see at a glance which lines '
+      'are studies and which are standards',
+      _tc['ok'] and not _tc['unresolved']
+      and set(_tc['bySourceKind']) == {'academic', 'nonprofit',
+                                       'government'})
+
+check('the journalistic seed list ships EMPTY on purpose — an '
+      'article nobody has read cannot have its primary sources '
+      'named, and inventing a plausible row is the exact failure '
+      'this registry exists to prevent',
+      SEED_CLIMATE_JOURNALISTIC_SOURCES == [])
+
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

@@ -78,7 +78,7 @@ _INDICATOR_COLOR = '#3f7fbf'
 SEED_CO2_THRESHOLDS = [
     {
         'name': 'co2-preindustrial-baseline',
-        'source_ref': 'noaa-ncei-paleo',
+        'source_ref': 'bereiter-2015-co2-composite',
         'display_name': 'Pre-industrial baseline (280 ppm)',
         'ppm': 280.0,
         'unit': 'ppm',
@@ -139,7 +139,7 @@ SEED_CO2_THRESHOLDS = [
     },
     {
         'name': 'ashrae-differential-700',
-        'source_ref': 'ashrae',
+        'source_ref': 'ashrae-society',
         'display_name': 'ASHRAE 62.1 criterion (+700 ppm over '
                         'outdoor)',
         'ppm': 700.0,
@@ -180,7 +180,7 @@ SEED_CO2_THRESHOLDS = [
     },
     {
         'name': 'ashrae-indicator-1000',
-        'source_ref': 'ashrae',
+        'source_ref': 'ashrae-society',
         'display_name': 'The quoted 1000 ppm indoor figure',
         'ppm': 1000.0,
         'unit': 'ppm',
@@ -220,7 +220,7 @@ SEED_CO2_THRESHOLDS = [
         #: and the DOI carry it. Inventing a government
         #: publisher for a study would be the exact
         #: laundering the grading exists to prevent.
-        'source_ref': '',
+        'source_ref': 'satish-2012-co2-decision-making',
         'display_name': 'Decision-making decrement at 1000 ppm '
                         '(contested)',
         'ppm': 1000.0,
@@ -256,7 +256,7 @@ SEED_CO2_THRESHOLDS = [
         #: and the DOI carry it. Inventing a government
         #: publisher for a study would be the exact
         #: laundering the grading exists to prevent.
-        'source_ref': '',
+        'source_ref': 'satish-2012-co2-decision-making',
         'display_name': 'Decision-making decrement at 2500 ppm '
                         '(contested)',
         'ppm': 2500.0,
@@ -378,6 +378,8 @@ _GRADE_STRENGTH = (
     'observational',
     'occupational-limit',
     'standard-or-guideline',
+    #: below every study and every standard, above nothing.
+    'secondary-reporting',
     'expert-judgement',
 )
 

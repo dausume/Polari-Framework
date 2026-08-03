@@ -117,34 +117,6 @@ SEED_CLIMATE_GOV_SOURCES = [
                      'onward, over the Socrata open-data API.',
          notes='The only true JSON API in this app\'s source set; '
                'everything else is a published file.'),
-    _gov('global-carbon-project', 'GCP',
-         'Global Carbon Project (Global Carbon Budget)',
-         'Global Carbon Project / Future Earth',
-         'https://www.globalcarbonproject.org',
-         'https://globalcarbonbudget.org/carbonbudget/',
-         endpoints=('gcb-global-carbon-budget',),
-         description='The annual global carbon budget: fossil and '
-                     'land-use emissions, atmospheric growth, and '
-                     'the ocean, land and cement sinks, 1959 '
-                     'onward.',
-         notes='NOT a government agency - an international research '
-               'consortium, and the acronym is theirs. The budget '
-               'is published as ONE xlsx and nothing else, which '
-               'is why this module carries its own stdlib xlsx '
-               'reader rather than a new dependency.'),
-    _gov('ashrae', 'ASHRAE',
-         'American Society of Heating, Refrigerating and '
-         'Air-Conditioning Engineers',
-         'ASHRAE (professional society)',
-         'https://www.ashrae.org',
-         description='Publisher of Standard 62.1, the ventilation '
-                     'criterion behind the indoor CO2 numbers '
-                     'everyone quotes.',
-         notes='NOT a health agency and NOT an API. ASHRAE states '
-               'plainly that its IAQ standards do not use indoor '
-               'CO2 to determine acceptable air quality - the '
-               'threshold rows are graded '
-               'standard-or-guideline for exactly this reason.'),
     _gov('niosh', 'NIOSH',
          'National Institute for Occupational Safety and Health',
          'Centers for Disease Control and Prevention',
@@ -388,3 +360,30 @@ def source_catalog(manager):
                     + VERIFIED + ' and returned the real payload; '
                     're-verification is a maintenance task, not a '
                     'one-off'}
+
+#: endpoint name -> the source row that publishes it, ACROSS
+#: registries. The GovSource rows carry their own endpoint lists,
+#: but two publishers here are not governments (ASHRAE and the
+#: Global Carbon Project are in the nonprofit registry), so a
+#: gov-only lookup would leave the carbon budget ownerless. This
+#: map is the single place that answers "who publishes this
+#: endpoint" regardless of which registry the answer lives in.
+ENDPOINT_SOURCE = {
+    'noaa-co2-annmean-mlo': 'noaa-gml',
+    'noaa-co2-gr-mlo': 'noaa-gml',
+    'noaa-co2-annmean-global': 'noaa-gml',
+    'noaa-co2-gr-global': 'noaa-gml',
+    'ncei-antarctica-co2-composite': 'noaa-ncei-paleo',
+    'ncei-law-dome-co2': 'noaa-ncei-paleo',
+    'nhanes-biopro-xpt': 'cdc-nchs-nhanes',
+    'nhanes-dpq-xpt': 'cdc-nchs-nhanes',
+    'cdc-life-expectancy': 'cdc-nchs-vital',
+    'gcb-global-carbon-budget': 'global-carbon-project-org',
+}
+
+
+def source_of_endpoint(endpoint_name):
+    """Who publishes this endpoint, whatever registry they are in.
+    Returns '' rather than guessing when the map has no entry."""
+    return ENDPOINT_SOURCE.get(endpoint_name, '')
+

@@ -52,6 +52,8 @@ class ClimateAPI(treeObject):
             add('/api/climate/history', self, suffix='history')
             add('/api/climate/sources', self, suffix='sources')
             add('/api/climate/sinks', self, suffix='sinks')
+            add('/api/climate/citations', self,
+                suffix='citations')
             add('/api/climate/ingest-budget', self,
                 suffix='ingest_budget')
             add('/api/climate/biomarker', self, suffix='biomarker')
@@ -258,6 +260,13 @@ class ClimateAPI(treeObject):
         if not result.get('ok'):
             response.status = '502 Bad Gateway'
         response.media = result
+
+    def on_get_citations(self, request, response):
+        """Every threshold with its source RESOLVED across all
+        registries - government, nonprofit, academic and
+        credentialed press."""
+        from climate.climate_citations import threshold_citations
+        response.media = threshold_citations(self.manager)
 
     def on_get_sinks(self, request, response):
         """co2-6: which sinks are largest, what they sequester,

@@ -50,6 +50,13 @@ SOURCE_TABLES = {
     'CompanySource': 'company',
     'PoliticalGroupSource': 'political-group',
     'IndividualSource': 'individual',
+    # Not every citable source is an organization. A specific
+    # peer-reviewed ARTICLE and a press piece by a credentialed
+    # author are both legitimate sources and neither is
+    # governmental; without these two, citing them meant either
+    # mis-filing them as a GovSource or losing the link entirely.
+    'AcademicSource': 'academic',
+    'JournalisticSource': 'journalistic',
 }
 
 _RETRIEVAL_LOCK = threading.Lock()

@@ -208,17 +208,16 @@ def ingest_series(manager, series_name, endpoint_name, parser_ref,
 
 
 def _source_of(endpoint):
-    """Which GovSource publishes this endpoint. Read from the
-    source rows rather than duplicated onto the endpoint."""
-    from climate.climate_sources import SEED_CLIMATE_GOV_SOURCES
-    import json
-    name = getattr(endpoint, 'name', '')
-    for src in SEED_CLIMATE_GOV_SOURCES:
-        names = json.loads(src.get('api_endpoint_names_json')
-                           or '[]')
-        if name in names:
-            return src['name']
-    return ''
+    """Which SOURCE publishes this endpoint - government or not.
+
+    Was a GovSource-only scan, which silently returned '' for the
+    two publishers that are not governments (ASHRAE and the Global
+    Carbon Project live in the nonprofit registry). An empty
+    source_ref on a span means a chart cannot name who measured
+    it, so the lookup now goes through the cross-registry map.
+    """
+    from climate.climate_sources import source_of_endpoint
+    return source_of_endpoint(getattr(endpoint, 'name', ''))
 
 
 def _mean_uncertainty(points):

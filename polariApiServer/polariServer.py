@@ -367,7 +367,8 @@ try:
     # Varying legal source types — nonprofit/company/political-group/
     # individual siblings of GovSource, one cross-type machinery.
     from dmvdata.legal_sources import (
-        CompanySource, IndividualSource, NonProfitSource,
+        AcademicSource, CompanySource, IndividualSource,
+        JournalisticSource, NonProfitSource,
         PoliticalGroupSource, SEED_COMPANY_SOURCES,
         SEED_INDIVIDUAL_SOURCES, SEED_NONPROFIT_SOURCES,
         SEED_POLITICAL_SOURCES)
@@ -375,7 +376,8 @@ except ImportError as _exc:
     _stub_missing_feature('dmvdata', _exc, globals(), (
         'SEED_API_DOMAINS', 'SEED_API_ENDPOINTS', 'GovSource', 'SEED_GOV_SOURCES',
         'SourceRetrieval', 'RetrievalConfirmation', 'SEED_PROVIDER_CONCEPT', 'SEED_PROVIDER_TERMS',
-        'CompanySource', 'IndividualSource', 'NonProfitSource', 'PoliticalGroupSource',
+        'AcademicSource', 'CompanySource', 'IndividualSource',
+        'JournalisticSource', 'NonProfitSource', 'PoliticalGroupSource',
         'SEED_COMPANY_SOURCES', 'SEED_INDIVIDUAL_SOURCES', 'SEED_NONPROFIT_SOURCES', 'SEED_POLITICAL_SOURCES',
     ))
 # ncg-6: design-output -> circuit-source bindings, and authorable
@@ -2055,6 +2057,10 @@ class polariServer(treeObject):
             PinBindingDefinition, NoCodeTestCase, NoCodeTestPack,
             GovSource, SourceRetrieval, RetrievalConfirmation,
             NonProfitSource, CompanySource, PoliticalGroupSource,
+            # Not every citable source is an organization: a
+            # peer-reviewed ARTICLE and a credentialed press piece
+            # are sources too, and neither is governmental.
+            AcademicSource, JournalisticSource,
             IndividualSource,
             PolicyDraft, VenueActionRecord, VenueMismatchPattern,
             LegislationRecord, LegislationProvision,
@@ -3911,6 +3917,9 @@ class polariServer(treeObject):
                     seed_atmosphere_bindings,
                 )
                 from climate.carbon_sinks import seed_carbon_sinks
+                from climate.climate_citations import (
+                    seed_climate_citations,
+                )
                 for r in (seed_climate_sources(self.manager)
                           + seed_climate_series(self.manager)
                           + seed_co2_thresholds(self.manager)
@@ -3919,7 +3928,8 @@ class polariServer(treeObject):
                           + seed_climate_pages(self.manager)
                           + seed_climate_app(self.manager)
                           + seed_atmosphere_bindings(self.manager)
-                          + seed_carbon_sinks(self.manager)):
+                          + seed_carbon_sinks(self.manager)
+                          + seed_climate_citations(self.manager)):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[ClimateSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '

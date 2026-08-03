@@ -18,7 +18,10 @@ and another covered another range"). So:
     AtmosphericObservation.span_ref
       -> SourceCoverageSpan (which instrument/archive, which years)
         -> APIEndpoint (how it was fetched — polariApiProfiler)
-          -> GovSource (who publishes it)
+          -> a SOURCE row (who publishes it) — government,
+             nonprofit, academic article or credentialed press
+             piece; `find_source` resolves across all of them,
+             because "source" was never a synonym for "government"
             -> SourceRetrieval (when WE copied it, sha256, rows)
 
 A point on a graph can therefore always answer "who says so, how
@@ -60,7 +63,15 @@ SERIES_STATUS = ('prior', 'ingested', 'literature', 'modelled',
 EVIDENCE_GRADES = ('controlled-human-study',
                    'contested-controlled-study',
                    'observational', 'standard-or-guideline',
-                   'occupational-limit', 'expert-judgement')
+                   'occupational-limit',
+                   #: A credentialed author REPORTING on primary
+                   #: research. The expertise is real and the piece
+                   #: is not peer reviewed - two different
+                   #: guarantees, and collapsing them into "expert
+                   #: says" is how a magazine paragraph acquires
+                   #: the authority of a trial.
+                   'secondary-reporting',
+                   'expert-judgement')
 
 
 class AtmosphericSeriesDefinition(treeObject):
