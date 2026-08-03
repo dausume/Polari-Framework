@@ -217,17 +217,38 @@ SEED_OBSERVED_LEVELS = [
               'for offices meeting ventilation guidance.',
               note='Occupied-hours steady state.'),
     _observed('obs-indoor-preindustrial-dwelling',
-              'Pre-industrial dwelling (modelled, not measured)',
-              'indoor', 'dwelling', 400.0, 900.0, 600.0,
-              'NO MEASUREMENTS EXIST. Estimated from a 280 ppm '
-              'background plus occupancy at the high infiltration '
-              'rates of unsealed construction.',
-              note='MODELLED. There is no ice core for indoor air.',
-              notes='Deliberately wide, and it understates the '
-                    'real hazard of those rooms: open hearths '
-                    'made their smoke, CO and particulate far '
-                    'more dangerous than their CO2. A CO2-only '
-                    'comparison across eras flatters the past.'),
+              'Pre-industrial dwelling (MODELLED - the evidence '
+              'does not exist)',
+              'indoor', 'dwelling', 300.0, 800.0, 400.0,
+              'NO DIRECT MEASUREMENTS EXIST, and the reason is '
+              'itself a finding: the household-air-pollution '
+              'literature measures PM2.5 and carbon monoxide '
+              'exhaustively and CO2 almost never. Checked '
+              'directly against Pollard et al., a widely cited '
+              'study of 86 biomass-burning and non-biomass homes '
+              'in Puno, Peru (PMC3978088): it reports median '
+              '24-hour PM2.5 of 130 ug/m3 and CO of 5.8 ppm in '
+              'rural biomass homes and DOES NOT MEASURE CO2 AT '
+              'ALL.',
+              note='MODELLED, and revised DOWN from an earlier '
+                   '600 ppm estimate. There is no ice core for '
+                   'indoor air.',
+              notes='THE REVISION IS THE POINT. The first version '
+                    'of this row said 400-900 ppm and carried a '
+                    'caveat that "a CO2-only comparison across '
+                    'eras flatters the past". That caveat was '
+                    'wrong on CO2 specifically. The same '
+                    'draughtiness that failed to clear smoke also '
+                    'prevented CO2 accumulating: ventilation '
+                    'removes CO2 as fast as a fire and its '
+                    'occupants add it, and an unsealed dwelling '
+                    'has a very high air-change rate. Modern '
+                    'tight construction accumulates CO2 BECAUSE '
+                    'it is tight. So on CO2 the past was probably '
+                    'BETTER indoors as well as out - while being '
+                    'far worse on the pollutants that actually '
+                    'killed people. Band widened downward and the '
+                    'whole row kept explicitly modelled.'),
 ]
 
 
@@ -411,10 +432,17 @@ def era_comparison(manager):
                      'behind them - there is no ice core for '
                      'indoor air, so the pre-industrial dwelling '
                      'is an estimate and is labelled as one'),
-            'caveat': ('comparing eras on CO2 alone flatters the '
-                       'past: a pre-industrial room had lower CO2 '
-                       'and far worse smoke, carbon monoxide and '
-                       'particulate from open hearths')}
+            'caveat': ('comparing eras on CO2 ALONE is '
+                       'incomplete in both directions. A '
+                       'pre-industrial room had far worse smoke, '
+                       'carbon monoxide and particulate - the '
+                       'pollutants that shortened lives. But it '
+                       'probably had LOWER CO2 than a modern '
+                       'sealed room, because the draughtiness '
+                       'that failed to clear the smoke also '
+                       'stopped CO2 accumulating. Different '
+                       'pollutants, opposite directions, one '
+                       'cause.')}
 
 
 def space_level(manager, space_row, background_ppm, band='typical'):
@@ -518,3 +546,172 @@ _SPACE_KIND = {
 
 def _space_kind_of(space_name):
     return _SPACE_KIND.get(space_name, '')
+
+
+#: The 800 kyr ice-core maximum, computed by this app from the
+#: ingested Bereiter composite (excluding the last millennium).
+#: Stated here so the escapability argument has a hard number.
+RECORD_MAX_PPM_800KYR = 298.6
+
+
+def era_exposure_comparison(manager, background_ppm,
+                            urban_setting='outdoor-urban-core'):
+    """DID PEOPLE IN THE PAST BREATHE AS MUCH CO2 AS WE DO?
+
+    The question splits in two, and the halves have different
+    answers:
+
+    THE FLOOR - the level you return to, and cannot get below.
+    Unambiguously new. The ice cores cap the entire 800,000 years
+    before the last millennium at 298.6 ppm; today's global
+    background is above 427 and a city centre is above 500. No
+    human before roughly 1900 ever breathed today's outdoor air,
+    and nobody alive today can step outside and find 280 ppm.
+
+    THE PEAK - the worst level you hit in a room. Probably ALSO
+    higher today, which is the counter-intuitive half. The
+    draughtiness of an unsealed dwelling that failed to clear
+    woodsmoke also stopped CO2 accumulating; modern tight
+    construction accumulates CO2 precisely because it is tight. A
+    modern closed bedroom MEASURES 1200-2500 ppm. What a
+    pre-industrial dwelling reached is essentially unmeasured -
+    the household-air-pollution literature tracks PM2.5 and CO,
+    not CO2 - so this half is a physical argument, not a
+    measurement, and is labelled that way.
+
+    WHY THE FLOOR IS THE PHYSIOLOGICALLY INTERESTING ONE: chronic
+    acid-base compensation responds to SUSTAINED partial pressure,
+    not to transient peaks. A smoky hut you could walk out of is an
+    episodic exposure. A raised global background is not
+    escapable, and it is the genuinely novel exposure.
+    """
+    from climate.series_ingest import series_points
+    urban = local_outdoor_ppm(manager, background_ppm,
+                              urban_setting)
+    if not urban.get('ok'):
+        return urban
+
+    ice = series_points(manager, 'co2-ice-core-composite')
+    record_max = RECORD_MAX_PPM_800KYR
+    record_measured = False
+    if ice:
+        older = [p['value'] for p in ice if p['year'] < 1000.0]
+        if older:
+            record_max = max(older)
+            record_measured = True
+
+    refs = {getattr(r, 'name', ''): r
+            for r in _rows(manager, 'ObservedLevelReference')}
+
+    def _typ(name):
+        row = refs.get(name)
+        return float(getattr(row, 'ppm_typical', 0.0)) \
+            if row is not None else None
+
+    past_indoor = _typ('obs-indoor-preindustrial-dwelling')
+    now_indoor = _typ('obs-indoor-bedroom-closed')
+    past_outdoor = _typ('obs-outdoor-preindustrial')
+
+    floor_rise = float(background_ppm) - (past_outdoor or 280.0)
+    return {
+        'ok': True,
+        'question': ('were people in the past dealing with CO2 '
+                     'levels as high as today, or is this new?'),
+        'floor': {
+            'label': 'the level you cannot get below',
+            'pastPpm': past_outdoor,
+            'presentBackgroundPpm': float(background_ppm),
+            'presentUrbanPpm': urban['localOutdoorPpm'],
+            'recordMaxPpm800kyr': record_max,
+            'recordMaxIsMeasuredHere': record_measured,
+            'riseSincePreindustrialPpm': floor_rise,
+            'verdict': (
+                f'NEW, and not marginally. The entire 800,000 '
+                f'years before the last millennium cap at '
+                f'{record_max:.1f} ppm. Today\'s background is '
+                f'{float(background_ppm):.0f} and a city centre is '
+                f'{urban["localOutdoorPpm"]:.0f}. Nobody alive can '
+                f'step outside and find the air their ancestors '
+                f'breathed.'),
+            'evidence': 'MEASURED - Antarctic ice cores plus the '
+                        'instrumental record, both ingested here.',
+        },
+        'peak': {
+            'label': 'the worst level you hit indoors',
+            'pastIndoorPpmModelled': past_indoor,
+            'presentIndoorPpmMeasured': now_indoor,
+            'verdict': (
+                'PROBABLY ALSO HIGHER TODAY, which is the '
+                'counter-intuitive half. An unsealed dwelling '
+                'ventilates fast enough that neither respiration '
+                'nor a fire can build CO2 up much above outdoor; '
+                'modern tight construction accumulates it '
+                'precisely because it is tight. A modern closed '
+                'bedroom measures 1200-2500 ppm.'),
+            'evidence': ('ASYMMETRIC and the asymmetry matters: '
+                         'the modern figure is MEASURED, the '
+                         'pre-industrial one is MODELLED. The '
+                         'household-air-pollution literature '
+                         'measures PM2.5 and CO, not CO2 - '
+                         'verified directly against a widely '
+                         'cited 86-home biomass study that does '
+                         'not report CO2 at all.'),
+        },
+        'whatWasWorseInThePast': (
+            'Smoke. Open hearths produced PM2.5 and carbon '
+            'monoxide at levels that would close a modern '
+            'building - median 130 ug/m3 PM2.5 and 5.8 ppm CO in '
+            'measured rural biomass homes. Those are the exposures '
+            'that shortened pre-industrial lives, and they are '
+            'not CO2. The SAME draughtiness that made the smoke '
+            'survivable is why the CO2 stayed low: one cause, '
+            'opposite directions, two different pollutants.'),
+        'whyTheFloorMatters': (
+            'Chronic acid-base compensation responds to SUSTAINED '
+            'partial pressure, not to transient peaks. A smoky hut '
+            'was escapable; a raised global background is not. '
+            'That is what makes the floor - not the peak - the '
+            'genuinely novel exposure, and it is why this app '
+            'projects crossing dates from the background series '
+            'rather than from a worst-room number.'),
+        'answer': (
+            'This is NEW, on both axes. Outdoor is definitively '
+            'new and measured. Indoor is probably also higher '
+            'today than pre-industrially - because we sealed the '
+            'buildings - though that half is a physical argument '
+            'rather than a measurement, and the measurement does '
+            'not exist. What the past had far more of was smoke, '
+            'not CO2.'),
+        'whatWouldSettleIt': (
+            'CO2 logging in dwellings still heated and cooked in '
+            'the traditional way, alongside the PM2.5 and CO that '
+            'such studies already collect. It is one more sensor '
+            'on an instrument package that is already deployed - '
+            'which is why the gap is an oversight rather than a '
+            'hard problem.'),
+        'headline': [
+            {'label': 'Outdoor, pre-industrial',
+             'value': f'{past_outdoor:.0f} ppm'
+             if past_outdoor else 'unknown',
+             'note': 'measured, ice cores', 'verdict': 'ok'},
+            {'label': '800,000-year maximum',
+             'value': f'{record_max:.1f} ppm',
+             'note': 'the cap on everything any ancestor breathed',
+             'verdict': 'ok'},
+            {'label': 'Outdoor today (background / urban)',
+             'value': f'{float(background_ppm):.0f} / '
+                      f'{urban["localOutdoorPpm"]:.0f} ppm',
+             'note': f'+{floor_rise:.0f} ppm on the floor, and '
+                     f'inescapable',
+             'verdict': 'bad'},
+            {'label': 'Indoor today, closed bedroom',
+             'value': f'{now_indoor:.0f} ppm'
+             if now_indoor else 'unknown',
+             'note': 'MEASURED', 'verdict': 'warn'},
+            {'label': 'Indoor pre-industrial dwelling',
+             'value': f'~{past_indoor:.0f} ppm'
+             if past_indoor else 'unknown',
+             'note': 'MODELLED - no measurement exists',
+             'verdict': 'ok'},
+        ],
+    }

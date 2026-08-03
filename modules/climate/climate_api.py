@@ -277,7 +277,8 @@ class ClimateAPI(treeObject):
         ITS OWN local outdoor, and the measured levels that check
         the modelled ones. ?band=low|typical|high."""
         from climate.co2_settings import (
-            all_space_levels, era_comparison, setting_ladder,
+            all_space_levels, era_comparison,
+            era_exposure_comparison, setting_ladder,
         )
         background = _float(request, 'background_ppm')
         if background is None:
@@ -297,6 +298,8 @@ class ClimateAPI(treeObject):
             'indoor': all_space_levels(self.manager, background,
                                        band=band),
             'observedLevels': era_comparison(self.manager),
+            'eraExposure': era_exposure_comparison(
+                self.manager, background),
         }
 
     def on_get_symptoms(self, request, response):

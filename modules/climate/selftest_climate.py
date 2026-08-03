@@ -1681,8 +1681,8 @@ print('== suite: co2-E — urban/non-urban x indoor/outdoor ==')
 
 from climate.co2_settings import (
     SEED_AMBIENT_SETTINGS, SEED_OBSERVED_LEVELS, all_space_levels,
-    era_comparison, local_outdoor_ppm, setting_ladder,
-    validate_against_observed,
+    era_comparison, era_exposure_comparison, local_outdoor_ppm,
+    setting_ladder, validate_against_observed,
 )
 from climate.climate_basis import (
     AmbientSettingProfile, ObservedLevelReference,
@@ -1788,10 +1788,78 @@ check('the era table spans pre-industrial outdoor (280 ppm) to a '
       and any(c['isModelled'] for c in _ERA['levels'])
       and min(c['ppmTypical'] for c in _ERA['levels']) == 280.0)
 
-check('and it carries the caveat that comparing eras on CO2 '
-      'alone flatters the past — a pre-industrial room had lower '
-      'CO2 and far worse smoke and carbon monoxide',
-      'flatters the past' in _ERA['caveat'])
+# CORRECTED. This check previously pinned the claim that a
+# CO2-only era comparison "flatters the past" — i.e. that the past
+# was worse and CO2 alone hid it. Investigating Dustin's question
+# showed that is wrong on CO2 specifically: the draughtiness that
+# failed to clear woodsmoke also stopped CO2 accumulating, so the
+# past was probably BETTER on CO2 and far worse on smoke. The
+# check now pins the corrected, two-directional statement, and
+# this comment stays so the reversal is not silently rewritten.
+check('the era caveat runs in BOTH directions: the past was far '
+      'worse on smoke, CO and particulate, and probably BETTER on '
+      'CO2 than a modern sealed room — different pollutants, '
+      'opposite directions, one cause',
+      'incomplete in both directions' in _ERA['caveat']
+      and 'LOWER CO2' in _ERA['caveat']
+      and 'smoke' in _ERA['caveat'])
+
+_EX = era_exposure_comparison(_set_mgr, _BG)
+
+check('THE QUESTION IS ANSWERED IN TWO HALVES, because it has two '
+      'answers: the FLOOR you cannot get below, and the PEAK you '
+      'hit in a room',
+      _EX['ok'] and 'floor' in _EX and 'peak' in _EX)
+
+check('the FLOOR is unambiguously new and MEASURED: the whole '
+      '800,000-year record caps below 300 ppm, today\'s '
+      'background is over 425 and a city centre over 500',
+      _EX['floor']['recordMaxPpm800kyr'] < 300.0
+      and _EX['floor']['presentBackgroundPpm'] > 425.0
+      and _EX['floor']['presentUrbanPpm'] > 500.0
+      and 'MEASURED' in _EX['floor']['evidence'])
+
+check('and the two halves are labelled with DIFFERENT evidence '
+      'strength — the modern indoor figure is measured, the '
+      'pre-industrial one is modelled, and the payload says so '
+      'rather than presenting them as one comparison',
+      'ASYMMETRIC' in _EX['peak']['evidence']
+      and 'MODELLED' in _EX['peak']['evidence'])
+
+check('the pre-industrial indoor estimate was REVISED DOWN and '
+      'the old caveat CORRECTED: the draughtiness that failed to '
+      'clear woodsmoke also stopped CO2 accumulating, so on CO2 '
+      'the past was probably better indoors too — the opposite of '
+      'the intuition this row first encoded',
+      [r for r in SEED_OBSERVED_LEVELS
+       if r['name'] == 'obs-indoor-preindustrial-dwelling'
+       ][0]['ppm_typical'] == 400.0)
+
+check('the evidence GAP is recorded as a finding, not glossed: '
+      'the household-air-pollution literature measures PM2.5 and '
+      'CO and not CO2, verified against a specific 86-home '
+      'biomass study that reports neither',
+      'PMC3978088' in [
+          r for r in SEED_OBSERVED_LEVELS
+          if r['name'] == 'obs-indoor-preindustrial-dwelling'
+      ][0]['citation_text'])
+
+check('the answer names what the past WAS worse at — smoke, not '
+      'CO2 — so the correction does not swing into pretending '
+      'pre-industrial air was clean',
+      'Smoke' in _EX['whatWasWorseInThePast']
+      and 'PM2.5' in _EX['whatWasWorseInThePast'])
+
+check('and it explains WHY the floor is the physiologically '
+      'novel exposure: chronic compensation responds to sustained '
+      'partial pressure, and a smoky hut was escapable where a '
+      'raised background is not',
+      'escapable' in _EX['whyTheFloorMatters']
+      and 'SUSTAINED' in _EX['whyTheFloorMatters'])
+
+check('and it names what would settle the unmeasured half — one '
+      'more sensor on an instrument package already deployed',
+      'CO2 logging' in _EX['whatWouldSettleIt'])
 
 check('every settings and observed-level seed key matches its '
       'class __init__ exactly (the ten-strikes seed gotcha)',
