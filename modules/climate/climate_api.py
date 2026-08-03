@@ -54,6 +54,7 @@ class ClimateAPI(treeObject):
             add('/api/climate/sinks', self, suffix='sinks')
             add('/api/climate/citations', self,
                 suffix='citations')
+            add('/api/climate/claims', self, suffix='claims')
             add('/api/climate/symptoms', self,
                 suffix='symptoms')
             add('/api/climate/settings', self,
@@ -264,6 +265,15 @@ class ClimateAPI(treeObject):
         if not result.get('ok'):
             response.status = '502 Bad Gateway'
         response.media = result
+
+    def on_get_claims(self, request, response):
+        """Every number the page shows, classified by WHERE IT
+        CAME FROM - so a simulation output can never be rendered
+        as though it were a citation."""
+        from climate.climate_claims import page_claims
+        response.media = page_claims(
+            self.manager,
+            background_ppm=_float(request, 'background_ppm'))
 
     def on_get_citations(self, request, response):
         """Every threshold with its source RESOLVED across all

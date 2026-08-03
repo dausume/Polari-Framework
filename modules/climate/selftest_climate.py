@@ -1983,6 +1983,106 @@ check('an MCE of exactly 1.0 REFUSES — it would mean no CO at '
       not co_tracer_offset_ppm(5.8, mce=1.0).get('ok'))
 
 
+print('== suite: co2-P — cited vs OUR MODEL, structurally ==')
+
+from climate.climate_claims import (
+    CLASS_META, PROVENANCE_CLASSES, claim, page_claims,
+)
+
+_claim_mgr = types.SimpleNamespace(objectTables={
+    'CO2HealthThreshold': _table(SEED_CO2_THRESHOLDS),
+    'IndoorSpaceProfile': _table(SEED_INDOOR_SPACES),
+    'AmbientSettingProfile': _table(SEED_AMBIENT_SETTINGS),
+    'ObservedLevelReference': _table(SEED_OBSERVED_LEVELS),
+    # A real rising series, so the crossing-year path is actually
+    # exercised. A fixture that skips the projection would let the
+    # most quotable numbers on the page go unclassified.
+    'AtmosphericObservation': {
+        f'o{_i}': _ns({'name': f'o{_i}',
+                       'series_ref': 'co2-mauna-loa-annual',
+                       'span_ref': 'span-mlo',
+                       'year': 1960.0 + _i,
+                       'value': 316.0 + 1.6 * _i
+                       + 0.011 * _i * _i,
+                       'uncertainty': 0.12})
+        for _i in range(66)},
+    'AtmosphericSeriesDefinition': _table([{
+        'name': 'co2-mauna-loa-annual',
+        'display_name': 'Mauna Loa annual mean CO2',
+        'status': 'ingested', 'unit': 'ppm',
+        'first_year': 1960.0, 'last_year': 2025.0,
+        'endpoint_ref': 'noaa-co2-annmean-mlo',
+        'source_ref': 'noaa-gml', 'measure': 'co2-mole-fraction',
+        'cadence': 'annual', 'location': 'Mauna Loa',
+        'description': '', 'value_field': 'value',
+        'uncertainty_unit': 'ppm', 'is_prior': False,
+        'provenance_id': 'test', 'notes': ''}])})
+_claim_mgr.objectTypingDict = {k: object()
+                               for k in _claim_mgr.objectTables}
+_PC = page_claims(_claim_mgr, background_ppm=427.35)
+
+check('every claim carries a provenance class — a number on a '
+      'health page without one is the failure this module exists '
+      'to prevent',
+      _PC['ok'] and all(c['provenance'] in PROVENANCE_CLASSES
+                        for c in _PC['claims']))
+
+check('and the page separates CITED evidence from OUR OWN model '
+      'output — both classes are present and neither is empty',
+      _PC['byClass']['cited'] > 0
+      and _PC['byClass']['modelled'] > 0)
+
+check('MODELLED claims are flagged peerReviewed=False, never None '
+      'and never True — "we have not had this reviewed" is a '
+      'fact about the number, not a stylistic choice',
+      all(c['peerReviewed'] is False
+          for c in _PC['claims'] if c['provenance'] == 'modelled'))
+
+check('and every MODELLED claim carries a METHOD, so a reader can '
+      'always see what produced it — the claim builder supplies '
+      'one even when the caller forgets',
+      all(c['method'] for c in _PC['claims']
+          if c['provenance'] == 'modelled'))
+
+check('MODELLED is toned "bad" — the most alarming of the four — '
+      'so a renderer cannot make our simulation output look as '
+      'settled as a measurement',
+      CLASS_META['modelled']['tone'] == 'bad'
+      and CLASS_META['measured']['tone'] == 'ok')
+
+check('the indoor room levels and the crossing YEARS are both '
+      'classified MODELLED — they are the two things most likely '
+      'to be quoted as findings and neither is one',
+      any(c['provenance'] == 'modelled' and c['unit'] == 'ppm'
+          for c in _PC['claims'])
+      and any(c['provenance'] == 'modelled' and c['unit'] == 'year'
+              for c in _PC['claims']))
+
+check('an UNKNOWN provenance falls back to "modelled", not to '
+      'something reassuring — an unclassifiable number is the '
+      'least trustworthy kind, not the most',
+      claim('x', 1, 'wishful-thinking')['provenance'] == 'modelled')
+
+check('the class meanings live in the API payload, so the page '
+      'renders one wording rather than restating it in a template '
+      'where it can drift',
+      all(CLASS_META[k]['meaning'] for k in PROVENANCE_CLASSES)
+      and _PC['classes'] == CLASS_META)
+
+check('the speculation note says plainly that OUR MODEL numbers '
+      'are unreviewed, unpublished, built on named priors, and '
+      'are shown as an argument rather than as evidence',
+      'not been peer reviewed' in _PC['speculationNote']
+      and 'not because they are evidence'
+      in _PC['speculationNote'])
+
+check('the secondary-reporting threshold is CITED but its caveat '
+      'names both the missing peer review AND the publisher\'s '
+      'commercial interest — a reader weighing it gets both',
+      any('sells CO2 monitors' in (c.get('caveat') or '')
+          for c in _PC['claims']))
+
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
