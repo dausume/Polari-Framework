@@ -142,6 +142,27 @@ def _src_part(module, fn):
     return call
 
 
+#: Which registered display component renders a section's payload.
+#: A section row may set its own 'renderer'; this is the default when
+#: it does not, so the mapping is data in one place rather than a
+#: switch statement in the template.
+#:
+#: The names resolve through the SAME frontend ComponentRegistry the
+#: no-code displays use, so a section slot and a display slot are the
+#: same kind of thing. Several of these payloads ALREADY had a
+#: first-class renderer sitting unused in the magnetics folder while
+#: the view JSON-dumped them — that is what this table fixes.
+#:
+#: A source with no entry renders as the named payload fallback, which
+#: is an explicit last resort rather than the default.
+SECTION_RENDERERS = {
+    'winding': 'motor-winding-panel',
+    'mass-bill': 'motor-parts-panel',
+    'materials-accountability': 'motor-materials-panel',
+    'drive-profile': 'motor-drive-panel',
+}
+
+
 SECTION_SOURCES = {
     # goals (any-scale)
     'scale-study': lambda m, a: __import__(
@@ -275,6 +296,11 @@ def view_payload(manager, view_name, design='clock-lavet-m0',
                     'source': source,
                     'lead': s.get('lead', ''),
                     'links': links,
+                    #: HOW to draw it, not just where it came from.
+                    #: Seeded override first, else the source's
+                    #: default, else '' = the named payload fallback.
+                    'renderer': (s.get('renderer')
+                                 or SECTION_RENDERERS.get(source, '')),
                     'args': {
                         k: v for k, v in args.items()
                         if k != 'design'},
@@ -305,12 +331,17 @@ def component_view(manager, part_name, design='clock-lavet-m0'):
     from motors.part_roles import part_role_report
     sections = []
 
-    def run(name, fn):
+    def run(name, fn, renderer=''):
         try:
             payload = fn()
         except Exception as e:
             payload = {'ok': False, 'refusal': f'raised: {e}'}
         sections.append({'section': name,
+                         #: Same contract as view_payload: the
+                         #: section says how it draws. Every part
+                         #: drill-in was raw JSON before this.
+                         'renderer': (renderer
+                                      or SECTION_RENDERERS.get(name, '')),
                          **({'payload': payload}
                             if payload.get('ok') else
                             {'ok': False,
@@ -336,7 +367,7 @@ def component_view(manager, part_name, design='clock-lavet-m0'):
                 'part': mine[0] if mine else None,
                 'refusal': '' if mine else
                 f'"{part_name}" not in the {design} bill'}
-    run('mass-and-geometry', _mass)
+    run('mass-and-geometry', _mass, 'motor-parts-panel')
     return {'ok': True, 'component': part_name, 'design': design,
             'sections': sections,
             'refusedSections': [s['section'] for s in sections

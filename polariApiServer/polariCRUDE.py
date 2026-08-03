@@ -122,6 +122,57 @@ class polariCRUDE(treeObject):
             print(f"[polariCRUDE] WS notification error for {self.apiObject}: {e}", flush=True)
 
     #Read in CRUD
+    #: Query params that are never field filters — reserved for the
+    #: request machinery rather than the object's own attributes.
+    RESERVED_QUERY_PARAMS = {'fieldProfile', 'collection', 'format',
+                             'limit', 'offset', '_'}
+
+    def _applyFieldFilter(self, request, instances):
+        """Narrow an already access-filtered instance dict by the
+        request's query params.
+
+        Only attributes that actually exist on the instances are used:
+        an unknown key is ignored rather than silently matching
+        nothing, so a typo degrades to "unfiltered" instead of to a
+        confusing empty page.
+        """
+        if not instances:
+            return instances
+        params = getattr(request, 'params', None) or {}
+        if not params:
+            return instances
+        sample = next(iter(instances.values()))
+        fieldFilter = {}
+        for key, value in params.items():
+            if key in self.RESERVED_QUERY_PARAMS or key.startswith('_'):
+                continue
+            if not hasattr(sample, key):
+                continue
+            #: Falcon gives a list when a param repeats; the query
+            #: language here is single-value EQUALS, so take the first.
+            fieldFilter[key] = value[0] if isinstance(value, list) else value
+        if not fieldFilter:
+            return instances
+        try:
+            #: dict(...) is LOAD-BEARING. The query engine narrows by
+            #: pop()-ing non-matches out of the dict it is handed, and
+            #: getListOfInstancesByAttributes hands back
+            #: self.objectTables[className] ITSELF when the access
+            #: query is "*" — filtering in place would delete real
+            #: instances from the in-memory object tree. Copy first;
+            #: the values are the same object references, so nothing
+            #: else changes.
+            return self.manager.dictAttributeRequirementsForQuery(
+                className=self.apiObject, queryDictSegment=fieldFilter,
+                remainingInstancesDict=dict(instances))
+        except Exception as filterError:
+            #: A malformed filter must not take the whole read down;
+            #: fall back to the unfiltered (still access-checked) set.
+            print(f'[CRUDE-GET] {self.apiObject}: field filter '
+                  f'{fieldFilter} failed ({filterError}) — returning '
+                  f'unfiltered rows', flush=True)
+            return instances
+
     def on_get(self, request, response):
         if self._guard_purged(response):
             return
@@ -145,6 +196,12 @@ class polariCRUDE(treeObject):
             #Dictionaries on user) in order to analyze which instances requested are able
             #to be returned, in other words it performs 'viewing access'.
             requestedInstances = self.manager.getListOfInstancesByAttributes(className=self.apiObject, attributeQueryDict=accessQueryDict["R"][self.apiObject] )
+            #Caller-supplied field filter (?design_ref=clock-lavet-m0).
+            #Applied AFTER the access filter and only ever narrowing it,
+            #so a filter can never widen what a user may read. This is
+            #what lets a display be "the rows referencing THIS object"
+            #instead of every row of the class.
+            requestedInstances = self._applyFieldFilter(request, requestedInstances)
             # Debug: log Definition class reads to trace persistence
             _defClasses = {'TableDefinition', 'DisplayDefinition', 'GraphDefinition', 'GeoJsonDefinition', 'TileSourceDefinition', 'GeocoderDefinition'}
             if self.apiObject in _defClasses:

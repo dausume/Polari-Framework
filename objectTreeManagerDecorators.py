@@ -1758,11 +1758,24 @@ class managerObject:
                                     #add to eliminated instances
                                     eliminatedInstances[querySegment] = self.objectTables[className][remainingInstanceId]
                     else:
+                        #EQUALS on a NON-id attribute. This branch used to
+                        #loop, set a local, print, and eliminate nothing —
+                        #so every attribute query silently returned the
+                        #whole table. Implemented the same way the CONTAINS
+                        #branch below already does it: read the attribute
+                        #off each instance and eliminate the non-matches.
+                        #Compared as strings because query values arrive
+                        #from a URL query string, where 6 and "6" are the
+                        #same thing.
                         for remainingInstanceId in remainingInstances.keys():
+                            remainingInstance = self.objectTables[className][remainingInstanceId]
                             remainingInstanceMeetsCriteria = False
-                            if(remainingInstanceId != querySegment):
-                                remainingInstanceMeetsCriteria = True
-                        print("finding instances with non-id attribute of type string.")
+                            if(hasattr(remainingInstance, someAttribute)):
+                                attributeValue = getattr(remainingInstance, someAttribute)
+                                if(attributeValue is not None and str(attributeValue) == querySegment):
+                                    remainingInstanceMeetsCriteria = True
+                            if(not remainingInstanceMeetsCriteria):
+                                eliminatedInstances[remainingInstanceId] = remainingInstance
                 else:
                     raise ValueError("Entered invalid type into EQUALS section of query.")
             #Remove eliminated instances from the remaining instances dict.
