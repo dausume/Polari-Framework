@@ -417,3 +417,155 @@ def modern_worst_case(manager, background_ppm,
             'survey lacks. That is the study this whole page '
             'points at.'),
     }
+
+
+#: Stumm 2023's modelled hypercapnic-onset figure. A MODEL's
+#: output, not a measurement, and it is drawn as a plotted column
+#: rather than a styled reference line because the graph renderer
+#: has no reference-line feature - the same workaround the msim
+#: seeds use, where the crossing IS data.
+STUMM_ONSET_PPM = 3000.0
+#: The contested cognitive line, for context on the same axis.
+COGNITIVE_CONTESTED_PPM = 2500.0
+
+
+def urban_bedroom_trajectory(manager, from_year=None,
+                             to_year=2150.0, step=5.0,
+                             urban_band='high',
+                             measured_offset_ppm=2050.0,
+                             modelled_offset_ppm=2666.7):
+    """WHEN DOES AN URBAN-CORE SEALED BEDROOM REACH 3000 ppm?
+
+    The room does not change. Only the floor under it rises, so
+    the trajectory is the background projection shifted up by two
+    constants: the urban enhancement and the room's ventilation
+    offset.
+
+    BOTH offsets are plotted. The measured-derived one (2050 ppm,
+    stripped from published bedroom measurements) is the primary;
+    the modelled one (2667) is shown beside it because it is what
+    this app's own room model produces - and because it puts even
+    a RURAL bedroom past Stumm's onset today, which is a reductio
+    that says the model's ventilation prior is wrong rather than
+    that we are already past the line.
+    """
+    from climate.co2_settings import local_outdoor_ppm
+    from climate.co2_trend import crossing_year, fit_trend, project
+    from climate.series_ingest import series_points
+
+    points = series_points(manager, 'co2-mauna-loa-annual')
+    if not points:
+        return {'ok': False,
+                'refusal': ('the outdoor series is not ingested, '
+                            'so there is no trajectory to '
+                            'project')}
+    last = max(p['year'] for p in points)
+    quad = fit_trend(points, method='quadratic',
+                     window_from=last - 45)
+    lin = fit_trend(points, method='linear', window_from=last - 30)
+    if not quad.get('ok'):
+        return {'ok': False, 'refusal': quad.get('refusal', '')}
+
+    urban = local_outdoor_ppm(manager, 0.0, 'outdoor-urban-core',
+                              band=urban_band)
+    if not urban.get('ok'):
+        return urban
+    enhancement = urban['enhancementPpm']
+
+    rows, year = [], (from_year if from_year is not None
+                      else float(int(last)))
+    while year <= to_year:
+        pq = project(quad, year)
+        pl = project(lin, year) if lin.get('ok') else None
+        if pq.get('ok'):
+            base_q = pq['value']
+            row = {
+                'year': year,
+                'backgroundQuadratic': round(base_q, 1),
+                'indoorMeasuredOffset': round(
+                    base_q + enhancement + measured_offset_ppm, 1),
+                'indoorModelledOffset': round(
+                    base_q + enhancement + modelled_offset_ppm, 1),
+                'stummOnset': STUMM_ONSET_PPM,
+                'cognitiveContested': COGNITIVE_CONTESTED_PPM,
+            }
+            if pl and pl.get('ok'):
+                row['backgroundLinear'] = round(pl['value'], 1)
+                row['indoorLinearOffset'] = round(
+                    pl['value'] + enhancement
+                    + measured_offset_ppm, 1)
+            rows.append(row)
+        year += step
+
+    # The crossing: indoor hits 3000 when background hits
+    # 3000 - enhancement - offset.
+    crossings = {}
+    for label, offset in (('measured', measured_offset_ppm),
+                          ('modelled', modelled_offset_ppm)):
+        need = STUMM_ONSET_PPM - enhancement - offset
+        entry = {'offsetPpm': offset,
+                 'backgroundNeededPpm': round(need, 1)}
+        if need <= (points[-1]['value']):
+            entry.update(
+                alreadyPast=True, crossingYear=None,
+                note=('already past at today\'s background - see '
+                      'the reductio note: this is the offset '
+                      'whose own model puts a RURAL bedroom over '
+                      'the line'))
+        else:
+            got_q = crossing_year(quad, need)
+            got_l = (crossing_year(lin, need) if lin.get('ok')
+                     else {'ok': False})
+            years = [g['crossingYear'] for g in (got_q, got_l)
+                     if g.get('ok') and g.get('crossingYear')]
+            entry.update(
+                alreadyPast=False,
+                crossingYearLow=min(years) if years else None,
+                crossingYearHigh=max(years) if years else None,
+                refusal=('' if years
+                         else got_q.get('refusal', '')))
+        crossings[label] = entry
+
+    primary = crossings['measured']
+    return {
+        'ok': True, 'rows': rows, 'count': len(rows),
+        'urbanBand': urban_band,
+        'urbanEnhancementPpm': enhancement,
+        'measuredOffsetPpm': measured_offset_ppm,
+        'modelledOffsetPpm': modelled_offset_ppm,
+        'stummOnsetPpm': STUMM_ONSET_PPM,
+        'crossings': crossings,
+        'presentIndoorPpm': round(
+            points[-1]['value'] + enhancement
+            + measured_offset_ppm, 1),
+        'verdict': (
+            (f'on measured offsets an urban-core sealed bedroom '
+             f'reaches Stumm\'s modelled 3000 ppm onset between '
+             f'{primary["crossingYearLow"]:.0f} and '
+             f'{primary["crossingYearHigh"]:.0f}'
+             if primary.get('crossingYearLow') else
+             'on measured offsets the crossing falls beyond the '
+             'projection horizon and no year is printed')
+            if not primary.get('alreadyPast') else
+            'on measured offsets the room is already past the '
+            'onset today'),
+        'horizonCaveat': (
+            'A CROSSING NEAR 2100 IS BEYOND WHERE A QUADRATIC FIT '
+            'DESERVES TO BE TRUSTED. It is shown because refusing '
+            'to draw it would hide the shape of the argument, but '
+            'the fit summarises 45 years of the past and its '
+            'acceleration term is not a constant of nature - the '
+            'sinks, emissions policy and the fit itself can all '
+            'move it.'),
+        'theRoomDoesNotChange': (
+            'Every ppm of rise on this chart comes from the floor '
+            'under the room, not from the room. The same bedroom '
+            'with its window ajar sits roughly 1200 ppm lower '
+            'TODAY than the sealed one will reach in a century - '
+            'which is the comparison that makes this a buildings '
+            'chart as much as a climate one.'),
+        'note': ('the threshold lines are plotted as DATA COLUMNS '
+                 'rather than styled reference lines, because the '
+                 'graph renderer has no reference-line feature; '
+                 'the crossing is where the series meet'),
+    }

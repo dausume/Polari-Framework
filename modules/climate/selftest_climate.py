@@ -2307,6 +2307,82 @@ check('worst_case_stack refuses non-numeric terms rather than '
       not worst_case_stack('x', 1, 2).get('ok'))
 
 
+print('== suite: co2-T — the urban sealed-bedroom trajectory ==')
+
+from climate.co2_scenarios import (
+    STUMM_ONSET_PPM, urban_bedroom_trajectory,
+)
+from climate.climate_pages import TRAJECTORY_GRAPHS
+
+_t_mgr = types.SimpleNamespace(objectTables={
+    'AmbientSettingProfile': _table(SEED_AMBIENT_SETTINGS),
+    'AtmosphericSeriesDefinition': _table(_gser),
+    'AtmosphericObservation': {
+        f't{_i}': _ns({'name': f't{_i}',
+                       'series_ref': 'co2-mauna-loa-annual',
+                       'span_ref': 'span-mlo',
+                       'year': 1960.0 + _i,
+                       'value': 316.0 + 1.6 * _i
+                       + 0.011 * _i * _i,
+                       'uncertainty': 0.12})
+        for _i in range(66)}})
+_t_mgr.objectTypingDict = {k: object() for k in _t_mgr.objectTables}
+_T = urban_bedroom_trajectory(_t_mgr)
+
+check('the trajectory projects the ROOM forward by shifting the '
+      'background under it - the room itself never changes, which '
+      'is what makes this a buildings chart as much as a climate '
+      'one',
+      _T['ok'] and 'floor under the room'
+      in _T['theRoomDoesNotChange'])
+
+check('BOTH offsets are plotted: the measured-derived one as '
+      'primary and this app\'s own modelled one beside it, '
+      'because the model is known-pessimistic rather than a rival '
+      'estimate',
+      _T['measuredOffsetPpm'] < _T['modelledOffsetPpm']
+      and all('indoorMeasuredOffset' in r
+              and 'indoorModelledOffset' in r
+              for r in _T['rows']))
+
+check('the modelled-offset crossing reports ALREADY PAST, and '
+      'says why that is a reductio rather than a finding - the '
+      'same offset puts a RURAL bedroom over the line today',
+      _T['crossings']['modelled']['alreadyPast'] is True
+      and 'RURAL' in _T['crossings']['modelled']['note'])
+
+check('while the MEASURED offset gives a real crossing band well '
+      'into the next century, not today',
+      _T['crossings']['measured']['alreadyPast'] is False
+      and _T['crossings']['measured']['crossingYearLow'] > 2050)
+
+check('the threshold is a PLOTTED DATA COLUMN, not a styled '
+      'reference line - the renderer has no reference-line '
+      'feature, so the crossing has to be where two series meet',
+      all(r['stummOnset'] == STUMM_ONSET_PPM for r in _T['rows'])
+      and len({r['stummOnset'] for r in _T['rows']}) == 1)
+
+check('and the horizon caveat travels with it: a crossing near '
+      '2100 is beyond where a quadratic fit deserves trust, and '
+      'the fit\'s acceleration term is not a constant of nature',
+      'BEYOND WHERE A QUADRATIC FIT DESERVES TO BE TRUSTED'
+      in _T['horizonCaveat'])
+
+check('the graph is routed as a COMPUTED trajectory rather than '
+      'read from an observation table, like the budget graphs',
+      'climate-urban-bedroom-trajectory' in TRAJECTORY_GRAPHS)
+
+check('an un-ingested background series REFUSES rather than '
+      'projecting from nothing',
+      not urban_bedroom_trajectory(
+          types.SimpleNamespace(
+              objectTables={'AtmosphericObservation': {},
+                            'AtmosphericSeriesDefinition': {},
+                            'AmbientSettingProfile':
+                                _table(SEED_AMBIENT_SETTINGS)},
+              objectTypingDict={})).get('ok'))
+
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

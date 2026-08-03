@@ -154,6 +154,34 @@ SEED_CLIMATE_GRAPHS = [
                       'fraction of emissions absorbed',
                       series_colors=['#3f7fbf'])),
     _graph(
+        'climate-urban-bedroom-trajectory',
+        'THE ROOM DOES NOT CHANGE - the floor under it rises. An '
+        'urban-core sealed bedroom projected forward on the '
+        'current fitted trajectory, against Stumm 2023\'s '
+        'modelled 3000 ppm hypercapnic onset and the contested '
+        '2500 ppm cognitive line. Today it sits at about 2727 ppm '
+        'for eight hours a night; on MEASURED ventilation offsets '
+        'it reaches 3000 between roughly 2095 and 2150. The '
+        'second indoor line uses this app\'s own room model, '
+        'which is already past the onset today - and which also '
+        'puts a RURAL bedroom over it, so that line is shown as a '
+        'known-pessimistic bound rather than a rival estimate. '
+        'The threshold lines are plotted as data columns because '
+        'the renderer has no reference-line feature; the crossing '
+        'is where the series meet.',
+        'AtmosphericObservation',
+        _graph_config('lineY', 'year',
+                      ['indoorMeasuredOffset',
+                       'indoorModelledOffset', 'stummOnset',
+                       'cognitiveContested',
+                       'backgroundQuadratic'],
+                      'year (CE)',
+                      'CO2 breathed in the room (ppm)',
+                      series_colors=['#c0392b', '#8e1b12',
+                                     '#5e0f0a', '#d97b29',
+                                     '#3f7fbf'],
+                      height=460)),
+    _graph(
         'climate-co2-instrumental',
         'NOAA GML Mauna Loa annual mean CO2, 1959 onward. You are '
         'looking at the direct instrumental record: one annual '
@@ -381,6 +409,13 @@ def graph_names():
 #: than one observation series, because the differential only
 #: exists as a relationship BETWEEN series. Listed here so
 #: graph_data can route them without guessing from the config.
+#: Graphs whose rows are PROJECTED rather than observed.
+#: Routed like the budget graphs - they are computed, not read
+#: from an observation table.
+TRAJECTORY_GRAPHS = frozenset({
+    'climate-urban-bedroom-trajectory',
+})
+
 BUDGET_GRAPHS = frozenset({
     'climate-source-sink-differential',
     'climate-sources-vs-sinks',
@@ -414,6 +449,23 @@ def graph_data(manager, graph_name):
     # sources, sinks, the differential and each sink separately, so
     # a single row feeds all four of them. They come from the
     # stored per-column observation series, not from one series.
+    if graph_name in TRAJECTORY_GRAPHS:
+        from climate.co2_scenarios import urban_bedroom_trajectory
+        traj = urban_bedroom_trajectory(manager)
+        if not traj.get('ok'):
+            return {'ok': False, 'graph': graph_name,
+                    'graphConfig': config,
+                    'refusal': traj.get('refusal', '')}
+        return {'ok': True, 'graph': graph_name,
+                'graphConfig': config, 'rows': traj['rows'],
+                'rowCount': traj['count'],
+                'spans': [], 'citations': [],
+                'crossings': traj['crossings'],
+                'verdict': traj['verdict'],
+                'horizonCaveat': traj['horizonCaveat'],
+                'theRoomDoesNotChange': traj['theRoomDoesNotChange'],
+                'note': traj['note']}
+
     if graph_name in BUDGET_GRAPHS:
         from climate.carbon_sinks import budget_graph_rows
         built = budget_graph_rows(manager)
