@@ -613,6 +613,55 @@ def _what_would_change_this(manager, a):
     }
 
 
+def _carbon_sinks(manager, args):
+    """co2-6: which sinks are largest, what they sequester, and
+    THE SOURCE/SINK DIFFERENTIAL - including when the two were
+    last in balance, which only the ice cores can date."""
+    from climate.carbon_sinks import (
+        balance_history, budget_closure, budget_records_from_rows,
+        rate_comparison, sink_ranking, sink_trend_report,
+        source_sink_differential,
+    )
+    loaded = budget_records_from_rows(manager)
+    if not loaded.get('ok'):
+        return loaded
+    records = loaded['records']
+    ranking = sink_ranking(records)
+    differential = source_sink_differential(records)
+    trend = sink_trend_report(records)
+    ice = series_points(manager, args.get('ice_series') or
+                        ICE_SERIES)
+    instrumental = series_points(manager, args.get('series') or
+                                 OUTDOOR_SERIES)
+    balance = (balance_history(ice, differential) if ice else
+               {'ok': False,
+                'refusal': ('the ice-core series is not ingested, '
+                            'and the budget alone cannot date the '
+                            'end of balance - it begins in 1959, '
+                            'long after')})
+    headline = []
+    for part in (ranking, differential, trend):
+        if part.get('ok'):
+            headline.extend(part.get('headline') or [])
+    payload = {
+        'ok': True, 'ranking': ranking, 'differential': differential,
+        'trend': trend, 'balance': balance, 'headline': headline,
+        'note': ('the sinks are doing MORE work every decade and '
+                 'still falling further behind, because emissions '
+                 'grew faster. Only the differential shows both at '
+                 'once, which is why it has its own graph.'),
+    }
+    if balance.get('ok') and instrumental:
+        rc = rate_comparison(balance, instrumental)
+        payload['rateComparison'] = rc
+        if rc.get('ok'):
+            headline.extend(rc.get('headline') or [])
+    if differential.get('ok') and instrumental:
+        payload['closure'] = budget_closure(differential,
+                                            instrumental)
+    return payload
+
+
 SECTION_SOURCES = {
     'outdoor-record': _outdoor_record,
     'trend-fits': _trend_fits,
@@ -621,6 +670,7 @@ SECTION_SOURCES = {
     'indoor-coupling': _indoor_coupling,
     'crossings': _crossings,
     'human-history': _human_history,
+    'carbon-sinks': _carbon_sinks,
     'sources': _sources,
     'what-would-change-this': _what_would_change_this,
 }
@@ -703,6 +753,26 @@ SEED_CLIMATE_VIEWS = [
                   'cannot answer it and the study design that '
                   'could — a correlation drawn here would invent '
                   'the evidence it lacks.'},
+         {'name': 'carbon-sinks', 'source': 'carbon-sinks',
+          'args': {'series': OUTDOOR_SERIES,
+                   'ice_series': ICE_SERIES},
+          'lead': 'Which sinks are largest, what they actually '
+                  'sequester each year, and the gap between what '
+                  'is emitted and what is taken back. The ocean '
+                  'leads in every era of the record. The sinks '
+                  'are working harder every decade AND falling '
+                  'further behind - only the differential shows '
+                  'both at once, and it never reaches zero, so '
+                  'the question of when sources and sinks last '
+                  'balanced belongs to the ice cores.',
+          'links': [{'label': 'Source/sink differential',
+                     'kind': 'graph',
+                     'route': '/api/climate/graph/'
+                              'climate-source-sink-differential'},
+                    {'label': 'What each sink sequesters',
+                     'kind': 'graph',
+                     'route': '/api/climate/graph/'
+                              'climate-sink-composition'}]},
          {'name': 'sources', 'source': 'sources',
           'args': {'series': OUTDOOR_SERIES,
                    'ice_series': ICE_SERIES},

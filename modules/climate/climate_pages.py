@@ -95,6 +95,65 @@ def _graph(name, description, source_class, config):
 
 SEED_CLIMATE_GRAPHS = [
     _graph(
+        'climate-source-sink-differential',
+        'THE IMBALANCE, per year: what humans emit MINUS what the '
+        'ocean, land and cement sinks take back (Global Carbon '
+        'Budget 2025). Zero on this axis would mean sources and '
+        'sinks in balance. The line never touches it: the record '
+        'opens at 3.21 GtC/yr in 1959, and its smallest gap in 66 '
+        'years is 1.85 GtC/yr in 1974. That is the point of '
+        'plotting the difference rather than the two totals — an '
+        'imbalance is hard to see between two rising lines and '
+        'impossible to miss on its own axis.',
+        'CarbonSinkSeries',
+        _graph_config('lineY', 'year', ['differential'],
+                      'year (CE)',
+                      'sources minus sinks (GtC/yr)',
+                      series_colors=['#c0392b'])),
+    _graph(
+        'climate-sources-vs-sinks',
+        'Sources and sinks as two lines on one axis (Global Carbon '
+        'Budget 2025). The sinks ARE working harder every decade — '
+        'total uptake more than tripled since 1959 — and they are '
+        'still falling further behind, because emissions grew '
+        'faster. The gap between these two lines is the '
+        'differential graph; shown together so a reader can see '
+        'that the widening gap is not a story of failing sinks.',
+        'CarbonSinkSeries',
+        _graph_config('lineY', 'year', ['sources', 'sinks'],
+                      'year (CE)', 'carbon flux (GtC/yr)',
+                      series_colors=['#8e1b12', '#2e8b57'])),
+    _graph(
+        'climate-sink-composition',
+        'What each sink actually sequesters per year (Global '
+        'Carbon Budget 2025). The OCEAN is the largest single sink '
+        'in every era of the record — 3.22 GtC/yr and 56 percent '
+        'of all uptake in 2015-2024, against 2.36 for land. Cement '
+        'carbonation, which most summaries omit entirely, is small '
+        'but has grown roughly tenfold from a very small base. The '
+        'land term is the noisiest and drives the recent '
+        'excursion.',
+        'CarbonSinkSeries',
+        _graph_config('lineY', 'year',
+                      ['oceanSink', 'landSink', 'cementSink'],
+                      'year (CE)', 'carbon sequestered (GtC/yr)',
+                      series_colors=['#2b6cb0', '#2e8b57',
+                                     '#a0801f'])),
+    _graph(
+        'climate-sink-share',
+        'The share of each year\'s emissions the sinks took back '
+        '(Global Carbon Budget 2025). This is the differential '
+        'expressed as a proportion, and it is the number that '
+        'corrects a common assumption: it is roughly FLAT across '
+        'the record (weak positive drift, r=+0.29), not declining. '
+        'The sinks have broadly kept pace proportionally while '
+        'the absolute gap widened.',
+        'CarbonSinkSeries',
+        _graph_config('lineY', 'year', ['sinkShareOfSources'],
+                      'year (CE)',
+                      'fraction of emissions absorbed',
+                      series_colors=['#3f7fbf'])),
+    _graph(
         'climate-co2-instrumental',
         'NOAA GML Mauna Loa annual mean CO2, 1959 onward. You are '
         'looking at the direct instrumental record: one annual '
@@ -268,6 +327,18 @@ def graph_names():
     return sorted(GRAPHS_BY_NAME)
 
 
+#: The carbon-budget graphs draw from WIDE per-year rows rather
+#: than one observation series, because the differential only
+#: exists as a relationship BETWEEN series. Listed here so
+#: graph_data can route them without guessing from the config.
+BUDGET_GRAPHS = frozenset({
+    'climate-source-sink-differential',
+    'climate-sources-vs-sinks',
+    'climate-sink-composition',
+    'climate-sink-share',
+})
+
+
 def graph_data(manager, graph_name):
     """One seeded graph's config AND its data, resolved BY NAME.
 
@@ -289,6 +360,28 @@ def graph_data(manager, graph_name):
         return {'ok': False, 'graph': graph_name,
                 'refusal': f'the seeded definition does not parse '
                            f'as a graphConfig: {exc}'}
+    # The carbon-budget graphs are WIDE: one row per year carrying
+    # sources, sinks, the differential and each sink separately, so
+    # a single row feeds all four of them. They come from the
+    # stored per-column observation series, not from one series.
+    if graph_name in BUDGET_GRAPHS:
+        from climate.carbon_sinks import budget_graph_rows
+        built = budget_graph_rows(manager)
+        if not built.get('ok'):
+            return {'ok': False, 'graph': graph_name,
+                    'graphConfig': config,
+                    'refusal': built.get('refusal', '')}
+        from climate.climate_history import coverage_citations
+        cites = coverage_citations(manager, 'carbon-budget')
+        return {'ok': True, 'graph': graph_name,
+                'graphConfig': config, 'rows': built['rows'],
+                'rowCount': built['count'],
+                'spans': (cites.get('spans') if cites.get('ok')
+                          else []),
+                'citations': (cites.get('citationLines')
+                              if cites.get('ok') else []),
+                'note': built.get('note', '')}
+
     series = GRAPH_SERIES.get(graph_name, '')
     if not series:
         computed = GRAPH_COMPUTED_BY.get(graph_name, '')

@@ -51,6 +51,9 @@ class ClimateAPI(treeObject):
                 suffix='physiology')
             add('/api/climate/history', self, suffix='history')
             add('/api/climate/sources', self, suffix='sources')
+            add('/api/climate/sinks', self, suffix='sinks')
+            add('/api/climate/ingest-budget', self,
+                suffix='ingest_budget')
             add('/api/climate/biomarker', self, suffix='biomarker')
             add('/api/climate/bindings', self, suffix='bindings')
             add('/api/climate/view/{view_name}', self, suffix='view')
@@ -243,6 +246,59 @@ class ClimateAPI(treeObject):
                 self.manager, series_name,
                 from_year=_float(request, 'from_year'),
                 to_year=_float(request, 'to_year'))
+        response.media = payload
+
+    def on_post_ingest_budget(self, request, response):
+        """Fetch the Global Carbon Budget workbook and store each
+        column as its own observation series."""
+        from climate.carbon_sinks import ingest_carbon_budget
+        result = ingest_carbon_budget(
+            self.manager,
+            retrieved_by=(request.params.get('retrieved_by') or ''))
+        if not result.get('ok'):
+            response.status = '502 Bad Gateway'
+        response.media = result
+
+    def on_get_sinks(self, request, response):
+        """co2-6: which sinks are largest, what they sequester,
+        and THE SOURCE/SINK DIFFERENTIAL per year - including when
+        the two were last in balance, which only the ice cores can
+        answer."""
+        from climate.carbon_sinks import (
+            balance_history, budget_closure, budget_records_from_rows,
+            rate_comparison, sink_ranking, sink_trend_report,
+            source_sink_differential,
+        )
+        from climate.series_ingest import series_points
+        loaded = budget_records_from_rows(self.manager)
+        if not loaded.get('ok'):
+            response.status = '409 Conflict'
+            response.media = loaded
+            return
+        records = loaded['records']
+        differential = source_sink_differential(records)
+        ice = series_points(self.manager, 'co2-ice-core-composite')
+        instrumental = series_points(self.manager,
+                                     'co2-mauna-loa-annual')
+        balance = (balance_history(ice, differential) if ice else
+                   {'ok': False,
+                    'refusal': ('the ice-core series is not '
+                                'ingested, and the budget alone '
+                                'cannot date the end of balance - '
+                                'it begins in 1959, long after')})
+        payload = {
+            'ok': True,
+            'ranking': sink_ranking(records),
+            'trend': sink_trend_report(records),
+            'differential': differential,
+            'balance': balance,
+        }
+        if balance.get('ok') and instrumental:
+            payload['rateComparison'] = rate_comparison(
+                balance, instrumental)
+        if differential.get('ok') and instrumental:
+            payload['closure'] = budget_closure(differential,
+                                                instrumental)
         response.media = payload
 
     def on_get_biomarker(self, request, response):
