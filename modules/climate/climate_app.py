@@ -83,6 +83,13 @@ SEED_CLIMATE_APPS = [{
                   requires_module='climate'),
               _it('What humans have actually breathed', 'page',
                   route='/co2/health?section=human-history',
+                  requires_module='climate'),
+              _it('Three eras: historical, modern, projected',
+                  'page', route='/co2/eras',
+                  requires_module='climate'),
+              _it('Chemical imbalances - bicarbonate, calcium, '
+                  'blood pressure', 'page',
+                  route='/co2/health?section=biochemistry',
                   requires_module='climate')),
         _grp('Data',
              _it('Series catalog', 'class-rows',

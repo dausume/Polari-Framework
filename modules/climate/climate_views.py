@@ -662,6 +662,74 @@ def _carbon_sinks(manager, args):
     return payload
 
 
+def _scenarios(manager, args):
+    """co2-SC: historical, modern and future in ONE table against
+    ONE threshold ladder - so the comparison is structural rather
+    than asserted, and confidence visibly DECREASES toward the
+    future column."""
+    from climate.co2_scenarios import scenario_thresholds
+    present = _present_outdoor(manager, args)
+    if present is None:
+        return {'ok': False,
+                'refusal': ('no outdoor level ingested, so no era '
+                            'can be placed - fetch '
+                            'co2-mauna-loa-annual first')}
+    built = scenario_thresholds(manager, present)
+    if not built.get('ok'):
+        return built
+    head = []
+    for row in built['rows']:
+        level = row.get('levelPpm')
+        head.append({
+            'label': f'[{row["era"]}] {row["label"]}',
+            'value': f'{level:.0f} ppm',
+            'note': (f'{row["crossedCount"]} threshold(s) crossed - '
+                     f'{row["evidence"]}'),
+            'verdict': ('ok' if row['era'] == 'historical'
+                        else 'warn' if row['era'] == 'modern'
+                        else 'bad'),
+        })
+    return {'ok': True, 'headline': head, **built}
+
+
+def _biochemistry(manager, args):
+    """co2-CHEM: the chemical-imbalance question, answered with
+    within-person NHANES chemistry rather than psychiatric
+    proxies."""
+    from climate.co2_biochemistry import biochemistry_report
+    from composition.data_refs import rows as _r
+    ca, bp, cl, ag = {}, {}, {}, {}
+    for row in _r(manager, 'BiomarkerCycleObservation'):
+        cycle = getattr(row, 'cycle', '')
+        series = getattr(row, 'series_ref', '')
+        mean = float(getattr(row, 'mean', 0.0) or 0.0)
+        if not cycle or not mean:
+            continue
+        if 'calcium-assoc' in series:
+            ca[cycle] = mean
+        elif 'bp-assoc' in series:
+            bp[cycle] = mean
+        elif 'chloride' in series:
+            cl[cycle] = mean
+        elif 'anion' in series:
+            ag[cycle] = mean
+    if len(ca) < 3:
+        return {'ok': False,
+                'refusal': ('the within-person chemistry '
+                            'associations are not ingested - this '
+                            'section reports MEASURED NHANES '
+                            'chemistry and will not synthesise '
+                            'it')}
+    return biochemistry_report(ca, bp, cl, ag)
+
+
+def _present_outdoor(manager, args):
+    from climate.series_ingest import series_points
+    pts = series_points(manager, args.get('series') or
+                        OUTDOOR_SERIES)
+    return pts[-1]['value'] if pts else None
+
+
 SECTION_SOURCES = {
     'outdoor-record': _outdoor_record,
     'trend-fits': _trend_fits,
@@ -670,6 +738,8 @@ SECTION_SOURCES = {
     'indoor-coupling': _indoor_coupling,
     'crossings': _crossings,
     'human-history': _human_history,
+    'scenarios': _scenarios,
+    'biochemistry': _biochemistry,
     'carbon-sinks': _carbon_sinks,
     'sources': _sources,
     'what-would-change-this': _what_would_change_this,
@@ -753,6 +823,27 @@ SEED_CLIMATE_VIEWS = [
                   'cannot answer it and the study design that '
                   'could — a correlation drawn here would invent '
                   'the evidence it lacks.'},
+         {'name': 'scenarios', 'source': 'scenarios',
+          'args': {'series': OUTDOOR_SERIES},
+          'lead': 'Historical, modern and future in one table '
+                  'against one threshold ladder. Confidence '
+                  'DECREASES from left to right: pre-industrial '
+                  'outdoor is measured ice core, modern indoor is '
+                  'modelled but checkable against published '
+                  'measurements, and every future row is two '
+                  'models stacked on each other. That is the '
+                  'opposite of how such tables usually read.'},
+         {'name': 'biochemistry', 'source': 'biochemistry',
+          'args': {},
+          'lead': 'The chemical-imbalance question, asked with '
+                  'chemistry rather than psychiatric proxies: '
+                  'bicarbonate against calcium and against '
+                  'MEASURED blood pressure, in the same NHANES '
+                  'blood draw. The couplings are real and '
+                  'reproducible; whether ambient CO2 drives them '
+                  'is a different question this design cannot '
+                  'answer, because everyone in a national survey '
+                  'breathes the same air.'},
          {'name': 'carbon-sinks', 'source': 'carbon-sinks',
           'args': {'series': OUTDOOR_SERIES,
                    'ice_series': ICE_SERIES},

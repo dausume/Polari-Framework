@@ -2134,6 +2134,104 @@ check('a payload whose shape depends on the request is a trap for '
       and 'climate-co2-instrumental' not in BUDGET_GRAPHS)
 
 
+print('== suite: co2-CHEM — chemistry, not psychiatric proxies ==')
+
+from climate.co2_biochemistry import (
+    assay_change_flag, biochemistry_report, stability_across_cycles,
+    within_person_association,
+)
+from climate.co2_disorders import window_sensitivity
+from climate.climate_pages import SEED_CLIMATE_ERA_DISPLAYS
+
+# The real NHANES values, computed from the ingested XPT files.
+_CA = {'2005-2006': 0.212, '2009-2010': 0.177,
+       '2013-2014': 0.144, '2017-2018': 0.101,
+       '2021-2023': 0.143}
+_BP = {'2005-2006': 0.137, '2009-2010': 0.133,
+       '2013-2014': 0.099, '2017-2018': 0.095,
+       '2021-2023': 0.113}
+_CL = {'2005-2006': 103.72, '2009-2010': 104.04,
+       '2013-2014': 104.31, '2017-2018': 101.03,
+       '2021-2023': 101.43}
+_AG = {'2005-2006': 10.605, '2009-2010': 9.858,
+       '2013-2014': 10.286, '2017-2018': 13.750,
+       '2021-2023': 13.566}
+_BIO = biochemistry_report(_CA, _BP, _CL, _AG)
+
+check('the bicarbonate-calcium association is POSITIVE in every '
+      'one of five independent national samples — Stumm 2023 '
+      'proposed exactly this link, and the first step of his '
+      'chain does reproduce',
+      _BIO['calciumStability']['consistentSign'] is True
+      and _BIO['calciumStability']['min'] > 0)
+
+check('and so does bicarbonate against MEASURED systolic blood '
+      'pressure — the stress-and-hypertension pathway Dustin '
+      'asked about, from an examiner rather than a questionnaire',
+      _BIO['bloodPressureStability']['consistentSign'] is True)
+
+check('BUT the answer refuses to convert that into a CO2 claim: '
+      'these analytes are co-regulated by the renal and acid-base '
+      'systems and would correlate at 280 ppm exactly as at 420',
+      '280 ppm' in _BIO['answer']
+      and 'pathway exists' in _BIO['answer'])
+
+check('and the effect size is stated rather than left flattering '
+      '— r about 0.15 is roughly 2 percent of variance',
+      any('Variance explained' in h['label']
+          for h in _BIO['headline']))
+
+check('THE ASSAY STEP IS CAUGHT QUANTITATIVELY, not warned about: '
+      'serum chloride moves 3.3 mmol/L between adjacent cycles, '
+      'which is a laboratory event and not a population one',
+      _BIO['chlorideAssayFlag']['anyFlagged'] is True
+      and 'STEP CHANGE FLAGGED'
+      in _BIO['chlorideAssayFlag']['verdict'])
+
+check('so the population TIME TREND is declared unusable — the '
+      'anion gap jumps in the same step, and any trend computed '
+      'across it is an artifact',
+      _BIO['anionGapAssayFlag']['anyFlagged'] is True)
+
+check('the DESIGN problem is named as the real blocker, above the '
+      'statistics: in a national survey everybody breathes the '
+      'same outdoor air, so there is NO EXPOSURE CONTRAST for any '
+      'ambient effect to show up against',
+      'NO EXPOSURE CONTRAST' in _BIO['theDesignProblem'])
+
+check('and the rejected proxy is recorded rather than quietly '
+      'dropped: suicide rates were tested first, and are kept '
+      'only as a demonstration that window-picking is worthless',
+      'NOT reported as evidence' in _BIO['whatWasRejected'])
+
+_WS = window_sensitivity(
+    {1960 + i: 10.0 + (0.4 * i if i > 40 else -0.02 * i)
+     for i in range(59)},
+    {1960 + i: 316.0 + 1.6 * i for i in range(59)},
+    [{'label': 'early', 'from': 1960, 'to': 1999},
+     {'label': 'late', 'from': 2000, 'to': 2018}],
+    label_a='a proxy', label_b='CO2')
+check('the window-sensitivity method survives as a reusable '
+      'guard: a correlation that CHANGES SIGN between adjacent '
+      'windows is a property of the window, and the payload says '
+      'so instead of reporting the flattering half',
+      _WS['ok'] and _WS['signFlips'] is True
+      and _WS['stable'] is False
+      and 'not of the world' in _WS['verdict'])
+
+check('a within-person association REFUSES on too few pairs — '
+      'the design is only worth more than a time series when it '
+      'actually has the subjects',
+      not within_person_association([(1.0, 2.0)] * 5).get('ok'))
+
+check('a second Display PAGE covers the three eras as no-code '
+      'rows, so the era comparison has its own route rather than '
+      'being buried in the study',
+      len(SEED_CLIMATE_ERA_DISPLAYS) == 1
+      and SEED_CLIMATE_ERA_DISPLAYS[0]['pageRoute'] == 'co2/eras'
+      and SEED_CLIMATE_ERA_DISPLAYS[0]['isPage'] is True)
+
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

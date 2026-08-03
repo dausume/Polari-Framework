@@ -55,6 +55,10 @@ class ClimateAPI(treeObject):
             add('/api/climate/citations', self,
                 suffix='citations')
             add('/api/climate/claims', self, suffix='claims')
+            add('/api/climate/biochemistry', self,
+                suffix='biochemistry')
+            add('/api/climate/scenarios', self,
+                suffix='scenarios')
             add('/api/climate/symptoms', self,
                 suffix='symptoms')
             add('/api/climate/settings', self,
@@ -274,6 +278,44 @@ class ClimateAPI(treeObject):
         response.media = page_claims(
             self.manager,
             background_ppm=_float(request, 'background_ppm'))
+
+    def on_get_biochemistry(self, request, response):
+        """co2-CHEM: within-person NHANES chemistry - bicarbonate
+        against calcium and measured blood pressure."""
+        from climate.climate_views import view_payload
+        payload = view_payload(self.manager, 'view-co2-health')
+        section = next(
+            (s for s in (payload.get('sections') or [])
+             if s.get('section') == 'biochemistry'), None)
+        body = (section or {}).get('payload')
+        if body is None:
+            response.status = '409 Conflict'
+            response.media = {
+                'ok': False,
+                'refusal': ((section or {}).get('refusal')
+                            or 'biochemistry section unavailable')}
+            return
+        response.media = body
+
+    def on_get_scenarios(self, request, response):
+        """co2-SC: historical / modern / future against one
+        threshold ladder."""
+        from climate.co2_scenarios import scenario_thresholds
+        background = _float(request, 'background_ppm')
+        if background is None:
+            background = _present_outdoor(self.manager)
+        if background is None:
+            response.status = '409 Conflict'
+            response.media = {
+                'ok': False,
+                'refusal': ('no background level ingested - no '
+                            'era can be placed against the '
+                            'ladder')}
+            return
+        result = scenario_thresholds(self.manager, background)
+        if not result.get('ok'):
+            response.status = '409 Conflict'
+        response.media = result
 
     def on_get_citations(self, request, response):
         """Every threshold with its source RESOLVED across all

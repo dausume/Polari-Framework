@@ -309,6 +309,55 @@ SEED_CLIMATE_PAGE_DISPLAYS = [{
 }]
 
 
+#: A SECOND page, because the eras question deserves its own
+#: route rather than a section buried in the study. Same no-code
+#: mechanism: rows, not a component.
+SEED_CLIMATE_ERA_DISPLAYS = [{
+    'name': 'co2-eras',
+    'description': (
+        'CO2 across three eras - historical, modern and projected '
+        '- against one threshold ladder, with the chemical '
+        'evidence beside it. Confidence DECREASES toward the '
+        'future column, which is the opposite of how such pages '
+        'usually read.'),
+    'source_class': 'AtmosphericSeriesDefinition',
+    'isPage': True, 'pageRoute': 'co2/eras',
+    'linkedSolutions': '[]',
+    'definition': json.dumps({'rows': [
+        _row(0, [
+            _api('co2e-scenarios', 0, 12,
+                 'Historical, modern and future - one ladder, '
+                 'three eras, decreasing confidence',
+                 '/api/climate/settings')]),
+        _row(1, [
+            _api('co2e-claims', 0, 6,
+                 'Every number, classified: measured, cited, '
+                 'derived, or OUR MODEL',
+                 '/api/climate/claims'),
+            _api('co2e-symptoms', 1, 6,
+                 'The cited symptom ladder, from headache to the '
+                 'levels that kill',
+                 '/api/climate/symptoms')]),
+        _row(2, [
+            _api('co2e-biochem', 0, 6,
+                 'Chemical imbalances: bicarbonate against '
+                 'calcium and measured blood pressure',
+                 '/api/climate/biochemistry'),
+            _api('co2e-citations', 1, 6,
+                 'Sources, graded - study vs standard vs '
+                 'credentialed press',
+                 '/api/climate/citations')]),
+        _row(3, [
+            _table('co2e-spans', 0, 6,
+                   'Which source covers which years',
+                   'SourceCoverageSpan'),
+            _table('co2e-thresholds', 1, 6,
+                   'Health thresholds, graded',
+                   'CO2HealthThreshold')]),
+    ]}),
+}]
+
+
 def seed_climate_pages(manager):
     """The graphs and the page, upserted so an edited config
     converges instead of inserting a duplicate."""
@@ -318,7 +367,8 @@ def seed_climate_pages(manager):
     return upsert_seed_pairs(manager, [
         ('GraphDefinition', GraphDefinition, SEED_CLIMATE_GRAPHS),
         ('DisplayDefinition', DisplayDefinition,
-         SEED_CLIMATE_PAGE_DISPLAYS),
+         SEED_CLIMATE_PAGE_DISPLAYS
+         + SEED_CLIMATE_ERA_DISPLAYS),
     ], tag='ClimatePagesSeed')
 
 
