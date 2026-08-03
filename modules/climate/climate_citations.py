@@ -43,7 +43,8 @@ PROV = 'co2-C'
 
 def _academic(name, short, title, authors, journal, year, pages,
               doi, design, n, replication, description,
-              replication_refs=(), pubmed='', notes=''):
+              replication_refs=(), pubmed='', funding='',
+              notes=''):
     return {
         'name': name, 'short_name': short, 'full_name': title,
         'official_website': doi or '', 'data_portal_url': '',
@@ -54,7 +55,8 @@ def _academic(name, short, title, authors, journal, year, pages,
         'peer_reviewed': True, 'study_design': design,
         'sample_size': n, 'replication_status': replication,
         'replication_refs_json': json.dumps(list(replication_refs)),
-        'funding_disclosure': '', 'conflicts_declared': '',
+        'funding_disclosure': funding,
+        'conflicts_declared': '',
         'description': description, 'notes': notes,
     }
 
@@ -74,19 +76,35 @@ SEED_CLIMATE_ACADEMIC_SOURCES = [
         'Environmental Health Perspectives', 2012,
         '120(12):1671-1677',
         'https://doi.org/10.1289/ehp.1104789',
-        'controlled chamber exposure, within-subject', 24,
+        'controlled chamber exposure, within-subject, '
+        'double-blinded', 22,
         'failed-to-replicate',
         'THE source behind the 1000 and 2500 ppm cognitive '
-        'thresholds. Reported moderate decrements in 6 of 9 '
-        'decision-making scales at 1000 ppm and large decrements '
-        'in 7 of 9 at 2500 ppm, against a 600 ppm baseline.',
+        'thresholds. Six of nine decision-making scales fell '
+        '11-23 percent at 1000 ppm against a 600 ppm baseline; '
+        'seven fell 44-94 percent at 2500 ppm, with five reaching '
+        'levels the authors call marginal or dysfunctional.',
         replication_refs=('rodeheffer-2018-submariners',
                           'scully-2019-astronaut-like',
                           'du-2020-critical-review'),
-        notes='n=24, mostly college students, 2.5 hours per '
-              'condition, one chamber. The effect is real IN THIS '
-              'STUDY; the three rows it points at are what '
-              'happened when others looked.'),
+        pubmed='23008272',
+        funding='Collaborative Activities for Research and '
+                'Technology Innovation (CARTI), supported by the '
+                'U.S. Environmental Protection Agency',
+        notes='CORRECTED 2026-08-03 after reading the paper '
+              'itself: n=22, NOT the 24 this row first carried. '
+              'The 24 came from a secondary summary, which is '
+              'exactly the substitution this app exists to refuse '
+              '- and it survived here for a day. Participants and '
+              'the test administrator were BLINDED to CO2 level, '
+              'and exposure order was balanced across six groups, '
+              'so the design is stronger than the replication '
+              'record suggests. THE AUTHORS THEMSELVES wrote that '
+              'the 2500 ppm effects "almost defy credibility" and '
+              'that replication was needed, and that the mechanism '
+              'was unexplained. They said it first; the three '
+              'replication rows are what happened when others '
+              'looked.'),
     _academic(
         'rodeheffer-2018-submariners', 'Rodeheffer 2018',
         'Acute Exposure to Low-to-Moderate Carbon Dioxide Levels '
@@ -180,6 +198,67 @@ SEED_CLIMATE_ACADEMIC_SOURCES = [
         notes='A SYNTHESIS, not a direct measurement, and it does '
               'not close exactly - the budget prints its own '
               'imbalance term and so does this app.'),
+    _academic(
+        'azuma-2018-low-level-co2-review', 'Azuma 2018',
+        'Effects of low-level inhalation exposure to carbon '
+        'dioxide in indoor environments: A short review on human '
+        'health and psychomotor performance',
+        'Azuma K, Kagi N, Yanagi U, Osawa H',
+        'Environment International', 2018, '121(Pt 1):51-56',
+        'https://doi.org/10.1016/j.envint.2018.08.059',
+        'narrative review of experimental and epidemiological '
+        'studies', 0, 'not-applicable',
+        'The source behind the LOW thresholds: reports linear '
+        'physiological changes in circulatory, cardiovascular and '
+        'autonomic measures across 500-5000 ppm, cognitive effects '
+        'from about 1000 ppm, and an epidemiological association '
+        'with building-related symptoms from about 700 ppm.',
+        notes='A REVIEW, not a trial - it summarises other '
+              'people\'s experiments, so the thresholds drawn from '
+              'it are graded observational rather than '
+              'controlled-human-study. Recorded from its own '
+              'abstract and reference metadata; the full text has '
+              'NOT been read by this instance.'),
+    _academic(
+        'lowther-2021-co2-indicator-or-pollutant', 'Lowther 2021',
+        'Low level carbon dioxide indoors - a pollution indicator '
+        'or a pollutant? A health-based perspective',
+        'Lowther SD, Dimitroulopoulou S, Foxall K, Shrubsole C, '
+        'Cheek E, Gadeberg B, Sepai O',
+        'Environments', 2021, '8(11):125',
+        'https://doi.org/10.3390/environments8110125',
+        'health-based review', 0, 'not-applicable',
+        'Asks the question this whole page turns on: is indoor CO2 '
+        'a POLLUTANT in its own right or an INDICATOR of poor '
+        'ventilation? Authors are UK Health Security Agency.',
+        notes='The framing matters more than any number in it: '
+              'ASHRAE treats CO2 as an indicator, and whether that '
+              'is right is a live scientific question rather than '
+              'a settled one. Recorded from abstract and '
+              'publisher metadata; full text NOT read here.'),
+    _academic(
+        'stumm-2023-downregulating-human-species', 'Stumm 2023',
+        'Carbon dioxide\'s direct impact on down-regulating the '
+        'human species',
+        'Stumm RE', 'Science of the Total Environment', 2023,
+        '905:167198',
+        'https://doi.org/10.1016/j.scitotenv.2023.167198',
+        'modelling and discussion paper (single author)', 0,
+        'not-attempted',
+        'Proposes a model in which hypercapnic blood pH begins to '
+        'appear as atmospheric CO2 approaches about 3000 ppm, and '
+        'argues a causal link to calcium balance, vascular '
+        'calcification and bone demineralisation.',
+        pubmed='37734619',
+        notes='TREAT WITH CARE, and the reason is structural, not '
+              'a matter of taste: this is a single-author MODELLING '
+              'and discussion paper, not a measurement, and its '
+              'central claim has no replication attempt recorded. '
+              'Its own onset figure (~3000 ppm) sits ABOVE typical '
+              'indoor levels and far above outdoor ones, which is '
+              'worth stating whenever it is cited in support of a '
+              'lower threshold. Recorded from abstract metadata; '
+              'full text NOT read here.'),
 ]
 
 
@@ -233,7 +312,70 @@ SEED_CLIMATE_NONPROFIT_SOURCES = [
 #: reports on. Inventing a plausible-looking article row would be
 #: the exact failure this registry exists to prevent, and an
 #: article nobody has read cannot have its primary sources named.
-SEED_CLIMATE_JOURNALISTIC_SOURCES = []
+SEED_CLIMATE_JOURNALISTIC_SOURCES = [
+    {
+        'name': 'airgradient-2025-hidden-health-risks',
+        'short_name': 'AirGradient 2025',
+        'full_name': 'The Hidden Health Risks of CO2: Rethinking '
+                     'Acceptable Exposure Limits',
+        'official_website': 'https://www.airgradient.com',
+        'data_portal_url': '', 'requires_api_key': False,
+        'api_key_env': '', 'api_endpoint_names_json': '[]',
+        'outlet': 'AirGradient (company blog)',
+        'author_name': 'Dr. Safiya Cummings',
+        #: EXACTLY what the byline states. The article says "Dr."
+        #: and does not say which doctorate, so neither does this
+        #: row: writing "MD" here would be inventing a credential
+        #: to make a citation look stronger.
+        'author_credentials': 'Dr. (degree type not stated in the '
+                              'byline)',
+        'author_affiliation': '(none stated)',
+        'published_date': '2025-04-21',
+        'article_url':
+            'https://www.airgradient.com/blog/'
+            'hidden-health-risks-of-co2/',
+        'editorially_reviewed': False,
+        'is_opinion': True,
+        'primary_sources_json': json.dumps([
+            'azuma-2018-low-level-co2-review',
+            'lowther-2021-co2-indicator-or-pollutant',
+            'stumm-2023-downregulating-human-species',
+            'satish-2012-co2-decision-making']),
+        'unsourced_claims_noted': True,
+        'commercial_interest':
+            'AirGradient Co. Ltd. SELLS CO2 and air-quality '
+            'monitors. An argument that CO2 is a hidden health '
+            'risk at the levels its products measure is an '
+            'argument that increases demand for those products. '
+            'That does not make the article wrong - its four '
+            'citations are real papers and were checked - but a '
+            'citation that omits the interest is hiding something '
+            'a reader would want to weigh.',
+        'publisher_sells': 'indoor, outdoor and portable CO2 / '
+                           'air-quality monitors (open-source '
+                           'hardware), Chiang Mai, Thailand',
+        'description': 'An advocacy piece arguing that accepted '
+                       'CO2 exposure limits are too high, with a '
+                       'ladder of thresholds from 500 ppm to '
+                       '80000 ppm. It is the reason several '
+                       'low-level thresholds exist on this page '
+                       'at all.',
+        'notes': 'ALL FOUR of its citations were verified to be '
+                 'real, correctly attributed papers (Azuma 2018, '
+                 'Lowther 2021, Stumm 2023, Satish 2012) - better '
+                 'sourcing than most writing in this genre. '
+                 'unsourced_claims_noted is True because the '
+                 'article does not attribute each individual '
+                 'threshold in its ladder to a specific one of '
+                 'those four, so the mapping from a given ppm '
+                 'figure to the study behind it cannot be '
+                 'reconstructed from the piece. That is why every '
+                 'threshold sourced to this row is graded '
+                 'secondary-reporting and points at the article '
+                 'rather than at a study it may or may not rest '
+                 'on.',
+    },
+]
 
 
 def seed_climate_citations(manager):

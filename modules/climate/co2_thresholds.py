@@ -213,6 +213,168 @@ SEED_CO2_THRESHOLDS = [
                  'to fix.',
     },
     {
+        'name': 'co2-physiological-500',
+        'source_ref': 'azuma-2018-low-level-co2-review',
+        'display_name': 'Measurable circulatory changes from '
+                        '~500 ppm',
+        'ppm': 500.0, 'unit': 'ppm',
+        'effect': 'A review of experimental studies reports LINEAR '
+                  'physiological changes in circulatory, '
+                  'cardiovascular and autonomic measures across '
+                  'roughly 500-5000 ppm. Measurable is not the '
+                  'same as harmful: these are shifts an instrument '
+                  'detects, not symptoms a person reports.',
+        'population': 'general', 'exposure': 'hours',
+        'evidence_grade': 'observational',
+        'citation_text': 'Azuma K, Kagi N, Yanagi U, Osawa H. '
+                         'Effects of low-level inhalation exposure '
+                         'to carbon dioxide in indoor '
+                         'environments. Environ Int. '
+                         '2018;121(Pt 1):51-56.',
+        'doi_or_url':
+            'https://doi.org/10.1016/j.envint.2018.08.059',
+        'is_differential': False, 'differential_over': '',
+        'contested_by': '', 'color': '#8fbf5f',
+        'replaces_with': 'a controlled trial isolating CO2 from '
+                         'the ventilation and bioeffluent changes '
+                         'that travel with it',
+        'is_prior': True, 'provenance_id': 'co2-3',
+        'notes': 'THE LOWEST THRESHOLD ON THIS PAGE, and outdoor '
+                 'CO2 is already past it. Graded observational '
+                 'because it comes from a REVIEW, not a trial. '
+                 'The honest reading is that a physiological '
+                 'response is detectable well below any level '
+                 'anyone calls unsafe.',
+    },
+    {
+        'name': 'co2-building-symptoms-700',
+        'source_ref': 'azuma-2018-low-level-co2-review',
+        'display_name': 'Building-related symptoms from ~700 ppm',
+        'ppm': 700.0, 'unit': 'ppm',
+        'effect': 'Epidemiological studies show an association '
+                  'between indoor CO2 from about 700 ppm and '
+                  'building-related symptoms: headache, fatigue, '
+                  'eye/nose/throat irritation.',
+        'population': 'general', 'exposure': 'chronic',
+        'evidence_grade': 'observational',
+        'citation_text': 'Azuma K et al. Environ Int. '
+                         '2018;121(Pt 1):51-56.',
+        'doi_or_url':
+            'https://doi.org/10.1016/j.envint.2018.08.059',
+        'is_differential': False, 'differential_over': '',
+        'contested_by': 'Association, not causation, and the '
+                        'confounder is structural: CO2 rises when '
+                        'ventilation falls, and everything else '
+                        'people emit rises with it. Lowther 2021 '
+                        'frames exactly this as the open question '
+                        '- is CO2 the pollutant or the indicator?',
+        'color': '#d9a441',
+        'replaces_with': 'a study that varies CO2 while holding '
+                         'ventilation and bioeffluents constant',
+        'is_prior': True, 'provenance_id': 'co2-3',
+        'notes': 'NOTE THE COINCIDENCE OF NUMBERS: this 700 ppm is '
+                 'an ABSOLUTE level from epidemiology; ASHRAE\'s '
+                 '700 ppm is a DIFFERENTIAL above outdoor. They '
+                 'are unrelated quantities that happen to share a '
+                 'figure, and confusing them is easy - '
+                 'is_differential is what keeps them apart.',
+    },
+    {
+        'name': 'co2-oxidative-stress-1400',
+        'source_ref': 'airgradient-2025-hidden-health-risks',
+        'display_name': 'Oxidative stress claimed from ~1400 ppm',
+        'ppm': 1400.0, 'unit': 'ppm',
+        'effect': 'Oxidative stress and cellular damage on '
+                  'extended exposure.',
+        'population': 'general', 'exposure': 'chronic',
+        'evidence_grade': 'secondary-reporting',
+        'citation_text': 'Cummings S. The Hidden Health Risks of '
+                         'CO2: Rethinking Acceptable Exposure '
+                         'Limits. AirGradient blog, 2025-04-21.',
+        'doi_or_url': 'https://www.airgradient.com/blog/'
+                      'hidden-health-risks-of-co2/',
+        'is_differential': False, 'differential_over': '',
+        'contested_by': 'No primary study is attributed to this '
+                        'specific figure in the article, so it '
+                        'cannot be traced to a measurement from '
+                        'the piece alone.',
+        'color': '#d97b29',
+        'replaces_with': 'the primary study this figure comes '
+                         'from - identify it and this row is '
+                         'replaced by a properly graded one',
+        'is_prior': True, 'provenance_id': 'co2-3',
+        'notes': 'Carried because the article is a real, '
+                 'reasonably sourced source and Dustin asked for '
+                 'it - and graded secondary-reporting because the '
+                 'publisher SELLS CO2 monitors and the article '
+                 'does not say which of its four papers this '
+                 'number came from. Both facts live on the '
+                 'JournalisticSource row.',
+    },
+    {
+        'name': 'co2-metabolic-dysregulation-2000',
+        'source_ref': 'airgradient-2025-hidden-health-risks',
+        'display_name': 'Metabolic and cardiovascular strain '
+                        'claimed from ~2000 ppm',
+        'ppm': 2000.0, 'unit': 'ppm',
+        'effect': 'Metabolic dysregulation, inflammation, '
+                  'cardiovascular strain and raised hypertension '
+                  'risk.',
+        'population': 'general', 'exposure': 'chronic',
+        'evidence_grade': 'secondary-reporting',
+        'citation_text': 'Cummings S. AirGradient blog, '
+                         '2025-04-21.',
+        'doi_or_url': 'https://www.airgradient.com/blog/'
+                      'hidden-health-risks-of-co2/',
+        'is_differential': False, 'differential_over': '',
+        'contested_by': 'Same limitation as the 1400 ppm row: no '
+                        'primary attribution in the article.',
+        'color': '#c0392b',
+        'replaces_with': 'the primary study behind this figure',
+        'is_prior': True, 'provenance_id': 'co2-3',
+        'notes': 'A closed bedroom at today\'s outdoor level sits '
+                 'above this line, which is precisely why the '
+                 'grade matters: a strong claim reached by a room '
+                 'people sleep in every night deserves a stronger '
+                 'source than a vendor blog, and does not yet '
+                 'have one here.',
+    },
+    {
+        'name': 'co2-modelled-hypercapnia-3000',
+        'source_ref': 'stumm-2023-downregulating-human-species',
+        'display_name': 'Modelled onset of hypercapnic blood pH '
+                        '(~3000 ppm)',
+        'ppm': 3000.0, 'unit': 'ppm',
+        'effect': 'A model in which hypercapnic blood pH begins to '
+                  'appear as ambient CO2 approaches ~3000 ppm, '
+                  'with a proposed downstream link to calcium '
+                  'balance, vascular calcification and bone '
+                  'demineralisation.',
+        'population': 'general', 'exposure': 'chronic',
+        'evidence_grade': 'expert-judgement',
+        'citation_text': 'Stumm RE. Carbon dioxide\'s direct '
+                         'impact on down-regulating the human '
+                         'species. Sci Total Environ. '
+                         '2023;905:167198.',
+        'doi_or_url':
+            'https://doi.org/10.1016/j.scitotenv.2023.167198',
+        'is_differential': False, 'differential_over': '',
+        'contested_by': 'A single-author MODELLING paper with no '
+                        'replication attempt recorded. The figure '
+                        'is computed, not measured.',
+        'color': '#8e1b12',
+        'replaces_with': 'a measurement of blood pH across a real '
+                         'ambient-CO2 gradient in a within-person '
+                         'design',
+        'is_prior': True, 'provenance_id': 'co2-3',
+        'notes': 'Graded expert-judgement, NOT a study grade, '
+                 'because a model is an argument and not an '
+                 'observation. Worth stating whenever this paper '
+                 'is invoked for lower thresholds: ITS OWN onset '
+                 'figure is ~3000 ppm, above typical indoor levels '
+                 'and far above outdoor ones.',
+    },
+    {
         'name': 'co2-cognitive-decrement-1000',
         #: EMPTY ON PURPOSE, not an oversight: this row's
         #: authority is a peer-reviewed journal article, and

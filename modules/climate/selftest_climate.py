@@ -1348,8 +1348,10 @@ _cm = types.SimpleNamespace(objectTables={
         'editorially_reviewed': True, 'is_opinion': False,
         'primary_sources_json':
             '["satish-2012-co2-decision-making"]',
-        'unsourced_claims_noted': False, 'description': '',
-        'notes': ''}]),
+        'unsourced_claims_noted': False,
+        'commercial_interest': '', 'publisher_sells': '',
+        'description': '', 'notes': ''}]
+        + SEED_CLIMATE_JOURNALISTIC_SOURCES),
     'CompanySource': {}, 'PoliticalGroupSource': {},
     'IndividualSource': {},
     'CO2HealthThreshold': _table(SEED_CO2_THRESHOLDS),
@@ -1374,18 +1376,19 @@ check('EVERY threshold now resolves its source to a real row — '
            if not r.get('ok')]))
 
 _kinds = {r.get('kind') for r in _res}
-check('and they resolve across THREE different registries '
-      '(academic study, nonprofit standards body, federal '
-      'occupational limit) — which is the shape of the evidence, '
-      'made visible',
-      _kinds == {'academic', 'nonprofit', 'government'}, str(_kinds))
+check('and they resolve across FOUR different registries — a '
+      'peer-reviewed study, a nonprofit standards body, a federal '
+      'occupational limit and a credentialed press piece — which '
+      'is the shape of the evidence, made visible',
+      _kinds == {'academic', 'nonprofit', 'government',
+                 'journalistic'}, str(_kinds))
 
 _sat = resolve_citation(_cm, 'satish-2012-co2-decision-making')
 check('an academic citation carries its DESIGN, its n and its '
       'replication status — a study that failed to replicate is '
       'still a real citation and is not the same evidence it was '
       'on publication day',
-      _sat['ok'] and _sat['sampleSize'] == 24
+      _sat['ok'] and _sat['sampleSize'] == 22
       and _sat['replicationStatus'] == 'failed-to-replicate'
       and len(_sat['replicationRefs']) == 3)
 
@@ -1448,13 +1451,105 @@ check('threshold_citations resolves every row and groups by '
       'are studies and which are standards',
       _tc['ok'] and not _tc['unresolved']
       and set(_tc['bySourceKind']) == {'academic', 'nonprofit',
-                                       'government'})
+                                       'government',
+                                       'journalistic'})
 
-check('the journalistic seed list ships EMPTY on purpose — an '
-      'article nobody has read cannot have its primary sources '
-      'named, and inventing a plausible row is the exact failure '
-      'this registry exists to prevent',
-      SEED_CLIMATE_JOURNALISTIC_SOURCES == [])
+_ag = resolve_citation(_cm, 'airgradient-2025-hidden-health-risks')
+check('the AirGradient article resolves as a journalistic source '
+      'and its COMMERCIAL INTEREST is recorded: the publisher '
+      'sells CO2 monitors, which does not make the piece wrong '
+      'but is something a reader weighing it would want',
+      _ag.get('ok') and _ag['kind'] == 'journalistic'
+      and 'sells' in getattr(
+          _cm.objectTables['JournalisticSource'][
+              'airgradient-2025-hidden-health-risks'],
+          'commercial_interest', '').lower())
+
+check('its author credential is recorded EXACTLY as the byline '
+      'states it — "Dr." with no degree type — because writing '
+      '"MD" would be inventing a credential to make the citation '
+      'look stronger',
+      'degree type not stated' in _ag['authorCredentials'])
+
+check('all FOUR papers it cites are seeded as academic rows, so '
+      'every claim it makes can be followed to a primary source',
+      len(_ag['primarySources']) == 4
+      and all(resolve_citation(_cm, r).get('ok')
+              for r in _ag['primarySources']))
+
+check('but unsourcedClaimsNoted is True: the article does not say '
+      'WHICH of its four papers each threshold came from, so the '
+      'per-figure mapping cannot be reconstructed — which is '
+      'exactly why its thresholds are graded secondary-reporting',
+      _ag['unsourcedClaimsNoted'] is True)
+
+_by_grade = {}
+for _t in SEED_CO2_THRESHOLDS:
+    _by_grade.setdefault(_t['evidence_grade'], []).append(_t['name'])
+check('the two thresholds sourced to the vendor blog are the ONLY '
+      'secondary-reporting rows, and the ones sourced to a '
+      'peer-reviewed review are graded observational instead — '
+      'the grade follows the EVIDENCE, not where it was read',
+      set(_by_grade.get('secondary-reporting', [])) ==
+      {'co2-oxidative-stress-1400',
+       'co2-metabolic-dysregulation-2000'}
+      and 'co2-building-symptoms-700'
+      in _by_grade.get('observational', []))
+
+check('Stumm 2023 is graded expert-judgement, NOT a study grade: '
+      'a single-author MODEL is an argument, not an observation, '
+      'and its own onset figure (~3000 ppm) sits above typical '
+      'indoor levels',
+      [t for t in SEED_CO2_THRESHOLDS
+       if t['name'] == 'co2-modelled-hypercapnia-3000'
+       ][0]['evidence_grade'] == 'expert-judgement')
+
+_seven = [t for t in SEED_CO2_THRESHOLDS if t['ppm'] == 700.0]
+check('TWO different 700 ppm thresholds coexist — ASHRAE\'s '
+      'DIFFERENTIAL above outdoor and Azuma\'s ABSOLUTE '
+      'epidemiological level — and is_differential is what stops '
+      'a page treating unrelated quantities that share a number '
+      'as the same line',
+      len(_seven) == 2
+      and {t['is_differential'] for t in _seven} == {True, False})
+
+check('Satish 2012 carries n=22 as PUBLISHED, not the 24 a '
+      'secondary summary reported — the correction is the whole '
+      'discipline in miniature',
+      [a for a in SEED_CLIMATE_ACADEMIC_SOURCES
+       if a['name'] == 'satish-2012-co2-decision-making'
+       ][0]['sample_size'] == 22)
+
+check('and it records that THE AUTHORS THEMSELVES called the '
+      '2500 ppm effects barely credible and asked for '
+      'replication — fair to them, and stronger than any outside '
+      'criticism',
+      'defy credibility' in [
+          a for a in SEED_CLIMATE_ACADEMIC_SOURCES
+          if a['name'] == 'satish-2012-co2-decision-making'
+      ][0]['notes'])
+
+# This list SHIPPED EMPTY until a real article arrived, and the
+# check that pinned that has been replaced — not deleted — by the
+# rule it was protecting all along: a journalistic row must name
+# the primary research it reports on, or it is an assertion with a
+# byline. Pinning "empty" once a real source exists would be
+# cargo-culting the old guard past its purpose.
+check('EVERY seeded journalistic row names the primary studies it '
+      'reports on, and every one of those resolves — a claim must '
+      'be followable to the evidence, not just to the person who '
+      'repeated it',
+      all(json.loads(j['primary_sources_json'] or '[]')
+          and all(resolve_citation(_cm, r).get('ok')
+                  for r in json.loads(
+                      j['primary_sources_json'] or '[]'))
+          for j in SEED_CLIMATE_JOURNALISTIC_SOURCES))
+
+check('and every seeded journalistic row declares whether its '
+      'publisher has a commercial interest in the conclusion — '
+      'the field may be empty, but it must have been considered',
+      all('commercial_interest' in j
+          for j in SEED_CLIMATE_JOURNALISTIC_SOURCES))
 
 
 failed = _results.count(False)

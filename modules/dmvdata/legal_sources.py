@@ -309,6 +309,14 @@ class JournalisticSource(treeObject):
                  # primary source could be located. Recorded, not
                  # hidden.
                  unsourced_claims_noted: bool = False,
+                 # WHO BENEFITS IF THE READER BELIEVES THIS. A
+                 # vendor blog arguing that the thing its product
+                 # measures is dangerous is not thereby wrong - but
+                 # a citation that omits the interest is hiding
+                 # something the reader would want. '' means none
+                 # known; it does NOT mean none was looked for.
+                 commercial_interest: str = '',
+                 publisher_sells: str = '',
                  description: str = '', notes: str = '',
                  manager=None):
         self.name = name
@@ -329,6 +337,8 @@ class JournalisticSource(treeObject):
         self.is_opinion = is_opinion
         self.primary_sources_json = primary_sources_json
         self.unsourced_claims_noted = unsourced_claims_noted
+        self.commercial_interest = commercial_interest
+        self.publisher_sells = publisher_sells
         self.description = description
         self.notes = notes
 
