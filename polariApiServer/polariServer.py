@@ -3862,6 +3862,24 @@ class polariServer(treeObject):
                       flush=True)
         # mq-3: M1 inter-part relations as MatrixEquationDefinition
         # rows over the mq-1 matrices.
+        # The motor classes' OWN display configuration — tables,
+        # graphs and the M0/M1 pages that reference them. Gated on
+        # DisplayDefinition rather than a motors class because the
+        # rows ARE display rows; without this a fresh node shows the
+        # designs as an alphabetical dump led by the *_json blobs.
+        if (_feature_available('motors') and (
+                only_classes is None
+                or 'DisplayDefinition' in only_classes)):
+            try:
+                from motors.motors_pages import seed_motors_pages
+                for r in seed_motors_pages(self.manager):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[MotorsPagesSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[MotorsPagesSeed] failed: {e}', flush=True)
         if (_feature_available('motors')
                 and _feature_available('mathshapes')
                 and _feature_available('composition') and (
