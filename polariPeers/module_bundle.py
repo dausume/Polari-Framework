@@ -64,6 +64,12 @@ CLASS_LOAD_ORDER: List[str] = [
     'SimulationExecutionSolution',
     'SolutionTestCase',
     'GraphDefinition',
+    # Per-object display configuration. A class carries HOW it is
+    # displayed (its table columns and its single-instance card set),
+    # so a module that carries the class must carry these too — else
+    # the importing node gets the data and none of the presentation.
+    # Ordered before DisplayDefinition because displays reference them.
+    'TableDefinition',
     'InitialConditionInterfaceDefinition',
     'SimulationCouplingDefinition',
     'MultiScaleSimulationDefinition',

@@ -12,9 +12,25 @@ Scope shape:
       'name': ..., 'description': ...,
       'simulations': ['<sim def name>', ...],     # sim-space roots
       'msim': '<MultiScaleSimulationDefinition>', # composition root
+      'solutions': [...], 'scenes': [...], 'icInterfaces': [...],
+      'displays': ['<DisplayDefinition name>', ...],
+      'classRows': {'<Class>': ['<row name>', ...]},  # any class
+      'classDisplays': {'<Class>': ['<def name>']} | False,
       'dependsOn': ['<module>', ...],
       'excludeClosureOf': [<scope>, ...],   # subtract dependency content
     }
+
+ANY class can be carried: `classRows` takes rows of any class by name,
+and CLASS_LOAD_ORDER is a dependency ORDERING, not a whitelist —
+classes it does not list simply load after SimulationRun. (One catch:
+a definition class missing from that list is treated as a state class
+and becomes a REQUIREMENT of the importing node rather than carried
+content, so genuinely new definition classes belong in the list.)
+
+PARTITIONING one class across modules: `classRows` already selects
+rows by name, and `classDisplays` does the same for a class's
+TableDefinition/GraphDefinition rows — so the M0 table can live in one
+module and the M1 table in another off the same class.
 
 Closure edges walked (per the known reference graph):
   sim def → its SimulationExecutionSolutions → their SolutionDefinitions
@@ -79,6 +95,8 @@ def _walk_scope(walker: '_ClosureWalker', scope: Dict[str, Any]) -> None:
     sim), standalone SCENES (e.g. a selection space with no bound
     classes), IC INTERFACES (whose choices tie to appearance rows), and
     DISPLAYS."""
+    if 'classDisplays' in scope:
+        walker.class_displays = scope.get('classDisplays')
     for sim in scope.get('simulations') or []:
         walker.walk_simulation(sim)
     if scope.get('msim'):
@@ -90,7 +108,7 @@ def _walk_scope(walker: '_ClosureWalker', scope: Dict[str, Any]) -> None:
     for ic in scope.get('icInterfaces') or []:
         walker.walk_ic_interface(ic)
     for display in scope.get('displays') or []:
-        walker._add_by_name('DisplayDefinition', display)
+        walker.walk_display(walker._add_by_name('DisplayDefinition', display))
     # ncg-7: generic rows-by-class roots — lets NON-sim content
     # (logic designs, circuits, breadboards, judicial procedures,
     # test packs) export as module objects through the same scope
@@ -101,6 +119,7 @@ def _walk_scope(walker: '_ClosureWalker', scope: Dict[str, Any]) -> None:
         # instance must hold a fingerprint-matching definition, same
         # contract as the sim-walk's state classes.
         walker.required.add(class_name)
+        walker.add_class_displays(class_name)
         for row_name in names:
             walker._add_by_name(class_name, row_name)
 
@@ -187,6 +206,10 @@ class _ClosureWalker:
         # {class_name: {row_name: instance}}
         self.collected: Dict[str, Dict[str, Any]] = {}
         self.required: Set[str] = set()
+        #: See add_class_displays — None = carry every display of a
+        #: rooted class; dict = carry only what it names (per-class
+        #: partitioning); False = carry none.
+        self.class_displays: Any = None
         self._seen_solutions: Set[str] = set()
         self._seen_matrix_eqs: Set[str] = set()
 
@@ -208,6 +231,90 @@ class _ClosureWalker:
                 self._add(cls, inst)
                 return inst
         return None
+
+    def _add_by_id(self, cls: str, row_id: str) -> Optional[Any]:
+        """Definitions embedded in a display are referenced by ID, not
+        by name (graphConfigId / tableConfigId), so the closure needs
+        both lookups."""
+        if not row_id:
+            return None
+        for inst in self._table(cls).values():
+            if str(getattr(inst, 'id', '')) == str(row_id):
+                self._add(cls, inst)
+                return inst
+        return None
+
+    def add_class_displays(self, class_name: str) -> None:
+        """Carry a class's OWN display configuration with it.
+
+        Per-object definitions are how presentation is expressed here:
+        a TableDefinition/GraphDefinition names its `source_class`, and
+        other displays reference it for specific context. So exporting
+        a class without them ships data that renders as an alphabetical
+        dump of every field — which is exactly the raw-JSON problem
+        these definitions exist to solve.
+
+        PARTITIONING. One class's configuration may legitimately split
+        across modules — the M0 table in one, the M1 table in another,
+        off the same class. So the scope decides how much comes along:
+
+          (omitted)                  every display of the class
+          {'<Class>': ['<name>']}    only those, by name
+          {'<Class>': []}            none for that class
+          False                      none at all, for any class
+
+        Without this a scope that named one row of a class would drag
+        every sibling module's displays for that class in with it."""
+        if not class_name or self.class_displays is False:
+            return
+        selection = None
+        if isinstance(self.class_displays, dict):
+            if class_name not in self.class_displays:
+                # A partitioned scope is explicit: a class it does not
+                # name carries no displays, rather than silently all.
+                return
+            selection = {str(n) for n in
+                         (self.class_displays.get(class_name) or [])}
+        for cls in ('TableDefinition', 'GraphDefinition'):
+            for inst in self._table(cls).values():
+                if getattr(inst, 'source_class', '') != class_name:
+                    continue
+                if selection is not None and \
+                        str(getattr(inst, 'name', '')) not in selection:
+                    continue
+                self._add(cls, inst)
+
+    def walk_display(self, display) -> None:
+        """Follow what a display's items actually reference.
+
+        Nothing used to parse `definition`, so a page built from
+        embeddedGraph/embeddedTable exported WITHOUT the graph and
+        table it renders — the bundle imported as empty panels."""
+        if display is None:
+            return
+        definition = _parse(getattr(display, 'definition', '') or '{}', {})
+        for row in (definition.get('rows') or []):
+            for item in (row.get('items') or []):
+                props = (item.get('componentProps') or {})
+                inputs = (props.get('inputs') or {})
+                self._add_by_id('GraphDefinition',
+                                inputs.get('graphConfigId', ''))
+                self._add_by_id('TableDefinition',
+                                inputs.get('tableConfigId', ''))
+                # A component pointed at a class needs that class
+                # present on the importing node, and needs the class's
+                # own display configuration to render as authored.
+                bound = inputs.get('className', '')
+                if bound:
+                    self.required.add(bound)
+                    self.add_class_displays(bound)
+                # Sim/msim embeds name their space by name.
+                self._add_by_name('SimSpaceDefinition',
+                                  inputs.get('simSpaceName', ''))
+        source_class = getattr(display, 'source_class', '')
+        if source_class:
+            self.required.add(source_class)
+            self.add_class_displays(source_class)
 
     # -- edges --------------------------------------------------------------
 
