@@ -20,6 +20,8 @@ An APIEndpoint stores information about an external API data source,
 including its URL, authentication, linked profile, and data persistence settings.
 """
 
+import os
+
 from objectTreeDecorators import treeObject, treeObjectInit
 from typing import Dict, List, Optional, Any
 from datetime import datetime
@@ -87,6 +89,20 @@ class APIEndpoint(treeObject):
         isActive: bool = True,
         authType: str = 'none',
         authConfig: str = '',
+        # --- climate/co2-0: fields that let a row describe a REAL
+        # data file, not just a JSON API. Added because the CO2
+        # ingest needs SAS-XPORT (binary), fixed-width NOAA text,
+        # and per-cycle path templates — none of which the
+        # JSON-only fetch path could express.
+        responseFormat: str = 'json',
+        contentSignature: str = '',
+        rejectSignature: str = '',
+        minBytes: int = 0,
+        paramsTemplate: str = '{}',
+        fieldMapJson: str = '{}',
+        citationText: str = '',
+        licenseNote: str = '',
+        verifiedOn: str = '',
         manager=None,
         **kwargs
     ):
@@ -113,6 +129,35 @@ class APIEndpoint(treeObject):
         self.isActive = isActive
         self.authType = authType  # none, bearer, apikey, basic
         self.authConfig = authConfig  # encrypted credentials
+        #: 'json' | 'text' | 'tsv' | 'csv' | 'xport' | 'binary'.
+        #: The fetch path decodes by THIS, never by sniffing.
+        self.responseFormat = responseFormat
+        #: Leading bytes the REAL payload must carry (SAS XPORT's
+        #: 'HEADER RECORD*******LIBRARY', NOAA text's '#'). A
+        #: source that serves an error page with HTTP 200 is
+        #: caught here and nowhere else — observed live twice:
+        #: census.gov ('Missing Key' HTML, 2026-07-16) and
+        #: wwwn.cdc.gov (retired NHANES paths return a 20905-byte
+        #: 'Page Not Found' page as 200, 2026-08-02).
+        self.contentSignature = contentSignature
+        #: Leading bytes that positively identify such a decoy, so
+        #: the refusal can say "that is an error page" rather than
+        #: the vaguer "signature mismatch".
+        self.rejectSignature = rejectSignature
+        #: A payload below this size cannot be the real series.
+        self.minBytes = minBytes
+        #: JSON defaults for endpointPath {placeholders} — one row
+        #: then covers every NHANES cycle / every vintage.
+        self.paramsTemplate = paramsTemplate
+        #: JSON {responseField: polariField} — the mapping is data,
+        #: so the reader never guesses what a column means.
+        self.fieldMapJson = fieldMapJson
+        #: How the publisher asks to be cited.
+        self.citationText = citationText
+        self.licenseNote = licenseNote
+        #: The date this URL was last SEEN returning real data.
+        #: Federal portals move; an unverified row is a claim.
+        self.verifiedOn = verifiedOn
 
     @property
     def url(self) -> str:
@@ -152,6 +197,36 @@ class APIEndpoint(treeObject):
                 return domain
         return None
 
+    def resolve_secret(self) -> tuple:
+        """authConfig -> (secret, refusal).
+
+        `authConfig` is a POINTER, not a secret: the seeded rows in
+        dmvdata/source_seed.py carry 'env:POLARI_CENSUS_API_KEY'
+        because the repos are PUBLIC. Before this resolver existed
+        those rows were sent verbatim, so a keyed endpoint
+        transmitted the literal string 'env:POLARI_CENSUS_API_KEY'
+        as its credential and every keyed fetch failed in a way
+        that looked like the agency's fault.
+
+        A missing env var REFUSES by name (the OdooHandle._password
+        discipline) instead of silently sending nothing.
+        """
+        raw = (self.authConfig or '').strip()
+        if not raw:
+            return '', ''
+        if not raw.startswith('env:'):
+            # A literal — legal for local/dev rows, but say so.
+            return raw, ''
+        var = raw[4:].strip()
+        if not var:
+            return '', ("authConfig is 'env:' with no variable name")
+        val = (os.environ.get(var) or '').strip()
+        if not val:
+            return '', (f'endpoint {self.name!r} needs a credential '
+                        f'from env {var}, which is unset — set the '
+                        f'knob; the key is never stored in a row')
+        return val, ''
+
     def get_headers_with_auth(self) -> Dict[str, str]:
         """
         Get headers including authentication if configured.
@@ -160,16 +235,19 @@ class APIEndpoint(treeObject):
             Dict of headers with auth applied
         """
         headers = dict(self.defaultHeaders)
+        secret, refusal = self.resolve_secret()
+        if refusal or not secret:
+            return headers
 
-        if self.authType == 'bearer' and self.authConfig:
-            headers['Authorization'] = f'Bearer {self.authConfig}'
-        elif self.authType == 'apikey' and self.authConfig:
+        if self.authType == 'bearer':
+            headers['Authorization'] = f'Bearer {secret}'
+        elif self.authType == 'apikey':
             # Assume API key goes in header; format: "HeaderName:Value"
-            if ':' in self.authConfig:
-                key_name, key_value = self.authConfig.split(':', 1)
+            if ':' in secret:
+                key_name, key_value = secret.split(':', 1)
                 headers[key_name] = key_value
             else:
-                headers['X-API-Key'] = self.authConfig
+                headers['X-API-Key'] = secret
         elif self.authType == 'basic' and self.authConfig:
             import base64
             encoded = base64.b64encode(self.authConfig.encode()).decode()

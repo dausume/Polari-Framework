@@ -941,6 +941,32 @@ except ImportError as _exc:
         'SEED_GEAR_TYPES', 'SEED_GEARS', 'SEED_GEAR_MESHES',
         'SEED_SHAFT_NODES', 'SEED_GEAR_TRAINS',
     ))
+# Climate Change & Atmosphere (co2-A) — measured series and the
+# spans that cover them, health thresholds WITH their evidence
+# grade, room archetypes, and stored crossing projections.
+try:
+    from climate.climate_basis import (
+        AtmosphericObservation, AtmosphericSeriesDefinition,
+        AtmosphericTrendFit, BiomarkerCycleObservation,
+        CO2HealthThreshold, CarbonSinkSeries, ExposureProjection,
+        HumanEraDefinition, IndoorSpaceProfile,
+        PopulationBiomarkerSeries, SourceCoverageSpan,
+    )
+    from climate.co2_thresholds import SEED_CO2_THRESHOLDS
+    from climate.co2_indoor import SEED_INDOOR_SPACES
+    from climate.climate_history import SEED_HUMAN_ERAS
+    from climate.climate_series import SEED_CLIMATE_SERIES
+except ImportError as _exc:
+    _stub_missing_feature('climate', _exc, globals(), (
+        'AtmosphericSeriesDefinition', 'AtmosphericObservation',
+        'SourceCoverageSpan', 'AtmosphericTrendFit',
+        'CO2HealthThreshold', 'IndoorSpaceProfile',
+        'ExposureProjection', 'PopulationBiomarkerSeries',
+        'BiomarkerCycleObservation', 'CarbonSinkSeries',
+        'HumanEraDefinition', 'SEED_CO2_THRESHOLDS',
+        'SEED_INDOOR_SPACES', 'SEED_HUMAN_ERAS',
+        'SEED_CLIMATE_SERIES',
+    ))
 # Odoo ERP connector — instance configs + sim/ops write guards (od-3).
 try:
     from odooconnect.odoo_basis import OdooInstanceConfig
@@ -1798,6 +1824,13 @@ class polariServer(treeObject):
             from motors.motor_api import MotorsAPI
             motorsEndpoint = MotorsAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('climate'):
+            # co2-A: Climate Change & Atmosphere — series, spans,
+            # trends, thresholds, the coupled crossing table and
+            # the citation/export surfaces.
+            from climate.climate_api import ClimateAPI
+            climateEndpoint = ClimateAPI(
+                polServer=self, manager=self.manager)
         if _feature_available('meshassets'):
             # mesh-1: the licence-gated catalog + organ fit.
             from meshassets.mesh_asset_api import MeshAssetsAPI
@@ -2122,6 +2155,17 @@ class polariServer(treeObject):
             # gets all THREE registrations — import, stub tuple
             # and this list — or its seeds silently never land).
             CrucibleHoistRequirement,
+            # co2-A: Climate Change & Atmosphere. Series before
+            # the spans and observations that reference them; a
+            # NEW class gets all THREE registrations - import,
+            # stub tuple and this list - or its seeds silently
+            # never land.
+            AtmosphericSeriesDefinition, SourceCoverageSpan,
+            AtmosphericObservation, AtmosphericTrendFit,
+            CO2HealthThreshold, IndoorSpaceProfile,
+            ExposureProjection, PopulationBiomarkerSeries,
+            BiomarkerCycleObservation, CarbonSinkSeries,
+            HumanEraDefinition,
             # mesh-1: licence findings, the assets under them, and
             # the human's accepted picks.
             MeshAssetSource, MeshAssetReference, OrganMeshChoice,
@@ -3835,6 +3879,42 @@ class polariServer(treeObject):
             except Exception as e:
                 print(f'[M1CompositionSeed] failed: {e}',
                       flush=True)
+        # co2-A: Climate Change & Atmosphere. Sources and series
+        # first (the endpoints and the intent to measure), then
+        # the thresholds/rooms/eras the study reads. OBSERVATIONS
+        # ARE NOT SEEDED — climate.series_ingest writes those, and
+        # only from a fetch that passed its content check.
+        if _feature_available('climate') and (
+                only_classes is None
+                or 'AtmosphericSeriesDefinition' in only_classes):
+            try:
+                from climate.climate_sources import (
+                    seed_climate_sources,
+                )
+                from climate.climate_series import (
+                    seed_climate_series,
+                )
+                from climate.co2_thresholds import (
+                    seed_co2_thresholds,
+                )
+                from climate.co2_indoor import seed_indoor_spaces
+                from climate.climate_history import seed_human_eras
+                from climate.climate_pages import seed_climate_pages
+                from climate.climate_app import seed_climate_app
+                for r in (seed_climate_sources(self.manager)
+                          + seed_climate_series(self.manager)
+                          + seed_co2_thresholds(self.manager)
+                          + seed_indoor_spaces(self.manager)
+                          + seed_human_eras(self.manager)
+                          + seed_climate_pages(self.manager)
+                          + seed_climate_app(self.manager)):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[ClimateSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[ClimateSeed] failed: {e}', flush=True)
         # gr-4: the gear-train scene rows (gear shapes + the
         # isolated SimSpace) — upsert path, gears-gated, in gears'
         # own admission pass.

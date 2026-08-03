@@ -35,7 +35,8 @@ from polariApiServer.module_gating import module_enabled
 # (and ONLY these) may be absent from a checkout; core packages are
 # always required and their imports stay static.
 FEATURE_MODULES = frozenset({
-    'aquaponics', 'biomining', 'bizops', 'dmvdata', 'electrodevice',
+    'aquaponics', 'biomining', 'bizops', 'climate', 'dmvdata',
+    'electrodevice',
     'gears', 'grpcbridge', 'hwdigital', 'hwfpga', 'magnetics',
     'mathshapes', 'meshassets', 'microalgae', 'motors',
     'nutrition', 'odooconnect', 'plant_morphology', 'polariapps',
@@ -50,6 +51,12 @@ FEATURE_MODULES = frozenset({
 FEATURE_REQUIRES = {
     'aquaponics': ('plant_morphology', 'scoring'),
     'bizops': ('supplychain',),
+    # co2-A: climate reuses the aquaponics steady-state gas
+    # balance (one equation, two callers - a room of people is the
+    # crop's CO2 draw with the sign flipped) and the dmvdata
+    # GovSource/SourceRetrieval provenance registry. It owns no
+    # copy of either.
+    'climate': ('aquaponics', 'dmvdata'),
     'dmvdata': ('scoring',),
     'magnetics': ('supplychain',),
     'motors': ('magnetics',),

@@ -298,6 +298,18 @@
       ],
       "wave": 4,
       "description": "License-GATED external mesh catalog: verified open-source 3D assets as pointers (never vendored bytes), graded by what the licence actually permits (simulate vs redistribute), plus the fit engine that scales a borrowed mesh onto our vector organ definitions and MEASURES the compromise (shape fidelity). Gears are flagged approximation-invalid: an approximate gear does not mesh."
+    },
+    "climate": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/climate",
+      "repo": "https://github.com/dausume/polari-module-climate.git",
+      "requires": [
+        "aquaponics",
+        "dmvdata"
+      ],
+      "wave": 0,
+      "description": "Climate Change & Atmosphere: CO2 series as objects (ice-core + instrumental spans), velocity/acceleration fits, graded health thresholds, the coupled indoor/outdoor crossing projection, XPORT ingest for NHANES biomarkers, and the human-history record."
     }
   }
 }
