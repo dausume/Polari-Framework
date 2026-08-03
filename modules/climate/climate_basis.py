@@ -372,6 +372,108 @@ class SymptomOnsetClaim(treeObject):
         self.notes = notes
 
 
+#: THE 2x2 THIS APP WAS MISSING. Every CO2 number a person
+#: actually breathes sits in one of these, and the app had only
+#: two of them: a clean-air outdoor BASELINE and a room. "Outdoor"
+#: is not one number - a city street and a mountain observatory
+#: differ by more than a century of global rise.
+SETTING_KINDS = ('outdoor', 'indoor')
+LOCALITY_KINDS = ('remote-background', 'rural', 'suburban',
+                  'urban-residential', 'urban-core',
+                  'street-canyon')
+
+
+class AmbientSettingProfile(treeObject):
+    """WHERE the air is, as a row: the local outdoor level a room
+    actually sits on top of.
+
+    🔑 THE CORRECTION THIS CLASS EXISTS FOR. Every indoor
+    projection in this app previously added a room's ventilation
+    offset to the MAUNA LOA background - a deliberately
+    clean-air, mid-Pacific, high-altitude baseline chosen by NOAA
+    precisely because nothing local contaminates it. Almost nobody
+    breathes that air. A classroom in a city sits on urban
+    outdoor, which is measurably higher, so every indoor crossing
+    computed against the global background arrived LATE.
+
+    The enhancement is a BAND, not a number, because it swings
+    with wind speed, season, hour and how far up the street
+    canyon you stand.
+
+    ⚠ SURFACE MEASUREMENTS ONLY. Satellite column (XCO2) urban
+    enhancements are single-digit ppm because a column averages
+    through kilometres of clean air above the city; surface in
+    situ enhancements are tens of ppm. They are different
+    quantities and must never be put on one axis. This class holds
+    the SURFACE kind, and says so.
+    """
+
+    @treeObjectInit
+    def __init__(self, name='', display_name='', setting='outdoor',
+                 locality='rural', enhancement_ppm=0.0,
+                 enhancement_ppm_low=0.0, enhancement_ppm_high=0.0,
+                 measurement_kind='surface-in-situ',
+                 source_ref='', citation_text='', basis='',
+                 replaces_with='', is_prior=True,
+                 provenance_id='', notes='', manager=None):
+        self.name = name
+        self.display_name = display_name
+        self.setting = (setting if setting in SETTING_KINDS
+                        else 'outdoor')
+        self.locality = (locality if locality in LOCALITY_KINDS
+                         else 'rural')
+        #: ppm ABOVE the global background, not an absolute level -
+        #: so the row stays true as the background rises.
+        self.enhancement_ppm = enhancement_ppm
+        self.enhancement_ppm_low = enhancement_ppm_low
+        self.enhancement_ppm_high = enhancement_ppm_high
+        #: 'surface-in-situ' | 'satellite-column'. Never mix.
+        self.measurement_kind = measurement_kind
+        self.source_ref = source_ref
+        self.citation_text = citation_text
+        self.basis = basis
+        self.replaces_with = replaces_with
+        self.is_prior = is_prior
+        self.provenance_id = provenance_id
+        self.notes = notes
+
+
+class ObservedLevelReference(treeObject):
+    """A MEASURED typical range for a kind of place - the reality
+    check the modelled numbers are scored against.
+
+    The coupled model computes what a room SHOULD sit at from
+    volume, occupancy and air changes. This class holds what
+    people have actually MEASURED in rooms like it. When the two
+    disagree the model is wrong, and without these rows there is
+    nothing to notice that with.
+    """
+
+    @treeObjectInit
+    def __init__(self, name='', display_name='', setting='indoor',
+                 locality='', space_kind='', ppm_low=0.0,
+                 ppm_high=0.0, ppm_typical=0.0, source_ref='',
+                 citation_text='', measurement_note='',
+                 is_prior=True, provenance_id='', notes='',
+                 manager=None):
+        self.name = name
+        self.display_name = display_name
+        self.setting = (setting if setting in SETTING_KINDS
+                        else 'indoor')
+        self.locality = locality
+        #: 'bedroom' | 'classroom' | 'office' | 'car-cabin' | ...
+        self.space_kind = space_kind
+        self.ppm_low = ppm_low
+        self.ppm_high = ppm_high
+        self.ppm_typical = ppm_typical
+        self.source_ref = source_ref
+        self.citation_text = citation_text
+        self.measurement_note = measurement_note
+        self.is_prior = is_prior
+        self.provenance_id = provenance_id
+        self.notes = notes
+
+
 class IndoorSpaceProfile(treeObject):
     """A room archetype — the coupling's inputs, and directly
     bindable by an indoor-air simulation."""
@@ -381,6 +483,7 @@ class IndoorSpaceProfile(treeObject):
                  occupancy=1.0, activity_met=1.2,
                  co2_per_person_l_min=0.0, air_changes_per_hour=0.0,
                  atmosphere_ref='', category='', basis='',
+                 setting_ref='outdoor-suburban',
                  replaces_with='', is_prior=True, provenance_id='',
                  notes='', manager=None):
         self.name = name
@@ -396,6 +499,13 @@ class IndoorSpaceProfile(treeObject):
         self.atmosphere_ref = atmosphere_ref
         self.category = category
         self.basis = basis
+        #: WHICH OUTDOOR this room sits on top of. Every indoor
+        #: level in this app used to be computed against the
+        #: Mauna Loa background, i.e. against air almost nobody
+        #: breathes. A room in a city is seated on urban outdoor,
+        #: and the difference is tens of ppm before anyone opens
+        #: a door.
+        self.setting_ref = setting_ref
         #: every room archetype retires the same way: measure it
         #: with a CO2 meter.
         self.replaces_with = replaces_with

@@ -1677,6 +1677,136 @@ check('every symptom severity rank is a real SYMPTOM_SEVERITY '
           for s_ in SEED_HEALTH_SYMPTOMS))
 
 
+print('== suite: co2-E — urban/non-urban x indoor/outdoor ==')
+
+from climate.co2_settings import (
+    SEED_AMBIENT_SETTINGS, SEED_OBSERVED_LEVELS, all_space_levels,
+    era_comparison, local_outdoor_ppm, setting_ladder,
+    validate_against_observed,
+)
+from climate.climate_basis import (
+    AmbientSettingProfile, ObservedLevelReference,
+)
+
+_set_mgr = _ns_mgr = types.SimpleNamespace(objectTables={
+    'AmbientSettingProfile': _table(SEED_AMBIENT_SETTINGS),
+    'ObservedLevelReference': _table(SEED_OBSERVED_LEVELS),
+    'IndoorSpaceProfile': _table(SEED_INDOOR_SPACES)})
+_set_mgr.objectTypingDict = {k: object()
+                             for k in _set_mgr.objectTables}
+_BG = 427.35
+_SL = setting_ladder(_set_mgr, _BG)
+
+check('the remote background enhancement is EXACTLY zero — it is '
+      'the baseline the record is measured at, so anything else '
+      'would be double-counting',
+      local_outdoor_ppm(_set_mgr, _BG,
+                        'outdoor-remote-background'
+                        )['enhancementPpm'] == 0.0)
+
+check('URBAN OUTDOOR REACHES 500+ ppm at today\'s background, '
+      'which is the whole point: "outdoor" is not one number, and '
+      'the spread from remote baseline to city centre is '
+      'comparable to decades of global rise',
+      local_outdoor_ppm(_set_mgr, _BG, 'outdoor-urban-core'
+                        )['localOutdoorPpm'] > 500.0)
+
+check('the outdoor ladder is ordered and every setting is a '
+      'SURFACE measurement — satellite column enhancements are '
+      'single-digit ppm and must never share this axis',
+      [x['localOutdoorPpm'] for x in _SL['settings']]
+      == sorted(x['localOutdoorPpm'] for x in _SL['settings'])
+      and all(s_['measurement_kind'] == 'surface-in-situ'
+              for s_ in SEED_AMBIENT_SETTINGS))
+
+check('enhancements are stored ABOVE background, not as absolute '
+      'levels — so every row stays true as the background rises',
+      local_outdoor_ppm(_set_mgr, 500.0, 'outdoor-urban-core'
+                        )['localOutdoorPpm']
+      - local_outdoor_ppm(_set_mgr, 400.0, 'outdoor-urban-core'
+                          )['localOutdoorPpm'] == 100.0)
+
+_AL = all_space_levels(_set_mgr, _BG)
+
+check('EVERY room is now seated on its own local outdoor, and '
+      'every one was UNDERSTATED before settings existed — the '
+      'app was adding room offsets to clean mid-Pacific air',
+      _AL['ok'] and all(s_['understatedByPpm'] > 0
+                        for s_ in _AL['spaces']
+                        if not s_.get('refused')))
+
+check('and the understatement is exactly the local enhancement, '
+      'not an arbitrary fudge',
+      all(abs(s_['understatedByPpm'] - s_['enhancementPpm']) < 1e-9
+          for s_ in _AL['spaces'] if not s_.get('refused')))
+
+check('the paired intervention rooms prove ventilation is the '
+      'knob: the SAME bedroom with a window ajar sits far below '
+      'the closed one, and the same classroom with its '
+      'ventilation running sits far below the one without',
+      [s_ for s_ in _AL['spaces']
+       if s_['space'] == 'bedroom-window-ajar'][0]['indoorPpm']
+      < [s_ for s_ in _AL['spaces']
+         if s_['space'] == 'bedroom-overnight-closed'
+         ][0]['indoorPpm']
+      and [s_ for s_ in _AL['spaces']
+           if s_['space'] == 'classroom-mechanically-ventilated'
+           ][0]['indoorPpm']
+      < [s_ for s_ in _AL['spaces']
+         if s_['space'] == 'classroom-occupied'][0]['indoorPpm'])
+
+check('a room with NO published counterpart reports no '
+      'cross-check rather than a pass — an empty space_kind used '
+      'to match the OUTDOOR reference rows and silently score a '
+      'room against outdoor air',
+      not validate_against_observed(_set_mgr, '', 900.0).get('ok'))
+
+check('the three rooms that DO have counterparts are checked, and '
+      'the model is scored honestly: the office lands inside the '
+      'measured range while the bedroom and classroom are flagged '
+      'PESSIMISTIC rather than quietly tuned to fit',
+      [s_ for s_ in _AL['spaces']
+       if s_['space'] == 'open-plan-office'
+       ][0]['observedCheck']['insideObservedRange'] is True
+      and 'PESSIMISTIC' in [
+          s_ for s_ in _AL['spaces']
+          if s_['space'] == 'bedroom-overnight-closed'
+          ][0]['observedCheck']['verdict'])
+
+check('the INTERVENTION rooms are deliberately unmapped: scoring '
+      'a window-open bedroom against a closed-window measurement '
+      'would report the intervention working as a model error',
+      'observedCheck' not in [
+          s_ for s_ in _AL['spaces']
+          if s_['space'] == 'bedroom-window-ajar'][0])
+
+_ERA = era_comparison(_set_mgr)
+check('the era table spans pre-industrial outdoor (280 ppm) to a '
+      'closed bedroom today, and MARKS which rows are modelled — '
+      'there is no ice core for indoor air',
+      _ERA['ok']
+      and any(c['isModelled'] for c in _ERA['levels'])
+      and min(c['ppmTypical'] for c in _ERA['levels']) == 280.0)
+
+check('and it carries the caveat that comparing eras on CO2 '
+      'alone flatters the past — a pre-industrial room had lower '
+      'CO2 and far worse smoke and carbon monoxide',
+      'flatters the past' in _ERA['caveat'])
+
+check('every settings and observed-level seed key matches its '
+      'class __init__ exactly (the ten-strikes seed gotcha)',
+      all(set(x) <= _init_params(AmbientSettingProfile)
+          for x in SEED_AMBIENT_SETTINGS)
+      and all(set(x) <= _init_params(ObservedLevelReference)
+              for x in SEED_OBSERVED_LEVELS))
+
+check('every room names a setting that exists, so no room can '
+      'silently fall back to a default outdoor',
+      all(r['setting_ref'] in {s_['name']
+                               for s_ in SEED_AMBIENT_SETTINGS}
+          for r in SEED_INDOOR_SPACES))
+
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

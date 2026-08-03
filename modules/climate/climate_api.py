@@ -56,6 +56,8 @@ class ClimateAPI(treeObject):
                 suffix='citations')
             add('/api/climate/symptoms', self,
                 suffix='symptoms')
+            add('/api/climate/settings', self,
+                suffix='settings')
             add('/api/climate/ingest-budget', self,
                 suffix='ingest_budget')
             add('/api/climate/biomarker', self, suffix='biomarker')
@@ -269,6 +271,33 @@ class ClimateAPI(treeObject):
         credentialed press."""
         from climate.climate_citations import threshold_citations
         response.media = threshold_citations(self.manager)
+
+    def on_get_settings(self, request, response):
+        """co2-E: the 2x2 — urban/non-urban outdoor, every room on
+        ITS OWN local outdoor, and the measured levels that check
+        the modelled ones. ?band=low|typical|high."""
+        from climate.co2_settings import (
+            all_space_levels, era_comparison, setting_ladder,
+        )
+        background = _float(request, 'background_ppm')
+        if background is None:
+            background = _present_outdoor(self.manager)
+        if background is None:
+            response.status = '409 Conflict'
+            response.media = {
+                'ok': False,
+                'refusal': ('no background level available - '
+                            'ingest co2-mauna-loa-annual, or pass '
+                            '?background_ppm=')}
+            return
+        band = request.params.get('band') or 'typical'
+        response.media = {
+            'ok': True, 'backgroundPpm': background, 'band': band,
+            'outdoor': setting_ladder(self.manager, background),
+            'indoor': all_space_levels(self.manager, background,
+                                       band=band),
+            'observedLevels': era_comparison(self.manager),
+        }
 
     def on_get_symptoms(self, request, response):
         """co2-S: the cited symptom ladder, from a headache to the

@@ -130,6 +130,7 @@ def steady_state_ppm(outside_ppm, source_mg_per_day, volume_m3,
 SEED_INDOOR_SPACES = [
     {
         'name': 'bedroom-overnight-closed',
+        'setting_ref': 'outdoor-urban-residential',
         'display_name': 'Bedroom, two sleepers, door and window '
                         'closed',
         'volume_m3': 30.0,
@@ -155,6 +156,7 @@ SEED_INDOOR_SPACES = [
     },
     {
         'name': 'classroom-occupied',
+        'setting_ref': 'outdoor-urban-residential',
         'display_name': 'Classroom, 25 occupants, lesson in '
                         'progress',
         'volume_m3': 180.0,
@@ -177,6 +179,7 @@ SEED_INDOOR_SPACES = [
     },
     {
         'name': 'open-plan-office',
+        'setting_ref': 'outdoor-urban-core',
         'display_name': 'Open-plan office, 25 occupants',
         'volume_m3': 500.0,
         'occupancy': 25.0,
@@ -197,6 +200,7 @@ SEED_INDOOR_SPACES = [
     },
     {
         'name': 'car-cabin-recirculate',
+        'setting_ref': 'outdoor-street-canyon',
         'display_name': 'Car cabin, two occupants, recirculation '
                         'on',
         'volume_m3': 3.0,
@@ -233,6 +237,7 @@ SEED_INDOOR_SPACES = [
     },
     {
         'name': 'public-building-well-ventilated',
+        'setting_ref': 'outdoor-urban-core',
         'display_name': 'Public building, 50 occupants, '
                         'well ventilated',
         'volume_m3': 1000.0,
@@ -251,6 +256,121 @@ SEED_INDOOR_SPACES = [
         'notes': 'The good case, included so the page can show '
                  'that the indoor offset is a VENTILATION property '
                  'and not an inevitability.',
+    },
+    {
+        'name': 'bedroom-window-ajar',
+        'setting_ref': 'outdoor-urban-residential',
+        'display_name': 'Bedroom, two sleepers, window ajar',
+        'volume_m3': 30.0,
+        'occupancy': 2.0,
+        'activity_met': 0.8,
+        'co2_per_person_l_min': CO2_L_PER_MIN_PER_MET,
+        'air_changes_per_hour': 2.0,
+        'atmosphere_ref': '',
+        'category': 'residential',
+        'basis': 'THE SAME ROOM as bedroom-overnight-closed with '
+                 'one window open a crack - identical volume, '
+                 'identical occupants, ACH raised from 0.3 to 2.0.',
+        'replaces_with': _MEASURE_IT,
+        'is_prior': True,
+        'provenance_id': 'co2-E',
+        'notes': 'THE CONTROL FOR THE WHOLE PAGE. Every other '
+                 'number here describes a problem; this row is the '
+                 'intervention, and it is a window latch. Compare '
+                 'it against the closed row to read the '
+                 'ventilation knob directly.',
+    },
+    {
+        'name': 'living-room-evening',
+        'setting_ref': 'outdoor-urban-residential',
+        'display_name': 'Living room, four people, evening',
+        'volume_m3': 45.0,
+        'occupancy': 4.0,
+        'activity_met': 1.1,
+        'co2_per_person_l_min': CO2_L_PER_MIN_PER_MET,
+        'air_changes_per_hour': 0.8,
+        'atmosphere_ref': '',
+        'category': 'residential',
+        'basis': 'ARCHETYPE: a family room in a reasonably sealed '
+                 'home, doors closed, no mechanical ventilation.',
+        'replaces_with': _MEASURE_IT,
+        'is_prior': True,
+        'provenance_id': 'co2-E',
+        'notes': 'RESPIRATION ONLY. A gas hob, a wood burner or an '
+                 'unflued heater is a second, larger CO2 source '
+                 'this model does not include - steady_state_ppm '
+                 'takes a signed source term and would accept one, '
+                 'but no combustion prior is seeded and inventing '
+                 'one would be guessing.',
+    },
+    {
+        'name': 'meeting-room-crowded',
+        'setting_ref': 'outdoor-urban-core',
+        'display_name': 'Small meeting room, 8 people, door shut',
+        'volume_m3': 35.0,
+        'occupancy': 8.0,
+        'activity_met': 1.2,
+        'co2_per_person_l_min': CO2_L_PER_MIN_PER_MET,
+        'air_changes_per_hour': 1.0,
+        'atmosphere_ref': '',
+        'category': 'workplace',
+        'basis': 'ARCHETYPE: the highest occupant density per unit '
+                 'volume in normal working life - a small room '
+                 'sized for four holding eight, with the door shut '
+                 'and ventilation designed for the smaller number.',
+        'replaces_with': _MEASURE_IT,
+        'is_prior': True,
+        'provenance_id': 'co2-E',
+        'notes': 'The office archetype most likely to be measured '
+                 'in the wild, because it is where people notice '
+                 'the stuffiness themselves.',
+    },
+    {
+        'name': 'classroom-mechanically-ventilated',
+        'setting_ref': 'outdoor-urban-residential',
+        'display_name': 'Classroom, 25 occupants, mechanical '
+                        'ventilation running',
+        'volume_m3': 180.0,
+        'occupancy': 25.0,
+        'activity_met': 1.2,
+        'co2_per_person_l_min': CO2_L_PER_MIN_PER_MET,
+        'air_changes_per_hour': 4.0,
+        'atmosphere_ref': '',
+        'category': 'education',
+        'basis': 'THE SAME CLASSROOM with its ventilation actually '
+                 'commissioned and running - ACH 1.5 to 4.0.',
+        'replaces_with': _MEASURE_IT,
+        'is_prior': True,
+        'provenance_id': 'co2-E',
+        'notes': 'The paired comparison that shows the difference '
+                 'is a building-services decision, not a fact of '
+                 'nature.',
+    },
+    {
+        'name': 'gym-exercising',
+        'setting_ref': 'outdoor-urban-core',
+        'display_name': 'Gym floor, 15 people exercising',
+        'volume_m3': 400.0,
+        'occupancy': 15.0,
+        'activity_met': 5.0,
+        'co2_per_person_l_min': CO2_L_PER_MIN_PER_MET,
+        'air_changes_per_hour': 3.0,
+        'atmosphere_ref': '',
+        'category': 'leisure',
+        'basis': 'ARCHETYPE: moderate-to-vigorous exercise at '
+                 'about 5 met, which raises CO2 output roughly '
+                 'fourfold over seated work.',
+        'replaces_with': _MEASURE_IT,
+        'is_prior': True,
+        'provenance_id': 'co2-E',
+        'notes': 'THE ACTIVITY TERM, isolated: same order of '
+                 'occupancy as a classroom in more than twice the '
+                 'volume, yet comparable levels - because met '
+                 'rate, not headcount, is doing the work. It is '
+                 'also the one room where occupants are '
+                 'deliberately hyperventilating, so the exposure '
+                 'per person is higher than the room level alone '
+                 'suggests.',
     },
 ]
 

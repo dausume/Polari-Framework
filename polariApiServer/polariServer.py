@@ -949,10 +949,12 @@ except ImportError as _exc:
 try:
     from climate.climate_basis import (
         AtmosphericObservation, AtmosphericSeriesDefinition,
-        AtmosphericTrendFit, BiomarkerCycleObservation,
+        AmbientSettingProfile, AtmosphericTrendFit,
+        BiomarkerCycleObservation,
         CO2HealthThreshold, CarbonSinkSeries, ExposureProjection,
         HealthSymptomDefinition, HumanEraDefinition,
-        IndoorSpaceProfile, SymptomOnsetClaim,
+        IndoorSpaceProfile, ObservedLevelReference,
+        SymptomOnsetClaim,
         PopulationBiomarkerSeries, SourceCoverageSpan,
     )
     from climate.co2_thresholds import SEED_CO2_THRESHOLDS
@@ -971,6 +973,7 @@ except ImportError as _exc:
         'BiomarkerCycleObservation', 'CarbonSinkSeries',
         'HumanEraDefinition', 'AtmosphereSeriesBinding',
         'HealthSymptomDefinition', 'SymptomOnsetClaim',
+        'AmbientSettingProfile', 'ObservedLevelReference',
         'SEED_CO2_THRESHOLDS', 'SEED_INDOOR_SPACES',
         'SEED_HUMAN_ERAS', 'SEED_CLIMATE_SERIES',
         'SEED_ATMOSPHERE_BINDINGS',
@@ -2178,6 +2181,9 @@ class polariServer(treeObject):
             ExposureProjection, PopulationBiomarkerSeries,
             BiomarkerCycleObservation, CarbonSinkSeries,
             HumanEraDefinition,
+            # co2-E: urban/non-urban outdoor settings and the
+            # MEASURED levels that check the modelled ones.
+            AmbientSettingProfile, ObservedLevelReference,
             # co2-S: the cited symptom ladder.
             HealthSymptomDefinition, SymptomOnsetClaim,
             # co2-9: simulation inputs bound to measured series.
@@ -3922,6 +3928,7 @@ class polariServer(treeObject):
                 )
                 from climate.carbon_sinks import seed_carbon_sinks
                 from climate.co2_symptoms import seed_co2_symptoms
+                from climate.co2_settings import seed_co2_settings
                 from climate.climate_citations import (
                     seed_climate_citations,
                 )
@@ -3935,7 +3942,8 @@ class polariServer(treeObject):
                           + seed_atmosphere_bindings(self.manager)
                           + seed_carbon_sinks(self.manager)
                           + seed_climate_citations(self.manager)
-                          + seed_co2_symptoms(self.manager)):
+                          + seed_co2_symptoms(self.manager)
+                          + seed_co2_settings(self.manager)):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[ClimateSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '
