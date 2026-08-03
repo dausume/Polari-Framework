@@ -371,7 +371,11 @@ def graph_data(manager, graph_name):
             return {'ok': False, 'graph': graph_name,
                     'graphConfig': config,
                     'refusal': built.get('refusal', '')}
-        from climate.climate_history import coverage_citations
+        # NOTE: coverage_citations is a MODULE-LEVEL import.
+        # Re-importing it here would make the name
+        # function-local and raise UnboundLocalError at the
+        # series branch below - the documented gotcha, hit
+        # for real while unifying the spans shape.
         cites = coverage_citations(manager, 'carbon-budget')
         return {'ok': True, 'graph': graph_name,
                 'graphConfig': config, 'rows': built['rows'],
@@ -409,21 +413,35 @@ def graph_data(manager, graph_name):
                             f'"ingested" but has no '
                             f'AtmosphericObservation rows — '
                             f're-run the ingest')}
-    data_rows, spans = [], []
+    data_rows, span_names = [], []
     for point in points:
         span = point.get('span', '')
-        if span and span not in spans:
-            spans.append(span)
+        if span and span not in span_names:
+            span_names.append(span)
         data_rows.append({'year': point['year'],
                           'value': point['value'],
                           'span': span})
     cite = coverage_citations(manager, series)
     citations = cite.get('citationLines', []) if cite.get('ok') \
         else []
+    # `spans` MUST be the same shape here as on the budget-graph
+    # branch above: a list of span OBJECTS carrying
+    # measurementKind, not a list of names. It used to return bare
+    # strings, so the same key had two shapes depending on which
+    # graph you asked for - and the frontend had to sniff the type
+    # to find out whether a curve was a splice. A payload whose
+    # shape depends on the request is a trap for the next
+    # consumer, so the rich rows win and the names stay available
+    # under their own key.
+    span_rows = cite.get('spans', []) if cite.get('ok') else []
+    if not span_rows:
+        span_rows = [{'span': n, 'displayName': n,
+                      'measurementKind': ''} for n in span_names]
     out = {
         'ok': True, 'graph': graph_name, 'series': series,
         'graphConfig': config, 'rows': data_rows,
-        'spans': spans, 'citations': citations,
+        'spans': span_rows, 'spanNames': span_names,
+        'citations': citations,
         'note': ('every row carries the SourceCoverageSpan it was '
                  'measured in, so a renderer segments the curve by '
                  'source instead of drawing one smooth line across '

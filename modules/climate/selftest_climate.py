@@ -2083,6 +2083,57 @@ check('the secondary-reporting threshold is CITED but its caveat '
           for c in _PC['claims']))
 
 
+print('== suite: co2-G — one payload shape, both graph branches ==')
+
+from climate.climate_pages import BUDGET_GRAPHS, graph_data
+
+_gser = [dict(_x) for _x in SEED_CLIMATE_SERIES]
+for _x in _gser:
+    if _x['name'] == 'co2-mauna-loa-annual':
+        _x['status'] = 'ingested'
+_g_mgr = types.SimpleNamespace(objectTables={
+    'AtmosphericSeriesDefinition': _table(_gser),
+    'AtmosphericObservation': {
+        f'g{_i}': _ns({'name': f'g{_i}',
+                       'series_ref': 'co2-mauna-loa-annual',
+                       'span_ref': 'span-mlo',
+                       'year': 1960.0 + _i,
+                       'value': 316.0 + 1.6 * _i,
+                       'uncertainty': 0.12})
+        for _i in range(40)},
+    'SourceCoverageSpan': _table([{
+        'name': 'span-mlo', 'series_ref': 'co2-mauna-loa-annual',
+        'display_name': 'Mauna Loa Observatory',
+        'measurement_kind': 'direct-instrument',
+        'from_year': 1960.0, 'to_year': 1999.0,
+        'archive_name': 'MLO', 'instrument': 'NDIR',
+        'resolution_years': 1.0, 'citation_text': 'NOAA GML.',
+        'doi_or_url': '', 'color': '#c53',
+        'typical_uncertainty': 0.12, 'is_prior': False,
+        'provenance_id': 'test', 'notes': ''}])})
+_g_mgr.objectTypingDict = {k: object() for k in _g_mgr.objectTables}
+_gd = graph_data(_g_mgr, 'climate-co2-instrumental')
+
+check('a SERIES graph returns spans as OBJECTS carrying '
+      'measurementKind — it used to return bare name strings, so '
+      'the same key had two shapes depending on which graph you '
+      'asked for, and the page had to sniff the type to find out '
+      'whether a curve was a splice',
+      _gd['ok']
+      and all(isinstance(x, dict) and 'measurementKind' in x
+              for x in _gd['spans']))
+
+check('and the bare names are still reachable under their own '
+      'key, so nothing was taken away to fix the shape',
+      _gd.get('spanNames') == ['span-mlo'])
+
+check('a payload whose shape depends on the request is a trap for '
+      'the next consumer: BOTH branches now agree, so "is this a '
+      'splice" is answerable the same way on every graph',
+      all(isinstance(x, dict) for x in _gd['spans'])
+      and 'climate-co2-instrumental' not in BUDGET_GRAPHS)
+
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
