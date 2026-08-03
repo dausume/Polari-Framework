@@ -37,6 +37,11 @@ import json
 import os
 import types
 
+from climate.biomarker_link import (
+    RENAL_COMPENSATION_MMOL_PER_10MMHG, attribution_test,
+    biomarker_question, correlate, cycle_trend,
+    explainable_bicarbonate_shift, monotonicity_warning,
+)
 from climate.climate_basis import (
     AtmosphericSeriesDefinition, CO2HealthThreshold, EVIDENCE_GRADES,
     HumanEraDefinition, IndoorSpaceProfile,
@@ -69,6 +74,10 @@ from climate.co2_trend import (
 )
 from climate.series_parsers import (
     PARSERS, get_parser, parse_ice_core_composite, parse_noaa_annual,
+)
+from climate.sim_binding import (
+    SEED_ATMOSPHERE_BINDINGS, AtmosphereSeriesBinding, apply_all,
+    apply_binding, binding_report,
 )
 from climate.xpt_reader import make_min_xport, read_xpt_bytes
 from polariApiProfiler.apiEndpoint import APIEndpoint
@@ -925,6 +934,391 @@ check('an empty body refuses too, and says an empty 200 is a '
       'proxy or a truncated download, not a data set',
       read_xpt_bytes(b'').get('ok') is False
       and 'empty body' in read_xpt_bytes(b'')['refusal'])
+
+
+# --------------------------------------------------------------
+print('== suite: co2-B — the bicarbonate question, answered '
+      'with arithmetic ==')
+
+#: NHANES 1999-2023, mean serum bicarbonate (LBXSC3SI, mmol/L)
+#: per 2-year cycle. These are the parsed values the module's
+#: docstring quotes; the test and the prose must agree or one of
+#: them is stale.
+BIC_BY_CYCLE = {
+    '1999-2000': 23.672, '2001-2002': 23.475, '2003-2004': 24.643,
+    '2005-2006': 24.556, '2007-2008': 24.859, '2009-2010': 25.460,
+    '2011-2012': 25.005, '2013-2014': 25.168, '2015-2016': 24.410,
+    '2017-2018': 25.541, '2021-2023': 24.449,
+}
+#: Percent of the same sampling frame scoring PHQ-9 >= 10. Only 8
+#: cycles: the screener starts in 2005-2006.
+DEP_BY_CYCLE = {
+    '2005-2006': 6.19, '2007-2008': 9.66, '2009-2010': 9.43,
+    '2011-2012': 8.93, '2013-2014': 9.51, '2015-2016': 8.08,
+    '2017-2018': 9.06, '2021-2023': 13.25,
+}
+#: Cycle midpoints. 2021-2023 is a THREE-year cycle, so its
+#: midpoint is 2022.5 — treating it as 2022 would quietly bend
+#: every slope through the newest and largest point.
+CYCLE_MIDPOINTS = {
+    '1999-2000': 2000.0, '2001-2002': 2002.0, '2003-2004': 2004.0,
+    '2005-2006': 2006.0, '2007-2008': 2008.0, '2009-2010': 2010.0,
+    '2011-2012': 2012.0, '2013-2014': 2014.0, '2015-2016': 2016.0,
+    '2017-2018': 2018.0, '2021-2023': 2022.5,
+}
+#: Ambient CO2 over the same window, and the pooled within-cycle
+#: spread of the biomarker itself.
+CO2_PPM_1999, CO2_PPM_2023 = 368.14, 421.08
+BIC_WITHIN_CYCLE_SD = 2.26
+
+_bic_tr = cycle_trend(BIC_BY_CYCLE, CYCLE_MIDPOINTS)
+check('bicarbonate DID rise across the 11 cycles: +0.0507 mmol/L '
+      'per year at r=+0.54 — the trend the question starts from '
+      'is real and is not being argued away',
+      _bic_tr.get('ok') and _bic_tr['nCycles'] == 11
+      and abs(_bic_tr['slopePerYear'] - 0.0507) < 5e-5
+      and abs(_bic_tr['r'] - 0.542) < 5e-3
+      and abs(_bic_tr['totalChange'] - 1.140) < 5e-3,
+      json.dumps({k: v for k, v in _bic_tr.items()
+                  if k != 'values'})[:220])
+
+_dep_tr = cycle_trend(DEP_BY_CYCLE, CYCLE_MIDPOINTS)
+check('depression prevalence DID rise too: +0.254 PHQ-9 points '
+      'per year at r=+0.70 across its 8 cycles',
+      _dep_tr.get('ok') and _dep_tr['nCycles'] == 8
+      and abs(_dep_tr['slopePerYear'] - 0.254) < 5e-4
+      and abs(_dep_tr['r'] - 0.704) < 5e-3,
+      json.dumps({k: v for k, v in _dep_tr.items()
+                  if k != 'values'})[:220])
+
+_corr = correlate(BIC_BY_CYCLE, DEP_BY_CYCLE,
+                  'serum bicarbonate', 'PHQ-9 >=10 prevalence')
+check('THE CENTRAL CHECK: across the 8 shared cycles the two '
+      'rising series correlate at |r| < 0.1 — effectively ZERO, '
+      'and the wrong sign. Both rising against TIME is not the '
+      'same as rising WITH EACH OTHER, and this near-zero number '
+      'is stronger evidence against a shared cause than either '
+      'trend is for one',
+      _corr.get('ok') and _corr['n'] == 8
+      and abs(_corr['r']) < 0.1
+      and _corr['strength'] == 'effectively none',
+      json.dumps({k: v for k, v in _corr.items()
+                  if k != 'note'})[:220])
+
+_thin_corr = correlate({'a': 1.0, 'b': 2.0}, {'a': 3.0, 'b': 4.0},
+                       'x', 'y')
+check('fewer than 3 shared cycles REFUSES and NAMES the count — '
+      'a correlation over two points is a line, not a finding',
+      _thin_corr.get('ok') is False
+      and '2 cycles' in _thin_corr['refusal']
+      and 'at least 3' in _thin_corr['refusal'],
+      _thin_corr.get('refusal', ''))
+
+_exp = explainable_bicarbonate_shift(CO2_PPM_1999, CO2_PPM_2023)
+check('52.9 ppm of ambient CO2 is 0.0402 mmHg of partial '
+      'pressure, which the renal constant turns into a 0.00161 '
+      'mmol/L bicarbonate shift — the whole question is a unit '
+      'conversion away from its answer',
+      _exp.get('ok')
+      and abs(_exp['deltaPco2Mmhg'] - 0.0402) < 5e-5
+      and abs(_exp['explainableShiftMmolL'] - 0.00161) < 5e-6,
+      json.dumps(_exp)[:220])
+
+_attr = attribution_test(1.1404, CO2_PPM_1999, CO2_PPM_2023)
+check('THE UNIT CHECK — the one that separates "the rise is '
+      'real" from "ambient CO2 caused it": the observed 1.14 '
+      'mmol/L is ~709x larger than ambient CO2 could produce, so '
+      'mechanismAdmissible is False and the verdict SAYS the '
+      'mechanism is too small rather than hedging',
+      _attr.get('ok')
+      and _attr['mechanismAdmissible'] is False
+      and 600.0 < _attr['ratio'] < 800.0
+      and 'too small by orders of magnitude' in _attr['verdict'],
+      json.dumps(_attr)[:260])
+
+_small = attribution_test(0.002, CO2_PPM_1999, CO2_PPM_2023)
+check('and the test is NOT rigged to always fail: a small '
+      'observed shift at the same ppm range comes back '
+      'ADMISSIBLE — a check that cannot pass proves nothing when '
+      'it fails',
+      _small.get('ok') and _small['mechanismAdmissible'] is True
+      and 'ARITHMETICALLY ADMISSIBLE' in _small['verdict'],
+      json.dumps(_small)[:220])
+
+_flat = attribution_test(1.1404, 421.08, 421.08)
+check('ppm_from == ppm_to REFUSES — with no ambient change there '
+      'is no ratio to report, and dividing by it would print an '
+      'infinity as a finding',
+      _flat.get('ok') is False
+      and 'no ratio is defined' in _flat['refusal'],
+      _flat.get('refusal', ''))
+
+_warn = monotonicity_warning(_bic_tr, BIC_WITHIN_CYCLE_SD)
+check('THE HONEST CAVEAT: the real bicarbonate trend is NOT '
+      'trustworthy on its own — it carries at least 2 warnings, '
+      'one of them naming assay/calibration change between '
+      'cycles, because a sawtooth across survey cycles is exactly '
+      'what a method change looks like',
+      _warn.get('ok') and _warn['trustworthy'] is False
+      and len(_warn['warnings']) >= 2
+      and any('assay' in w and 'calibration' in w
+              for w in _warn['warnings']),
+      json.dumps(_warn['warnings'])[:240])
+check('and the sawtooth is really there in the data, so the '
+      'warning is earned rather than boilerplate',
+      _bic_tr.get('monotonic') is False)
+
+_bq = biomarker_question(BIC_BY_CYCLE, DEP_BY_CYCLE,
+                         CYCLE_MIDPOINTS, CO2_PPM_1999,
+                         CO2_PPM_2023, BIC_WITHIN_CYCLE_SD)
+_HEAD_KEYS = {'label', 'value', 'note', 'verdict'}
+check('biomarker_question answers as ONE payload: a headline '
+      'where every row has exactly {label,value,note,verdict}, so '
+      'no number can reach a page without the note that qualifies '
+      'it',
+      _bq.get('ok') is True and len(_bq['headline']) >= 4
+      and all(set(h) == _HEAD_KEYS for h in _bq['headline']),
+      str([sorted(set(h) ^ _HEAD_KEYS) for h in _bq['headline']
+           if set(h) != _HEAD_KEYS]))
+check('the answer is stated in words and says the PREDICTION IS '
+      'NOT SUPPORTED — the payload does not leave the reader to '
+      'infer the conclusion from four statistics',
+      _bq['answer'].strip()
+      and 'not supported' in _bq['answer'],
+      _bq.get('answer', '')[:160])
+check('and both confounder lists are non-empty: the alternatives '
+      'that could produce either trend are named ON the answer, '
+      'not left for a reader to think of',
+      len(_bq['bicarbonateConfounders']) >= 3
+      and len(_bq['depressionConfounders']) >= 3,
+      f"{len(_bq['bicarbonateConfounders'])} / "
+      f"{len(_bq['depressionConfounders'])}")
+
+check('the compensation constant is the CHRONIC figure (0.4 '
+      'mmol/L per 10 mmHg), the most generous assumption '
+      'available to the hypothesis under test — the acute figure '
+      'is smaller still, so a hypothesis that fails here fails '
+      'with any constant',
+      RENAL_COMPENSATION_MMOL_PER_10MMHG == 0.4
+      and 'CHRONIC' in _exp['note'].upper(),
+      str(RENAL_COMPENSATION_MMOL_PER_10MMHG))
+
+
+# --------------------------------------------------------------
+print('== suite: co2-9 — the simulation binding ==')
+
+_BIND_SERIES = 'co2-mauna-loa-annual'
+#: A short synthetic instrumental record. Deliberately starts in
+#: 2020 so nothing in it is anywhere near pre-industrial.
+_BIND_POINTS = [(2020.0, 414.24), (2021.0, 416.45),
+                (2022.0, 418.56), (2023.0, 421.08),
+                (2024.0, 424.61), (2025.0, 427.35)]
+
+_bind_mgr = types.SimpleNamespace()
+_bind_mgr.objectTables = {
+    'AtmosphereDefinition': {
+        'open-greenhouse': types.SimpleNamespace(
+            name='open-greenhouse', outside_co2_ppm=420.0),
+        'ventilated-grow-tent': types.SimpleNamespace(
+            name='ventilated-grow-tent', outside_co2_ppm=420.0),
+    },
+    'AtmosphereSeriesBinding': _table(SEED_ATMOSPHERE_BINDINGS),
+    'AtmosphericSeriesDefinition': _table([
+        {'name': _BIND_SERIES, 'status': 'prior',
+         'endpoint_ref': 'noaa-gml-co2-annual-mean',
+         'first_year': 0.0, 'last_year': 0.0},
+    ]),
+    'AtmosphericObservation': {
+        f'{_BIND_SERIES}--{_i:04d}': _ns(
+            {'name': f'{_BIND_SERIES}--{_i:04d}',
+             'series_ref': _BIND_SERIES, 'span_ref': 'fx-span-mlo',
+             'year': _y, 'value': _v, 'uncertainty': 0.12})
+        for _i, (_y, _v) in enumerate(_BIND_POINTS)
+    },
+}
+_bind_mgr.objectTypingDict = {k: object()
+                              for k in _bind_mgr.objectTables}
+_GH = _bind_mgr.objectTables['AtmosphereDefinition'][
+    'open-greenhouse']
+
+
+def _bind_row(**over):
+    """A standalone binding row for the refusal cases, so the
+    seeded table's own results stay uncontaminated."""
+    base = dict(SEED_ATMOSPHERE_BINDINGS[0])
+    base.update(over)
+    return _ns(base)
+
+
+_prior_apply = apply_all(_bind_mgr)
+check('THE MOST IMPORTANT CHECK IN THIS SUITE: while the series '
+      'is still "prior", every binding refuses, NOTHING is '
+      'applied, and the greenhouse row STILL HOLDS ITS SEEDED '
+      '420.0 — a refused binding never half-applies, and the '
+      'typed constant is the working fallback rather than a '
+      'failure',
+      _prior_apply.get('ok') and _prior_apply['applied'] == 0
+      and _prior_apply['refused'] == len(SEED_ATMOSPHERE_BINDINGS)
+      and _GH.outside_co2_ppm == 420.0,
+      json.dumps({k: v for k, v in _prior_apply.items()
+                  if k != 'results'}) + f' ppm={_GH.outside_co2_ppm}')
+check('and the refusal NAMES the series and points at the ingest '
+      'that would open it — "not ingested" with no next step is '
+      'a dead end',
+      all(_BIND_SERIES in r.get('refusal', '')
+          and 'ingested' in r.get('refusal', '')
+          and 'fetch it from' in r.get('refusal', '')
+          for r in _prior_apply['results']),
+      str([r.get('refusal', '')[:90]
+           for r in _prior_apply['results']])[:240])
+
+_bind_mgr.objectTables['AtmosphericSeriesDefinition'][
+    _BIND_SERIES].status = 'ingested'
+
+_dry = apply_all(_bind_mgr, dry_run=True)
+check('a DRY RUN reports what it WOULD write and leaves the '
+      'target alone — the preview and the write are the same '
+      'code path, which is the only way a preview can be trusted',
+      _dry.get('ok') and _dry['applied'] == 2
+      and all(abs(r['wouldWrite'] - 427.35) < 1e-9
+              and abs(r['currentValue'] - 420.0) < 1e-9
+              for r in _dry['results'])
+      and _GH.outside_co2_ppm == 420.0,
+      json.dumps(_dry['results'])[:220])
+
+_applied = apply_all(_bind_mgr)
+_gh_result = [r for r in _applied['results']
+              if r.get('binding')
+              == 'bind-open-greenhouse-outside-co2'][0]
+check('with the series INGESTED the bindings apply: the '
+      'greenhouse ambient CO2 becomes the measured 427.35 and '
+      'the result reports previousValue 420.0, appliedValue '
+      '427.35 and a delta of +7.35 — the simulation input is now '
+      'a measurement with a source year',
+      _applied.get('ok') and _applied['applied'] == 2
+      and _applied['refused'] == 0
+      and abs(_GH.outside_co2_ppm - 427.35) < 1e-9
+      and abs(_gh_result['previousValue'] - 420.0) < 1e-9
+      and abs(_gh_result['appliedValue'] - 427.35) < 1e-9
+      and abs(_gh_result['delta'] - 7.35) < 1e-9
+      and _gh_result['sourceYear'] == 2025.0,
+      json.dumps(_gh_result)[:260])
+
+_gh_bind = _bind_mgr.objectTables['AtmosphereSeriesBinding'][
+    'bind-open-greenhouse-outside-co2']
+check('the binding row RECORDS the displaced constant in '
+      'replaced_value (420.0), so the binding is reversible and '
+      'the distance between the guess and the measurement is on '
+      'the row rather than lost',
+      abs(_gh_bind.replaced_value - 420.0) < 1e-9,
+      str(_gh_bind.replaced_value))
+
+_reapply = apply_all(_bind_mgr)
+check('RE-APPLYING DOES NOT OVERWRITE replaced_value with 427.35 '
+      '— the provenance of the ORIGINAL constant survives every '
+      'later run, which is what makes it provenance instead of a '
+      '"previous value" cache',
+      _reapply['applied'] == 2
+      and abs(_gh_bind.replaced_value - 420.0) < 1e-9
+      and abs(_gh_bind.last_applied_value - 427.35) < 1e-9,
+      f'replaced={_gh_bind.replaced_value} '
+      f'applied={_gh_bind.last_applied_value}')
+
+_no_row = apply_binding(_bind_mgr,
+                        _bind_row(name='fx-bind-missing-row',
+                                  target_row='no-such-room'))
+check('a binding whose target_row does not exist REFUSES naming '
+      'the row and ASKING WHETHER THE OWNING MODULE IS ENABLED — '
+      'the usual cause is a module that is not booted, not a typo',
+      _no_row.get('ok') is False
+      and 'no-such-room' in _no_row['refusal']
+      and 'owning module' in _no_row['refusal'],
+      _no_row.get('refusal', ''))
+
+_no_field = apply_binding(
+    _bind_mgr, _bind_row(name='fx-bind-missing-field',
+                         target_field='outside_co2_ppmm'))
+check('a binding naming a field the row does not have REFUSES by '
+      'FIELD NAME — setattr would otherwise invent an attribute '
+      'nothing reads and report success',
+      _no_field.get('ok') is False
+      and 'outside_co2_ppmm' in _no_field['refusal']
+      and not hasattr(_GH, 'outside_co2_ppmm'),
+      _no_field.get('refusal', ''))
+
+_disabled = apply_binding(_bind_mgr,
+                          _bind_row(name='fx-bind-disabled',
+                                    enabled=False,
+                                    target_row='open-greenhouse'))
+check('a DISABLED binding is refused as disabled and writes '
+      'nothing — enabled is a knob, not a comment',
+      _disabled.get('ok') is False
+      and 'disabled' in _disabled['refusal']
+      and abs(_GH.outside_co2_ppm - 427.35) < 1e-9,
+      _disabled.get('refusal', ''))
+
+_pre = apply_binding(_bind_mgr,
+                     _bind_row(name='fx-bind-preindustrial',
+                               mode='preindustrial'))
+check('mode "preindustrial" against an INSTRUMENTAL-ONLY series '
+      'REFUSES, says the instrumental record does not reach '
+      'pre-industrial, and points at the ice-core series — the '
+      'binding cannot silently hand a 1750 counterfactual the '
+      'nearest modern year it happens to own',
+      _pre.get('ok') is False
+      and 'does not reach pre-industrial' in _pre['refusal']
+      and 'ice-core' in _pre['refusal'],
+      _pre.get('refusal', ''))
+
+_far_year = apply_binding(_bind_mgr,
+                          _bind_row(name='fx-bind-far-year',
+                                    mode='year', year=1990.0))
+check('mode "year" more than 5 years from any observation '
+      'REFUSES and NAMES the nearest year it does have (2020) — '
+      'silently snapping to it would reproduce a 1990 run with '
+      '2020 air',
+      _far_year.get('ok') is False
+      and '1990' in _far_year['refusal']
+      and '2020' in _far_year['refusal'],
+      _far_year.get('refusal', ''))
+
+_at_year = apply_binding(_bind_mgr,
+                         _bind_row(name='fx-bind-2023',
+                                   mode='year', year=2023.0),
+                         dry_run=True)
+check('mode "year" on a year that IS in the record returns THAT '
+      'year\'s value (421.08 for 2023), which is what makes a '
+      'historical run reproducible',
+      _at_year.get('ok')
+      and abs(_at_year['wouldWrite'] - 421.08) < 1e-9
+      and _at_year['sourceYear'] == 2023.0,
+      json.dumps(_at_year))
+
+_bind_params = _init_params(AtmosphereSeriesBinding)
+check('every AtmosphereSeriesBinding seed key matches the class\' '
+      '__init__ signature exactly — an unknown key is silently '
+      'dropped on construction (the ten-strikes seed gotcha)',
+      all(set(s) == _bind_params
+          for s in SEED_ATMOSPHERE_BINDINGS),
+      str([sorted(set(s) ^ _bind_params)
+           for s in SEED_ATMOSPHERE_BINDINGS
+           if set(s) != _bind_params]))
+
+_report = binding_report(_bind_mgr)
+check('binding_report puts replacedValue BESIDE appliedValue on '
+      'every row, so the gap between the number somebody typed '
+      'and the number the world had stays visible on the page '
+      'instead of being overwritten by it',
+      _report.get('ok')
+      and _report['count'] == len(SEED_ATMOSPHERE_BINDINGS)
+      and all('replacedValue' in b and 'appliedValue' in b
+              and 'sourceYear' in b and 'series' in b
+              for b in _report['bindings'])
+      and abs([b for b in _report['bindings']
+               if b['name']
+               == 'bind-open-greenhouse-outside-co2'][0]
+              ['replacedValue'] - 420.0) < 1e-9,
+      json.dumps(_report['bindings'])[:240])
 
 
 failed = _results.count(False)

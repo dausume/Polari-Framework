@@ -956,6 +956,9 @@ try:
     from climate.co2_indoor import SEED_INDOOR_SPACES
     from climate.climate_history import SEED_HUMAN_ERAS
     from climate.climate_series import SEED_CLIMATE_SERIES
+    from climate.sim_binding import (
+        AtmosphereSeriesBinding, SEED_ATMOSPHERE_BINDINGS,
+    )
 except ImportError as _exc:
     _stub_missing_feature('climate', _exc, globals(), (
         'AtmosphericSeriesDefinition', 'AtmosphericObservation',
@@ -963,9 +966,10 @@ except ImportError as _exc:
         'CO2HealthThreshold', 'IndoorSpaceProfile',
         'ExposureProjection', 'PopulationBiomarkerSeries',
         'BiomarkerCycleObservation', 'CarbonSinkSeries',
-        'HumanEraDefinition', 'SEED_CO2_THRESHOLDS',
-        'SEED_INDOOR_SPACES', 'SEED_HUMAN_ERAS',
-        'SEED_CLIMATE_SERIES',
+        'HumanEraDefinition', 'AtmosphereSeriesBinding',
+        'SEED_CO2_THRESHOLDS', 'SEED_INDOOR_SPACES',
+        'SEED_HUMAN_ERAS', 'SEED_CLIMATE_SERIES',
+        'SEED_ATMOSPHERE_BINDINGS',
     ))
 # Odoo ERP connector — instance configs + sim/ops write guards (od-3).
 try:
@@ -2166,6 +2170,8 @@ class polariServer(treeObject):
             ExposureProjection, PopulationBiomarkerSeries,
             BiomarkerCycleObservation, CarbonSinkSeries,
             HumanEraDefinition,
+            # co2-9: simulation inputs bound to measured series.
+            AtmosphereSeriesBinding,
             # mesh-1: licence findings, the assets under them, and
             # the human's accepted picks.
             MeshAssetSource, MeshAssetReference, OrganMeshChoice,
@@ -3901,13 +3907,19 @@ class polariServer(treeObject):
                 from climate.climate_history import seed_human_eras
                 from climate.climate_pages import seed_climate_pages
                 from climate.climate_app import seed_climate_app
+                from climate.sim_binding import (
+                    seed_atmosphere_bindings,
+                )
+                from climate.carbon_sinks import seed_carbon_sinks
                 for r in (seed_climate_sources(self.manager)
                           + seed_climate_series(self.manager)
                           + seed_co2_thresholds(self.manager)
                           + seed_indoor_spaces(self.manager)
                           + seed_human_eras(self.manager)
                           + seed_climate_pages(self.manager)
-                          + seed_climate_app(self.manager)):
+                          + seed_climate_app(self.manager)
+                          + seed_atmosphere_bindings(self.manager)
+                          + seed_carbon_sinks(self.manager)):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[ClimateSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '

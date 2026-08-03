@@ -51,6 +51,8 @@ class ClimateAPI(treeObject):
                 suffix='physiology')
             add('/api/climate/history', self, suffix='history')
             add('/api/climate/sources', self, suffix='sources')
+            add('/api/climate/biomarker', self, suffix='biomarker')
+            add('/api/climate/bindings', self, suffix='bindings')
             add('/api/climate/view/{view_name}', self, suffix='view')
             add('/api/climate/graph/{graph_name}', self,
                 suffix='graph')
@@ -242,6 +244,52 @@ class ClimateAPI(treeObject):
                 from_year=_float(request, 'from_year'),
                 to_year=_float(request, 'to_year'))
         response.media = payload
+
+    def on_get_biomarker(self, request, response):
+        """co2-B: the bicarbonate/stress question, answered."""
+        from climate.biomarker_link import biomarker_question
+        bic, dep, mid = {}, {}, {}
+        for row in rows(self.manager, 'BiomarkerCycleObservation'):
+            cycle = getattr(row, 'cycle', '')
+            if not cycle:
+                continue
+            start = float(getattr(row, 'cycle_start_year', 0.0))
+            end = float(getattr(row, 'cycle_end_year', 0.0))
+            mid[cycle] = (start + end) / 2.0 if end else start
+            series = getattr(row, 'series_ref', '')
+            if 'bicarbonate' in series:
+                bic[cycle] = float(getattr(row, 'mean', 0.0))
+            elif 'depress' in series or 'phq' in series:
+                bic.setdefault(cycle, bic.get(cycle))
+                dep[cycle] = float(getattr(row, 'mean', 0.0))
+        bic = {k: v for k, v in bic.items() if v}
+        if len(bic) < 3:
+            response.status = '409 Conflict'
+            response.media = {
+                'ok': False,
+                'refusal': ('fewer than 3 bicarbonate cycles are '
+                            'ingested - POST '
+                            '/api/climate/ingest/<series> for the '
+                            'NHANES cycles first; this question is '
+                            'not answerable from seeds')}
+            return
+        outdoor = _present_outdoor(self.manager) or 0.0
+        response.media = biomarker_question(
+            bic, dep, mid, _float(request, 'ppm_from') or 368.14,
+            _float(request, 'ppm_to') or outdoor,
+            within_cycle_sd=_float(request, 'within_cycle_sd'))
+
+    def on_get_bindings(self, request, response):
+        """co2-9: what simulation input is bound to what series."""
+        from climate.sim_binding import binding_report
+        response.media = binding_report(self.manager)
+
+    def on_post_bindings(self, request, response):
+        """Apply the bindings. POST because it writes into another
+        module's simulation inputs."""
+        from climate.sim_binding import apply_all
+        dry = bool(request.params.get('dry_run'))
+        response.media = apply_all(self.manager, dry_run=dry)
 
     def on_get_view(self, request, response, view_name):
         from climate.climate_views import view_payload

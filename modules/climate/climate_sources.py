@@ -117,6 +117,21 @@ SEED_CLIMATE_GOV_SOURCES = [
                      'onward, over the Socrata open-data API.',
          notes='The only true JSON API in this app\'s source set; '
                'everything else is a published file.'),
+    _gov('global-carbon-project', 'GCP',
+         'Global Carbon Project (Global Carbon Budget)',
+         'Global Carbon Project / Future Earth',
+         'https://www.globalcarbonproject.org',
+         'https://globalcarbonbudget.org/carbonbudget/',
+         endpoints=('gcb-global-carbon-budget',),
+         description='The annual global carbon budget: fossil and '
+                     'land-use emissions, atmospheric growth, and '
+                     'the ocean, land and cement sinks, 1959 '
+                     'onward.',
+         notes='NOT a government agency - an international research '
+               'consortium, and the acronym is theirs. The budget '
+               'is published as ONE xlsx and nothing else, which '
+               'is why this module carries its own stdlib xlsx '
+               'reader rather than a new dependency.'),
     _gov('ashrae', 'ASHRAE',
          'American Society of Heating, Refrigerating and '
          'Air-Conditioning Engineers',
@@ -277,6 +292,29 @@ SEED_CLIMATE_ENDPOINTS = [
               'is what makes a bicarbonate/mood comparison worth '
               'attempting at all; it still does not make it '
               'causal.'),
+    _ep('gcb-global-carbon-budget',
+        'Global Carbon Budget 2025 v1.0 (workbook)',
+        'global-carbon-project',
+        'https://globalcarbonbudget.org/download',
+        '2519/', 'binary', 'PK\x03\x04', 100000,
+        'The annual global carbon budget workbook: emissions, '
+        'atmospheric growth, and the ocean/land/cement sinks by '
+        'year, 1959-2024.',
+        citation=('Friedlingstein P et al. Global Carbon Budget '
+                  '2025. Earth System Science Data. Global Carbon '
+                  'Project, doi:10.18160/GCP-2025.'),
+        license_note='CC BY 4.0; the Global Carbon Project asks '
+                     'that the ESSD paper be cited.',
+        reject='<!DOCTYPE',
+        notes='480363 bytes observed 2026-08-02. THE PUBLISHED '
+              'LINK carries a ?tmstv= cache-buster; it was tested '
+              'WITHOUT it and returned byte-identical content, so '
+              'the stable form is seeded. Content signature is the '
+              'ZIP magic (an xlsx is a ZIP), which is also what '
+              'catches an HTML error page served as 200. The '
+              'sheet is read by climate.xlsx_reader - openpyxl is '
+              'NOT installed and one file a year does not justify '
+              'a new pin and an image rebuild.'),
     _ep('cdc-life-expectancy',
         'US life expectancy at birth, 1900-',
         'cdc-nchs-vital', 'https://data.cdc.gov/resource',
