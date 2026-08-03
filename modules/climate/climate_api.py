@@ -54,6 +54,8 @@ class ClimateAPI(treeObject):
             add('/api/climate/sinks', self, suffix='sinks')
             add('/api/climate/citations', self,
                 suffix='citations')
+            add('/api/climate/symptoms', self,
+                suffix='symptoms')
             add('/api/climate/ingest-budget', self,
                 suffix='ingest_budget')
             add('/api/climate/biomarker', self, suffix='biomarker')
@@ -267,6 +269,24 @@ class ClimateAPI(treeObject):
         credentialed press."""
         from climate.climate_citations import threshold_citations
         response.media = threshold_citations(self.manager)
+
+    def on_get_symptoms(self, request, response):
+        """co2-S: the cited symptom ladder, from a headache to the
+        levels that kill. ?max_ppm= clips it; ?indoor_ppm= reports
+        which claims a given room has reached."""
+        from climate.co2_symptoms import (
+            ladder_for_space, symptom_ladder,
+        )
+        indoor = _float(request, 'indoor_ppm')
+        if indoor is not None:
+            payload = ladder_for_space(self.manager, indoor)
+        else:
+            payload = symptom_ladder(
+                self.manager, max_ppm=_float(request, 'max_ppm')
+                or 0.0)
+        if not payload.get('ok'):
+            response.status = '409 Conflict'
+        response.media = payload
 
     def on_get_sinks(self, request, response):
         """co2-6: which sinks are largest, what they sequester,

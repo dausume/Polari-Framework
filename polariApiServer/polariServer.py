@@ -951,7 +951,8 @@ try:
         AtmosphericObservation, AtmosphericSeriesDefinition,
         AtmosphericTrendFit, BiomarkerCycleObservation,
         CO2HealthThreshold, CarbonSinkSeries, ExposureProjection,
-        HumanEraDefinition, IndoorSpaceProfile,
+        HealthSymptomDefinition, HumanEraDefinition,
+        IndoorSpaceProfile, SymptomOnsetClaim,
         PopulationBiomarkerSeries, SourceCoverageSpan,
     )
     from climate.co2_thresholds import SEED_CO2_THRESHOLDS
@@ -969,6 +970,7 @@ except ImportError as _exc:
         'ExposureProjection', 'PopulationBiomarkerSeries',
         'BiomarkerCycleObservation', 'CarbonSinkSeries',
         'HumanEraDefinition', 'AtmosphereSeriesBinding',
+        'HealthSymptomDefinition', 'SymptomOnsetClaim',
         'SEED_CO2_THRESHOLDS', 'SEED_INDOOR_SPACES',
         'SEED_HUMAN_ERAS', 'SEED_CLIMATE_SERIES',
         'SEED_ATMOSPHERE_BINDINGS',
@@ -2176,6 +2178,8 @@ class polariServer(treeObject):
             ExposureProjection, PopulationBiomarkerSeries,
             BiomarkerCycleObservation, CarbonSinkSeries,
             HumanEraDefinition,
+            # co2-S: the cited symptom ladder.
+            HealthSymptomDefinition, SymptomOnsetClaim,
             # co2-9: simulation inputs bound to measured series.
             AtmosphereSeriesBinding,
             # mesh-1: licence findings, the assets under them, and
@@ -3917,6 +3921,7 @@ class polariServer(treeObject):
                     seed_atmosphere_bindings,
                 )
                 from climate.carbon_sinks import seed_carbon_sinks
+                from climate.co2_symptoms import seed_co2_symptoms
                 from climate.climate_citations import (
                     seed_climate_citations,
                 )
@@ -3929,7 +3934,8 @@ class polariServer(treeObject):
                           + seed_climate_app(self.manager)
                           + seed_atmosphere_bindings(self.manager)
                           + seed_carbon_sinks(self.manager)
-                          + seed_climate_citations(self.manager)):
+                          + seed_climate_citations(self.manager)
+                          + seed_co2_symptoms(self.manager)):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[ClimateSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '

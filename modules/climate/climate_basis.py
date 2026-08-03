@@ -279,6 +279,99 @@ class CO2HealthThreshold(treeObject):
         self.notes = notes
 
 
+#: How bad is it, on a scale a ladder can be ORDERED by. Prose
+#: cannot be sorted, and a page that lists "headache" beside
+#: "unconsciousness" without ranking them is not a ladder.
+SYMPTOM_SEVERITY = {
+    1: 'subclinical - detectable by instrument, not felt',
+    2: 'discomfort - noticed, tolerated',
+    3: 'impairment - performance or judgement affected',
+    4: 'acute distress - the person wants out of the room',
+    5: 'incapacitation - the person cannot remove themselves',
+    6: 'life-threatening - death follows without rescue',
+}
+
+
+class HealthSymptomDefinition(treeObject):
+    """One symptom, as a row.
+
+    Symptoms are their own objects because the SAME symptom
+    appears at several concentrations from several sources -
+    headache is reported at 700 ppm by epidemiology and at 4
+    percent by occupational medicine - and a page that restates it
+    per threshold cannot show that, nor rank the ladder.
+
+    `is_reversible` matters more here than anywhere: OSHA states
+    that low-level CO2 intoxication is "sudden and reversible" and
+    dissipates within minutes of leaving the exposure. A ladder
+    that lists convulsions next to headache without saying which
+    ones undo themselves is frightening rather than informative.
+    """
+
+    @treeObjectInit
+    def __init__(self, name='', display_name='', body_system='',
+                 severity_rank=1, is_reversible=True,
+                 description='', is_prior=True, provenance_id='',
+                 notes='', manager=None):
+        self.name = name
+        self.display_name = display_name
+        #: 'central-nervous' | 'respiratory' | 'cardiovascular' |
+        #: 'metabolic' | 'sensory' | 'general'
+        self.body_system = body_system
+        #: SYMPTOM_SEVERITY key. Orders the ladder.
+        self.severity_rank = severity_rank
+        self.is_reversible = is_reversible
+        self.description = description
+        self.is_prior = is_prior
+        self.provenance_id = provenance_id
+        self.notes = notes
+
+
+class SymptomOnsetClaim(treeObject):
+    """ONE SOURCE SAYS ONE SYMPTOM APPEARS AT ONE LEVEL.
+
+    This is the join that makes the ladder citable. It is
+    deliberately not a field on the threshold row: two sources
+    disagree about where a symptom starts, and the object model
+    has to be able to hold both claims at once rather than forcing
+    a page to pick a winner silently.
+
+    A claim carries its own evidence grade, because the grade
+    belongs to the CLAIM and not to the symptom - "headache at
+    700 ppm" (epidemiological association) and "headache at 40000
+    ppm" (occupational medicine) are not equally certain and are
+    not equally severe.
+    """
+
+    @treeObjectInit
+    def __init__(self, name='', symptom_ref='', ppm_from=0.0,
+                 ppm_to=0.0, source_ref='',
+                 evidence_grade='expert-judgement', exposure='',
+                 onset_note='', population='general',
+                 quote='', is_lethal=False, is_prior=True,
+                 provenance_id='', notes='', manager=None):
+        self.name = name
+        self.symptom_ref = symptom_ref
+        #: the band this source attributes the symptom to. ppm_to
+        #: of 0 means "and above".
+        self.ppm_from = ppm_from
+        self.ppm_to = ppm_to
+        self.source_ref = source_ref
+        self.evidence_grade = (
+            evidence_grade if evidence_grade in EVIDENCE_GRADES
+            else 'expert-judgement')
+        self.exposure = exposure
+        self.onset_note = onset_note
+        self.population = population
+        #: the source's OWN words where they are short enough to
+        #: quote. A paraphrase of a health claim is a new claim.
+        self.quote = quote
+        self.is_lethal = is_lethal
+        self.is_prior = is_prior
+        self.provenance_id = provenance_id
+        self.notes = notes
+
+
 class IndoorSpaceProfile(treeObject):
     """A room archetype — the coupling's inputs, and directly
     bindable by an indoor-air simulation."""

@@ -1552,6 +1552,131 @@ check('and every seeded journalistic row declares whether its '
           for j in SEED_CLIMATE_JOURNALISTIC_SOURCES))
 
 
+print('== suite: co2-S — the cited symptom ladder ==')
+
+from climate.co2_symptoms import (
+    SEED_HEALTH_SYMPTOMS, SEED_SYMPTOM_CLAIMS, ladder_for_space,
+    symptom_ladder,
+)
+from climate.climate_basis import (
+    HealthSymptomDefinition, SymptomOnsetClaim, SYMPTOM_SEVERITY,
+)
+
+# The ladder cites OSHA, whose GovSource row is seeded by dmvdata
+# rather than by climate — both land in the same table in
+# production, so the fixture unions them. A fixture narrower than
+# production is how a green suite hides a broken page.
+from dmvdata.gov_sources import SEED_GOV_SOURCES as _DMV_GOV
+
+_sym_mgr = types.SimpleNamespace(objectTables=dict(
+    _cm.objectTables,
+    **{'HealthSymptomDefinition': _table(SEED_HEALTH_SYMPTOMS),
+       'SymptomOnsetClaim': _table(SEED_SYMPTOM_CLAIMS),
+       'GovSource': _table(SEED_CLIMATE_GOV_SOURCES + _DMV_GOV)}))
+_sym_mgr.objectTypingDict = {k: object()
+                             for k in _sym_mgr.objectTables}
+_L = symptom_ladder(_sym_mgr)
+
+check('the symptom ladder builds and EVERY claim resolves its '
+      'source — a cited symptom whose citation does not resolve '
+      'is just an assertion with a footnote',
+      _L['ok'] and not _L['unresolvedSources'],
+      str(_L.get('unresolvedSources')))
+
+check('the ladder is ORDERED by concentration, so a reader can '
+      'walk it',
+      [c['ppmFrom'] for c in _L['ladder']]
+      == sorted(c['ppmFrom'] for c in _L['ladder']))
+
+check('symptoms are OBJECTS, not strings: the same symptom '
+      '(reduced decision-making) is claimed at two different '
+      'levels by the same study, and headache is claimed by BOTH '
+      'epidemiology at 700 ppm and occupational medicine far '
+      'higher — one row per claim, not per symptom',
+      len([c for c in _L['ladder']
+           if c['symptom'] == 'sym-cognitive-decrement']) == 2)
+
+check('every claim carries its own evidence grade, because the '
+      'grade belongs to the CLAIM: "headache at 700 ppm" and '
+      '"unconsciousness at 100000 ppm" are not equally certain',
+      all(c['evidenceGrade'] in EVIDENCE_GRADES
+          for c in _L['ladder']))
+
+check('the LETHAL rungs are marked, and they begin at the IDLH '
+      '(40000 ppm) — two orders of magnitude above any indoor '
+      'level on this page',
+      _L['lethalFrom'] == 40000.0
+      and any(c['isLethal'] for c in _L['ladder']))
+
+check('DEATH is the only irreversible row — OSHA states low-level '
+      'CO2 intoxication is "sudden and reversible", and a ladder '
+      'that hid that would frighten rather than inform',
+      [s_['name'] for s_ in SEED_HEALTH_SYMPTOMS
+       if not s_['is_reversible']] == ['sym-death'])
+
+check('unconsciousness is marked REVERSIBLE — true only if the '
+      'person is removed — which is why confusion, the symptom '
+      'that removes the judgement to leave, sits BELOW it and '
+      'matters more operationally',
+      [s_ for s_ in SEED_HEALTH_SYMPTOMS
+       if s_['name'] == 'sym-unconsciousness'][0]['is_reversible']
+      and [s_ for s_ in SEED_HEALTH_SYMPTOMS
+           if s_['name'] == 'sym-confusion'][0]['severity_rank']
+      < [s_ for s_ in SEED_HEALTH_SYMPTOMS
+         if s_['name'] == 'sym-unconsciousness'][0]['severity_rank'])
+
+check('the OSHA lethal claim quotes the source VERBATIM rather '
+      'than paraphrasing — a paraphrase of a health claim is a '
+      'new claim',
+      'generally agreed upon as posing an immediate physiologic '
+      'threat' in [c['quote'] for c in _L['ladder']
+                   if c['claim']
+                   == 'claim-immediate-threat-100000'][0])
+
+check('the ladder REFUSES to interpolate: its note says so '
+      'explicitly, because below ~5000 ppm these are contested '
+      'chronic claims and above ~40000 they are uncontroversial '
+      'acute toxicology — different questions, different evidence',
+      'not interpolated' in _L['note'])
+
+check('and it carries OSHA\'s own admission that the literature '
+      'varies widely, which is why each claim is a BAND with a '
+      'source rather than one asserted onset per symptom',
+      'wide variation' in _L['disagreementNote'])
+
+_bed = ladder_for_space(_sym_mgr, 3093.5)
+check('a closed bedroom at today\'s outdoor level has "reached" '
+      'several claimed symptoms but NO lethal rung — the ladder '
+      'connects to the coupled indoor model without exaggerating '
+      'it',
+      _bed['ok'] and _bed['anyLethalReached'] is False
+      and _bed['worstSeverityRank'] == 3)
+
+check('and the room report says plainly that "reached" means a '
+      'source CLAIMED it at that level, not that anyone in the '
+      'room has it',
+      'NOT that anyone in this room has it' in _bed['note'])
+
+check('a well-ventilated public building has reached only the '
+      'rank-1 instrument-detectable claim — the ladder '
+      'discriminates between rooms rather than alarming about '
+      'all of them',
+      ladder_for_space(_sym_mgr, 689.3)['worstSeverityRank'] == 1)
+
+check('every symptom seed key matches HealthSymptomDefinition and '
+      'every claim key matches SymptomOnsetClaim exactly (the '
+      'ten-strikes seed gotcha)',
+      all(set(x) <= _init_params(HealthSymptomDefinition)
+          for x in SEED_HEALTH_SYMPTOMS)
+      and all(set(x) <= _init_params(SymptomOnsetClaim)
+              for x in SEED_SYMPTOM_CLAIMS))
+
+check('every symptom severity rank is a real SYMPTOM_SEVERITY '
+      'level, so the ladder can always be ordered',
+      all(s_['severity_rank'] in SYMPTOM_SEVERITY
+          for s_ in SEED_HEALTH_SYMPTOMS))
+
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)
