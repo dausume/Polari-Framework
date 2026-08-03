@@ -78,6 +78,7 @@ _INDICATOR_COLOR = '#3f7fbf'
 SEED_CO2_THRESHOLDS = [
     {
         'name': 'co2-preindustrial-baseline',
+        'source_ref': 'noaa-ncei-paleo',
         'display_name': 'Pre-industrial baseline (280 ppm)',
         'ppm': 280.0,
         'unit': 'ppm',
@@ -106,6 +107,7 @@ SEED_CO2_THRESHOLDS = [
     },
     {
         'name': 'co2-outdoor-present',
+        'source_ref': 'noaa-gml',
         'display_name': 'Present outdoor background (2025)',
         'ppm': 427.35,
         'unit': 'ppm',
@@ -137,6 +139,7 @@ SEED_CO2_THRESHOLDS = [
     },
     {
         'name': 'ashrae-differential-700',
+        'source_ref': 'ashrae',
         'display_name': 'ASHRAE 62.1 criterion (+700 ppm over '
                         'outdoor)',
         'ppm': 700.0,
@@ -177,6 +180,7 @@ SEED_CO2_THRESHOLDS = [
     },
     {
         'name': 'ashrae-indicator-1000',
+        'source_ref': 'ashrae',
         'display_name': 'The quoted 1000 ppm indoor figure',
         'ppm': 1000.0,
         'unit': 'ppm',
@@ -210,6 +214,13 @@ SEED_CO2_THRESHOLDS = [
     },
     {
         'name': 'co2-cognitive-decrement-1000',
+        #: EMPTY ON PURPOSE, not an oversight: this row's
+        #: authority is a peer-reviewed journal article, and
+        #: there is no GovSource for a journal. The citation
+        #: and the DOI carry it. Inventing a government
+        #: publisher for a study would be the exact
+        #: laundering the grading exists to prevent.
+        'source_ref': '',
         'display_name': 'Decision-making decrement at 1000 ppm '
                         '(contested)',
         'ppm': 1000.0,
@@ -239,6 +250,13 @@ SEED_CO2_THRESHOLDS = [
     },
     {
         'name': 'co2-cognitive-decrement-2500',
+        #: EMPTY ON PURPOSE, not an oversight: this row's
+        #: authority is a peer-reviewed journal article, and
+        #: there is no GovSource for a journal. The citation
+        #: and the DOI carry it. Inventing a government
+        #: publisher for a study would be the exact
+        #: laundering the grading exists to prevent.
+        'source_ref': '',
         'display_name': 'Decision-making decrement at 2500 ppm '
                         '(contested)',
         'ppm': 2500.0,
@@ -267,6 +285,7 @@ SEED_CO2_THRESHOLDS = [
     },
     {
         'name': 'niosh-rel-twa-5000',
+        'source_ref': 'niosh',
         'display_name': 'NIOSH REL / OSHA PEL, 8-hour TWA',
         'ppm': 5000.0,
         'unit': 'ppm',
@@ -296,6 +315,7 @@ SEED_CO2_THRESHOLDS = [
     },
     {
         'name': 'niosh-stel-30000',
+        'source_ref': 'niosh',
         'display_name': 'NIOSH STEL, 15-minute',
         'ppm': 30000.0,
         'unit': 'ppm',
@@ -319,6 +339,7 @@ SEED_CO2_THRESHOLDS = [
     },
     {
         'name': 'niosh-idlh-40000',
+        'source_ref': 'niosh',
         'display_name': 'NIOSH IDLH (4%)',
         'ppm': 40000.0,
         'unit': 'ppm',
@@ -434,6 +455,10 @@ def thresholds_report(manager):
             'population': _s(row, 'population'),
             'exposure': _s(row, 'exposure'),
             'evidenceGrade': _s(row, 'evidence_grade'),
+            #: the GovSource row that publishes this
+            #: threshold - the link that makes the
+            #: provenance chain reachable from the page.
+            'sourceRef': _s(row, 'source_ref'),
             'isDifferential': bool(
                 getattr(row, 'is_differential', False)),
             'differentialOver': _s(row, 'differential_over'),

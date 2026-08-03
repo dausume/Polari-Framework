@@ -170,13 +170,13 @@ def check_payload(endpoint, body):
         raw_cmp = raw
     saw = raw_cmp[:80].decode('utf-8', errors='replace')
 
-    min_bytes = int(_get(endpoint, 'minBytes', 0) or 0)
-    if min_bytes and len(raw) < min_bytes:
-        return {'ok': False, 'saw': saw,
-                'refusal': (f'payload is {len(raw)} bytes, under the '
-                            f'{min_bytes} this endpoint requires — '
-                            f'that is not the series')}
-
+    # ORDER MATTERS, and it was wrong once: minBytes used to run
+    # first, which MASKED this branch on the very endpoints the
+    # trap was found on. The real CDC decoy is 20905 bytes and the
+    # NHANES rows require 100000, so the decoy refused with a size
+    # complaint and never with "that is an error page" - a true
+    # refusal carrying the least useful of the two diagnoses. A
+    # decoy is identified by WHAT IT IS, not by how big it is.
     reject = _get(endpoint, 'rejectSignature', '') or ''
     if reject and _as_bytes(reject).lower() in raw_cmp[:400].lower():
         return {'ok': False, 'saw': saw,
@@ -184,6 +184,13 @@ def check_payload(endpoint, body):
                             f'an error/landing page served with a '
                             f'success status, not data. The URL has '
                             f'moved; re-verify it before seeding.')}
+
+    min_bytes = int(_get(endpoint, 'minBytes', 0) or 0)
+    if min_bytes and len(raw) < min_bytes:
+        return {'ok': False, 'saw': saw,
+                'refusal': (f'payload is {len(raw)} bytes, under the '
+                            f'{min_bytes} this endpoint requires — '
+                            f'that is not the series')}
 
     signature = _get(endpoint, 'contentSignature', '') or ''
     if signature and not raw_cmp.startswith(_as_bytes(signature)):
