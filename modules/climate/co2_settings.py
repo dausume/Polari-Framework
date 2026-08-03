@@ -219,7 +219,7 @@ SEED_OBSERVED_LEVELS = [
     _observed('obs-indoor-preindustrial-dwelling',
               'Pre-industrial dwelling (MODELLED - the evidence '
               'does not exist)',
-              'indoor', 'dwelling', 300.0, 800.0, 400.0,
+              'indoor', 'dwelling', 345.0, 900.0, 400.0,
               'NO DIRECT MEASUREMENTS EXIST, and the reason is '
               'itself a finding: the household-air-pollution '
               'literature measures PM2.5 and carbon monoxide '
@@ -247,8 +247,19 @@ SEED_OBSERVED_LEVELS = [
                     'it is tight. So on CO2 the past was probably '
                     'BETTER indoors as well as out - while being '
                     'far worse on the pollutants that actually '
-                    'killed people. Band widened downward and the '
-                    'whole row kept explicitly modelled.'),
+                    'killed people. REVISED AGAIN after Dustin '
+                    'pointed out that a wood fire provably makes '
+                    'CO2: climate.co2_combustion now DERIVES this '
+                    'band from the measured PM2.5 and CO in those '
+                    'homes rather than from a draughtiness '
+                    'assumption. A 0.5 kg/h fire makes 31x one '
+                    'adult\'s CO2, so the source is large; the '
+                    'tracers bound how much of it reached the '
+                    'room at +5 to +110 ppm on a daily average. '
+                    'The daily average is 345-450 ppm; the '
+                    'COOKING PEAK is higher and is the number '
+                    'that matters, which is why ppm_high is 900 '
+                    'rather than the daily figure.'),
 ]
 
 
@@ -641,13 +652,19 @@ def era_exposure_comparison(manager, background_ppm,
             'pastIndoorPpmModelled': past_indoor,
             'presentIndoorPpmMeasured': now_indoor,
             'verdict': (
-                'PROBABLY ALSO HIGHER TODAY, which is the '
-                'counter-intuitive half. An unsealed dwelling '
-                'ventilates fast enough that neither respiration '
-                'nor a fire can build CO2 up much above outdoor; '
-                'modern tight construction accumulates it '
-                'precisely because it is tight. A modern closed '
-                'bedroom measures 1200-2500 ppm.'),
+                'MUCH CLOSER THAN THE FLOOR, and probably NOT '
+                'novel at the peak. A wood fire is a large CO2 '
+                'source - about 31 times one adult - and the '
+                'smoke measured in such dwellings proves '
+                'combustion products reached the occupants. '
+                'Tracing the CO2 from the PM2.5 and CO that WERE '
+                'measured puts a hearth dwelling near 345-450 ppm '
+                'as a daily average, below a modern sealed '
+                'bedroom at 1200-2500. But cooking is episodic, '
+                'and a cooking-period peak plausibly reached or '
+                'exceeded that bedroom. So the indoor PEAK is '
+                'probably not new; what is new is that today\'s '
+                'elevation is continuous and cannot be left.'),
             'evidence': ('ASYMMETRIC and the asymmetry matters: '
                          'the modern figure is MEASURED, the '
                          'pre-industrial one is MODELLED. The '
@@ -675,13 +692,20 @@ def era_exposure_comparison(manager, background_ppm,
             'projects crossing dates from the background series '
             'rather than from a worst-room number.'),
         'answer': (
-            'This is NEW, on both axes. Outdoor is definitively '
-            'new and measured. Indoor is probably also higher '
-            'today than pre-industrially - because we sealed the '
-            'buildings - though that half is a physical argument '
-            'rather than a measurement, and the measurement does '
-            'not exist. What the past had far more of was smoke, '
-            'not CO2.'),
+            'THE FLOOR IS NEW; THE PEAK PROBABLY IS NOT. Outdoor '
+            'is definitively new and measured: the 800,000-year '
+            'record caps below 300 ppm and today is 427 global, '
+            '547 urban, and inescapable. Indoors is a closer '
+            'call than it first appears - a wood fire provably '
+            'makes CO2, about 31 times what an adult exhales, and '
+            'tracing it from the smoke that WAS measured puts a '
+            'hearth dwelling near 345-450 ppm daily average with '
+            'cooking peaks plausibly at or above a modern sealed '
+            'bedroom. So people have breathed high indoor CO2 '
+            'before. What no one had before is a raised BASELINE '
+            'they cannot step outside of - and chronic '
+            'compensation answers to the baseline, not the '
+            'peak.'),
         'whatWouldSettleIt': (
             'CO2 logging in dwellings still heated and cooked in '
             'the traditional way, alongside the PM2.5 and CO that '

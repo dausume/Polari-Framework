@@ -1819,6 +1819,18 @@ check('the FLOOR is unambiguously new and MEASURED: the whole '
       and _EX['floor']['presentUrbanPpm'] > 500.0
       and 'MEASURED' in _EX['floor']['evidence'])
 
+check('the PEAK half was REVISED after the combustion arithmetic: '
+      'a wood fire provably makes CO2, so the honest verdict is '
+      'that the indoor peak is probably NOT novel and only the '
+      'floor is',
+      'not novel' in _EX['peak']['verdict'].lower())
+
+check('and the top-line answer now separates them explicitly — '
+      'the floor is new, the peak probably is not, and chronic '
+      'compensation answers to the BASELINE not the peak',
+      'FLOOR IS NEW' in _EX['answer']
+      and 'baseline' in _EX['answer'].lower())
+
 check('and the two halves are labelled with DIFFERENT evidence '
       'strength — the modern indoor figure is measured, the '
       'pre-industrial one is modelled, and the payload says so '
@@ -1873,6 +1885,102 @@ check('every room names a setting that exists, so no room can '
       all(r['setting_ref'] in {s_['name']
                                for s_ in SEED_AMBIENT_SETTINGS}
           for r in SEED_INDOOR_SPACES))
+
+
+print('== suite: co2-F — what a wood fire did to indoor CO2 ==')
+
+from climate.co2_combustion import (
+    CO2_PER_CARBON, WOOD_CARBON_FRACTION, co_tracer_offset_ppm,
+    combustion_offset_band, direct_burn_offset_ppm,
+    hearth_dwelling_estimate, pm_tracer_offset_ppm,
+    wood_fire_co2_mg_per_day,
+)
+from climate.co2_indoor import person_co2_mg_per_day
+
+_fire = wood_fire_co2_mg_per_day(0.5)
+_adult = person_co2_mg_per_day(1.0)
+
+check('A WOOD FIRE IS PROVABLY A LARGE CO2 SOURCE — a 0.5 kg/h '
+      'fire makes roughly 30x what one adult exhales, so the '
+      'earlier "draughtiness handles it" argument could not be '
+      'left as an assertion',
+      _fire['ok'] and _fire['mgPerDay'] / _adult > 20.0,
+      f'ratio {_fire["mgPerDay"] / _adult:.1f}')
+
+check('and the source term is stoichiometric, not a fudge: half '
+      'the dry mass is carbon and each carbon leaves as CO2 at '
+      '44/12 its mass',
+      abs(CO2_PER_CARBON - 44.0 / 12.0) < 1e-12
+      and WOOD_CARBON_FRACTION == 0.50)
+
+_a5 = direct_burn_offset_ppm(0.5, 40.0, 5.0)
+_a30 = direct_burn_offset_ppm(0.5, 40.0, 30.0)
+check('the UNFLUED upper bound is enormous — thousands of ppm at '
+      'low air change — and falls with ventilation exactly as the '
+      'shared mass balance requires',
+      _a5['offsetPpm'] > 2000.0 and _a30['offsetPpm'] < 500.0
+      and _a5['offsetPpm'] > _a30['offsetPpm'])
+
+check('but it is LABELLED an upper bound, because it assumes no '
+      'flue — and a chimney is precisely the thing that makes it '
+      'one',
+      'UPPER BOUND' in _a5['note'] and 'flue' in _a5['note'])
+
+_pm = pm_tracer_offset_ppm(130.0)
+_co = co_tracer_offset_ppm(5.8)
+check('the TRACER routes sidestep the flue entirely: they measure '
+      'what is in the ROOM, which is the quantity nobody can '
+      'reconstruct for a dwelling that no longer exists',
+      _pm.get('ok') and _co.get('ok')
+      and _pm['offsetPpm'] > 0 and _co['offsetPpm'] > 0)
+
+check('CO and CO2 are both gases, so the CO tracer uses a MOLAR '
+      'ratio and does no density conversion — a units error here '
+      'would move the answer by nearly two',
+      'no density conversion' in _co['note'])
+
+_band = combustion_offset_band(130.0, 5.8)
+check('the two tracers DISAGREE about fivefold, and the payload '
+      'says so rather than averaging them — averaging two '
+      'estimates that differ fivefold manufactures a precision '
+      'neither has',
+      _band['ok'] and _band['tracersAgree'] is False
+      and _band['routesAgreeWithinFactor'] > 2.0
+      and 'NOT averaged' in _band['note'])
+
+check('and the disagreement is EXPLAINED, not just flagged: the '
+      'measured CO:PM ratio in those homes is far above what '
+      'wood-smoke emission factors predict',
+      'CO:PM' in _band['disagreementNote'])
+
+_hearth = hearth_dwelling_estimate()
+check('the hearth dwelling estimate is DERIVED from the '
+      'measurements that exist (PM2.5 and CO) rather than from a '
+      'draughtiness assumption — which is what makes it an '
+      'estimate rather than a preference',
+      _hearth['ok'] and 345.0 <= _hearth['dwellingLowPpm'] <= 400.0
+      and _hearth['dwellingHighPpm'] < 600.0)
+
+check('THE PEAK CAVEAT IS THE HONEST PART: a cooking-period peak '
+      'plausibly reached or exceeded a modern sealed bedroom, so '
+      'the indoor PEAK is probably not novel — what is novel is '
+      'that today\'s elevation cannot be left',
+      'not novel' in _hearth['peakCaveat'].lower()
+      and 'cannot be left' in _hearth['peakCaveat'])
+
+check('and the module states plainly what changed: the smoke in '
+      'those rooms PROVES combustion products reached the '
+      'occupants, so citing the smoke while claiming the CO2 '
+      'stayed outside was having it both ways',
+      'narrows the gap' in _hearth['whatThisChanges'])
+
+check('a tracer route with nothing measured REFUSES rather than '
+      'falling back on the flue-dependent direct burn',
+      not combustion_offset_band(None, None).get('ok'))
+
+check('an MCE of exactly 1.0 REFUSES — it would mean no CO at '
+      'all, and then CO cannot be a tracer of anything',
+      not co_tracer_offset_ppm(5.8, mce=1.0).get('ok'))
 
 
 failed = _results.count(False)
