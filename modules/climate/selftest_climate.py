@@ -2383,6 +2383,68 @@ check('an un-ingested background series REFUSES rather than '
               objectTypingDict={})).get('ok'))
 
 
+print('== suite: co2-AT — climate or construction? ==')
+
+from climate.co2_scenarios import threshold_attribution
+
+_at_mgr = types.SimpleNamespace(objectTables={
+    'CO2HealthThreshold': _table(SEED_CO2_THRESHOLDS)})
+_at_mgr.objectTypingDict = {k: object()
+                            for k in _at_mgr.objectTables}
+_AT = threshold_attribution(_at_mgr, 427.35)
+
+check('THE COUNTERFACTUAL: hold the room exactly as built and put '
+      'PRE-INDUSTRIAL air outside it. Any threshold still crossed '
+      'was never a climate threshold for this room',
+      _AT['ok']
+      and _AT['roomWithPreindustrialAir'] < _AT['roomToday'])
+
+check('and EVERY contested line below 3000 is crossed in BOTH '
+      'worlds — not one of them was tipped by the industrial-era '
+      'CO2 rise',
+      _AT['tippedByCo2Rise'] == []
+      and len(_AT['crossedByConstruction']) >= 8)
+
+check('the attribution is stark: sealing the room contributes '
+      'about 75 percent of what is breathed, the whole industrial '
+      'CO2 rise about 5',
+      _AT['shares']['ventilation'] > 0.7
+      and _AT['shares']['industrialRise'] < 0.08)
+
+check('so the page states plainly that the contested INDOOR '
+      'thresholds are a ventilation story, and that climate only '
+      'becomes the deciding term at 3000 ppm and above',
+      'VENTILATION story' in _AT['whatThisMeansForThePage'])
+
+check('AND IT REFUSES TO OVERCORRECT: the background rise is '
+      'named as the term nobody can opt out of, that raises every '
+      'room at once, that never reverses, and that decides the '
+      'highest thresholds',
+      'nobody can opt out' in _AT['whatItDoesNotMean']
+      and 'never reverses' in _AT['whatItDoesNotMean'])
+
+check('the counterfactual is flagged as hypothetical BY '
+      'CONSTRUCTION — airtight dwellings are a post-1970s '
+      'artifact, so a sealed bedroom breathing 280 ppm air never '
+      'existed, and that is the finding rather than a flaw',
+      'post-1970s' in _AT['counterfactualCaveat']
+      and 'building codes' in _AT['counterfactualCaveat'])
+
+check('every threshold row records which world it is crossed in, '
+      'so the attribution can be read per line rather than only '
+      'in aggregate',
+      all('crossedToday' in e
+          and 'crossedAtPreindustrialOutdoor' in e
+          and e['attributedTo'] in ('construction',
+                                    'the CO2 rise tipped it',
+                                    'not yet crossed')
+          for e in _AT['thresholds']))
+
+check('and it refuses non-numeric levels rather than attributing '
+      'something meaningless',
+      not threshold_attribution(_at_mgr, 'x').get('ok'))
+
+
 failed = _results.count(False)
 print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
 raise SystemExit(1 if failed else 0)

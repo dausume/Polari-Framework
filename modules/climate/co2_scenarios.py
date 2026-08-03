@@ -569,3 +569,130 @@ def urban_bedroom_trajectory(manager, from_year=None,
                  'graph renderer has no reference-line feature; '
                  'the crossing is where the series meet'),
     }
+
+
+def threshold_attribution(manager, background_ppm,
+                          urban_enhancement_ppm=250.0,
+                          ventilation_offset_ppm=2050.0,
+                          preindustrial_ppm=280.0):
+    """FOR EACH CONTESTED THRESHOLD: is this room past it because
+    of CLIMATE, or because of how it was BUILT?
+
+    The test is a counterfactual the data can actually answer:
+    hold the room exactly as it is and put PRE-INDUSTRIAL air
+    outside it. Any threshold still crossed was never a climate
+    threshold for this room - it was crossed by construction.
+
+    🔑 THE RESULT, and it reframes the whole indoor argument:
+    every contested line below 3000 ppm is crossed in BOTH worlds.
+    Not one of them was tipped by the industrial-era CO2 rise. In
+    an urban sealed bedroom the rise contributes about 147 of 2727
+    ppm - roughly five percent - while sealing the room
+    contributes about seventy-five.
+
+    ⚠ THE COUNTERFACTUAL IS HYPOTHETICAL BY CONSTRUCTION, and
+    that is the point rather than a flaw: airtight dwellings are
+    largely a post-1970s energy-efficiency artifact, so a sealed
+    bedroom breathing 280 ppm air never existed. The exposure
+    arrived with building codes, not with emissions.
+    """
+    from climate.co2_thresholds import absolute_ppm
+    from composition.data_refs import rows
+    try:
+        bg = float(background_ppm)
+        urban = float(urban_enhancement_ppm)
+        offset = float(ventilation_offset_ppm)
+        pre = float(preindustrial_ppm)
+    except (TypeError, ValueError):
+        return {'ok': False,
+                'refusal': 'all four levels must be numbers'}
+
+    room_now = bg + urban + offset
+    room_counterfactual = pre + urban + offset
+    climate_contribution = bg - pre
+
+    entries, tipped, structural = [], [], []
+    for row in sorted(rows(manager, 'CO2HealthThreshold'),
+                      key=lambda t: getattr(t, 'ppm', 0.0)):
+        name = getattr(row, 'name', '')
+        abs_now = absolute_ppm(row, bg)
+        abs_pre = absolute_ppm(row, pre)
+        past_now = room_now >= abs_now
+        past_pre = room_counterfactual >= abs_pre
+        if past_now and past_pre:
+            cause = 'construction'
+            structural.append(name)
+        elif past_now and not past_pre:
+            cause = 'the CO2 rise tipped it'
+            tipped.append(name)
+        else:
+            cause = 'not yet crossed'
+        entries.append({
+            'threshold': name,
+            'displayName': getattr(row, 'display_name', ''),
+            'absolutePpmToday': round(abs_now, 1),
+            'evidenceGrade': getattr(row, 'evidence_grade', ''),
+            'isDifferential': bool(
+                getattr(row, 'is_differential', False)),
+            'crossedToday': past_now,
+            'crossedAtPreindustrialOutdoor': past_pre,
+            'attributedTo': cause,
+        })
+
+    return {
+        'ok': True,
+        'roomToday': round(room_now, 1),
+        'roomWithPreindustrialAir': round(room_counterfactual, 1),
+        'terms': {
+            'ventilationOffsetPpm': offset,
+            'urbanEnhancementPpm': urban,
+            'industrialCo2RisePpm': round(climate_contribution, 1),
+            'preindustrialBaselinePpm': pre,
+        },
+        'shares': {
+            'ventilation': offset / room_now,
+            'urban': urban / room_now,
+            'industrialRise': climate_contribution / room_now,
+            'preindustrialBaseline': pre / room_now,
+        },
+        'thresholds': entries,
+        'crossedByConstruction': structural,
+        'tippedByCo2Rise': tipped,
+        'verdict': (
+            f'of the thresholds this room is past today, '
+            f'{len(structural)} were crossed by CONSTRUCTION - '
+            f'they would be crossed with pre-industrial air '
+            f'outside - and {len(tipped)} were tipped by the CO2 '
+            f'rise. In this room the entire industrial-era rise '
+            f'contributes {climate_contribution:.0f} of '
+            f'{room_now:.0f} ppm, about '
+            f'{100 * climate_contribution / room_now:.0f} percent, '
+            f'against about '
+            f'{100 * offset / room_now:.0f} percent from sealing '
+            f'the room.'),
+        'whatThisMeansForThePage': (
+            'The contested indoor thresholds are a VENTILATION '
+            'story, not a climate one. Every one of them below '
+            '3000 ppm is crossed in a sealed urban bedroom '
+            'whether the outdoor air is 280 or 427 ppm. Climate '
+            'only becomes the deciding term for the 3000 ppm line '
+            'and above - and even there it is the last few '
+            'hundred ppm of a total the room itself supplied.'),
+        'whatItDoesNotMean': (
+            'It does NOT mean the background rise is harmless or '
+            'unimportant. It is the one term nobody can opt out '
+            'of, it raises every room on earth at once, it never '
+            'reverses, and it is the term that decides the '
+            'highest thresholds. It means that for an individual '
+            'asking what they breathe tonight, the window matters '
+            'more than the century - and a page that led with the '
+            'century would be pointing at the smaller lever.'),
+        'counterfactualCaveat': (
+            'A sealed bedroom breathing 280 ppm air never '
+            'existed: airtight construction is largely a '
+            'post-1970s energy-efficiency artifact. The '
+            'counterfactual is hypothetical BY CONSTRUCTION, and '
+            'that is the finding rather than a flaw - this '
+            'exposure arrived with building codes, not with '
+            'emissions.'),
+    }
