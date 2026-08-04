@@ -649,6 +649,37 @@ class polariCRUDE(treeObject):
         pass
 
     #Delete in CRUD
+    def _deleteFromDB(self, targetId, instancesDeleted):
+        """Remove the deleted rows from the database.
+
+        `instancesDeleted` is a mixed list — the tree walk appends the
+        target's id as a string, and cascaded children as instances —
+        so both shapes are handled. A DB failure is reported and
+        swallowed: the object IS gone from the tree, and raising here
+        would turn a successful delete into a 500 while leaving the
+        caller no way to tell what actually happened.
+        """
+        db = getattr(self.manager, 'db', None)
+        if db is None or not hasattr(db, 'deleteRowsWhere'):
+            return
+        targets = [(self.apiObject, targetId)]
+        for entry in (instancesDeleted or []):
+            if isinstance(entry, str):
+                if entry != targetId:
+                    targets.append((self.apiObject, entry))
+            else:
+                entryId = getattr(entry, 'id', None)
+                if entryId:
+                    targets.append((type(entry).__name__, entryId))
+        for className, rowId in targets:
+            try:
+                db.deleteRowsWhere(className, 'id', rowId)
+            except Exception as dbError:
+                print(f'[CRUDE-DELETE] {className} id={rowId} removed '
+                      f'from the object tree but NOT from the database '
+                      f'({dbError}) — it will return on restart',
+                      flush=True)
+
     def on_delete(self, request, response):
         if self._guard_purged(response):
             return
@@ -731,6 +762,13 @@ class polariCRUDE(treeObject):
                                         for childInst in childInsts:
                                             setattr(childInst, varName, None)
             (instancesDeleted, migratedInstances) = self.manager.deleteTreeNode(className=self.apiObject, nodePolariId=targetId)
+            #deleteTreeNode removes the object from the in-memory tree
+            #ONLY. Without this the endpoint answered 200, the row
+            #vanished from every subsequent read, and then came back on
+            #the next boot when the DB reloaded — a delete that silently
+            #undid itself. Mirrors the update path, which has always
+            #called saveInstanceInDB.
+            self._deleteFromDB(targetId, instancesDeleted)
         else:
             if(len(targetResolution) == 0):
                 return self._refuse(response, falcon.HTTP_404,
