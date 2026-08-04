@@ -24,8 +24,35 @@ SCHEMA_VERSION = '1'
 #: isle-mesh target — present in the vocabulary, seeded unavailable.
 ORCHESTRATION_TARGETS = ('compose', 'swarm', 'isle')
 
-#: The `pol db` vocabulary — per-instance DB backend choice.
+#: The `pol db` vocabulary — per-instance RELATIONAL backend choice.
+#: This is the one storage tier an instance MUST declare; everything
+#: an instance owns lands here.
 DB_BACKENDS = ('sqlite', 'mariadb', 'mariadb+keydb', 'postgres')
+
+#: Relational backends that ALSO bind a cache, as one combined choice.
+#: `mariadb+keydb` predates the separate cache tier and already means
+#: "mariadb relational, keydb cache" — so the cache is IMPLIED and
+#: must not be double-declared. Mapping it here keeps one source of
+#: truth instead of letting cache_backend silently contradict it.
+DB_BACKEND_IMPLIED_CACHE = {'mariadb+keydb': 'keydb'}
+
+#: Cache tier. The technology is NOT a choice — the cache is always
+#: KeyDB (Dustin, 2026-08-04; the bitnami/redis base is dead and must
+#: never be reintroduced). So the only knob is WHETHER an instance is
+#: bound to one: '' = NOT ASSIGNED, which is legal, since unlike
+#: relational a cache is optional.
+CACHE_BACKENDS = ('', 'keydb')
+
+#: Blob / object store. Also not a choice of technology — always
+#: MinIO, the store already backing map tiles (the 'polari-tiles'
+#: bucket) and arbitrary object storage. '' = NOT ASSIGNED.
+BLOB_BACKENDS = ('', 'minio')
+
+#: Storage that is local to its instance by construction and can
+#: therefore NEVER be shared or repointed. sqlite means the file THAT
+#: instance creates. Naming it once keeps the ownership page and
+#: validation agreeing about it.
+LOCAL_BY_CONSTRUCTION = ('sqlite',)
 
 #: Swarm membership of a machine.
 SWARM_ROLES = ('manager', 'worker', 'none')

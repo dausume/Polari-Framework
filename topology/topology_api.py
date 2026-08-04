@@ -667,6 +667,10 @@ class TopologyAPI(treeObject):
     _INSTANCE_FIELDS = ('kind', 'service_kinds_json', 'replicas',
                         'env_tier', 'machine_name',
                         'placement_constraint', 'db_backend',
+                        # The optional storage tiers. '' clears a
+                        # binding, which is a legal state — only the
+                        # relational tier must be declared.
+                        'cache_backend', 'blob_backend',
                         'image_tag', 'orchestration_target',
                         'topology_name', 'notes')
 

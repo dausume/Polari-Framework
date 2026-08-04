@@ -162,7 +162,15 @@ class InstanceDefinition(treeObject):
         # when empty.
         placement_constraint: str = '',
         # DB_BACKENDS entry — the `pol db` choice for this instance.
+        # The RELATIONAL tier: the only storage an instance is
+        # REQUIRED to declare, because everything it owns lands there.
         db_backend: str = 'sqlite',
+        # CACHE_BACKENDS entry; '' = not assigned, which is legal.
+        # Left empty when db_backend already implies one (the
+        # 'mariadb+keydb' combo) — see DB_BACKEND_IMPLIED_CACHE.
+        cache_backend: str = '',
+        # BLOB_BACKENDS entry; '' = not assigned, which is legal.
+        blob_backend: str = '',
         # Image tag the instance runs (':staging' family today).
         image_tag: str = 'staging',
         # ORCHESTRATION_TARGETS entry.

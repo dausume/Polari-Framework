@@ -120,20 +120,38 @@ def class_owners(root: str = None) -> Dict[str, Any]:
 
 
 def _storage_identity(instance) -> Dict[str, Any]:
-    """What this instance's objects actually land in.
+    """The three storage tiers this instance is bound to.
 
-    For a local backend the identity IS the instance — sqlite is not
+    RELATIONAL is required — everything the instance owns lands there.
+    For a local backend the identity IS the instance: sqlite is not
     shareable, so naming anything else would imply a choice that does
     not exist. For a shared backend the identity is the backend on
     this topology, which is as specific as the object tree currently
     gets: db_backend records the KIND, while the concrete host lives
     in config/env (MARIADB_HOST). That limit is stated, not papered
     over.
+
+    CACHE and BLOB are optional, so an empty value means genuinely NOT
+    ASSIGNED and is reported that way rather than defaulted to a
+    service the instance does not run. Neither is a choice of
+    technology — cache is always keydb, blob always minio — so what
+    is recorded is the BINDING, not a vendor.
+
+    The `mariadb+keydb` relational backend already binds a cache. It
+    is derived here rather than duplicated into cache_backend, so the
+    two can never disagree; `cacheImplied` says where it came from.
     """
+    from topology.topology_constants import DB_BACKEND_IMPLIED_CACHE
+
     backend = getattr(instance, 'db_backend', '') or 'sqlite'
     name = getattr(instance, 'name', '')
     topology = getattr(instance, 'topology_name', '')
     local = backend in _LOCAL_BACKENDS
+
+    implied = DB_BACKEND_IMPLIED_CACHE.get(backend, '')
+    cache = implied or (getattr(instance, 'cache_backend', '') or '')
+    blob = getattr(instance, 'blob_backend', '') or ''
+
     return {
         'relational': backend,
         'shared': not local,
@@ -146,9 +164,13 @@ def _storage_identity(instance) -> Dict[str, Any]:
                  'setting (MARIADB_HOST), not a topology row — '
                  'instances on the same backend are treated as one '
                  'server'),
-        # Not yet assignable; reported as absent rather than invented.
-        'cache': '',
-        'blob': '',
+        'cache': cache,
+        'cacheImplied': bool(implied),
+        'blob': blob,
+        # Which optional tiers are genuinely unbound. Named rather
+        # than left for the reader to infer from an empty string.
+        'unbound': [tier for tier, value in
+                    (('cache', cache), ('blob', blob)) if not value],
     }
 
 

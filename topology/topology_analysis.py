@@ -23,6 +23,7 @@ command or row edit that fixes them and are never auto-applied
 import json
 
 from topology.topology_constants import (
+    BLOB_BACKENDS, CACHE_BACKENDS, DB_BACKEND_IMPLIED_CACHE,
     DB_BACKENDS, ENGINE_CAPABILITY_MODULES, ENGINE_HOST_KINDS,
     ENV_TIERS, INFRA_KINDS, INTEGRATED_APP_KINDS, INTERCONNECT_KEYS,
     KNOWN_SERVICE_KINDS, ORCHESTRATION_TARGETS,
@@ -210,6 +211,38 @@ def validate_topology(manager, topology_name):
                 f'db_backend "{db}" is not one of {DB_BACKENDS}',
                 'InstanceDefinition.db_backend',
                 'pick a `pol db` backend'))
+        # The relational tier is the ONLY storage an instance must
+        # declare — everything it owns lands there. Cache and blob are
+        # optional, so '' is a legal answer and is NOT a finding; only
+        # a value outside the vocabulary is.
+        cache = getattr(inst, 'cache_backend', '') or ''
+        if cache not in CACHE_BACKENDS:
+            findings.append(_finding(
+                'error', 'unknown-cache-backend', iname,
+                f'cache_backend "{cache}" is not one of '
+                f'{CACHE_BACKENDS}',
+                'InstanceDefinition.cache_backend',
+                "the cache is always keydb; '' means not assigned"))
+        blob = getattr(inst, 'blob_backend', '') or ''
+        if blob not in BLOB_BACKENDS:
+            findings.append(_finding(
+                'error', 'unknown-blob-backend', iname,
+                f'blob_backend "{blob}" is not one of {BLOB_BACKENDS}',
+                'InstanceDefinition.blob_backend',
+                "the blob store is always minio; '' means not "
+                'assigned'))
+        # `mariadb+keydb` already binds a cache inside the relational
+        # choice. Declaring cache_backend as well gives the same fact
+        # two homes that can drift apart, so the combo owns it and a
+        # second declaration is refused rather than merged.
+        implied = DB_BACKEND_IMPLIED_CACHE.get(db, '')
+        if implied and cache:
+            findings.append(_finding(
+                'error', 'double-declared-cache', iname,
+                f'db_backend "{db}" already binds the "{implied}" '
+                f'cache, but cache_backend is also set to "{cache}"',
+                'InstanceDefinition.cache_backend',
+                f'clear cache_backend — "{db}" owns that binding'))
         env = getattr(inst, 'env_tier', '')
         if env not in ENV_TIERS:
             findings.append(_finding(
@@ -555,6 +588,8 @@ def graph_payload(manager, topology_name):
                 'placementConstraint':
                     getattr(i, 'placement_constraint', ''),
                 'dbBackend': getattr(i, 'db_backend', ''),
+                'cacheBackend': getattr(i, 'cache_backend', ''),
+                'blobBackend': getattr(i, 'blob_backend', ''),
                 'imageTag': getattr(i, 'image_tag', ''),
                 'orchestrationTarget':
                     getattr(i, 'orchestration_target', ''),

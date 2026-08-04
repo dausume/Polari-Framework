@@ -40,6 +40,7 @@ PACKAGE_FIELDS = {
     'InstanceDefinition': (
         'name', 'kind', 'service_kinds_json', 'replicas', 'env_tier',
         'machine_name', 'placement_constraint', 'db_backend',
+        'cache_backend', 'blob_backend',
         'image_tag', 'orchestration_target', 'topology_name', 'notes'),
     'ModuleAssignment': (
         'name', 'module_name', 'instance_name', 'state',
