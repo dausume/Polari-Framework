@@ -66,6 +66,8 @@ class TopologyAPI(treeObject):
             add('/api/topology/graph', self, suffix='graph')
             add('/api/topology/module-graph', self,
                 suffix='module_graph')
+            add('/api/topology/object-ownership', self,
+                suffix='object_ownership')
             add('/api/topology/machines', self, suffix='machines')
             add('/api/topology/modules-env/{instance}', self,
                 suffix='modules_env')
@@ -162,6 +164,23 @@ class TopologyAPI(treeObject):
                 response, 'no active topology and no ?name= given',
                 '404 Not Found')
         report = graph_payload(self.manager, name)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_object_ownership(self, request, response):
+        """WHO is responsible for each object: the module whose source
+        defines it, the PRF instance(s) that module is assigned to, and
+        the database that instance is bound to. Coherence faults
+        (a class owned by two modules), objects nobody holds, and live
+        tables nothing claims are all reported rather than resolved."""
+        from topology.object_ownership import object_ownership
+        name = self._topology_name(request)
+        if not name:
+            return self._refuse(
+                response, 'no active topology and no ?name= given',
+                '404 Not Found')
+        report = object_ownership(self.manager, name)
         if not report.get('ok'):
             response.status = '404 Not Found'
         response.media = report
