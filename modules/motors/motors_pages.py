@@ -303,153 +303,100 @@ SEED_MOTOR_GRAPHS = [{'definition': '{"graphConfig": {"renderStyle": "barY", "xD
   'name': 'motor-verification-error',
   'source_class': 'MotorVerificationRun'}]
 
-#: The M0/M1 pages that reference the above.
-SEED_MOTOR_PAGE_DISPLAYS = [{'definition': '{"rows": [{"index": 0, "rowSegments": 12, '
-                '"minRowHeight": 220, "maxRowHeight": 0, "autoHeight": '
-                'true, "cssClass": "", "items": [{"id": "d-detail", '
-                '"index": 0, "type": "component", "rowSegmentsUsed": '
-                '12, "gridColumnStart": null, "title": "The design '
-                '\\u2014 configured instance display", "visible": '
-                'true, "collapsed": false, "cssClass": "", "item": '
-                'null, "nestedRows": [], "componentProps": '
-                '{"componentName": "instance-detail-panel", "inputs": '
-                '{"className": "MotorDesignDefinition", "filterField": '
-                '"name", "filterValue": "clock-lavet-m0"}}}]}, '
-                '{"index": 1, "rowSegments": 12, "minRowHeight": 320, '
-                '"maxRowHeight": 0, "autoHeight": true, "cssClass": '
-                '"", "items": [{"id": "d-parts", "index": 0, "type": '
-                '"component", "rowSegmentsUsed": 12, '
-                '"gridColumnStart": null, "title": "Parts of this '
-                'design (multi-reference, filtered by design_ref)", '
-                '"visible": true, "collapsed": false, "cssClass": "", '
-                '"item": null, "nestedRows": [], "componentProps": '
-                '{"componentName": "class-rows-table", "inputs": '
-                '{"className": "MotorPartDefinition", "filterField": '
-                '"design_ref", "filterValue": "clock-lavet-m0", '
-                '"columns": '
-                '"display_name,function,material_ref,quantity"}}}]}, '
-                '{"index": 2, "rowSegments": 12, "minRowHeight": 420, '
-                '"maxRowHeight": 0, "autoHeight": true, "cssClass": '
-                '"", "items": [{"id": "d-graph", "index": 0, "type": '
-                '"component", "rowSegmentsUsed": 6, "gridColumnStart": '
-                'null, "title": "Part quantities \\u2014 configured '
-                'GraphDefinition", "visible": true, "collapsed": '
-                'false, "cssClass": "", "item": null, "nestedRows": '
-                '[], "componentProps": {"componentName": '
-                '"embeddedGraph", "inputs": {"graphConfigId": '
-                '"INBE101Edv", "className": "MotorPartDefinition", '
-                '"filterField": "design_ref", "filterValue": '
-                '"clock-lavet-m0"}}}, {"id": "d-graph2", "index": 1, '
-                '"type": "component", "rowSegmentsUsed": 6, '
-                '"gridColumnStart": null, "title": "Field buffer per '
-                'part", "visible": true, "collapsed": false, '
-                '"cssClass": "", "item": null, "nestedRows": [], '
-                '"componentProps": {"componentName": "embeddedGraph", '
-                '"inputs": {"graphConfigId": "Y6vkNBG3N", "className": '
-                '"MotorPartDefinition", "filterField": "design_ref", '
-                '"filterValue": "clock-lavet-m0"}}}]}, {"index": 3, '
-                '"rowSegments": 12, "minRowHeight": 300, '
-                '"maxRowHeight": 0, "autoHeight": true, "cssClass": '
-                '"", "items": [{"id": "d-runs", "index": 0, "type": '
-                '"component", "rowSegmentsUsed": 12, '
-                '"gridColumnStart": null, "title": "Verification runs '
-                '\\u2014 configured TableDefinition", "visible": true, '
-                '"collapsed": false, "cssClass": "", "item": null, '
-                '"nestedRows": [], "componentProps": {"componentName": '
-                '"embeddedTable", "inputs": {"tableConfigId": '
-                '"rWGrdGQ4b", "className": "MotorVerificationRun", '
-                '"filterField": "design_ref", "filterValue": '
-                '"clock-lavet-m0"}}}]}, {"index": 4, "rowSegments": '
-                '12, "minRowHeight": 520, "maxRowHeight": 0, '
-                '"autoHeight": true, "cssClass": "", "items": [{"id": '
-                '"d-sim", "index": 0, "type": "component", '
-                '"rowSegmentsUsed": 12, "gridColumnStart": null, '
-                '"title": "The simulation \\u2014 embedded sim space", '
-                '"visible": true, "collapsed": false, "cssClass": "", '
-                '"item": null, "nestedRows": [], "componentProps": '
-                '{"componentName": "sim-space-viewer", "inputs": '
-                '{"simSpaceName": "motor-m0-viz", "hideRunPanel": '
-                'false, "clickNavigates": false}}}]}]}',
-  'description': 'M0 — the Lavet clock stepper, configured end to end.',
-  'isPage': True,
-  'linkedSolutions': '[]',
-  'name': 'm0-detail',
-  'pageRoute': 'm0-detail',
-  'source_class': 'MotorDesignDefinition'},
- {'definition': '{"rows": [{"index": 0, "rowSegments": 12, '
-                '"minRowHeight": 220, "maxRowHeight": 0, "autoHeight": '
-                'true, "cssClass": "", "items": [{"id": "d-detail", '
-                '"index": 0, "type": "component", "rowSegmentsUsed": '
-                '12, "gridColumnStart": null, "title": "The design '
-                '\\u2014 configured instance display", "visible": '
-                'true, "collapsed": false, "cssClass": "", "item": '
-                'null, "nestedRows": [], "componentProps": '
-                '{"componentName": "instance-detail-panel", "inputs": '
-                '{"className": "MotorDesignDefinition", "filterField": '
-                '"name", "filterValue": "reluctance-6s4p-m1"}}}]}, '
-                '{"index": 1, "rowSegments": 12, "minRowHeight": 320, '
-                '"maxRowHeight": 0, "autoHeight": true, "cssClass": '
-                '"", "items": [{"id": "d-parts", "index": 0, "type": '
-                '"component", "rowSegmentsUsed": 12, '
-                '"gridColumnStart": null, "title": "Parts of this '
-                'design (multi-reference, filtered by design_ref)", '
-                '"visible": true, "collapsed": false, "cssClass": "", '
-                '"item": null, "nestedRows": [], "componentProps": '
-                '{"componentName": "class-rows-table", "inputs": '
-                '{"className": "MotorPartDefinition", "filterField": '
-                '"design_ref", "filterValue": "reluctance-6s4p-m1", '
-                '"columns": '
-                '"display_name,function,material_ref,quantity"}}}]}, '
-                '{"index": 2, "rowSegments": 12, "minRowHeight": 420, '
-                '"maxRowHeight": 0, "autoHeight": true, "cssClass": '
-                '"", "items": [{"id": "d-graph", "index": 0, "type": '
-                '"component", "rowSegmentsUsed": 6, "gridColumnStart": '
-                'null, "title": "Part quantities \\u2014 configured '
-                'GraphDefinition", "visible": true, "collapsed": '
-                'false, "cssClass": "", "item": null, "nestedRows": '
-                '[], "componentProps": {"componentName": '
-                '"embeddedGraph", "inputs": {"graphConfigId": '
-                '"INBE101Edv", "className": "MotorPartDefinition", '
-                '"filterField": "design_ref", "filterValue": '
-                '"reluctance-6s4p-m1"}}}, {"id": "d-graph2", "index": '
-                '1, "type": "component", "rowSegmentsUsed": 6, '
-                '"gridColumnStart": null, "title": "Field buffer per '
-                'part", "visible": true, "collapsed": false, '
-                '"cssClass": "", "item": null, "nestedRows": [], '
-                '"componentProps": {"componentName": "embeddedGraph", '
-                '"inputs": {"graphConfigId": "Y6vkNBG3N", "className": '
-                '"MotorPartDefinition", "filterField": "design_ref", '
-                '"filterValue": "reluctance-6s4p-m1"}}}]}, {"index": '
-                '3, "rowSegments": 12, "minRowHeight": 300, '
-                '"maxRowHeight": 0, "autoHeight": true, "cssClass": '
-                '"", "items": [{"id": "d-runs", "index": 0, "type": '
-                '"component", "rowSegmentsUsed": 12, '
-                '"gridColumnStart": null, "title": "Verification runs '
-                '\\u2014 configured TableDefinition", "visible": true, '
-                '"collapsed": false, "cssClass": "", "item": null, '
-                '"nestedRows": [], "componentProps": {"componentName": '
-                '"embeddedTable", "inputs": {"tableConfigId": '
-                '"rWGrdGQ4b", "className": "MotorVerificationRun", '
-                '"filterField": "design_ref", "filterValue": '
-                '"reluctance-6s4p-m1"}}}]}, {"index": 4, '
-                '"rowSegments": 12, "minRowHeight": 520, '
-                '"maxRowHeight": 0, "autoHeight": true, "cssClass": '
-                '"", "items": [{"id": "d-sim", "index": 0, "type": '
-                '"component", "rowSegmentsUsed": 12, '
-                '"gridColumnStart": null, "title": "The simulation '
-                '\\u2014 embedded sim space", "visible": true, '
-                '"collapsed": false, "cssClass": "", "item": null, '
-                '"nestedRows": [], "componentProps": {"componentName": '
-                '"sim-space-viewer", "inputs": {"simSpaceName": '
-                '"motor-m1-viz", "hideRunPanel": false, '
-                '"clickNavigates": false}}}]}]}',
-  'description': 'M1 — the 6-slot/4-pole reluctance motor, configured '
-                 'end to end.',
-  'isPage': True,
-  'linkedSolutions': '[]',
-  'name': 'm1-detail',
-  'pageRoute': 'm1-detail',
-  'source_class': 'MotorDesignDefinition'}]
+#: THE LADDER PAGES — one per motor design, built from one shape.
+#:
+#: Every rung wants the same five things: the design through its
+#: configured instance display, its parts filtered by design_ref, two
+#: graphs over those parts, its verification runs, and its simulation.
+#: Writing that out per rung produced two 70-line literals that had to
+#: be edited in lockstep; a builder makes adding M2/M3 a row of data.
+#:
+#: The graph/table ids below are placeholders — _repoint_display_refs
+#: replaces them with this node's ids at seed time. See EMBED_TARGETS.
+LADDER_PAGES = [
+    ('m0-detail', 'clock-lavet-m0', 'motor-m0-viz',
+     'M0 — the Lavet clock stepper, configured end to end.'),
+    ('m1-detail', 'reluctance-6s4p-m1', 'motor-m1-viz',
+     'M1 — the 6-slot/4-pole reluctance motor, configured end to end.'),
+    ('m2-detail', 'ferrite-pm-m2', 'motor-m2-viz',
+     'M2 — the small ferrite-PM rotor motor, configured end to end.'),
+    ('m3-detail', 'dual-stator-axial-m3', 'motor-m3-viz',
+     'M3 — the dual-stator axial-flux motor (the end goal), '
+     'configured end to end.'),
+]
+
+
+def _component(item_id, index, title, component, inputs, segments=12):
+    return {'id': item_id, 'index': index, 'type': 'component',
+            'rowSegmentsUsed': segments, 'gridColumnStart': None,
+            'title': title, 'visible': True, 'collapsed': False,
+            'cssClass': '', 'item': None, 'nestedRows': [],
+            'componentProps': {'componentName': component,
+                               'inputs': inputs}}
+
+
+def _page_row(index, items, min_height=260):
+    return {'index': index, 'rowSegments': 12,
+            'minRowHeight': min_height, 'maxRowHeight': 0,
+            'autoHeight': True, 'cssClass': '', 'items': items}
+
+
+def _ladder_page(name, route, description, design, sim_space):
+    """One rung's page. Every embed is scoped to THIS design, so the
+    same definitions serve every rung without showing another rung's
+    rows."""
+    rows = [
+        _page_row(0, [_component(
+            'd-detail', 0, 'The design — configured instance display',
+            'instance-detail-panel',
+            {'className': 'MotorDesignDefinition',
+             'filterField': 'name', 'filterValue': design})], 220),
+        _page_row(1, [_component(
+            'd-parts', 0,
+            'Parts of this design (multi-reference, filtered by '
+            'design_ref)',
+            'class-rows-table',
+            {'className': 'MotorPartDefinition',
+             'filterField': 'design_ref', 'filterValue': design,
+             'columns': 'display_name,function,material_ref,quantity'})],
+            320),
+        _page_row(2, [
+            _component('d-graph', 0,
+                       'Part quantities — configured GraphDefinition',
+                       'embeddedGraph',
+                       {'graphConfigId': '', 'className':
+                        'MotorPartDefinition',
+                        'filterField': 'design_ref',
+                        'filterValue': design}, 6),
+            _component('d-graph2', 1, 'Field buffer per part',
+                       'embeddedGraph',
+                       {'graphConfigId': '', 'className':
+                        'MotorPartDefinition',
+                        'filterField': 'design_ref',
+                        'filterValue': design}, 6)], 420),
+        _page_row(3, [_component(
+            'd-runs', 0,
+            'Verification runs — configured TableDefinition',
+            'embeddedTable',
+            {'tableConfigId': '', 'className': 'MotorVerificationRun',
+             'filterField': 'design_ref', 'filterValue': design})], 300),
+        _page_row(4, [_component(
+            'd-sim', 0, 'The simulation — embedded sim space',
+            'sim-space-viewer',
+            {'simSpaceName': sim_space, 'hideRunPanel': False,
+             'clickNavigates': False})], 520),
+    ]
+    return {'name': name, 'description': description,
+            'source_class': 'MotorDesignDefinition', 'isPage': True,
+            'pageRoute': route, 'linkedSolutions': '[]',
+            'definition': json.dumps({'rows': rows})}
+
+
+SEED_MOTOR_PAGE_DISPLAYS = [
+    _ladder_page(name, name, description, design, sim_space)
+    for name, design, sim_space, description in LADDER_PAGES
+]
+
 
 #: The ids stored inside the display definitions above are whatever
 #: the authoring instance handed out. They are ADVISORY ONLY —
