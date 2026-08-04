@@ -34,8 +34,14 @@ from topology.topology_analysis import (
 from topology.topology_module_graph import designate_transients
 from topology.topology_modules import ModuleAssignment
 
+#: Everything an app IS, so a person can author all of it through the
+#: API rather than only the half the first pass exposed. nav_json was
+#: the notable omission — it is the app's own menu, i.e. the routes and
+#: capabilities that make it an app at all, so without it the endpoint
+#: could create an app that could not be navigated.
 _APP_FIELDS = ('title', 'use_case', 'description', 'modules_json',
-               'pages_json', 'notes')
+               'pages_json', 'nav_json', 'personas_json', 'discipline',
+               'notes')
 
 
 class AppsAPI(treeObject):
@@ -146,6 +152,14 @@ class AppsAPI(treeObject):
         row = self._find('PolariAppDefinition', name)
         created = row is None
         updates = {k: payload[k] for k in _APP_FIELDS if k in payload}
+        #: A person's app is NOT a prior. The model's own contract:
+        #: seeds are priors, people's edits are not — a row with
+        #: is_prior False is never touched again by the upsert seed
+        #: pass. Anything authored through this endpoint is therefore
+        #: marked authored, or the next boot would quietly overwrite
+        #: it with the seed. Pass is_prior explicitly to override
+        #: (a module seeding through the API).
+        updates['is_prior'] = bool(payload.get('is_prior', False))
         if created:
             row = PolariAppDefinition(
                 name=name, **updates, manager=self.manager)
@@ -155,6 +169,7 @@ class AppsAPI(treeObject):
         self._save(row)
         response.media = {'ok': True, 'name': name,
                           'created': created,
+                          'isPrior': row.is_prior,
                           'updated': sorted(updates)}
 
     def on_post_apply(self, request, response):
