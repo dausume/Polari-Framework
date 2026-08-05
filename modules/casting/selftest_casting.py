@@ -24,7 +24,9 @@ from types import SimpleNamespace
 
 from casting.casting_seed import (
     SEED_CASTING_MODULES, SEED_MASTER_FEEDSTOCKS, SEED_MOLDS,
+    SEED_SPRUE_STRATEGIES,
 )
+from casting.sprue_geometry import apply_sprue_strategy
 from casting.chain_analysis import (
     chain_report, shrink_compensation_report,
 )
@@ -68,6 +70,8 @@ def _mgr(extra_molds=()):
         'MasterFeedstockDefinition': _table(SEED_MASTER_FEEDSTOCKS),
         'MoldNestingChain': _table(SEED_NESTING_CHAINS),
         'CastingStageDefinition': _table(SEED_CASTING_STAGES),
+        'SprueStrategyDefinition': _table(SEED_SPRUE_STRATEGIES),
+        'SprueSetInstance': {},
         'LadderRung': _table(SEED_LADDER_RUNGS),
         'CeramicSample': _table(SEED_CERAMIC_SAMPLES),
         'WaxSourceDefinition': _table(SEED_WAX_SOURCES),
@@ -641,6 +645,81 @@ if __name__ == '__main__':
           'firing stage',
           any(s.get('targetThermalShock')
               for s in c2b.get('stages', [])))
+
+    print('cast-4: automated sprues + vents + removability')
+    sp = apply_sprue_strategy(manager, 'demo-sphere-mold',
+                              'top-gate-default')
+    check('top gate applied, feasible', sp.get('ok')
+          and sp.get('verdict') == 'feasible',
+          '; '.join(sp.get('blockers', [])) or sp.get('error', ''))
+    neck = (sp.get('sprues') or [{}])[0].get('neckRadiusCm', 0)
+    check('neck sized from the MEASURED top-slice section '
+          '(r≈1.2mm on the sphere dome)', 0.08 < neck < 0.18,
+          f'neck_r={neck:.4f}cm')
+    check('placements carry WHY, not bare coordinates',
+          all('why' in p and 'cells' in p['why'] or 'region' in
+              p['why'] for p in sp.get('placements', [])))
+    v_body = shape_properties(manager, 'demo-sphere-mold--body'
+                              ).get('volumeCm3')
+    v_sprued = shape_properties(manager, sp['spruedBodyShape']
+                                ).get('volumeCm3')
+    check('channels remove volume from the mold body',
+          v_sprued is not None and v_sprued < v_body,
+          f'{v_body} → {v_sprued}')
+    in_channel = evaluate_point(manager, sp['spruedBodyShape'],
+                                0.0, 0.0, 1.5)
+    in_plain = evaluate_point(manager, 'demo-sphere-mold--body',
+                              0.0, 0.0, 1.5)
+    check('the gate channel is VOID in the sprued body, solid in '
+          'the plain one', in_plain.get('inside') is True
+          and in_channel.get('inside') is False)
+    on_master = evaluate_point(manager, sp['spruedMasterShape'],
+                               0.0, 0.0, 1.5)
+    check('the same solid is ATTACHED on the positive master '
+          '(parity artifact pair)', on_master.get('inside') is True)
+    rem = sp.get('removability') or {}
+    check('removability: worst-wins score with named §4 limits',
+          rem.get('worstWinsScore', 0) > 0
+          and rem.get('limits') == {'brittle': 0.25, 'ductile': 0.4}
+          and all(s['ok'] for s in rem.get('perSprue', [])))
+    check('sphere top gate: 0 vents WITH the reason named',
+          sp.get('vents') == [] and 'gate occupies'
+          in sp.get('ventReason', ''))
+    sp2 = apply_sprue_strategy(two, 'two-sphere-mold',
+                               'side-gate-cut')
+    check('two-chamber mold side gate: 2 vents at the two high '
+          'regions', sp2.get('ok') and len(sp2.get('vents', [])) == 2)
+    fat = dict(manager.objectTables['SprueStrategyDefinition'])
+    fat['fat-snap'] = SimpleNamespace(
+        name='fat-snap', gate_style='top-gate', n_vents=0,
+        vent_placement='high-points', sprue_taper_deg=2.0,
+        neck_area_ratio=0.35, removal_mode='snap')
+    fm = SimpleNamespace(objectTables=dict(
+        manager.objectTables, SprueStrategyDefinition=fat))
+    fat_brittle = apply_sprue_strategy(fm, 'demo-sphere-mold',
+                                       'fat-snap')
+    check('0.35 neck on a brittle part BLOCKS (limit 0.25 named)',
+          fat_brittle.get('verdict') == 'blocked'
+          and any('0.25' in b for b in fat_brittle.get('blockers',
+                                                       [])))
+    fat_ductile = apply_sprue_strategy(fm, 'demo-sphere-mold',
+                                       'fat-snap',
+                                       part_brittleness='ductile')
+    check('snap removal on a DUCTILE part blocks (tears, use cut)',
+          any('tears' in b for b in fat_ductile.get('blockers', [])))
+    check('grid-path (imported) mold refuses with the cast-5 seam '
+          'named', 'cast-5' in apply_sprue_strategy(
+              imp, 'bracket-mold', 'top-gate-default'
+          ).get('error', ''))
+    check('unknown strategy refuses',
+          not apply_sprue_strategy(manager, 'demo-sphere-mold',
+                                   'nope').get('ok'))
+    inst = manager.objectTables['SprueSetInstance'].get(
+        'demo-sphere-mold--top-gate-default')
+    check('SprueSetInstance recorded with score + both artifacts',
+          inst is not None
+          and getattr(inst, 'removability_score', 0) > 0
+          and getattr(inst, 'sprued_master_shape_name', ''))
 
     print('module identity')
     check('PolariModule row present + owns MoldDefinition',

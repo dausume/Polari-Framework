@@ -106,6 +106,30 @@ SEED_MASTER_FEEDSTOCKS = [
 ]
 
 
+#: cast-4: two reusable gating strategies. Neck ratios sit inside
+#: the plan §4 limits (0.25 brittle / 0.40 ductile) on purpose.
+SEED_SPRUE_STRATEGIES = [
+    {'name': 'top-gate-default',
+     'display_name': 'Top gate, snap-off (default)',
+     'gate_style': 'top-gate', 'n_vents': 2,
+     'vent_placement': 'high-points', 'sprue_taper_deg': 2.0,
+     'neck_area_ratio': 0.2, 'removal_mode': 'snap',
+     'is_prior': True, 'provenance_id': 'cast-4',
+     'notes': 'gravity fill from the cavity-top centroid; neck at '
+              '20% of the measured local section snaps clean off a '
+              'brittle part.'},
+    {'name': 'side-gate-cut',
+     'display_name': 'Side gate, cut-off',
+     'gate_style': 'side-gate', 'n_vents': 2,
+     'vent_placement': 'high-points', 'sprue_taper_deg': 2.0,
+     'neck_area_ratio': 0.35, 'removal_mode': 'cut',
+     'is_prior': True, 'provenance_id': 'cast-4',
+     'notes': 'mid-height entry for parts whose top face must stay '
+              'clean; 35% neck needs a cut (over the brittle snap '
+              'limit by design).'},
+]
+
+
 SEED_CASTING_MODULES = [{
     'name': 'Casting-Mold-Nesting',
     'version': '',
@@ -121,7 +145,8 @@ SEED_CASTING_MODULES = [{
                    'parity + thermal ordering, auto sprues, fill and '
                    'demold simulation (WAX_MOLD_NESTING_PLAN).',
         'objects': ['MoldDefinition', 'MasterFeedstockDefinition',
-                    'MoldNestingChain', 'CastingStageDefinition'],
+                    'MoldNestingChain', 'CastingStageDefinition',
+                    'SprueStrategyDefinition', 'SprueSetInstance'],
     }),
 }]
 
@@ -140,6 +165,8 @@ def seed_casting(manager):
         SEED_CASTING_STAGES, SEED_NESTING_CHAINS,
     )
     from casting.mold_geometry import derive_mold
+    from casting.sprue_basis import SprueStrategyDefinition
+    from casting.sprue_geometry import apply_sprue_strategy
     from composition.seed_upsert import upsert_seed_pairs
 
     upsert = upsert_seed_pairs(manager, [
@@ -150,6 +177,8 @@ def seed_casting(manager):
         ('MoldNestingChain', MoldNestingChain, SEED_NESTING_CHAINS),
         ('CastingStageDefinition', CastingStageDefinition,
          SEED_CASTING_STAGES),
+        ('SprueStrategyDefinition', SprueStrategyDefinition,
+         SEED_SPRUE_STRATEGIES),
     ], tag='CastingSeed')
     derivations = []
     table = (getattr(manager, 'objectTables', None) or {}).get(
@@ -163,4 +192,12 @@ def seed_casting(manager):
                             'reconverged': r.get('reconverged', []),
                             'volumeCheckOk':
                                 (r.get('volumeCheck') or {}).get('ok')})
-    return {'upsert': upsert, 'derivations': derivations}
+    # cast-4: the demo mold gets the default gate applied at seed —
+    # the SprueSetInstance and both parity artifacts are derived
+    # rows, not data anyone types in.
+    sprue = apply_sprue_strategy(manager, 'demo-sphere-mold',
+                                 'top-gate-default')
+    return {'upsert': upsert, 'derivations': derivations,
+            'sprue': {'ok': bool(sprue.get('ok')),
+                      'verdict': sprue.get('verdict', ''),
+                      'error': sprue.get('error', '')}}
