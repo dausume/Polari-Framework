@@ -1010,6 +1010,8 @@ try:
         MoldDefinition,
     )
     from casting.fill_sim import MoldFillSimState
+    from casting.interventions import FillInterventionDefinition
+    from casting.demold import DemoldPlanDefinition
     from casting.chain_basis import (
         CastingStageDefinition, MoldNestingChain,
     )
@@ -1023,6 +1025,7 @@ except ImportError as _exc:
         'MoldNestingChain', 'CastingStageDefinition',
         'SprueStrategyDefinition', 'SprueSetInstance',
         'CastingMaterialThermalProfile', 'MoldFillSimState',
+        'FillInterventionDefinition', 'DemoldPlanDefinition',
         'SEED_CASTING_MODULES', 'seed_casting',
     ))
 try:
@@ -2151,6 +2154,7 @@ class polariServer(treeObject):
             MoldNestingChain, CastingStageDefinition,
             SprueStrategyDefinition, SprueSetInstance,
             CastingMaterialThermalProfile, MoldFillSimState,
+            FillInterventionDefinition, DemoldPlanDefinition,
             # Wax sources (wax-1) + supply-chain ledger (chain-1)
             # + sourcing profiles/citations/preference ladder (src-1).
             WaxSourceDefinition, SupplyNode, SupplyFlow,

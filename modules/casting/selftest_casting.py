@@ -26,7 +26,9 @@ from casting.casting_seed import (
     SEED_CASTING_MODULES, SEED_MASTER_FEEDSTOCKS, SEED_METAL_THERMAL,
     SEED_MOLDS, SEED_SPRUE_STRATEGIES,
 )
+from casting.demold import demold_plan
 from casting.fill_sim import compute_fill_rows, simulate_fill
+from casting.interventions import evaluate_intervention
 from casting.sprue_geometry import apply_sprue_strategy
 from casting.chain_analysis import (
     chain_report, shrink_compensation_report,
@@ -805,6 +807,110 @@ if __name__ == '__main__':
           'real states', rows_res.get('ok')
           and len(rows_res['rows']) > 100 and 1 in states
           and 2 in states)
+
+    print('cast-6: interventions — gated knobs, never auto-applied')
+    inj = evaluate_intervention(trapm, 'demo-sphere-mold',
+                                'pressure-positive', 50.0)
+    eff = inj.get('effect') or {}
+    check('50 kPa injection: Boyle compression computed, pockets '
+          'shrink but do not vanish',
+          inj.get('verdict') == 'allowed'
+          and eff.get('compressedToCm3')
+          and eff['compressedToCm3'][0]
+          < eff['trappedPocketsCm3'][0]
+          and 'do not vanish' in eff.get('model', ''))
+    vac = evaluate_intervention(trapm, 'demo-sphere-mold',
+                                'pressure-vacuum', 80.0)
+    check('vacuum eliminates the topological pocket; outgassing is '
+          'a NAMED-ABSENCE gate, not a pass',
+          (vac.get('effect') or {}).get('trappedPocketsEliminated')
+          == 1 and any(g['ok'] is None and 'outgassing'
+                       in g['gate'] for g in vac.get('gates', [])))
+    heat = evaluate_intervention(manager, 'demo-sphere-mold',
+                                 'heat-soak', 20.0, cure_temp_c=40.0)
+    check('heat-soak REFUTED by the measured data (pot life '
+          '210→90 min) AND blocked (peak 100°C vs carnauba 72°C)',
+          heat.get('verdict') == 'blocked'
+          and any('COUNTERPRODUCTIVE' in f
+                  for f in heat.get('findings', [])))
+    chill = evaluate_intervention(manager, 'demo-sphere-mold',
+                                  'chill', 20.0, cure_temp_c=60.0)
+    check('chill to 40°C ALLOWED: pot life 90→210 min, exotherm '
+          'gate passes', chill.get('verdict') == 'allowed'
+          and (chill.get('effect') or {}).get('potLifeMinAfter')
+          == 210.0)
+    check('adjusting cure outside 40–85°C refuses to extrapolate',
+          'refusal' in evaluate_intervention(
+              manager, 'demo-sphere-mold', 'heat-soak', 50.0,
+              cure_temp_c=40.0))
+    check('unknown intervention refuses',
+          not evaluate_intervention(manager, 'demo-sphere-mold',
+                                    'shake', 1.0).get('ok'))
+
+    print('cast-7: demold — parting sweeps + sacrificial gates')
+    dm = demold_plan(manager, 'demo-sphere-mold',
+                     method='mechanical')
+    op = (dm.get('parting') or {}).get('onePiece', {})
+    check('enclosed sphere: one-piece extraction blocked in ALL 6 '
+          'directions', dm.get('ok')
+          and len(op) == 6
+          and all(v['blockedColumns'] > 0 for v in op.values()))
+    tp = (dm.get('parting') or {}).get('twoPart', {})
+    check('…but a TWO-PART mold parts at the equator (plane ≈ z 0)',
+          'z' in tp and abs(tp['z']['planeCoordCm']) < 0.35
+          and dm.get('verdict') == 'feasible',
+          f"{tp.get('z')}")
+    dm_pot = demold_plan(manager, 'pot-frustum-mold',
+                         method='mechanical')
+    check('frustum pot: two-part plane found (widening cavity caps '
+          'at its top)',
+          'z' in (dm_pot.get('parting') or {}).get('twoPart', {}))
+    melt = demold_plan(manager, 'demo-sphere-mold',
+                       method='melt-out')
+    check('wax melt-out at 90°C passes the geopolymer 1000°C '
+          'ceiling, basis named', melt.get('verdict') == 'feasible'
+          and any(g['ok'] for g in melt.get('gates', [])))
+    hotfeed = _mgr()
+    derive_mold(hotfeed, 'demo-sphere-mold')
+    hotfeed.objectTables['MasterFeedstockDefinition']['hot-removal'] \
+        = SimpleNamespace(name='hot-removal', removal_temp_c=1200.0,
+                          removal_notes='fixture')
+    hotfeed.objectTables['MoldDefinition'][
+        'demo-sphere-mold'].mold_material_ref = 'hot-removal'
+    hot_melt = demold_plan(hotfeed, 'demo-sphere-mold',
+                           method='melt-out')
+    check('a 1200°C removal BLOCKS against the 1000°C part ceiling '
+          '(pair named)', hot_melt.get('verdict') == 'blocked'
+          and any('1200' in b and '1000' in b
+                  for b in hot_melt.get('blockers', [])))
+    gp_mold = _mgr()
+    derive_mold(gp_mold, 'demo-sphere-mold')
+    gp_mold.objectTables['MoldDefinition'][
+        'demo-sphere-mold'].mold_material_ref = 'geopolymer'
+    rel = demold_plan(gp_mold, 'demo-sphere-mold',
+                      method='mechanical')
+    check('geopolymer-in-geopolymer DEMANDS a release coat '
+          '(bonding rule, jojoba named)',
+          rel.get('releaseCoatingRequired')
+          and any('jojoba' in b for b in rel.get('blockers', [])))
+    rel2 = demold_plan(gp_mold, 'demo-sphere-mold',
+                       method='mechanical',
+                       coating_declared='jojoba-wash')
+    check('declaring the coating clears the release blocker',
+          not any('release' in b.lower()
+                  for b in rel2.get('blockers', [])))
+    brk = demold_plan(manager, 'demo-sphere-mold',
+                      method='break-out')
+    check('break-out (disposable route) always feasible, crush '
+          'end-of-life named', brk.get('verdict') == 'feasible'
+          and any('crush' in f for f in brk.get('findings', [])))
+    check('DemoldPlanDefinition row recorded',
+          manager.objectTables.get('DemoldPlanDefinition', {}).get(
+              'demo-sphere-mold--demold-mechanical') is not None
+          or any(getattr(r, 'name', '')
+                 == 'demo-sphere-mold--demold-mechanical'
+                 for r in manager.objectTables.get(
+                     'DemoldPlanDefinition', {}).values()))
 
     print('module identity')
     check('PolariModule row present + owns MoldDefinition',

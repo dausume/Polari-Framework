@@ -68,10 +68,12 @@ SIMULATION_GAPS = [
          'a mm-modelled part imports 10× too large',
          'named in every mesh_grid result; closure = bbox sanity '
          'prompt on import (cad_import owns it)'),
-    _gap('geo-draft-undercut', 'geometry', 'planned-phase',
-         'draft angles and undercuts not analyzed',
+    _gap('geo-draft-undercut', 'geometry', 'modelled',
+         'undercuts vs the pull direction',
          'a derivable mold may still be un-demoldable',
-         'cast-7 directional voxel sweep'),
+         'MODELLED: cast-7 directional column sweeps (one-piece all '
+         '6 directions + two-part parting-plane search); draft '
+         'ANGLE margin still named — the sweep is binary'),
     # ---------------- structural ----------------
     _gap('str-wall-plate-model', 'structural', 'modelled',
          'mold walls are idealized as simply-supported rectangular '
@@ -144,14 +146,18 @@ SIMULATION_GAPS = [
          'cast-4 vents + cast-5 connectivity (a blind cavity with '
          'no rising path is exactly a flood-fill question)'),
     # ---------------- process ----------------
-    _gap('prc-fill-air', 'process', 'planned-phase',
+    _gap('prc-fill-air', 'process', 'modelled',
          'air entrapment during fill',
          'voids in the cast part',
-         'cast-5 voxel fill simulation (gates/vents/trapped-air)'),
-    _gap('prc-demold-damage', 'process', 'planned-phase',
-         'demolding stresses and part damage',
+         'MODELLED: cast-5 gravity fill (trapped pockets with vent '
+         'suggestions, unfed chambers, counterflow findings); gas '
+         'back-pressure magnitude still a named absence'),
+    _gap('prc-demold-damage', 'process', 'modelled',
+         'demolding damage',
          'a perfect cast broken on extraction',
-         'cast-7 demold plan (parting sweep, ejection stress)'),
+         'MODELLED (coarse): cast-7 sweeps + brittle-vs-undercut '
+         'gate + thermal gates on sacrificial routes; adhesion '
+         'coefficients remain a named absence'),
     _gap('prc-mold-reuse-wear', 'process', 'planned-phase',
          'mold degradation across casting cycles',
          'cycle-life economics unbound to the chain',

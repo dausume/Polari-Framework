@@ -177,7 +177,8 @@ SEED_CASTING_MODULES = [{
                     'MoldNestingChain', 'CastingStageDefinition',
                     'SprueStrategyDefinition', 'SprueSetInstance',
                     'CastingMaterialThermalProfile',
-                    'MoldFillSimState'],
+                    'MoldFillSimState', 'FillInterventionDefinition',
+                    'DemoldPlanDefinition'],
     }),
 }]
 
@@ -196,6 +197,9 @@ def seed_casting(manager):
     from casting.chain_seed import (
         SEED_CASTING_STAGES, SEED_NESTING_CHAINS,
     )
+    from casting.interventions import (
+        FillInterventionDefinition, SEED_FILL_INTERVENTIONS,
+    )
     from casting.mold_geometry import derive_mold
     from casting.sprue_basis import SprueStrategyDefinition
     from casting.sprue_geometry import apply_sprue_strategy
@@ -213,6 +217,8 @@ def seed_casting(manager):
          SEED_SPRUE_STRATEGIES),
         ('CastingMaterialThermalProfile',
          CastingMaterialThermalProfile, SEED_METAL_THERMAL),
+        ('FillInterventionDefinition', FillInterventionDefinition,
+         SEED_FILL_INTERVENTIONS),
     ], tag='CastingSeed')
     derivations = []
     table = (getattr(manager, 'objectTables', None) or {}).get(
