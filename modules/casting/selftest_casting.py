@@ -22,12 +22,15 @@ import json
 import math
 from types import SimpleNamespace
 
-from casting.casting_seed import SEED_CASTING_MODULES, SEED_MOLDS
+from casting.casting_seed import (
+    SEED_CASTING_MODULES, SEED_MASTER_FEEDSTOCKS, SEED_MOLDS,
+)
 from casting.mesh_voxelize import mesh_grid
 from casting.mold_geometry import derive_mold, scale_quadric_flat
 from casting.voxel_grid import OccupancyGrid
 from casting.wax_feasibility import (
-    print_time_estimate, wax_master_report, wax_self_support,
+    master_report, print_time_estimate, printable_criteria,
+    wax_master_report, wax_self_support,
 )
 from mathshapes.shape_analysis import evaluate_point, shape_properties
 from mathshapes.shape_seed import SEED_MATH_SHAPES
@@ -55,6 +58,7 @@ def _mgr(extra_molds=()):
     return SimpleNamespace(objectTables={
         'MathShapeDefinition': _table(SEED_MATH_SHAPES),
         'MoldDefinition': _table(molds),
+        'MasterFeedstockDefinition': _table(SEED_MASTER_FEEDSTOCKS),
         'WaxSourceDefinition': _table(SEED_WAX_SOURCES),
         'WaxFeedstockDefinition': _table(SEED_FEEDSTOCKS),
         'PrinterAssemblyDefinition': _table(SEED_ASSEMBLIES),
@@ -342,6 +346,58 @@ if __name__ == '__main__':
     check("imported mesh under part_source='mathshape' refuses "
           '(silent-outside trap named)',
           not tr.get('ok') and 'EMPTY' in tr.get('error', ''))
+
+    print('cast-2b: multi-feedstock masters (Dustin 2026-08-05)')
+    mr = master_report(manager, 'demo-sphere-mold')
+    check('default feedstock = the CORE natural local wax',
+          mr.get('ok') and mr.get('feedstock') == 'carnauba-pellet'
+          and mr.get('priority') == 'core' and mr.get('renewable'))
+    check('core wax feasible on the auger route',
+          mr.get('verdict') == 'feasible'
+          and mr.get('route') == 'auger-pellet-print'
+          and (mr.get('printTime') or {}).get('ok'))
+    voron = master_report(manager, 'demo-sphere-mold',
+                          feedstock_name='wax-filament-fdm')
+    check('commercial wax filament prints on a standard Voron',
+          voron.get('ok') and voron.get('verdict') == 'feasible'
+          and (voron.get('printTime') or {}).get('machine', ''
+               ).startswith('standard Voron'),
+          f"{(voron.get('printTime') or {}).get('estimatedHours')}h")
+    pla = master_report(manager, 'demo-sphere-mold',
+                        feedstock_name='pla-filament')
+    check('PLA mold feasible, faster than wax filament (80 mm/s)',
+          pla.get('verdict') == 'feasible'
+          and (pla.get('printTime') or {}).get('estimatedHours', 99)
+          < (voron.get('printTime') or {}).get('estimatedHours', 0))
+    check('PLA removal = burn-out with the thermal gate deferred to '
+          'cast-3', (pla.get('removal') or {}).get('route')
+          == 'burn-out'
+          and 'cast-3' in (pla.get('removal') or {}).get('gate', ''))
+    cnc = master_report(manager, 'demo-sphere-mold',
+                        feedstock_name='machinable-wax-block')
+    check('machinable wax: feasible via CNC, time a NAMED absence',
+          cnc.get('verdict') == 'feasible' and cnc.get('route') == 'cnc'
+          and not (cnc.get('printTime') or {}).get('ok')
+          and any('feeds/speeds' in g for g in cnc.get('gaps', [])))
+    check('wrong route for a feedstock blocks, naming its routes',
+          any('not a make-route' in b for b in master_report(
+              manager, 'demo-sphere-mold',
+              feedstock_name='machinable-wax-block',
+              route='fdm-voron').get('blockers', [])))
+    crit = printable_criteria(_table(SEED_MASTER_FEEDSTOCKS)[
+        'wax-filament-fdm'], ambient_c=42.0)
+    check('printable criteria fail loudly (wax filament at 42°C '
+          'ambient vs soften 45)', not crit.get('ok')
+          and any(not c['ok'] for c in crit['checks']))
+    check('unknown feedstock refuses',
+          not master_report(manager, 'demo-sphere-mold',
+                            feedstock_name='nope').get('ok'))
+    check('commercial rows carry sourcing tier + non-renewable '
+          'honestly',
+          all(f['accessibility_tier'] == 'common-industrial'
+              and not f['renewable']
+              for f in SEED_MASTER_FEEDSTOCKS
+              if f['priority'] == 'supported'))
 
     print('module identity')
     check('PolariModule row present + owns MoldDefinition',

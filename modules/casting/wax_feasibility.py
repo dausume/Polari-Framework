@@ -266,6 +266,239 @@ def print_time_for_volume(manager, volume_cm3, condition_name,
             'estimatedHours': round(hours, 2) if hours else None}
 
 
+def _body_volume(manager, mold):
+    """The printable body's volume: the CSG body row when one exists,
+    else the grid body volume from derivation_json (imported parts)."""
+    body_shape = getattr(mold, 'body_shape_name', '')
+    if body_shape:
+        props = shape_properties(manager, body_shape)
+        if props.get('ok'):
+            return float(props.get('volumeCm3') or 0.0), body_shape
+        return None, body_shape
+    try:
+        deriv = json.loads(getattr(mold, 'derivation_json', '{}')
+                           or '{}')
+    except (TypeError, ValueError):
+        deriv = {}
+    v = deriv.get('bodyVolumeCm3')
+    return (float(v), '(grid body)') if v else (None, '')
+
+
+def _routes_of(feed):
+    try:
+        routes = json.loads(getattr(feed, 'make_routes_json', '[]')
+                            or '[]')
+    except (TypeError, ValueError):
+        routes = []
+    return [r for r in routes if isinstance(r, str)]
+
+
+def printable_criteria(feed, ambient_c=25.0):
+    """The GENERAL 3D-printable criteria (Dustin 2026-08-05): does
+    this feedstock qualify for a printer route at all? Each criterion
+    reports pass/fail with its evidence — a failed list, not a silent
+    drop."""
+    routes = _routes_of(feed)
+    print_routes = [r for r in routes
+                    if r in ('auger-pellet-print', 'fdm-voron')]
+    soften = float(getattr(feed, 'soften_temp_c', 0.0) or 0.0)
+    checks = [
+        {'criterion': 'has a printer make-route',
+         'ok': bool(print_routes), 'evidence': routes or 'none'},
+        {'criterion': 'positive print kinematics (nozzle/layer/speed)',
+         'ok': all(float(getattr(feed, f, 0.0) or 0.0) > 0.0
+                   for f in ('nozzle_diameter_mm', 'layer_height_mm',
+                             'print_speed_mm_s')) or not print_routes,
+         'evidence': {f: getattr(feed, f, None)
+                      for f in ('nozzle_diameter_mm',
+                                'layer_height_mm',
+                                'print_speed_mm_s')}},
+        {'criterion': f'holds shape at ambient (soften > '
+                      f'{ambient_c:.0f}°C + 10)',
+         'ok': soften > ambient_c + 10.0,
+         'evidence': f'soften {soften:.0f}°C'},
+        {'criterion': 'density + strength data present',
+         'ok': float(getattr(feed, 'density_kg_m3', 0.0) or 0.0) > 0.0
+         and float(getattr(feed, 'compressive_strength_mpa', 0.0)
+                   or 0.0) > 0.0,
+         'evidence': getattr(feed, 'claim_status', '')},
+    ]
+    return {'ok': all(c['ok'] for c in checks), 'checks': checks,
+            'printRoutes': print_routes}
+
+
+def _default_feedstock(manager):
+    """The 'core' priority row — the natural locally-producible wax
+    Dustin named as the focus. Never a silent commercial fallback."""
+    core = [f for f in _rows(manager, 'MasterFeedstockDefinition')
+            if getattr(f, 'priority', '') == 'core']
+    return core[0] if core else None
+
+
+def master_report(manager, mold_name, feedstock_name=None, route=None,
+                  ambient_c=25.0, condition_name='room-baseline',
+                  assembly_name='demo-auger-extruder'):
+    """The generalized cast-1b gate: ANY MasterFeedstockDefinition
+    (natural wax core, machinable wax, Voron wax filament, PLA) ×
+    its make route. Blockers decide; gaps are named absences."""
+    mold = _mold_named(manager, mold_name)
+    if mold is None:
+        return {'ok': False,
+                'error': f"no MoldDefinition named '{mold_name}'"}
+    if (not getattr(mold, 'body_shape_name', '')
+            and not getattr(mold, 'derivation_json', '')):
+        derived = derive_mold(manager, mold_name)
+        if not derived.get('ok'):
+            return {'ok': False, 'verdict': 'unassessed',
+                    'error': f'derivation failed: '
+                             f"{derived.get('error', '')}"}
+    if feedstock_name:
+        feed = _row_named(manager, 'MasterFeedstockDefinition',
+                          feedstock_name)
+        if feed is None:
+            return {'ok': False,
+                    'error': f'no MasterFeedstockDefinition named '
+                             f"'{feedstock_name}'"}
+    else:
+        feed = _default_feedstock(manager)
+        if feed is None:
+            return {'ok': False,
+                    'error': "no 'core' MasterFeedstockDefinition "
+                             'seeded — name a feedstock explicitly'}
+    feed_name = getattr(feed, 'name', '')
+    routes = _routes_of(feed)
+    if route is None:
+        route = routes[0] if routes else ''
+    blockers, gaps, findings = [], [], []
+    if route not in routes:
+        blockers.append(f"route '{route}' is not a make-route of "
+                        f"'{feed_name}' (has: {routes})")
+
+    # -- self-support + softening, straight off the feedstock row --
+    density = float(getattr(feed, 'density_kg_m3', 0.0) or 0.0)
+    strength_mpa = float(getattr(feed, 'compressive_strength_mpa',
+                                 0.0) or 0.0)
+    soften = float(getattr(feed, 'soften_temp_c', 0.0) or 0.0)
+    if soften and ambient_c >= soften - 5.0:
+        blockers.append(
+            f'ambient {ambient_c:.0f}°C is at/above {feed_name} '
+            f'softening {soften:.0f}°C (−5°C guard)')
+    elif soften and soften - ambient_c < SOFTENING_MARGIN_C:
+        findings.append(f'only {soften - ambient_c:.0f}°C below '
+                        f'{feed_name} softening — strength floor not '
+                        f'credible this close')
+    support = None
+    if density > 0.0 and strength_mpa > 0.0:
+        stock = _named(manager,
+                       getattr(mold, 'stock_shape_name', '') or '')
+        try:
+            size = json.loads(getattr(stock, 'parameters_json', '{}')
+                              ).get('size') or []
+            height_cm = float(size[2])
+        except (AttributeError, TypeError, ValueError, IndexError):
+            height_cm = 0.0
+        if height_cm > 0.0:
+            sigma_kpa = density * _G * (height_cm / 100.0) / 1000.0
+            utilization = sigma_kpa / (strength_mpa * 1000.0)
+            support = {'heightCm': round(height_cm, 3),
+                       'baseStressKpa': round(sigma_kpa, 4),
+                       'strengthFloorKpa': strength_mpa * 1000.0,
+                       'claim': getattr(feed, 'claim_status', ''),
+                       'utilization': round(utilization, 6)}
+            if utilization >= 1.0:
+                blockers.append(
+                    f'self-weight {sigma_kpa:.1f} kPa exceeds the '
+                    f'{feed_name} strength floor')
+    else:
+        blockers.append(f"'{feed_name}' carries no density/strength "
+                        f'— absent data is absent')
+
+    # -- criteria + timing per route --
+    criteria = printable_criteria(feed, ambient_c=ambient_c)
+    volume, body_label = _body_volume(manager, mold)
+    timing = {'ok': False, 'error': 'no body volume'}
+    wall_beads = None
+    if volume is not None:
+        if route == 'auger-pellet-print':
+            timing = print_time_for_volume(
+                manager, volume, condition_name, assembly_name,
+                shape_label=body_label)
+        elif route == 'fdm-voron':
+            for c in criteria['checks']:
+                if not c['ok']:
+                    blockers.append(
+                        f"general 3D-printable criterion failed: "
+                        f"{c['criterion']} ({c['evidence']})")
+            nozzle = float(getattr(feed, 'nozzle_diameter_mm', 0.0)
+                           or 0.0)
+            layer = float(getattr(feed, 'layer_height_mm', 0.0)
+                          or 0.0)
+            speed = float(getattr(feed, 'print_speed_mm_s', 0.0)
+                          or 0.0)
+            if nozzle > 0 and layer > 0 and speed > 0:
+                bead_mm = nozzle * 1.1
+                rate_cm3_h = bead_mm * layer * speed * 3.6
+                timing = {'ok': True, 'shape': body_label,
+                          'volumeCm3': round(volume, 2),
+                          'beadWidthMm': round(bead_mm, 4),
+                          'layerHeightMm': layer,
+                          'printSpeedMmS': speed,
+                          'depositionRateCm3H': round(rate_cm3_h, 3),
+                          'overheadFactor': PRINT_OVERHEAD_FACTOR,
+                          'overheadClaim': 'NAMED prior — no '
+                                           'toolpath simulated',
+                          'machine': 'standard Voron/cartesian FDM',
+                          'estimatedHours': round(
+                              volume / rate_cm3_h
+                              * PRINT_OVERHEAD_FACTOR, 2)}
+        elif route == 'cnc':
+            timing = {'ok': False, 'gap': True,
+                      'error': 'no CNC feeds/speeds model v1 — time '
+                               'unassessed, not zero'}
+            gaps.append('CNC machining time: no feeds/speeds model '
+                        'v1 (named absence)')
+            gaps.append('CNC wall/cutter-access check: no cutter '
+                        'geometry data v1 (named absence)')
+    # thinnest-wall bead check applies to print routes only.
+    if timing.get('ok') and timing.get('beadWidthMm'):
+        try:
+            margin_mm = float(getattr(mold, 'stock_margin_cm', 0.0)
+                              or 0.0) * 10.0
+        except (TypeError, ValueError):
+            margin_mm = 0.0
+        if margin_mm > 0.0:
+            wall_beads = margin_mm / timing['beadWidthMm']
+            if wall_beads < MIN_BEADS_ACROSS_WALL:
+                blockers.append(
+                    f'thinnest mold wall {margin_mm:.1f}mm spans only '
+                    f'{wall_beads:.1f} beads (need ≥ '
+                    f'{MIN_BEADS_ACROSS_WALL:.0f})')
+
+    gaps.append('printer/machine build envelope not checked — no '
+                'envelope data (measure/declare one)')
+    removal = {'route': getattr(feed, 'removal_route', ''),
+               'tempC': getattr(feed, 'removal_temp_c', 0.0),
+               'notes': getattr(feed, 'removal_notes', ''),
+               'gate': 'checked against the mold material by the '
+                       'cast-3 thermal gate, not here'}
+    verdict = 'blocked' if blockers else 'feasible'
+    return {'ok': True, 'mold': mold_name, 'verdict': verdict,
+            'feedstock': feed_name,
+            'materialKind': getattr(feed, 'material_kind', ''),
+            'priority': getattr(feed, 'priority', ''),
+            'renewable': bool(getattr(feed, 'renewable', False)),
+            'route': route, 'routes': routes,
+            'blockers': blockers, 'gaps': gaps, 'findings': findings,
+            'printableCriteria': criteria, 'selfSupport': support,
+            'printTime': timing, 'removal': removal,
+            'wallBeads': round(wall_beads, 2) if wall_beads else None,
+            'note': 'blockers decide; gaps are named absences. The '
+                    'core focus stays the natural local wax — '
+                    'commercial feedstocks are supported, reported '
+                    'with their sourcing tier, never silently '
+                    'promoted.'}
+
+
 def wax_master_report(manager, mold_name, wax_source_name=None,
                       condition_name='room-baseline',
                       assembly_name='demo-auger-extruder',
