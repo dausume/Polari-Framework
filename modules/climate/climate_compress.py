@@ -34,6 +34,11 @@ from objectTreeDecorators import treeObject, treeObjectInit
 #: compress them (no-op compression is data churn for nothing).
 MIN_POINTS_TO_COMPRESS = 400
 DEFAULT_TARGET_POINTS = 250
+#: A bin whose value swing exceeds this multiple of the NORM (the
+#: median swing across all bins of its span) is a SIGNIFICANT
+#: DEVIATION — its raw points are KEPT (expanded view), never
+#: averaged away. A named prior, tunable per call.
+DEVIATION_EXPAND_FACTOR = 2.0
 
 
 class SeriesCompressionRecord(treeObject):
@@ -45,6 +50,12 @@ class SeriesCompressionRecord(treeObject):
                  target_points=0, original_points=0,
                  compressed_points=0, bin_width_years=0.0,
                  first_year=0.0, last_year=0.0,
+                 # the deviation story: the largest swing any bin
+                 # absorbed (up/down from its mean), the norm it was
+                 # judged against, and how many bins were EXPANDED
+                 # (raw points kept) for exceeding it.
+                 max_deviation_up=0.0, max_deviation_down=0.0,
+                 deviation_norm=0.0, expanded_bin_count=0,
                  spans_json='[]', reingest_note='',
                  is_prior=False, provenance_id='', notes='',
                  manager=None):
@@ -57,6 +68,10 @@ class SeriesCompressionRecord(treeObject):
         self.bin_width_years = bin_width_years
         self.first_year = first_year
         self.last_year = last_year
+        self.max_deviation_up = max_deviation_up
+        self.max_deviation_down = max_deviation_down
+        self.deviation_norm = deviation_norm
+        self.expanded_bin_count = expanded_bin_count
         self.spans_json = spans_json
         self.reingest_note = reingest_note
         #: a record of an act performed on data — never a prior.
@@ -82,8 +97,17 @@ def _stdev(vals):
     return (sum((v - m) ** 2 for v in vals) / (len(vals) - 1)) ** 0.5
 
 
+def _median(vals):
+    s = sorted(vals)
+    n = len(s)
+    if not n:
+        return 0.0
+    return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2.0
+
+
 def compress_series(manager, series_name,
-                    target_points=DEFAULT_TARGET_POINTS):
+                    target_points=DEFAULT_TARGET_POINTS,
+                    expand_factor=DEVIATION_EXPAND_FACTOR):
     """Bin-mean the series toward target_points, per span. Returns
     the record; refuses when compression would gain nothing."""
     from climate.climate_basis import AtmosphericObservation
@@ -131,9 +155,50 @@ def compress_series(manager, series_name,
                     int((float(getattr(o, 'year', 0.0)) - y0)
                         / width)) if width else 0
             bins.setdefault(i, []).append(o)
+        # -- pass 1: every bin's swing; the NORM is the median swing
+        # of this span's bins (an anomaly must not set its own norm).
+        swings = {}
+        for i, group in bins.items():
+            vals = [float(getattr(o, 'value', 0.0)) for o in group]
+            m = _mean(vals)
+            swings[i] = (max(vals) - m, m - min(vals))
+        norm = _median([max(u, d) for u, d in swings.values()])
+        expanded_bins = []
+        # -- pass 2: emit — averaged bins carry their max deviation
+        # up/down; bins swinging beyond expand_factor × norm keep
+        # their RAW points (the expanded view of anomalous years).
         for i, group in sorted(bins.items()):
             yrs = [float(getattr(o, 'year', 0.0)) for o in group]
             vals = [float(getattr(o, 'value', 0.0)) for o in group]
+            dev_up, dev_down = swings[i]
+            if (norm > 0 and len(group) > 1
+                    and max(dev_up, dev_down)
+                    > expand_factor * norm):
+                # SIGNIFICANT DEVIATION: keep the raw points.
+                for o in group:
+                    rd = {f: getattr(o, f, '') for f in
+                          ('name', 'series_ref', 'span_ref', 'year',
+                           'value', 'uncertainty', 'sample_count',
+                           'retrieval_ref', 'provenance_id')}
+                    rd.update({
+                        'revision': 'expanded',
+                        'deviation_up': 0.0, 'deviation_down': 0.0,
+                        'is_prior': False,
+                        'notes': f'KEPT RAW: this bin swung '
+                                 f'+{dev_up:.3f}/−{dev_down:.3f} vs '
+                                 f'a norm of {norm:.3f} '
+                                 f'(>{expand_factor}×) — anomalous '
+                                 f'years are shown expanded, never '
+                                 f'averaged away'})
+                    new_rows.append(rd)
+                expanded_bins.append({
+                    'yearFrom': round(min(yrs), 1),
+                    'yearTo': round(max(yrs), 1),
+                    'points': len(group),
+                    'devUp': round(dev_up, 4),
+                    'devDown': round(dev_down, 4),
+                    'norm': round(norm, 4)})
+                continue
             uncs = [float(getattr(o, 'uncertainty', 0.0) or 0.0)
                     for o in group]
             counts = [int(getattr(o, 'sample_count', 0) or 1)
@@ -148,17 +213,23 @@ def compress_series(manager, series_name,
                                          _stdev(vals)), 6),
                 'sample_count': sum(counts),
                 'revision': 'compressed',
+                # the swing the average absorbed — notated, per bin.
+                'deviation_up': round(dev_up, 4),
+                'deviation_down': round(dev_down, 4),
                 'retrieval_ref': getattr(group[0], 'retrieval_ref',
                                          ''),
                 'is_prior': False,
                 'provenance_id': 'climate-compress',
                 'notes': f'bin-mean of {len(group)} points '
-                         f'{min(yrs):.1f}..{max(yrs):.1f} '
+                         f'{min(yrs):.1f}..{max(yrs):.1f}; max dev '
+                         f'+{dev_up:.3f}/−{dev_down:.3f} '
                          f'(see SeriesCompressionRecord '
                          f'{series_name}--compression)'})
         span_reports.append({'span': span, 'points': len(pts),
                              'kept': False, 'bins': len(bins),
-                             'binWidthYears': round(width, 3)})
+                             'binWidthYears': round(width, 3),
+                             'deviationNorm': round(norm, 4),
+                             'expandedBins': expanded_bins})
         _drop_observations(manager, series_name, span)
 
     db = getattr(manager, 'db', None)
@@ -181,6 +252,12 @@ def compress_series(manager, series_name,
                 pass
 
     kept = sum(r['points'] for r in span_reports if r.get('kept'))
+    all_devs_up = [b['devUp'] for r in span_reports
+                   for b in r.get('expandedBins', [])] \
+        + [rd.get('deviation_up', 0.0) for rd in new_rows]
+    all_devs_down = [b['devDown'] for r in span_reports
+                     for b in r.get('expandedBins', [])] \
+        + [rd.get('deviation_down', 0.0) for rd in new_rows]
     record_fields = {
         'name': f'{series_name}--compression',
         'series_ref': series_name,
@@ -194,6 +271,14 @@ def compress_series(manager, series_name,
                  for r in span_reports), default=0.0), 3),
         'first_year': round(min(years_all), 2),
         'last_year': round(max(years_all), 2),
+        'max_deviation_up': round(max(all_devs_up, default=0.0), 4),
+        'max_deviation_down': round(max(all_devs_down,
+                                        default=0.0), 4),
+        'deviation_norm': round(max(
+            (r.get('deviationNorm', 0.0) for r in span_reports),
+            default=0.0), 4),
+        'expanded_bin_count': sum(
+            len(r.get('expandedBins', [])) for r in span_reports),
         'spans_json': json.dumps(span_reports),
         'reingest_note': f'originals recoverable: POST '
                          f'/api/climate/ingest/{series_name} '

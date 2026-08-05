@@ -169,6 +169,11 @@ class AtmosphericObservation(treeObject):
     def __init__(self, name='', series_ref='', span_ref='',
                  year=0.0, value=0.0, uncertainty=0.0,
                  sample_count=0, revision='', retrieval_ref='',
+                 # compressed aggregates only (climate_compress):
+                 # how far the bin's raw values swung above/below
+                 # the stored mean — so averaging can never hide
+                 # the size of an excursion.
+                 deviation_up=0.0, deviation_down=0.0,
                  is_prior=False, provenance_id='', notes='',
                  manager=None):
         self.name = name
@@ -183,6 +188,8 @@ class AtmosphericObservation(treeObject):
         self.uncertainty = uncertainty
         self.sample_count = sample_count
         self.revision = revision
+        self.deviation_up = deviation_up
+        self.deviation_down = deviation_down
         #: SourceRetrieval.name — when WE copied it.
         self.retrieval_ref = retrieval_ref
         #: observations are MEASUREMENTS, never priors — the seed

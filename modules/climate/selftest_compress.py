@@ -96,6 +96,60 @@ if __name__ == '__main__':
     check('empty series refuses',
           not compress_series(small, 'nope').get('ok'))
 
+    # -- deviation expansion: an 800-point stable record with ONE
+    # anomalous modern era (the industrial-CO2 shape) — the anomaly
+    # must come through RAW, not averaged away.
+    import math
+    S2 = 'test-anomaly'
+    rows2 = {}
+    for i in range(760):
+        yr = -760000 + i * 1000.0
+        # glacial-cycle-smooth: 100k-year sine, like the real record
+        o = _obs(i, S2, 'span-core', yr,
+                 230.0 + 40.0 * math.sin(2 * math.pi * yr / 100000.0))
+        rows2[o.name] = o
+    for i in range(40):                              # the spike era
+        o = _obs(900 + i, S2, 'span-core', -200.0 + i * 5.0,
+                 280.0 + i * 3.5)                    # 280 → 416
+        rows2[o.name] = o
+    m2 = SimpleNamespace(objectTables={
+        'AtmosphericObservation': rows2,
+        'SeriesCompressionRecord': {}})
+    r2 = compress_series(m2, S2, target_points=100)
+    rec2 = m2.objectTables['SeriesCompressionRecord'][
+        f'{S2}--compression']
+    left2 = [o for o in m2.objectTables['AtmosphericObservation'
+                                        ].values()
+             if getattr(o, 'series_ref', '') == S2]
+    expanded = [o for o in left2
+                if getattr(o, 'revision', '') == 'expanded']
+    check('ONLY the anomalous modern era is EXPANDED (its bin keeps '
+          'raw points; the glacial cycles compress)', r2.get('ok')
+          and getattr(rec2, 'expanded_bin_count', 0) == 1
+          and 40 <= len(expanded) <= 60
+          and all(getattr(o, 'year', -1e9) > -10000
+                  for o in expanded),
+          f'expandedBins={getattr(rec2, "expanded_bin_count", 0)} '
+          f'rawKept={len(expanded)}')
+    check('expanded rows SAY why (swing vs norm, in the notes)',
+          expanded and 'KEPT RAW' in getattr(expanded[0], 'notes',
+                                             '')
+          and 'norm' in getattr(expanded[0], 'notes', ''))
+    binned2 = [o for o in left2
+               if getattr(o, 'revision', '') == 'compressed']
+    check('averaged bins NOTATE their max deviation up/down',
+          binned2 and all(hasattr(o, 'deviation_up')
+                          and hasattr(o, 'deviation_down')
+                          for o in binned2[:10]))
+    check('the record carries the overall max ± deviation and the '
+          'norm it was judged against',
+          getattr(rec2, 'max_deviation_up', 0) > 50
+          and getattr(rec2, 'deviation_norm', 0) > 0
+          and getattr(rec2, 'max_deviation_up', 0)
+          > 10 * getattr(rec2, 'deviation_norm', 1))
+
+    failed = _results.count(False)
+
     failed = _results.count(False)
     print(f'\n{len(_results) - failed}/{len(_results)} passed')
     raise SystemExit(1 if failed else 0)
