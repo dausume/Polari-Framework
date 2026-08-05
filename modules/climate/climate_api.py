@@ -54,6 +54,10 @@ class ClimateAPI(treeObject):
             add('/api/climate/sinks', self, suffix='sinks')
             add('/api/climate/citations', self,
                 suffix='citations')
+            add('/api/climate/citations/{source_ref}', self,
+                suffix='citation_detail')
+            add('/api/climate/compress/{series_name}', self,
+                suffix='compress')
             add('/api/climate/claims', self, suffix='claims')
             add('/api/climate/biochemistry', self,
                 suffix='biochemistry')
@@ -102,14 +106,71 @@ class ClimateAPI(treeObject):
                                    'those')}
 
     def on_get_series_detail(self, request, response, series_name):
+        from climate.climate_compress import compression_suggestion
         from climate.series_ingest import series_points, series_status
         status = series_status(self.manager, series_name)
         points = series_points(self.manager, series_name)
         if not status.get('ok') and not points:
             response.status = '404 Not Found'
-        response.media = {'ok': status.get('ok', False),
-                          'series': series_name, 'status': status,
-                          'points': points, 'count': len(points)}
+        payload = {'ok': status.get('ok', False),
+                   'series': series_name, 'status': status,
+                   'points': points, 'count': len(points)}
+        # oversized series carry the compression KNOB with evidence
+        # — suggested, never auto-applied (house style).
+        suggestion = compression_suggestion(len(points), series_name)
+        if suggestion:
+            payload['compressionSuggestion'] = suggestion
+        rec = next((r for r in (self.manager.objectTables.get(
+            'SeriesCompressionRecord', {}) or {}).values()
+            if getattr(r, 'series_ref', '') == series_name), None)
+        if rec is not None:
+            payload['compression'] = {
+                'record': getattr(rec, 'name', ''),
+                'method': getattr(rec, 'method', ''),
+                'originalPoints': getattr(rec, 'original_points', 0),
+                'compressedPoints': getattr(rec,
+                                            'compressed_points', 0),
+                'reingest': getattr(rec, 'reingest_note', '')}
+        response.media = payload
+
+    def on_post_compress(self, request, response, series_name):
+        """Bin-mean an oversized series toward a target point count;
+        the SeriesCompressionRecord row is the audit trail. POST
+        because it rewrites rows (recoverably — re-ingest)."""
+        from climate.climate_compress import compress_series
+        params = request.params or {}
+        try:
+            target = int(params.get('target', 250))
+        except (TypeError, ValueError):
+            target = 250
+        result = compress_series(self.manager, series_name,
+                                 target_points=target)
+        if not result.get('ok'):
+            response.status = '409 Conflict' \
+                if result.get('refusal') else '404 Not Found'
+        response.media = result
+
+    def on_get_citation_detail(self, request, response, source_ref):
+        """One cited/derived tag, clickable (Dustin 2026-08-05):
+        resolve the source_ref to its registry row, formatted line,
+        and retrieval trail — the data origin, not a vague badge."""
+        from climate.climate_citations import resolve_citation
+        result = resolve_citation(self.manager, source_ref)
+        if not result.get('ok'):
+            response.status = '404 Not Found'
+        else:
+            retrievals = [
+                {'name': getattr(r, 'name', ''),
+                 'url': getattr(r, 'url', ''),
+                 'retrievedAt': getattr(r, 'retrieved_at', ''),
+                 'contentSignature': getattr(r, 'content_signature',
+                                             '')}
+                for r in (self.manager.objectTables.get(
+                    'SourceRetrieval', {}) or {}).values()
+                if getattr(r, 'source_ref', '') == source_ref]
+            if retrievals:
+                result['retrievals'] = retrievals
+        response.media = result
 
     def on_post_ingest(self, request, response, series_name):
         """Fetch a series for real. POST because it reaches the

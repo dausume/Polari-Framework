@@ -964,10 +964,12 @@ try:
     from climate.sim_binding import (
         AtmosphereSeriesBinding, SEED_ATMOSPHERE_BINDINGS,
     )
+    from climate.climate_compress import SeriesCompressionRecord
 except ImportError as _exc:
     _stub_missing_feature('climate', _exc, globals(), (
         'AtmosphericSeriesDefinition', 'AtmosphericObservation',
         'SourceCoverageSpan', 'AtmosphericTrendFit',
+        'SeriesCompressionRecord',
         'CO2HealthThreshold', 'IndoorSpaceProfile',
         'ExposureProjection', 'PopulationBiomarkerSeries',
         'BiomarkerCycleObservation', 'CarbonSinkSeries',
@@ -2229,6 +2231,7 @@ class polariServer(treeObject):
             # never land.
             AtmosphericSeriesDefinition, SourceCoverageSpan,
             AtmosphericObservation, AtmosphericTrendFit,
+            SeriesCompressionRecord,
             CO2HealthThreshold, IndoorSpaceProfile,
             ExposureProjection, PopulationBiomarkerSeries,
             BiomarkerCycleObservation, CarbonSinkSeries,
