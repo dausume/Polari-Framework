@@ -977,6 +977,64 @@ if __name__ == '__main__':
           all(r.get('cell_cm', 0) > 0
               for r in rows_res.get('rows', [])[:5]))
 
+    print('nest-1: the wizard — part × material → the whole process')
+    from casting.nesting_wizard import plan_nesting
+    wiz = _mgr()
+    wiz.objectTables['MoldFillSimState'] = {}
+    wiz.objectTables['NestingPlanDefinition'] = {}
+    gp = plan_nesting(wiz, 'unit-sphere', 'geopolymer')
+    check('math part × geopolymer: full pipeline runs, feasible',
+          gp.get('ok') and gp.get('verdict') == 'feasible'
+          and gp.get('chainKind') == 'geopolymer',
+          '; '.join(gp.get('blockers', []))[:90])
+    labels = [s['step'] for s in gp.get('steps', [])]
+    check('all 8 steps present in order',
+          labels == ['derive-mold', 'chain-gates',
+                     'master-feasibility', 'pour-loading',
+                     'sprues-vents', 'fill-sim', 'demold',
+                     'chain-full-report'])
+    dstep = gp['steps'][0]
+    check('every derivation step carries its VIEWABLE shapes',
+          len([v for v in dstep['visualShapes'] if v]) >= 3
+          and any(s['key'].get('scene') == 'mold-fill-3d'
+                  for s in gp['steps'] if s['step'] == 'fill-sim'))
+    zn = plan_nesting(wiz, 'unit-sphere', 'zinc-cast')
+    check('math part × ZINC: 4-stage chain auto-built, feasible',
+          zn.get('ok') and zn.get('chainKind') == 'metal'
+          and zn.get('verdict') == 'feasible'
+          and any(s['key'].get('parity', {}).get('waxMasterParity')
+                  == 'negative' for s in zn['steps']
+                  if s['step'] == 'chain-gates'),
+          '; '.join(zn.get('blockers', []))[:90])
+    steel = plan_nesting(wiz, 'unit-sphere', 'plain-bio-steel-cast')
+    check('steel plan BLOCKED with the fireclay pair named (honest)',
+          steel.get('verdict') == 'blocked'
+          and any('1550' in b for b in steel.get('blockers', [])))
+    imp2 = _mgr()
+    imp2.objectTables['MathShapeDefinition']['bracket-shape'] = (
+        SimpleNamespace(name='bracket-shape', family='imported-mesh',
+                        parameters_json=cube_shape.parameters_json,
+                        bounds_json=cube_shape.bounds_json))
+    imp2.objectTables['ImportedCadObject'] = {
+        'bracket-import': SimpleNamespace(
+            name='bracket-import', shape_name='bracket-shape',
+            volume_cm3=8.0)}
+    imp2.objectTables['NestingPlanDefinition'] = {}
+    fc = plan_nesting(imp2, 'bracket-import', 'geopolymer')
+    check('FreeCAD part accepted via the grid path (sprues/fill = '
+          'the named seam)', fc.get('ok')
+          and fc.get('partSource') == 'imported-cad'
+          and any(s['key'].get('mode') == 'grid'
+                  for s in fc['steps']
+                  if s['step'] == 'derive-mold'))
+    check('unknown target lists what IS castable',
+          'knownTargets' in plan_nesting(wiz, 'unit-sphere',
+                                         'unobtainium'))
+    check('plan persisted as a row for the /casting page',
+          any(getattr(p, 'verdict', '') == 'feasible'
+              for p in wiz.objectTables['NestingPlanDefinition'
+                                        ].values()))
+
     print('module identity')
     check('PolariModule row present + owns MoldDefinition',
           SEED_CASTING_MODULES[0]['name'] == 'Casting-Mold-Nesting'

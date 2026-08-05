@@ -164,5 +164,17 @@ SEED_CASTING_PAGE_DISPLAYS = [{
               'collapsed': False, 'cssClass': '',
               'componentProps': {'className': 'MoldDefinition'},
               'item': None, 'nestedRows': []}]},
+        {'index': 2, 'rowSegments': 12, 'minRowHeight': 320,
+         'maxRowHeight': 0, 'autoHeight': True, 'cssClass': '',
+         'items': [{
+             'id': 'plans-table-item', 'index': 0,
+             'type': 'class-table', 'rowSegmentsUsed': 12,
+             'gridColumnStart': None,
+             'title': 'Nesting plans — part × material, every '
+                      'derived step with its viewable shapes '
+                      '(POST /api/casting/plan)',
+             'visible': True, 'collapsed': False, 'cssClass': '',
+             'componentProps': {'className': 'NestingPlanDefinition'},
+             'item': None, 'nestedRows': []}]},
     ]}),
 }]

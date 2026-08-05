@@ -1015,6 +1015,7 @@ try:
     from casting.coatings import (
         CastingRunRecord, MoldCoatingDefinition,
     )
+    from casting.nesting_wizard import NestingPlanDefinition
     # trigger-on-import: registers the mold-fill scene/binding/sim
     # into the shared seed lists (the waxprint sim_seed pattern).
     from casting.sim_seed import SEED_CASTING_PAGE_DISPLAYS
@@ -1033,6 +1034,7 @@ except ImportError as _exc:
         'CastingMaterialThermalProfile', 'MoldFillSimState',
         'FillInterventionDefinition', 'DemoldPlanDefinition',
         'MoldCoatingDefinition', 'CastingRunRecord',
+        'NestingPlanDefinition',
         'SEED_CASTING_PAGE_DISPLAYS',
         'SEED_CASTING_MODULES', 'seed_casting',
     ))
@@ -1851,6 +1853,12 @@ class polariServer(treeObject):
             from waxsupply.wax_api import WaxSupplyAPI
             waxSupplyEndpoint = WaxSupplyAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('casting'):
+            # The nesting wizard: part × material → the full derived
+            # mold-nesting process, every step viewable (nest-1).
+            from casting.casting_api import CastingAPI
+            castingEndpoint = CastingAPI(
+                polServer=self, manager=self.manager)
         if _feature_available('composition'):
             # Part composition (arch-7): derived levels, variant
             # reports, routings, audited promotions, archetypes.
@@ -2164,6 +2172,7 @@ class polariServer(treeObject):
             CastingMaterialThermalProfile, MoldFillSimState,
             FillInterventionDefinition, DemoldPlanDefinition,
             MoldCoatingDefinition, CastingRunRecord,
+            NestingPlanDefinition,
             # Wax sources (wax-1) + supply-chain ledger (chain-1)
             # + sourcing profiles/citations/preference ladder (src-1).
             WaxSourceDefinition, SupplyNode, SupplyFlow,

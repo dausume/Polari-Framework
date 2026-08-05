@@ -179,7 +179,7 @@ SEED_CASTING_MODULES = [{
                     'CastingMaterialThermalProfile',
                     'MoldFillSimState', 'FillInterventionDefinition',
                     'DemoldPlanDefinition', 'MoldCoatingDefinition',
-                    'CastingRunRecord'],
+                    'CastingRunRecord', 'NestingPlanDefinition'],
     }),
 }]
 
