@@ -3918,14 +3918,20 @@ class polariServer(treeObject):
         # cast-1: converge MoldDefinition rows (seed_upsert semantics)
         # then DERIVE each mold's geometry as mathshapes rows — the
         # derived stock/body rows are computed, never typed in, so
-        # derivation is part of seeding. Runs AFTER the mathshapes
-        # seeds/convergence above (molds reference those parts).
+        # derivation is part of seeding.
+        # LAZY-BOOT ORDER (caught live 2026-08-05): modules admit
+        # alphabetically, so casting admits BEFORE mathshapes and the
+        # first pass finds no part shapes. The pass therefore fires
+        # on EITHER admission — it is convergent, so the mathshapes
+        # re-run derives what the early run could not (the mq-1
+        # converge-before-emitting catch, again).
         # NOTE: seed_casting is the MODULE-LEVEL guarded import — do
         # not re-import here (the documented UnboundLocalError gotcha).
         if (_feature_available('casting')
                 and _feature_available('mathshapes') and (
                 only_classes is None
-                or 'MoldDefinition' in only_classes)):
+                or 'MoldDefinition' in only_classes
+                or 'MathShapeDefinition' in only_classes)):
             try:
                 _cast = seed_casting(self.manager)
                 for d in _cast.get('derivations', []):
