@@ -1008,10 +1008,14 @@ try:
     from casting.casting_basis import (
         MasterFeedstockDefinition, MoldDefinition,
     )
+    from casting.chain_basis import (
+        CastingStageDefinition, MoldNestingChain,
+    )
     from casting.casting_seed import SEED_CASTING_MODULES, seed_casting
 except ImportError as _exc:
     _stub_missing_feature('casting', _exc, globals(), (
         'MoldDefinition', 'MasterFeedstockDefinition',
+        'MoldNestingChain', 'CastingStageDefinition',
         'SEED_CASTING_MODULES', 'seed_casting',
     ))
 try:
@@ -2133,9 +2137,11 @@ class polariServer(treeObject):
             BiomineSystemDefinition,
             # Self-hosted video: WebM/MP4 + optional adaptive HLS (video-1).
             VideoAsset,
-            # Casting molds (cast-1/2b): derived negatives + master
-            # feedstocks (natural wax core; machinable wax/PLA/Voron).
+            # Casting (cast-1/2b/3): derived negatives, master
+            # feedstocks, and nesting chains with DERIVED parity +
+            # thermal ordering.
             MoldDefinition, MasterFeedstockDefinition,
+            MoldNestingChain, CastingStageDefinition,
             # Wax sources (wax-1) + supply-chain ledger (chain-1)
             # + sourcing profiles/citations/preference ladder (src-1).
             WaxSourceDefinition, SupplyNode, SupplyFlow,

@@ -25,8 +25,14 @@ from types import SimpleNamespace
 from casting.casting_seed import (
     SEED_CASTING_MODULES, SEED_MASTER_FEEDSTOCKS, SEED_MOLDS,
 )
+from casting.chain_analysis import (
+    chain_report, shrink_compensation_report,
+)
+from casting.chain_seed import SEED_CASTING_STAGES, SEED_NESTING_CHAINS
 from casting.mesh_voxelize import mesh_grid
 from casting.pour_loading import exotherm_check, pour_loading_report
+from pspp.ceramics_ladder import SEED_LADDER_RUNGS
+from pspp.ceramics_samples import SEED_CERAMIC_SAMPLES
 from casting.mold_geometry import derive_mold, scale_quadric_flat
 from casting.voxel_grid import OccupancyGrid
 from casting.wax_feasibility import (
@@ -60,6 +66,10 @@ def _mgr(extra_molds=()):
         'MathShapeDefinition': _table(SEED_MATH_SHAPES),
         'MoldDefinition': _table(molds),
         'MasterFeedstockDefinition': _table(SEED_MASTER_FEEDSTOCKS),
+        'MoldNestingChain': _table(SEED_NESTING_CHAINS),
+        'CastingStageDefinition': _table(SEED_CASTING_STAGES),
+        'LadderRung': _table(SEED_LADDER_RUNGS),
+        'CeramicSample': _table(SEED_CERAMIC_SAMPLES),
         'WaxSourceDefinition': _table(SEED_WAX_SOURCES),
         'WaxFeedstockDefinition': _table(SEED_FEEDSTOCKS),
         'PrinterAssemblyDefinition': _table(SEED_ASSEMBLIES),
@@ -450,6 +460,110 @@ if __name__ == '__main__':
               manager, 'demo-sphere-mold', cast_material='lava'))
     check('water bench-test suggested before a real mix',
           'water-test' in pour.get('note', ''))
+
+    print('cast-3: chain parity — derived, nowhere stored')
+    c1 = chain_report(manager, 'chain-wax-geopolymer')
+    check('1 inversion ⇒ wax master is NEGATIVE (the wax IS the '
+          'mold)', (c1.get('parity') or {}).get('waxMasterParity')
+          == 'negative'
+          and 'IS the mold' in c1['parity']['meaning'])
+    c2 = chain_report(manager, 'chain-wax-gp-clay-fired')
+    check('2 inversions + a conversion ⇒ wax is a POSITIVE (firing '
+          'does not flip)',
+          (c2.get('parity') or {}).get('waxMasterParity') == 'positive'
+          and c2['parity']['invertingStages'] == 2
+          and c2['parity']['conversionStages'] == 1)
+    check('parity is not a seed field — nothing to hand-set',
+          all('wax_master_parity' not in row and 'parity' not in row
+              for row in SEED_NESTING_CHAINS))
+
+    print('cast-3: thermal ordering — the clay-and-fire chain')
+    check('clay chain FEASIBLE with the geopolymer SACRIFICED loudly',
+          c2.get('verdict') == 'feasible'
+          and any('SACRIFICED' in f for f in c2.get('findings', [])))
+    check('every stage record carries pair + basis + margin',
+          all('moldCeilingC' in s and 'processTempC' in s
+              and 'marginC' in s for s in c2.get('stages', [])))
+    check('firing checked against a real furnace rung',
+          any((s.get('furnace') or {}).get('ok') is True
+              for s in c2.get('stages', [])))
+    hot = _table(SEED_CASTING_STAGES)
+    hot['st-wg-1-geopolymer'].cure_temp_c = 60.0
+    hotm = SimpleNamespace(objectTables=dict(
+        manager.objectTables, CastingStageDefinition=hot))
+    ch = chain_report(hotm, 'chain-wax-geopolymer')
+    check('cure at 60°C BLOCKS: exotherm 100°C vs carnauba 72°C, '
+          'pair named', ch.get('verdict') == 'blocked'
+          and any('100' in b and 'carnauba' in b
+                  for b in ch.get('blockers', [])),
+          '; '.join(ch.get('blockers', []))[:90])
+    keep = _table(SEED_CASTING_STAGES)
+    keep['st-wgc-3-fire'].mold_disposable = False
+    km = SimpleNamespace(objectTables=dict(
+        manager.objectTables, CastingStageDefinition=keep))
+    check('NON-disposable geopolymer at 1000°C firing blocks',
+          chain_report(km, 'chain-wax-gp-clay-fired').get('verdict')
+          == 'blocked')
+    slip = _table(SEED_CASTING_STAGES)
+    slip['st-wgc-2-press-clay'].fill_method = 'slip-cast'
+    sm = SimpleNamespace(objectTables=dict(
+        manager.objectTables, CastingStageDefinition=slip))
+    check('slip-casting into geopolymer REFUSED (capillarity rule)',
+          any('capillarity' in b for b in chain_report(
+              sm, 'chain-wax-gp-clay-fired').get('blockers', [])))
+    hotfire = _table(SEED_CASTING_STAGES)
+    hotfire['st-wgc-3-fire'].process_temp_c = 1800.0
+    hm = SimpleNamespace(objectTables=dict(
+        manager.objectTables, CastingStageDefinition=hotfire))
+    check('1800°C firing blocks on the furnace rung (best 1700)',
+          any('furnace rung' in b and '1700' in b for b in
+              chain_report(hm, 'chain-wax-gp-clay-fired'
+                           ).get('blockers', [])))
+    steel = _table(SEED_CASTING_STAGES)
+    steel['st-wg-1-geopolymer'].cast_material_ref = 'molten-steel'
+    stm = SimpleNamespace(objectTables=dict(
+        manager.objectTables, CastingStageDefinition=steel))
+    check('molten metal blocks naming the ABSENT thermal table',
+          any('CastingMaterialThermalProfile' in b for b in
+              chain_report(stm, 'chain-wax-geopolymer'
+                           ).get('blockers', [])))
+    check('chain without stages refuses',
+          not chain_report(SimpleNamespace(objectTables=dict(
+              manager.objectTables, CastingStageDefinition={})),
+              'chain-wax-geopolymer').get('ok'))
+
+    print('cast-3: shrink compensation — the two-pass loop')
+    sc = shrink_compensation_report(manager,
+                                    'chain-wax-gp-clay-fired')
+    # 0.99 (geopolymer ×2 stages? no: two CAST stages: geopolymer
+    # 1% + clay 11%) → 0.99 × 0.89 = 0.8811; oversize ×1.1349.
+    check('cumulative final scale = 0.99 × 0.89 (firing not double-'
+          'counted)', abs(sc.get('expectedFinalScale', 0) - 0.8811)
+          < 0.0005, f"{sc.get('expectedFinalScale')}")
+    check('recommended master oversize ≈ +13.5%, NOT auto-applied',
+          abs((sc.get('compensation') or {}).get('recommendedPct', 0)
+              - 13.49) < 0.1
+          and not sc['compensation']['applied'])
+    check('pass one is DELIBERATELY uncompensated',
+          'DELIBERATELY' in sc.get('passOne', ''))
+    check('warp is a named gap',
+          any('warp' in g.lower() for g in sc.get('gaps', [])))
+    measured = _table(SEED_CASTING_STAGES)
+    measured['st-wgc-2-press-clay'].measured_shrink_pct = 8.0
+    mm = SimpleNamespace(objectTables=dict(
+        manager.objectTables, CastingStageDefinition=measured))
+    scm = shrink_compensation_report(mm, 'chain-wax-gp-clay-fired')
+    check('MEASURED shrink replaces the prior (8% ⇒ scale 0.9108)',
+          abs(scm.get('expectedFinalScale', 0) - 0.99 * 0.92)
+          < 0.0005
+          and any('MEASURED' in s['basis']
+                  for s in scm.get('stages', [])))
+    sca = shrink_compensation_report(manager, 'chain-wax-geopolymer',
+                                     apply=True)
+    check('apply=True writes the mold knob and re-derives (×1.0101)',
+          (sca.get('compensation') or {}).get('applied')
+          and abs(sca['compensation']['derivation']['scaleFactor']
+                  - 1.0101) < 0.0005)
 
     print('module identity')
     check('PolariModule row present + owns MoldDefinition',

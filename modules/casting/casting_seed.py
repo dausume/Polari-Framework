@@ -120,7 +120,8 @@ SEED_CASTING_MODULES = [{
                    'allowance. Grows into nesting chains with derived '
                    'parity + thermal ordering, auto sprues, fill and '
                    'demold simulation (WAX_MOLD_NESTING_PLAN).',
-        'objects': ['MoldDefinition', 'MasterFeedstockDefinition'],
+        'objects': ['MoldDefinition', 'MasterFeedstockDefinition',
+                    'MoldNestingChain', 'CastingStageDefinition'],
     }),
 }]
 
@@ -132,6 +133,12 @@ def seed_casting(manager):
     from casting.casting_basis import (
         MasterFeedstockDefinition, MoldDefinition,
     )
+    from casting.chain_basis import (
+        CastingStageDefinition, MoldNestingChain,
+    )
+    from casting.chain_seed import (
+        SEED_CASTING_STAGES, SEED_NESTING_CHAINS,
+    )
     from casting.mold_geometry import derive_mold
     from composition.seed_upsert import upsert_seed_pairs
 
@@ -139,6 +146,10 @@ def seed_casting(manager):
         ('MasterFeedstockDefinition', MasterFeedstockDefinition,
          SEED_MASTER_FEEDSTOCKS),
         ('MoldDefinition', MoldDefinition, SEED_MOLDS),
+        # chains before stages that name them (chain_ref).
+        ('MoldNestingChain', MoldNestingChain, SEED_NESTING_CHAINS),
+        ('CastingStageDefinition', CastingStageDefinition,
+         SEED_CASTING_STAGES),
     ], tag='CastingSeed')
     derivations = []
     table = (getattr(manager, 'objectTables', None) or {}).get(
