@@ -1002,6 +1002,15 @@ except ImportError as _exc:
     _stub_missing_feature('waxsupply', _exc, globals(), (
         'WaxSourceDefinition', 'SEED_WAX_SOURCES',
     ))
+# Casting molds (cast-1): the inversion primitive — molds DERIVED as
+# negatives of math-defined parts (WAX_MOLD_NESTING_PLAN).
+try:
+    from casting.casting_basis import MoldDefinition
+    from casting.casting_seed import SEED_CASTING_MODULES, seed_casting
+except ImportError as _exc:
+    _stub_missing_feature('casting', _exc, globals(), (
+        'MoldDefinition', 'SEED_CASTING_MODULES', 'seed_casting',
+    ))
 try:
     from supplychain.chain_basis import (
         SupplyChainDefinition, SupplyFlow, SupplyNode,
@@ -2121,6 +2130,8 @@ class polariServer(treeObject):
             BiomineSystemDefinition,
             # Self-hosted video: WebM/MP4 + optional adaptive HLS (video-1).
             VideoAsset,
+            # Casting molds (cast-1): derived negatives of math parts.
+            MoldDefinition,
             # Wax sources (wax-1) + supply-chain ledger (chain-1)
             # + sourcing profiles/citations/preference ladder (src-1).
             WaxSourceDefinition, SupplyNode, SupplyFlow,
@@ -3411,9 +3422,11 @@ class polariServer(treeObject):
             # waxprint sim space (wp-5): pre-computed baseline run states
             # (the two seeded runs render in the wax-print-wall scene).
             ('WaxPrintSimState', WaxPrintSimState, SEED_WAXPRINT_STATE_ROWS),
-            # waxprint (wp-8): first-class Polari Module identity row.
+            # waxprint (wp-8) + casting (cast-1): first-class Polari
+            # Module identity rows.
             ('PolariModule', PolariModule,
-             SEED_WAXPRINT_MODULES + SEED_OSEB_POLARI_MODULES),
+             SEED_WAXPRINT_MODULES + SEED_OSEB_POLARI_MODULES
+             + SEED_CASTING_MODULES),
             # Tech tree (tt-5): the OSEB baseline tree — definition
             # before nodes, nodes before assignments. Edges are
             # NEVER seeded: TechDependencyEdge rows derive from
@@ -3860,6 +3873,27 @@ class polariServer(treeObject):
             except Exception as e:
                 print(f'[ShapeEquationSeed] failed: {e}',
                       flush=True)
+        # cast-1: converge MoldDefinition rows (seed_upsert semantics)
+        # then DERIVE each mold's geometry as mathshapes rows — the
+        # derived stock/body rows are computed, never typed in, so
+        # derivation is part of seeding. Runs AFTER the mathshapes
+        # seeds/convergence above (molds reference those parts).
+        # NOTE: seed_casting is the MODULE-LEVEL guarded import — do
+        # not re-import here (the documented UnboundLocalError gotcha).
+        if (_feature_available('casting')
+                and _feature_available('mathshapes') and (
+                only_classes is None
+                or 'MoldDefinition' in only_classes)):
+            try:
+                _cast = seed_casting(self.manager)
+                for d in _cast.get('derivations', []):
+                    status = ('ok' if d.get('ok')
+                              else f"FAILED: {d.get('error', '')}")
+                    print(f"[CastingSeed] mold '{d.get('mold')}' "
+                          f'derived {status} (volumeCheck='
+                          f"{d.get('volumeCheckOk')})", flush=True)
+            except Exception as e:
+                print(f'[CastingSeed] failed: {e}', flush=True)
         # mq-3: M1 inter-part relations as MatrixEquationDefinition
         # rows over the mq-1 matrices.
         # The motor classes' OWN display configuration — tables,
