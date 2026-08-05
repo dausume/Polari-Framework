@@ -119,6 +119,23 @@ def _thermal_profile(manager, material_ref):
             return {'ceilingC': svc,
                     'basis': f'CeramicSample {material_ref} '
                              f'max_service_temp_c ({claim})'}
+    # a cast METAL part being post-processed (galvanizing dip): its
+    # ceiling is its own solidus — the part must not re-melt.
+    metal = (_row_named(manager, 'CastingMaterialThermalProfile',
+                        material_ref)
+             or next((r for r in _rows(
+                 manager, 'CastingMaterialThermalProfile')
+                 if getattr(r, 'material_ref', '')
+                 == material_ref), None))
+    if metal is not None:
+        sol = float(getattr(metal, 'solidus_c', 0.0) or 0.0)
+        if sol > 0:
+            claim = getattr(metal, 'claim_status', '')
+            return {'ceilingC': sol,
+                    'basis': f'CastingMaterialThermalProfile '
+                             f'{getattr(metal, "name", "")} '
+                             f'solidus_c — the part must not '
+                             f're-melt ({claim})'}
     return None
 
 

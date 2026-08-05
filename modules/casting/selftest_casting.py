@@ -1029,6 +1029,28 @@ if __name__ == '__main__':
           '(no silent fireclay default)',
           not hot.get('ok')
           and 'capability gap' in (hot.get('error') or ''))
+    galv = plan_nesting(wiz, 'unit-sphere', 'galvanized-bio-steel')
+    check('GALVANIZED BIO-STEEL: feasible — steel chain + hot-dip '
+          'conversion, wax still NEGATIVE (dip does not flip)',
+          galv.get('ok') and galv.get('verdict') == 'feasible'
+          and galv.get('chainKind') == 'galvanized'
+          and any(s['key'].get('parity', {}).get('waxMasterParity')
+                  == 'negative' and s['key'].get('stages') == 5
+                  for s in galv['steps']
+                  if s['step'] == 'chain-gates'),
+          '; '.join(galv.get('blockers', []))[:90])
+    gz = galv.get('galvanize') or {}
+    check('dip gated on the steel SOLIDUS (part must not re-melt) '
+          'and zinc mass estimated off the measured area (~1g at '
+          '80µm on the sphere; voxel area over-reads = conservative'
+          '-high for consumption)',
+          gz.get('dip_temp_c') == 450.0
+          and 0.6 < gz.get('zincMassG', 0) < 1.4,
+          f"zinc={gz.get('zincMassG')}g area="
+          f"{gz.get('surfaceAreaCm2')}cm²")
+    check('galvanized target listed in knownTargets on a miss',
+          'galvanized-bio-steel' in plan_nesting(
+              wiz, 'unit-sphere', 'nope').get('knownTargets', []))
     imp2 = _mgr()
     imp2.objectTables['MathShapeDefinition']['bracket-shape'] = (
         SimpleNamespace(name='bracket-shape', family='imported-mesh',

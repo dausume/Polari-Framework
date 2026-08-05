@@ -102,10 +102,32 @@ def _upsert(manager, class_name, cls, fields):
     return made
 
 
+#: Galvanized targets = a cast base metal + a hot-dip coating metal.
+#: The dip is a CONVERSION (parity does not flip); temps are
+#: literature-approximate with the claim named. Zinc consumption is
+#: estimated off the part's MEASURED surface area.
+GALVANIZE_TARGETS = {
+    'galvanized-bio-steel': {
+        'base': 'plain-bio-steel-cast', 'dip': 'zinc-cast',
+        'dip_temp_c': 450.0, 'coating_um': 80.0,
+        'zinc_density_kg_m3': 7140.0,
+        'claim': 'literature-approximate: hot-dip galvanizing '
+                 '~450°C bath, ~80µm typical coating — measure the '
+                 'real bath/thickness'},
+}
+
+
 def _target_kind(manager, target_material):
-    """(kind, row) — geopolymer | ceramic | metal, or None."""
+    """(kind, row) — geopolymer | ceramic | metal | galvanized."""
     if target_material in ('geopolymer', 'geopolymer-slurry'):
         return 'geopolymer', None
+    if target_material in GALVANIZE_TARGETS:
+        spec = GALVANIZE_TARGETS[target_material]
+        base = (_row_named(manager, 'CastingMaterialThermalProfile',
+                           spec['base']))
+        if base is not None:
+            return 'galvanized', base
+        return None, None
     ceramic = _row_named(manager, 'CeramicSample', target_material)
     if ceramic is not None:
         return 'ceramic', ceramic
@@ -255,6 +277,7 @@ def plan_nesting(manager, part_shape_ref, target_material,
     kind, target_row = _target_kind(manager, target_material)
     if kind is None:
         known = (['geopolymer']
+                 + sorted(GALVANIZE_TARGETS)
                  + sorted(getattr(r, 'name', '') for r in
                           _rows(manager, 'CeramicSample'))
                  + sorted(getattr(r, 'name', '') for r in
@@ -276,9 +299,11 @@ def plan_nesting(manager, part_shape_ref, target_material,
     steps, blockers = [], []
     plan_findings = []
 
-    # metals: the mold ceramic is SELECTED from data, never assumed.
+    # metals (and galvanized bases): the mold ceramic is SELECTED
+    # from data, never assumed.
     fire_ceramic = None
-    if kind == 'metal':
+    galvanize = None
+    if kind in ('metal', 'galvanized'):
         pour = float(getattr(target_row, 'recommended_pour_c', 0.0)
                      or 0.0)
         fire_ceramic, fc_finding = select_fire_ceramic(manager, pour)
@@ -288,6 +313,8 @@ def plan_nesting(manager, part_shape_ref, target_material,
                     'targetMaterial': target_material}
         if fc_finding:
             plan_findings.append(fc_finding)
+    if kind == 'galvanized':
+        galvanize = dict(GALVANIZE_TARGETS[target_material])
 
     def _step(label, res, visuals=(), keys=None):
         verdict = res.get('verdict') or ('ok' if res.get('ok')
@@ -333,11 +360,29 @@ def plan_nesting(manager, part_shape_ref, target_material,
         'mold_def_ref': f'{base}--mold', 'provenance_id': 'nest-1',
         'notes': f'auto-planned: {part_shape_ref} in '
                  f'{target_material}'})
-    for st in _stage_rows(kind, base, feedstock_name,
+    stage_kind = 'metal' if kind == 'galvanized' else kind
+    for st in _stage_rows(stage_kind, base, feedstock_name,
                           target_material, target_row,
                           fire_ceramic=fire_ceramic):
         _upsert(manager, 'CastingStageDefinition',
                 CastingStageDefinition, st)
+    if galvanize is not None:
+        # stage 5: the hot dip — a CONVERSION on the demolded part
+        # (parity does not flip); the part's own solidus is the
+        # ceiling it must not approach.
+        _upsert(manager, 'CastingStageDefinition',
+                CastingStageDefinition, dict(
+                    name=f'{base}-5-galvanize', chain_ref=base,
+                    sequence=5, stage_kind='conversion',
+                    mold_material_ref=galvanize['base'],
+                    cast_material_ref=galvanize['dip'],
+                    target_material_ref=target_material,
+                    process_temp_c=galvanize['dip_temp_c'],
+                    removal_route='', is_prior=True,
+                    provenance_id='nest-1',
+                    notes=f"hot-dip {galvanize['dip']} at "
+                          f"{galvanize['dip_temp_c']:.0f}°C "
+                          f"({galvanize['claim']})"))
     gates = _step('chain-gates', chain_report(manager, base),
                   keys={})
     if gates.get('ok'):
@@ -417,6 +462,24 @@ def plan_nesting(manager, part_shape_ref, target_material,
             'shrinkCompensationPct': ((full.get('shrink') or {}).get(
                 'compensation') or {}).get('recommendedPct')}
 
+    # galvanized: estimate the zinc the dip consumes off the part's
+    # MEASURED surface area (grid/analytic, whichever the shape has).
+    if galvanize is not None:
+        from mathshapes.shape_analysis import shape_properties
+        props = shape_properties(manager, part_shape_ref)
+        area_cm2 = float(props.get('surfaceAreaCm2') or 0.0) \
+            if props.get('ok') else 0.0
+        if area_cm2 > 0:
+            zinc_g = (area_cm2 / 1.0e4) \
+                * (galvanize['coating_um'] / 1.0e6) \
+                * galvanize['zinc_density_kg_m3'] * 1000.0
+            galvanize['zincMassG'] = round(zinc_g, 3)
+            galvanize['surfaceAreaCm2'] = round(area_cm2, 2)
+        else:
+            plan_findings.append('galvanize zinc estimate '
+                                 'unavailable — part surface area '
+                                 'unmeasurable')
+
     verdict = 'blocked' if blockers else 'feasible'
     plan_fields = {
         'name': base, 'part_shape_ref': part_shape_ref,
@@ -433,6 +496,7 @@ def plan_nesting(manager, part_shape_ref, target_material,
             'targetMaterial': target_material, 'chainKind': kind,
             'feedstock': feedstock_name,
             'fireCeramic': fire_ceramic,
+            'galvanize': galvanize,
             'findings': plan_findings,
             'steps': steps, 'blockers': blockers,
             'note': 'every step lists its viewable shapes '

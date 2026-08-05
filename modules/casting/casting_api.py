@@ -63,7 +63,11 @@ class CastingAPI(treeObject):
                 'metals': sorted(getattr(r, 'name', '') for r in
                                  _rows(self.manager,
                                        'CastingMaterialThermal'
-                                       'Profile'))},
+                                       'Profile')),
+                'galvanized': sorted(
+                    __import__('casting.nesting_wizard',
+                               fromlist=['GALVANIZE_TARGETS']
+                               ).GALVANIZE_TARGETS)},
             'feedstocks': sorted(getattr(r, 'name', '') for r in
                                  _rows(self.manager,
                                        'MasterFeedstockDefinition')),
