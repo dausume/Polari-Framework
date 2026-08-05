@@ -24,9 +24,12 @@ Shrink allowance for meshes is vertex algebra: v → s·v about the
 origin — the same uniform scale the quadric transform applies to
 math shapes, exact for a mesh by construction.
 
-Watertightness is ASSUMED, not checked (v1 gap): parity on a mesh
-with holes misclassifies the column beyond the hole. Named in every
-result; a Euler/edge-manifold check is the follow-up.
+Watertightness is CHECKED (gap geo-mesh-watertight closed): every
+edge of a closed manifold is shared by exactly two triangles; a mesh
+failing that REFUSES with the boundary-edge count — parity on a
+holed mesh misclassifies every column beyond the hole, so proceeding
+would be confident garbage. Self-intersection and units (cm ASSUMED
+— STL carries none) remain named gaps.
 
 @consumers casting.mold_geometry (imported-part derivation), cast-5+
 @see /WAX_MOLD_NESTING_PLAN.md (PHASE cast-2)
@@ -47,9 +50,29 @@ _JITTER_Z = 1.0e-7 * 2.414
 #: the ray, skipped.
 _DEGENERATE_EPS = 1.0e-12
 
-WATERTIGHT_GAP = ('watertightness ASSUMED, not checked — parity on a '
-                  'holed mesh misclassifies beyond the hole (v1 gap; '
-                  'manifold check is the follow-up)')
+UNITS_GAP = ('units ASSUMED cm — STL/STEP carry none; a ~10× bbox '
+             'surprise means the source was modelled in mm '
+             '(gap geo-import-units)')
+SELF_INTERSECT_GAP = ('self-intersection unchecked — overlapping '
+                      'shells double-count parity crossings '
+                      '(gap geo-mesh-self-intersect)')
+
+
+def manifold_check(triangles):
+    """Closed-manifold edge test: every undirected edge shared by
+    exactly 2 triangles. Uses INDEX topology when available; falls
+    back to vertex-position keys for pre-flattened triangle lists."""
+    edge_count = {}
+    for tri in triangles:
+        for a, b in ((tri[0], tri[1]), (tri[1], tri[2]),
+                     (tri[2], tri[0])):
+            ka, kb = (tuple(a), tuple(b)) if not isinstance(a, int) \
+                else (a, b)
+            key = (ka, kb) if ka <= kb else (kb, ka)
+            edge_count[key] = edge_count.get(key, 0) + 1
+    bad = sum(1 for c in edge_count.values() if c != 2)
+    return {'watertight': bad == 0, 'edges': len(edge_count),
+            'boundaryOrOddEdges': bad}
 
 
 def triangles_of(shape, scale=1.0):
@@ -109,11 +132,24 @@ def _column_crossings(triangles, cy, cz):
 def mesh_grid(shape, resolution=32, scale=1.0, bounds=None):
     """OccupancyGrid of an imported-mesh shape row. Bounds default to
     the shape's stored AABB (scaled); pass explicit bounds to land on
-    a shared lattice (e.g. the mold stock) for grid set-algebra."""
+    a shared lattice (e.g. the mold stock) for grid set-algebra.
+    Non-watertight meshes REFUSE — parity would be confident
+    garbage."""
     tri_res = triangles_of(shape, scale=scale)
     if not tri_res.get('ok'):
         return tri_res
     triangles = tri_res['triangles']
+    manifold = manifold_check(triangles)
+    if not manifold['watertight']:
+        return {'ok': False, 'manifold': manifold,
+                'error': f"mesh '{getattr(shape, 'name', '')}' is "
+                         f'not watertight: '
+                         f"{manifold['boundaryOrOddEdges']} of "
+                         f"{manifold['edges']} edges are boundary/"
+                         f'odd-shared — ray parity misclassifies '
+                         f'every column beyond a hole. Repair the '
+                         f'mesh (or re-export as a solid) and '
+                         f're-import.'}
     if bounds is None:
         try:
             b = json.loads(getattr(shape, 'bounds_json', '') or 'null')
@@ -142,6 +178,6 @@ def mesh_grid(shape, resolution=32, scale=1.0, bounds=None):
     return {'ok': True, 'grid': grid,
             'triangleCount': len(triangles),
             'vertexCount': tri_res['vertexCount'],
-            'scale': float(scale),
-            'gaps': [WATERTIGHT_GAP],
+            'scale': float(scale), 'manifold': manifold,
+            'gaps': [UNITS_GAP, SELF_INTERSECT_GAP],
             'summary': grid.summary()}

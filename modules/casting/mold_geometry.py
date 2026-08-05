@@ -283,10 +283,25 @@ def derive_mold(manager, mold_name, persist=True):
                          f'named absence.'}
 
     rows = []
+    findings = []
     # -- the cavity form: the part itself, or its shrink-scaled copy --
     cavity_name = part_ref
     scaled_name = ''
     if abs(s - 1.0) > 1e-12:
+        # gap geo-shrink-scale-origin: the scale is about the ORIGIN;
+        # an off-center part translates as it scales — say so.
+        pb = _shape_bounds(manager, part)
+        if pb:
+            extent = max(hi - lo for lo, hi in pb) or 1.0
+            off = max(abs(hi + lo) / 2.0 for lo, hi in pb)
+            if off > 0.1 * extent:
+                findings.append(
+                    f'part center is ~{off:.2f}cm off origin '
+                    f'(>10% of its {extent:.2f}cm extent) — the '
+                    f'uniform shrink scale is about the ORIGIN, so '
+                    f'the scaled copy shifts by ~{off * abs(s - 1.0):.3f}cm; '
+                    f'recenter the part or account for the shift '
+                    f'(gap geo-shrink-scale-origin)')
         scaled_name, scaled_rows = _scaled_shape_rows(
             manager, part, s, mold_name)
         if scaled_name is None:
@@ -389,6 +404,7 @@ def derive_mold(manager, mold_name, persist=True):
 
     result = {
         'ok': True, 'mold': mold_name, 'part': part_ref,
+        'findings': findings,
         'stockShape': stock_name, 'scaledPartShape': scaled_name,
         'bodyShape': body_name,
         'shrinkAllowancePct': shrink_pct, 'scaleFactor': round(s, 6),

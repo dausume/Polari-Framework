@@ -290,6 +290,21 @@ def chain_report(manager, chain_name):
                                 f"{furnace['blocker']}")
             if furnace.get('gap'):
                 gaps.append(furnace['gap'])
+            # gap thm-steam-firing (modelled): fired geopolymer
+            # releases its bound water as steam.
+            if mold_ref in ('geopolymer', 'geopolymer-cured'):
+                findings.append(
+                    f"stage '{st_name}': fired geopolymer releases "
+                    f'bound water as STEAM — slow the ramp and/or '
+                    f'pre-dry the mold or it cracks (and takes the '
+                    f'part with it)')
+            # gap thm-thermal-shock (modelled): surface the target
+            # ceramic's ramp tolerance on the record.
+            target = getattr(st, 'target_material_ref', '')
+            ceramic = _row_named(manager, 'CeramicSample', target)
+            if ceramic is not None:
+                rec['targetThermalShock'] = getattr(
+                    ceramic, 'thermal_shock', '')
         stage_records.append(rec)
 
     verdict = 'blocked' if blockers else 'feasible'

@@ -62,8 +62,26 @@ POUR_MATERIAL_PRIORS = {
 #: Flexural strength ≈ this fraction of the compressive floor for
 #: brittle-ish waxes/polymers — a NAMED knockdown, not physics.
 FLEXURAL_KNOCKDOWN = 0.5
-#: Simply-supported square plate, uniform load, ν = 0.3.
-PLATE_FACTOR = 0.287
+#: Simply-supported rectangular plate, uniform load, ν = 0.3 —
+#: Roark's β vs aspect ratio (1.0 square → 0.75 infinite strip).
+#: Gap str-wall-plate-model: aspect-aware, no longer square-only.
+PLATE_FACTORS = ((1.0, 0.2874), (1.2, 0.3762), (1.4, 0.4530),
+                 (1.6, 0.5172), (1.8, 0.5688), (2.0, 0.6102),
+                 (3.0, 0.7134), (1.0e9, 0.7500))
+#: Time-to-exotherm-peak from the same measured pspp points
+#: (cure °C → minutes) — the CREEP EXPOSURE the mold endures.
+EXOTHERM_TIME_MIN = ((40.0, 210.0), (60.0, 90.0), (85.0, 45.0))
+
+
+def plate_factor(aspect):
+    """Interpolated Roark β for a simply-supported uniform-load
+    rectangular plate; aspect = long side / short side (≥ 1)."""
+    a = max(1.0, float(aspect))
+    for (a0, b0), (a1, b1) in zip(PLATE_FACTORS, PLATE_FACTORS[1:]):
+        if a0 <= a <= a1:
+            f = (a - a0) / (a1 - a0)
+            return b0 + f * (b1 - b0)
+    return PLATE_FACTORS[-1][1]
 #: The pspp measured exotherm points (cure °C → peak °C), from
 #: dataset k-pss-exotherm-vs-cure-temperature (Perera & Trautman
 #: lineage). Validity domain 40–85°C cure — outside it we refuse to
@@ -161,7 +179,12 @@ def exotherm_check(feed, cure_temp_c=None):
     margin = soften - peak
     result = {'ok': margin > 0.0, 'peakC': round(peak, 1),
               'softenC': soften, 'marginC': round(margin, 1),
-              'basis': basis, 'source': EXOTHERM_SOURCE}
+              'basis': basis, 'source': EXOTHERM_SOURCE,
+              'sectionSizeCaveat':
+                  'BULK-sample measurement — thicker sections peak '
+                  'HIGHER, so this margin is NOT conservative for '
+                  'massive pours; thermocouple the first big one '
+                  '(gap thm-exotherm-section-size)'}
     if margin <= 0.0:
         result['blocker'] = (
             f'geopolymer cure exotherm peaks at {peak:.0f}°C '
@@ -175,10 +198,27 @@ def exotherm_check(feed, cure_temp_c=None):
     return result
 
 
+def cure_duration_min(cure_temp_c=None):
+    """Minutes to the exotherm peak — the load DURATION on the mold
+    (creep exposure). Same measured points, same validity."""
+    if cure_temp_c is None or cure_temp_c <= 0:
+        return EXOTHERM_TIME_MIN[0][1]
+    lo, hi = EXOTHERM_TIME_MIN[0][0], EXOTHERM_TIME_MIN[-1][0]
+    if not lo <= cure_temp_c <= hi:
+        return None
+    for (c0, t0), (c1, t1) in zip(EXOTHERM_TIME_MIN,
+                                  EXOTHERM_TIME_MIN[1:]):
+        if c0 <= cure_temp_c <= c1:
+            f = (cure_temp_c - c0) / (c1 - c0)
+            return t0 + f * (t1 - t0)
+    return None
+
+
 def pour_loading_report(manager, mold_name, feedstock_name=None,
                         cast_material='geopolymer-slurry',
                         inject_pressure_kpa=0.0, cure_temp_c=None,
-                        density_override_kg_m3=None):
+                        density_override_kg_m3=None,
+                        pour_drop_height_cm=0.0):
     """Does the mold survive being FILLED? Hydrostatic + injection
     wall bending, slurry mass and base bearing, uplift/clamping for
     injected fills, and the cure-exotherm softening gate. Blockers
@@ -235,14 +275,28 @@ def pour_loading_report(manager, mold_name, feedstock_name=None,
                 or prior['density_kg_m3'])
     blockers, gaps, findings = [], [], []
 
-    # 1. peak pressure at the cavity floor
+    # 1. peak pressure at the cavity floor: static head + dynamic
+    # head of the falling stream (ρ·v²/2 with v² = 2·g·h_drop) +
+    # any applied injection pressure.
     h_m = ext['heightCm'] / 100.0
     p_hydro_kpa = rho * _G * h_m / 1000.0
-    p_total_kpa = p_hydro_kpa + float(inject_pressure_kpa or 0.0)
+    drop_m = max(0.0, float(pour_drop_height_cm or 0.0)) / 100.0
+    p_dyn_kpa = rho * _G * drop_m / 1000.0
+    p_total_kpa = (p_hydro_kpa + p_dyn_kpa
+                   + float(inject_pressure_kpa or 0.0))
+    if drop_m == 0.0:
+        gaps.append('pour_drop_height_cm = 0 — GENTLE LADLE assumed; '
+                    'a real drop adds ρ·g·h_drop of dynamic head '
+                    '(knob available)')
 
-    # 2. wall bending (plate model, peak pressure everywhere)
-    ratio = ext['spanCm'] / wall_t_cm
-    sigma_kpa = PLATE_FACTOR * p_total_kpa * ratio * ratio
+    # 2. wall bending (rectangular plate, aspect-aware Roark factor,
+    # peak pressure everywhere = conservative)
+    short_side = min(ext['spanCm'], ext['heightCm'])
+    long_side = max(ext['spanCm'], ext['heightCm'])
+    aspect = long_side / short_side if short_side > 0 else 1.0
+    beta = plate_factor(aspect)
+    ratio = short_side / wall_t_cm
+    sigma_kpa = beta * p_total_kpa * ratio * ratio
     allow_kpa = strength_mpa * 1000.0 * FLEXURAL_KNOCKDOWN
     wall_util = sigma_kpa / allow_kpa if allow_kpa else 1.0
     if wall_util >= 1.0:
@@ -257,9 +311,15 @@ def pour_loading_report(manager, mold_name, feedstock_name=None,
                         f'allowable — thin margin for pour-stream '
                         f'impact (unmodelled)')
 
-    # 3. mass + base bearing
+    # 3. mass + base bearing (slurry AND the mold's own weight —
+    # gap str-* self-weight closed)
     cavity_cm3 = _cavity_volume_cm3(manager, mold)
     mass_kg = (cavity_cm3 or 0.0) * rho / 1.0e6
+    feed_rho = float(getattr(feed, 'density_kg_m3', 0.0) or 0.0)
+    from casting.wax_feasibility import _body_volume
+    body_cm3, _ = _body_volume(manager, mold)
+    mold_mass_kg = ((body_cm3 or 0.0) * feed_rho / 1.0e6
+                    if feed_rho > 0 else 0.0)
     stock = _named(manager, getattr(mold, 'stock_shape_name', '')
                    or '')
     base_kpa = None
@@ -267,13 +327,43 @@ def pour_loading_report(manager, mold_name, feedstock_name=None,
         size = json.loads(getattr(stock, 'parameters_json', '{}')
                           ).get('size') or []
         foot_m2 = (size[0] / 100.0) * (size[1] / 100.0)
-        base_kpa = (mass_kg * _G / foot_m2) / 1000.0 if foot_m2 else None
+        base_kpa = ((mass_kg + mold_mass_kg) * _G / foot_m2) / 1000.0 \
+            if foot_m2 else None
     except (AttributeError, TypeError, ValueError, IndexError):
         gaps.append('stock footprint unreadable — base bearing '
                     'unassessed')
     if cavity_cm3 is None:
         gaps.append('cavity volume absent from derivation_json — '
                     'mass unassessed')
+
+    # 3b. MASTER BUOYANCY (gap str-master-buoyancy closed): when
+    # this pour INVESTS a master of the mold feedstock (a positive-
+    # parity chain stage), the master floats in a denser slurry —
+    # compute the anchor force instead of ruining the investment.
+    buoyancy = None
+    if feed_rho > 0 and rho > feed_rho and cavity_cm3:
+        anchor_n = ((rho - feed_rho) * (cavity_cm3 / 1.0e6) * _G)
+        buoyancy = {
+            'masterDensityKgM3': feed_rho,
+            'slurryDensityKgM3': rho,
+            'anchorForceN': round(anchor_n, 3),
+            'note': 'applies when this pour INVESTS a master made '
+                    'of the mold feedstock (wax positive in slurry) '
+                    '— the master FLOATS; anchor or weight it with '
+                    'at least this force, or the cavity is silently '
+                    'wrong'}
+        findings.append(
+            f'invested {feed_name} master would FLOAT in '
+            f'{cast_material} (ρ {feed_rho:.0f} < {rho:.0f}) — '
+            f'anchor with ≥{anchor_n:.2f} N')
+
+    # 3c. creep exposure (gap str-creep: duration now computed)
+    duration_min = cure_duration_min(cure_temp_c)
+    if prior.get('exothermic_cure') and duration_min:
+        findings.append(
+            f'the mold carries this load for ~{duration_min:.0f} min '
+            f'to the exotherm peak — {feed_name} creep over that '
+            f'duration is UNMEASURED (gap str-creep)')
 
     # 4. uplift (injected fills push up on the top face)
     uplift = None
@@ -301,13 +391,11 @@ def pour_loading_report(manager, mold_name, feedstock_name=None,
             gaps.append(exo['refusal'])
 
     gaps.extend([
-        'pour-stream impact + sloshing unmodelled (static loads '
-        'only)',
-        f'{feed_name} creep over the cure\'s hours at temperature '
-        f'unmodelled — wax creeps; a long hot cure deserves a '
-        f'measured test',
-        'wall panels modelled as square simply-supported plates '
-        f'(factor {PLATE_FACTOR}); real panels and openings differ'])
+        'sloshing/handling vibration unmodelled (static + dynamic-'
+        'head loads only)',
+        'wall panels modelled as simply-supported rectangular '
+        'plates (aspect-aware Roark factors); openings and real '
+        'corner fixity differ'])
 
     verdict = 'blocked' if blockers else 'feasible'
     return {'ok': True, 'mold': mold_name, 'verdict': verdict,
@@ -318,19 +406,25 @@ def pour_loading_report(manager, mold_name, feedstock_name=None,
                        'volumeCm3': cavity_cm3,
                        'massKg': round(mass_kg, 4)},
             'pressure': {'hydrostaticPeakKpa': round(p_hydro_kpa, 3),
+                         'dynamicHeadKpa': round(p_dyn_kpa, 3),
                          'injectionKpa': float(inject_pressure_kpa
                                                or 0.0),
                          'totalKpa': round(p_total_kpa, 3)},
             'wallBending': {'spanOverThickness': round(ratio, 2),
+                            'panelAspect': round(aspect, 2),
+                            'plateFactor': round(beta, 4),
                             'stressKpa': round(sigma_kpa, 2),
                             'allowableKpa': round(allow_kpa, 1),
                             'utilization': round(wall_util, 4),
-                            'model': f'simply-supported square '
-                                     f'plate, factor {PLATE_FACTOR}, '
+                            'model': f'simply-supported rectangular '
+                                     f'plate (Roark, aspect-aware), '
                                      f'flexural = compressive × '
                                      f'{FLEXURAL_KNOCKDOWN} (named)'},
             'baseBearingKpa': (round(base_kpa, 3)
                                if base_kpa is not None else None),
+            'moldMassKg': round(mold_mass_kg, 4),
+            'cureDurationMin': duration_min,
+            'buoyancy': buoyancy,
             'uplift': uplift, 'exotherm': exo,
             'blockers': blockers, 'findings': findings, 'gaps': gaps,
             'note': 'static fill-survival gate: blockers decide. '

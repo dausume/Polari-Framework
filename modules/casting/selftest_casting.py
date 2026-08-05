@@ -306,8 +306,21 @@ if __name__ == '__main__':
           and abs(mg_s['grid'].volume_cm3() - 8.0 * 1.331)
           / (8.0 * 1.331) < 0.05,
           f"{mg_s.get('ok') and mg_s['grid'].volume_cm3():.3f}")
-    check('watertightness named as a gap, not assumed silently',
-          any('watertight' in g.lower() for g in mg.get('gaps', [])))
+    check('watertightness CHECKED (manifold edges), units named as '
+          'the remaining gap',
+          (mg.get('manifold') or {}).get('watertight') is True
+          and any('units' in g.lower() for g in mg.get('gaps', [])))
+    holed = SimpleNamespace(
+        name='holed-cube', family='imported-mesh',
+        parameters_json=json.dumps({'meshPoints': cube_pts,
+                                    'triangles': cube_tris[:-1]}),
+        bounds_json=cube_shape.bounds_json)
+    hm_res = mesh_grid(holed, resolution=12)
+    check('non-watertight mesh REFUSES with the boundary-edge count',
+          not hm_res.get('ok')
+          and (hm_res.get('manifold') or {}).get(
+              'boundaryOrOddEdges') == 3
+          and 'Repair' in hm_res.get('error', ''))
 
     print('cast-2: imported-part mold derivation (grid path)')
     imp = _mgr(extra_molds=[
@@ -564,6 +577,70 @@ if __name__ == '__main__':
           (sca.get('compensation') or {}).get('applied')
           and abs(sca['compensation']['derivation']['scaleFactor']
                   - 1.0101) < 0.0005)
+
+    print('gap audit: registry + the newly-closed physics')
+    from casting.simulation_gaps import (
+        GAP_AREAS, GAP_STATUSES, SIMULATION_GAPS, gap_register,
+    )
+    reg = gap_register()
+    check('registry complete: every gap fully described, unique ids',
+          all(g['id'] and g['gap'] and g['consequence']
+              and g['closure'] and g['status'] in GAP_STATUSES
+              and g['area'] in GAP_AREAS for g in SIMULATION_GAPS)
+          and len({g['id'] for g in SIMULATION_GAPS})
+          == len(SIMULATION_GAPS))
+    check('all five areas audited, counts add up',
+          {g['area'] for g in SIMULATION_GAPS} == set(GAP_AREAS)
+          and sum(reg['byStatus'].values()) == reg['total'],
+          f"{reg['byStatus']}")
+    pour2 = pour_loading_report(manager, 'demo-sphere-mold')
+    buoy = pour2.get('buoyancy') or {}
+    check('invested wax master FLOATS in slurry — anchor force '
+          'computed (≈0.049 N for the sphere)',
+          abs(buoy.get('anchorForceN', 0) - 0.049) < 0.005
+          and any('FLOAT' in f for f in pour2.get('findings', [])))
+    check('mold self-weight enters base bearing (≈60 g wax body)',
+          abs(pour2.get('moldMassKg', 0) - 0.0596) < 0.005)
+    check('creep exposure named with the measured 210 min duration',
+          pour2.get('cureDurationMin') == 210.0
+          and any('210 min' in f for f in pour2.get('findings', [])))
+    check('gentle-ladle assumption is a named gap, not a silence',
+          any('GENTLE LADLE' in g for g in pour2.get('gaps', [])))
+    dropped = pour_loading_report(manager, 'demo-sphere-mold',
+                                  pour_drop_height_cm=30.0)
+    check('a 30cm pour drop adds ρ·g·h dynamic head (≈6.47 kPa)',
+          abs((dropped.get('pressure') or {}).get('dynamicHeadKpa',
+                                                  0) - 6.474) < 0.01)
+    check('plate factor is aspect-aware (tall pot wall β>0.287)',
+          (collapse.get('wallBending') or {}).get('plateFactor', 0)
+          > 0.30
+          and (pour2.get('wallBending') or {}).get('plateFactor')
+          == 0.2874)
+    check('exotherm section-size caveat travels with every result',
+          'NOT conservative'
+          in (pour2.get('exotherm') or {}).get('sectionSizeCaveat',
+                                               ''))
+    offc = _mgr(extra_molds=[
+        {'name': 'off-mold', 'part_shape_ref': 'off-sphere',
+         'part_source': 'mathshape', 'stock_margin_cm': 1.0,
+         'shrink_allowance_pct': 5.0}])
+    offc.objectTables['MathShapeDefinition']['off-sphere'] = (
+        SimpleNamespace(name='off-sphere', family='primitive',
+                        primitive_kind='sphere',
+                        parameters_json=json.dumps(
+                            {'radius': 1.0, 'center': [3.0, 0.0,
+                                                       0.0]})))
+    ro = derive_mold(offc, 'off-mold')
+    check('off-center part + shrink ⇒ origin-scale shift FINDING',
+          any('geo-shrink-scale-origin' in f
+              for f in ro.get('findings', [])))
+    c2b = chain_report(manager, 'chain-wax-gp-clay-fired')
+    check('firing a geopolymer mold ⇒ STEAM finding (slow ramp)',
+          any('STEAM' in f for f in c2b.get('findings', [])))
+    check("target ceramic's thermal-shock rating surfaced on the "
+          'firing stage',
+          any(s.get('targetThermalShock')
+              for s in c2b.get('stages', [])))
 
     print('module identity')
     check('PolariModule row present + owns MoldDefinition',
