@@ -10,7 +10,12 @@ the quadric and the primitive path; derived rows reconverge over
 hand-edits with the drift named; honest refusals (missing part,
 imported-mesh trap, non-volumetric family, bad allowance); cast-1b
 wax-master feasibility (self-support, melt-margin blocker, thin-wall
-blocker, print time from real waxprint condition rows).
+blocker, print time from real waxprint condition rows); cast-2
+OccupancyGrid (volume parity with shape_properties, flood-fill,
+two-chamber connectivity), mesh voxelization (cube parity, exact
+vertex-scale shrink), and the imported-part grid derivation
+(ImportedCadObject resolution, importer-volume cross-check, named
+absences).
 """
 
 import json
@@ -18,7 +23,9 @@ import math
 from types import SimpleNamespace
 
 from casting.casting_seed import SEED_CASTING_MODULES, SEED_MOLDS
+from casting.mesh_voxelize import mesh_grid
 from casting.mold_geometry import derive_mold, scale_quadric_flat
+from casting.voxel_grid import OccupancyGrid
 from casting.wax_feasibility import (
     print_time_estimate, wax_master_report, wax_self_support,
 )
@@ -143,9 +150,9 @@ if __name__ == '__main__':
     bad.objectTables['MathShapeDefinition']['a-winding'] = (
         SimpleNamespace(name='a-winding', family='winding'))
     mesh = derive_mold(bad, 'mesh-mold')
-    check('imported-mesh part refuses, naming the silent-outside trap',
-          not mesh.get('ok') and 'EMPTY' in mesh.get('error', '')
-          and 'cast-2' in mesh.get('error', ''))
+    check('imported-cad ref resolving nothing refuses',
+          not mesh.get('ok')
+          and 'names no imported-mesh' in mesh.get('error', ''))
     check('missing part refuses',
           not derive_mold(bad, 'ghost-mold').get('ok'))
     wind = derive_mold(bad, 'winding-mold')
@@ -211,6 +218,130 @@ if __name__ == '__main__':
     check('build envelope + CNC named as gaps, not silently passed',
           sum(1 for g in rep.get('gaps', [])
               if 'envelope' in g or 'CNC' in g) == 2)
+
+    print('cast-2: OccupancyGrid — volume parity + connectivity')
+    grid = OccupancyGrid.from_shape(manager, 'pot-with-holes',
+                                    resolution=32)
+    props = shape_properties(manager, 'pot-with-holes', resolution=32)
+    check('grid volume matches shape_properties (same instrument)',
+          isinstance(grid, OccupancyGrid) and props.get('ok')
+          and abs(grid.volume_cm3() - props['volumeCm3'])
+          / props['volumeCm3'] < 0.01,
+          f"grid={grid.volume_cm3():.1f} "
+          f"props={props.get('volumeCm3')}")
+    check('from_shape refuses an imported mesh (the trap stays shut)',
+          'mesh_voxelize' in (OccupancyGrid.from_shape(
+              SimpleNamespace(objectTables={'MathShapeDefinition': {
+                  'm': SimpleNamespace(name='m', family='imported-mesh')
+              }}), 'm') or {}).get('error', ''))
+
+    two = _mgr(extra_molds=[
+        {'name': 'two-sphere-mold', 'part_shape_ref': 'two-spheres',
+         'part_source': 'mathshape', 'stock_margin_cm': 1.0,
+         'shrink_allowance_pct': 0.0}])
+    shapes = two.objectTables['MathShapeDefinition']
+    shapes['sphere-a'] = SimpleNamespace(
+        name='sphere-a', family='primitive', primitive_kind='sphere',
+        parameters_json=json.dumps({'radius': 1.0,
+                                    'center': [0.0, 0.0, 0.0]}))
+    shapes['sphere-b'] = SimpleNamespace(
+        name='sphere-b', family='primitive', primitive_kind='sphere',
+        parameters_json=json.dumps({'radius': 1.0,
+                                    'center': [4.0, 0.0, 0.0]}))
+    shapes['two-spheres'] = SimpleNamespace(
+        name='two-spheres', family='csg', primitive_kind='',
+        quadric_matrix_json='', bounds_json='', parameters_json='{}',
+        csg_json=json.dumps({'op': 'union',
+                             'shapes': ['sphere-a', 'sphere-b']}))
+    r2s = derive_mold(two, 'two-sphere-mold')
+    body_grid = OccupancyGrid.from_shape(two, r2s['bodyShape'],
+                                         resolution=40)
+    cavities = body_grid.complement().connected_components()
+    check('two-chamber mold: complement finds exactly 2 cavities',
+          len(cavities) == 2, f'found {len(cavities)}')
+    check('the two cavities have equal volume (same spheres)',
+          len(cavities) == 2
+          and abs(len(cavities[0]) - len(cavities[1]))
+          / len(cavities[0]) < 0.05)
+    seed_a = body_grid.point_cell(0.0, 0.0, 0.0)
+    reached = body_grid.complement().flood_fill((seed_a,))
+    check('flood fill from chamber A never reaches chamber B',
+          seed_a is not None and reached == set(cavities[0])
+          or reached == set(cavities[1]))
+
+    print('cast-2: mesh voxelization (the FreeCAD bridge)')
+    cube_pts = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1],
+                [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]]
+    cube_tris = [[0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6],
+                 [0, 1, 5], [0, 5, 4], [3, 2, 6], [3, 6, 7],
+                 [0, 3, 7], [0, 7, 4], [1, 2, 6], [1, 6, 5]]
+    cube_shape = SimpleNamespace(
+        name='cube-shape', family='imported-mesh',
+        parameters_json=json.dumps({'meshPoints': cube_pts,
+                                    'triangles': cube_tris}),
+        bounds_json=json.dumps([[-1, 1], [-1, 1], [-1, 1]]))
+    mg = mesh_grid(cube_shape, resolution=24)
+    check('cube mesh voxelizes to ~8 cm³',
+          mg.get('ok')
+          and abs(mg['grid'].volume_cm3() - 8.0) / 8.0 < 0.05,
+          f"{mg.get('ok') and mg['grid'].volume_cm3():.3f}")
+    mg_s = mesh_grid(cube_shape, resolution=24, scale=1.1)
+    check('vertex-scale shrink is exact (×1.1 ⇒ ×1.331 volume)',
+          mg_s.get('ok')
+          and abs(mg_s['grid'].volume_cm3() - 8.0 * 1.331)
+          / (8.0 * 1.331) < 0.05,
+          f"{mg_s.get('ok') and mg_s['grid'].volume_cm3():.3f}")
+    check('watertightness named as a gap, not assumed silently',
+          any('watertight' in g.lower() for g in mg.get('gaps', [])))
+
+    print('cast-2: imported-part mold derivation (grid path)')
+    imp = _mgr(extra_molds=[
+        {'name': 'bracket-mold', 'part_shape_ref': 'bracket-import',
+         'part_source': 'imported-cad', 'stock_margin_cm': 1.0,
+         'shrink_allowance_pct': 0.0}])
+    imp.objectTables['MathShapeDefinition']['bracket-shape'] = (
+        SimpleNamespace(
+            name='bracket-shape', family='imported-mesh',
+            parameters_json=cube_shape.parameters_json,
+            bounds_json=cube_shape.bounds_json))
+    imp.objectTables['ImportedCadObject'] = {
+        'bracket-import': SimpleNamespace(
+            name='bracket-import', shape_name='bracket-shape',
+            volume_cm3=8.0)}
+    ri = derive_mold(imp, 'bracket-mold')
+    check('imported part derives on the grid path',
+          ri.get('ok') and ri.get('mode') == 'grid',
+          ri.get('error', ''))
+    check('resolved via the ImportedCadObject name',
+          ri.get('part') == 'bracket-shape')
+    check('body ≈ stock − part (64 − 8)',
+          abs((ri.get('bodyVolumeCm3') or 0) - 56.0) / 56.0 < 0.05,
+          f"body={ri.get('bodyVolumeCm3')}")
+    check('grid part volume cross-checks the importer volume',
+          (ri.get('volumeCheck') or {}).get('ok') is True,
+          f"dev={(ri.get('volumeCheck') or {}).get('relDeviation')}")
+    check('no CSG body row — carried as a NAMED absence',
+          ri.get('bodyShape') == ''
+          and any('named absence' in g for g in ri.get('gaps', [])))
+    rep_i = wax_master_report(imp, 'bracket-mold')
+    check('wax report times the GRID body volume',
+          rep_i.get('ok') and rep_i.get('verdict') == 'feasible'
+          and (rep_i.get('printTime') or {}).get('ok'),
+          f"{(rep_i.get('printTime') or {}).get('estimatedHours')}h")
+    imp.objectTables['MathShapeDefinition']['bracket-shape'] \
+       .parameters_json = '{}'
+    bare = derive_mold(imp, 'bracket-mold')
+    check('mesh without a cached mesh refuses, naming the re-import',
+          not bare.get('ok')
+          and 'no cached mesh' in bare.get('error', ''))
+    trap = _mgr(extra_molds=[
+        {'name': 'trap-mold', 'part_shape_ref': 'cube-shape',
+         'part_source': 'mathshape'}])
+    trap.objectTables['MathShapeDefinition']['cube-shape'] = cube_shape
+    tr = derive_mold(trap, 'trap-mold')
+    check("imported mesh under part_source='mathshape' refuses "
+          '(silent-outside trap named)',
+          not tr.get('ok') and 'EMPTY' in tr.get('error', ''))
 
     print('module identity')
     check('PolariModule row present + owns MoldDefinition',

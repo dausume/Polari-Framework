@@ -25,10 +25,14 @@ Derived rows are not opinions: re-derivation overwrites a hand-edited
 derived row and NAMES the drift in the result (`reconverged`) — the
 refuse-rather-than-diverge posture from the handoff.
 
-Imported meshes are REFUSED here (cast-1): they have no volumetric
-field, and mathshapes.shape_analysis silently evaluates them as
-outside-everywhere — a fill sim pointed at one would compute a
-confidently EMPTY mold. The cast-2 voxel bridge lifts this refusal.
+Imported meshes (cast-2): they have no volumetric field — mathshapes
+silently evaluates them as outside-everywhere, so the FIELD path is
+never used for them. Instead the mesh voxelizes onto the stock's own
+lattice (casting.mesh_voxelize, exact vertex-scale shrink) and the
+body is carried as an OccupancyGrid: body cells = stock \ part. The
+CSG body row is a NAMED ABSENCE for imported parts, not a silent
+stand-in; the grid volume cross-checks against the CAD import
+record's own volume.
 
 Duck-typed manager, stdlib. @see /WAX_MOLD_NESTING_PLAN.md (cast-1)
 """
@@ -240,44 +244,43 @@ def derive_mold(manager, mold_name, persist=True):
         return {'ok': False,
                 'error': f"no MoldDefinition named '{mold_name}'"}
     part_ref = getattr(mold, 'part_shape_ref', '')
+    try:
+        shrink_pct = float(getattr(mold, 'shrink_allowance_pct', 0.0)
+                           or 0.0)
+    except (TypeError, ValueError):
+        return {'ok': False,
+                'error': 'shrink_allowance_pct is not a number'}
+    s = 1.0 + shrink_pct / 100.0
+    if s <= 0.0:
+        return {'ok': False,
+                'error': f'shrink_allowance_pct={shrink_pct} implies a '
+                         f'non-positive scale — nonsensical'}
     if getattr(mold, 'part_source', 'mathshape') == 'imported-cad':
-        return {'ok': False, 'refusal': 'imported-mesh part',
-                'error': f"mold '{mold_name}': part '{part_ref}' is an "
-                         f'imported CAD mesh. An imported mesh has no '
-                         f'volumetric field — shape_analysis silently '
-                         f'evaluates it as outside-everywhere, so the '
-                         f'derived mold would be confidently EMPTY. '
-                         f'Refused until the cast-2 voxel bridge '
-                         f'(mesh → occupancy grid) lands.',
-                'suggestion': {'knob': 'part_source',
-                               'action': 'use a mathshapes part, or '
-                                         'wait for cast-2 to voxelize '
-                                         'imported meshes'}}
+        return _derive_imported_mold(manager, mold, mold_name,
+                                     part_ref, s, shrink_pct, persist)
     part = _named(manager, part_ref)
     if part is None:
         return {'ok': False,
                 'error': f"mold '{mold_name}': no MathShapeDefinition "
                          f"named '{part_ref}'"}
     family = getattr(part, 'family', 'primitive')
+    if family == 'imported-mesh':
+        return {'ok': False, 'refusal': 'imported-mesh via field path',
+                'error': f"part '{part_ref}' is an imported mesh but "
+                         f"part_source says 'mathshape' — its field "
+                         f'silently reads outside-everywhere, which '
+                         f'would derive a confidently EMPTY mold. Set '
+                         f"part_source='imported-cad' to use the grid "
+                         f'path.',
+                'suggestion': {'knob': 'part_source',
+                               'action': "set 'imported-cad'"}}
     if family not in _FIELD_FAMILIES:
         return {'ok': False, 'refusal': f"family '{family}'",
                 'error': f"part '{part_ref}' is family '{family}' — no "
                          f'volumetric inside/outside field to invert '
-                         f'(imported-mesh/winding/gear/spool are '
-                         f'measured or parametric, not volumetric). '
-                         f'Carried as a named absence.'}
-
-    try:
-        shrink_pct = float(getattr(mold, 'shrink_allowance_pct', 0.0)
-                           or 0.0)
-    except (TypeError, ValueError):
-        return {'ok': False,
-                'error': f'shrink_allowance_pct is not a number'}
-    s = 1.0 + shrink_pct / 100.0
-    if s <= 0.0:
-        return {'ok': False,
-                'error': f'shrink_allowance_pct={shrink_pct} implies a '
-                         f'non-positive scale — nonsensical'}
+                         f'(winding/gear/spool are measured or '
+                         f'parametric, not volumetric). Carried as a '
+                         f'named absence.'}
 
     rows = []
     # -- the cavity form: the part itself, or its shrink-scaled copy --
@@ -417,3 +420,167 @@ def derive_mold(manager, mold_name, persist=True):
         except Exception:
             pass
     return result
+
+
+# --------------------------------------------------------------------------
+# cast-2: imported-mesh parts — the grid path
+# --------------------------------------------------------------------------
+#: Grid lattice for imported-part derivation; mesh parity at this
+#: resolution is a coarser instrument than the field grid, so its
+#: cross-check tolerance is wider (and named).
+_MESH_GRID_RES = 32
+_MESH_CHECK_TOL = 0.08
+
+
+def _resolve_imported_shape(manager, ref):
+    """The imported-mesh MathShapeDefinition for `ref` — accepts the
+    shape row's own name or an ImportedCadObject name (resolved via
+    its shape_name)."""
+    shape = _named(manager, ref)
+    if shape is not None:
+        return shape, None
+    for r in _rows(manager, 'ImportedCadObject'):
+        if getattr(r, 'name', '') == ref:
+            shape = _named(manager, getattr(r, 'shape_name', ''))
+            if shape is not None:
+                return shape, r
+    return None, None
+
+
+def _import_record_for(manager, shape_name):
+    for r in _rows(manager, 'ImportedCadObject'):
+        if getattr(r, 'shape_name', '') == shape_name:
+            return r
+    return None
+
+
+def _derive_imported_mold(manager, mold, mold_name, part_ref, s,
+                          shrink_pct, persist,
+                          grid_resolution=_MESH_GRID_RES):
+    """Grid derivation for an imported CAD part: voxelize the mesh
+    (vertex-scaled by the shrink factor — exact) onto the stock's own
+    lattice; body cells = stock \\ part. The CSG body row is a NAMED
+    ABSENCE (no field exists to write); downstream consumers read the
+    grid summary from derivation_json and rebuild grids on demand."""
+    from casting.mesh_voxelize import mesh_grid
+
+    shape, record = _resolve_imported_shape(manager, part_ref)
+    if shape is None:
+        return {'ok': False,
+                'error': f"mold '{mold_name}': '{part_ref}' names no "
+                         f'imported-mesh shape or ImportedCadObject'}
+    if getattr(shape, 'family', '') != 'imported-mesh':
+        return {'ok': False,
+                'error': f"part_source='imported-cad' but "
+                         f"'{getattr(shape, 'name', '')}' is family "
+                         f"'{getattr(shape, 'family', '')}' — fix "
+                         f'part_source or the ref'}
+    try:
+        b = json.loads(getattr(shape, 'bounds_json', '') or 'null')
+    except (TypeError, ValueError):
+        b = None
+    if not b:
+        return {'ok': False,
+                'error': f"imported shape "
+                         f"'{getattr(shape, 'name', '')}' has no "
+                         f'bounds_json — re-import it'}
+    b = [[float(lo) * s, float(hi) * s] for lo, hi in b]
+    try:
+        margin = float(getattr(mold, 'stock_margin_cm', 1.0) or 0.0)
+    except (TypeError, ValueError):
+        margin = 1.0
+    if margin <= 0.0:
+        return {'ok': False,
+                'error': f'stock_margin_cm={margin} — the stock must '
+                         f'clear the part on every side'}
+    stock_bounds = [[lo - margin, hi + margin] for lo, hi in b]
+    stock_name = f'{mold_name}--stock'
+    stock_size = [round(hi - lo, 6) for lo, hi in stock_bounds]
+    stock_center = [round((hi + lo) / 2.0, 6) for lo, hi in stock_bounds]
+
+    part_res = mesh_grid(shape, resolution=grid_resolution, scale=s,
+                         bounds=stock_bounds)
+    if not part_res.get('ok'):
+        return part_res
+    part_grid = part_res['grid']
+    body_grid = part_grid.complement()
+
+    if not persist:
+        return {'ok': True, 'mold': mold_name, 'dryRun': True,
+                'mode': 'grid', 'rows': [stock_name]}
+
+    converge = _converge_shape_rows(manager, [{
+        'name': stock_name,
+        'display_name': f'{mold_name} stock block',
+        'family': 'primitive', 'primitive_kind': 'box',
+        'quadric_matrix_json': '', 'csg_json': '',
+        'parameters_json': json.dumps({'size': stock_size,
+                                       'center': stock_center}),
+        'bounds_json': '', 'provenance_id': 'cast-2',
+        'notes': f'derived: AABB of imported '
+                 f"{getattr(shape, 'name', '')} ×{s:.4f} + "
+                 f'{margin:.2f}cm margin each side'}])
+    if not converge.get('ok', True):
+        return converge
+
+    v_stock = stock_size[0] * stock_size[1] * stock_size[2]
+    v_part = part_grid.volume_cm3()
+    v_body = body_grid.volume_cm3()
+    # Cross-check: the grid's part volume vs the CAD importer's own
+    # measurement, scaled — two independent instruments.
+    record = record or _import_record_for(
+        manager, getattr(shape, 'name', ''))
+    check = {'ok': None,
+             'note': 'no ImportedCadObject volume to check against'}
+    rec_vol = float(getattr(record, 'volume_cm3', 0.0) or 0.0) \
+        if record is not None else 0.0
+    if rec_vol > 0.0:
+        expected = rec_vol * s ** 3
+        dev = abs(v_part - expected) / expected
+        check = {'ok': dev <= _MESH_CHECK_TOL,
+                 'gridPartCm3': round(v_part, 3),
+                 'importerPartCm3': round(expected, 3),
+                 'relDeviation': round(dev, 4),
+                 'tolerance': _MESH_CHECK_TOL,
+                 'note': f'mesh parity grid (N={grid_resolution}) vs '
+                         f'the CAD importer volume — independent '
+                         f'instruments'}
+
+    gaps = list(part_res.get('gaps', []))
+    gaps.append('no CSG body row for an imported part — no analytic '
+                'field exists; the body is carried as a grid (named '
+                'absence, not a stand-in)')
+
+    mold.stock_shape_name = stock_name
+    mold.scaled_part_shape_name = ''
+    mold.body_shape_name = ''
+    mold.derivation_json = json.dumps({
+        'mode': 'grid', 'gridResolution': grid_resolution,
+        'scaleFactor': round(s, 6),
+        'stockVolumeCm3': round(v_stock, 3),
+        'partVolumeCm3': round(v_part, 3),
+        'bodyVolumeCm3': round(v_body, 3),
+        'volumeCheck': check, 'gaps': gaps,
+        'rows': [stock_name]})
+    db = getattr(manager, 'db', None)
+    if db is not None:
+        try:
+            db.saveInstanceInDB(mold)
+        except Exception:
+            pass
+    return {'ok': True, 'mold': mold_name,
+            'part': getattr(shape, 'name', ''), 'mode': 'grid',
+            'stockShape': stock_name, 'scaledPartShape': '',
+            'bodyShape': '',
+            'shrinkAllowancePct': shrink_pct,
+            'scaleFactor': round(s, 6),
+            'inserted': converge['inserted'],
+            'reconverged': converge['reconverged'],
+            'stockVolumeCm3': round(v_stock, 3),
+            'partVolumeCm3': round(v_part, 3),
+            'bodyVolumeCm3': round(v_body, 3),
+            'volumeCheck': check, 'gaps': gaps,
+            'note': 'imported part derived on the GRID path: mesh '
+                    'voxelized (vertex-scaled — exact) onto the '
+                    "stock's lattice; body = stock \\ part. No CSG "
+                    'body row — a named absence, see gaps.'}

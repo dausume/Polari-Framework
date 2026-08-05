@@ -200,7 +200,21 @@ def wax_self_support(manager, mold_name, wax_source_name=None,
 
 def print_time_estimate(manager, shape_name, condition_name,
                         assembly_name='', overhead_factor=None):
-    """Kinematic print time for a shape: volume ÷ (bead_width ×
+    """Kinematic print time for a shape row: resolve its volume, then
+    time it. Grid-derived molds (imported parts) have no body shape
+    row — use print_time_for_volume with the grid's volume instead."""
+    props = shape_properties(manager, shape_name)
+    if not props.get('ok'):
+        return props
+    return print_time_for_volume(
+        manager, float(props.get('volumeCm3') or 0.0), condition_name,
+        assembly_name, overhead_factor, shape_label=shape_name)
+
+
+def print_time_for_volume(manager, volume_cm3, condition_name,
+                          assembly_name='', overhead_factor=None,
+                          shape_label=''):
+    """Kinematic print time for a known volume: volume ÷ (bead_width ×
     layer_height × speed), times the NAMED overhead prior. Nozzle
     comes from the condition when it declares one (>0), else the
     assembly — waxprint's own convention."""
@@ -227,10 +241,7 @@ def print_time_estimate(manager, shape_name, condition_name,
         return {'ok': False,
                 'error': f"condition '{condition_name}' has no "
                          f'positive print_speed/layer_height'}
-    props = shape_properties(manager, shape_name)
-    if not props.get('ok'):
-        return props
-    volume_cm3 = float(props.get('volumeCm3') or 0.0)
+    volume_cm3 = float(volume_cm3 or 0.0)
     try:
         from waxprint.voxel_resolution import bead_width_m
         bead_mm = bead_width_m(nozzle) * 1000.0
@@ -244,7 +255,7 @@ def print_time_estimate(manager, shape_name, condition_name,
     rate_mm3_s = bead_mm * layer * speed
     rate_cm3_h = rate_mm3_s * 3600.0 / 1000.0
     hours = volume_cm3 / rate_cm3_h * overhead if rate_cm3_h else None
-    return {'ok': True, 'shape': shape_name,
+    return {'ok': True, 'shape': shape_label,
             'volumeCm3': round(volume_cm3, 2),
             'beadWidthMm': round(bead_mm, 4), 'beadSource': bead_source,
             'layerHeightMm': layer, 'printSpeedMmS': speed,
@@ -267,7 +278,8 @@ def wax_master_report(manager, mold_name, wax_source_name=None,
     if mold is None:
         return {'ok': False,
                 'error': f"no MoldDefinition named '{mold_name}'"}
-    if not getattr(mold, 'body_shape_name', ''):
+    if (not getattr(mold, 'body_shape_name', '')
+            and not getattr(mold, 'derivation_json', '')):
         derived = derive_mold(manager, mold_name)
         if not derived.get('ok'):
             return {'ok': False, 'verdict': 'unassessed',
@@ -284,9 +296,27 @@ def wax_master_report(manager, mold_name, wax_source_name=None,
                                overrides=overrides)
     if not support.get('ok') and 'error' in support:
         return support
-    timing = print_time_estimate(
-        manager, getattr(mold, 'body_shape_name', ''), condition_name,
-        assembly_name)
+    body_shape = getattr(mold, 'body_shape_name', '')
+    if body_shape:
+        timing = print_time_estimate(manager, body_shape,
+                                     condition_name, assembly_name)
+    else:
+        # grid-derived (imported part): the body volume lives in
+        # derivation_json — same timing, different volume source.
+        try:
+            deriv = json.loads(getattr(mold, 'derivation_json', '{}')
+                               or '{}')
+        except (TypeError, ValueError):
+            deriv = {}
+        body_vol = deriv.get('bodyVolumeCm3')
+        if body_vol:
+            timing = print_time_for_volume(
+                manager, body_vol, condition_name, assembly_name,
+                shape_label=f'{mold_name} (grid body)')
+        else:
+            timing = {'ok': False,
+                      'error': 'no body shape row and no grid body '
+                               'volume in derivation_json'}
 
     blockers = list(support.get('blockers', []))
     gaps = [f"strength floor is a {support.get('strengthClaim', '')}"]
