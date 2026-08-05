@@ -252,6 +252,146 @@ def _stage_rows(kind, base, feedstock, target_material, ceramic_row,
     return stages
 
 
+def local_provenance(manager, fire_ceramic, target_row, galvanize):
+    """Dustin 2026-08-05: 'where is the mullite coming from if
+    local? can we genuinely do fully local steel?' — answered from
+    ROWS, not assertion. Each leg names its feedstocks, its furnace
+    rung (with the prerequisite climb), and its honest gates."""
+    legs, gaps = [], []
+    rungs = sorted(_rows(manager, 'LadderRung'),
+                   key=lambda r: float(getattr(r, 'max_temp_c', 0.0)
+                                       or 0.0))
+
+    def _rung_for(temp_c):
+        for r in rungs:
+            if float(getattr(r, 'max_temp_c', 0.0) or 0.0) >= temp_c:
+                return r
+        return None
+
+    def _climb(rung):
+        chain = []
+        seen = set()
+        while rung is not None:
+            nm = getattr(rung, 'name', '')
+            if nm in seen:
+                break
+            seen.add(nm)
+            chain.append(nm)
+            pre = getattr(rung, 'prerequisite_rung', '')
+            rung = next((r for r in rungs
+                         if getattr(r, 'name', '') == pre), None)
+        return list(reversed(chain))
+
+    # -- the mold ceramic leg --
+    if fire_ceramic:
+        cer = _row_named(manager, 'CeramicSample',
+                         fire_ceramic['name'])
+        try:
+            feeds = json.loads(getattr(cer, 'feedstocks_json', '[]')
+                               or '[]') if cer is not None else []
+        except (TypeError, ValueError):
+            feeds = []
+        fire_rung = _rung_for(fire_ceramic['fireTempC'])
+        legs.append({
+            'leg': f"mold ceramic ({fire_ceramic['name']})",
+            'track': fire_ceramic.get('track'),
+            'feedstocks': feeds,
+            'firingRungClimb': _climb(fire_rung) if fire_rung
+            else None,
+            'notes': getattr(cer, 'notes', '') if cer else ''})
+        for f in feeds:
+            # a feedstock that IS another catalog ceramic carries
+            # its own honesty note (alumina: 'refining is the real
+            # accessibility gate') — follow the reference.
+            ref_row = _row_named(manager, 'CeramicSample',
+                                 str(f.get('material', '')
+                                     ).split()[0].strip(','))
+            note = ' '.join([f.get('note', '') or '',
+                             getattr(cer, 'notes', '') if cer
+                             else '',
+                             getattr(ref_row, 'notes', '')
+                             if ref_row is not None else ''])
+            if 'refin' in note.lower() or f.get('tier') not in (
+                    'household', 'common-industrial'):
+                gaps.append(f"{fire_ceramic['name']} feedstock "
+                            f"'{f.get('material')}': "
+                            f'{note.strip()[:160]} — the honest '
+                            f'accessibility gate')
+        # BOOTSTRAP: if this ceramic IS a furnace lining, its first
+        # firing must happen in that rung's PREREQUISITE.
+        for r in rungs:
+            lining = getattr(r, 'lining_options_json', '') or ''
+            if fire_ceramic['name'] not in lining:
+                continue
+            pre_name = getattr(r, 'prerequisite_rung', '')
+            pre = next((x for x in rungs
+                        if getattr(x, 'name', '') == pre_name), None)
+            pre_max = float(getattr(pre, 'max_temp_c', 0.0) or 0.0) \
+                if pre else 0.0
+            if fire_ceramic['fireTempC'] > pre_max > 0:
+                gaps.append(
+                    f"BOOTSTRAP: {fire_ceramic['name']} lines "
+                    f"{getattr(r, 'name', '')}, but firing it at "
+                    f"{fire_ceramic['fireTempC']:.0f}°C exceeds the "
+                    f'prerequisite {pre_name} ({pre_max:.0f}°C) — '
+                    f'the first lining is lower-grade fireclay '
+                    f'fired at {pre_max:.0f}°C, then re-fired in '
+                    f'place as the new furnace climbs (the '
+                    f'thermal-strain ladder exists exactly for '
+                    f'this)')
+                break
+    # -- the metal leg --
+    if target_row is not None:
+        mat_ref = getattr(target_row, 'material_ref', '')
+        mat = _row_named(manager, 'MaterialsScienceMaterial', mat_ref)
+        pour = float(getattr(target_row, 'recommended_pour_c', 0.0)
+                     or 0.0)
+        melt_rung = _rung_for(pour)
+        legs.append({
+            'leg': f'base metal ({mat_ref})',
+            'route': (getattr(mat, 'notes', '') or '')[:200]
+            if mat is not None else 'MaterialsScienceMaterial row '
+                                    'absent',
+            'meltRungClimb': _climb(melt_rung) if melt_rung
+            else None,
+            'liningGate': next(
+                (getattr(r, 'lining_options_json', '')
+                 for r in rungs
+                 if getattr(r, 'name', '') == 'steelmaking-furnace'),
+                '')})
+    # -- the galvanizing zinc leg --
+    if galvanize:
+        zn_agent = _row_named(manager, 'BioextractionAgent',
+                              'zinc-accumulating-microbe')
+        zn_prod = _row_named(manager, 'BiomineralProduct',
+                             'galvanized-phosphated-steel')
+        if zn_agent is not None or zn_prod is not None:
+            legs.append({
+                'leg': 'zinc (bio-extraction route)',
+                'route': 'biomining: zinc-accumulating microbe → '
+                         'bio-zinc → hot-dip (the biomining module '
+                         'rows carry yield/purity targets)',
+                'purityGap': 'purity target ~0.9 UNMEASURED — a '
+                             'first melt deserves an assay'})
+        else:
+            gaps.append('bio-zinc route rows not loaded on this '
+                        'instance (biomining module) — zinc '
+                        'sourcing unverified here')
+    gaps.append('furnace-rung POSSESSION unverified — the ladder is '
+                'the catalog of what CAN be built, not what this '
+                'shop has built; the climb is the work')
+    gaps.append('all temperatures literature-approximate (claims '
+                'travel with each row)')
+    return {'legs': legs, 'gaps': gaps,
+            'verdict': 'local-as-claimed' if not any(
+                'unverified here' in g for g in gaps[:-2])
+            else 'gaps-named',
+            'note': 'composed from CeramicSample feedstocks, the '
+                    'LadderRung climb, bio-alloy notes, and '
+                    'biomining rows — asserted by DATA, not by the '
+                    'wizard'}
+
+
 def plan_nesting(manager, part_shape_ref, target_material,
                  feedstock_name=None, stock_margin_cm=1.0):
     """The one-call pipeline: part × material → full nesting plan
@@ -497,6 +637,9 @@ def plan_nesting(manager, part_shape_ref, target_material,
             'feedstock': feedstock_name,
             'fireCeramic': fire_ceramic,
             'galvanize': galvanize,
+            'localProvenance': (local_provenance(
+                manager, fire_ceramic, target_row, galvanize)
+                if kind in ('metal', 'galvanized') else None),
             'findings': plan_findings,
             'steps': steps, 'blockers': blockers,
             'note': 'every step lists its viewable shapes '

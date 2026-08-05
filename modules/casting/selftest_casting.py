@@ -1051,6 +1051,25 @@ if __name__ == '__main__':
     check('galvanized target listed in knownTargets on a miss',
           'galvanized-bio-steel' in plan_nesting(
               wiz, 'unit-sphere', 'nope').get('knownTargets', []))
+    prov = galv.get('localProvenance') or {}
+    legs = {l['leg']: l for l in prov.get('legs', [])}
+    check('provenance: mullite route = kaolin (household) + the '
+          'ROW-NAMED alumina refining gate',
+          any('kaolin' in str(f.get('material', ''))
+              for f in legs.get('mold ceramic (mullite)', {}
+                                ).get('feedstocks', []))
+          and any('refin' in g.lower() for g in prov.get('gaps',
+                                                         [])))
+    check('provenance: the BOOTSTRAP gap is named (1600°C firing '
+          'vs the 1350°C prerequisite rung)',
+          any('BOOTSTRAP' in g and '1350' in g
+              for g in prov.get('gaps', [])))
+    check('provenance: furnace climb spelled out from the rung '
+          'chain + rung POSSESSION honestly unverified',
+          len(legs.get('mold ceramic (mullite)', {}
+                       ).get('firingRungClimb') or []) >= 3
+          and any('POSSESSION unverified' in g
+                  for g in prov.get('gaps', [])))
     imp2 = _mgr()
     imp2.objectTables['MathShapeDefinition']['bracket-shape'] = (
         SimpleNamespace(name='bracket-shape', family='imported-mesh',
