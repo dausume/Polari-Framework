@@ -8,7 +8,9 @@ Covers: mold body derived as stock DIFFERENCE part with correct field
 signs and grid volume; auto stock sizing; exact shrink scaling on both
 the quadric and the primitive path; derived rows reconverge over
 hand-edits with the drift named; honest refusals (missing part,
-imported-mesh trap, non-volumetric family, bad allowance).
+imported-mesh trap, non-volumetric family, bad allowance); cast-1b
+wax-master feasibility (self-support, melt-margin blocker, thin-wall
+blocker, print time from real waxprint condition rows).
 """
 
 import json
@@ -17,8 +19,15 @@ from types import SimpleNamespace
 
 from casting.casting_seed import SEED_CASTING_MODULES, SEED_MOLDS
 from casting.mold_geometry import derive_mold, scale_quadric_flat
+from casting.wax_feasibility import (
+    print_time_estimate, wax_master_report, wax_self_support,
+)
 from mathshapes.shape_analysis import evaluate_point, shape_properties
 from mathshapes.shape_seed import SEED_MATH_SHAPES
+from waxprint.waxprint_seed import (
+    SEED_ASSEMBLIES, SEED_CONDITIONS, SEED_FEEDSTOCKS,
+)
+from waxsupply.wax_seed import SEED_WAX_SOURCES
 
 PASS, FAIL = '\033[0;32mPASS\033[0m', '\033[0;31mFAIL\033[0m'
 _results = []
@@ -38,7 +47,11 @@ def _mgr(extra_molds=()):
     molds = [dict(m) for m in SEED_MOLDS] + [dict(m) for m in extra_molds]
     return SimpleNamespace(objectTables={
         'MathShapeDefinition': _table(SEED_MATH_SHAPES),
-        'MoldDefinition': _table(molds)})
+        'MoldDefinition': _table(molds),
+        'WaxSourceDefinition': _table(SEED_WAX_SOURCES),
+        'WaxFeedstockDefinition': _table(SEED_FEEDSTOCKS),
+        'PrinterAssemblyDefinition': _table(SEED_ASSEMBLIES),
+        'PrintConditionDefinition': _table(SEED_CONDITIONS)})
 
 
 if __name__ == '__main__':
@@ -142,6 +155,62 @@ if __name__ == '__main__':
           not derive_mold(bad, 'neg-mold').get('ok'))
     check('unknown mold refuses',
           not derive_mold(bad, 'nope').get('ok'))
+
+    print('cast-1b: wax master feasibility')
+    rep = wax_master_report(manager, 'demo-sphere-mold')
+    check('report ok + feasible verdict', rep.get('ok')
+          and rep.get('verdict') == 'feasible',
+          '; '.join(rep.get('blockers', [])) or rep.get('error', ''))
+    check("waxsupply's own mold ranking picks the wax (carnauba)",
+          rep.get('wax') == 'carnauba')
+    sup = rep.get('selfSupport', {})
+    # 4cm body of ~997 kg/m³ wax: σ = ρgh ≈ 0.39 kPa vs 2 MPa floor.
+    check('self-weight utilization is tiny for a 4cm mold',
+          sup.get('ok') and 0.0 < sup.get('utilization', 1.0) < 0.01,
+          f"σ={sup.get('baseStressKpa')}kPa "
+          f"u={sup.get('utilization')}")
+    check('density came from the bound feedstock row, not the prior',
+          'WaxFeedstockDefinition' in sup.get('densitySource', ''))
+    t = rep.get('printTime', {})
+    # body ≈ 59.75 cm³ at 0.44×0.2×30 mm³/s ≈ 9.5 cm³/h ⇒ ~8.5h ×1.35
+    check('print time plausible (5–15h for the demo mold)',
+          t.get('ok') and 5.0 < (t.get('estimatedHours') or 0) < 15.0,
+          f"{t.get('estimatedHours')}h at "
+          f"{t.get('depositionRateCm3H')}cm³/h")
+    check('overhead is a NAMED prior', 'prior' in t.get(
+        'overheadClaim', ''))
+    check('wall spans plenty of beads (10mm / 0.44mm)',
+          (rep.get('wallBeads') or 0) > 20)
+
+    print('cast-1b: blockers + refusals')
+    hot = wax_self_support(manager, 'demo-sphere-mold',
+                           wax_source_name='carnauba', ambient_c=80.0)
+    check('ambient at melt −5°C guard blocks, naming the melt',
+          not hot.get('ok')
+          and any('melt' in b for b in hot.get('blockers', [])))
+    jojoba = wax_self_support(manager, 'demo-sphere-mold',
+                              wax_source_name='jojoba')
+    check('liquid wax (jojoba, melt 10°C) blocks at room temp',
+          not jojoba.get('ok') and jojoba.get('blockers'))
+    check('wax without a strength prior refuses, naming the knob',
+          'overrides' in wax_self_support(
+              manager, 'demo-sphere-mold',
+              wax_source_name='soy-wax').get('error', ''))
+    thin = _mgr(extra_molds=[
+        {'name': 'thin-mold', 'part_shape_ref': 'unit-sphere',
+         'part_source': 'mathshape', 'stock_margin_cm': 0.05,
+         'shrink_allowance_pct': 0.0}])
+    derive_mold(thin, 'thin-mold')
+    thin_rep = wax_master_report(thin, 'thin-mold')
+    check('0.5mm wall blocks (under 2 beads across)',
+          thin_rep.get('verdict') == 'blocked'
+          and any('beads' in b for b in thin_rep.get('blockers', [])))
+    check('missing condition row refuses',
+          not print_time_estimate(
+              manager, 'demo-sphere-mold--body', 'no-such').get('ok'))
+    check('build envelope + CNC named as gaps, not silently passed',
+          sum(1 for g in rep.get('gaps', [])
+              if 'envelope' in g or 'CNC' in g) == 2)
 
     print('module identity')
     check('PolariModule row present + owns MoldDefinition',
