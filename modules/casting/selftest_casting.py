@@ -1007,9 +1007,28 @@ if __name__ == '__main__':
                   if s['step'] == 'chain-gates'),
           '; '.join(zn.get('blockers', []))[:90])
     steel = plan_nesting(wiz, 'unit-sphere', 'plain-bio-steel-cast')
-    check('steel plan BLOCKED with the fireclay pair named (honest)',
-          steel.get('verdict') == 'blocked'
-          and any('1550' in b for b in steel.get('blockers', [])))
+    check('STEEL ENABLED: the wizard selects mullite from data '
+          '(service 1700 ≥ 1550+50, local, firing reachable)',
+          steel.get('verdict') == 'feasible'
+          and (steel.get('fireCeramic') or {}).get('name')
+          == 'mullite',
+          '; '.join(steel.get('blockers', []))[:90])
+    check('zinc picks the most-accessible adequate ceramic '
+          '(household earthenware, coolest kiln)',
+          (zn.get('fireCeramic') or {}).get('name')
+          == 'earthenware-terracotta'
+          and (zn.get('fireCeramic') or {}).get('tier')
+          == 'household')
+    wiz.objectTables['CastingMaterialThermalProfile'][
+        'tungsten-fixture'] = SimpleNamespace(
+        name='tungsten-fixture', material_ref='tungsten',
+        recommended_pour_c=3500.0, solidus_c=3400.0,
+        liquidus_c=3420.0, claim_status='fixture')
+    hot = plan_nesting(wiz, 'unit-sphere', 'tungsten-fixture')
+    check('an unservable pour REFUSES naming the capability gap '
+          '(no silent fireclay default)',
+          not hot.get('ok')
+          and 'capability gap' in (hot.get('error') or ''))
     imp2 = _mgr()
     imp2.objectTables['MathShapeDefinition']['bracket-shape'] = (
         SimpleNamespace(name='bracket-shape', family='imported-mesh',

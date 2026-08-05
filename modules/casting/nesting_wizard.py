@@ -120,7 +120,70 @@ def _target_kind(manager, target_material):
     return None, None
 
 
-def _stage_rows(kind, base, feedstock, target_material, ceramic_row):
+#: The mold ceramic must out-survive the pour by this named margin.
+FIRE_CERAMIC_SERVICE_MARGIN_C = 50.0
+_TIER_RANK = {'household': 0, 'common-industrial': 1,
+              'mined-nonlocal': 2, 'lab-reagent': 3}
+
+
+def select_fire_ceramic(manager, pour_temp_c):
+    """The PLUGGABLE steel-enabler (Dustin 2026-08-05): choose the
+    mold ceramic FROM DATA — service ceiling ≥ pour + margin, firing
+    reachable by a furnace rung — ranked most-local, most-accessible,
+    coolest-kiln first. Nothing qualifying = a refusal naming the
+    best available, never a silent fireclay default."""
+    rungs = _rows(manager, 'LadderRung')
+    best_rung = max((float(getattr(r, 'max_temp_c', 0.0) or 0.0)
+                     for r in rungs), default=None)
+    need = pour_temp_c + FIRE_CERAMIC_SERVICE_MARGIN_C
+    candidates = []
+    for c in _rows(manager, 'CeramicSample'):
+        svc = float(getattr(c, 'max_service_temp_c', 0.0) or 0.0)
+        fire = float(getattr(c, 'peak_firing_temp_c', 0.0) or 0.0)
+        if svc < need:
+            continue
+        if best_rung is not None and fire > best_rung:
+            continue
+        candidates.append(c)
+    if not candidates:
+        have = max((float(getattr(c, 'max_service_temp_c', 0.0)
+                          or 0.0)
+                    for c in _rows(manager, 'CeramicSample')),
+                   default=0.0)
+        return None, (f'no mold ceramic serves {pour_temp_c:.0f}°C '
+                      f'+ {FIRE_CERAMIC_SERVICE_MARGIN_C:.0f}°C '
+                      f'margin with a reachable firing (best '
+                      f'available service {have:.0f}°C, best rung '
+                      f'{best_rung or 0:.0f}°C) — a capability gap, '
+                      f'named')
+    pick = sorted(candidates, key=lambda c: (
+        getattr(c, 'track', '') != 'local',
+        _TIER_RANK.get(getattr(c, 'accessibility_tier', ''), 9),
+        float(getattr(c, 'peak_firing_temp_c', 0.0) or 0.0)))[0]
+    choice = {'name': getattr(pick, 'name', ''),
+              'fireTempC': float(getattr(pick, 'peak_firing_temp_c',
+                                         0.0) or 0.0),
+              'serviceC': float(getattr(pick, 'max_service_temp_c',
+                                        0.0) or 0.0),
+              'tier': getattr(pick, 'accessibility_tier', ''),
+              'track': getattr(pick, 'track', ''),
+              'claim': getattr(pick, 'temp_claim_status', ''),
+              'evidence': f'lowest-firing local/accessible ceramic '
+                          f'whose service ceiling covers the pour '
+                          f'+ {FIRE_CERAMIC_SERVICE_MARGIN_C:.0f}°C '
+                          f'margin (rung ceiling '
+                          f'{best_rung or 0:.0f}°C respected)'}
+    finding = None
+    if choice['track'] != 'local' or choice['tier'] in (
+            'mined-nonlocal', 'lab-reagent'):
+        finding = (f"mold ceramic {choice['name']} is NOT fully "
+                   f"local ({choice['tier']}/{choice['track']}) — "
+                   f'carried honestly, not hidden')
+    return choice, finding
+
+
+def _stage_rows(kind, base, feedstock, target_material, ceramic_row,
+                fire_ceramic=None):
     """The chain template parity demands for this target."""
     common = {'is_prior': True, 'provenance_id': 'nest-1'}
     if kind == 'geopolymer':
@@ -130,11 +193,14 @@ def _stage_rows(kind, base, feedstock, target_material, ceramic_row):
                      cast_material_ref='geopolymer-slurry',
                      fill_method='gravity-pour', cure_temp_c=40.0,
                      removal_route='melt-out', **common)]
-    fire_target = (target_material if kind == 'ceramic'
-                   else 'fireclay-firebrick')
-    fire_temp = (float(getattr(ceramic_row, 'peak_firing_temp_c',
-                               0.0) or 0.0)
-                 if kind == 'ceramic' else 1300.0)
+    if kind == 'ceramic':
+        fire_target = target_material
+        fire_temp = float(getattr(ceramic_row, 'peak_firing_temp_c',
+                                  0.0) or 0.0)
+    else:
+        fire_target = (fire_ceramic or {}).get('name',
+                                               'fireclay-firebrick')
+        fire_temp = (fire_ceramic or {}).get('fireTempC', 1300.0)
     stages = [
         dict(name=f'{base}-1-invest', chain_ref=base, sequence=1,
              stage_kind='cast', mold_material_ref=feedstock,
@@ -156,7 +222,7 @@ def _stage_rows(kind, base, feedstock, target_material, ceramic_row):
         stages.append(
             dict(name=f'{base}-4-pour', chain_ref=base, sequence=4,
                  stage_kind='cast',
-                 mold_material_ref='fireclay-firebrick',
+                 mold_material_ref=fire_target,
                  cast_material_ref=getattr(
                      ceramic_row, 'name', target_material),
                  fill_method='gravity-pour',
@@ -208,6 +274,20 @@ def plan_nesting(manager, part_shape_ref, target_material,
 
     base = f'nest--{part_shape_ref}--{target_material}'
     steps, blockers = [], []
+    plan_findings = []
+
+    # metals: the mold ceramic is SELECTED from data, never assumed.
+    fire_ceramic = None
+    if kind == 'metal':
+        pour = float(getattr(target_row, 'recommended_pour_c', 0.0)
+                     or 0.0)
+        fire_ceramic, fc_finding = select_fire_ceramic(manager, pour)
+        if fire_ceramic is None:
+            return {'ok': False, 'verdict': 'blocked',
+                    'error': fc_finding,
+                    'targetMaterial': target_material}
+        if fc_finding:
+            plan_findings.append(fc_finding)
 
     def _step(label, res, visuals=(), keys=None):
         verdict = res.get('verdict') or ('ok' if res.get('ok')
@@ -254,7 +334,8 @@ def plan_nesting(manager, part_shape_ref, target_material,
         'notes': f'auto-planned: {part_shape_ref} in '
                  f'{target_material}'})
     for st in _stage_rows(kind, base, feedstock_name,
-                          target_material, target_row):
+                          target_material, target_row,
+                          fire_ceramic=fire_ceramic):
         _upsert(manager, 'CastingStageDefinition',
                 CastingStageDefinition, st)
     gates = _step('chain-gates', chain_report(manager, base),
@@ -351,6 +432,8 @@ def plan_nesting(manager, part_shape_ref, target_material,
             'part': part_shape_ref, 'partSource': part_source,
             'targetMaterial': target_material, 'chainKind': kind,
             'feedstock': feedstock_name,
+            'fireCeramic': fire_ceramic,
+            'findings': plan_findings,
             'steps': steps, 'blockers': blockers,
             'note': 'every step lists its viewable shapes '
                     '(/api/shapes/{name}/surface) and the fill its '

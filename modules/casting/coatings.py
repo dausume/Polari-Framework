@@ -119,7 +119,8 @@ SEED_MOLD_COATINGS = [
      'max_service_temp_c': 3000.0,
      'applies_to_mold_materials_json': json.dumps(
          ['fireclay-firebrick', 'earthenware-terracotta',
-          'geopolymer']),
+          'stoneware', 'mullite', 'alumina', 'cordierite',
+          'dolomitic-basic-refractory', 'geopolymer']),
      'is_prior': True, 'provenance_id': 'cast-8',
      'notes': 'the metal-pour release — inert to any pour we can '
               'reach; bought, not grown (carried honestly).'},
@@ -138,6 +139,11 @@ _WAX_KINDS = ('natural-wax', 'machinable-wax', 'wax-filament')
 def _strategy_for(manager, mold_ref):
     if mold_ref in _STRATEGY_OF:
         return _STRATEGY_OF[mold_ref]
+    # ANY fired ceramic mold rides the ceramic-fired priors — the
+    # wizard selects the ceramic from data, so the map must not be
+    # a hand-kept list.
+    if _row_named(manager, 'CeramicSample', mold_ref) is not None:
+        return 'ceramic-fired'
     feed = _row_named(manager, 'MasterFeedstockDefinition', mold_ref)
     if feed is not None:
         if getattr(feed, 'material_kind', '') in _WAX_KINDS:

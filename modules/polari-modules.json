@@ -310,6 +310,20 @@
       ],
       "wave": 0,
       "description": "Climate Change & Atmosphere: CO2 series as objects (ice-core + instrumental spans), velocity/acceleration fits, graded health thresholds, the coupled indoor/outdoor crossing projection, XPORT ingest for NHANES biomarkers, and the human-history record."
+    },
+    "casting": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/casting",
+      "wave": 6,
+      "requires": [
+        "mathshapes",
+        "composition",
+        "waxprint",
+        "waxsupply",
+        "pspp"
+      ],
+      "description": "Mold nesting: derived negatives, casting chains with derived parity/thermal gates, sprues, fill/demold sims, the nesting wizard. Requires the shape algebra (mathshapes), seed_upsert (composition), the bead model + mold lifecycle (waxprint), wax rankings (waxsupply), and the exotherm/ceramics data (pspp) \u2014 admission must order them first (caught live 2026-08-05)."
     }
   }
 }

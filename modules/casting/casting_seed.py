@@ -129,9 +129,10 @@ SEED_METAL_THERMAL = [
      'source_note': 'low-carbon steel liquidus ~1510°C, pour '
                     '~+40°C; ~2% linear shrink',
      'is_prior': True, 'provenance_id': 'cast-3b',
-     'notes': 'pour 1550°C EXCEEDS fireclay service (1500°C) — the '
-              'chain gate refuses honestly until a mullite/alumina '
-              'mold route exists locally.'},
+     'notes': 'pour 1550°C exceeds fireclay service (1500°C) — the '
+              'wizard therefore selects a higher ceramic from data '
+              '(mullite-class: service 1700°C, local track) as the '
+              'plug-in steel enabler.'},
 ]
 
 
