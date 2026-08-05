@@ -26,6 +26,7 @@ from casting.casting_seed import (
     SEED_CASTING_MODULES, SEED_MASTER_FEEDSTOCKS, SEED_MOLDS,
 )
 from casting.mesh_voxelize import mesh_grid
+from casting.pour_loading import exotherm_check, pour_loading_report
 from casting.mold_geometry import derive_mold, scale_quadric_flat
 from casting.voxel_grid import OccupancyGrid
 from casting.wax_feasibility import (
@@ -398,6 +399,57 @@ if __name__ == '__main__':
               and not f['renewable']
               for f in SEED_MASTER_FEEDSTOCKS
               if f['priority'] == 'supported'))
+
+    print('cast-2c: geopolymer pour loading (mold-collapse gate)')
+    pour = pour_loading_report(manager, 'demo-sphere-mold')
+    check('gravity geopolymer pour into the wax mold survives',
+          pour.get('ok') and pour.get('verdict') == 'feasible',
+          '; '.join(pour.get('blockers', [])))
+    check('hydrostatic peak = ρgh (≈0.43 kPa for a 2cm cavity)',
+          abs((pour.get('pressure') or {}).get('hydrostaticPeakKpa',
+                                               0) - 0.432) < 0.01)
+    check('wall bending carries model + utilization',
+          (pour.get('wallBending') or {}).get('utilization', 1) < 0.01
+          and 'plate' in (pour.get('wallBending') or {}).get('model',
+                                                             ''))
+    check('slurry mass computed (≈9.2 g in the sphere cavity)',
+          abs((pour.get('cavity') or {}).get('massKg', 0) - 0.0092)
+          < 0.001)
+    check('exotherm vs carnauba soften = a 2°C FINDING, not silence',
+          (pour.get('exotherm') or {}).get('marginC') == 2.0
+          and any('exotherm' in f for f in pour.get('findings', [])))
+    pla_pour = pour_loading_report(manager, 'demo-sphere-mold',
+                                   feedstock_name='pla-filament')
+    check('PLA mold BLOCKS: cure exotherm 70°C > Tg 60°C (softens '
+          'from the inside)', pla_pour.get('verdict') == 'blocked'
+          and any('FROM THE INSIDE' in b
+                  for b in pla_pour.get('blockers', [])))
+    inj = pour_loading_report(manager, 'demo-sphere-mold',
+                              inject_pressure_kpa=50.0)
+    check('injection reports required clamping against uplift',
+          (inj.get('uplift') or {}).get('forceN', 0) > 0
+          and any('clamping' in f for f in inj.get('findings', [])))
+    tall = _mgr(extra_molds=[
+        {'name': 'tall-thin-mold', 'part_shape_ref': 'frustum-pot',
+         'part_source': 'mathshape', 'stock_margin_cm': 0.5,
+         'shrink_allowance_pct': 0.0}])
+    derive_mold(tall, 'tall-thin-mold')
+    collapse = pour_loading_report(tall, 'tall-thin-mold')
+    check('20cm pour against a 5mm wax wall COLLAPSES, naming the '
+          'knob', collapse.get('verdict') == 'blocked'
+          and any('collapses' in b and 'stock_margin_cm' in b
+                  for b in collapse.get('blockers', [])),
+          f"σ={(collapse.get('wallBending') or {}).get('stressKpa')}"
+          f"kPa")
+    check('cure outside the measured 40–85°C refuses to extrapolate',
+          'refusal' in exotherm_check(
+              _table(SEED_MASTER_FEEDSTOCKS)['carnauba-pellet'],
+              cure_temp_c=25.0))
+    check('unknown cast material refuses, listing what is known',
+          'knownMaterials' in pour_loading_report(
+              manager, 'demo-sphere-mold', cast_material='lava'))
+    check('water bench-test suggested before a real mix',
+          'water-test' in pour.get('note', ''))
 
     print('module identity')
     check('PolariModule row present + owns MoldDefinition',
