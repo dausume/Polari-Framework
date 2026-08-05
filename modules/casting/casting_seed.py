@@ -106,6 +106,35 @@ SEED_MASTER_FEEDSTOCKS = [
 ]
 
 
+#: cast-3b: the metal thermal rows NO other table carries (verified
+#: absent framework-wide). Literature-approximate, claim named.
+SEED_METAL_THERMAL = [
+    {'name': 'zinc-cast', 'display_name': 'Zinc (casting grade)',
+     'material_ref': 'zinc-metal', 'solidus_c': 419.5,
+     'liquidus_c': 419.5, 'recommended_pour_c': 440.0,
+     'solidification_shrink_pct': 1.5,
+     'claim_status': 'literature-approximate',
+     'source_note': 'pure Zn melts at 419.5°C; pour ~+20°C '
+                    'superheat; ~1.1–1.6% linear solidification '
+                    'shrink',
+     'is_prior': True, 'provenance_id': 'cast-3b',
+     'notes': 'THE galvanizing feedstock — and the metal a local '
+              'fireclay mold + firebrick furnace can actually pour.'},
+    {'name': 'plain-bio-steel-cast',
+     'display_name': 'Plain bio-steel (casting)',
+     'material_ref': 'plain-bio-steel', 'solidus_c': 1425.0,
+     'liquidus_c': 1510.0, 'recommended_pour_c': 1550.0,
+     'solidification_shrink_pct': 2.0,
+     'claim_status': 'literature-approximate',
+     'source_note': 'low-carbon steel liquidus ~1510°C, pour '
+                    '~+40°C; ~2% linear shrink',
+     'is_prior': True, 'provenance_id': 'cast-3b',
+     'notes': 'pour 1550°C EXCEEDS fireclay service (1500°C) — the '
+              'chain gate refuses honestly until a mullite/alumina '
+              'mold route exists locally.'},
+]
+
+
 #: cast-4: two reusable gating strategies. Neck ratios sit inside
 #: the plan §4 limits (0.25 brittle / 0.40 ductile) on purpose.
 SEED_SPRUE_STRATEGIES = [
@@ -146,7 +175,9 @@ SEED_CASTING_MODULES = [{
                    'demold simulation (WAX_MOLD_NESTING_PLAN).',
         'objects': ['MoldDefinition', 'MasterFeedstockDefinition',
                     'MoldNestingChain', 'CastingStageDefinition',
-                    'SprueStrategyDefinition', 'SprueSetInstance'],
+                    'SprueStrategyDefinition', 'SprueSetInstance',
+                    'CastingMaterialThermalProfile',
+                    'MoldFillSimState'],
     }),
 }]
 
@@ -156,7 +187,8 @@ def seed_casting(manager):
     human's is_prior=False row is skipped loudly), then derive every
     mold's geometry. Never raises for one bad row."""
     from casting.casting_basis import (
-        MasterFeedstockDefinition, MoldDefinition,
+        CastingMaterialThermalProfile, MasterFeedstockDefinition,
+        MoldDefinition,
     )
     from casting.chain_basis import (
         CastingStageDefinition, MoldNestingChain,
@@ -179,6 +211,8 @@ def seed_casting(manager):
          SEED_CASTING_STAGES),
         ('SprueStrategyDefinition', SprueStrategyDefinition,
          SEED_SPRUE_STRATEGIES),
+        ('CastingMaterialThermalProfile',
+         CastingMaterialThermalProfile, SEED_METAL_THERMAL),
     ], tag='CastingSeed')
     derivations = []
     table = (getattr(manager, 'objectTables', None) or {}).get(

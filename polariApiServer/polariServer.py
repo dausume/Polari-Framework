@@ -1006,8 +1006,10 @@ except ImportError as _exc:
 # negatives of math-defined parts (WAX_MOLD_NESTING_PLAN).
 try:
     from casting.casting_basis import (
-        MasterFeedstockDefinition, MoldDefinition,
+        CastingMaterialThermalProfile, MasterFeedstockDefinition,
+        MoldDefinition,
     )
+    from casting.fill_sim import MoldFillSimState
     from casting.chain_basis import (
         CastingStageDefinition, MoldNestingChain,
     )
@@ -1020,6 +1022,7 @@ except ImportError as _exc:
         'MoldDefinition', 'MasterFeedstockDefinition',
         'MoldNestingChain', 'CastingStageDefinition',
         'SprueStrategyDefinition', 'SprueSetInstance',
+        'CastingMaterialThermalProfile', 'MoldFillSimState',
         'SEED_CASTING_MODULES', 'seed_casting',
     ))
 try:
@@ -2147,6 +2150,7 @@ class polariServer(treeObject):
             MoldDefinition, MasterFeedstockDefinition,
             MoldNestingChain, CastingStageDefinition,
             SprueStrategyDefinition, SprueSetInstance,
+            CastingMaterialThermalProfile, MoldFillSimState,
             # Wax sources (wax-1) + supply-chain ledger (chain-1)
             # + sourcing profiles/citations/preference ladder (src-1).
             WaxSourceDefinition, SupplyNode, SupplyFlow,

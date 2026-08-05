@@ -122,7 +122,7 @@ def _thermal_profile(manager, material_ref):
     return None
 
 
-def _process_temp(stage):
+def _process_temp(manager, stage):
     """What the mold must survive at this stage — DERIVED where the
     data allows, declared only for conversions."""
     kind = getattr(stage, 'stage_kind', 'cast')
@@ -148,11 +148,24 @@ def _process_temp(stage):
                 'basis': 'pressed plastic at ambient'}
     if cast == 'water-test':
         return {'ok': True, 'tempC': 25.0, 'basis': 'ambient'}
+    # cast-3b: molten metals — pour temp from the seeded profile.
+    prof = (_row_named(manager, 'CastingMaterialThermalProfile', cast)
+            or next((r for r in _rows(
+                manager, 'CastingMaterialThermalProfile')
+                if getattr(r, 'material_ref', '') == cast), None))
+    if prof is not None:
+        pour = float(getattr(prof, 'recommended_pour_c', 0.0) or 0.0)
+        if pour > 0:
+            claim = getattr(prof, 'claim_status', '')
+            return {'ok': True, 'tempC': pour,
+                    'basis': f'CastingMaterialThermalProfile '
+                             f'{getattr(prof, "name", "")} '
+                             f'recommended_pour_c ({claim})'}
     return {'ok': False,
             'refusal': f"no process-temperature data for cast "
-                       f"material '{cast}' — molten metals need "
-                       f'CastingMaterialThermalProfile rows (cast-3b, '
-                       f'not yet seeded); absent data is absent'}
+                       f"material '{cast}' — molten metals need a "
+                       f'CastingMaterialThermalProfile row '
+                       f'(cast-3b); absent data is absent'}
 
 
 def _furnace_check(manager, temp_c):
@@ -245,7 +258,7 @@ def chain_report(manager, chain_name):
                 f'clay instead')
 
         ceiling = _thermal_profile(manager, mold_ref)
-        proc = _process_temp(st)
+        proc = _process_temp(manager, st)
         if ceiling is None:
             blockers.append(f"stage '{st_name}': no thermal data for "
                             f"mold material '{mold_ref}' — absent "

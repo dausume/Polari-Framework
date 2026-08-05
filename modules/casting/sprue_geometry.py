@@ -135,7 +135,13 @@ def apply_sprue_strategy(manager, mold_name, strategy_name,
 
     def _channel(idx, base_r, top_r, length, axis, center, why,
                  local_section):
+        # equation of record (quadric matrix) + the BOUNDED primitive
+        # solid the CSG composes — a bare quadric is INFINITE under
+        # the field evaluator (bounds_json only scopes grid scans),
+        # so unioning it would leak a phantom column across the
+        # stock. The pot idiom: -eq row + solid row, pair.
         eq_name = f'{mold_name}--sprue-{idx}-eq'
+        solid_name = f'{mold_name}--sprue-{idx}'
         row, _q = build_quadric_eq_row(
             eq_name, f'{mold_name} sprue {idx} (equation)',
             base_r, top_r, length, axis, center,
@@ -146,7 +152,21 @@ def apply_sprue_strategy(manager, mold_name, strategy_name,
                       'primitive_kind', 'csg_json', 'parameters_json',
                       'quadric_matrix_json', 'bounds_json', 'notes',
                       'provenance_id')})
-        sprues.append({'name': eq_name, 'neckRadiusCm': base_r,
+        rows.append({
+            'name': solid_name,
+            'display_name': f'{mold_name} sprue {idx}',
+            'family': 'primitive', 'primitive_kind': 'frustum',
+            'quadric_matrix_json': '', 'csg_json': '',
+            'bounds_json': '', 'provenance_id': 'cast-4',
+            'notes': f'bounded solid of {eq_name}',
+            'parameters_json': json.dumps({
+                'base_radius': round(base_r, 5),
+                'top_radius': round(top_r, 5),
+                'height': round(length, 5), 'axis': axis,
+                'center': center, 'cap_base': True,
+                'cap_top': True})})
+        sprues.append({'name': eq_name, 'solidName': solid_name,
+                       'neckRadiusCm': base_r,
                        'farRadiusCm': top_r, 'lengthCm': length,
                        'axis': axis, 'center': center,
                        'localSectionCm2': local_section})
@@ -228,11 +248,12 @@ def apply_sprue_strategy(manager, mold_name, strategy_name,
             vr = max(MIN_VENT_RADIUS_CM, neck_ref / 3.0)
             length = stock_top_z - top_z
             eq_name = f'{mold_name}--vent-{vi}-eq'
+            solid_name = f'{mold_name}--vent-{vi}'
+            v_center = [round(vx, 4), round(vy, 4),
+                        round((top_z + stock_top_z) / 2.0, 4)]
             row, _q = build_quadric_eq_row(
                 eq_name, f'{mold_name} vent {vi} (equation)',
-                vr, vr, length, 'z',
-                [round(vx, 4), round(vy, 4),
-                 round((top_z + stock_top_z) / 2.0, 4)],
+                vr, vr, length, 'z', v_center,
                 f'cast-4 vent at a cavity high region the gate does '
                 f'not cover (air rises here — the trapped-pocket '
                 f'site cast-5 would find)', vr * 3.0 + 0.5)
@@ -242,15 +263,28 @@ def apply_sprue_strategy(manager, mold_name, strategy_name,
                                'parameters_json',
                                'quadric_matrix_json', 'bounds_json',
                                'notes', 'provenance_id')})
-            vents.append({'name': eq_name, 'radiusCm': vr})
+            vent_rows.append({
+                'name': solid_name,
+                'display_name': f'{mold_name} vent {vi}',
+                'family': 'primitive', 'primitive_kind': 'cylinder',
+                'quadric_matrix_json': '', 'csg_json': '',
+                'bounds_json': '', 'provenance_id': 'cast-4',
+                'notes': f'bounded solid of {eq_name}',
+                'parameters_json': json.dumps({
+                    'radius': round(vr, 5),
+                    'height': round(length, 5), 'axis': 'z',
+                    'center': v_center, 'cap_base': True,
+                    'cap_top': True})})
+            vents.append({'name': eq_name, 'solidName': solid_name,
+                          'radiusCm': vr})
             placements.append({'feature': eq_name,
                                'why': f'high region {vi + 1} of '
                                       f'{len(open_comps)} uncovered '
                                       f'by the gate'})
 
-    # -- both parity artifacts --
-    channel_names = [s['name'] for s in sprues] + [v['name']
-                                                   for v in vents]
+    # -- both parity artifacts (composed from the BOUNDED solids) --
+    channel_names = ([s['solidName'] for s in sprues]
+                     + [v['solidName'] for v in vents])
     stock_name = getattr(mold, 'stock_shape_name', '')
     body_sprued = f'{mold_name}--body-sprued'
     rows_all = rows + vent_rows

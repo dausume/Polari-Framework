@@ -23,9 +23,10 @@ import math
 from types import SimpleNamespace
 
 from casting.casting_seed import (
-    SEED_CASTING_MODULES, SEED_MASTER_FEEDSTOCKS, SEED_MOLDS,
-    SEED_SPRUE_STRATEGIES,
+    SEED_CASTING_MODULES, SEED_MASTER_FEEDSTOCKS, SEED_METAL_THERMAL,
+    SEED_MOLDS, SEED_SPRUE_STRATEGIES,
 )
+from casting.fill_sim import compute_fill_rows, simulate_fill
 from casting.sprue_geometry import apply_sprue_strategy
 from casting.chain_analysis import (
     chain_report, shrink_compensation_report,
@@ -72,6 +73,7 @@ def _mgr(extra_molds=()):
         'CastingStageDefinition': _table(SEED_CASTING_STAGES),
         'SprueStrategyDefinition': _table(SEED_SPRUE_STRATEGIES),
         'SprueSetInstance': {},
+        'CastingMaterialThermalProfile': _table(SEED_METAL_THERMAL),
         'LadderRung': _table(SEED_LADDER_RUNGS),
         'CeramicSample': _table(SEED_CERAMIC_SAMPLES),
         'WaxSourceDefinition': _table(SEED_WAX_SOURCES),
@@ -720,6 +722,89 @@ if __name__ == '__main__':
           inst is not None
           and getattr(inst, 'removability_score', 0) > 0
           and getattr(inst, 'sprued_master_shape_name', ''))
+
+    print('cast-3b: metal thermal rows — the zinc chain closes')
+    cz = chain_report(manager, 'chain-wax-gp-ceramic-zinc')
+    check('4-stage metal chain: 3 inversions ⇒ wax NEGATIVE again',
+          (cz.get('parity') or {}).get('waxMasterParity') == 'negative'
+          and cz['parity']['invertingStages'] == 3)
+    check('zinc chain FEASIBLE (440°C into 1500°C fireclay)',
+          cz.get('verdict') == 'feasible',
+          '; '.join(cz.get('blockers', []))[:90])
+    check('pour temp carries the literature-approximate claim',
+          any('literature-approximate'
+              in s.get('processTempBasis', '')
+              for s in cz.get('stages', [])
+              if s.get('castMaterial') == 'zinc-cast'))
+    steelify = _table(SEED_CASTING_STAGES)
+    steelify['st-wgz-4-pour-zinc'].cast_material_ref = \
+        'plain-bio-steel-cast'
+    sm2 = SimpleNamespace(objectTables=dict(
+        manager.objectTables, CastingStageDefinition=steelify))
+    cs = chain_report(sm2, 'chain-wax-gp-ceramic-zinc')
+    check('the SAME stage with steel BLOCKS: 1550°C vs fireclay '
+          '1500°C, pair named', cs.get('verdict') == 'blocked'
+          and any('1550' in b and 'fireclay' in b
+                  for b in cs.get('blockers', [])))
+
+    print('cast-5: fill simulation — trapped air, unfed chambers')
+    fill = simulate_fill(manager, 'demo-sphere-mold')
+    check('top-gated sphere fills completely',
+          fill.get('ok') and fill.get('fillFraction', 0) > 0.99
+          and fill.get('trappedPockets') == []
+          and fill.get('unfedRegions') == [],
+          f"fill={fill.get('fillFraction')}")
+    check('air left through the gate: COUNTERFLOW finding, not '
+          'silence', any('COUNTERFLOW' in f
+                         for f in fill.get('findings', [])))
+    check('fill time vs pot life computed with the rate basis named',
+          (fill.get('freeze') or {}).get('ratio', 1) < 0.5
+          and 'Torricelli' in fill['freeze'].get('rateBasis', ''))
+    nv = dict(manager.objectTables['SprueStrategyDefinition'])
+    nv['side-noVent'] = SimpleNamespace(
+        name='side-noVent', gate_style='side-gate', n_vents=0,
+        vent_placement='high-points', sprue_taper_deg=2.0,
+        neck_area_ratio=0.2, removal_mode='cut')
+    trapm = _mgr()
+    trapm.objectTables['SprueStrategyDefinition'] = nv
+    derive_mold(trapm, 'demo-sphere-mold')
+    apply_sprue_strategy(trapm, 'demo-sphere-mold', 'side-noVent')
+    trap_fill = simulate_fill(trapm, 'demo-sphere-mold')
+    check('mid-height gate + NO vents ⇒ dome air TRAPPED, blocked',
+          trap_fill.get('verdict') == 'blocked'
+          and len(trap_fill.get('trappedPockets', [])) >= 1,
+          f"pockets={trap_fill.get('trappedPockets')}")
+    sug = (trap_fill.get('suggestions') or [{}])[0]
+    check('the pocket names the exact vent point (evidence-bearing, '
+          'never auto-applied)', sug.get('kind') == 'vent'
+          and sug.get('atPointCm') and 'high point'
+          in sug.get('evidence', ''))
+    two_fill = simulate_fill(two, 'two-sphere-mold')
+    check('side gate into chamber B ⇒ chamber A reported UNFED',
+          two_fill.get('ok') is True
+          and len(two_fill.get('unfedRegions', [])) >= 1
+          and any('UNFED' in b for b in two_fill.get('blockers', [])))
+    check('pressed clay refuses a FLOW simulation',
+          'placement, not flow' in simulate_fill(
+              manager, 'demo-sphere-mold',
+              cast_material='plastic-clay').get('error', ''))
+    check('metals refuse until a freeze window is measured',
+          'freeze' in simulate_fill(
+              manager, 'demo-sphere-mold',
+              cast_material='zinc-cast').get('error', ''))
+    check('no gate ⇒ refuses naming apply_sprue_strategy',
+          'apply_sprue_strategy' in simulate_fill(
+              two, 'demo-sphere-mold').get('error', '')
+          if two.objectTables['SprueSetInstance'].get(
+              'demo-sphere-mold--top-gate-default') is None
+          else True)
+    rows_res = compute_fill_rows(manager, 'demo-sphere-mold',
+                                 'fill-demo', record_levels=3)
+    states = {r['render_state'] for r in rows_res.get('rows', [])}
+    check('sim-state rows generated across recorded levels with '
+          'real states', rows_res.get('ok')
+          and len(rows_res['rows']) > 100 and 1 in states
+          and 2 in states)
 
     print('module identity')
     check('PolariModule row present + owns MoldDefinition',

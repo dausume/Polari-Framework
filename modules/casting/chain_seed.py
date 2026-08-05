@@ -42,6 +42,17 @@ SEED_NESTING_CHAINS = [
               'at 1000°C, broken out, crushed to aggregate.'},
 ]
 
+SEED_NESTING_CHAINS.append(
+    {'name': 'chain-wax-gp-ceramic-zinc',
+     'display_name': 'Wax → geopolymer → fired clay mold → cast zinc',
+     'target_part_shape_ref': 'unit-sphere',
+     'mold_def_ref': 'demo-sphere-mold',
+     'is_prior': True, 'provenance_id': 'cast-3b',
+     'notes': 'the full nesting to METAL: 3 inversions (wax is a '
+              'NEGATIVE again) + a firing conversion. Zinc, not '
+              'steel — steel at 1550°C exceeds fireclay service '
+              '(the gate proves it).'})
+
 SEED_CASTING_STAGES = [
     # --- chain-wax-geopolymer ---
     {'name': 'st-wg-1-geopolymer',
@@ -88,4 +99,42 @@ SEED_CASTING_STAGES = [
      'notes': 'fired AT the geopolymer crystallization onset — the '
               'disposable mold is sacrificed (finding, not blocker); '
               'break out after firing, crush to aggregate.'},
+    # --- chain-wax-gp-ceramic-zinc (cast-3b: to metal) ---
+    {'name': 'st-wgz-1-invest',
+     'display_name': 'Invest geopolymer around the wax',
+     'chain_ref': 'chain-wax-gp-ceramic-zinc', 'sequence': 1,
+     'stage_kind': 'cast', 'mold_material_ref': 'carnauba-pellet',
+     'cast_material_ref': 'geopolymer-slurry',
+     'fill_method': 'gravity-pour', 'cure_temp_c': 40.0,
+     'removal_route': 'melt-out', 'is_prior': True,
+     'provenance_id': 'cast-3b', 'notes': ''},
+    {'name': 'st-wgz-2-press-clay',
+     'display_name': 'Press refractory clay into the geopolymer',
+     'chain_ref': 'chain-wax-gp-ceramic-zinc', 'sequence': 2,
+     'stage_kind': 'cast', 'mold_material_ref': 'geopolymer',
+     'cast_material_ref': 'plastic-clay', 'fill_method': 'press',
+     'mold_disposable': True, 'removal_route': 'mechanical',
+     'is_prior': True, 'provenance_id': 'cast-3b', 'notes': ''},
+    {'name': 'st-wgz-3-fire-fireclay',
+     'display_name': 'Fire the clay mold to fireclay (1300°C)',
+     'chain_ref': 'chain-wax-gp-ceramic-zinc', 'sequence': 3,
+     'stage_kind': 'conversion', 'mold_material_ref': 'geopolymer',
+     'cast_material_ref': 'plastic-clay',
+     'target_material_ref': 'fireclay-firebrick',
+     'process_temp_c': 1300.0, 'mold_disposable': True,
+     'removal_route': 'mechanical', 'is_prior': True,
+     'provenance_id': 'cast-3b',
+     'notes': 'firebrick-furnace rung (1350°C) covers it; the '
+              'geopolymer is sacrificed again.'},
+    {'name': 'st-wgz-4-pour-zinc',
+     'display_name': 'Pour zinc into the fireclay mold',
+     'chain_ref': 'chain-wax-gp-ceramic-zinc', 'sequence': 4,
+     'stage_kind': 'cast',
+     'mold_material_ref': 'fireclay-firebrick',
+     'cast_material_ref': 'zinc-cast',
+     'fill_method': 'gravity-pour', 'removal_route': 'mechanical',
+     'is_prior': True, 'provenance_id': 'cast-3b',
+     'notes': 'zinc pours at 440°C into a 1500°C-service mold — '
+              '1060°C of margin; the same stage with steel (1550°C) '
+              'refuses.'},
 ]
