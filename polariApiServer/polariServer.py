@@ -1012,6 +1012,12 @@ try:
     from casting.fill_sim import MoldFillSimState
     from casting.interventions import FillInterventionDefinition
     from casting.demold import DemoldPlanDefinition
+    from casting.coatings import (
+        CastingRunRecord, MoldCoatingDefinition,
+    )
+    # trigger-on-import: registers the mold-fill scene/binding/sim
+    # into the shared seed lists (the waxprint sim_seed pattern).
+    from casting.sim_seed import SEED_CASTING_PAGE_DISPLAYS
     from casting.chain_basis import (
         CastingStageDefinition, MoldNestingChain,
     )
@@ -1026,6 +1032,8 @@ except ImportError as _exc:
         'SprueStrategyDefinition', 'SprueSetInstance',
         'CastingMaterialThermalProfile', 'MoldFillSimState',
         'FillInterventionDefinition', 'DemoldPlanDefinition',
+        'MoldCoatingDefinition', 'CastingRunRecord',
+        'SEED_CASTING_PAGE_DISPLAYS',
         'SEED_CASTING_MODULES', 'seed_casting',
     ))
 try:
@@ -2155,6 +2163,7 @@ class polariServer(treeObject):
             SprueStrategyDefinition, SprueSetInstance,
             CastingMaterialThermalProfile, MoldFillSimState,
             FillInterventionDefinition, DemoldPlanDefinition,
+            MoldCoatingDefinition, CastingRunRecord,
             # Wax sources (wax-1) + supply-chain ledger (chain-1)
             # + sourcing profiles/citations/preference ladder (src-1).
             WaxSourceDefinition, SupplyNode, SupplyFlow,
@@ -3153,7 +3162,8 @@ class polariServer(treeObject):
              + SEED_AQUAPONICS_PAGE_DISPLAYS + SEED_MODULE_PAGE_DISPLAYS
              + SEED_GROUP_DISPLAYS + SEED_WAXPRINT_PAGE_DISPLAYS
              + (SEED_PSPP_PAGE_DISPLAYS or [])
-             + SEED_SSP_PAGE_DISPLAYS),
+             + SEED_SSP_PAGE_DISPLAYS
+             + (SEED_CASTING_PAGE_DISPLAYS or [])),
             # Materials basis — identities before their scale rows.
             ('MaterialsScienceMaterial', MaterialsScienceMaterial,
              SEED_MS_MATERIALS + SEED_STANDARD_MATERIALS

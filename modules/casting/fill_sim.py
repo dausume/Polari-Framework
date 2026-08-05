@@ -82,6 +82,9 @@ class MoldFillSimState(treeObject):
                  # 0 empty · 1 filled · 2 channel · 3 trapped ·
                  # 4 unfed
                  render_state: int = 0,
+                 # cell edge (cm) — the scene binding scales cubes
+                 # by it so the voxel cloud is dimensionally true.
+                 cell_cm: float = 0.0,
                  manager=None):
         self.name = name
         self.simulation_run_ref = simulation_run_ref
@@ -92,6 +95,7 @@ class MoldFillSimState(treeObject):
         self.pos_y = pos_y
         self.pos_z = pos_z
         self.render_state = render_state
+        self.cell_cm = cell_cm
 
 
 def _sprue_instance_for(manager, mold_name):
@@ -362,9 +366,41 @@ def compute_fill_rows(manager, mold_name, run_name,
                          'time': float(snap['level']),
                          'pos_x': round(x, 4), 'pos_y': round(y, 4),
                          'pos_z': round(z, 4),
-                         'render_state': state})
+                         'render_state': state,
+                         'cell_cm': round(domain.dx, 4)})
     return {'ok': True, 'rows': rows,
             'verdict': res['verdict'],
             'summary': {k: res[k] for k in
                         ('fillFraction', 'trappedPockets',
                          'unfedRegions')}}
+
+
+def persist_fill_rows(manager, rows):
+    """Insert-or-overwrite MoldFillSimState rows (derived — always
+    converge, the cast-1 rule). Real treeObjects when the manager
+    hosts them; attribute bundles for duck managers."""
+    table = manager.objectTables.setdefault('MoldFillSimState', {})
+    by_name = {getattr(r, 'name', None): r for r in table.values()}
+    inserted = updated = 0
+    for rd in rows:
+        row = by_name.get(rd['name'])
+        if row is not None:
+            for k, v in rd.items():
+                setattr(row, k, v)
+            updated += 1
+            continue
+        made = None
+        try:
+            made = MoldFillSimState(**rd, manager=manager)
+        except Exception:
+            made = None
+        if made is None or rd['name'] not in {
+                getattr(r, 'name', None) for r in table.values()}:
+            class _Row:
+                pass
+            r = _Row()
+            for k, v in rd.items():
+                setattr(r, k, v)
+            table[rd['name']] = r
+        inserted += 1
+    return {'inserted': inserted, 'updated': updated}

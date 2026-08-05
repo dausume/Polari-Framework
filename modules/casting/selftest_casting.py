@@ -26,6 +26,9 @@ from casting.casting_seed import (
     SEED_CASTING_MODULES, SEED_MASTER_FEEDSTOCKS, SEED_METAL_THERMAL,
     SEED_MOLDS, SEED_SPRUE_STRATEGIES,
 )
+from casting.coatings import (
+    SEED_MOLD_COATINGS, chain_full_report, resolve_release_coating,
+)
 from casting.demold import demold_plan
 from casting.fill_sim import compute_fill_rows, simulate_fill
 from casting.interventions import evaluate_intervention
@@ -76,6 +79,7 @@ def _mgr(extra_molds=()):
         'SprueStrategyDefinition': _table(SEED_SPRUE_STRATEGIES),
         'SprueSetInstance': {},
         'CastingMaterialThermalProfile': _table(SEED_METAL_THERMAL),
+        'MoldCoatingDefinition': _table(SEED_MOLD_COATINGS),
         'LadderRung': _table(SEED_LADDER_RUNGS),
         'CeramicSample': _table(SEED_CERAMIC_SAMPLES),
         'WaxSourceDefinition': _table(SEED_WAX_SOURCES),
@@ -911,6 +915,67 @@ if __name__ == '__main__':
                  == 'demo-sphere-mold--demold-mechanical'
                  for r in manager.objectTables.get(
                      'DemoldPlanDefinition', {}).values()))
+
+    print('cast-8: coatings + recycling bound into the chain')
+    full = chain_full_report(manager, 'chain-wax-gp-ceramic-zinc')
+    check('full report composes gates + shrink + economics',
+          full.get('ok') and full.get('verdict') == 'feasible'
+          and full.get('economics')
+          and full['shrink'].get('expectedFinalScale'))
+    eco = {e['stage']: e for e in full['economics']}
+    check('wax stage: melt-off RECLAIM, not crush (the wax pool)',
+          'melt-off reclaim' in eco.get('st-wgz-1-invest', {}).get(
+              'endOfLife', ''))
+    check('geopolymer + fired-clay stages: crush-to-aggregate with '
+          'cycle lives from the mold_analysis priors',
+          eco.get('st-wgz-2-press-clay', {}).get('cyclesEst') == 50
+          and eco.get('st-wgz-4-pour-zinc', {}).get('cyclesEst')
+          == 200)
+    coats = {c['stage']: c for c in full.get('releaseCoatings', [])}
+    check('geopolymer press stage resolves the RENEWABLE release '
+          '(jojoba)', coats.get('st-wgz-2-press-clay', {}).get(
+              'coating') == 'jojoba-release'
+          and coats['st-wgz-2-press-clay']['renewable'])
+    check('the 440°C zinc pour resolves GRAPHITE (jojoba cannot '
+          'survive it)', coats.get('st-wgz-4-pour-zinc', {}).get(
+              'coating') == 'graphite-dust')
+    none_left, reason = resolve_release_coating(manager,
+                                                'geopolymer', 5000.0)
+    check('an unservable temperature is a NAMED absence, not a '
+          'default', none_left is None and 'named absence' in reason)
+    check('recycling routes summarized (melt-reclaim + crush)',
+          len(full.get('recyclingRoutes', [])) >= 2)
+
+    print('cast-9: scene + page registration (trigger-on-import)')
+    import casting.sim_seed as cast_scene
+    from simSpace3D.seed_data import SEED_MATERIALS_3D
+    from simulations.seed_data import (
+        SEED_PENDULUM_BINDINGS, SEED_PENDULUM_SIMSPACES,
+        SEED_SIMULATION_DEFINITIONS,
+    )
+    check('mold-fill-3d scene appended to the shared simspace list',
+          any(s.get('name') == 'mold-fill-3d'
+              for s in SEED_PENDULUM_SIMSPACES))
+    check('MoldFillSimState binding maps all 5 render states',
+          any(b.get('class_name') == 'MoldFillSimState'
+              and all(k in b.get('binding_json', '')
+                      for k in ('fill-liquid', 'fill-trapped',
+                                'fill-unfed'))
+              for b in SEED_PENDULUM_BINDINGS))
+    check('mold-fill SimulationDefinition registered',
+          any(s.get('name') == 'mold-fill'
+              for s in SEED_SIMULATION_DEFINITIONS))
+    check('fill-state render materials appended',
+          {'fill-liquid', 'fill-trapped', 'fill-unfed'}
+          <= {m.get('name') for m in SEED_MATERIALS_3D})
+    check('/casting page display exported with the scene + tables',
+          cast_scene.SEED_CASTING_PAGE_DISPLAYS[0]['pageRoute']
+          == 'casting'
+          and 'sim-space-viewer'
+          in cast_scene.SEED_CASTING_PAGE_DISPLAYS[0]['definition'])
+    check('fill rows now carry the real cell size for the binding',
+          all(r.get('cell_cm', 0) > 0
+              for r in rows_res.get('rows', [])[:5]))
 
     print('module identity')
     check('PolariModule row present + owns MoldDefinition',

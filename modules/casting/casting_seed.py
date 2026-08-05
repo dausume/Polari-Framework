@@ -178,7 +178,8 @@ SEED_CASTING_MODULES = [{
                     'SprueStrategyDefinition', 'SprueSetInstance',
                     'CastingMaterialThermalProfile',
                     'MoldFillSimState', 'FillInterventionDefinition',
-                    'DemoldPlanDefinition'],
+                    'DemoldPlanDefinition', 'MoldCoatingDefinition',
+                    'CastingRunRecord'],
     }),
 }]
 
@@ -196,6 +197,9 @@ def seed_casting(manager):
     )
     from casting.chain_seed import (
         SEED_CASTING_STAGES, SEED_NESTING_CHAINS,
+    )
+    from casting.coatings import (
+        MoldCoatingDefinition, SEED_MOLD_COATINGS,
     )
     from casting.interventions import (
         FillInterventionDefinition, SEED_FILL_INTERVENTIONS,
@@ -219,6 +223,8 @@ def seed_casting(manager):
          CastingMaterialThermalProfile, SEED_METAL_THERMAL),
         ('FillInterventionDefinition', FillInterventionDefinition,
          SEED_FILL_INTERVENTIONS),
+        ('MoldCoatingDefinition', MoldCoatingDefinition,
+         SEED_MOLD_COATINGS),
     ], tag='CastingSeed')
     derivations = []
     table = (getattr(manager, 'objectTables', None) or {}).get(
@@ -237,7 +243,23 @@ def seed_casting(manager):
     # rows, not data anyone types in.
     sprue = apply_sprue_strategy(manager, 'demo-sphere-mold',
                                  'top-gate-default')
+    # cast-9: the demo fill run's state rows — computed, like the
+    # derivations, because nobody types voxels in.
+    fill = {'ok': False}
+    if sprue.get('ok'):
+        from casting.fill_sim import compute_fill_rows, persist_fill_rows
+        from casting.sim_seed import FILL_RUN, FILL_RUN_STEPS
+        rows = compute_fill_rows(manager, 'demo-sphere-mold',
+                                 FILL_RUN,
+                                 record_levels=FILL_RUN_STEPS)
+        if rows.get('ok'):
+            fill = {'ok': True,
+                    'rows': persist_fill_rows(manager, rows['rows']),
+                    'verdict': rows.get('verdict')}
+        else:
+            fill = {'ok': False, 'error': rows.get('error', '')}
     return {'upsert': upsert, 'derivations': derivations,
             'sprue': {'ok': bool(sprue.get('ok')),
                       'verdict': sprue.get('verdict', ''),
-                      'error': sprue.get('error', '')}}
+                      'error': sprue.get('error', '')},
+            'fill': fill}
