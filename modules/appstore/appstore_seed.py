@@ -23,7 +23,7 @@ SEED_APP_SHELLS = [
                        'and renders the full web UI from then on.',
         'scope': 'instance',
         'app_name': '',
-        'platforms_json': '["gradle-project", "desktop-linux-x64"]',
+        'platforms_json': '["gradle-project", "desktop-linux-x64", "android", "android-vr"]',
         'distribution': 'both',
         'branding_json': '{}',
         'start_route': '',

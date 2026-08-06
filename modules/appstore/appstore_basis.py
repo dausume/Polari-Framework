@@ -30,7 +30,11 @@ SHELL_SCOPES = ('instance', 'app')
 #: instance cannot cross-compile — honesty over magic).
 PLATFORM_KEYS = ('gradle-project', 'desktop-linux-x64',
                  'desktop-windows', 'desktop-macos',
-                 'android', 'ios')
+                 # android-vr: Quest 2 / Vive headsets (Android-
+                 # based) — the shell registers/probes natively and
+                 # RENDERS THROUGH WOLVIC (required), the WebXR
+                 # browser, so the suite's XR pages actually work.
+                 'android', 'android-vr', 'ios')
 
 #: How a shell is distributed.
 DISTRIBUTIONS = ('generated-project', 'prebuilt', 'both')
