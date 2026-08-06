@@ -177,6 +177,25 @@ class InstanceDefinition(treeObject):
         orchestration_target: str = 'compose',
         # TopologyDefinition.name this instance belongs to.
         topology_name: str = '',
+        # ACCESSIBILITY_SCOPES entry — is this instance reachable only
+        # on its local network, on the web, or (future) over mesh?
+        # App shells read this to phrase the wrong-network advisory;
+        # 'mesh' is named-but-refused until isle-mesh lands.
+        accessibility_scope: str = 'local',
+        # NETWORK_KINDS entry; '' is legal when scope is 'web'.
+        network_kind: str = '',
+        # Human name the shell quotes ("Etts home network").
+        network_display_name: str = '',
+        # {'expectedCidrs': [], 'gateway': '', 'note': ''} — ADVISORY
+        # ONLY. RFC1918 subnets collide across unrelated NATs, so
+        # hints can never prove "right network"; the authoritative
+        # probe is GET /api/appstore/identity + the declared scope.
+        network_hint_json: str = '{}',
+        # Frontend URL a shell should load; '' = fall back to env
+        # POLARI_PUBLIC_BASE_URL at payload-build time.
+        public_base_url: str = '',
+        # Backend URL for shell probes/redeem; '' = env fallback.
+        api_base_url: str = '',
         notes: str = '',
         manager=None,
     ):
@@ -191,4 +210,10 @@ class InstanceDefinition(treeObject):
         self.image_tag = image_tag
         self.orchestration_target = orchestration_target
         self.topology_name = topology_name
+        self.accessibility_scope = accessibility_scope
+        self.network_kind = network_kind
+        self.network_display_name = network_display_name
+        self.network_hint_json = network_hint_json
+        self.public_base_url = public_base_url
+        self.api_base_url = api_base_url
         self.notes = notes

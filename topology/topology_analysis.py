@@ -23,10 +23,11 @@ command or row edit that fixes them and are never auto-applied
 import json
 
 from topology.topology_constants import (
-    BLOB_BACKENDS, CACHE_BACKENDS, DB_BACKEND_IMPLIED_CACHE,
+    ACCESSIBILITY_SCOPES, BLOB_BACKENDS, CACHE_BACKENDS,
+    DB_BACKEND_IMPLIED_CACHE,
     DB_BACKENDS, ENGINE_CAPABILITY_MODULES, ENGINE_HOST_KINDS,
     ENV_TIERS, INFRA_KINDS, INTEGRATED_APP_KINDS, INTERCONNECT_KEYS,
-    KNOWN_SERVICE_KINDS, ORCHESTRATION_TARGETS,
+    KNOWN_SERVICE_KINDS, NETWORK_KINDS, ORCHESTRATION_TARGETS,
     POLARI_RECEPTIVE_KINDS, SERVICE_LABEL_ALIASES,
 )
 from topology.topology_constants import AUTH_KINDS
@@ -243,6 +244,32 @@ def validate_topology(manager, topology_name):
                 f'cache, but cache_backend is also set to "{cache}"',
                 'InstanceDefinition.cache_backend',
                 f'clear cache_backend — "{db}" owns that binding'))
+        # App-shell reachability: 'mesh' is in the vocabulary but not
+        # yet buildable — refused the same way an unavailable
+        # OrchestrationTarget is, so the word exists without the lie.
+        scope = getattr(inst, 'accessibility_scope', 'local') or 'local'
+        if scope not in ACCESSIBILITY_SCOPES:
+            findings.append(_finding(
+                'error', 'unknown-accessibility-scope', iname,
+                f'accessibility_scope "{scope}" is not one of '
+                f'{ACCESSIBILITY_SCOPES}',
+                'InstanceDefinition.accessibility_scope',
+                "declare 'local' or 'web'"))
+        elif scope == 'mesh':
+            findings.append(_finding(
+                'error', 'scope-unavailable', iname,
+                f'instance "{iname}" declares accessibility_scope '
+                '"mesh", which is named but not yet available',
+                'InstanceDefinition.accessibility_scope',
+                "use 'local' or 'web' until mesh access lands"))
+        nkind = getattr(inst, 'network_kind', '') or ''
+        if nkind not in NETWORK_KINDS:
+            findings.append(_finding(
+                'error', 'unknown-network-kind', iname,
+                f'network_kind "{nkind}" is not one of '
+                f'{NETWORK_KINDS}',
+                'InstanceDefinition.network_kind',
+                "home, business, other — or '' for a web instance"))
         env = getattr(inst, 'env_tier', '')
         if env not in ENV_TIERS:
             findings.append(_finding(

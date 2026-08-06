@@ -324,6 +324,17 @@
         "pspp"
       ],
       "description": "Mold nesting: derived negatives, casting chains with derived parity/thermal gates, sprues, fill/demold sims, the nesting wizard. Requires the shape algebra (mathshapes), seed_upsert (composition), the bead model + mold lifecycle (waxprint), wax rankings (waxsupply), and the exotherm/ceramics data (pspp) \u2014 admission must order them first (caught live 2026-08-05)."
+    },
+    "appstore": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/appstore",
+      "repo": "",
+      "wave": 7,
+      "requires": [
+        "polariapps"
+      ],
+      "description": "Polari App Store (appstore-1): installable native shells over the polariapps content layer \u2014 catalog/identity, one-time enrollment tokens (hashed at rest), overlaid Gradle source archives + prebuilt binaries from MinIO."
     }
   }
 }

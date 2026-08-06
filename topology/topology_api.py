@@ -672,7 +672,13 @@ class TopologyAPI(treeObject):
                         # relational tier must be declared.
                         'cache_backend', 'blob_backend',
                         'image_tag', 'orchestration_target',
-                        'topology_name', 'notes')
+                        'topology_name',
+                        # App-shell reachability knobs (appstore
+                        # reads these; topology owns them).
+                        'accessibility_scope', 'network_kind',
+                        'network_display_name', 'network_hint_json',
+                        'public_base_url', 'api_base_url',
+                        'notes')
 
     def _upsert(self, request, response, class_name, fields,
                 required_note):

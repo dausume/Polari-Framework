@@ -35,6 +35,7 @@ from polariApiServer.module_gating import module_enabled
 # (and ONLY these) may be absent from a checkout; core packages are
 # always required and their imports stay static.
 FEATURE_MODULES = frozenset({
+    'appstore',
     'aquaponics', 'biomining', 'bizops', 'climate', 'dmvdata',
     'electrodevice',
     'gears', 'grpcbridge', 'hwdigital', 'hwfpga', 'magnetics',
@@ -49,6 +50,10 @@ FEATURE_MODULES = frozenset({
 # module someone downloaded still needs is refused honestly by the
 # pol CLI (the registry mirrors this as `requires`).
 FEATURE_REQUIRES = {
+    # appstore reads PolariAppDefinition ROWS (no top-level import),
+    # so its polariapps dependency lives only in the registry JSON —
+    # this mirror is for genuine Python imports (drift selftest pins
+    # it as a subset of the registry).
     'aquaponics': ('plant_morphology', 'scoring'),
     'bizops': ('supplychain',),
     # co2-A: climate reuses the aquaponics steady-state gas

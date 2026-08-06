@@ -54,6 +54,17 @@ BLOB_BACKENDS = ('', 'minio')
 #: validation agreeing about it.
 LOCAL_BY_CONSTRUCTION = ('sqlite',)
 
+#: App-shell reachability (appstore reads, topology owns). 'mesh' is
+#: the future isle-mesh path — present in the vocabulary, refused by
+#: validation until it lands (the OrchestrationTarget 'isle' idiom).
+ACCESSIBILITY_SCOPES = ('local', 'web', 'mesh')
+
+#: What kind of network a local-only instance lives on. The shell
+#: quotes this in its advisory ("you need to be on the <name> home
+#: network"). '' is legal when accessibility_scope is 'web' — a web
+#: instance has no home network.
+NETWORK_KINDS = ('', 'home', 'business', 'other')
+
 #: Swarm membership of a machine.
 SWARM_ROLES = ('manager', 'worker', 'none')
 

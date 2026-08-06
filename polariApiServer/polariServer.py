@@ -1094,6 +1094,22 @@ except ImportError as _exc:
     _stub_missing_feature('polariapps', _exc, globals(), (
         'AppDeploymentPlan', 'PolariAppDefinition', 'SEED_POLARI_APPS',
     ))
+# appstore-1: the Polari App Store — downloadable native shells over
+# the polariapps content layer (one-time enrollment tokens hashed at
+# rest, overlaid Gradle source archives, prebuilt binaries in MinIO).
+try:
+    from appstore.appstore_basis import (
+        AppShellDefinition, ShellArtifact, ShellEnrollment,
+        ShellInstallation,
+    )
+    from appstore.appstore_seed import SEED_APP_SHELLS
+    from appstore.appstore_page import SEED_APPSTORE_PAGE_DISPLAYS
+except ImportError as _exc:
+    _stub_missing_feature('appstore', _exc, globals(), (
+        'AppShellDefinition', 'ShellArtifact', 'ShellEnrollment',
+        'ShellInstallation', 'SEED_APP_SHELLS',
+        'SEED_APPSTORE_PAGE_DISPLAYS',
+    ))
 from topology.topology_seed import (
     SEED_INSTANCE_DEFINITIONS, SEED_MODULE_ASSIGNMENTS,
     SEED_MODULE_DEPENDENCY_EDGES, SEED_NODE_MACHINES,
@@ -1938,6 +1954,14 @@ class polariServer(treeObject):
             # plan/export/apply (rows only; deploys stay pol commands).
             from polariapps.apps_api import AppsAPI
             appsEndpoint = AppsAPI(polServer=self, manager=self.manager)
+        if _feature_available('appstore'):
+            # App Store (appstore-1): installable shells over the
+            # polariapps content layer — catalog/identity/enroll/
+            # redeem/download. Endpoint construction is NOT
+            # auto-gated (only defClassList is), hence the guard.
+            from appstore.appstore_api import AppStoreAPI
+            appStoreEndpoint = AppStoreAPI(
+                polServer=self, manager=self.manager)
         if _feature_available('techtree'):
             # Tech tree (tt-3): trees/nodes/segments + derived completion
             # rollup — the topology expansion toward the OSEB.
@@ -2262,6 +2286,10 @@ class polariServer(treeObject):
             TopologyTestRun, IntegrationPing,
             # Polari-Apps (tt-12): app configs + plan receipts.
             PolariAppDefinition, AppDeploymentPlan,
+            # App Store (appstore-1): installable shells, artifact
+            # records, one-time enrollments, install receipts.
+            AppShellDefinition, ShellArtifact, ShellEnrollment,
+            ShellInstallation,
             # Tech tree (tt-3) + segment content (tt-6).
             TechTreeDefinition, TechNode, TechSegment,
             TechSegmentAssignment, TechDependencyEdge,
@@ -3175,7 +3203,8 @@ class polariServer(treeObject):
              + SEED_GROUP_DISPLAYS + SEED_WAXPRINT_PAGE_DISPLAYS
              + (SEED_PSPP_PAGE_DISPLAYS or [])
              + SEED_SSP_PAGE_DISPLAYS
-             + (SEED_CASTING_PAGE_DISPLAYS or [])),
+             + (SEED_CASTING_PAGE_DISPLAYS or [])
+             + (SEED_APPSTORE_PAGE_DISPLAYS or [])),
             # Materials basis — identities before their scale rows.
             ('MaterialsScienceMaterial', MaterialsScienceMaterial,
              SEED_MS_MATERIALS + SEED_STANDARD_MATERIALS
@@ -3493,6 +3522,12 @@ class polariServer(treeObject):
             # AppDeploymentPlan rows are receipts — never seeded.
             ('PolariAppDefinition', PolariAppDefinition,
              SEED_POLARI_APPS),
+            # appstore-1: legacy insert-only fallback so shells seed
+            # even where composition (the upsert path) is disabled —
+            # prf-a's live reality. Field ADDITIONS later must ride
+            # the AppStoreSeed upsert hook (ten-strikes gotcha).
+            ('AppShellDefinition', AppShellDefinition,
+             SEED_APP_SHELLS),
             # aqp-1: self-watering pots + their side holes (pots
             # before holes — holes reference their pot).
             ('PotDefinition', PotDefinition, SEED_POTS),
@@ -4097,6 +4132,26 @@ class polariServer(treeObject):
                               flush=True)
             except Exception as e:
                 print(f'[AppsNavSeed] failed: {e}', flush=True)
+        # appstore-1: shell definitions ride the upsert path from day
+        # one (no legacy pass to converge). Same module-level-import
+        # rule as AppsNavSeed above.
+        if (_feature_available('composition')
+                and _feature_available('appstore') and (
+                only_classes is None
+                or 'AppShellDefinition' in only_classes)):
+            try:
+                from composition.seed_upsert import upsert_seed_pairs
+                for r in upsert_seed_pairs(
+                        self.manager,
+                        [('AppShellDefinition', AppShellDefinition,
+                          SEED_APP_SHELLS)], tag='AppStoreSeed'):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[AppStoreSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[AppStoreSeed] failed: {e}', flush=True)
         # tt-8: the single 'oseb' tree became three DOMAIN trees —
         # retire its persisted rows (idempotent no-op once gone) and
         # remap stale PolariModule.tech_node_ref hints.

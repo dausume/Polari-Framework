@@ -126,6 +126,9 @@ SEED_INSTANCE_DEFINITIONS = [
         'db_backend': 'sqlite',
         'image_tag': 'staging',
         'orchestration_target': 'compose',
+        # Staging lives on the LAN behind nip.io — local by reality.
+        # Operators flip this to 'web' when an instance is exposed.
+        'accessibility_scope': 'local',
         'topology_name': 'staging-a',
         'notes': 'The CORE Polari instance (research framework). In '
                  'the combined suite it shares the shared-infra '
@@ -178,6 +181,9 @@ SEED_INSTANCE_DEFINITIONS = [
         'db_backend': 'sqlite',
         'image_tag': 'staging',
         'orchestration_target': 'compose',
+        # Staging lives on the LAN behind nip.io — local by reality.
+        # Operators flip this to 'web' when an instance is exposed.
+        'accessibility_scope': 'local',
         'topology_name': 'staging-a',
         'notes': 'Twin CHILD instance — reuses A\'s images + shared '
                  'infra, own identity (POLARI_INSTANCE_ID=b), '
@@ -193,6 +199,9 @@ SEED_INSTANCE_DEFINITIONS = [
         'db_backend': 'sqlite',
         'image_tag': 'staging',
         'orchestration_target': 'compose',
+        # Staging lives on the LAN behind nip.io — local by reality.
+        # Operators flip this to 'web' when an instance is exposed.
+        'accessibility_scope': 'local',
         'topology_name': 'staging-a',
         'notes': 'Dask parallel-search workers (6x speedup proven; '
                  'cross-instance 5/5 split proven).',
