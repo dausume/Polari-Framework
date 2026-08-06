@@ -70,6 +70,10 @@ class ClimateAPI(treeObject):
             add('/api/climate/ingest-budget', self,
                 suffix='ingest_budget')
             add('/api/climate/biomarker', self, suffix='biomarker')
+            add('/api/climate/biomarker/series', self,
+                suffix='biomarker_series')
+            add('/api/climate/biomarker/ingest', self,
+                suffix='biomarker_ingest')
             add('/api/climate/bindings', self, suffix='bindings')
             add('/api/climate/view/{view_name}', self, suffix='view')
             add('/api/climate/graph/{graph_name}', self,
@@ -473,6 +477,97 @@ class ClimateAPI(treeObject):
         if differential.get('ok') and instrumental:
             payload['closure'] = budget_closure(differential,
                                                 instrumental)
+        response.media = payload
+
+    def on_post_biomarker_ingest(self, request, response):
+        """Fetch NHANES serum bicarbonate per cycle (Dustin: 1999
+        through 2012 at least). POST — reaches the network."""
+        from climate.biomarker_ingest import ingest_all_cycles
+        params = request.params or {}
+        raw = (params.get('cycles') or '').strip()
+        cycles = [c.strip() for c in raw.split(',') if c.strip()] \
+            or None
+        result = ingest_all_cycles(self.manager, cycles=cycles)
+        if not result.get('ok'):
+            response.status = '409 Conflict'
+        response.media = result
+
+    def on_get_biomarker_series(self, request, response):
+        """The bicarbonate series as points, ready to plot AND to
+        export (fmt=csv|markdown carries the provenance)."""
+        from climate.biomarker_ingest import BICARB_SERIES
+        rows_out = []
+        for row in rows(self.manager, 'BiomarkerCycleObservation'):
+            if getattr(row, 'series_ref', '') != BICARB_SERIES:
+                continue
+            start = float(getattr(row, 'cycle_start_year', 0.0))
+            end = float(getattr(row, 'cycle_end_year', 0.0))
+            rows_out.append({
+                'cycle': getattr(row, 'cycle', ''),
+                'year': (start + end) / 2.0 if end else start,
+                'startYear': start, 'endYear': end,
+                'mean': getattr(row, 'mean', 0.0),
+                'stdDev': getattr(row, 'std_dev', 0.0),
+                'median': getattr(row, 'median', 0.0),
+                'n': getattr(row, 'n', 0),
+                'pct5': getattr(row, 'pct_5', 0.0),
+                'pct95': getattr(row, 'pct_95', 0.0),
+                'retrievalRef': getattr(row, 'retrieval_ref', '')})
+        rows_out.sort(key=lambda r: r['year'])
+        series = next((s for s in rows(
+            self.manager, 'PopulationBiomarkerSeries')
+            if getattr(s, 'name', '') == BICARB_SERIES), None)
+        payload = {
+            'ok': bool(rows_out), 'series': BICARB_SERIES,
+            'unit': getattr(series, 'unit', 'mmol/L')
+            if series is not None else 'mmol/L',
+            'count': len(rows_out), 'points': rows_out,
+            'populationNote': getattr(series, 'population_note', '')
+            if series is not None else '',
+            'source': 'CDC/NCHS NHANES standard biochemistry '
+                      'profile, LBXSC3SI (serum bicarbonate, '
+                      'mmol/L), per 2-year cycle',
+            'sourceRef': 'cdc-nchs-nhanes'}
+        if not rows_out:
+            response.status = '409 Conflict'
+            payload['refusal'] = (
+                'no bicarbonate cycles ingested — POST '
+                '/api/climate/biomarker/ingest first')
+            response.media = payload
+            return
+        fmt = (request.params or {}).get('fmt', '')
+        if fmt == 'csv':
+            head = ('cycle,mid_year,start_year,end_year,mean_mmol_l,'
+                    'std_dev,median,n,pct5,pct95,source,retrieval\n')
+            body = ''.join(
+                f"{r['cycle']},{r['year']},{r['startYear']},"
+                f"{r['endYear']},{r['mean']},{r['stdDev']},"
+                f"{r['median']},{r['n']},{r['pct5']},{r['pct95']},"
+                f"CDC/NCHS NHANES LBXSC3SI,{r['retrievalRef']}\n"
+                for r in rows_out)
+            response.media = {
+                'ok': True, 'format': 'csv',
+                'filename': f'{BICARB_SERIES}.csv',
+                'contentType': 'text/csv',
+                'content': head + body,
+                'note': 'one provenance column per row — a bare '
+                        'year,value CSV would launder the source'}
+            return
+        if fmt == 'markdown':
+            lines = [f'# Serum bicarbonate, US population (NHANES)',
+                     '', f'Source: {payload["source"]}.',
+                     f'Population: {payload["populationNote"]}', '',
+                     '| Cycle | Mean (mmol/L) | SD | n |',
+                     '|---|---|---|---|']
+            lines += [f"| {r['cycle']} | {r['mean']} | "
+                      f"{r['stdDev']} | {r['n']} |"
+                      for r in rows_out]
+            response.media = {
+                'ok': True, 'format': 'markdown',
+                'filename': f'{BICARB_SERIES}.md',
+                'contentType': 'text/markdown',
+                'content': '\n'.join(lines)}
+            return
         response.media = payload
 
     def on_get_biomarker(self, request, response):
