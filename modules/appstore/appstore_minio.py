@@ -42,10 +42,16 @@ def _presign_client(manager):
     try:
         from minio import Minio
         u = urlparse(public)
+        # region pinned so minio-py SKIPS its get_bucket_location
+        # round-trip — without it presign phones the public host
+        # from inside the container (untrusted CA + hairpin, caught
+        # live). MinIO's default region is us-east-1.
         return Minio(u.netloc,
                      access_key=getattr(store, 'access_key', ''),
                      secret_key=getattr(store, 'secret_key', ''),
-                     secure=(u.scheme == 'https'))
+                     secure=(u.scheme == 'https'),
+                     region=os.environ.get(
+                         'POLARI_S3_REGION', 'us-east-1'))
     except Exception:
         return store.client
 
