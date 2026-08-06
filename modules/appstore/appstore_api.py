@@ -43,6 +43,10 @@ _SHELL_FIELDS = ('title', 'description', 'scope', 'app_name',
                  'platforms_json', 'distribution', 'branding_json',
                  'start_route', 'published', 'notes')
 
+#: Role names that count as admin. The Polari realm's convention is
+#: 'polari-admin' (roleAPI); plain 'admin' kept for generic realms.
+_ADMIN_ROLES = frozenset({'admin', 'polari-admin'})
+
 
 class AppStoreAPI(treeObject):
     """App-store endpoints."""
@@ -368,7 +372,7 @@ class AppStoreAPI(treeObject):
         if user is None:
             return
         sub = user.get('sub', '')
-        is_admin = 'admin' in roles
+        is_admin = bool(_ADMIN_ROLES & set(roles))
         rows = []
         for row in self._table('ShellEnrollment').values():
             if not is_admin and getattr(row, 'user_sub', '') != sub:
@@ -404,7 +408,7 @@ class AppStoreAPI(treeObject):
             return self._refuse(response,
                                 f'no enrollment "{name}"',
                                 '404 Not Found')
-        if ('admin' not in roles
+        if (not (_ADMIN_ROLES & set(roles))
                 and getattr(row, 'user_sub', '') != user.get('sub')):
             return self._refuse(
                 response,
@@ -557,9 +561,11 @@ class AppStoreAPI(treeObject):
         user, roles = self._require_user(request, response)
         if user is None:
             return
-        if 'admin' not in roles:
-            return self._refuse(response, 'admin role required',
-                                '403 Forbidden')
+        if not (_ADMIN_ROLES & set(roles)):
+            return self._refuse(
+                response,
+                f'admin role required (one of '
+                f'{sorted(_ADMIN_ROLES)})', '403 Forbidden')
         payload, err = self._payload(request)
         if err:
             return self._refuse(response, err)
