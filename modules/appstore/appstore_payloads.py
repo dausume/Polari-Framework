@@ -44,19 +44,26 @@ def _env(name):
 
 
 def instance_row(manager):
-    """The InstanceDefinition row for THIS instance: match env
-    POLARI_INSTANCE_NAME, else the first 'prf'-kind row, else None
-    (identity still answers from env — the probe must never 500)."""
+    """The InstanceDefinition row for THIS instance. Ladder: env
+    POLARI_INSTANCE_NAME -> 'prf-<POLARI_INSTANCE_ID>' (id defaults
+    to 'a', matching peers_api) -> a 'prf'-kind row that actually
+    DECLARES public_base_url -> first 'prf'-kind row -> None
+    (identity still answers from env — the probe must never 500).
+    Caught live: prf-b iterated before prf-a, so plain first-match
+    answered for the twin."""
     tables = getattr(manager, 'objectTables', None) or {}
     rows = list((tables.get('InstanceDefinition') or {}).values())
-    wanted = _env('POLARI_INSTANCE_NAME')
+    wanted = _env('POLARI_INSTANCE_NAME') \
+        or 'prf-' + (_env('POLARI_INSTANCE_ID') or 'a')
     for row in rows:
-        if wanted and getattr(row, 'name', '') == wanted:
+        if getattr(row, 'name', '') == wanted:
             return row
-    for row in rows:
-        if getattr(row, 'kind', '') == 'prf':
+    prf_rows = [r for r in rows
+                if getattr(r, 'kind', '') == 'prf']
+    for row in prf_rows:
+        if getattr(row, 'public_base_url', ''):
             return row
-    return None
+    return prf_rows[0] if prf_rows else None
 
 
 def resolve_urls(manager):
