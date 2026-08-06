@@ -144,8 +144,8 @@ def ingest_bicarbonate_cycle(manager, cycle, fetcher=None):
                     BICARB_SERIES)
     retrieval = record_retrieval_row(
         manager, series, endpoint, parsed,
-        note=f'NHANES {cycle} {xpt_file}.xpt, column '
-             f'{BICARB_COLUMN}') if series is not None else None
+        row_count=int(summary.get('n', 0) or 0)) \
+        if series is not None else None
     fields = {
         'name': f'{BICARB_SERIES}--{cycle}',
         'series_ref': BICARB_SERIES, 'cycle': cycle,
