@@ -8,7 +8,9 @@ download beats a stack trace.
 """
 
 import io
+import os
 from datetime import timedelta
+from urllib.parse import urlparse
 
 ARTIFACT_BUCKET = 'shell-artifacts'
 
@@ -19,6 +21,33 @@ def _store(manager):
             or getattr(store, 'client', None) is None:
         return None
     return store
+
+
+def _presign_client(manager):
+    """Client to SIGN presigned URLs with. A URL signed against the
+    internal endpoint (prf-file-store:9000) is useless outside the
+    docker network — SigV4 binds the host, so rewriting breaks the
+    signature (proven live). When a public S3 URL is declared
+    (POLARI_S3_PUBLIC_URL, else MINIO_SERVER_URL — already in the
+    backend env), sign against THAT host; signing is pure local
+    crypto, no connection is made. Falls back to the internal
+    client's URLs (still valid for in-network callers)."""
+    store = _store(manager)
+    if store is None:
+        return None
+    public = (os.environ.get('POLARI_S3_PUBLIC_URL')
+              or os.environ.get('MINIO_SERVER_URL') or '').strip()
+    if not public:
+        return store.client
+    try:
+        from minio import Minio
+        u = urlparse(public)
+        return Minio(u.netloc,
+                     access_key=getattr(store, 'access_key', ''),
+                     secret_key=getattr(store, 'secret_key', ''),
+                     secure=(u.scheme == 'https'))
+    except Exception:
+        return store.client
 
 
 def store_status(manager):
@@ -67,11 +96,11 @@ def object_exists(manager, key, bucket=ARTIFACT_BUCKET):
 
 def presigned_get(manager, key, bucket=ARTIFACT_BUCKET,
                   expires_seconds=3600):
-    store = _store(manager)
-    if store is None:
+    signer = _presign_client(manager)
+    if signer is None:
         return store_status(manager)
     try:
-        url = store.client.presigned_get_object(
+        url = signer.presigned_get_object(
             bucket, key, expires=timedelta(seconds=expires_seconds))
         return {'ok': True, 'url': url,
                 'expiresSeconds': expires_seconds}
@@ -83,11 +112,12 @@ def presigned_get(manager, key, bucket=ARTIFACT_BUCKET,
 def presigned_put(manager, key, bucket=ARTIFACT_BUCKET,
                   expires_seconds=3600):
     store = _store(manager)
-    if store is None:
+    signer = _presign_client(manager)
+    if store is None or signer is None:
         return store_status(manager)
     try:
         store.ensure_bucket(bucket)
-        url = store.client.presigned_put_object(
+        url = signer.presigned_put_object(
             bucket, key, expires=timedelta(seconds=expires_seconds))
         return {'ok': True, 'url': url,
                 'expiresSeconds': expires_seconds,
