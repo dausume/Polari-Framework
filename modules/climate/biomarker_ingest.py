@@ -45,6 +45,11 @@ NHANES_BICARB_CYCLES = {
     '2013-2014': (2013, 2014, '2013', 'BIOPRO_H'),
     '2015-2016': (2015, 2016, '2015', 'BIOPRO_I'),
     '2017-2018': (2017, 2018, '2017', 'BIOPRO_J'),
+    # The post-pandemic cycle NHANES ran over 3 years, not 2, and
+    # it MATTERS for the trend: it falls back, so a series ending
+    # at 2017-2018 ends on a local peak and looks steeper than the
+    # record supports (caught 2026-08-06).
+    '2021-2023': (2021, 2023, '2021', 'BIOPRO_L'),
 }
 BICARB_SERIES = 'nhanes-serum-bicarbonate'
 BICARB_COLUMN = 'LBXSC3SI'

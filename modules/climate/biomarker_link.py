@@ -64,13 +64,38 @@ from climate.co2_physiology import KPA_PER_MMHG, STANDARD_PRESSURE_KPA
 PROV = 'co2-B'
 
 #: Chronic (renal) compensation for a sustained rise in arterial
-#: pCO2: bicarbonate rises roughly this much per 10 mmHg. The
-#: standard acid-base teaching figure; the acute figure (~1 mmol/L
-#: per 10 mmHg) is smaller still, so using the CHRONIC value is
-#: the most generous possible assumption for the hypothesis under
-#: test. If the hypothesis fails with the generous constant, it
-#: fails with any of them.
-RENAL_COMPENSATION_MMOL_PER_10MMHG = 0.4
+#: pCO2: bicarbonate rises roughly this much per 10 mmHg.
+#:
+#: ⚠ CORRECTED 2026-08-06 (Dustin caught the summary quoting an
+#: inflated ratio). This was 0.4, an ORDER OF MAGNITUDE below the
+#: standard figure, and the comment beside it contradicted itself
+#: — it called 0.4 the generous chronic value while claiming the
+#: acute figure of ~1 was "smaller still", which cannot be true.
+#: Standard acid-base teaching: ACUTE respiratory acidosis raises
+#: bicarbonate ~1 mmol/L per 10 mmHg; CHRONIC (renal) compensation
+#: raises it ~3.5-4 mmol/L per 10 mmHg. The chronic figure is the
+#: LARGER one, so using it remains the most generous possible
+#: assumption for the hypothesis under test — which was the
+#: comment's intent all along. If the hypothesis fails against the
+#: generous constant it fails against any of them.
+#:
+#: This is a textbook rule-of-thumb, not a measurement, and it is
+#: an approximation with real inter-individual spread. It carries
+#: no source_ref because no primary paper is cited for it here —
+#: a NAMED ABSENCE, not a silent assumption.
+RENAL_COMPENSATION_MMOL_PER_10MMHG = 4.0
+RENAL_COMPENSATION_CLAIM = (
+    'standard acid-base teaching rule-of-thumb for CHRONIC '
+    'respiratory acidosis (~3.5-4 mmol/L per 10 mmHg sustained '
+    'pCO2 rise); acute is ~1. Approximate, uncited here, and '
+    'deliberately the generous end for the hypothesis under test.')
+#: The prior value, kept so the correction is auditable rather
+#: than silently rewritten.
+RENAL_COMPENSATION_SUPERSEDED = 0.4
+#: The ACUTE figure, kept as a named reference so the claim
+#: "chronic is the generous one" is CHECKABLE rather than
+#: asserted — the selftest compares them.
+ACUTE_COMPENSATION_REFERENCE = 1.0
 
 #: A PHQ-9 total of 10 or more is the conventional screening cut
 #: for moderate-or-worse depressive symptoms. It is a SCREENER,

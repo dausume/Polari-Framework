@@ -38,6 +38,7 @@ import os
 import types
 
 from climate.biomarker_link import (
+    ACUTE_COMPENSATION_REFERENCE,
     RENAL_COMPENSATION_MMOL_PER_10MMHG, attribution_test,
     biomarker_question, correlate, cycle_trend,
     explainable_bicarbonate_shift, monotonicity_warning,
@@ -1016,23 +1017,26 @@ check('fewer than 3 shared cycles REFUSES and NAMES the count — '
 
 _exp = explainable_bicarbonate_shift(CO2_PPM_1999, CO2_PPM_2023)
 check('52.9 ppm of ambient CO2 is 0.0402 mmHg of partial '
-      'pressure, which the renal constant turns into a 0.00161 '
-      'mmol/L bicarbonate shift — the whole question is a unit '
+      'pressure, which the CORRECTED renal constant (4.0, was an '
+      'order of magnitude low) turns into a 0.0161 mmol/L '
+      'bicarbonate shift — the whole question is a unit '
       'conversion away from its answer',
       _exp.get('ok')
       and abs(_exp['deltaPco2Mmhg'] - 0.0402) < 5e-5
-      and abs(_exp['explainableShiftMmolL'] - 0.00161) < 5e-6,
+      and abs(_exp['explainableShiftMmolL'] - 0.016094) < 5e-5,
       json.dumps(_exp)[:220])
 
 _attr = attribution_test(1.1404, CO2_PPM_1999, CO2_PPM_2023)
 check('THE UNIT CHECK — the one that separates "the rise is '
       'real" from "ambient CO2 caused it": the observed 1.14 '
-      'mmol/L is ~709x larger than ambient CO2 could produce, so '
-      'mechanismAdmissible is False and the verdict SAYS the '
+      'mmol/L is ~71x larger than ambient CO2 could produce '
+      '(was quoted as 709x on the old 10x-low constant — the '
+      'CONCLUSION survives the correction, the margin shrinks), '
+      'so mechanismAdmissible is False and the verdict SAYS the '
       'mechanism is too small rather than hedging',
       _attr.get('ok')
       and _attr['mechanismAdmissible'] is False
-      and 600.0 < _attr['ratio'] < 800.0
+      and 60.0 < _attr['ratio'] < 85.0
       and 'too small by orders of magnitude' in _attr['verdict'],
       json.dumps(_attr)[:260])
 
@@ -1094,12 +1098,15 @@ check('and both confounder lists are non-empty: the alternatives '
       f"{len(_bq['bicarbonateConfounders'])} / "
       f"{len(_bq['depressionConfounders'])}")
 
-check('the compensation constant is the CHRONIC figure (0.4 '
-      'mmol/L per 10 mmHg), the most generous assumption '
-      'available to the hypothesis under test — the acute figure '
-      'is smaller still, so a hypothesis that fails here fails '
-      'with any constant',
-      RENAL_COMPENSATION_MMOL_PER_10MMHG == 0.4
+check('the compensation constant is the CHRONIC figure (~4 '
+      'mmol/L per 10 mmHg — CORRECTED 2026-08-06 from 0.4, an '
+      'order of magnitude low), which is the LARGER of the two '
+      'standard figures (acute ~1) and therefore the most '
+      'generous assumption available to the hypothesis under '
+      'test: a hypothesis that fails here fails with any constant',
+      RENAL_COMPENSATION_MMOL_PER_10MMHG == 4.0
+      and RENAL_COMPENSATION_MMOL_PER_10MMHG
+      > ACUTE_COMPENSATION_REFERENCE
       and 'CHRONIC' in _exp['note'].upper(),
       str(RENAL_COMPENSATION_MMOL_PER_10MMHG))
 
