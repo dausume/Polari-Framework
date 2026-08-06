@@ -1037,7 +1037,14 @@ check('THE UNIT CHECK — the one that separates "the rise is '
       _attr.get('ok')
       and _attr['mechanismAdmissible'] is False
       and 60.0 < _attr['ratio'] < 85.0
-      and 'too small by orders of magnitude' in _attr['verdict'],
+      and _attr['modelFalsified'] is True
+      # the verdict must falsify THE MODEL, not the relation
+      and 'THIS MODEL is falsified, not the relation'
+      in _attr['verdict']
+      # and it must state what would rescue it, so the reader can
+      # judge the rescue rather than accept a bare verdict
+      and 3000 < _attr['requiredInspiredRisePpm'] < 4500
+      and 'indoor' in _attr['scope'],
       json.dumps(_attr)[:260])
 
 _small = attribution_test(0.002, CO2_PPM_1999, CO2_PPM_2023)

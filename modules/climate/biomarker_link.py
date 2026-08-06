@@ -180,22 +180,54 @@ def attribution_test(observed_shift_mmol, ppm_from, ppm_to,
                 'refusal': ('the ambient change is zero, so no '
                             'ratio is defined')}
     ratio = observed / explainable
+    # THE INVERSE QUESTION, and the more useful one (Dustin
+    # 2026-08-06): instead of only saying the model is too small,
+    # say what exposure change WOULD be required to rescue it.
+    # A reader can then judge whether that is achievable — e.g.
+    # by indoor accumulation, which is where people actually
+    # breathe — rather than being handed a bare verdict.
+    required_mmhg = (observed / RENAL_COMPENSATION_MMOL_PER_10MMHG
+                     ) * 10.0
+    required_ppm = required_mmhg * KPA_PER_MMHG / (
+        float(pressure_kpa) * 1e-6)
     if abs(ratio) <= 2.0:
         verdict = ('the observed shift is the same order as what '
-                   'ambient CO2 could produce - the mechanism is '
+                   'this model produces - the model is '
                    'ARITHMETICALLY ADMISSIBLE and needs a real '
                    'study, not a bigger dataset')
         admissible = True
     else:
-        verdict = (f'the observed shift is {abs(ratio):,.0f}x '
-                   f'larger than ambient CO2 could produce. The '
-                   f'rise may well be real, but ambient CO2 is '
-                   f'NOT its cause - the proposed mechanism is '
-                   f'too small by orders of magnitude')
+        verdict = (
+            f'THIS MODEL is falsified, not the relation: a linear '
+            f'chronic-renal-compensation response to the OUTDOOR '
+            f'ambient change is {abs(ratio):,.0f}x too small to '
+            f'account for the observed shift. That rules out this '
+            f'pathway as stated; it does NOT establish that no '
+            f'relation exists. To rescue a compensation mechanism '
+            f'the SUSTAINED INSPIRED level would have to have '
+            f'risen by ~{required_ppm:,.0f} ppm over the window '
+            f'(~{required_mmhg:.2f} mmHg), which is the number to '
+            f'argue about - indoor accumulation, tightening '
+            f'buildings and time-indoors are where such a delta '
+            f'could plausibly come from, and none of them are in '
+            f'this calculation')
         admissible = False
     return {'ok': True, 'observedShiftMmolL': observed,
             'explainableShiftMmolL': explainable,
-            'ratio': ratio, 'mechanismAdmissible': admissible,
+            'ratio': ratio,
+            # NB: this is a property of the MODEL under test, not
+            # of the underlying relation. Renamed intent, kept key
+            # for compatibility.
+            'mechanismAdmissible': admissible,
+            'modelFalsified': not admissible,
+            'requiredInspiredRisePpm': round(required_ppm, 1),
+            'requiredPco2RiseMmhg': round(required_mmhg, 4),
+            'scope': ('tests ONE pathway: linear chronic renal '
+                      'compensation driven by the OUTDOOR ambient '
+                      'delta. Non-linear responses, threshold '
+                      'effects, indoor exposure amplification and '
+                      'indirect pathways are OUT OF SCOPE and '
+                      'untested here'),
             'verdict': verdict, **{k: exp[k] for k in
                                    ('deltaPpm', 'deltaPco2Mmhg')}}
 
