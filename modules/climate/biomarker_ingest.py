@@ -26,20 +26,25 @@ zero.
 @consumers climate.climate_api (POST /api/climate/biomarker/ingest)
 """
 
-#: cycle key -> (start year, end year, NHANES year path, XPT file).
+#: cycle key -> (start year, end year, YEAR PATH, XPT file).
+#: 🔑 THE YEAR PATH IS THE CYCLE'S START YEAR ALONE. Verified
+#: live 2026-08-05: .../Public/2017/DataFiles/BIOPRO_J.xpt is
+#: the real 2.1 MB file, while .../Nchs/Nhanes/2017-2018/
+#: BIOPRO_J.XPT returns HTTP 200 with the 20,905-byte HTML
+#: 'Page Not Found' decoy the endpoint row documents.
 #: 1999-2012 is Dustin's stated minimum; later cycles included
 #: because they cost one call each and extend the same question.
 NHANES_BICARB_CYCLES = {
-    '1999-2000': (1999, 2000, '1999-2000', 'LAB18'),
-    '2001-2002': (2001, 2002, '2001-2002', 'L40_B'),
-    '2003-2004': (2003, 2004, '2003-2004', 'L40_C'),
-    '2005-2006': (2005, 2006, '2005-2006', 'BIOPRO_D'),
-    '2007-2008': (2007, 2008, '2007-2008', 'BIOPRO_E'),
-    '2009-2010': (2009, 2010, '2009-2010', 'BIOPRO_F'),
-    '2011-2012': (2011, 2012, '2011-2012', 'BIOPRO_G'),
-    '2013-2014': (2013, 2014, '2013-2014', 'BIOPRO_H'),
-    '2015-2016': (2015, 2016, '2015-2016', 'BIOPRO_I'),
-    '2017-2018': (2017, 2018, '2017-2018', 'BIOPRO_J'),
+    '1999-2000': (1999, 2000, '1999', 'LAB18'),
+    '2001-2002': (2001, 2002, '2001', 'L40_B'),
+    '2003-2004': (2003, 2004, '2003', 'L40_C'),
+    '2005-2006': (2005, 2006, '2005', 'BIOPRO_D'),
+    '2007-2008': (2007, 2008, '2007', 'BIOPRO_E'),
+    '2009-2010': (2009, 2010, '2009', 'BIOPRO_F'),
+    '2011-2012': (2011, 2012, '2011', 'BIOPRO_G'),
+    '2013-2014': (2013, 2014, '2013', 'BIOPRO_H'),
+    '2015-2016': (2015, 2016, '2015', 'BIOPRO_I'),
+    '2017-2018': (2017, 2018, '2017', 'BIOPRO_J'),
 }
 BICARB_SERIES = 'nhanes-serum-bicarbonate'
 BICARB_COLUMN = 'LBXSC3SI'
