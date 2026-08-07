@@ -211,6 +211,34 @@ def main():
           all(r.get('package_kind', '') in PACKAGE_KINDS
               for r in realizations))
 
+    # ---- basis coherence (stdlib AST — treeObjects can't be
+    # constructed here, so check the class SOURCE: every __init__
+    # param must be assigned to self, or the decorator silently
+    # drops it — the device_name-on-IsleAppService bug, live-caught
+    # 2026-08-07) --------------------------------------------------
+    import ast
+    import os
+    basis_path = os.path.join(os.path.dirname(__file__),
+                              'islemesh_basis.py')
+    tree = ast.parse(open(basis_path).read())
+    unassigned = []
+    for cls in [n for n in ast.walk(tree)
+                if isinstance(n, ast.ClassDef)]:
+        for fn in [n for n in cls.body
+                   if isinstance(n, ast.FunctionDef)
+                   and n.name == '__init__']:
+            params = ({a.arg for a in fn.args.args}
+                      - {'self', 'manager'})
+            assigned = {node.attr for node in ast.walk(fn)
+                        if isinstance(node, ast.Attribute)
+                        and isinstance(node.value, ast.Name)
+                        and node.value.id == 'self'}
+            for missing in sorted(params - assigned):
+                unassigned.append('%s.%s' % (cls.name, missing))
+    check('every basis __init__ param is assigned to self '
+          '(decorator drops the rest silently)',
+          not unassigned, str(unassigned))
+
     # ---- vocabulary coherence ---------------------------------------
     check('availability presets are named modes over the triple',
           AVAILABILITY_MODES == ('always-available', 'on-demand')

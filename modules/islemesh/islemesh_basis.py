@@ -184,6 +184,7 @@ class IsleAppService(treeObject):
     ):
         self.name = name
         self.app_name = app_name
+        self.device_name = device_name
         self.service = service
         self.subdomain = subdomain
         self.container = container
