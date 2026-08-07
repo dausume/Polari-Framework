@@ -487,6 +487,39 @@ class IsleMeshAPI(treeObject):
                               'is_mock': getattr(row, 'is_mock',
                                                  False)})
 
+        # The L2 segment (the switch): devices whose isle-candidate
+        # uplink has carrier hang off it — edge label = interface.
+        # Ethernet-up counts; wifi counts only when the device
+        # DECLARED isle membership (sole-isle) — a home-LAN wifi
+        # link must never be drawn as an isle link.
+        segment_added = False
+        linked_devices = set()
+        for row in self._table('IsleUplink').values():
+            device = getattr(row, 'device_name', '')
+            if device in linked_devices \
+                    or not getattr(row, 'link_up', False):
+                continue
+            kind = getattr(row, 'kind', '')
+            declared = ''
+            for dev_row in self._table('IsleDevice').values():
+                if getattr(dev_row, 'name', '') == device:
+                    declared = getattr(dev_row, 'connectivity_mode',
+                                       '')
+                    break
+            if kind != 'ethernet' and declared != 'sole-isle':
+                continue
+            if not segment_added:
+                add_node('segment:isle', 'segment',
+                         'isle L2 (switch)')
+                segment_added = True
+            linked_devices.add(device)
+            links.append({'source': 'device:%s' % device,
+                          'target': 'segment:isle',
+                          'kind': 'l2',
+                          'label': getattr(row, 'interface', ''),
+                          'is_mock': getattr(row, 'is_mock',
+                                             False)})
+
         for row in self._table('IsleApp').values():
             name = getattr(row, 'name', '')
             device = getattr(row, 'device_name', '')
