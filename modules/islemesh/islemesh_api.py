@@ -67,6 +67,7 @@ class IsleMeshAPI(treeObject):
             add('/api/islemesh/ingest/device', self,
                 suffix='ingest_device')
             add('/api/islemesh/matrix', self, suffix='matrix')
+            add('/api/islemesh/graph', self, suffix='graph')
             add('/api/islemesh/mock', self, suffix='mock')
 
     # ---- helpers ----------------------------------------------------
@@ -436,6 +437,108 @@ class IsleMeshAPI(treeObject):
                 for d in devices],
             'freshest_ingest': (last_seen[0] if last_seen else ''),
         }
+
+    def on_get_graph(self, request, response):
+        """The D3 topology payload (Dustin 2026-08-07): nginx
+        proxies and the apps they serve as NODES; each permit is an
+        EDGE proxy→app whose label IS the access URL. Devices are
+        group nodes; apps also link to their hosting device.
+        Everything carries is_mock so the view can dash/tint mock
+        elements and show the banner."""
+        nodes, links, seen = [], [], set()
+
+        def add_node(node_id, kind, label, device='', is_mock=False,
+                     **meta):
+            if node_id in seen:
+                return
+            seen.add(node_id)
+            node = {'id': node_id, 'kind': kind, 'label': label,
+                    'device': device, 'is_mock': bool(is_mock)}
+            node.update(meta)
+            nodes.append(node)
+
+        for row in self._table('IsleDevice').values():
+            name = getattr(row, 'name', '')
+            add_node('device:%s' % name, 'device', name,
+                     device=name,
+                     is_mock=getattr(row, 'is_mock', False),
+                     agent_present=getattr(row, 'agent_present',
+                                           False),
+                     router_running=getattr(row, 'router_running',
+                                            False),
+                     connectivity_mode=getattr(
+                         row, 'connectivity_mode', ''))
+            if getattr(row, 'agent_present', False):
+                add_node('proxy:%s' % name, 'proxy',
+                         'nginx (isle-agent)', device=name,
+                         is_mock=getattr(row, 'is_mock', False))
+                links.append({'source': 'device:%s' % name,
+                              'target': 'proxy:%s' % name,
+                              'kind': 'hosts', 'label': '',
+                              'is_mock': getattr(row, 'is_mock',
+                                                 False)})
+            if getattr(row, 'router_running', False):
+                add_node('router:%s' % name, 'router',
+                         'OpenWRT router (.isle DNS)', device=name,
+                         is_mock=getattr(row, 'is_mock', False))
+                links.append({'source': 'device:%s' % name,
+                              'target': 'router:%s' % name,
+                              'kind': 'hosts', 'label': '',
+                              'is_mock': getattr(row, 'is_mock',
+                                                 False)})
+
+        for row in self._table('IsleApp').values():
+            name = getattr(row, 'name', '')
+            device = getattr(row, 'device_name', '')
+            add_node('app:%s' % name, 'app', name, device=device,
+                     is_mock=getattr(row, 'is_mock', False),
+                     domain=getattr(row, 'domain', ''),
+                     availability_mode=getattr(
+                         row, 'availability_mode', ''),
+                     status=getattr(row, 'status', ''))
+            if device and ('device:%s' % device) in seen:
+                links.append({'source': 'device:%s' % device,
+                              'target': 'app:%s' % name,
+                              'kind': 'runs-on', 'label': '',
+                              'is_mock': getattr(row, 'is_mock',
+                                                 False)})
+
+        for row in self._table('IsleProtocolPermit').values():
+            device = getattr(row, 'device_name', '')
+            app = getattr(row, 'app_name', '')
+            server = getattr(row, 'server_name', '')
+            port = getattr(row, 'listen_port', 0)
+            protocol = getattr(row, 'protocol', 'http')
+            is_mock = getattr(row, 'is_mock', False)
+            proxy_id = 'proxy:%s' % device
+            if proxy_id not in seen:
+                # permits prove a proxy even when the device ingest
+                # missed it
+                add_node(proxy_id, 'proxy', 'nginx (isle-agent)',
+                         device=device, is_mock=is_mock)
+            app_id = 'app:%s' % (app or server)
+            if app_id not in seen:
+                add_node(app_id, 'app', app or server,
+                         device=device, is_mock=is_mock,
+                         implied=True)
+            scheme = 'https' if protocol.startswith('https') \
+                else 'http'
+            default = (scheme == 'http' and port == 80) or \
+                (scheme == 'https' and port == 443)
+            url = '%s://%s%s' % (scheme, server,
+                                 '' if default else ':%d' % port)
+            links.append({'source': proxy_id, 'target': app_id,
+                          'kind': 'serves', 'label': url,
+                          'protocol': protocol,
+                          'upstream': getattr(row, 'upstream', ''),
+                          'fragment': getattr(row, 'fragment_ref',
+                                              ''),
+                          'is_mock': is_mock})
+
+        mock = self._any_mock()
+        response.media = {'ok': True, 'mock_network': mock,
+                          'banner': (MOCK_BANNER if mock else ''),
+                          'nodes': nodes, 'links': links}
 
     def on_get_matrix(self, request, response):
         """The protocol matrix, pre-grouped for rendering: per
