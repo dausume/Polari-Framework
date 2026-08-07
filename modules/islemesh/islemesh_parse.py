@@ -57,6 +57,7 @@ def parse_registry(registry, device_name, is_mock=False):
             services.append({
                 'name': '%s/%s' % (app_name, svc_name),
                 'app_name': app_name,
+                'device_name': device_name,
                 'service': svc_name,
                 'subdomain': svc.get('subdomain', ''),
                 'container': svc.get('container', ''),

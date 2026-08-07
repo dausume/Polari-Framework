@@ -171,6 +171,9 @@ class IsleAppService(treeObject):
         # Unique key: '<app>/<service>' ('myapp/api').
         name: str = '',
         app_name: str = '',
+        # The device whose registry declared this service — makes
+        # the per-device replace semantics reach services too.
+        device_name: str = '',
         service: str = '',
         subdomain: str = '',
         container: str = '',

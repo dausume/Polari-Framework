@@ -198,6 +198,15 @@ class IsleMeshAPI(treeObject):
             self._save(row)
         for svc in parsed['services']:
             self._save(IsleAppService(manager=self.manager, **svc))
+        # Referential sweep: a service must belong to a live app —
+        # drops both drift and pre-device_name orphans.
+        app_names = {getattr(row, 'name', '')
+                     for row in self._table('IsleApp').values()}
+        svc_table = self._table('IsleAppService')
+        orphans = [key for key, row in list(svc_table.items())
+                   if getattr(row, 'app_name', '') not in app_names]
+        for key in orphans:
+            self._delete(svc_table.pop(key))
         # A readable registry proves the agent is CONFIGURED, not
         # that its container runs — agent_present stays the device
         # ingest's fact; this notes the registry only.

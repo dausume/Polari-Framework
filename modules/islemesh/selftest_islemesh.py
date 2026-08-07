@@ -117,6 +117,9 @@ def main():
     check('service fields carried',
           services['myapp/api']['container'] == 'myapp-api-1'
           and services['myapp/api']['port'] == 3000)
+    check('services carry the device (replace semantics reach '
+          'them)', all(s['device_name'] == 'isle-core'
+                       for s in parsed['services']))
     check('real data is never mock',
           not apps['myapp']['is_mock']
           and not services['myapp/api']['is_mock'])
