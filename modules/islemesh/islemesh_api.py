@@ -198,13 +198,26 @@ class IsleMeshAPI(treeObject):
             self._save(row)
         for svc in parsed['services']:
             self._save(IsleAppService(manager=self.manager, **svc))
-        # Referential sweep: a service must belong to a live app —
-        # drops both drift and pre-device_name orphans.
+        # Referential sweep: a service must belong to a live app AND
+        # carry its device (deviceless rows are pre-schema orphans or
+        # restart-flush resurrections — every legit row has one). A
+        # name may appear ONCE: replace-then-insert guarantees it,
+        # resurrected duplicates from deferred sqlite flushes break
+        # it, so dedup keeps the newest.
         app_names = {getattr(row, 'name', '')
                      for row in self._table('IsleApp').values()}
         svc_table = self._table('IsleAppService')
-        orphans = [key for key, row in list(svc_table.items())
-                   if getattr(row, 'app_name', '') not in app_names]
+        seen_names = set()
+        orphans = []
+        for key, row in sorted(list(svc_table.items()),
+                               reverse=True):
+            svc_name = getattr(row, 'name', '')
+            if (getattr(row, 'app_name', '') not in app_names
+                    or not getattr(row, 'device_name', '')
+                    or svc_name in seen_names):
+                orphans.append(key)
+            else:
+                seen_names.add(svc_name)
         for key in orphans:
             self._delete(svc_table.pop(key))
         # A readable registry proves the agent is CONFIGURED, not
