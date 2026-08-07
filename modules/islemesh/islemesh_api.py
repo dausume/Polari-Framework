@@ -119,6 +119,14 @@ class IsleMeshAPI(treeObject):
             for key in doomed:
                 self._delete(table.pop(key))
 
+    #: Fields reset when a device flips mock<->real — a real ingest
+    #: must never inherit mock-era facts it didn't supply (and vice
+    #: versa).
+    _DEVICE_RESET = {'isle_name': '', 'agent_mode': '',
+                     'agent_present': False, 'hosts_router': False,
+                     'router_running': False,
+                     'connectivity_mode': '', 'notes': ''}
+
     def _upsert_device(self, device_name, is_mock, **fields):
         table = self._table('IsleDevice')
         found = None
@@ -129,6 +137,9 @@ class IsleMeshAPI(treeObject):
         if found is None:
             found = IsleDevice(name=device_name,
                                manager=self.manager)
+        elif bool(getattr(found, 'is_mock', False)) != bool(is_mock):
+            for key, default in self._DEVICE_RESET.items():
+                setattr(found, key, default)
         found.last_seen = _now_iso()
         found.is_mock = bool(is_mock)
         for key, value in fields.items():
@@ -187,8 +198,10 @@ class IsleMeshAPI(treeObject):
             self._save(row)
         for svc in parsed['services']:
             self._save(IsleAppService(manager=self.manager, **svc))
-        self._upsert_device(device_name, is_mock,
-                            agent_present=True)
+        # A readable registry proves the agent is CONFIGURED, not
+        # that its container runs — agent_present stays the device
+        # ingest's fact; this notes the registry only.
+        self._upsert_device(device_name, is_mock)
         counts = {'IsleApp': len(parsed['apps']),
                   'IsleAppService': len(parsed['services'])}
         receipt = self._receipt(
@@ -233,6 +246,24 @@ class IsleMeshAPI(treeObject):
             return self._refuse(response, err)
         device_name, is_mock = self._ingest_header(payload, response)
         if device_name is None:
+            return
+        if payload.get('retire'):
+            # The device left the mesh (or was ingested under a
+            # wrong name): drop its row + everything attributed to
+            # it. Receipts stay — they are history.
+            table = self._table('IsleDevice')
+            doomed = [key for key, row in list(table.items())
+                      if getattr(row, 'name', '') == device_name]
+            for key in doomed:
+                self._delete(table.pop(key))
+            self._replace_device_rows(
+                _REGISTRY_CLASSES + _FRAGMENT_CLASSES
+                + _DEVICE_CLASSES, device_name)
+            self._receipt(device_name, 'device', b'retire',
+                          {'retired': len(doomed)}, is_mock,
+                          notes='device retired')
+            response.media = {'ok': True,
+                              'retired': bool(doomed)}
             return
         facts = payload.get('facts') or {}
         mode = facts.get('connectivity_mode')
