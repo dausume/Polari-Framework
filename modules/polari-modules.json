@@ -335,6 +335,15 @@
         "polariapps"
       ],
       "description": "Polari App Store (appstore-1): installable native shells over the polariapps content layer \u2014 catalog/identity, one-time enrollment tokens (hashed at rest), overlaid Gradle source archives + prebuilt binaries from MinIO."
+    },
+    "islemesh": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/islemesh",
+      "repo": "",
+      "wave": 7,
+      "requires": [],
+      "description": "isle-mesh convergence (mac-1): the polari-side acceptor for isle-mesh data \u2014 devices/uplinks/mesh-apps/protocol-permits ingested from the isle agent's registry.json + nginx fragments (isle stays authoritative over networking); mock ingests carry mock_network=true, surfaced as a banner. Feeds /display/isle-mesh and the mac-10 console."
     }
   }
 }

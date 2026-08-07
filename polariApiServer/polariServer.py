@@ -1116,6 +1116,22 @@ from topology.topology_seed import (
     SEED_ORCHESTRATION_TARGETS, SEED_SERVICE_CONNECTIONS,
     SEED_TOPOLOGY_DEFINITIONS,
 )
+# islemesh (mac-1): the polari-side acceptor for isle-mesh data —
+# devices/uplinks/apps/permits rows are isle's ACCEPTED copy (isle
+# stays authoritative over networking); mock ingests carry a flag
+# real data never does, surfaced as the summary banner.
+try:
+    from islemesh.islemesh_basis import (
+        IsleApp, IsleAppService, IsleDevice, IsleIngestReceipt,
+        IsleProtocolPermit, IsleUplink, MeshAppRealization,
+    )
+    from islemesh.islemesh_page import SEED_ISLEMESH_PAGE_DISPLAYS
+except ImportError as _exc:
+    _stub_missing_feature('islemesh', _exc, globals(), (
+        'IsleApp', 'IsleAppService', 'IsleDevice',
+        'IsleIngestReceipt', 'IsleProtocolPermit', 'IsleUplink',
+        'MeshAppRealization', 'SEED_ISLEMESH_PAGE_DISPLAYS',
+    ))
 # Tech tree (tt-3): technologies with theory/real/business/politics
 # segments; completion always DERIVED (techtree_analysis), edges
 # derived from depends_on_json with tt-1 transient designation.
@@ -1962,6 +1978,12 @@ class polariServer(treeObject):
             from appstore.appstore_api import AppStoreAPI
             appStoreEndpoint = AppStoreAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('islemesh'):
+            # islemesh (mac-1): ingest + read surface for isle-mesh
+            # data (registry/fragments/device facts; mock flagged).
+            from islemesh.islemesh_api import IsleMeshAPI
+            isleMeshEndpoint = IsleMeshAPI(
+                polServer=self, manager=self.manager)
         if _feature_available('techtree'):
             # Tech tree (tt-3): trees/nodes/segments + derived completion
             # rollup — the topology expansion toward the OSEB.
@@ -2290,6 +2312,11 @@ class polariServer(treeObject):
             # records, one-time enrollments, install receipts.
             AppShellDefinition, ShellArtifact, ShellEnrollment,
             ShellInstallation,
+            # islemesh (mac-1): isle's accepted copy + the mesh-app
+            # model (ingest-owned rows; is_mock stamps mock data).
+            IsleDevice, IsleUplink, IsleApp, IsleAppService,
+            MeshAppRealization, IsleProtocolPermit,
+            IsleIngestReceipt,
             # Tech tree (tt-3) + segment content (tt-6).
             TechTreeDefinition, TechNode, TechSegment,
             TechSegmentAssignment, TechDependencyEdge,
@@ -3204,7 +3231,8 @@ class polariServer(treeObject):
              + (SEED_PSPP_PAGE_DISPLAYS or [])
              + SEED_SSP_PAGE_DISPLAYS
              + (SEED_CASTING_PAGE_DISPLAYS or [])
-             + (SEED_APPSTORE_PAGE_DISPLAYS or [])),
+             + (SEED_APPSTORE_PAGE_DISPLAYS or [])
+             + (SEED_ISLEMESH_PAGE_DISPLAYS or [])),
             # Materials basis — identities before their scale rows.
             ('MaterialsScienceMaterial', MaterialsScienceMaterial,
              SEED_MS_MATERIALS + SEED_STANDARD_MATERIALS
