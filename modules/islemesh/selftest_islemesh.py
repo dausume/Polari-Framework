@@ -165,8 +165,11 @@ def main():
 
     # ---- the mock feed ----------------------------------------------
     ingests = mock_ingests()
-    check('mock covers every ingest kind',
-          {kind for kind, _ in ingests} == set(INGEST_KINDS))
+    # 'engine' is an app-declared ingest (isle app deploy --engine),
+    # not part of the device/registry/fragment mock feed.
+    check('mock covers every device-facing ingest kind',
+          {kind for kind, _ in ingests}
+          == set(INGEST_KINDS) - {'engine'})
     check('EVERY mock payload declares mock_network '
           '(the flag real data never carries)',
           all(payload.get('mock_network') is True
@@ -238,6 +241,39 @@ def main():
     check('every basis __init__ param is assigned to self '
           '(decorator drops the rest silently)',
           not unassigned, str(unassigned))
+
+    # ---- engine binder (§20.4) --------------------------------------
+    from islemesh.islemesh_engines import bind_engine, _BINDERS
+    saved = []
+    # a manager complete enough to construct treeObjects
+    fakemgr = type('M', (), {'objectTables': {}, 'idList': []})()
+    # unknown kind: recorded, not bound, honest note
+    bound, to, note = bind_engine(fakemgr, 'x', 'weather', 'u',
+                                  saved.append)
+    check('unknown engine kind records unbound + honest',
+          not bound and 'no polari consumer' in note)
+    # known kind: binds when odooconnect is importable (full tree),
+    # else records available-but-unbound naming the consumer
+    try:
+        import odooconnect.odoo_basis  # noqa: F401
+        odoo_here = True
+    except ImportError:
+        odoo_here = False
+    bound, to, note = bind_engine(fakemgr, 'books', 'business-ops',
+                                  'http://books.isle', saved.append)
+    if odoo_here:
+        cfg = next((r for r in fakemgr.objectTables.get(
+            'OdooInstanceConfig', {}).values()
+            if getattr(r, 'name', '') == 'books'), None)
+        check('business-ops binds an OdooInstanceConfig at the url',
+              bound and cfg is not None
+              and getattr(cfg, 'base_url', '') == 'http://books.isle')
+    else:
+        check('business-ops unbound when odooconnect absent, '
+              'names it', not bound and to == 'odooconnect')
+    check('business-ops + odoo both map to the odoo binder',
+          _BINDERS['business-ops'][0] == 'odooconnect'
+          and _BINDERS['odoo'][0] == 'odooconnect')
 
     # ---- vocabulary coherence ---------------------------------------
     check('availability presets are named modes over the triple',

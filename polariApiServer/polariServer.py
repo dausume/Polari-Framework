@@ -1122,13 +1122,14 @@ from topology.topology_seed import (
 # real data never does, surfaced as the summary banner.
 try:
     from islemesh.islemesh_basis import (
-        IsleApp, IsleAppService, IsleDevice, IsleIngestReceipt,
-        IsleProtocolPermit, IsleUplink, MeshAppRealization,
+        IsleApp, IsleAppService, IsleDevice, IsleEngine,
+        IsleIngestReceipt, IsleProtocolPermit, IsleUplink,
+        MeshAppRealization,
     )
     from islemesh.islemesh_page import SEED_ISLEMESH_PAGE_DISPLAYS
 except ImportError as _exc:
     _stub_missing_feature('islemesh', _exc, globals(), (
-        'IsleApp', 'IsleAppService', 'IsleDevice',
+        'IsleApp', 'IsleAppService', 'IsleDevice', 'IsleEngine',
         'IsleIngestReceipt', 'IsleProtocolPermit', 'IsleUplink',
         'MeshAppRealization', 'SEED_ISLEMESH_PAGE_DISPLAYS',
     ))
@@ -2315,7 +2316,7 @@ class polariServer(treeObject):
             # islemesh (mac-1): isle's accepted copy + the mesh-app
             # model (ingest-owned rows; is_mock stamps mock data).
             IsleDevice, IsleUplink, IsleApp, IsleAppService,
-            MeshAppRealization, IsleProtocolPermit,
+            MeshAppRealization, IsleProtocolPermit, IsleEngine,
             IsleIngestReceipt,
             # Tech tree (tt-3) + segment content (tt-6).
             TechTreeDefinition, TechNode, TechSegment,

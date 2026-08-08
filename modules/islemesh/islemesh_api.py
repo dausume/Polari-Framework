@@ -32,9 +32,11 @@ from datetime import datetime, timezone
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from islemesh.islemesh_basis import (
-    IsleApp, IsleAppService, IsleDevice, IsleIngestReceipt,
-    IsleProtocolPermit, IsleUplink, MeshAppRealization,
+    IsleApp, IsleAppService, IsleDevice, IsleEngine,
+    IsleIngestReceipt, IsleProtocolPermit, IsleUplink,
+    MeshAppRealization,
 )
+from islemesh.islemesh_engines import bind_engine
 from islemesh.islemesh_constants import (
     AGENT_MODES, CONNECTIVITY_MODES, MOCK_BANNER, UPLINK_KINDS,
 )
@@ -68,6 +70,9 @@ class IsleMeshAPI(treeObject):
                 suffix='ingest_device')
             add('/api/islemesh/matrix', self, suffix='matrix')
             add('/api/islemesh/graph', self, suffix='graph')
+            add('/api/islemesh/ingest/engine', self,
+                suffix='ingest_engine')
+            add('/api/islemesh/engines', self, suffix='engines')
             add('/api/islemesh/mock', self, suffix='mock')
 
     # ---- helpers ----------------------------------------------------
@@ -395,6 +400,70 @@ class IsleMeshAPI(treeObject):
                           'ingests': results,
                           'realizations': len(mock_realizations())}
 
+    # ---- engines (§20.4) --------------------------------------------
+
+    def on_post_ingest_engine(self, request, response):
+        """An isle app declares it provides a polari engine. Record
+        the IsleEngine row AND bind it into the consuming module's
+        provider config (odoo → OdooInstanceConfig.base_url). Absent
+        consumer = recorded available-but-unbound (honest)."""
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        device_name, is_mock = self._ingest_header(payload, response)
+        if device_name is None:
+            return
+        app_name = (payload or {}).get('app', '').strip()
+        provides = (payload or {}).get('provides', '').strip()
+        url = (payload or {}).get('url', '').strip()
+        if not (app_name and provides and url):
+            return self._refuse(
+                response, "engine ingest requires 'app', "
+                "'provides', and 'url'")
+        bound, bound_to, note = bind_engine(
+            self.manager, app_name, provides, url, self._save)
+        key = '%s@%s' % (app_name, provides)
+        table = self._table('IsleEngine')
+        row = None
+        for candidate in table.values():
+            if getattr(candidate, 'name', '') == key:
+                row = candidate
+                break
+        if row is None:
+            row = IsleEngine(name=key, manager=self.manager)
+        row.app_name = app_name
+        row.device_name = device_name
+        row.provides = provides
+        row.url = url
+        row.bound = bound
+        row.bound_to = bound_to
+        row.is_mock = is_mock
+        row.notes = note
+        self._save(row)
+        self._receipt(device_name, 'engine',
+                      json.dumps(payload, sort_keys=True).encode(),
+                      {'IsleEngine': 1, 'bound': int(bound)},
+                      is_mock, notes=note)
+        response.media = {'ok': True, 'engine': key, 'bound': bound,
+                          'bound_to': bound_to, 'note': note,
+                          'mock_network': is_mock}
+
+    def on_get_engines(self, request, response):
+        rows = []
+        for row in self._table('IsleEngine').values():
+            rows.append({
+                'name': getattr(row, 'name', ''),
+                'app': getattr(row, 'app_name', ''),
+                'provides': getattr(row, 'provides', ''),
+                'url': getattr(row, 'url', ''),
+                'bound': getattr(row, 'bound', False),
+                'bound_to': getattr(row, 'bound_to', ''),
+                'note': getattr(row, 'notes', ''),
+                'is_mock': getattr(row, 'is_mock', False),
+            })
+        rows.sort(key=lambda r: r['name'])
+        response.media = {'ok': True, 'engines': rows}
+
     # ---- read -------------------------------------------------------
 
     def _any_mock(self):
@@ -422,7 +491,8 @@ class IsleMeshAPI(treeObject):
                 for class_name in (
                     'IsleDevice', 'IsleUplink', 'IsleApp',
                     'IsleAppService', 'MeshAppRealization',
-                    'IsleProtocolPermit', 'IsleIngestReceipt')},
+                    'IsleProtocolPermit', 'IsleEngine',
+                    'IsleIngestReceipt')},
             'devices': [
                 {'name': getattr(d, 'name', ''),
                  'isle_name': getattr(d, 'isle_name', ''),

@@ -63,7 +63,7 @@ CONNECTIVITY_MODES = ('sole-isle', 'dual-home')
 PERMIT_PROTOCOLS = ('http', 'https', 'https-mtls')
 
 #: Ingest payload kinds accepted by /api/islemesh/ingest/*.
-INGEST_KINDS = ('registry', 'fragments', 'device')
+INGEST_KINDS = ('registry', 'fragments', 'device', 'engine')
 
 #: Device agent roles isle knows (agent.mode on isle-core's create).
 AGENT_MODES = ('', 'core', 'remote')
