@@ -288,8 +288,9 @@ def main():
           mesh['ok'] and 'isle app deploy whoami' in mesh['steps'][0]
           and '--image traefik/whoami' in mesh['steps'][0])
     odoo = install_plan(by_name['odoo'])
-    check('engine app plan carries --engine business-ops',
-          '--engine business-ops' in odoo['steps'][0])
+    check('engine app plan: image ref + --engine business-ops',
+          '--image odoo:16' in odoo['steps'][0]
+          and '--engine business-ops' in odoo['steps'][0])
     papp = install_plan(by_name['polari'])
     check('polari-app plan builds a launcher + apt install',
           papp['ok'] and any('launcher' in s for s in papp['steps'])
