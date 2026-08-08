@@ -1122,16 +1122,18 @@ from topology.topology_seed import (
 # real data never does, surfaced as the summary banner.
 try:
     from islemesh.islemesh_basis import (
-        IsleApp, IsleAppService, IsleDevice, IsleEngine,
-        IsleIngestReceipt, IsleProtocolPermit, IsleUplink,
-        MeshAppRealization,
+        IsleApp, IsleAppService, IsleCatalogEntry, IsleDevice,
+        IsleEngine, IsleIngestReceipt, IsleProtocolPermit,
+        IsleUplink, MeshAppRealization,
     )
+    from islemesh.islemesh_catalog import SEED_CATALOG
     from islemesh.islemesh_page import SEED_ISLEMESH_PAGE_DISPLAYS
 except ImportError as _exc:
     _stub_missing_feature('islemesh', _exc, globals(), (
-        'IsleApp', 'IsleAppService', 'IsleDevice', 'IsleEngine',
-        'IsleIngestReceipt', 'IsleProtocolPermit', 'IsleUplink',
-        'MeshAppRealization', 'SEED_ISLEMESH_PAGE_DISPLAYS',
+        'IsleApp', 'IsleAppService', 'IsleCatalogEntry',
+        'IsleDevice', 'IsleEngine', 'IsleIngestReceipt',
+        'IsleProtocolPermit', 'IsleUplink', 'MeshAppRealization',
+        'SEED_CATALOG', 'SEED_ISLEMESH_PAGE_DISPLAYS',
     ))
 # Tech tree (tt-3): technologies with theory/real/business/politics
 # segments; completion always DERIVED (techtree_analysis), edges
@@ -2317,7 +2319,7 @@ class polariServer(treeObject):
             # model (ingest-owned rows; is_mock stamps mock data).
             IsleDevice, IsleUplink, IsleApp, IsleAppService,
             MeshAppRealization, IsleProtocolPermit, IsleEngine,
-            IsleIngestReceipt,
+            IsleCatalogEntry, IsleIngestReceipt,
             # Tech tree (tt-3) + segment content (tt-6).
             TechTreeDefinition, TechNode, TechSegment,
             TechSegmentAssignment, TechDependencyEdge,
@@ -3557,6 +3559,9 @@ class polariServer(treeObject):
             # the AppStoreSeed upsert hook (ten-strikes gotcha).
             ('AppShellDefinition', AppShellDefinition,
              SEED_APP_SHELLS),
+            # islemesh (§20): the general isle app store catalog —
+            # the two proven variants (mesh-app + polari-app) + odoo.
+            ('IsleCatalogEntry', IsleCatalogEntry, SEED_CATALOG),
             # aqp-1: self-watering pots + their side holes (pots
             # before holes — holes reference their pot).
             ('PotDefinition', PotDefinition, SEED_POTS),

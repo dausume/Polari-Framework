@@ -275,6 +275,29 @@ def main():
           _BINDERS['business-ops'][0] == 'odooconnect'
           and _BINDERS['odoo'][0] == 'odooconnect')
 
+    # ---- catalog install plans (§20.1/§20.3) ------------------------
+    from islemesh.islemesh_catalog import SEED_CATALOG, install_plan
+    kinds = {e['kind'] for e in SEED_CATALOG}
+    check('catalog seeds both proven variants',
+          'mesh-app' in kinds and 'polari-app' in kinds)
+    check('seed catalog is never mock',
+          all(not e.get('is_mock') for e in SEED_CATALOG))
+    by_name = {e['name']: e for e in SEED_CATALOG}
+    mesh = install_plan(by_name['whoami'])
+    check('mesh-app plan calls isle app deploy',
+          mesh['ok'] and 'isle app deploy whoami' in mesh['steps'][0]
+          and '--image traefik/whoami' in mesh['steps'][0])
+    odoo = install_plan(by_name['odoo'])
+    check('engine app plan carries --engine business-ops',
+          '--engine business-ops' in odoo['steps'][0])
+    papp = install_plan(by_name['polari'])
+    check('polari-app plan builds a launcher + apt install',
+          papp['ok'] and any('launcher' in s for s in papp['steps'])
+          and any('apt install' in s for s in papp['steps']))
+    check('unknown kind plan refuses honestly',
+          not install_plan({'kind': 'bogus',
+                            'name': 'x'})['ok'])
+
     # ---- vocabulary coherence ---------------------------------------
     check('availability presets are named modes over the triple',
           AVAILABILITY_MODES == ('always-available', 'on-demand')

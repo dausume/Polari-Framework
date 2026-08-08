@@ -37,6 +37,7 @@ from islemesh.islemesh_basis import (
     MeshAppRealization,
 )
 from islemesh.islemesh_engines import bind_engine
+from islemesh.islemesh_catalog import install_plan
 from islemesh.islemesh_constants import (
     AGENT_MODES, CONNECTIVITY_MODES, MOCK_BANNER, UPLINK_KINDS,
 )
@@ -73,6 +74,9 @@ class IsleMeshAPI(treeObject):
             add('/api/islemesh/ingest/engine', self,
                 suffix='ingest_engine')
             add('/api/islemesh/engines', self, suffix='engines')
+            add('/api/islemesh/catalog', self, suffix='catalog')
+            add('/api/islemesh/catalog/{entry}', self,
+                suffix='catalog_entry')
             add('/api/islemesh/mock', self, suffix='mock')
 
     # ---- helpers ----------------------------------------------------
@@ -464,6 +468,49 @@ class IsleMeshAPI(treeObject):
         rows.sort(key=lambda r: r['name'])
         response.media = {'ok': True, 'engines': rows}
 
+    # ---- catalog (§20.1/§20.3) --------------------------------------
+
+    def _entry_dict(self, row):
+        return {
+            'name': getattr(row, 'name', ''),
+            'title': getattr(row, 'title', ''),
+            'description': getattr(row, 'description', ''),
+            'kind': getattr(row, 'kind', ''),
+            'source_ref': getattr(row, 'source_ref', ''),
+            'service': getattr(row, 'service', ''),
+            'port': getattr(row, 'port', 0),
+            'domain': getattr(row, 'domain', ''),
+            'provides_engine': getattr(row, 'provides_engine', ''),
+            'category': getattr(row, 'category', ''),
+            'source': getattr(row, 'source', ''),
+            'published': getattr(row, 'published', True),
+        }
+
+    def on_get_catalog(self, request, response):
+        """The browsable store: published entries, both variants."""
+        entries = [self._entry_dict(r)
+                   for r in self._table('IsleCatalogEntry').values()
+                   if getattr(r, 'published', True)]
+        entries.sort(key=lambda e: (e['category'], e['name']))
+        response.media = {'ok': True, 'count': len(entries),
+                          'entries': entries}
+
+    def on_get_catalog_entry(self, request, response, entry):
+        """One entry + its INSTALL PLAN (host commands the isle CLI
+        runs — the backend never deploys, the mover-on-host rule)."""
+        row = None
+        for candidate in self._table('IsleCatalogEntry').values():
+            if getattr(candidate, 'name', '') == entry:
+                row = candidate
+                break
+        if row is None:
+            return self._refuse(response,
+                                'no catalog entry %r' % entry,
+                                '404 Not Found')
+        info = self._entry_dict(row)
+        info['install_plan'] = install_plan(info)
+        response.media = {'ok': True, 'entry': info}
+
     # ---- read -------------------------------------------------------
 
     def _any_mock(self):
@@ -492,7 +539,7 @@ class IsleMeshAPI(treeObject):
                     'IsleDevice', 'IsleUplink', 'IsleApp',
                     'IsleAppService', 'MeshAppRealization',
                     'IsleProtocolPermit', 'IsleEngine',
-                    'IsleIngestReceipt')},
+                    'IsleCatalogEntry', 'IsleIngestReceipt')},
             'devices': [
                 {'name': getattr(d, 'name', ''),
                  'isle_name': getattr(d, 'isle_name', ''),
