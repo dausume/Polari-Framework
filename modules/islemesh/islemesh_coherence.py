@@ -18,12 +18,29 @@ device; manipulation rides the same store/deploy machinery.
 
 from islemesh.islemesh_catalog import instances_of
 
+#: Polari's COMPONENT scaling shape (Dustin): one frontend, one sql,
+#: one cache per instance-group — but backends are the replicable
+#: part. Whole-stack duplication (polari-2) is the coarse form;
+#: component-level scaling is the real one (needs the shared-db
+#: profile + upstream LB — the recorded next arc).
+POLARI_COMPONENTS = {
+    'frontend': 'singleton',
+    'sql': 'singleton',
+    'cache': 'singleton',
+    'blob': 'singleton',
+    'auth': 'singleton',
+    'backend': 'replicable',
+}
 
-def assess_topology(devices, apps):
+
+def assess_topology(devices, apps, services=None):
     """Joined view + evidence-bearing assessments.
 
-    devices: [{name, agent_present, last_seen, is_mock}, ...]
-    apps:    [{name, device_name, domain, is_mock}, ...]
+    devices:  [{name, agent_present, last_seen, is_mock}, ...]
+    apps:     [{name, device_name, domain, is_mock}, ...]
+    services: [{app_name, subdomain, device_name, is_mock}, ...]
+              (optional — the api/auth/... SUB-DOMAINS under each
+              app; polari-style apps are unreadable without them)
 
     Returns {'devices': [...], 'polari': {...},
              'assessments': [{level, code, message}, ...]}.
@@ -31,11 +48,53 @@ def assess_topology(devices, apps):
     """
     real_devices = [d for d in devices if not d.get('is_mock')]
     real_apps = [a for a in apps if not a.get('is_mock')]
+    subs_by_app = {}
+    for s in (services or []):
+        if s.get('is_mock'):
+            continue
+        sub = s.get('subdomain', '')
+        if sub:
+            subs_by_app.setdefault(
+                (s.get('app_name', ''),
+                 s.get('device_name', '')), []).append(sub)
+    # SUB-DOMAIN folding: the registry models api.polari.isle as a
+    # SIBLING app ('polari-api'); coherently, any app whose domain is
+    # '<sub>.X.isle' on the same device IS a subdomain of the app
+    # owning 'X.isle' — fold it under its parent (api/auth/... must
+    # be visible UNDER the app, not beside it).
+    owner_by_domain = {}
+    for a in real_apps:
+        dom = a.get('domain', '')
+        if dom:
+            owner_by_domain[(a.get('device_name', ''), dom)] = a
+    folded = set()
+    for a in real_apps:
+        dom = a.get('domain', '')
+        dev = a.get('device_name', '')
+        parts = dom.split('.', 1)
+        if len(parts) == 2 and (dev, parts[1]) in owner_by_domain \
+                and parts[1] != dom:
+            parent = owner_by_domain[(dev, parts[1])]
+            subs_by_app.setdefault(
+                (parent.get('name', ''), dev), []).append(dom)
+            folded.add((a.get('name', ''), dev))
+    real_apps = [a for a in real_apps
+                 if (a.get('name', ''), a.get('device_name', ''))
+                 not in folded]
+
     by_device = {}
     for a in real_apps:
         by_device.setdefault(a.get('device_name', ''), []).append(a)
 
     polari_instances = instances_of(real_apps, 'polari')
+    for i in polari_instances:
+        # THE CORE polari is self-evident from the isle side: the
+        # instance serving polari.isle — the isle's own polari, the
+        # ingest/self-feed target (we are combining the two systems).
+        i['role'] = ('core' if i.get('domain') == 'polari.isle'
+                     else 'additional')
+        i['subdomains'] = sorted(subs_by_app.get(
+            (i['app'], i['device']), []))
     polari_devices = {i['device'] for i in polari_instances}
 
     out_devices = []
@@ -48,7 +107,15 @@ def assess_topology(devices, apps):
             'name': name,
             'agent_present': agent,
             'app_count': len(d_apps),
-            'apps': sorted(a.get('name', '') for a in d_apps),
+            # each app with its SUB-DOMAINS (api/auth/... — where
+            # the pieces of polari-style apps actually live)
+            'apps': sorted(
+                ({'name': a.get('name', ''),
+                  'domain': a.get('domain', ''),
+                  'subdomains': sorted(subs_by_app.get(
+                      (a.get('name', ''), name), []))}
+                 for a in d_apps),
+                key=lambda x: x['name']),
             'polari_instances': sorted(
                 i['app'] for i in polari_instances
                 if i['device'] == name),
@@ -82,12 +149,25 @@ def assess_topology(devices, apps):
                        'instance deploy — a mesh-app install)'
                        % ', '.join(candidates)})
 
+    core = [i for i in polari_instances if i['role'] == 'core']
+    if polari_instances and not core:
+        assessments.append({
+            'level': 'warn', 'code': 'no-core-polari',
+            'message': 'no polari instance serves polari.isle — '
+                       'the isle has no CORE polari (ingests and '
+                       'the store have no home)'})
+
     return {
         'devices': out_devices,
         'polari': {
             'instances': polari_instances,
+            'core': (core[0] if core else None),
             'devices': sorted(polari_devices),
             'candidates': candidates,
+            # the component scaling shape: polari installs as
+            # SUBSECTIONS of itself — singletons vs the replicable
+            # backend (component installs are the recorded next arc)
+            'components': POLARI_COMPONENTS,
         },
         'assessments': assessments,
     }

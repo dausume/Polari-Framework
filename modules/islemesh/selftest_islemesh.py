@@ -335,18 +335,55 @@ def main():
         apps=[
             {'name': 'polari', 'device_name': 'isle-core',
              'domain': 'polari.isle'},
-            {'name': 'whoami-2', 'device_name': 'pol-core',
-             'domain': 'whoami-2.isle'},
+            {'name': 'polari-2', 'device_name': 'pol-core',
+             'domain': 'polari-2.isle'},
             {'name': 'ghost', 'device_name': 'econ-core',
              'domain': 'ghost.isle'},
+        ],
+        services=[
+            {'app_name': 'polari', 'device_name': 'isle-core',
+             'subdomain': 'api.polari.isle'},
         ])
+    # sibling-app folding: polari-api (domain api.polari.isle) must
+    # fold UNDER polari, not stand beside it
+    coh2 = assess_topology(
+        devices=[{'name': 'isle-core', 'agent_present': True}],
+        apps=[
+            {'name': 'polari', 'device_name': 'isle-core',
+             'domain': 'polari.isle'},
+            {'name': 'polari-api', 'device_name': 'isle-core',
+             'domain': 'api.polari.isle'},
+        ])
+    core2 = coh2['polari']['core']
+    check('coherence: sibling api-app folds under its parent',
+          core2 is not None
+          and core2['subdomains'] == ['api.polari.isle']
+          and all(a['name'] != 'polari-api'
+                  for a in coh2['devices'][0]['apps']))
     codes = {a['code'] for a in coh['assessments']}
     check('coherence: polari instances joined per device',
-          coh['polari']['devices'] == ['isle-core']
-          and coh['polari']['candidates'] == ['pol-core'])
+          sorted(coh['polari']['devices'])
+          == ['isle-core', 'pol-core']
+          and coh['polari']['candidates'] == [])
     check('coherence: apps without an agent flagged',
-          'apps-without-agent' in codes
-          and 'polari-scale-candidates' in codes)
+          'apps-without-agent' in codes)
+    check('coherence: THE CORE polari = the polari.isle server, '
+          'subdomains attached',
+          coh['polari']['core']['device'] == 'isle-core'
+          and coh['polari']['core']['subdomains']
+          == ['api.polari.isle']
+          and next(i for i in coh['polari']['instances']
+                   if i['app'] == 'polari-2')['role']
+          == 'additional')
+    check('coherence: device apps carry their SUB-DOMAINS',
+          next(a for a in coh['devices']
+               if a['name'] == 'isle-core')['apps'][0]['subdomains']
+          == ['api.polari.isle'])
+    check('coherence: the component shape names backend as the '
+          'replicable subsection',
+          coh['polari']['components']['backend'] == 'replicable'
+          and coh['polari']['components']['frontend']
+          == 'singleton')
     empty = assess_topology(devices=[], apps=[])
     check('coherence: no polari anywhere is a WARN',
           any(a['code'] == 'no-polari'

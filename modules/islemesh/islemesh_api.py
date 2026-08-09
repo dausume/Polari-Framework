@@ -565,7 +565,12 @@ class IsleMeshAPI(treeObject):
                  'domain': getattr(a, 'domain', ''),
                  'is_mock': getattr(a, 'is_mock', False)}
                 for a in self._table('IsleApp').values()]
-        result = assess_topology(devices, apps)
+        services = [{'app_name': getattr(s, 'app_name', ''),
+                     'subdomain': getattr(s, 'subdomain', ''),
+                     'device_name': getattr(s, 'device_name', ''),
+                     'is_mock': getattr(s, 'is_mock', False)}
+                    for s in self._table('IsleAppService').values()]
+        result = assess_topology(devices, apps, services)
         result['ok'] = True
         result['mock_network'] = self._any_mock()
         response.media = result
