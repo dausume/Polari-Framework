@@ -80,17 +80,22 @@ def install_plan(entry):
                     name, ' (+ engine %s)' % entry['provides_engine']
                     if entry.get('provides_engine') else '')}
     if kind == 'polari-app':
-        # shared-shell launcher .deb over the app's .isle URL
+        # ONE command: build + install a native launcher sharing the
+        # one polari-shell-core runtime (feels native, §32). The
+        # verb ensures the shared core first.
+        title = entry.get('title', name)
         return {'ok': True, 'steps': [
-            'isle shell launcher --name %s --url %s '
-            '--ca /etc/isle-mesh/ca/isle-root.crt' % (name, ref),
-            'sudo apt install ./%s-app-%s_*.deb' % ('isle', name),
-        ], 'note': 'installs a native launcher (shares '
-                   'polari-shell-core) for %s' % ref}
+            'isle shell launcher --name %s --title %r --url %s '
+            '--install' % (name, title, ref),
+        ], 'note': 'installs %s as a NATIVE-feeling app (shares '
+                   'polari-shell-core)' % title}
     if kind == 'polari-module':
+        # a polari module installed into the local instance via the
+        # module .deb (mac-8) or, until the deb repo lands, the
+        # topology assign path.
+        mod = ref or name
         return {'ok': True, 'steps': [
-            'sudo apt install polari-module-%s' % (ref or name),
-        ], 'note': 'installs the %s module into the local instance'
-                   % (ref or name)}
+            'isle module install %s' % mod,
+        ], 'note': 'installs the %s polari module' % mod}
     return {'ok': False, 'steps': [],
             'note': 'unknown catalog kind %r' % kind}
