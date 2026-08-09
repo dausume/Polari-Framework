@@ -324,6 +324,34 @@ def main():
           and all(i['device'] != 'mockdev' for i in inst)
           and len(instances_of(app_rows, 'odoo')) == 1)
 
+    # ---- topology coherence (joined isle x polari view) -------------
+    from islemesh.islemesh_coherence import assess_topology
+    coh = assess_topology(
+        devices=[
+            {'name': 'isle-core', 'agent_present': True},
+            {'name': 'pol-core', 'agent_present': True},
+            {'name': 'econ-core', 'agent_present': False},
+        ],
+        apps=[
+            {'name': 'polari', 'device_name': 'isle-core',
+             'domain': 'polari.isle'},
+            {'name': 'whoami-2', 'device_name': 'pol-core',
+             'domain': 'whoami-2.isle'},
+            {'name': 'ghost', 'device_name': 'econ-core',
+             'domain': 'ghost.isle'},
+        ])
+    codes = {a['code'] for a in coh['assessments']}
+    check('coherence: polari instances joined per device',
+          coh['polari']['devices'] == ['isle-core']
+          and coh['polari']['candidates'] == ['pol-core'])
+    check('coherence: apps without an agent flagged',
+          'apps-without-agent' in codes
+          and 'polari-scale-candidates' in codes)
+    empty = assess_topology(devices=[], apps=[])
+    check('coherence: no polari anywhere is a WARN',
+          any(a['code'] == 'no-polari'
+              for a in empty['assessments']))
+
     # ---- vocabulary coherence ---------------------------------------
     check('availability presets are named modes over the triple',
           AVAILABILITY_MODES == ('always-available', 'on-demand')

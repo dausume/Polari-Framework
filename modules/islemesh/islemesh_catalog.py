@@ -38,6 +38,18 @@ SEED_CATALOG = [
         'source': 'official',
     },
     {
+        'name': 'polari-instance', 'title': 'Polari (new instance)',
+        'description': 'Deploy ANOTHER polari instance onto this '
+                       'device as a mesh-app: backend + frontend '
+                       'behind the local agent, its own '
+                       '<name>.isle domains, modules chosen at '
+                       'deploy — polari topology manipulation as a '
+                       'store install.',
+        'kind': 'polari-instance',
+        'source_ref': 'prf-backend:staging + prf-frontend:staging',
+        'category': 'platform', 'source': 'official',
+    },
+    {
         'name': 'odoo', 'title': 'Odoo (business ops)',
         'description': 'Odoo ERP deployed to the isle and wired as '
                        'a Polari business-ops ENGINE automatically.',
@@ -111,6 +123,17 @@ def install_plan(entry):
             '--install' % (name, title, ref),
         ], 'note': 'installs %s as a NATIVE-feeling app (shares '
                    'polari-shell-core)' % title}
+    if kind == 'polari-instance':
+        # a NEW polari instance deployed as a mesh-app on THIS
+        # device (the topology-manipulation-as-install seam): the
+        # verb auto-names it (polari-2, ...), pulls prf images from
+        # the mesh registry if absent, registers <name>.isle +
+        # api.<name>.isle behind the local agent.
+        return {'ok': True, 'steps': [
+            'isle polari instance deploy --modules islemesh',
+        ], 'note': 'deploys a NEW polari instance (backend + '
+                   'frontend) behind THIS device\'s agent — add '
+                   '--name/--modules to customize'}
     if kind == 'polari-module':
         # a polari module installed into the local instance via the
         # module .deb (mac-8) or, until the deb repo lands, the

@@ -39,6 +39,7 @@ from islemesh.islemesh_basis import (
 )
 from islemesh.islemesh_engines import bind_engine
 from islemesh.islemesh_catalog import install_plan, instances_of
+from islemesh.islemesh_coherence import assess_topology
 from islemesh.islemesh_constants import (
     AGENT_MODES, CONNECTIVITY_MODES, MOCK_BANNER, UPLINK_KINDS,
 )
@@ -78,6 +79,7 @@ class IsleMeshAPI(treeObject):
             add('/api/islemesh/catalog', self, suffix='catalog')
             add('/api/islemesh/catalog/{entry}', self,
                 suffix='catalog_entry')
+            add('/api/islemesh/coherence', self, suffix='coherence')
             add('/api/islemesh/mock', self, suffix='mock')
 
     # ---- helpers ----------------------------------------------------
@@ -209,6 +211,22 @@ class IsleMeshAPI(treeObject):
             self._save(row)
         for svc in parsed['services']:
             self._save(IsleAppService(manager=self.manager, **svc))
+        # Same dedup discipline for APPS: a (name, device) pair may
+        # appear ONCE — concurrent pushes or deferred-flush
+        # resurrection can double-insert; keep the newest.
+        app_table = self._table('IsleApp')
+        seen_pairs = set()
+        doomed_apps = []
+        for key, row in sorted(list(app_table.items()),
+                               reverse=True):
+            pair = (getattr(row, 'name', ''),
+                    getattr(row, 'device_name', ''))
+            if pair in seen_pairs:
+                doomed_apps.append(key)
+            else:
+                seen_pairs.add(pair)
+        for key in doomed_apps:
+            self._delete(app_table.pop(key))
         # Referential sweep: a service must belong to a live app AND
         # carry its device (deviceless rows are pre-schema orphans or
         # restart-flush resurrections — every legit row has one). A
@@ -531,6 +549,26 @@ class IsleMeshAPI(treeObject):
         info['instances'] = self._instances_of(info['name'])
         info['instance_count'] = len(info['instances'])
         response.media = {'ok': True, 'entry': info}
+
+    def on_get_coherence(self, request, response):
+        """The JOINED topology: isle (devices/agents — where packets
+        go) x polari (instances — what runs where), with
+        evidence-bearing assessments. Suggests, never acts."""
+        devices = [{'name': getattr(d, 'name', ''),
+                    'agent_present': getattr(d, 'agent_present',
+                                             False),
+                    'last_seen': getattr(d, 'last_seen', ''),
+                    'is_mock': getattr(d, 'is_mock', False)}
+                   for d in self._table('IsleDevice').values()]
+        apps = [{'name': getattr(a, 'name', ''),
+                 'device_name': getattr(a, 'device_name', ''),
+                 'domain': getattr(a, 'domain', ''),
+                 'is_mock': getattr(a, 'is_mock', False)}
+                for a in self._table('IsleApp').values()]
+        result = assess_topology(devices, apps)
+        result['ok'] = True
+        result['mock_network'] = self._any_mock()
+        response.media = result
 
     # ---- read -------------------------------------------------------
 
