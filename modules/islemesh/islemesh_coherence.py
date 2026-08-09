@@ -106,6 +106,8 @@ def assess_topology(devices, apps, services=None):
         out_devices.append({
             'name': name,
             'agent_present': agent,
+            'is_entrypoint': bool(d.get('is_entrypoint')),
+            'exposures': d.get('exposures') or [],
             'app_count': len(d_apps),
             # each app with its SUB-DOMAINS (api/auth/... — where
             # the pieces of polari-style apps actually live)

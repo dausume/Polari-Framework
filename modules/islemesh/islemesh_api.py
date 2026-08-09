@@ -326,6 +326,11 @@ class IsleMeshAPI(treeObject):
         if agent_mode and agent_mode not in AGENT_MODES:
             return self._refuse(
                 response, 'unknown agent_mode %r' % agent_mode)
+        # exposures: a device may report its outside doors + whether
+        # it is a designated entrypoint (the URL-manager surface)
+        exposures = payload.get('exposures')
+        exposures_json = (json.dumps(exposures)
+                          if isinstance(exposures, list) else None)
         self._upsert_device(
             device_name, is_mock,
             isle_name=facts.get('isle_name'),
@@ -335,6 +340,8 @@ class IsleMeshAPI(treeObject):
             hosts_router=facts.get('hosts_router'),
             router_running=facts.get('router_running'),
             connectivity_mode=mode,
+            is_entrypoint=facts.get('is_entrypoint'),
+            exposures_json=exposures_json,
             notes=facts.get('notes'))
         uplinks = payload.get('uplinks') or []
         self._replace_device_rows(_DEVICE_CLASSES, device_name)
@@ -561,12 +568,20 @@ class IsleMeshAPI(treeObject):
         """The JOINED topology: isle (devices/agents — where packets
         go) x polari (instances — what runs where), with
         evidence-bearing assessments. Suggests, never acts."""
-        devices = [{'name': getattr(d, 'name', ''),
-                    'agent_present': getattr(d, 'agent_present',
-                                             False),
-                    'last_seen': getattr(d, 'last_seen', ''),
-                    'is_mock': getattr(d, 'is_mock', False)}
-                   for d in self._table('IsleDevice').values()]
+        devices = []
+        for d in self._table('IsleDevice').values():
+            try:
+                doors = json.loads(getattr(d, 'exposures_json',
+                                           '[]') or '[]')
+            except Exception:
+                doors = []
+            devices.append({
+                'name': getattr(d, 'name', ''),
+                'agent_present': getattr(d, 'agent_present', False),
+                'last_seen': getattr(d, 'last_seen', ''),
+                'is_entrypoint': getattr(d, 'is_entrypoint', False),
+                'exposures': doors,
+                'is_mock': getattr(d, 'is_mock', False)})
         apps = [{'name': getattr(a, 'name', ''),
                  'device_name': getattr(a, 'device_name', ''),
                  'domain': getattr(a, 'domain', ''),
@@ -657,12 +672,43 @@ class IsleMeshAPI(treeObject):
                      connectivity_mode=getattr(
                          row, 'connectivity_mode', ''))
             if getattr(row, 'agent_present', False):
+                # the nginx proxy is the device's EDGE — every packet
+                # in/out of this device's isle apps passes it. role
+                # 'device-edge' tells the renderer to draw it at the
+                # device's boundary (bottom), not as a free node.
                 add_node('proxy:%s' % name, 'proxy',
                          'nginx (isle-agent)', device=name,
+                         role='device-edge',
+                         is_entrypoint=getattr(row, 'is_entrypoint',
+                                               False),
                          is_mock=getattr(row, 'is_mock', False))
                 links.append({'source': 'device:%s' % name,
                               'target': 'proxy:%s' % name,
-                              'kind': 'hosts', 'label': '',
+                              'kind': 'edge-of', 'label': '',
+                              'is_mock': getattr(row, 'is_mock',
+                                                 False)})
+            # outside doors (exposures) hang OFF the proxy, OUTSIDE
+            # the device — the only crossings of the containment line
+            try:
+                doors = json.loads(getattr(row, 'exposures_json',
+                                           '[]') or '[]')
+            except Exception:
+                doors = []
+            for door in doors:
+                port = door.get('port')
+                door_id = 'door:%s:%s' % (name, port)
+                acc = door.get('access', {})
+                add_node(door_id, 'exposure',
+                         ':%s → %s' % (port, door.get('internal',
+                                                       '')),
+                         device=name, placement='external',
+                         access_level=acc.get('level'),
+                         principal=acc.get('user')
+                         or acc.get('group', ''),
+                         is_mock=getattr(row, 'is_mock', False))
+                links.append({'source': 'proxy:%s' % name,
+                              'target': door_id, 'kind': 'exposes',
+                              'label': ':%s' % port,
                               'is_mock': getattr(row, 'is_mock',
                                                  False)})
             if getattr(row, 'router_running', False):
@@ -697,8 +743,15 @@ class IsleMeshAPI(treeObject):
             if kind != 'ethernet' and declared != 'sole-isle':
                 continue
             if not segment_added:
+                # the shared L2 segment is OUTSIDE every device —
+                # honest: an unmanaged switch is invisible at L3, so
+                # this is INFERRED from ≥2 devices sharing carrier,
+                # not detected hardware. A genuine detected switch
+                # (LLDP/bridge) would arrive as detection:'detected'.
                 add_node('segment:isle', 'segment',
-                         'isle L2 (switch)')
+                         'isle L2 segment (switch)',
+                         placement='external',
+                         detection='inferred')
                 segment_added = True
             linked_devices.add(device)
             links.append({'source': 'device:%s' % device,

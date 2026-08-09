@@ -53,6 +53,13 @@ class IsleDevice(treeObject):
         last_seen: str = '',
         is_mock: bool = False,
         notes: str = '',
+        # This device is a DESIGNATED web ENTRYPOINT (may open
+        # outside doors — exposure is regulated to these).
+        is_entrypoint: bool = False,
+        # JSON list of outside doors this device serves:
+        # [{port, internal, protocol, access:{level,user|group}}].
+        # The isle stays contained; these are the only crossings.
+        exposures_json: str = '[]',
         manager=None,
     ):
         self.name = name
@@ -66,6 +73,8 @@ class IsleDevice(treeObject):
         self.last_seen = last_seen
         self.is_mock = is_mock
         self.notes = notes
+        self.is_entrypoint = is_entrypoint
+        self.exposures_json = exposures_json
 
 
 class IsleUplink(treeObject):
