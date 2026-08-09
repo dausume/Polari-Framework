@@ -292,12 +292,37 @@ def main():
           '--image odoo:16' in odoo['steps'][0]
           and '--engine business-ops' in odoo['steps'][0])
     papp = install_plan(by_name['polari'])
-    check('polari-app plan builds a launcher + apt install',
-          papp['ok'] and any('launcher' in s for s in papp['steps'])
-          and any('apt install' in s for s in papp['steps']))
+    check('polari-app plan is ONE shell-launcher step that installs',
+          papp['ok'] and any('shell launcher' in s
+                             for s in papp['steps'])
+          and any('--install' in s for s in papp['steps']))
     check('unknown kind plan refuses honestly',
           not install_plan({'kind': 'bogus',
                             'name': 'x'})['ok'])
+
+    # ---- instance tracking (chosen duplicates across devices) -------
+    from islemesh.islemesh_catalog import instances_of
+    app_rows = [
+        {'name': 'whoami', 'device_name': 'isle-core',
+         'domain': 'whoami.isle', 'is_mock': False},
+        {'name': 'whoami-2', 'device_name': 'pol-core',
+         'domain': 'whoami-2.isle', 'is_mock': False},
+        {'name': 'whoami-extra', 'device_name': 'x', 'domain': '',
+         'is_mock': False},
+        {'name': 'whoami', 'device_name': 'mockdev', 'domain': '',
+         'is_mock': True},
+        {'name': 'odoo', 'device_name': 'isle-core',
+         'domain': 'odoo.isle', 'is_mock': False},
+    ]
+    inst = instances_of(app_rows, 'whoami')
+    check('instances: base + -N duplicates counted, per device',
+          [i['app'] for i in inst] == ['whoami', 'whoami-2']
+          and {i['device'] for i in inst}
+          == {'isle-core', 'pol-core'})
+    check('instances: mock rows + non-suffix names excluded',
+          all(i['app'] != 'whoami-extra' for i in inst)
+          and all(i['device'] != 'mockdev' for i in inst)
+          and len(instances_of(app_rows, 'odoo')) == 1)
 
     # ---- vocabulary coherence ---------------------------------------
     check('availability presets are named modes over the triple',

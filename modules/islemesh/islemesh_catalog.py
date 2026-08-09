@@ -49,6 +49,28 @@ SEED_CATALOG = [
 ]
 
 
+def instances_of(app_rows, entry_name):
+    """Running INSTANCES of one catalog entry across the isle, from
+    per-device app rows (each: name / device_name / domain /
+    is_mock). Matches the entry's name or a duplicate suffix
+    ('whoami', 'whoami-2', ...). Duplicates are DELIBERATE —
+    scaling is a genuine need (polari itself) — this is the
+    tracking half: how many, on which devices. Pure function."""
+    import re
+    pattern = re.compile(r'^%s(-\d+)*$' % re.escape(entry_name))
+    found = []
+    for row in app_rows:
+        if row.get('is_mock'):
+            continue
+        app_name = row.get('name', '')
+        if pattern.match(app_name):
+            found.append({'app': app_name,
+                          'device': row.get('device_name', ''),
+                          'domain': row.get('domain', '')})
+    found.sort(key=lambda i: (i['app'], i['device']))
+    return found
+
+
 def install_plan(entry):
     """Build the ordered host commands to install one entry (a dict
     of its fields). Returns {'ok', 'steps': [cmd,...], 'note'} — the

@@ -27,6 +27,7 @@ Thin Falcon shell — parsing lives in islemesh_parse.
 
 import hashlib
 import json
+
 from datetime import datetime, timezone
 
 from objectTreeDecorators import treeObject, treeObjectInit
@@ -37,7 +38,7 @@ from islemesh.islemesh_basis import (
     MeshAppRealization,
 )
 from islemesh.islemesh_engines import bind_engine
-from islemesh.islemesh_catalog import install_plan
+from islemesh.islemesh_catalog import install_plan, instances_of
 from islemesh.islemesh_constants import (
     AGENT_MODES, CONNECTIVITY_MODES, MOCK_BANNER, UPLINK_KINDS,
 )
@@ -486,11 +487,29 @@ class IsleMeshAPI(treeObject):
             'published': getattr(row, 'published', True),
         }
 
+    def _instances_of(self, entry_name):
+        """Running INSTANCES of one catalog entry across the isle:
+        IsleApp rows (per-device, from each device's registry
+        ingest) matched by the pure catalog helper."""
+        rows = [{'name': getattr(r, 'name', ''),
+                 'device_name': getattr(r, 'device_name', ''),
+                 'domain': getattr(r, 'domain', ''),
+                 'is_mock': getattr(r, 'is_mock', False)}
+                for r in self._table('IsleApp').values()]
+        return instances_of(rows, entry_name)
+
     def on_get_catalog(self, request, response):
-        """The browsable store: published entries, both variants."""
-        entries = [self._entry_dict(r)
-                   for r in self._table('IsleCatalogEntry').values()
-                   if getattr(r, 'published', True)]
+        """The browsable store: published entries, both variants —
+        each annotated with its running instances (count + which
+        devices), so a second install is a CHOSEN duplicate."""
+        entries = []
+        for r in self._table('IsleCatalogEntry').values():
+            if not getattr(r, 'published', True):
+                continue
+            info = self._entry_dict(r)
+            info['instances'] = self._instances_of(info['name'])
+            info['instance_count'] = len(info['instances'])
+            entries.append(info)
         entries.sort(key=lambda e: (e['category'], e['name']))
         response.media = {'ok': True, 'count': len(entries),
                           'entries': entries}
@@ -509,6 +528,8 @@ class IsleMeshAPI(treeObject):
                                 '404 Not Found')
         info = self._entry_dict(row)
         info['install_plan'] = install_plan(info)
+        info['instances'] = self._instances_of(info['name'])
+        info['instance_count'] = len(info['instances'])
         response.media = {'ok': True, 'entry': info}
 
     # ---- read -------------------------------------------------------
