@@ -21,9 +21,13 @@ launcher .deb). One kind → one install-plan builder.
 #: store shows a real catalog from day one (never seeded is_mock).
 SEED_CATALOG = [
     {
-        'name': 'polari', 'title': 'Polari',
-        'description': 'The Polari research OS, as a native-feeling '
-                       'shell over its .isle web UI.',
+        'name': 'polari', 'title': 'Polari (launcher)',
+        'description': 'A DOOR, not a deployment: installs a '
+                       'native desktop window onto the isle\'s '
+                       'CORE polari instance (polari.isle). Runs '
+                       'nothing new — what it opens, and which '
+                       'modules that instance carries, is shown '
+                       'under its running instances.',
         'kind': 'polari-app', 'source_ref': 'https://polari.isle',
         'provides_engine': '', 'category': 'platform',
         'source': 'official',
@@ -39,12 +43,13 @@ SEED_CATALOG = [
     },
     {
         'name': 'polari-instance', 'title': 'Polari (new instance)',
-        'description': 'Deploy ANOTHER polari instance onto this '
-                       'device as a mesh-app: backend + frontend '
-                       'behind the local agent, its own '
-                       '<name>.isle domains, modules chosen at '
-                       'deploy — polari topology manipulation as a '
-                       'store install.',
+        'description': 'A RUNTIME, not a door: deploys another '
+                       'whole polari (backend + frontend) onto '
+                       'this device as a mesh-app, serving its own '
+                       '<name>.isle domains with the MODULES you '
+                       'choose at deploy. Coarse-grained scaling — '
+                       'component-level (extra backends only) and '
+                       'module-collection apps are the next arc.',
         'kind': 'polari-instance',
         'source_ref': 'prf-backend:staging + prf-frontend:staging',
         'category': 'platform', 'source': 'official',
@@ -59,6 +64,17 @@ SEED_CATALOG = [
         'source': 'official',
     },
 ]
+
+
+def modules_of(row):
+    """The MODULES a polari instance runs, from its schema-tolerant
+    modes strings ('modules:a,b,c'). [] when unreported."""
+    for mode in (row.get('modes') or []):
+        m = str(mode)
+        if m.startswith('modules:'):
+            return sorted(x for x in m[len('modules:'):].split(',')
+                          if x)
+    return []
 
 
 def instances_of(app_rows, entry_name):
@@ -78,7 +94,8 @@ def instances_of(app_rows, entry_name):
         if pattern.match(app_name):
             found.append({'app': app_name,
                           'device': row.get('device_name', ''),
-                          'domain': row.get('domain', '')})
+                          'domain': row.get('domain', ''),
+                          'modules': modules_of(row)})
     found.sort(key=lambda i: (i['app'], i['device']))
     return found
 

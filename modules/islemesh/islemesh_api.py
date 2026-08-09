@@ -509,11 +509,18 @@ class IsleMeshAPI(treeObject):
         """Running INSTANCES of one catalog entry across the isle:
         IsleApp rows (per-device, from each device's registry
         ingest) matched by the pure catalog helper."""
-        rows = [{'name': getattr(r, 'name', ''),
-                 'device_name': getattr(r, 'device_name', ''),
-                 'domain': getattr(r, 'domain', ''),
-                 'is_mock': getattr(r, 'is_mock', False)}
-                for r in self._table('IsleApp').values()]
+        rows = []
+        for r in self._table('IsleApp').values():
+            try:
+                modes = json.loads(getattr(r, 'modes_json', '[]'))
+            except Exception:
+                modes = []
+            rows.append({'name': getattr(r, 'name', ''),
+                         'device_name': getattr(r, 'device_name',
+                                                 ''),
+                         'domain': getattr(r, 'domain', ''),
+                         'modes': modes,
+                         'is_mock': getattr(r, 'is_mock', False)})
         return instances_of(rows, entry_name)
 
     def on_get_catalog(self, request, response):
