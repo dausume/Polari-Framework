@@ -331,6 +331,14 @@ class IsleMeshAPI(treeObject):
         exposures = payload.get('exposures')
         exposures_json = (json.dumps(exposures)
                           if isinstance(exposures, list) else None)
+        # network resource ledger (pools + published ports)
+        net = payload.get('net') or {}
+        pools = net.get('pools')
+        ports = net.get('ports')
+        pools_json = (json.dumps(pools)
+                      if isinstance(pools, list) else None)
+        ports_json = (json.dumps(ports)
+                      if isinstance(ports, list) else None)
         self._upsert_device(
             device_name, is_mock,
             isle_name=facts.get('isle_name'),
@@ -342,6 +350,8 @@ class IsleMeshAPI(treeObject):
             connectivity_mode=mode,
             is_entrypoint=facts.get('is_entrypoint'),
             exposures_json=exposures_json,
+            pools_json=pools_json,
+            ports_json=ports_json,
             notes=facts.get('notes'))
         uplinks = payload.get('uplinks') or []
         self._replace_device_rows(_DEVICE_CLASSES, device_name)
@@ -575,12 +585,20 @@ class IsleMeshAPI(treeObject):
                                            '[]') or '[]')
             except Exception:
                 doors = []
+            def _j(attr):
+                try:
+                    return json.loads(getattr(d, attr, '[]')
+                                      or '[]')
+                except Exception:
+                    return []
             devices.append({
                 'name': getattr(d, 'name', ''),
                 'agent_present': getattr(d, 'agent_present', False),
                 'last_seen': getattr(d, 'last_seen', ''),
                 'is_entrypoint': getattr(d, 'is_entrypoint', False),
                 'exposures': doors,
+                'pools': _j('pools_json'),
+                'ports': _j('ports_json'),
                 'is_mock': getattr(d, 'is_mock', False)})
         apps = [{'name': getattr(a, 'name', ''),
                  'device_name': getattr(a, 'device_name', ''),

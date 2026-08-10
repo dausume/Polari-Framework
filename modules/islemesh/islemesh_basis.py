@@ -60,6 +60,13 @@ class IsleDevice(treeObject):
         # [{port, internal, protocol, access:{level,user|group}}].
         # The isle stays contained; these are the only crossings.
         exposures_json: str = '[]',
+        # NETWORK RESOURCE LEDGER (so near-arbitrary apps/engines can
+        # be added without collision). JSON list of docker network
+        # pools on this device [{name, cidr}] and published host
+        # ports [{port, container}] — the allocator + conflict
+        # assessments read these.
+        pools_json: str = '[]',
+        ports_json: str = '[]',
         manager=None,
     ):
         self.name = name
@@ -75,6 +82,8 @@ class IsleDevice(treeObject):
         self.notes = notes
         self.is_entrypoint = is_entrypoint
         self.exposures_json = exposures_json
+        self.pools_json = pools_json
+        self.ports_json = ports_json
 
 
 class IsleUplink(treeObject):

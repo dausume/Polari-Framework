@@ -17,6 +17,7 @@ device; manipulation rides the same store/deploy machinery.
 """
 
 from islemesh.islemesh_catalog import instances_of
+from islemesh.islemesh_netledger import assess_resources
 
 #: Polari's COMPONENT scaling shape (Dustin): one frontend, one sql,
 #: one cache per instance-group — but backends are the replicable
@@ -108,6 +109,8 @@ def assess_topology(devices, apps, services=None):
             'agent_present': agent,
             'is_entrypoint': bool(d.get('is_entrypoint')),
             'exposures': d.get('exposures') or [],
+            'pools': d.get('pools') or [],
+            'ports': d.get('ports') or [],
             'app_count': len(d_apps),
             # each app with its SUB-DOMAINS (api/auth/... — where
             # the pieces of polari-style apps actually live)
@@ -150,6 +153,9 @@ def assess_topology(devices, apps, services=None):
             'message': 'polari could also run on: %s (isle polari '
                        'instance deploy — a mesh-app install)'
                        % ', '.join(candidates)})
+
+    # network resource conflicts (pools/ports) — the scale guard
+    assessments.extend(assess_resources(real_devices))
 
     core = [i for i in polari_instances if i['role'] == 'core']
     if polari_instances and not core:

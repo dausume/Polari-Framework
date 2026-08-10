@@ -389,6 +389,34 @@ def main():
           any(a['code'] == 'no-polari'
               for a in empty['assessments']))
 
+    # ---- network resource ledger (scale-without-collision) ----------
+    from islemesh.islemesh_netledger import (
+        cidrs_overlap, pool_conflicts, port_conflicts,
+        free_subnet, free_port, assess_resources)
+    check('netledger: overlap detection (the econ-core case)',
+          cidrs_overlap('172.20.0.0/16', '172.20.0.0/24')
+          and not cidrs_overlap('172.20.0.0/16', '172.21.0.0/16'))
+    pc = pool_conflicts([
+        {'name': 'isle-agent-net', 'cidr': '172.20.0.0/16'},
+        {'name': 'polari-suite_polari-network',
+         'cidr': '172.20.0.0/16'},
+        {'name': 'bridge', 'cidr': '172.17.0.0/16'}])
+    check('netledger: names the overlapping pools, ignores the rest',
+          len(pc) == 1 and pc[0]['a'] == 'isle-agent-net')
+    check('netledger: free_subnet skips taken pools',
+          not cidrs_overlap(free_subnet([
+              {'name': 'x', 'cidr': '172.22.0.0/24'}]),
+              '172.22.0.0/24'))
+    check('netledger: port conflict + free_port',
+          port_conflicts([{'port': 80}, {'port': 80},
+                          {'port': 81}]) == [80]
+          and free_port([{'port': 18080}]) == 18081)
+    ra = assess_resources([{'name': 'econ-core', 'pools': [
+        {'name': 'a', 'cidr': '10.0.0.0/24'},
+        {'name': 'b', 'cidr': '10.0.0.0/24'}], 'ports': []}])
+    check('netledger: assess flags a pool overlap per host',
+          any(a['code'] == 'pool-overlap' for a in ra))
+
     # ---- vocabulary coherence ---------------------------------------
     check('availability presets are named modes over the triple',
           AVAILABILITY_MODES == ('always-available', 'on-demand')
