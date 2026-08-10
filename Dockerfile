@@ -15,6 +15,7 @@ RUN apk add --no-cache \
     musl-dev \
     linux-headers \
     freetype-dev \
+    curl \
     make
 
 # Create virtual environment in a known location
@@ -30,14 +31,32 @@ ENV PIP_RETRY_MAX=5
 ### START OF FREETYPE FUNCTIONALITY
 ENV FREETYPE_VERSION=2.6.1
 ENV FREETYPE_DIR=/build/freetype-2.6.1
+ENV FREETYPE_SHA256=0a3c7dfbda6da1e8fce29232e8e96d987ababbbf71ebc8c75659e4132c367014
 
-# Copy FreeType tar file and extract it
-# The URL for FreeType download - must be manually dragged to freetype folder in polari
-# Trying to use wget WILL NOT WORK, it is hosted on a mirror which prevents automated retrieval.
-COPY freetype/freetype-2.6.1.tar.gz /tmp/freetype.tar.gz
-
-# Extract the tar file into the specified directory
-RUN tar -xf /tmp/freetype.tar.gz -C /build --strip-components=1 && \
+# Fetched at build time rather than vendored into git — a 2.2MB tarball
+# that git would keep forever, plus a manual "drag the file in" step.
+#
+# The old comment here claimed automated retrieval was impossible. That
+# was a wget-without-redirects problem: the SourceForge mirror serves it
+# fine over `curl -L`, byte-identical to what was vendored. Several hosts
+# are tried so no single one is load-bearing (savannah 502s periodically),
+# and the checksum gate means a wrong or tampered tarball fails the build
+# instead of silently building against it.
+RUN set -eux; \
+    for url in \
+      "https://download.savannah.gnu.org/releases/freetype/freetype-${FREETYPE_VERSION}.tar.gz" \
+      "https://downloads.sourceforge.net/project/freetype/freetype2/${FREETYPE_VERSION}/freetype-${FREETYPE_VERSION}.tar.gz" \
+      "https://mirrors.kernel.org/gentoo/distfiles/freetype-${FREETYPE_VERSION}.tar.gz" ; do \
+        echo "trying $url"; \
+        if curl -fsSL --retry 2 --connect-timeout 20 -o /tmp/freetype.tar.gz "$url"; then \
+          if echo "${FREETYPE_SHA256}  /tmp/freetype.tar.gz" | sha256sum -c -; then break; fi; \
+          echo "checksum mismatch from $url — discarding"; \
+        fi; \
+        rm -f /tmp/freetype.tar.gz; \
+    done; \
+    test -f /tmp/freetype.tar.gz; \
+    echo "${FREETYPE_SHA256}  /tmp/freetype.tar.gz" | sha256sum -c -; \
+    tar -xf /tmp/freetype.tar.gz -C /build --strip-components=1; \
     rm /tmp/freetype.tar.gz
 
 # Set environment variable to point to FreeType build directory
