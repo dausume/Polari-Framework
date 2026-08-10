@@ -38,7 +38,8 @@ from islemesh.islemesh_basis import (
     MeshAppRealization,
 )
 from islemesh.islemesh_engines import bind_engine
-from islemesh.islemesh_catalog import install_plan, instances_of
+from islemesh.islemesh_catalog import (
+    install_plan, instances_of, resolve_app_placement)
 from islemesh.islemesh_coherence import assess_topology
 from islemesh.islemesh_constants import (
     AGENT_MODES, CONNECTIVITY_MODES, MOCK_BANNER, UPLINK_KINDS,
@@ -80,6 +81,8 @@ class IsleMeshAPI(treeObject):
             add('/api/islemesh/catalog/{entry}', self,
                 suffix='catalog_entry')
             add('/api/islemesh/coherence', self, suffix='coherence')
+            add('/api/islemesh/appplan/{app}', self,
+                suffix='appplan')
             add('/api/islemesh/mock', self, suffix='mock')
 
     # ---- helpers ----------------------------------------------------
@@ -573,6 +576,40 @@ class IsleMeshAPI(treeObject):
         info['instances'] = self._instances_of(info['name'])
         info['instance_count'] = len(info['instances'])
         response.media = {'ok': True, 'entry': info}
+
+    def on_get_appplan(self, request, response, app):
+        """The APP-PLACEMENT PLAN: a polari-app is a module
+        collection (PolariAppDefinition); this resolves whether its
+        modules are live across the isle's instances and, if not,
+        emits the ensure PLAN (isle verbs — the human applies)."""
+        # the app's module list, from PolariAppDefinition (polariapps
+        # module, live on the core alongside islemesh)
+        appdef = None
+        for r in self._table('PolariAppDefinition').values():
+            if getattr(r, 'name', '') == app:
+                appdef = r
+                break
+        if appdef is None:
+            return self._refuse(response,
+                                'no polari-app definition %r '
+                                '(is the polariapps module loaded?)'
+                                % app, '404 Not Found')
+        try:
+            modules = json.loads(getattr(appdef, 'modules_json',
+                                         '[]') or '[]')
+        except Exception:
+            modules = []
+        # current placement: deployed polari instances + the core,
+        # each with its module list
+        instances = []
+        for i in self._instances_of('polari'):
+            instances.append({'name': i['app'],
+                              'device': i['device'],
+                              'modules': i.get('modules', [])})
+        result = resolve_app_placement(app, modules, instances)
+        result['ok'] = True
+        result['title'] = getattr(appdef, 'title', app)
+        response.media = result
 
     def on_get_coherence(self, request, response):
         """The JOINED topology: isle (devices/agents — where packets

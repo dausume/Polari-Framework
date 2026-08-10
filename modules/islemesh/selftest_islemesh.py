@@ -389,6 +389,32 @@ def main():
           any(a['code'] == 'no-polari'
               for a in empty['assessments']))
 
+    # ---- app placement resolver (module-collection apps) ------------
+    from islemesh.islemesh_catalog import resolve_app_placement
+    insts = [
+        {'name': 'polari', 'device': 'isle-core',
+         'modules': ['islemesh', 'polariapps', 'scoring']},
+        {'name': 'polari-2', 'device': 'isle-core',
+         'modules': ['islemesh', 'gears']},
+    ]
+    rp = resolve_app_placement(
+        'judicial-lean', ['polariNoCode', 'scoring'], insts)
+    check('appplan: satisfied vs missing split',
+          [s['module'] for s in rp['satisfied']] == ['scoring']
+          and rp['missing'] == ['polariNoCode']
+          and not rp['complete'])
+    check('appplan: plan targets a real instance with a verb',
+          len(rp['plan']) == 1
+          and rp['plan'][0]['module'] == 'polariNoCode'
+          and rp['plan'][0]['target'] in ('polari', 'polari-2')
+          and 'isle polari module add' in rp['plan'][0]['cmd'])
+    rp2 = resolve_app_placement('done', ['gears'], insts)
+    check('appplan: complete when every module is placed',
+          rp2['complete'] and not rp2['plan'])
+    rp3 = resolve_app_placement('fresh', ['x'], [])
+    check('appplan: no instances → deploy-instance plan',
+          rp3['plan'][0]['action'] == 'deploy-instance')
+
     # ---- network resource ledger (scale-without-collision) ----------
     from islemesh.islemesh_netledger import (
         cidrs_overlap, pool_conflicts, port_conflicts,

@@ -100,6 +100,66 @@ def instances_of(app_rows, entry_name):
     return found
 
 
+def resolve_app_placement(app_name, modules_needed, instances):
+    """The APP-PLACEMENT RESOLVER (Dustin): a polari-app is a MODULE
+    COLLECTION; installing it means ENSURING every module is live on
+    SOME instance across the isle (one or several — the app works
+    either way). Pure: given the app's modules and the current
+    placement, return what's satisfied, what's missing, and a PLAN
+    (isle verbs the human runs — propose-then-apply).
+
+    instances: [{name, device, modules:[...]}, ...] (deployed polari
+    instances; the core is name 'polari').
+    """
+    placed = {}  # module -> [instance names that carry it]
+    for inst in instances:
+        for m in (inst.get('modules') or []):
+            placed.setdefault(m, []).append(inst.get('name', ''))
+
+    satisfied, missing = [], []
+    for m in modules_needed:
+        if placed.get(m):
+            satisfied.append({'module': m, 'instances': placed[m]})
+        else:
+            missing.append(m)
+
+    # target for the missing ones: prefer a DEPLOYED instance that
+    # already carries some of this app's modules (co-locate), else
+    # the deployed instance with the fewest modules (spread load),
+    # else suggest a new instance. The core is a valid host too.
+    deployed = [i for i in instances]
+    plan = []
+    if missing:
+        best = None
+        if deployed:
+            def score(i):
+                mods = set(i.get('modules') or [])
+                return (-len(mods & set(modules_needed)),
+                        len(mods))
+            best = sorted(deployed, key=score)[0].get('name', '')
+        for m in missing:
+            if best:
+                plan.append({
+                    'action': 'add-module', 'module': m,
+                    'target': best,
+                    'cmd': 'isle polari module add %s --to %s'
+                           % (m, best)})
+            else:
+                plan.append({
+                    'action': 'deploy-instance', 'module': m,
+                    'target': '(new)',
+                    'cmd': 'isle polari instance deploy --modules %s'
+                           % m})
+    return {
+        'app': app_name,
+        'modules_needed': list(modules_needed),
+        'satisfied': satisfied,
+        'missing': missing,
+        'complete': not missing,
+        'plan': plan,
+    }
+
+
 def install_plan(entry):
     """Build the ordered host commands to install one entry (a dict
     of its fields). Returns {'ok', 'steps': [cmd,...], 'note'} — the
