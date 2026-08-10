@@ -65,6 +65,12 @@ class ConfigLoader:
         'in_docker_container': 'IN_DOCKER_CONTAINER',
         'database.enabled': 'DATABASE_ENABLED',
         'database.type': 'DATABASE_TYPE',
+        # Without this, DATABASE_PATH was a dead env var: every compose
+        # file set it to /data/polari.db (the volume mount point) while
+        # the sqlite files actually went to ./data -> /app/data inside
+        # the container layer, so a container recreate threw the data
+        # away. See jumpstartDatabase's legacy migration.
+        'database.sqlite.path': 'DATABASE_PATH',
         'database.mariadb.host': 'MARIADB_HOST',
         'database.mariadb.port': 'MARIADB_PORT',
         'database.mariadb.user': 'MARIADB_USER',

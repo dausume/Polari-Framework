@@ -288,6 +288,16 @@ class managerObject:
         # Ensure the data directory exists (it's a Docker volume mount point)
         os.makedirs(dbDir, exist_ok=True)
 
+        # DATABASE_PATH used to be ignored, so existing deployments have
+        # their .db files in ./data (the container layer) rather than in
+        # the configured directory (the volume). Now that the env var is
+        # honored, those instances would boot pointed at an empty volume
+        # and come up FRESH — silently abandoning live data. Move it
+        # across once, the first time we see that shape.
+        from polariDBmanagement.legacy_data_dir import migrate_legacy_data_dir
+        migrate_legacy_data_dir(dbDir,
+                                log=lambda m: print(m, flush=True))
+
         # Existence is the adapter's call: a .db file for sqlite, a
         # non-empty schema for mariadb (database.type / DATABASE_TYPE).
         from polariDBmanagement.db_adapter import make_adapter
