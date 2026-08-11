@@ -116,6 +116,21 @@ class ModuleBootRegistry:
         with self._lock:
             self.core_data_ready_at = time.time()
 
+    def reopen(self, module):
+        """dyn-2: live admission re-arms the honesty middleware for
+        ONE module — all_online drops until finish() recomputes it,
+        and a monolithic boot (which never stamped core-ready; no
+        request could arrive pre-listen) is stamped core-ready NOW so
+        every OTHER module keeps answering during the window."""
+        with self._lock:
+            if self.core_data_ready_at is None:
+                self.core_data_ready_at = time.time()
+            self.all_online = False
+            self.modules.setdefault(module, {
+                'status': 'pending', 'started_at': None,
+                'finished_at': None, 'error': '', 'seeded_rows': 0,
+                'deps': [], 'deps_ready_at': None, 'eta_s': None})
+
     def finish(self):
         with self._lock:
             self.finished_at = time.time()

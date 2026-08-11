@@ -657,9 +657,13 @@ class polariServer(treeObject):
         from polariApiServer.module_endpoints import (
             MODULE_ENDPOINT_CONSTRUCTORS,
         )
+        # dyn-2: record which modules' endpoints exist — falcon has no
+        # route removal, so live admission must never construct twice.
+        self.endpointConstructed = set()
         for _mod, _ctor in MODULE_ENDPOINT_CONSTRUCTORS.items():
             if _feature_available(_mod):
                 _ctor(self)
+                self.endpointConstructed.add(_mod)
 
 
         # xsim-2: single-writer lease + object locks + simulation queue.

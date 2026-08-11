@@ -32,6 +32,37 @@ class ModulesAPI(treeObject):
             polServer.falconServer.add_route(self.apiName + '/create', self, suffix='create')
             polServer.falconServer.add_route(self.apiName + '/registry', self, suffix='registry')
             polServer.falconServer.add_route(self.apiName + '/{module_id}', self, suffix='detail')
+            # dyn-2: live admission — no container recreate.
+            polServer.falconServer.add_route(
+                self.apiName + '/{module_id}/admit', self,
+                suffix='admit')
+
+    # ------------------------------------------------------------------
+    # POST /modules/{module_id}/admit  (dyn-2)
+    # ------------------------------------------------------------------
+    def on_post_admit(self, request, response, module_id):
+        """Admit an on-disk module into THIS running server — the
+        boot admission steps replayed live (typing, tables, seeds,
+        CRUDE + custom routes, lifecycle rows). Refusals are honest
+        dicts with a suggestion; nothing here recreates containers.
+        POLARI_MODULES is treated as the derived cache it is — the
+        durable placement truth stays the ModuleAssignment row."""
+        try:
+            from polariApiServer.live_admission import (
+                admit_module_live,
+            )
+            result = admit_module_live(self.manager, module_id)
+            response.media = {'success': bool(result.get('ok')),
+                              **result}
+            response.status = (falcon.HTTP_200 if result.get('ok')
+                               else falcon.HTTP_409)
+        except Exception as err:
+            response.status = falcon.HTTP_500
+            response.media = {'success': False, 'error': str(err)}
+            print(f'[ModulesAPI] admit({module_id}) failed: {err}')
+            import traceback
+            traceback.print_exc()
+        response.set_header('Powered-By', 'Polari')
 
     # ------------------------------------------------------------------
     # GET /modules
