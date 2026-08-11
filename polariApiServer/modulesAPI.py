@@ -58,7 +58,10 @@ class ModulesAPI(treeObject):
             from polariApiServer.live_admission import (
                 admit_module_live,
             )
-            result = admit_module_live(self.manager, module_id)
+            raw = (request.get_param('withDeps') or '').strip().lower()
+            result = admit_module_live(
+                self.manager, module_id,
+                with_deps=raw in ('1', 'true', 'yes', 'on'))
             response.media = {'success': bool(result.get('ok')),
                               **result}
             response.status = (falcon.HTTP_200 if result.get('ok')

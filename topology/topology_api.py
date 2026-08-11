@@ -93,6 +93,12 @@ class TopologyAPI(treeObject):
                 suffix='move_op_finish')
             add('/api/topology/providers/reprobe', self,
                 suffix='reprobe')
+            # dyn-5: the baseline instance — a light, explicit floor
+            # that everything else is admitted onto, on demand.
+            add('/api/topology/baseline/{instance}', self,
+                suffix='baseline')
+            # dyn-2b: the authoritative placement read + 3-way diff.
+            add('/api/topology/placement', self, suffix='placement')
 
     # ---- helpers ----------------------------------------------------
 
@@ -547,6 +553,32 @@ class TopologyAPI(treeObject):
         response.media = {
             'ok': True, 'clearedEntries': cleared,
             'note': 'next resolve_provider call probes live'}
+
+    def on_get_baseline(self, request, response, instance):
+        """dyn-5 PREVIEW: what a baseline floor for `instance` would
+        declare, what it would stand down, and what stays core.
+        Executes nothing."""
+        from topology.baseline_profile import plan_baseline
+        response.media = plan_baseline(self.manager, instance)
+
+    def on_post_baseline(self, request, response, instance):
+        """dyn-5 APPLY: write the baseline ModuleAssignment rows.
+        ?standDown=true additionally marks non-floor enabled rows
+        'transient' (visible, inert, one click back — never
+        deleted). Live modules are not torn down here; put-away
+        (dyn-3) is the live act."""
+        from topology.baseline_profile import apply_baseline
+        raw = (request.get_param('standDown') or '').strip().lower()
+        response.media = apply_baseline(
+            self.manager, instance,
+            stand_down=raw in ('1', 'true', 'yes', 'on'))
+
+    def on_get_placement(self, request, response):
+        """dyn-2b: the authoritative placement read for THIS
+        instance + the three-way coherence diff (rows vs live/env vs
+        isle registry). Also served inside /api/modules/status."""
+        from topology.placement_truth import placement_report
+        response.media = placement_report(self.manager)
 
     def on_post_move(self, request, response):
         """tt-13 dynamic re-placement: plan_move decides whether

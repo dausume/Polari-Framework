@@ -46,12 +46,76 @@ from polariApiServer.lazy_boot import AdmissionWorker, top_module
 _ADMISSION_LOCK = threading.Lock()
 
 
-def admit_module_live(manager, module):
+def admit_module_live(manager, module, with_deps=False):
     """Admit one on-disk module into the running server. Returns a
     result dict — {'ok': True, ...} on success or no-op, {'ok': False,
-    'refusal': ..., 'suggestion': ...} on an honest refusal."""
+    'refusal': ..., 'suggestion': ...} on an honest refusal.
+
+    with_deps=True admits the module's REQUIRES CLOSURE first, in
+    dependency order — the gradual bring-up dyn-5 promises: one call,
+    modules arriving one at a time, each admitted only after what it
+    needs. Without it a module whose deps are offline refuses and
+    names them (the safe default: nothing implicit)."""
     with _ADMISSION_LOCK:
-        return _admit_locked(manager, module)
+        if not with_deps:
+            return _admit_locked(manager, module)
+        return _admit_with_deps(manager, module)
+
+
+def _requires_closure(module):
+    """The module's dependency closure, in admission order (deps
+    before dependents), from the registry's `requires` — the same
+    source boot's dependency_order uses."""
+    try:
+        from moduleService.module_boot_records import (
+            dependency_order, load_module_requires,
+        )
+    except Exception:
+        return [module], {}
+    requires = load_module_requires()
+    seen, stack, wanted = set(), [module], []
+    while stack:
+        current = stack.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        wanted.append(current)
+        stack.extend(requires.get(current, ()))
+    ordered = dependency_order(sorted(wanted), requires)
+    if ordered.get('ok'):
+        return ordered['order'], requires
+    return wanted[::-1], requires
+
+
+def _admit_with_deps(manager, module):
+    order, _ = _requires_closure(module)
+    steps, failed = [], None
+    for name in order:
+        result = _admit_locked(manager, name)
+        steps.append({'module': name,
+                      'ok': bool(result.get('ok')),
+                      'noop': bool(result.get('noop')),
+                      'classes': len(result.get('classes') or []),
+                      'rows': result.get('seededOrRestoredRows'),
+                      'refusal': result.get('refusal')})
+        if not result.get('ok'):
+            failed = result
+            break
+    admitted = [s['module'] for s in steps
+                if s['ok'] and not s['noop']]
+    if failed is not None:
+        why = failed.get('refusal') or 'admission failed'
+        return {'ok': False, 'module': module,
+                'refusal': f"stopped at '{steps[-1]['module']}': "
+                           f'{why}',
+                'plannedOrder': order, 'steps': steps,
+                'admittedBeforeStop': admitted,
+                'suggestion': failed.get('suggestion')}
+    return {'ok': True, 'module': module, 'withDeps': True,
+            'plannedOrder': order, 'steps': steps,
+            'admitted': admitted,
+            'note': 'dependency closure admitted in order — each '
+                    'module came up only after what it needs'}
 
 
 def put_away_module_live(manager, module):
