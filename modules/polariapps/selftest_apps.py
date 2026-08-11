@@ -273,11 +273,14 @@ if __name__ == '__main__':
                          feature_check=lambda m: m != 'testing',
                          requires_map={})
     check('single-app report works; testing item absent, no chain '
-          'when registry unreadable',
+          'when registry unreadable, and dyn-6 offers the admit act',
           one['ok'] and any(
               it.get('requiresModule') == 'testing'
               and it['availability'] == 'absent'
-              and it['bringup'] == {'route': '/modules/bringup'}
+              and it['bringup']['route'] == '/modules/bringup'
+              and 'requires' not in it['bringup']
+              and it['bringup']['admit']['withDeps']
+              == 'POST /modules/testing/admit?withDeps=true'
               for g in one['nav'] for it in g['items']))
     check('unknown app refused honestly',
           not app_nav_report(navmgr, 'nope',

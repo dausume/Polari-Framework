@@ -38,6 +38,9 @@ degrades to 'unknown', loudly in the payload, never a crash.
 import json
 
 TRI_STATES = ('enabled', 'absent', 'unknown')
+#: dyn-6: the QUAD-state — 'elsewhere' is what the tri-state could
+#: not say, and the reason nav could not survive a module move.
+QUAD_STATES = ('enabled', 'elsewhere', 'absent', 'unknown')
 BRINGUP_ROUTE = '/modules/bringup'
 _UNSET = object()
 
@@ -67,6 +70,45 @@ def default_feature_check():
         return None
 
 
+def default_placement_map(manager):
+    """dyn-6/8: {module: {instance, baseUrl, wsUrl}} for modules
+    another instance serves, from the same ModuleAssignment +
+    PeerNode data the refs directory uses. {} when unreadable — the
+    nav then degrades to the old tri-state, never to a guess."""
+    try:
+        from polariApiServer.module_gating import module_enabled
+        from polariRefs.ref_format import local_identity
+        rows = (getattr(manager, 'objectTables', None) or {})
+        peers = {}
+        for node in (rows.get('PeerNode', {}) or {}).values():
+            base = (getattr(node, 'base_url', '') or '').rstrip('/')
+            if base:
+                peers[getattr(node, 'name', '')] = base
+        here = local_identity().get('instanceName', '')
+        found = {}
+        for row in (rows.get('ModuleAssignment', {}) or {}).values():
+            if getattr(row, 'state', '') != 'enabled':
+                continue
+            instance = getattr(row, 'instance_name', '')
+            module = (getattr(row, 'module_name', '')
+                      or '').split('.')[0]
+            if not module or instance == here or module_enabled(
+                    module):
+                continue
+            base = next((url for name, url in peers.items()
+                         if name == instance or name.endswith(
+                             instance) or instance.endswith(name)),
+                        '')
+            if base:
+                found[module] = {
+                    'instance': instance, 'baseUrl': base,
+                    'wsUrl': base.replace('https://', 'wss://')
+                    .replace('http://', 'ws://') + '/'}
+        return found
+    except Exception:
+        return {}
+
+
 def default_requires_map():
     """{module: [requires...]} from the registry, {} when
     unreadable — the affordance then just omits the chain."""
@@ -80,22 +122,32 @@ def default_requires_map():
         return {}
 
 
-def _availability(module, feature_check):
+def _availability(module, feature_check, placement=None):
+    """dyn-6: QUAD-state. 'enabled' | 'elsewhere' (another instance
+    serves it — carry the target, never an 'install it here' chip) |
+    'absent' (admittable here) | 'unknown' (the gate itself failed).
+    'elsewhere' is the state the tri-state could not express, which
+    is why nav could not survive a module move."""
     if not module:
         return 'enabled'  # core surfaces gate nothing
     if feature_check is None:
         return 'unknown'
     try:
-        return 'enabled' if feature_check(module) else 'absent'
+        if feature_check(module):
+            return 'enabled'
     except Exception:
         return 'unknown'
+    if placement and module in placement:
+        return 'elsewhere'
+    return 'absent'
 
 
-def _nav_item(item, feature_check, requires_map):
+def _nav_item(item, feature_check, requires_map, placement=None):
     module = item.get('requires_module', '')
     out = {'label': item.get('label', ''),
            'kind': item.get('kind', 'page'),
-           'availability': _availability(module, feature_check)}
+           'availability': _availability(module, feature_check,
+                                         placement)}
     for src, dst in (('route', 'route'), ('ref', 'ref'),
                      ('requires_module', 'requiresModule')):
         if item.get(src):
@@ -105,6 +157,14 @@ def _nav_item(item, feature_check, requires_map):
         chain = (requires_map or {}).get(module)
         if chain:
             out['bringup']['requires'] = list(chain)
+        # dyn-6: the app is the demand signal — offer the act, with
+        # the evidence, never auto-applied.
+        out['bringup']['admit'] = {
+            'action': f'POST /modules/{module}/admit',
+            'withDeps': f'POST /modules/{module}/admit?withDeps=true',
+        }
+    elif out['availability'] == 'elsewhere':
+        out['servedBy'] = dict(placement.get(module) or {})
     return out
 
 
@@ -113,7 +173,8 @@ def _page_label(route):
     return tail.replace('-', ' ').replace('_', ' ').title()
 
 
-def _app_nav(row, feature_check, requires_map):
+def _app_nav(row, feature_check, requires_map,
+             placement=None):
     nav = _loads(row, 'nav_json', [])
     groups = []
     synthesized = False
@@ -128,7 +189,8 @@ def _app_nav(row, feature_check, requires_map):
         groups.append({
             'group': grp.get('group', ''),
             'topMenu': bool(grp.get('top_menu')),
-            'items': [_nav_item(i, feature_check, requires_map)
+            'items': [_nav_item(i, feature_check, requires_map,
+                                placement)
                       for i in grp.get('items', [])]})
     modules = _loads(row, 'modules_json', [])
     return {
@@ -141,21 +203,59 @@ def _app_nav(row, feature_check, requires_map):
         'modules': modules,
         # The app-home module strip: same derivation as the items,
         # computed server-side so the shell never guesses.
-        'moduleStates': {m: _availability(m, feature_check)
+        'moduleStates': {m: _availability(m, feature_check,
+                                          placement)
                          for m in modules},
+        # dyn-6: the app's module CLOSURE plan — what is missing and
+        # the one call that brings it up, in order. Evidence-bearing
+        # suggestion; nothing here acts.
+        'modulePlan': _module_plan(modules, feature_check,
+                                   requires_map, placement),
         'navSynthesized': synthesized,
         'nav': groups,
     }
 
 
-def apps_nav(manager, feature_check=_UNSET, requires_map=None):
+def _module_plan(modules, feature_check, requires_map,
+                 placement=None):
+    """dyn-6: which of an app's modules are not live here, what
+    they pull in, and the exact acts that would bring them up."""
+    missing, elsewhere = [], []
+    for module in modules:
+        state = _availability(module, feature_check, placement)
+        if state == 'absent':
+            missing.append(module)
+        elif state == 'elsewhere':
+            elsewhere.append(module)
+    closure = []
+    for module in missing:
+        for dep in (requires_map or {}).get(module, ()):
+            if (dep not in modules and dep not in closure
+                    and _availability(dep, feature_check, placement)
+                    != 'enabled'):
+                closure.append(dep)
+    return {
+        'ready': not missing and not elsewhere,
+        'missingHere': missing,
+        'servedElsewhere': elsewhere,
+        'alsoPulledIn': sorted(closure),
+        'admit': [f'POST /modules/{m}/admit?withDeps=true'
+                  for m in missing],
+        'note': 'suggestion only — admitting is an explicit act',
+    }
+
+
+def apps_nav(manager, feature_check=_UNSET, requires_map=None,
+             placement=None):
     """Every app's nav tree with derived availability, plus the
     persona -> app-names index the nav-5 chips filter on."""
     if feature_check is _UNSET:
         feature_check = default_feature_check()
     if requires_map is None:
         requires_map = default_requires_map()
-    apps = [_app_nav(row, feature_check, requires_map)
+    if placement is None:
+        placement = default_placement_map(manager)
+    apps = [_app_nav(row, feature_check, requires_map, placement)
             for row in _rows(manager, 'PolariAppDefinition')]
     apps.sort(key=lambda a: (a['discipline'] == '', a['name']))
     personas = {}
@@ -168,15 +268,18 @@ def apps_nav(manager, feature_check=_UNSET, requires_map=None):
 
 
 def app_nav_report(manager, name, feature_check=_UNSET,
-                   requires_map=None):
+                   requires_map=None, placement=None):
     """One app's nav tree — 404-shaped refusal for unknown names."""
     if feature_check is _UNSET:
         feature_check = default_feature_check()
     if requires_map is None:
         requires_map = default_requires_map()
+    if placement is None:
+        placement = default_placement_map(manager)
     for row in _rows(manager, 'PolariAppDefinition'):
         if getattr(row, 'name', '') == name:
-            report = _app_nav(row, feature_check, requires_map)
+            report = _app_nav(row, feature_check, requires_map,
+                              placement)
             report['ok'] = True
             report['gatingReadable'] = feature_check is not None
             return report

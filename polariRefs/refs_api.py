@@ -308,21 +308,61 @@ class PolariRefsAPI(treeObject):
         from polariRefs.ref_format import local_identity
         providers = self._module_providers()
         classes = {}
-        for cls in getattr(self.polServer, 'defClassList', []) or []:
+        # dyn-8: answer from the PRE-GATE list. A class whose module
+        # is not served HERE must still appear, saying who serves it
+        # — dropping the key made a moved-away class indistinguishable
+        # from a nonexistent one, so no client could follow a move.
+        served_here = {c.__name__ for c
+                       in getattr(self.polServer, 'defClassList', [])
+                       or []}
+        registry = getattr(self.polServer, 'bootRegistry', None)
+        put_away = set(getattr(registry, 'put_away_modules', ()) or ())
+        catalog = (getattr(self.polServer, 'allDefClassList', None)
+                   or getattr(self.polServer, 'defClassList', [])
+                   or [])
+        for cls in catalog:
             package = module_of_class(cls)
             provider = providers.get(package)
-            classes[cls.__name__] = {
+            here = cls.__name__ in served_here
+            entry = {
                 'module': package,
                 'instance': provider['instance'] if provider else
                 local_identity()['instanceName'],
                 'baseUrl': provider['baseUrl'] if provider else ''}
+            if not here:
+                # Named states, so a client can act rather than guess.
+                remote = bool(provider and provider['baseUrl']
+                              and provider['instance']
+                              != local_identity()['instanceName'])
+                entry['servedHere'] = False
+                entry['state'] = ('elsewhere' if remote
+                                  else 'put-away'
+                                  if package in put_away
+                                  else 'not-admitted')
+                entry['bringUp'] = (
+                    None if remote
+                    else f'POST /modules/{package}/admit')
+                if remote:
+                    entry['servedBy'] = {
+                        'instance': provider['instance'],
+                        'baseUrl': provider['baseUrl'],
+                        'wsUrl': provider.get('wsUrl', '')}
+            classes[cls.__name__] = entry
         for class_name in (getattr(self.manager, 'dynamicClasses', {})
                            or {}):
             classes.setdefault(class_name, {
                 'module': 'dynamic',
                 'instance': local_identity()['instanceName'],
                 'baseUrl': ''})
-        response.media = {'ok': True,
-                          'localInstance': local_identity(),
-                          'modules': providers,
-                          'classes': classes}
+        response.media = {
+            'ok': True,
+            'localInstance': local_identity(),
+            'modules': providers,
+            'classes': classes,
+            # dyn-8: clients refresh on this signal rather than
+            # holding a fetch-once map for the life of the page.
+            'invalidateOn': {'stompTopic': '/topic/PolariModule',
+                             'httpStatuses': [410]},
+            'note': 'classes not served here carry state + '
+                    'servedBy/bringUp — a moved-away class is '
+                    'followable, not invisible'}
