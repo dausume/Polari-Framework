@@ -99,6 +99,12 @@ class TopologyAPI(treeObject):
                 suffix='baseline')
             # dyn-2b: the authoritative placement read + 3-way diff.
             add('/api/topology/placement', self, suffix='placement')
+            # dyn-7: move a module between LIVE instances, no
+            # recreate (plan, then this side's half).
+            add('/api/topology/module-move/plan', self,
+                suffix='module_move_plan')
+            add('/api/topology/module-move/local-half', self,
+                suffix='module_move_local')
 
     # ---- helpers ----------------------------------------------------
 
@@ -572,6 +578,41 @@ class TopologyAPI(treeObject):
         response.media = apply_baseline(
             self.manager, instance,
             stand_down=raw in ('1', 'true', 'yes', 'on'))
+
+    def on_post_module_move_plan(self, request, response):
+        """dyn-7 PREVIEW: the ordered steps to move a module between
+        live instances, who performs each, and every refusal —
+        before anything moves. Executes nothing."""
+        from topology.module_move_live import plan_module_move
+        payload, error = self._payload(request)
+        if error:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False, 'refusal': error}
+            return
+        payload = payload or {}
+        response.media = plan_module_move(
+            self.manager, payload.get('module', ''),
+            payload.get('to', ''), payload.get('from'))
+
+    def on_post_module_move_local(self, request, response):
+        """dyn-7 APPLY (this side only): put the module away here and
+        land the new placement in the rows. Requires dataMoved=true —
+        the backend will not let the rows claim a move the data did
+        not make."""
+        from topology.module_move_live import execute_local_half
+        payload, error = self._payload(request)
+        if error:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False, 'refusal': error}
+            return
+        payload = payload or {}
+        result = execute_local_half(
+            self.manager, payload.get('module', ''),
+            payload.get('to', ''),
+            data_moved=bool(payload.get('dataMoved')))
+        response.media = result
+        if not result.get('ok'):
+            response.status = '409 Conflict'
 
     def on_get_placement(self, request, response):
         """dyn-2b: the authoritative placement read for THIS
