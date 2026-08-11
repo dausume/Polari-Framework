@@ -159,7 +159,17 @@ def _put_away_locked(manager, module):
     worker._upsert_polari_module(module, row)
     from polariApiServer.lazy_boot import _stomp_publish
     _stomp_publish(module, row)
+    # dyn-2b: the change LANDS in the authority + the observation.
+    from topology.placement_truth import (
+        record_placement_observation, sync_assignment_row,
+    )
+    row_sync = sync_assignment_row(manager, module, 'disabled',
+                                   'live put-away')
+    observation = record_placement_observation(manager,
+                                               'live put-away')
     return {'ok': True, 'module': module,
+            'assignmentRow': row_sync,
+            'observation': observation,
             'classesDeactivated': sorted(names),
             'inMemoryRowsFreed': freed_rows,
             'dbTablesKept': True,
@@ -288,7 +298,17 @@ def _admit_locked(manager, module):
         worker._transition(module, 'online', finished_at=time.time(),
                            seeded_rows=seeded)
         registry.finish()
+        # dyn-2b: the change LANDS in the authority + the observation.
+        from topology.placement_truth import (
+            record_placement_observation, sync_assignment_row,
+        )
+        row_sync = sync_assignment_row(manager, module, 'enabled',
+                                       'live admission')
+        observation = record_placement_observation(manager,
+                                                   'live admission')
         return {'ok': True, 'module': module,
+                'assignmentRow': row_sync,
+                'observation': observation,
                 'classes': sorted(c.__name__ for c in new_classes),
                 'seededOrRestoredRows': seeded,
                 'crudeRoutes': routes_added,

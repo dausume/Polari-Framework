@@ -108,6 +108,17 @@ if(__name__=='__main__'):
     # yet in Phase 0).
     if not lazy and db_enabled and localHostedManagerServer.db is not None:
         localHostedManagerServer.persistTree()
+        # dyn-2b: report what this boot ACTUALLY brought online (the
+        # lazy path does the same in the admission worker close-out).
+        try:
+            from topology.placement_truth import (
+                record_placement_observation,
+            )
+            record_placement_observation(localHostedManagerServer,
+                                         'monolithic boot')
+        except Exception as exc:
+            print(f'[PlacementTruth] boot observation failed '
+                  f'(non-fatal): {exc}', flush=True)
 
     # First-boot mesh role auto-config (mesh convergence Phase 1).
     # Runs in a delayed daemon thread so the API is already serving when

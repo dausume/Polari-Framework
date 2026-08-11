@@ -313,7 +313,16 @@ class ModulesStatusEndpoint:
                               'note': 'registry absent — monolithic '
                                       'boot, everything online'}
             return
-        response.media = {'ok': True, **registry.snapshot()}
+        # dyn-2b: this is the authoritative placement READ — the isle
+        # agent (and any other cache) refreshes from here; STOMP
+        # /topic/PolariModule is the refresh signal.
+        try:
+            from topology.placement_truth import placement_report
+            placement = placement_report(self._polServer.manager)
+        except Exception as exc:
+            placement = {'error': f'{type(exc).__name__}: {exc}'}
+        response.media = {'ok': True, **registry.snapshot(),
+                          'placement': placement}
 
 
 def _stomp_publish(module, row):
@@ -565,6 +574,15 @@ class AdmissionWorker:
             manager.persistTree()
         except BaseException as exc:
             print(f'[LazyBoot] persistTree failed: {exc}', flush=True)
+        # dyn-2b: report what this boot ACTUALLY brought online.
+        try:
+            from topology.placement_truth import (
+                record_placement_observation,
+            )
+            record_placement_observation(manager, 'lazy boot')
+        except Exception as exc:
+            print(f'[LazyBoot] placement observation failed '
+                  f'(non-fatal): {exc}', flush=True)
         try:
             from polariPeers.module_fetcher import (
                 auto_fetch_configured,
