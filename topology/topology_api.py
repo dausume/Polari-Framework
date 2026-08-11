@@ -105,6 +105,11 @@ class TopologyAPI(treeObject):
                 suffix='module_move_plan')
             add('/api/topology/module-move/local-half', self,
                 suffix='module_move_local')
+            # dyn-9: agent-reported devices + what they grant, and
+            # the consumed-vs-available ledger across all of them.
+            add('/api/topology/devices', self, suffix='devices')
+            add('/api/topology/resource-ledger', self,
+                suffix='resource_ledger')
 
     # ---- helpers ----------------------------------------------------
 
@@ -578,6 +583,28 @@ class TopologyAPI(treeObject):
         response.media = apply_baseline(
             self.manager, instance,
             stand_down=raw in ('1', 'true', 'yes', 'on'))
+
+    def on_get_devices(self, request, response):
+        """dyn-9: every device the agents know about, joined to the
+        resources it grants (res-1 observation). Unmirrored devices
+        and unobserved machines are NAMED, never omitted."""
+        from topology.device_resources import device_inventory
+        devices = device_inventory(self.manager)
+        response.media = {
+            'ok': True, 'devices': devices,
+            'counts': {
+                'total': len(devices),
+                'withAgent': sum(1 for d in devices
+                                 if d['agentPresent']),
+                'capacityKnown': sum(1 for d in devices
+                                     if d['grants']['known'])}}
+
+    def on_get_resource_ledger(self, request, response):
+        """dyn-9: consumed vs available per device and overall —
+        threads and RAM, split into container presence and code
+        placed on the device."""
+        from topology.device_resources import resource_ledger
+        response.media = resource_ledger(self.manager)
 
     def on_post_module_move_plan(self, request, response):
         """dyn-7 PREVIEW: the ordered steps to move a module between
