@@ -54,6 +54,122 @@ def admit_module_live(manager, module):
         return _admit_locked(manager, module)
 
 
+def put_away_module_live(manager, module):
+    """dyn-3: NON-destructive deactivation of a module in the running
+    server. Frees in-memory rows/typing/CRUDE and shrinks
+    defClassList; DB TABLES STAY INTACT so re-admission is a
+    restoreTables away (never purgeObjectType — that drops tables).
+    Requests resolving to the module answer 410 Gone with the
+    bring-back hint (middleware). Honest limit, stated in the result:
+    imported CODE stays resident — only a recreate reclaims it."""
+    with _ADMISSION_LOCK:
+        return _put_away_locked(manager, module)
+
+
+def _put_away_locked(manager, module):
+    polServer = manager.polServer
+    registry = polServer.bootRegistry
+
+    if module in CORE_PACKAGES:
+        return {'ok': False, 'module': module,
+                'refusal': f"'{module}' is a core package — every "
+                           'instance needs it; it cannot be put '
+                           'away.'}
+    classes = [c for c in polServer.defClassList
+               if top_module(c) == module]
+    ctor_done = module in getattr(polServer, 'endpointConstructed',
+                                  set())
+    if not classes and not ctor_done:
+        return {'ok': True, 'module': module, 'noop': True,
+                'note': f"'{module}' is not online here — nothing "
+                        'to put away.'}
+    # Reverse-requires: putting away a module an ACTIVE module needs
+    # would break the dependent silently. Refuse, naming them.
+    try:
+        from moduleService.module_boot_records import (
+            load_module_requires,
+        )
+        active = {top_module(c) for c in polServer.defClassList} \
+            | getattr(polServer, 'endpointConstructed', set())
+        active.discard(module)
+        dependents = sorted(
+            m for m, reqs in load_module_requires().items()
+            if module in reqs and m in active)
+    except Exception:
+        dependents = []
+    if dependents:
+        return {'ok': False, 'module': module,
+                'refusal': f"active modules depend on '{module}': "
+                           f'{dependents}.',
+                'suggestion': {
+                    'action': 'put the dependents away first: '
+                              + ', '.join(
+                                  f'POST /modules/{d}/put-away'
+                                  for d in dependents)}}
+
+    started = time.time()
+    freed_rows = 0
+    names = [c.__name__ for c in classes]
+    for name in names:
+        # purgeObjectType minus every destructive step: rows out of
+        # RAM (DB rows untouched), typing out of the registries,
+        # CRUDE out of the lists (the falcon route stays — the
+        # middleware 410s it), tree entries out of the tree.
+        table = manager.objectTables.pop(name, None)
+        freed_rows += len(table) if table else 0
+        typing = manager.objectTypingDict.pop(name, None)
+        if typing is not None and typing in manager.objectTyping:
+            manager.objectTyping.remove(typing)
+        for crude in list(polServer.crudeObjectsList):
+            if crude.apiObject == name:
+                polServer.crudeObjectsList.remove(crude)
+                if crude.apiName in polServer.uriList:
+                    polServer.uriList.remove(crude.apiName)
+        if manager.objectTree is not None:
+            try:
+                manager._removeClassFromTree(manager.objectTree, name)
+            except Exception:
+                pass
+    polServer.defClassList = [c for c in polServer.defClassList
+                              if top_module(c) != module]
+
+    # Gate cache (dyn-2b): make module_enabled() agree. An unset
+    # POLARI_MODULES means ALL — putting one module away turns the
+    # knob into the explicit active list minus this module.
+    raw = (os.environ.get('POLARI_MODULES') or '').strip()
+    if raw:
+        names_env = [e.strip() for e in raw.split(',')
+                     if e.strip()
+                     and e.strip().split('.')[0] != module]
+        os.environ['POLARI_MODULES'] = ','.join(names_env)
+    else:
+        active = sorted(
+            ({top_module(c) for c in polServer.defClassList}
+             | getattr(polServer, 'endpointConstructed', set()))
+            - set(CORE_PACKAGES) - {module})
+        os.environ['POLARI_MODULES'] = ','.join(active)
+
+    registry.put_away(module)
+    worker = AdmissionWorker(manager)
+    registry.mark(module, 'disabled',
+                  error=f'put away — POST /modules/{module}/admit '
+                        'brings it back',
+                  finished_at=time.time())
+    row = registry.status_of(module)
+    worker._upsert_polari_module(module, row)
+    from polariApiServer.lazy_boot import _stomp_publish
+    _stomp_publish(module, row)
+    return {'ok': True, 'module': module,
+            'classesDeactivated': sorted(names),
+            'inMemoryRowsFreed': freed_rows,
+            'dbTablesKept': True,
+            'answers': '410 Gone with the bring-back hint',
+            'tookSeconds': round(time.time() - started, 3),
+            'note': 'imported code stays resident until the next '
+                    'recreate — put-away frees data memory and '
+                    'quiets the API, honestly.'}
+
+
 def _admit_locked(manager, module):
     polServer = manager.polServer
     registry = polServer.bootRegistry
@@ -123,6 +239,7 @@ def _admit_locked(manager, module):
 
     started = time.time()
     worker = AdmissionWorker(manager)
+    registry.readmit(module)  # clear any dyn-3 put-away marker
     registry.reopen(module)
     worker._transition(module, 'loading', started_at=started,
                        deps_ready_at=started)

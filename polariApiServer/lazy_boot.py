@@ -84,6 +84,9 @@ class ModuleBootRegistry:
         self.modules = {}
         # {className: module} for middleware resolution.
         self.class_owner = {}
+        # dyn-3: modules deactivated live — their requests answer
+        # 410 Gone (with the bring-back hint), NOT 503 and NOT 404.
+        self.put_away_modules = set()
         # In monolithic boots everything is online by construction.
         self.all_online = not self.lazy
 
@@ -115,6 +118,18 @@ class ModuleBootRegistry:
     def core_ready(self):
         with self._lock:
             self.core_data_ready_at = time.time()
+
+    def put_away(self, module):
+        with self._lock:
+            self.put_away_modules.add(module)
+
+    def readmit(self, module):
+        with self._lock:
+            self.put_away_modules.discard(module)
+
+    def is_put_away(self, module):
+        with self._lock:
+            return module in self.put_away_modules
 
     def reopen(self, module):
         """dyn-2: live admission re-arms the honesty middleware for
@@ -205,7 +220,7 @@ class ModuleLoadingMiddleware:
 
     def process_resource(self, req, resp, resource, params):
         registry = getattr(self._polServer, 'bootRegistry', None)
-        if registry is None or registry.all_online:
+        if registry is None:
             return
         if type(resource).__name__ in self.ALWAYS_OPEN:
             return
@@ -219,6 +234,20 @@ class ModuleLoadingMiddleware:
                 # Core custom APIs stay open — they carry no
                 # module-owned table data of their own.
                 return
+        # dyn-3: a put-away module answers 410 Gone — checked BEFORE
+        # the all_online short-circuit (put-away happens while
+        # everything else is online) and covering BOTH the CRUDE
+        # routes (which falcon cannot remove) and the custom APIs.
+        if registry.is_put_away(module):
+            raise falcon.HTTPGone(
+                title='module put away',
+                description=(
+                    f"module '{module}' has been put away on this "
+                    f'instance — POST /modules/{module}/admit '
+                    'brings it back (DB tables were kept)'),
+            ) from None
+        if registry.all_online:
+            return
         if not registry.is_data_pending(module):
             return
         status = registry.status_of(module) or {}

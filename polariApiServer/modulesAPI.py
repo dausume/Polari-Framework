@@ -32,10 +32,13 @@ class ModulesAPI(treeObject):
             polServer.falconServer.add_route(self.apiName + '/create', self, suffix='create')
             polServer.falconServer.add_route(self.apiName + '/registry', self, suffix='registry')
             polServer.falconServer.add_route(self.apiName + '/{module_id}', self, suffix='detail')
-            # dyn-2: live admission — no container recreate.
+            # dyn-2/3: live admission + put-away — no recreate.
             polServer.falconServer.add_route(
                 self.apiName + '/{module_id}/admit', self,
                 suffix='admit')
+            polServer.falconServer.add_route(
+                self.apiName + '/{module_id}/put-away', self,
+                suffix='putaway')
 
     # ------------------------------------------------------------------
     # POST /modules/{module_id}/admit  (dyn-2)
@@ -60,6 +63,32 @@ class ModulesAPI(treeObject):
             response.status = falcon.HTTP_500
             response.media = {'success': False, 'error': str(err)}
             print(f'[ModulesAPI] admit({module_id}) failed: {err}')
+            import traceback
+            traceback.print_exc()
+        response.set_header('Powered-By', 'Polari')
+
+    # ------------------------------------------------------------------
+    # POST /modules/{module_id}/put-away  (dyn-3)
+    # ------------------------------------------------------------------
+    def on_post_putaway(self, request, response, module_id):
+        """Non-destructive live deactivation: in-memory rows/typing/
+        CRUDE freed, defClassList shrunk, DB TABLES KEPT; requests
+        answer 410 Gone with the bring-back hint. Never
+        purgeObjectType (that drops tables). Code memory stays until
+        the next recreate — the result says so."""
+        try:
+            from polariApiServer.live_admission import (
+                put_away_module_live,
+            )
+            result = put_away_module_live(self.manager, module_id)
+            response.media = {'success': bool(result.get('ok')),
+                              **result}
+            response.status = (falcon.HTTP_200 if result.get('ok')
+                               else falcon.HTTP_409)
+        except Exception as err:
+            response.status = falcon.HTTP_500
+            response.media = {'success': False, 'error': str(err)}
+            print(f'[ModulesAPI] put-away({module_id}) failed: {err}')
             import traceback
             traceback.print_exc()
         response.set_header('Powered-By', 'Polari')
