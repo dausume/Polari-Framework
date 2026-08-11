@@ -66,6 +66,199 @@ def put_away_module_live(manager, module):
         return _put_away_locked(manager, module)
 
 
+def _table_classes(polServer, module):
+    """A module's definition-class contribution, rebuilt from the
+    dyn-1 import table: the symbols it declares that are treeObject
+    subclasses defined BY that module. Verified 2026-08-11 against a
+    live boot — exact for every module except pspp, whose 4 classes
+    are a pre-existing registration bug (in seed_pairs, absent from
+    defClassList => silent no-table), NOT a rule failure."""
+    import polariApiServer.polariServer as server_mod
+    from objectTreeDecorators import treeObject
+    from polariApiServer.feature_imports import FEATURE_IMPORT_BLOCKS
+    found = []
+    for entry_module, imports in FEATURE_IMPORT_BLOCKS:
+        if entry_module != module:
+            continue
+        for _, symbols in imports:
+            for symbol in symbols:
+                value = getattr(server_mod, symbol, None)
+                if (isinstance(value, type)
+                        and issubclass(value, treeObject)
+                        and top_module(value) == module
+                        and value not in found):
+                    found.append(value)
+    return found
+
+
+def _unstub_and_extend(polServer, module):
+    """dyn-4: rebind a fetched module's real symbols over its stubs
+    and put its classes back into the pre-gate list, so the ordinary
+    dyn-2 path can admit it. Broken code raises LOUDLY (never a
+    silent skip) — the caller reports the refusal."""
+    import polariApiServer.polariServer as server_mod
+    from moduleService.module_loading import unstub_feature_module
+    from polariApiServer.feature_imports import FEATURE_IMPORT_BLOCKS
+    try:
+        unstub_feature_module(server_mod.__dict__, module,
+                              FEATURE_IMPORT_BLOCKS)
+    except ImportError as exc:
+        return {'ok': False, 'module': module,
+                'refusal': f"'{module}' code is present but does "
+                           f'not import: {exc}',
+                'suggestion': {
+                    'action': 'fix the module or re-fetch it — a '
+                              'downloaded module that cannot import '
+                              'is a real breakage, never a silent '
+                              'skip'}}
+    except KeyError:
+        return {'ok': False, 'module': module,
+                'refusal': f"'{module}' is not declared in the "
+                           'feature-import table — nothing to '
+                           'un-stub.',
+                'suggestion': {
+                    'action': 'add its entry to '
+                              'polariApiServer/feature_imports.py '
+                              '(dyn-1 declaration), then admit'}}
+    classes = _table_classes(polServer, module)
+    known = set(getattr(polServer, 'allDefClassList', []))
+    added = [c for c in classes if c not in known]
+    polServer.allDefClassList.extend(added)
+    return {'ok': True, 'unstubbed': True,
+            'classesRecovered': sorted(c.__name__ for c in added)}
+
+
+def fetch_and_admit_module(manager, module, source_ref=None,
+                           source_kind=None, install_deps=False):
+    """dyn-4: pull a module's DEFINITION into this instance and bring
+    it online — fetch code (module_fetcher, which clones into
+    modules/<name>, already an import root) -> optional per-module
+    pip deps -> un-stub from the dyn-1 table -> ordinary live
+    admission. Fetching is code execution, so this stays an explicit
+    act: peer sources remain refused (no signing story yet), and the
+    caller supplies the source or a ModuleSourceConfig row does."""
+    with _ADMISSION_LOCK:
+        if feature_downloaded(module):
+            fetched = {'fetched': False,
+                       'note': 'code already present — nothing to '
+                               'fetch'}
+        else:
+            try:
+                from polariPeers.module_fetcher import (
+                    fetch_module_project,
+                )
+            except Exception as exc:
+                return {'ok': False, 'module': module,
+                        'refusal': f'module fetcher unavailable: '
+                                   f'{exc}'}
+            if (source_kind or '').strip() == 'peer':
+                return {'ok': False, 'module': module,
+                        'refusal': 'peer-sourced CODE is refused — '
+                                   'bundles (rows) from peers are '
+                                   'fine; code needs a signing '
+                                   'story first.'}
+            if source_ref:
+                # The fetcher reads a ModuleSourceConfig row — an
+                # inline source becomes one (the durable record of
+                # WHERE this instance's copy came from).
+                configured = _upsert_source_config(
+                    manager, module, source_kind or 'git', source_ref)
+                if not configured.get('ok'):
+                    return {'ok': False, 'module': module,
+                            'refusal': 'could not record the module '
+                                       'source',
+                            'sourceConfig': configured}
+            try:
+                fetched = fetch_module_project(manager, module)
+            except Exception as exc:
+                return {'ok': False, 'module': module,
+                        'refusal': f'fetch failed: '
+                                   f'{type(exc).__name__}: {exc}'}
+            if isinstance(fetched, dict) and fetched.get('ok') is False:
+                return {'ok': False, 'module': module,
+                        'refusal': 'fetch refused',
+                        'fetch': fetched}
+        if not feature_downloaded(module):
+            return {'ok': False, 'module': module,
+                    'refusal': f"'{module}' code is still not "
+                               'present after the fetch step.',
+                    'fetch': fetched}
+
+        deps = {'installed': False,
+                'note': 'not requested (install_deps=False) — a pip '
+                        'install into a running container is lost on '
+                        'recreate; persist accepted packages in '
+                        'requirements.txt'}
+        if install_deps:
+            deps = _install_module_deps(module)
+            if not deps.get('ok', True):
+                return {'ok': False, 'module': module,
+                        'refusal': 'dependency install failed',
+                        'fetch': fetched, 'deps': deps}
+
+        result = _admit_locked(manager, module)
+        result['fetch'] = fetched
+        result['deps'] = deps
+        return result
+
+
+def _upsert_source_config(manager, module, kind, locator, ref=''):
+    """Record WHERE this instance's copy of a module comes from —
+    the fetcher's input and the durable provenance of fetched code.
+    auto_fetch stays OFF: fetching is an explicit act."""
+    try:
+        from polariPeers.module_source_config import (
+            ModuleSourceConfig,
+        )
+        found = None
+        for row in manager.objectTables.get('ModuleSourceConfig',
+                                            {}).values():
+            if getattr(row, 'name', '') == module:
+                found = row
+                break
+        if found is None:
+            found = ModuleSourceConfig(
+                name=module, source_kind=kind, locator=locator,
+                ref=ref, auto_fetch=False,
+                notes='recorded by dyn-4 fetch+admit',
+                manager=manager)
+        else:
+            found.source_kind = kind
+            found.locator = locator
+            if ref:
+                found.ref = ref
+        if manager.db is not None:
+            manager.db.saveInstanceInDB(found)
+        return {'ok': True, 'row': module, 'kind': kind,
+                'locator': locator}
+    except Exception as exc:
+        return {'ok': False,
+                'reason': f'{type(exc).__name__}: {exc}'}
+
+
+def _install_module_deps(module):
+    """Per-module pip deps: derived by AST scan, installed with the
+    existing confirmed installer. Honest about impermanence."""
+    try:
+        from moduleService.module_dependency_tracker import (
+            install_packages, plan_install,
+        )
+        from moduleService.module_loading import module_code_dir
+        plan = plan_install([module]) if plan_install.__code__ \
+            .co_argcount == 1 else plan_install(module_code_dir(module))
+        report = install_packages(plan) if plan else {'installed': []}
+        return {'ok': True, 'plan': plan, 'report': report,
+                'note': 'installed into the RUNNING container only '
+                        '— persist accepted packages in '
+                        'requirements.txt'}
+    except Exception as exc:
+        return {'ok': False,
+                'reason': f'{type(exc).__name__}: {exc}',
+                'note': 'dependency install is best-effort; the '
+                        'module may still admit if its imports are '
+                        'already satisfiable'}
+
+
 def _put_away_locked(manager, module):
     polServer = manager.polServer
     registry = polServer.bootRegistry
@@ -199,19 +392,15 @@ def _admit_locked(manager, module):
                     'note': 'fetch + admit in one step is dyn-4 '
                             '(POST /api/module-projects/fetch, then '
                             'admit after a restart for now)'}}
+    unstubbed = None
     if module in MISSING_FEATURE_MODULES:
-        # Code arrived AFTER boot: symbols are stubbed and the
-        # boot-time defClassList never held its classes, so the
-        # pre-gate list cannot supply them. dyn-4 owns this path.
-        return {'ok': False, 'module': module,
-                'refusal': f"'{module}' was absent at boot — its "
-                           'class list is not recoverable in this '
-                           'process yet.',
-                'suggestion': {
-                    'action': 'restart the backend (the code is now '
-                              'present, boot admits it), or wait for '
-                              'dyn-4 fetch+admit',
-                }}
+        # dyn-4: code arrived AFTER boot — its symbols are stubs and
+        # allDefClassList never held its classes. Un-stub from the
+        # SAME declaration boot used, then rebuild the module's
+        # class contribution from the table (see _table_classes).
+        unstubbed = _unstub_and_extend(polServer, module)
+        if not unstubbed.get('ok'):
+            return unstubbed
 
     # ---- dependency order is mandatory, not cosmetic -----------
     # (cross-module inheritance means a module admits only after its
@@ -242,7 +431,17 @@ def _admit_locked(manager, module):
                if top_module(c) == module]
     ctor_done = module in getattr(polServer, 'endpointConstructed',
                                   set())
-    if module_enabled(module) and (already or ctor_done):
+    new_classes = [c for c in classes if c not in already]
+    from polariApiServer.module_endpoints import (
+        MODULE_ENDPOINT_CONSTRUCTORS,
+    )
+    ctor_pending = (module in MODULE_ENDPOINT_CONSTRUCTORS
+                    and not ctor_done)
+    # A no-op means genuinely NOTHING left to do: every declared
+    # class registered AND the endpoints constructed. A partially
+    # present module (e.g. one class registered by another path)
+    # must still admit the rest.
+    if module_enabled(module) and not new_classes and not ctor_pending:
         return {'ok': True, 'module': module, 'noop': True,
                 'note': f"'{module}' is already online here "
                         f'({len(already)} classes registered).'}
@@ -265,7 +464,6 @@ def _admit_locked(manager, module):
                 env_updated = True
 
         # ---- typing pass (the boot block, per class) -----------
-        new_classes = [c for c in classes if c not in already]
         for cls in new_classes:
             typing = manager.getObjectTyping(classObj=cls)
             if typing is not None:

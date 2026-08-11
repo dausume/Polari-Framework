@@ -39,6 +39,10 @@ class ModulesAPI(treeObject):
             polServer.falconServer.add_route(
                 self.apiName + '/{module_id}/put-away', self,
                 suffix='putaway')
+            # dyn-4: pull a module DEFINITION in and bring it online.
+            polServer.falconServer.add_route(
+                self.apiName + '/{module_id}/fetch-admit', self,
+                suffix='fetchadmit')
 
     # ------------------------------------------------------------------
     # POST /modules/{module_id}/admit  (dyn-2)
@@ -63,6 +67,42 @@ class ModulesAPI(treeObject):
             response.status = falcon.HTTP_500
             response.media = {'success': False, 'error': str(err)}
             print(f'[ModulesAPI] admit({module_id}) failed: {err}')
+            import traceback
+            traceback.print_exc()
+        response.set_header('Powered-By', 'Polari')
+
+    # ------------------------------------------------------------------
+    # POST /modules/{module_id}/fetch-admit  (dyn-4)
+    # ------------------------------------------------------------------
+    def on_post_fetchadmit(self, request, response, module_id):
+        """Pull a module's DEFINITION into this instance and bring it
+        online in one act: fetch code -> optional per-module pip deps
+        -> un-stub from the dyn-1 declaration -> live admission.
+        Body knobs (all optional): sourceRef, sourceKind,
+        installDeps. Peer-sourced CODE stays refused."""
+        try:
+            body = {}
+            try:
+                body = request.media or {}
+            except Exception:
+                body = {}
+            from polariApiServer.live_admission import (
+                fetch_and_admit_module,
+            )
+            result = fetch_and_admit_module(
+                self.manager, module_id,
+                source_ref=body.get('sourceRef'),
+                source_kind=body.get('sourceKind'),
+                install_deps=bool(body.get('installDeps')))
+            response.media = {'success': bool(result.get('ok')),
+                              **result}
+            response.status = (falcon.HTTP_200 if result.get('ok')
+                               else falcon.HTTP_409)
+        except Exception as err:
+            response.status = falcon.HTTP_500
+            response.media = {'success': False, 'error': str(err)}
+            print(f'[ModulesAPI] fetch-admit({module_id}) failed: '
+                  f'{err}')
             import traceback
             traceback.print_exc()
         response.set_header('Powered-By', 'Polari')
