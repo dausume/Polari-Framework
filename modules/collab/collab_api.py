@@ -59,6 +59,8 @@ class CollabAPI(treeObject):
                 suffix='realtime_schema')
             add('/api/collab/sessions/for-surface', self,
                 suffix='for_surface')
+            add('/api/collab/sessions/{name}/commit-drag', self,
+                suffix='commit_drag')
             add('/api/collab/sessions/{name}/token', self, suffix='token')
             add('/api/collab/sessions/{name}/join-info', self,
                 suffix='join_info')
@@ -346,6 +348,74 @@ class CollabAPI(treeObject):
             'note': ('their token stays valid until it expires (TTL '
                      'is the bound); close the session to stop '
                      're-entry'),
+        }
+
+    def on_post_commit_drag(self, request, response, name):
+        """mtg-8: THE §2 RULE MADE TANGIBLE.
+
+        A dragged object moves smoothly for everyone over LiveKit —
+        those are `drag-preview` messages, ephemeral and unvalidated,
+        and NOTHING here reads them. To make a drag real, the client
+        POSTs the final transform to this endpoint, which:
+
+          - requires a Keycloak-verified caller (a preview arriving on
+            a socket is not a person),
+          - PROPOSES through the ordinary ai_actions path and returns
+            the proposal — it does NOT apply it. Applying is a
+            separate, confirmed act by a human or an authorized
+            service, recorded in the same provenance log every other
+            change goes through.
+
+        So an object moves smoothly for everyone via LiveKit, and
+        BECOMES moved via Polari — no second write path, no message
+        that mutates state."""
+        user = getattr(request.context, 'user_info', None)
+        if not user or not user.get('sub'):
+            return self._refuse(
+                response, 'committing a drag requires a Keycloak-'
+                          'verified caller — a preview on a socket is '
+                          'not authorization', falcon.HTTP_401)
+        session = self._find('CollaborationSession', name)
+        if session is None:
+            return self._refuse(
+                response, f'no CollaborationSession named {name!r}',
+                falcon.HTTP_404)
+        try:
+            body = request.media or {}
+        except Exception:
+            body = {}
+        object_ref = (body.get('objectRef') or '').strip()
+        updates = body.get('updateData')
+        if '/' not in object_ref:
+            return self._refuse(
+                response, "objectRef must be 'ClassName/polariId' — "
+                          'the row this drag moved')
+        if not isinstance(updates, dict) or not updates:
+            return self._refuse(
+                response, 'updateData must be a non-empty object of '
+                          'the fields the drag changed')
+        class_name, _, polari_id = object_ref.partition('/')
+        try:
+            from polariApiServer.ai_actions import kernel
+        except Exception as exc:
+            return self._refuse(
+                response, f'the proposal kernel is unavailable: {exc}',
+                falcon.HTTP_503)
+        who = user.get('username') or user['sub']
+        proposal = kernel.propose(
+            'object_transform',
+            f'{who} dragged {object_ref} in meeting {name!r}',
+            {'class': class_name, 'polariId': polari_id,
+             'updateData': updates})
+        response.status = falcon.HTTP_202
+        response.media = {
+            'ok': True, 'applied': False, 'proposal': proposal,
+            'session': name, 'by': who,
+            'note': ('PROPOSED, not applied. The drag moved smoothly '
+                     'for everyone over LiveKit; it becomes real only '
+                     'when this proposal is executed with confirm — '
+                     'the same path and the same provenance log as '
+                     'every other change.'),
         }
 
     def on_get_join_info(self, request, response, name):

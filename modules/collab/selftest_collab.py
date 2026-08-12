@@ -289,6 +289,28 @@ def run():
                       for f in inspect.signature(
                           AvatarDefinition.__init__).parameters))
 
+    # -- mtg-8: a drag COMMITS through the ordinary proposal path --------
+    from polariApiServer.ai_actions import (
+        _EXECUTORS, _OP_LEVEL, classify, kernel)
+    check('object_transform is a KNOWN operation (an unknown op would '
+          'be treated as irreversible level 7)',
+          'object_transform' in _OP_LEVEL
+          and classify('object_transform') == (3, 'reversible-system'))
+    check('a transform commit reuses the field-update executor — no '
+          'second write path',
+          _EXECUTORS['object_transform']
+          is _EXECUTORS['display_update'])
+    proposal = kernel.propose(
+        'object_transform', 'selftest drag',
+        {'class': 'MathShapeDefinition', 'polariId': 'abc',
+         'updateData': {'parameters_json': '{}'}})
+    check('propose returns a DRY RUN carrying its authority level',
+          proposal['dry_run'] is True
+          and proposal['authority_level'] == 3
+          and proposal['proposal_id'].startswith('act_'))
+    check('nothing is applied without an explicit confirm',
+          not kernel.execute(proposal['proposal_id'], False).get('ok'))
+
     # -- registration 1: the feature-import manifest ---------------------
     from polariApiServer.feature_imports import FEATURE_IMPORT_BLOCKS
     blocks = [entries for mod, entries in FEATURE_IMPORT_BLOCKS

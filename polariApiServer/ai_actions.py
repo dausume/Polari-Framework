@@ -37,6 +37,12 @@ _OP_LEVEL = {
     "display_update": (3, "reversible-system"),
     "score_assert": (3, "reversible-system"),
     "connect": (3, "reversible-system"),
+    # mtg-8: committing a dragged object's transform. Reversible-system:
+    # it writes one row's fields and the previous value is in the
+    # provenance log, so it can be put back. The DRAG itself is not
+    # this — a drag is an ephemeral LiveKit preview; only the commit
+    # becomes a proposal.
+    "object_transform": (3, "reversible-system"),
     "storage_connect": (4, "network-service"),
     "delete": (7, "irreversible"),
 }
@@ -96,6 +102,9 @@ _EXECUTORS = {
     "score_assert": _exec_create,
     "sim_step": _exec_post_json,
     "storage_connect": _exec_post_json,
+    # A transform commit IS a field update — same executor, no second
+    # write path (mtg-8).
+    "object_transform": _exec_display_update,
 }
 
 
