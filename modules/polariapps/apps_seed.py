@@ -350,4 +350,23 @@ SEED_POLARI_APPS = [
                       requires_module='techtree'))),
          personas=('network-engineer', 'cloud-engineer'),
          discipline='network-cloud'),
+    # mtg-3: collaboration is CROSS-DISCIPLINE — every persona meets.
+    # Its own app rather than a group bolted onto one discipline, so
+    # an instance can carry meetings without carrying that discipline
+    # (and can drop them just as cleanly — the modularization rule).
+    _app('app-collaboration', 'Meetings & Collaboration',
+         'Anyone meeting about the work: group audio/video/screen '
+         'share on the LAN, around the same Polari objects.',
+         'Collaboration sessions + KC-gated LiveKit tokens (collab); '
+         'the media server itself is the separate pol-livekit '
+         'service, and an absent one refuses honestly rather than '
+         'hiding the page.',
+         ('collab',),
+         ('/meetings',),
+         nav=(
+             _tgrp('Meetings',
+                  _it('Meetings', 'page', route='/meetings',
+                      requires_module='collab')),),
+         personas=('researcher', 'business-operator'),
+         discipline='collaboration'),
 ]

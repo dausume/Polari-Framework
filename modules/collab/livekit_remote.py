@@ -153,6 +153,48 @@ def mint_token(identity, room, admin=False, ttl_s=None, name='',
             'expires_at': issued + ttl, 'ttl_s': ttl}
 
 
+def room_service(method, payload, timeout=10):
+    """Call LiveKit's server RoomService (twirp) with an
+    INTERNALLY-minted admin token. Moderation runs here, server-side,
+    so the action is authorized by Polari and lands in its logs — a
+    browser is never handed room-admin rights over the API just
+    because it moderates in the UI.
+
+    Returns the decoded body, or an honest refusal dict."""
+    url = server_url()
+    if not url:
+        return {'ok': False, 'error': 'no LiveKit server configured',
+                'suggestion': unavailable_suggestion(
+                    'LIVEKIT_URL is unset and the topology resolves '
+                    "no provider for 'collab.media'.")}
+    room = payload.get('room', '')
+    minted = mint_token('polari-moderation', room, admin=True, ttl_s=60)
+    if not minted.get('ok'):
+        return minted
+    request = urllib.request.Request(
+        f'{url}/twirp/livekit.RoomService/{method}',
+        data=json.dumps(payload).encode(),
+        headers={'Content-Type': 'application/json',
+                 'Authorization': 'Bearer ' + minted['token']},
+        method='POST')
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as resp:
+            body = json.load(resp) if resp.length != 0 else {}
+            return {'ok': True, 'result': body if isinstance(body, dict)
+                    else {}}
+    except Exception as e:
+        detail = ''
+        try:
+            detail = json.load(e).get('msg', '')
+        except Exception:
+            pass
+        return {'ok': False,
+                'error': f'LiveKit RoomService {method} failed: '
+                         f'{detail or e}',
+                'suggestion': unavailable_suggestion(
+                    f'{url} rejected or did not answer {method}.')}
+
+
 def verify_token(token, keys=None):
     """Decode + verify one of OUR tokens (selftest / debugging aid —
     LiveKit itself is the production verifier). Returns the claims

@@ -58,6 +58,12 @@ class CollabAPI(treeObject):
             add('/api/collab/sessions/{name}/token', self, suffix='token')
             add('/api/collab/sessions/{name}/join-info', self,
                 suffix='join_info')
+            add('/api/collab/sessions/{name}/participants', self,
+                suffix='participants')
+            add('/api/collab/sessions/{name}/participants/'
+                '{identity}/mute', self, suffix='participant_mute')
+            add('/api/collab/sessions/{name}/participants/'
+                '{identity}/remove', self, suffix='participant_remove')
 
     # ---- helpers ----------------------------------------------------
 
@@ -167,6 +173,127 @@ class CollabAPI(treeObject):
             'moderation': bool(admin),
             'moderator': session.moderator_username or None,
             'mintedAt': datetime.now(timezone.utc).isoformat(),
+        }
+
+    def _moderator_or_refuse(self, request, response, name):
+        """(session, subject) for a VERIFIED caller holding the
+        moderation grant, or None having already refused."""
+        session = self._find('CollaborationSession', name)
+        if session is None:
+            self._refuse(response,
+                         f'no CollaborationSession named {name!r}',
+                         falcon.HTTP_404)
+            return None
+        user = getattr(request.context, 'user_info', None)
+        if not user or not user.get('sub'):
+            self._refuse(response,
+                         'moderation requires a Keycloak-verified '
+                         'caller', falcon.HTTP_401)
+            return None
+        roles = getattr(request.context, 'roles', []) or []
+        if not moderation_grant(user['sub'], roles,
+                                session.moderator_subject,
+                                session.moderator_role):
+            self._refuse(response,
+                         'only this session\'s moderator may moderate '
+                         f'(moderator: {session.moderator_username or "unclaimed"})',
+                         falcon.HTTP_403)
+            return None
+        return (session, user)
+
+    def on_get_participants(self, request, response, name):
+        """The roster AS THE SERVER SEES IT — the client's own list
+        comes from its LiveKit connection; this is the authoritative
+        second opinion moderation acts on."""
+        from collab import livekit_remote as lk
+        session = self._find('CollaborationSession', name)
+        if session is None:
+            return self._refuse(
+                response, f'no CollaborationSession named {name!r}',
+                falcon.HTTP_404)
+        room = session.room_name or session.name
+        result = lk.room_service('ListParticipants', {'room': room})
+        if not result.get('ok'):
+            return self._refuse(response, result['error'],
+                                falcon.HTTP_503,
+                                suggestion=result.get('suggestion'))
+        people = (result['result'] or {}).get('participants') or []
+        response.media = {
+            'ok': True, 'room': room,
+            'participants': [
+                {'identity': p.get('identity'),
+                 'name': p.get('name'),
+                 'joinedAt': p.get('joined_at'),
+                 'tracks': len(p.get('tracks') or [])}
+                for p in people],
+        }
+
+    def on_post_participant_mute(self, request, response, name,
+                                 identity):
+        """Mute every audio track a participant publishes. Runs
+        SERVER-side with an internally-minted admin token — the
+        browser never holds room-admin rights."""
+        from collab import livekit_remote as lk
+        checked = self._moderator_or_refuse(request, response, name)
+        if checked is None:
+            return
+        session, user = checked
+        room = session.room_name or session.name
+        listed = lk.room_service('ListParticipants', {'room': room})
+        if not listed.get('ok'):
+            return self._refuse(response, listed['error'],
+                                falcon.HTTP_503,
+                                suggestion=listed.get('suggestion'))
+        target = next((p for p in (listed['result'] or {}).get(
+            'participants') or [] if p.get('identity') == identity), None)
+        if target is None:
+            return self._refuse(
+                response, f'{identity!r} is not in room {room!r}',
+                falcon.HTTP_404)
+        muted = []
+        for track in target.get('tracks') or []:
+            if (track.get('type') or '').upper() != 'AUDIO' \
+                    and track.get('type') != 1:
+                continue
+            result = lk.room_service('MutePublishedTrack', {
+                'room': room, 'identity': identity,
+                'track_sid': track.get('sid'), 'muted': True})
+            if not result.get('ok'):
+                return self._refuse(response, result['error'],
+                                    falcon.HTTP_503,
+                                    suggestion=result.get('suggestion'))
+            muted.append(track.get('sid'))
+        response.media = {
+            'ok': True, 'room': room, 'identity': identity,
+            'mutedTracks': muted,
+            'moderatedBy': user.get('username') or user['sub'],
+            'note': ('a muted participant can unmute themselves — '
+                     'this is moderation, not a gag'),
+        }
+
+    def on_post_participant_remove(self, request, response, name,
+                                   identity):
+        """Remove a participant from the room. They keep their token
+        until it expires (short TTL is the bound) — close the session
+        to stop re-entry for good."""
+        from collab import livekit_remote as lk
+        checked = self._moderator_or_refuse(request, response, name)
+        if checked is None:
+            return
+        session, user = checked
+        room = session.room_name or session.name
+        result = lk.room_service('RemoveParticipant',
+                                 {'room': room, 'identity': identity})
+        if not result.get('ok'):
+            return self._refuse(response, result['error'],
+                                falcon.HTTP_503,
+                                suggestion=result.get('suggestion'))
+        response.media = {
+            'ok': True, 'room': room, 'identity': identity,
+            'removedBy': user.get('username') or user['sub'],
+            'note': ('their token stays valid until it expires (TTL '
+                     'is the bound); close the session to stop '
+                     're-entry'),
         }
 
     def on_get_join_info(self, request, response, name):
