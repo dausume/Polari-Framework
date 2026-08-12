@@ -443,6 +443,41 @@ def main():
     check('netledger: assess flags a pool overlap per host',
           any(a['code'] == 'pool-overlap' for a in ra))
 
+    # ---- UDP port ranges (mtg-0: media servers own RANGES) ----------
+    from islemesh.islemesh_netledger import (
+        udp_range_conflicts, free_udp_range)
+    check('netledger: same port different proto is NOT a conflict',
+          port_conflicts([{'port': 80},
+                          {'port': 80, 'proto': 'udp'}]) == []
+          and port_conflicts([{'port': 80, 'proto': 'udp'},
+                              {'port': 80, 'proto': 'udp'}])
+          == ['80/udp'])
+    rc = udp_range_conflicts([
+        {'name': 'livekit-media', 'lo': 50000, 'hi': 50099},
+        {'name': 'other-webrtc', 'lo': 50050, 'hi': 50149},
+        {'name': 'clear', 'lo': 51000, 'hi': 51099}])
+    check('netledger: overlapping UDP ranges named, disjoint ignored',
+          len(rc) == 1 and rc[0]['a'] == 'livekit-media'
+          and rc[0]['b'] == 'other-webrtc')
+    check('netledger: a single udp port inside a range collides',
+          udp_range_conflicts(
+              [{'name': 'livekit-media', 'lo': 50000, 'hi': 50099}],
+              [{'port': 50007, 'proto': 'udp', 'container': 'wg'}])
+          != [] and udp_range_conflicts(
+              [{'name': 'livekit-media', 'lo': 50000, 'hi': 50099}],
+              [{'port': 50007, 'container': 'tcp-thing'}]) == [])
+    fr = free_udp_range([{'name': 'x', 'lo': 50000, 'hi': 50099}],
+                        [{'port': 50100, 'proto': 'udp'}], width=100)
+    check('netledger: free_udp_range skips ranges AND udp ports',
+          fr == {'lo': 50101, 'hi': 50200})
+    ra2 = assess_resources([{'name': 'pol-core', 'pools': [],
+                             'ports': [],
+                             'udp_ranges': [
+                                 {'name': 'a', 'lo': 1, 'hi': 9},
+                                 {'name': 'b', 'lo': 5, 'hi': 14}]}])
+    check('netledger: assess flags a UDP range collision per host',
+          any(a['code'] == 'udp-range-conflict' for a in ra2))
+
     # ---- vocabulary coherence ---------------------------------------
     check('availability presets are named modes over the triple',
           AVAILABILITY_MODES == ('always-available', 'on-demand')
