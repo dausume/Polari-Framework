@@ -152,6 +152,15 @@ def run():
                   for f in record_fields))
     session_fields = inspect.signature(
         CollaborationSession.__init__).parameters
+    # -- mtg-6: the surface binding is DATA on the row -------------------
+    check('a session can BIND to a page route and/or an object ref, '
+          'so neither the page nor the row hardcodes the other',
+          {'bound_route', 'bound_ref'} <= set(session_fields))
+    check('binding is empty by default — a standalone meeting is the '
+          'ordinary case',
+          CollaborationSession(name='s').bound_route == ''
+          and CollaborationSession(name='s').bound_ref == '')
+
     check('session carries moderation evidence fields',
           {'moderator_subject', 'moderator_role',
            'moderator_source'} <= set(session_fields))

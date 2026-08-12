@@ -57,6 +57,8 @@ class CollabAPI(treeObject):
             add('/api/collab/capability', self, suffix='capability')
             add('/api/collab/realtime-schema', self,
                 suffix='realtime_schema')
+            add('/api/collab/sessions/for-surface', self,
+                suffix='for_surface')
             add('/api/collab/sessions/{name}/token', self, suffix='token')
             add('/api/collab/sessions/{name}/join-info', self,
                 suffix='join_info')
@@ -186,6 +188,43 @@ class CollabAPI(treeObject):
         browser does, so there is nothing to drift."""
         from collab.realtime_schemas import catalog_document
         response.media = dict(catalog_document(), ok=True)
+
+    def on_get_for_surface(self, request, response):
+        """mtg-6: which OPEN meeting belongs to this page/object?
+
+        A simulation page asks by its own route (or the object it is
+        showing) and gets back the session to offer — the binding is a
+        row, so neither side hardcodes the other. An empty list is a
+        normal answer, not an error: most pages have no meeting, and
+        the page renders nothing rather than an apology."""
+        route = (request.get_param('route') or '').strip()
+        ref = (request.get_param('ref') or '').strip()
+        if not route and not ref:
+            return self._refuse(
+                response, 'ask by ?route= (a page path) or ?ref= '
+                          '(Class/name) — an unfiltered list is what '
+                          'CRUDE /CollaborationSession is for')
+        table = (self.manager.objectTables or {}).get(
+            'CollaborationSession', {})
+        matches = []
+        for row in table.values():
+            if getattr(row, 'status', '') != 'open':
+                continue
+            bound_route = getattr(row, 'bound_route', '') or ''
+            bound_ref = getattr(row, 'bound_ref', '') or ''
+            if (route and bound_route and bound_route == route) \
+                    or (ref and bound_ref and bound_ref == ref):
+                matches.append({
+                    'name': row.name,
+                    'title': getattr(row, 'title', '') or row.name,
+                    'room': getattr(row, 'room_name', '') or row.name,
+                    'boundRoute': bound_route,
+                    'boundRef': bound_ref,
+                    'moderator': getattr(row, 'moderator_username', '')
+                    or None,
+                })
+        response.media = {'ok': True, 'route': route or None,
+                          'ref': ref or None, 'sessions': matches}
 
     def _moderator_or_refuse(self, request, response, name):
         """(session, subject) for a VERIFIED caller holding the

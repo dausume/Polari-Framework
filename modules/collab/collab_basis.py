@@ -89,9 +89,19 @@ class CollaborationSession(treeObject):
     def __init__(self, name='', title='', room_name='', scope='local',
                  status='open', moderator_subject='',
                  moderator_username='', moderator_role='',
-                 moderator_source='', notes='', manager=None):
+                 moderator_source='', bound_route='', bound_ref='',
+                 notes='', manager=None):
         self.name = name
         self.title = title
+        # mtg-6: WHICH SURFACE this meeting belongs to, as data.
+        # bound_route is a page path ('/sim-spaces/motor-m2-viz'), so a
+        # page can ask "is there a meeting about what I am showing?"
+        # without anything being hardcoded on either side; bound_ref is
+        # the object itself ('SimSpaceDefinition/motor-m2-viz') for the
+        # cases where several routes show one object. Both empty = a
+        # standalone meeting, which is the ordinary case.
+        self.bound_route = bound_route
+        self.bound_ref = bound_ref
         # LiveKit room identity; defaults to the row name at token
         # time so a bare CRUDE create still yields a joinable room.
         self.room_name = room_name
