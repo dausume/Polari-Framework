@@ -17,7 +17,10 @@ import os
 PASS, FAIL = '\033[0;32mPASS\033[0m', '\033[0;31mFAIL\033[0m'
 _results = []
 
-COLLAB_CLASSES = ('CollaborationSession', 'MeetingRecord')
+COLLAB_CLASSES = ('AvatarDefinition', 'CollaborationSession',
+                  'MeetingRecord')
+#: Non-class symbols the manifest also carries (seed lists).
+COLLAB_SEEDS = ('SEED_AVATARS',)
 
 TEST_KEYS = ('LKtestkey', 'x' * 48)
 
@@ -242,6 +245,41 @@ def run():
           'collab.realtime_schemas --write)',
           on_disk == rt.catalog_json())
 
+    # -- mtg-5: avatars as licence-carrying rows -------------------------
+    from collab.avatar_basis import (
+        AVATAR_LICENCES, AVATAR_RIGS, SEED_AVATARS, AvatarDefinition,
+        usable,
+    )
+    check('an UNSTATED licence is not usable (silence is not '
+          'permission)', not usable('unstated')['ok'])
+    check('unstated is the DEFAULT on a fresh row',
+          AvatarDefinition(name='x').licence == 'unstated'
+          and AVATAR_LICENCES[0] == 'unstated')
+    check('CC-BY without attribution is refused — an attribution '
+          'licence with no attribution is unfulfilled',
+          not usable('CC-BY')['ok']
+          and usable('CC-BY', 'Jane Doe')['ok'])
+    check('project-owned and CC0 are usable',
+          usable('project-owned')['ok'] and usable('CC0')['ok'])
+    check('refusals carry a reason, never a bare False',
+          usable('unstated')['reason'])
+    check('seeded avatars are PRIMITIVES — no geometry file, so a '
+          'meeting works on a fresh instance with no asset pipeline',
+          all(not a['glb_ref'] for a in SEED_AVATARS)
+          and all(usable(a['licence'], a['attribution'])['ok']
+                  for a in SEED_AVATARS))
+    check('exactly one seeded avatar is the default',
+          sum(1 for a in SEED_AVATARS if a['is_default']) == 1)
+    check('every seeded avatar declares a known rig',
+          all(a['rig'] in AVATAR_RIGS for a in SEED_AVATARS))
+    check('the avatar row references geometry, never inlines it '
+          '(glb_ref is a storage ref, and there is no blob field)',
+          'glb_ref' in inspect.signature(
+              AvatarDefinition.__init__).parameters
+          and not any('data' in f or 'blob' in f or 'bytes' in f
+                      for f in inspect.signature(
+                          AvatarDefinition.__init__).parameters))
+
     # -- registration 1: the feature-import manifest ---------------------
     from polariApiServer.feature_imports import FEATURE_IMPORT_BLOCKS
     blocks = [entries for mod, entries in FEATURE_IMPORT_BLOCKS
@@ -250,8 +288,9 @@ def run():
           len(blocks) == 1)
     declared = tuple(sorted(sym for _m, syms in (blocks[0] if blocks
                             else ()) for sym in syms))
-    check('manifest declares exactly the two collab classes',
-          declared == COLLAB_CLASSES, f'declared={declared}')
+    check('manifest declares exactly the collab classes + seed lists',
+          declared == tuple(sorted(COLLAB_CLASSES + COLLAB_SEEDS)),
+          f'declared={declared}')
 
     # -- registration 2: the endpoint constructor ------------------------
     from polariApiServer.module_endpoints import (

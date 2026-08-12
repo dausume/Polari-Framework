@@ -832,5 +832,10 @@ FEATURE_IMPORT_BLOCKS = (
         ('collab.collab_basis', (
             'CollaborationSession', 'MeetingRecord',
         )),
+        # mtg-5: avatars as rows (licence + rig carried on the row;
+        # geometry referenced, never inlined).
+        ('collab.avatar_basis', (
+            'AvatarDefinition', 'SEED_AVATARS',
+        )),
     )),
 )

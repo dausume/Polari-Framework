@@ -868,7 +868,7 @@ class polariServer(treeObject):
             # durable meeting record (a NEW class gets all THREE
             # registrations — manifest import, stub tuple and this
             # list — or its seeds silently never land).
-            CollaborationSession, MeetingRecord,
+            CollaborationSession, MeetingRecord, AvatarDefinition,
             # Casting (cast-1/2b/3/4): derived negatives, master
             # feedstocks, nesting chains with DERIVED parity +
             # thermal ordering, and sprue strategies/instances.
@@ -2330,6 +2330,9 @@ class polariServer(treeObject):
             # records follow sessions.
             ('CollaborationSession', CollaborationSession, []),
             ('MeetingRecord', MeetingRecord, []),
+            # mtg-5: primitive avatars — no geometry files, so a
+            # meeting works on a fresh instance with no asset pipeline.
+            ('AvatarDefinition', AvatarDefinition, SEED_AVATARS),
             # wax-1: bio wax sources for molds / electronic masks.
             ('WaxSourceDefinition', WaxSourceDefinition,
              SEED_WAX_SOURCES),
