@@ -55,6 +55,8 @@ class CollabAPI(treeObject):
         if polServer is not None:
             add = polServer.falconServer.add_route
             add('/api/collab/capability', self, suffix='capability')
+            add('/api/collab/realtime-schema', self,
+                suffix='realtime_schema')
             add('/api/collab/sessions/{name}/token', self, suffix='token')
             add('/api/collab/sessions/{name}/join-info', self,
                 suffix='join_info')
@@ -176,6 +178,14 @@ class CollabAPI(treeObject):
             'moderator': session.moderator_username or None,
             'mintedAt': datetime.now(timezone.utc).isoformat(),
         }
+
+    def on_get_realtime_schema(self, request, response):
+        """mtg-4: THE realtime contract, served. Clients validate
+        against this rather than a hand-copied mirror — a VR shell
+        that updates on its own schedule reads the same catalog a
+        browser does, so there is nothing to drift."""
+        from collab.realtime_schemas import catalog_document
+        response.media = dict(catalog_document(), ok=True)
 
     def _moderator_or_refuse(self, request, response, name):
         """(session, subject) for a VERIFIED caller holding the

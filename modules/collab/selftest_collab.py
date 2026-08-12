@@ -153,6 +153,95 @@ def run():
           {'moderator_subject', 'moderator_role',
            'moderator_source'} <= set(session_fields))
 
+    # -- mtg-4: the realtime wire protocol -------------------------------
+    from collab import realtime_schemas as rt
+
+    check('protocol declares itself EPHEMERAL-ONLY and names zero '
+          'authoritative kinds (the §2 line, as data)',
+          rt.EPHEMERAL_ONLY and rt.authoritative_kinds() == ())
+    check('every kind carries version, maxHz, purpose and fields',
+          all(spec.get('version') and spec.get('maxHz')
+              and spec.get('purpose') and spec.get('fields')
+              for spec in rt.MESSAGE_KINDS.values()))
+    check('every field declares a type the codec can check',
+          all(f['type'] in rt.FIELD_TYPES
+              for spec in rt.MESSAGE_KINDS.values()
+              for f in spec['fields']))
+    check('drag-preview names the proposal seam rather than carrying '
+          'a committed transform',
+          any(f['name'] == 'proposalRef'
+              for f in rt.MESSAGE_KINDS['drag-preview']['fields'])
+          and 'preview' in rt.MESSAGE_KINDS['drag-preview']['purpose'])
+
+    # encode/decode round trip
+    enc = rt.encode('pose', {'head': [0.0, 1.7, 0.0],
+                             'headRot': [0, 0, 0, 1]},
+                    sender='alice', now=12.5)
+    check('encode builds the versioned envelope',
+          enc['ok'] and enc['message']['p'] == rt.PROTOCOL
+          and enc['message']['v'] == rt.PROTOCOL_MAJOR
+          and enc['message']['k'] == 'pose'
+          and enc['message']['kv'] == 1
+          and enc['message']['s'] == 'alice')
+    dec = rt.decode(enc['message'])
+    check('decode round-trips the payload',
+          dec['ok'] and dec['kind'] == 'pose'
+          and dec['data']['head'] == [0.0, 1.7, 0.0]
+          and dec['sender'] == 'alice')
+
+    # refusals at the SENDER
+    check('encode refuses an unknown kind, naming the known ones',
+          not rt.encode('telepathy', {})['ok'])
+    check('encode refuses a missing required field',
+          not rt.encode('pose', {'head': [0, 0, 0]})['ok'])
+    check('encode refuses a mistyped field (vec3 needs three numbers)',
+          not rt.encode('pose', {'head': [0, 0], 'headRot': [0, 0, 0, 1]})['ok'])
+    check('encode refuses a bool where a float belongs',
+          not rt.encode('cursor', {'x': True, 'y': 0.5})['ok'])
+
+    # the four compatibility rules
+    unknown_kind = dict(enc['message'], k='hologram')
+    r = rt.decode(unknown_kind)
+    check('RULE unknown kind -> IGNORE, not an error (a newer peer '
+          'may speak kinds we do not)',
+          not r['ok'] and r.get('ignore') and not r.get('refused'))
+    newer_minor = dict(enc['message'], kv=99)
+    newer_minor['d'] = dict(newer_minor['d'], eyeGaze=[0, 0, 1])
+    r = rt.decode(newer_minor)
+    check('RULE newer kind minor -> ACCEPT, unknown field dropped, '
+          'the rest delivered',
+          r['ok'] and r['dropped'] == ['eyeGaze']
+          and r['data']['head'] == [0.0, 1.7, 0.0])
+    r = rt.decode(dict(enc['message'], v=2))
+    check('RULE major mismatch -> REFUSE by name, with an action',
+          not r['ok'] and r.get('refused') and '2' in r['reason']
+          and r.get('action'))
+    r = rt.decode({'p': 'someone-elses-protocol', 'v': 1})
+    check('a foreign data-channel message is refused, not parsed',
+          not r['ok'] and r.get('refused'))
+    r = rt.decode(dict(enc['message'], d={'head': [0, 1, 0]}))
+    check('a message missing a required field is refused',
+          not r['ok'] and r.get('refused') and 'headRot' in r['reason'])
+    check('decode never raises on garbage',
+          not rt.decode('not a dict')['ok']
+          and not rt.decode({'p': rt.PROTOCOL, 'v': rt.PROTOCOL_MAJOR,
+                             'k': 'pose', 'd': 'nope'})['ok'])
+
+    # the served/vendored artifact is ONE truth
+    doc = rt.catalog_document()
+    check('catalog document carries the rule + compatibility table',
+          doc['ephemeralOnly'] and doc['authoritativeKinds'] == []
+          and 'may mutate Polari state' in doc['rule']
+          and doc['compatibility']['unknownKind'] == 'ignore')
+    check('catalog lists exactly the module\'s kinds',
+          sorted(doc['kinds']) == sorted(rt.MESSAGE_KINDS))
+    with open(rt.CATALOG_FILE) as handle:
+        on_disk = handle.read()
+    check('generated polari-realtime.schema.json is IN LOCKSTEP with '
+          'this module (regenerate: python3 -m '
+          'collab.realtime_schemas --write)',
+          on_disk == rt.catalog_json())
+
     # -- registration 1: the feature-import manifest ---------------------
     from polariApiServer.feature_imports import FEATURE_IMPORT_BLOCKS
     blocks = [entries for mod, entries in FEATURE_IMPORT_BLOCKS
