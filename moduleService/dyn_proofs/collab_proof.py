@@ -102,8 +102,10 @@ print(f'4) CRUDE /CollaborationSession -> {code} (expect 200, empty)')
 checks.append(code == 200)
 
 code, body = req('POST', '/api/collab/sessions/nope/token', {})
-print(f'5) token for a missing session -> {code} (expect 404)')
-checks.append(code == 404)
+print(f'5) token for a missing session, unauthenticated -> {code} '
+      f'(expect 401, NOT 404 — an unauthenticated caller must not '
+      f'learn which sessions exist)')
+checks.append(code == 401)
 
 # create a session by CRUDE, then prove the auth wall + the ladder
 code, body = crude_post('CollaborationSession',

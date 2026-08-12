@@ -123,6 +123,17 @@ class CollabAPI(treeObject):
 
     def on_post_token(self, request, response, name):
         from collab import livekit_remote as lk
+        # Identity FIRST, existence second: answering 404-vs-401 to an
+        # unauthenticated caller tells them which sessions exist, and
+        # a meeting's guest list is not public (caught by live probing
+        # 2026-08-12). ONLY the Keycloak middleware's verdict counts.
+        user = getattr(request.context, 'user_info', None)
+        if not user or not user.get('sub'):
+            return self._refuse(
+                response, 'a LiveKit token requires a Keycloak-'
+                          'verified caller — payload identities are '
+                          'evidence, not authorization',
+                falcon.HTTP_401)
         session = self._find('CollaborationSession', name)
         if session is None:
             return self._refuse(
@@ -132,15 +143,6 @@ class CollabAPI(treeObject):
             return self._refuse(
                 response, f'session {name!r} is {session.status} — '
                           'no new tokens', falcon.HTTP_409)
-
-        # Identity: ONLY the Keycloak middleware's verdict counts here.
-        user = getattr(request.context, 'user_info', None)
-        if not user or not user.get('sub'):
-            return self._refuse(
-                response, 'a LiveKit token requires a Keycloak-'
-                          'verified caller — payload identities are '
-                          'evidence, not authorization',
-                falcon.HTTP_401)
         subject = user['sub']
         username = user.get('username') or subject
         roles = getattr(request.context, 'roles', []) or []
@@ -178,17 +180,18 @@ class CollabAPI(treeObject):
     def _moderator_or_refuse(self, request, response, name):
         """(session, subject) for a VERIFIED caller holding the
         moderation grant, or None having already refused."""
-        session = self._find('CollaborationSession', name)
-        if session is None:
-            self._refuse(response,
-                         f'no CollaborationSession named {name!r}',
-                         falcon.HTTP_404)
-            return None
+        # Identity before existence — same reason as the token route.
         user = getattr(request.context, 'user_info', None)
         if not user or not user.get('sub'):
             self._refuse(response,
                          'moderation requires a Keycloak-verified '
                          'caller', falcon.HTTP_401)
+            return None
+        session = self._find('CollaborationSession', name)
+        if session is None:
+            self._refuse(response,
+                         f'no CollaborationSession named {name!r}',
+                         falcon.HTTP_404)
             return None
         roles = getattr(request.context, 'roles', []) or []
         if not moderation_grant(user['sub'], roles,
