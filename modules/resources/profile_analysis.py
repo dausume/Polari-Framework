@@ -35,6 +35,7 @@ ENGINE_MODULES = {
     'materialsScience.fem': 'prf-msci-engines',
     'materialsScience.dft': 'prf-msci-engines',
     'mathshapes.cad': 'prf-cad-engines',
+    'collab.media': 'pol-livekit',
 }
 
 _CLASS_RE = re.compile(r'^class\s+(\w+)\(treeObject\)', re.MULTILINE)

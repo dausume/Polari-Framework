@@ -336,6 +336,16 @@
       ],
       "description": "Polari App Store (appstore-1): installable native shells over the polariapps content layer \u2014 catalog/identity, one-time enrollment tokens (hashed at rest), overlaid Gradle source archives + prebuilt binaries from MinIO."
     },
+    "collab": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/collab",
+      "repo": "",
+      "wave": 8,
+      "requires": [],
+      "description": "Collaboration sessions (mtg-2, LIVEKIT_COLLABORATION_PLAN v2): one session object, many client surfaces (browser meeting, sim-side voice, VR). CollaborationSession + MeetingRecord rows; KC-verified callers mint short-lived LiveKit JWTs (pure-stdlib HS256 — no SDK); capability/join-info with the *_remote refusal ladder. THE LINE: nothing arriving over LiveKit mutates Polari state. Second module born manifest-first on dyn-1.",
+      "notes": ""
+    },
     "islemesh": {
       "kind": "official",
       "downloaded": true,

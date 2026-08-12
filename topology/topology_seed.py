@@ -319,6 +319,18 @@ SEED_MODULE_ASSIGNMENTS = [
      'topology_name': 'staging-a',
      'notes': 'Political Scorecard app (scr-7 seam consumes '
               'prf\'s scoring API).'},
+    {'name': 'collab@prf-a', 'module_name': 'collab',
+     'instance_name': 'prf-a', 'state': 'enabled',
+     'topology_name': 'staging-a',
+     'notes': 'Collaboration sessions (mtg-2): session rows + '
+              'KC-verified LiveKit token minting.'},
+    {'name': 'collab.media@livekit',
+     'module_name': 'collab.media',
+     'instance_name': 'livekit', 'state': 'enabled',
+     'topology_name': 'staging-a',
+     'notes': 'Media-server capability on the livekit worker '
+              '(mtg-1) — what the LIVEKIT_URL-unset ladder '
+              'resolves.'},
 ]
 
 SEED_MODULE_DEPENDENCY_EDGES = [
@@ -339,6 +351,17 @@ SEED_MODULE_DEPENDENCY_EDGES = [
      'status': 'resolved',
      'topology_name': 'staging-a',
      'notes': 'Multiscale DFT delegation — same seam as fem.'},
+    {'name': 'collab@prf-a->collab.media',
+     'module_name': 'collab',
+     'consumer_instance_name': 'prf-a',
+     'depends_on_module': 'collab.media',
+     'provider_instance_name': 'livekit',
+     'status': 'resolved',
+     'topology_name': 'staging-a',
+     'notes': 'Meeting media delegation (mtg-2) — LIVEKIT_URL seam, '
+              'registry-resolved like the msci/cad edges; media '
+              'itself is direct UDP, only signalling/tokens ride '
+              'this.'},
 ]
 
 SEED_SERVICE_CONNECTIONS = [

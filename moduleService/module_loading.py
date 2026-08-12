@@ -39,6 +39,7 @@ FEATURE_MODULES = frozenset({
     'aquaponics', 'biomining', 'bizops', 'climate', 'dmvdata',
     'electrodevice',
     'gears', 'grpcbridge', 'hwdigital', 'hwfpga', 'magnetics',
+    'collab',
     'mathshapes', 'meshassets', 'microalgae', 'motors',
     'nutrition', 'odooconnect', 'plant_morphology', 'polariapps',
     'scoring',

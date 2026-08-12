@@ -408,6 +408,14 @@ def construct_electrodevice_endpoints(polServer):
         polServer=polServer, manager=manager)
 
 
+def construct_collab_endpoints(polServer):
+    manager = polServer.manager
+    # mtg-2: KC-verified token minting for LiveKit + capability/
+    # join-info with the *_remote refusal ladder.
+    from collab.collab_api import CollabAPI
+    collabEndpoint = CollabAPI(polServer=polServer, manager=manager)
+
+
 # Ordered as the original __init__ constructed them.
 MODULE_ENDPOINT_CONSTRUCTORS = {
     'pspp': construct_pspp_endpoints,
@@ -442,4 +450,5 @@ MODULE_ENDPOINT_CONSTRUCTORS = {
     'hwfpga': construct_hwfpga_endpoints,
     'hwdigital': construct_hwdigital_endpoints,
     'electrodevice': construct_electrodevice_endpoints,
+    'collab': construct_collab_endpoints,
 }

@@ -824,4 +824,13 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_AQUAPONICS_PAGE_DISPLAYS',
         )),
     )),
+    # Collaboration sessions (mtg-2): the session row + the durable
+    # meeting record. Tokens/capability live in collab_api; nothing
+    # arriving over LiveKit mutates Polari state. The second module
+    # born manifest-first on the dyn-1 machinery.
+    ('collab', (
+        ('collab.collab_basis', (
+            'CollaborationSession', 'MeetingRecord',
+        )),
+    )),
 )

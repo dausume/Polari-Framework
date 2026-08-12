@@ -864,6 +864,11 @@ class polariServer(treeObject):
             BiomineSystemDefinition,
             # Self-hosted video: WebM/MP4 + optional adaptive HLS (video-1).
             VideoAsset,
+            # Collaboration sessions (mtg-2): the room row + the
+            # durable meeting record (a NEW class gets all THREE
+            # registrations — manifest import, stub tuple and this
+            # list — or its seeds silently never land).
+            CollaborationSession, MeetingRecord,
             # Casting (cast-1/2b/3/4): derived negatives, master
             # feedstocks, nesting chains with DERIVED parity +
             # thermal ordering, and sprue strategies/instances.
@@ -2321,6 +2326,10 @@ class polariServer(treeObject):
              + SEED_ALLOY_BIOMINE_SYSTEMS),
             # video-1: no baseline seed data — assets are user-uploaded.
             ('VideoAsset', VideoAsset, []),
+            # mtg-2: no baseline seed data — sessions are user-created;
+            # records follow sessions.
+            ('CollaborationSession', CollaborationSession, []),
+            ('MeetingRecord', MeetingRecord, []),
             # wax-1: bio wax sources for molds / electronic masks.
             ('WaxSourceDefinition', WaxSourceDefinition,
              SEED_WAX_SOURCES),

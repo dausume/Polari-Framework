@@ -1,0 +1,198 @@
+"""
+@cross-cutting
+@module collab.collab_api
+@tags @xc:bindings @xc:accessControl
+
+HTTP surface for mtg-2. Rows are plain CRUDE for create/list/read;
+this module adds what CRUDE can't:
+
+  GET  /api/collab/capability
+        honest availability, recon_remote-style: signing keys
+        present, server URL resolved (knob → topology), reachable,
+        client URL declared — each half carries its own refusal
+        suggestion instead of a bare false.
+  POST /api/collab/sessions/{name}/token
+        THE door onto LiveKit (plan §1: tokens are minted by Polari
+        from a KC-authenticated session, short-lived, never issued
+        to a client Polari has not just authorized):
+          - REFUSES 401 without a verified Keycloak caller — a
+            payload-asserted identity never reaches a token.
+          - first verified minter self-claims moderator (the
+            group-authority first-come precedent), stamped with
+            identity_source evidence.
+          - moderation grant (roomAdmin) for the moderator subject
+            or any caller holding the row's moderator_role.
+          - REFUSES 409 on closed sessions, 503 without keys.
+  GET  /api/collab/sessions/{name}/join-info
+        what a client needs to dial: the wss client URL + room name.
+        Refuses honestly when LIVEKIT_CLIENT_URL is undeclared.
+
+Deliberately ABSENT: anything that lets the media plane write rows
+(the §2 line), and any recording surface (§7 — out of v1).
+
+@consumers
+  - mtg-3 Angular meeting client; mtg-5 VR client (same endpoints)
+@see collab.livekit_remote (ladder + signing),
+     scanning.scanning_api (the API idiom walked before this one)
+"""
+
+import json
+from datetime import datetime, timezone
+
+import falcon
+
+from objectTreeDecorators import treeObject, treeObjectInit
+from collab.collab_basis import moderation_grant, safe_room_name
+
+
+class CollabAPI(treeObject):
+    """mtg-2 endpoints."""
+
+    @treeObjectInit
+    def __init__(self, polServer, manager=None):
+        self.polServer = polServer
+        self.apiName = '/api/collab'
+        if polServer is not None:
+            add = polServer.falconServer.add_route
+            add('/api/collab/capability', self, suffix='capability')
+            add('/api/collab/sessions/{name}/token', self, suffix='token')
+            add('/api/collab/sessions/{name}/join-info', self,
+                suffix='join_info')
+
+    # ---- helpers ----------------------------------------------------
+
+    def _find(self, class_name, name):
+        table = (self.manager.objectTables or {}).get(class_name, {})
+        for row in table.values():
+            if getattr(row, 'name', '') == name:
+                return row
+        return None
+
+    def _save(self, row):
+        try:
+            self.manager.db.saveInstanceInDB(row)
+        except Exception:
+            pass  # in-memory row stays authoritative until next save
+
+    def _refuse(self, response, error, status=falcon.HTTP_400,
+                suggestion=None):
+        response.status = status
+        body = {'ok': False, 'error': error}
+        if suggestion:
+            body['suggestion'] = suggestion
+        response.media = body
+
+    # ---- routes -----------------------------------------------------
+
+    def on_get_capability(self, request, response):
+        from collab import livekit_remote as lk
+        keys = lk.signing_keys()
+        url = lk.server_url()
+        client = lk.client_url()
+        alive = lk.reachable() if url else None
+        report = {
+            'ok': True,
+            'keysConfigured': keys is not None,
+            'serverUrl': url or None,
+            'serverReachable': alive,
+            'clientUrl': client or None,
+        }
+        gaps = []
+        if keys is None:
+            gaps.append('LIVEKIT_KEYS unset/unparseable — no token '
+                        'can be signed')
+        if not url:
+            gaps.append('LIVEKIT_URL unset and the topology resolves '
+                        "no provider for 'collab.media'")
+        elif alive is False:
+            gaps.append(f'{url} did not answer')
+        if not client:
+            gaps.append('LIVEKIT_CLIENT_URL undeclared — clients have '
+                        'nothing to dial (never derived: a TLS name a '
+                        'device must trust is posture, not a guess)')
+        if gaps:
+            report['suggestion'] = lk.unavailable_suggestion(
+                '; '.join(gaps))
+        response.media = report
+
+    def on_post_token(self, request, response, name):
+        from collab import livekit_remote as lk
+        session = self._find('CollaborationSession', name)
+        if session is None:
+            return self._refuse(
+                response, f'no CollaborationSession named {name!r}',
+                falcon.HTTP_404)
+        if session.status != 'open':
+            return self._refuse(
+                response, f'session {name!r} is {session.status} — '
+                          'no new tokens', falcon.HTTP_409)
+
+        # Identity: ONLY the Keycloak middleware's verdict counts here.
+        user = getattr(request.context, 'user_info', None)
+        if not user or not user.get('sub'):
+            return self._refuse(
+                response, 'a LiveKit token requires a Keycloak-'
+                          'verified caller — payload identities are '
+                          'evidence, not authorization',
+                falcon.HTTP_401)
+        subject = user['sub']
+        username = user.get('username') or subject
+        roles = getattr(request.context, 'roles', []) or []
+
+        # First verified minter self-claims moderation (group-authority
+        # first-come precedent), with the evidence stamped.
+        if not session.moderator_subject:
+            session.moderator_subject = subject
+            session.moderator_username = username
+            session.moderator_source = 'keycloak-verified'
+            self._save(session)
+
+        admin = moderation_grant(subject, roles,
+                                 session.moderator_subject,
+                                 session.moderator_role)
+        room = session.room_name or session.name
+        if not safe_room_name(room):
+            return self._refuse(
+                response, f'room name {room!r} is not a safe segment')
+        minted = lk.mint_token(identity=username, room=room,
+                               admin=bool(admin), name=username)
+        if not minted.get('ok'):
+            return self._refuse(response, minted['error'],
+                                falcon.HTTP_503,
+                                suggestion=minted.get('suggestion'))
+        response.media = {
+            'ok': True, 'token': minted['token'],
+            'expiresAt': minted['expires_at'], 'ttlS': minted['ttl_s'],
+            'room': room, 'identity': username,
+            'moderation': bool(admin),
+            'moderator': session.moderator_username or None,
+            'mintedAt': datetime.now(timezone.utc).isoformat(),
+        }
+
+    def on_get_join_info(self, request, response, name):
+        from collab import livekit_remote as lk
+        session = self._find('CollaborationSession', name)
+        if session is None:
+            return self._refuse(
+                response, f'no CollaborationSession named {name!r}',
+                falcon.HTTP_404)
+        client = lk.client_url()
+        if session.scope == 'web':
+            return self._refuse(
+                response, "scope 'web' is declared but not enabled — "
+                          'off-LAN needs the EXTERNAL_APPS ladder + '
+                          'TURN (its own arc); LAN is the 2026 story',
+                falcon.HTTP_501)
+        if not client:
+            return self._refuse(
+                response, 'LIVEKIT_CLIENT_URL undeclared',
+                falcon.HTTP_503,
+                suggestion=lk.unavailable_suggestion(
+                    'the wss:// client URL is a declaration, never '
+                    'derived'))
+        response.media = {
+            'ok': True, 'url': client,
+            'room': session.room_name or session.name,
+            'scope': session.scope, 'status': session.status,
+            'tokenEndpoint': f'/api/collab/sessions/{name}/token',
+        }
