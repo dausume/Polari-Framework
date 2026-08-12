@@ -151,5 +151,6 @@ KNOWN_SERVICE_KINDS = (
     'prf-file-store', 'prf-proxy',
     'prf-backend-b', 'prf-frontend-b', 'prf-keydb-b',
     'prf-dask', 'prf-msci-engines', 'prf-test-harness',
+    'pol-livekit',
     'odoo', 'odoo-postgres',
 )

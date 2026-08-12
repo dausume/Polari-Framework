@@ -85,6 +85,7 @@ FULL_STAGING_SERVICES = [
     {'name': 'prf-a-dask-worker', 'service': 'dask-worker-a'},
     {'name': 'polari-engines_msci-engines.1.2mfrjud',
      'service': 'msci-engines'},
+    {'name': 'pol-livekit', 'service': 'pol-livekit'},
 ]
 
 #: What econ-core runs once `pol odoo up` has run there (od-1) — the
@@ -114,8 +115,8 @@ if __name__ == '__main__':
     print('== suite: graph payload ==')
     graph = graph_payload(mgr, 'staging-a')
     check('graph ok', graph.get('ok'))
-    check('graph carries 8 instances',
-          len(graph.get('instances', [])) == 8)
+    check('graph carries 9 instances',
+          len(graph.get('instances', [])) == 9)
     check('graph carries 3 machines',
           len(graph.get('machines', [])) == 3)
     check('graph carries 8 assignments',
@@ -235,7 +236,7 @@ if __name__ == '__main__':
     check('no observations => every instance unobserved',
           report['inDrift'] and all(
               r['kind'] == 'unobserved' for r in report['rows'])
-          and len(report['rows']) == 8)
+          and len(report['rows']) == 9)
     check('unobserved rows suggest pol topology report',
           all(r['suggestedCommand'] == 'pol topology report'
               for r in report['rows']))
@@ -323,7 +324,7 @@ if __name__ == '__main__':
     plan = merge_topology_doc(empty, doc)
     check('merge into empty manager creates everything',
           plan.get('ok') and len(plan['creates']) == (
-              1 + 2 + 8 + 8 + 2 + 16) and not plan['skips'])
+              1 + 2 + 9 + 8 + 2 + 16) and not plan['skips'])
     for class_name, row in plan['creates']:
         empty.objectTables[class_name][row['name']] = (
             types.SimpleNamespace(**row))
@@ -334,7 +335,7 @@ if __name__ == '__main__':
     plan = merge_topology_doc(mgr, doc)
     check('merge into seeded manager skips everything (idempotent)',
           plan.get('ok') and not plan['creates']
-          and len(plan['skips']) == 37)
+          and len(plan['skips']) == 38)
     check('non-package document refused honestly',
           not merge_topology_doc(mgr, {'kind': 'nope'}).get('ok'))
     check('wrong schema_version refused honestly',

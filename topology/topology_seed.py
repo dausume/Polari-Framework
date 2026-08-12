@@ -222,6 +222,29 @@ SEED_INSTANCE_DEFINITIONS = [
                  'engines` (single-node swarm today).',
     },
     {
+        # mtg-1: the self-hosted LiveKit media server. Placement is a
+        # NAMED host for v1 (Dustin's open question defaulted
+        # 2026-08-12): pol-core/staging-a; a measured bandwidth
+        # dimension on the resource ledger is the recorded follow-up,
+        # not built. Media = 50000-50049/udp published DIRECTLY
+        # (netledger range, mtg-0); signalling TLS at prf-proxy.
+        'name': 'livekit',
+        'kind': 'worker',
+        'service_kinds_json': json.dumps(['pol-livekit']),
+        'replicas': 1,
+        'env_tier': 'staging',
+        'machine_name': 'staging-a',
+        'db_backend': 'sqlite',
+        'image_tag': 'v1.9.12',
+        'orchestration_target': 'compose',
+        'accessibility_scope': 'local',
+        'topology_name': 'staging-a',
+        'notes': 'LiveKit media server (:7880 signalling, '
+                 '50000-50049/udp media), `pol compose livekit up`; '
+                 'LAN-only 2026, family-sized 4-8 '
+                 '(LIVEKIT_COLLABORATION_PLAN.md v2).',
+    },
+    {
         'name': 'odoo',
         'kind': 'custom',
         'service_kinds_json': json.dumps(['odoo']),

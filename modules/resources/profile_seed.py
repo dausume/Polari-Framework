@@ -50,6 +50,26 @@ SEED_MODULE_RESOURCE_PROFILES = [
                  'adequate node.',
     },
     {
+        'name': 'pol-livekit-resource-profile',
+        'subject_name': 'pol-livekit',
+        'subject_kind': 'engine',
+        'character': 'compute',
+        'min_ram_mb': 256.0, 'min_disk_mb': 100.0, 'min_threads': 1,
+        'thread_ceiling': 4, 'cpu_benefit': 'linear',
+        'ram_benefit': 'sublinear',
+        'scales_note': 'SFU forwarding scales with participants x '
+                       'tracks; the REAL constraint is BANDWIDTH, '
+                       'which this ledger does not measure yet (named '
+                       'follow-up, mtg-1) — treat CPU numbers as the '
+                       'proxy and the host pin as the decision.',
+        'image_mb': 45.0,
+        'fidelity': 'declared',
+        'provenance_id': 'profile_seed',
+        'notes': 'LiveKit media server (mtg-1). Host: NAMED for v1 '
+                 '(Dustin default 2026-08-12), sized family 4-8 '
+                 'participants, LAN-only.',
+    },
+    {
         'name': 'scoring-resource-profile',
         'subject_name': 'scoring',
         'subject_kind': 'module',
