@@ -28,9 +28,9 @@ RETICULUM_CLASSES = (
     'TransportBinding', 'LinkMeasurement', 'AirtimeBudget',
     'ArchipelagoNode', 'ArchipelagoTrust',
     'WatchedObject', 'ObjectStateVersion', 'StateConflict',
-    'OperatorLicense', 'DeviceLink',
+    'OperatorLicense', 'DeviceLink', 'DeviceModel',
 )
-RETICULUM_SEEDS = ('SEED_RNS_INTERFACES',)
+RETICULUM_SEEDS = ('SEED_RNS_INTERFACES', 'SEED_DEVICE_MODELS')
 
 
 def run():
@@ -226,6 +226,72 @@ def run():
           ob.describe_device('0403', '6001', 'unknown')
           == 'unknown (usb 0403:6001)'
           and ob.describe_device('', '', 'lora-board') == 'lora-board')
+
+    # -- the TX legality gate (Dustin 2026-08-13) -------------------------
+    base_iface = {'enabled': True, 'direction': 'both',
+                  'regulatory_domain': 'ism'}
+    ok, refusal = rb.tx_permitted(dict(base_iface))
+    check('an RF interface with NO operator confirmation refuses TX '
+          'naming the knob',
+          not ok and 'tx_legal_confirmed' in refusal['knob']
+          and set(refusal) == {'evidence', 'knob', 'action'})
+    ok, _ = rb.tx_permitted(dict(base_iface, tx_legal_confirmed=True))
+    check('a confirmed RF interface may transmit', ok)
+    ok, _ = rb.tx_permitted({'enabled': True, 'direction': 'both',
+                             'regulatory_domain': 'none'})
+    check('wired links (regulatory none) are not legality-gated', ok)
+    ok, refusal = rb.tx_permitted({'enabled': True, 'direction': 'rx',
+                                   'regulatory_domain': 'ism',
+                                   'tx_legal_confirmed': True})
+    check('an rx-only device never transmits, confirmation or not',
+          not ok and 'direction' in refusal['knob'])
+    ok, refusal = rb.tx_permitted({'enabled': False})
+    check('a disabled interface refuses before anything else',
+          not ok and 'enabled' in refusal['knob'])
+
+    # -- device catalog (Dustin 2026-08-13) -------------------------------
+    from reticulum import device_catalog_basis as dc
+    check('catalog vocabularies carry the SH-L1A lessons: rebadge-'
+          'aware openness + closed-same-model interop',
+          'documented-via-oem' in dc.PROTOCOL_OPENNESS_VALUES
+          and 'closed-same-model' in dc.INTEROP_VALUES
+          and 'flashable-open' in dc.FIRMWARE_OPENNESS_VALUES)
+    ok, why = dc.model_vouches({'status': 'usable',
+                                'firmware_openness': 'unstated',
+                                'protocol_openness': 'documented',
+                                'interop': 'open-standard'})
+    check('a catalog row with an UNSTATED openness field refuses to '
+          'vouch', not ok and 'firmware_openness' in why)
+    check('blocked/unevaluated rows never vouch',
+          not dc.model_vouches({'status': 'unevaluated'})[0])
+    sh = dict(dc.SEED_DEVICE_MODELS[0])
+    check('the SH-L1A seed row vouches (all facts stated)',
+          dc.model_vouches(sh)[0])
+    ok, why = dc.interop_possible(sh, {'name': 'rnode-generic',
+                                       'interop': 'open-standard'})
+    check('closed-same-model refuses cross-model links BY NAME',
+          not ok and 'dsd-tech-sh-l1a' in why)
+    check('same-model pairs interop; unknown refuses',
+          dc.interop_possible(sh, dict(sh))[0]
+          and not dc.interop_possible(sh, {'name': 'x'})[0])
+    restrictions = json.loads(sh['restrictions_json'])
+    check('SH-L1A restrictions carry the regulatory trap (ships '
+          'out-of-US-band) + buffering + interop + identity',
+          {r['kind'] for r in restrictions}
+          == {'regulatory', 'buffering', 'interop', 'identity'}
+          and any('873.125' in r['detail'] for r in restrictions))
+    check('SH-L1A records its OEM lineage (rebadged EByte E220)',
+          sh['oem_vendor'] == 'EByte' and 'E220' in sh['oem_model'])
+    steps = json.loads(sh['setup_steps_json'])
+    check('setup steps record the unplug-flip-replug config-mode '
+          'entry (Dustin verified 2026-08-13)',
+          any('UNPLUG' in s['detail'] and 'Config' in s['detail']
+              for s in steps)
+          and any('antenna' in s['step'] for s in steps))
+    check('every load-bearing catalog fact carries evidence with a '
+          'source',
+          all('source' in e and e['source']
+              for e in json.loads(sh['evidence_json'])))
 
     # -- the seed is the ret-0 shape, disabled ----------------------------
     check('exactly one seeded interface: the ret-0-proven local TCP, '

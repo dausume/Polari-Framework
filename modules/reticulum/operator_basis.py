@@ -130,15 +130,21 @@ class DeviceLink(treeObject):
     @treeObjectInit
     def __init__(self, name='', bus_id='', usb_vendor_id='',
                  usb_product_id='', by_id_path='',
-                 declared_kind='unknown', measured_direction='',
-                 interface_name='', owner='host',
-                 needs_firmware_flash=False, fidelity='declared',
-                 notes='', manager=None):
+                 device_model_name='', declared_kind='unknown',
+                 measured_direction='', interface_name='',
+                 owner='host', needs_firmware_flash=False,
+                 fidelity='declared', notes='', manager=None):
         self.name = name
         self.bus_id = bus_id
         self.usb_vendor_id = usb_vendor_id
         self.usb_product_id = usb_product_id
         self.by_id_path = by_id_path
+        # The catalog row (DeviceModel) this instance is one of —
+        # the catalog answers WHAT it is, this row answers WHICH and
+        # WHERE. ⚠ by-id collides on identical-serial bridges (the
+        # SH-L1A case: every CP2102 is "0001") — by_id_path may be
+        # empty and the PORT path is then the stable identity.
+        self.device_model_name = device_model_name
         self.declared_kind = declared_kind
         # '' until measured — absence of a fact is not a fact.
         self.measured_direction = measured_direction

@@ -158,6 +158,47 @@ def budget_admits(consumed_ms, budget_ms, cost_ms):
     return (consumed_ms + cost_ms) <= budget_ms
 
 
+def tx_permitted(iface):
+    """The TX legality gate as a pure rule: an RF interface may key
+    up ONLY when it is enabled, tx-capable, and carries the
+    operator's own legality confirmation (with its basis). Wired
+    links (regulatory_domain 'none') pass on enabled+direction alone.
+    Returns (True, None) or (False, {evidence, knob, action}).
+    Config-mode/receive paths never consult this — RX is always
+    ungated (§5i)."""
+    if not iface.get('enabled'):
+        return (False, {
+            'evidence': 'interface is not enabled',
+            'knob': 'ReticulumInterface.enabled',
+            'action': 'enable the interface deliberately',
+        })
+    if iface.get('direction') not in ('tx', 'both'):
+        return (False, {
+            'evidence': 'interface direction is %r — this device '
+                        'cannot or may not transmit'
+                        % iface.get('direction'),
+            'knob': 'ReticulumInterface.direction (a device FACT)',
+            'action': 'use an rx path, or attach tx-capable hardware',
+        })
+    if iface.get('regulatory_domain', 'none') == 'none':
+        return (True, None)
+    if not iface.get('tx_legal_confirmed'):
+        return (False, {
+            'evidence': 'no operator legality confirmation on file '
+                        'for this RF interface (radios SHIP with '
+                        'unlawful defaults — the SH-L1A pair arrived '
+                        'on 873.125 MHz, outside US ISM)',
+            'knob': 'ReticulumInterface.tx_legal_confirmed + '
+                    'tx_legal_basis (the operator\'s own assertion, '
+                    'never a software legal claim)',
+            'action': 'read the device\'s ACTUAL configured '
+                      'frequency/power, confirm them against your '
+                      'jurisdiction, record the confirmation, then '
+                      'transmit',
+        })
+    return (True, None)
+
+
 def may_route(publication_class, regulatory_domain, encrypted):
     """§5f/§5g: the two refusals that make the mesh lawful to operate,
     as one pure rule. Returns (True, '') or (False, reason-by-name).
@@ -319,7 +360,9 @@ class ReticulumInterface(treeObject):
                  regulatory_domain='none', direction='both',
                  declared_params_json='{}', measured_facts_json='{}',
                  fidelity='declared', device_link_name='',
-                 enabled=False, notes='', manager=None):
+                 enabled=False, tx_legal_confirmed=False,
+                 tx_legal_basis='', tx_legal_confirmed_by='',
+                 tx_legal_confirmed_at='', notes='', manager=None):
         self.name = name
         self.bearer = bearer
         # 'linux' (Ubuntu default target, §5j) | 'openwrt' (the router
@@ -334,6 +377,19 @@ class ReticulumInterface(treeObject):
         # The DeviceLink row backing this interface, when hardware.
         self.device_link_name = device_link_name
         self.enabled = enabled
+        # THE TX LEGALITY GATE (Dustin 2026-08-13: "never transmit
+        # anything without confirming it is legal first" — earned the
+        # same day: the SH-L1A pair SHIPPED on 873.125 MHz, outside US
+        # ISM). The software records the OPERATOR's confirmation with
+        # its basis and refuses TX without it; it makes no legal
+        # claims itself (§5f framing). RF-domain interfaces only —
+        # wired links (regulatory_domain 'none') are not gated.
+        self.tx_legal_confirmed = tx_legal_confirmed
+        # e.g. '915.125 MHz @ 22 dBm, US 902-928 ISM' — WHAT was
+        # confirmed, so a later config change visibly invalidates it.
+        self.tx_legal_basis = tx_legal_basis
+        self.tx_legal_confirmed_by = tx_legal_confirmed_by
+        self.tx_legal_confirmed_at = tx_legal_confirmed_at
         self.notes = notes
 
 

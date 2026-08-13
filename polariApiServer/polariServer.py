@@ -875,7 +875,7 @@ class polariServer(treeObject):
             TransportBinding, LinkMeasurement, AirtimeBudget,
             ArchipelagoNode, ArchipelagoTrust,
             WatchedObject, ObjectStateVersion, StateConflict,
-            OperatorLicense, DeviceLink,
+            OperatorLicense, DeviceLink, DeviceModel,
             # Casting (cast-1/2b/3/4): derived negatives, master
             # feedstocks, nesting chains with DERIVED parity +
             # thermal ordering, and sprue strategies/instances.
@@ -2358,6 +2358,8 @@ class polariServer(treeObject):
             ('StateConflict', StateConflict, []),
             ('OperatorLicense', OperatorLicense, []),
             ('DeviceLink', DeviceLink, []),
+            # catalog seeds ride the upsert pass below (day-one rule).
+            ('DeviceModel', DeviceModel, []),
             # wax-1: bio wax sources for molds / electronic masks.
             ('WaxSourceDefinition', WaxSourceDefinition,
              SEED_WAX_SOURCES),
@@ -2885,13 +2887,16 @@ class polariServer(treeObject):
         if (_feature_available('composition')
                 and _feature_available('reticulum') and (
                 only_classes is None
-                or 'ReticulumInterface' in only_classes)):
+                or 'ReticulumInterface' in only_classes
+                or 'DeviceModel' in only_classes)):
             try:
                 from composition.seed_upsert import upsert_seed_pairs
                 for r in upsert_seed_pairs(
                         self.manager,
                         [('ReticulumInterface', ReticulumInterface,
-                          SEED_RNS_INTERFACES)], tag='ReticulumSeed'):
+                          SEED_RNS_INTERFACES),
+                         ('DeviceModel', DeviceModel,
+                          SEED_DEVICE_MODELS)], tag='ReticulumSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[ReticulumSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '

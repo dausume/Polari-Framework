@@ -863,5 +863,11 @@ FEATURE_IMPORT_BLOCKS = (
         ('reticulum.operator_basis', (
             'OperatorLicense', 'DeviceLink',
         )),
+        # the device CATALOG: what a KIND of device is — vendor/OEM
+        # lineage, openness, interop limits, restrictions, setup
+        # steps — each fact with evidence (Dustin 2026-08-13).
+        ('reticulum.device_catalog_basis', (
+            'DeviceModel', 'SEED_DEVICE_MODELS',
+        )),
     )),
 )
