@@ -111,6 +111,10 @@ def assess_topology(devices, apps, services=None):
             'exposures': d.get('exposures') or [],
             'pools': d.get('pools') or [],
             'ports': d.get('ports') or [],
+            # ret-3: CIDRs the mesh resolver answers from (*.rns.isle /
+            # .arch) — ledgered beside the real pools they must never
+            # overlap.
+            'synthetic_pools': d.get('synthetic_pools') or [],
             'app_count': len(d_apps),
             # each app with its SUB-DOMAINS (api/auth/... — where
             # the pieces of polari-style apps actually live)

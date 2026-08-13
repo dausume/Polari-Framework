@@ -478,6 +478,40 @@ def main():
     check('netledger: assess flags a UDP range collision per host',
           any(a['code'] == 'udp-range-conflict' for a in ra2))
 
+    # ---- synthetic-IP pools (ret-3: the mesh resolver's kind) --------
+    from islemesh.islemesh_netledger import (
+        synthetic_pool_conflicts, free_synthetic_pool)
+    sc = synthetic_pool_conflicts(
+        [{'name': 'rns-isle', 'cidr': '10.77.0.0/24'},
+         {'name': 'rns-arch', 'cidr': '10.77.0.128/25'}],
+        [{'name': 'polari-link', 'cidr': '172.20.0.0/16'}])
+    check('netledger: synthetic pools colliding with each other are '
+          'named as such',
+          len(sc) == 1 and sc[0]['kind'] == 'synthetic-vs-synthetic')
+    sc = synthetic_pool_conflicts(
+        [{'name': 'rns-isle', 'cidr': '172.20.5.0/24'}],
+        [{'name': 'polari-link', 'cidr': '172.20.0.0/16'}])
+    check('netledger: a synthetic pool inside a REAL docker pool is '
+          'the dangerous case and is flagged',
+          len(sc) == 1 and sc[0]['kind'] == 'synthetic-vs-real')
+    check('netledger: disjoint synthetic + real pools are clean',
+          synthetic_pool_conflicts(
+              [{'name': 'rns-isle', 'cidr': '10.77.0.0/24'}],
+              [{'name': 'polari-link', 'cidr': '172.20.0.0/16'}]) == [])
+    fs = free_synthetic_pool(
+        [{'name': 'weird', 'cidr': '10.77.0.0/24'}],
+        [{'name': 'rns-other', 'cidr': '10.77.1.0/24'}])
+    check('netledger: free_synthetic_pool skips real AND synthetic '
+          'reservations', fs == '10.77.2.0/24')
+    ra3 = assess_resources([{'name': 'pol-core', 'pools': [
+        {'name': 'polari-link', 'cidr': '172.20.0.0/16'}],
+        'ports': [], 'synthetic_pools': [
+            {'name': 'rns-isle', 'cidr': '172.20.9.0/24'}]}])
+    check('netledger: assess flags a synthetic pool the resolver and '
+          'docker would both route',
+          any(a['code'] == 'synthetic-pool-conflict'
+              and 'docker also routes' in a['message'] for a in ra3))
+
     # ---- vocabulary coherence ---------------------------------------
     check('availability presets are named modes over the triple',
           AVAILABILITY_MODES == ('always-available', 'on-demand')

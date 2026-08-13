@@ -13,10 +13,13 @@ per-HOST fact — two docker networks on one host cannot overlap.
 Ports are likewise per-host. This module makes both VISIBLE and
 CHECKABLE.
 
-Three resource kinds: CIDR pools, single published ports (proto
+Four resource kinds: CIDR pools, single published ports (proto
 'tcp' unless stated — 80/tcp and 80/udp are different resources),
-and UDP port RANGES (mtg-0: a WebRTC media server owns a range,
-not a port; LiveKit is the first tenant).
+UDP port RANGES (mtg-0: a WebRTC media server owns a range, not a
+port; LiveKit is the first tenant), and SYNTHETIC-IP pools (ret-3:
+addresses a resolver hands out for mesh names — never real hosts,
+so they must overlap NEITHER each other NOR any docker pool on the
+host, or the resolver answers with an address docker also routes).
 
 @consumers
   - islemesh.islemesh_coherence (per-device pools/ports + conflicts)
@@ -165,6 +168,44 @@ def free_udp_range(udp_ranges, ports=None, width=100,
     return None
 
 
+def synthetic_pool_conflicts(synthetic_pools, pools=None):
+    """Synthetic-IP pool collisions on ONE host (ret-3): a synthetic
+    pool is a CIDR the mesh resolver answers from for *.rns.isle /
+    .arch names — routed to the gateway, never a real network. It
+    therefore collides with OTHER synthetic pools AND with any real
+    docker pool on the host. Returns the pool_conflicts shape with a
+    'kind' key naming which collision it is."""
+    out = []
+    for c in pool_conflicts(synthetic_pools or []):
+        out.append(dict(c, kind='synthetic-vs-synthetic'))
+    for s in (synthetic_pools or []):
+        if not s.get('cidr'):
+            continue
+        for p in (pools or []):
+            if p.get('cidr') and cidrs_overlap(s['cidr'], p['cidr']):
+                out.append({'a': s.get('name', '?'),
+                            'b': p.get('name', '?'),
+                            'cidr_a': s['cidr'], 'cidr_b': p['cidr'],
+                            'kind': 'synthetic-vs-real'})
+    return out
+
+
+def free_synthetic_pool(pools, synthetic_pools=None, prefix='10.77',
+                        third_lo=0, third_hi=250):
+    """Suggest a /24 for the mesh resolver that overlaps no docker
+    pool and no other synthetic pool. 10.77.x.0/24 by default —
+    deliberately far from docker's 172.16/12 habit and the RFC1918
+    space isle-mesh hands out, but STILL checked against everything
+    registered (a habit is not a reservation)."""
+    taken = [p for p in (pools or []) if p.get('cidr')] \
+        + [p for p in (synthetic_pools or []) if p.get('cidr')]
+    for third in range(third_lo, third_hi):
+        cand = '%s.%d.0/24' % (prefix, third)
+        if not any(cidrs_overlap(cand, p['cidr']) for p in taken):
+            return cand
+    return None
+
+
 def free_subnet(pools, prefix='172', second_lo=22, second_hi=250):
     """Suggest a /24 that overlaps none of `pools` (docker-bridge
     space by default). Deterministic scan — the allocator's hint."""
@@ -217,4 +258,16 @@ def assess_resources(devices):
                            'will fight over ports.' % (
                                name, c['a'], c['range_a'],
                                c['b'], c['range_b'])})
+        for c in synthetic_pool_conflicts(
+                d.get('synthetic_pools') or [], d.get('pools') or []):
+            out.append({
+                'level': 'warn', 'code': 'synthetic-pool-conflict',
+                'message': '%s: synthetic-IP pool collides (%s) — %s '
+                           '(%s) vs %s (%s). The mesh resolver would '
+                           'hand out addresses %s.' % (
+                               name, c['kind'], c['a'], c['cidr_a'],
+                               c['b'], c['cidr_b'],
+                               'docker also routes'
+                               if c['kind'] == 'synthetic-vs-real'
+                               else 'two resolvers both claim')})
     return out

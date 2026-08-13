@@ -53,6 +53,7 @@ class ReticulumAPI(treeObject):
             add = polServer.falconServer.add_route
             add('/api/reticulum/capability', self, suffix='capability')
             add('/api/reticulum/arch', self, suffix='arch')
+            add('/api/reticulum/resolve/{name}', self, suffix='resolve')
             add('/api/reticulum/inbound', self, suffix='inbound')
 
     # ---- helpers ----------------------------------------------------
@@ -142,6 +143,59 @@ class ReticulumAPI(treeObject):
                      'past the freshness horizon the honest answer is '
                      '"unknown, measure first", not the last good '
                      'number'),
+        }
+
+    def on_get_resolve(self, request, response, name):
+        """ret-3: THE NAME REGISTRY as an endpoint — what the isle's
+        resolver (router-side, isle-core's half) queries before
+        answering a *.rns.isle / .arch name with a synthetic IP.
+        An unmapped name is refused BY NAME — never guessed, never a
+        silent black hole (§3)."""
+        # A destination row by name, or an .arch node by arch_name.
+        for row in self._rows('ReticulumDestination'):
+            if getattr(row, 'name', '') == name:
+                return self._respond_resolved(response, name, row.name,
+                                              row)
+        for node in self._rows('ArchipelagoNode'):
+            if getattr(node, 'arch_name', '') == name \
+                    or getattr(node, 'name', '') == name:
+                dest_name = getattr(node, 'destination_name', '')
+                for row in self._rows('ReticulumDestination'):
+                    if getattr(row, 'name', '') == dest_name:
+                        return self._respond_resolved(
+                            response, name, dest_name, row,
+                            arch=getattr(node, 'arch_name', ''))
+                return self._refuse(
+                    response, f'.arch node {name!r} names destination '
+                              f'{dest_name!r}, which has no row — the '
+                              'mapping is incomplete, not guessed',
+                    falcon.HTTP_404)
+        return self._refuse(
+            response, f'no mapping for {name!r} — unmapped names are '
+                      'refused by name, never routed hopefully',
+            falcon.HTTP_404,
+            suggestion={
+                'evidence': f'{name!r} matches no ReticulumDestination '
+                            'name and no ArchipelagoNode arch_name',
+                'knob': 'ReticulumDestination / ArchipelagoNode rows '
+                        '(CRUDE)',
+                'action': 'create the destination row (and its .arch '
+                          'node if it is a peer), then resolve again',
+            })
+
+    def _respond_resolved(self, response, asked, dest_name, row,
+                          arch=''):
+        response.media = {
+            'ok': True, 'asked': asked, 'destination': dest_name,
+            'archName': arch,
+            'destHash': getattr(row, 'dest_hash', ''),
+            'destType': getattr(row, 'dest_type', ''),
+            'scope': getattr(row, 'scope', ''),
+            'direction': getattr(row, 'direction', ''),
+            'note': ('the synthetic IP for this name comes from the '
+                     'netledger-reserved pool on the resolving host '
+                     '(ret-3); this endpoint answers WHAT the name '
+                     'is, the resolver answers WHERE to send packets'),
         }
 
     def on_post_inbound(self, request, response):

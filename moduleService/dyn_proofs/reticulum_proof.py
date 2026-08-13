@@ -23,6 +23,26 @@ srv = subprocess.Popen([sys.executable, 'initLocalhostPolariServer.py'],
                        stderr=subprocess.STDOUT)
 
 
+def crude_post(class_name, params, timeout=60):
+    # CRUDE speaks multipart form (initParamSets), not JSON — the
+    # scanning proof's helper, verbatim.
+    import uuid
+    boundary = uuid.uuid4().hex
+    body = (f'--{boundary}\r\nContent-Disposition: form-data; '
+            f'name="initParamSets"\r\n\r\n{json.dumps([params])}\r\n'
+            f'--{boundary}--\r\n').encode()
+    r = urllib.request.Request(f'http://localhost:3000/{class_name}',
+                               data=body, method='POST', headers={
+        'Content-Type': f'multipart/form-data; boundary={boundary}'})
+    try:
+        with urllib.request.urlopen(r, timeout=timeout) as resp:
+            return resp.status, json.loads(resp.read() or b'{}')
+    except urllib.error.HTTPError as e:
+        return e.code, {'raw': e.read()[:300].decode('utf-8', 'ignore')}
+    except Exception as e:
+        return None, {'err': str(e)}
+
+
 def req(method, path, payload=None, timeout=60):
     data = json.dumps(payload).encode() if payload is not None else None
     r = urllib.request.Request(f'http://localhost:3000{path}',
@@ -99,6 +119,25 @@ code, body = req('POST', '/api/reticulum/inbound',
 print(f'6) inbound seam WITHOUT a verified KC caller -> {code} '
       f'(expect 401 — arrival on the mesh is not authorization)')
 checks.append(code == 401)
+
+code, body = req('GET', '/api/reticulum/resolve/nope.arch')
+print(f'6b) resolve an UNMAPPED name -> {code} (expect 404, refused '
+      f'by name with knob): '
+      f'{json.dumps(body.get("suggestion", {}))[:80]}')
+checks.append(code == 404 and 'knob' in body.get('suggestion', {}))
+
+code, body = crude_post('ReticulumDestination',
+                        {'name': 'isle-x-gossip',
+                         'dest_hash': 'ab12cd34', 'dest_type': 'single',
+                         'scope': 'mesh'})
+print(f'6c) CRUDE create destination isle-x-gossip -> {code}')
+checks.append(code in (200, 201))
+
+code, body = req('GET', '/api/reticulum/resolve/isle-x-gossip')
+print(f'6d) resolve the mapped name -> {code}: destHash='
+      f'{body.get("destHash")}, scope={body.get("scope")}')
+checks.append(code == 200 and body.get('destHash') == 'ab12cd34'
+              and body.get('scope') == 'mesh')
 
 code, body = req('POST', '/modules/reticulum/put-away')
 print(f'7) put-away reticulum -> {code}: ' + json.dumps(
