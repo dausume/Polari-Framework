@@ -109,7 +109,8 @@ class DeviceModel(treeObject):
     def __init__(self, name='', display_name='', vendor='',
                  oem_vendor='', oem_model='', device_class='unknown',
                  radio_chip='', freq_mhz_lo=0.0, freq_mhz_hi=0.0,
-                 tx_power_dbm_max=0, firmware_openness='unstated',
+                 tx_power_dbm_max=0, rx_sensitivity_dbm=0.0,
+                 declared_range_m=0.0, firmware_openness='unstated',
                  protocol_openness='unstated', config_protocol='',
                  interop='unknown', firmware_license='',
                  tool_license='', status='unevaluated',
@@ -128,6 +129,12 @@ class DeviceModel(treeObject):
         self.freq_mhz_lo = freq_mhz_lo
         self.freq_mhz_hi = freq_mhz_hi
         self.tx_power_dbm_max = tx_power_dbm_max
+        # link-budget facts meshsim's flat_range_m() reads (§5p):
+        # 0.0 = unstated, and the simulator refuses to guess.
+        self.rx_sensitivity_dbm = rx_sensitivity_dbm
+        # vendor-declared usable range, when one was stated —
+        # preferred over derived link-budget math (fidelity).
+        self.declared_range_m = declared_range_m
         self.firmware_openness = firmware_openness
         self.protocol_openness = protocol_openness
         # How it is configured ('e220-registers', 'rnodeconf', 'at').
@@ -169,6 +176,10 @@ SEED_DEVICE_MODELS = [
         'freq_mhz_lo': 850.125,
         'freq_mhz_hi': 930.125,
         'tx_power_dbm_max': 22,
+        'rx_sensitivity_dbm': -129.0,
+        # vendor states 0.5-1.5 km depending on antenna — mid value;
+        # the spread is the antenna's, the row records the middle.
+        'declared_range_m': 1000.0,
         'firmware_openness': 'proprietary',
         'protocol_openness': 'documented-via-oem',
         'config_protocol': 'e220-registers (C0/C1/C2 at 9600 8N1 in '

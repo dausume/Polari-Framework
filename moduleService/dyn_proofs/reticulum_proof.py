@@ -151,6 +151,33 @@ print(f'6d) resolve the mapped name -> {code}: destHash='
 checks.append(code == 200 and body.get('destHash') == 'ab12cd34'
               and body.get('scope') == 'mesh')
 
+code, body = req('POST', '/api/reticulum/meshsim',
+                 {'bearerSet': 'lora-only',
+                  'deviceModels': {'rnode-lora': {
+                      'model': 'dsd-tech-sh-l1a',
+                      'capacityBps': 6568}},
+                  'meshSizeNodes': 9, 'targetPerPeerBps': 200,
+                  'areaM2': 3000000})
+lora = (body.get('perBearer') or {}).get('rnode-lora', {})
+print(f'6g) meshsim lora-only 9 nodes @200bps -> {code}: range='
+      f'{lora.get("range", {}).get("rangeM")} m '
+      f'({lora.get("range", {}).get("fidelity")}), relay verdict='
+      f'{lora.get("relay", {}).get("verdict", "")[:40]}, '
+      f'disclaimer={("TERRAIN" in json.dumps(body))}')
+checks.append(code == 200
+              and lora.get('range', {}).get('rangeM') == 1000.0
+              and lora.get('range', {}).get('fidelity') == 'declared'
+              and lora.get('relay', {}).get('fits') is True
+              and 'TERRAIN' in body.get('disclaimer', ''))
+
+code, body = req('POST', '/api/reticulum/meshsim',
+                 {'bearerSet': 'lora-only',
+                  'propagationMode': 'ideal-elevation'})
+print(f'6h) meshsim ideal-elevation -> {code} (expect 400 with the '
+      f'terrain disclaimer): '
+      f'{("TERRAIN" in json.dumps(body))}')
+checks.append(code == 400 and 'TERRAIN' in json.dumps(body))
+
 code, body = req('GET', '/api/reticulum/peers')
 print(f'6e) peers (no sidecar, no sightings) -> {code}: buckets='
       f'{sorted(body.get("peers", {}).keys())}, sidecarLive='

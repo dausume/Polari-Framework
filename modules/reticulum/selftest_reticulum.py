@@ -31,6 +31,7 @@ RETICULUM_CLASSES = (
     'OperatorLicense', 'DeviceLink', 'DeviceModel',
     'AppArchExposure', 'MeshAppRelay', 'MeshConsumer',
     'AppDataRule', 'QuarantinedSubmission', 'PeerSighting',
+    'MeshSimScenario', 'MeshSimNode', 'MeshSimResult',
 )
 RETICULUM_SEEDS = ('SEED_RNS_INTERFACES', 'SEED_DEVICE_MODELS')
 
@@ -566,6 +567,106 @@ def run():
           and merged['last_heard_ms'] == 20
           and merged['heard_via'] == 'LoRa Serial,TCP Server'
           and merged['first_heard_ms'] == fresh['first_heard_ms'])
+
+    # -- mesh simulation (ret-1e, §5p) ------------------------------------
+    from reticulum import meshsim_basis as ms
+    check('propagation modes are a fidelity ladder; elevation modes '
+          'REFUSE with the terrain disclaimer (deliberately deferred)',
+          ms.PROPAGATION_MODE_VALUES == ('flat-assumed', 'measured',
+                                         'average-elevation',
+                                         'ideal-elevation')
+          and ms.mode_supported('flat-assumed')[0]
+          and ms.mode_supported('measured')[0]
+          and not ms.mode_supported('ideal-elevation')[0]
+          and 'TERRAIN IS NOT ACCOUNTED FOR'
+          in ms.mode_supported('ideal-elevation')[1]
+          and not ms.mode_supported('lunar')[0])
+    r, fid, _ = ms.flat_range_m({'declared_range_m': 1000.0,
+                                 'tx_power_dbm_max': 22,
+                                 'rx_sensitivity_dbm': -129,
+                                 'freq_mhz_lo': 915})
+    check('flat range PREFERS the vendor-declared figure',
+          r == 1000.0 and fid == 'declared')
+    r, fid, ev = ms.flat_range_m({'tx_power_dbm_max': 22,
+                                  'rx_sensitivity_dbm': -129,
+                                  'freq_mhz_lo': 915})
+    check('no declared range -> link-budget derivation, labelled '
+          'derived-flat with the arithmetic',
+          fid == 'derived-flat' and r and r > 1000
+          and 'link budget' in ev)
+    check('missing radio facts -> no range, refused not guessed',
+          ms.flat_range_m({})[0] is None
+          and ms.flat_range_m({})[1] == 'unknown')
+    plan = ms.spacing_plan(1000.0, 3_000_000)
+    check('spacing = range x safety; hex cells; nodes >= 1; the '
+          'disclaimer rides every plan',
+          plan['spacingM'] == 700.0 and plan['nodesForArea'] >= 1
+          and any('TERRAIN' in a for a in plan['assumptions']))
+    relay = ms.relay_allowance(9, 200, 6568)
+    check('relay allowance: 9 nodes @ 200 bps on the measured LoRa '
+          'capacity FITS, with the burden arithmetic shown',
+          relay['ok'] and relay['fits']
+          and relay['relayAllowanceBpsPerNode'] > 0
+          and relay['avgHops'] > 1)
+    relay = ms.relay_allowance(100, 2000, 6568)
+    check('an oversubscribed mesh is VERDICTED with the max '
+          'achievable target named',
+          relay['ok'] and not relay['fits']
+          and 'oversubscribed' in relay['verdict']
+          and relay['maxAchievablePerPeerBps'] > 0)
+    check('a one-node mesh refuses (nothing to relay)',
+          not ms.relay_allowance(1, 100, 1000)['ok'])
+    square = {'type': 'Feature', 'geometry': {
+        'type': 'Polygon', 'coordinates': [[
+            [-1000, -500], [3000, -500], [3000, 500], [-1000, 500],
+            [-1000, -500]]]}}
+    east = ms.hops_toward(square, (0, 0), 90, 500)
+    west = ms.hops_toward(square, (0, 0), 270, 500)
+    north = ms.hops_toward(square, (0, 0), 0, 500)
+    check('a boundary shape IS a directional hop budget: more hops '
+          'toward the far edge than the near one',
+          east is not None and east > west and north <= west
+          and east >= 5 and north <= 1)
+    check('spread limits: each form binds, the tightest wins, and NO '
+          'limits refuses (unbounded cannot happen by accident)',
+          not ms.spread_allows({'max_hops': 3}, 4, 0)[0]
+          and not ms.spread_allows({'max_distance_m': 900}, 1,
+                                   1000)[0]
+          and not ms.spread_allows({'max_hops': 10,
+                                    'max_distance_m': 900}, 2,
+                                   1000)[0]
+          and ms.spread_allows({'max_hops': 3,
+                                'max_distance_m': 5000}, 2, 1000)[0]
+          and not ms.spread_allows({}, 0, 0)[0])
+    check('a shape policy without bearing/spacing refuses rather '
+          'than guessing a direction',
+          not ms.spread_allows({'boundary_geojson': square}, 1,
+                               100)[0]
+          and ms.spread_allows({'boundary_geojson': square}, 2, 100,
+                               bearing_deg=90, origin_xy=(0, 0),
+                               spacing_m=500)[0])
+    samples = ([{'bearing_deg': b, 'distance_m': 900,
+                 'success': True} for b in (10, 100, 190)]
+               + [{'bearing_deg': 280, 'distance_m': 150,
+                   'success': True}])
+    sus = ms.interference_suspicions(samples, 1000)
+    check('one starved sector among healthy ones IS a suspicion, '
+          'with the irregularity as evidence',
+          len(sus['suspicions']) == 1
+          and 'IRREGULAR' in sus['suspicions'][0]['evidence']
+          and sus['suspicions'][0]['fidelity'] == 'derived')
+    all_short = [{'bearing_deg': b, 'distance_m': 200,
+                  'success': True} for b in (10, 100, 190, 280)]
+    sus = ms.interference_suspicions(all_short, 1000)
+    check('ALL sectors short is NOT interference — named as a '
+          'prediction (or terrain) problem instead',
+          sus['suspicions'] == []
+          and 'prediction problem' in sus['note'])
+    check('MeshSimNode records elevation but v1 does not use it '
+          '(the docstring says so)',
+          'elevation_m' in inspect.signature(
+              ms.MeshSimNode.__init__).parameters
+          and 'UNUSED' in (ms.MeshSimNode.__doc__ or ''))
 
     # -- the licence pins are surfaced facts ------------------------------
     from reticulum import rns_remote as rr

@@ -57,6 +57,7 @@ class ReticulumAPI(treeObject):
                 suffix='arch_topology')
             add('/api/reticulum/resolve/{name}', self, suffix='resolve')
             add('/api/reticulum/peers', self, suffix='peers')
+            add('/api/reticulum/meshsim', self, suffix='meshsim')
             add('/api/reticulum/peers/{name}/adjudicate', self,
                 suffix='adjudicate')
             add('/api/reticulum/inbound', self, suffix='inbound')
@@ -253,6 +254,141 @@ class ReticulumAPI(treeObject):
                      '(ret-3); this endpoint answers WHAT the name '
                      'is, the resolver answers WHERE to send packets'),
         }
+
+    def on_post_meshsim(self, request, response):
+        """ret-1e (§5p): the mesh planning computation — pure math,
+        writes nothing, needs no auth. Body:
+
+          {bearerSet: name from SCENARIO_BEARER_SETS (or a custom
+           list via 'bearers'),
+           deviceModels: {bearer: 'model-row-name'
+                          | {model: name, capacityBps: N}},
+           meshSizeNodes, targetPerPeerBps, areaM2?,
+           propagationMode? ('flat-assumed' default | 'measured';
+           elevation modes refuse with the terrain disclaimer),
+           practicalMarginDb?, utilization?, spatialReuse?,
+           reachSamples?: [{bearing_deg, distance_m, success}]}
+
+        capacityBps override wins; else the model row is consulted;
+        'ham-broadcast' has no catalog row and reports broadcast-only.
+        """
+        from reticulum import meshsim_basis as ms
+        try:
+            body = request.media or {}
+        except Exception:
+            body = {}
+        mode = body.get('propagationMode') or 'flat-assumed'
+        ok, why = ms.mode_supported(mode)
+        if not ok:
+            return self._refuse(response, why, falcon.HTTP_400,
+                                suggestion={
+                                    'evidence': why,
+                                    'knob': 'propagationMode',
+                                    'action': "use 'flat-assumed' or "
+                                              "'measured' for now"})
+        bearers = body.get('bearers') \
+            or ms.SCENARIO_BEARER_SETS.get(body.get('bearerSet', ''))
+        if not bearers:
+            return self._refuse(
+                response, 'no bearer set: name one of %s via '
+                          'bearerSet, or pass a bearers list'
+                          % sorted(ms.SCENARIO_BEARER_SETS))
+        n_nodes = int(body.get('meshSizeNodes') or 0)
+        target = float(body.get('targetPerPeerBps') or 0)
+        area = float(body.get('areaM2') or 0)
+        margin = float(body.get('practicalMarginDb') or 30.0)
+        util = float(body.get('utilization') or 0.5)
+        reuse = float(body.get('spatialReuse') or 1.0)
+        models = {m.get('name'): m for m in [
+            {f: getattr(row, f, None) for f in (
+                'name', 'declared_range_m', 'rx_sensitivity_dbm',
+                'tx_power_dbm_max', 'freq_mhz_lo', 'display_name')}
+            for row in self._rows('DeviceModel')]}
+        device_models = body.get('deviceModels') or {}
+        per_bearer = {}
+        assumptions = []
+        predicted_range = None
+        for bearer in bearers:
+            spec = device_models.get(bearer)
+            if isinstance(spec, dict):
+                model_name = spec.get('model', '')
+                capacity_override = spec.get('capacityBps')
+            else:
+                model_name = spec or ''
+                capacity_override = None
+            if bearer == 'ham-broadcast':
+                per_bearer[bearer] = {
+                    'kind': 'broadcast-only',
+                    'note': 'one-way public broadcast core (§5g) — '
+                            'no range math without a catalog row, '
+                            'and reach is the operator\'s '
+                            'station/antenna question',
+                }
+                continue
+            model = models.get(model_name)
+            if model is None:
+                per_bearer[bearer] = {
+                    'kind': 'unknown',
+                    'note': 'no DeviceModel row named %r — the '
+                            'catalog answers what devices ARE; add '
+                            'the row (with evidence) to simulate '
+                            'this bearer' % (model_name,),
+                }
+                continue
+            entry = {'kind': 'radio', 'model': model_name,
+                     'displayName': model.get('display_name')}
+            range_m, fidelity, evidence = ms.flat_range_m(
+                model, practical_margin_db=margin)
+            if mode == 'measured':
+                fresh = [m for m in self._dicts('LinkMeasurement')
+                         if m.get('throughput_bps')]
+                if fresh:
+                    best = max(fresh,
+                               key=lambda m: m['throughput_bps'])
+                    capacity_override = capacity_override \
+                        or best['throughput_bps']
+                    entry['measuredNote'] = (
+                        'capacity anchored on a measured row (%s '
+                        'bps); measured RANGE anchoring needs '
+                        'distance-tagged measurements — an honest '
+                        'gap, rows carry no distance yet'
+                        % best['throughput_bps'])
+            if range_m is None:
+                entry['range'] = {'rangeM': None,
+                                  'fidelity': fidelity,
+                                  'evidence': evidence}
+            else:
+                entry['range'] = {'rangeM': range_m,
+                                  'fidelity': fidelity,
+                                  'evidence': evidence}
+                predicted_range = predicted_range or range_m
+                plan = ms.spacing_plan(range_m, area)
+                entry['spacing'] = plan
+                assumptions.extend(plan.pop('assumptions'))
+            if capacity_override and n_nodes >= 2:
+                relay = ms.relay_allowance(
+                    n_nodes, target, float(capacity_override),
+                    utilization=util, spatial_reuse=reuse)
+                if relay.get('assumptions'):
+                    assumptions.extend(relay.pop('assumptions'))
+                entry['relay'] = relay
+            elif capacity_override is None:
+                entry['relayNote'] = ('no capacityBps known for this '
+                                      'bearer — pass deviceModels.'
+                                      '%s.capacityBps or measure'
+                                      % bearer)
+            per_bearer[bearer] = entry
+        result = {
+            'ok': True, 'mode': mode,
+            'disclaimer': ms.TERRAIN_DISCLAIMER,
+            'perBearer': per_bearer,
+            'assumptions': sorted(set(assumptions)),
+        }
+        samples = body.get('reachSamples')
+        if samples and predicted_range:
+            result['interference'] = ms.interference_suspicions(
+                samples, predicted_range)
+        response.media = result
 
     def on_get_peers(self, request, response):
         """ret-1d: potential peers — sighting ROWS merged with what

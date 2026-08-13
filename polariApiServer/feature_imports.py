@@ -884,5 +884,10 @@ FEATURE_IMPORT_BLOCKS = (
         ('reticulum.discovery_basis', (
             'PeerSighting',
         )),
+        # mesh planning simulator (ret-1e, §5p): flat-terrain math
+        # with a LOUD disclaimer; elevation deliberately deferred.
+        ('reticulum.meshsim_basis', (
+            'MeshSimScenario', 'MeshSimNode', 'MeshSimResult',
+        )),
     )),
 )

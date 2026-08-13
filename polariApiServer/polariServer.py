@@ -878,6 +878,7 @@ class polariServer(treeObject):
             OperatorLicense, DeviceLink, DeviceModel,
             AppArchExposure, MeshAppRelay, MeshConsumer,
             AppDataRule, QuarantinedSubmission, PeerSighting,
+            MeshSimScenario, MeshSimNode, MeshSimResult,
             # Casting (cast-1/2b/3/4): derived negatives, master
             # feedstocks, nesting chains with DERIVED parity +
             # thermal ordering, and sprue strategies/instances.
@@ -2360,8 +2361,10 @@ class polariServer(treeObject):
             ('StateConflict', StateConflict, []),
             ('OperatorLicense', OperatorLicense, []),
             ('DeviceLink', DeviceLink, []),
-            # catalog seeds ride the upsert pass below (day-one rule).
-            ('DeviceModel', DeviceModel, []),
+            # catalog seeds: legacy insert as the no-composition
+            # fallback (AppsNav precedent); the upsert pass below
+            # converges field additions on live rows.
+            ('DeviceModel', DeviceModel, SEED_DEVICE_MODELS),
             # ret-1c: exposures/relays/consumers are user-created;
             # every rung raised is a deliberate act, never a seed.
             ('AppArchExposure', AppArchExposure, []),
@@ -2371,6 +2374,10 @@ class polariServer(treeObject):
             ('QuarantinedSubmission', QuarantinedSubmission, []),
             # ret-1d: sightings arrive by hearing, never by seed.
             ('PeerSighting', PeerSighting, []),
+            # ret-1e: scenarios/nodes/results are user-created plans.
+            ('MeshSimScenario', MeshSimScenario, []),
+            ('MeshSimNode', MeshSimNode, []),
+            ('MeshSimResult', MeshSimResult, []),
             # wax-1: bio wax sources for molds / electronic masks.
             ('WaxSourceDefinition', WaxSourceDefinition,
              SEED_WAX_SOURCES),
