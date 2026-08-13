@@ -42,6 +42,7 @@ FEATURE_MODULES = frozenset({
     'collab',
     'mathshapes', 'meshassets', 'microalgae', 'motors',
     'nutrition', 'odooconnect', 'plant_morphology', 'polariapps',
+    'reticulum',
     'scoring',
     'supplychain', 'tanks', 'techtree', 'testing', 'waxprint',
     'waxsupply', 'zones',

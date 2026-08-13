@@ -838,4 +838,30 @@ FEATURE_IMPORT_BLOCKS = (
             'AvatarDefinition', 'SEED_AVATARS',
         )),
     )),
+    # Reticulum mesh transport (ret-1): rows are facts ABOUT the mesh;
+    # the RNS stack itself lives ONLY in the pol-reticulum sidecar
+    # (licence boundary — RETICULUM_LICENCE_GATE.md). Nothing arriving
+    # over Reticulum mutates Polari state (ret-8, the LiveKit §2 rule
+    # inherited verbatim). Third module born manifest-first on dyn-1.
+    ('reticulum', (
+        ('reticulum.reticulum_basis', (
+            'ReticulumIdentity', 'ReticulumDestination',
+            'ReticulumInterface', 'TransportBinding',
+            'LinkMeasurement', 'AirtimeBudget',
+            'SEED_RNS_INTERFACES',
+        )),
+        # `.arch` — the archipelago: named nodes, GRADED trust,
+        # measured reachability (§5c).
+        ('reticulum.arch_basis', (
+            'ArchipelagoNode', 'ArchipelagoTrust',
+        )),
+        # parent+child state replication; keyframes mandatory (§5f).
+        ('reticulum.replication_basis', (
+            'WatchedObject', 'ObjectStateVersion', 'StateConflict',
+        )),
+        # operator assertions + attached devices (§5g/§5i).
+        ('reticulum.operator_basis', (
+            'OperatorLicense', 'DeviceLink',
+        )),
+    )),
 )

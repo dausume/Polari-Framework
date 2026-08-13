@@ -416,6 +416,15 @@ def construct_collab_endpoints(polServer):
     collabEndpoint = CollabAPI(polServer=polServer, manager=manager)
 
 
+def construct_reticulum_endpoints(polServer):
+    manager = polServer.manager
+    # ret-1: capability (with the licence pins surfaced), .arch
+    # reachability, and the ret-8 inbound→proposal seam.
+    from reticulum.reticulum_api import ReticulumAPI
+    reticulumEndpoint = ReticulumAPI(polServer=polServer,
+                                     manager=manager)
+
+
 # Ordered as the original __init__ constructed them.
 MODULE_ENDPOINT_CONSTRUCTORS = {
     'pspp': construct_pspp_endpoints,
@@ -451,4 +460,5 @@ MODULE_ENDPOINT_CONSTRUCTORS = {
     'hwdigital': construct_hwdigital_endpoints,
     'electrodevice': construct_electrodevice_endpoints,
     'collab': construct_collab_endpoints,
+    'reticulum': construct_reticulum_endpoints,
 }

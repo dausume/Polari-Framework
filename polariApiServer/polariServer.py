@@ -869,6 +869,13 @@ class polariServer(treeObject):
             # registrations — manifest import, stub tuple and this
             # list — or its seeds silently never land).
             CollaborationSession, MeetingRecord, AvatarDefinition,
+            # Reticulum mesh transport (ret-1): facts about the mesh;
+            # the RNS stack lives only in the pol-reticulum sidecar.
+            ReticulumIdentity, ReticulumDestination, ReticulumInterface,
+            TransportBinding, LinkMeasurement, AirtimeBudget,
+            ArchipelagoNode, ArchipelagoTrust,
+            WatchedObject, ObjectStateVersion, StateConflict,
+            OperatorLicense, DeviceLink,
             # Casting (cast-1/2b/3/4): derived negatives, master
             # feedstocks, nesting chains with DERIVED parity +
             # thermal ordering, and sprue strategies/instances.
@@ -2333,6 +2340,24 @@ class polariServer(treeObject):
             # mtg-5: primitive avatars — no geometry files, so a
             # meeting works on a fresh instance with no asset pipeline.
             ('AvatarDefinition', AvatarDefinition, SEED_AVATARS),
+            # ret-1: only the ret-0-proven TCP interface shape is
+            # seeded (disabled — declaring is not enabling); radios
+            # come from real udev facts, never hopeful defaults, and
+            # everything else is user/gateway-created.
+            ('ReticulumIdentity', ReticulumIdentity, []),
+            ('ReticulumDestination', ReticulumDestination, []),
+            ('ReticulumInterface', ReticulumInterface,
+             SEED_RNS_INTERFACES),
+            ('TransportBinding', TransportBinding, []),
+            ('LinkMeasurement', LinkMeasurement, []),
+            ('AirtimeBudget', AirtimeBudget, []),
+            ('ArchipelagoNode', ArchipelagoNode, []),
+            ('ArchipelagoTrust', ArchipelagoTrust, []),
+            ('WatchedObject', WatchedObject, []),
+            ('ObjectStateVersion', ObjectStateVersion, []),
+            ('StateConflict', StateConflict, []),
+            ('OperatorLicense', OperatorLicense, []),
+            ('DeviceLink', DeviceLink, []),
             # wax-1: bio wax sources for molds / electronic masks.
             ('WaxSourceDefinition', WaxSourceDefinition,
              SEED_WAX_SOURCES),
@@ -2853,6 +2878,27 @@ class polariServer(treeObject):
                               flush=True)
             except Exception as e:
                 print(f'[AppStoreSeed] failed: {e}', flush=True)
+        # ret-1: the interface seed rides the upsert path from day one
+        # (AppStoreSeed precedent) so field additions converge live
+        # rows (the ten-strikes gotcha). Same module-level-import rule
+        # as AppsNavSeed above.
+        if (_feature_available('composition')
+                and _feature_available('reticulum') and (
+                only_classes is None
+                or 'ReticulumInterface' in only_classes)):
+            try:
+                from composition.seed_upsert import upsert_seed_pairs
+                for r in upsert_seed_pairs(
+                        self.manager,
+                        [('ReticulumInterface', ReticulumInterface,
+                          SEED_RNS_INTERFACES)], tag='ReticulumSeed'):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[ReticulumSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[ReticulumSeed] failed: {e}', flush=True)
         # tt-8: the single 'oseb' tree became three DOMAIN trees —
         # retire its persisted rows (idempotent no-op once gone) and
         # remap stale PolariModule.tech_node_ref hints.

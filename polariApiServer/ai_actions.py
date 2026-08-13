@@ -44,6 +44,11 @@ _OP_LEVEL = {
     # becomes a proposal.
     "object_transform": (3, "reversible-system"),
     "storage_connect": (4, "network-service"),
+    # ret-8 seam: inbound app data from another isle over Reticulum.
+    # Level 4 ON PURPOSE — above the auto-approve ceiling, so a remote
+    # isle's data NEVER applies itself; trust grades may later raise
+    # auto-approval for named low-authority ops, never above this.
+    "rns_inbound": (4, "network-service"),
     "delete": (7, "irreversible"),
 }
 
