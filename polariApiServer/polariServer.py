@@ -877,7 +877,7 @@ class polariServer(treeObject):
             WatchedObject, ObjectStateVersion, StateConflict,
             OperatorLicense, DeviceLink, DeviceModel,
             AppArchExposure, MeshAppRelay, MeshConsumer,
-            AppDataRule, QuarantinedSubmission,
+            AppDataRule, QuarantinedSubmission, PeerSighting,
             # Casting (cast-1/2b/3/4): derived negatives, master
             # feedstocks, nesting chains with DERIVED parity +
             # thermal ordering, and sprue strategies/instances.
@@ -2369,6 +2369,8 @@ class polariServer(treeObject):
             ('MeshConsumer', MeshConsumer, []),
             ('AppDataRule', AppDataRule, []),
             ('QuarantinedSubmission', QuarantinedSubmission, []),
+            # ret-1d: sightings arrive by hearing, never by seed.
+            ('PeerSighting', PeerSighting, []),
             # wax-1: bio wax sources for molds / electronic masks.
             ('WaxSourceDefinition', WaxSourceDefinition,
              SEED_WAX_SOURCES),

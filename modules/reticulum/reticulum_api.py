@@ -56,6 +56,9 @@ class ReticulumAPI(treeObject):
             add('/api/reticulum/arch-topology', self,
                 suffix='arch_topology')
             add('/api/reticulum/resolve/{name}', self, suffix='resolve')
+            add('/api/reticulum/peers', self, suffix='peers')
+            add('/api/reticulum/peers/{name}/adjudicate', self,
+                suffix='adjudicate')
             add('/api/reticulum/inbound', self, suffix='inbound')
 
     # ---- helpers ----------------------------------------------------
@@ -249,6 +252,142 @@ class ReticulumAPI(treeObject):
                      'netledger-reserved pool on the resolving host '
                      '(ret-3); this endpoint answers WHAT the name '
                      'is, the resolver answers WHERE to send packets'),
+        }
+
+    def on_get_peers(self, request, response):
+        """ret-1d: potential peers — sighting ROWS merged with what
+        the sidecar is hearing RIGHT NOW, bucketed by adjudication
+        status. Hearing is not admitting; the buckets say which is
+        which."""
+        from reticulum import rns_remote as rr
+        from reticulum.discovery_basis import merge_heard
+        now_ms = int(time.time() * 1000)
+        rows = {getattr(r, 'name', ''): {
+            'name': r.name,
+            'identity_hash': getattr(r, 'identity_hash', ''),
+            'dest_hash': getattr(r, 'dest_hash', ''),
+            'aspects': getattr(r, 'aspects', ''),
+            'heard_via': getattr(r, 'heard_via', ''),
+            'first_heard_ms': getattr(r, 'first_heard_ms', 0),
+            'last_heard_ms': getattr(r, 'last_heard_ms', 0),
+            'announce_count': getattr(r, 'announce_count', 0),
+            'status': getattr(r, 'status', 'unadjudicated'),
+            'adjudicated_by': getattr(r, 'adjudicated_by', ''),
+            'arch_node_name': getattr(r, 'arch_node_name', ''),
+        } for r in self._rows('PeerSighting')}
+        live = []
+        status = rr.sidecar_status()
+        if status.get('ok'):
+            live = status['status'].get('peersHeard', [])
+        for heard in live:
+            key = heard.get('destHash', '')
+            if key in rows:
+                rows[key] = dict(
+                    rows[key], **{k: v for k, v in merge_heard(
+                        rows[key], heard, now_ms).items()
+                        if k in ('last_heard_ms', 'announce_count',
+                                 'heard_via')})
+                rows[key]['hearingNow'] = True
+            else:
+                fresh = merge_heard(None, heard, now_ms)
+                fresh.update({'name': key, 'hearingNow': True,
+                              'persisted': False})
+                rows[key] = fresh
+        buckets = {'unadjudicated': [], 'archipelago': [], 'mesh': [],
+                   'ignored': []}
+        for entry in rows.values():
+            buckets.setdefault(entry.get('status', 'unadjudicated'),
+                               []).append(entry)
+        response.media = {
+            'ok': True, 'nowMs': now_ms,
+            'sidecarLive': bool(status.get('ok')),
+            'peers': buckets,
+            'note': ('hearing is not admitting: unadjudicated peers '
+                     'are a question, .arch is ours by a named '
+                     'human\'s decision, .mesh is the wider mesh '
+                     '(mesh rung only), ignored stays recorded'),
+        }
+
+    def on_post_adjudicate(self, request, response, name):
+        """The adjudication ACT: a KC-verified human decides what a
+        heard peer becomes. Identity before existence (the standing
+        401-vs-404 rule)."""
+        from reticulum.discovery_basis import PeerSighting, adjudicate
+        user = getattr(request.context, 'user_info', None)
+        if not user or not user.get('sub'):
+            return self._refuse(
+                response, 'adjudicating a peer requires a Keycloak-'
+                          'verified caller — admission is a human act '
+                          'with a name on it', falcon.HTTP_401)
+        try:
+            body = request.media or {}
+        except Exception:
+            body = {}
+        decision = (body.get('decision') or '').strip()
+        arch_name = (body.get('archName') or '').strip()
+        row = None
+        for r in self._rows('PeerSighting'):
+            if getattr(r, 'name', '') == name:
+                row = r
+                break
+        sighting = ({'status': getattr(row, 'status', 'unadjudicated'),
+                     'dest_hash': getattr(row, 'dest_hash', ''),
+                     'last_heard_ms': getattr(row, 'last_heard_ms', 0)}
+                    if row is not None else None)
+        if sighting is None:
+            # a live-heard, never-persisted peer may be adjudicated
+            # directly from the sidecar's report
+            live = (body.get('heard') or {})
+            if not live.get('destHash'):
+                return self._refuse(
+                    response, f'no PeerSighting named {name!r} and no '
+                              'heard payload to adjudicate from',
+                    falcon.HTTP_404)
+            sighting = {'status': 'unadjudicated',
+                        'dest_hash': live.get('destHash', ''),
+                        'last_heard_ms': live.get('lastHeardMs', 0)}
+        who = user.get('username') or user['sub']
+        ok, result = adjudicate(sighting, decision, who, arch_name)
+        if not ok:
+            return self._refuse(response, result['evidence'],
+                                falcon.HTTP_400, suggestion=result)
+        stamp = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+        arch_node = result.pop('createArchNode', None)
+        created = None
+        if arch_node is not None:
+            from reticulum.arch_basis import ArchipelagoNode
+            node = ArchipelagoNode(manager=self.manager, **arch_node)
+            try:
+                self.manager.db.saveInstanceInDB(node)
+            except Exception:
+                pass
+            created = arch_node['arch_name']
+        if row is None:
+            from reticulum.discovery_basis import merge_heard
+            fresh = merge_heard(None, body.get('heard') or {},
+                                int(time.time() * 1000))
+            fresh.update(result)
+            row = PeerSighting(manager=self.manager, name=name,
+                              **{k: v for k, v in fresh.items()
+                                 if k != 'name'})
+        else:
+            for field, value in result.items():
+                setattr(row, field, value)
+        row.adjudicated_at = stamp
+        if created:
+            row.arch_node_name = created
+        try:
+            self.manager.db.saveInstanceInDB(row)
+        except Exception:
+            pass
+        response.media = {
+            'ok': True, 'peer': name, 'decision': decision,
+            'by': who, 'at': stamp,
+            'archNodeCreated': created,
+            'note': ('admission is routing and naming, never '
+                     'authority — trust grades are separate rows '
+                     '(§5c), and .mesh peers stay at the mesh '
+                     'rung'),
         }
 
     def on_post_inbound(self, request, response):

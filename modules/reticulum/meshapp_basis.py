@@ -1,28 +1,39 @@
 """
 @module reticulum.meshapp_basis
 
-THE APP ACCESS LADDER (ret-1c, plan §5n, DECIDED row 20 — Dustin
-2026-08-13): isle → archipelago → open-sea, a per-app knob defaulting
-to the most restrictive.
+THE APP ACCESS LADDER (ret-1c, plan §5n, DECIDED rows 20/21 — Dustin
+2026-08-13): the reserved isle-mesh suffixes, per-app knobs
+defaulting to the most restrictive.
 
-  isle       reachable only on its own isle (the standing default).
-  arch       archipelago-accessible: apps inside the .arch talk as
-             their own network. The farmer's market — vendors mesh
-             their isles so customers move between stalls as one.
-  open-sea   the ZERO-TRUST tier: beyond the archipelago is water
-             that belongs to no one. Arbitrary consumers connect to
-             a LIGHTHOUSE (MeshAppRelay) that broadcasts the app's
-             current (and optionally prior) state; consumers are
-             pseudonymous — tracked SOLELY by Reticulum identity —
-             and nothing they send mutates state except through the
-             ret-8 proposal seam, like everyone else.
+  isle   (.isle)  reachable only on its own isle (the default).
+  arch   (.arch)  archipelago-accessible: apps inside the .arch talk
+                  as their own network. The farmer's market — vendors
+                  mesh their isles so customers move between stalls
+                  as one.
+  mesh   (.mesh)  the ZERO-TRUST wider mesh: beyond the archipelago
+                  is water that belongs to no one. Arbitrary
+                  consumers connect to a LIGHTHOUSE (MeshAppRelay)
+                  that broadcasts the app's current (and optionally
+                  prior) state; consumers are pseudonymous — tracked
+                  SOLELY by Reticulum identity — and nothing they
+                  send mutates state except through the ret-8
+                  proposal seam, like everyone else.
+  web             the internet, with its various possible endpoints
+                  (the EXTERNAL_APPS story) — outermost, distinct
+                  from the mesh (the standing local-vs-web split).
+
+An app may hold exposures at SEVERAL levels at once (one row per
+level, each its own enable) — "multiple different definition levels"
+are rows, not a single field.
 
 Three treeObjects:
 
-  AppArchExposure  the knob row: app ⇄ scope ⇄ which archipelago.
-                   Enable/disable at will; disabled and isle-scoped
-                   are indistinguishable to the outside, which is
-                   the point.
+  AppArchExposure  the knob row: app ⇄ scope ⇄ which archipelago ⇄
+                   OUR ROLE for that app at that level (server /
+                   relay-only / user / observer). Enable/disable at
+                   will; disabled and isle-scoped are
+                   indistinguishable to the outside, which is the
+                   point.
   MeshAppRelay     the lighthouse for one app: fans out a
                    WatchedObject's state (§5f verbatim — parent/
                    child versions, keyframes mandatory), cadence
@@ -48,12 +59,19 @@ the delta algebra is replication_basis's.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-#: The ladder. Order matters: each rung includes the ones below it
-#: for ORIGIN checks (an isle-local caller may use an arch-scoped
-#: app; an open-sea consumer may not reach an arch-scoped one).
-APP_SCOPE_VALUES = ('isle', 'arch', 'open-sea')
+#: The ladder — the reserved isle-mesh suffixes plus the internet.
+#: Order matters: each rung includes the ones below it for ORIGIN
+#: checks (an isle-local caller may use an arch-scoped app; a .mesh
+#: consumer may not reach an arch-scoped one; web is outermost).
+APP_SCOPE_VALUES = ('isle', 'arch', 'mesh', 'web')
 
-#: KC linkage on the open-sea tier: disabled (default) or optional.
+#: What WE are for an app at a level (Dustin 2026-08-13): the node's
+#: ROLE, not the app's nature. Default 'observer' — receive-only
+#: presence, the §5i posture; being a server is declared, never
+#: assumed.
+MESH_APP_ROLE_VALUES = ('observer', 'user', 'relay-only', 'server')
+
+#: KC linkage on the mesh tier: disabled (default) or optional.
 #: 'required' is deliberately absent (DECIDED row 20) — the option
 #: not existing is how the promise is kept.
 KC_LINK_MODE_VALUES = ('disabled', 'optional')
@@ -65,7 +83,7 @@ def scope_allows(app_scope, origin_scope):
     """May a caller from `origin_scope` reach an app exposed at
     `app_scope`? The ladder rule: an app is reachable from its own
     rung and every rung BELOW it (closer to home), never from above.
-    Unknown scopes refuse — the ladder has three rungs, not a
+    Unknown scopes refuse — the ladder has four rungs, not a
     default. Returns (bool, reason)."""
     if app_scope not in _SCOPE_RANK:
         return (False, 'unknown app scope %r' % (app_scope,))
@@ -141,20 +159,28 @@ def user_census(expected_users, observed_identity_count,
 
 
 class AppArchExposure(treeObject):
-    """The per-app rung knob: which scope this app is exposed at,
-    and into which archipelago. Default isle + disabled — raising a
-    rung is always a deliberate act."""
+    """One app's participation at ONE level: scope + which
+    archipelago + our ROLE there. An app may hold several exposure
+    rows (one per level). Default isle + observer + disabled —
+    raising a rung, or claiming a bigger role, is always a
+    deliberate act."""
 
     @treeObjectInit
     def __init__(self, name='', app_name='', scope='isle',
-                 arch_name='', enabled=False, exposed_by='',
-                 exposed_at='', notes='', manager=None):
+                 arch_name='', role='observer', enabled=False,
+                 exposed_by='', exposed_at='', notes='',
+                 manager=None):
         self.name = name
         self.app_name = app_name
         self.scope = scope
         # WHICH archipelago carries it at 'arch' scope and above —
         # a farmer's market is a specific market, not all markets.
         self.arch_name = arch_name
+        # what WE are for this app at this level: observer (receive-
+        # only presence), user (submits under the data rules),
+        # relay-only (forwards state, holds no authority), server
+        # (the app's authoritative core — the lighthouse keeper).
+        self.role = role
         self.enabled = enabled
         # who raised the rung, and when — exposure is provenance.
         self.exposed_by = exposed_by
@@ -193,7 +219,7 @@ class MeshAppRelay(treeObject):
 
 
 class MeshConsumer(treeObject):
-    """One open-sea consumer. Its NAME is its Reticulum identity
+    """One mesh consumer. Its NAME is its Reticulum identity
     hash — the pseudonym IS the identity, and that is enough."""
 
     @treeObjectInit

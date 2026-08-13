@@ -15,7 +15,7 @@ may SUBMIT to a mesh app, and what happens to submissions that lie.
     attack signature the census can point at.
 
 Pure functions over plain dicts; the relay daemon enforces, rows
-record. Rejection never mutates anything — an open-sea submission
+record. Rejection never mutates anything — an mesh submission
 that passes every rule still only ever becomes a PROPOSAL (ret-8).
 
 @consumers reticulum.reticulum_api, the relay daemon (sidecar)
@@ -80,7 +80,7 @@ def evaluate_submission(rule, identity, payload, payload_bytes,
 
     if not rule or not rule.get('enabled'):
         return caught('no-rule',
-                      'no enabled AppDataRule for this app — open-sea '
+                      'no enabled AppDataRule for this app — mesh '
                       'submissions without a rule are refused, not '
                       'defaulted')
     max_bytes = rule.get('max_submission_bytes') or 0
@@ -124,7 +124,7 @@ def evaluate_submission(rule, identity, payload, payload_bytes,
 
 class AppDataRule(treeObject):
     """What one consumer may submit to one app, per unit time —
-    the inbound admission policy of the open-sea tier. No enabled
+    the inbound admission policy of the mesh tier. No enabled
     rule = nothing accepted (refused, not defaulted)."""
 
     @treeObjectInit

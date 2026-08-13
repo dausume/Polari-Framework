@@ -879,5 +879,10 @@ FEATURE_IMPORT_BLOCKS = (
         ('reticulum.datarule_basis', (
             'AppDataRule', 'QuarantinedSubmission',
         )),
+        # peer discovery: heard broadcasts adjudicated into .arch
+        # (ours) or .mesh (the wider mesh) by a named human (ret-1d).
+        ('reticulum.discovery_basis', (
+            'PeerSighting',
+        )),
     )),
 )

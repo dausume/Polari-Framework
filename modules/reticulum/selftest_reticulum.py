@@ -30,7 +30,7 @@ RETICULUM_CLASSES = (
     'WatchedObject', 'ObjectStateVersion', 'StateConflict',
     'OperatorLicense', 'DeviceLink', 'DeviceModel',
     'AppArchExposure', 'MeshAppRelay', 'MeshConsumer',
-    'AppDataRule', 'QuarantinedSubmission',
+    'AppDataRule', 'QuarantinedSubmission', 'PeerSighting',
 )
 RETICULUM_SEEDS = ('SEED_RNS_INTERFACES', 'SEED_DEVICE_MODELS')
 
@@ -400,27 +400,39 @@ def run():
 
     # -- the app access ladder (ret-1c, DECIDED row 20) -------------------
     from reticulum import meshapp_basis as mb
-    check('the ladder is isle -> arch -> open-sea, and KC linkage has '
-          'NO required mode (the option not existing keeps the '
-          'promise)',
-          mb.APP_SCOPE_VALUES == ('isle', 'arch', 'open-sea')
+    check('the ladder is the reserved suffixes + web (isle -> arch '
+          '-> mesh -> web), and KC linkage has NO required mode '
+          '(the option not existing keeps the promise)',
+          mb.APP_SCOPE_VALUES == ('isle', 'arch', 'mesh', 'web')
           and mb.KC_LINK_MODE_VALUES == ('disabled', 'optional')
           and 'required' not in mb.KC_LINK_MODE_VALUES)
-    check('an isle-scoped app refuses arch and open-sea callers by '
-          'rung',
+    check('an isle-scoped app refuses arch/mesh/web callers by rung',
           not mb.scope_allows('isle', 'arch')[0]
-          and not mb.scope_allows('isle', 'open-sea')[0]
+          and not mb.scope_allows('isle', 'mesh')[0]
+          and not mb.scope_allows('isle', 'web')[0]
           and mb.scope_allows('isle', 'isle')[0])
     check('an arch-scoped app serves its isles and its arch, not the '
-          'open sea',
+          'wider mesh or the internet',
           mb.scope_allows('arch', 'isle')[0]
           and mb.scope_allows('arch', 'arch')[0]
-          and not mb.scope_allows('arch', 'open-sea')[0])
-    check('an open-sea app serves every rung; unknown scopes refuse',
-          mb.scope_allows('open-sea', 'open-sea')[0]
-          and mb.scope_allows('open-sea', 'isle')[0]
+          and not mb.scope_allows('arch', 'mesh')[0]
+          and not mb.scope_allows('arch', 'web')[0])
+    check('a .mesh app serves mesh and below but not the internet; '
+          'a web app serves every rung; unknown scopes refuse',
+          mb.scope_allows('mesh', 'mesh')[0]
+          and mb.scope_allows('mesh', 'isle')[0]
+          and not mb.scope_allows('mesh', 'web')[0]
+          and mb.scope_allows('web', 'web')[0]
+          and mb.scope_allows('web', 'isle')[0]
           and not mb.scope_allows('lagoon', 'isle')[0]
           and not mb.scope_allows('isle', 'lagoon')[0])
+    check('roles: observer/user/relay-only/server, defaulting to '
+          'receive-only presence (being a server is declared, never '
+          'assumed); an app may hold SEVERAL exposure rows',
+          mb.MESH_APP_ROLE_VALUES == ('observer', 'user',
+                                      'relay-only', 'server')
+          and inspect.signature(mb.AppArchExposure.__init__)
+          .parameters['role'].default == 'observer')
     check('exposure defaults are the most restrictive rung, disabled',
           inspect.signature(mb.AppArchExposure.__init__)
           .parameters['scope'].default == 'isle'
@@ -508,6 +520,52 @@ def run():
           .parameters['enabled'].default is False
           and 'payload_sample' in inspect.signature(
               dr.QuarantinedSubmission.__init__).parameters)
+
+    # -- peer discovery + adjudication (ret-1d, row 21) -------------------
+    from reticulum import discovery_basis as db
+    check('sighting lifecycle: unadjudicated is neither .arch nor '
+          '.mesh — a question, not a member',
+          db.SIGHTING_STATUS_VALUES == ('unadjudicated',
+                                        'archipelago', 'mesh',
+                                        'ignored')
+          and inspect.signature(db.PeerSighting.__init__)
+          .parameters['status'].default == 'unadjudicated')
+    s = {'status': 'unadjudicated', 'dest_hash': 'ab12',
+         'last_heard_ms': 5}
+    ok, changes = db.adjudicate(s, 'archipelago', 'dustin',
+                                'barn-isle')
+    check('admission to .arch creates the node, named, vouched, '
+          'measured-real',
+          ok and changes['createArchNode']['arch_name']
+          == 'barn-isle.arch'
+          and changes['createArchNode']['vouched_by'] == 'dustin'
+          and changes['createArchNode']['fidelity'] == 'measured-real')
+    ok, refusal = db.adjudicate(s, 'archipelago', 'dustin', '')
+    check('admission WITHOUT a name refuses — admission IS naming',
+          not ok and 'naming' in refusal['action'])
+    check('mesh needs no name; anonymous deciders and unknown '
+          'decisions refuse',
+          db.adjudicate(s, 'mesh', 'dustin')[0]
+          and not db.adjudicate(s, 'mesh', '')[0]
+          and not db.adjudicate(s, 'lagoon', 'dustin')[0]
+          and not db.adjudicate(dict(s, status='mesh'), 'mesh',
+                                'dustin')[0])
+    fresh = db.merge_heard(None, {'destHash': 'cd34',
+                                  'identityHash': 'ef56',
+                                  'interface': 'LoRa Serial',
+                                  'lastHeardMs': 9, 'count': 3}, 9)
+    check('first hearing creates an unadjudicated sighting with its '
+          'evidence', fresh['status'] == 'unadjudicated'
+          and fresh['announce_count'] == 3
+          and fresh['heard_via'] == 'LoRa Serial')
+    merged = db.merge_heard(fresh, {'interface': 'TCP Server',
+                                    'lastHeardMs': 20, 'count': 2}, 20)
+    check('re-hearing accumulates, and a NEW bearer for a known peer '
+          'is recorded',
+          merged['announce_count'] == 5
+          and merged['last_heard_ms'] == 20
+          and merged['heard_via'] == 'LoRa Serial,TCP Server'
+          and merged['first_heard_ms'] == fresh['first_heard_ms'])
 
     # -- the licence pins are surfaced facts ------------------------------
     from reticulum import rns_remote as rr

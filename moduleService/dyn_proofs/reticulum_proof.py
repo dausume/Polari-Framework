@@ -151,6 +151,20 @@ print(f'6d) resolve the mapped name -> {code}: destHash='
 checks.append(code == 200 and body.get('destHash') == 'ab12cd34'
               and body.get('scope') == 'mesh')
 
+code, body = req('GET', '/api/reticulum/peers')
+print(f'6e) peers (no sidecar, no sightings) -> {code}: buckets='
+      f'{sorted(body.get("peers", {}).keys())}, sidecarLive='
+      f'{body.get("sidecarLive")}')
+checks.append(code == 200 and body.get('sidecarLive') is False
+              and set(body.get('peers', {}))
+              == {'unadjudicated', 'archipelago', 'mesh', 'ignored'})
+
+code, body = req('POST', '/api/reticulum/peers/xx/adjudicate',
+                 {'decision': 'mesh'})
+print(f'6f) adjudicate WITHOUT a verified KC caller -> {code} '
+      f'(expect 401 — admission is a human act with a name on it)')
+checks.append(code == 401)
+
 code, body = req('POST', '/modules/reticulum/put-away')
 print(f'7) put-away reticulum -> {code}: ' + json.dumps(
     {k: body.get(k) for k in ('classesDeactivated', 'dbTablesKept',
