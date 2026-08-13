@@ -1,0 +1,216 @@
+"""
+@module reticulum.meshapp_basis
+
+THE APP ACCESS LADDER (ret-1c, plan §5n, DECIDED row 20 — Dustin
+2026-08-13): isle → archipelago → open-sea, a per-app knob defaulting
+to the most restrictive.
+
+  isle       reachable only on its own isle (the standing default).
+  arch       archipelago-accessible: apps inside the .arch talk as
+             their own network. The farmer's market — vendors mesh
+             their isles so customers move between stalls as one.
+  open-sea   the ZERO-TRUST tier: beyond the archipelago is water
+             that belongs to no one. Arbitrary consumers connect to
+             a LIGHTHOUSE (MeshAppRelay) that broadcasts the app's
+             current (and optionally prior) state; consumers are
+             pseudonymous — tracked SOLELY by Reticulum identity —
+             and nothing they send mutates state except through the
+             ret-8 proposal seam, like everyone else.
+
+Three treeObjects:
+
+  AppArchExposure  the knob row: app ⇄ scope ⇄ which archipelago.
+                   Enable/disable at will; disabled and isle-scoped
+                   are indistinguishable to the outside, which is
+                   the point.
+  MeshAppRelay     the lighthouse for one app: fans out a
+                   WatchedObject's state (§5f verbatim — parent/
+                   child versions, keyframes mandatory), cadence
+                   adaptively adjusted between bounds, expected user
+                   count for the census.
+  MeshConsumer     one consumer, named BY its RNS identity hash.
+                   kc_subject stays '' unless the consumer opted in
+                   under the relay's kc_link_mode — and 'required'
+                   DOES NOT EXIST as a mode: a zero-trust tier that
+                   demands enrolment is not zero-trust.
+
+Inter-archipelago: each arch holds FULL state (keyframes land at the
+arch, so local consumers get wholeness locally); BETWEEN archs only
+deltas travel, gRPC/protobuf-encoded (§2/ret-5).
+ObjectStateVersion.source_arch_name already keys versions per arch;
+the delta algebra is replication_basis's.
+
+@consumers reticulum.reticulum_api, the relay daemon (sidecar,
+           ret-5/ret-7)
+@see modules/reticulum/replication_basis.py (the state machinery this
+     reuses), plan §5n
+"""
+
+from objectTreeDecorators import treeObject, treeObjectInit
+
+#: The ladder. Order matters: each rung includes the ones below it
+#: for ORIGIN checks (an isle-local caller may use an arch-scoped
+#: app; an open-sea consumer may not reach an arch-scoped one).
+APP_SCOPE_VALUES = ('isle', 'arch', 'open-sea')
+
+#: KC linkage on the open-sea tier: disabled (default) or optional.
+#: 'required' is deliberately absent (DECIDED row 20) — the option
+#: not existing is how the promise is kept.
+KC_LINK_MODE_VALUES = ('disabled', 'optional')
+
+_SCOPE_RANK = {s: i for i, s in enumerate(APP_SCOPE_VALUES)}
+
+
+def scope_allows(app_scope, origin_scope):
+    """May a caller from `origin_scope` reach an app exposed at
+    `app_scope`? The ladder rule: an app is reachable from its own
+    rung and every rung BELOW it (closer to home), never from above.
+    Unknown scopes refuse — the ladder has three rungs, not a
+    default. Returns (bool, reason)."""
+    if app_scope not in _SCOPE_RANK:
+        return (False, 'unknown app scope %r' % (app_scope,))
+    if origin_scope not in _SCOPE_RANK:
+        return (False, 'unknown origin scope %r' % (origin_scope,))
+    if _SCOPE_RANK[origin_scope] <= _SCOPE_RANK[app_scope]:
+        return (True, '')
+    return (False,
+            'app is %s-scoped; a caller from the %s does not reach '
+            'it (raise the app\'s AppArchExposure deliberately, or '
+            'not at all)' % (app_scope, origin_scope))
+
+
+def adaptive_cadence(current_interval_s, consumer_return_intervals_s,
+                     min_interval_s, max_interval_s, headroom=1.5,
+                     max_step=2.0):
+    """§5n: pace the lighthouse to what consumers COLLECTIVELY
+    demonstrate — the median consumer's return interval, with
+    headroom, clamped to [min, max] and rate-limited to max_step per
+    adjustment (no oscillation). No returns at all -> drift toward
+    the ceiling (broadcast survives silence; it just slows).
+    Evidence-bearing: returns (new_interval_s, evidence dict)."""
+    evidence = {'current': current_interval_s,
+                'samples': len(consumer_return_intervals_s or []),
+                'floor': min_interval_s, 'ceiling': max_interval_s}
+    if not consumer_return_intervals_s:
+        target = min(current_interval_s * max_step, max_interval_s)
+        evidence['reason'] = ('no consumer returns in window — '
+                              'slowing toward the ceiling')
+    else:
+        ordered = sorted(consumer_return_intervals_s)
+        median = ordered[len(ordered) // 2]
+        evidence['medianReturn'] = median
+        target = median * headroom
+        evidence['reason'] = ('paced to the median consumer return '
+                              '(%.1fs) x headroom %.1f' % (median,
+                                                           headroom))
+    # rate-limit, then clamp — the floor is the airtime budget's
+    # voice and always wins.
+    lo = current_interval_s / max_step
+    hi = current_interval_s * max_step
+    target = max(lo, min(hi, target))
+    target = max(min_interval_s, min(max_interval_s, target))
+    evidence['new'] = round(target, 2)
+    return (round(target, 2), evidence)
+
+
+def user_census(expected_users, observed_identity_count,
+                over_factor=1.5):
+    """§5n accountability: how many users SHOULD exist vs how many
+    distinct RNS identities were seen. A named finding — a relay
+    that silently gains a thousand consumers is a different thing
+    than the one you configured. expected 0/None = no expectation
+    declared (stated, not defaulted)."""
+    if not expected_users:
+        return {'state': 'no-expectation',
+                'observed': observed_identity_count,
+                'evidence': 'no expected_users declared on the relay '
+                            '— set one to make the census meaningful'}
+    ratio = observed_identity_count / expected_users
+    if ratio > over_factor:
+        state = 'over'
+    elif observed_identity_count < expected_users:
+        state = 'under'
+    else:
+        state = 'as-expected'
+    return {'state': state, 'observed': observed_identity_count,
+            'expected': expected_users,
+            'evidence': '%d distinct Reticulum identities seen vs %d '
+                        'expected (%.0f%%)'
+                        % (observed_identity_count, expected_users,
+                           ratio * 100)}
+
+
+class AppArchExposure(treeObject):
+    """The per-app rung knob: which scope this app is exposed at,
+    and into which archipelago. Default isle + disabled — raising a
+    rung is always a deliberate act."""
+
+    @treeObjectInit
+    def __init__(self, name='', app_name='', scope='isle',
+                 arch_name='', enabled=False, exposed_by='',
+                 exposed_at='', notes='', manager=None):
+        self.name = name
+        self.app_name = app_name
+        self.scope = scope
+        # WHICH archipelago carries it at 'arch' scope and above —
+        # a farmer's market is a specific market, not all markets.
+        self.arch_name = arch_name
+        self.enabled = enabled
+        # who raised the rung, and when — exposure is provenance.
+        self.exposed_by = exposed_by
+        self.exposed_at = exposed_at
+        self.notes = notes
+
+
+class MeshAppRelay(treeObject):
+    """The lighthouse: broadcasts one app's state to the open sea.
+    Reuses the §5f machinery wholesale — watched_name points at the
+    WatchedObject whose parent/child versions and keyframes carry
+    the actual state."""
+
+    @treeObjectInit
+    def __init__(self, name='', app_name='', exposure_name='',
+                 watched_name='', cadence_seconds=60,
+                 min_cadence_seconds=10, max_cadence_seconds=600,
+                 prior_states_kept=1, expected_users=0,
+                 kc_link_mode='disabled', enabled=False, notes='',
+                 manager=None):
+        self.name = name
+        self.app_name = app_name
+        self.exposure_name = exposure_name
+        self.watched_name = watched_name
+        # current cadence — adaptive_cadence() moves it between the
+        # bounds; the floor answers to the airtime budget (row 19).
+        self.cadence_seconds = cadence_seconds
+        self.min_cadence_seconds = min_cadence_seconds
+        self.max_cadence_seconds = max_cadence_seconds
+        # current + N prior states ride each keyframe window.
+        self.prior_states_kept = prior_states_kept
+        self.expected_users = expected_users
+        self.kc_link_mode = kc_link_mode
+        self.enabled = enabled
+        self.notes = notes
+
+
+class MeshConsumer(treeObject):
+    """One open-sea consumer. Its NAME is its Reticulum identity
+    hash — the pseudonym IS the identity, and that is enough."""
+
+    @treeObjectInit
+    def __init__(self, name='', relay_name='', first_seen_ms=0,
+                 last_seen_ms=0, last_return_interval_s=0.0,
+                 returns_in_window=0, kc_subject='', kc_signed=False,
+                 notes='', manager=None):
+        self.name = name
+        self.relay_name = relay_name
+        self.first_seen_ms = first_seen_ms
+        self.last_seen_ms = last_seen_ms
+        # the feedback adaptive_cadence() aggregates.
+        self.last_return_interval_s = last_return_interval_s
+        self.returns_in_window = returns_in_window
+        # '' unless the consumer OPTED IN under kc_link_mode
+        # 'optional'; kc_signed says whether the linked identity is
+        # signed or anonymous on the mesh-app's local Keycloak.
+        self.kc_subject = kc_subject
+        self.kc_signed = kc_signed
+        self.notes = notes

@@ -29,6 +29,8 @@ RETICULUM_CLASSES = (
     'ArchipelagoNode', 'ArchipelagoTrust',
     'WatchedObject', 'ObjectStateVersion', 'StateConflict',
     'OperatorLicense', 'DeviceLink', 'DeviceModel',
+    'AppArchExposure', 'MeshAppRelay', 'MeshConsumer',
+    'AppDataRule', 'QuarantinedSubmission',
 )
 RETICULUM_SEEDS = ('SEED_RNS_INTERFACES', 'SEED_DEVICE_MODELS')
 
@@ -395,6 +397,117 @@ def run():
                              'max_rate_per_min': 1}]},
               'i', 0)['isles'][0]['apps'][0]['name']
           == '(unattributed)')
+
+    # -- the app access ladder (ret-1c, DECIDED row 20) -------------------
+    from reticulum import meshapp_basis as mb
+    check('the ladder is isle -> arch -> open-sea, and KC linkage has '
+          'NO required mode (the option not existing keeps the '
+          'promise)',
+          mb.APP_SCOPE_VALUES == ('isle', 'arch', 'open-sea')
+          and mb.KC_LINK_MODE_VALUES == ('disabled', 'optional')
+          and 'required' not in mb.KC_LINK_MODE_VALUES)
+    check('an isle-scoped app refuses arch and open-sea callers by '
+          'rung',
+          not mb.scope_allows('isle', 'arch')[0]
+          and not mb.scope_allows('isle', 'open-sea')[0]
+          and mb.scope_allows('isle', 'isle')[0])
+    check('an arch-scoped app serves its isles and its arch, not the '
+          'open sea',
+          mb.scope_allows('arch', 'isle')[0]
+          and mb.scope_allows('arch', 'arch')[0]
+          and not mb.scope_allows('arch', 'open-sea')[0])
+    check('an open-sea app serves every rung; unknown scopes refuse',
+          mb.scope_allows('open-sea', 'open-sea')[0]
+          and mb.scope_allows('open-sea', 'isle')[0]
+          and not mb.scope_allows('lagoon', 'isle')[0]
+          and not mb.scope_allows('isle', 'lagoon')[0])
+    check('exposure defaults are the most restrictive rung, disabled',
+          inspect.signature(mb.AppArchExposure.__init__)
+          .parameters['scope'].default == 'isle'
+          and inspect.signature(mb.AppArchExposure.__init__)
+          .parameters['enabled'].default is False
+          and inspect.signature(mb.MeshAppRelay.__init__)
+          .parameters['kc_link_mode'].default == 'disabled')
+
+    new, ev = mb.adaptive_cadence(60, [10, 12, 14, 200], 10, 600)
+    check('cadence paces to the MEDIAN consumer return x headroom '
+          '(one slow consumer does not stall the sea)',
+          new == 30.0 and ev['medianReturn'] == 14
+          and ev['samples'] == 4)
+    new, ev = mb.adaptive_cadence(60, [], 10, 600)
+    check('no returns -> drift toward the ceiling, rate-limited '
+          '(broadcast survives silence)',
+          new == 120.0 and 'no consumer returns' in ev['reason'])
+    check('the floor always wins (the airtime budget\'s voice) and '
+          'steps are rate-limited against oscillation',
+          mb.adaptive_cadence(12, [1, 1, 1], 10, 600)[0] == 10
+          and mb.adaptive_cadence(600, [1, 1], 10, 600)[0] == 300.0)
+    check('census: over/under/as-expected are NAMED findings; no '
+          'expectation is stated, not defaulted',
+          mb.user_census(10, 40)['state'] == 'over'
+          and mb.user_census(10, 4)['state'] == 'under'
+          and mb.user_census(10, 12)['state'] == 'as-expected'
+          and mb.user_census(0, 7)['state'] == 'no-expectation')
+    check('a consumer\'s NAME is its Reticulum identity; kc_subject '
+          'is empty unless opted in',
+          inspect.signature(mb.MeshConsumer.__init__)
+          .parameters['kc_subject'].default == ''
+          and inspect.signature(mb.MeshConsumer.__init__)
+          .parameters['kc_signed'].default is False)
+
+    # -- per-app data rules (ret-1c: the inbound gate) --------------------
+    from reticulum import datarule_basis as dr
+    schema = {'candidate': 'str', 'rank': 'int'}
+    check('strict typing: right shape passes, wrong type / missing / '
+          'UNMATCHED fields refuse naming the field',
+          dr.payload_matches_schema({'candidate': 'a', 'rank': 1},
+                                    schema)[0]
+          and 'not int' in dr.payload_matches_schema(
+              {'candidate': 'a', 'rank': 'first'}, schema)[1]
+          and 'missing' in dr.payload_matches_schema(
+              {'candidate': 'a'}, schema)[1]
+          and 'unmatched' in dr.payload_matches_schema(
+              {'candidate': 'a', 'rank': 1, 'x': 1}, schema)[1].lower())
+    check('bool is not int (the classic stuffing trick)',
+          not dr.payload_matches_schema({'candidate': 'a',
+                                         'rank': True}, schema)[0])
+    rule = {'enabled': True, 'max_submission_bytes': 512,
+            'max_submissions_per_window': 3, 'window_seconds': 3600,
+            'schema_json': json.dumps(schema),
+            'dedupe_field': 'candidate'}
+    ok, f = dr.evaluate_submission(rule, 'id1',
+                                   {'candidate': 'a', 'rank': 1},
+                                   100, 0, set(), 0)
+    check('a well-formed first submission is accepted',
+          ok and f is None)
+    checks = [
+        ('no-rule', dr.evaluate_submission(None, 'i', {}, 1, 0,
+                                           set(), 0)),
+        ('oversize', dr.evaluate_submission(rule, 'i', {}, 600, 0,
+                                            set(), 0)),
+        ('over-rate', dr.evaluate_submission(
+            rule, 'i', {'candidate': 'a', 'rank': 1}, 100, 3,
+            set(), 0)),
+        ('duplicate', dr.evaluate_submission(
+            rule, 'i', {'candidate': 'a', 'rank': 2}, 100, 0,
+            {'a'}, 0)),
+    ]
+    check('every refusal is CAUGHT with its named reason (no-rule / '
+          'oversize / over-rate / duplicate — one ballot per box)',
+          all(not ok and f['reason'] == want
+              for want, (ok, f) in checks)
+          and all(want in dr.QUARANTINE_REASON_VALUES
+                  for want, _ in checks))
+    check('a broken rule schema fails CLOSED (nothing passes a '
+          'broken gate)',
+          not dr.evaluate_submission(
+              dict(rule, schema_json='{nope'), 'i',
+              {'candidate': 'a', 'rank': 1}, 100, 0, set(), 0)[0])
+    check('rules default disabled; quarantine keeps a BOUNDED sample',
+          inspect.signature(dr.AppDataRule.__init__)
+          .parameters['enabled'].default is False
+          and 'payload_sample' in inspect.signature(
+              dr.QuarantinedSubmission.__init__).parameters)
 
     # -- the licence pins are surfaced facts ------------------------------
     from reticulum import rns_remote as rr

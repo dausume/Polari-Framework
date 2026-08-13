@@ -869,5 +869,15 @@ FEATURE_IMPORT_BLOCKS = (
         ('reticulum.device_catalog_basis', (
             'DeviceModel', 'SEED_DEVICE_MODELS',
         )),
+        # the app access LADDER: isle → arch → open-sea; lighthouses
+        # + pseudonymous consumers (ret-1c, DECIDED row 20).
+        ('reticulum.meshapp_basis', (
+            'AppArchExposure', 'MeshAppRelay', 'MeshConsumer',
+        )),
+        # per-app data rules: submission caps, strict typing,
+        # ballot-box dedupe; caught garbage is QUARANTINED evidence.
+        ('reticulum.datarule_basis', (
+            'AppDataRule', 'QuarantinedSubmission',
+        )),
     )),
 )

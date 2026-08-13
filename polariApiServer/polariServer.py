@@ -876,6 +876,8 @@ class polariServer(treeObject):
             ArchipelagoNode, ArchipelagoTrust,
             WatchedObject, ObjectStateVersion, StateConflict,
             OperatorLicense, DeviceLink, DeviceModel,
+            AppArchExposure, MeshAppRelay, MeshConsumer,
+            AppDataRule, QuarantinedSubmission,
             # Casting (cast-1/2b/3/4): derived negatives, master
             # feedstocks, nesting chains with DERIVED parity +
             # thermal ordering, and sprue strategies/instances.
@@ -2360,6 +2362,13 @@ class polariServer(treeObject):
             ('DeviceLink', DeviceLink, []),
             # catalog seeds ride the upsert pass below (day-one rule).
             ('DeviceModel', DeviceModel, []),
+            # ret-1c: exposures/relays/consumers are user-created;
+            # every rung raised is a deliberate act, never a seed.
+            ('AppArchExposure', AppArchExposure, []),
+            ('MeshAppRelay', MeshAppRelay, []),
+            ('MeshConsumer', MeshConsumer, []),
+            ('AppDataRule', AppDataRule, []),
+            ('QuarantinedSubmission', QuarantinedSubmission, []),
             # wax-1: bio wax sources for molds / electronic masks.
             ('WaxSourceDefinition', WaxSourceDefinition,
              SEED_WAX_SOURCES),
