@@ -42,7 +42,10 @@ MANAGER = None
 #: routing mesh publishes these on EVERY swarm node, so the manager's
 #: LOCAL_IP reaches a task wherever placement put it).
 PROVIDER_PORTS = {'prf-msci-engines': 9500, 'prf-cad-engines': 9600,
-                  'pol-livekit': 7880}
+                  'pol-livekit': 7880,
+                  # ret-2: the sidecar's /status API port, NOT the RNS
+                  # TCP bearer (4242) — the ladder probes status.
+                  'pol-reticulum': 4285}
 
 #: Reachability cache: url -> (checked_at, alive). Keeps per-call
 #: probing off the hot path.

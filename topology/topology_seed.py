@@ -245,6 +245,28 @@ SEED_INSTANCE_DEFINITIONS = [
                  '(LIVEKIT_COLLABORATION_PLAN.md v2).',
     },
     {
+        # ret-2: the Reticulum mesh sidecar — THE LICENCE BOUNDARY
+        # (rns/lxmf pinned to the last MIT releases, imported only in
+        # this container; RETICULUM_LICENCE_GATE.md). Never in the
+        # default up; RX-first posture; no radio until a DeviceLink
+        # row carries real udev facts (§5j).
+        'name': 'reticulum',
+        'kind': 'worker',
+        'service_kinds_json': json.dumps(['pol-reticulum']),
+        'replicas': 1,
+        'env_tier': 'staging',
+        'machine_name': 'staging-a',
+        'db_backend': 'sqlite',
+        'image_tag': 'staging',
+        'orchestration_target': 'compose',
+        'accessibility_scope': 'local',
+        'topology_name': 'staging-a',
+        'notes': 'Reticulum mesh sidecar (:4242 RNS TCP bearer, :4285 '
+                 'status), `pol compose reticulum up`; the backend\'s '
+                 'rns_remote ladder resolves this instance for '
+                 "'reticulum.mesh' (RETICULUM_TRANSPORT_PLAN.md).",
+    },
+    {
         'name': 'odoo',
         'kind': 'custom',
         'service_kinds_json': json.dumps(['odoo']),
@@ -331,6 +353,18 @@ SEED_MODULE_ASSIGNMENTS = [
      'notes': 'Media-server capability on the livekit worker '
               '(mtg-1) — what the LIVEKIT_URL-unset ladder '
               'resolves.'},
+    {'name': 'reticulum@prf-a', 'module_name': 'reticulum',
+     'instance_name': 'prf-a', 'state': 'enabled',
+     'topology_name': 'staging-a',
+     'notes': 'Reticulum mesh rows + capability/.arch/inbound seam '
+              '(ret-1).'},
+    {'name': 'reticulum.mesh@reticulum',
+     'module_name': 'reticulum.mesh',
+     'instance_name': 'reticulum', 'state': 'enabled',
+     'topology_name': 'staging-a',
+     'notes': 'Mesh-sidecar capability on the reticulum worker '
+              '(ret-2) — what the RETICULUM_URL-unset ladder '
+              'resolves.'},
 ]
 
 SEED_MODULE_DEPENDENCY_EDGES = [
@@ -362,6 +396,16 @@ SEED_MODULE_DEPENDENCY_EDGES = [
               'registry-resolved like the msci/cad edges; media '
               'itself is direct UDP, only signalling/tokens ride '
               'this.'},
+    {'name': 'reticulum@prf-a->reticulum.mesh',
+     'module_name': 'reticulum',
+     'consumer_instance_name': 'prf-a',
+     'depends_on_module': 'reticulum.mesh',
+     'provider_instance_name': 'reticulum',
+     'status': 'resolved',
+     'topology_name': 'staging-a',
+     'notes': 'Mesh delegation (ret-2) — RETICULUM_URL seam, '
+              'registry-resolved like the livekit edge; the sidecar '
+              'holds the RNS stack, the backend holds the rows.'},
 ]
 
 SEED_SERVICE_CONNECTIONS = [
