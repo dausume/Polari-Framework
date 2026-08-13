@@ -369,4 +369,23 @@ SEED_POLARI_APPS = [
                       requires_module='collab')),),
          personas=('researcher', 'business-operator'),
          discipline='collaboration'),
+    # ret-1b: the mesh archipelago — isles as blocks, radios and apps
+    # inside, measured latency between, demand vs capacity honestly
+    # verdicted. Off-grid transport is its own app: an instance can
+    # carry the mesh without carrying any one discipline.
+    _app('app-archipelago', 'Mesh Archipelago',
+         'The .arch mesh at a glance: which isles are actually '
+         'reachable right now, what radios they carry, what the apps '
+         'are asking for and what the links can bear.',
+         'Reticulum transport rows (reticulum module); the RNS stack '
+         'itself is the separate pol-reticulum sidecar, and an '
+         'absent one refuses honestly rather than hiding the page.',
+         ('reticulum',),
+         ('/arch',),
+         nav=(
+             _tgrp('Archipelago',
+                  _it('Arch topology', 'page', route='/arch',
+                      requires_module='reticulum')),),
+         personas=('network-engineer', 'researcher'),
+         discipline='network-cloud'),
 ]

@@ -71,11 +71,13 @@ if __name__ == '__main__':
           sorted(s['name'] for s in use_case_apps)
           == ['dmv-policy-analysis', 'judicial-lean',
               'wax-print-shop'])
-    check('nine discipline apps seeded (nav-1 + mtg-3 collaboration)',
+    check('ten discipline apps seeded (nav-1 + mtg-3 collaboration '
+          '+ ret-1b archipelago)',
           sorted(s['name'] for s in discipline_apps)
-          == ['app-business', 'app-collaboration', 'app-magnetics',
-              'app-materials-science', 'app-mechanical',
-              'app-policy', 'app-scorecards-data-analysis',
+          == ['app-archipelago', 'app-business', 'app-collaboration',
+              'app-magnetics', 'app-materials-science',
+              'app-mechanical', 'app-policy',
+              'app-scorecards-data-analysis',
               'app-software-engineering', 'app-topology-network'])
     check('every seed carries modules + pages + use case',
           all(json.loads(s['modules_json'])
@@ -219,12 +221,12 @@ if __name__ == '__main__':
     reqs = {'composition': ['mathshapes']}
     result = apps_nav(navmgr, feature_check=gate, requires_map=reqs)
     napps = {a['name']: a for a in result['apps']}
-    check('nav payload covers all 12 apps, gating readable',
+    check('nav payload covers all 13 apps, gating readable',
           result['ok'] and result['gatingReadable']
-          and len(napps) == 12)
+          and len(napps) == 13)
     check('discipline apps sort before use-case apps',
           [a['discipline'] != '' for a in result['apps']].index(False)
-          == 9)
+          == 10)
     mag = napps['app-magnetics']
     mag_items = [it for g in mag['nav'] for it in g['items']]
     absent = [it for it in mag_items
