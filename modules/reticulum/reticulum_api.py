@@ -53,6 +53,8 @@ class ReticulumAPI(treeObject):
             add = polServer.falconServer.add_route
             add('/api/reticulum/capability', self, suffix='capability')
             add('/api/reticulum/arch', self, suffix='arch')
+            add('/api/reticulum/arch-topology', self,
+                suffix='arch_topology')
             add('/api/reticulum/resolve/{name}', self, suffix='resolve')
             add('/api/reticulum/inbound', self, suffix='inbound')
 
@@ -144,6 +146,57 @@ class ReticulumAPI(treeObject):
                      '"unknown, measure first", not the last good '
                      'number'),
         }
+
+    #: Which row fields the arch-topology assembly reads, per class —
+    #: rows are handed over as plain dicts (the netledger idiom).
+    _ARCH_FIELDS = {
+        'ReticulumInterface': (
+            'name', 'bearer', 'direction', 'regulatory_domain',
+            'idle_policy', 'enabled', 'declared_params_json'),
+        'DeviceLink': ('name', 'interface_name', 'device_model_name'),
+        'DeviceModel': ('name', 'display_name', 'interop'),
+        'TransportBinding': (
+            'name', 'app_name', 'app_protocol', 'destination_name',
+            'encoding', 'max_message_bytes', 'max_rate_per_min',
+            'enabled'),
+        'AirtimeBudget': ('name', 'interface_name', 'window_seconds',
+                          'budget_ms', 'consumed_ms'),
+        'LinkMeasurement': (
+            'name', 'destination_name', 'bearer_path_json',
+            'hop_count', 'worst_hop_bearer', 'throughput_bps',
+            'rtt_ms', 'loss_rate', 'measured_at_ms', 'fidelity'),
+        'ArchipelagoNode': ('name', 'arch_name', 'node_kind',
+                            'last_heard_ms', 'hop_count',
+                            'trust_name'),
+        'IsleDevice': ('name',),
+    }
+
+    def _dicts(self, class_name):
+        fields = self._ARCH_FIELDS[class_name]
+        return [{f: getattr(row, f, None) for f in fields}
+                for row in self._rows(class_name)]
+
+    def on_get_arch_topology(self, request, response):
+        """ret-1b: the .arch topology view — isles as blocks, radios
+        and apps inside, measured paths between, demand vs capacity
+        with an honest verdict (plan §5m)."""
+        from reticulum.arch_topology import assemble_arch_topology
+        instance = getattr(self.polServer, 'serverName', '') \
+            or 'this-isle'
+        tables = {
+            'interfaces': self._dicts('ReticulumInterface'),
+            'device_links': self._dicts('DeviceLink'),
+            'device_models': self._dicts('DeviceModel'),
+            'bindings': self._dicts('TransportBinding'),
+            'budgets': self._dicts('AirtimeBudget'),
+            'measurements': self._dicts('LinkMeasurement'),
+            'arch_nodes': self._dicts('ArchipelagoNode'),
+            # islemesh names only for now — the coherence apps join
+            # is the next stitch; an empty block is honest.
+            'isle_devices': self._dicts('IsleDevice'),
+        }
+        response.media = assemble_arch_topology(
+            tables, instance, int(time.time() * 1000))
 
     def on_get_resolve(self, request, response, name):
         """ret-3: THE NAME REGISTRY as an endpoint — what the isle's

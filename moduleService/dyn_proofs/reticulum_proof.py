@@ -120,6 +120,18 @@ print(f'6) inbound seam WITHOUT a verified KC caller -> {code} '
       f'(expect 401 — arrival on the mesh is not authorization)')
 checks.append(code == 401)
 
+code, body = req('GET', '/api/reticulum/arch-topology')
+local = (body.get('isles') or [{}])[0]
+print(f'6a) arch-topology -> {code}: local isle '
+      f'{local.get("name")!r}, devices='
+      f'{[d.get("name") for d in local.get("devices", [])]}, '
+      f'verdict={local.get("verdict", {}).get("state")}')
+checks.append(code == 200 and local.get('kind') == 'local'
+              and any(d.get('name') == 'local-tcp'
+                      for d in local.get('devices', []))
+              and local.get('verdict', {}).get('state')
+              in ('idle', 'unknown'))
+
 code, body = req('GET', '/api/reticulum/resolve/nope.arch')
 print(f'6b) resolve an UNMAPPED name -> {code} (expect 404, refused '
       f'by name with knob): '

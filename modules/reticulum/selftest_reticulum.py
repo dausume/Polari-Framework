@@ -335,6 +335,67 @@ def run():
     check('no radio is seeded — hardware rows come from udev facts',
           all(row['bearer'] == 'tcp' for row in rb.SEED_RNS_INTERFACES))
 
+    # -- arch topology view (ret-1b, §5m) ---------------------------------
+    from reticulum import arch_topology as at
+    d = at.binding_demand({'max_message_bytes': 200,
+                           'max_rate_per_min': 6, 'encoding': 'grpc'})
+    check('binding demand = bytes x rate per minute, labelled '
+          'declared',
+          d['bytesPerMin'] == 1200 and d['fidelity'] == 'declared')
+    iface = {'name': 'lora0', 'declared_params_json':
+             json.dumps({'air_rate_bps': 62500})}
+    meas = [{'interface_name': 'lora0', 'throughput_bps': 6568,
+             'measured_at_ms': 100, 'fidelity': 'measured-real'}]
+    cap = at.device_capacity(iface, meas, [], 200)
+    check('capacity pairs declared air rate with measured effective '
+          '(overhead is real)',
+          cap['declaredAirRateBps'] == 62500
+          and cap['measuredThroughputBps'] == 6568
+          and cap['bytesPerMinUsable'] == int(6568 / 8 * 60))
+    cap = at.device_capacity(iface, meas, [], 2_000_000)
+    check('a stale measurement is NOT capacity — unknown, measure '
+          'first',
+          cap['measuredThroughputBps'] is None
+          and cap['staleMeasurements'] == 1
+          and cap['bytesPerMinUsable'] is None)
+    check('oversubscription is a NAMED finding with the arithmetic '
+          'shown',
+          at._oversubscription(2000, 1000)['state'] == 'oversubscribed'
+          and '200%' in at._oversubscription(2000, 1000)['evidence']
+          and at._oversubscription(500, 1000)['state'] == 'fits'
+          and at._oversubscription(0, 1000)['state'] == 'idle'
+          and at._oversubscription(500, None)['state'] == 'unknown')
+    topo = at.assemble_arch_topology({
+        'interfaces': [dict(iface, bearer='rnode-lora',
+                            direction='both', enabled=True)],
+        'device_links': [], 'device_models': [],
+        'bindings': [{'name': 'b1', 'app_name': 'collab',
+                      'max_message_bytes': 200, 'max_rate_per_min': 6,
+                      'enabled': True}],
+        'budgets': [],
+        'measurements': [dict(meas[0], destination_name='isle-b',
+                              rtt_ms=222.8, hop_count=1)],
+        'arch_nodes': [{'name': 'isle-b', 'arch_name': 'isle-b.arch',
+                        'node_kind': 'peer-isle',
+                        'last_heard_ms': 100}],
+        'isle_devices': [],
+    }, 'isle-a', 200)
+    check('assembly: local block carries devices+apps+verdict, peer '
+          'block is reachable, path edge is fresh',
+          topo['isles'][0]['kind'] == 'local'
+          and topo['isles'][0]['apps'][0]['name'] == 'collab'
+          and topo['isles'][0]['verdict']['state'] == 'fits'
+          and topo['isles'][1]['reachableNow'] is True
+          and topo['paths'][0]['fresh'] is True
+          and topo['paths'][0]['rttMs'] == 222.8)
+    check('unattributed bindings are shown as such, never guessed '
+          'into an app',
+          at.assemble_arch_topology(
+              {'bindings': [{'name': 'x', 'max_message_bytes': 1,
+                             'max_rate_per_min': 1}]},
+              'i', 0)['isles'][0]['apps'][0]['name']
+          == '(unattributed)')
+
     # -- the licence pins are surfaced facts ------------------------------
     from reticulum import rns_remote as rr
     check('stack pins are the gate\'s MIT pair (pins are LICENCE pins)',

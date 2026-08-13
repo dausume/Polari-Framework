@@ -445,13 +445,16 @@ class TransportBinding(treeObject):
     policy — what makes ret-3's detection DATA rather than code."""
 
     @treeObjectInit
-    def __init__(self, name='', app_protocol='', endpoint='',
-                 destination_name='', encoding='grpc',
+    def __init__(self, name='', app_name='', app_protocol='',
+                 endpoint='', destination_name='', encoding='grpc',
                  max_message_bytes=4096, max_rate_per_min=60,
                  priority=5, fec_mode='auto', snapshot_mode='auto',
                  direction='both', enabled=False, notes='',
                  manager=None):
         self.name = name
+        # WHICH app is asking (ret-1b: bindings are an app's asks —
+        # the arch view groups demand by this).
+        self.app_name = app_name
         # e.g. 'grpc-unary', 'http-get', 'json-message' — the named
         # handful; truly arbitrary IP is a promise the physics cannot
         # keep (plan §6, assumed as written).
