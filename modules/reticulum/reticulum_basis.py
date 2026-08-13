@@ -110,6 +110,17 @@ SNAPSHOT_MODE_VALUES = ('auto', 'snapshot', 'delta')
 #: which it is, and VM-flattered numbers are labelled as such (§5h).
 FIDELITY_VALUES = ('declared', 'measured-vm', 'measured-real')
 
+#: IDLE RADIOS ARE SILENT (Dustin 2026-08-13, DECIDED row 19). What
+#: an RF interface does when nothing is actively using it:
+#:   silent    not even attached to the stack — guaranteed dark
+#:             (default; the safe state costs reachability, and says
+#:             so rather than humming)
+#:   rx-hold   attached and LISTENING, but announces/TX refuse
+#:             without an active use (rx is free, §5i)
+#:   hold-open the operator's deliberate exception: stays up and may
+#:             announce — reachability chosen with eyes open
+IDLE_POLICY_VALUES = ('silent', 'rx-hold', 'hold-open')
+
 #: Names travel into config files, DNS labels and provenance lines:
 #: one safe segment (the collab safe_room_name idiom).
 _SAFE_NAME_RE = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')
@@ -156,6 +167,38 @@ def budget_admits(consumed_ms, budget_ms, cost_ms):
     if not budget_ms:
         return False
     return (consumed_ms + cost_ms) <= budget_ms
+
+
+def interface_may_attach(iface, active_uses=0):
+    """DECIDED row 19: whether an interface may be attached to the
+    running stack AT ALL. Wired links attach freely; an RF interface
+    with idle_policy 'silent' attaches only while something is
+    actively declared to use it — detached is the only state that
+    GUARANTEES dark. Returns (bool, reason)."""
+    if not iface.get('enabled'):
+        return (False, 'interface not enabled')
+    if iface.get('regulatory_domain', 'none') == 'none':
+        return (True, '')
+    policy = iface.get('idle_policy', 'silent')
+    if policy == 'silent' and not active_uses:
+        return (False,
+                'idle_policy silent and no active use — the radio '
+                'stays detached (set rx-hold to listen while idle, '
+                'hold-open to stay reachable; both are deliberate)')
+    return (True, '')
+
+
+def may_announce(iface, active_uses=0):
+    """Announces ARE transmissions: on an RF interface they happen
+    only for an active declared use, or under the operator's explicit
+    hold-open. An idle radio does not introduce itself."""
+    if iface.get('regulatory_domain', 'none') == 'none':
+        return True
+    if not tx_permitted(iface)[0]:
+        return False
+    if iface.get('idle_policy', 'silent') == 'hold-open':
+        return True
+    return active_uses > 0
 
 
 def tx_permitted(iface):
@@ -360,7 +403,8 @@ class ReticulumInterface(treeObject):
                  regulatory_domain='none', direction='both',
                  declared_params_json='{}', measured_facts_json='{}',
                  fidelity='declared', device_link_name='',
-                 enabled=False, tx_legal_confirmed=False,
+                 enabled=False, idle_policy='silent',
+                 tx_legal_confirmed=False,
                  tx_legal_basis='', tx_legal_confirmed_by='',
                  tx_legal_confirmed_at='', notes='', manager=None):
         self.name = name
@@ -377,6 +421,9 @@ class ReticulumInterface(treeObject):
         # The DeviceLink row backing this interface, when hardware.
         self.device_link_name = device_link_name
         self.enabled = enabled
+        # DECIDED row 19: what this interface does when idle. Radios
+        # default 'silent' — not attached, guaranteed dark.
+        self.idle_policy = idle_policy
         # THE TX LEGALITY GATE (Dustin 2026-08-13: "never transmit
         # anything without confirming it is legal first" — earned the
         # same day: the SH-L1A pair SHIPPED on 873.125 MHz, outside US

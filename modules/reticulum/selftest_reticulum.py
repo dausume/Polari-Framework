@@ -249,6 +249,38 @@ def run():
     check('a disabled interface refuses before anything else',
           not ok and 'enabled' in refusal['knob'])
 
+    # -- idle radios are SILENT (Dustin 2026-08-13, DECIDED row 19) -------
+    rf_idle = {'enabled': True, 'direction': 'both',
+               'regulatory_domain': 'ism', 'tx_legal_confirmed': True}
+    ok, why = rb.interface_may_attach(dict(rf_idle), active_uses=0)
+    check('an idle silent-policy radio is not even ATTACHED — '
+          'detached is the only guaranteed dark',
+          not ok and 'detached' in why)
+    check('the same radio attaches while actively used',
+          rb.interface_may_attach(dict(rf_idle), active_uses=1)[0])
+    check('rx-hold attaches idle (listening is free) but never '
+          'announces idle',
+          rb.interface_may_attach(
+              dict(rf_idle, idle_policy='rx-hold'), 0)[0]
+          and not rb.may_announce(
+              dict(rf_idle, idle_policy='rx-hold'), 0))
+    check('announces are TX: refused on an idle radio, permitted '
+          'with an active use, always fine on wired',
+          not rb.may_announce(dict(rf_idle), 0)
+          and rb.may_announce(dict(rf_idle), 1)
+          and rb.may_announce({'regulatory_domain': 'none'}, 0))
+    check('hold-open is the deliberate exception — may announce '
+          'idle, but ONLY with the legality confirmation',
+          rb.may_announce(dict(rf_idle, idle_policy='hold-open'), 0)
+          and not rb.may_announce(
+              dict(rf_idle, idle_policy='hold-open',
+                   tx_legal_confirmed=False), 0))
+    check('ReticulumInterface defaults idle_policy to silent',
+          inspect.signature(rb.ReticulumInterface.__init__)
+          .parameters['idle_policy'].default == 'silent'
+          and rb.IDLE_POLICY_VALUES == ('silent', 'rx-hold',
+                                        'hold-open'))
+
     # -- device catalog (Dustin 2026-08-13) -------------------------------
     from reticulum import device_catalog_basis as dc
     check('catalog vocabularies carry the SH-L1A lessons: rebadge-'
