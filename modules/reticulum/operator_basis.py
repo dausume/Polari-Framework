@@ -41,6 +41,50 @@ DEVICE_KIND_VALUES = ('lora-board', 'wifi-adapter', 'halow-adapter',
 #: Who currently owns the device (host, or a named VM/container).
 #: Passthrough is EXCLUSIVE — one device, one owner at a time (§5h).
 
+#: WiFi assignment (Dustin 2026-08-14): what a WiFi device is FOR.
+#: 'unassigned' default — nothing claims a device silently.
+#: 'dual-*' distinguishes the three physical flavors, because only a
+#: model that knows them is honest:
+#:   dual-one-network   AP hosts the SSID and Reticulum RIDES IT as
+#:                      ordinary IP — no switching, the preferred dual
+#:   dual-ap-sta        AP + client simultaneously — a MEASURED
+#:                      chipset fact (iw interface combinations),
+#:                      never assumed
+#:   dual-switched      time-shared modes — flipping drops AP
+#:                      clients, so a switch is a deliberate act with
+#:                      provenance, never automatic
+WIFI_ASSIGNMENT_VALUES = ('unassigned', 'reticulum', 'onboarding-ap',
+                          'dual-one-network', 'dual-ap-sta',
+                          'dual-switched')
+
+
+def wifi_use_allowed(assignment, use, ap_sta_measured=False):
+    """May a WiFi device serve `use` ('reticulum' | 'onboarding-ap')
+    under its assignment? Returns (bool, reason). dual-ap-sta REFUSES
+    until the chipset fact is measured; unassigned refuses both —
+    assignment is deliberate."""
+    if use not in ('reticulum', 'onboarding-ap'):
+        return (False, 'unknown use %r' % (use,))
+    if assignment == 'unassigned':
+        return (False, 'device is unassigned — assign it first '
+                       '(nothing claims a device silently)')
+    if assignment in ('reticulum', 'onboarding-ap'):
+        return (assignment == use,
+                '' if assignment == use else
+                'assigned %s-only' % assignment)
+    if assignment == 'dual-one-network':
+        return (True, '')
+    if assignment == 'dual-ap-sta':
+        if not ap_sta_measured:
+            return (False, 'dual-ap-sta requires the MEASURED chipset '
+                           'fact (iw interface combinations) — '
+                           'unmeasured concurrency is a hope')
+        return (True, '')
+    if assignment == 'dual-switched':
+        return (True, 'switched: activating %s interrupts the other '
+                      'use — a deliberate act with provenance' % use)
+    return (False, 'unknown assignment %r' % (assignment,))
+
 
 def license_state(expiry_date_iso, today_iso, approach_days=60):
     """Pure expiry ladder: '' -> undated (recorded but no dates),
@@ -132,7 +176,9 @@ class DeviceLink(treeObject):
                  usb_product_id='', by_id_path='',
                  device_model_name='', declared_kind='unknown',
                  measured_direction='', interface_name='',
-                 owner='host', needs_firmware_flash=False,
+                 owner='host', wifi_assignment='unassigned',
+                 ap_capable='', ap_sta_capable='',
+                 needs_firmware_flash=False,
                  fidelity='declared', notes='', manager=None):
         self.name = name
         self.bus_id = bus_id
@@ -153,6 +199,13 @@ class DeviceLink(treeObject):
         # passthrough is exclusive; the shell helper enforces the
         # rows' correspondence rule, plan §5l).
         self.owner = owner
+        # WiFi devices: what this device is FOR (the assignment knob,
+        # WIFI_ASSIGNMENT_VALUES) + the two MEASURED chipset facts
+        # ('' = unmeasured; 'yes'/'no' once iw list is ingested via
+        # the isle agent — RETICULUM_ISLE_CORE_REQUEST items 5-6).
+        self.wifi_assignment = wifi_assignment
+        self.ap_capable = ap_capable
+        self.ap_sta_capable = ap_sta_capable
         # 'USB LoRa' dongles are dev boards wanting RNode firmware
         # (rnodeconf) before Reticulum can speak to them (§5h).
         self.needs_firmware_flash = needs_firmware_flash

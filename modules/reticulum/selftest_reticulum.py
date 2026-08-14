@@ -226,6 +226,45 @@ def run():
           and ob.license_warning('valid') == '')
     check('rx-only devices never offer transmit (§5i)',
           not ob.offers_transmit('rx') and ob.offers_transmit('both'))
+
+    # -- wifi assignment knob (Dustin 2026-08-14) -------------------------
+    check('wifi assignment vocabulary: exclusive roles + three dual '
+          'flavors, defaulting unassigned',
+          ob.WIFI_ASSIGNMENT_VALUES == (
+              'unassigned', 'reticulum', 'onboarding-ap',
+              'dual-one-network', 'dual-ap-sta', 'dual-switched')
+          and inspect.signature(ob.DeviceLink.__init__)
+          .parameters['wifi_assignment'].default == 'unassigned')
+    check('unassigned refuses BOTH uses — assignment is deliberate',
+          not ob.wifi_use_allowed('unassigned', 'reticulum')[0]
+          and not ob.wifi_use_allowed('unassigned', 'onboarding-ap')[0])
+    check('exclusive assignments serve their use and refuse the other '
+          'by name',
+          ob.wifi_use_allowed('reticulum', 'reticulum')[0]
+          and not ob.wifi_use_allowed('reticulum', 'onboarding-ap')[0]
+          and 'reticulum-only' in ob.wifi_use_allowed(
+              'reticulum', 'onboarding-ap')[1])
+    check('dual-one-network serves both with no switching (RNS rides '
+          'the AP\'s own network)',
+          ob.wifi_use_allowed('dual-one-network', 'reticulum')[0]
+          and ob.wifi_use_allowed('dual-one-network',
+                                  'onboarding-ap')[0])
+    check('dual-ap-sta REFUSES until the chipset fact is measured — '
+          'unmeasured concurrency is a hope',
+          not ob.wifi_use_allowed('dual-ap-sta', 'reticulum')[0]
+          and ob.wifi_use_allowed('dual-ap-sta', 'reticulum',
+                                  ap_sta_measured=True)[0])
+    check('dual-switched allows but WARNS: a switch interrupts the '
+          'other use',
+          ob.wifi_use_allowed('dual-switched', 'onboarding-ap')[0]
+          and 'interrupts' in ob.wifi_use_allowed(
+              'dual-switched', 'onboarding-ap')[1])
+    check('ap_capable/ap_sta_capable are unmeasured-empty by default '
+          '(facts arrive by iw ingest, never assumption)',
+          inspect.signature(ob.DeviceLink.__init__)
+          .parameters['ap_capable'].default == ''
+          and inspect.signature(ob.DeviceLink.__init__)
+          .parameters['ap_sta_capable'].default == '')
     check('an unknown device is reported unknown WITH its ids, never '
           'guessed',
           ob.describe_device('0403', '6001', 'unknown')
