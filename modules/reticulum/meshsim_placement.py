@@ -1,0 +1,616 @@
+"""
+@module reticulum.meshsim_placement
+
+CONFIGURABLE MAP SIMULATIONS (ret-1f, plan §5q, Dustin 2026-08-13):
+placement solvers, population build mixes and COST over a drawn
+geolocation shape.
+
+  (A) plan_cheapest_coverage   given the shape + priced device
+                               profiles: rank candidate types by
+                               total cost of FEASIBLE coverage,
+                               return the winner's node positions.
+  (B) assess_fixed_locations   given specified locations: is the
+                               shape covered (gaps NAMED with
+                               centroids), is the graph connected
+                               (isolated nodes NAMED), what
+                               bandwidth reaches every node, and the
+                               cheapest per-node type assignment
+                               that keeps all of it true (greedy v1,
+                               stated).
+      failure_resilience       remove each node in turn — the ones
+                               whose loss partitions the mesh or
+                               uncovers area are SINGLE POINTS OF
+                               FAILURE, named with what they take
+                               down.
+      population_mix_report    percentages of people with particular
+                               builds — the interop matrix does the
+                               honest work (LoRaWAN cannot peer,
+                               ham-rx listens one-way, closed-framing
+                               pairs only with itself), so the report
+                               says who INTERCONNECTS, who hears
+                               one-way, and who is ISOLATED.
+
+Coordinates: geojson lon/lat rings are converted to LOCAL METERS by
+an equirectangular projection at the centroid — fine at mesh scales,
+stated as an assumption. Rings whose coordinates already look like
+meters pass through with a note. TERRAIN_DISCLAIMER rides every
+result; unpriced or unranged device models REFUSE to be costed.
+
+Pure functions over plain dicts (the meshsim_basis idiom).
+
+@consumers reticulum.reticulum_api (/api/reticulum/meshsim
+           'placement' + 'population' sections), the /arch planner
+@see modules/reticulum/meshsim_basis.py (range/spacing/relay math),
+     device_catalog_basis.py (priced profiles), plan §5q
+"""
+
+import math
+
+from reticulum.meshsim_basis import (TERRAIN_DISCLAIMER, flat_range_m,
+                                     relay_allowance, _point_in_ring)
+
+EARTH_M_PER_DEG_LAT = 111_320.0
+
+#: Population builds the mix report understands. 'ham-rx' and
+#: 'ham-tx' are DISTINCT builds on purpose: receiving needs no
+#: licence and is the majority case (§5i); transmitting needs the
+#: operator (§5g).
+POPULATION_BUILD_VALUES = ('lora', 'ham-rx', 'ham-tx', 'wifi',
+                           'wifi-halow', 'lorawan')
+
+
+def to_local_meters(geojson_polygon):
+    """Ring → local meters. lon/lat rings project equirectangularly
+    at the centroid; rings that already look like meters (any
+    |coordinate| > 1000) pass through. Returns
+    (ring_m, area_m2, assumptions) or (None, 0, [reason])."""
+    geom = geojson_polygon.get('geometry', geojson_polygon) \
+        if isinstance(geojson_polygon, dict) else {}
+    if geom.get('type') != 'Polygon':
+        return (None, 0.0, ['not a Polygon geojson — nothing to '
+                            'simulate on'])
+    rings = geom.get('coordinates') or []
+    if not rings or len(rings[0]) < 4:
+        return (None, 0.0, ['empty/degenerate ring'])
+    ring = [(float(p[0]), float(p[1])) for p in rings[0]]
+    assumptions = [TERRAIN_DISCLAIMER]
+    if any(abs(x) > 1000 or abs(y) > 1000 for x, y in ring):
+        ring_m = ring
+        assumptions.append('coordinates read as LOCAL METERS '
+                           '(values beyond lon/lat bounds)')
+    else:
+        clat = sum(y for _, y in ring) / len(ring)
+        clon = sum(x for x, _ in ring) / len(ring)
+        m_per_deg_lon = EARTH_M_PER_DEG_LAT * math.cos(
+            math.radians(clat))
+        ring_m = [((x - clon) * m_per_deg_lon,
+                   (y - clat) * EARTH_M_PER_DEG_LAT)
+                  for x, y in ring]
+        assumptions.append(
+            'lon/lat projected to local meters equirectangularly at '
+            'the centroid (%.4f, %.4f) — adequate at mesh scales, '
+            'not for surveying' % (clat, clon))
+    area = abs(sum(ring_m[i][0] * ring_m[i + 1][1]
+                   - ring_m[i + 1][0] * ring_m[i][1]
+                   for i in range(len(ring_m) - 1))) / 2.0
+    return (ring_m, round(area, 1), assumptions)
+
+
+def nodes_to_local(nodes, geojson_polygon):
+    """Project node locations into the SAME local frame as the
+    polygon: nodes with xM/yM pass through; nodes with lon/lat use
+    the polygon's centroid projection (so both layers line up).
+    Returns (nodes_m, refusals) — a node with neither form is
+    refused by name, never guessed to the origin."""
+    geom = geojson_polygon.get('geometry', geojson_polygon) \
+        if isinstance(geojson_polygon, dict) else {}
+    ring = (geom.get('coordinates') or [[]])[0]
+    lonlat_ring = ring and not any(
+        abs(p[0]) > 1000 or abs(p[1]) > 1000 for p in ring)
+    clat = clon = m_per_deg_lon = None
+    if lonlat_ring:
+        clat = sum(p[1] for p in ring) / len(ring)
+        clon = sum(p[0] for p in ring) / len(ring)
+        m_per_deg_lon = EARTH_M_PER_DEG_LAT * math.cos(
+            math.radians(clat))
+    out, refusals = [], []
+    for i, node in enumerate(nodes or []):
+        name = node.get('name', f'node-{i}')
+        if node.get('xM') is not None and node.get('yM') is not None:
+            out.append({'name': name, 'x_m': float(node['xM']),
+                        'y_m': float(node['yM'])})
+        elif node.get('lon') is not None \
+                and node.get('lat') is not None and lonlat_ring:
+            out.append({
+                'name': name,
+                'x_m': (float(node['lon']) - clon) * m_per_deg_lon,
+                'y_m': (float(node['lat']) - clat)
+                * EARTH_M_PER_DEG_LAT})
+        else:
+            refusals.append('%s carries neither xM/yM nor lon/lat '
+                            'matching the polygon frame' % name)
+    return out, refusals
+
+
+def _bounds(ring):
+    xs = [p[0] for p in ring]
+    ys = [p[1] for p in ring]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def hex_positions_in_polygon(ring_m, spacing_m):
+    """Hex-grid points inside the polygon (max spread: rows offset
+    by half a spacing, row pitch spacing×√3/2)."""
+    if not spacing_m or spacing_m <= 0:
+        return []
+    x0, y0, x1, y1 = _bounds(ring_m)
+    pitch = spacing_m * math.sqrt(3) / 2.0
+    out = []
+    row = 0
+    y = y0 + pitch / 2
+    while y <= y1:
+        offset = (spacing_m / 2.0) if row % 2 else 0.0
+        x = x0 + offset + spacing_m / 2
+        while x <= x1:
+            if _point_in_ring(ring_m, (x, y)):
+                out.append((round(x, 1), round(y, 1)))
+            x += spacing_m
+        y += pitch
+        row += 1
+    return out
+
+
+def linear_positions(ring_m, spacing_m):
+    """A chain along the polygon's LONGEST bounding-box axis through
+    the centroid, clipped to the polygon — the corridor case
+    (roads/rivers). The chain is the relay stress case and the
+    caller's relay math should know it."""
+    if not spacing_m or spacing_m <= 0:
+        return []
+    x0, y0, x1, y1 = _bounds(ring_m)
+    cx = sum(p[0] for p in ring_m) / len(ring_m)
+    cy = sum(p[1] for p in ring_m) / len(ring_m)
+    horizontal = (x1 - x0) >= (y1 - y0)
+    out = []
+    if horizontal:
+        x = x0 + spacing_m / 2
+        while x <= x1:
+            if _point_in_ring(ring_m, (x, cy)):
+                out.append((round(x, 1), round(cy, 1)))
+            x += spacing_m
+    else:
+        y = y0 + spacing_m / 2
+        while y <= y1:
+            if _point_in_ring(ring_m, (cx, y)):
+                out.append((round(cx, 1), round(y, 1)))
+            y += spacing_m
+    return out
+
+
+def _option_facts(option, practical_margin_db=30.0):
+    """(range_m, price, capacity, refusal_reason|None) for one device
+    option dict. Unpriced or unranged REFUSES — a plan costed on a
+    guess is worse than no plan."""
+    price = option.get('price_usd') or 0
+    range_m, fidelity, evidence = flat_range_m(
+        option, practical_margin_db=practical_margin_db)
+    if not price:
+        return (None, None, None,
+                'price_usd unstated on %r — the catalog refuses to '
+                'cost a guess (date a price onto the DeviceModel '
+                'row)' % (option.get('name'),))
+    if range_m is None:
+        return (None, None, None,
+                'no range basis on %r: %s' % (option.get('name'),
+                                              evidence))
+    return ((range_m, fidelity, evidence), float(price),
+            option.get('capacityBps'), None)
+
+
+def plan_cheapest_coverage(ring_m, device_options,
+                           target_per_peer_bps,
+                           reach_mode='max-spread', safety_factor=0.7,
+                           practical_margin_db=30.0):
+    """Sim A: rank candidate device types by TOTAL COST of feasible
+    coverage of the shape; the winner returns its actual positions.
+    Feasibility = the relay-allowance verdict at the resulting node
+    count (needs capacityBps on the option)."""
+    ranked, refused = [], []
+    for option in device_options:
+        facts, price, capacity, refusal = _option_facts(
+            option, practical_margin_db)
+        if refusal:
+            refused.append({'model': option.get('name'),
+                            'reason': refusal})
+            continue
+        (range_m, fidelity, evidence) = facts
+        spacing = range_m * safety_factor
+        positions = (linear_positions(ring_m, spacing)
+                     if reach_mode == 'linear'
+                     else hex_positions_in_polygon(ring_m, spacing))
+        count = len(positions)
+        if count == 0:
+            refused.append({'model': option.get('name'),
+                            'reason': 'range %s m yields no in-shape '
+                                      'positions (shape smaller than '
+                                      'one cell — 1 node suffices?)'
+                                      % range_m})
+            continue
+        entry = {
+            'model': option.get('name'),
+            'rangeM': range_m, 'rangeFidelity': fidelity,
+            'spacingM': round(spacing, 1),
+            'nodeCount': count,
+            'unitPriceUsd': price,
+            'totalCostUsd': round(count * price, 2),
+            'reachMode': reach_mode,
+        }
+        if capacity:
+            relay = relay_allowance(count, target_per_peer_bps,
+                                    float(capacity))
+            relay.pop('assumptions', None)
+            if reach_mode == 'linear' and count >= 2:
+                # the chain's hops are ~n/3 average, not 0.75*sqrt(n)
+                chain_hops = max(1.0, count / 3.0)
+                burden = target_per_peer_bps * (count - 1) \
+                    * chain_hops / count
+                relay['avgHops'] = round(chain_hops, 2)
+                relay['relayAllowanceBpsPerNode'] = round(burden, 1)
+                relay['fits'] = burden <= relay['usableBps']
+                relay['verdict'] = ('fits' if relay['fits'] else
+                                    'oversubscribed on the CHAIN: '
+                                    'linear meshes relay ~n/3 hops '
+                                    'and this one does not fit')
+            entry['relay'] = relay
+            entry['feasible'] = bool(relay.get('fits'))
+        else:
+            entry['feasible'] = False
+            entry['relayNote'] = ('no capacityBps on this option — '
+                                  'feasibility unknowable, treated '
+                                  'as infeasible rather than hoped')
+        ranked.append(entry)
+    feasible = sorted([e for e in ranked if e['feasible']],
+                      key=lambda e: e['totalCostUsd'])
+    infeasible = [e for e in ranked if not e['feasible']]
+    winner = None
+    if feasible:
+        best = feasible[0]
+        spacing = best['spacingM']
+        positions = (linear_positions(ring_m, spacing)
+                     if reach_mode == 'linear'
+                     else hex_positions_in_polygon(ring_m, spacing))
+        winner = dict(best, positions=[
+            {'xM': x, 'yM': y} for x, y in positions])
+    return {
+        'ok': True, 'mode': 'cheapest-coverage',
+        'reachMode': reach_mode,
+        'winner': winner,
+        'rankedFeasible': feasible,
+        'infeasible': infeasible,
+        'refused': refused,
+        'disclaimer': TERRAIN_DISCLAIMER,
+        'assumptions': [
+            'spacing = range x safety %.2f; %s placement'
+            % (safety_factor, reach_mode),
+            'linear chains relay ~n/3 average hops (the stress '
+            'case); spread meshes ~0.75*sqrt(n)',
+            TERRAIN_DISCLAIMER,
+        ],
+    }
+
+
+def _link_graph(nodes, ranges):
+    """Adjacency by index: an edge when the two nodes are within the
+    SMALLER of their two ranges (both must close the link)."""
+    n = len(nodes)
+    adj = {i: set() for i in range(n)}
+    for i in range(n):
+        for j in range(i + 1, n):
+            d = math.dist((nodes[i]['x_m'], nodes[i]['y_m']),
+                          (nodes[j]['x_m'], nodes[j]['y_m']))
+            if d <= min(ranges[i], ranges[j]):
+                adj[i].add(j)
+                adj[j].add(i)
+    return adj
+
+
+def _components(adj):
+    seen, comps = set(), []
+    for start in adj:
+        if start in seen:
+            continue
+        comp, stack = set(), [start]
+        while stack:
+            node = stack.pop()
+            if node in comp:
+                continue
+            comp.add(node)
+            stack.extend(adj[node] - comp)
+        seen |= comp
+        comps.append(comp)
+    return comps
+
+
+def _bfs_hops(adj, start):
+    dist = {start: 0}
+    frontier = [start]
+    while frontier:
+        nxt = []
+        for node in frontier:
+            for peer in adj[node]:
+                if peer not in dist:
+                    dist[peer] = dist[node] + 1
+                    nxt.append(peer)
+        frontier = nxt
+    return dist
+
+
+def _coverage(ring_m, nodes, ranges, step_m):
+    x0, y0, x1, y1 = _bounds(ring_m)
+    total, covered, uncovered_pts = 0, 0, []
+    y = y0 + step_m / 2
+    while y <= y1:
+        x = x0 + step_m / 2
+        while x <= x1:
+            if _point_in_ring(ring_m, (x, y)):
+                total += 1
+                if any(math.dist((x, y),
+                                 (nodes[i]['x_m'], nodes[i]['y_m']))
+                       <= ranges[i] for i in range(len(nodes))):
+                    covered += 1
+                else:
+                    uncovered_pts.append((x, y))
+            x += step_m
+        y += step_m
+    return total, covered, uncovered_pts
+
+
+def _gap_clusters(points, cluster_radius, limit=5):
+    clusters = []
+    for point in points:
+        for cluster in clusters:
+            if math.dist(point, cluster['centroid']) <= cluster_radius:
+                n = cluster['size']
+                cx, cy = cluster['centroid']
+                cluster['centroid'] = ((cx * n + point[0]) / (n + 1),
+                                       (cy * n + point[1]) / (n + 1))
+                cluster['size'] += 1
+                break
+        else:
+            clusters.append({'centroid': point, 'size': 1})
+    clusters.sort(key=lambda c: -c['size'])
+    return [{'centroidXM': round(c['centroid'][0], 1),
+             'centroidYM': round(c['centroid'][1], 1),
+             'samplePoints': c['size']} for c in clusters[:limit]]
+
+
+def assess_fixed_locations(ring_m, nodes, device_options,
+                           target_per_peer_bps, sample_step_m=None,
+                           practical_margin_db=30.0):
+    """Sim B: specified locations — coverage (gaps NAMED), graph
+    connectivity (isolated nodes NAMED), bandwidth via MEASURED graph
+    hops (BFS all-pairs mean, not the sqrt heuristic), and a greedy
+    cheapest-first per-node type assignment (v1, stated)."""
+    priced = []
+    refused = []
+    for option in device_options:
+        facts, price, capacity, refusal = _option_facts(
+            option, practical_margin_db)
+        if refusal:
+            refused.append({'model': option.get('name'),
+                            'reason': refusal})
+            continue
+        priced.append({'name': option.get('name'),
+                       'rangeM': facts[0], 'price': price,
+                       'capacityBps': capacity})
+    if not priced:
+        return {'ok': False,
+                'evidence': 'no usable (priced + ranged) device '
+                            'options', 'refused': refused,
+                'disclaimer': TERRAIN_DISCLAIMER}
+    priced.sort(key=lambda o: o['price'])
+    if not nodes:
+        return {'ok': False, 'evidence': 'no node locations given',
+                'disclaimer': TERRAIN_DISCLAIMER}
+
+    # greedy v1: everyone starts on the cheapest type; nodes that are
+    # isolated get upgraded to the next-priced type until connected
+    # or options run out.
+    assign = [0] * len(nodes)
+
+    def ranges():
+        return [priced[assign[i]]['rangeM'] for i in range(len(nodes))]
+
+    for _ in range(len(priced)):
+        adj = _link_graph(nodes, ranges())
+        comps = _components(adj)
+        if len(comps) <= 1:
+            break
+        main = max(comps, key=len)
+        upgraded = False
+        for comp in comps:
+            if comp is main:
+                continue
+            for i in comp:
+                if assign[i] + 1 < len(priced):
+                    assign[i] += 1
+                    upgraded = True
+        if not upgraded:
+            break
+    adj = _link_graph(nodes, ranges())
+    comps = _components(adj)
+    main = max(comps, key=len) if comps else set()
+    isolated = [nodes[i].get('name', f'node-{i}')
+                for i in range(len(nodes)) if i not in main]
+
+    step = sample_step_m or max(25.0,
+                                min(o['rangeM'] for o in priced) / 4)
+    total, covered, uncovered = _coverage(ring_m, nodes, ranges(),
+                                          step)
+    covered_pct = round(100.0 * covered / total, 1) if total else 0.0
+    gaps = _gap_clusters(uncovered, cluster_radius=step * 2)
+
+    hops_all = []
+    diameter = 0
+    for i in main:
+        dist = _bfs_hops(adj, i)
+        vals = [h for j, h in dist.items() if j != i and j in main]
+        hops_all.extend(vals)
+        diameter = max(diameter, max(vals, default=0))
+    avg_hops = (sum(hops_all) / len(hops_all)) if hops_all else 0.0
+
+    capacity = min((o['capacityBps'] for o in
+                    (priced[assign[i]] for i in range(len(nodes)))
+                    if o['capacityBps']), default=None)
+    relay = None
+    if capacity and len(main) >= 2 and avg_hops:
+        relay = relay_allowance(len(main), target_per_peer_bps,
+                                float(capacity))
+        burden = target_per_peer_bps * (len(main) - 1) * avg_hops \
+            / len(main)
+        relay['avgHops'] = round(avg_hops, 2)
+        relay['avgHopsSource'] = 'BFS all-pairs mean on the ACTUAL ' \
+                                 'graph (not the sqrt heuristic)'
+        relay['relayAllowanceBpsPerNode'] = round(burden, 1)
+        relay['fits'] = burden <= relay['usableBps']
+        if not relay['fits']:
+            relay['verdict'] = ('oversubscribed on the actual graph: '
+                                '%.1f bps relay burden vs %.1f usable'
+                                % (burden, relay['usableBps']))
+        relay.pop('assumptions', None)
+
+    per_node = [{'name': nodes[i].get('name', f'node-{i}'),
+                 'xM': nodes[i]['x_m'], 'yM': nodes[i]['y_m'],
+                 'type': priced[assign[i]]['name'],
+                 'unitPriceUsd': priced[assign[i]]['price']}
+                for i in range(len(nodes))]
+    return {
+        'ok': True, 'mode': 'fixed-locations',
+        'coveredPct': covered_pct,
+        'fullyCovered': covered_pct >= 99.9,
+        'uncoveredGaps': gaps,
+        'connected': not isolated,
+        'isolatedNodes': isolated,
+        'graphDiameterHops': diameter,
+        'perNode': per_node,
+        'totalCostUsd': round(sum(p['unitPriceUsd']
+                                  for p in per_node), 2),
+        'relay': relay,
+        'refusedOptions': refused,
+        'disclaimer': TERRAIN_DISCLAIMER,
+        'assumptions': [
+            'greedy v1 type assignment: cheapest first, isolated '
+            'nodes upgraded until connected or options exhausted — '
+            'not a global optimum, stated as such',
+            'coverage sampled on a %.0f m grid' % step,
+            TERRAIN_DISCLAIMER,
+        ],
+    }
+
+
+def failure_resilience(ring_m, nodes, device_options,
+                       sample_step_m=None, coverage_drop_pct=5.0,
+                       practical_margin_db=30.0):
+    """Remove each node in turn: articulation findings name the nodes
+    whose loss PARTITIONS the mesh or drops coverage by more than
+    coverage_drop_pct — single points of failure, with what they take
+    down."""
+    base = assess_fixed_locations(ring_m, nodes, device_options, 0,
+                                  sample_step_m, practical_margin_db)
+    if not base.get('ok'):
+        return base
+    findings = []
+    for i in range(len(nodes)):
+        remaining = nodes[:i] + nodes[i + 1:]
+        if not remaining:
+            continue
+        after = assess_fixed_locations(ring_m, remaining,
+                                       device_options, 0,
+                                       sample_step_m,
+                                       practical_margin_db)
+        newly_isolated = [n for n in after.get('isolatedNodes', [])
+                          if n not in base.get('isolatedNodes', [])]
+        coverage_lost = round(base['coveredPct']
+                              - after.get('coveredPct', 0.0), 1)
+        if newly_isolated or coverage_lost > coverage_drop_pct:
+            findings.append({
+                'node': nodes[i].get('name', f'node-{i}'),
+                'partitionsNodes': newly_isolated,
+                'coverageLostPct': max(coverage_lost, 0.0),
+                'evidence': 'removing %r isolates %s and uncovers '
+                            '%.1f%% of the shape — a single point of '
+                            'failure' % (
+                                nodes[i].get('name', f'node-{i}'),
+                                newly_isolated or 'nobody',
+                                max(coverage_lost, 0.0)),
+            })
+    return {'ok': True, 'mode': 'resilience',
+            'baseCoveredPct': base['coveredPct'],
+            'articulationFindings': findings,
+            'disclaimer': TERRAIN_DISCLAIMER,
+            'assumptions': base['assumptions']}
+
+
+def population_mix_report(mix, population_n, device_models=None):
+    """Percentages of people with particular builds → who actually
+    interconnects. The matrix is the suite's interop truth: LoRaWAN
+    cannot peer (DECIDED row 9 — it needs gateways + a join server),
+    ham-rx LISTENS one-way to ham-tx (§5g/§5i), everyone else peers
+    within their own build only (closed framing is the norm at this
+    layer; cross-build bridging is an ISLE's job, not a person's)."""
+    peers_within = {'lora', 'wifi', 'wifi-halow', 'ham-tx'}
+    report = {}
+    counts = {}
+    for build, pct in (mix or {}).items():
+        if build not in POPULATION_BUILD_VALUES:
+            report[build] = {'error': 'unknown build %r — knowns: %s'
+                             % (build, POPULATION_BUILD_VALUES)}
+            continue
+        counts[build] = int(round(population_n * float(pct) / 100.0))
+    ham_tx_present = counts.get('ham-tx', 0) > 0
+    for build, count in counts.items():
+        entry = {'count': count, 'peersWith': [],
+                 'oneWayListensTo': [], 'isolated': False}
+        if build in peers_within and count > 1:
+            entry['peersWith'] = [build]
+        if build == 'ham-rx':
+            if ham_tx_present:
+                entry['oneWayListensTo'] = ['ham-tx']
+                entry['note'] = ('receive-only: hears the licensed '
+                                 'ham core, answers nothing over ham '
+                                 '(§5g) — needs another build or an '
+                                 'isle to speak')
+            else:
+                entry['isolated'] = True
+                entry['why'] = ('ham-rx with NO ham-tx in the '
+                                'population: everyone is listening '
+                                'and nobody is broadcasting — the '
+                                '§5g core needs at least one '
+                                'licensed operator')
+        elif build == 'lorawan':
+            entry['isolated'] = True
+            entry['why'] = ('LoRaWAN is not peer-to-peer (DECIDED '
+                            'row 9): star-of-stars via gateways + a '
+                            'join server — these people connect to '
+                            'INFRASTRUCTURE, not to each other')
+        elif count <= 1 and build in peers_within:
+            entry['isolated'] = count == 1
+            if entry['isolated']:
+                entry['why'] = 'only one person carries this build'
+        report[build] = entry
+    interconnected = max((counts.get(b, 0) for b in peers_within
+                          if counts.get(b, 0) > 1), default=0)
+    isolated_n = sum(counts[b] for b in counts
+                     if report.get(b, {}).get('isolated'))
+    return {
+        'ok': True, 'populationN': population_n,
+        'builds': report,
+        'largestInterconnected': interconnected,
+        'isolatedShare': round(100.0 * isolated_n / population_n, 1)
+        if population_n else 0.0,
+        'note': ('builds interconnect WITHIN themselves at this '
+                 'layer; bridging between builds is an isle/gateway '
+                 'role, which is exactly what the placement sims '
+                 'place'),
+        'disclaimer': TERRAIN_DISCLAIMER,
+    }

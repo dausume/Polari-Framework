@@ -110,7 +110,8 @@ class DeviceModel(treeObject):
                  oem_vendor='', oem_model='', device_class='unknown',
                  radio_chip='', freq_mhz_lo=0.0, freq_mhz_hi=0.0,
                  tx_power_dbm_max=0, rx_sensitivity_dbm=0.0,
-                 declared_range_m=0.0, firmware_openness='unstated',
+                 declared_range_m=0.0, price_usd=0.0,
+                 firmware_openness='unstated',
                  protocol_openness='unstated', config_protocol='',
                  interop='unknown', firmware_license='',
                  tool_license='', status='unevaluated',
@@ -135,6 +136,11 @@ class DeviceModel(treeObject):
         # vendor-declared usable range, when one was stated —
         # preferred over derived link-budget math (fidelity).
         self.declared_range_m = declared_range_m
+        # unit price for the placement/cost solvers (§5q). 0.0 =
+        # UNSTATED and the solvers REFUSE to cost it — a plan priced
+        # on a guess is worse than no plan. Date the evidence: prices
+        # move.
+        self.price_usd = price_usd
         self.firmware_openness = firmware_openness
         self.protocol_openness = protocol_openness
         # How it is configured ('e220-registers', 'rnodeconf', 'at').
@@ -180,6 +186,7 @@ SEED_DEVICE_MODELS = [
         # vendor states 0.5-1.5 km depending on antenna — mid value;
         # the spread is the antenna's, the row records the middle.
         'declared_range_m': 1000.0,
+        'price_usd': 27.99,
         'firmware_openness': 'proprietary',
         'protocol_openness': 'documented-via-oem',
         'config_protocol': 'e220-registers (C0/C1/C2 at 9600 8N1 in '
@@ -243,6 +250,13 @@ SEED_DEVICE_MODELS = [
                      '56 B RTT ~2.2 s at factory settings',
              'source': 'measured on the owned pair, pol-core desk, '
                        '2026-08-13 (fidelity: measured-real)'},
+            {'fact': 'price_usd 27.99 — APPROXIMATE: Amazon listing '
+                     'B0C7ZR4YBT would not render a price to a '
+                     'non-browser fetch on 2026-08-13; taken from '
+                     'the ~$25-30 range the earlier research '
+                     'reported. Re-check before purchasing at scale.',
+             'source': 'https://www.amazon.com/dp/B0C7ZR4YBT '
+                       '(fidelity: declared, dated 2026-08-13)'},
             {'fact': 'register file read on BOTH owned units: shipped '
                      'exactly EByte defaults incl. CH23 = 873.125 MHz '
                      '(out of US ISM); reconfigured PERSISTENT to '

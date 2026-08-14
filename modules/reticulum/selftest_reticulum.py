@@ -685,6 +685,114 @@ def run():
           set(rr.unavailable_suggestion('x'))
           == {'evidence', 'knob', 'action'})
 
+    # -- ret-1f (§5q): placement, population, pricing ---------------------
+    from reticulum import meshsim_placement as mp
+    square_m = {'type': 'Polygon', 'coordinates': [[
+        [0, 0], [2000, 0], [2000, 2000], [0, 2000], [0, 0]]]}
+    ring_m, area, notes = mp.to_local_meters(square_m)
+    check('meter rings pass through with the note; area is right',
+          ring_m is not None and area == 4_000_000.0
+          and any('LOCAL METERS' in n for n in notes)
+          and any('TERRAIN' in n for n in notes))
+    lonlat = {'type': 'Polygon', 'coordinates': [[
+        [-77.0, 39.0], [-76.99, 39.0], [-76.99, 39.01],
+        [-77.0, 39.01], [-77.0, 39.0]]]}
+    ring2, area2, notes2 = mp.to_local_meters(lonlat)
+    check('lon/lat rings project equirectangularly, assumption '
+          'STATED, ~1km cell area sane',
+          ring2 is not None
+          and any('equirectangular' in n for n in notes2)
+          and 800_000 < area2 < 1_100_000)
+    priced = {'name': 'sh', 'declared_range_m': 1000.0,
+              'price_usd': 27.99, 'capacityBps': 6568}
+    unpriced = {'name': 'mystery', 'declared_range_m': 1000.0,
+                'capacityBps': 6568}
+    plan = mp.plan_cheapest_coverage(ring_m, [priced, unpriced], 200)
+    check('unpriced models are REFUSED costing by name; the priced '
+          'one wins with positions and a real total',
+          any(r['model'] == 'mystery' and 'unstated'
+              in r['reason'] for r in plan['refused'])
+          and plan['winner'] is not None
+          and plan['winner']['model'] == 'sh'
+          and plan['winner']['totalCostUsd'] > 0
+          and len(plan['winner']['positions'])
+          == plan['winner']['nodeCount'])
+    cheap_weak = {'name': 'weak', 'declared_range_m': 1000.0,
+                  'price_usd': 5.0, 'capacityBps': 40}
+    plan2 = mp.plan_cheapest_coverage(ring_m, [cheap_weak, priced],
+                                      200)
+    check('cheapest FEASIBLE wins over cheaper-infeasible (the weak '
+          'option cannot carry the target)',
+          plan2['winner']['model'] == 'sh'
+          and any(e['model'] == 'weak' for e in plan2['infeasible']))
+    hexn = len(mp.hex_positions_in_polygon(ring_m, 700))
+    linn = len(mp.linear_positions(ring_m, 700))
+    check('linear vs max-spread differ on the square (a chain is a '
+          'row, a spread is a lattice), and the chain relay math is '
+          'the stress case',
+          hexn > linn and linn >= 2
+          and 'n/3' in json.dumps(mp.plan_cheapest_coverage(
+              ring_m, [priced], 200,
+              reach_mode='linear')['assumptions']))
+    short = {'name': 'short', 'declared_range_m': 600.0,
+             'price_usd': 12.0, 'capacityBps': 6568}
+    nodes_ok = [{'name': 'a', 'x_m': 500.0, 'y_m': 1000.0},
+                {'name': 'b', 'x_m': 1000.0, 'y_m': 1000.0},
+                {'name': 'c', 'x_m': 1500.0, 'y_m': 1000.0}]
+    fixed = mp.assess_fixed_locations(ring_m, nodes_ok, [short], 200)
+    check('fixed-locations: connected chain, BFS hops source stated, '
+          'per-node types + total cost',
+          fixed['ok'] and fixed['connected']
+          and fixed['relay']['avgHopsSource'].startswith('BFS')
+          and fixed['totalCostUsd'] == round(3 * 12.0, 2))
+    check('coverage gaps are NAMED with centroids when the shape is '
+          'not covered (600 m radios cannot fill a 2 km square from '
+          'the center row)',
+          not fixed['fullyCovered']
+          and fixed['uncoveredGaps']
+          and 'centroidXM' in fixed['uncoveredGaps'][0])
+    nodes_far = nodes_ok + [{'name': 'lonely', 'x_m': 1900.0,
+                             'y_m': 100.0}]
+    fixed2 = mp.assess_fixed_locations(ring_m, nodes_far, [short],
+                                       200)
+    check('a disconnected node is NAMED (greedy v1 stated in '
+          'assumptions)',
+          'lonely' in fixed2['isolatedNodes']
+          and any('greedy v1' in a for a in fixed2['assumptions']))
+    res = mp.failure_resilience(ring_m, nodes_ok, [short])
+    check('resilience: the MIDDLE of a 3-node chain is an '
+          'articulation finding with what it takes down',
+          any(f['node'] == 'b' and f['partitionsNodes']
+              for f in res['articulationFindings']))
+    pop = mp.population_mix_report(
+        {'lora': 40, 'ham-rx': 30, 'ham-tx': 5, 'lorawan': 25}, 200)
+    check('population: lorawan is isolated WITH the gateway reason '
+          '(row 9), ham-rx listens one-way when ham-tx exists',
+          pop['builds']['lorawan']['isolated']
+          and 'gateway' in pop['builds']['lorawan']['why']
+          and pop['builds']['ham-rx']['oneWayListensTo'] == ['ham-tx']
+          and not pop['builds']['ham-rx']['isolated'])
+    pop2 = mp.population_mix_report({'ham-rx': 100}, 50)
+    check('ham-rx WITHOUT ham-tx is isolated with the §5g '
+          'nobody-is-broadcasting reason',
+          pop2['builds']['ham-rx']['isolated']
+          and 'licensed' in pop2['builds']['ham-rx']['why'])
+    check('placement + population results all carry the disclaimer',
+          all('TERRAIN' in json.dumps(x)
+              for x in (plan, fixed, res, pop)))
+    check('the SH-L1A seed row is PRICED with dated evidence',
+          dc.SEED_DEVICE_MODELS[0]['price_usd'] == 27.99
+          and any('price' in e['fact'] and '2026-08-13'
+                  in json.dumps(e) for e in json.loads(
+                      dc.SEED_DEVICE_MODELS[0]['evidence_json'])))
+    node_conv, refusals = mp.nodes_to_local(
+        [{'name': 'geo', 'lon': -76.995, 'lat': 39.005},
+         {'name': 'bad'}], lonlat)
+    check('lon/lat nodes project into the polygon frame; a node with '
+          'neither form is refused by name',
+          len(node_conv) == 1 and abs(node_conv[0]['x_m']) < 1000
+          and refusals and 'bad' in refusals[0])
+
     # -- ret-8 seam: inbound mesh data proposes at level 4 ----------------
     from polariApiServer.ai_actions import _OP_LEVEL, classify, kernel
     check('rns_inbound is a KNOWN operation at network-service level 4',

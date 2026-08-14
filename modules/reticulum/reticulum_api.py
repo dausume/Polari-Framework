@@ -388,6 +388,76 @@ class ReticulumAPI(treeObject):
         if samples and predicted_range:
             result['interference'] = ms.interference_suspicions(
                 samples, predicted_range)
+
+        # ---- ret-1f (§5q): placement + population sections ---------
+        placement = body.get('placement')
+        if placement:
+            from reticulum import meshsim_placement as mp
+            pmode = placement.get('mode', 'cheapest-coverage')
+            polygon = placement.get('polygon')
+            if not polygon:
+                return self._refuse(
+                    response, 'placement without a polygon',
+                    falcon.HTTP_400, suggestion={
+                        'evidence': 'placement.mode %r asked but no '
+                                    'polygon given' % pmode,
+                        'knob': 'placement.polygon (geojson Polygon, '
+                                'lon/lat or local meters)',
+                        'action': 'draw/pass the shape to simulate '
+                                  'on'})
+            ring_m, area_m2, ring_notes = mp.to_local_meters(polygon)
+            if ring_m is None:
+                return self._refuse(response, '; '.join(ring_notes),
+                                    falcon.HTTP_400)
+            # device options resolve from catalog rows by name; a
+            # capacityBps override rides per option.
+            catalog = {getattr(r, 'name', ''): r
+                       for r in self._rows('DeviceModel')}
+            options = []
+            for spec in (placement.get('deviceOptions')
+                         or [{'model': m} for m in device_models
+                             .values() if isinstance(m, str)]):
+                spec = spec if isinstance(spec, dict) \
+                    else {'model': spec}
+                row = catalog.get(spec.get('model', ''))
+                option = {'name': spec.get('model')} if row is None \
+                    else {f: getattr(row, f, None) for f in (
+                        'name', 'declared_range_m',
+                        'rx_sensitivity_dbm', 'tx_power_dbm_max',
+                        'freq_mhz_lo', 'price_usd')}
+                if spec.get('capacityBps'):
+                    option['capacityBps'] = spec['capacityBps']
+                options.append(option)
+            if pmode == 'cheapest-coverage':
+                out = mp.plan_cheapest_coverage(
+                    ring_m, options, target,
+                    reach_mode=placement.get('reachMode',
+                                             'max-spread'))
+            elif pmode in ('fixed-locations', 'resilience'):
+                nodes_m, node_refusals = mp.nodes_to_local(
+                    placement.get('nodes') or [], polygon)
+                if node_refusals:
+                    return self._refuse(
+                        response, '; '.join(node_refusals),
+                        falcon.HTTP_400)
+                fn = (mp.assess_fixed_locations
+                      if pmode == 'fixed-locations'
+                      else mp.failure_resilience)
+                out = fn(ring_m, nodes_m, options, target) \
+                    if pmode == 'fixed-locations' \
+                    else fn(ring_m, nodes_m, options)
+            else:
+                return self._refuse(
+                    response, 'unknown placement mode %r' % pmode)
+            out['areaM2'] = area_m2
+            out.setdefault('assumptions', []).extend(ring_notes)
+            result['placement'] = out
+        population = body.get('population')
+        if population:
+            from reticulum import meshsim_placement as mp
+            result['population'] = mp.population_mix_report(
+                population.get('mix') or {},
+                int(population.get('n') or 0))
         response.media = result
 
     def on_get_peers(self, request, response):
