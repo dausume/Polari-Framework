@@ -423,6 +423,7 @@ class ReticulumAPI(treeObject):
                 option = {'name': spec.get('model')} if row is None \
                     else {f: getattr(row, f, None) for f in (
                         'name', 'declared_range_m',
+                        'declared_range_min_m', 'declared_range_max_m',
                         'rx_sensitivity_dbm', 'tx_power_dbm_max',
                         'freq_mhz_lo', 'freq_mhz_hi', 'price_usd')}
                 if spec.get('capacityBps'):
@@ -437,7 +438,10 @@ class ReticulumAPI(treeObject):
                 out = mp.plan_cheapest_coverage(
                     ring_m, options, target,
                     reach_mode=placement.get('reachMode',
-                                             'max-spread'))
+                                             'max-spread'),
+                    range_scenario=placement.get('rangeScenario',
+                                                 'typical'),
+                    range_override_m=placement.get('rangeOverrideM'))
             elif pmode in ('fixed-locations', 'resilience'):
                 nodes_m, node_refusals = mp.nodes_to_local(
                     placement.get('nodes') or [], polygon)

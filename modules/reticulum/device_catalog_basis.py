@@ -110,7 +110,8 @@ class DeviceModel(treeObject):
                  oem_vendor='', oem_model='', device_class='unknown',
                  radio_chip='', freq_mhz_lo=0.0, freq_mhz_hi=0.0,
                  tx_power_dbm_max=0, rx_sensitivity_dbm=0.0,
-                 declared_range_m=0.0, price_usd=0.0,
+                 declared_range_m=0.0, declared_range_min_m=0.0,
+                 declared_range_max_m=0.0, price_usd=0.0,
                  firmware_openness='unstated',
                  protocol_openness='unstated', config_protocol='',
                  interop='unknown', firmware_license='',
@@ -136,6 +137,11 @@ class DeviceModel(treeObject):
         # vendor-declared usable range, when one was stated —
         # preferred over derived link-budget math (fidelity).
         self.declared_range_m = declared_range_m
+        # the vendor's SPAN when one was stated (SH-L1A: "0.5-1.5 km
+        # depending on antenna") — the pessimistic/optimistic range
+        # scenarios read these; 0 = unstated.
+        self.declared_range_min_m = declared_range_min_m
+        self.declared_range_max_m = declared_range_max_m
         # unit price for the placement/cost solvers (§5q). 0.0 =
         # UNSTATED and the solvers REFUSE to cost it — a plan priced
         # on a guess is worse than no plan. Date the evidence: prices
@@ -186,6 +192,8 @@ SEED_DEVICE_MODELS = [
         # vendor states 0.5-1.5 km depending on antenna — mid value;
         # the spread is the antenna's, the row records the middle.
         'declared_range_m': 1000.0,
+        'declared_range_min_m': 500.0,
+        'declared_range_max_m': 1500.0,
         'price_usd': 27.99,
         'firmware_openness': 'proprietary',
         'protocol_openness': 'documented-via-oem',

@@ -260,10 +260,71 @@ def _relay_verdict(count, target_per_peer_bps, capacity_bps, units,
     return relay
 
 
+def _scenario_range(base_range, fidelity, evidence, option,
+                    range_scenario='typical', range_override_m=None):
+    """The range knob Dustin's pushback earned (2026-08-13): the
+    vendor's span becomes pessimistic/typical/optimistic scenarios,
+    and an explicit operator override wins over all of them, labelled
+    as the assertion it is. Never silently optimistic."""
+    if range_override_m:
+        return (float(range_override_m), 'operator-override',
+                'operator-asserted range %s m (overrides the '
+                'catalog; your judgement, on the record)'
+                % range_override_m)
+    if range_scenario == 'pessimistic':
+        lo = option.get('declared_range_min_m') or base_range * 0.6
+        return (float(lo), fidelity + '-min',
+                evidence + ' — PESSIMISTIC end of the span')
+    if range_scenario == 'optimistic':
+        hi = option.get('declared_range_max_m') or base_range * 1.5
+        return (float(hi), fidelity + '-max',
+                evidence + ' — OPTIMISTIC end of the span (clear '
+                'urban/elevated placement)')
+    return (base_range, fidelity, evidence)
+
+
+def _grid_samples(ring, step):
+    xs = [p[0] for p in ring]
+    ys = [p[1] for p in ring]
+    out = []
+    y = min(ys)
+    while y <= max(ys):
+        x = min(xs)
+        while x <= max(xs):
+            if _point_in_ring(ring, (x, y)):
+                out.append((x, y))
+            x += step
+        y += step
+    return out
+
+
+def _single_node_position(ring, range_m):
+    """Can ONE node cover the whole shape? Try the centroid and a
+    coarse candidate grid; return the first position whose distance
+    to every sample point is within range, else None. The check the
+    old solver never made — and the difference between 1 node and 8."""
+    xs = [p[0] for p in ring]
+    ys = [p[1] for p in ring]
+    span = max(max(xs) - min(xs), max(ys) - min(ys))
+    samples = _grid_samples(ring, max(span / 12.0, 25.0))
+    if not samples:
+        return None
+    cx = sum(p[0] for p in ring[:-1]) / (len(ring) - 1)
+    cy = sum(p[1] for p in ring[:-1]) / (len(ring) - 1)
+    candidates = [(cx, cy)] + _grid_samples(ring, max(span / 6.0, 50.0))
+    for cand in candidates:
+        if all(math.dist(cand, s) <= range_m for s in samples):
+            return cand
+    return None
+
+
 def plan_cheapest_coverage(ring_m, device_options,
                            target_per_peer_bps,
-                           reach_mode='max-spread', safety_factor=0.7,
-                           practical_margin_db=30.0):
+                           reach_mode='max-spread',
+                           safety_factor=0.85,
+                           practical_margin_db=30.0,
+                           range_scenario='typical',
+                           range_override_m=None):
     """Sim A: rank candidate device types by TOTAL COST of feasible
     coverage of the shape; the winner returns its actual positions.
     Feasibility = the relay-allowance verdict at the resulting node
@@ -281,29 +342,69 @@ def plan_cheapest_coverage(ring_m, device_options,
             refused.append({'model': option.get('name'),
                             'reason': refusal})
             continue
-        (range_m, fidelity, evidence) = facts
-        spacing = range_m * safety_factor
-        positions = (linear_positions(ring_m, spacing)
-                     if reach_mode == 'linear'
-                     else hex_positions_in_polygon(ring_m, spacing))
-        count = len(positions)
-        if count == 0:
-            refused.append({'model': option.get('name'),
-                            'reason': 'range %s m yields no in-shape '
-                                      'positions (shape smaller than '
-                                      'one cell — 1 node suffices?)'
-                                      % range_m})
-            continue
+        (base_range, base_fid, base_ev) = facts
+        (range_m, fidelity, evidence) = _scenario_range(
+            base_range, base_fid, base_ev, option, range_scenario,
+            range_override_m)
+        # COVERAGE vs BACKBONE are different constraints (the
+        # 8-nodes-for-2km lesson, Dustin 2026-08-13): people reaching
+        # a node allows hex spacing up to sqrt(3) x range; nodes
+        # reaching EACH OTHER needs spacing <= safety x range. Test
+        # the single-node case FIRST — one node that reaches the
+        # whole shape needs no backbone at all.
+        single = _single_node_position(ring_m, range_m)
+        if single is not None and reach_mode != 'linear':
+            positions = [single]
+            count = 1
+            binding = ('coverage — a single node at (%.0f, %.0f) '
+                       'reaches the whole shape at range %.0f m; no '
+                       'backbone needed' % (single[0], single[1],
+                                            range_m))
+            spacing = None
+        else:
+            backbone = range_m * safety_factor
+            coverage = range_m * math.sqrt(3)
+            spacing = min(backbone, coverage)
+            binding = ('backbone-connectivity (spacing %.0f m = '
+                       'safety %.2f x range) — coverage alone would '
+                       'allow %.0f m spacing'
+                       % (backbone, safety_factor, coverage)
+                       if backbone < coverage else
+                       'coverage (spacing %.0f m)' % coverage)
+            positions = (linear_positions(ring_m, spacing)
+                         if reach_mode == 'linear'
+                         else hex_positions_in_polygon(ring_m,
+                                                       spacing))
+            count = max(1, len(positions))
         units = 1
         entry = {
             'model': option.get('name'),
             'rangeM': range_m, 'rangeFidelity': fidelity,
-            'spacingM': round(spacing, 1),
+            'rangeEvidence': evidence,
+            'rangeScenario': ('override' if range_override_m
+                              else range_scenario),
+            'spacingM': round(spacing, 1) if spacing else None,
             'nodeCount': count,
+            'bindingConstraint': binding,
             'unitPriceUsd': price,
             'reachMode': reach_mode,
         }
-        if capacity:
+        entry['_positions'] = positions
+        if count == 1:
+            entry['relay'] = {
+                'ok': True, 'fits': True,
+                'verdict': 'single node — no mesh relaying; '
+                           'per-client bandwidth is capacity x units '
+                           'shared among concurrent clients (sized '
+                           'by app policies, not mesh math)'}
+            entry['feasible'] = capacity is not None and capacity > 0
+            if not entry['feasible']:
+                entry['relayNote'] = ('no capacityBps — a single '
+                                      'node covers, but its client '
+                                      'bandwidth is unknowable')
+            entry['unitsPerNode'] = 1
+            entry['unitsCap'] = _units_cap(option)
+        elif capacity:
             cap = _units_cap(option)
             relay = None
             for units in range(1, cap + 1):
@@ -326,29 +427,35 @@ def plan_cheapest_coverage(ring_m, device_options,
         entry['totalCostUsd'] = round(
             count * price * entry['unitsPerNode'], 2)
         ranked.append(entry)
+    positions_by_model = {e['model']: e.pop('_positions')
+                          for e in ranked}
     feasible = sorted([e for e in ranked if e['feasible']],
                       key=lambda e: e['totalCostUsd'])
     infeasible = [e for e in ranked if not e['feasible']]
     winner = None
     if feasible:
         best = feasible[0]
-        spacing = best['spacingM']
-        positions = (linear_positions(ring_m, spacing)
-                     if reach_mode == 'linear'
-                     else hex_positions_in_polygon(ring_m, spacing))
         winner = dict(best, positions=[
-            {'xM': x, 'yM': y} for x, y in positions])
+            {'xM': x, 'yM': y}
+            for x, y in positions_by_model[best['model']]])
     return {
         'ok': True, 'mode': 'cheapest-coverage',
         'reachMode': reach_mode,
+        'rangeScenario': ('override' if range_override_m
+                          else range_scenario),
         'winner': winner,
         'rankedFeasible': feasible,
         'infeasible': infeasible,
         'refused': refused,
         'disclaimer': TERRAIN_DISCLAIMER,
         'assumptions': [
-            'spacing = range x safety %.2f; %s placement'
-            % (safety_factor, reach_mode),
+            'single-node coverage tested first; multi-node backbone '
+            'spacing = range x safety %.2f (coverage alone would '
+            'allow sqrt(3) x range — the binding constraint is '
+            'named per option)' % safety_factor,
+            'range scenario %r — pessimistic/typical/optimistic read '
+            'the vendor span; override is the operator\'s assertion'
+            % ('override' if range_override_m else range_scenario),
             'linear chains relay ~n/3 average hops (the stress '
             'case); spread meshes ~0.75*sqrt(n)',
             UNITS_ASSUMPTION,

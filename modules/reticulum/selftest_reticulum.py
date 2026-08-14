@@ -725,6 +725,47 @@ def run():
           'option cannot carry the target)',
           plan2['winner']['model'] == 'sh'
           and any(e['model'] == 'weak' for e in plan2['infeasible']))
+    # -- the 8-nodes-for-2km lesson (Dustin 2026-08-13) -------------------
+    check('multi-node plans NAME the binding constraint (backbone vs '
+          'coverage — the constraint-stacking bug made visible)',
+          'backbone-connectivity' in plan['winner']['bindingConstraint']
+          and 'coverage alone' in plan['winner']['bindingConstraint'])
+    spanned = {'name': 'sh-span', 'declared_range_m': 1000.0,
+               'declared_range_min_m': 500.0,
+               'declared_range_max_m': 1500.0,
+               'price_usd': 27.99, 'capacityBps': 6568}
+    plan_o = mp.plan_cheapest_coverage(ring_m, [spanned], 200,
+                                       range_scenario='optimistic')
+    check('OPTIMISTIC range on the 2 km square = ONE node (corners '
+          'at 1414 m < 1500 m) — the single-node case the old solver '
+          'never tested',
+          plan_o['winner']['nodeCount'] == 1
+          and len(plan_o['winner']['positions']) == 1
+          and plan_o['winner']['bindingConstraint']
+          .startswith('coverage')
+          and plan_o['winner']['rangeFidelity'].endswith('-max'))
+    plan_p = mp.plan_cheapest_coverage(ring_m, [spanned], 200,
+                                       range_scenario='pessimistic')
+    check('PESSIMISTIC reads the vendor minimum and costs more nodes '
+          'than typical',
+          plan_p['winner']['rangeM'] == 500.0
+          and plan_p['winner']['nodeCount']
+          > plan['winner']['nodeCount'])
+    plan_ov = mp.plan_cheapest_coverage(ring_m, [priced], 200,
+                                        range_override_m=2500)
+    check('an operator range override wins and is LABELLED as the '
+          'assertion it is',
+          plan_ov['winner']['nodeCount'] == 1
+          and plan_ov['winner']['rangeFidelity'] == 'operator-override'
+          and 'operator-asserted'
+          in plan_ov['winner']['rangeEvidence'])
+    check('pessimistic without a declared span falls back 0.6x, '
+          'stated in the scenario field',
+          mp.plan_cheapest_coverage(
+              ring_m, [priced], 200,
+              range_scenario='pessimistic')['winner']['rangeM']
+          == 600.0)
+
     hexn = len(mp.hex_positions_in_polygon(ring_m, 700))
     linn = len(mp.linear_positions(ring_m, 700))
     check('linear vs max-spread differ on the square (a chain is a '
