@@ -217,6 +217,31 @@ print(f'6j) placement WITHOUT a polygon -> {code} (expect 400 '
 checks.append(code == 400
               and 'polygon' in json.dumps(body.get('suggestion', {})))
 
+code, body = req('POST', '/api/reticulum/meshsim', {
+    'bearerSet': 'lora-only', 'meshSizeNodes': 4,
+    'targetPerPeerBps': 100,
+    'deviceModels': {'rnode-lora': {'model': 'dsd-tech-sh-l1a',
+                                    'capacityBps': 6568}},
+    'population': {'cohorts': [
+        {'profile': 'everyday-node', 'count': 12},
+        {'kit': {'wifi-halow': 4}, 'count': 3, 'label': 'backbone'}]}})
+pop = body.get('population', {})
+ev = pop.get('builds', {}).get('everyday-node', {})
+print(f'6k) population COHORTS (KitProfile rows) -> {code}: '
+      f'countsFirst={pop.get("countsFirst")}, everyday count='
+      f'{ev.get("count")} pct={ev.get("pctOfPopulation")}, '
+      f'popN={pop.get("populationN")}')
+checks.append(code == 200 and pop.get('countsFirst') is True
+              and ev.get('count') == 12
+              and ev.get('pctOfPopulation') == 80.0
+              and pop.get('populationN') == 15)
+
+code, body = req('GET', '/DeviceModel')
+generic_seeded = 'generic-wifi-halow' in json.dumps(body)
+print(f'6l) generic REFERENCE rows seeded (CRUDE /DeviceModel): '
+      f'{generic_seeded}')
+checks.append(code == 200 and generic_seeded)
+
 code, body = req('GET', '/api/reticulum/peers')
 print(f'6e) peers (no sidecar, no sightings) -> {code}: buckets='
       f'{sorted(body.get("peers", {}).keys())}, sidecarLive='

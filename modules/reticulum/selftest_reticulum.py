@@ -31,9 +31,11 @@ RETICULUM_CLASSES = (
     'OperatorLicense', 'DeviceLink', 'DeviceModel',
     'AppArchExposure', 'MeshAppRelay', 'MeshConsumer',
     'AppDataRule', 'QuarantinedSubmission', 'PeerSighting',
+    'KitProfile',
     'MeshSimScenario', 'MeshSimNode', 'MeshSimResult',
 )
-RETICULUM_SEEDS = ('SEED_RNS_INTERFACES', 'SEED_DEVICE_MODELS')
+RETICULUM_SEEDS = ('SEED_RNS_INTERFACES', 'SEED_DEVICE_MODELS',
+                   'SEED_KIT_PROFILES')
 
 
 def run():
@@ -667,6 +669,69 @@ def run():
           'elevation_m' in inspect.signature(
               ms.MeshSimNode.__init__).parameters
           and 'UNUSED' in (ms.MeshSimNode.__doc__ or ''))
+
+
+    # -- §5q: generic reference rows + kit profiles + counts-first --------
+    from reticulum import meshsim_placement as mp
+    check('device classes gained ham-transceiver + ham-receiver',
+          'ham-transceiver' in dc.DEVICE_CLASS_VALUES
+          and 'ham-receiver' in dc.DEVICE_CLASS_VALUES)
+    generics = {m['name']: m for m in dc.SEED_DEVICE_MODELS
+                if m['name'].startswith('generic-')}
+    check('four generic REFERENCE rows exist with min<typ<max spans '
+          'and sourced evidence',
+          set(generics) == {'generic-lora', 'generic-ham-vhf-uhf',
+                            'generic-wifi-24', 'generic-wifi-halow'}
+          and all(m['declared_range_min_m'] < m['declared_range_m']
+                  < m['declared_range_max_m']
+                  for m in generics.values())
+          and all('http' in json.dumps(m['evidence_json'])
+                  for m in generics.values()))
+    check('reference rows REFUSE to vouch (openness unstated) — and '
+          'that being correct is the point',
+          all(not dc.model_vouches(m)[0] for m in generics.values())
+          and all('REFERENCE CLASS' in m['notes']
+                  for m in generics.values()))
+    check('unpriced reference rows refuse costing; the HaLow row '
+          'carries its dated price',
+          generics['generic-lora']['price_usd'] == 0.0
+          and generics['generic-wifi-halow']['price_usd'] == 134.97)
+    kits = {k['name']: json.loads(k['devices_json'])
+            for k in mb.SEED_KIT_PROFILES}
+    check("Dustin's three kit profiles seed verbatim (everyday / "
+          'broadcaster / backbone)',
+          kits['everyday-node'] == {'lora': 1, 'ham-rx': 1,
+                                    'wifi-halow': 1}
+          and kits['meshapp-broadcaster'] == {'ham-tx': 1,
+                                              'wifi-halow': 3}
+          and kits['bandwidth-backbone'] == {'wifi-halow': 4})
+    cohorts = mp.population_cohorts_report(
+        [{'profile': 'everyday-node', 'count': 12},
+         {'profile': 'meshapp-broadcaster', 'count': 1},
+         {'kit': {'wifi-halow': 4}, 'count': 3,
+          'label': 'backbone'},
+         {'profile': 'nope', 'count': 5}],
+        profiles=kits)
+    check('counts-first: counts are the truth, pct is DERIVED '
+          'analytics, unknown profiles refuse by name',
+          cohorts['countsFirst'] and cohorts['populationN'] == 16
+          and cohorts['builds']['everyday-node']['count'] == 12
+          and cohorts['builds']['everyday-node']['pctOfPopulation']
+          == 75.0
+          and 'unknown kit profile'
+          in cohorts['builds']['nope']['error'])
+    check('the broadcaster kit PEERS on halow with everyday+backbone '
+          'cohorts, and everyday hears its ham-tx one-way',
+          'wifi-halow'
+          in cohorts['builds']['meshapp-broadcaster']['peersWith']
+          and cohorts['builds']['everyday-node']['oneWayListensTo']
+          == ['ham-tx']
+          and 'capacityNote'
+          in cohorts['builds']['meshapp-broadcaster'])
+    legacy = mp.population_mix_report({'lora': 60, 'wifi': 40}, 10)
+    check('the legacy pct form still works and is FLAGGED as legacy',
+          legacy.get('legacyPctForm') is True
+          and legacy['builds']['lora']['count'] == 6)
 
     # -- the licence pins are surfaced facts ------------------------------
     from reticulum import rns_remote as rr

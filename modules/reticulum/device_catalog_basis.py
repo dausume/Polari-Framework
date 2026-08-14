@@ -36,6 +36,7 @@ from objectTreeDecorators import treeObject, treeObjectInit
 DEVICE_CLASS_VALUES = ('lora-transparent-modem', 'lora-rnode-board',
                        'lorawan-module', 'sdr-rx', 'sdr-tx',
                        'wifi-adapter', 'halow-adapter', 'serial-kiss',
+                       'ham-transceiver', 'ham-receiver',
                        'unknown')
 
 #: Openness of a device's FIRMWARE: can we read/replace what runs on
@@ -277,5 +278,156 @@ SEED_DEVICE_MODELS = [
         'notes': 'The ret-6 desk pair. Reticulum path = '
                  'SerialInterface over transparent mode (no RNode '
                  'flash possible or needed).',
+    },
+]
+
+#: REFERENCE CLASSES (§5q, Dustin 2026-08-13): typical per-scenario
+#: range figures for PLANNING, researched with sources — not
+#: purchasable SKUs. min = dense urban, typical = suburban,
+#: max = rural/line-of-sight. Openness fields stay 'unstated' on
+#: purpose: a reference row must never vouch (model_vouches refuses
+#: it, correctly).
+_REFERENCE_NOTE = ('REFERENCE CLASS — typical figures for planning, '
+                   'not a purchasable SKU; replace with a real model '
+                   'row before buying. Openness deliberately '
+                   'unstated: reference rows do not vouch.')
+
+SEED_DEVICE_MODELS += [
+    {
+        'name': 'generic-lora',
+        'display_name': 'Generic LoRa node (sub-GHz, reference)',
+        'vendor': '(reference class)',
+        'device_class': 'lora-transparent-modem',
+        'radio_chip': '(class: SX12xx/LLCC68-family)',
+        'declared_range_min_m': 2000.0,
+        'declared_range_m': 5000.0,
+        'declared_range_max_m': 15000.0,
+        'price_usd': 0.0,
+        'status': 'usable-with-caveats',
+        'restrictions_json': json.dumps([
+            {'kind': 'planning',
+             'detail': 'Vendor 15 km figures are tower-mounted '
+                       'line-of-sight; dense urban reliably degrades '
+                       'to the 2 km end. Antenna and elevation '
+                       'dominate.'}]),
+        'evidence_json': json.dumps([
+            {'fact': 'urban 2-5 km typical; rural/LoS 10-20 km '
+                     'reported in deployment practice',
+             'source': 'https://tago.io/blog/lorawan-range-in-the-'
+                       'real-world (fetched 2026-08-13); '
+                       'https://yosensi.io/posts/what_is_the_real_'
+                       'range_of_lora/'},
+            {'fact': 'price left UNSTATED (0) on purpose — real SKUs '
+                     'vary widely; the dsd-tech-sh-l1a row carries a '
+                     'real dated price',
+             'source': 'catalog policy 2026-08-13'}]),
+        'fidelity': 'declared',
+        'notes': _REFERENCE_NOTE,
+    },
+    {
+        'name': 'generic-ham-vhf-uhf',
+        'display_name': 'Generic HAM VHF/UHF station (reference)',
+        'vendor': '(reference class)',
+        'device_class': 'ham-transceiver',
+        'radio_chip': '(class: VHF 2m / UHF 70cm FM/packet)',
+        'declared_range_min_m': 3200.0,
+        'declared_range_m': 24000.0,
+        'declared_range_max_m': 48000.0,
+        'price_usd': 0.0,
+        'status': 'usable-with-caveats',
+        'restrictions_json': json.dumps([
+            {'kind': 'regulatory',
+             'detail': 'TRANSMIT requires an amateur licence; '
+                       'cleartext + public-only publication on '
+                       'amateur interfaces (plan 5f/5g). RX-only '
+                       'stations need nothing.'},
+            {'kind': 'planning',
+             'detail': 'min = handheld in dense urban (~2 mi); '
+                       'typical = base antenna simplex (~15 mi); '
+                       'max = elevated base/LoS (~30 mi). HF '
+                       'skywave (100s-1000s km) is a DIFFERENT '
+                       'regime, out of scope for these rows.'}]),
+        'evidence_json': json.dumps([
+            {'fact': 'handheld 2-5 mi simplex; 15-30 mi with '
+                     'elevation/base antennas',
+             'source': 'https://hamradioprep.com/ham-radio-range/ '
+                       '(fetched 2026-08-13); https://www.'
+                       'survivalsullivan.com/ham-radio-range-'
+                       'distance/'},
+            {'fact': 'price UNSTATED (0): a $25 handheld and a '
+                     '$1000+ base station are both this class — '
+                     'too wide a span to state one number honestly',
+             'source': 'catalog policy 2026-08-13'}]),
+        'fidelity': 'declared',
+        'notes': _REFERENCE_NOTE,
+    },
+    {
+        'name': 'generic-wifi-24',
+        'display_name': 'Generic WiFi 2.4 GHz (stock omni, reference)',
+        'vendor': '(reference class)',
+        'device_class': 'wifi-adapter',
+        'radio_chip': '(class: 802.11b/g/n 2.4 GHz)',
+        'declared_range_min_m': 45.0,
+        'declared_range_m': 90.0,
+        'declared_range_max_m': 300.0,
+        'price_usd': 0.0,
+        'status': 'usable-with-caveats',
+        'restrictions_json': json.dumps([
+            {'kind': 'planning',
+             'detail': 'Stock omnidirectional outdoors: 45-90 m '
+                       'typical, ~300 m best-case with outdoor APs. '
+                       'DIRECTIONAL point-to-point reaches km-scale '
+                       'but is its own aimed-link case, not this '
+                       'row.'}]),
+        'evidence_json': json.dumps([
+            {'fact': 'consumer 2.4 GHz 45-90 m outdoors; ~300 m '
+                     'with outdoor APs; km-scale only directional',
+             'source': 'https://epb.com/get-connected/gig-internet/'
+                       'how-far-will-your-wi-fi-signal-reach/ '
+                       '(fetched 2026-08-13); https://www.blackview.'
+                       'hk/blog/guides/how-far-can-a-router-reach'},
+            {'fact': 'price UNSTATED (0): $10 dongles to $200 APs',
+             'source': 'catalog policy 2026-08-13'}]),
+        'fidelity': 'declared',
+        'notes': _REFERENCE_NOTE,
+    },
+    {
+        'name': 'generic-wifi-halow',
+        'display_name': 'Generic WiFi HaLow 802.11ah (reference)',
+        'vendor': '(reference class)',
+        'device_class': 'halow-adapter',
+        'radio_chip': '(class: 802.11ah sub-GHz, e.g. Morse Micro '
+                      'MM6108)',
+        'declared_range_min_m': 1000.0,
+        'declared_range_m': 3000.0,
+        'declared_range_max_m': 16000.0,
+        'price_usd': 134.97,
+        'status': 'usable-with-caveats',
+        'restrictions_json': json.dumps([
+            {'kind': 'planning',
+             'detail': 'min = ~1 km academic urban/23 dBm; typical = '
+                       '3 km city field record (Morse Micro, Ocean '
+                       'Beach SF); max = 16 km desert LoS at ~2 Mbps '
+                       'UDP (Joshua Tree). The interesting middle '
+                       'bearer: real bandwidth AND real range '
+                       '(plan 5d).'}]),
+        'evidence_json': json.dumps([
+            {'fact': '3 km urban field demo 2024-01; 16 km / 2 Mbps '
+                     'UDP LoS field test 2024-09',
+             'source': 'https://www.morsemicro.com/2024/01/23/'
+                       'morse-micro-demonstrates-worlds-longest-'
+                       'range-wi-fi-halow-solution-reaching-3-'
+                       'kilometers/ ; https://www.techradar.com/pro/'
+                       'groundbreaking-wireless-tech-that-can-run-'
+                       'on-coin-batteries-for-months-hits-new-'
+                       'milestone-halow-achieves-10-mile-range-in-'
+                       'latest-test (fetched 2026-08-13)'},
+            {'fact': 'ALFA HaLow-U USB adapter $134.97',
+             'source': 'https://store.rokland.com/products/alfa-'
+                       'network-halow-u-802-11ah-halow-usb-adapter-'
+                       'support-ap-client-mode (fetched 2026-08-13; '
+                       'prices move — re-check before buying)'}]),
+        'fidelity': 'declared',
+        'notes': _REFERENCE_NOTE,
     },
 ]

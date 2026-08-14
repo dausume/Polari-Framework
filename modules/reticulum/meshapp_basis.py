@@ -57,6 +57,8 @@ the delta algebra is replication_basis's.
      reuses), plan §5n
 """
 
+import json
+
 from objectTreeDecorators import treeObject, treeObjectInit
 
 #: The ladder — the reserved isle-mesh suffixes plus the internet.
@@ -216,6 +218,53 @@ class MeshAppRelay(treeObject):
         self.kc_link_mode = kc_link_mode
         self.enabled = enabled
         self.notes = notes
+
+
+class KitProfile(treeObject):
+    """A named per-person equipment CONFIGURATION (§5q, Dustin
+    2026-08-13): counts of devices one person carries — the unit the
+    population sims count PEOPLE by. Percentages are analytics;
+    counts of people per profile are the configuration."""
+
+    @treeObjectInit
+    def __init__(self, name='', display_name='', devices_json='{}',
+                 intent='custom', notes='', manager=None):
+        self.name = name
+        self.display_name = display_name
+        # {'lora': 1, 'ham-rx': 1, 'wifi-halow': 1} — builds from the
+        # population vocabulary, counts per person.
+        self.devices_json = devices_json
+        # everyday | broadcaster | backbone | custom — what this kit
+        # is FOR, so a planner reads intent, not just parts.
+        self.intent = intent
+        self.notes = notes
+
+
+#: Dustin's three worked examples (2026-08-13), verbatim.
+SEED_KIT_PROFILES = [
+    {'name': 'everyday-node',
+     'display_name': 'Everyday node',
+     'devices_json': json.dumps({'lora': 1, 'ham-rx': 1,
+                                 'wifi-halow': 1}),
+     'intent': 'everyday',
+     'notes': 'One person, one of each: LoRa for the mesh, a ham '
+              'receiver for the broadcast core (§5g — listening is '
+              'free), one HaLow for bandwidth.'},
+    {'name': 'meshapp-broadcaster',
+     'display_name': 'Mesh-app broadcaster',
+     'devices_json': json.dumps({'ham-tx': 1, 'wifi-halow': 3}),
+     'intent': 'broadcaster',
+     'notes': 'Hosts a mesh app: a licensed ham transmitter for the '
+              'public broadcast core, MULTIPLE HaLow units to ingest '
+              'high-bandwidth mesh traffic from several routes at '
+              'once (units multiply capacity on distinct channels).'},
+    {'name': 'bandwidth-backbone',
+     'display_name': 'Bandwidth backbone',
+     'devices_json': json.dumps({'wifi-halow': 4}),
+     'intent': 'backbone',
+     'notes': 'A relay-capacity node: four HaLow units carrying '
+              'other people\'s traffic on distinct channels.'},
+]
 
 
 class MeshConsumer(treeObject):

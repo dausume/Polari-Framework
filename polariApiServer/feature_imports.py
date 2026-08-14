@@ -873,6 +873,7 @@ FEATURE_IMPORT_BLOCKS = (
         # + pseudonymous consumers (ret-1c, DECIDED row 20).
         ('reticulum.meshapp_basis', (
             'AppArchExposure', 'MeshAppRelay', 'MeshConsumer',
+            'KitProfile', 'SEED_KIT_PROFILES',
         )),
         # per-app data rules: submission caps, strict typing,
         # ballot-box dedupe; caught garbage is QUARANTINED evidence.

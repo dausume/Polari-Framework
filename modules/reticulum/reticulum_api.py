@@ -33,6 +33,7 @@ and any transmit control on an rx-only surface.
      before this one; commit_drag is the seam's first walk)
 """
 
+import json
 import time
 
 import falcon
@@ -462,7 +463,25 @@ class ReticulumAPI(treeObject):
             out.setdefault('assumptions', []).extend(ring_notes)
             result['placement'] = out
         population = body.get('population')
-        if population:
+        if population and population.get('cohorts') is not None:
+            # counts-first (§5q, the primary form): specific numbers
+            # of people per kit configuration; profile names resolve
+            # from KitProfile rows; percentages are derived analytics.
+            # (import here too — a population-only request never runs
+            # the placement branch's import, and a function-local
+            # name used before ITS import is an UnboundLocalError:
+            # the AppsNavSeed lesson.)
+            from reticulum import meshsim_placement as mp
+            profiles = {}
+            for row in self._rows('KitProfile'):
+                try:
+                    profiles[getattr(row, 'name', '')] = json.loads(
+                        getattr(row, 'devices_json', '') or '{}')
+                except ValueError:
+                    pass
+            result['population'] = mp.population_cohorts_report(
+                population['cohorts'], profiles=profiles)
+        elif population:
             from reticulum import meshsim_placement as mp
             result['population'] = mp.population_mix_report(
                 population.get('mix') or {},

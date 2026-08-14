@@ -753,45 +753,85 @@ def failure_resilience(ring_m, nodes, device_options,
             'assumptions': base['assumptions']}
 
 
-def population_mix_report(mix, population_n, device_models=None):
-    """Percentages of people with particular builds → who actually
-    interconnects. The matrix is the suite's interop truth: LoRaWAN
-    cannot peer (DECIDED row 9 — it needs gateways + a join server),
-    ham-rx LISTENS one-way to ham-tx (§5g/§5i), everyone else peers
-    within their own build only (closed framing is the norm at this
-    layer; cross-build bridging is an ISLE's job, not a person's).
+def _parse_kit(kit):
+    """(devices, error): a kit dict validated against the build
+    vocabulary; unknown builds refuse by name."""
+    bad = [b for b in (kit or {}) if b not in POPULATION_BUILD_VALUES]
+    if bad or not kit:
+        return (None, 'kit carries unknown build(s) %s — knowns: %s'
+                % (bad or '(none)', POPULATION_BUILD_VALUES))
+    return ({b: int(n) for b, n in kit.items() if int(n) > 0}, None)
 
-    KITS (§5q addendum): a mix entry may be a simple build string
-    with a percentage — {'lora': 40} — OR a named kit carrying
-    SEVERAL devices: {'farm-node': {'kit': {'lora': 2, 'wifi': 1,
-    'ham-rx': 1}, 'pct': 30}}. A kit's connectivity is the UNION of
-    its parts (it peers with every build it carries a transmitter
-    for), a ham-rx part stays one-way (§5g — carrying a receiver
-    never makes you a broadcaster), and multi-unit parts multiply
-    CAPACITY only, on distinct channels."""
-    peers_within = {'lora', 'wifi', 'wifi-halow', 'ham-tx'}
-    report = {}
-    entries = {}
+
+def population_cohorts_report(cohorts, profiles=None,
+                              device_models=None):
+    """COUNTS-FIRST population report (Dustin 2026-08-13): specific
+    numbers of people with particular kit configurations — cohorts =
+    [{'profile': 'everyday-node', 'count': 12} |
+     {'kit': {'lora': 1, 'ham-rx': 1}, 'count': 3, 'label': 'x'}].
+    Profile names resolve from KitProfile rows (handed in as
+    {name: devices dict}); unknown profiles refuse by name in their
+    row. Percentages appear ONLY as derived analytics
+    (pctOfPopulation) — counts are the truth, pct is a view."""
+    profiles = profiles or {}
+    entries, errors = {}, {}
+    for i, cohort in enumerate(cohorts or []):
+        label = cohort.get('label') or cohort.get('profile') \
+            or 'cohort-%d' % (i + 1)
+        count = int(cohort.get('count') or 0)
+        if cohort.get('profile'):
+            devices = profiles.get(cohort['profile'])
+            if devices is None:
+                errors[label] = {
+                    'error': 'unknown kit profile %r — no KitProfile '
+                             'row by that name' % cohort['profile']}
+                continue
+            devices, err = _parse_kit(devices)
+        else:
+            devices, err = _parse_kit(cohort.get('kit'))
+        if err:
+            errors[label] = {'error': err}
+            continue
+        entries[label] = {'devices': devices, 'count': count,
+                          'is_kit': True,
+                          'profile': cohort.get('profile', '')}
+    population_n = sum(e['count'] for e in entries.values())
+    out = _population_report_core(entries, errors, population_n)
+    for label, e in entries.items():
+        row = out['builds'].get(label)
+        if row is not None:
+            row['pctOfPopulation'] = round(
+                100.0 * e['count'] / population_n, 1) \
+                if population_n else 0.0
+            if e['profile']:
+                row['profile'] = e['profile']
+    out['countsFirst'] = True
+    out['pctNote'] = ('percentages are DERIVED analytics; the counts '
+                      'are the configuration')
+    return out
+
+
+def population_mix_report(mix, population_n, device_models=None):
+    """LEGACY percentage form ({build: pct} or {label: {kit, pct}}
+    with a population n) — kept accepted, converted to counts and
+    flagged legacyPctForm. Counts-first (population_cohorts_report)
+    is the primary form."""
+    entries, errors = {}, {}
     for label, value in (mix or {}).items():
         if isinstance(value, dict):
-            kit = value.get('kit') or {}
-            bad = [b for b in kit if b not in POPULATION_BUILD_VALUES]
-            if bad or not kit:
-                report[label] = {
-                    'error': 'kit carries unknown build(s) %s — '
-                             'knowns: %s' % (bad or '(none)',
-                                             POPULATION_BUILD_VALUES)}
+            devices, err = _parse_kit(value.get('kit'))
+            if err:
+                errors[label] = {'error': err}
                 continue
             entries[label] = {
-                'devices': {b: int(n) for b, n in kit.items()
-                            if int(n) > 0},
+                'devices': devices,
                 'count': int(round(population_n
                                    * float(value.get('pct') or 0)
                                    / 100.0)),
                 'is_kit': True}
         else:
             if label not in POPULATION_BUILD_VALUES:
-                report[label] = {
+                errors[label] = {
                     'error': 'unknown build %r — knowns: %s'
                              % (label, POPULATION_BUILD_VALUES)}
                 continue
@@ -800,6 +840,20 @@ def population_mix_report(mix, population_n, device_models=None):
                 'count': int(round(population_n * float(value)
                                    / 100.0)),
                 'is_kit': False}
+    out = _population_report_core(entries, errors, population_n)
+    out['legacyPctForm'] = True
+    return out
+
+
+def _population_report_core(entries, errors, population_n):
+    """Who actually interconnects. The matrix is the suite's interop
+    truth: LoRaWAN cannot peer (DECIDED row 9 — gateways + a join
+    server), ham-rx LISTENS one-way to ham-tx (§5g/§5i), everyone
+    else peers within their own build; a KIT's connectivity is the
+    UNION of its parts, and multi-unit parts multiply CAPACITY only,
+    on distinct channels."""
+    peers_within = {'lora', 'wifi', 'wifi-halow', 'ham-tx'}
+    report = dict(errors)
     # who carries a TRANSMITTING part of each build, across pure
     # entries and kits alike — the union is what makes kits bridge.
     carriers = {b: sum(e['count'] for e in entries.values()
