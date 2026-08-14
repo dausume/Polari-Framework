@@ -289,11 +289,21 @@ class ReticulumAPI(treeObject):
                                               "'measured' for now"})
         bearers = body.get('bearers') \
             or ms.SCENARIO_BEARER_SETS.get(body.get('bearerSet', ''))
-        if not bearers:
+        if (body.get('bearers') or body.get('bearerSet')) \
+                and not bearers:
             return self._refuse(
-                response, 'no bearer set: name one of %s via '
+                response, 'unknown bearer set %r: name one of %s via '
                           'bearerSet, or pass a bearers list'
-                          % sorted(ms.SCENARIO_BEARER_SETS))
+                          % (body.get('bearerSet'),
+                             sorted(ms.SCENARIO_BEARER_SETS)))
+        if not bearers and not (body.get('placement')
+                                or body.get('population')):
+            # a population- or placement-only request needs no
+            # bearers; a request asking for NOTHING is refused.
+            return self._refuse(
+                response, 'nothing to compute: pass bearerSet/'
+                          'bearers for per-bearer analysis, and/or '
+                          'placement, and/or population')
         n_nodes = int(body.get('meshSizeNodes') or 0)
         target = float(body.get('targetPerPeerBps') or 0)
         area = float(body.get('areaM2') or 0)
@@ -309,7 +319,7 @@ class ReticulumAPI(treeObject):
         per_bearer = {}
         assumptions = []
         predicted_range = None
-        for bearer in bearers:
+        for bearer in (bearers or ()):
             spec = device_models.get(bearer)
             if isinstance(spec, dict):
                 model_name = spec.get('model', '')
@@ -434,6 +444,9 @@ class ReticulumAPI(treeObject):
                 # ceilings it).
                 if spec.get('unitsMax'):
                     option['unitsMax'] = spec['unitsMax']
+                # antenna knob (stock | high-gain-omni | directional)
+                if spec.get('antenna'):
+                    option['antenna'] = spec['antenna']
                 options.append(option)
             if pmode == 'cheapest-coverage':
                 out = mp.plan_cheapest_coverage(
@@ -450,12 +463,32 @@ class ReticulumAPI(treeObject):
                     return self._refuse(
                         response, '; '.join(node_refusals),
                         falcon.HTTP_400)
-                fn = (mp.assess_fixed_locations
-                      if pmode == 'fixed-locations'
-                      else mp.failure_resilience)
-                out = fn(ring_m, nodes_m, options, target) \
-                    if pmode == 'fixed-locations' \
-                    else fn(ring_m, nodes_m, options)
+                drone_profiles = None
+                wanted = placement.get('droneProfiles') or []
+                if wanted:
+                    rows = {getattr(r, 'name', ''): r
+                            for r in self._rows('DroneBridgeProfile')}
+                    drone_profiles = []
+                    for pname in wanted:
+                        row = rows.get(pname)
+                        if row is None:
+                            return self._refuse(
+                                response,
+                                'no DroneBridgeProfile named %r'
+                                % pname, falcon.HTTP_400)
+                        drone_profiles.append({
+                            f: getattr(row, f, None) for f in (
+                                'name', 'cruise_speed_ms',
+                                'endurance_min', 'recharge_min',
+                                'payload_draw_w',
+                                'flight_rules_confirmed')})
+                if pmode == 'fixed-locations':
+                    out = mp.assess_fixed_locations(
+                        ring_m, nodes_m, options, target,
+                        drone_profiles=drone_profiles)
+                else:
+                    out = mp.failure_resilience(ring_m, nodes_m,
+                                                options)
             else:
                 return self._refuse(
                     response, 'unknown placement mode %r' % pmode)

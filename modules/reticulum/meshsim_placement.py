@@ -207,6 +207,40 @@ def _option_facts(option, practical_margin_db=30.0):
             option.get('capacityBps'), None)
 
 
+#: Antenna options (ret-1f addendum, Dustin 2026-08-13): range
+#: extension as a STATED knob. Factors are DECLARED planning numbers
+#: leaning on the free-space rule of thumb (+6 dB ≈ ×2 range; a
+#: 5-6 dBi omni upgrade ≈ ×1.8, a 12+ dBi yagi ≈ ×3) — sources:
+#: tektelic.com/expertise/gateway-antenna-gain,
+#: oscarliang.com/how-antenna-gain-affects-range — NOT physics
+#: guarantees, and terrain is still disclaimed.
+ANTENNA_FACTORS = {'stock': 1.0, 'high-gain-omni': 1.8,
+                   'directional': 3.0}
+
+ANTENNA_ASSUMPTION = ('antenna factors are declared planning knobs '
+                      '(free-space rule: +6 dB ~ x2 range; '
+                      'high-gain-omni x1.8, directional x3.0), not '
+                      'guarantees; a DIRECTIONAL antenna is '
+                      'point-to-point and serves at most a chain '
+                      '(<=2 neighbours), never an omni lattice')
+
+
+def _antenna_range(range_m, option):
+    """(adjusted_range, evidence_suffix, refusal|None). Unknown
+    antenna names refuse — a factor is not guessed."""
+    antenna = option.get('antenna') or 'stock'
+    factor = ANTENNA_FACTORS.get(antenna)
+    if factor is None:
+        return (None, '',
+                'unknown antenna %r on %r — choose from %s'
+                % (antenna, option.get('name'),
+                   sorted(ANTENNA_FACTORS)))
+    if factor == 1.0:
+        return (range_m, '', None)
+    return (range_m * factor,
+            ' x %.1f antenna factor (%s)' % (factor, antenna), None)
+
+
 #: Loadout ceiling when the device row cannot say better (§5q
 #: addendum): several units of one type on one node multiply
 #: CAPACITY ~linearly — ONLY on distinct channels; same-channel
@@ -343,9 +377,26 @@ def plan_cheapest_coverage(ring_m, device_options,
                             'reason': refusal})
             continue
         (base_range, base_fid, base_ev) = facts
+        antenna = option.get('antenna') or 'stock'
+        if antenna == 'directional' and reach_mode != 'linear':
+            refused.append({
+                'model': option.get('name'),
+                'reason': 'directional antenna with %r reach: a '
+                          'directional node is point-to-point and '
+                          'cannot serve a lattice of neighbours — '
+                          'use linear (chains) or an omni antenna'
+                          % reach_mode})
+            continue
         (range_m, fidelity, evidence) = _scenario_range(
             base_range, base_fid, base_ev, option, range_scenario,
             range_override_m)
+        range_m, ant_suffix, ant_refusal = _antenna_range(range_m,
+                                                          option)
+        if ant_refusal:
+            refused.append({'model': option.get('name'),
+                            'reason': ant_refusal})
+            continue
+        evidence += ant_suffix
         # COVERAGE vs BACKBONE are different constraints (the
         # 8-nodes-for-2km lesson, Dustin 2026-08-13): people reaching
         # a node allows hex spacing up to sqrt(3) x range; nodes
@@ -388,6 +439,7 @@ def plan_cheapest_coverage(ring_m, device_options,
             'bindingConstraint': binding,
             'unitPriceUsd': price,
             'reachMode': reach_mode,
+            'antenna': antenna,
         }
         entry['_positions'] = positions
         if count == 1:
@@ -459,6 +511,7 @@ def plan_cheapest_coverage(ring_m, device_options,
             'linear chains relay ~n/3 average hops (the stress '
             'case); spread meshes ~0.75*sqrt(n)',
             UNITS_ASSUMPTION,
+            ANTENNA_ASSUMPTION,
             TERRAIN_DISCLAIMER,
         ],
     }
@@ -551,7 +604,8 @@ def _gap_clusters(points, cluster_radius, limit=5):
 
 def assess_fixed_locations(ring_m, nodes, device_options,
                            target_per_peer_bps, sample_step_m=None,
-                           practical_margin_db=30.0):
+                           practical_margin_db=30.0,
+                           drone_profiles=None):
     """Sim B: specified locations — coverage (gaps NAMED), graph
     connectivity (isolated nodes NAMED), bandwidth via MEASURED graph
     hops (BFS all-pairs mean, not the sqrt heuristic), and a greedy
@@ -565,10 +619,17 @@ def assess_fixed_locations(ring_m, nodes, device_options,
             refused.append({'model': option.get('name'),
                             'reason': refusal})
             continue
+        arange, ant_suffix, ant_refusal = _antenna_range(facts[0],
+                                                         option)
+        if ant_refusal:
+            refused.append({'model': option.get('name'),
+                            'reason': ant_refusal})
+            continue
         priced.append({'name': option.get('name'),
-                       'rangeM': facts[0], 'price': price,
+                       'rangeM': arange, 'price': price,
                        'capacityBps': capacity,
-                       'unitsCap': _units_cap(option)})
+                       'unitsCap': _units_cap(option),
+                       'antenna': option.get('antenna') or 'stock'})
     if not priced:
         return {'ok': False,
                 'evidence': 'no usable (priced + ranged) device '
@@ -678,13 +739,38 @@ def assess_fixed_locations(ring_m, nodes, device_options,
     per_node = [{'name': nodes[i].get('name', f'node-{i}'),
                  'xM': nodes[i]['x_m'], 'yM': nodes[i]['y_m'],
                  'type': priced[assign[i]]['name'],
+                 'antenna': priced[assign[i]].get('antenna', 'stock'),
                  'units': units[i],
                  'unitPriceUsd': priced[assign[i]]['price'],
                  'costUsd': round(priced[assign[i]]['price']
                                   * units[i], 2)}
                 for i in range(len(nodes))]
+    # a directional antenna serves a chain, not a lattice: any node
+    # assigned one while holding >2 graph neighbours is FLAGGED.
+    final_adj = _link_graph(nodes, ranges())
+    directional_violations = [
+        per_node[i]['name'] for i in range(len(nodes))
+        if priced[assign[i]].get('antenna') == 'directional'
+        and len(final_adj[i]) > 2]
+    gap_bridges = None
+    if drone_profiles and gaps:
+        from reticulum.drone_basis import drone_bridge_plan
+        gap_bridges = []
+        for gap in gaps:
+            cx, cy = gap['centroidXM'], gap['centroidYM']
+            nearest = min((math.dist((n['x_m'], n['y_m']), (cx, cy))
+                           for n in nodes), default=0.0)
+            gap_bridges.append({
+                'gapCentroidXM': cx, 'gapCentroidYM': cy,
+                'flightDistanceM': round(nearest, 1),
+                'perProfile': {
+                    p.get('name'): drone_bridge_plan(nearest, p)
+                    for p in drone_profiles},
+            })
     return {
         'ok': True, 'mode': 'fixed-locations',
+        'directionalViolations': directional_violations,
+        'gapBridges': gap_bridges,
         'coveredPct': covered_pct,
         'fullyCovered': covered_pct >= 99.9,
         'uncoveredGaps': gaps,
@@ -704,6 +790,10 @@ def assess_fixed_locations(ring_m, nodes, device_options,
             'the bottleneck nodes (greedy); range shortfalls upgrade '
             'the TYPE — units never extend range',
             UNITS_ASSUMPTION,
+            ANTENNA_ASSUMPTION,
+            'drone gap bridges (when profiles given) fly from the '
+            'NEAREST node to the gap centroid; the link is PERIODIC '
+            'and pairs with store-and-forward (ret-7)',
             'coverage sampled on a %.0f m grid' % step,
             TERRAIN_DISCLAIMER,
         ],

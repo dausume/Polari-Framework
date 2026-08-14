@@ -31,11 +31,11 @@ RETICULUM_CLASSES = (
     'OperatorLicense', 'DeviceLink', 'DeviceModel',
     'AppArchExposure', 'MeshAppRelay', 'MeshConsumer',
     'AppDataRule', 'QuarantinedSubmission', 'PeerSighting',
-    'KitProfile',
+    'KitProfile', 'DroneBridgeProfile',
     'MeshSimScenario', 'MeshSimNode', 'MeshSimResult',
 )
 RETICULUM_SEEDS = ('SEED_RNS_INTERFACES', 'SEED_DEVICE_MODELS',
-                   'SEED_KIT_PROFILES')
+                   'SEED_KIT_PROFILES', 'SEED_DRONE_BRIDGE_PROFILES')
 
 
 def run():
@@ -1004,6 +1004,87 @@ def run():
           and proposal['authority_level'] == 4)
     check('nothing is applied without an explicit confirm',
           not kernel.execute(proposal['proposal_id'], False).get('ok'))
+
+    # -- antennas + drone bridges (§5q addendum) --------------------------
+    from reticulum import drone_basis as dbb
+    omni = {'name': 'omni', 'declared_range_m': 1000.0,
+            'price_usd': 20.0, 'capacityBps': 6568,
+            'antenna': 'high-gain-omni'}
+    yagi = dict(omni, name='yagi', antenna='directional')
+    plan_a = mp.plan_cheapest_coverage(ring_m, [omni], 200)
+    check('antenna factor extends range, is labelled in evidence, '
+          'and 1.8x turns the 2 km square into a single-node job',
+          plan_a['winner']['rangeM'] == 1800.0
+          and 'antenna factor' in plan_a['winner']['rangeEvidence']
+          and plan_a['winner']['antenna'] == 'high-gain-omni'
+          and plan_a['winner']['nodeCount'] == 1)
+    plan_d = mp.plan_cheapest_coverage(ring_m, [yagi], 200)
+    check('directional x max-spread is REFUSED by name (point-to-'
+          'point cannot serve a lattice)',
+          plan_d['winner'] is None
+          and any('point-to-point' in r['reason']
+                  for r in plan_d['refused']))
+    plan_l = mp.plan_cheapest_coverage(ring_m, [yagi], 200,
+                                       reach_mode='linear')
+    check('directional is allowed in linear chains at x3 range',
+          plan_l['winner'] is not None
+          and plan_l['winner']['rangeM'] == 3000.0)
+    check('an unknown antenna refuses — factors are not guessed',
+          any('unknown antenna' in r['reason']
+              for r in mp.plan_cheapest_coverage(
+                  ring_m, [dict(omni, antenna='mystical')],
+                  200)['refused']))
+    prof = dict(dbb.SEED_DRONE_BRIDGE_PROFILES[0])
+    check('the seed drone profile carries citations and an '
+          'UNCONFIRMED flight-rules flag (the refusal teaches)',
+          prof['flight_rules_confirmed'] is False
+          and all('source' in e
+                  for e in json.loads(prof['evidence_json'])))
+    dplan = dbb.drone_bridge_plan(2000, prof)
+    check('drone plans REFUSE without the operator flight-rules '
+          'assertion, naming the knob and making no legal claim',
+          not dplan['ok']
+          and 'flight_rules_confirmed' in dplan['refusal']['knob']
+          and 'no legal claims' in dplan['refusal']['knob'])
+    okprof = dict(prof, name='confirmed-quad',
+                  flight_rules_confirmed=True)
+    dplan = dbb.drone_bridge_plan(2000, okprof)
+    check('a feasible bridge: on-station math checks by hand '
+          '(35 - 2x2.8 - 7 = ~22.4 min), periodic + ret-7 named',
+          dplan['ok'] and abs(dplan['onStationMin'] - 22.4) < 0.2
+          and dplan['intermittent'] is True
+          and 'ret-7' in dplan['note'])
+    check('duty cycle + cycle math sane (115 min cycle, 12 sorties '
+          'per day)',
+          dplan['cycleMin'] == 115.0 and dplan['bridgesPerDay'] == 12
+          and 0 < dplan['dutyCyclePct'] < 100)
+    far = dbb.drone_bridge_plan(15000, okprof)
+    check('an infeasible gap refuses WITH the numbers',
+          not far['ok'] and 'transit' in far['refusal']['evidence'])
+    shorty = {'name': 'shorty', 'declared_range_m': 500.0,
+              'price_usd': 10.0, 'capacityBps': 6568}
+    fx = mp.assess_fixed_locations(
+        ring_m, [{'name': 'a', 'x_m': 200.0, 'y_m': 200.0}],
+        [shorty], 100, drone_profiles=[okprof, prof])
+    bridges = fx.get('gapBridges') or []
+    check('gap bridges: per-profile feasibility at each gap — the '
+          'confirmed profile plans, the unconfirmed one refuses in '
+          'place',
+          bridges
+          and bridges[0]['perProfile']['confirmed-quad']['ok']
+          and not bridges[0]['perProfile'][
+              'generic-quadcopter-bridge']['ok']
+          and bridges[0]['flightDistanceM'] > 0)
+    fx2 = mp.assess_fixed_locations(
+        ring_m, [{'name': n, 'x_m': x, 'y_m': y}
+                 for n, x, y in (('a', 100, 100), ('b', 300, 100),
+                                 ('c', 100, 300), ('d', 300, 300))],
+        [yagi], 100)
+    check('directional nodes holding >2 graph neighbours are '
+          'FLAGGED (a chain, not a lattice) and the rule is in the '
+          'assumptions',
+          len(fx2['directionalViolations']) == 4
+          and any('point-to-point' in a for a in fx2['assumptions']))
 
     # -- registration 1: the feature-import manifest ---------------------
     from polariApiServer.feature_imports import FEATURE_IMPORT_BLOCKS

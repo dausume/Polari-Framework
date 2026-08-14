@@ -236,6 +236,36 @@ checks.append(code == 200 and pop.get('countsFirst') is True
               and ev.get('pctOfPopulation') == 80.0
               and pop.get('populationN') == 15)
 
+code, body = req('POST', '/api/reticulum/meshsim', {
+    'population': {'cohorts': [
+        {'profile': 'everyday-node', 'count': 5}]}})
+print(f'6m) POPULATION-ONLY request (no bearers) -> {code} '
+      f'(expect 200 — the bearer gate only guards per-bearer asks): '
+      f'countsFirst={body.get("population", {}).get("countsFirst")}')
+checks.append(code == 200
+              and body.get('population', {}).get('countsFirst')
+              is True)
+
+code, body = req('POST', '/api/reticulum/meshsim', {
+    'placement': {'mode': 'fixed-locations',
+                  'polygon': {'type': 'Polygon', 'coordinates':
+                              [[[0, 0], [2000, 0], [2000, 2000],
+                                [0, 2000], [0, 0]]]},
+                  'nodes': [{'name': 'a', 'xM': 200, 'yM': 200}],
+                  'deviceOptions': [{'model': 'dsd-tech-sh-l1a',
+                                     'capacityBps': 6568}],
+                  'droneProfiles': ['generic-quadcopter-bridge']},
+    'targetPerPeerBps': 100})
+gapb = (body.get('placement', {}).get('gapBridges') or [{}])
+per = gapb[0].get('perProfile', {}).get('generic-quadcopter-bridge',
+                                        {})
+print(f'6n) drone gap bridges -> {code}: gaps bridged='
+      f'{len(gapb)}, seed profile refuses (flight rules '
+      f'unconfirmed): {not per.get("ok")} — the honest pass')
+checks.append(code == 200 and gapb and per.get('ok') is False
+              and 'flight_rules_confirmed'
+              in json.dumps(per.get('refusal', {})))
+
 code, body = req('GET', '/DeviceModel')
 generic_seeded = 'generic-wifi-halow' in json.dumps(body)
 print(f'6l) generic REFERENCE rows seeded (CRUDE /DeviceModel): '

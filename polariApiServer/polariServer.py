@@ -878,7 +878,7 @@ class polariServer(treeObject):
             OperatorLicense, DeviceLink, DeviceModel,
             AppArchExposure, MeshAppRelay, MeshConsumer,
             AppDataRule, QuarantinedSubmission, PeerSighting,
-            KitProfile,
+            KitProfile, DroneBridgeProfile,
             MeshSimScenario, MeshSimNode, MeshSimResult,
             # Casting (cast-1/2b/3/4): derived negatives, master
             # feedstocks, nesting chains with DERIVED parity +
@@ -2378,6 +2378,10 @@ class polariServer(treeObject):
             # §5q kit profiles: legacy list carries the seeds too
             # (the composition-gated-boot lesson); upsert converges.
             ('KitProfile', KitProfile, SEED_KIT_PROFILES),
+            # drone bridges: reference profile, flight-rules
+            # assertion False on purpose (the refusal teaches).
+            ('DroneBridgeProfile', DroneBridgeProfile,
+             SEED_DRONE_BRIDGE_PROFILES),
             # ret-1e: scenarios/nodes/results are user-created plans.
             ('MeshSimScenario', MeshSimScenario, []),
             ('MeshSimNode', MeshSimNode, []),
@@ -2911,7 +2915,8 @@ class polariServer(treeObject):
                 only_classes is None
                 or 'ReticulumInterface' in only_classes
                 or 'DeviceModel' in only_classes
-                or 'KitProfile' in only_classes)):
+                or 'KitProfile' in only_classes
+                or 'DroneBridgeProfile' in only_classes)):
             try:
                 from composition.seed_upsert import upsert_seed_pairs
                 for r in upsert_seed_pairs(
@@ -2921,7 +2926,10 @@ class polariServer(treeObject):
                          ('DeviceModel', DeviceModel,
                           SEED_DEVICE_MODELS),
                          ('KitProfile', KitProfile,
-                          SEED_KIT_PROFILES)], tag='ReticulumSeed'):
+                          SEED_KIT_PROFILES),
+                         ('DroneBridgeProfile', DroneBridgeProfile,
+                          SEED_DRONE_BRIDGE_PROFILES)],
+                        tag='ReticulumSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[ReticulumSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '
