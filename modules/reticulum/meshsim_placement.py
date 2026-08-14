@@ -207,6 +207,59 @@ def _option_facts(option, practical_margin_db=30.0):
             option.get('capacityBps'), None)
 
 
+#: Loadout ceiling when the device row cannot say better (§5q
+#: addendum): several units of one type on one node multiply
+#: CAPACITY ~linearly — ONLY on distinct channels; same-channel
+#: units contend and buy nothing. Range is NEVER extended by units.
+DEFAULT_UNITS_MAX = 4
+
+UNITS_ASSUMPTION = ('multi-unit nodes multiply CAPACITY only, and '
+                    'only on DISTINCT channels (same-channel units '
+                    'contend and buy nothing); range is never '
+                    'extended by adding units')
+
+
+def _channel_ceiling(option):
+    """How many distinct channels the device family offers, when the
+    row's frequency range says (1 MHz channel steps, the E220 shape:
+    850.125-930.125 -> 81). None when underivable — the caller falls
+    back to the unitsMax knob alone."""
+    lo, hi = option.get('freq_mhz_lo'), option.get('freq_mhz_hi')
+    try:
+        if lo and hi and float(hi) > float(lo):
+            return max(1, int(round(float(hi) - float(lo))) + 1)
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
+def _units_cap(option):
+    cap = int(option.get('unitsMax') or DEFAULT_UNITS_MAX)
+    channels = _channel_ceiling(option)
+    return min(cap, channels) if channels else cap
+
+
+def _relay_verdict(count, target_per_peer_bps, capacity_bps, units,
+                   reach_mode):
+    """relay_allowance at capacity x units, chain-adjusted for
+    linear reach (the stress case: ~n/3 average hops)."""
+    relay = relay_allowance(count, target_per_peer_bps,
+                            float(capacity_bps) * units)
+    relay.pop('assumptions', None)
+    if reach_mode == 'linear' and count >= 2 and relay.get('ok'):
+        chain_hops = max(1.0, count / 3.0)
+        burden = target_per_peer_bps * (count - 1) \
+            * chain_hops / count
+        relay['avgHops'] = round(chain_hops, 2)
+        relay['relayAllowanceBpsPerNode'] = round(burden, 1)
+        relay['fits'] = burden <= relay['usableBps']
+        relay['verdict'] = ('fits' if relay['fits'] else
+                            'oversubscribed on the CHAIN: '
+                            'linear meshes relay ~n/3 hops '
+                            'and this one does not fit')
+    return relay
+
+
 def plan_cheapest_coverage(ring_m, device_options,
                            target_per_peer_bps,
                            reach_mode='max-spread', safety_factor=0.7,
@@ -214,7 +267,12 @@ def plan_cheapest_coverage(ring_m, device_options,
     """Sim A: rank candidate device types by TOTAL COST of feasible
     coverage of the shape; the winner returns its actual positions.
     Feasibility = the relay-allowance verdict at the resulting node
-    count (needs capacityBps on the option)."""
+    count (needs capacityBps on the option). LOADOUTS: when one unit
+    per node cannot carry the target, 2..unitsMax units per node are
+    tried (capacity and cost scale, range does NOT) before the
+    option is declared infeasible — so ranking by TOTAL cost lets a
+    pricier single-unit device honestly beat a cheap one that needs
+    three of itself."""
     ranked, refused = [], []
     for option in device_options:
         facts, price, capacity, refusal = _option_facts(
@@ -236,38 +294,37 @@ def plan_cheapest_coverage(ring_m, device_options,
                                       'one cell — 1 node suffices?)'
                                       % range_m})
             continue
+        units = 1
         entry = {
             'model': option.get('name'),
             'rangeM': range_m, 'rangeFidelity': fidelity,
             'spacingM': round(spacing, 1),
             'nodeCount': count,
             'unitPriceUsd': price,
-            'totalCostUsd': round(count * price, 2),
             'reachMode': reach_mode,
         }
         if capacity:
-            relay = relay_allowance(count, target_per_peer_bps,
-                                    float(capacity))
-            relay.pop('assumptions', None)
-            if reach_mode == 'linear' and count >= 2:
-                # the chain's hops are ~n/3 average, not 0.75*sqrt(n)
-                chain_hops = max(1.0, count / 3.0)
-                burden = target_per_peer_bps * (count - 1) \
-                    * chain_hops / count
-                relay['avgHops'] = round(chain_hops, 2)
-                relay['relayAllowanceBpsPerNode'] = round(burden, 1)
-                relay['fits'] = burden <= relay['usableBps']
-                relay['verdict'] = ('fits' if relay['fits'] else
-                                    'oversubscribed on the CHAIN: '
-                                    'linear meshes relay ~n/3 hops '
-                                    'and this one does not fit')
+            cap = _units_cap(option)
+            relay = None
+            for units in range(1, cap + 1):
+                relay = _relay_verdict(count, target_per_peer_bps,
+                                       capacity, units, reach_mode)
+                if relay.get('fits'):
+                    break
             entry['relay'] = relay
-            entry['feasible'] = bool(relay.get('fits'))
+            entry['feasible'] = bool(relay and relay.get('fits'))
+            entry['unitsPerNode'] = units
+            entry['unitsCap'] = cap
         else:
             entry['feasible'] = False
+            entry['unitsPerNode'] = 1
             entry['relayNote'] = ('no capacityBps on this option — '
                                   'feasibility unknowable, treated '
                                   'as infeasible rather than hoped')
+        entry['perNodeCostUsd'] = round(price * entry['unitsPerNode'],
+                                        2)
+        entry['totalCostUsd'] = round(
+            count * price * entry['unitsPerNode'], 2)
         ranked.append(entry)
     feasible = sorted([e for e in ranked if e['feasible']],
                       key=lambda e: e['totalCostUsd'])
@@ -294,6 +351,7 @@ def plan_cheapest_coverage(ring_m, device_options,
             % (safety_factor, reach_mode),
             'linear chains relay ~n/3 average hops (the stress '
             'case); spread meshes ~0.75*sqrt(n)',
+            UNITS_ASSUMPTION,
             TERRAIN_DISCLAIMER,
         ],
     }
@@ -402,7 +460,8 @@ def assess_fixed_locations(ring_m, nodes, device_options,
             continue
         priced.append({'name': option.get('name'),
                        'rangeM': facts[0], 'price': price,
-                       'capacityBps': capacity})
+                       'capacityBps': capacity,
+                       'unitsCap': _units_cap(option)})
     if not priced:
         return {'ok': False,
                 'evidence': 'no usable (priced + ranged) device '
@@ -459,13 +518,20 @@ def assess_fixed_locations(ring_m, nodes, device_options,
         diameter = max(diameter, max(vals, default=0))
     avg_hops = (sum(hops_all) / len(hops_all)) if hops_all else 0.0
 
-    capacity = min((o['capacityBps'] for o in
-                    (priced[assign[i]] for i in range(len(nodes)))
-                    if o['capacityBps']), default=None)
-    relay = None
-    if capacity and len(main) >= 2 and avg_hops:
+    # loadouts (§5q addendum): a RANGE/connectivity failure upgrades
+    # the TYPE (above); a BANDWIDTH failure adds UNITS of the current
+    # type — capacity x units on distinct channels, range unchanged.
+    units = [1] * len(nodes)
+
+    def effective_capacity():
+        vals = [priced[assign[i]]['capacityBps'] * units[i]
+                for i in main
+                if priced[assign[i]]['capacityBps']]
+        return min(vals) if vals else None
+
+    def relay_at(capacity_eff):
         relay = relay_allowance(len(main), target_per_peer_bps,
-                                float(capacity))
+                                float(capacity_eff))
         burden = target_per_peer_bps * (len(main) - 1) * avg_hops \
             / len(main)
         relay['avgHops'] = round(avg_hops, 2)
@@ -478,11 +544,37 @@ def assess_fixed_locations(ring_m, nodes, device_options,
                                 '%.1f bps relay burden vs %.1f usable'
                                 % (burden, relay['usableBps']))
         relay.pop('assumptions', None)
+        return relay
+
+    relay = None
+    capacity = effective_capacity()
+    if capacity and len(main) >= 2 and avg_hops:
+        relay = relay_at(capacity)
+        for _ in range(16):
+            if relay['fits']:
+                break
+            floor = min(priced[assign[i]]['capacityBps'] * units[i]
+                        for i in main
+                        if priced[assign[i]]['capacityBps'])
+            bumped = False
+            for i in main:
+                option = priced[assign[i]]
+                if option['capacityBps'] \
+                        and option['capacityBps'] * units[i] == floor \
+                        and units[i] < option['unitsCap']:
+                    units[i] += 1
+                    bumped = True
+            if not bumped:
+                break
+            relay = relay_at(effective_capacity())
 
     per_node = [{'name': nodes[i].get('name', f'node-{i}'),
                  'xM': nodes[i]['x_m'], 'yM': nodes[i]['y_m'],
                  'type': priced[assign[i]]['name'],
-                 'unitPriceUsd': priced[assign[i]]['price']}
+                 'units': units[i],
+                 'unitPriceUsd': priced[assign[i]]['price'],
+                 'costUsd': round(priced[assign[i]]['price']
+                                  * units[i], 2)}
                 for i in range(len(nodes))]
     return {
         'ok': True, 'mode': 'fixed-locations',
@@ -493,8 +585,7 @@ def assess_fixed_locations(ring_m, nodes, device_options,
         'isolatedNodes': isolated,
         'graphDiameterHops': diameter,
         'perNode': per_node,
-        'totalCostUsd': round(sum(p['unitPriceUsd']
-                                  for p in per_node), 2),
+        'totalCostUsd': round(sum(p['costUsd'] for p in per_node), 2),
         'relay': relay,
         'refusedOptions': refused,
         'disclaimer': TERRAIN_DISCLAIMER,
@@ -502,6 +593,10 @@ def assess_fixed_locations(ring_m, nodes, device_options,
             'greedy v1 type assignment: cheapest first, isolated '
             'nodes upgraded until connected or options exhausted — '
             'not a global optimum, stated as such',
+            'bandwidth shortfalls add UNITS of the assigned type at '
+            'the bottleneck nodes (greedy); range shortfalls upgrade '
+            'the TYPE — units never extend range',
+            UNITS_ASSUMPTION,
             'coverage sampled on a %.0f m grid' % step,
             TERRAIN_DISCLAIMER,
         ],
@@ -557,51 +652,107 @@ def population_mix_report(mix, population_n, device_models=None):
     cannot peer (DECIDED row 9 — it needs gateways + a join server),
     ham-rx LISTENS one-way to ham-tx (§5g/§5i), everyone else peers
     within their own build only (closed framing is the norm at this
-    layer; cross-build bridging is an ISLE's job, not a person's)."""
+    layer; cross-build bridging is an ISLE's job, not a person's).
+
+    KITS (§5q addendum): a mix entry may be a simple build string
+    with a percentage — {'lora': 40} — OR a named kit carrying
+    SEVERAL devices: {'farm-node': {'kit': {'lora': 2, 'wifi': 1,
+    'ham-rx': 1}, 'pct': 30}}. A kit's connectivity is the UNION of
+    its parts (it peers with every build it carries a transmitter
+    for), a ham-rx part stays one-way (§5g — carrying a receiver
+    never makes you a broadcaster), and multi-unit parts multiply
+    CAPACITY only, on distinct channels."""
     peers_within = {'lora', 'wifi', 'wifi-halow', 'ham-tx'}
     report = {}
-    counts = {}
-    for build, pct in (mix or {}).items():
-        if build not in POPULATION_BUILD_VALUES:
-            report[build] = {'error': 'unknown build %r — knowns: %s'
-                             % (build, POPULATION_BUILD_VALUES)}
-            continue
-        counts[build] = int(round(population_n * float(pct) / 100.0))
-    ham_tx_present = counts.get('ham-tx', 0) > 0
-    for build, count in counts.items():
+    entries = {}
+    for label, value in (mix or {}).items():
+        if isinstance(value, dict):
+            kit = value.get('kit') or {}
+            bad = [b for b in kit if b not in POPULATION_BUILD_VALUES]
+            if bad or not kit:
+                report[label] = {
+                    'error': 'kit carries unknown build(s) %s — '
+                             'knowns: %s' % (bad or '(none)',
+                                             POPULATION_BUILD_VALUES)}
+                continue
+            entries[label] = {
+                'devices': {b: int(n) for b, n in kit.items()
+                            if int(n) > 0},
+                'count': int(round(population_n
+                                   * float(value.get('pct') or 0)
+                                   / 100.0)),
+                'is_kit': True}
+        else:
+            if label not in POPULATION_BUILD_VALUES:
+                report[label] = {
+                    'error': 'unknown build %r — knowns: %s'
+                             % (label, POPULATION_BUILD_VALUES)}
+                continue
+            entries[label] = {
+                'devices': {label: 1},
+                'count': int(round(population_n * float(value)
+                                   / 100.0)),
+                'is_kit': False}
+    # who carries a TRANSMITTING part of each build, across pure
+    # entries and kits alike — the union is what makes kits bridge.
+    carriers = {b: sum(e['count'] for e in entries.values()
+                       if b in e['devices'])
+                for b in POPULATION_BUILD_VALUES}
+    ham_tx_present = carriers.get('ham-tx', 0) > 0
+    for label, e in entries.items():
+        devices, count = e['devices'], e['count']
         entry = {'count': count, 'peersWith': [],
                  'oneWayListensTo': [], 'isolated': False}
-        if build in peers_within and count > 1:
-            entry['peersWith'] = [build]
-        if build == 'ham-rx':
+        if e['is_kit']:
+            entry['devices'] = dict(devices)
+        entry['peersWith'] = sorted(
+            b for b in devices
+            if b in peers_within and carriers.get(b, 0) >= 2)
+        multi = {b: n for b, n in devices.items() if n > 1}
+        if multi:
+            entry['capacityNote'] = (
+                '%s: multiple units multiply CAPACITY only, on '
+                'DISTINCT channels — same-channel units contend and '
+                'buy nothing; range is unchanged'
+                % ', '.join('%dx %s' % (n, b)
+                            for b, n in sorted(multi.items())))
+        if 'ham-rx' in devices:
             if ham_tx_present:
                 entry['oneWayListensTo'] = ['ham-tx']
-                entry['note'] = ('receive-only: hears the licensed '
-                                 'ham core, answers nothing over ham '
-                                 '(§5g) — needs another build or an '
-                                 'isle to speak')
-            else:
-                entry['isolated'] = True
+                entry['note'] = ('receive-only over ham: hears the '
+                                 'licensed ham core, answers nothing '
+                                 'over ham (§5g) — carrying a '
+                                 'receiver never makes you a '
+                                 'broadcaster')
+        if not entry['peersWith'] and not entry['oneWayListensTo']:
+            entry['isolated'] = count > 0
+            if not entry['isolated']:
+                pass
+            elif devices == {'ham-rx': 1}:
                 entry['why'] = ('ham-rx with NO ham-tx in the '
                                 'population: everyone is listening '
                                 'and nobody is broadcasting — the '
                                 '§5g core needs at least one '
                                 'licensed operator')
-        elif build == 'lorawan':
-            entry['isolated'] = True
-            entry['why'] = ('LoRaWAN is not peer-to-peer (DECIDED '
-                            'row 9): star-of-stars via gateways + a '
-                            'join server — these people connect to '
-                            'INFRASTRUCTURE, not to each other')
-        elif count <= 1 and build in peers_within:
-            entry['isolated'] = count == 1
-            if entry['isolated']:
+            elif devices == {'lorawan': 1}:
+                entry['why'] = ('LoRaWAN is not peer-to-peer (DECIDED '
+                                'row 9): star-of-stars via gateways + '
+                                'a join server — these people connect '
+                                'to INFRASTRUCTURE, not to each other')
+            elif not e['is_kit'] and count == 1:
                 entry['why'] = 'only one person carries this build'
-        report[build] = entry
-    interconnected = max((counts.get(b, 0) for b in peers_within
-                          if counts.get(b, 0) > 1), default=0)
-    isolated_n = sum(counts[b] for b in counts
-                     if report.get(b, {}).get('isolated'))
+            else:
+                entry['why'] = ('no part of this loadout reaches '
+                                'anyone: %s (lorawan cannot peer — '
+                                'row 9; ham-rx needs a ham-tx to '
+                                'hear; peer builds need a second '
+                                'carrier)'
+                                % sorted(devices))
+        report[label] = entry
+    interconnected = max((carriers.get(b, 0) for b in peers_within
+                          if carriers.get(b, 0) >= 2), default=0)
+    isolated_n = sum(e['count'] for label, e in entries.items()
+                     if report.get(label, {}).get('isolated'))
     return {
         'ok': True, 'populationN': population_n,
         'builds': report,
@@ -609,8 +760,9 @@ def population_mix_report(mix, population_n, device_models=None):
         'isolatedShare': round(100.0 * isolated_n / population_n, 1)
         if population_n else 0.0,
         'note': ('builds interconnect WITHIN themselves at this '
-                 'layer; bridging between builds is an isle/gateway '
-                 'role, which is exactly what the placement sims '
-                 'place'),
+                 'layer (a KIT joins every build it carries a '
+                 'transmitter for); bridging between builds is an '
+                 'isle/gateway role, which is exactly what the '
+                 'placement sims place'),
         'disclaimer': TERRAIN_DISCLAIMER,
     }

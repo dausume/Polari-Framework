@@ -424,9 +424,14 @@ class ReticulumAPI(treeObject):
                     else {f: getattr(row, f, None) for f in (
                         'name', 'declared_range_m',
                         'rx_sensitivity_dbm', 'tx_power_dbm_max',
-                        'freq_mhz_lo', 'price_usd')}
+                        'freq_mhz_lo', 'freq_mhz_hi', 'price_usd')}
                 if spec.get('capacityBps'):
                     option['capacityBps'] = spec['capacityBps']
+                # §5q loadouts: units per node cap (capacity x units
+                # on distinct channels; the row's channel count also
+                # ceilings it).
+                if spec.get('unitsMax'):
+                    option['unitsMax'] = spec['unitsMax']
                 options.append(option)
             if pmode == 'cheapest-coverage':
                 out = mp.plan_cheapest_coverage(

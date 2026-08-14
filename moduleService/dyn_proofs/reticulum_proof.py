@@ -191,16 +191,19 @@ code, body = req('POST', '/api/reticulum/meshsim',
                           [0, 2000], [0, 0]]]},
                       'deviceOptions': [{
                           'model': 'dsd-tech-sh-l1a',
-                          'capacityBps': 6568}]}})
+                          'capacityBps': 6568,
+                          'unitsMax': 4}]}})
 placement = body.get('placement', {})
 winner = placement.get('winner') or {}
 print(f'6i) placement cheapest-coverage -> {code}: winner='
       f'{winner.get("model")} nodes={winner.get("nodeCount")} '
+      f'unitsPerNode={winner.get("unitsPerNode")} '
       f'cost=${winner.get("totalCostUsd")} positions='
       f'{len(winner.get("positions", []))}, disclaimer='
       f'{"TERRAIN" in json.dumps(placement)}')
 checks.append(code == 200 and winner.get('model') == 'dsd-tech-sh-l1a'
               and winner.get('totalCostUsd', 0) > 0
+              and winner.get('unitsPerNode', 0) >= 1
               and len(winner.get('positions', []))
               == winner.get('nodeCount')
               and 'TERRAIN' in json.dumps(placement))

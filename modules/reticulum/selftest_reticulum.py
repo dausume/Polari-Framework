@@ -777,6 +777,93 @@ def run():
           'nobody-is-broadcasting reason',
           pop2['builds']['ham-rx']['isolated']
           and 'licensed' in pop2['builds']['ham-rx']['why'])
+    # -- §5q addendum: node LOADOUTS (units + kits) -----------------------
+    bandwidth_poor = {'name': 'thin', 'declared_range_m': 1000.0,
+                      'price_usd': 10.0, 'capacityBps': 600,
+                      'unitsMax': 4}
+    plan_u = mp.plan_cheapest_coverage(ring_m, [bandwidth_poor], 200)
+    check('units rescue a bandwidth-infeasible option: 2 units '
+          'double capacity, the winner says so, cost scales',
+          plan_u['winner'] is not None
+          and plan_u['winner']['unitsPerNode'] == 2
+          and plan_u['winner']['totalCostUsd'] == round(
+              plan_u['winner']['nodeCount'] * 10.0 * 2, 2)
+          and any('DISTINCT channels' in a
+                  for a in plan_u['assumptions']))
+    plan_u1 = mp.plan_cheapest_coverage(
+        ring_m, [dict(bandwidth_poor, unitsMax=1)], 200)
+    check('the units cap is respected (unitsMax=1 stays infeasible) '
+          'and units NEVER extend range (same node count, same '
+          'range, only feasibility moved)',
+          plan_u1['winner'] is None
+          and any(e['model'] == 'thin' and e['unitsPerNode'] == 1
+                  for e in plan_u1['infeasible'])
+          and plan_u1['infeasible'][0]['nodeCount']
+          == plan_u['winner']['nodeCount']
+          and plan_u1['infeasible'][0]['rangeM']
+          == plan_u['winner']['rangeM'])
+    narrow = dict(bandwidth_poor, name='narrowband',
+                  freq_mhz_lo=915.0, freq_mhz_hi=915.4)
+    plan_ch = mp.plan_cheapest_coverage(ring_m, [narrow], 200)
+    check('the channel count CEILINGS units (one usable channel = '
+          'one unit, whatever unitsMax hopes)',
+          plan_ch['winner'] is None
+          and plan_ch['infeasible'][0]['unitsCap'] == 1)
+    multi = {'name': 'multi', 'declared_range_m': 1000.0,
+             'price_usd': 10.0, 'capacityBps': 250, 'unitsMax': 4}
+    single = {'name': 'single', 'declared_range_m': 1000.0,
+              'price_usd': 25.0, 'capacityBps': 1200}
+    plan_rank = mp.plan_cheapest_coverage(ring_m, [multi, single],
+                                          200)
+    check('TOTAL cost ranks: a pricier single-unit device beats the '
+          'cheap one that needs three of itself',
+          plan_rank['winner']['model'] == 'single'
+          and any(e['model'] == 'multi' and e['unitsPerNode'] == 3
+                  for e in plan_rank['rankedFeasible']))
+    thin_fixed = {'name': 'thin', 'declared_range_m': 600.0,
+                  'price_usd': 10.0, 'capacityBps': 200,
+                  'unitsMax': 4}
+    fixed_u = mp.assess_fixed_locations(ring_m, nodes_ok,
+                                        [thin_fixed], 200)
+    check('fixed-locations: a BANDWIDTH failure adds UNITS at the '
+          'bottleneck (relay now fits, cost reflects it)',
+          fixed_u['relay'] is not None and fixed_u['relay']['fits']
+          and any(p['units'] > 1 for p in fixed_u['perNode'])
+          and fixed_u['totalCostUsd'] == round(
+              sum(p['units'] * 10.0 for p in fixed_u['perNode']), 2)
+          and any('units never extend range' in a
+                  for a in fixed_u['assumptions']))
+    long_opt = {'name': 'long', 'declared_range_m': 1500.0,
+                'price_usd': 40.0, 'capacityBps': 6568}
+    fixed_t = mp.assess_fixed_locations(
+        ring_m, nodes_far, [dict(short, unitsMax=4), long_opt], 200)
+    lonely_row = next(p for p in fixed_t['perNode']
+                      if p['name'] == 'lonely')
+    check('a RANGE failure moves TYPE, not units (the far node was '
+          'upgraded and keeps 1 unit — units cannot buy distance)',
+          lonely_row['type'] == 'long' and lonely_row['units'] == 1)
+    mixk = mp.population_mix_report(
+        {'lora': 30, 'wifi': 30,
+         'farm-kit': {'kit': {'lora': 1, 'wifi': 1}, 'pct': 40}}, 10)
+    check('a KIT is the union of its parts: lora+wifi kit peers with '
+          'both pure builds, devices echoed',
+          mixk['builds']['farm-kit']['peersWith'] == ['lora', 'wifi']
+          and mixk['builds']['farm-kit']['devices']
+          == {'lora': 1, 'wifi': 1}
+          and mixk['builds']['lora']['peersWith'] == ['lora'])
+    mixh = mp.population_mix_report(
+        {'ham-tx': 10, 'lora': 20,
+         'scout': {'kit': {'lora': 2, 'ham-rx': 1}, 'pct': 50}}, 10)
+    check('a kit with ham-rx LISTENS one-way and never becomes TX; '
+          'multi-unit parts state the distinct-channels capacity '
+          'note',
+          mixh['builds']['scout']['oneWayListensTo'] == ['ham-tx']
+          and 'ham-tx' not in mixh['builds']['scout']['peersWith']
+          and 'lora' in mixh['builds']['scout']['peersWith']
+          and '2x lora' in mixh['builds']['scout']['capacityNote']
+          and 'DISTINCT channels'
+          in mixh['builds']['scout']['capacityNote'])
+
     check('placement + population results all carry the disclaimer',
           all('TERRAIN' in json.dumps(x)
               for x in (plan, fixed, res, pop)))
