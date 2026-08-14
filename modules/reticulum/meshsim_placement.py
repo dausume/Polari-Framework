@@ -604,8 +604,7 @@ def _gap_clusters(points, cluster_radius, limit=5):
 
 def assess_fixed_locations(ring_m, nodes, device_options,
                            target_per_peer_bps, sample_step_m=None,
-                           practical_margin_db=30.0,
-                           drone_profiles=None):
+                           practical_margin_db=30.0):
     """Sim B: specified locations — coverage (gaps NAMED), graph
     connectivity (isolated nodes NAMED), bandwidth via MEASURED graph
     hops (BFS all-pairs mean, not the sqrt heuristic), and a greedy
@@ -752,25 +751,9 @@ def assess_fixed_locations(ring_m, nodes, device_options,
         per_node[i]['name'] for i in range(len(nodes))
         if priced[assign[i]].get('antenna') == 'directional'
         and len(final_adj[i]) > 2]
-    gap_bridges = None
-    if drone_profiles and gaps:
-        from reticulum.drone_basis import drone_bridge_plan
-        gap_bridges = []
-        for gap in gaps:
-            cx, cy = gap['centroidXM'], gap['centroidYM']
-            nearest = min((math.dist((n['x_m'], n['y_m']), (cx, cy))
-                           for n in nodes), default=0.0)
-            gap_bridges.append({
-                'gapCentroidXM': cx, 'gapCentroidYM': cy,
-                'flightDistanceM': round(nearest, 1),
-                'perProfile': {
-                    p.get('name'): drone_bridge_plan(nearest, p)
-                    for p in drone_profiles},
-            })
     return {
         'ok': True, 'mode': 'fixed-locations',
         'directionalViolations': directional_violations,
-        'gapBridges': gap_bridges,
         'coveredPct': covered_pct,
         'fullyCovered': covered_pct >= 99.9,
         'uncoveredGaps': gaps,
@@ -791,9 +774,6 @@ def assess_fixed_locations(ring_m, nodes, device_options,
             'the TYPE — units never extend range',
             UNITS_ASSUMPTION,
             ANTENNA_ASSUMPTION,
-            'drone gap bridges (when profiles given) fly from the '
-            'NEAREST node to the gap centroid; the link is PERIODIC '
-            'and pairs with store-and-forward (ret-7)',
             'coverage sampled on a %.0f m grid' % step,
             TERRAIN_DISCLAIMER,
         ],

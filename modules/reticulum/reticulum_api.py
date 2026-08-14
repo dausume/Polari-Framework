@@ -463,29 +463,9 @@ class ReticulumAPI(treeObject):
                     return self._refuse(
                         response, '; '.join(node_refusals),
                         falcon.HTTP_400)
-                drone_profiles = None
-                wanted = placement.get('droneProfiles') or []
-                if wanted:
-                    rows = {getattr(r, 'name', ''): r
-                            for r in self._rows('DroneBridgeProfile')}
-                    drone_profiles = []
-                    for pname in wanted:
-                        row = rows.get(pname)
-                        if row is None:
-                            return self._refuse(
-                                response,
-                                'no DroneBridgeProfile named %r'
-                                % pname, falcon.HTTP_400)
-                        drone_profiles.append({
-                            f: getattr(row, f, None) for f in (
-                                'name', 'cruise_speed_ms',
-                                'endurance_min', 'recharge_min',
-                                'payload_draw_w',
-                                'flight_rules_confirmed')})
                 if pmode == 'fixed-locations':
                     out = mp.assess_fixed_locations(
-                        ring_m, nodes_m, options, target,
-                        drone_profiles=drone_profiles)
+                        ring_m, nodes_m, options, target)
                 else:
                     out = mp.failure_resilience(ring_m, nodes_m,
                                                 options)

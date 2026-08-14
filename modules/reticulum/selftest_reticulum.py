@@ -31,11 +31,11 @@ RETICULUM_CLASSES = (
     'OperatorLicense', 'DeviceLink', 'DeviceModel',
     'AppArchExposure', 'MeshAppRelay', 'MeshConsumer',
     'AppDataRule', 'QuarantinedSubmission', 'PeerSighting',
-    'KitProfile', 'DroneBridgeProfile',
+    'KitProfile',
     'MeshSimScenario', 'MeshSimNode', 'MeshSimResult',
 )
 RETICULUM_SEEDS = ('SEED_RNS_INTERFACES', 'SEED_DEVICE_MODELS',
-                   'SEED_KIT_PROFILES', 'SEED_DRONE_BRIDGE_PROFILES')
+                   'SEED_KIT_PROFILES')
 
 
 def run():
@@ -1005,8 +1005,9 @@ def run():
     check('nothing is applied without an explicit confirm',
           not kernel.execute(proposal['proposal_id'], False).get('ok'))
 
-    # -- antennas + drone bridges (§5q addendum) --------------------------
-    from reticulum import drone_basis as dbb
+    # -- antennas (§5q addendum; drone bridges SHELVED 2026-08-13 — ------
+    # -- Dustin: legal complications; revival = drone_basis.py from ------
+    # -- git history at 7201c0a) -----------------------------------------
     omni = {'name': 'omni', 'declared_range_m': 1000.0,
             'price_usd': 20.0, 'capacityBps': 6568,
             'antenna': 'high-gain-omni'}
@@ -1034,47 +1035,10 @@ def run():
               for r in mp.plan_cheapest_coverage(
                   ring_m, [dict(omni, antenna='mystical')],
                   200)['refused']))
-    prof = dict(dbb.SEED_DRONE_BRIDGE_PROFILES[0])
-    check('the seed drone profile carries citations and an '
-          'UNCONFIRMED flight-rules flag (the refusal teaches)',
-          prof['flight_rules_confirmed'] is False
-          and all('source' in e
-                  for e in json.loads(prof['evidence_json'])))
-    dplan = dbb.drone_bridge_plan(2000, prof)
-    check('drone plans REFUSE without the operator flight-rules '
-          'assertion, naming the knob and making no legal claim',
-          not dplan['ok']
-          and 'flight_rules_confirmed' in dplan['refusal']['knob']
-          and 'no legal claims' in dplan['refusal']['knob'])
-    okprof = dict(prof, name='confirmed-quad',
-                  flight_rules_confirmed=True)
-    dplan = dbb.drone_bridge_plan(2000, okprof)
-    check('a feasible bridge: on-station math checks by hand '
-          '(35 - 2x2.8 - 7 = ~22.4 min), periodic + ret-7 named',
-          dplan['ok'] and abs(dplan['onStationMin'] - 22.4) < 0.2
-          and dplan['intermittent'] is True
-          and 'ret-7' in dplan['note'])
-    check('duty cycle + cycle math sane (115 min cycle, 12 sorties '
-          'per day)',
-          dplan['cycleMin'] == 115.0 and dplan['bridgesPerDay'] == 12
-          and 0 < dplan['dutyCyclePct'] < 100)
-    far = dbb.drone_bridge_plan(15000, okprof)
-    check('an infeasible gap refuses WITH the numbers',
-          not far['ok'] and 'transit' in far['refusal']['evidence'])
-    shorty = {'name': 'shorty', 'declared_range_m': 500.0,
-              'price_usd': 10.0, 'capacityBps': 6568}
-    fx = mp.assess_fixed_locations(
-        ring_m, [{'name': 'a', 'x_m': 200.0, 'y_m': 200.0}],
-        [shorty], 100, drone_profiles=[okprof, prof])
-    bridges = fx.get('gapBridges') or []
-    check('gap bridges: per-profile feasibility at each gap — the '
-          'confirmed profile plans, the unconfirmed one refuses in '
-          'place',
-          bridges
-          and bridges[0]['perProfile']['confirmed-quad']['ok']
-          and not bridges[0]['perProfile'][
-              'generic-quadcopter-bridge']['ok']
-          and bridges[0]['flightDistanceM'] > 0)
+    check('no drone machinery remains (shelved 2026-08-13 — revival '
+          'is a git restore from 7201c0a, not a rebuild)',
+          not os.path.exists(os.path.join(
+              os.path.dirname(__file__), 'drone_basis.py')))
     fx2 = mp.assess_fixed_locations(
         ring_m, [{'name': n, 'x_m': x, 'y_m': y}
                  for n, x, y in (('a', 100, 100), ('b', 300, 100),

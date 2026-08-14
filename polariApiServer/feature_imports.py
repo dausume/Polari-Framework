@@ -880,12 +880,6 @@ FEATURE_IMPORT_BLOCKS = (
         ('reticulum.datarule_basis', (
             'AppDataRule', 'QuarantinedSubmission',
         )),
-        # drone bridge relays (§5q addendum): intermittent gap
-        # bridging; plans REFUSE without the operator's own
-        # flight-rules assertion.
-        ('reticulum.drone_basis', (
-            'DroneBridgeProfile', 'SEED_DRONE_BRIDGE_PROFILES',
-        )),
         # peer discovery: heard broadcasts adjudicated into .arch
         # (ours) or .mesh (the wider mesh) by a named human (ret-1d).
         ('reticulum.discovery_basis', (
