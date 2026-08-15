@@ -66,6 +66,71 @@ SEED_CATALOG = [
 ]
 
 
+def polari_app_options(app_rows, shell_rows, taken_names):
+    """sep-3 (§43, decision 7): PolariAppDefinition rows PROJECTED
+    into the store as OPTIONS — derived at read time, never persisted
+    catalog rows, so app counts can balloon without the catalog
+    growing state. Markers: standard (seeded), defined_at (this core
+    holds the isle-level definitions), converted (a scope=app
+    AppShellDefinition exists) + its shell name. Launcher debs
+    MATERIALIZE at install time — options, not shelved artifacts.
+    Pure function; rows may be objects or dicts via getattr."""
+    def field(row, name, default=''):
+        return getattr(row, name, default)
+    shells_by_app = {}
+    for s in shell_rows:
+        if field(s, 'scope') == 'app' and field(s, 'app_name'):
+            shells_by_app.setdefault(field(s, 'app_name'),
+                                     field(s, 'name'))
+    options = []
+    for a in app_rows:
+        name = field(a, 'name')
+        if not name or name in taken_names:
+            continue
+        try:
+            import json as _json
+            modules = _json.loads(field(a, 'modules_json', '[]')
+                                  or '[]')
+        except ValueError:
+            modules = []
+        shell = shells_by_app.get(name, '')
+        options.append({
+            'name': name,
+            'title': field(a, 'title'),
+            'description': field(a, 'use_case')
+            or field(a, 'description'),
+            'kind': 'polari-app-option',
+            'category': 'polari-app',
+            'derived': True,
+            'standard': bool(field(a, 'is_prior', False)),
+            'defined_at': 'isle-core',
+            'converted': bool(shell),
+            'shell': shell,
+            'modules': modules,
+            'source': 'derived',
+        })
+    options.sort(key=lambda o: o['name'])
+    return options
+
+
+def option_install_plan(option):
+    """The convert/install path for one derived app option — ONE
+    command either way (`pol apps shell <name>` is idempotent: row
+    reused when it exists, registration re-emitted, deb rebuilt)."""
+    name = option.get('name', '')
+    steps = ['pol apps shell %s' % name]
+    if option.get('converted'):
+        note = ('launcher row exists (%s) — re-emits the '
+                'registration and rebuilds the deb at install time'
+                % option.get('shell', ''))
+    else:
+        note = ('creates the scope=app AppShellDefinition row, '
+                'emits the registration, and builds the launcher '
+                'deb AT INSTALL TIME (options, never a shelf of '
+                'pre-built artifacts)')
+    return {'ok': True, 'steps': steps, 'note': note}
+
+
 def modules_of(row):
     """The MODULES a polari instance runs, from its schema-tolerant
     modes strings ('modules:a,b,c'). [] when unreported."""

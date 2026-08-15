@@ -300,6 +300,57 @@ def main():
           not install_plan({'kind': 'bogus',
                             'name': 'x'})['ok'])
 
+    # ---- sep-3: derived app options (§43 projection) -----------------
+    from islemesh.islemesh_catalog import (
+        option_install_plan, polari_app_options)
+
+    class _Row:
+        def __init__(self, **kw):
+            self.__dict__.update(kw)
+
+    app_defs = [
+        _Row(name='app-climate', title='Climate', use_case='co2',
+             modules_json='["climate"]', is_prior=True),
+        _Row(name='wax-print-shop', title='Wax Print Shop',
+             use_case='', description='wax', modules_json='[]',
+             is_prior=True),
+        _Row(name='my-app', title='Mine', use_case='',
+             modules_json='[]', is_prior=False),
+        _Row(name='polari', title='shadowed', modules_json='[]'),
+    ]
+    shell_defs = [
+        _Row(name='wax-print-shop-shell', scope='app',
+             app_name='wax-print-shop'),
+        _Row(name='polari-instance-shell', scope='instance',
+             app_name=''),
+    ]
+    opts = polari_app_options(app_defs, shell_defs, {'polari'})
+    by = {o['name']: o for o in opts}
+    check('sep-3: every app projects as a derived OPTION; names '
+          'taken by real catalog entries are skipped',
+          set(by) == {'app-climate', 'wax-print-shop', 'my-app'})
+    check('sep-3: converted marker rides the scope=app shell row '
+          '(instance shells never convert an app)',
+          by['wax-print-shop']['converted']
+          and by['wax-print-shop']['shell'] == 'wax-print-shop-shell'
+          and not by['app-climate']['converted'])
+    check('sep-3: standard marker = seeded (is_prior)',
+          by['app-climate']['standard']
+          and not by['my-app']['standard'])
+    check('sep-3: options are derived, never rows '
+          '(kind/derived/defined_at)',
+          all(o['derived'] and o['kind'] == 'polari-app-option'
+              and o['defined_at'] == 'isle-core' for o in opts))
+    unconverted = option_install_plan(by['app-climate'])
+    converted = option_install_plan(by['wax-print-shop'])
+    check('sep-3: ONE idempotent command either way '
+          '(pol apps shell <name>)',
+          unconverted['steps'] == ['pol apps shell app-climate']
+          and converted['steps']
+          == ['pol apps shell wax-print-shop']
+          and 'launcher row exists' in converted['note']
+          and 'AT INSTALL TIME' in unconverted['note'])
+
     # ---- instance tracking (chosen duplicates across devices) -------
     from islemesh.islemesh_catalog import instances_of
     app_rows = [

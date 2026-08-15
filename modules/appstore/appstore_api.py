@@ -72,6 +72,8 @@ class AppStoreAPI(treeObject):
                 suffix='download')
             add('/api/appstore/{shell_name}/registration', self,
                 suffix='registration')
+            add('/api/appstore/shell-from-app', self,
+                suffix='shell_from_app')
 
     # ---- helpers ----------------------------------------------------
 
@@ -188,9 +190,10 @@ class AppStoreAPI(treeObject):
                 'installable': name in shelled_apps or any(
                     s['scope'] == 'instance' for s in shells),
                 'how': ('' if name in shelled_apps else
-                        'the instance shell covers it; publish a '
-                        'dedicated shell via POST '
-                        '/api/appstore/definition')})
+                        'the instance shell covers it; make a '
+                        'dedicated launcher with `pol apps shell '
+                        f'{name}` (POST /api/appstore/'
+                        'shell-from-app)')})
         apps.sort(key=lambda a: a['name'])
         response.media = {'ok': True, 'shells': shells, 'apps': apps,
                           'store': store_status(self.manager)}
@@ -253,6 +256,85 @@ class AppStoreAPI(treeObject):
         response.media = {'ok': True, 'name': name,
                           'created': created,
                           'updated': sorted(updates)}
+
+    def on_post_shell_from_app(self, request, response):
+        """sep-3: 'make an isle app from ANY Polari app' — the row
+        half of the one-command path (pol apps shell <app>). Reads
+        the PolariAppDefinition (title; first page -> startRoute),
+        creates OR reuses the scope=app AppShellDefinition, and
+        answers with the registration path + the deb command — the
+        deb itself materializes at install time (decision 7).
+        Idempotent: an existing shell for the app is returned, never
+        duplicated, and a person's edits (is_prior=False) are never
+        clobbered."""
+        user, _ = self._require_user(request, response)
+        if user is None:
+            return
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        app_name = (payload or {}).get('appName', '')
+        if not app_name:
+            return self._refuse(response, 'payload needs {appName}')
+        app = self._find('PolariAppDefinition', app_name)
+        if app is None:
+            return self._refuse(
+                response,
+                f'no PolariAppDefinition named "{app_name}" — apps '
+                'are the content layer (see /api/apps)',
+                '404 Not Found')
+        existing = None
+        for row in self._table('AppShellDefinition').values():
+            if (getattr(row, 'scope', '') == 'app'
+                    and getattr(row, 'app_name', '') == app_name):
+                existing = row
+                break
+        created = existing is None
+        if created:
+            pages = []
+            try:
+                pages = json.loads(
+                    getattr(app, 'pages_json', '[]') or '[]')
+            except ValueError:
+                pass
+            start = pages[0] if pages and str(pages[0]).startswith(
+                '/') else ''
+            shell_name = app_name + '-shell'
+            if self._find('AppShellDefinition', shell_name):
+                return self._refuse(
+                    response,
+                    f'shell name "{shell_name}" is taken by a '
+                    'non-app-scoped row — rename it or publish via '
+                    'POST /api/appstore/definition')
+            existing = AppShellDefinition(
+                name=shell_name,
+                title=getattr(app, 'title', '') or app_name,
+                description='converted from PolariAppDefinition '
+                            f'"{app_name}" (sep-3): navigation '
+                            'clamped to this one app',
+                scope='app',
+                app_name=app_name,
+                platforms_json='["gradle-project"]',
+                distribution='generated-project',
+                start_route=start,
+                published=True,
+                is_prior=False,
+                manager=self.manager)
+            self._save(existing)
+        shell_name = getattr(existing, 'name', '')
+        response.media = {
+            'ok': True,
+            'shell': shell_name,
+            'created': created,
+            'appName': app_name,
+            'startRoute': getattr(existing, 'start_route', ''),
+            'registrationPath':
+                f'/api/appstore/{shell_name}/registration'
+                '?download=1',
+            'launcherCommand':
+                'shells/build-launcher-deb.sh --registration '
+                '<the downloaded file> --kind polari',
+        }
 
     # ---- enrollment -------------------------------------------------
 

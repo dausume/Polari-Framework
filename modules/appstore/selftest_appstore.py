@@ -294,7 +294,8 @@ if __name__ == '__main__':
     check('un-shelled app still installable via instance shell, '
           'with the publish affordance named',
           all(a['installable'] for a in cat['apps'])
-          and any('POST /api/appstore/definition' in a['how']
+          and any('pol apps shell app-magnetics' in a['how']
+                  and 'shell-from-app' in a['how']
                   for a in cat['apps']
                   if a['name'] == 'app-magnetics'))
     resp = _Resp()
@@ -304,6 +305,36 @@ if __name__ == '__main__':
     check('scope=app with unknown app refused, naming /api/apps',
           resp.status.startswith('400')
           and '/api/apps' in resp.media['error'])
+
+    print('== suite: sep-3 shell-from-app (convert) ==')
+    resp = _Resp()
+    api.on_post_shell_from_app(
+        _req(body={'appName': 'no-such-app'}, user=USER), resp)
+    check('sep-3: unknown app refused honestly',
+          resp.status.startswith('404'))
+    resp = _Resp()
+    api.on_post_shell_from_app(
+        _req(body={'appName': 'wax-print-shop'}, user=USER), resp)
+    check('sep-3: an app with a scope=app shell REUSES it '
+          '(idempotent, never a duplicate row)',
+          resp.media.get('ok')
+          and resp.media['created'] is False
+          and resp.media['shell'] == 'wax-print-shop-shell'
+          and resp.media['registrationPath']
+          == '/api/appstore/wax-print-shop-shell/registration'
+             '?download=1')
+    resp = _Resp()
+    api.on_post_shell_from_app(
+        _req(body={'appName': 'app-magnetics'}, user=USER), resp)
+    check('sep-3: convert creates the scope=app row for an '
+          'unshelled app (name = <app>-shell)',
+          resp.media.get('ok')
+          and resp.media['created'] is True
+          and resp.media['shell'] == 'app-magnetics-shell')
+    resp = _Resp()
+    api.on_post_shell_from_app(_req(body={}), resp)
+    check('sep-3: convert requires auth',
+          resp.status.startswith('401'))
 
     print('== suite: overlay determinism ==')
     src = io.BytesIO()
