@@ -60,6 +60,11 @@ class AppsAPI(treeObject):
             add('/api/apps/export', self, suffix='export')
             add('/api/apps/definition', self, suffix='definition')
             add('/api/apps/apply', self, suffix='apply')
+            # sep-7: per-app permission profiles (decision 10/11).
+            add('/api/apps/permissions/my', self,
+                suffix='permissions_my')
+            add('/api/apps/permissions/profiles', self,
+                suffix='permissions_profiles')
 
     # ---- helpers ----------------------------------------------------
 
@@ -129,6 +134,46 @@ class AppsAPI(treeObject):
         if not report.get('ok'):
             response.status = '404 Not Found'
         response.media = report
+
+    def on_get_permissions_my(self, request, response):
+        """sep-7: the caller's resolved grants — which profiles
+        matched (and via which groups), which apps, which classes
+        with which verbs, plus the enforcement MODE so the shell can
+        act honestly (auto-route only when the system is on)."""
+        from accessControl.app_permissions_gate import gate_mode
+        from polariapps.apps_permissions import resolve_grants
+        ctx = getattr(request, 'context', None)
+        user_info = getattr(ctx, 'user_info', None)
+        grants = resolve_grants(self.manager, user_info)
+        grants['ok'] = True
+        grants['mode'] = gate_mode()
+        response.media = grants
+
+    def on_get_permissions_profiles(self, request, response):
+        """The profile rows (no secrets live here — grants are
+        group NAMES; membership stays in Keycloak)."""
+        from polariapps.apps_permissions import (
+            classes_for_app)
+        rows = []
+        for row in self._table('AppPermissionProfile').values():
+            app_name = getattr(row, 'app_name', '')
+            rows.append({
+                'name': getattr(row, 'name', ''),
+                'title': getattr(row, 'title', ''),
+                'app': app_name,
+                'kcGroups': json.loads(
+                    getattr(row, 'kc_groups_json', '[]') or '[]'),
+                'verbs': json.loads(
+                    getattr(row, 'verbs_json', '[]') or '[]'),
+                'coveredClasses': sorted(
+                    classes_for_app(self.manager, app_name))
+                if app_name else json.loads(
+                    getattr(row, 'extra_classes_json', '[]')
+                    or '[]'),
+                'published': getattr(row, 'published', True),
+            })
+        rows.sort(key=lambda r: r['name'])
+        response.media = {'ok': True, 'profiles': rows}
 
     def on_get_export(self, request, response):
         name = request.params.get('name', '')

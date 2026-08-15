@@ -727,6 +727,10 @@ FEATURE_IMPORT_BLOCKS = (
             'AppDeploymentPlan', 'PolariAppDefinition',
         )),
         ('polariapps.apps_seed', ('SEED_POLARI_APPS',)),
+        # sep-7: per-app permission profiles (KC groups grant them).
+        ('polariapps.apps_permissions', (
+            'AppPermissionProfile', 'SEED_PERMISSION_PROFILES',
+        )),
     )),
     # appstore-1: the Polari App Store — downloadable native shells over
     # the polariapps content layer (one-time enrollment tokens hashed at

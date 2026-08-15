@@ -987,6 +987,8 @@ class polariServer(treeObject):
             TopologyTestRun, IntegrationPing,
             # Polari-Apps (tt-12): app configs + plan receipts.
             PolariAppDefinition, AppDeploymentPlan,
+            # sep-7: per-app permission profiles.
+            AppPermissionProfile,
             # App Store (appstore-1): installable shells, artifact
             # records, one-time enrollments, install receipts.
             AppShellDefinition, ShellArtifact, ShellEnrollment,
@@ -2237,6 +2239,10 @@ class polariServer(treeObject):
             # AppDeploymentPlan rows are receipts — never seeded.
             ('PolariAppDefinition', PolariAppDefinition,
              SEED_POLARI_APPS),
+            # sep-7: profile exemplars (legacy fallback for prf-a
+            # where composition/upsert is off — the 12th-strike rule).
+            ('AppPermissionProfile', AppPermissionProfile,
+             SEED_PERMISSION_PROFILES),
             # appstore-1: legacy insert-only fallback so shells seed
             # even where composition (the upsert path) is disabled —
             # prf-a's live reality. Field ADDITIONS later must ride
@@ -2891,7 +2897,11 @@ class polariServer(treeObject):
                 for r in upsert_seed_pairs(
                         self.manager,
                         [('PolariAppDefinition', PolariAppDefinition,
-                          SEED_POLARI_APPS)], tag='AppsNavSeed'):
+                          SEED_POLARI_APPS),
+                         ('AppPermissionProfile',
+                          AppPermissionProfile,
+                          SEED_PERMISSION_PROFILES)],
+                        tag='AppsNavSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[AppsNavSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '

@@ -67,10 +67,11 @@ if __name__ == '__main__':
     print('== suite: seeds ==')
     use_case_apps = [s for s in SEED_POLARI_APPS if not s['discipline']]
     discipline_apps = [s for s in SEED_POLARI_APPS if s['discipline']]
-    check('three use-case apps still seeded (wax shop, judicial, dmv)',
+    check('use-case apps seeded (wax shop, judicial, dmv + the '
+          'sep-4 engine tiles)',
           sorted(s['name'] for s in use_case_apps)
-          == ['dmv-policy-analysis', 'judicial-lean',
-              'wax-print-shop'])
+          == ['dmv-policy-analysis', 'engine-cad', 'engine-msci',
+              'judicial-lean', 'wax-print-shop'])
     check('ten discipline apps seeded (nav-1 + mtg-3 collaboration '
           '+ ret-1b archipelago)',
           sorted(s['name'] for s in discipline_apps)
@@ -221,9 +222,10 @@ if __name__ == '__main__':
     reqs = {'composition': ['mathshapes']}
     result = apps_nav(navmgr, feature_check=gate, requires_map=reqs)
     napps = {a['name']: a for a in result['apps']}
-    check('nav payload covers all 13 apps, gating readable',
+    check('nav payload covers all 15 apps (13 + sep-4 engine '
+          'tiles), gating readable',
           result['ok'] and result['gatingReadable']
-          and len(napps) == 13)
+          and len(napps) == 15)
     check('discipline apps sort before use-case apps',
           [a['discipline'] != '' for a in result['apps']].index(False)
           == 10)
@@ -372,6 +374,100 @@ if __name__ == '__main__':
                       assignment_factory=lambda **f: _ns(**f))
     check('re-apply is idempotent (everything already placed)',
           again['created'] == [] and len(again['skipped']) == 6)
+
+    print('== suite: sep-7 per-app permission profiles ==')
+    import os
+    from polariapps.apps_permissions import (
+        AppPermissionProfile, SEED_PERMISSION_PROFILES,
+        classes_for_app, permission_verdict, resolve_grants)
+    from accessControl.app_permissions_gate import (
+        ADVISORY_HEADER, crude_permission_gate)
+
+    mgr = _mgr()
+    profiles = {}
+    for seed in SEED_PERMISSION_PROFILES:
+        row = AppPermissionProfile(**seed)
+        profiles[row.name] = row
+    mgr.objectTables['AppPermissionProfile'] = profiles
+
+    wax_classes = classes_for_app(mgr, 'wax-print-shop')
+    check('sep-7: app -> modules -> classes derivation yields real '
+          'class names', 'WaxPrintSimState' in wax_classes
+          and 'MathShapeDefinition' in wax_classes)
+
+    operator = {'roles': [], 'raw_claims':
+                {'groups': ['/wax-print-shop-operators']}}
+    grants = resolve_grants(mgr, operator)
+    check('sep-7: KC groups claim grants the profile (leading / '
+          'stripped; source stamped)',
+          grants['profiles'][0]['profile']
+          == 'wax-print-shop-operator'
+          and grants['apps'] == ['wax-print-shop']
+          and 'jwt-groups-claim' in grants['groupSources'])
+    check('sep-7: granted classes carry the profile verbs, not more',
+          set(grants['classes'].get('WaxPrintSimState', []))
+          == {'create', 'read', 'update'})
+
+    verdict = permission_verdict(mgr, operator,
+                                 'WaxPrintSimState', 'update')
+    refusal = permission_verdict(mgr, operator,
+                                 'WaxPrintSimState', 'delete')
+    anon = permission_verdict(mgr, None, 'WaxPrintSimState', 'read')
+    check('sep-7: verdicts are evidence-bearing, never bare booleans',
+          verdict['allowed'] and verdict['via']
+          and not refusal['allowed'] and refusal['suggestion']
+          and not anon['allowed'] and 'identity' in anon['why'])
+    check('sep-7: roles also grant (ungroomed realms work) + admin '
+          'bypass stated',
+          resolve_grants(mgr, {'roles':
+              ['climate-viewers']})['apps'] == ['app-climate']
+          and permission_verdict(mgr, {'roles': ['polari-admin']},
+                                 'Anything', 'delete')['allowed'])
+
+    class _Resp:
+        def __init__(self):
+            self.status = '200 OK'
+            self.media = None
+            self.headers = {}
+        def set_header(self, k, v):
+            self.headers[k] = v
+    req = _ns(context=_ns(user_info=operator, roles=[]))
+    saved_mode = os.environ.pop('POLARI_APP_PERMISSIONS', None)
+    try:
+        resp = _Resp()
+        check('sep-7 gate: mode OFF (default) never checks',
+              crude_permission_gate(mgr, req, resp, 'delete',
+                                    'WaxPrintSimState') is True
+              and resp.headers == {})
+        os.environ['POLARI_APP_PERMISSIONS'] = 'advisory'
+        resp = _Resp()
+        check('sep-7 gate: ADVISORY proceeds but says would-deny',
+              crude_permission_gate(mgr, req, resp, 'delete',
+                                    'WaxPrintSimState') is True
+              and 'would-deny' in resp.headers.get(
+                  ADVISORY_HEADER, ''))
+        os.environ['POLARI_APP_PERMISSIONS'] = 'enforce'
+        resp = _Resp()
+        check('sep-7 gate: ENFORCE refuses with the verdict (403)',
+              crude_permission_gate(mgr, req, resp, 'delete',
+                                    'WaxPrintSimState') is False
+              and resp.status.startswith('403')
+              and resp.media['verdict']['suggestion'])
+        resp = _Resp()
+        check('sep-7 gate: ENFORCE passes granted verbs',
+              crude_permission_gate(mgr, req, resp, 'read',
+                                    'WaxPrintSimState') is True)
+        bare = _ns(objectTables={}, idList=[])
+        resp = _Resp()
+        check('sep-7 gate: no profile table -> proceed (module '
+              'absent = today\'s behavior, stated)',
+              crude_permission_gate(bare, req, resp, 'delete',
+                                    'X') is True)
+    finally:
+        if saved_mode is None:
+            os.environ.pop('POLARI_APP_PERMISSIONS', None)
+        else:
+            os.environ['POLARI_APP_PERMISSIONS'] = saved_mode
 
     failed = [label for label, ok in _results if not ok]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} checks '
