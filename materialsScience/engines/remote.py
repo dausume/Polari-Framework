@@ -18,7 +18,10 @@ carrying both knobs. Never raises: unreachable workers degrade to
 
 import json
 import os
+import time
 import urllib.request
+
+_ENGINE = 'msci'
 
 
 def engines_url():
@@ -36,10 +39,19 @@ def _module_for_path(path):
 
 
 def engines_url_for(path=''):
-    """The ladder: env knob, then topology-resolved provider, else ''."""
+    """The ladder: env knob, then the EngineProviderBinding row
+    (sep-4 — written by the isle binder when an engine deploys as an
+    isle app), then topology-resolved provider, else ''."""
     url = engines_url()
     if url:
         return url
+    try:
+        from topology.engine_metering import binding_url
+        url = binding_url(_ENGINE)
+        if url:
+            return url
+    except Exception:
+        pass
     # non-module paths (/capability) ride the dft assignment — the
     # worker is ONE service providing both engine modules
     module = _module_for_path(path) or 'materialsScience.dft'
@@ -88,20 +100,37 @@ def remote_post(path, payload, timeout=300):
                 'suggestion': unavailable_suggestion(
                     'MSCI_ENGINES_URL is unset on this backend and the '
                     'topology resolves no reachable provider.')}
+    body_out = json.dumps(payload).encode()
     request = urllib.request.Request(
-        f'{url}{path}', data=json.dumps(payload).encode(),
+        f'{url}{path}', data=body_out,
         headers={'Content-Type': 'application/json'}, method='POST')
+    started = time.time()
+    result = None
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            return json.load(response)
+            raw = response.read()
+            result = json.loads(raw)
+            _meter(True, started, len(body_out), len(raw))
+            return result
     except Exception as e:
         try:
             # falcon returns JSON bodies on 4xx/5xx — surface those
             body = json.load(e)   # HTTPError is file-like
             if isinstance(body, dict):
+                _meter(False, started, len(body_out), 0)
                 return body
         except Exception:
             pass
+        _meter(False, started, len(body_out), 0)
         return {'ok': False, 'error': f'engines worker unreachable: {e}',
                 'suggestion': unavailable_suggestion(
                     f'{url} did not answer: {e}')}
+
+
+def _meter(ok, started, bytes_out, bytes_in):
+    """sep-4: usage rows at the seam — never breaks the call path."""
+    try:
+        from topology.engine_metering import record
+        record(_ENGINE, ok, started, bytes_out, bytes_in)
+    except Exception:
+        pass

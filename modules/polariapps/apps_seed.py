@@ -29,14 +29,15 @@ import json as _json
 
 
 def _app(name, title, use_case, description, modules, pages,
-         nav=(), personas=(), discipline=''):
+         nav=(), personas=(), discipline='', engine_page=''):
     return {'name': name, 'title': title, 'use_case': use_case,
             'description': description,
             'modules_json': _json.dumps(list(modules)),
             'pages_json': _json.dumps(list(pages)),
             'nav_json': _json.dumps(list(nav)),
             'personas_json': _json.dumps(list(personas)),
-            'discipline': discipline, 'notes': ''}
+            'discipline': discipline, 'engine_page': engine_page,
+            'notes': ''}
 
 
 def _grp(group, *items, top=False):
@@ -238,6 +239,7 @@ SEED_POLARI_APPS = [
          'ledger underneath (supplychain).',
          ('bizops', 'odooconnect', 'supplychain'),
          ('/business/start', '/business/odoo'),
+         engine_page='/engines/business-ops',
          nav=(
              _tgrp('Operations',
                   _it('Business start', 'page', route='/business/start',
@@ -368,7 +370,8 @@ SEED_POLARI_APPS = [
                   _it('Meetings', 'page', route='/meetings',
                       requires_module='collab')),),
          personas=('researcher', 'business-operator'),
-         discipline='collaboration'),
+         discipline='collaboration',
+         engine_page='/engines/livekit'),
     # ret-1b: the mesh archipelago — isles as blocks, radios and apps
     # inside, measured latency between, demand vs capacity honestly
     # verdicted. Off-grid transport is its own app: an instance can
@@ -387,5 +390,45 @@ SEED_POLARI_APPS = [
                   _it('Arch topology', 'page', route='/arch',
                       requires_module='reticulum')),),
          personas=('network-engineer', 'researcher'),
-         discipline='network-cloud'),
+         discipline='network-cloud',
+         engine_page='/engines/reticulum'),
+
+    # ------------------------------------------------------------------
+    # sep-4 (decision 9): engine-only tiles — "just so we can see
+    # where they are". One page each: the engine DATA PAGE
+    # (placement, reachability ladder, usage windows). Dual-natured
+    # engines (odoo/livekit/reticulum) keep their own UI and carry
+    # engine_page on their EXISTING rows instead — one tile, two
+    # natures, never two tiles.
+    # ------------------------------------------------------------------
+    _app('engine-msci', 'Materials-Science Engines',
+         'Anyone asking where the DFT/FEM compute lives, whether it '
+         'is reachable, and what flows through it.',
+         'The compiled-extension science worker (pyscf, pymatgen, '
+         'sfepy) as a tile: placement across the topology, the '
+         'resolution ladder rendered honestly, usage over time.',
+         ('materialsScience',),
+         ('/engines/msci',),
+         nav=(
+             _tgrp('Engine',
+                  _it('Engine data page', 'page',
+                      route='/engines/msci',
+                      requires_module='materialsScience')),),
+         personas=('researcher',),
+         engine_page='/engines/msci'),
+    _app('engine-cad', 'CAD Engines',
+         'Anyone asking where the mesh/CAD compute lives, whether '
+         'it is reachable, and what flows through it.',
+         'The trimesh + optional FreeCAD/OpenCASCADE worker as a '
+         'tile: placement across the topology, the resolution '
+         'ladder rendered honestly, usage over time.',
+         ('mathshapes',),
+         ('/engines/cad',),
+         nav=(
+             _tgrp('Engine',
+                  _it('Engine data page', 'page',
+                      route='/engines/cad',
+                      requires_module='mathshapes')),),
+         personas=('researcher',),
+         engine_page='/engines/cad'),
 ]

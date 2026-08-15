@@ -275,6 +275,49 @@ def main():
           _BINDERS['business-ops'][0] == 'odooconnect'
           and _BINDERS['odoo'][0] == 'odooconnect')
 
+    # ---- sep-4: ladder-engine binders (msci/cad) ---------------------
+    # treeObjectInit does not insert into a FAKE manager's tables —
+    # save() stands in for the real persistence, inserting into the
+    # table so the second bind exercises the real dedup path.
+    table = {}
+    fakemgr.objectTables['EngineProviderBinding'] = table
+
+    def save_binding(row):
+        table[getattr(row, 'name', '')] = row
+
+    bound, to, note = bind_engine(fakemgr, 'science-1', 'msci',
+                                  'http://msci.isle:9500',
+                                  save_binding)
+    binding = table.get('msci')
+    check('sep-4: msci binds an EngineProviderBinding row at the '
+          'url (the row form of MSCI_ENGINES_URL)',
+          bound and to == 'EngineProviderBinding:msci'
+          and binding is not None
+          and getattr(binding, 'url', '') == 'http://msci.isle:9500'
+          and getattr(binding, 'bound_from', '') == 'science-1',
+          note)
+    # re-bind updates the SAME row, never a duplicate. (The table
+    # may hold the row under an id key too — treeObjectInit
+    # self-inserts on real-ish managers — so count by NAME.)
+    bind_engine(fakemgr, 'science-2', 'msci',
+                'http://msci2.isle:9500', save_binding)
+    named = {id(r) for r in table.values()
+             if getattr(r, 'name', '') == 'msci'}
+    check('sep-4: re-binding msci updates the one row',
+          len(named) == 1
+          and getattr(table['msci'], 'url', '')
+          == 'http://msci2.isle:9500'
+          and getattr(table['msci'], 'bound_from', '')
+          == 'science-2')
+    # a manager without the topology tables refuses honestly
+    bare = type('M', (), {'objectTables': {}, 'idList': []})()
+    bound, to, note = bind_engine(bare, 'x', 'cad', 'http://c',
+                                  save_binding)
+    check('sep-4: cad binder refuses when topology tables absent, '
+          'names the consumer',
+          not bound and to == 'topology' and 'not present' in note,
+          f'{bound} {to!r} {note!r}')
+
     # ---- catalog install plans (§20.1/§20.3) ------------------------
     from islemesh.islemesh_catalog import SEED_CATALOG, install_plan
     kinds = {e['kind'] for e in SEED_CATALOG}

@@ -63,6 +63,36 @@ SEED_CATALOG = [
         'provides_engine': 'business-ops', 'category': 'engine',
         'source': 'official',
     },
+    # sep-4 (decision 9): every compute engine gets its own tile —
+    # deploying one binds consumers automatically via the
+    # EngineProviderBinding row (the msci/cad _BINDERS).
+    {
+        'name': 'msci-engines',
+        'title': 'Materials-science engines (DFT / FEM)',
+        'description': 'The compiled-extension science worker '
+                       '(pyscf, pymatgen, sfepy, scikit-fem) as an '
+                       'isle app; every Polari instance\'s '
+                       'materials seams resolve it automatically '
+                       'once deployed. Data page: /engines/msci.',
+        'kind': 'mesh-app',
+        'source_ref': 'docker-compose.msci-engines.yml',
+        'service': 'prf-msci-engines', 'port': 9500,
+        'provides_engine': 'msci', 'category': 'engine',
+        'source': 'official',
+    },
+    {
+        'name': 'cad-engines',
+        'title': 'CAD engines (trimesh / FreeCAD)',
+        'description': 'The mesh/CAD worker (trimesh + optional '
+                       'FreeCAD/OpenCASCADE) as an isle app; '
+                       'mathshapes seams resolve it automatically '
+                       'once deployed. Data page: /engines/cad.',
+        'kind': 'mesh-app',
+        'source_ref': 'docker-compose.cad-engines.yml',
+        'service': 'prf-cad-engines', 'port': 9600,
+        'provides_engine': 'cad', 'category': 'engine',
+        'source': 'official',
+    },
 ]
 
 

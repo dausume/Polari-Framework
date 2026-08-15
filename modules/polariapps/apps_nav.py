@@ -198,6 +198,9 @@ def _app_nav(row, feature_check, requires_map,
         'title': getattr(row, 'title', ''),
         'useCase': getattr(row, 'use_case', ''),
         'discipline': getattr(row, 'discipline', '') or '',
+        # sep-4: the engine DATA PAGE this app carries ('' = not an
+        # engine); duals keep their own UI, this rides secondary.
+        'enginePage': getattr(row, 'engine_page', '') or '',
         'personas': _loads(row, 'personas_json', []),
         'pages': _loads(row, 'pages_json', []),
         'modules': modules,

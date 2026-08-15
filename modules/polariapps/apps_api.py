@@ -41,7 +41,7 @@ from topology.topology_modules import ModuleAssignment
 #: could create an app that could not be navigated.
 _APP_FIELDS = ('title', 'use_case', 'description', 'modules_json',
                'pages_json', 'nav_json', 'personas_json', 'discipline',
-               'notes')
+               'engine_page', 'notes')
 
 
 class AppsAPI(treeObject):

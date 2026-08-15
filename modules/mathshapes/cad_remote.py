@@ -16,9 +16,11 @@ unreachable worker degrades to {'ok': False, suggestion}.
 
 import json
 import os
+import time
 import urllib.request
 
 _MODULE = 'mathshapes.cad'
+_ENGINE = 'cad'
 
 
 def engines_url():
@@ -29,6 +31,15 @@ def engines_url_for():
     url = engines_url()
     if url:
         return url
+    # sep-4: the EngineProviderBinding rung — the row form of the
+    # knob, written when the engine deploys as an isle app.
+    try:
+        from topology.engine_metering import binding_url
+        url = binding_url(_ENGINE)
+        if url:
+            return url
+    except Exception:
+        pass
     try:
         from topology.provider_registry import resolve_provider
         resolved = resolve_provider(_MODULE)
@@ -74,19 +85,34 @@ def remote_post(path, payload, timeout=300):
                 'suggestion': unavailable_suggestion(
                     'CAD_ENGINES_URL is unset and the topology resolves no '
                     'reachable provider.')}
+    body_out = json.dumps(payload).encode()
     request = urllib.request.Request(
-        f'{url}{path}', data=json.dumps(payload).encode(),
+        f'{url}{path}', data=body_out,
         headers={'Content-Type': 'application/json'}, method='POST')
+    started = time.time()
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            return json.load(response)
+            raw = response.read()
+            _meter(True, started, len(body_out), len(raw))
+            return json.loads(raw)
     except Exception as e:
         try:
             body = json.load(e)
             if isinstance(body, dict):
+                _meter(False, started, len(body_out), 0)
                 return body
         except Exception:
             pass
+        _meter(False, started, len(body_out), 0)
         return {'ok': False, 'error': f'cad-engines worker unreachable: {e}',
                 'suggestion': unavailable_suggestion(
                     f'{url} did not answer: {e}')}
+
+
+def _meter(ok, started, bytes_out, bytes_in):
+    """sep-4: usage rows at the seam — never breaks the call path."""
+    try:
+        from topology.engine_metering import record
+        record(_ENGINE, ok, started, bytes_out, bytes_in)
+    except Exception:
+        pass

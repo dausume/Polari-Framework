@@ -168,6 +168,7 @@ def export_app(manager, app_name, topology_name=''):
             'nav_json': getattr(app, 'nav_json', '[]'),
             'personas_json': getattr(app, 'personas_json', '[]'),
             'discipline': getattr(app, 'discipline', ''),
+            'engine_page': getattr(app, 'engine_page', ''),
             'notes': getattr(app, 'notes', ''),
         },
     }

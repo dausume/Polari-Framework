@@ -151,6 +151,7 @@ from topology.topology_basis import (
     InstanceDefinition, OrchestrationTarget, PolariNodeMachine,
 )
 from topology.topology_modules import (
+    EngineProviderBinding, EngineUsageWindow,
     ModuleAssignment, ModuleDependencyEdge,
 )
 from topology.topology_links import ServiceConnection
@@ -692,6 +693,11 @@ class polariServer(treeObject):
         # is set (see materialsScience.engines.remote's ladder).
         from topology.provider_registry import set_manager
         set_manager(self.manager)
+        # sep-4 (decision 9): engine data pages — placement +
+        # reachability ladder + usage windows per engine kind.
+        from topology.engines_api import EnginesAPI
+        enginesEndpoint = EnginesAPI(
+            polServer=self, manager=self.manager)
         # Node resource inventory (res-1): every PolariNodeMachine
         # carries observed cores/RAM/disk — isoSys bridged into the
         # topology; remote nodes pull (system_info_url knob) or push.
@@ -970,6 +976,10 @@ class polariServer(treeObject):
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
             ModuleDependencyEdge, ServiceConnection,
+            # sep-4: engine bindings (row form of *_ENGINES_URL) +
+            # usage windows (metering at the *_remote seams).
+            # Observed/bound data — never seeded.
+            EngineProviderBinding, EngineUsageWindow,
             # gm-2-lite: graceful moves as observable data.
             MoveOperation,
             TopologyDefinition, TopologyObservation,

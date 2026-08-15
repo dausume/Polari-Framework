@@ -52,6 +52,11 @@ class PolariAppDefinition(treeObject):
         personas_json: str = '[]',
         # nav-1: discipline tag ('' for use-case apps).
         discipline: str = '',
+        # sep-4 (decision 9): the engine DATA PAGE this app carries
+        # ('/engines/<kind>'; '' = not an engine). Dual-natured apps
+        # (odoo-likes) keep their OWN UI as the tile's front and this
+        # page as the secondary view — one tile, two natures.
+        engine_page: str = '',
         # nav-1: seeds are priors, people's edits are not — flip to
         # False on a customized row and the upsert seed pass will
         # never touch it again (composition.seed_upsert contract).
@@ -68,6 +73,7 @@ class PolariAppDefinition(treeObject):
         self.nav_json = nav_json
         self.personas_json = personas_json
         self.discipline = discipline
+        self.engine_page = engine_page
         self.is_prior = is_prior
         self.notes = notes
 
