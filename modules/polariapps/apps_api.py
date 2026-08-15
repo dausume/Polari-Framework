@@ -173,7 +173,37 @@ class AppsAPI(treeObject):
                 'published': getattr(row, 'published', True),
             })
         rows.sort(key=lambda r: r['name'])
-        response.media = {'ok': True, 'profiles': rows}
+        # ADAPTIVE (Dustin 2026-08-15: never invent groups — tie
+        # profiles to KNOWN EXISTING groups): the same live sources
+        # the auth section already uses (/api/groups + /api/roles,
+        # via the Keycloak admin client). Honest when the admin
+        # client is unconfigured/unreachable — authoring then binds
+        # by name against Keycloak's own admin console instead.
+        known = {'groups': [], 'realmRoles': [], 'source': ''}
+        try:
+            from accessControl.keycloak_client import KeycloakClient
+            kc = KeycloakClient.get()
+            if kc.configured:  # @property, not a method
+                known['groups'] = [
+                    {'name': g.get('name', ''),
+                     'path': g.get('path', ''),
+                     'realmRoles': g.get('realmRoles',
+                                         g.get('realm_roles', []))}
+                    for g in (kc.list_groups() or [])]
+                known['realmRoles'] = [
+                    r.get('name', '') for r in
+                    (kc.list_realm_roles() or [])]
+                known['source'] = 'keycloak-admin-api (live)'
+            else:
+                known['source'] = ('keycloak admin client not '
+                                   'configured (POLARI_KEYCLOAK_'
+                                   'ADMIN_URL + secret) — bind '
+                                   'group names from the KC admin '
+                                   'console')
+        except Exception as e:  # noqa: BLE001
+            known['source'] = f'keycloak unreachable: {e}'
+        response.media = {'ok': True, 'profiles': rows,
+                          'knownGroups': known}
 
     def on_get_export(self, request, response):
         name = request.params.get('name', '')

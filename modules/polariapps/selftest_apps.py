@@ -384,11 +384,31 @@ if __name__ == '__main__':
         ADVISORY_HEADER, crude_permission_gate)
 
     mgr = _mgr()
+    # Seeds are UNPUBLISHED templates bound to NO groups (never
+    # invent groups). First pin that they grant nothing as-seeded,
+    # then do what authoring does: bind EXISTING group names +
+    # publish.
     profiles = {}
     for seed in SEED_PERMISSION_PROFILES:
         row = AppPermissionProfile(**seed)
         profiles[row.name] = row
     mgr.objectTables['AppPermissionProfile'] = profiles
+    check('sep-7: template seeds are unpublished + group-less — '
+          'they grant NOTHING until bound to real groups',
+          all(not s['published']
+              and json.loads(s['kc_groups_json']) == []
+              for s in SEED_PERMISSION_PROFILES)
+          and resolve_grants(mgr, {'roles': ['anything'],
+                                   'raw_claims': {}})['profiles']
+          == [])
+    # bind-and-publish (what the auth section does with a KNOWN
+    # group picked from /api/groups):
+    profiles['wax-print-shop-operator'].kc_groups_json = \
+        '["wax-print-shop-operators"]'
+    profiles['wax-print-shop-operator'].published = True
+    profiles['app-climate-viewer'].kc_groups_json = \
+        '["climate-viewers"]'
+    profiles['app-climate-viewer'].published = True
 
     wax_classes = classes_for_app(mgr, 'wax-print-shop')
     check('sep-7: app -> modules -> classes derivation yields real '

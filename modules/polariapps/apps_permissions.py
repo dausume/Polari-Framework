@@ -80,37 +80,45 @@ class AppPermissionProfile(treeObject):
         self.notes = notes
 
 
-#: sep-7 exemplar seeds — one write-capable operator profile on the
-#: scope=app exemplar, one read-only viewer. Group names are the
-#: convention '<app>-<role>'; creating the KC groups is realm
-#: config (Dustin's step), stated in TESTING_OWED.
+#: sep-7 exemplar seeds — TEMPLATES, deliberately UNPUBLISHED and
+#: bound to NO groups (Dustin 2026-08-15: never invent groups — tie
+#: profiles to KNOWN EXISTING groups). The realm's real groups come
+#: from the auth section's existing surface (GET /api/groups, live
+#: from Keycloak; GET /api/roles for realm roles): pick one, set it
+#: in kc_groups_json, flip published. resolve_grants skips
+#: unpublished rows, so these templates grant nothing as seeded.
 SEED_PERMISSION_PROFILES = [
     {
         'name': 'wax-print-shop-operator',
-        'title': 'Wax Print Shop — operator',
+        'title': 'Wax Print Shop — operator (template)',
         'description': 'Read + write across the wax-print-shop '
-                       'app\'s modules; granted by KC group '
-                       'wax-print-shop-operators.',
+                       'app\'s modules. TEMPLATE: bind an EXISTING '
+                       'KC group (see /api/groups) in '
+                       'kc_groups_json, then set published=true.',
         'app_name': 'wax-print-shop',
-        'kc_groups_json': '["wax-print-shop-operators"]',
+        'kc_groups_json': '[]',
         'verbs_json': '["read", "create", "update"]',
         'extra_classes_json': '[]',
-        'published': True,
+        'published': False,
         'is_prior': True,
-        'notes': 'seed: sep-7 exemplar over the scope=app exemplar',
+        'notes': 'seed: sep-7 template — grants nothing until a '
+                 'real group is bound and it is published',
     },
     {
         'name': 'app-climate-viewer',
-        'title': 'Climate — viewer',
-        'description': 'Read-only over the climate app\'s modules; '
-                       'granted by KC group climate-viewers.',
+        'title': 'Climate — viewer (template)',
+        'description': 'Read-only over the climate app\'s modules. '
+                       'TEMPLATE: bind an EXISTING KC group (see '
+                       '/api/groups) in kc_groups_json, then set '
+                       'published=true.',
         'app_name': 'app-climate',
-        'kc_groups_json': '["climate-viewers"]',
+        'kc_groups_json': '[]',
         'verbs_json': '["read"]',
         'extra_classes_json': '[]',
-        'published': True,
+        'published': False,
         'is_prior': True,
-        'notes': 'seed: sep-7 read-only exemplar',
+        'notes': 'seed: sep-7 template — grants nothing until a '
+                 'real group is bound and it is published',
     },
 ]
 
