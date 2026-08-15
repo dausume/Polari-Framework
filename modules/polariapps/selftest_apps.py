@@ -334,6 +334,10 @@ if __name__ == '__main__':
     check('package is credential-free (no secret-shaped keys)',
           not any(k in json.dumps(doc).lower()
                   for k in ('password', 'secret', 'token')))
+    check('sep-2: export carries the MENU fields the apply side '
+          'reads (nav_json/personas_json/discipline)',
+          all(k in doc['app'] for k in
+              ('nav_json', 'personas_json', 'discipline')))
     check('document validation accepts the export',
           validate_app_document(doc) == '')
     check('non-app document refused honestly',

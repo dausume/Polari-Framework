@@ -41,7 +41,8 @@ from appstore.shell_project import build_download, stamp_generation
 #: Author-editable AppShellDefinition fields (the _APP_FIELDS idiom).
 _SHELL_FIELDS = ('title', 'description', 'scope', 'app_name',
                  'platforms_json', 'distribution', 'branding_json',
-                 'start_route', 'published', 'notes')
+                 'start_route', 'capabilities_json', 'published',
+                 'notes')
 
 #: Role names that count as admin. The Polari realm's convention is
 #: 'polari-admin' (roleAPI); plain 'admin' kept for generic realms.

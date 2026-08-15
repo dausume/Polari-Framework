@@ -248,6 +248,17 @@ if __name__ == '__main__':
           == hashlib.sha256(ca_pem.encode()).hexdigest())
     check('doc: credential-free without an enrollment',
           doc['enrollment'] is None)
+    check('sep-2: app block carries capabilities (list, from '
+          'capabilities_json; absent field = [])',
+          doc['app']['capabilities'] == [])
+    caps_shell = type(shell)(
+        name='caps-shell', title='Caps', scope='app',
+        app_name='wax-print-shop',
+        capabilities_json='["camera", "lora-radio"]')
+    caps_doc = registration_document(mgr, caps_shell)
+    check('sep-2: capabilities_json rides the wire as a list',
+          caps_doc['app']['capabilities']
+          == ['camera', 'lora-radio'])
     urls_gone = _mgr()
     urls_gone.objectTables['InstanceDefinition'] = {}
     saved_env = dict(os.environ)

@@ -67,6 +67,10 @@ class AppShellDefinition(treeObject):
         # Initial web-UI route; '' = the app's first page (scope=app)
         # or '/' (scope=instance).
         start_route: str = '',
+        # sep-2: JSON list of edge-behavior REFERENCES the shell may
+        # use (camera, device passthrough...). The definitions live
+        # as rows in the app's own module (sep-5); this names them.
+        capabilities_json: str = '[]',
         published: bool = True,
         is_prior: bool = True,
         notes: str = '',
@@ -81,6 +85,7 @@ class AppShellDefinition(treeObject):
         self.distribution = distribution
         self.branding_json = branding_json
         self.start_route = start_route
+        self.capabilities_json = capabilities_json
         self.published = published
         self.is_prior = is_prior
         self.notes = notes
