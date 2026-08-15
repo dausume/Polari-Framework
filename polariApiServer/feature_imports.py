@@ -733,10 +733,11 @@ FEATURE_IMPORT_BLOCKS = (
     # rest, overlaid Gradle source archives, prebuilt binaries in MinIO).
     ('appstore', (
         ('appstore.appstore_basis', (
-            'AppShellDefinition', 'ShellArtifact', 'ShellEnrollment',
-            'ShellInstallation',
+            'AppEdgeBehavior', 'AppShellDefinition', 'ShellArtifact',
+            'ShellEnrollment', 'ShellInstallation',
         )),
-        ('appstore.appstore_seed', ('SEED_APP_SHELLS',)),
+        ('appstore.appstore_seed', ('SEED_APP_SHELLS',
+                                    'SEED_EDGE_BEHAVIORS')),
         ('appstore.appstore_page', ('SEED_APPSTORE_PAGE_DISPLAYS',)),
     )),
     # islemesh (mac-1): the polari-side acceptor for isle-mesh data —

@@ -23,8 +23,9 @@ import secrets
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from appstore.appstore_basis import (
-    AppShellDefinition, DISTRIBUTIONS, PLATFORM_KEYS, SHELL_SCOPES,
-    ShellArtifact, ShellEnrollment, ShellInstallation,
+    AppEdgeBehavior, AppShellDefinition, DISTRIBUTIONS,
+    PLATFORM_KEYS, SHELL_SCOPES, ShellArtifact, ShellEnrollment,
+    ShellInstallation,
 )
 from appstore.appstore_minio import (
     ARTIFACT_BUCKET, object_exists, presigned_get, presigned_put,
@@ -74,6 +75,7 @@ class AppStoreAPI(treeObject):
                 suffix='registration')
             add('/api/appstore/shell-from-app', self,
                 suffix='shell_from_app')
+            add('/api/appstore/behaviors', self, suffix='behaviors')
 
     # ---- helpers ----------------------------------------------------
 
@@ -239,6 +241,18 @@ class AppStoreAPI(treeObject):
             return self._refuse(
                 response,
                 f'distribution must be one of {DISTRIBUTIONS}')
+        # sep-5: capabilities are REFERENCES to AppEdgeBehavior rows
+        # — a reference must reference (authoring-time honesty).
+        if 'capabilities_json' in payload:
+            unknown = self._unknown_behaviors(
+                payload['capabilities_json'])
+            if unknown:
+                return self._refuse(
+                    response,
+                    f'capabilities name no AppEdgeBehavior row: '
+                    f'{unknown} — see GET /api/appstore/behaviors; '
+                    'define the behavior (rows in the app\'s own '
+                    'module) before referencing it')
         row = self._find('AppShellDefinition', name)
         created = row is None
         updates = {k: payload[k] for k in _SHELL_FIELDS
@@ -256,6 +270,56 @@ class AppStoreAPI(treeObject):
         response.media = {'ok': True, 'name': name,
                           'created': created,
                           'updated': sorted(updates)}
+
+    def on_get_behaviors(self, request, response):
+        """sep-5: edge-behavior DEFINITIONS (credential-free, like
+        the registration — pure configuration). A shell resolves the
+        registration's capabilities REFERENCES here; ?names=a,b
+        filters. Unknown names come back in `unknown`, stated."""
+        wanted = [n.strip() for n in
+                  request.params.get('names', '').split(',')
+                  if n.strip()]
+        rows = [r for r in self._table('AppEdgeBehavior').values()
+                if getattr(r, 'published', True)]
+        if wanted:
+            rows = [r for r in rows
+                    if getattr(r, 'name', '') in wanted]
+        found = []
+        for r in sorted(rows, key=lambda r: getattr(r, 'name', '')):
+            config = {}
+            try:
+                config = json.loads(
+                    getattr(r, 'config_json', '{}') or '{}')
+            except ValueError:
+                pass
+            found.append({
+                'name': getattr(r, 'name', ''),
+                'title': getattr(r, 'title', ''),
+                'description': getattr(r, 'description', ''),
+                'kind': getattr(r, 'kind', ''),
+                'config': config,
+                'requiresNative': getattr(r, 'requires_native', ''),
+                'notes': getattr(r, 'notes', ''),
+            })
+        known = {b['name'] for b in found}
+        response.media = {
+            'ok': True,
+            'behaviors': found,
+            'unknown': sorted(set(wanted) - known) if wanted else [],
+        }
+
+    def _unknown_behaviors(self, capabilities_json):
+        """Capability references that name no AppEdgeBehavior row —
+        authoring refuses these (a reference must reference)."""
+        try:
+            wanted = json.loads(capabilities_json or '[]')
+        except ValueError:
+            return ['(capabilities_json is not JSON)']
+        if not isinstance(wanted, list):
+            return ['(capabilities_json is not a list)']
+        known = {getattr(r, 'name', '')
+                 for r in self._table('AppEdgeBehavior').values()}
+        return sorted(str(w) for w in wanted if str(w) not in known)
 
     def on_post_shell_from_app(self, request, response):
         """sep-3: 'make an isle app from ANY Polari app' — the row

@@ -991,6 +991,9 @@ class polariServer(treeObject):
             # records, one-time enrollments, install receipts.
             AppShellDefinition, ShellArtifact, ShellEnrollment,
             ShellInstallation,
+            # sep-5: edge behaviors as reusable data (decision 8) —
+            # what a shell may do beyond wrapping the webapp.
+            AppEdgeBehavior,
             # islemesh (mac-1): isle's accepted copy + the mesh-app
             # model (ingest-owned rows; is_mock stamps mock data).
             IsleDevice, IsleUplink, IsleApp, IsleAppService,
@@ -2240,6 +2243,10 @@ class polariServer(treeObject):
             # the AppStoreSeed upsert hook (ten-strikes gotcha).
             ('AppShellDefinition', AppShellDefinition,
              SEED_APP_SHELLS),
+            # sep-5: exemplar edge behaviors (same legacy-fallback
+            # rationale as the shells above).
+            ('AppEdgeBehavior', AppEdgeBehavior,
+             SEED_EDGE_BEHAVIORS),
             # islemesh (§20): the general isle app store catalog —
             # the two proven variants (mesh-app + polari-app) + odoo.
             ('IsleCatalogEntry', IsleCatalogEntry, SEED_CATALOG),
@@ -2898,13 +2905,16 @@ class polariServer(treeObject):
         if (_feature_available('composition')
                 and _feature_available('appstore') and (
                 only_classes is None
-                or 'AppShellDefinition' in only_classes)):
+                or 'AppShellDefinition' in only_classes
+                or 'AppEdgeBehavior' in only_classes)):
             try:
                 from composition.seed_upsert import upsert_seed_pairs
                 for r in upsert_seed_pairs(
                         self.manager,
                         [('AppShellDefinition', AppShellDefinition,
-                          SEED_APP_SHELLS)], tag='AppStoreSeed'):
+                          SEED_APP_SHELLS),
+                         ('AppEdgeBehavior', AppEdgeBehavior,
+                          SEED_EDGE_BEHAVIORS)], tag='AppStoreSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[AppStoreSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '

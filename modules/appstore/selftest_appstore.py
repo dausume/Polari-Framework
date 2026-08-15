@@ -21,7 +21,7 @@ import types
 
 from appstore.appstore_api import AppStoreAPI
 from appstore.appstore_basis import (
-    AppShellDefinition, ShellEnrollment,
+    AppEdgeBehavior, AppShellDefinition, ShellEnrollment,
 )
 from appstore.appstore_payloads import (
     deep_link, identity_payload, registration_document,
@@ -305,6 +305,52 @@ if __name__ == '__main__':
     check('scope=app with unknown app refused, naming /api/apps',
           resp.status.startswith('400')
           and '/api/apps' in resp.media['error'])
+
+    print('== suite: sep-5 edge behaviors (decision 8) ==')
+    from appstore.appstore_seed import SEED_EDGE_BEHAVIORS
+    behaviors = {}
+    for seed in SEED_EDGE_BEHAVIORS:
+        row = AppEdgeBehavior(**seed)
+        behaviors[row.name] = row
+    mgr.objectTables['AppEdgeBehavior'] = behaviors
+    check('sep-5: exemplar seeds carry the plan\'s own examples '
+          '(radio / camera / network), each naming its native half',
+          {b['name'] for b in SEED_EDGE_BEHAVIORS}
+          == {'lora-radio-attach', 'camera-capture',
+              'isle-wifi-join'}
+          and all(b['kind'] in ('device', 'network', 'nocode-graph')
+                  for b in SEED_EDGE_BEHAVIORS))
+    resp = _Resp()
+    api.on_get_behaviors(_req(params={}), resp)
+    check('sep-5: behaviors endpoint is credential-free and lists '
+          'definitions with parsed config',
+          resp.media['ok'] and len(resp.media['behaviors']) == 3
+          and resp.media['behaviors'][0]['config'] != {})
+    resp = _Resp()
+    api.on_get_behaviors(
+        _req(params={'names': 'camera-capture,ghost'}), resp)
+    check('sep-5: ?names= filters and states the unknown',
+          [b['name'] for b in resp.media['behaviors']]
+          == ['camera-capture']
+          and resp.media['unknown'] == ['ghost'])
+    resp = _Resp()
+    api.on_post_definition(
+        _req(body={'name': 'radio-shell', 'scope': 'instance',
+                   'capabilities_json': '["lora-radio-attach", '
+                                        '"no-such-behavior"]'},
+             user=USER), resp)
+    check('sep-5: authoring refuses capabilities that reference no '
+          'behavior row (a reference must reference)',
+          resp.status.startswith('400')
+          and 'no-such-behavior' in resp.media['error']
+          and '/api/appstore/behaviors' in resp.media['error'])
+    resp = _Resp()
+    api.on_post_definition(
+        _req(body={'name': 'radio-shell', 'scope': 'instance',
+                   'capabilities_json': '["lora-radio-attach"]'},
+             user=USER), resp)
+    check('sep-5: valid references author cleanly',
+          resp.media.get('ok') and resp.media['created'])
 
     print('== suite: sep-3 shell-from-app (convert) ==')
     resp = _Resp()
