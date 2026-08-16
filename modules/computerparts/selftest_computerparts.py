@@ -39,21 +39,32 @@ if __name__ == '__main__':
               and p['kind'] in PART_KINDS
               and p['condition'] in CONDITIONS
               for p in SEED_COMPUTER_PARTS))
-    check('estimate prices SAY they are estimates',
+    check('estimate prices SAY they are estimates (build-guide-'
+          'sourced rows; listing-sourced rows stand on their '
+          'listing)',
           all('estimate' in p['price_note']
               for p in SEED_COMPUTER_PARTS
-              if p['kind'] not in ('gpu',)))
+              if 'ai-pc-build-guide' in p['price_source']))
 
     parts_by_name = {p['name']: p for p in SEED_COMPUTER_PARTS}
 
     print('== suite: derived build cost ==')
     reports = {b['name']: build_report(b, parts_by_name)
                for b in SEED_COMPUTER_BUILDS}
-    check('three example builds, totals derived from part rows',
+    check('example builds seeded (3 generic + the owned-6338N '
+          'machine), totals derived from part rows',
           set(reports) == {'build-used-3090', 'build-5060ti-16gb',
-                           'build-used-4090'}
+                           'build-used-4090', 'build-xeon-6338n'}
           and all(r['total_usd'] > 0 and not r['missing_parts']
                   for r in reports.values()))
+    check('owned-chip build: LGA4189 socket + DDR4 checks answer '
+          'ok; valuation is priced but marked a VALUATION',
+          assembly_check(
+              [b for b in SEED_COMPUTER_BUILDS
+               if b['name'] == 'build-xeon-6338n'][0],
+              parts_by_name)['feasible'] is True
+          and 'VALUATION' in parts_by_name[
+              'cpu-xeon-6338n-owned']['price_note'])
     r3090 = reports['build-used-3090']
     expected = sum(parts_by_name[p]['price_amount']
                    for p in json.loads(

@@ -188,6 +188,80 @@ SEED_COMPUTER_PARTS = [
         'price_note': 'estimate — verify at retailer',
         'notes': '', 'published': True, 'is_prior': True,
     },
+
+    # ---- Dustin's owned Xeon Gold 6338N + the build around it ----
+    {
+        'name': 'cpu-xeon-6338n-owned',
+        'title': 'Intel Xeon Gold 6338N (32c/64t, Ice Lake-SP) — '
+                 'OWNED',
+        'kind': 'cpu', 'model': 'Xeon Gold 6338N',
+        'condition': 'used',
+        'specs_json': '{"cores": 32, "threads": 64, '
+                      '"socket": "LGA4189"}',
+        'price_amount': 850.0, 'price_unit': 'USD',
+        'price_as_of': _AS_OF,
+        'price_source': 'https://www.ebay.com/itm/395040642466',
+        'price_note': 'VALUATION of an owned chip, not a purchase: '
+                      'working units ask ~$1,000-1,100 best-offer, '
+                      'parts-only floor $550, EU outlier $2,300 — '
+                      'realistic resale ~$700-1,000',
+        'notes': '8-channel DDR4 (~200 GB/s populated) + AVX-512: '
+                 'CPU inference lives on memory bandwidth — this '
+                 'is a different class from any desktop CPU here',
+        'published': True, 'is_prior': True,
+    },
+    {
+        'name': 'mb-x12spl-f-used',
+        'title': 'Supermicro X12SPL-F (LGA4189, C621A) — used',
+        'kind': 'motherboard', 'model': 'X12SPL-F',
+        'condition': 'used',
+        'specs_json': '{"socket": "LGA4189", "ram_type": "DDR4"}',
+        'price_amount': 445.0, 'price_unit': 'USD',
+        'price_as_of': _AS_OF,
+        'price_source': 'https://www.ebay.com/itm/356780873298',
+        'price_note': 'used ~$445; new ~$700; single-socket ATX, '
+                      '8 DIMM slots (all 8 channels), PCIe 4.0 x16 '
+                      'free for a GPU later',
+        'notes': 'the cheapest sensible single-socket LGA4189 '
+                 'board found',
+        'published': True, 'is_prior': True,
+    },
+    {
+        'name': 'ram-ddr4-rdimm-16gb-2666',
+        'title': '16 GB DDR4-2666 ECC RDIMM (refurb, per module)',
+        'kind': 'ram', 'model': 'DDR4-2666 RDIMM',
+        'condition': 'refurbished',
+        'specs_json': '{"capacity_mb": 16384, '
+                      '"ram_type": "DDR4"}',
+        'price_amount': 60.0, 'price_unit': 'USD',
+        'price_as_of': _AS_OF,
+        'price_source': 'https://pcserverandparts.com/components/'
+                        'ram-memory/',
+        'price_note': 'estimate from refurb market (32GB modules '
+                      '$110-359 in the 2026 RAM squeeze; 16GB/2666 '
+                      'sits low) — verify; the 6338N caps at 2666 '
+                      'so do NOT pay the 3200 premium',
+        'notes': 'buy EIGHT: populating all 8 channels IS the '
+                 'performance (bandwidth, not capacity, feeds '
+                 'CPU inference)',
+        'published': True, 'is_prior': True,
+    },
+    {
+        'name': 'cooler-lga4189',
+        'title': 'LGA4189 tower cooler',
+        'kind': 'cooler', 'model': 'LGA4189 tower',
+        'condition': 'new',
+        'specs_json': '{}',
+        'price_amount': 75.0, 'price_unit': 'USD',
+        'price_as_of': _AS_OF,
+        'price_source': 'https://www.ebay.com/sch/i.html?_nkw='
+                        'lga4189+cooler',
+        'price_note': 'estimate — Dynatron-class ~$60, Noctua '
+                      'DX-4189 ~$120; the socket needs its own '
+                      'mounting, desktop coolers do not fit',
+        'notes': '185 W TDP wants a real tower, not a 1U blower '
+                 '(noise)', 'published': True, 'is_prior': True,
+    },
 ]
 
 _BASE_PARTS = ('cpu-ryzen7-7700', 'mb-am5-b650', 'ssd-nvme-2tb',
@@ -243,6 +317,38 @@ SEED_COMPUTER_BUILDS = [
                       '"vram_mb": 24576}',
         'notes': 'buy the GPU used — new 4090s are discontinued '
                  'and inflated',
+        'published': True, 'is_prior': True,
+    },
+
+    {
+        'name': 'build-xeon-6338n',
+        'title': 'Around YOUR Xeon 6338N — 32-core / 128 GB '
+                 'bandwidth machine (no GPU needed to start)',
+        'purpose': 'The cheapest self-host path given the owned '
+                   'chip: CPU-only inference on 8-channel DDR4 '
+                   '(~200 GB/s) runs 30B-70B quantized models '
+                   'entirely in RAM at assistant-usable speeds — '
+                   'the CPU cost is $0 (owned). PCIe 4.0 x16 '
+                   'stays free for a GPU later.',
+        'parts_json': '["cpu-xeon-6338n-owned", "mb-x12spl-f-used", '
+                      '"ram-ddr4-rdimm-16gb-2666", '
+                      '"ram-ddr4-rdimm-16gb-2666", '
+                      '"ram-ddr4-rdimm-16gb-2666", '
+                      '"ram-ddr4-rdimm-16gb-2666", '
+                      '"ram-ddr4-rdimm-16gb-2666", '
+                      '"ram-ddr4-rdimm-16gb-2666", '
+                      '"ram-ddr4-rdimm-16gb-2666", '
+                      '"ram-ddr4-rdimm-16gb-2666", '
+                      '"cooler-lga4189", "ssd-nvme-2tb", '
+                      '"psu-850w-gold", "case-atx"]',
+        'specs_json': '{"cores": 32, "ram_mb": 131072, '
+                      '"disk_mb": 2097152, "gpu_model": "", '
+                      '"vram_mb": 0}',
+        'notes': 'the CPU line in the total is the chip\'s market '
+                 'VALUATION — already owned, so cash outlay is '
+                 'the total minus it (~$1,300); start with 4 '
+                 'DIMMs (~$1,060 outlay) at half bandwidth if '
+                 'budget-first',
         'published': True, 'is_prior': True,
     },
 ]
