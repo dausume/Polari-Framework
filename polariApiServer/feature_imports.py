@@ -745,6 +745,9 @@ FEATURE_IMPORT_BLOCKS = (
         # ai-7: remote-hosting suggestions with DATED prices.
         ('appstore.appstore_hosting', ('RemoteHostingOption',
                                        'SEED_REMOTE_HOSTING')),
+        # ai-9: the fork-pin ledger (self-host software half).
+        ('appstore.appstore_forks', ('ForkPin',
+                                     'SEED_FORK_PINS')),
         ('appstore.appstore_seed', ('SEED_AI_TOOLS',
                                     'SEED_APP_SHELLS',
                                     'SEED_EDGE_BEHAVIORS')),

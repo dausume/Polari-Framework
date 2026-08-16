@@ -1009,6 +1009,8 @@ class polariServer(treeObject):
             # ai-8: computer parts + builds (dated prices,
             # derived cost, assembly checks).
             ComputerPartDefinition, ComputerBuildDefinition,
+            # ai-9: the fork-pin ledger.
+            ForkPin,
             # islemesh (mac-1): isle's accepted copy + the mesh-app
             # model (ingest-owned rows; is_mock stamps mock data).
             IsleDevice, IsleUplink, IsleApp, IsleAppService,
@@ -2277,6 +2279,8 @@ class polariServer(treeObject):
              SEED_COMPUTER_PARTS),
             ('ComputerBuildDefinition', ComputerBuildDefinition,
              SEED_COMPUTER_BUILDS),
+            # ai-9: fork pins (same legacy-fallback rationale).
+            ('ForkPin', ForkPin, SEED_FORK_PINS),
             # islemesh (§20): the general isle app store catalog —
             # the two proven variants (mesh-app + polari-app) + odoo.
             ('IsleCatalogEntry', IsleCatalogEntry, SEED_CATALOG),
@@ -2942,7 +2946,8 @@ class polariServer(treeObject):
                 or 'AppShellDefinition' in only_classes
                 or 'AppEdgeBehavior' in only_classes
                 or 'AiToolDefinition' in only_classes
-                or 'RemoteHostingOption' in only_classes)):
+                or 'RemoteHostingOption' in only_classes
+                or 'ForkPin' in only_classes)):
             try:
                 from composition.seed_upsert import upsert_seed_pairs
                 for r in upsert_seed_pairs(
@@ -2958,7 +2963,9 @@ class polariServer(treeObject):
                          # ai-7: price/date bumps converge too.
                          ('RemoteHostingOption',
                           RemoteHostingOption,
-                          SEED_REMOTE_HOSTING)],
+                          SEED_REMOTE_HOSTING),
+                         # ai-9: verified_at bumps converge.
+                         ('ForkPin', ForkPin, SEED_FORK_PINS)],
                         tag='AppStoreSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[AppStoreSeed] {r["class"]}: '

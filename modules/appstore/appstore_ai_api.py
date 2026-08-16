@@ -88,6 +88,9 @@ class AiToolsAPI(treeObject):
             # (static segment — wins over the {tool} template).
             add('/api/appstore/ai-tools/hosting-options', self,
                 suffix='hosting_options')
+            # ai-9: the fork-pin ledger.
+            add('/api/appstore/ai-tools/fork-pins', self,
+                suffix='fork_pins')
 
     def _rows(self):
         return list((getattr(self.manager, 'objectTables', None)
@@ -215,6 +218,14 @@ class AiToolsAPI(treeObject):
                              'isle (sovereign)',
             },
         }
+
+    def on_get_fork_pins(self, request, response):
+        """ai-9: every upstream this project pins as a fork (and
+        the honestly not-pinned gaps), dated by verification."""
+        from appstore.appstore_forks import fork_pins_payload
+        rows = list((getattr(self.manager, 'objectTables', None)
+                     or {}).get('ForkPin', {}).values())
+        response.media = fork_pins_payload(rows)
 
     def on_get_host_check(self, request, response, tool):
         """ai-6: gauge whether THIS isle can realistically host the

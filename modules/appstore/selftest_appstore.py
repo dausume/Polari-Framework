@@ -644,6 +644,44 @@ if __name__ == '__main__':
               [dict(SEED_REMOTE_HOSTING[0], published=False)],
               ai6_req['profiles'])['count'] == 0)
 
+    print('== suite: ai-9 the fork-pin ledger ==')
+    from appstore.appstore_forks import (
+        FORK_ROLES, FORK_STATUSES, SEED_FORK_PINS,
+        fork_pins_payload)
+    check('ai-9: every pin is dated (verified_at) with upstream + '
+          'known role/status; forked rows carry the dausume/ url',
+          all(p['verified_at'] and p['upstream_url']
+              and p['role'] in FORK_ROLES
+              and p['status'] in FORK_STATUSES
+              and (p['status'] == 'not-pinned'
+                   or 'github.com/dausume/' in p['fork_url'])
+              for p in SEED_FORK_PINS))
+    ai9 = {p['name']: p for p in SEED_FORK_PINS}
+    check('ai-9: the roster matches the live-verified account — '
+          '15 forked + 3 delete-pending + 2 named gaps',
+          sum(1 for p in SEED_FORK_PINS
+              if p['status'] == 'forked') == 15
+          and sum(1 for p in SEED_FORK_PINS
+                  if p['status'] == 'delete-pending') == 3
+          and sum(1 for p in SEED_FORK_PINS
+                  if p['status'] == 'not-pinned') == 2)
+    check('ai-9: LocalAI is the cpu-ok server pin; the DA3 NC '
+          'weights trap is carried on the row',
+          ai9['LocalAI']['cpu_ok']
+          and ai9['LocalAI']['role'] == 'server'
+          and 'NC' in ai9['depth-anything.cpp']['license'])
+    check('ai-9: not-pinned rows are NAMED GAPS with no fork url '
+          '(never implied covered)',
+          all(not ai9[n]['fork_url']
+              and 'pin' in ai9[n]['notes']
+              for n in ('llama.cpp', 'whisper.cpp')))
+    ai9_payload = fork_pins_payload(SEED_FORK_PINS)
+    check('ai-9: payload sorts forked first and carries the '
+          'honesty note',
+          ai9_payload['count'] == 20
+          and ai9_payload['pins'][0]['status'] == 'forked'
+          and 'named gaps' in ai9_payload['honesty'])
+
     print('== suite: ai-4 the sovereign voice seam ==')
     # The live reasoning config is whatever this instance runs —
     # monkeypatch it for deterministic outcomes (and NEVER write it).
