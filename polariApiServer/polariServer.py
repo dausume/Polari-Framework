@@ -1004,6 +1004,8 @@ class polariServer(treeObject):
             # ai-0: AI tools as first-class store citizens —
             # hosting kind + honest linkage claims + sovereignty.
             AiToolDefinition,
+            # ai-7: remote-hosting suggestions w/ dated prices.
+            RemoteHostingOption,
             # islemesh (mac-1): isle's accepted copy + the mesh-app
             # model (ingest-owned rows; is_mock stamps mock data).
             IsleDevice, IsleUplink, IsleApp, IsleAppService,
@@ -2264,6 +2266,9 @@ class polariServer(treeObject):
             # ai-0: the four AI tools (same legacy-fallback
             # rationale — prf-a runs without composition).
             ('AiToolDefinition', AiToolDefinition, SEED_AI_TOOLS),
+            # ai-7: dated-price hosting suggestions (same rationale).
+            ('RemoteHostingOption', RemoteHostingOption,
+             SEED_REMOTE_HOSTING),
             # islemesh (§20): the general isle app store catalog —
             # the two proven variants (mesh-app + polari-app) + odoo.
             ('IsleCatalogEntry', IsleCatalogEntry, SEED_CATALOG),
@@ -2928,7 +2933,8 @@ class polariServer(treeObject):
                 only_classes is None
                 or 'AppShellDefinition' in only_classes
                 or 'AppEdgeBehavior' in only_classes
-                or 'AiToolDefinition' in only_classes)):
+                or 'AiToolDefinition' in only_classes
+                or 'RemoteHostingOption' in only_classes)):
             try:
                 from composition.seed_upsert import upsert_seed_pairs
                 for r in upsert_seed_pairs(
@@ -2940,7 +2946,12 @@ class polariServer(treeObject):
                          # ai-0: linkage-claim edits to live rows
                          # converge here (the ten-strikes gotcha).
                          ('AiToolDefinition', AiToolDefinition,
-                          SEED_AI_TOOLS)], tag='AppStoreSeed'):
+                          SEED_AI_TOOLS),
+                         # ai-7: price/date bumps converge too.
+                         ('RemoteHostingOption',
+                          RemoteHostingOption,
+                          SEED_REMOTE_HOSTING)],
+                        tag='AppStoreSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[AppStoreSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '

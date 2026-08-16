@@ -84,6 +84,10 @@ class AiToolsAPI(treeObject):
             # ai-6: the honest hosting gauge.
             add('/api/appstore/ai-tools/{tool}/host-check', self,
                 suffix='host_check')
+            # ai-7: remote-hosting suggestions with DATED prices
+            # (static segment — wins over the {tool} template).
+            add('/api/appstore/ai-tools/hosting-options', self,
+                suffix='hosting_options')
 
     def _rows(self):
         return list((getattr(self.manager, 'objectTables', None)
@@ -107,6 +111,29 @@ class AiToolsAPI(treeObject):
         if 'readiness_note' in payload:
             media['readiness_note'] = payload['readiness_note']
         response.media = media
+
+    def on_get_hosting_options(self, request, response):
+        """ai-7: the rentable options + derived fit against the
+        localai hosting profiles. Prices carry their as-of date —
+        the payload's honesty note says exactly what to trust."""
+        from appstore.appstore_hosting import (
+            hosting_options_payload)
+        rows = list((getattr(self.manager, 'objectTables', None)
+                     or {}).get('RemoteHostingOption', {}).values())
+        profiles = []
+        for r in self._rows():
+            name = getattr(r, 'name', '') \
+                if not isinstance(r, dict) else r.get('name', '')
+            if name == 'localai':
+                raw = getattr(r, 'requirements_json', '') \
+                    if not isinstance(r, dict) \
+                    else r.get('requirements_json', '')
+                try:
+                    profiles = json.loads(
+                        raw or '{}').get('profiles', [])
+                except ValueError:
+                    profiles = []
+        response.media = hosting_options_payload(rows, profiles)
 
     def on_get_host_check(self, request, response, tool):
         """ai-6: gauge whether THIS isle can realistically host the

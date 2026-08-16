@@ -742,6 +742,9 @@ FEATURE_IMPORT_BLOCKS = (
         )),
         # ai-0: AI tools as first-class store citizens.
         ('appstore.appstore_ai', ('AiToolDefinition',)),
+        # ai-7: remote-hosting suggestions with DATED prices.
+        ('appstore.appstore_hosting', ('RemoteHostingOption',
+                                       'SEED_REMOTE_HOSTING')),
         ('appstore.appstore_seed', ('SEED_AI_TOOLS',
                                     'SEED_APP_SHELLS',
                                     'SEED_EDGE_BEHAVIORS')),

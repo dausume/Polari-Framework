@@ -613,6 +613,37 @@ if __name__ == '__main__':
           all(not t.get('requirements_json')
               for t in SEED_AI_TOOLS if t['name'] != 'localai'))
 
+    print('== suite: ai-7 dated-price hosting suggestions ==')
+    from appstore.appstore_hosting import (
+        HOSTING_KINDS_REMOTE, SEED_REMOTE_HOSTING,
+        hosting_options_payload)
+    check('ai-7: EVERY price carries its as-of date + source URL '
+          '(a price without a date is a lie waiting to happen)',
+          all(o['price_as_of'] and o['price_source']
+              and o['price_amount'] > 0
+              and o['kind'] in HOSTING_KINDS_REMOTE
+              for o in SEED_REMOTE_HOSTING))
+    ai7 = hosting_options_payload(SEED_REMOTE_HOSTING, ai6_req['profiles'])
+    ai7_by = {o['name']: o for o in ai7['options']}
+    check('ai-7: fit is DERIVED from declared specs via the ai-6 '
+          'gauge (cpu box fits minimal, declared-gpu box fits '
+          'comfortable, gpu-less box refuses the gpu profile)',
+          ai7_by['hetzner-cx32']['fit'][0]['verdict'] == 'fits'
+          and ai7_by['hetzner-cx32']['fit'][1]['verdict'] == 'no'
+          and ai7_by['digitalocean-gpu-rtx4000']['fit'][1]
+          ['verdict'] == 'fits')
+    check('ai-7: marketplace listings with varying specs stay '
+          'UNVERIFIED, never guessed',
+          all(f['verdict'] == 'unverified'
+              for f in ai7_by['vast-rtx4090']['fit']))
+    check('ai-7: payload carries the honesty note + profiles',
+          'go stale' in ai7['honesty'] and ai7['profiles']
+          and ai7['count'] == len(SEED_REMOTE_HOSTING))
+    check('ai-7: unpublished options hide',
+          hosting_options_payload(
+              [dict(SEED_REMOTE_HOSTING[0], published=False)],
+              ai6_req['profiles'])['count'] == 0)
+
     print('== suite: ai-4 the sovereign voice seam ==')
     # The live reasoning config is whatever this instance runs —
     # monkeypatch it for deterministic outcomes (and NEVER write it).

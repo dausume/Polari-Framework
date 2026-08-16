@@ -267,10 +267,22 @@ def host_check(requirements, machines):
                               '(models are large)'
                               % (free_disk, need_disk))
             if p.get('gpu') and verdict != 'no':
-                verdict = 'unknown-gpu'
-                detail.append('needs a GPU — the resource '
-                              'inventory does not track GPUs, so '
-                              'this cannot be confirmed here')
+                # ai-7: a machine dict may DECLARE its GPU (rented
+                # options do); res-1 machines don't carry the key —
+                # for them the honest answer stays 'untracked'.
+                declared = m.get('gpu')
+                if declared is True:
+                    pass  # requirement satisfied, verdict stands
+                elif declared is False:
+                    verdict = 'no'
+                    detail.append('needs a GPU — this option '
+                                  'declares none')
+                else:
+                    verdict = 'unknown-gpu'
+                    detail.append('needs a GPU — the resource '
+                                  'inventory does not track GPUs, '
+                                  'so this cannot be confirmed '
+                                  'here')
             rows.append({'profile': p.get('name', ''),
                          'verdict': verdict, 'detail': detail})
             if verdict == 'fits':

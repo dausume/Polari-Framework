@@ -447,13 +447,15 @@ SEED_POLARI_APPS = [
          'Tool choice + credentials live in the store\'s AI '
          'section and /ai/providers.',
          (),
-         ('/engines/reasoning', '/isle-store'),
+         ('/engines/reasoning', '/isle-store', '/ai-hosting'),
          nav=(
              _tgrp('AI',
                   _it('Reasoning engine page', 'page',
                       route='/engines/reasoning'),
                   _it('AI tools (store section)', 'page',
-                      route='/isle-store')),),
+                      route='/isle-store'),
+                  _it('Remote hosting (dated prices)', 'page',
+                      route='/ai-hosting')),),
          personas=('business-operator', 'researcher'),
          engine_page='/engines/reasoning'),
     _app('ai-voice', 'Assistant Voice',
@@ -467,13 +469,15 @@ SEED_POLARI_APPS = [
          'fallback (Chrome STT is cloud-backed). Status: GET '
          '/ai/voice.',
          (),
-         ('/engines/reasoning', '/isle-store'),
+         ('/engines/reasoning', '/isle-store', '/ai-hosting'),
          nav=(
              _tgrp('AI',
                   _it('Reasoning engine page', 'page',
                       route='/engines/reasoning'),
                   _it('AI tools (store section)', 'page',
-                      route='/isle-store')),),
+                      route='/isle-store'),
+                  _it('Remote hosting (dated prices)', 'page',
+                      route='/ai-hosting')),),
          personas=('business-operator',),
          engine_page='/engines/reasoning'),
 ]
