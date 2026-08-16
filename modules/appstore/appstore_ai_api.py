@@ -15,9 +15,11 @@ transit this surface.
   - appstore.selftest_appstore (function-level)
 """
 
+import json
+
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from appstore.appstore_ai import AI_LINKAGES, tool_report
+from appstore.appstore_ai import AI_LINKAGES, host_check, tool_report
 
 
 def _reasoning_status():
@@ -79,6 +81,9 @@ class AiToolsAPI(treeObject):
             add('/api/appstore/ai-tools', self, suffix='ai_tools')
             add('/api/appstore/ai-tools/{tool}', self,
                 suffix='ai_tool')
+            # ai-6: the honest hosting gauge.
+            add('/api/appstore/ai-tools/{tool}/host-check', self,
+                suffix='host_check')
 
     def _rows(self):
         return list((getattr(self.manager, 'objectTables', None)
@@ -102,3 +107,61 @@ class AiToolsAPI(treeObject):
         if 'readiness_note' in payload:
             media['readiness_note'] = payload['readiness_note']
         response.media = media
+
+    def on_get_host_check(self, request, response, tool):
+        """ai-6: gauge whether THIS isle can realistically host the
+        tool — per-machine verdicts from the res-1 inventory, and
+        the remote-hosting options when it cannot. A REPORT, never
+        an action (knob-and-suggestion)."""
+        row = None
+        for r in self._rows():
+            name = getattr(r, 'name', '') \
+                if not isinstance(r, dict) else r.get('name', '')
+            if name == tool:
+                row = r
+                break
+        if row is None:
+            response.status = '404 Not Found'
+            response.media = {'ok': False,
+                              'error': f'no AI tool {tool!r}'}
+            return
+        raw = getattr(row, 'requirements_json', '') \
+            if not isinstance(row, dict) \
+            else row.get('requirements_json', '')
+        try:
+            requirements = json.loads(raw or '{}')
+        except ValueError:
+            requirements = {}
+        if not (requirements.get('profiles') or []):
+            hosting = getattr(row, 'hosting', '') \
+                if not isinstance(row, dict) \
+                else row.get('hosting', '')
+            response.media = {
+                'ok': True, 'tool': tool, 'nothing_to_host': True,
+                'note': ('nothing to gauge — %s tools run no '
+                         'local server' % (hosting or 'this')),
+            }
+            return
+        # the res-1 inventory: refresh the LOCAL observation first
+        # (cheap, keeps the verdict from riding stale numbers),
+        # then read every machine. resources may be absent — say so.
+        try:
+            from resources.node_resources import (
+                inventory, refresh_local_machine)
+            try:
+                refresh_local_machine(self.manager)
+            except Exception:  # noqa: BLE001 — stale is stated
+                pass
+            nodes = inventory(self.manager).get('nodes', [])
+        except ImportError:
+            response.media = {
+                'ok': True, 'tool': tool,
+                'resources_unavailable': (
+                    'the resources module is not loaded on this '
+                    'instance — no inventory to gauge against'),
+                'cloud': host_check(requirements, [])['cloud'],
+            }
+            return
+        result = host_check(requirements, nodes)
+        result['tool'] = tool
+        response.media = result

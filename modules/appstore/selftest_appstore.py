@@ -560,6 +560,59 @@ if __name__ == '__main__':
           ai_tools_payload([dict(SEED_AI_TOOLS[0],
                                  published=False)])['count'] == 0)
 
+    print('== suite: ai-6 the honest hosting gauge ==')
+    from appstore.appstore_ai import (CLOUD_HOSTING_OPTIONS,
+                                      host_check)
+    ai6_req = json.loads(
+        [t for t in SEED_AI_TOOLS
+         if t['name'] == 'localai'][0]['requirements_json'])
+    check('ai-6: localai seeds hosting profiles (guidance with '
+          'notes, gpu stated per profile)',
+          len(ai6_req['profiles']) == 2
+          and all(p.get('note') and 'gpu' in p
+                  for p in ai6_req['profiles']))
+    small = {'name': 'small', 'hasSpecs': True, 'logicalCpus': 4,
+             'totalRamMb': 16000, 'availableRamMb': 800,
+             'freeDiskMb': 5000, 'resourceSource': 'observed-local',
+             'resourceObservedAt': 'now'}
+    big = {'name': 'big', 'hasSpecs': True, 'logicalCpus': 16,
+           'totalRamMb': 65536, 'availableRamMb': 40000,
+           'freeDiskMb': 500000, 'resourceSource': 'observed-push',
+           'resourceObservedAt': 'now'}
+    r = host_check(ai6_req, [small,
+                             {'name': 'ghost', 'hasSpecs': False}])
+    check('ai-6: an under-resourced isle is told NOT realistic '
+          'with the failing numbers + remote hosting recommended',
+          r['ok'] and not r['realistic'] and r['cloud_recommended']
+          and r['unknown_machines'] == ['ghost']
+          and any('disk' in d
+                  for d in r['machines'][0]['profiles'][0]['detail'])
+          and 'host the model remotely' in r['note'])
+    r = host_check(ai6_req, [small, big])
+    check('ai-6: a fitting box flips the verdict and is NAMED',
+          r['realistic'] and r['best']['machine'] == 'big'
+          and not r['cloud_recommended'])
+    check('ai-6: a GPU profile is honestly UNKNOWN (res-1 does '
+          'not track GPUs), never a guessed yes',
+          [m for m in r['machines'] if m['name'] == 'big'][0]
+          ['profiles'][1]['verdict'] == 'unknown-gpu')
+    check('ai-6: no requirements -> refuses (nothing to gauge)',
+          not host_check({}, [big])['ok'])
+    check('ai-6: zero observed machines -> the note says refresh, '
+          'never a fabricated verdict',
+          'no machine has OBSERVED' in host_check(ai6_req,
+                                                  [])['note'])
+    check('ai-6: cloud options carry sovereignty tiers and NO '
+          'price quotes (prices go stale)',
+          all(o['sovereignty'] in ('your-cloud', 'intermediary')
+              and o.get('how') for o in CLOUD_HOSTING_OPTIONS)
+          and not any(tok in json.dumps(CLOUD_HOSTING_OPTIONS)
+                      for tok in ('$', '/mo', 'per hour')))
+    check('ai-6: remote tools declare NO hosting requirements '
+          '(nothing to host is the honest shape)',
+          all(not t.get('requirements_json')
+              for t in SEED_AI_TOOLS if t['name'] != 'localai'))
+
     print('== suite: ai-4 the sovereign voice seam ==')
     # The live reasoning config is whatever this instance runs —
     # monkeypatch it for deterministic outcomes (and NEVER write it).

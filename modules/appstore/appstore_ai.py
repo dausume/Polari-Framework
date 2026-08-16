@@ -114,6 +114,52 @@ AI_LINKAGES = {
 }
 
 
+#: ai-6 (Dustin): when the isle realistically CANNOT host a tool,
+#: say so and show the remote-hosting paths — where the user rents
+#: infrastructure, hosts the model there, and connects it back to
+#: polari (still the openai_compatible provider + a base_url).
+#: Sovereignty is TIERED and stated: 'your-cloud' = your rented
+#: machine (data leaves the isle but stays on infra you control);
+#: 'intermediary' = another party processes your data (the
+#: privacy-filter recommendation applies). NEVER price quotes here
+#: — prices go stale; honesty says "check current pricing".
+CLOUD_HOSTING_OPTIONS = [
+    {
+        'name': 'gpu-vps',
+        'title': 'Rented GPU server '
+                 '(e.g. RunPod, Vast.ai, Lambda, Hetzner GPU)',
+        'sovereignty': 'your-cloud',
+        'how': 'deploy the SAME LocalAI container there, then '
+               'connect it in the store: openai_compatible with '
+               'base_url = your server\'s https endpoint (key '
+               'optional if you firewall it to yourself)',
+        'note': 'fast models incl. larger ones; your rented '
+                'machine — data leaves the isle but stays on '
+                'infrastructure you control. Check current '
+                'pricing with the provider.',
+    },
+    {
+        'name': 'cpu-vps',
+        'title': 'Ordinary VPS (CPU-only)',
+        'sovereignty': 'your-cloud',
+        'how': 'same LocalAI container, CPU tag — exactly like '
+               'local CPU hosting, just on rented hardware',
+        'note': 'good for small quantized models (3-8B) at modest '
+                'speed; the cheapest self-controlled path.',
+    },
+    {
+        'name': 'managed-endpoint',
+        'title': 'Managed open-model endpoint (e.g. OpenRouter)',
+        'sovereignty': 'intermediary',
+        'how': 'select openai_compatible with their base_url + '
+               'your key in the bind flow',
+        'note': 'NOT self-hosting — another party processes your '
+                'data (the privacy-filter recommendation applies); '
+                'listed for completeness and honesty.',
+    },
+]
+
+
 class AiToolDefinition(treeObject):
     """One AI tool as a store citizen: hosting + API family + its
     honest linkage claims + sovereignty facts. Live readiness is
@@ -143,6 +189,12 @@ class AiToolDefinition(treeObject):
         # API domain (remote) or container image (local-hosted);
         # '' for built-in.
         source_ref: str = '',
+        # ai-6: what HOSTING this tool takes, as data —
+        # {"profiles": [{name, cores, ram_mb, disk_mb, gpu, note}]}.
+        # '' = nothing to host (remote intermediaries, built-in).
+        # Guidance, not guarantees — notes say what each profile
+        # actually buys.
+        requirements_json: str = '',
         published: bool = True,
         is_prior: bool = True,
         notes: str = '',
@@ -158,9 +210,109 @@ class AiToolDefinition(treeObject):
         self.internet_required = internet_required
         self.data_leaves_isle = data_leaves_isle
         self.source_ref = source_ref
+        self.requirements_json = requirements_json
         self.published = published
         self.is_prior = is_prior
         self.notes = notes
+
+
+def host_check(requirements, machines):
+    """ai-6: the honest hosting gauge. Pure — `requirements` is the
+    parsed requirements_json ({'profiles': [...]}), `machines` the
+    res-1 inventory nodes (camelCase dicts). Verdict per machine x
+    profile with the FAILING NUMBERS shown; GPU is honestly
+    'untracked' (res-1 has no GPU column — an unknown, never a
+    guessed yes). `realistic` = some machine fully fits some
+    profile; 'tight' (RAM exists but currently in use) is stated,
+    not rounded up to a yes."""
+    profiles = (requirements or {}).get('profiles') or []
+    if not profiles:
+        return {'ok': False,
+                'error': 'this tool declares no hosting '
+                         'requirements — nothing to gauge'}
+    checked, unknown = [], []
+    best = None
+    any_fit, any_tight = False, False
+    for m in machines:
+        if not m.get('hasSpecs'):
+            unknown.append(m.get('name', '?'))
+            continue
+        rows = []
+        for p in profiles:
+            detail = []
+            verdict = 'fits'
+            cores = m.get('logicalCpus') or 0
+            if cores < (p.get('cores') or 0):
+                verdict = 'no'
+                detail.append('cores: %s < %s needed'
+                              % (cores, p['cores']))
+            total = m.get('totalRamMb') or 0
+            avail = m.get('availableRamMb') or 0
+            need_ram = p.get('ram_mb') or 0
+            if total < need_ram:
+                verdict = 'no'
+                detail.append('RAM: %.0f MB total < %s MB needed'
+                              % (total, need_ram))
+            elif avail < need_ram and verdict != 'no':
+                verdict = 'tight'
+                detail.append('RAM: %s MB needed, only %.0f MB '
+                              'free right now (total %.0f MB — '
+                              'freeing memory would fit it)'
+                              % (need_ram, avail, total))
+            free_disk = m.get('freeDiskMb') or 0
+            need_disk = p.get('disk_mb') or 0
+            if free_disk < need_disk:
+                verdict = 'no'
+                detail.append('disk: %.0f MB free < %s MB needed '
+                              '(models are large)'
+                              % (free_disk, need_disk))
+            if p.get('gpu') and verdict != 'no':
+                verdict = 'unknown-gpu'
+                detail.append('needs a GPU — the resource '
+                              'inventory does not track GPUs, so '
+                              'this cannot be confirmed here')
+            rows.append({'profile': p.get('name', ''),
+                         'verdict': verdict, 'detail': detail})
+            if verdict == 'fits':
+                any_fit = True
+                if best is None:
+                    best = {'machine': m.get('name', ''),
+                            'profile': p.get('name', '')}
+            elif verdict == 'tight':
+                any_tight = True
+        checked.append({
+            'name': m.get('name', ''),
+            'source': m.get('resourceSource', ''),
+            'observedAt': m.get('resourceObservedAt', ''),
+            'profiles': rows,
+        })
+    if any_fit:
+        note = ('realistic — %s can host the "%s" profile'
+                % (best['machine'], best['profile']))
+    elif any_tight:
+        note = ('tight — the hardware exists but is busy; free '
+                'RAM/disk or pick a quieter box, else host '
+                'remotely (options below)')
+    elif checked:
+        note = ('NOT realistic on any observed machine — host the '
+                'model remotely (your rented server, options '
+                'below) and connect it to polari by base_url')
+    else:
+        note = ('no machine has OBSERVED resources — refresh the '
+                'resource inventory (/api/topology/resources) '
+                'before trusting any verdict')
+    return {
+        'ok': True,
+        'requirements': profiles,
+        'machines': checked,
+        'unknown_machines': unknown,
+        'realistic': any_fit,
+        'tight': (not any_fit) and any_tight,
+        'best': best,
+        'note': note,
+        'cloud_recommended': not any_fit,
+        'cloud': CLOUD_HOSTING_OPTIONS,
+    }
 
 
 def tool_report(row, provider_status=None, active_provider=''):
@@ -205,6 +357,12 @@ def tool_report(row, provider_status=None, active_provider=''):
         readiness_note = ('reasoning_config unavailable in this '
                           'context')
 
+    try:
+        requirements = json.loads(field('requirements_json', '')
+                                  or '{}')
+    except ValueError:
+        requirements = {}
+
     report = {
         'name': field('name'),
         'title': field('title'),
@@ -212,6 +370,7 @@ def tool_report(row, provider_status=None, active_provider=''):
         'hosting': field('hosting'),
         'api_family': field('api_family'),
         'provider_name': provider,
+        'requirements': requirements.get('profiles', []),
         'internet_required': bool(field('internet_required', False)),
         'data_leaves_isle': bool(field('data_leaves_isle', False)),
         'source_ref': field('source_ref'),

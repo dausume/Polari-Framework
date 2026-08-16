@@ -215,6 +215,20 @@ SEED_AI_TOOLS = [
         'internet_required': False,
         'data_leaves_isle': False,
         'source_ref': 'localai/localai:latest',
+        # ai-6: hosting profiles — GUIDANCE grounded in the
+        # evaluation (3-8B quantized runs on CPU at modest speed;
+        # models are gigabytes each on disk), not guarantees.
+        'requirements_json': '{"profiles": ['
+            '{"name": "minimal (3-8B quantized, CPU)", '
+            '"cores": 4, "ram_mb": 8192, "disk_mb": 20480, '
+            '"gpu": false, '
+            '"note": "short assistant turns at modest tokens/sec; '
+            'each model is ~2-8 GB on disk"}, '
+            '{"name": "comfortable (larger/faster, GPU)", '
+            '"cores": 8, "ram_mb": 16384, "disk_mb": 61440, '
+            '"gpu": true, '
+            '"note": "responsive chat + audio/vision backends; '
+            '8 GB+ VRAM recommended"}]}',
         'published': True,
         'is_prior': True,
         'notes': 'seed: fork pin dausume/LocalAI '
