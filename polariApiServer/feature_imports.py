@@ -740,7 +740,10 @@ FEATURE_IMPORT_BLOCKS = (
             'AppEdgeBehavior', 'AppShellDefinition', 'ShellArtifact',
             'ShellEnrollment', 'ShellInstallation',
         )),
-        ('appstore.appstore_seed', ('SEED_APP_SHELLS',
+        # ai-0: AI tools as first-class store citizens.
+        ('appstore.appstore_ai', ('AiToolDefinition',)),
+        ('appstore.appstore_seed', ('SEED_AI_TOOLS',
+                                    'SEED_APP_SHELLS',
                                     'SEED_EDGE_BEHAVIORS')),
         ('appstore.appstore_page', ('SEED_APPSTORE_PAGE_DISPLAYS',)),
     )),

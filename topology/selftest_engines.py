@@ -90,9 +90,9 @@ def main():
             os.environ['CAD_ENGINES_URL'] = saved_env
 
     print('== suite: the engine data page ==')
-    check('all five engines registered with natures + apps',
+    check('all six engines registered with natures + apps',
           set(ENGINES) == {'msci', 'cad', 'business-ops',
-                           'livekit', 'reticulum'}
+                           'livekit', 'reticulum', 'reasoning'}
           and ENGINES['msci']['nature'] == 'engine-only'
           and ENGINES['business-ops']['nature'] == 'engine+app'
           and ENGINES['business-ops']['app'] == 'app-business')
@@ -123,6 +123,24 @@ def main():
     finally:
         if saved_env is not None:
             os.environ['MSCI_ENGINES_URL'] = saved_env
+
+    print('== suite: ai-3 the reasoning engine page ==')
+    rep = engine_report(mgr, 'reasoning')
+    cap = rep['reachability']['capability']
+    check('reasoning: core seam — no module placement, knob is '
+          'POLARI_REASONING_PROVIDER',
+          rep['ok'] and rep['placement'] == []
+          and rep['reachability']['ladder'][0]['name']
+          == 'POLARI_REASONING_PROVIDER')
+    check('reasoning capability = the managed config readiness '
+          '(active + ready + needs), never a secret',
+          cap is not None and 'active' in cap
+          and 'ready' in cap and 'needs' in cap
+          and 'api_key' not in str(cap)
+          and 'secret' not in str(cap))
+    check('reasoning usage honest before any metered call',
+          rep['usage']['tracked'] is False
+          or rep['usage']['windows'] is not None)
 
     failed = [label for label, passed in _results if not passed]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} '

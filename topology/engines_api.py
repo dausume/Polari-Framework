@@ -66,6 +66,17 @@ ENGINES = {
         'nature': 'engine+app',
         'app': '',
     },
+    # ai-3: the assistant's LLM as an engine. The seam is CORE
+    # (polariApiServer.reasoning_provider), not a module, so
+    # placement is empty; reachability = the managed reasoning
+    # config's readiness ladder (the capability probe below).
+    'reasoning': {
+        'title': 'Reasoning (assistant LLM)',
+        'knob': 'POLARI_REASONING_PROVIDER',
+        'modules': [],
+        'nature': 'engine-only',
+        'app': '',
+    },
 }
 
 
@@ -80,6 +91,22 @@ def _capability_probe(engine):
         if engine == 'cad':
             from mathshapes.cad_remote import remote_capability
             return remote_capability(timeout=4)
+        if engine == 'reasoning':
+            # ai-3: the managed config IS the capability answer —
+            # active provider + its readiness ladder (sdk /
+            # credential / base_url), never a secret.
+            from polariApiServer import reasoning_config
+            status = reasoning_config.all_status()
+            active = status.get('active', '')
+            prov = next((p for p in status.get('providers', [])
+                         if p['name'] == active), None) or {}
+            return {
+                'active': active,
+                'active_via_env': status.get('active_via_env'),
+                'ready': prov.get('ready'),
+                'needs': prov.get('needs', []),
+                'settings': prov.get('settings', {}),
+            }
     except Exception:
         return None
     return None

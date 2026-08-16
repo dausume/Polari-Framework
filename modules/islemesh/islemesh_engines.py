@@ -87,6 +87,24 @@ def _bind_engine_row(engine):
     return bind
 
 
+def _bind_reasoning(manager, app_name, url, save):
+    """ai-3: reasoning → the managed reasoning config (the
+    _bind_odoo shape, but the consumer is CONFIG, not a row):
+    deploying an OpenAI-compatible server anywhere on the isle
+    (LocalAI) sets this instance's active provider to
+    openai_compatible with the app's /v1 base_url — the assistant
+    follows the engine with no redeploy. Refuses (returns None)
+    when reasoning_config is unavailable (host tool context)."""
+    try:
+        from polariApiServer import reasoning_config
+    except ImportError:
+        return None
+    base_url = url.rstrip('/') + '/v1'
+    reasoning_config.set_active('openai_compatible',
+                                {'base_url': base_url})
+    return 'reasoning_config:openai_compatible'
+
+
 #: kind -> (consumer label, binder). The label is what an unbound
 #: engine WOULD wire, so the honest "available but <module> absent"
 #: message can name it.
@@ -98,6 +116,8 @@ _BINDERS = {
     # names the row class, not a module that must be present.
     'msci': ('topology', _bind_engine_row('msci')),
     'cad': ('topology', _bind_engine_row('cad')),
+    # ai-3: the consumer is the managed reasoning config itself.
+    'reasoning': ('reasoning_config', _bind_reasoning),
 }
 
 

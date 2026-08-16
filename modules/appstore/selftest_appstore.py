@@ -474,6 +474,92 @@ if __name__ == '__main__':
           and 'unknown-network-kind' not in flat2)
 
     os.unlink(ca_file.name)
+
+    print('== suite: ai-0 tool definitions + linkage vocabulary ==')
+    from appstore.appstore_ai import (
+        AI_LINKAGES, API_FAMILIES, HOSTING_KINDS, LINKAGE_STATUSES,
+        tool_report)
+    from appstore.appstore_seed import SEED_AI_TOOLS
+    check('ai-0: the four tools Dustin named, one row each '
+          '(openai covers Codex)',
+          {t['name'] for t in SEED_AI_TOOLS}
+          == {'null', 'claude', 'openai', 'localai'})
+    check('ai-0: every seed uses a known hosting kind + API family',
+          all(t['hosting'] in HOSTING_KINDS
+              and t['api_family'] in API_FAMILIES
+              for t in SEED_AI_TOOLS))
+    all_links = [(t['name'], link) for t in SEED_AI_TOOLS
+                 for link in json.loads(t['linkages_json'])]
+    check('ai-0: every linkage claim uses a vocabulary kind, an '
+          'honest status, and carries a note',
+          all_links
+          and all(link['kind'] in AI_LINKAGES
+                  and link['status'] in LINKAGE_STATUSES
+                  and link.get('note')
+                  for _, link in all_links))
+    check('ai-0: proven claims exist ONLY on the live seams — '
+          'unbuilt seams carry feasible claims at most',
+          all(AI_LINKAGES[link['kind']]['seam'] == 'live'
+              for _, link in all_links
+              if link['status'] == 'proven'))
+    check('ai-0: sovereignty facts — remote intermediaries state '
+          'data leaves the isle, local/built-in state it never does',
+          all((t['internet_required'] and t['data_leaves_isle'])
+              == (t['hosting'] == 'remote-intermediary')
+              for t in SEED_AI_TOOLS))
+    check('ai-0: every vocabulary kind names its consumer + seam '
+          'state',
+          all(v.get('consumer') and v.get('seam')
+              in ('live', 'unbuilt') for v in AI_LINKAGES.values()))
+
+    print('== suite: ai-1 honest readiness API ==')
+    from appstore.appstore_ai import AiToolDefinition
+    from appstore.appstore_ai_api import AiToolsAPI, ai_tools_payload
+    ai_mgr = _ns(objectTables={'AiToolDefinition': {
+        t['name']: AiToolDefinition(**t) for t in SEED_AI_TOOLS}},
+        db=_FakeDB(), idList=[])
+    ai_api = AiToolsAPI(polServer=None, manager=ai_mgr)
+    ai_api.manager = ai_mgr
+    resp = _Resp()
+    ai_api.on_get_ai_tools(_req(params={}), resp)
+    tools = {t['name']: t for t in resp.media['tools']}
+    check('ai-1: list returns all four tools + the vocabulary',
+          resp.media['ok'] and resp.media['count'] == 4
+          and set(resp.media['linkages']) == set(AI_LINKAGES))
+    check('ai-1: readiness joins LIVE from reasoning_config for '
+          'provider-backed tools (booleans, never a secret)',
+          all(tools[n]['readiness'] is not None
+              and isinstance(tools[n]['readiness']['ready'], bool)
+              and 'api_key' not in json.dumps(resp.media)
+              for n in ('null', 'claude', 'openai', 'localai')))
+    check('ai-1: the null fallback reports ready (always '
+          'available, no LLM)',
+          tools['null']['readiness']['ready'] is True)
+    check('ai-1: linkage rows come back annotated with consumer + '
+          'seam state from the vocabulary',
+          all(link.get('consumer') and link.get('seam')
+              in ('live', 'unbuilt')
+              for t in tools.values() for link in t['linkages']))
+    check('ai-1: remote intermediaries carry the privacy '
+          'recommendation badge (knob-and-suggestion, never forced)',
+          'privacy_recommendation' in tools['claude']
+          and 'privacy_recommendation' in tools['openai']
+          and 'privacy_recommendation' not in tools['localai'])
+    resp = _Resp()
+    ai_api.on_get_ai_tool(_req(params={}), resp, 'localai')
+    check('ai-1: detail answers for one tool',
+          resp.media['ok']
+          and resp.media['tool']['name'] == 'localai'
+          and resp.media['tool']['hosting'] == 'local-hosted')
+    resp = _Resp()
+    ai_api.on_get_ai_tool(_req(params={}), resp, 'ghost')
+    check('ai-1: unknown tool refuses honestly',
+          resp.status.startswith('404')
+          and not resp.media['ok'])
+    check('ai-1: unpublished tools hide from the list',
+          ai_tools_payload([dict(SEED_AI_TOOLS[0],
+                                 published=False)])['count'] == 0)
+
     passed = sum(1 for _, ok in _results if ok)
     total = len(_results)
     print(f'{passed}/{total} checks passed')

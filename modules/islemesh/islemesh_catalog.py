@@ -143,6 +143,94 @@ def polari_app_options(app_rows, shell_rows, taken_names):
     return options
 
 
+def ai_tool_options(tool_rows, taken_names):
+    """ai-2 (decision 1): AiToolDefinition rows PROJECTED into the
+    store as the DEDICATED AI section — derived at read time (the
+    sep-3 pattern: rows stay in appstore, the section derives; never
+    persisted catalog rows). Every entry states its hosting kind and
+    sovereignty facts (decision 6) plus a linkage summary; the full
+    readiness join lives on /api/appstore/ai-tools. Pure function;
+    rows may be objects or dicts."""
+    import json as _json
+
+    def field(row, name, default=''):
+        if isinstance(row, dict):
+            return row.get(name, default)
+        return getattr(row, name, default)
+    options = []
+    for t in tool_rows:
+        name = field(t, 'name')
+        if (not name or name in taken_names
+                or not field(t, 'published', True)):
+            continue
+        try:
+            linkages = _json.loads(field(t, 'linkages_json', '[]')
+                                   or '[]')
+        except ValueError:
+            linkages = []
+        options.append({
+            'name': name,
+            'title': field(t, 'title'),
+            'description': field(t, 'description'),
+            'kind': 'ai-tool',
+            'category': 'ai',
+            'derived': True,
+            'hosting': field(t, 'hosting'),
+            'api_family': field(t, 'api_family'),
+            'provider_name': field(t, 'provider_name'),
+            'internet_required': bool(field(t, 'internet_required',
+                                            False)),
+            'data_leaves_isle': bool(field(t, 'data_leaves_isle',
+                                           False)),
+            'source_ref': field(t, 'source_ref'),
+            'linkages': [{'kind': l.get('kind', ''),
+                          'status': l.get('status', '')}
+                         for l in linkages],
+            'detail': '/api/appstore/ai-tools/%s' % name,
+            'source': 'derived',
+        })
+    options.sort(key=lambda o: o['name'])
+    return options
+
+
+def ai_tool_install_plan(option):
+    """ai-2: the install path per HOSTING KIND. built-in → nothing;
+    remote-intermediary → the /ai/providers binding flow (the
+    credential is entered by a HUMAN — never through an AI channel,
+    never into git); local-hosted → the isle app deploy whose
+    --engine declaration the ai-3 binder wires automatically."""
+    hosting = option.get('hosting', '')
+    name = option.get('name', '')
+    provider = option.get('provider_name', '')
+    if hosting == 'built-in':
+        return {'ok': True, 'steps': [],
+                'note': 'built in — always available, nothing to '
+                        'install'}
+    if hosting == 'remote-intermediary':
+        return {'ok': True, 'steps': [
+            'POST /ai/providers {"action": "select", '
+            '"provider": "%s"}' % provider,
+            'POST /ai/providers {"action": "set_auth", '
+            '"provider": "%s", "secret": <entered by a human — '
+            'never via the AI channel, never into git>}' % provider,
+            'POST /ai/providers {"action": "validate", '
+            '"provider": "%s"}' % provider,
+        ], 'note': 'a thin binding to a remote server over the '
+                   'internet — installing = selecting + '
+                   'authenticating the provider; data leaves the '
+                   'isle (privacy-filter recommended upstream)'}
+    if hosting == 'local-hosted':
+        image = option.get('source_ref', '')
+        return {'ok': True, 'steps': [
+            'isle app deploy %s --image %s --service %s '
+            '--port 8080 --engine reasoning' % (name, image, name),
+        ], 'note': 'deploys %s as an .isle app; the reasoning '
+                   'binder auto-wires every polari instance\'s '
+                   'assistant to it (ai-3), no redeploy' % name}
+    return {'ok': False, 'steps': [],
+            'note': 'unknown hosting kind %r' % hosting}
+
+
 def option_install_plan(option):
     """The convert/install path for one derived app option — ONE
     command either way (`pol apps shell <name>` is idempotent: row

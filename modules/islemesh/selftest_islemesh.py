@@ -318,6 +318,81 @@ def main():
           not bound and to == 'topology' and 'not present' in note,
           f'{bound} {to!r} {note!r}')
 
+    # ---- ai-3: the reasoning binder ----------------------------------
+    # NEVER exercise the real set_active here — in-container this
+    # selftest runs on the LIVE instance and would flip its active
+    # provider. A recorder stands in; restored in finally.
+    check('ai-3: reasoning maps to the reasoning_config binder',
+          _BINDERS['reasoning'][0] == 'reasoning_config')
+    try:
+        from polariApiServer import reasoning_config as _rc
+    except ImportError:
+        _rc = None
+    if _rc is None:
+        bound, to, note = bind_engine(fakemgr, 'localai',
+                                      'reasoning', 'http://l',
+                                      saved.append)
+        check('ai-3: reasoning unbound when reasoning_config '
+              'absent, names it',
+              not bound and to == 'reasoning_config')
+    else:
+        recorded = []
+        real_set_active = _rc.set_active
+        _rc.set_active = lambda name, settings=None: recorded.append(
+            (name, settings or {}))
+        try:
+            bound, to, note = bind_engine(
+                fakemgr, 'localai', 'reasoning',
+                'http://localai.isle:8080/', saved.append)
+        finally:
+            _rc.set_active = real_set_active
+        check('ai-3: reasoning binds the managed config to '
+              'openai_compatible at the /v1 base_url',
+              bound and to == 'reasoning_config:openai_compatible'
+              and recorded == [('openai_compatible',
+                                {'base_url':
+                                 'http://localai.isle:8080/v1'})],
+              f'{bound} {to!r} {recorded!r}')
+
+    # ---- ai-2: the derived AI store section --------------------------
+    from islemesh.islemesh_catalog import (ai_tool_install_plan,
+                                           ai_tool_options)
+    try:
+        from appstore.appstore_seed import SEED_AI_TOOLS
+    except ImportError:
+        SEED_AI_TOOLS = []
+    if SEED_AI_TOOLS:
+        ai_opts = ai_tool_options(SEED_AI_TOOLS, set())
+        check('ai-2: all four seeded tools derive as category-ai '
+              'entries with sovereignty stated',
+              [o['name'] for o in ai_opts]
+              == ['claude', 'localai', 'null', 'openai']
+              and all(o['category'] == 'ai' and o['derived']
+                      and 'internet_required' in o
+                      and 'data_leaves_isle' in o
+                      for o in ai_opts))
+        plans = {o['name']: ai_tool_install_plan(o)
+                 for o in ai_opts}
+        check('ai-2: built-in installs as NOTHING (honesty)',
+              plans['null']['ok'] and plans['null']['steps'] == [])
+        check('ai-2: remote intermediaries install as the '
+              '/ai/providers binding flow, credential human-only',
+              all('select' in p['steps'][0]
+                  and 'set_auth' in p['steps'][1]
+                  and 'human' in p['steps'][1]
+                  for p in (plans['claude'], plans['openai'])))
+        check('ai-2: local-hosted installs as isle app deploy '
+              '--engine reasoning (the ai-3 binder wires it)',
+              'isle app deploy localai' in plans['localai']['steps'][0]
+              and '--engine reasoning' in plans['localai']['steps'][0])
+        check('ai-2: a taken name is skipped (persisted rows win)',
+              len(ai_tool_options(SEED_AI_TOOLS, {'localai'})) == 3)
+        check('ai-2: unknown hosting kind refuses honestly',
+              not ai_tool_install_plan({'hosting': 'bogus'})['ok'])
+    else:
+        check('ai-2: appstore seeds unavailable in this context '
+              '(stated, suite skipped)', True)
+
     # ---- catalog install plans (§20.1/§20.3) ------------------------
     from islemesh.islemesh_catalog import SEED_CATALOG, install_plan
     kinds = {e['kind'] for e in SEED_CATALOG}

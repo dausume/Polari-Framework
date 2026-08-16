@@ -996,6 +996,9 @@ class polariServer(treeObject):
             # sep-5: edge behaviors as reusable data (decision 8) —
             # what a shell may do beyond wrapping the webapp.
             AppEdgeBehavior,
+            # ai-0: AI tools as first-class store citizens —
+            # hosting kind + honest linkage claims + sovereignty.
+            AiToolDefinition,
             # islemesh (mac-1): isle's accepted copy + the mesh-app
             # model (ingest-owned rows; is_mock stamps mock data).
             IsleDevice, IsleUplink, IsleApp, IsleAppService,
@@ -2253,6 +2256,9 @@ class polariServer(treeObject):
             # rationale as the shells above).
             ('AppEdgeBehavior', AppEdgeBehavior,
              SEED_EDGE_BEHAVIORS),
+            # ai-0: the four AI tools (same legacy-fallback
+            # rationale — prf-a runs without composition).
+            ('AiToolDefinition', AiToolDefinition, SEED_AI_TOOLS),
             # islemesh (§20): the general isle app store catalog —
             # the two proven variants (mesh-app + polari-app) + odoo.
             ('IsleCatalogEntry', IsleCatalogEntry, SEED_CATALOG),
@@ -2916,7 +2922,8 @@ class polariServer(treeObject):
                 and _feature_available('appstore') and (
                 only_classes is None
                 or 'AppShellDefinition' in only_classes
-                or 'AppEdgeBehavior' in only_classes)):
+                or 'AppEdgeBehavior' in only_classes
+                or 'AiToolDefinition' in only_classes)):
             try:
                 from composition.seed_upsert import upsert_seed_pairs
                 for r in upsert_seed_pairs(
@@ -2924,7 +2931,11 @@ class polariServer(treeObject):
                         [('AppShellDefinition', AppShellDefinition,
                           SEED_APP_SHELLS),
                          ('AppEdgeBehavior', AppEdgeBehavior,
-                          SEED_EDGE_BEHAVIORS)], tag='AppStoreSeed'):
+                          SEED_EDGE_BEHAVIORS),
+                         # ai-0: linkage-claim edits to live rows
+                         # converge here (the ten-strikes gotcha).
+                         ('AiToolDefinition', AiToolDefinition,
+                          SEED_AI_TOOLS)], tag='AppStoreSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[AppStoreSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '

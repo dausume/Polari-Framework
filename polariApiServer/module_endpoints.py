@@ -332,6 +332,11 @@ def construct_appstore_endpoints(polServer):
     from appstore.appstore_api import AppStoreAPI
     appStoreEndpoint = AppStoreAPI(
         polServer=polServer, manager=manager)
+    # ai-1: the AI-tools honest readiness surface (read-only;
+    # select/set_auth/validate stay on /ai/providers).
+    from appstore.appstore_ai_api import AiToolsAPI
+    aiToolsEndpoint = AiToolsAPI(
+        polServer=polServer, manager=manager)
 
 
 def construct_islemesh_endpoints(polServer):
