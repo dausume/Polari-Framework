@@ -115,7 +115,10 @@ class AiToolsAPI(treeObject):
     def on_get_hosting_options(self, request, response):
         """ai-7: the rentable options + derived fit against the
         localai hosting profiles. Prices carry their as-of date —
-        the payload's honesty note says exactly what to trust."""
+        the payload's honesty note says exactly what to trust.
+        ai-8: PLUS the buy-vs-rent advisory when the computerparts
+        module is enabled (row reads + its own pure fns, gated on
+        module_enabled — ImportError is NOT an absence check)."""
         from appstore.appstore_hosting import (
             hosting_options_payload)
         rows = list((getattr(self.manager, 'objectTables', None)
@@ -133,7 +136,85 @@ class AiToolsAPI(treeObject):
                         raw or '{}').get('profiles', [])
                 except ValueError:
                     profiles = []
-        response.media = hosting_options_payload(rows, profiles)
+        payload = hosting_options_payload(rows, profiles)
+        payload['buy'] = self._buy_section(payload['options'],
+                                           profiles)
+        response.media = payload
+
+    def _buy_section(self, rental_options, profiles):
+        """ai-8: builds from the computerparts module joined with
+        derived fit + break-even months against the USD rental
+        options (monthly-ized; EUR options skipped rather than
+        converted — currency math without a dated rate is a lie)."""
+        try:
+            from polariApiServer.module_gating import module_enabled
+            enabled = module_enabled('computerparts')
+        except ImportError:
+            enabled = False
+        if not enabled:
+            return {'available': False,
+                    'note': 'the computerparts module is not '
+                            'enabled on this instance — bring it '
+                            'online for the buy-vs-rent advisory'}
+        try:
+            from computerparts.parts_assembly import assembly_check
+            from computerparts.parts_basis import (
+                break_even_months, build_report)
+        except ImportError:
+            return {'available': False,
+                    'note': 'computerparts code not present'}
+        from appstore.appstore_hosting import option_fit
+        tables = getattr(self.manager, 'objectTables', None) or {}
+        parts_by_name = {
+            getattr(p, 'name', ''): p
+            for p in tables.get('ComputerPartDefinition',
+                                {}).values()
+            if getattr(p, 'published', True)}
+        # monthly-ized USD rentals a GPU build competes with
+        rentals = []
+        for o in rental_options:
+            if o['kind'] not in ('gpu-vps', 'gpu-dedicated'):
+                continue
+            if not o['price_unit'].startswith('USD'):
+                continue
+            monthly = o['price_amount'] if o['price_unit'].endswith(
+                '/mo') else round(o['price_amount'] * 730, 0)
+            rentals.append({'option': o['name'],
+                            'monthly_usd': monthly})
+        rentals.sort(key=lambda r: r['monthly_usd'])
+        builds = []
+        for b in tables.get('ComputerBuildDefinition', {}).values():
+            if not getattr(b, 'published', True):
+                continue
+            report = build_report(b, parts_by_name)
+            report['assembly'] = assembly_check(b, parts_by_name)
+            report['fit'] = option_fit(
+                dict(report['specs'], name=report['name']),
+                profiles)
+            report['break_even'] = [
+                {'vs': r['option'],
+                 'monthly_usd': r['monthly_usd'],
+                 'months': break_even_months(report['total_usd'],
+                                             r['monthly_usd'])}
+                for r in rentals]
+            builds.append(report)
+        builds.sort(key=lambda x: x['total_usd'])
+        return {
+            'available': True,
+            'builds': builds,
+            'advisory': {
+                'sparing': 'using this only occasionally? RENT '
+                           'hourly — but remember the manual '
+                           'teardown: on DigitalOcean a GPU '
+                           'droplet BILLS even powered off; you '
+                           'must DESTROY it after each session',
+                'sustained': 'planning to use it for months? past '
+                             'the break-even months shown, buying '
+                             'one of these machines is cheaper '
+                             'than renting — and it stays on the '
+                             'isle (sovereign)',
+            },
+        }
 
     def on_get_host_check(self, request, response, tool):
         """ai-6: gauge whether THIS isle can realistically host the

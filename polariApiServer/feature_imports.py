@@ -750,6 +750,17 @@ FEATURE_IMPORT_BLOCKS = (
                                     'SEED_EDGE_BEHAVIORS')),
         ('appstore.appstore_page', ('SEED_APPSTORE_PAGE_DISPLAYS',)),
     )),
+    # ai-8: computer parts + builds as tracked data — dated prices,
+    # derived build cost, assembly-feasibility checks over declared
+    # specs. The appstore's buy-vs-rent advisory reads these ROWS.
+    ('computerparts', (
+        ('computerparts.parts_basis', (
+            'ComputerBuildDefinition', 'ComputerPartDefinition',
+        )),
+        ('computerparts.parts_seed', (
+            'SEED_COMPUTER_BUILDS', 'SEED_COMPUTER_PARTS',
+        )),
+    )),
     # islemesh (mac-1): the polari-side acceptor for isle-mesh data —
     # devices/uplinks/apps/permits rows are isle's ACCEPTED copy (isle
     # stays authoritative over networking); mock ingests carry a flag

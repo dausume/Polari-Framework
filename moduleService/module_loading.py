@@ -36,7 +36,8 @@ from polariApiServer.module_gating import module_enabled
 # always required and their imports stay static.
 FEATURE_MODULES = frozenset({
     'appstore',
-    'aquaponics', 'biomining', 'bizops', 'climate', 'dmvdata',
+    'aquaponics', 'biomining', 'bizops', 'climate',
+    'computerparts', 'dmvdata',
     'electrodevice',
     'gears', 'grpcbridge', 'hwdigital', 'hwfpga', 'magnetics',
     'collab',

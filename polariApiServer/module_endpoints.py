@@ -339,6 +339,14 @@ def construct_appstore_endpoints(polServer):
         polServer=polServer, manager=manager)
 
 
+def construct_computerparts_endpoints(polServer):
+    manager = polServer.manager
+    # ai-8: parts + builds with derived totals + assembly checks.
+    from computerparts.parts_api import ComputerPartsAPI
+    computerPartsEndpoint = ComputerPartsAPI(
+        polServer=polServer, manager=manager)
+
+
 def construct_islemesh_endpoints(polServer):
     manager = polServer.manager
     # islemesh (mac-1): ingest + read surface for isle-mesh
@@ -458,6 +466,7 @@ MODULE_ENDPOINT_CONSTRUCTORS = {
     'testing': construct_testing_endpoints,
     'polariapps': construct_polariapps_endpoints,
     'appstore': construct_appstore_endpoints,
+    'computerparts': construct_computerparts_endpoints,
     'islemesh': construct_islemesh_endpoints,
     'techtree': construct_techtree_endpoints,
     'grpcbridge': construct_grpcbridge_endpoints,

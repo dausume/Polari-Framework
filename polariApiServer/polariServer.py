@@ -1006,6 +1006,9 @@ class polariServer(treeObject):
             AiToolDefinition,
             # ai-7: remote-hosting suggestions w/ dated prices.
             RemoteHostingOption,
+            # ai-8: computer parts + builds (dated prices,
+            # derived cost, assembly checks).
+            ComputerPartDefinition, ComputerBuildDefinition,
             # islemesh (mac-1): isle's accepted copy + the mesh-app
             # model (ingest-owned rows; is_mock stamps mock data).
             IsleDevice, IsleUplink, IsleApp, IsleAppService,
@@ -2269,6 +2272,11 @@ class polariServer(treeObject):
             # ai-7: dated-price hosting suggestions (same rationale).
             ('RemoteHostingOption', RemoteHostingOption,
              SEED_REMOTE_HOSTING),
+            # ai-8: parts before builds (builds reference parts).
+            ('ComputerPartDefinition', ComputerPartDefinition,
+             SEED_COMPUTER_PARTS),
+            ('ComputerBuildDefinition', ComputerBuildDefinition,
+             SEED_COMPUTER_BUILDS),
             # islemesh (§20): the general isle app store catalog —
             # the two proven variants (mesh-app + polari-app) + odoo.
             ('IsleCatalogEntry', IsleCatalogEntry, SEED_CATALOG),
@@ -2959,6 +2967,32 @@ class polariServer(treeObject):
                               flush=True)
             except Exception as e:
                 print(f'[AppStoreSeed] failed: {e}', flush=True)
+        # ai-8: computerparts rides the upsert path from day one
+        # (price/date bumps must converge on live rows).
+        if (_feature_available('composition')
+                and _feature_available('computerparts') and (
+                only_classes is None
+                or 'ComputerPartDefinition' in only_classes
+                or 'ComputerBuildDefinition' in only_classes)):
+            try:
+                from composition.seed_upsert import upsert_seed_pairs
+                for r in upsert_seed_pairs(
+                        self.manager,
+                        [('ComputerPartDefinition',
+                          ComputerPartDefinition,
+                          SEED_COMPUTER_PARTS),
+                         ('ComputerBuildDefinition',
+                          ComputerBuildDefinition,
+                          SEED_COMPUTER_BUILDS)],
+                        tag='ComputerPartsSeed'):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[ComputerPartsSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[ComputerPartsSeed] failed: {e}',
+                      flush=True)
         # ret-1: the interface seed rides the upsert path from day one
         # (AppStoreSeed precedent) so field additions converge live
         # rows (the ten-strikes gotcha). Same module-level-import rule
