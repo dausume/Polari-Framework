@@ -64,19 +64,22 @@ AI_LINKAGES = {
     },
     'stt': {
         'title': 'Speech-to-text',
-        'consumer': 'assistant panel voice input — today browser '
-                    'Web Speech (Chrome STT is CLOUD-backed); the '
-                    'sovereign path is /v1/audio/transcriptions',
-        'knob': 'none yet (ai-4 builds the provider-backed path)',
-        'seam': 'unbuilt',
+        'consumer': 'assistant voice input via /ai/voice/transcribe '
+                    '(the provider\'s /v1/audio/transcriptions); '
+                    'browser Web Speech is the STATED fallback '
+                    '(Chrome STT is cloud-backed)',
+        'knob': 'rides the active reasoning provider (openai / '
+                'openai_compatible only); stt_model setting',
+        'seam': 'live',
     },
     'tts': {
         'title': 'Text-to-speech',
-        'consumer': 'assistant panel voice output — today browser '
-                    'Web Speech; the sovereign path is '
-                    '/v1/audio/speech',
-        'knob': 'none yet (ai-4 builds the provider-backed path)',
-        'seam': 'unbuilt',
+        'consumer': 'assistant voice output via /ai/voice/speak '
+                    '(the provider\'s /v1/audio/speech); browser '
+                    'speechSynthesis is the fallback',
+        'knob': 'rides the active reasoning provider; tts_model / '
+                'tts_voice settings',
+        'seam': 'live',
     },
     'embeddings': {
         'title': 'Embeddings',

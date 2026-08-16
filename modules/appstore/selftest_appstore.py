@@ -560,6 +560,77 @@ if __name__ == '__main__':
           ai_tools_payload([dict(SEED_AI_TOOLS[0],
                                  published=False)])['count'] == 0)
 
+    print('== suite: ai-4 the sovereign voice seam ==')
+    # The live reasoning config is whatever this instance runs —
+    # monkeypatch it for deterministic outcomes (and NEVER write it).
+    try:
+        from polariApiServer import reasoning_config as _rc
+        from polariApiServer import voiceAPI as _v
+    except ImportError:
+        _rc = _v = None
+    if _v is None:
+        check('ai-4: voiceAPI unavailable in this context (stated, '
+              'suite skipped)', True)
+    else:
+        real_active = _rc.active_config
+        real_status = _rc.provider_status
+
+        def _fake(provider, settings, ready, needs=()):
+            _rc.active_config = lambda: {'provider': provider,
+                                         'settings': settings}
+            _rc.provider_status = lambda n: dict(
+                real_status(n), ready=ready, needs=list(needs))
+        try:
+            _fake('null', {}, True)
+            s = _v.voice_status()
+            check('ai-4: null provider refuses both directions, '
+                  'names why + the browser fallback',
+                  not s['stt']['available']
+                  and 'no audio API' in s['stt']['why']
+                  and not s['sovereign']
+                  and 'cloud-backed' in s['fallback'])
+            _fake('openai_compatible',
+                  {'base_url': 'http://localai.isle:8080/v1'}, True)
+            s = _v.voice_status()
+            check('ai-4: ready openai_compatible serves both '
+                  'directions and is SOVEREIGN (base_url)',
+                  s['stt']['available'] and s['tts']['available']
+                  and s['sovereign']
+                  and s['stt']['model'] == 'whisper-1'
+                  and s['tts']['voice'] == 'alloy')
+            _fake('openai', {}, True)
+            s = _v.voice_status()
+            check('ai-4: ready openai serves voice but is NOT '
+                  'sovereign — audio leaves the isle, stated',
+                  s['stt']['available'] and not s['sovereign']
+                  and 'leaves the isle' in s['sovereignty_note'])
+            _fake('openai_compatible', {}, False,
+                  ['set base_url'])
+            s = _v.voice_status()
+            check('ai-4: unready provider refuses naming its needs',
+                  not s['stt']['available']
+                  and 'set base_url' in s['stt']['why'])
+            # the handlers refuse honestly BEFORE touching audio
+            _fake('null', {}, True)
+            vapi = _v.voiceAPI(polServer=None, manager=None)
+            resp = _Resp()
+            vapi.on_post_transcribe(
+                _ns(bounded_stream=io.BytesIO(b''),
+                    content_type='audio/webm'), resp)
+            check('ai-4: transcribe on a no-audio provider refuses '
+                  'with the fallback stated',
+                  resp.status.startswith('400')
+                  and not resp.media['ok']
+                  and 'fallback' in resp.media)
+            resp = _Resp()
+            vapi.on_post_speak(_req(body={'text': 'hi'}), resp)
+            check('ai-4: speak on a no-audio provider refuses too',
+                  resp.status.startswith('400')
+                  and not resp.media['ok'])
+        finally:
+            _rc.active_config = real_active
+            _rc.provider_status = real_status
+
     passed = sum(1 for _, ok in _results if ok)
     total = len(_results)
     print(f'{passed}/{total} checks passed')

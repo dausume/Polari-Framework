@@ -60,6 +60,7 @@ from polariApiServer.updateClassConfigAPI import UpdateClassConfigAPI
 from polariApiServer.systemInfoAPI import systemInfoAPI
 from polariApiServer.aiChatAPI import aiChatAPI
 from polariApiServer.providersAPI import providersAPI
+from polariApiServer.voiceAPI import voiceAPI
 from polariApiServer.aiActionsAPI import aiActionsAPI
 from polariApiServer.apiFormatConfig import ApiFormatConfig
 from polariApiServer.configuredFormattedAPIs import FlatJsonAPI, D3ColumnAPI, GeoJsonAPI
@@ -564,6 +565,10 @@ class polariServer(treeObject):
 
         # Create reasoning-provider management endpoint (select/auth/validate)
         providersEndpoint = providersAPI(polServer=self, manager=self.manager)
+
+        # ai-4: the sovereign voice seam (provider-backed STT/TTS,
+        # browser Web Speech as the STATED fallback)
+        voiceEndpoint = voiceAPI(polServer=self, manager=self.manager)
 
         # Create in-app AI action loop endpoint (gated propose->confirm->execute)
         aiActionsEndpoint = aiActionsAPI(polServer=self, manager=self.manager)

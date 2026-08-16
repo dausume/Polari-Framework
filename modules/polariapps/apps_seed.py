@@ -431,4 +431,49 @@ SEED_POLARI_APPS = [
                       requires_module='mathshapes')),),
          personas=('researcher',),
          engine_page='/engines/cad'),
+    # ------------------------------------------------------------------
+    # ai-4 (AI_TOOL_LINKAGES decision 5): the linkages that matter
+    # as visitable, configurable APPS. The seam is CORE
+    # (polariApiServer), so no module requirement; sep-3 launchers
+    # come free. meetings-stt waits for the collab transcription
+    # seam — seeding a tile onto an unbuilt page would be dishonest.
+    # ------------------------------------------------------------------
+    _app('ai-assistant-reasoning', 'Assistant Reasoning',
+         'Anyone asking WHICH AI backs the assistant on this '
+         'instance, whether it is ready, and what flows through it.',
+         'The assistant\'s reasoning binding as a tile: the active '
+         'provider, its readiness ladder, and usage over time '
+         '(counts/bytes/latency — never conversation content). '
+         'Tool choice + credentials live in the store\'s AI '
+         'section and /ai/providers.',
+         (),
+         ('/engines/reasoning', '/isle-store'),
+         nav=(
+             _tgrp('AI',
+                  _it('Reasoning engine page', 'page',
+                      route='/engines/reasoning'),
+                  _it('AI tools (store section)', 'page',
+                      route='/isle-store')),),
+         personas=('business-operator', 'researcher'),
+         engine_page='/engines/reasoning'),
+    _app('ai-voice', 'Assistant Voice',
+         'Anyone asking where the assistant\'s EARS and MOUTH run — '
+         'on the isle (sovereign) or in a cloud.',
+         'Both voice directions as one tile: speech-to-text '
+         '(/ai/voice/transcribe) and text-to-speech '
+         '(/ai/voice/speak) ride the active OpenAI-compatible '
+         'provider — fully on-isle when that provider is a local '
+         'server (LocalAI). Browser Web Speech is the STATED '
+         'fallback (Chrome STT is cloud-backed). Status: GET '
+         '/ai/voice.',
+         (),
+         ('/engines/reasoning', '/isle-store'),
+         nav=(
+             _tgrp('AI',
+                  _it('Reasoning engine page', 'page',
+                      route='/engines/reasoning'),
+                  _it('AI tools (store section)', 'page',
+                      route='/isle-store')),),
+         personas=('business-operator',),
+         engine_page='/engines/reasoning'),
 ]

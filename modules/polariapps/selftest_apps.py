@@ -68,9 +68,10 @@ if __name__ == '__main__':
     use_case_apps = [s for s in SEED_POLARI_APPS if not s['discipline']]
     discipline_apps = [s for s in SEED_POLARI_APPS if s['discipline']]
     check('use-case apps seeded (wax shop, judicial, dmv + the '
-          'sep-4 engine tiles)',
+          'sep-4 engine tiles + the ai-4 linkage apps)',
           sorted(s['name'] for s in use_case_apps)
-          == ['dmv-policy-analysis', 'engine-cad', 'engine-msci',
+          == ['ai-assistant-reasoning', 'ai-voice',
+              'dmv-policy-analysis', 'engine-cad', 'engine-msci',
               'judicial-lean', 'wax-print-shop'])
     check('ten discipline apps seeded (nav-1 + mtg-3 collaboration '
           '+ ret-1b archipelago)',
@@ -80,8 +81,12 @@ if __name__ == '__main__':
               'app-mechanical', 'app-policy',
               'app-scorecards-data-analysis',
               'app-software-engineering', 'app-topology-network'])
-    check('every seed carries modules + pages + use case',
-          all(json.loads(s['modules_json'])
+    # ai-4: the two linkage apps ride the CORE seam — an empty
+    # modules list is their honest shape, not an omission.
+    check('every seed carries modules + pages + use case '
+          '(ai-4 linkage apps: core seam, modules honestly empty)',
+          all((json.loads(s['modules_json'])
+               or s['name'].startswith('ai-'))
               and json.loads(s['pages_json']) and s['use_case']
               for s in SEED_POLARI_APPS))
 
@@ -222,10 +227,10 @@ if __name__ == '__main__':
     reqs = {'composition': ['mathshapes']}
     result = apps_nav(navmgr, feature_check=gate, requires_map=reqs)
     napps = {a['name']: a for a in result['apps']}
-    check('nav payload covers all 15 apps (13 + sep-4 engine '
-          'tiles), gating readable',
+    check('nav payload covers all 17 apps (13 + sep-4 engine '
+          'tiles + ai-4 linkage apps), gating readable',
           result['ok'] and result['gatingReadable']
-          and len(napps) == 15)
+          and len(napps) == 17)
     check('discipline apps sort before use-case apps',
           [a['discipline'] != '' for a in result['apps']].index(False)
           == 10)
