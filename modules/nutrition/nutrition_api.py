@@ -39,6 +39,9 @@ from nutrition.household_analysis import household_needs
 from nutrition.threshold_analysis import (
     calorie_envelope, obesity_classification, person_thresholds,
 )
+from nutrition.tolerance_analysis import (
+    evaluate_tolerances, meal_glycemic_load,
+)
 
 
 class NutritionAPI(treeObject):
@@ -69,6 +72,15 @@ class NutritionAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/nutrition/persons/{name}/thresholds', self,
                 suffix='thresholds')
+            # nmp-2: the tolerance table
+            polServer.falconServer.add_route(
+                '/api/nutrition/tolerances', self,
+                suffix='tolerances')
+            polServer.falconServer.add_route(
+                '/api/nutrition/tolerance-check', self,
+                suffix='tolerance_check')
+            polServer.falconServer.add_route(
+                '/api/nutrition/meal-gl', self, suffix='meal_gl')
 
     def _rows(self, class_name):
         table = (self.manager.objectTables or {}).get(class_name, {})
@@ -159,6 +171,53 @@ class NutritionAPI(treeObject):
         if not result.get('ok'):
             response.status = '400 Bad Request'
         response.media = result
+
+    def on_get_tolerances(self, request, response):
+        out = []
+        for t in self._rows('ToleranceThreshold'):
+            out.append({
+                'name': getattr(t, 'name', ''),
+                'substance': getattr(t, 'substance', ''),
+                'period': getattr(t, 'period', ''),
+                'thresholdAmount': getattr(t, 'threshold_amount', 0.0),
+                'unit': getattr(t, 'unit', ''),
+                'perKgBodyMass': bool(
+                    getattr(t, 'per_kg_body_mass', False)),
+                'symptom': getattr(t, 'symptom', ''),
+                'citation': getattr(t, 'citation', ''),
+                'confidence': getattr(t, 'confidence', ''),
+                'qualifier': getattr(t, 'qualifier', '')})
+        response.media = {'ok': True, 'tolerances': out,
+                          'count': len(out)}
+
+    def _json_body(self, request, response):
+        try:
+            return json.load(request.bounded_stream) \
+                if request.content_length else {}
+        except Exception as e:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': f'bad JSON payload: {e}'}
+            return None
+
+    def on_post_tolerance_check(self, request, response):
+        body = self._json_body(request, response)
+        if body is None:
+            return
+        person = None
+        if body.get('person'):
+            person = self._named('PersonProfile', body['person'])
+        result = evaluate_tolerances(
+            self.manager, body.get('intake', {}) or {},
+            body.get('period', 'day'), person=person)
+        response.media = result
+
+    def on_post_meal_gl(self, request, response):
+        body = self._json_body(request, response)
+        if body is None:
+            return
+        response.media = meal_glycemic_load(
+            self.manager, body.get('portions', []) or [])
 
     def on_get_household(self, request, response, name):
         period = (request.params or {}).get('period', 'week')

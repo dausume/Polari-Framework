@@ -24,6 +24,26 @@ transforms arrive with nmp-3 (retention x yield).
 
 from nutrition.vendor_data import fdc_subset
 
+# nmp-2 (decision 9): published GI means from Atkinson,
+# Foster-Powell & Brand-Miller 2008 (Diabetes Care) international
+# tables — the PAPER, never the proprietary Sydney database. GI
+# applies to the food AS EATEN; raw/dry staples carry the cooked
+# value (the caveat rides gi_source). Foods without a published
+# value stay 0 = unknown.
+_GI_SOURCE = ('Atkinson 2008 international GI tables (published '
+              'means; cooked/as-eaten form)')
+_GI = {
+    'rice-white-raw': 73.0, 'rice-brown-raw': 68.0,
+    'potato-russet-raw': 78.0, 'sweet-potato-raw': 63.0,
+    'oats-rolled': 55.0, 'pasta-dry': 49.0, 'quinoa-raw': 53.0,
+    'lentils-dry': 32.0, 'black-beans-dry': 30.0,
+    'chickpeas-dry': 28.0, 'apple-raw': 36.0, 'banana-raw': 51.0,
+    'orange-raw': 43.0, 'strawberries-raw': 40.0,
+    'blueberries-raw': 53.0, 'sugar-white': 65.0,
+    'milk-whole': 39.0, 'yogurt-plain-whole': 41.0,
+    'carrot-raw': 39.0,
+}
+
 _PREP_OVERRIDES = {
     'flour-whole-wheat': 'flour',
     'flour-all-purpose': 'flour',
@@ -54,6 +74,8 @@ def _build():
                 'preparation': _PREP_OVERRIDES.get(slug, 'raw'),
                 'fdc_id': int(r['fdc_id']),
                 'fdc_dataset': r['fdc_dataset'],
+                'gi_value': _GI.get(slug, 0.0),
+                'gi_source': _GI_SOURCE if slug in _GI else '',
                 'provenance_id': 'nmp-0',
                 'notes': 'USDA FDC per-100g basis (see vendor/)',
             })

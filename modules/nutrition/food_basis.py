@@ -61,6 +61,12 @@ class FoodItem(treeObject):
         # 'foundation' | 'sr_legacy' | '' — which FDC dataset the id
         # lives in (they are separate releases with separate ids).
         fdc_dataset: str = '',
+        # nmp-2 (decision 9): glycemic index of the food AS EATEN
+        # (Atkinson 2008 published tables; 0 = unknown — honest
+        # absence, never a guess). Raw staples carry the cooked
+        # value with the caveat in gi_source.
+        gi_value: float = 0.0,
+        gi_source: str = '',
         provenance_id: str = '',
         notes: str = '',
         manager=None,
@@ -74,6 +80,8 @@ class FoodItem(treeObject):
         self.fresh_to_dry_ratio = fresh_to_dry_ratio
         self.fdc_id = fdc_id
         self.fdc_dataset = fdc_dataset
+        self.gi_value = gi_value
+        self.gi_source = gi_source
         self.provenance_id = provenance_id
         self.notes = notes
 

@@ -633,6 +633,10 @@ try:
         EatingPatternDefinition, PersonThreshold,
         SEED_EATING_PATTERNS,
     )
+    # nmp-2: the tolerance/adverse-effect table.
+    from nutrition.tolerance_basis import (
+        ToleranceThreshold, SEED_TOLERANCE_THRESHOLDS,
+    )
 except ImportError as _exc:
     _stub_missing_feature('nutrition', _exc, globals(), (
         'DietaryNutrient', 'NutrientReference', 'SEED_DIETARY_NUTRIENTS', 'SEED_NUTRIENT_REFERENCES',
@@ -641,6 +645,7 @@ except ImportError as _exc:
         'SEED_FDC_FOOD_ITEMS', 'SEED_FDC_NUTRIENT_CONTENTS',
         'EatingPatternDefinition', 'PersonThreshold',
         'SEED_EATING_PATTERNS',
+        'ToleranceThreshold', 'SEED_TOLERANCE_THRESHOLDS',
     ))
 # Plant morphology: 3D organ + root stand-in models + confinement
 # (morph-1).
@@ -2205,6 +2210,7 @@ class polariServer(treeObject):
             DietaryNutrient, NutrientReference, PersonProfile,
             HouseholdProfile, FoodItem, NutrientContent,
             EatingPatternDefinition, PersonThreshold,
+            ToleranceThreshold,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
             # Plant-growth-sim phase 1: normalized-growth instance state.
@@ -3636,6 +3642,9 @@ class polariServer(treeObject):
             # nmp-1: eating patterns (Q5 fractions, tunable priors).
             ('EatingPatternDefinition', EatingPatternDefinition,
              SEED_EATING_PATTERNS),
+            # nmp-2: cited adverse-effect thresholds.
+            ('ToleranceThreshold', ToleranceThreshold,
+             SEED_TOLERANCE_THRESHOLDS),
             # morph-1: 3D organ + root stand-in models.
             ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
@@ -4231,7 +4240,9 @@ class polariServer(treeObject):
                           + SEED_FDC_NUTRIENT_CONTENTS),
                          ('EatingPatternDefinition',
                           EatingPatternDefinition,
-                          SEED_EATING_PATTERNS)],
+                          SEED_EATING_PATTERNS),
+                         ('ToleranceThreshold', ToleranceThreshold,
+                          SEED_TOLERANCE_THRESHOLDS)],
                         tag='NutritionSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[NutritionSeed] {r["class"]}: '
