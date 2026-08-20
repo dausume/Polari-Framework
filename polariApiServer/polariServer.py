@@ -637,6 +637,11 @@ try:
     from nutrition.tolerance_basis import (
         ToleranceThreshold, SEED_TOLERANCE_THRESHOLDS,
     )
+    # nmp-3: recipes + the retention/yield rollup.
+    from nutrition.recipe_basis import (
+        Recipe, IngredientLine, CookingStep,
+        SEED_RECIPES, SEED_INGREDIENT_LINES, SEED_COOKING_STEPS,
+    )
 except ImportError as _exc:
     _stub_missing_feature('nutrition', _exc, globals(), (
         'DietaryNutrient', 'NutrientReference', 'SEED_DIETARY_NUTRIENTS', 'SEED_NUTRIENT_REFERENCES',
@@ -646,6 +651,8 @@ except ImportError as _exc:
         'EatingPatternDefinition', 'PersonThreshold',
         'SEED_EATING_PATTERNS',
         'ToleranceThreshold', 'SEED_TOLERANCE_THRESHOLDS',
+        'Recipe', 'IngredientLine', 'CookingStep', 'SEED_RECIPES',
+        'SEED_INGREDIENT_LINES', 'SEED_COOKING_STEPS',
     ))
 # Plant morphology: 3D organ + root stand-in models + confinement
 # (morph-1).
@@ -2210,7 +2217,7 @@ class polariServer(treeObject):
             DietaryNutrient, NutrientReference, PersonProfile,
             HouseholdProfile, FoodItem, NutrientContent,
             EatingPatternDefinition, PersonThreshold,
-            ToleranceThreshold,
+            ToleranceThreshold, Recipe, IngredientLine, CookingStep,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
             # Plant-growth-sim phase 1: normalized-growth instance state.
@@ -3645,6 +3652,10 @@ class polariServer(treeObject):
             # nmp-2: cited adverse-effect thresholds.
             ('ToleranceThreshold', ToleranceThreshold,
              SEED_TOLERANCE_THRESHOLDS),
+            # nmp-3: recipes before their lines/steps.
+            ('Recipe', Recipe, SEED_RECIPES),
+            ('IngredientLine', IngredientLine, SEED_INGREDIENT_LINES),
+            ('CookingStep', CookingStep, SEED_COOKING_STEPS),
             # morph-1: 3D organ + root stand-in models.
             ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
@@ -4242,7 +4253,12 @@ class polariServer(treeObject):
                           EatingPatternDefinition,
                           SEED_EATING_PATTERNS),
                          ('ToleranceThreshold', ToleranceThreshold,
-                          SEED_TOLERANCE_THRESHOLDS)],
+                          SEED_TOLERANCE_THRESHOLDS),
+                         ('Recipe', Recipe, SEED_RECIPES),
+                         ('IngredientLine', IngredientLine,
+                          SEED_INGREDIENT_LINES),
+                         ('CookingStep', CookingStep,
+                          SEED_COOKING_STEPS)],
                         tag='NutritionSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[NutritionSeed] {r["class"]}: '

@@ -42,6 +42,9 @@ from nutrition.threshold_analysis import (
 from nutrition.tolerance_analysis import (
     evaluate_tolerances, meal_glycemic_load,
 )
+from nutrition.recipe_analysis import (
+    recipe_nutrition, retention_candidates,
+)
 
 
 class NutritionAPI(treeObject):
@@ -81,6 +84,13 @@ class NutritionAPI(treeObject):
                 suffix='tolerance_check')
             polServer.falconServer.add_route(
                 '/api/nutrition/meal-gl', self, suffix='meal_gl')
+            # nmp-3: the recipe rollup engine
+            polServer.falconServer.add_route(
+                '/api/nutrition/recipes/{name}/nutrition', self,
+                suffix='recipe_nutrition')
+            polServer.falconServer.add_route(
+                '/api/nutrition/retention-search', self,
+                suffix='retention_search')
 
     def _rows(self, class_name):
         table = (self.manager.objectTables or {}).get(class_name, {})
@@ -218,6 +228,28 @@ class NutritionAPI(treeObject):
             return
         response.media = meal_glycemic_load(
             self.manager, body.get('portions', []) or [])
+
+    def on_get_recipe_nutrition(self, request, response, name):
+        recipe = self._named('Recipe', name)
+        if recipe is None:
+            response.status = '404 Not Found'
+            response.media = {'ok': False,
+                              'error': f"no Recipe named '{name}'"}
+            return
+        result = recipe_nutrition(self.manager, recipe)
+        if not result.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = result
+
+    def on_get_retention_search(self, request, response):
+        q = (request.params or {}).get('q', '')
+        if not q:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False, 'error': 'q= required'}
+            return
+        hits = retention_candidates(q)
+        response.media = {'ok': True, 'query': q, 'candidates': hits,
+                          'count': len(hits)}
 
     def on_get_household(self, request, response, name):
         period = (request.params or {}).get('period', 'week')
