@@ -642,6 +642,11 @@ try:
         Recipe, IngredientLine, CookingStep,
         SEED_RECIPES, SEED_INGREDIENT_LINES, SEED_COOKING_STEPS,
     )
+    # nmp-4: meal templates + plans (the hard gate rides the API).
+    from nutrition.meal_basis import (
+        MealTemplate, VariationDefinition, MealPlanDefinition,
+        MealEntry, SEED_MEAL_TEMPLATES, SEED_VARIATIONS,
+    )
 except ImportError as _exc:
     _stub_missing_feature('nutrition', _exc, globals(), (
         'DietaryNutrient', 'NutrientReference', 'SEED_DIETARY_NUTRIENTS', 'SEED_NUTRIENT_REFERENCES',
@@ -653,6 +658,8 @@ except ImportError as _exc:
         'ToleranceThreshold', 'SEED_TOLERANCE_THRESHOLDS',
         'Recipe', 'IngredientLine', 'CookingStep', 'SEED_RECIPES',
         'SEED_INGREDIENT_LINES', 'SEED_COOKING_STEPS',
+        'MealTemplate', 'VariationDefinition', 'MealPlanDefinition',
+        'MealEntry', 'SEED_MEAL_TEMPLATES', 'SEED_VARIATIONS',
     ))
 # Plant morphology: 3D organ + root stand-in models + confinement
 # (morph-1).
@@ -2218,6 +2225,8 @@ class polariServer(treeObject):
             HouseholdProfile, FoodItem, NutrientContent,
             EatingPatternDefinition, PersonThreshold,
             ToleranceThreshold, Recipe, IngredientLine, CookingStep,
+            MealTemplate, VariationDefinition, MealPlanDefinition,
+            MealEntry,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
             # Plant-growth-sim phase 1: normalized-growth instance state.
@@ -3656,6 +3665,10 @@ class polariServer(treeObject):
             ('Recipe', Recipe, SEED_RECIPES),
             ('IngredientLine', IngredientLine, SEED_INGREDIENT_LINES),
             ('CookingStep', CookingStep, SEED_COOKING_STEPS),
+            # nmp-4: templates before their variations.
+            ('MealTemplate', MealTemplate, SEED_MEAL_TEMPLATES),
+            ('VariationDefinition', VariationDefinition,
+             SEED_VARIATIONS),
             # morph-1: 3D organ + root stand-in models.
             ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
@@ -4258,7 +4271,11 @@ class polariServer(treeObject):
                          ('IngredientLine', IngredientLine,
                           SEED_INGREDIENT_LINES),
                          ('CookingStep', CookingStep,
-                          SEED_COOKING_STEPS)],
+                          SEED_COOKING_STEPS),
+                         ('MealTemplate', MealTemplate,
+                          SEED_MEAL_TEMPLATES),
+                         ('VariationDefinition', VariationDefinition,
+                          SEED_VARIATIONS)],
                         tag='NutritionSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[NutritionSeed] {r["class"]}: '

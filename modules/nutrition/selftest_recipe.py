@@ -93,7 +93,7 @@ def main():
     # protein is a macro — no retention; raw sum kept
     want_protein = (
         _content('chicken-breast-raw', 'protein') * 3.0
-        + _content('rice-white-raw', 'protein') * 1.5
+        + _content('rice-white-raw', 'protein') * 0.55
         + _content('broccoli-raw', 'protein') * 2.0
         + _content('olive-oil', 'protein') * 0.15)
     check('protein (macro) keeps the raw sum — no R6 rows',
@@ -101,9 +101,9 @@ def main():
     check('macro provenance says raw kept where cooked',
           'raw value kept' in r['perServing']['protein']['provenance']
           or r['perServing']['protein']['provenance'] == 'mixed')
-    # yield scales MASS: 300x0.7 + 150x2.8 + 200x0.95 + 15 = 835
-    check('cooked mass = sum of line yields (835 g)',
-          abs(r['cookedMassG'] - 835.0) < 0.1, str(r['cookedMassG']))
+    # yield scales MASS: 300x0.7 + 55x2.8 + 200x0.95 + 15 = 569
+    check('cooked mass = sum of line yields (569 g)',
+          abs(r['cookedMassG'] - 569.0) < 0.1, str(r['cookedMassG']))
     check('per-serving = total / servings',
           abs(r['perServing']['protein']['amount']
               - round(r['total']['protein'] / 2.0, 3)) < 0.01)

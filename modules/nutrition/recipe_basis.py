@@ -161,9 +161,12 @@ SEED_INGREDIENT_LINES = [
     _line('chicken-rice-bowl', 'chicken-breast-raw', 300.0,
           method='grilled', yield_pct=70.0, retention='0801',
           order=1, prep='grilled, sliced'),
-    _line('chicken-rice-bowl', 'rice-white-raw', 150.0,
+    _line('chicken-rice-bowl', 'rice-white-raw', 55.0,
           method='boiled', yield_pct=280.0, retention='0432',
-          order=2, prep='dry weight; boils up ~2.8x'),
+          order=2, prep='dry weight; boils up ~2.8x. Portion sized '
+                        'so the meal passes the decision-9 GL<=20 '
+                        'gate at max scale — white rice is '
+                        'high-GI, so the bowl stays rice-light'),
     _line('chicken-rice-bowl', 'broccoli-raw', 200.0,
           method='steamed', yield_pct=95.0, retention='3784',
           order=3),

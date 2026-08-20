@@ -45,6 +45,9 @@ from nutrition.tolerance_analysis import (
 from nutrition.recipe_analysis import (
     recipe_nutrition, retention_candidates,
 )
+from nutrition.meal_analysis import (
+    plan_rollup, template_rollup, validate_template,
+)
 
 
 class NutritionAPI(treeObject):
@@ -91,6 +94,16 @@ class NutritionAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/nutrition/retention-search', self,
                 suffix='retention_search')
+            # nmp-4: templates + plans
+            polServer.falconServer.add_route(
+                '/api/nutrition/templates/{name}/validate', self,
+                suffix='template_validate')
+            polServer.falconServer.add_route(
+                '/api/nutrition/templates/{name}/rollup', self,
+                suffix='template_rollup')
+            polServer.falconServer.add_route(
+                '/api/nutrition/plans/{name}/rollup', self,
+                suffix='plan_rollup')
 
     def _rows(self, class_name):
         table = (self.manager.objectTables or {}).get(class_name, {})
@@ -250,6 +263,49 @@ class NutritionAPI(treeObject):
         hits = retention_candidates(q)
         response.media = {'ok': True, 'query': q, 'candidates': hits,
                           'count': len(hits)}
+
+    def on_get_template_validate(self, request, response, name):
+        t = self._named('MealTemplate', name)
+        if t is None:
+            response.status = '404 Not Found'
+            response.media = {'ok': False,
+                              'error': f"no MealTemplate named '{name}'"}
+            return
+        response.media = validate_template(self.manager, t)
+
+    def on_get_template_rollup(self, request, response, name):
+        t = self._named('MealTemplate', name)
+        if t is None:
+            response.status = '404 Not Found'
+            response.media = {'ok': False,
+                              'error': f"no MealTemplate named '{name}'"}
+            return
+        params = request.params or {}
+        variation = None
+        if params.get('variation'):
+            variation = self._named('VariationDefinition',
+                                    params['variation'])
+        try:
+            scale = float(params.get('scale', 1.0))
+        except ValueError:
+            scale = 1.0
+        result = template_rollup(self.manager, t, variation, scale)
+        if not result.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = result
+
+    def on_get_plan_rollup(self, request, response, name):
+        plan = self._named('MealPlanDefinition', name)
+        if plan is None:
+            response.status = '404 Not Found'
+            response.media = {
+                'ok': False,
+                'error': f"no MealPlanDefinition named '{name}'"}
+            return
+        result = plan_rollup(self.manager, plan)
+        if not result.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = result
 
     def on_get_household(self, request, response, name):
         period = (request.params or {}).get('period', 'week')
