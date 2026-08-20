@@ -81,13 +81,46 @@ def bmr(person):
             'metabolismFactor': factor, 'suggestion': suggestion}
 
 
+# nmp-1 (decision 6): mid-band MET conventions for the ASKED weekly
+# minutes — moderate activity spans 3-6 METs, vigorous 6+ (2024 Adult
+# Compendium bands); 4 and 8 are labeled mid-band priors, and the
+# arithmetic is the standard kcal = MET x kg x hours with the resting
+# 1 MET netted out (the sedentary baseline already pays for rest).
+MET_MODERATE_PRIOR = 4.0
+MET_VIGOROUS_PRIOR = 8.0
+SEDENTARY_PAL = 1.2
+
+
 def tdee(person):
-    """Total daily energy expenditure (kcal/day) = BMR × activity PAL."""
+    """Total daily energy expenditure (kcal/day).
+
+    Two labeled modes: when the profile carries weekly exercise
+    MINUTES (decision 6 — the felt-terms question), TDEE = BMR x
+    sedentary PAL + net exercise kcal from the minutes; otherwise
+    the abstract activity_level PAL guess (the nut-3 original)."""
     base = bmr(person)
+    mod = max(0.0, getattr(person, 'weekly_moderate_minutes', 0.0) or 0.0)
+    vig = max(0.0, getattr(person, 'weekly_vigorous_minutes', 0.0) or 0.0)
+    if mod > 0 or vig > 0:
+        kg = getattr(person, 'weight_kg', 70.0)
+        extra_per_day = (
+            (MET_MODERATE_PRIOR - 1.0) * kg * (mod / 60.0)
+            + (MET_VIGOROUS_PRIOR - 1.0) * kg * (vig / 60.0)) / 7.0
+        value = base['value'] * SEDENTARY_PAL + extra_per_day
+        return {'value': round(value, 1), 'pal': SEDENTARY_PAL,
+                'activityLevel': 'from-weekly-minutes',
+                'mode': 'minutes',
+                'weeklyModerateMinutes': mod,
+                'weeklyVigorousMinutes': vig,
+                'exerciseKcalPerDay': round(extra_per_day, 1),
+                'metPriors': {'moderate': MET_MODERATE_PRIOR,
+                              'vigorous': MET_VIGOROUS_PRIOR},
+                'bmr': base['value'], 'bmrFormula': base['formula']}
     activity = getattr(person, 'activity_level', 'moderate')
     pal = ACTIVITY_PAL.get(activity, 1.55)
     return {'value': round(base['value'] * pal, 1), 'pal': pal,
-            'activityLevel': activity, 'bmr': base['value'],
+            'activityLevel': activity, 'mode': 'pal',
+            'bmr': base['value'],
             'bmrFormula': base['formula']}
 
 

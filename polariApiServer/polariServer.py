@@ -628,12 +628,19 @@ try:
     from nutrition.fdc_seed import (
         SEED_FDC_FOOD_ITEMS, SEED_FDC_NUTRIENT_CONTENTS,
     )
+    # nmp-1: the threshold layer (patterns + override knobs).
+    from nutrition.threshold_basis import (
+        EatingPatternDefinition, PersonThreshold,
+        SEED_EATING_PATTERNS,
+    )
 except ImportError as _exc:
     _stub_missing_feature('nutrition', _exc, globals(), (
         'DietaryNutrient', 'NutrientReference', 'SEED_DIETARY_NUTRIENTS', 'SEED_NUTRIENT_REFERENCES',
         'PersonProfile', 'HouseholdProfile', 'SEED_HOUSEHOLDS', 'SEED_PERSONS',
         'FoodItem', 'NutrientContent', 'SEED_FOOD_ITEMS', 'SEED_NUTRIENT_CONTENTS',
         'SEED_FDC_FOOD_ITEMS', 'SEED_FDC_NUTRIENT_CONTENTS',
+        'EatingPatternDefinition', 'PersonThreshold',
+        'SEED_EATING_PATTERNS',
     ))
 # Plant morphology: 3D organ + root stand-in models + confinement
 # (morph-1).
@@ -2194,9 +2201,10 @@ class polariServer(treeObject):
             WaterBatchSchedule,
             CompostBinDefinition, VermicompostProfile,
             CompostLoopDefinition, PlantGrowthModel,
-            # Nutrition (nut-1/3/4 + nut-2 foods).
+            # Nutrition (nut-1/3/4 + nut-2 foods + nmp-1 thresholds).
             DietaryNutrient, NutrientReference, PersonProfile,
             HouseholdProfile, FoodItem, NutrientContent,
+            EatingPatternDefinition, PersonThreshold,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
             # Plant-growth-sim phase 1: normalized-growth instance state.
@@ -3625,6 +3633,9 @@ class polariServer(treeObject):
              SEED_FOOD_ITEMS + SEED_FDC_FOOD_ITEMS),
             ('NutrientContent', NutrientContent,
              SEED_NUTRIENT_CONTENTS + SEED_FDC_NUTRIENT_CONTENTS),
+            # nmp-1: eating patterns (Q5 fractions, tunable priors).
+            ('EatingPatternDefinition', EatingPatternDefinition,
+             SEED_EATING_PATTERNS),
             # morph-1: 3D organ + root stand-in models.
             ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
@@ -4217,7 +4228,10 @@ class polariServer(treeObject):
                           SEED_FOOD_ITEMS + SEED_FDC_FOOD_ITEMS),
                          ('NutrientContent', NutrientContent,
                           SEED_NUTRIENT_CONTENTS
-                          + SEED_FDC_NUTRIENT_CONTENTS)],
+                          + SEED_FDC_NUTRIENT_CONTENTS),
+                         ('EatingPatternDefinition',
+                          EatingPatternDefinition,
+                          SEED_EATING_PATTERNS)],
                         tag='NutritionSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[NutritionSeed] {r["class"]}: '

@@ -13,6 +13,12 @@ HTTP surface for nut-1/3/4 (person + household nutrition):
         body {period: day|week|month} -> per-nutrient needs.
   GET  /api/nutrition/households/{name}/needs?period=week
         aggregate household demand + per-member breakdown.
+  GET  /api/nutrition/persons/{name}/obesity          (nmp-1)
+        BMI band / body-fat classification + honest caveats.
+  GET  /api/nutrition/persons/{name}/envelope         (nmp-1)
+        the healthy daily-calorie band + per-slot split.
+  GET  /api/nutrition/persons/{name}/thresholds?period=day  (nmp-1)
+        per-nutrient min/target/max with derivations + overrides.
 
 Profiles are edited through standard CRUDE on DietaryNutrient /
 NutrientReference / PersonProfile / HouseholdProfile rows
@@ -30,6 +36,9 @@ from nutrition.person_analysis import (
     bmr, calorie_target, nutrient_needs, tdee,
 )
 from nutrition.household_analysis import household_needs
+from nutrition.threshold_analysis import (
+    calorie_envelope, obesity_classification, person_thresholds,
+)
 
 
 class NutritionAPI(treeObject):
@@ -50,6 +59,16 @@ class NutritionAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/nutrition/households/{name}/needs', self,
                 suffix='household')
+            # nmp-1: the threshold layer
+            polServer.falconServer.add_route(
+                '/api/nutrition/persons/{name}/obesity', self,
+                suffix='obesity')
+            polServer.falconServer.add_route(
+                '/api/nutrition/persons/{name}/envelope', self,
+                suffix='envelope')
+            polServer.falconServer.add_route(
+                '/api/nutrition/persons/{name}/thresholds', self,
+                suffix='thresholds')
 
     def _rows(self, class_name):
         table = (self.manager.objectTables or {}).get(class_name, {})
@@ -104,6 +123,39 @@ class NutritionAPI(treeObject):
             return
         result = nutrient_needs(self.manager, person,
                                 period=body.get('period', 'day'))
+        if not result.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = result
+
+    def _person_or_404(self, response, name):
+        person = self._named('PersonProfile', name)
+        if person is None:
+            response.status = '404 Not Found'
+            response.media = {'ok': False,
+                              'error': f"no PersonProfile named '{name}'"}
+        return person
+
+    def on_get_obesity(self, request, response, name):
+        person = self._person_or_404(response, name)
+        if person is None:
+            return
+        result = obesity_classification(person)
+        if not result.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = result
+
+    def on_get_envelope(self, request, response, name):
+        person = self._person_or_404(response, name)
+        if person is None:
+            return
+        response.media = calorie_envelope(self.manager, person)
+
+    def on_get_thresholds(self, request, response, name):
+        person = self._person_or_404(response, name)
+        if person is None:
+            return
+        period = (request.params or {}).get('period', 'day')
+        result = person_thresholds(self.manager, person, period=period)
         if not result.get('ok'):
             response.status = '400 Bad Request'
         response.media = result
