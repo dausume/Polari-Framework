@@ -57,8 +57,8 @@ def main():
     print('nmp-0 FDC subset -> seed rows')
     check('49 starter foods', len(SEED_FDC_FOOD_ITEMS) == 49,
           f'got {len(SEED_FDC_FOOD_ITEMS)}')
-    check('886 content rows',
-          len(SEED_FDC_NUTRIENT_CONTENTS) == 886,
+    check('949 content rows',
+          len(SEED_FDC_NUTRIENT_CONTENTS) == 949,
           f'got {len(SEED_FDC_NUTRIENT_CONTENTS)}')
     check('every content row names a known nutrient',
           all(c['nutrient_name'] in nutrients

@@ -151,6 +151,9 @@ class MealEntry(treeObject):
         # portion scale actually chosen (clamped into the
         # variation's range by the analysis, reported when clamped).
         scale: float = 1.0,
+        # nmp-5b (decision 14): first-class meal time ('' = untimed;
+        # the day timeline interleaves meals and exercise by clock).
+        time_hhmm: str = '',
         # household plans: this entry's serving split among members,
         # JSON {member_name: fraction}; '' = the plan owner eats it.
         serving_split_json: str = '',
@@ -166,6 +169,7 @@ class MealEntry(treeObject):
         self.template_name = template_name
         self.variation_name = variation_name
         self.scale = scale
+        self.time_hhmm = time_hhmm
         self.serving_split_json = serving_split_json
         self.is_prior = is_prior
         self.provenance_id = provenance_id

@@ -48,6 +48,9 @@ from nutrition.recipe_analysis import (
 from nutrition.meal_analysis import (
     plan_rollup, template_rollup, validate_template,
 )
+from nutrition.activity_analysis import (
+    day_timeline, fasted_exercise_facts, weekly_summary,
+)
 
 
 class NutritionAPI(treeObject):
@@ -104,6 +107,16 @@ class NutritionAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/nutrition/plans/{name}/rollup', self,
                 suffix='plan_rollup')
+            # nmp-5/5b: activity + timing
+            polServer.falconServer.add_route(
+                '/api/nutrition/persons/{name}/activity-week', self,
+                suffix='activity_week')
+            polServer.falconServer.add_route(
+                '/api/nutrition/plans/{name}/timeline', self,
+                suffix='timeline')
+            polServer.falconServer.add_route(
+                '/api/nutrition/fasted-exercise', self,
+                suffix='fasted')
 
     def _rows(self, class_name):
         table = (self.manager.objectTables or {}).get(class_name, {})
@@ -306,6 +319,29 @@ class NutritionAPI(treeObject):
         if not result.get('ok'):
             response.status = '400 Bad Request'
         response.media = result
+
+    def on_get_activity_week(self, request, response, name):
+        person = self._person_or_404(response, name)
+        if person is None:
+            return
+        response.media = weekly_summary(self.manager, person)
+
+    def on_get_timeline(self, request, response, name):
+        plan = self._named('MealPlanDefinition', name)
+        if plan is None:
+            response.status = '404 Not Found'
+            response.media = {
+                'ok': False,
+                'error': f"no MealPlanDefinition named '{name}'"}
+            return
+        try:
+            day = int((request.params or {}).get('day', 1))
+        except ValueError:
+            day = 1
+        response.media = day_timeline(self.manager, plan, day)
+
+    def on_get_fasted(self, request, response):
+        response.media = fasted_exercise_facts()
 
     def on_get_household(self, request, response, name):
         period = (request.params or {}).get('period', 'week')

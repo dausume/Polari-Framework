@@ -647,6 +647,10 @@ try:
         MealTemplate, VariationDefinition, MealPlanDefinition,
         MealEntry, SEED_MEAL_TEMPLATES, SEED_VARIATIONS,
     )
+    # nmp-5: activity (curated Compendium subset) + logs.
+    from nutrition.activity_basis import (
+        ActivityDefinition, ActivityLog, SEED_ACTIVITY_DEFINITIONS,
+    )
 except ImportError as _exc:
     _stub_missing_feature('nutrition', _exc, globals(), (
         'DietaryNutrient', 'NutrientReference', 'SEED_DIETARY_NUTRIENTS', 'SEED_NUTRIENT_REFERENCES',
@@ -660,6 +664,8 @@ except ImportError as _exc:
         'SEED_INGREDIENT_LINES', 'SEED_COOKING_STEPS',
         'MealTemplate', 'VariationDefinition', 'MealPlanDefinition',
         'MealEntry', 'SEED_MEAL_TEMPLATES', 'SEED_VARIATIONS',
+        'ActivityDefinition', 'ActivityLog',
+        'SEED_ACTIVITY_DEFINITIONS',
     ))
 # Plant morphology: 3D organ + root stand-in models + confinement
 # (morph-1).
@@ -2226,7 +2232,7 @@ class polariServer(treeObject):
             EatingPatternDefinition, PersonThreshold,
             ToleranceThreshold, Recipe, IngredientLine, CookingStep,
             MealTemplate, VariationDefinition, MealPlanDefinition,
-            MealEntry,
+            MealEntry, ActivityDefinition, ActivityLog,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
             # Plant-growth-sim phase 1: normalized-growth instance state.
@@ -3669,6 +3675,9 @@ class polariServer(treeObject):
             ('MealTemplate', MealTemplate, SEED_MEAL_TEMPLATES),
             ('VariationDefinition', VariationDefinition,
              SEED_VARIATIONS),
+            # nmp-5: the curated Compendium activities.
+            ('ActivityDefinition', ActivityDefinition,
+             SEED_ACTIVITY_DEFINITIONS),
             # morph-1: 3D organ + root stand-in models.
             ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
@@ -4275,7 +4284,9 @@ class polariServer(treeObject):
                          ('MealTemplate', MealTemplate,
                           SEED_MEAL_TEMPLATES),
                          ('VariationDefinition', VariationDefinition,
-                          SEED_VARIATIONS)],
+                          SEED_VARIATIONS),
+                         ('ActivityDefinition', ActivityDefinition,
+                          SEED_ACTIVITY_DEFINITIONS)],
                         tag='NutritionSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[NutritionSeed] {r["class"]}: '

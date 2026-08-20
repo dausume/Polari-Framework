@@ -14,7 +14,7 @@ CSV (not JSON) is deliberate: the repo `.gitignore` blanket-ignores
 | `usda_retention_factors_r6.csv` | USDA Table of Nutrient Retention Factors, Release 6 (2007) — ars.usda.gov `/ARSUserFiles/80400535/Data/retn/retn06.txt` (7,018 rows, converted from caret-delimited) | US public domain / CC0 | `b72a658e68da4034e3edae845b2cc0974732fef4b3d5b82e1accd32c3acb59bc` |
 | `usda_cooking_yields_meat_poultry.csv` | USDA Table of Cooking Yields for Meat & Poultry, release 2 (2014) — ars.usda.gov `/ARSUserFiles/80400535/Data/retn/USDA_CookingYields_MeatPoultry02.xlsx` (3 sheets flattened, `# sheet:` markers kept) | US public domain / CC0 | `72ec553e7d7590744f790591f20fc7a90664293a6834bdf4ee77c7af0158ab37` |
 | `compendium_2024_adult_mets.csv` | 2024 Adult Compendium of Physical Activities — pacompendium.com category tables (22 categories, 1,111 activities). **Attribution required, values unaltered** — cite: Herrmann SD et al., "2024 Adult Compendium of Physical Activities", J Sport Health Sci 2024;13(1):6-12 | free incl. commercial use w/ attribution | `0617dfa125eebf405738bc4257a19bdeb3d9d26fb43985df9b24c792d293701d` |
-| `fdc_foundation_subset.csv` | USDA FoodData Central bulk CSVs: Foundation Foods 2025-04-24 + SR Legacy 2018-04 (fdc.nal.usda.gov/download-datasets) — 49 base-ingredient foods × the nut-1 nutrient vocabulary, 886 per-100g rows; each row pins its `fdc_id` + `fdc_nutrient_nbr` | CC0 / US public domain | `928430a4bb0d07d9ee13c2efdf4cbb4d06ca50ab48655cf0d999c40d6db508e6` |
+| `fdc_foundation_subset.csv` | USDA FoodData Central bulk CSVs: Foundation Foods 2025-04-24 + SR Legacy 2018-04 (fdc.nal.usda.gov/download-datasets) — 49 base-ingredient foods × the nut-1 nutrient vocabulary, 949 per-100g rows; each row pins its `fdc_id` + `fdc_nutrient_nbr` | CC0 / US public domain | `c0a9360747fc820fba2f14fd39e59c45e8eeeadf2a50a84dda77d82393808886` |
 
 Labeled derivations inside `fdc_foundation_subset.csv` (the only
 non-verbatim values, each named in its `derivation` column):
@@ -25,6 +25,14 @@ non-verbatim values, each named in its `derivation` column):
 - `copper` converted FDC mg → module unit µg (×1000).
 - `vitamin-b9` prefers Folate DFE (nbr 435), falls back to folate
   total (417).
+- `calories` prefers measured Energy (208), else Atwater General
+  (957), else Atwater Specific (958) — newer Foundation entries
+  publish energy only under the Atwater numbers.
+
+Two foods deliberately use SR Legacy over a Foundation match
+(olive oil, black beans): their Foundation rows carry NO energy
+nutrient at all, and energy anchors the whole chain. Salt has no
+calories row — a true zero, not a gap.
 
 Honest absences: FDC does not report chloride, boron, or silicon for
 these foods — no rows exist rather than estimates. Foods FDC

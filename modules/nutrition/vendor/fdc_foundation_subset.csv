@@ -1,6 +1,6 @@
 food_slug,fdc_id,fdc_dataset,fdc_description,nutrient,amount_per_100g,unit,fdc_nutrient_nbr,derivation
 almonds-raw,170567,sr_legacy,"Nuts, almonds",calcium,269.0,mg,301,
-almonds-raw,170567,sr_legacy,"Nuts, almonds",calories,579.0,kcal,208,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",calories,579.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 almonds-raw,170567,sr_legacy,"Nuts, almonds",carbohydrate,21.55,g,205,
 almonds-raw,170567,sr_legacy,"Nuts, almonds",copper,1031.0,ug,312,FDC mg -> module ug (x1000)
 almonds-raw,170567,sr_legacy,"Nuts, almonds",healthy-fat,49.93,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -26,7 +26,7 @@ almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-e,25.63,mg,323,alpha-tocoph
 almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-k,0.0,ug,430,phylloquinone
 almonds-raw,170567,sr_legacy,"Nuts, almonds",zinc,3.12,mg,309,
 apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",calcium,5.0,mg,301,
-apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",calories,62.0,kcal,208,
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",calories,62.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",carbohydrate,14.8,g,205,
 apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",copper,24.0,ug,312,FDC mg -> module ug (x1000)
 apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",healthy-fat,0.21,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -43,6 +43,7 @@ apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",vitamin-b6,
 apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",vitamin-b9,0.0,ug,435;417,"Folate DFE preferred, else folate total"
 apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",zinc,0.02,mg,309,
 avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",calcium,14.46,mg,301,
+avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",calories,223.334,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",carbohydrate,8.3235,g,205,
 avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",copper,284.9,ug,312,FDC mg -> module ug (x1000)
 avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",healthy-fat,20.31,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -57,7 +58,7 @@ avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",vitamin-b9,128.7,ug,
 avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",vitamin-c,0.0,mg,401,
 avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",zinc,0.4596,mg,309,
 banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",calcium,5.0,mg,301,
-banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",calories,97.0,kcal,208,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",calories,97.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",carbohydrate,23.0,g,205,
 banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",copper,101.0,ug,312,FDC mg -> module ug (x1000)
 banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",healthy-fat,0.29,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -80,7 +81,7 @@ banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",vitamin-c,12
 banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",vitamin-k,0.1,ug,430,phylloquinone
 banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",zinc,0.16,mg,309,
 beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",calcium,16.0,mg,301,
-beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",calories,132.0,kcal,208,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",calories,132.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",carbohydrate,0.0,g,205,
 beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",copper,93.0,ug,312,FDC mg -> module ug (x1000)
 beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",healthy-fat,4.19,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -105,6 +106,7 @@ beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only
 beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",vitamin-k,1.1,ug,430,phylloquinone
 beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",zinc,5.55,mg,309,
 bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",calcium,6.361,mg,301,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",calories,31.3256,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",carbohydrate,6.653175,g,205,
 bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",copper,39.83,ug,312,FDC mg -> module ug (x1000)
 bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",healthy-fat,0.1256,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -123,17 +125,34 @@ bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",vitamin-b7,0.42
 bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",vitamin-b9,47.32,ug,435;417,"Folate DFE preferred, else folate total"
 bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",vitamin-c,141.7,mg,401,
 bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",zinc,0.2023,mg,309,
-black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",calcium,191.0,mg,301,
-black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",copper,1120.0,ug,312,FDC mg -> module ug (x1000)
-black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",healthy-fat,1.45,g,204,FDC total lipid (fat); module names it healthy-fat
-black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",iron,5.34,mg,303,
-black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",magnesium,180.0,mg,304,
-black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",manganese,2.08,mg,315,
-black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",molybdenum,920.0,ug,316,
-black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",potassium,1540.0,mg,306,
-black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",protein,24.4,g,203,
-black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",zinc,3.37,mg,309,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",calcium,123.0,mg,301,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",calories,341.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",carbohydrate,62.36,g,205,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",copper,841.0,ug,312,FDC mg -> module ug (x1000)
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",healthy-fat,1.42,g,204,FDC total lipid (fat); module names it healthy-fat
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",iron,5.02,mg,303,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",magnesium,171.0,mg,304,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",manganese,1.06,mg,315,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",omega-3,0.0,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",potassium,1483.0,mg,306,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",protein,21.6,g,203,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",selenium,3.2,ug,317,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",sodium,5.0,mg,307,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",vitamin-a,0.0,ug,320,RAE
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",vitamin-b1,0.9,mg,404,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",vitamin-b12,0.0,ug,418,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",vitamin-b2,0.193,mg,405,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",vitamin-b3,1.955,mg,406,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",vitamin-b5,0.899,mg,410,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",vitamin-b6,0.286,mg,415,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",vitamin-b9,444.0,ug,435;417,"Folate DFE preferred, else folate total"
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",vitamin-c,0.0,mg,401,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",vitamin-d,0.0,ug,328,D2+D3
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",vitamin-e,0.21,mg,323,alpha-tocopherol
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",vitamin-k,5.6,ug,430,phylloquinone
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",zinc,3.65,mg,309,
 blueberries-raw,2263889,foundation,"Blueberries, raw",calcium,11.69,mg,301,
+blueberries-raw,2263889,foundation,"Blueberries, raw",calories,63.8563,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 blueberries-raw,2263889,foundation,"Blueberries, raw",carbohydrate,14.571775,g,205,
 blueberries-raw,2263889,foundation,"Blueberries, raw",copper,46.05,ug,312,FDC mg -> module ug (x1000)
 blueberries-raw,2263889,foundation,"Blueberries, raw",healthy-fat,0.3063,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -147,7 +166,7 @@ blueberries-raw,2263889,foundation,"Blueberries, raw",vitamin-b7,0.0,ug,416,
 blueberries-raw,2263889,foundation,"Blueberries, raw",vitamin-c,8.059,mg,401,
 blueberries-raw,2263889,foundation,"Blueberries, raw",zinc,0.08534,mg,309,
 broccoli-raw,321900,foundation,"Broccoli, raw",calcium,46.0,mg,301,
-broccoli-raw,321900,foundation,"Broccoli, raw",calories,32.0,kcal,208,
+broccoli-raw,321900,foundation,"Broccoli, raw",calories,32.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 broccoli-raw,321900,foundation,"Broccoli, raw",carbohydrate,6.29,g,205,
 broccoli-raw,321900,foundation,"Broccoli, raw",copper,59.0,ug,312,FDC mg -> module ug (x1000)
 broccoli-raw,321900,foundation,"Broccoli, raw",healthy-fat,0.34,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -170,7 +189,7 @@ broccoli-raw,321900,foundation,"Broccoli, raw",vitamin-e,0.15,mg,323,alpha-tocop
 broccoli-raw,321900,foundation,"Broccoli, raw",vitamin-k,102.0,ug,430,phylloquinone
 broccoli-raw,321900,foundation,"Broccoli, raw",zinc,0.42,mg,309,
 butter-unsalted,173430,sr_legacy,"Butter, without salt",calcium,24.0,mg,301,
-butter-unsalted,173430,sr_legacy,"Butter, without salt",calories,717.0,kcal,208,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",calories,717.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 butter-unsalted,173430,sr_legacy,"Butter, without salt",carbohydrate,0.06,g,205,
 butter-unsalted,173430,sr_legacy,"Butter, without salt",chromium,2.8,ug,313,
 butter-unsalted,173430,sr_legacy,"Butter, without salt",copper,16.0,ug,312,FDC mg -> module ug (x1000)
@@ -197,6 +216,7 @@ butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-e,2.32,mg,323,al
 butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-k,7.0,ug,430,phylloquinone
 butter-unsalted,173430,sr_legacy,"Butter, without salt",zinc,0.09,mg,309,
 carrot-raw,2258586,foundation,"Carrots, mature, raw",calcium,30.48,mg,301,
+carrot-raw,2258586,foundation,"Carrots, mature, raw",calories,47.9906,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 carrot-raw,2258586,foundation,"Carrots, mature, raw",carbohydrate,10.26755,g,205,
 carrot-raw,2258586,foundation,"Carrots, mature, raw",copper,61.48,ug,312,FDC mg -> module ug (x1000)
 carrot-raw,2258586,foundation,"Carrots, mature, raw",healthy-fat,0.3506,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -215,6 +235,7 @@ carrot-raw,2258586,foundation,"Carrots, mature, raw",vitamin-b7,2.22,ug,416,
 carrot-raw,2258586,foundation,"Carrots, mature, raw",vitamin-b9,37.06,ug,435;417,"Folate DFE preferred, else folate total"
 carrot-raw,2258586,foundation,"Carrots, mature, raw",zinc,0.2364,mg,309,
 celery-raw,2346405,foundation,"Celery, raw",calcium,46.28,mg,301,
+celery-raw,2346405,foundation,"Celery, raw",calories,16.6973,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 celery-raw,2346405,foundation,"Celery, raw",carbohydrate,3.316512,g,205,
 celery-raw,2346405,foundation,"Celery, raw",copper,0.0,ug,312,FDC mg -> module ug (x1000)
 celery-raw,2346405,foundation,"Celery, raw",healthy-fat,0.1625,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -229,7 +250,7 @@ celery-raw,2346405,foundation,"Celery, raw",sodium,97.21,mg,307,
 celery-raw,2346405,foundation,"Celery, raw",vitamin-b6,0.05175,mg,415,
 celery-raw,2346405,foundation,"Celery, raw",zinc,0.0929,mg,309,
 cheese-cheddar,328637,foundation,"Cheese, cheddar",calcium,707.0,mg,301,
-cheese-cheddar,328637,foundation,"Cheese, cheddar",calories,408.0,kcal,208,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",calories,408.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 cheese-cheddar,328637,foundation,"Cheese, cheddar",carbohydrate,2.44,g,205,
 cheese-cheddar,328637,foundation,"Cheese, cheddar",copper,33.0,ug,312,FDC mg -> module ug (x1000)
 cheese-cheddar,328637,foundation,"Cheese, cheddar",healthy-fat,34.0,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -253,7 +274,7 @@ cheese-cheddar,328637,foundation,"Cheese, cheddar",vitamin-e,0.75,mg,323,alpha-t
 cheese-cheddar,328637,foundation,"Cheese, cheddar",vitamin-k,2.4,ug,430,phylloquinone
 cheese-cheddar,328637,foundation,"Cheese, cheddar",zinc,3.67,mg,309,
 chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",calcium,5.0,mg,301,
-chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",calories,120.0,kcal,208,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",calories,120.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",carbohydrate,0.0,g,205,
 chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",copper,37.0,ug,312,FDC mg -> module ug (x1000)
 chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",healthy-fat,2.62,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -279,6 +300,7 @@ chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinles
 chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",vitamin-k,0.0,ug,430,phylloquinone
 chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",zinc,0.68,mg,309,
 chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",calcium,111.1,mg,301,
+chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",calories,382.998,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",carbohydrate,60.358,g,205,
 chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",copper,804.1,ug,312,FDC mg -> module ug (x1000)
 chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",healthy-fat,6.274,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -290,6 +312,7 @@ chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry"
 chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",sodium,8.779,mg,307,
 chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",zinc,3.124,mg,309,
 cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",calcium,6.59,mg,301,
+cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",calories,65.9855,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",carbohydrate,0.0,g,205,
 cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",copper,3.963,ug,312,FDC mg -> module ug (x1000)
 cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",healthy-fat,0.6675,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -305,6 +328,7 @@ cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",sodium,298.8,
 cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",vitamin-b12,1.248,ug,418,
 cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",zinc,0.3051,mg,309,
 cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",calcium,16.34,mg,301,
+cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",calories,15.9075,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",carbohydrate,2.9525,g,205,
 cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",copper,62.99,ug,312,FDC mg -> module ug (x1000)
 cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",healthy-fat,0.1775,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -319,7 +343,7 @@ cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",vitamin-b7,0.9625,ug,
 cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",vitamin-k,24.0,ug,430,phylloquinone
 cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",zinc,0.204,mg,309,
 egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",calcium,48.0,mg,301,
-egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",calories,148.0,kcal,208,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",calories,148.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",carbohydrate,0.96,g,205,
 egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",copper,0.0,ug,312,FDC mg -> module ug (x1000)
 egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",healthy-fat,9.96,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -341,7 +365,7 @@ egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",vitamin-b9,71.
 egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",vitamin-d,2.46,ug,328,D2+D3
 egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",zinc,1.24,mg,309,
 flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",calcium,22.0,mg,301,
-flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",calories,362.0,kcal,208,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",calories,362.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",carbohydrate,74.6,g,205,
 flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",copper,212.0,ug,312,FDC mg -> module ug (x1000)
 flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",healthy-fat,1.7,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -360,7 +384,7 @@ flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbl
 flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",vitamin-b9,23.0,ug,435;417,"Folate DFE preferred, else folate total"
 flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",zinc,1.15,mg,309,
 flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",calcium,38.0,mg,301,
-flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",calories,370.0,kcal,208,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",calories,370.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",carbohydrate,71.2,g,205,
 flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",copper,452.0,ug,312,FDC mg -> module ug (x1000)
 flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",healthy-fat,2.73,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -378,13 +402,14 @@ flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",vitamin-b3,
 flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",vitamin-b6,0.268,mg,415,
 flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",vitamin-b9,39.0,ug,435;417,"Folate DFE preferred, else folate total"
 flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",zinc,3.24,mg,309,
-garlic-raw,1104647,foundation,"Garlic, raw",calories,143.0,kcal,208,
+garlic-raw,1104647,foundation,"Garlic, raw",calories,143.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 garlic-raw,1104647,foundation,"Garlic, raw",carbohydrate,28.2,g,205,
 garlic-raw,1104647,foundation,"Garlic, raw",healthy-fat,0.38,g,204,FDC total lipid (fat); module names it healthy-fat
 garlic-raw,1104647,foundation,"Garlic, raw",protein,6.62,g,203,
 garlic-raw,1104647,foundation,"Garlic, raw",selenium,9.8,ug,317,
 garlic-raw,1104647,foundation,"Garlic, raw",vitamin-c,10.0,mg,401,
 ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",calcium,7.135,mg,301,
+ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",calories,184.8648,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",carbohydrate,0.0,g,205,
 ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",copper,56.16,ug,312,FDC mg -> module ug (x1000)
 ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",healthy-fat,12.85,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -396,7 +421,7 @@ ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, ra
 ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",sodium,61.64,mg,307,
 ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",zinc,4.194,mg,309,
 kale-raw,323505,foundation,"Kale, raw",calcium,254.0,mg,301,
-kale-raw,323505,foundation,"Kale, raw",calories,35.0,kcal,208,
+kale-raw,323505,foundation,"Kale, raw",calories,35.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 kale-raw,323505,foundation,"Kale, raw",carbohydrate,4.42,g,205,
 kale-raw,323505,foundation,"Kale, raw",copper,53.0,ug,312,FDC mg -> module ug (x1000)
 kale-raw,323505,foundation,"Kale, raw",healthy-fat,1.49,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -418,6 +443,7 @@ kale-raw,323505,foundation,"Kale, raw",vitamin-e,0.66,mg,323,alpha-tocopherol
 kale-raw,323505,foundation,"Kale, raw",vitamin-k,390.0,ug,430,phylloquinone
 kale-raw,323505,foundation,"Kale, raw",zinc,0.39,mg,309,
 lentils-dry,2644283,foundation,"Lentils, dry",calcium,61.85,mg,301,
+lentils-dry,2644283,foundation,"Lentils, dry",calories,360.285,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 lentils-dry,2644283,foundation,"Lentils, dry",carbohydrate,62.17125,g,205,
 lentils-dry,2644283,foundation,"Lentils, dry",copper,837.6,ug,312,FDC mg -> module ug (x1000)
 lentils-dry,2644283,foundation,"Lentils, dry",healthy-fat,1.925,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -429,6 +455,7 @@ lentils-dry,2644283,foundation,"Lentils, dry",protein,23.56875,g,203,
 lentils-dry,2644283,foundation,"Lentils, dry",sodium,0.0,mg,307,
 lentils-dry,2644283,foundation,"Lentils, dry",zinc,3.863,mg,309,
 lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",calcium,27.56,mg,301,
+lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",calories,20.77105,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",carbohydrate,4.055575,g,205,
 lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",copper,48.65,ug,312,FDC mg -> module ug (x1000)
 lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",healthy-fat,0.07125,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -444,7 +471,7 @@ lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",vitamin-b6
 lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",vitamin-k,83.4,ug,430,phylloquinone
 lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",zinc,0.2516,mg,309,
 milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",calcium,123.0,mg,301,
-milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",calories,60.0,kcal,208,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",calories,60.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",carbohydrate,4.67,g,205,
 milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",copper,1.0,ug,312,FDC mg -> module ug (x1000)
 milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",healthy-fat,3.2,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -469,7 +496,7 @@ milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",
 milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",vitamin-e,0.05,mg,323,alpha-tocopherol
 milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",zinc,0.41,mg,309,
 mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",calcium,3.0,mg,301,
-mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",calories,22.0,kcal,208,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",calories,22.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",carbohydrate,3.26,g,205,
 mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",copper,318.0,ug,312,FDC mg -> module ug (x1000)
 mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",healthy-fat,0.34,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -495,6 +522,7 @@ mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-e,0.01,mg,32
 mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-k,0.0,ug,430,phylloquinone
 mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",zinc,0.52,mg,309,
 oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",calcium,45.53,mg,301,
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",calories,381.626,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",carbohydrate,68.65755,g,205,
 oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",copper,427.8,ug,312,FDC mg -> module ug (x1000)
 oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",healthy-fat,5.89,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -512,9 +540,34 @@ oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",vitami
 oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",vitamin-b7,21.9,ug,416,
 oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",vitamin-b9,32.03,ug,435;417,"Folate DFE preferred, else folate total"
 oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",zinc,2.744,mg,309,
-olive-oil,748608,foundation,"Oil, olive, extra virgin",omega-3,0.651,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",calcium,1.0,mg,301,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",calories,884.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",carbohydrate,0.0,g,205,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",copper,0.0,ug,312,FDC mg -> module ug (x1000)
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",healthy-fat,100.0,g,204,FDC total lipid (fat); module names it healthy-fat
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",iron,0.56,mg,303,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",magnesium,0.0,mg,304,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",manganese,0.0,mg,315,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",omega-3,0.0,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",potassium,1.0,mg,306,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",protein,0.0,g,203,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",selenium,0.0,ug,317,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",sodium,2.0,mg,307,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",vitamin-a,0.0,ug,320,RAE
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",vitamin-b1,0.0,mg,404,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",vitamin-b12,0.0,ug,418,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",vitamin-b2,0.0,mg,405,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",vitamin-b3,0.0,mg,406,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",vitamin-b5,0.0,mg,410,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",vitamin-b6,0.0,mg,415,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",vitamin-b9,0.0,ug,435;417,"Folate DFE preferred, else folate total"
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",vitamin-c,0.0,mg,401,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",vitamin-d,0.0,ug,328,D2+D3
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",vitamin-e,14.35,mg,323,alpha-tocopherol
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",vitamin-k,60.2,ug,430,phylloquinone
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",zinc,0.0,mg,309,
 onion-raw,790646,foundation,"Onions, yellow, raw",calcium,15.0,mg,301,
-onion-raw,790646,foundation,"Onions, yellow, raw",calories,38.0,kcal,208,
+onion-raw,790646,foundation,"Onions, yellow, raw",calories,38.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 onion-raw,790646,foundation,"Onions, yellow, raw",carbohydrate,8.61,g,205,
 onion-raw,790646,foundation,"Onions, yellow, raw",copper,35.0,ug,312,FDC mg -> module ug (x1000)
 onion-raw,790646,foundation,"Onions, yellow, raw",healthy-fat,0.05,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -530,7 +583,7 @@ onion-raw,790646,foundation,"Onions, yellow, raw",vitamin-b7,0.0,ug,416,
 onion-raw,790646,foundation,"Onions, yellow, raw",vitamin-c,8.2,mg,401,
 onion-raw,790646,foundation,"Onions, yellow, raw",zinc,0.2,mg,309,
 orange-raw,746771,foundation,"Oranges, raw, navels",calcium,43.0,mg,301,
-orange-raw,746771,foundation,"Oranges, raw, navels",calories,47.0,kcal,208,
+orange-raw,746771,foundation,"Oranges, raw, navels",calories,47.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 orange-raw,746771,foundation,"Oranges, raw, navels",carbohydrate,11.8,g,205,
 orange-raw,746771,foundation,"Oranges, raw, navels",copper,64.0,ug,312,FDC mg -> module ug (x1000)
 orange-raw,746771,foundation,"Oranges, raw, navels",healthy-fat,0.15,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -551,7 +604,7 @@ orange-raw,746771,foundation,"Oranges, raw, navels",vitamin-c,59.1,mg,401,
 orange-raw,746771,foundation,"Oranges, raw, navels",vitamin-k,0.0,ug,430,phylloquinone
 orange-raw,746771,foundation,"Oranges, raw, navels",zinc,0.11,mg,309,
 pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",calcium,21.0,mg,301,
-pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",calories,371.0,kcal,208,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",calories,371.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",carbohydrate,74.67,g,205,
 pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",copper,289.0,ug,312,FDC mg -> module ug (x1000)
 pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",healthy-fat,1.51,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -577,6 +630,7 @@ pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-e,0.11,mg,323,alpha-
 pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-k,0.1,ug,430,phylloquinone
 pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",zinc,1.41,mg,309,
 pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",calcium,4.111,mg,301,
+pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",calories,167.769,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",carbohydrate,0.0,g,205,
 pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",copper,38.2,ug,312,FDC mg -> module ug (x1000)
 pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",healthy-fat,9.469,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -588,6 +642,7 @@ pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",protein,21.11875,g,
 pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",sodium,40.2,mg,307,
 pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",zinc,1.57,mg,309,
 potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",calcium,7.801,mg,301,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",calories,83.42,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",carbohydrate,17.77125,g,205,
 potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",copper,91.18,ug,312,FDC mg -> module ug (x1000)
 potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",healthy-fat,0.36,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -606,7 +661,7 @@ potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",vitam
 potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",vitamin-k,1.5,ug,430,phylloquinone
 potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",zinc,0.3781,mg,309,
 quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",calcium,47.0,mg,301,
-quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",calories,368.0,kcal,208,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",calories,368.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",carbohydrate,64.16,g,205,
 quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",copper,590.0,ug,312,FDC mg -> module ug (x1000)
 quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",healthy-fat,6.07,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -631,6 +686,7 @@ quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",vitamin-e,2.44,mg,323,alpha-tocop
 quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",vitamin-k,0.0,ug,430,phylloquinone
 quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",zinc,3.1,mg,309,
 rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",calcium,8.058,mg,301,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",calories,365.518,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",carbohydrate,76.68795,g,205,
 rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",copper,265.9,ug,312,FDC mg -> module ug (x1000)
 rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",healthy-fat,3.306,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -649,6 +705,7 @@ rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",vit
 rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",vitamin-b7,4.988,ug,416,
 rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",zinc,1.854,mg,309,
 rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",calcium,4.46,mg,301,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",calories,358.705,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",carbohydrate,80.31315,g,205,
 rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",copper,213.8,ug,312,FDC mg -> module ug (x1000)
 rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",healthy-fat,1.033,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -667,6 +724,7 @@ rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",vit
 rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",vitamin-b7,0.0,ug,416,
 rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",zinc,1.354,mg,309,
 salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",calcium,9.423,mg,301,
+salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",calories,197.294,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",carbohydrate,0.0,g,205,
 salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",copper,24.69,ug,312,FDC mg -> module ug (x1000)
 salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",healthy-fat,13.11,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -691,6 +749,7 @@ salt-iodized,321505,foundation,"Salt, table, iodized",potassium,2.0,mg,306,
 salt-iodized,321505,foundation,"Salt, table, iodized",sodium,38700.0,mg,307,
 salt-iodized,321505,foundation,"Salt, table, iodized",zinc,0.0,mg,309,
 spinach-raw,1750352,foundation,"Spinach, baby",calcium,68.35,mg,301,
+spinach-raw,1750352,foundation,"Spinach, baby",calories,26.602,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 spinach-raw,1750352,foundation,"Spinach, baby",carbohydrate,2.406325,g,205,
 spinach-raw,1750352,foundation,"Spinach, baby",copper,81.81,ug,312,FDC mg -> module ug (x1000)
 spinach-raw,1750352,foundation,"Spinach, baby",healthy-fat,0.6188,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -710,7 +769,7 @@ spinach-raw,1750352,foundation,"Spinach, baby",vitamin-b9,116.5,ug,435;417,"Fola
 spinach-raw,1750352,foundation,"Spinach, baby",vitamin-c,26.52,mg,401,
 spinach-raw,1750352,foundation,"Spinach, baby",zinc,0.4471,mg,309,
 strawberries-raw,327699,foundation,"Strawberries, raw",calcium,12.0,mg,301,
-strawberries-raw,327699,foundation,"Strawberries, raw",calories,31.0,kcal,208,
+strawberries-raw,327699,foundation,"Strawberries, raw",calories,31.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 strawberries-raw,327699,foundation,"Strawberries, raw",carbohydrate,7.63,g,205,
 strawberries-raw,327699,foundation,"Strawberries, raw",copper,119.0,ug,312,FDC mg -> module ug (x1000)
 strawberries-raw,327699,foundation,"Strawberries, raw",healthy-fat,0.22,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -733,7 +792,7 @@ strawberries-raw,327699,foundation,"Strawberries, raw",vitamin-c,36.3,mg,401,
 strawberries-raw,327699,foundation,"Strawberries, raw",vitamin-k,2.1,ug,430,phylloquinone
 strawberries-raw,327699,foundation,"Strawberries, raw",zinc,0.18,mg,309,
 sugar-white,334247,foundation,"Sugars, granulated",calcium,1.0,mg,301,
-sugar-white,334247,foundation,"Sugars, granulated",calories,385.0,kcal,208,
+sugar-white,334247,foundation,"Sugars, granulated",calories,385.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 sugar-white,334247,foundation,"Sugars, granulated",carbohydrate,99.6,g,205,
 sugar-white,334247,foundation,"Sugars, granulated",copper,7.0,ug,312,FDC mg -> module ug (x1000)
 sugar-white,334247,foundation,"Sugars, granulated",healthy-fat,0.32,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -745,6 +804,7 @@ sugar-white,334247,foundation,"Sugars, granulated",protein,0.0,g,203,
 sugar-white,334247,foundation,"Sugars, granulated",sodium,1.0,mg,307,
 sugar-white,334247,foundation,"Sugars, granulated",zinc,0.01,mg,309,
 sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",calcium,22.33,mg,301,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",calories,78.999,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",carbohydrate,17.327875,g,205,
 sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",copper,186.6,ug,312,FDC mg -> module ug (x1000)
 sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",healthy-fat,0.375,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -763,7 +823,7 @@ sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin,
 sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",vitamin-k,0.2,ug,430,phylloquinone
 sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",zinc,0.3374,mg,309,
 tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",calcium,10.0,mg,301,
-tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",calories,96.0,kcal,208,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",calories,96.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",carbohydrate,0.0,g,205,
 tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",copper,75.0,ug,312,FDC mg -> module ug (x1000)
 tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",healthy-fat,1.7,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -789,7 +849,7 @@ tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-e,0.4,mg,323,alpha-toc
 tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-k,1.4,ug,430,phylloquinone
 tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",zinc,0.33,mg,309,
 tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",calcium,683.0,mg,301,
-tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",calories,144.0,kcal,208,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",calories,144.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",carbohydrate,2.78,g,205,
 tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",copper,378.0,ug,312,FDC mg -> module ug (x1000)
 tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",healthy-fat,8.72,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -811,6 +871,7 @@ tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",vita
 tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",vitamin-d,0.0,ug,328,D2+D3
 tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",zinc,1.57,mg,309,
 tomato-raw,1750354,foundation,"Tomato, roma",calcium,9.963,mg,301,
+tomato-raw,1750354,foundation,"Tomato, roma",calories,21.9574,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 tomato-raw,1750354,foundation,"Tomato, roma",carbohydrate,3.837475,g,205,
 tomato-raw,1750354,foundation,"Tomato, roma",copper,31.98,ug,312,FDC mg -> module ug (x1000)
 tomato-raw,1750354,foundation,"Tomato, roma",healthy-fat,0.425,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -830,6 +891,7 @@ tomato-raw,1750354,foundation,"Tomato, roma",vitamin-b9,9.994,ug,435;417,"Folate
 tomato-raw,1750354,foundation,"Tomato, roma",vitamin-c,17.75,mg,401,
 tomato-raw,1750354,foundation,"Tomato, roma",zinc,0.08245,mg,309,
 turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",calcium,23.63,mg,301,
+turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",calories,152.615,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",carbohydrate,0.0,g,205,
 turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",copper,76.24,ug,312,FDC mg -> module ug (x1000)
 turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",healthy-fat,9.591,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -841,7 +903,7 @@ turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",pro
 turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",sodium,80.18,mg,307,
 turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",zinc,2.95,mg,309,
 walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",calcium,98.0,mg,301,
-walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",calories,654.0,kcal,208,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",calories,654.0,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",carbohydrate,13.71,g,205,
 walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",copper,1586.0,ug,312,FDC mg -> module ug (x1000)
 walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",healthy-fat,65.21,g,204,FDC total lipid (fat); module names it healthy-fat
@@ -867,6 +929,7 @@ walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-e,0.7,mg,323,alpha
 walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-k,2.7,ug,430,phylloquinone
 walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",zinc,3.09,mg,309,
 yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",calcium,126.8,mg,301,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",calories,77.9524,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
 yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",carbohydrate,5.574928,g,205,
 yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",copper,3.175,ug,312,FDC mg -> module ug (x1000)
 yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",healthy-fat,4.484,g,204,FDC total lipid (fat); module names it healthy-fat
