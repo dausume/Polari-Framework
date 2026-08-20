@@ -51,6 +51,7 @@ from nutrition.meal_analysis import (
 from nutrition.activity_analysis import (
     day_timeline, fasted_exercise_facts, weekly_summary,
 )
+from nutrition.weight_trajectory import observed_vs_projected
 
 
 class NutritionAPI(treeObject):
@@ -117,6 +118,10 @@ class NutritionAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/nutrition/fasted-exercise', self,
                 suffix='fasted')
+            # nmp-6: the Hall weight trajectory
+            polServer.falconServer.add_route(
+                '/api/nutrition/persons/{name}/trajectory', self,
+                suffix='trajectory')
 
     def _rows(self, class_name):
         table = (self.manager.objectTables or {}).get(class_name, {})
@@ -342,6 +347,38 @@ class NutritionAPI(treeObject):
 
     def on_get_fasted(self, request, response):
         response.media = fasted_exercise_facts()
+
+    def on_get_trajectory(self, request, response, name):
+        person = self._person_or_404(response, name)
+        if person is None:
+            return
+        params = request.params or {}
+        from nutrition.threshold_analysis import calorie_envelope
+        try:
+            intake = float(params.get('daily_kcal', 0) or 0)
+        except ValueError:
+            intake = 0.0
+        if intake <= 0:
+            # default: the person's envelope target (their plan's
+            # honest daily number)
+            intake = calorie_envelope(
+                self.manager, person)['targetDailyKcal']
+        try:
+            horizon = int(params.get('horizon_weeks', 0) or 0) or None
+        except ValueError:
+            horizon = None
+        result = observed_vs_projected(self.manager, person,
+                                       intake, horizon)
+        if result.get('ok') and str(
+                params.get('naive', '')).lower() in ('1', 'true'):
+            from nutrition.weight_trajectory import project_weight
+            naive = project_weight(person, intake, horizon,
+                                   include_naive=True)
+            result['naive3500Kg'] = naive.get('naive3500Kg')
+            result['naive3500Label'] = naive.get('naive3500Label')
+        if not result.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = result
 
     def on_get_household(self, request, response, name):
         period = (request.params or {}).get('period', 'week')

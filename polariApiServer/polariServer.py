@@ -651,6 +651,8 @@ try:
     from nutrition.activity_basis import (
         ActivityDefinition, ActivityLog, SEED_ACTIVITY_DEFINITIONS,
     )
+    # nmp-6: measured weights (the trajectory's ground truth).
+    from nutrition.weight_basis import WeightObservation
 except ImportError as _exc:
     _stub_missing_feature('nutrition', _exc, globals(), (
         'DietaryNutrient', 'NutrientReference', 'SEED_DIETARY_NUTRIENTS', 'SEED_NUTRIENT_REFERENCES',
@@ -665,7 +667,7 @@ except ImportError as _exc:
         'MealTemplate', 'VariationDefinition', 'MealPlanDefinition',
         'MealEntry', 'SEED_MEAL_TEMPLATES', 'SEED_VARIATIONS',
         'ActivityDefinition', 'ActivityLog',
-        'SEED_ACTIVITY_DEFINITIONS',
+        'SEED_ACTIVITY_DEFINITIONS', 'WeightObservation',
     ))
 # Plant morphology: 3D organ + root stand-in models + confinement
 # (morph-1).
@@ -2233,6 +2235,7 @@ class polariServer(treeObject):
             ToleranceThreshold, Recipe, IngredientLine, CookingStep,
             MealTemplate, VariationDefinition, MealPlanDefinition,
             MealEntry, ActivityDefinition, ActivityLog,
+            WeightObservation,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
             # Plant-growth-sim phase 1: normalized-growth instance state.
