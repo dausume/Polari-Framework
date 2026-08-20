@@ -52,6 +52,7 @@ from nutrition.activity_analysis import (
     day_timeline, fasted_exercise_facts, weekly_summary,
 )
 from nutrition.weight_trajectory import observed_vs_projected
+from nutrition.fulfillment_analysis import coverage, suggest_plantings
 
 
 class NutritionAPI(treeObject):
@@ -122,6 +123,13 @@ class NutritionAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/nutrition/persons/{name}/trajectory', self,
                 suffix='trajectory')
+            # nmp-7: the garden loop (nut-5, meal-plan-aware)
+            polServer.falconServer.add_route(
+                '/api/nutrition/garden-plans/{name}/coverage', self,
+                suffix='garden_coverage')
+            polServer.falconServer.add_route(
+                '/api/nutrition/garden-plans/{name}/suggest', self,
+                suffix='garden_suggest')
 
     def _rows(self, class_name):
         table = (self.manager.objectTables or {}).get(class_name, {})
@@ -376,6 +384,22 @@ class NutritionAPI(treeObject):
                                    include_naive=True)
             result['naive3500Kg'] = naive.get('naive3500Kg')
             result['naive3500Label'] = naive.get('naive3500Label')
+        if not result.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = result
+
+    def on_get_garden_coverage(self, request, response, name):
+        period = (request.params or {}).get('period', 'week')
+        result = coverage(self.manager, name, period)
+        if not result.get('ok'):
+            response.status = '404 Not Found' \
+                if 'no GardenPlanDefinition' in str(
+                    result.get('error', '')) else '400 Bad Request'
+        response.media = result
+
+    def on_get_garden_suggest(self, request, response, name):
+        period = (request.params or {}).get('period', 'week')
+        result = suggest_plantings(self.manager, name, period)
         if not result.get('ok'):
             response.status = '400 Bad Request'
         response.media = result
