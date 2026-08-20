@@ -91,6 +91,133 @@ SEED_MODULE_PAGE_DISPLAYS = [
                      '/api/nutrition/households/demo-household/needs'),
             ]),
         ]),
+    # ── nmp-8: the meal-planning pages (all pure data) ────────
+    _page(
+        'nutrition-profile', 'nutrition/profile',
+        'nmp-8: one person, honestly — obesity screening (with its '
+        'caveats), the healthy calorie envelope + per-slot bands, '
+        'per-nutrient thresholds with derivations, and the Hall '
+        'weight trajectory vs observations.',
+        'PersonProfile',
+        [
+            _row(0, [
+                _table('nmp-profiles', 0, 6, 'People', 'PersonProfile'),
+                _api('nmp-obesity', 1, 6,
+                     'Obesity screening — demo-alex',
+                     '/api/nutrition/persons/demo-alex/obesity'),
+            ]),
+            _row(1, [
+                _api('nmp-envelope', 0, 6,
+                     'Calorie envelope + slot bands — demo-alex',
+                     '/api/nutrition/persons/demo-alex/envelope'),
+                _api('nmp-thresholds', 1, 6,
+                     'Thresholds (day) — demo-alex',
+                     '/api/nutrition/persons/demo-alex/thresholds'),
+            ]),
+            _row(2, [
+                _api('nmp-trajectory', 0, 12,
+                     'Weight trajectory (Hall model; own profile '
+                     'only by default)',
+                     '/api/nutrition/persons/demo-alex/trajectory'),
+            ]),
+        ]),
+    _page(
+        'nutrition-meals', 'nutrition/meals',
+        'nmp-8: meal templates (gate-checked), variations, plans and '
+        'their rollups vs thresholds — warnings name symptoms, '
+        'suggestions never auto-edit.',
+        'MealTemplate',
+        [
+            _row(0, [
+                _table('nmp-templates', 0, 6, 'Meal templates',
+                       'MealTemplate'),
+                _table('nmp-variations', 1, 6, 'Variations',
+                       'VariationDefinition'),
+            ]),
+            _row(1, [
+                _api('nmp-template-gate', 0, 6,
+                     'The authoring gate — chicken-bowl-dinner',
+                     '/api/nutrition/templates/chicken-bowl-dinner'
+                     '/validate'),
+                _api('nmp-template-rollup', 1, 6,
+                     'Per-meal rollup — chicken-bowl-dinner',
+                     '/api/nutrition/templates/chicken-bowl-dinner'
+                     '/rollup'),
+            ]),
+            _row(2, [
+                _table('nmp-plans', 0, 6, 'Meal plans',
+                       'MealPlanDefinition'),
+                _table('nmp-entries', 1, 6, 'Plan entries',
+                       'MealEntry'),
+            ]),
+        ]),
+    _page(
+        'nutrition-recipes', 'nutrition/recipes',
+        'nmp-8: recipes with the retention/yield engine — '
+        'per-serving nutrition labels with raw-vs-cooked provenance; '
+        'the tolerance table with citations and confidence grades.',
+        'Recipe',
+        [
+            _row(0, [
+                _table('nmp-recipes', 0, 6, 'Recipes', 'Recipe'),
+                _table('nmp-lines', 1, 6, 'Ingredient lines',
+                       'IngredientLine'),
+            ]),
+            _row(1, [
+                _api('nmp-recipe-nutrition', 0, 6,
+                     'Per-serving label — chicken-rice-bowl',
+                     '/api/nutrition/recipes/chicken-rice-bowl'
+                     '/nutrition'),
+                _api('nmp-tolerances', 1, 6,
+                     'Tolerance table (cited, confidence-graded)',
+                     '/api/nutrition/tolerances'),
+            ]),
+        ]),
+    _page(
+        'nutrition-activity', 'nutrition/activity',
+        'nmp-8: activity (Compendium METs, verbatim + attributed), '
+        'logged weeks, the day timeline with timing evaluations, and '
+        'the honest fasted-exercise page.',
+        'ActivityDefinition',
+        [
+            _row(0, [
+                _table('nmp-activities', 0, 6, 'Activities '
+                       '(2024 Adult Compendium, values unaltered)',
+                       'ActivityDefinition'),
+                _table('nmp-activity-logs', 1, 6, 'Activity logs',
+                       'ActivityLog'),
+            ]),
+            _row(1, [
+                _api('nmp-activity-week', 0, 6,
+                     'Logged week — demo-alex',
+                     '/api/nutrition/persons/demo-alex/activity-week'),
+                _api('nmp-fasted', 1, 6,
+                     'Fasted exercise — honestly',
+                     '/api/nutrition/fasted-exercise'),
+            ]),
+        ]),
+    _page(
+        'nutrition-garden', 'nutrition/garden',
+        'nmp-8: the garden loop — coverage of a meal plan or '
+        'household from the hydroponic garden, gaps named, '
+        'uncoverable nutrients pointed at their real source.',
+        'GardenPlanDefinition',
+        [
+            _row(0, [
+                _table('nmp-gardens', 0, 6, 'Garden plans',
+                       'GardenPlanDefinition'),
+                _api('nmp-coverage', 1, 6,
+                     'Coverage — starter-garden (week)',
+                     '/api/nutrition/garden-plans/starter-garden'
+                     '/coverage'),
+            ]),
+            _row(1, [
+                _api('nmp-garden-suggest', 0, 12,
+                     'Planting suggestions (arithmetic shown)',
+                     '/api/nutrition/garden-plans/starter-garden'
+                     '/suggest'),
+            ]),
+        ]),
     _page(
         'vermicompost-home', 'vermicompost',
         'aqp-7 worm-compost enrichment loops: bins, profiles, loops, '

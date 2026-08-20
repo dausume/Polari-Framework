@@ -112,7 +112,9 @@ SEED_POLARI_APPS = [
          'harvest loop (nutrition + aquaponics); the meal/recipe/'
          'activity layers land phase by phase (nmp arc).',
          ('nutrition', 'aquaponics'),
-         ('/display/nutrition-home',)),
+         ('/display/nutrition-home', '/display/nutrition/profile',
+          '/display/nutrition/meals', '/display/nutrition/recipes',
+          '/display/nutrition/activity', '/display/nutrition/garden')),
 
     # ------------------------------------------------------------------
     # Discipline apps (nav-1). Personas per NAVIGATION_REVAMP_PLAN §4.4
