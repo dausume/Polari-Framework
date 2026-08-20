@@ -54,6 +54,13 @@ class FoodItem(treeObject):
         # (1 / dry_matter_fraction ~ 8-12 for leafy greens). 0 = derive
         # from the part's dry_matter_fraction.
         fresh_to_dry_ratio: float = 0.0,
+        # nmp-0: FDC linkage — the exact FoodData Central row this
+        # item's composition came from (0 = not FDC-linked, e.g. our
+        # own grown foods with estimated contents).
+        fdc_id: int = 0,
+        # 'foundation' | 'sr_legacy' | '' — which FDC dataset the id
+        # lives in (they are separate releases with separate ids).
+        fdc_dataset: str = '',
         provenance_id: str = '',
         notes: str = '',
         manager=None,
@@ -65,6 +72,8 @@ class FoodItem(treeObject):
         self.preparation = preparation
         self.moisture_loss_fraction = moisture_loss_fraction
         self.fresh_to_dry_ratio = fresh_to_dry_ratio
+        self.fdc_id = fdc_id
+        self.fdc_dataset = fdc_dataset
         self.provenance_id = provenance_id
         self.notes = notes
 

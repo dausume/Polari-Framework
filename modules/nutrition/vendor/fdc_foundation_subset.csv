@@ -1,0 +1,887 @@
+food_slug,fdc_id,fdc_dataset,fdc_description,nutrient,amount_per_100g,unit,fdc_nutrient_nbr,derivation
+almonds-raw,170567,sr_legacy,"Nuts, almonds",calcium,269.0,mg,301,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",calories,579.0,kcal,208,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",carbohydrate,21.55,g,205,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",copper,1031.0,ug,312,FDC mg -> module ug (x1000)
+almonds-raw,170567,sr_legacy,"Nuts, almonds",healthy-fat,49.93,g,204,FDC total lipid (fat); module names it healthy-fat
+almonds-raw,170567,sr_legacy,"Nuts, almonds",iron,3.71,mg,303,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",magnesium,270.0,mg,304,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",manganese,2.179,mg,315,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",omega-3,0.003,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+almonds-raw,170567,sr_legacy,"Nuts, almonds",potassium,733.0,mg,306,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",protein,21.15,g,203,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",selenium,4.1,ug,317,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",sodium,1.0,mg,307,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-a,0.0,ug,320,RAE
+almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-b1,0.205,mg,404,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-b12,0.0,ug,418,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-b2,1.138,mg,405,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-b3,3.618,mg,406,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-b5,0.471,mg,410,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-b6,0.137,mg,415,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-b9,44.0,ug,435;417,"Folate DFE preferred, else folate total"
+almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-c,0.0,mg,401,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-d,0.0,ug,328,D2+D3
+almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-e,25.63,mg,323,alpha-tocopherol
+almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-k,0.0,ug,430,phylloquinone
+almonds-raw,170567,sr_legacy,"Nuts, almonds",zinc,3.12,mg,309,
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",calcium,5.0,mg,301,
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",calories,62.0,kcal,208,
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",carbohydrate,14.8,g,205,
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",copper,24.0,ug,312,FDC mg -> module ug (x1000)
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",healthy-fat,0.21,g,204,FDC total lipid (fat); module names it healthy-fat
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",iron,0.0,mg,303,
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",magnesium,4.7,mg,304,
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",manganese,0.03,mg,315,
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",potassium,95.0,mg,306,
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",protein,0.19,g,203,
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",sodium,0.0,mg,307,
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",vitamin-b1,0.009,mg,404,
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",vitamin-b2,0.066,mg,405,
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",vitamin-b3,0.09,mg,406,
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",vitamin-b6,0.021,mg,415,
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",vitamin-b9,0.0,ug,435;417,"Folate DFE preferred, else folate total"
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",zinc,0.02,mg,309,
+avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",calcium,14.46,mg,301,
+avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",carbohydrate,8.3235,g,205,
+avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",copper,284.9,ug,312,FDC mg -> module ug (x1000)
+avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",healthy-fat,20.31,g,204,FDC total lipid (fat); module names it healthy-fat
+avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",iron,0.6133,mg,303,
+avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",magnesium,32.8,mg,304,
+avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",manganese,0.1966,mg,315,
+avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",potassium,576.4,mg,306,
+avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",protein,1.8125,g,203,
+avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",sodium,0.0,mg,307,
+avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",vitamin-b6,0.1674,mg,415,
+avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",vitamin-b9,128.7,ug,435;417,"Folate DFE preferred, else folate total"
+avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",vitamin-c,0.0,mg,401,
+avocado-raw,2710824,foundation,"Avocado, Hass, peeled, raw",zinc,0.4596,mg,309,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",calcium,5.0,mg,301,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",calories,97.0,kcal,208,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",carbohydrate,23.0,g,205,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",copper,101.0,ug,312,FDC mg -> module ug (x1000)
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",healthy-fat,0.29,g,204,FDC total lipid (fat); module names it healthy-fat
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",iodine,0.0,ug,314,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",iron,0.0,mg,303,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",magnesium,28.0,mg,304,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",manganese,0.258,mg,315,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",potassium,326.0,mg,306,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",protein,0.74,g,203,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",selenium,0.0,ug,317,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",sodium,0.0,mg,307,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",vitamin-a,1.0,ug,320,RAE
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",vitamin-b1,0.056,mg,404,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",vitamin-b2,0.0,mg,405,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",vitamin-b3,0.662,mg,406,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",vitamin-b6,0.209,mg,415,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",vitamin-b7,0.0,ug,416,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",vitamin-b9,14.0,ug,435;417,"Folate DFE preferred, else folate total"
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",vitamin-c,12.3,mg,401,
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",vitamin-k,0.1,ug,430,phylloquinone
+banana-raw,790991,foundation,"Bananas, ripe and slightly ripe, raw",zinc,0.16,mg,309,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",calcium,16.0,mg,301,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",calories,132.0,kcal,208,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",carbohydrate,0.0,g,205,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",copper,93.0,ug,312,FDC mg -> module ug (x1000)
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",healthy-fat,4.19,g,204,FDC total lipid (fat); module names it healthy-fat
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",iron,1.93,mg,303,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",magnesium,23.0,mg,304,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",manganese,0.014,mg,315,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",omega-3,0.0,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",potassium,337.0,mg,306,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",protein,22.11,g,203,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",selenium,25.2,ug,317,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",sodium,74.0,mg,307,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",vitamin-a,0.0,ug,320,RAE
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",vitamin-b1,0.081,mg,404,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",vitamin-b12,1.88,ug,418,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",vitamin-b2,0.16,mg,405,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",vitamin-b3,5.069,mg,406,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",vitamin-b5,0.654,mg,410,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",vitamin-b6,0.532,mg,415,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",vitamin-b9,13.0,ug,435;417,"Folate DFE preferred, else folate total"
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",vitamin-c,0.0,mg,401,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",vitamin-e,0.28,mg,323,alpha-tocopherol
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",vitamin-k,1.1,ug,430,phylloquinone
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",zinc,5.55,mg,309,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",calcium,6.361,mg,301,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",carbohydrate,6.653175,g,205,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",copper,39.83,ug,312,FDC mg -> module ug (x1000)
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",healthy-fat,0.1256,g,204,FDC total lipid (fat); module names it healthy-fat
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",iron,0.3533,mg,303,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",magnesium,10.98,mg,304,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",manganese,0.1328,mg,315,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",potassium,212.7,mg,306,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",protein,0.895625,g,203,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",selenium,0.0,ug,317,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",sodium,0.0,mg,307,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",vitamin-b1,0.05494,mg,404,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",vitamin-b2,0.1422,mg,405,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",vitamin-b3,1.024,mg,406,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",vitamin-b6,0.3027,mg,415,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",vitamin-b7,0.4267,ug,416,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",vitamin-b9,47.32,ug,435;417,"Folate DFE preferred, else folate total"
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",vitamin-c,141.7,mg,401,
+bell-pepper-red-raw,2258590,foundation,"Peppers, bell, red, raw",zinc,0.2023,mg,309,
+black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",calcium,191.0,mg,301,
+black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",copper,1120.0,ug,312,FDC mg -> module ug (x1000)
+black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",healthy-fat,1.45,g,204,FDC total lipid (fat); module names it healthy-fat
+black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",iron,5.34,mg,303,
+black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",magnesium,180.0,mg,304,
+black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",manganese,2.08,mg,315,
+black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",molybdenum,920.0,ug,316,
+black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",potassium,1540.0,mg,306,
+black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",protein,24.4,g,203,
+black-beans-dry,335912,foundation,"Beans, Dry, Black (0% moisture)",zinc,3.37,mg,309,
+blueberries-raw,2263889,foundation,"Blueberries, raw",calcium,11.69,mg,301,
+blueberries-raw,2263889,foundation,"Blueberries, raw",carbohydrate,14.571775,g,205,
+blueberries-raw,2263889,foundation,"Blueberries, raw",copper,46.05,ug,312,FDC mg -> module ug (x1000)
+blueberries-raw,2263889,foundation,"Blueberries, raw",healthy-fat,0.3063,g,204,FDC total lipid (fat); module names it healthy-fat
+blueberries-raw,2263889,foundation,"Blueberries, raw",iron,0.3398,mg,303,
+blueberries-raw,2263889,foundation,"Blueberries, raw",magnesium,6.179,mg,304,
+blueberries-raw,2263889,foundation,"Blueberries, raw",manganese,0.4228,mg,315,
+blueberries-raw,2263889,foundation,"Blueberries, raw",potassium,85.64,mg,306,
+blueberries-raw,2263889,foundation,"Blueberries, raw",protein,0.703125,g,203,
+blueberries-raw,2263889,foundation,"Blueberries, raw",sodium,0.0,mg,307,
+blueberries-raw,2263889,foundation,"Blueberries, raw",vitamin-b7,0.0,ug,416,
+blueberries-raw,2263889,foundation,"Blueberries, raw",vitamin-c,8.059,mg,401,
+blueberries-raw,2263889,foundation,"Blueberries, raw",zinc,0.08534,mg,309,
+broccoli-raw,321900,foundation,"Broccoli, raw",calcium,46.0,mg,301,
+broccoli-raw,321900,foundation,"Broccoli, raw",calories,32.0,kcal,208,
+broccoli-raw,321900,foundation,"Broccoli, raw",carbohydrate,6.29,g,205,
+broccoli-raw,321900,foundation,"Broccoli, raw",copper,59.0,ug,312,FDC mg -> module ug (x1000)
+broccoli-raw,321900,foundation,"Broccoli, raw",healthy-fat,0.34,g,204,FDC total lipid (fat); module names it healthy-fat
+broccoli-raw,321900,foundation,"Broccoli, raw",iron,0.69,mg,303,
+broccoli-raw,321900,foundation,"Broccoli, raw",magnesium,21.0,mg,304,
+broccoli-raw,321900,foundation,"Broccoli, raw",manganese,0.197,mg,315,
+broccoli-raw,321900,foundation,"Broccoli, raw",potassium,303.0,mg,306,
+broccoli-raw,321900,foundation,"Broccoli, raw",protein,2.57,g,203,
+broccoli-raw,321900,foundation,"Broccoli, raw",selenium,1.6,ug,317,
+broccoli-raw,321900,foundation,"Broccoli, raw",sodium,36.0,mg,307,
+broccoli-raw,321900,foundation,"Broccoli, raw",vitamin-a,8.0,ug,320,RAE
+broccoli-raw,321900,foundation,"Broccoli, raw",vitamin-b1,0.077,mg,404,
+broccoli-raw,321900,foundation,"Broccoli, raw",vitamin-b2,0.114,mg,405,
+broccoli-raw,321900,foundation,"Broccoli, raw",vitamin-b3,0.639,mg,406,
+broccoli-raw,321900,foundation,"Broccoli, raw",vitamin-b5,0.61,mg,410,
+broccoli-raw,321900,foundation,"Broccoli, raw",vitamin-b6,0.191,mg,415,
+broccoli-raw,321900,foundation,"Broccoli, raw",vitamin-b9,65.0,ug,435;417,"Folate DFE preferred, else folate total"
+broccoli-raw,321900,foundation,"Broccoli, raw",vitamin-c,53.3,mg,401,
+broccoli-raw,321900,foundation,"Broccoli, raw",vitamin-e,0.15,mg,323,alpha-tocopherol
+broccoli-raw,321900,foundation,"Broccoli, raw",vitamin-k,102.0,ug,430,phylloquinone
+broccoli-raw,321900,foundation,"Broccoli, raw",zinc,0.42,mg,309,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",calcium,24.0,mg,301,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",calories,717.0,kcal,208,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",carbohydrate,0.06,g,205,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",chromium,2.8,ug,313,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",copper,16.0,ug,312,FDC mg -> module ug (x1000)
+butter-unsalted,173430,sr_legacy,"Butter, without salt",healthy-fat,81.11,g,204,FDC total lipid (fat); module names it healthy-fat
+butter-unsalted,173430,sr_legacy,"Butter, without salt",iron,0.02,mg,303,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",magnesium,2.0,mg,304,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",manganese,0.004,mg,315,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",omega-3,0.315,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+butter-unsalted,173430,sr_legacy,"Butter, without salt",potassium,24.0,mg,306,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",protein,0.85,g,203,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",selenium,1.0,ug,317,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",sodium,11.0,mg,307,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-a,684.0,ug,320,RAE
+butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-b1,0.005,mg,404,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-b12,0.17,ug,418,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-b2,0.034,mg,405,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-b3,0.042,mg,406,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-b5,0.11,mg,410,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-b6,0.003,mg,415,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-b9,3.0,ug,435;417,"Folate DFE preferred, else folate total"
+butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-c,0.0,mg,401,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-d,0.0,ug,328,D2+D3
+butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-e,2.32,mg,323,alpha-tocopherol
+butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-k,7.0,ug,430,phylloquinone
+butter-unsalted,173430,sr_legacy,"Butter, without salt",zinc,0.09,mg,309,
+carrot-raw,2258586,foundation,"Carrots, mature, raw",calcium,30.48,mg,301,
+carrot-raw,2258586,foundation,"Carrots, mature, raw",carbohydrate,10.26755,g,205,
+carrot-raw,2258586,foundation,"Carrots, mature, raw",copper,61.48,ug,312,FDC mg -> module ug (x1000)
+carrot-raw,2258586,foundation,"Carrots, mature, raw",healthy-fat,0.3506,g,204,FDC total lipid (fat); module names it healthy-fat
+carrot-raw,2258586,foundation,"Carrots, mature, raw",iron,0.1504,mg,303,
+carrot-raw,2258586,foundation,"Carrots, mature, raw",magnesium,12.45,mg,304,
+carrot-raw,2258586,foundation,"Carrots, mature, raw",manganese,0.1301,mg,315,
+carrot-raw,2258586,foundation,"Carrots, mature, raw",potassium,279.6,mg,306,
+carrot-raw,2258586,foundation,"Carrots, mature, raw",protein,0.94125,g,203,
+carrot-raw,2258586,foundation,"Carrots, mature, raw",selenium,0.0,ug,317,
+carrot-raw,2258586,foundation,"Carrots, mature, raw",sodium,86.65,mg,307,
+carrot-raw,2258586,foundation,"Carrots, mature, raw",vitamin-b1,0.065,mg,404,
+carrot-raw,2258586,foundation,"Carrots, mature, raw",vitamin-b2,0.095,mg,405,
+carrot-raw,2258586,foundation,"Carrots, mature, raw",vitamin-b3,1.406,mg,406,
+carrot-raw,2258586,foundation,"Carrots, mature, raw",vitamin-b6,0.1456,mg,415,
+carrot-raw,2258586,foundation,"Carrots, mature, raw",vitamin-b7,2.22,ug,416,
+carrot-raw,2258586,foundation,"Carrots, mature, raw",vitamin-b9,37.06,ug,435;417,"Folate DFE preferred, else folate total"
+carrot-raw,2258586,foundation,"Carrots, mature, raw",zinc,0.2364,mg,309,
+celery-raw,2346405,foundation,"Celery, raw",calcium,46.28,mg,301,
+celery-raw,2346405,foundation,"Celery, raw",carbohydrate,3.316512,g,205,
+celery-raw,2346405,foundation,"Celery, raw",copper,0.0,ug,312,FDC mg -> module ug (x1000)
+celery-raw,2346405,foundation,"Celery, raw",healthy-fat,0.1625,g,204,FDC total lipid (fat); module names it healthy-fat
+celery-raw,2346405,foundation,"Celery, raw",iron,0.0,mg,303,
+celery-raw,2346405,foundation,"Celery, raw",magnesium,10.93,mg,304,
+celery-raw,2346405,foundation,"Celery, raw",manganese,0.076,mg,315,
+celery-raw,2346405,foundation,"Celery, raw",molybdenum,0.0,ug,316,
+celery-raw,2346405,foundation,"Celery, raw",potassium,265.2,mg,306,
+celery-raw,2346405,foundation,"Celery, raw",protein,0.492188,g,203,
+celery-raw,2346405,foundation,"Celery, raw",selenium,0.0,ug,317,
+celery-raw,2346405,foundation,"Celery, raw",sodium,97.21,mg,307,
+celery-raw,2346405,foundation,"Celery, raw",vitamin-b6,0.05175,mg,415,
+celery-raw,2346405,foundation,"Celery, raw",zinc,0.0929,mg,309,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",calcium,707.0,mg,301,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",calories,408.0,kcal,208,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",carbohydrate,2.44,g,205,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",copper,33.0,ug,312,FDC mg -> module ug (x1000)
+cheese-cheddar,328637,foundation,"Cheese, cheddar",healthy-fat,34.0,g,204,FDC total lipid (fat); module names it healthy-fat
+cheese-cheddar,328637,foundation,"Cheese, cheddar",iron,0.16,mg,303,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",magnesium,26.8,mg,304,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",manganese,0.026,mg,315,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",omega-3,0.145,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+cheese-cheddar,328637,foundation,"Cheese, cheddar",potassium,77.0,mg,306,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",protein,23.3,g,203,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",selenium,28.3,ug,317,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",sodium,654.0,mg,307,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",vitamin-a,316.0,ug,320,RAE
+cheese-cheddar,328637,foundation,"Cheese, cheddar",vitamin-b1,0.029,mg,404,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",vitamin-b12,1.06,ug,418,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",vitamin-b2,0.441,mg,405,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",vitamin-b3,0.052,mg,406,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",vitamin-b5,0.413,mg,410,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",vitamin-b6,0.069,mg,415,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",vitamin-b9,21.0,ug,435;417,"Folate DFE preferred, else folate total"
+cheese-cheddar,328637,foundation,"Cheese, cheddar",vitamin-e,0.75,mg,323,alpha-tocopherol
+cheese-cheddar,328637,foundation,"Cheese, cheddar",vitamin-k,2.4,ug,430,phylloquinone
+cheese-cheddar,328637,foundation,"Cheese, cheddar",zinc,3.67,mg,309,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",calcium,5.0,mg,301,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",calories,120.0,kcal,208,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",carbohydrate,0.0,g,205,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",copper,37.0,ug,312,FDC mg -> module ug (x1000)
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",healthy-fat,2.62,g,204,FDC total lipid (fat); module names it healthy-fat
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",iron,0.37,mg,303,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",magnesium,28.0,mg,304,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",manganese,0.011,mg,315,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",omega-3,0.026,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",potassium,334.0,mg,306,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",protein,22.5,g,203,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",selenium,22.8,ug,317,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",sodium,45.0,mg,307,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",vitamin-a,9.0,ug,320,RAE
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",vitamin-b1,0.094,mg,404,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",vitamin-b12,0.21,ug,418,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",vitamin-b2,0.177,mg,405,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",vitamin-b3,9.6,mg,406,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",vitamin-b5,1.495,mg,410,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",vitamin-b6,0.811,mg,415,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",vitamin-b9,9.0,ug,435;417,"Folate DFE preferred, else folate total"
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",vitamin-c,0.0,mg,401,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",vitamin-d,0.0,ug,328,D2+D3
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",vitamin-e,0.56,mg,323,alpha-tocopherol
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",vitamin-k,0.0,ug,430,phylloquinone
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",zinc,0.68,mg,309,
+chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",calcium,111.1,mg,301,
+chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",carbohydrate,60.358,g,205,
+chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",copper,804.1,ug,312,FDC mg -> module ug (x1000)
+chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",healthy-fat,6.274,g,204,FDC total lipid (fat); module names it healthy-fat
+chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",iron,5.094,mg,303,
+chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",magnesium,134.8,mg,304,
+chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",manganese,3.581,mg,315,
+chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",potassium,1074.0,mg,306,
+chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",protein,21.275,g,203,
+chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",sodium,8.779,mg,307,
+chickpeas-dry,2644282,foundation,"Chickpeas, (garbanzo beans, bengal gram), dry",zinc,3.124,mg,309,
+cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",calcium,6.59,mg,301,
+cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",carbohydrate,0.0,g,205,
+cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",copper,3.963,ug,312,FDC mg -> module ug (x1000)
+cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",healthy-fat,0.6675,g,204,FDC total lipid (fat); module names it healthy-fat
+cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",iodine,113.7,ug,314,
+cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",iron,0.065,mg,303,
+cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",magnesium,17.98,mg,304,
+cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",manganese,0.0,mg,315,
+cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",omega-3,0.075,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",potassium,245.1,mg,306,
+cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",protein,16.06875,g,203,
+cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",selenium,22.79,ug,317,
+cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",sodium,298.8,mg,307,
+cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",vitamin-b12,1.248,ug,418,
+cod-raw,2684444,foundation,"Fish, cod, Atlantic, wild caught, raw",zinc,0.3051,mg,309,
+cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",calcium,16.34,mg,301,
+cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",carbohydrate,2.9525,g,205,
+cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",copper,62.99,ug,312,FDC mg -> module ug (x1000)
+cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",healthy-fat,0.1775,g,204,FDC total lipid (fat); module names it healthy-fat
+cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",iron,0.0,mg,303,
+cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",magnesium,10.11,mg,304,
+cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",manganese,0.08488,mg,315,
+cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",molybdenum,3.723,ug,316,
+cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",potassium,169.6,mg,306,
+cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",protein,0.625,g,203,
+cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",sodium,1.515,mg,307,
+cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",vitamin-b7,0.9625,ug,416,
+cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",vitamin-k,24.0,ug,430,phylloquinone
+cucumber-raw,2346406,foundation,"Cucumber, with peel, raw",zinc,0.204,mg,309,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",calcium,48.0,mg,301,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",calories,148.0,kcal,208,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",carbohydrate,0.96,g,205,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",copper,0.0,ug,312,FDC mg -> module ug (x1000)
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",healthy-fat,9.96,g,204,FDC total lipid (fat); module names it healthy-fat
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",iodine,49.1,ug,314,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",iron,1.67,mg,303,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",magnesium,11.4,mg,304,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",manganese,0.0,mg,315,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",potassium,132.0,mg,306,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",protein,12.4,g,203,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",selenium,31.1,ug,317,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",sodium,129.0,mg,307,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",vitamin-a,180.0,ug,320,RAE
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",vitamin-b1,0.077,mg,404,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",vitamin-b12,1.02,ug,418,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",vitamin-b2,0.419,mg,405,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",vitamin-b3,0.0,mg,406,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",vitamin-b6,0.063,mg,415,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",vitamin-b9,71.0,ug,435;417,"Folate DFE preferred, else folate total"
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",vitamin-d,2.46,ug,328,D2+D3
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",zinc,1.24,mg,309,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",calcium,22.0,mg,301,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",calories,362.0,kcal,208,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",carbohydrate,74.6,g,205,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",copper,212.0,ug,312,FDC mg -> module ug (x1000)
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",healthy-fat,1.7,g,204,FDC total lipid (fat); module names it healthy-fat
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",iron,1.18,mg,303,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",magnesium,36.1,mg,304,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",manganese,0.819,mg,315,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",molybdenum,42.6,ug,316,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",potassium,150.0,mg,306,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",protein,12.0,g,203,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",selenium,20.1,ug,317,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",sodium,2.0,mg,307,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",vitamin-b1,0.298,mg,404,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",vitamin-b2,0.0,mg,405,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",vitamin-b3,1.59,mg,406,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",vitamin-b6,0.085,mg,415,
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",vitamin-b9,23.0,ug,435;417,"Folate DFE preferred, else folate total"
+flour-all-purpose,790018,foundation,"Flour, wheat, all-purpose, unenriched, unbleached",zinc,1.15,mg,309,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",calcium,38.0,mg,301,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",calories,370.0,kcal,208,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",carbohydrate,71.2,g,205,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",copper,452.0,ug,312,FDC mg -> module ug (x1000)
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",healthy-fat,2.73,g,204,FDC total lipid (fat); module names it healthy-fat
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",iron,3.86,mg,303,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",magnesium,136.0,mg,304,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",manganese,3.56,mg,315,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",molybdenum,58.5,ug,316,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",potassium,376.0,mg,306,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",protein,15.1,g,203,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",selenium,23.6,ug,317,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",sodium,3.0,mg,307,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",vitamin-b1,0.504,mg,404,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",vitamin-b2,0.128,mg,405,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",vitamin-b3,5.55,mg,406,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",vitamin-b6,0.268,mg,415,
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",vitamin-b9,39.0,ug,435;417,"Folate DFE preferred, else folate total"
+flour-whole-wheat,790085,foundation,"Flour, whole wheat, unenriched",zinc,3.24,mg,309,
+garlic-raw,1104647,foundation,"Garlic, raw",calories,143.0,kcal,208,
+garlic-raw,1104647,foundation,"Garlic, raw",carbohydrate,28.2,g,205,
+garlic-raw,1104647,foundation,"Garlic, raw",healthy-fat,0.38,g,204,FDC total lipid (fat); module names it healthy-fat
+garlic-raw,1104647,foundation,"Garlic, raw",protein,6.62,g,203,
+garlic-raw,1104647,foundation,"Garlic, raw",selenium,9.8,ug,317,
+garlic-raw,1104647,foundation,"Garlic, raw",vitamin-c,10.0,mg,401,
+ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",calcium,7.135,mg,301,
+ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",carbohydrate,0.0,g,205,
+ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",copper,56.16,ug,312,FDC mg -> module ug (x1000)
+ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",healthy-fat,12.85,g,204,FDC total lipid (fat); module names it healthy-fat
+ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",iron,2.128,mg,303,
+ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",magnesium,16.49,mg,304,
+ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",manganese,0.0,mg,315,
+ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",potassium,281.4,mg,306,
+ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",protein,18.15625,g,203,
+ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",sodium,61.64,mg,307,
+ground-beef-90-raw,2514743,foundation,"Beef, ground, 90% lean meat / 10% fat, raw",zinc,4.194,mg,309,
+kale-raw,323505,foundation,"Kale, raw",calcium,254.0,mg,301,
+kale-raw,323505,foundation,"Kale, raw",calories,35.0,kcal,208,
+kale-raw,323505,foundation,"Kale, raw",carbohydrate,4.42,g,205,
+kale-raw,323505,foundation,"Kale, raw",copper,53.0,ug,312,FDC mg -> module ug (x1000)
+kale-raw,323505,foundation,"Kale, raw",healthy-fat,1.49,g,204,FDC total lipid (fat); module names it healthy-fat
+kale-raw,323505,foundation,"Kale, raw",iron,1.6,mg,303,
+kale-raw,323505,foundation,"Kale, raw",magnesium,32.7,mg,304,
+kale-raw,323505,foundation,"Kale, raw",manganese,0.92,mg,315,
+kale-raw,323505,foundation,"Kale, raw",potassium,348.0,mg,306,
+kale-raw,323505,foundation,"Kale, raw",protein,2.92,g,203,
+kale-raw,323505,foundation,"Kale, raw",sodium,53.0,mg,307,
+kale-raw,323505,foundation,"Kale, raw",vitamin-a,241.0,ug,320,RAE
+kale-raw,323505,foundation,"Kale, raw",vitamin-b1,0.113,mg,404,
+kale-raw,323505,foundation,"Kale, raw",vitamin-b2,0.347,mg,405,
+kale-raw,323505,foundation,"Kale, raw",vitamin-b3,1.18,mg,406,
+kale-raw,323505,foundation,"Kale, raw",vitamin-b5,0.37,mg,410,
+kale-raw,323505,foundation,"Kale, raw",vitamin-b6,0.147,mg,415,
+kale-raw,323505,foundation,"Kale, raw",vitamin-b9,62.0,ug,435;417,"Folate DFE preferred, else folate total"
+kale-raw,323505,foundation,"Kale, raw",vitamin-c,93.4,mg,401,
+kale-raw,323505,foundation,"Kale, raw",vitamin-e,0.66,mg,323,alpha-tocopherol
+kale-raw,323505,foundation,"Kale, raw",vitamin-k,390.0,ug,430,phylloquinone
+kale-raw,323505,foundation,"Kale, raw",zinc,0.39,mg,309,
+lentils-dry,2644283,foundation,"Lentils, dry",calcium,61.85,mg,301,
+lentils-dry,2644283,foundation,"Lentils, dry",carbohydrate,62.17125,g,205,
+lentils-dry,2644283,foundation,"Lentils, dry",copper,837.6,ug,312,FDC mg -> module ug (x1000)
+lentils-dry,2644283,foundation,"Lentils, dry",healthy-fat,1.925,g,204,FDC total lipid (fat); module names it healthy-fat
+lentils-dry,2644283,foundation,"Lentils, dry",iron,7.158,mg,303,
+lentils-dry,2644283,foundation,"Lentils, dry",magnesium,106.7,mg,304,
+lentils-dry,2644283,foundation,"Lentils, dry",manganese,1.569,mg,315,
+lentils-dry,2644283,foundation,"Lentils, dry",potassium,948.9,mg,306,
+lentils-dry,2644283,foundation,"Lentils, dry",protein,23.56875,g,203,
+lentils-dry,2644283,foundation,"Lentils, dry",sodium,0.0,mg,307,
+lentils-dry,2644283,foundation,"Lentils, dry",zinc,3.863,mg,309,
+lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",calcium,27.56,mg,301,
+lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",carbohydrate,4.055575,g,205,
+lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",copper,48.65,ug,312,FDC mg -> module ug (x1000)
+lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",healthy-fat,0.07125,g,204,FDC total lipid (fat); module names it healthy-fat
+lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",iron,0.267,mg,303,
+lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",magnesium,12.05,mg,304,
+lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",manganese,0.2271,mg,315,
+lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",potassium,260.4,mg,306,
+lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",protein,0.976875,g,203,
+lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",sodium,23.0,mg,307,
+lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",vitamin-b1,0.06288,mg,404,
+lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",vitamin-b3,0.3713,mg,406,
+lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",vitamin-b6,0.06325,mg,415,
+lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",vitamin-k,83.4,ug,430,phylloquinone
+lettuce-romaine-raw,2346389,foundation,"Lettuce, romaine, green, raw",zinc,0.2516,mg,309,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",calcium,123.0,mg,301,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",calories,60.0,kcal,208,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",carbohydrate,4.67,g,205,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",copper,1.0,ug,312,FDC mg -> module ug (x1000)
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",healthy-fat,3.2,g,204,FDC total lipid (fat); module names it healthy-fat
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",iodine,37.9,ug,314,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",iron,0.0,mg,303,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",magnesium,11.9,mg,304,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",manganese,0.0,mg,315,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",omega-3,0.015,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",potassium,150.0,mg,306,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",protein,3.28,g,203,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",selenium,1.9,ug,317,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",sodium,38.0,mg,307,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",vitamin-a,32.0,ug,320,RAE
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",vitamin-b1,0.056,mg,404,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",vitamin-b12,0.54,ug,418,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",vitamin-b2,0.138,mg,405,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",vitamin-b3,0.105,mg,406,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",vitamin-b5,0.362,mg,410,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",vitamin-b6,0.061,mg,415,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",vitamin-b9,0.0,ug,435;417,"Folate DFE preferred, else folate total"
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",vitamin-d,1.0,ug,328,D2+D3
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",vitamin-e,0.05,mg,323,alpha-tocopherol
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",zinc,0.41,mg,309,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",calcium,3.0,mg,301,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",calories,22.0,kcal,208,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",carbohydrate,3.26,g,205,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",copper,318.0,ug,312,FDC mg -> module ug (x1000)
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",healthy-fat,0.34,g,204,FDC total lipid (fat); module names it healthy-fat
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",iron,0.5,mg,303,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",magnesium,9.0,mg,304,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",manganese,0.047,mg,315,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",omega-3,0.0,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",potassium,318.0,mg,306,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",protein,3.09,g,203,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",selenium,9.3,ug,317,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",sodium,5.0,mg,307,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-a,0.0,ug,320,RAE
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-b1,0.081,mg,404,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-b12,0.04,ug,418,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-b2,0.402,mg,405,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-b3,3.607,mg,406,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-b5,1.497,mg,410,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-b6,0.104,mg,415,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-b9,17.0,ug,435;417,"Folate DFE preferred, else folate total"
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-c,2.1,mg,401,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-d,0.2,ug,328,D2+D3
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-e,0.01,mg,323,alpha-tocopherol
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-k,0.0,ug,430,phylloquinone
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",zinc,0.52,mg,309,
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",calcium,45.53,mg,301,
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",carbohydrate,68.65755,g,205,
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",copper,427.8,ug,312,FDC mg -> module ug (x1000)
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",healthy-fat,5.89,g,204,FDC total lipid (fat); module names it healthy-fat
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",iron,4.339,mg,303,
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",magnesium,126.3,mg,304,
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",manganese,3.234,mg,315,
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",molybdenum,160.4,ug,316,
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",potassium,350.1,mg,306,
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",protein,13.49645,g,203,
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",selenium,25.35,ug,317,
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",sodium,0.6675,mg,307,
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",vitamin-b1,0.4063,mg,404,
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",vitamin-b3,0.9931,mg,406,
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",vitamin-b6,0.1346,mg,415,
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",vitamin-b7,21.9,ug,416,
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",vitamin-b9,32.03,ug,435;417,"Folate DFE preferred, else folate total"
+oats-rolled,2346396,foundation,"Oats, whole grain, rolled, old fashioned",zinc,2.744,mg,309,
+olive-oil,748608,foundation,"Oil, olive, extra virgin",omega-3,0.651,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+onion-raw,790646,foundation,"Onions, yellow, raw",calcium,15.0,mg,301,
+onion-raw,790646,foundation,"Onions, yellow, raw",calories,38.0,kcal,208,
+onion-raw,790646,foundation,"Onions, yellow, raw",carbohydrate,8.61,g,205,
+onion-raw,790646,foundation,"Onions, yellow, raw",copper,35.0,ug,312,FDC mg -> module ug (x1000)
+onion-raw,790646,foundation,"Onions, yellow, raw",healthy-fat,0.05,g,204,FDC total lipid (fat); module names it healthy-fat
+onion-raw,790646,foundation,"Onions, yellow, raw",iodine,0.0,ug,314,
+onion-raw,790646,foundation,"Onions, yellow, raw",iron,0.28,mg,303,
+onion-raw,790646,foundation,"Onions, yellow, raw",magnesium,9.0,mg,304,
+onion-raw,790646,foundation,"Onions, yellow, raw",manganese,0.144,mg,315,
+onion-raw,790646,foundation,"Onions, yellow, raw",potassium,182.0,mg,306,
+onion-raw,790646,foundation,"Onions, yellow, raw",protein,0.83,g,203,
+onion-raw,790646,foundation,"Onions, yellow, raw",selenium,0.0,ug,317,
+onion-raw,790646,foundation,"Onions, yellow, raw",sodium,1.0,mg,307,
+onion-raw,790646,foundation,"Onions, yellow, raw",vitamin-b7,0.0,ug,416,
+onion-raw,790646,foundation,"Onions, yellow, raw",vitamin-c,8.2,mg,401,
+onion-raw,790646,foundation,"Onions, yellow, raw",zinc,0.2,mg,309,
+orange-raw,746771,foundation,"Oranges, raw, navels",calcium,43.0,mg,301,
+orange-raw,746771,foundation,"Oranges, raw, navels",calories,47.0,kcal,208,
+orange-raw,746771,foundation,"Oranges, raw, navels",carbohydrate,11.8,g,205,
+orange-raw,746771,foundation,"Oranges, raw, navels",copper,64.0,ug,312,FDC mg -> module ug (x1000)
+orange-raw,746771,foundation,"Oranges, raw, navels",healthy-fat,0.15,g,204,FDC total lipid (fat); module names it healthy-fat
+orange-raw,746771,foundation,"Oranges, raw, navels",iron,0.33,mg,303,
+orange-raw,746771,foundation,"Oranges, raw, navels",magnesium,10.7,mg,304,
+orange-raw,746771,foundation,"Oranges, raw, navels",manganese,0.029,mg,315,
+orange-raw,746771,foundation,"Oranges, raw, navels",potassium,166.0,mg,306,
+orange-raw,746771,foundation,"Oranges, raw, navels",protein,0.91,g,203,
+orange-raw,746771,foundation,"Oranges, raw, navels",selenium,0.0,ug,317,
+orange-raw,746771,foundation,"Oranges, raw, navels",sodium,9.0,mg,307,
+orange-raw,746771,foundation,"Oranges, raw, navels",vitamin-b1,0.068,mg,404,
+orange-raw,746771,foundation,"Oranges, raw, navels",vitamin-b2,0.051,mg,405,
+orange-raw,746771,foundation,"Oranges, raw, navels",vitamin-b3,0.425,mg,406,
+orange-raw,746771,foundation,"Oranges, raw, navels",vitamin-b5,0.261,mg,410,
+orange-raw,746771,foundation,"Oranges, raw, navels",vitamin-b6,0.079,mg,415,
+orange-raw,746771,foundation,"Oranges, raw, navels",vitamin-b9,25.0,ug,435;417,"Folate DFE preferred, else folate total"
+orange-raw,746771,foundation,"Oranges, raw, navels",vitamin-c,59.1,mg,401,
+orange-raw,746771,foundation,"Oranges, raw, navels",vitamin-k,0.0,ug,430,phylloquinone
+orange-raw,746771,foundation,"Oranges, raw, navels",zinc,0.11,mg,309,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",calcium,21.0,mg,301,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",calories,371.0,kcal,208,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",carbohydrate,74.67,g,205,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",copper,289.0,ug,312,FDC mg -> module ug (x1000)
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",healthy-fat,1.51,g,204,FDC total lipid (fat); module names it healthy-fat
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",iron,1.3,mg,303,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",magnesium,53.0,mg,304,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",manganese,0.917,mg,315,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",omega-3,0.024,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",potassium,223.0,mg,306,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",protein,13.04,g,203,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",selenium,63.2,ug,317,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",sodium,6.0,mg,307,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-a,0.0,ug,320,RAE
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-b1,0.09,mg,404,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-b12,0.0,ug,418,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-b2,0.06,mg,405,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-b3,1.7,mg,406,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-b5,0.431,mg,410,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-b6,0.142,mg,415,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-b9,18.0,ug,435;417,"Folate DFE preferred, else folate total"
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-c,0.0,mg,401,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-d,0.0,ug,328,D2+D3
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-e,0.11,mg,323,alpha-tocopherol
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-k,0.1,ug,430,phylloquinone
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",zinc,1.41,mg,309,
+pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",calcium,4.111,mg,301,
+pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",carbohydrate,0.0,g,205,
+pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",copper,38.2,ug,312,FDC mg -> module ug (x1000)
+pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",healthy-fat,9.469,g,204,FDC total lipid (fat); module names it healthy-fat
+pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",iron,0.4519,mg,303,
+pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",magnesium,21.96,mg,304,
+pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",manganese,0.0,mg,315,
+pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",potassium,361.2,mg,306,
+pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",protein,21.11875,g,203,
+pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",sodium,40.2,mg,307,
+pork-loin-raw,2646168,foundation,"Pork, loin, boneless, raw",zinc,1.57,mg,309,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",calcium,7.801,mg,301,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",carbohydrate,17.77125,g,205,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",copper,91.18,ug,312,FDC mg -> module ug (x1000)
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",healthy-fat,0.36,g,204,FDC total lipid (fat); module names it healthy-fat
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",iron,0.3835,mg,303,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",magnesium,25.64,mg,304,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",manganese,0.152,mg,315,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",molybdenum,4.869,ug,316,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",potassium,450.1,mg,306,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",protein,2.27375,g,203,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",selenium,0.0,ug,317,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",sodium,2.743,mg,307,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",vitamin-b1,0.07375,mg,404,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",vitamin-b3,1.501,mg,406,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",vitamin-b6,0.1573,mg,415,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",vitamin-c,10.9,mg,401,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",vitamin-k,1.5,ug,430,phylloquinone
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",zinc,0.3781,mg,309,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",calcium,47.0,mg,301,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",calories,368.0,kcal,208,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",carbohydrate,64.16,g,205,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",copper,590.0,ug,312,FDC mg -> module ug (x1000)
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",healthy-fat,6.07,g,204,FDC total lipid (fat); module names it healthy-fat
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",iron,4.57,mg,303,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",magnesium,197.0,mg,304,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",manganese,2.033,mg,315,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",omega-3,0.047,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",potassium,563.0,mg,306,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",protein,14.12,g,203,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",selenium,8.5,ug,317,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",sodium,5.0,mg,307,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",vitamin-a,1.0,ug,320,RAE
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",vitamin-b1,0.36,mg,404,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",vitamin-b12,0.0,ug,418,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",vitamin-b2,0.318,mg,405,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",vitamin-b3,1.52,mg,406,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",vitamin-b5,0.772,mg,410,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",vitamin-b6,0.487,mg,415,
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",vitamin-b9,184.0,ug,435;417,"Folate DFE preferred, else folate total"
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",vitamin-d,0.0,ug,328,D2+D3
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",vitamin-e,2.44,mg,323,alpha-tocopherol
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",vitamin-k,0.0,ug,430,phylloquinone
+quinoa-raw,168874,sr_legacy,"Quinoa, uncooked",zinc,3.1,mg,309,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",calcium,8.058,mg,301,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",carbohydrate,76.68795,g,205,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",copper,265.9,ug,312,FDC mg -> module ug (x1000)
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",healthy-fat,3.306,g,204,FDC total lipid (fat); module names it healthy-fat
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",iron,1.242,mg,303,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",magnesium,115.0,mg,304,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",manganese,2.696,mg,315,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",molybdenum,63.94,ug,316,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",potassium,250.1,mg,306,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",protein,7.25305,g,203,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",selenium,14.8,ug,317,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",sodium,0.0,mg,307,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",vitamin-b1,0.3263,mg,404,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",vitamin-b2,0.1025,mg,405,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",vitamin-b3,6.271,mg,406,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",vitamin-b6,0.1606,mg,415,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",vitamin-b7,4.988,ug,416,
+rice-brown-raw,2512380,foundation,"Rice, brown, long grain, unenriched, raw",zinc,1.854,mg,309,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",calcium,4.46,mg,301,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",carbohydrate,80.31315,g,205,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",copper,213.8,ug,312,FDC mg -> module ug (x1000)
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",healthy-fat,1.033,g,204,FDC total lipid (fat); module names it healthy-fat
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",iron,0.1405,mg,303,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",magnesium,26.53,mg,304,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",manganese,0.9811,mg,315,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",molybdenum,64.18,ug,316,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",potassium,82.26,mg,306,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",protein,7.03885,g,203,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",selenium,6.6,ug,317,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",sodium,0.4625,mg,307,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",vitamin-b1,0.065,mg,404,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",vitamin-b2,0.08,mg,405,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",vitamin-b3,1.434,mg,406,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",vitamin-b6,0.05788,mg,415,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",vitamin-b7,0.0,ug,416,
+rice-white-raw,2512381,foundation,"Rice, white, long grain, unenriched, raw",zinc,1.354,mg,309,
+salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",calcium,9.423,mg,301,
+salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",carbohydrate,0.0,g,205,
+salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",copper,24.69,ug,312,FDC mg -> module ug (x1000)
+salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",healthy-fat,13.11,g,204,FDC total lipid (fat); module names it healthy-fat
+salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",iodine,3.242,ug,314,
+salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",iron,0.2588,mg,303,
+salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",magnesium,25.39,mg,304,
+salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",manganese,0.0,mg,315,
+salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",omega-3,1.61,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",potassium,378.2,mg,306,
+salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",protein,20.31875,g,203,
+salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",selenium,22.8,ug,317,
+salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",sodium,49.49,mg,307,
+salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",vitamin-b12,5.696,ug,418,
+salmon-atlantic-raw,2684441,foundation,"Fish, salmon, Atlantic, farm raised, raw",zinc,0.3394,mg,309,
+salt-iodized,321505,foundation,"Salt, table, iodized",calcium,50.0,mg,301,
+salt-iodized,321505,foundation,"Salt, table, iodized",copper,0.0,ug,312,FDC mg -> module ug (x1000)
+salt-iodized,321505,foundation,"Salt, table, iodized",iodine,5080.0,ug,314,
+salt-iodized,321505,foundation,"Salt, table, iodized",iron,0.0,mg,303,
+salt-iodized,321505,foundation,"Salt, table, iodized",magnesium,0.0,mg,304,
+salt-iodized,321505,foundation,"Salt, table, iodized",manganese,0.032,mg,315,
+salt-iodized,321505,foundation,"Salt, table, iodized",potassium,2.0,mg,306,
+salt-iodized,321505,foundation,"Salt, table, iodized",sodium,38700.0,mg,307,
+salt-iodized,321505,foundation,"Salt, table, iodized",zinc,0.0,mg,309,
+spinach-raw,1750352,foundation,"Spinach, baby",calcium,68.35,mg,301,
+spinach-raw,1750352,foundation,"Spinach, baby",carbohydrate,2.406325,g,205,
+spinach-raw,1750352,foundation,"Spinach, baby",copper,81.81,ug,312,FDC mg -> module ug (x1000)
+spinach-raw,1750352,foundation,"Spinach, baby",healthy-fat,0.6188,g,204,FDC total lipid (fat); module names it healthy-fat
+spinach-raw,1750352,foundation,"Spinach, baby",iron,1.261,mg,303,
+spinach-raw,1750352,foundation,"Spinach, baby",magnesium,92.86,mg,304,
+spinach-raw,1750352,foundation,"Spinach, baby",manganese,0.4884,mg,315,
+spinach-raw,1750352,foundation,"Spinach, baby",potassium,581.8,mg,306,
+spinach-raw,1750352,foundation,"Spinach, baby",protein,2.851875,g,203,
+spinach-raw,1750352,foundation,"Spinach, baby",selenium,0.0,ug,317,
+spinach-raw,1750352,foundation,"Spinach, baby",sodium,111.4,mg,307,
+spinach-raw,1750352,foundation,"Spinach, baby",vitamin-a,283.119817,ug,320,RAE
+spinach-raw,1750352,foundation,"Spinach, baby",vitamin-b1,0.07688,mg,404,
+spinach-raw,1750352,foundation,"Spinach, baby",vitamin-b2,0.1935,mg,405,
+spinach-raw,1750352,foundation,"Spinach, baby",vitamin-b3,0.5506,mg,406,
+spinach-raw,1750352,foundation,"Spinach, baby",vitamin-b6,0.1946,mg,415,
+spinach-raw,1750352,foundation,"Spinach, baby",vitamin-b9,116.5,ug,435;417,"Folate DFE preferred, else folate total"
+spinach-raw,1750352,foundation,"Spinach, baby",vitamin-c,26.52,mg,401,
+spinach-raw,1750352,foundation,"Spinach, baby",zinc,0.4471,mg,309,
+strawberries-raw,327699,foundation,"Strawberries, raw",calcium,12.0,mg,301,
+strawberries-raw,327699,foundation,"Strawberries, raw",calories,31.0,kcal,208,
+strawberries-raw,327699,foundation,"Strawberries, raw",carbohydrate,7.63,g,205,
+strawberries-raw,327699,foundation,"Strawberries, raw",copper,119.0,ug,312,FDC mg -> module ug (x1000)
+strawberries-raw,327699,foundation,"Strawberries, raw",healthy-fat,0.22,g,204,FDC total lipid (fat); module names it healthy-fat
+strawberries-raw,327699,foundation,"Strawberries, raw",iron,0.28,mg,303,
+strawberries-raw,327699,foundation,"Strawberries, raw",magnesium,11.8,mg,304,
+strawberries-raw,327699,foundation,"Strawberries, raw",manganese,0.28,mg,315,
+strawberries-raw,327699,foundation,"Strawberries, raw",omega-3,0.0,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+strawberries-raw,327699,foundation,"Strawberries, raw",potassium,89.0,mg,306,
+strawberries-raw,327699,foundation,"Strawberries, raw",protein,0.64,g,203,
+strawberries-raw,327699,foundation,"Strawberries, raw",selenium,0.4,ug,317,
+strawberries-raw,327699,foundation,"Strawberries, raw",sodium,10.0,mg,307,
+strawberries-raw,327699,foundation,"Strawberries, raw",vitamin-a,1.0,ug,320,RAE
+strawberries-raw,327699,foundation,"Strawberries, raw",vitamin-b1,0.025,mg,404,
+strawberries-raw,327699,foundation,"Strawberries, raw",vitamin-b2,0.016,mg,405,
+strawberries-raw,327699,foundation,"Strawberries, raw",vitamin-b3,0.386,mg,406,
+strawberries-raw,327699,foundation,"Strawberries, raw",vitamin-b5,0.122,mg,410,
+strawberries-raw,327699,foundation,"Strawberries, raw",vitamin-b6,0.035,mg,415,
+strawberries-raw,327699,foundation,"Strawberries, raw",vitamin-b9,8.0,ug,435;417,"Folate DFE preferred, else folate total"
+strawberries-raw,327699,foundation,"Strawberries, raw",vitamin-c,36.3,mg,401,
+strawberries-raw,327699,foundation,"Strawberries, raw",vitamin-k,2.1,ug,430,phylloquinone
+strawberries-raw,327699,foundation,"Strawberries, raw",zinc,0.18,mg,309,
+sugar-white,334247,foundation,"Sugars, granulated",calcium,1.0,mg,301,
+sugar-white,334247,foundation,"Sugars, granulated",calories,385.0,kcal,208,
+sugar-white,334247,foundation,"Sugars, granulated",carbohydrate,99.6,g,205,
+sugar-white,334247,foundation,"Sugars, granulated",copper,7.0,ug,312,FDC mg -> module ug (x1000)
+sugar-white,334247,foundation,"Sugars, granulated",healthy-fat,0.32,g,204,FDC total lipid (fat); module names it healthy-fat
+sugar-white,334247,foundation,"Sugars, granulated",iron,0.05,mg,303,
+sugar-white,334247,foundation,"Sugars, granulated",magnesium,0.3,mg,304,
+sugar-white,334247,foundation,"Sugars, granulated",manganese,0.004,mg,315,
+sugar-white,334247,foundation,"Sugars, granulated",potassium,2.0,mg,306,
+sugar-white,334247,foundation,"Sugars, granulated",protein,0.0,g,203,
+sugar-white,334247,foundation,"Sugars, granulated",sodium,1.0,mg,307,
+sugar-white,334247,foundation,"Sugars, granulated",zinc,0.01,mg,309,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",calcium,22.33,mg,301,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",carbohydrate,17.327875,g,205,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",copper,186.6,ug,312,FDC mg -> module ug (x1000)
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",healthy-fat,0.375,g,204,FDC total lipid (fat); module names it healthy-fat
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",iron,0.398,mg,303,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",magnesium,19.14,mg,304,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",manganese,0.4174,mg,315,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",molybdenum,0.0,ug,316,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",potassium,486.4,mg,306,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",protein,1.578125,g,203,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",selenium,0.0,ug,317,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",sodium,0.0,mg,307,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",vitamin-b1,0.045,mg,404,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",vitamin-b3,0.4325,mg,406,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",vitamin-b6,0.1241,mg,415,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",vitamin-c,14.84,mg,401,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",vitamin-k,0.2,ug,430,phylloquinone
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",zinc,0.3374,mg,309,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",calcium,10.0,mg,301,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",calories,96.0,kcal,208,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",carbohydrate,0.0,g,205,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",copper,75.0,ug,312,FDC mg -> module ug (x1000)
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",healthy-fat,1.7,g,204,FDC total lipid (fat); module names it healthy-fat
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",iron,0.56,mg,303,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",magnesium,27.0,mg,304,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",manganese,0.037,mg,315,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",omega-3,0.167,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",potassium,302.0,mg,306,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",protein,20.08,g,203,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",selenium,41.8,ug,317,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",sodium,52.0,mg,307,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-a,0.0,ug,320,RAE
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-b1,0.041,mg,404,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-b12,1.58,ug,418,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-b2,0.063,mg,405,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-b3,3.903,mg,406,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-b5,0.487,mg,410,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-b6,0.162,mg,415,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-b9,24.0,ug,435;417,"Folate DFE preferred, else folate total"
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-c,0.0,mg,401,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-d,3.1,ug,328,D2+D3
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-e,0.4,mg,323,alpha-tocopherol
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-k,1.4,ug,430,phylloquinone
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",zinc,0.33,mg,309,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",calcium,683.0,mg,301,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",calories,144.0,kcal,208,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",carbohydrate,2.78,g,205,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",copper,378.0,ug,312,FDC mg -> module ug (x1000)
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",healthy-fat,8.72,g,204,FDC total lipid (fat); module names it healthy-fat
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",iron,2.66,mg,303,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",magnesium,58.0,mg,304,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",manganese,1.181,mg,315,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",potassium,237.0,mg,306,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",protein,17.27,g,203,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",selenium,17.4,ug,317,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",sodium,14.0,mg,307,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",vitamin-b1,0.158,mg,404,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",vitamin-b12,0.0,ug,418,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",vitamin-b2,0.102,mg,405,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",vitamin-b3,0.381,mg,406,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",vitamin-b5,0.133,mg,410,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",vitamin-b6,0.092,mg,415,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",vitamin-b9,29.0,ug,435;417,"Folate DFE preferred, else folate total"
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",vitamin-c,0.2,mg,401,
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",vitamin-d,0.0,ug,328,D2+D3
+tofu-firm,172475,sr_legacy,"Tofu, raw, firm, prepared with calcium sulfate",zinc,1.57,mg,309,
+tomato-raw,1750354,foundation,"Tomato, roma",calcium,9.963,mg,301,
+tomato-raw,1750354,foundation,"Tomato, roma",carbohydrate,3.837475,g,205,
+tomato-raw,1750354,foundation,"Tomato, roma",copper,31.98,ug,312,FDC mg -> module ug (x1000)
+tomato-raw,1750354,foundation,"Tomato, roma",healthy-fat,0.425,g,204,FDC total lipid (fat); module names it healthy-fat
+tomato-raw,1750354,foundation,"Tomato, roma",iron,0.1031,mg,303,
+tomato-raw,1750354,foundation,"Tomato, roma",magnesium,8.089,mg,304,
+tomato-raw,1750354,foundation,"Tomato, roma",manganese,0.0869,mg,315,
+tomato-raw,1750354,foundation,"Tomato, roma",potassium,192.8,mg,306,
+tomato-raw,1750354,foundation,"Tomato, roma",protein,0.695625,g,203,
+tomato-raw,1750354,foundation,"Tomato, roma",selenium,0.0,ug,317,
+tomato-raw,1750354,foundation,"Tomato, roma",sodium,0.0,mg,307,
+tomato-raw,1750354,foundation,"Tomato, roma",vitamin-a,23.9,ug,320,RAE
+tomato-raw,1750354,foundation,"Tomato, roma",vitamin-b1,0.05575,mg,404,
+tomato-raw,1750354,foundation,"Tomato, roma",vitamin-b2,0.0,mg,405,
+tomato-raw,1750354,foundation,"Tomato, roma",vitamin-b3,0.5331,mg,406,
+tomato-raw,1750354,foundation,"Tomato, roma",vitamin-b6,0.07894,mg,415,
+tomato-raw,1750354,foundation,"Tomato, roma",vitamin-b9,9.994,ug,435;417,"Folate DFE preferred, else folate total"
+tomato-raw,1750354,foundation,"Tomato, roma",vitamin-c,17.75,mg,401,
+tomato-raw,1750354,foundation,"Tomato, roma",zinc,0.08245,mg,309,
+turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",calcium,23.63,mg,301,
+turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",carbohydrate,0.0,g,205,
+turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",copper,76.24,ug,312,FDC mg -> module ug (x1000)
+turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",healthy-fat,9.591,g,204,FDC total lipid (fat); module names it healthy-fat
+turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",iron,1.087,mg,303,
+turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",magnesium,17.3,mg,304,
+turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",manganese,0.01581,mg,315,
+turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",potassium,246.3,mg,306,
+turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",protein,17.34375,g,203,
+turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",sodium,80.18,mg,307,
+turkey-ground-raw,2514747,foundation,"Turkey, ground, 93% lean/ 7% fat, raw",zinc,2.95,mg,309,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",calcium,98.0,mg,301,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",calories,654.0,kcal,208,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",carbohydrate,13.71,g,205,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",copper,1586.0,ug,312,FDC mg -> module ug (x1000)
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",healthy-fat,65.21,g,204,FDC total lipid (fat); module names it healthy-fat
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",iron,2.91,mg,303,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",magnesium,158.0,mg,304,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",manganese,3.414,mg,315,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",omega-3,0.0,g,851+629+621+631,derived: ALA+EPA+DHA+DPA sum
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",potassium,441.0,mg,306,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",protein,15.23,g,203,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",selenium,4.9,ug,317,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",sodium,2.0,mg,307,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-a,1.0,ug,320,RAE
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-b1,0.341,mg,404,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-b12,0.0,ug,418,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-b2,0.15,mg,405,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-b3,1.125,mg,406,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-b5,0.57,mg,410,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-b6,0.537,mg,415,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-b9,98.0,ug,435;417,"Folate DFE preferred, else folate total"
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-c,1.3,mg,401,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-d,0.0,ug,328,D2+D3
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-e,0.7,mg,323,alpha-tocopherol
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-k,2.7,ug,430,phylloquinone
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",zinc,3.09,mg,309,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",calcium,126.8,mg,301,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",carbohydrate,5.574928,g,205,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",copper,3.175,ug,312,FDC mg -> module ug (x1000)
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",healthy-fat,4.484,g,204,FDC total lipid (fat); module names it healthy-fat
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",iodine,32.33,ug,314,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",iron,0.0,mg,303,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",magnesium,11.45,mg,304,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",manganese,0.001539,mg,315,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",potassium,164.1,mg,306,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",protein,3.824172,g,203,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",sodium,41.78,mg,307,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",vitamin-b1,0.05519,mg,404,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",vitamin-b2,0.2431,mg,405,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",vitamin-b3,0.135,mg,406,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",vitamin-b6,0.04506,mg,415,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",vitamin-b7,0.0,ug,416,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",vitamin-d,0.778,ug,328,D2+D3
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",vitamin-k,0.2,ug,430,phylloquinone
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",zinc,0.4283,mg,309,

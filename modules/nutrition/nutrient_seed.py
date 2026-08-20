@@ -4,15 +4,17 @@
 @tags @xc:bindings
 
 nut-1 seeds — the full dietary-nutrient vocabulary (Dustin's canonical
-list; do NOT drop any) + adult RDA/AI reference rows (NIH DRI, adult
-19–50; sex-specific where they differ, else 'any'). Idempotent-by-name.
+list; do NOT drop any). The reference table moved to nutrition.dri_seed
+in nmp-0 (full NASEM life-stage transcription) and is re-exported here
+under its historical name. Idempotent-by-name.
 
-Values are literature priors — flagged. Calories carry no flat RDA
-(computed from BMR/TDEE in nut-3); protein scales per-kg body mass.
+Calories carry no flat RDA (computed from BMR/TDEE in nut-3); protein
+scales per-kg body mass.
 
 @consumers
   - polariServer seed_pairs (nutrients before references)
-@see /HOUSEHOLD_NUTRITION_PLAN.md §nut-1 + Appendix A
+@see /HOUSEHOLD_NUTRITION_PLAN.md §nut-1 + Appendix A;
+     AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md §nmp-0
 """
 
 # (name, display, category, unit, role, plant_availability, alt_source)
@@ -97,93 +99,11 @@ SEED_DIETARY_NUTRIENTS = [
     for (n, d, c, u, r, pa, alt) in _NUTRIENTS
 ]
 
-# References. Entry forms:
-#   (nutrient, rda_any)                          -> one 'any' row
-#   (nutrient, rda_male, rda_female)             -> two sex rows
-#   (nutrient, rda_male, rda_female, upper)      -> + upper limit
-# per-kg + prior handled separately below.
-_REF_ANY = [
-    ('carbohydrate', 130.0, 0.0),
-    ('calcium', 1000.0, 2500.0),
-    ('vitamin-b1', 1.2, 0.0), ('vitamin-b2', 1.3, 0.0),
-    ('vitamin-b6', 1.3, 100.0), ('vitamin-b9', 400.0, 1000.0),
-    ('vitamin-b12', 2.4, 0.0), ('vitamin-d', 15.0, 100.0),
-    ('vitamin-e', 15.0, 1000.0), ('selenium', 55.0, 400.0),
-    ('copper', 900.0, 10000.0), ('iodine', 150.0, 1100.0),
-    ('molybdenum', 45.0, 2000.0),
-]
-_REF_SEX = [
-    # (nutrient, male, female, upper)
-    ('vitamin-a', 900.0, 700.0, 3000.0),
-    ('vitamin-b3', 16.0, 14.0, 35.0),
-    ('vitamin-c', 90.0, 75.0, 2000.0),
-    ('iron', 8.0, 18.0, 45.0),
-    ('magnesium', 400.0, 310.0, 0.0),
-    ('zinc', 11.0, 8.0, 40.0),
-]
-# AI/estimate references (flagged is_prior=True).
-_REF_ANY_PRIOR = [
-    ('healthy-fat', 65.0, 0.0), ('vitamin-b5', 5.0, 0.0),
-    ('vitamin-b7', 30.0, 0.0), ('boron', 1.0, 20.0),
-    ('silicon', 25.0, 0.0),
-]
-_REF_SEX_PRIOR = [
-    ('vitamin-k', 120.0, 90.0, 0.0),
-    ('omega-3', 1.6, 1.1, 0.0),
-    ('potassium', 3400.0, 2600.0, 0.0),
-    ('manganese', 2.3, 1.8, 11.0),
-    ('chromium', 35.0, 25.0, 0.0),
-]
-
-
-def _any_row(nutrient, rda, upper, prior):
-    return {'name': f'{nutrient}-any-19-50', 'nutrient_name': nutrient,
-            'sex': 'any', 'age_min': 19.0, 'age_max': 120.0,
-            'rda_per_day': rda, 'upper_limit_per_day': upper,
-            'is_prior': prior, 'provenance_id': 'nut-1'}
-
-
-def _sex_rows(nutrient, male, female, upper, prior):
-    return [
-        {'name': f'{nutrient}-male-19-50', 'nutrient_name': nutrient,
-         'sex': 'male', 'age_min': 19.0, 'age_max': 120.0,
-         'rda_per_day': male, 'upper_limit_per_day': upper,
-         'is_prior': prior, 'provenance_id': 'nut-1'},
-        {'name': f'{nutrient}-female-19-50', 'nutrient_name': nutrient,
-         'sex': 'female', 'age_min': 19.0, 'age_max': 120.0,
-         'rda_per_day': female, 'upper_limit_per_day': upper,
-         'is_prior': prior, 'provenance_id': 'nut-1'},
-    ]
-
-SEED_NUTRIENT_REFERENCES = (
-    [_any_row(n, rda, up, False) for (n, rda, up) in _REF_ANY]
-    + [_any_row(n, rda, up, True) for (n, rda, up) in _REF_ANY_PRIOR]
-    + [r for (n, m, f, up) in _REF_SEX
-       for r in _sex_rows(n, m, f, up, False)]
-    + [r for (n, m, f, up) in _REF_SEX_PRIOR
-       for r in _sex_rows(n, m, f, up, True)]
-    # protein: per-kg body mass (0.8 g/kg), no flat RDA.
-    + [{'name': 'protein-any-19-50', 'nutrient_name': 'protein',
-        'sex': 'any', 'age_min': 19.0, 'age_max': 120.0,
-        'rda_per_day': 0.0, 'per_kg_body_mass': 0.8,
-        'upper_limit_per_day': 0.0, 'is_prior': False,
-        'source': 'NIH DRI (0.8 g/kg)', 'provenance_id': 'nut-1'}]
-    # sodium / chloride: AI (plant-none — the saltwater gap).
-    + [{'name': 'sodium-any-19-50', 'nutrient_name': 'sodium',
-        'sex': 'any', 'age_min': 19.0, 'age_max': 120.0,
-        'rda_per_day': 1500.0, 'upper_limit_per_day': 2300.0,
-        'is_prior': True, 'source': 'NIH AI', 'provenance_id': 'nut-1'},
-       {'name': 'chloride-any-19-50', 'nutrient_name': 'chloride',
-        'sex': 'any', 'age_min': 19.0, 'age_max': 120.0,
-        'rda_per_day': 2300.0, 'upper_limit_per_day': 3600.0,
-        'is_prior': True, 'source': 'NIH AI', 'provenance_id': 'nut-1'}]
-    # calories: computed in nut-3 (no flat RDA), a marker row so the
-    # vocabulary check finds a reference for every nutrient.
-    + [{'name': 'calories-any-19-50', 'nutrient_name': 'calories',
-        'sex': 'any', 'age_min': 19.0, 'age_max': 120.0,
-        'rda_per_day': 0.0, 'upper_limit_per_day': 0.0,
-        'is_prior': False,
-        'source': 'computed from BMR/TDEE (nut-3)',
-        'notes': 'calorie target is computed per person, not a flat RDA',
-        'provenance_id': 'nut-1'}]
-)
+# References: nmp-0 SUPERSEDED the adult-only single-band table that
+# lived here with the full NASEM DRI life-stage transcription
+# (EAR + RDA/AI + UL, adults 19+ per DRI band + pregnancy/lactation).
+# Re-exported under the historical name so every consumer — the
+# legacy seed list, person_analysis, the selftests — keeps working
+# against the one richer table.
+from nutrition.dri_seed import SEED_DRI_REFERENCES as \
+    SEED_NUTRIENT_REFERENCES  # noqa: F401  (re-export)

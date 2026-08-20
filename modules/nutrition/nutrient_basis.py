@@ -101,6 +101,21 @@ class NutrientReference(treeObject):
         # per-kg basis the profiler prefers over the flat RDA (0 = use
         # the flat rda_per_day).
         per_kg_body_mass: float = 0.0,
+        # nmp-0: Estimated Average Requirement per day (0 = none
+        # published — AI-based nutrients have no EAR by definition).
+        ear_per_day: float = 0.0,
+        # nmp-0: what rda_per_day actually IS for this row — a firm
+        # 'rda', an Adequate Intake 'ai', or 'none' (marker rows).
+        value_type: str = 'rda',
+        # nmp-0: '' = general band; 'pregnancy' | 'lactation' rows
+        # replace the nut-3 x1.3 multiplier with transcribed values.
+        life_stage: str = '',
+        # nmp-0: whose tables these are (DRI values differ by body —
+        # EFSA's DRVs are not NASEM's DRIs).
+        jurisdiction: str = 'US-NASEM',
+        # nmp-0: which edition/table release the value was transcribed
+        # from — DRI values change when reports are revised.
+        edition: str = '',
         source: str = 'NIH DRI',
         is_prior: bool = False,
         provenance_id: str = '',
@@ -115,6 +130,11 @@ class NutrientReference(treeObject):
         self.rda_per_day = rda_per_day
         self.upper_limit_per_day = upper_limit_per_day
         self.per_kg_body_mass = per_kg_body_mass
+        self.ear_per_day = ear_per_day
+        self.value_type = value_type
+        self.life_stage = life_stage
+        self.jurisdiction = jurisdiction
+        self.edition = edition
         self.source = source
         self.is_prior = is_prior
         self.provenance_id = provenance_id

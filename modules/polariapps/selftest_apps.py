@@ -67,10 +67,11 @@ if __name__ == '__main__':
     print('== suite: seeds ==')
     use_case_apps = [s for s in SEED_POLARI_APPS if not s['discipline']]
     discipline_apps = [s for s in SEED_POLARI_APPS if s['discipline']]
-    check('three use-case apps still seeded (wax shop, judicial, dmv)',
+    check('four use-case apps seeded (wax shop, judicial, dmv, '
+          'nutrition — nmp-0)',
           sorted(s['name'] for s in use_case_apps)
           == ['dmv-policy-analysis', 'judicial-lean',
-              'wax-print-shop'])
+              'nutrition-planner', 'wax-print-shop'])
     check('eight discipline apps seeded (nav-1)',
           sorted(s['name'] for s in discipline_apps)
           == ['app-business', 'app-magnetics',
@@ -219,9 +220,9 @@ if __name__ == '__main__':
     reqs = {'composition': ['mathshapes']}
     result = apps_nav(navmgr, feature_check=gate, requires_map=reqs)
     napps = {a['name']: a for a in result['apps']}
-    check('nav payload covers all 11 apps, gating readable',
+    check('nav payload covers all 12 apps, gating readable',
           result['ok'] and result['gatingReadable']
-          and len(napps) == 11)
+          and len(napps) == 12)
     check('discipline apps sort before use-case apps',
           [a['discipline'] != '' for a in result['apps']].index(False)
           == 8)

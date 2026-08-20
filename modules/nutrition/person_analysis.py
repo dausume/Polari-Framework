@@ -128,13 +128,22 @@ def calorie_target(person):
 
 def _reference_for(manager, nutrient_name, sex, age):
     """Best-matching NutrientReference: exact sex + age band, else 'any',
-    else any band for the nutrient."""
+    else any band for the nutrient.
+
+    nmp-0: pregnancy/lactation rows (life_stage != '') exist in the
+    table now — they are EXCLUDED here so a general band never
+    resolves to them; the pregnant_or_lactating handling stays the
+    nut-3 multiplier until nmp-1 plumbs the life-stage choice."""
+    def _general(r):
+        return not getattr(r, 'life_stage', '')
     candidates = [r for r in _rows(manager, 'NutrientReference')
                   if getattr(r, 'nutrient_name', '') == nutrient_name
+                  and _general(r)
                   and _f(r, 'age_min', 0) <= age <= _f(r, 'age_max', 999)]
     if not candidates:
         candidates = [r for r in _rows(manager, 'NutrientReference')
-                      if getattr(r, 'nutrient_name', '') == nutrient_name]
+                      if getattr(r, 'nutrient_name', '') == nutrient_name
+                      and _general(r)]
     if not candidates:
         return None
     for r in candidates:

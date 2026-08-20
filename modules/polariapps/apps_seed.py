@@ -97,6 +97,22 @@ SEED_POLARI_APPS = [
          'the scoring engine that reads it (scoring).',
          ('dmvdata', 'scoring'),
          ('/scoring/survival', '/scoring/accountability')),
+    # nmp-0 (Dustin 2026-08-20): nutrition IS a polari app — meal
+    # planning ships as its own configurable, deb-buildable shell
+    # (`pol apps shell nutrition-planner`) like every other app;
+    # every capability underneath is treeObject rows + displays, so
+    # the app is extendable through the same CRUDE/no-code surfaces.
+    # Pages grow with the nmp phases (nmp-8 adds the real pages).
+    _app('nutrition-planner', 'Nutrition & Meal Planning',
+         'A household planning meals: profiles with thresholds, '
+         'meal plans checked against healthy bands, cooking '
+         'workflows, activity, and the garden loop.',
+         'Person/household profiles + DRI thresholds, the FDC '
+         'starter pantry, foods and nutrient contents, and the '
+         'harvest loop (nutrition + aquaponics); the meal/recipe/'
+         'activity layers land phase by phase (nmp arc).',
+         ('nutrition', 'aquaponics'),
+         ('/display/nutrition-home',)),
 
     # ------------------------------------------------------------------
     # Discipline apps (nav-1). Personas per NAVIGATION_REVAMP_PLAN §4.4
