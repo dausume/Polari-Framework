@@ -657,6 +657,14 @@ try:
     from nutrition.fulfillment_basis import (
         GardenPlanDefinition, SEED_GARDEN_PLANS,
     )
+    # nmp-10: cooking workflows (tools x methods x storage).
+    from nutrition.workflow_basis import (
+        KitchenToolDefinition, KitchenTool, CookingTaskDefinition,
+        StepMethod, StorageActionDefinition, MethodPreference,
+        ToolAdvisorDismissal, CookingWorkflow,
+        SEED_KITCHEN_TOOLS, SEED_TASK_KINDS, SEED_STEP_METHODS,
+        SEED_STORAGE_ACTIONS,
+    )
 except ImportError as _exc:
     _stub_missing_feature('nutrition', _exc, globals(), (
         'DietaryNutrient', 'NutrientReference', 'SEED_DIETARY_NUTRIENTS', 'SEED_NUTRIENT_REFERENCES',
@@ -673,6 +681,12 @@ except ImportError as _exc:
         'ActivityDefinition', 'ActivityLog',
         'SEED_ACTIVITY_DEFINITIONS', 'WeightObservation',
         'GardenPlanDefinition', 'SEED_GARDEN_PLANS',
+        'KitchenToolDefinition', 'KitchenTool',
+        'CookingTaskDefinition', 'StepMethod',
+        'StorageActionDefinition', 'MethodPreference',
+        'ToolAdvisorDismissal', 'CookingWorkflow',
+        'SEED_KITCHEN_TOOLS', 'SEED_TASK_KINDS', 'SEED_STEP_METHODS',
+        'SEED_STORAGE_ACTIONS',
     ))
 # Plant morphology: 3D organ + root stand-in models + confinement
 # (morph-1).
@@ -2241,6 +2255,9 @@ class polariServer(treeObject):
             MealTemplate, VariationDefinition, MealPlanDefinition,
             MealEntry, ActivityDefinition, ActivityLog,
             WeightObservation, GardenPlanDefinition,
+            KitchenToolDefinition, KitchenTool, CookingTaskDefinition,
+            StepMethod, StorageActionDefinition, MethodPreference,
+            ToolAdvisorDismissal, CookingWorkflow,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
             # Plant-growth-sim phase 1: normalized-growth instance state.
@@ -3689,6 +3706,14 @@ class polariServer(treeObject):
             # nmp-7: the demo garden plan.
             ('GardenPlanDefinition', GardenPlanDefinition,
              SEED_GARDEN_PLANS),
+            # nmp-10: tools/tasks/methods/storage vocabularies.
+            ('KitchenToolDefinition', KitchenToolDefinition,
+             SEED_KITCHEN_TOOLS),
+            ('CookingTaskDefinition', CookingTaskDefinition,
+             SEED_TASK_KINDS),
+            ('StepMethod', StepMethod, SEED_STEP_METHODS),
+            ('StorageActionDefinition', StorageActionDefinition,
+             SEED_STORAGE_ACTIONS),
             # morph-1: 3D organ + root stand-in models.
             ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
@@ -4299,7 +4324,16 @@ class polariServer(treeObject):
                          ('ActivityDefinition', ActivityDefinition,
                           SEED_ACTIVITY_DEFINITIONS),
                          ('GardenPlanDefinition', GardenPlanDefinition,
-                          SEED_GARDEN_PLANS)],
+                          SEED_GARDEN_PLANS),
+                         ('KitchenToolDefinition',
+                          KitchenToolDefinition, SEED_KITCHEN_TOOLS),
+                         ('CookingTaskDefinition',
+                          CookingTaskDefinition, SEED_TASK_KINDS),
+                         ('StepMethod', StepMethod,
+                          SEED_STEP_METHODS),
+                         ('StorageActionDefinition',
+                          StorageActionDefinition,
+                          SEED_STORAGE_ACTIONS)],
                         tag='NutritionSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[NutritionSeed] {r["class"]}: '

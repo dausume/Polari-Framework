@@ -82,6 +82,10 @@ class PersonProfile(treeObject):
         # nmp-1: optional waist circumference (cm), a screening knob
         # for the obesity classification (0 = not measured).
         waist_cm: float = 0.0,
+        # nmp-10 (decision 12): stated cooking skill — drives the
+        # method duration models; refined from observed durations
+        # later (labeled which).
+        cooking_skill: str = 'intermediate',
         provenance_id: str = '',
         notes: str = '',
         manager=None,
@@ -103,5 +107,6 @@ class PersonProfile(treeObject):
         self.weekly_vigorous_minutes = weekly_vigorous_minutes
         self.life_stage = life_stage
         self.waist_cm = waist_cm
+        self.cooking_skill = cooking_skill
         self.provenance_id = provenance_id
         self.notes = notes

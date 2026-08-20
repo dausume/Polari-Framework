@@ -53,6 +53,9 @@ from nutrition.activity_analysis import (
 )
 from nutrition.weight_trajectory import observed_vs_projected
 from nutrition.fulfillment_analysis import coverage, suggest_plantings
+from nutrition.workflow_analysis import (
+    derive_week_plan, resolve_method, tool_advisor,
+)
 
 
 class NutritionAPI(treeObject):
@@ -130,6 +133,16 @@ class NutritionAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/nutrition/garden-plans/{name}/suggest', self,
                 suffix='garden_suggest')
+            # nmp-10: the prep scheduler
+            polServer.falconServer.add_route(
+                '/api/nutrition/plans/{name}/prep-schedule', self,
+                suffix='prep_schedule')
+            polServer.falconServer.add_route(
+                '/api/nutrition/plans/{name}/tool-advisor', self,
+                suffix='tool_advice')
+            polServer.falconServer.add_route(
+                '/api/nutrition/method-resolve', self,
+                suffix='method_resolve')
 
     def _rows(self, class_name):
         table = (self.manager.objectTables or {}).get(class_name, {})
@@ -400,6 +413,51 @@ class NutritionAPI(treeObject):
     def on_get_garden_suggest(self, request, response, name):
         period = (request.params or {}).get('period', 'week')
         result = suggest_plantings(self.manager, name, period)
+        if not result.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = result
+
+    def _plan_or_404(self, response, name):
+        plan = self._named('MealPlanDefinition', name)
+        if plan is None:
+            response.status = '404 Not Found'
+            response.media = {
+                'ok': False,
+                'error': f"no MealPlanDefinition named '{name}'"}
+        return plan
+
+    def on_get_prep_schedule(self, request, response, name):
+        plan = self._plan_or_404(response, name)
+        if plan is None:
+            return
+        params = request.params or {}
+        result = derive_week_plan(
+            self.manager, plan,
+            household=params.get('household', ''),
+            skill=params.get('skill', 'intermediate'))
+        if not result.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = result
+
+    def on_get_tool_advice(self, request, response, name):
+        plan = self._plan_or_404(response, name)
+        if plan is None:
+            return
+        params = request.params or {}
+        response.media = tool_advisor(
+            self.manager, plan,
+            household=params.get('household', ''),
+            skill=params.get('skill', 'intermediate'))
+
+    def on_post_method_resolve(self, request, response):
+        body = self._json_body(request, response)
+        if body is None:
+            return
+        result = resolve_method(
+            self.manager, body.get('task_kind', ''),
+            float(body.get('grams', 0.0) or 0.0),
+            household=body.get('household', ''),
+            skill=body.get('skill', 'intermediate'))
         if not result.get('ok'):
             response.status = '400 Bad Request'
         response.media = result
