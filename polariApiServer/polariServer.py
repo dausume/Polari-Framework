@@ -665,6 +665,12 @@ try:
         SEED_KITCHEN_TOOLS, SEED_TASK_KINDS, SEED_STEP_METHODS,
         SEED_STORAGE_ACTIONS,
     )
+    # nmp-11: dish bases + roles + the affinity norms.
+    from nutrition.affinity_basis import (
+        DishBase, IngredientRole, FoodRole, IngredientAffinity,
+        SEED_DISH_BASES, SEED_INGREDIENT_ROLES, SEED_FOOD_ROLES,
+        SEED_INGREDIENT_AFFINITIES,
+    )
 except ImportError as _exc:
     _stub_missing_feature('nutrition', _exc, globals(), (
         'DietaryNutrient', 'NutrientReference', 'SEED_DIETARY_NUTRIENTS', 'SEED_NUTRIENT_REFERENCES',
@@ -687,6 +693,10 @@ except ImportError as _exc:
         'ToolAdvisorDismissal', 'CookingWorkflow',
         'SEED_KITCHEN_TOOLS', 'SEED_TASK_KINDS', 'SEED_STEP_METHODS',
         'SEED_STORAGE_ACTIONS',
+        'DishBase', 'IngredientRole', 'FoodRole',
+        'IngredientAffinity', 'SEED_DISH_BASES',
+        'SEED_INGREDIENT_ROLES', 'SEED_FOOD_ROLES',
+        'SEED_INGREDIENT_AFFINITIES',
     ))
 # Plant morphology: 3D organ + root stand-in models + confinement
 # (morph-1).
@@ -2258,6 +2268,7 @@ class polariServer(treeObject):
             KitchenToolDefinition, KitchenTool, CookingTaskDefinition,
             StepMethod, StorageActionDefinition, MethodPreference,
             ToolAdvisorDismissal, CookingWorkflow,
+            DishBase, IngredientRole, FoodRole, IngredientAffinity,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
             # Plant-growth-sim phase 1: normalized-growth instance state.
@@ -3714,6 +3725,13 @@ class polariServer(treeObject):
             ('StepMethod', StepMethod, SEED_STEP_METHODS),
             ('StorageActionDefinition', StorageActionDefinition,
              SEED_STORAGE_ACTIONS),
+            # nmp-11: composition vocabulary before its norms.
+            ('DishBase', DishBase, SEED_DISH_BASES),
+            ('IngredientRole', IngredientRole,
+             SEED_INGREDIENT_ROLES),
+            ('FoodRole', FoodRole, SEED_FOOD_ROLES),
+            ('IngredientAffinity', IngredientAffinity,
+             SEED_INGREDIENT_AFFINITIES),
             # morph-1: 3D organ + root stand-in models.
             ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
@@ -4333,7 +4351,13 @@ class polariServer(treeObject):
                           SEED_STEP_METHODS),
                          ('StorageActionDefinition',
                           StorageActionDefinition,
-                          SEED_STORAGE_ACTIONS)],
+                          SEED_STORAGE_ACTIONS),
+                         ('DishBase', DishBase, SEED_DISH_BASES),
+                         ('IngredientRole', IngredientRole,
+                          SEED_INGREDIENT_ROLES),
+                         ('FoodRole', FoodRole, SEED_FOOD_ROLES),
+                         ('IngredientAffinity', IngredientAffinity,
+                          SEED_INGREDIENT_AFFINITIES)],
                         tag='NutritionSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[NutritionSeed] {r["class"]}: '

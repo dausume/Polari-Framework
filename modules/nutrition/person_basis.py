@@ -86,6 +86,9 @@ class PersonProfile(treeObject):
         # method duration models; refined from observed durations
         # later (labeled which).
         cooking_skill: str = 'intermediate',
+        # nmp-11 (decision 11): the cuisine/cultural context that
+        # RANKS suggestions — a stated knob, NEVER inferred.
+        cuisine_context: str = 'general-western',
         provenance_id: str = '',
         notes: str = '',
         manager=None,
@@ -108,5 +111,6 @@ class PersonProfile(treeObject):
         self.life_stage = life_stage
         self.waist_cm = waist_cm
         self.cooking_skill = cooking_skill
+        self.cuisine_context = cuisine_context
         self.provenance_id = provenance_id
         self.notes = notes

@@ -50,6 +50,10 @@ class MealTemplate(treeObject):
         recipe_names_json: str = '[]',
         # slots this template suits (JSON list of MEAL_SLOTS).
         slots_json: str = '[]',
+        # nmp-11 (decision 11): the DishBase family this template
+        # instantiates ('' = unclassified; the composer ranks those
+        # low rather than guessing).
+        dish_base: str = '',
         is_prior: bool = True,
         provenance_id: str = '',
         notes: str = '',
@@ -60,6 +64,7 @@ class MealTemplate(treeObject):
         self.description = description
         self.recipe_names_json = recipe_names_json
         self.slots_json = slots_json
+        self.dish_base = dish_base
         self.is_prior = is_prior
         self.provenance_id = provenance_id
         self.notes = notes
@@ -183,11 +188,13 @@ SEED_MEAL_TEMPLATES = [
      'description': 'The chicken-rice-bowl recipe as a dinner meal.',
      'recipe_names_json': '["chicken-rice-bowl"]',
      'slots_json': '["dinner", "lunch", "linner"]',
+     'dish_base': 'bowl',
      'is_prior': True, 'provenance_id': 'nmp-4'},
     {'name': 'omelet-breakfast', 'display_name': 'Omelet breakfast',
      'description': 'The spinach omelet as a breakfast.',
      'recipe_names_json': '["spinach-omelet"]',
      'slots_json': '["breakfast", "brunch"]',
+     'dish_base': 'omelet',
      'is_prior': True, 'provenance_id': 'nmp-4'},
 ]
 

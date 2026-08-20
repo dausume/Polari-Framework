@@ -56,6 +56,7 @@ from nutrition.fulfillment_analysis import coverage, suggest_plantings
 from nutrition.workflow_analysis import (
     derive_week_plan, resolve_method, tool_advisor,
 )
+from nutrition.affinity_composer import compose, counterbalance
 
 
 class NutritionAPI(treeObject):
@@ -143,6 +144,13 @@ class NutritionAPI(treeObject):
             polServer.falconServer.add_route(
                 '/api/nutrition/method-resolve', self,
                 suffix='method_resolve')
+            # nmp-11: the affinity composer
+            polServer.falconServer.add_route(
+                '/api/nutrition/plans/{name}/compose', self,
+                suffix='compose')
+            polServer.falconServer.add_route(
+                '/api/nutrition/plans/{name}/counterbalance', self,
+                suffix='counterbalance')
 
     def _rows(self, class_name):
         table = (self.manager.objectTables or {}).get(class_name, {})
@@ -458,6 +466,33 @@ class NutritionAPI(treeObject):
             float(body.get('grams', 0.0) or 0.0),
             household=body.get('household', ''),
             skill=body.get('skill', 'intermediate'))
+        if not result.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = result
+
+    def on_post_compose(self, request, response, name):
+        plan = self._plan_or_404(response, name)
+        if plan is None:
+            return
+        body = self._json_body(request, response)
+        if body is None:
+            return
+        result = compose(
+            self.manager, plan, body.get('food', ''),
+            meals_count=int(body.get('meals', 1) or 1),
+            slot=body.get('slot', ''),
+            context=body.get('context', ''))
+        if not result.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = result
+
+    def on_get_counterbalance(self, request, response, name):
+        plan = self._plan_or_404(response, name)
+        if plan is None:
+            return
+        result = counterbalance(
+            self.manager, plan,
+            context=(request.params or {}).get('context', ''))
         if not result.get('ok'):
             response.status = '400 Bad Request'
         response.media = result
