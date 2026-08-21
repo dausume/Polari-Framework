@@ -1242,6 +1242,27 @@ except ImportError as _exc:
         'SolarLayerDefinition', 'SolarStackDefinition', 'SEED_PHOTO_ABSORBERS', 'SEED_SOLAR_LAYERS',
         'SEED_SOLAR_STACKS',
     ))
+# cnt-s1: the aligned-CNT FET (decomposed one-tube device, VS-derived
+# compact model + ToB reference, D18 calibration anchors).
+try:
+    from cntfet.cnt_basis import (
+        AlignedCNTFETDevice, AlignedCNTFETGeometry,
+        CNTCalibrationAnchor, CNTContact, CNTFETParameterRow,
+        CNTFETSimResult, CNTMaterialState, CNTParasitics,
+        CNTTransportModel, GateStack,
+        SEED_CNT_CONTACTS, SEED_CNT_DEVICES, SEED_CNT_GEOMETRIES,
+        SEED_CNT_MATERIALS, SEED_CNT_PARASITICS, SEED_CNT_TRANSPORT,
+        SEED_GATE_STACKS,
+    )
+    from cntfet.cnt_calibration import SEED_CALIBRATION_ANCHORS
+except ImportError as _exc:
+    _stub_missing_feature('cntfet', _exc, globals(), (
+        'AlignedCNTFETDevice', 'AlignedCNTFETGeometry', 'CNTCalibrationAnchor', 'CNTContact',
+        'CNTFETParameterRow', 'CNTFETSimResult', 'CNTMaterialState', 'CNTParasitics',
+        'CNTTransportModel', 'GateStack', 'SEED_CNT_CONTACTS', 'SEED_CNT_DEVICES',
+        'SEED_CNT_GEOMETRIES', 'SEED_CNT_MATERIALS', 'SEED_CNT_PARASITICS', 'SEED_CNT_TRANSPORT',
+        'SEED_GATE_STACKS', 'SEED_CALIBRATION_ANCHORS',
+    ))
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -2071,6 +2092,12 @@ class polariServer(treeObject):
             from electrodevice.device_api import ElectroDeviceAPI
             electroDeviceEndpoint = ElectroDeviceAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('cntfet'):
+            # cnt-s1: the aligned-CNT FET acts (derive/iv/calibrate/
+            # validate/equivalence) + the D14 capability report.
+            from cntfet.cnt_api import CNTFETAPI
+            cntfetEndpoint = CNTFETAPI(
+                polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -2347,6 +2374,12 @@ class polariServer(treeObject):
             CircuitRunResult, SemiconductorProfile,
             DeviceValidationReport, PhotoAbsorberDefinition,
             SolarStackDefinition, SolarLayerDefinition,
+            # cnt-s1: the aligned-CNT FET decomposed device (D2b) +
+            # parameter roles as rows (D8) + D18 calibration anchors.
+            CNTMaterialState, AlignedCNTFETGeometry, GateStack,
+            CNTContact, CNTTransportModel, CNTParasitics,
+            AlignedCNTFETDevice, CNTFETParameterRow,
+            CNTCalibrationAnchor, CNTFETSimResult,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             # mlb-2: per-boot module timing history (durable — later
@@ -3270,6 +3303,20 @@ class polariServer(treeObject):
              SEED_DEVICES),
             ('SemiconductorProfile', SemiconductorProfile,
              SEED_SEMICONDUCTOR_PROFILES),
+            # cnt-s1: components before the device that names them.
+            ('CNTMaterialState', CNTMaterialState,
+             SEED_CNT_MATERIALS),
+            ('AlignedCNTFETGeometry', AlignedCNTFETGeometry,
+             SEED_CNT_GEOMETRIES),
+            ('GateStack', GateStack, SEED_GATE_STACKS),
+            ('CNTContact', CNTContact, SEED_CNT_CONTACTS),
+            ('CNTTransportModel', CNTTransportModel,
+             SEED_CNT_TRANSPORT),
+            ('CNTParasitics', CNTParasitics, SEED_CNT_PARASITICS),
+            ('AlignedCNTFETDevice', AlignedCNTFETDevice,
+             SEED_CNT_DEVICES),
+            ('CNTCalibrationAnchor', CNTCalibrationAnchor,
+             SEED_CALIBRATION_ANCHORS),
             ('PhotoAbsorberDefinition', PhotoAbsorberDefinition,
              SEED_PHOTO_ABSORBERS),
             ('SolarStackDefinition', SolarStackDefinition,

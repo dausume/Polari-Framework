@@ -344,6 +344,17 @@
       "wave": 7,
       "requires": [],
       "description": "isle-mesh convergence (mac-1): the polari-side acceptor for isle-mesh data \u2014 devices/uplinks/mesh-apps/protocol-permits ingested from the isle agent's registry.json + nginx fragments (isle stays authoritative over networking); mock ingests carry mock_network=true, surfaced as a banner. Feeds /display/isle-mesh and the mac-10 console."
+    },
+    "cntfet": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/cntfet",
+      "repo": "",
+      "wave": 3,
+      "requires": [
+        "electrodevice"
+      ],
+      "description": "Aligned-CNT FET S1: decomposed one-tube device, clean-room VS-CNFET-derived compact model (first open CNFET compact model) + ToB F2 reference + Verilog-A/OSDI twin."
     }
   }
 }
