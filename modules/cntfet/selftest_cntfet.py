@@ -495,9 +495,29 @@ def main():
           'transform, [VS1] premise ii)',
           abs((i_n + i_p) / i_n) < 1e-12)
     check('S4a: the model card carries ptype (both implementations '
-          'share revision r2)',
+          'share the revision)',
           'ptype' in osdi._model_card(p_p)[0]
-          and p['equation_revision'] == 'cntfet-vs-s1-r2')
+          and p['equation_revision'] == 'cntfet-vs-s1-r3')
+
+    # ---- S4b: eq.(11) charge model --------------------------------
+    from cntfet.cnt_charge import cgg_f, cqinf_f_per_m
+    extras = {'cinvb_f_per_m': p['cinvb_f_per_m'],
+              'vtb_v': p['vtb_v']}
+    check('S4b: charge parameters derive from the paper forms '
+          '(Cqinf asymptote, Cinvb series, Vtb = 0.7 Eg + 0.13)',
+          cqinf_f_per_m() > 0
+          and 0 < p['cinvb_f_per_m'] < p['cinv_f_per_m'] * 2
+          and abs(p['vtb_v'] - (0.7 * eg + 0.13)) < 1e-9
+          and 'cinvb' in osdi._model_card(p)[0])
+    cggs = [cgg_f(vg, 0.0, p, extras)
+            for vg in (0.0, 0.2, 0.4, 0.8, 1.3)]
+    peak = max(cggs)
+    check('S4b: Cgg rises to a peak then DECLINES at high Vgs — '
+          'the [VS1] Fig.9 quantum-capacitance signature, from '
+          'eq.(11) alone',
+          cggs[0] < 1e-19 and peak == max(cggs[1:4])
+          and cggs[-1] < 0.95 * peak,
+          f'cggs={cggs}')
 
     # ---- S1d: construct gate + OSDI equivalence --------------------
     gate = va.construct_gate_check(va.generate_va())
@@ -544,6 +564,19 @@ def main():
               and m_inv['swing_v'] > 0.57
               and m_inv['nml_v'] and m_inv['nmh_v'],
               f'metrics={m_inv}')
+        from cntfet.cnt_ring_oscillator import run_ring_oscillator
+        ro = run_ring_oscillator(mgr, device,
+                                 result_factory=fac_res)
+        m_ro = ro.get('metrics', {})
+        check('S4b: the 5-stage ring OSCILLATES in transient '
+              '(eq.(11) charge makes dynamics possible) — '
+              'frequency in the intrinsic band, honesty labels '
+              'riding the result',
+              ro.get('ok') and ro['verdict'] == 'oscillates'
+              and 1e9 < m_ro['frequency_hz'] < 1e14
+              and m_ro['stage_delay_s'] > 0
+              and any('INTRINSIC' in h for h in ro['honesty']),
+              f'metrics={m_ro}')
     else:
         print('SKIP: S1d/S4a OSDI legs — openvaf/ngspice not '
               'available on this host (capability endpoint reports '

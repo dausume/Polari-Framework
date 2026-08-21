@@ -152,9 +152,11 @@ LIT = {
 # Equation revision shared by the Python reference and the
 # Verilog-A twin (plan D3: both implement the SAME revision and are
 # regression-compared). r2 (2026-08-21): polarity transform added —
-# p-type = the mirrored n-type equations ([VS1] Sec.II premise ii:
-# n/p operation is symmetric).
-EQUATION_REVISION = 'cntfet-vs-s1-r2'
+# p-type = the mirrored n-type equations ([VS1] Sec.II premise ii).
+# r3 (same day): [VS1] eq.(11) terminal charge (Qch/Qxob/Cinvb/Vtb)
+# with an EXPLICIT 50/50 Qs/Qd split (the Ward-Dutton blend lives
+# in the blocked NEEDS manual — labeled approximation).
+EQUATION_REVISION = 'cntfet-vs-s1-r3'
 
 MODEL_LABEL = {
     'model_family': 'VS-CNFET-derived',

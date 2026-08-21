@@ -179,7 +179,31 @@ VM = 0.300 V (= VDD/2 for the symmetric pair), peak gain −19.7
 (the Hills full-adder measured ~17 — same class), swing 99.996%,
 NML = NMH = 0.25 V. Honesty: the p-device is the same device
 mirrored — real p/n asymmetry enters through measured process
-data; delay/energy need the charge model (S4b+).
+data.
+
+## S4b — terminal charge + ring oscillator (built 2026-08-21)
+
+Revision **r3** adds [VS1] eq.(11): Qch = −Lg(Qxo − Qxob) with
+Cinvb = Cox·Cq∞/(Cox+Cq∞), Cq∞ = 8q²/(3·a_cc·π·Ep), Vtb =
+0.7Eg/q + 0.13 — the twin gains `ddt` charge contributions and the
+model becomes DYNAMIC. The Cgg(Vgs) curve reproduces the [VS1]
+Fig.9 signature from the equations alone: rise, peak (~0.4 V,
+3.6 aF for the S1 device), then DECLINE as the quantum capacitance
+collapses past the van Hove singularity.
+
+**Clean-room boundary, stated plainly:** the Qs/Qd Ward-Dutton
+partitioning + drift/ballistic blend derivation lives in the
+NEEDS-licensed technical manual [26], which this project may not
+read. S4b uses an EXPLICIT 50/50 split — a labeled, delay-grade
+approximation that travels with every result (`PARTITION_NOTE`).
+
+`{action: ring-oscillator}`: the 5-stage complementary ring
+OSCILLATES in ngspice transient — **637 GHz, stage delay 157 fs**
+(97 crossings measured). INTRINSIC-ONLY: attofarad one-tube
+charges, zero parasitics (S2+/[VS2]) — a bound, not a product
+claim (plan D1). Consistency: [VS1] Fig.10 reports τ_int ≈ 50 fs
+at Lg = 8 nm; our 15 nm device with the 5.5 kΩ contacts at 157 fs
+sits exactly where scaling puts it.
 
 ## What this model must never claim
 

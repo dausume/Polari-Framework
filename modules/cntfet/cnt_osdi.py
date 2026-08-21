@@ -116,7 +116,9 @@ def _model_card(p):
             'alpha': p['alpha'], 'beta': p['beta'],
             'rs': p['rs_ohm'], 'rd': p['rd_ohm'],
             'tdev': p['temperature_k'],
-            'ptype': float(p.get('ptype', 0))}
+            'ptype': float(p.get('ptype', 0)),
+            'cinvb': p.get('cinvb_f_per_m', 1.0e-10),
+            'vtbq': p.get('vtb_v', 0.6)}
     text = ' '.join(f'{k}={v:.10g}' for k, v in vals.items())
     return f'.model cntmod cntfet_vs_s1 {text}', vals
 

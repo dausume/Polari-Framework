@@ -128,6 +128,20 @@ class CNTFETAPI(treeObject):
         if action == 'validate':
             response.media = validate(self.manager, device)
             return
+        if action == 'ring-oscillator':
+            from cntfet.cnt_ring_oscillator import (
+                run_ring_oscillator,
+            )
+            report = run_ring_oscillator(
+                self.manager, device,
+                vdd=float(payload.get('vdd', 0.6)),
+                stages=int(payload.get('stages', 5)))
+            if not report.get('ok'):
+                response.status = ('503 Service Unavailable'
+                                   if 'refusal' in report
+                                   else '422 Unprocessable Entity')
+            response.media = report
+            return
         if action == 'inverter':
             from cntfet.cnt_inverter import run_inverter_vtc
             report = run_inverter_vtc(

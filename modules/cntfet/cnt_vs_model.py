@@ -99,7 +99,15 @@ def build_vs_params(material, geometry, gate, contact, transport,
         # r2: 0 = n-type, 1 = p-type (mirrored equations — [VS1]
         # premise ii: symmetric conduction/valence bands).
         'ptype': 0,
+        # r3: the eq.(11) charge parameters (Cinvb from the
+        # asymptotic CNT Cqinf; Vtb = 0.7 Eg/q + 0.13).
+        **_charge_extras(eg, cox),
     }
+
+
+def _charge_extras(eg, cox):
+    from cntfet.cnt_charge import charge_extras_for
+    return charge_extras_for(eg, cox)
 
 
 def _softplus(x):

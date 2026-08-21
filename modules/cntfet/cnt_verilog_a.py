@@ -77,9 +77,15 @@ module cntfet_vs_s1(d, g, s);
     // [VS1] premise ii — symmetric bands). sgn folds the mirror
     // into the same expressions the Python reference mirrors.
     parameter real ptype = 0.0 from [0:1];
+    // r3 charge model ([VS1] eq.(11)): Cinvb = Cox Cqinf/(Cox +
+    // Cqinf) and Vtb = 0.7 Eg/q + 0.13, both derived by the
+    // Python side and carried on the card.
+    parameter real cinvb = 1.0e-10 from (0:inf);  // [F/m]
+    parameter real vtbq  = 0.6;                   // [V]
 
     real phit, vt, ff, qxo, vdsats, vdsat, xx, axx, fsat, idch;
     real ffarg, qarg, splus, sgn, ugsi, udsi;
+    real ffbarg, ffb, qbarg, splusb, qxob, qch, qghalf;
 
     analog begin
         phit = `KB_EXACT * tdev / `Q_EXACT;
@@ -120,6 +126,34 @@ module cntfet_vs_s1(d, g, s);
         idch = qxo * vxo * fsat;
 
         I(di, si) <+ sgn * idch;
+
+        // r3 terminal charge ([VS1] eq.(11)) — Qxob against Vtb
+        // with the same exp-safe forms; Qch = -Lg(Qxo - Qxob);
+        // Qg = -Qch, split 50/50 gate-source / gate-drain (the
+        // EXPLICIT approximation — Ward-Dutton blend lives in the
+        // blocked NEEDS manual; delay-grade only).
+        ffbarg = (ugsi - (vtbq - alpha * phit / 2.0))
+                 / (alpha * phit);
+        if (ffbarg > 40.0)
+            ffb = 0.0;
+        else if (ffbarg < -40.0)
+            ffb = 1.0;
+        else
+            ffb = 1.0 / (1.0 + exp(ffbarg));
+        qbarg = (ugsi - (vtbq - alpha * phit * ffb))
+                / (nss * phit);
+        if (qbarg > 40.0)
+            splusb = qbarg;
+        else if (qbarg < -40.0)
+            splusb = exp(qbarg);
+        else
+            splusb = ln(1.0 + exp(qbarg));
+        qxob = (cinv - cinvb) * nss * phit * splusb;
+        qch = -lg_m * (qxo - qxob);
+        qghalf = -0.5 * qch;
+        I(g, si) <+ sgn * ddt(qghalf);
+        I(g, di) <+ sgn * ddt(qghalf);
+
         // Rc first-class (D9): per-terminal series resistances as
         // their own branches — the SPICE solver owns the internal
         // nodes (the Python reference fixed-points the same system).
