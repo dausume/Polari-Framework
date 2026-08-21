@@ -205,6 +205,25 @@ claim (plan D1). Consistency: [VS1] Fig.10 reports τ_int ≈ 50 fs
 at Lg = 8 nm; our 15 nm device with the 5.5 kΩ contacts at 157 fs
 sits exactly where scaling puts it.
 
+## S4c — the D10 minimal cell set demonstrated (built 2026-08-21)
+
+`{action: cells}`: NAND2 (stepped four-corner truth table — only
+(1,1) pulls low, 0.1 mV), BUF (rail-to-rail follow), and a
+transmission-gate master-slave positive-edge DFF (18 FETs: correct
+capture on four consecutive rising edges + hold through mid-cycle
+D flips). With S4a's INV that completes the plan-D10 minimal set
+at DEMONSTRATION level — characterization (Liberty, slew/load
+grids) is S5 behind the CellCharacterizationRun schema.
+
+Two hard-won testbench lessons recorded in `cnt_cells.py`:
+(1) the S1 model has NO junction parasitics ([VS2] scope), so
+capacitance-free cell nodes (the NAND series-stack mid, inverter
+chains) starve the integrator — a small LABELED stand-in cap
+(2 aF ≈ half a device Cgg) + Gear integration is the honest cure;
+(2) an aborted ngspice transient leaves a partial wrdata file that
+a nearest-point sampler silently misreads — every cell testbench
+now REFUSES a truncated run.
+
 ## What this model must never claim
 
 - It is NOT the Stanford VS-CNFET and is not numerically

@@ -564,6 +564,22 @@ def main():
               and m_inv['swing_v'] > 0.57
               and m_inv['nml_v'] and m_inv['nmh_v'],
               f'metrics={m_inv}')
+        from cntfet.cnt_cells import run_cell_battery
+        battery = run_cell_battery(mgr, device,
+                                   result_factory=fac_res)
+        cell_verdicts = {k: v.get('verdict')
+                         for k, v in battery.get('cells',
+                                                 {}).items()}
+        check('S4c: the D10 minimal cell set is DEMONSTRATED — '
+              'NAND2 truth table, BUF follow, TG-DFF edge-capture '
+              '+ hold, all through the OSDI card (truncation '
+              'guard armed)',
+              battery.get('ok')
+              and battery['verdict'] == 'cell-set-demonstrated'
+              and cell_verdicts == {'nand2': 'works',
+                                    'buf': 'works',
+                                    'dff': 'works'},
+              f'battery={cell_verdicts or battery}')
         from cntfet.cnt_ring_oscillator import run_ring_oscillator
         ro = run_ring_oscillator(mgr, device,
                                  result_factory=fac_res)
