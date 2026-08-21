@@ -118,15 +118,37 @@ model cards non-opaque.
 ## Calibration (D18, `cnt_calibration.py`)
 
 Anchors are rows with full provenance (figure id, extraction
-method, error, conditions, fitted params). Current status: the
-v_xo/gm/G/d/Rs SCALAR anchors are recorded (reported values quoted
-by [VS1]/[FC10] text); model-vs-anchor residuals are recorded per
-run. **Curve-level digitization of the [FC10] Id-Vd families has
-NOT been performed** — that row `fc10-idvd-curves` REFUSES until an
-S2 digitization pass quantifies its error. Residual summary at S1:
+method, error, conditions, fitted params). Scalar anchors:
 v_xo within 2%/3% at 15/300 nm (in-domain), −40% at 3 µm
-(out-of-domain, flagged); gm within 2× of the 40 µS record in the
-anchor's own back-gate context.
+(out-of-domain, flagged); gm within 2× of the 40 µS record; G_on
+0.35 vs 0.7 G0 (G0 = 4e²/h pinned from the paper's own RQ
+statement; the negative residual is evidence about the Rc PRIOR —
+a recorded tension: Rs = 5.5 kΩ/terminal alone caps G at 0.59 G0,
+below the measured 0.7 G0 record).
+
+**S2c (2026-08-21): [VS1] Fig.7(a) Lg = 15 nm curves DIGITIZED**
+programmatically (300-dpi render → color-mask + white-interior
+components → centroids; axis calibration least-squares over tick
+labels; overlay-verified; ±0.005 V / ±0.26 µA per point; 58 points,
+coverage 22/17/13/6 per overdrive — `cnt_digitized_fc10.py` is the
+full D18 record). Model-vs-curve residuals in the anchor context:
+**ov+0.50 RMS 0.30 µA (AT the digitization noise floor, mean
+−0.4%)**; ov+0.25 RMS 0.80 µA (−2.7%); ov+0.00 RMS 1.05 µA (−16%,
+threshold-region smoothing); ov−0.25 −90% (the device's leakage
+floor is unmodeled — honest miss, recorded). Panels (b),(c) and
+the [FC10] originals still refuse pending the same treatment.
+
+**S2a/S2b: metric family + validation triangle.** SS/DIBL/Ion/
+Ioff/gm/G_on extracted identically from every engine
+(`cnt_metrics.py`); the F1-vs-F2 triangle (`cnt_triangle.py`,
+`{action: triangle}`) records the intrinsic edge (VS Rc=0 vs ToB:
+SS 66.6 vs 59.8 mV/dec, DIBL 14.4 vs 10.0 mV/V, Ion +21%, gm −4%)
+and the adaptive-oracle target list (deep-subthreshold points,
+~1.35 dex — where F3/Kwant spend goes at S2+). Physics honesty:
+ToB respects G ≤ G0 natively; VS-intrinsic may exceed it because
+the VS family carries the quantum resistance in Rs by design
+([VS1] Sec.IV) — the intrinsic edge compares transport shape,
+never absolute conductance.
 
 ## What this model must never claim
 

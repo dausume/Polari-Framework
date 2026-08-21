@@ -109,16 +109,24 @@ SEED_CALIBRATION_ANCHORS = [
      'figure': '[FC10] text (on-conductance)',
      'extraction_method': 'reported-value (paper text: highest '
                           'room-temperature conductance 0.7 G0)',
-     'digitization_error': 'n/a; G0 CONVENTION AMBIGUOUS in the '
-                           'text (2q^2/h vs 4q^2/h) — recorded '
-                           'as-published, unit kept symbolic',
+     'digitization_error': 'n/a (reported scalar); G0 convention '
+                           'PINNED from the paper text (S2, '
+                           '2026-08-21): RQ = 1/G0 = h/4e^2 ~ '
+                           '6.5 kOhm, so G0 = 4e^2/h ~ 155 uS',
      'axis_scaling_json': '{}', 'raw_points_json': '[]',
      'normalizations_json': '{}', 'fitted_params_json': '{}',
      'value': 0.7, 'unit': 'G0',
-     'conditions_json': json.dumps({'lch_nm': 15.0}),
+     'conditions_json': json.dumps(
+         {'lch_nm': 15.0, 'g0_definition': '4e^2/h',
+          'g0_siemens': 155.0e-6}),
      'status': 'ready',
-     'notes': 'comparison deferred until the convention is '
-              'pinned from the figure axes (S2)'},
+     'notes': 'TENSION recorded (S2): 0.7 G0 = 108.5 uS total '
+              'conductance implies Rtot ~ 9.2 kOhm, but the [VS1] '
+              'fit Rs = 5.5 kOhm PER TERMINAL caps G at ~91 uS '
+              '(0.59 G0). The record device and the 3-length fit '
+              'set cannot share both numbers — likely different '
+              'devices/contacts. Carried as data, not resolved '
+              'by fiat.'},
     {'name': 'fc10-tube-diameter',
      'source_reference': _FC10, 'doi': '10.1038/nnano.2010.220',
      'figure': '[FC10] Methods',
@@ -157,7 +165,7 @@ SEED_CALIBRATION_ANCHORS = [
               'Cox, the seeded GAA device keeps its own'},
     {'name': 'fc10-idvd-curves',
      'source_reference': _FC10, 'doi': '10.1038/nnano.2010.220',
-     'figure': '[FC10] Fig.2 / [VS1] Fig.7 symbol sets',
+     'figure': '[FC10] Fig.2 / [VS1] Fig.7(b),(c) symbol sets',
      'extraction_method': 'NOT PERFORMED',
      'digitization_error': 'unquantified — that is WHY this row '
                            'refuses',
@@ -165,12 +173,59 @@ SEED_CALIBRATION_ANCHORS = [
      'normalizations_json': '{}', 'fitted_params_json': '{}',
      'value': 0.0, 'unit': '',
      'conditions_json': '{}', 'status': 'refusing',
-     'notes': 'Curve-level digitization of the Id-Vd families '
-              '(raw points + axis scaling + per-point error) is '
-              'S2 work with a proper digitization pass; until '
-              'then curve-residual queries REFUSE rather than '
-              'read eyeballed numbers.'},
+     'notes': '[VS1] Fig.7(a) WAS digitized 2026-08-21 (S2c '
+              'programmatic pass — see fc10-idvd-lg15-digitized); '
+              'panels (b) 300 nm and (c) 3 um plus the [FC10] '
+              'original figures still refuse until they get the '
+              'same treatment.'},
 ]
+
+
+def _digitized_fig7a_seed():
+    """The S2c programmatic digitization as one D18 anchor row
+    (full detail + method in cntfet.cnt_digitized_fc10)."""
+    from cntfet.cnt_digitized_fc10 import (
+        ERROR_BUDGET, FIG7A_POINTS, OVERDRIVES_V, X_CALIBRATION,
+        Y_CALIBRATION,
+    )
+    return {
+        'name': 'fc10-idvd-lg15-digitized',
+        'source_reference': f'{_VS1}; underlying data {_FC10}',
+        'doi': '10.1109/TED.2015.2457453',
+        'figure': '[VS1] Fig.7(a) (Lg = 15 nm)',
+        'extraction_method': 'programmatic: 300-dpi render -> '
+                             'color-mask rims + white-interior '
+                             'connected components '
+                             '(scipy.ndimage) -> centroids; axis '
+                             'calibration least-squares over tick '
+                             'labels; overlay-verified',
+        'digitization_error': f"+-{ERROR_BUDGET['sigma_vds_v']} V, "
+                              f"+-{ERROR_BUDGET['sigma_id_ua']} uA "
+                              f"per point (worst case "
+                              f"{ERROR_BUDGET['worst_case_id_ua']}"
+                              f" uA = symbol radius)",
+        'axis_scaling_json': json.dumps(
+            {'x': X_CALIBRATION, 'y': Y_CALIBRATION}),
+        'raw_points_json': json.dumps(FIG7A_POINTS),
+        'normalizations_json': json.dumps(
+            {'polarity': 'flipped to n-type by [VS1]',
+             'overdrives_v': OVERDRIVES_V}),
+        'fitted_params_json': '{}',
+        'value': float(sum(len(v) for v in FIG7A_POINTS.values())),
+        'unit': 'points',
+        'conditions_json': json.dumps(
+            {'lg_nm': 15.0, 'd_nm': 1.2, 'rs_ohm': 5500.0,
+             'ss_mv_per_dec_assumed': 135.0,
+             'cox_f_per_m_assumed': 0.156e-9,
+             'coverage': '22/17/13/6 symbols per curve; rims '
+                         'fused with the model line are not '
+                         'extracted (stated method limit)'}),
+        'status': 'ready',
+        'notes': 'the S1-done curve-calibration deliverable',
+    }
+
+
+SEED_CALIBRATION_ANCHORS.append(_digitized_fig7a_seed())
 
 
 def _now():
@@ -227,6 +282,23 @@ def calibrate_device(manager, device, result_factory=None):
             if 'domain_note' in cond:
                 entry['outOfDomain'] = cond['domain_note']
             residuals.append(entry)
+        elif name == 'fc10-idvd-lg15-digitized':
+            residuals.extend(_curve_residuals(anchor))
+        elif name == 'fc10-gon-lg15':
+            g_on = _gon_anchor_context()
+            g0 = 4.0 * 1.602176634e-19 ** 2 / 6.62607015e-34
+            residuals.append({
+                'anchor': name, 'quantity': 'g_on_over_g0',
+                'anchorValue': anchor.value,
+                'modelValue': g_on / g0,
+                'residualFraction': (g_on / g0 - anchor.value)
+                / anchor.value,
+                'context': 'anchor context (Cox 0.156 fF/um, Rs '
+                           '5.5 kOhm/terminal); NOTE the recorded '
+                           'tension: Rs alone caps the model at '
+                           '0.59 G0 — this residual is expected '
+                           'negative and is evidence about the '
+                           'CONTACT prior, not the channel'})
         elif name == 'fc10-gm-lg15':
             # gm in the ANCHOR context: anchor Cox (back gate),
             # anchor Rs, Lg 15 nm, d 1.2 nm.
@@ -274,25 +346,73 @@ def calibrate_device(manager, device, result_factory=None):
             'resultRow': row.name, 'verdict': 'anchors-recorded'}
 
 
-def _gm_anchor_context(tables):
-    """Numeric gm at the [FC10] anchor context: anchor Cox in
-    series with Cqe(Eg(1.2 nm)), Lg = 15 nm, Rs = Rd = 5.5 kOhm,
-    |Vds| = 0.4 V, overdrive 0.5 V around vt0 = 0.3 V."""
+def _curve_residuals(anchor):
+    """Model-vs-digitized-curve residuals in the anchor context
+    (anchor Cox + Rs; vg = vt0 + overdrive since the figure states
+    |Vgs - Vt|). Per curve: RMS in uA + mean fractional where the
+    signal is well above the digitization noise floor."""
+    raw = json.loads(getattr(anchor, 'raw_points_json', '{}')
+                     or '{}')
+    overdrives = json.loads(
+        getattr(anchor, 'normalizations_json', '{}')
+        or '{}').get('overdrives_v', {})
+    p = _anchor_context_params()
+    out = []
+    for curve, points in raw.items():
+        ov = overdrives.get(curve)
+        if ov is None or not points:
+            continue
+        vg = p['vt0_v'] + ov
+        errs, fracs = [], []
+        for point in points:
+            model_ua = vs_terminal_current(
+                vg, point['vds_v'], p)['id_a'] * 1e6
+            err = model_ua - point['id_ua']
+            errs.append(err * err)
+            if point['id_ua'] > 1.0:  # above ~4x noise floor
+                fracs.append(err / point['id_ua'])
+        rms = (sum(errs) / len(errs)) ** 0.5
+        out.append({
+            'anchor': anchor.name, 'quantity': f'idvd-curve {curve}',
+            'points': len(points), 'rmsErrorUa': rms,
+            'meanFractional': (sum(fracs) / len(fracs))
+            if fracs else None,
+            'context': 'anchor context (Cox 0.156 fF/um, Rs 5.5 '
+                       'kOhm); digitization noise ~0.26 uA/point'})
+    return out
+
+
+def _gon_anchor_context():
+    """Linear-regime on-conductance in the [FC10] anchor context:
+    Id(vg_on, 0.05 V)/0.05 with anchor Cox + Rs = Rd = 5.5 kOhm."""
+    p = _anchor_context_params()
+    vg_on = 0.3 + 0.5
+    return vs_terminal_current(vg_on, 0.05, p)['id_a'] / 0.05
+
+
+def _anchor_context_params():
     from cntfet.cnt_bandstructure import eg_ev
     from cntfet.cnt_constants import lit_value as lv
     from cntfet.cnt_vs_model import mu_cm2_per_vs
     eg = eg_ev(1.2)
     cox_anchor = 0.156e-9
     cinv = cinv_f_per_m(cox_anchor, cqe_f_per_m(eg))
-    p = {'equation_revision': EQUATION_REVISION, 'lg_m': 15e-9,
-         'cinv_f_per_m': cinv, 'vxo_m_per_s': vxo_m_per_s(15.0, 1.2),
-         'mu_m2_per_vs': mu_cm2_per_vs(15.0, 1.2) * 1e-4,
-         'vt0_v': 0.3, 'dvt_v': 0.0, 'dibl_v_per_v': 0.0,
-         # anchor SS 135 mV/dec -> n_ss = 135/59.6
-         'n_ss': 135.0 / 59.6,
-         'alpha': lv('alpha_vs'), 'beta': lv('beta_vs'),
-         'phit_v': 0.02585, 'rs_ohm': 5500.0, 'rd_ohm': 5500.0,
-         'temperature_k': 300.0}
+    return {'equation_revision': EQUATION_REVISION, 'lg_m': 15e-9,
+            'cinv_f_per_m': cinv,
+            'vxo_m_per_s': vxo_m_per_s(15.0, 1.2),
+            'mu_m2_per_vs': mu_cm2_per_vs(15.0, 1.2) * 1e-4,
+            'vt0_v': 0.3, 'dvt_v': 0.0, 'dibl_v_per_v': 0.0,
+            'n_ss': 135.0 / 59.6,
+            'alpha': lv('alpha_vs'), 'beta': lv('beta_vs'),
+            'phit_v': 0.02585, 'rs_ohm': 5500.0, 'rd_ohm': 5500.0,
+            'temperature_k': 300.0}
+
+
+def _gm_anchor_context(tables):
+    """Numeric gm at the [FC10] anchor context: anchor Cox in
+    series with Cqe(Eg(1.2 nm)), Lg = 15 nm, Rs = Rd = 5.5 kOhm,
+    |Vds| = 0.4 V, overdrive 0.5 V around vt0 = 0.3 V."""
+    p = _anchor_context_params()
     vg_on = 0.3 + 0.5
     dv = 0.01
     i2 = vs_terminal_current(vg_on + dv, 0.4, p)['id_a']

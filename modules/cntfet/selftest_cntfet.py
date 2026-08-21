@@ -295,6 +295,60 @@ def main():
           and 0.5 < (gm_res[0]['modelValue'] / 40e-6) < 2.0,
           f'gm={gm_res}')
 
+    # ---- S2: digitized curves + residuals -------------------------
+    dig = [r for r in
+           mgr.objectTables['CNTCalibrationAnchor'].values()
+           if getattr(r, 'name', '') == 'fc10-idvd-lg15-digitized']
+    check('S2c: the Fig.7(a) digitization is a READY anchor with '
+          '58 raw points + axis calibration + error budget (D18)',
+          len(dig) == 1 and dig[0].status == 'ready'
+          and dig[0].value == 58.0
+          and 'px_per_v' in dig[0].axis_scaling_json
+          and '0.26 uA' in dig[0].digitization_error)
+    curve_res = [r for r in rep_cal['residuals']
+                 if 'idvd-curve' in r['quantity']]
+    flagship = [r for r in curve_res
+                if 'ov+0.50' in r['quantity']]
+    sub = [r for r in curve_res if 'ov-0.25' in r['quantity']]
+    check('S2c: curve residuals recorded for all four overdrives; '
+          'the flagship ov+0.50 curve lands within 2x the '
+          'digitization noise floor',
+          len(curve_res) == 4 and flagship
+          and flagship[0]['rmsErrorUa'] < 0.52,
+          f'curves={[(r["quantity"], round(r["rmsErrorUa"], 3)) for r in curve_res]}')
+    check('S2c: the subthreshold curve honestly MISSES (device '
+          'leakage floor unmodeled) — the residual is recorded, '
+          'not hidden',
+          sub and sub[0]['meanFractional'] is not None
+          and sub[0]['meanFractional'] < -0.5)
+
+    # ---- S2: metrics + validation triangle ------------------------
+    from cntfet.cnt_metrics import G0_FC10_S, extract_metrics
+    from cntfet.cnt_triangle import validation_triangle
+    m_vs = extract_metrics(
+        lambda vg, vd: vs.vs_terminal_current(vg, vd, p)['id_a'])
+    check('S2a: the metric family extracts cleanly from the VS '
+          'engine (SS/DIBL/Ion/Ioff/gm/G_on, no refusals)',
+          not m_vs['refusals'] and 59.0 < m_vs['ss_mv_per_dec'] < 100
+          and m_vs['dibl_mv_per_v'] > 0
+          and m_vs['on_off_ratio'] > 1e3
+          and m_vs['gm_peak_s'] > 0)
+    tri = validation_triangle(
+        mgr, device, result_factory=_row_factory(mgr,
+                                                 'CNTFETSimResult'))
+    check('S2b: the validation triangle records both edges, '
+          'per-metric deltas, and the adaptive-oracle target list',
+          tri['ok'] and len(tri['points']) == 25
+          and tri['metrics']['tob-intrinsic']['g_on_s'] > 0
+          and 'quantum_bound' in tri['honesty']
+          and len(tri['oracleTargets']) > 0
+          and all(t['dex'] > tri['thresholdDex']
+                  for t in tri['oracleTargets']))
+    check('S2b: physics sanity — ToB (which owns the quantum '
+          'limit natively) stays at or below G0 = 4e^2/h',
+          tri['metrics']['tob-intrinsic']['g_on_s']
+          <= G0_FC10_S * 1.001)
+
     # ---- validator -------------------------------------------------
     findings, _rows = cv.validate_cntfet_device(mgr, device)
     by = {f['criterion']: f['status'] for f in findings}

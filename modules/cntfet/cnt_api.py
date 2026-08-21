@@ -128,6 +128,18 @@ class CNTFETAPI(treeObject):
         if action == 'validate':
             response.media = validate(self.manager, device)
             return
+        if action == 'triangle':
+            from cntfet.cnt_triangle import validation_triangle
+            report = validation_triangle(
+                self.manager, device,
+                vg_list=payload.get('vg'),
+                vd_list=payload.get('vd'),
+                transmission_mode=payload.get('transmissionMode',
+                                              'acoustic-mfp'))
+            if not report.get('ok'):
+                response.status = '422 Unprocessable Entity'
+            response.media = report
+            return
         if action == 'equivalence':
             report = self._equivalence(device)
             if not report.get('ok'):
@@ -139,7 +151,7 @@ class CNTFETAPI(treeObject):
         return self._refuse(
             response,
             f'unknown action "{action}" (derive | iv | calibrate '
-            '| validate | equivalence)')
+            '| validate | triangle | equivalence)')
 
     def _equivalence(self, device):
         """Build the {Lg, d, T, Rc} variant spread around the
