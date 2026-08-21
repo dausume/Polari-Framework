@@ -1255,6 +1255,7 @@ try:
         SEED_GATE_STACKS,
     )
     from cntfet.cnt_calibration import SEED_CALIBRATION_ANCHORS
+    from cntfet.cnt_reference_papers import SEED_REFERENCE_ANCHORS
 except ImportError as _exc:
     _stub_missing_feature('cntfet', _exc, globals(), (
         'AlignedCNTFETDevice', 'AlignedCNTFETGeometry', 'CNTCalibrationAnchor', 'CNTContact',
@@ -1262,6 +1263,19 @@ except ImportError as _exc:
         'CNTTransportModel', 'GateStack', 'SEED_CNT_CONTACTS', 'SEED_CNT_DEVICES',
         'SEED_CNT_GEOMETRIES', 'SEED_CNT_MATERIALS', 'SEED_CNT_PARASITICS', 'SEED_CNT_TRANSPORT',
         'SEED_GATE_STACKS', 'SEED_CALIBRATION_ANCHORS',
+        'SEED_REFERENCE_ANCHORS',
+    ))
+# microchip: the design-level ladder + traversal (separable from the
+# device modules — references their rows, never imports their code).
+try:
+    from microchip.chip_basis import (
+        DesignLevelDefinition, MicrochipDesignNode,
+        SEED_DESIGN_LEVELS, SEED_DESIGN_NODES,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('microchip', _exc, globals(), (
+        'DesignLevelDefinition', 'MicrochipDesignNode',
+        'SEED_DESIGN_LEVELS', 'SEED_DESIGN_NODES',
     ))
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
@@ -2098,6 +2112,11 @@ class polariServer(treeObject):
             from cntfet.cnt_api import CNTFETAPI
             cntfetEndpoint = CNTFETAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('microchip'):
+            # The design-level ladder traversal interface.
+            from microchip.chip_api import MicrochipAPI
+            microchipEndpoint = MicrochipAPI(
+                polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -2380,6 +2399,8 @@ class polariServer(treeObject):
             CNTContact, CNTTransportModel, CNTParasitics,
             AlignedCNTFETDevice, CNTFETParameterRow,
             CNTCalibrationAnchor, CNTFETSimResult,
+            # microchip: the design-level ladder + design nodes.
+            DesignLevelDefinition, MicrochipDesignNode,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             # mlb-2: per-boot module timing history (durable — later
@@ -3316,7 +3337,13 @@ class polariServer(treeObject):
             ('AlignedCNTFETDevice', AlignedCNTFETDevice,
              SEED_CNT_DEVICES),
             ('CNTCalibrationAnchor', CNTCalibrationAnchor,
-             SEED_CALIBRATION_ANCHORS),
+             SEED_CALIBRATION_ANCHORS
+             + (SEED_REFERENCE_ANCHORS or [])),
+            # microchip: levels before the nodes that name them.
+            ('DesignLevelDefinition', DesignLevelDefinition,
+             SEED_DESIGN_LEVELS),
+            ('MicrochipDesignNode', MicrochipDesignNode,
+             SEED_DESIGN_NODES),
             ('PhotoAbsorberDefinition', PhotoAbsorberDefinition,
              SEED_PHOTO_ABSORBERS),
             ('SolarStackDefinition', SolarStackDefinition,

@@ -40,7 +40,7 @@ FEATURE_MODULES = frozenset({
     'dmvdata',
     'electrodevice',
     'gears', 'grpcbridge', 'hwdigital', 'hwfpga', 'magnetics',
-    'mathshapes', 'meshassets', 'microalgae', 'motors',
+    'mathshapes', 'meshassets', 'microalgae', 'microchip', 'motors',
     'nutrition', 'odooconnect', 'plant_morphology', 'polariapps',
     'scoring',
     'supplychain', 'tanks', 'techtree', 'testing', 'waxprint',

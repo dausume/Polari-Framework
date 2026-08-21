@@ -178,12 +178,14 @@ def _now():
 
 
 def seed_anchor_rows(manager, factory):
-    """Idempotent: create any missing anchor rows."""
+    """Idempotent: create any missing anchor rows (calibration +
+    reference-paper anchors)."""
+    from cntfet.cnt_reference_papers import SEED_REFERENCE_ANCHORS
     tables = getattr(manager, 'objectTables', None) or {}
     table = tables.get('CNTCalibrationAnchor') or {}
     have = {getattr(r, 'name', '') for r in table.values()}
     made = []
-    for seed in SEED_CALIBRATION_ANCHORS:
+    for seed in SEED_CALIBRATION_ANCHORS + SEED_REFERENCE_ANCHORS:
         if seed['name'] in have:
             continue
         factory(manager=manager, **seed)

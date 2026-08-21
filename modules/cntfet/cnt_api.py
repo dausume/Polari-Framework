@@ -34,6 +34,7 @@ class CNTFETAPI(treeObject):
         if polServer is not None:
             add = polServer.falconServer.add_route
             add('/api/cntfet/capability', self, suffix='capability')
+            add('/api/cntfet/citations', self, suffix='citations')
             add('/api/cntfet/devices', self, suffix='devices')
             add('/api/cntfet/devices/{name}', self, suffix='device')
             add('/api/cntfet/devices/{name}/verilog-a', self,
@@ -45,6 +46,10 @@ class CNTFETAPI(treeObject):
 
     def on_get_capability(self, request, response):
         response.media = capability()
+
+    def on_get_citations(self, request, response):
+        from cntfet.cnt_citations import citations_report
+        response.media = citations_report(self.manager)
 
     def on_get_devices(self, request, response):
         tables = getattr(self.manager, 'objectTables', None) or {}

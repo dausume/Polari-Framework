@@ -355,6 +355,15 @@
         "electrodevice"
       ],
       "description": "Aligned-CNT FET S1: decomposed one-tube device, clean-room VS-CNFET-derived compact model (first open CNFET compact model) + ToB F2 reference + Verilog-A/OSDI twin."
+    },
+    "microchip": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/microchip",
+      "repo": "",
+      "wave": 3,
+      "requires": [],
+      "description": "Microchip design-level ladder (device -> cell -> block -> core -> chip) + traversal interface. Separable from the device modules: reads cntfet/electrodevice rows softly, imports no device code; absent modules degrade honestly."
     }
   }
 }

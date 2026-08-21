@@ -144,13 +144,13 @@ def derive_material_values(n, m):
     out = {
         'diameter_nm': {
             'value': d, 'unit': 'nm', 'role': 'derived',
-            'source': 'zone-folding geometry',
+            'source': 'zone-folding geometry [ZF92]',
             'equation': 'd = sqrt(3) a_cc sqrt(n^2+nm+m^2)/pi',
             'derived_from': f'chirality ({n},{m}) + a_cc'},
         'semiconducting': {
             'value': 1.0 if semi else 0.0, 'unit': 'bool',
             'role': 'derived',
-            'source': 'zone-folding rule (Hamada/Saito 1992)',
+            'source': 'zone-folding rule [ZF92]',
             'equation': '(n - m) mod 3 != 0',
             'derived_from': f'chirality ({n},{m})'},
         'eg_ev': {

@@ -263,10 +263,14 @@ def main():
 
     # ---- calibration ----------------------------------------------
     afac = _row_factory(mgr, 'CNTCalibrationAnchor')
+    from cntfet.cnt_reference_papers import (
+        SEED_REFERENCE_ANCHORS as _REF_ANCHORS,
+    )
     made = cal.seed_anchor_rows(mgr, afac)
-    check('calibration: anchor rows seed idempotently with D18 '
-          'provenance fields',
+    check('calibration: anchor rows (calibration + reference '
+          'papers) seed idempotently with D18 provenance fields',
           len(made) == len(cal.SEED_CALIBRATION_ANCHORS)
+          + len(_REF_ANCHORS)
           and cal.seed_anchor_rows(mgr, afac) == [])
     rep_cal = cal.calibrate_device(mgr, device,
                                    result_factory=fac_res)
@@ -326,6 +330,42 @@ def main():
           and fids['F2-ToB']['present']
           and not fids['F3-NEGF']['present']
           and fids['F3-NEGF']['refusal'])
+
+    # ---- citations linkage (Dustin 2026-08-21) --------------------
+    from cntfet.cnt_citations import citations_report
+    from cntfet.cnt_reference_papers import (
+        PAPERS, SEED_REFERENCE_ANCHORS,
+    )
+    anchor_names = {getattr(r, 'name', '') for r in
+                    mgr.objectTables['CNTCalibrationAnchor'].values()}
+    check('papers: both supplied papers seeded as cited anchor '
+          'rows (FIO05 NEGF-oracle + HIL19 system precedent), '
+          'each with a refusal row for undigitized curves',
+          {'fio05-device-d09', 'fio05-ioff-vs-itrs',
+           'fio05-curves', 'hil19-cnfet-count',
+           'hil19-cell-library'} <= anchor_names
+          and all(s['doi'] for s in SEED_REFERENCE_ANCHORS))
+    check('papers: license buckets recorded WITH the papers '
+          '(both cite+link+values, PDFs off-git)',
+          all('cite+link+values' in p['license_bucket']
+              for p in PAPERS.values()))
+    cites = citations_report(mgr)
+    by_tag = {c['tag']: c for c in cites['citations']}
+    check('citations: every paper tag resolves to a full '
+          'citation + DOI and the linkage map names its rows '
+          '(source -> constants/anchors/parameters)',
+          cites['ok']
+          and by_tag['[VS1]']['linkCount'] > 5
+          and by_tag['[FC10]']['linkCount'] >= 4
+          and by_tag['[HIL19]']['linkCount'] >= 8
+          and by_tag['[FIO05]']['linkCount'] >= 6
+          and 'cnt-aligned-s1-vxo_m_per_s'
+          in by_tag['[VS1]']['linkedBy']['parameters'])
+    check('citations: the honesty surface is clean — no unlinked '
+          'anchors, no unlinked literature-sourced parameters',
+          not cites['unlinked']['anchors']
+          and not cites['unlinked']['parameters'],
+          f"unlinked={cites['unlinked']}")
 
     # ---- S1d: construct gate + OSDI equivalence --------------------
     gate = va.construct_gate_check(va.generate_va())

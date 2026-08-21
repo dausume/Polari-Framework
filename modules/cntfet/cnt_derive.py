@@ -206,7 +206,8 @@ def derive_device(manager, device, parameter_factory=None):
         'confidence': 'medium'})
     stamp_row('temperature_k', {
         'value': device.temperature_k, 'unit': 'K',
-        'role': 'physical', 'source': 'S1: one temperature',
+        'role': 'physical',
+        'source': 'design choice (S1: one temperature)',
         'confidence': 'high'})
     # derived
     for parameter, rec in {**mvals, **gvals}.items():
