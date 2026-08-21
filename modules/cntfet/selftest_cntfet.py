@@ -393,13 +393,16 @@ def main():
     # ---- capability (D14) ------------------------------------------
     report = cap.capability()
     fids = report['fidelities']
-    check('capability: F0/F1/F2 present; F3-NEGF REFUSES with a '
-          'reason (thin module, D14)',
+    f3_state = fids['F3-NEGF']
+    check('capability: F0/F1/F2 present; F3-NEGF reflects the '
+          'LIVE probe — present with its limits when the kwant '
+          'venv exists, refusing with a reason otherwise (D14)',
           fids['F0-analytical']['present']
           and fids['F1-VS-compact']['present']
           and fids['F2-ToB']['present']
-          and not fids['F3-NEGF']['present']
-          and fids['F3-NEGF']['refusal'])
+          and ((f3_state['present'] and f3_state['limits'])
+               or (not f3_state['present']
+                   and f3_state['refusal'])))
 
     # ---- citations linkage (Dustin 2026-08-21) --------------------
     from cntfet.cnt_citations import citations_report
@@ -597,6 +600,61 @@ def main():
         print('SKIP: S1d/S4a OSDI legs — openvaf/ngspice not '
               'available on this host (capability endpoint reports '
               'the same refusal)')
+
+    # ---- S5: characterization (tools leg) -------------------------
+    if openvaf_path and ngspice_path:
+        from cntfet.cnt_characterization import (
+            characterize_inverter,
+        )
+        mgr.objectTables['CellCharacterizationRun'] = {}
+        char = characterize_inverter(
+            mgr, device,
+            result_factory=_row_factory(mgr,
+                                        'CellCharacterizationRun'))
+        check('S5: the own-loop executor characterizes INV over '
+              'the sparse grid — monotone tables, Liberty '
+              'emitted, measurement definitions recorded, STA '
+              'gate honestly reported',
+              char.get('ok') and char['verdict'] == 'characterized'
+              and char['libertyBytes'] > 500
+              and char['definitions']['delay']
+              and ('accepted' in char['staGate']
+                   or 'refusal' in char['staGate']),
+              f"char={char.get('verdict')}, "
+              f"failures={char.get('failures')}")
+
+    # ---- F3: kwant oracle (venv leg) ------------------------------
+    from cntfet.cnt_kwant import f3_oracle, find_kwant_python, \
+        sanity as kwant_sanity
+    kwant_python, _kwhy = find_kwant_python()
+    if kwant_python:
+        san = kwant_sanity(kwant_python)
+        check('F3: the atomistic tube pins its own physics — TB '
+              'gap == compact-model Eg by construction, T == 2 '
+              'valleys above the edge, 0 in the gap',
+              san.get('ok')
+              and abs(san['eg_tb_ev'] - eg) < 1e-9
+              and abs(san['t_above_edge'] - 2.0) < 1e-6
+              and san['t_midgap'] == 0.0, f'sanity={san}')
+        f3 = f3_oracle(mgr, device, energy_points=40,
+                       bias_points=[{'vg_v': 0.0, 'vd_v': 0.6},
+                                    {'vg_v': 0.6, 'vd_v': 0.6}],
+                       result_factory=fac_res)
+        sub = f3['comparison'][0]
+        on = f3['comparison'][1]
+        check('F3: the triangle third vertex — subthreshold F3 '
+              'EXCEEDS thermionic-only F2 (S/D tunneling is '
+              'real) and all three fidelities agree within 2x '
+              'at on-state',
+              f3.get('ok')
+              and sub['f3_negf_a'] > 2.0 * sub['f2_tob_a']
+              and 0.5 < on['f3_negf_a'] / on['f2_tob_a'] < 2.0
+              and 0.5 < on['f3_negf_a'] / on['f1_vs_intrinsic_a']
+              < 2.0,
+              f'comparison={f3.get("comparison")}')
+    else:
+        print('SKIP: F3 kwant legs — no kwant venv on this host '
+              '(capability endpoint reports the same refusal)')
 
     passed = sum(1 for _, ok in _results if ok)
     print(f'\n{passed}/{len(_results)} checks passed')

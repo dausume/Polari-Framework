@@ -79,14 +79,19 @@ def capability():
     """The honest live report: fidelity -> present | refusing."""
     openvaf_path, openvaf_why = find_openvaf()
     ngspice_path, ngspice_why = find_ngspice()
+    from cntfet.cnt_kwant import find_kwant_python
+    kwant_python, kwant_why = find_kwant_python()
     fidelities = {
         'F0-analytical': {'present': True},
         'F1-VS-compact': {'present': True,
                           'profile': 'VS_MINIMAL'},
         'F2-ToB': {'present': True},
-        'F3-NEGF': {'present': False,
-                    'refusal': 'not built at S1 (S2+; D14 keeps '
-                               'heavy kernels off thin instances)'},
+        'F3-NEGF': (
+            {'present': True, 'worker': kwant_python,
+             'limits': 'coherent-only, fixed eq.(5) potential, '
+                       'zigzag tubes (subprocess venv — D14)'}
+            if kwant_python else
+            {'present': False, 'refusal': kwant_why}),
         'verilog-a-generation': {'present': True},
         'osdi-compile': (
             {'present': True, 'compiler': openvaf_path}

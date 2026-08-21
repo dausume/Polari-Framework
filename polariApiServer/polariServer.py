@@ -1267,6 +1267,9 @@ try:
         SEED_GATESTACK_PROCESSES, SEED_LITHOGRAPHY_PROCESSES,
         SEED_PLACEMENT_PROCESSES, SEED_PURIFICATION_PROCESSES,
     )
+    # cnt-s5: the characterization schema (D11/D16 — ours, above
+    # any executor).
+    from cntfet.cnt_characterization import CellCharacterizationRun
 except ImportError as _exc:
     _stub_missing_feature('cntfet', _exc, globals(), (
         'AlignedCNTFETDevice', 'AlignedCNTFETGeometry', 'CNTCalibrationAnchor', 'CNTContact',
@@ -1280,6 +1283,7 @@ except ImportError as _exc:
         'LithographyProcess', 'SEED_ALIGNMENT_PROCESSES', 'SEED_CONTACT_PROCESSES',
         'SEED_GATESTACK_PROCESSES', 'SEED_LITHOGRAPHY_PROCESSES',
         'SEED_PLACEMENT_PROCESSES', 'SEED_PURIFICATION_PROCESSES',
+        'CellCharacterizationRun',
     ))
 # microchip: the design-level ladder + traversal (separable from the
 # device modules — references their rows, never imports their code).
@@ -2423,7 +2427,7 @@ class polariServer(treeObject):
             CNTAlignmentProcess, CNTPlacementProcess,
             CNTPurificationProcess, ContactFormationProcess,
             LithographyProcess, GateStackProcess,
-            CNTFETMonteCarloRun,
+            CNTFETMonteCarloRun, CellCharacterizationRun,
             # microchip: the design-level ladder + design nodes.
             DesignLevelDefinition, MicrochipDesignNode,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,

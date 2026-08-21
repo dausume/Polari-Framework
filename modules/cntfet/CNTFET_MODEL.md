@@ -224,6 +224,45 @@ chains) starve the integrator — a small LABELED stand-in cap
 a nearest-point sampler silently misreads — every cell testbench
 now REFUSES a truncated run.
 
+## S5 first rung — characterization schema + own loop (2026-08-21)
+
+`CellCharacterizationRun` is the D11/D16 schema ABOVE any
+executor. The `polari-own-loop` executor (`{action:
+characterize}`) sweeps INV over a sparse slew × load grid in
+ngspice (definitions recorded with every run: delay 50→50%,
+transitions 20–80%), emits a minimal NLDM Liberty (ps/fF, units
+stated), and runs the OpenSTA acceptance gate when `sta` exists —
+its absence is a RECORDED refusal, and the mandatory D11
+SPICE-vs-STA composed-path regression stays an OPEN box until
+OpenSTA is installed. First run: 3×3 grid, monotone, delays
+343 fs → 1.84 ps, symmetric rise/fall (the mirrored pair).
+CharLib/lctime remain gated executors (fork-pinned; lctime mirror
+pending).
+
+## F3 — the Kwant NEGF kernel (2026-08-21)
+
+D13/D14 realized: kwant 1.5.0 lives in its OWN virtualenv
+(`~/tools/kwant-venv`, numpy<2 — kwant's pregenerated Cython C is
+incompatible with numpy 2.x) and `cnt_kwant.py` drives it by
+SUBPROCESS through `kwant_worker.py`; the polari process never
+imports it, and the capability endpoint probes live. The worker
+builds the zigzag (n,0) tube with EXPLICIT pz-TB connectivity
+(4n atoms / 3a_cc period) under the [VS1] eq.(5) barrier
+(C = vt0 − vg alignment, BCs at ±(Lg/2+Lof)).
+
+Self-pinning physics: TB gap ≡ compact-model Eg by construction
+(0.6802 eV); T = 2.000 valleys above the edge — independently
+confirming the 4q/h degeneracy the closed forms assume.
+`{action: f3-oracle}` spends F3 exactly where the F1/F2 triangle
+disagreed (the adaptive-oracle discipline): at those
+deep-subthreshold points **F3 lands BETWEEN the two — ~5.6× above
+thermionic-only F2 (S/D tunneling through the 1.4 nm-λ barrier is
+real) and ~3.8× below F1's α-smoothed tail**; on-state all three
+agree within 40% (22.6/27.6/31.9 µA). 2816 atoms, ~7 s/bias
+point. Limits riding every result: coherent-only, fixed eq.(5)
+potential (self-consistent Poisson = ours to build), zigzag only;
+F3 sees the second subband (T→4) that F1/F2 cannot.
+
 ## What this model must never claim
 
 - It is NOT the Stanford VS-CNFET and is not numerically

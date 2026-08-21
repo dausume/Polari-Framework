@@ -128,6 +128,32 @@ class CNTFETAPI(treeObject):
         if action == 'validate':
             response.media = validate(self.manager, device)
             return
+        if action == 'f3-oracle':
+            from cntfet.cnt_kwant import f3_oracle
+            report = f3_oracle(
+                self.manager, device,
+                bias_points=payload.get('biasPoints'),
+                energy_points=int(payload.get('energyPoints',
+                                              60)))
+            if not report.get('ok'):
+                response.status = ('503 Service Unavailable'
+                                   if 'refusal' in report
+                                   else '422 Unprocessable Entity')
+            response.media = report
+            return
+        if action == 'characterize':
+            from cntfet.cnt_characterization import (
+                characterize_inverter,
+            )
+            report = characterize_inverter(
+                self.manager, device,
+                vdd=float(payload.get('vdd', 0.6)))
+            if not report.get('ok'):
+                response.status = ('503 Service Unavailable'
+                                   if 'refusal' in report
+                                   else '422 Unprocessable Entity')
+            response.media = report
+            return
         if action == 'cells':
             from cntfet.cnt_cells import run_cell_battery
             report = run_cell_battery(
