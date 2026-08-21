@@ -367,6 +367,20 @@ def main():
           and not cites['unlinked']['parameters'],
           f"unlinked={cites['unlinked']}")
 
+    # ---- /display/cntfet page seed --------------------------------
+    from cntfet.cnt_pages_seed import SEED_CNTFET_PAGE_DISPLAYS
+    page = SEED_CNTFET_PAGE_DISPLAYS[0]
+    page_def = json.loads(page['definition'])
+    page_components = [item['componentProps']['componentName']
+                       for row in page_def['rows']
+                       for item in row['items']]
+    check('page: /display/cntfet seeds valid rows using only the '
+          'registered generic components',
+          page['isPage'] and page['pageRoute'] == 'cntfet'
+          and set(page_components) <= {'class-rows-table',
+                                       'api-json-panel'}
+          and len(page_components) == 6)
+
     # ---- S1d: construct gate + OSDI equivalence --------------------
     gate = va.construct_gate_check(va.generate_va())
     check('S1d: generated Verilog-A passes the construct gate',

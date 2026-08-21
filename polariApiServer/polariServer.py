@@ -1256,6 +1256,7 @@ try:
     )
     from cntfet.cnt_calibration import SEED_CALIBRATION_ANCHORS
     from cntfet.cnt_reference_papers import SEED_REFERENCE_ANCHORS
+    from cntfet.cnt_pages_seed import SEED_CNTFET_PAGE_DISPLAYS
 except ImportError as _exc:
     _stub_missing_feature('cntfet', _exc, globals(), (
         'AlignedCNTFETDevice', 'AlignedCNTFETGeometry', 'CNTCalibrationAnchor', 'CNTContact',
@@ -1263,7 +1264,7 @@ except ImportError as _exc:
         'CNTTransportModel', 'GateStack', 'SEED_CNT_CONTACTS', 'SEED_CNT_DEVICES',
         'SEED_CNT_GEOMETRIES', 'SEED_CNT_MATERIALS', 'SEED_CNT_PARASITICS', 'SEED_CNT_TRANSPORT',
         'SEED_GATE_STACKS', 'SEED_CALIBRATION_ANCHORS',
-        'SEED_REFERENCE_ANCHORS',
+        'SEED_REFERENCE_ANCHORS', 'SEED_CNTFET_PAGE_DISPLAYS',
     ))
 # microchip: the design-level ladder + traversal (separable from the
 # device modules — references their rows, never imports their code).
@@ -1272,10 +1273,14 @@ try:
         DesignLevelDefinition, MicrochipDesignNode,
         SEED_DESIGN_LEVELS, SEED_DESIGN_NODES,
     )
+    from microchip.chip_pages_seed import (
+        SEED_MICROCHIP_PAGE_DISPLAYS,
+    )
 except ImportError as _exc:
     _stub_missing_feature('microchip', _exc, globals(), (
         'DesignLevelDefinition', 'MicrochipDesignNode',
         'SEED_DESIGN_LEVELS', 'SEED_DESIGN_NODES',
+        'SEED_MICROCHIP_PAGE_DISPLAYS',
     ))
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
@@ -3289,7 +3294,9 @@ class polariServer(treeObject):
              + SEED_SSP_PAGE_DISPLAYS
              + (SEED_CASTING_PAGE_DISPLAYS or [])
              + (SEED_APPSTORE_PAGE_DISPLAYS or [])
-             + (SEED_ISLEMESH_PAGE_DISPLAYS or [])),
+             + (SEED_ISLEMESH_PAGE_DISPLAYS or [])
+             + (SEED_CNTFET_PAGE_DISPLAYS or [])
+             + (SEED_MICROCHIP_PAGE_DISPLAYS or [])),
             # Materials basis — identities before their scale rows.
             ('MaterialsScienceMaterial', MaterialsScienceMaterial,
              SEED_MS_MATERIALS + SEED_STANDARD_MATERIALS

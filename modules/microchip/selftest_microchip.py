@@ -159,6 +159,22 @@ def main():
           all((not a['resolved']) and a['why']
               for a in rep['node']['artifacts']))
 
+    # /display/microchip page seed.
+    from microchip.chip_pages_seed import (
+        SEED_MICROCHIP_PAGE_DISPLAYS,
+    )
+    page = SEED_MICROCHIP_PAGE_DISPLAYS[0]
+    page_def = json.loads(page['definition'])
+    page_components = [item['componentProps']['componentName']
+                       for row in page_def['rows']
+                       for item in row['items']]
+    check('page: /display/microchip seeds the interactive '
+          'microchip-ladder component + the row tables',
+          page['isPage'] and page['pageRoute'] == 'microchip'
+          and page_components[0] == 'microchip-ladder'
+          and set(page_components) <= {'microchip-ladder',
+                                       'class-rows-table'})
+
     passed = sum(1 for _, ok in _results if ok)
     print(f'\n{passed}/{len(_results)} checks passed')
     return 0 if passed == len(_results) else 1
