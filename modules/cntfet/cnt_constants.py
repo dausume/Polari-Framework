@@ -151,8 +151,10 @@ LIT = {
 
 # Equation revision shared by the Python reference and the
 # Verilog-A twin (plan D3: both implement the SAME revision and are
-# regression-compared).
-EQUATION_REVISION = 'cntfet-vs-s1-r1'
+# regression-compared). r2 (2026-08-21): polarity transform added —
+# p-type = the mirrored n-type equations ([VS1] Sec.II premise ii:
+# n/p operation is symmetric).
+EQUATION_REVISION = 'cntfet-vs-s1-r2'
 
 MODEL_LABEL = {
     'model_family': 'VS-CNFET-derived',

@@ -1,6 +1,9 @@
 # cntfet — clean-room VS-CNFET-derived compact model (S1)
 
-**Equation revision:** `cntfet-vs-s1-r1` ·
+**Equation revision:** `cntfet-vs-s1-r2` (r2 adds the polarity
+transform: p-type = mirrored n-type, [VS1] premise ii; both
+implementations bumped together, regression re-proven incl. a
+negative-bias p-type grid) ·
 **model_family:** VS-CNFET-derived · **implementation:**
 independent · **numerically_equivalent_to_stanford:** false
 
@@ -149,6 +152,34 @@ ToB respects G ≤ G0 natively; VS-intrinsic may exceed it because
 the VS family carries the quantum resistance in Rs by design
 ([VS1] Sec.IV) — the intrinsic edge compares transport shape,
 never absolute conductance.
+
+## S3 — variability (built 2026-08-21)
+
+Manufacturing processes are FIRST-CLASS OBJECTS contributing
+distributions (plan D7): Alignment (angle σ), Placement (pitch σ +
+missing-tube), Purification (semiconducting purity + diameter
+distribution; RINSE/DREAM as cited knobs), ContactFormation
+(lognormal Rc — D9 stays first-class in variability), Lithography
+(Lg feature σ), GateStack (t_ox/k_ox/Vt σ). The device binds a
+`process_set`; `{action: montecarlo}` samples the population
+(deterministic under seed), evaluates every survivor with the SAME
+metric ruler, and reports yield + kill/violation counts + the
+DOMINANT LIMITATION — the D7 feedback-loop output. Refusals: no
+bound set, missing process rows, regime mismatch (D6), confidence
+'none'. Priors are listed on every run ("a population built on
+priors says so"). First run on the seeded target line: 68.5%
+functional at 200 samples, dominant limitation = on/off-ratio
+violations driven by the Vt-σ prior.
+
+## S4a — complementary inverter (built 2026-08-21)
+
+First circuit rung (`{action: inverter}`): two OSDI instances of
+the twin (n + mirrored p) swept in ngspice for the VTC. Measured:
+VM = 0.300 V (= VDD/2 for the symmetric pair), peak gain −19.7
+(the Hills full-adder measured ~17 — same class), swing 99.996%,
+NML = NMH = 0.25 V. Honesty: the p-device is the same device
+mirrored — real p/n asymmetry enters through measured process
+data; delay/energy need the charge model (S4b+).
 
 ## What this model must never claim
 

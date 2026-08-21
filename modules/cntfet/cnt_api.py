@@ -128,6 +128,30 @@ class CNTFETAPI(treeObject):
         if action == 'validate':
             response.media = validate(self.manager, device)
             return
+        if action == 'inverter':
+            from cntfet.cnt_inverter import run_inverter_vtc
+            report = run_inverter_vtc(
+                self.manager, device,
+                vdd=float(payload.get('vdd', 0.6)))
+            if not report.get('ok'):
+                response.status = ('503 Service Unavailable'
+                                   if 'refusal' in report
+                                   else '422 Unprocessable Entity')
+            response.media = report
+            return
+        if action == 'montecarlo':
+            from cntfet.cnt_montecarlo import monte_carlo
+            report = monte_carlo(
+                self.manager, device,
+                sample_count=int(payload.get('samples', 200)),
+                seed=int(payload.get('seed', 1)),
+                criteria=payload.get('criteria'))
+            if not report.get('ok'):
+                response.status = ('503 Service Unavailable'
+                                   if 'refusal' in report
+                                   else '422 Unprocessable Entity')
+            response.media = report
+            return
         if action == 'triangle':
             from cntfet.cnt_triangle import validation_triangle
             report = validation_triangle(
@@ -151,7 +175,7 @@ class CNTFETAPI(treeObject):
         return self._refuse(
             response,
             f'unknown action "{action}" (derive | iv | calibrate '
-            '| validate | triangle | equivalence)')
+            '| validate | triangle | montecarlo | equivalence)')
 
     def _equivalence(self, device):
         """Build the {Lg, d, T, Rc} variant spread around the

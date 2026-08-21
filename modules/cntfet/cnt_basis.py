@@ -247,6 +247,9 @@ class AlignedCNTFETDevice(treeObject):
         parasitics: str = '',
         temperature_k: float = 300.0,
         manufacturing_regime: str = 'aggressively_scaled',
+        # S3: which process set (cnt_process_basis rows sharing
+        # this name) predicts the population around the targets.
+        process_set: str = '',
         derived_at: str = '',
         provenance_json: str = '{}',
         notes: str = '',
@@ -262,6 +265,7 @@ class AlignedCNTFETDevice(treeObject):
         self.parasitics = parasitics
         self.temperature_k = temperature_k
         self.manufacturing_regime = manufacturing_regime
+        self.process_set = process_set
         self.derived_at = derived_at
         self.provenance_json = provenance_json
         self.notes = notes
@@ -445,6 +449,7 @@ SEED_CNT_DEVICES = [
      'parasitics': 'cnt-s1-no-parasitics',
      'temperature_k': 300.0,
      'manufacturing_regime': 'aggressively_scaled',
+     'process_set': 's1-target-line',
      'notes': 'THE S1 device: one aligned semiconducting tube, DC '
               'Id-Vg/Id-Vd only. n-type ([VS1] flips the [FC10] '
               'p-type polarity; physics symmetric). Derive before '

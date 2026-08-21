@@ -115,7 +115,8 @@ def _model_card(p):
             'dibl': p['dibl_v_per_v'], 'nss': p['n_ss'],
             'alpha': p['alpha'], 'beta': p['beta'],
             'rs': p['rs_ohm'], 'rd': p['rd_ohm'],
-            'tdev': p['temperature_k']}
+            'tdev': p['temperature_k'],
+            'ptype': float(p.get('ptype', 0))}
     text = ' '.join(f'{k}={v:.10g}' for k, v in vals.items())
     return f'.model cntmod cntfet_vs_s1 {text}', vals
 
@@ -125,7 +126,8 @@ def run_osdi_grid(osdi_path, p, vg_list, vd_list, workdir,
     """One ngspice batch run: DC-sweep vd per vg, wrdata out.
     Returns {(vg, vd): id_a} with Id = current into the drain."""
     card, _ = _model_card(p)
-    vd_start, vd_stop = min(vd_list), max(vd_list)
+    # signed sweep (p-type grids run negative)
+    vd_start, vd_stop = vd_list[0], vd_list[-1]
     vd_step = (vd_list[1] - vd_list[0]) if len(vd_list) > 1 else 0.1
     lines = [
         '* cntfet S1 OSDI equivalence harness', card,

@@ -96,6 +96,9 @@ def build_vs_params(material, geometry, gate, contact, transport,
         'rs_ohm': contact['rc_ohm'],
         'rd_ohm': contact['rc_ohm'],
         'temperature_k': temperature_k,
+        # r2: 0 = n-type, 1 = p-type (mirrored equations — [VS1]
+        # premise ii: symmetric conduction/valence bands).
+        'ptype': 0,
     }
 
 
@@ -143,7 +146,18 @@ def vs_terminal_current(vg_v, vd_v, p):
     bulletproof where a damped fixed point oscillates at high Rc
     (seen live at Rc = 20 kOhm). The twin lets the SPICE solver
     solve the same unique system through internal nodes; the
-    solution is solver-independent. n-type, vd >= 0 expected."""
+    solution is solver-independent.
+
+    Polarity (r2): p-type is the MIRRORED n-type system — solve
+    the n-type equations at (-Vg, -Vd) and negate the current
+    ([VS1] premise ii). n-type expects vd >= 0; p-type vd <= 0."""
+    if p.get('ptype'):
+        mirrored = vs_terminal_current(-vg_v, -vd_v,
+                                       {**p, 'ptype': 0})
+        return {'id_a': -mirrored['id_a'],
+                'converged': mirrored['converged'],
+                'vgsi_v': -mirrored['vgsi_v'],
+                'vdsi_v': -mirrored['vdsi_v']}
     rs, rd = p['rs_ohm'], p['rd_ohm']
     rtot = rs + rd
 

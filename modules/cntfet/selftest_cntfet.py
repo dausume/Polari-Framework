@@ -42,7 +42,11 @@ TABLES = ('CNTMaterialState', 'AlignedCNTFETGeometry', 'GateStack',
           'CNTContact', 'CNTTransportModel', 'CNTParasitics',
           'AlignedCNTFETDevice', 'CNTFETParameterRow',
           'CNTCalibrationAnchor', 'CNTFETSimResult',
-          'DeviceValidationReport')
+          'DeviceValidationReport',
+          'CNTAlignmentProcess', 'CNTPlacementProcess',
+          'CNTPurificationProcess', 'ContactFormationProcess',
+          'LithographyProcess', 'GateStackProcess',
+          'CNTFETMonteCarloRun')
 
 
 def _mgr():
@@ -88,7 +92,13 @@ _CLASS_DEFAULTS = {
 
 
 def _seed_all(mgr):
-    """Seed the S1 rows the way the server would."""
+    """Seed the S1 rows + the S3 process set the way the server
+    would."""
+    from cntfet.cnt_process_basis import (
+        SEED_ALIGNMENT_PROCESSES, SEED_CONTACT_PROCESSES,
+        SEED_GATESTACK_PROCESSES, SEED_LITHOGRAPHY_PROCESSES,
+        SEED_PLACEMENT_PROCESSES, SEED_PURIFICATION_PROCESSES,
+    )
     for table, seeds in (
             ('CNTMaterialState', SEED_CNT_MATERIALS),
             ('AlignedCNTFETGeometry', SEED_CNT_GEOMETRIES),
@@ -96,7 +106,13 @@ def _seed_all(mgr):
             ('CNTContact', SEED_CNT_CONTACTS),
             ('CNTTransportModel', SEED_CNT_TRANSPORT),
             ('CNTParasitics', SEED_CNT_PARASITICS),
-            ('AlignedCNTFETDevice', SEED_CNT_DEVICES)):
+            ('AlignedCNTFETDevice', SEED_CNT_DEVICES),
+            ('CNTAlignmentProcess', SEED_ALIGNMENT_PROCESSES),
+            ('CNTPlacementProcess', SEED_PLACEMENT_PROCESSES),
+            ('CNTPurificationProcess', SEED_PURIFICATION_PROCESSES),
+            ('ContactFormationProcess', SEED_CONTACT_PROCESSES),
+            ('LithographyProcess', SEED_LITHOGRAPHY_PROCESSES),
+            ('GateStackProcess', SEED_GATESTACK_PROCESSES)):
         for seed in seeds:
             fields = dict(_CLASS_DEFAULTS.get(table, {}))
             fields.update(seed)
@@ -435,6 +451,54 @@ def main():
                                        'api-json-panel'}
           and len(page_components) == 6)
 
+    # ---- S3: process objects + Monte Carlo ------------------------
+    from cntfet.cnt_montecarlo import monte_carlo
+    mc_fac = _row_factory(mgr, 'CNTFETMonteCarloRun')
+    rep_mc = monte_carlo(mgr, device, sample_count=40, seed=11,
+                         result_factory=mc_fac)
+    check('S3: MC samples the bound process set — yield fraction, '
+          'population quantiles, kills counted, dominant '
+          'limitation named',
+          rep_mc['ok']
+          and 0.0 < rep_mc['yield']['functionalFraction'] <= 1.0
+          and rep_mc['population']['ion_a'] is not None
+          and rep_mc['population']['rc_ohm']['sigma'] > 0
+          and rep_mc['dominantLimitation'] != '')
+    check('S3: prior-flagged rows are LISTED — a population built '
+          'on engineering priors says so',
+          len(rep_mc['priorFlagged']) >= 4
+          and 'prior' in rep_mc['honesty'])
+    rep_mc2 = monte_carlo(mgr, device, sample_count=40, seed=11,
+                          result_factory=mc_fac)
+    check('S3: deterministic under seed (reproducible rows)',
+          rep_mc2['yield'] == rep_mc['yield'])
+    regime_keep = device.manufacturing_regime
+    device.manufacturing_regime = 'coarse_alignment'
+    rep_bad = monte_carlo(mgr, device, result_factory=mc_fac)
+    check('S3: regime mismatch REFUSES (D6 — a line cannot '
+          'fabricate outside its regime)',
+          not rep_bad['ok'] and 'regime' in rep_bad['refusal'])
+    device.manufacturing_regime = regime_keep
+    ps_keep = device.process_set
+    device.process_set = ''
+    rep_bad = monte_carlo(mgr, device, result_factory=mc_fac)
+    check('S3: no bound process set REFUSES (distributions are '
+          'the point)',
+          not rep_bad['ok'] and 'process_set' in rep_bad['refusal'])
+    device.process_set = ps_keep
+
+    # ---- S4a: polarity + inverter ---------------------------------
+    p_p = {**p, 'ptype': 1}
+    i_n = vs.vs_terminal_current(0.5, 0.4, p)['id_a']
+    i_p = vs.vs_terminal_current(-0.5, -0.4, p_p)['id_a']
+    check('S4a: the p-twin is the EXACT mirror (r2 polarity '
+          'transform, [VS1] premise ii)',
+          abs((i_n + i_p) / i_n) < 1e-12)
+    check('S4a: the model card carries ptype (both implementations '
+          'share revision r2)',
+          'ptype' in osdi._model_card(p_p)[0]
+          and p['equation_revision'] == 'cntfet-vs-s1-r2')
+
     # ---- S1d: construct gate + OSDI equivalence --------------------
     gate = va.construct_gate_check(va.generate_va())
     check('S1d: generated Verilog-A passes the construct gate',
@@ -459,8 +523,29 @@ def main():
               and rep_eq['verdict'] == 'EQUIVALENT'
               and rep_eq['pointsChecked'] == 30,
               f'report={ {k: rep_eq.get(k) for k in ("verdict", "worst", "failures")} }')
+        rep_eq_p = osdi.equivalence_regression(
+            {'p-type': p_p}, vg_list=[0.0, -0.3, -0.6],
+            vd_list=[-0.05, -0.2, -0.35, -0.5],
+            keep_bundle=False)
+        check('S4a: the p-twin passes the SAME equivalence '
+              'regression over the negative-bias grid',
+              rep_eq_p.get('ok')
+              and rep_eq_p['verdict'] == 'EQUIVALENT')
+        from cntfet.cnt_inverter import run_inverter_vtc
+        inv = run_inverter_vtc(
+            mgr, device, result_factory=fac_res)
+        m_inv = inv.get('metrics', {})
+        check('S4a: the complementary inverter INVERTS in ngspice '
+              '— VM ~ VDD/2, gain well past unity, near-full '
+              'swing, both noise margins recorded',
+              inv.get('ok') and inv['verdict'] == 'inverter-works'
+              and abs(m_inv['vm_v'] - 0.3) < 0.05
+              and m_inv['peakGain'] < -5.0
+              and m_inv['swing_v'] > 0.57
+              and m_inv['nml_v'] and m_inv['nmh_v'],
+              f'metrics={m_inv}')
     else:
-        print('SKIP: S1d equivalence — openvaf/ngspice not '
+        print('SKIP: S1d/S4a OSDI legs — openvaf/ngspice not '
               'available on this host (capability endpoint reports '
               'the same refusal)')
 

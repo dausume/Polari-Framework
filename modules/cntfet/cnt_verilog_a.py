@@ -73,16 +73,26 @@ module cntfet_vs_s1(d, g, s);
     parameter real rs    = 5500.0 from (0:inf);   // [ohm]
     parameter real rd    = 5500.0 from (0:inf);   // [ohm]
     parameter real tdev  = 300.0 from (0:inf);    // [K]
+    // r2 polarity: 0 = n-type, 1 = p-type (mirrored equations,
+    // [VS1] premise ii — symmetric bands). sgn folds the mirror
+    // into the same expressions the Python reference mirrors.
+    parameter real ptype = 0.0 from [0:1];
 
     real phit, vt, ff, qxo, vdsats, vdsat, xx, axx, fsat, idch;
-    real ffarg, qarg, splus;
+    real ffarg, qarg, splus, sgn, ugsi, udsi;
 
     analog begin
         phit = `KB_EXACT * tdev / `Q_EXACT;
-        vt = vt0 - dvt - dibl * V(di, si);
+        if (ptype > 0.5)
+            sgn = -1.0;
+        else
+            sgn = 1.0;
+        ugsi = sgn * V(g, si);
+        udsi = sgn * V(di, si);
+        vt = vt0 - dvt - dibl * udsi;
 
         // logistic(-ffarg), exp-safe at +/-40 (mirrors Python)
-        ffarg = (V(g, si) - (vt - alpha * phit / 2.0))
+        ffarg = (ugsi - (vt - alpha * phit / 2.0))
                 / (alpha * phit);
         if (ffarg > 40.0)
             ff = 0.0;
@@ -92,7 +102,7 @@ module cntfet_vs_s1(d, g, s);
             ff = 1.0 / (1.0 + exp(ffarg));
 
         // softplus(qarg), exp-safe at +/-40 (mirrors Python)
-        qarg = (V(g, si) - (vt - alpha * phit * ff))
+        qarg = (ugsi - (vt - alpha * phit * ff))
                / (nss * phit);
         if (qarg > 40.0)
             splus = qarg;
@@ -104,12 +114,12 @@ module cntfet_vs_s1(d, g, s);
 
         vdsats = vxo * lg_m / mu;
         vdsat = vdsats * (1.0 - ff) + phit * ff;
-        xx = V(di, si) / vdsat;
+        xx = udsi / vdsat;
         axx = abs(xx);
         fsat = xx / pow(1.0 + pow(axx, beta), 1.0 / beta);
         idch = qxo * vxo * fsat;
 
-        I(di, si) <+ idch;
+        I(di, si) <+ sgn * idch;
         // Rc first-class (D9): per-terminal series resistances as
         // their own branches — the SPICE solver owns the internal
         // nodes (the Python reference fixed-points the same system).

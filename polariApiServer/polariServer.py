@@ -1257,6 +1257,16 @@ try:
     from cntfet.cnt_calibration import SEED_CALIBRATION_ANCHORS
     from cntfet.cnt_reference_papers import SEED_REFERENCE_ANCHORS
     from cntfet.cnt_pages_seed import SEED_CNTFET_PAGE_DISPLAYS
+    # cnt-s3: manufacturing processes as distribution objects + MC.
+    from cntfet.cnt_process_basis import (
+        CNTAlignmentProcess, CNTFETMonteCarloRun,
+        CNTPlacementProcess, CNTPurificationProcess,
+        ContactFormationProcess, GateStackProcess,
+        LithographyProcess,
+        SEED_ALIGNMENT_PROCESSES, SEED_CONTACT_PROCESSES,
+        SEED_GATESTACK_PROCESSES, SEED_LITHOGRAPHY_PROCESSES,
+        SEED_PLACEMENT_PROCESSES, SEED_PURIFICATION_PROCESSES,
+    )
 except ImportError as _exc:
     _stub_missing_feature('cntfet', _exc, globals(), (
         'AlignedCNTFETDevice', 'AlignedCNTFETGeometry', 'CNTCalibrationAnchor', 'CNTContact',
@@ -1265,6 +1275,11 @@ except ImportError as _exc:
         'SEED_CNT_GEOMETRIES', 'SEED_CNT_MATERIALS', 'SEED_CNT_PARASITICS', 'SEED_CNT_TRANSPORT',
         'SEED_GATE_STACKS', 'SEED_CALIBRATION_ANCHORS',
         'SEED_REFERENCE_ANCHORS', 'SEED_CNTFET_PAGE_DISPLAYS',
+        'CNTAlignmentProcess', 'CNTFETMonteCarloRun', 'CNTPlacementProcess',
+        'CNTPurificationProcess', 'ContactFormationProcess', 'GateStackProcess',
+        'LithographyProcess', 'SEED_ALIGNMENT_PROCESSES', 'SEED_CONTACT_PROCESSES',
+        'SEED_GATESTACK_PROCESSES', 'SEED_LITHOGRAPHY_PROCESSES',
+        'SEED_PLACEMENT_PROCESSES', 'SEED_PURIFICATION_PROCESSES',
     ))
 # microchip: the design-level ladder + traversal (separable from the
 # device modules — references their rows, never imports their code).
@@ -2404,6 +2419,11 @@ class polariServer(treeObject):
             CNTContact, CNTTransportModel, CNTParasitics,
             AlignedCNTFETDevice, CNTFETParameterRow,
             CNTCalibrationAnchor, CNTFETSimResult,
+            # cnt-s3: process objects + MC run rows.
+            CNTAlignmentProcess, CNTPlacementProcess,
+            CNTPurificationProcess, ContactFormationProcess,
+            LithographyProcess, GateStackProcess,
+            CNTFETMonteCarloRun,
             # microchip: the design-level ladder + design nodes.
             DesignLevelDefinition, MicrochipDesignNode,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
@@ -3346,6 +3366,19 @@ class polariServer(treeObject):
             ('CNTCalibrationAnchor', CNTCalibrationAnchor,
              SEED_CALIBRATION_ANCHORS
              + (SEED_REFERENCE_ANCHORS or [])),
+            # cnt-s3: the target line's process rows.
+            ('CNTAlignmentProcess', CNTAlignmentProcess,
+             SEED_ALIGNMENT_PROCESSES),
+            ('CNTPlacementProcess', CNTPlacementProcess,
+             SEED_PLACEMENT_PROCESSES),
+            ('CNTPurificationProcess', CNTPurificationProcess,
+             SEED_PURIFICATION_PROCESSES),
+            ('ContactFormationProcess', ContactFormationProcess,
+             SEED_CONTACT_PROCESSES),
+            ('LithographyProcess', LithographyProcess,
+             SEED_LITHOGRAPHY_PROCESSES),
+            ('GateStackProcess', GateStackProcess,
+             SEED_GATESTACK_PROCESSES),
             # microchip: levels before the nodes that name them.
             ('DesignLevelDefinition', DesignLevelDefinition,
              SEED_DESIGN_LEVELS),

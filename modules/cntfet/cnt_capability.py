@@ -36,14 +36,28 @@ MODULE_LEDGER = {
         'ngspice-equivalence': 'D3 numerical-equivalence '
                                'regression (cnt_osdi) — OPTIONAL, '
                                'needs openvaf + ngspice >= 42',
+        'S2-validation': 'metric family + F1-vs-F2 triangle + '
+                         'digitized-curve residuals (cnt_metrics/'
+                         'cnt_triangle/cnt_calibration) — always '
+                         'present',
+        'S3-montecarlo': 'process-object distributions + Monte '
+                         'Carlo populations (cnt_process_basis/'
+                         'cnt_montecarlo) — always present; '
+                         'refuses without a bound process set',
+        'S4a-inverter': 'complementary inverter VTC through the '
+                        'OSDI twin (cnt_inverter) — OPTIONAL, '
+                        'needs openvaf + ngspice',
     },
     'absent_by_design': {
         'F3-NEGF': 'Kwant-based NEGF kernel — S2+ (D13/D15: '
                    'dausume/kwant fork-pin on a worker, never a '
                    'hard import here)',
         'F4-atomistic': 'S2+',
-        'variability': 'S3 (Monte Carlo over process objects)',
-        'multi-tube/cells/Liberty': 'S4/S5 arcs',
+        'multi-tube-aggregation': 'the array-device arc (pitch/'
+                                  'count distributions already '
+                                  'ride the process objects)',
+        'cells/Liberty/delay-energy': 'S4b+/S5 (needs the charge '
+                                      'model for transients)',
     },
     'external_tools': {
         'openvaf': {'license': 'GPL-3.0', 'role': 'build tool '
@@ -80,6 +94,16 @@ def capability():
             {'present': False, 'refusal': openvaf_why}),
         'ngspice-equivalence': (
             {'present': True, 'ngspice': ngspice_path}
+            if (openvaf_path and ngspice_path) else
+            {'present': False,
+             'refusal': (openvaf_why if not openvaf_path
+                         else ngspice_why)}),
+        'S2-validation': {'present': True},
+        'S3-montecarlo': {'present': True,
+                          'note': 'refuses without a bound, '
+                                  'regime-coherent process set'},
+        'S4a-inverter': (
+            {'present': True}
             if (openvaf_path and ngspice_path) else
             {'present': False,
              'refusal': (openvaf_why if not openvaf_path

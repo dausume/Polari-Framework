@@ -187,9 +187,17 @@ SEED_DESIGN_NODES = [
      'level': 'standard-cell', 'parent': 'polari-blocks',
      'title': 'Minimal cell library (planned: INV NAND2 BUF DFF)',
      'artifact_refs_json': '[]', 'citation': '',
-     'metrics_json': json.dumps({'planned_cells':
-                                 ['INV', 'NAND2', 'BUF', 'DFF']}),
-     'status': 'unbuilt', 'notes': 'plan D10 + S4/S5'},
+     'metrics_json': json.dumps({
+         'planned_cells': ['INV', 'NAND2', 'BUF', 'DFF'],
+         's4a_status': 'INV DC half DEMONSTRATED 2026-08-21 '
+                       '(complementary OSDI pair in ngspice: VM '
+                       'VDD/2, gain -19.7, swing 99.996% — '
+                       'CNTFETSimResult kind inverter-vtc); '
+                       'characterized CELLS (delay/energy/'
+                       'Liberty) still need the charge model'}),
+     'status': 'unbuilt',
+     'notes': 'plan D10 + S4/S5 — stays unbuilt until cells are '
+              'CHARACTERIZED, not just demonstrated'},
     {'name': 'polari-aligned-cnt-s1', 'design': 'polari-cnt-ladder',
      'level': 'device', 'parent': 'polari-cell-lib',
      'title': 'S1 aligned one-tube CNFET (LIVE)',
