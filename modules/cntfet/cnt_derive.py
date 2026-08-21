@@ -280,9 +280,13 @@ def derive_device(manager, device, parameter_factory=None):
 
 
 def run_iv(manager, device, engine='vs', vg_list=None, vd_list=None,
-           transmission_mode='acoustic-mfp', result_factory=None):
+           transmission_mode='acoustic-mfp', profile='VS_MINIMAL',
+           result_factory=None):
     """One Id-Vg/Id-Vd family run -> CNTFETSimResult row. Engines:
-    'vs' (F1 compact, the S1 deliverable) | 'tob' (F2 reference)."""
+    'vs' (F1 compact, the S1 deliverable) | 'tob' (F2 reference).
+    profile (engine 'vs' only): VS_MINIMAL (thermionic + Rc) |
+    VS_FULL (adds the [VS2] additive tunneling mechanisms, D12 —
+    Python-reference side; the OSDI twin stays thermionic)."""
     if not getattr(device, 'derived_at', ''):
         return {'ok': False, 'error': 'device never derived — POST '
                                       '{"action": "derive"} first'}
@@ -304,8 +308,33 @@ def run_iv(manager, device, engine='vs', vg_list=None, vd_list=None,
             {'vt0_v': transport.vt0_v,
              'efsd_ev': transport.efsd_ev},
             device.temperature_k)
-        family = iv_family(params, vg_list, vd_list)
-        fidelity = 'VS_MINIMAL'
+        if profile == 'VS_FULL':
+            from cntfet.cnt_constants import lit_value
+            from cntfet.cnt_extrinsics import vs_full_current
+            dev = {'eg_ev': mat.eg_ev, 'lg_nm': geo.lg_nm,
+                   'lof_nm': lit_value('lof_over_tox')
+                   * gate.t_ox_nm,
+                   'lambda_nm': transport.lambda_nm,
+                   'efsd_ev': transport.efsd_ev,
+                   'vt0_v': transport.vt0_v,
+                   'temperature_k': device.temperature_k}
+            points = []
+            for vg in vg_list:
+                for vd in vd_list:
+                    full = vs_full_current(vg, vd, params, dev)
+                    points.append({'vg_v': vg, 'vd_v': vd,
+                                   'id_a': full['id_a'],
+                                   'thermionic_a':
+                                       full['thermionic_a'],
+                                   'sdt_a': full['sdt_a'],
+                                   'btbt_a': full['btbt_a'],
+                                   'converged': True})
+            family = {'points': points, 'all_converged': True,
+                      'engine': 'cntfet.vs-python-reference'}
+            fidelity = 'VS_FULL'
+        else:
+            family = iv_family(params, vg_list, vd_list)
+            fidelity = 'VS_MINIMAL'
     elif engine == 'tob':
         p = {'eg_ev': mat.eg_ev, 'vf_m_per_s': mat.vf_m_per_s,
              'lg_nm': geo.lg_nm, 'cox_f_per_m': gate.cox_f_per_m,

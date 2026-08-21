@@ -112,7 +112,8 @@ class CNTFETAPI(treeObject):
                 vg_list=payload.get('vg'),
                 vd_list=payload.get('vd'),
                 transmission_mode=payload.get('transmissionMode',
-                                              'acoustic-mfp'))
+                                              'acoustic-mfp'),
+                profile=payload.get('profile', 'VS_MINIMAL'))
             if not report.get('ok'):
                 response.status = '422 Unprocessable Entity'
             response.media = report

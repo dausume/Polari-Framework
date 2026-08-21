@@ -263,6 +263,36 @@ point. Limits riding every result: coherent-only, fixed eq.(5)
 potential (self-consistent Poisson = ours to build), zigzag only;
 F3 sees the second subband (T→4) that F1/F2 cannot.
 
+## [VS2] extrinsics (built 2026-08-21 evening)
+
+Clean-room from Part II (arXiv:1503.04398), `cnt_extrinsics.py`:
+
+- **Rc(Lc, d)** transmission-line contact model (eqs 2–3) with the
+  paper's extracted constants (E00 32 meV, λc 380 nm, gco
+  0.49 µS/nm). Reproduces the paper pin: **2Rc = 71.4 kΩ at
+  d = 1.2 nm, Lc = 12.9 nm** (paper ~70), φb = −0.045 eV and
+  gc = 2.0 µS/nm matching the published extraction. Polarity
+  matters: the calibrated case is Pd on p-type (barrier-free);
+  applying the n-type form to Pd numbers is a real error (made
+  and caught live — Rc came out 10⁹ kΩ). **This RESOLVES the
+  recorded Rs tension**: long FC10-style contacts → ~1.2 kΩ
+  extrinsic + RQ/2 ≈ 4.4 kΩ/terminal (compatible with the 0.7 G0
+  record); short 12.9 nm contacts → 35 kΩ/terminal. The tension
+  was contact LENGTH, not physics.
+- **Rext** (eq 5) and **Lof(kspa)** (eq 11).
+- **I_SDT** (eqs 6–8): WKB through our eq.(5) barrier, numeric
+  Landauer (as the paper itself evaluates it — the analytic
+  Verilog-A recast is in the NEEDS-blocked manual [31], so the
+  OSDI twin stays thermionic-only, labeled). Exponential in Lg:
+  0.034 nA at 15 nm vs 281 nA at 5 nm (vg=0, vd=0.6).
+- **I_BTBT** (eqs 12–14): closed-form tb; **exactly zero for
+  Vds < Eg** — the mechanism vanishes naturally (D12), and the
+  S1 device at VDD 0.6 V < Eg 0.68 eV sits below the window.
+- **Profile VS_FULL** = thermionic + SDT + BTBT, additive, with
+  the per-point decomposition always reported
+  (`{action: iv, profile: VS_FULL}`). Parasitic capacitance
+  models ([VS2]'s ref [36], paywalled) are NOT implemented.
+
 ## What this model must never claim
 
 - It is NOT the Stanford VS-CNFET and is not numerically

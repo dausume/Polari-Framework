@@ -601,6 +601,58 @@ def main():
               'available on this host (capability endpoint reports '
               'the same refusal)')
 
+    # ---- [VS2] extrinsics -----------------------------------------
+    from cntfet.cnt_extrinsics import (
+        btbt_current_a, contact_rc_ohm, rext_ohm, sdt_current_a,
+        vs_full_current,
+    )
+    _rc, rc_detail = contact_rc_ohm(12.9, bs.eg_ev(1.2))
+    check('[VS2]: the Rc(Lc,d) transmission-line model reproduces '
+          'the paper pin — 2Rc ~ 70 kOhm at d=1.2, Lc=12.9 nm '
+          '(Pd/p, phi_b -0.045 eV, gc 2.0 uS/nm)',
+          65e3 < rc_detail['two_rc_ohm'] < 78e3
+          and abs(rc_detail['phi_b_ev'] + 0.045) < 1e-3
+          and abs(rc_detail['gc_s_per_nm'] - 2.0e-6) < 0.1e-6,
+          f'detail={rc_detail}')
+    check('[VS2]: Rc physics directions — longer contacts cheaper, '
+          'smaller diameter exponentially worse; Rext scales with '
+          'Lext',
+          contact_rc_ohm(300.0, bs.eg_ev(1.2))[0]
+          < contact_rc_ohm(12.9, bs.eg_ev(1.2))[0]
+          and contact_rc_ohm(12.9, bs.eg_ev(1.0))[0]
+          > 5.0 * contact_rc_ohm(12.9, bs.eg_ev(1.2))[0]
+          and rext_ohm(20, 1.2, 1.0) > rext_ohm(10, 1.2, 1.0) > 0)
+    dev15 = {'eg_ev': eg, 'lg_nm': 15.0, 'lof_nm': 1.0,
+             'lambda_nm': sce['lambda_nm'], 'efsd_ev': 0.1,
+             'vt0_v': 0.3, 'temperature_k': 300.0}
+    sdt15 = sdt_current_a(0.0, 0.6, dev15)
+    sdt5 = sdt_current_a(0.0, 0.6, {**dev15, 'lg_nm': 5.0})
+    check('[VS2]: S/D tunneling is exponential in Lg — small at '
+          '15 nm, dominant-scale at 5 nm (the paper\'s sub-10-nm '
+          'warning)',
+          0.0 < sdt15 < 1e-9 and sdt5 > 100.0 * sdt15,
+          f'sdt15={sdt15}, sdt5={sdt5}')
+    check('[VS2]: BTBT vanishes NATURALLY below Vds = Eg (D12 — '
+          'no switch) and turns on above',
+          btbt_current_a(0.0, 0.6, dev15) == 0.0
+          and btbt_current_a(0.0, 0.9, dev15) > 0.0)
+    full = vs_full_current(0.0, 0.6, p, dev15)
+    check('[VS2]: VS_FULL is ADDITIVE with the decomposition '
+          'reported (total = thermionic + SDT + BTBT) and the '
+          'twin honesty note riding along',
+          abs(full['id_a'] - (full['thermionic_a'] + full['sdt_a']
+                              + full['btbt_a'])) < 1e-18
+          and full['id_a'] > full['thermionic_a']
+          and 'thermionic' in full['twin_note'])
+    rep_full = cd.run_iv(mgr, device, engine='vs',
+                         profile='VS_FULL',
+                         vg_list=[0.0, 0.6], vd_list=[0.05, 0.6],
+                         result_factory=fac_res)
+    check('[VS2]: {action: iv, profile: VS_FULL} runs from the '
+          'device rows with per-point decomposition',
+          rep_full['ok'] and rep_full['fidelity'] == 'VS_FULL'
+          and all('sdt_a' in pt for pt in rep_full['points']))
+
     # ---- S5: characterization (tools leg) -------------------------
     if openvaf_path and ngspice_path:
         from cntfet.cnt_characterization import (
