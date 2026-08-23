@@ -1981,6 +1981,11 @@ class polariServer(treeObject):
             from appstore.appstore_api import AppStoreAPI
             appStoreEndpoint = AppStoreAPI(
                 polServer=self, manager=self.manager)
+            # dl-1: the PUBLIC no-terminal downloads page (server-
+            # rendered HTML + deb serving; POLARI_DOWNLOADS_DIR).
+            from appstore.downloads_page import DownloadsPage
+            downloadsEndpoint = DownloadsPage(
+                polServer=self, manager=self.manager)
         if _feature_available('islemesh'):
             # islemesh (mac-1): ingest + read surface for isle-mesh
             # data (registry/fragments/device facts; mock flagged).
