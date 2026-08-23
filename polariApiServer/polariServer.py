@@ -1242,6 +1242,65 @@ except ImportError as _exc:
         'SolarLayerDefinition', 'SolarStackDefinition', 'SEED_PHOTO_ABSORBERS', 'SEED_SOLAR_LAYERS',
         'SEED_SOLAR_STACKS',
     ))
+# cnt-s1: the aligned-CNT FET (decomposed one-tube device, VS-derived
+# compact model + ToB reference, D18 calibration anchors).
+try:
+    from cntfet.cnt_basis import (
+        AlignedCNTFETDevice, AlignedCNTFETGeometry,
+        CNTCalibrationAnchor, CNTContact, CNTFETParameterRow,
+        CNTFETSimResult, CNTMaterialState, CNTParasitics,
+        CNTTransportModel, GateStack,
+        SEED_CNT_CONTACTS, SEED_CNT_DEVICES, SEED_CNT_GEOMETRIES,
+        SEED_CNT_MATERIALS, SEED_CNT_PARASITICS, SEED_CNT_TRANSPORT,
+        SEED_GATE_STACKS,
+    )
+    from cntfet.cnt_calibration import SEED_CALIBRATION_ANCHORS
+    from cntfet.cnt_reference_papers import SEED_REFERENCE_ANCHORS
+    from cntfet.cnt_pages_seed import SEED_CNTFET_PAGE_DISPLAYS
+    # cnt-s3: manufacturing processes as distribution objects + MC.
+    from cntfet.cnt_process_basis import (
+        CNTAlignmentProcess, CNTFETMonteCarloRun,
+        CNTPlacementProcess, CNTPurificationProcess,
+        ContactFormationProcess, GateStackProcess,
+        LithographyProcess,
+        SEED_ALIGNMENT_PROCESSES, SEED_CONTACT_PROCESSES,
+        SEED_GATESTACK_PROCESSES, SEED_LITHOGRAPHY_PROCESSES,
+        SEED_PLACEMENT_PROCESSES, SEED_PURIFICATION_PROCESSES,
+    )
+    # cnt-s5: the characterization schema (D11/D16 — ours, above
+    # any executor).
+    from cntfet.cnt_characterization import CellCharacterizationRun
+except ImportError as _exc:
+    _stub_missing_feature('cntfet', _exc, globals(), (
+        'AlignedCNTFETDevice', 'AlignedCNTFETGeometry', 'CNTCalibrationAnchor', 'CNTContact',
+        'CNTFETParameterRow', 'CNTFETSimResult', 'CNTMaterialState', 'CNTParasitics',
+        'CNTTransportModel', 'GateStack', 'SEED_CNT_CONTACTS', 'SEED_CNT_DEVICES',
+        'SEED_CNT_GEOMETRIES', 'SEED_CNT_MATERIALS', 'SEED_CNT_PARASITICS', 'SEED_CNT_TRANSPORT',
+        'SEED_GATE_STACKS', 'SEED_CALIBRATION_ANCHORS',
+        'SEED_REFERENCE_ANCHORS', 'SEED_CNTFET_PAGE_DISPLAYS',
+        'CNTAlignmentProcess', 'CNTFETMonteCarloRun', 'CNTPlacementProcess',
+        'CNTPurificationProcess', 'ContactFormationProcess', 'GateStackProcess',
+        'LithographyProcess', 'SEED_ALIGNMENT_PROCESSES', 'SEED_CONTACT_PROCESSES',
+        'SEED_GATESTACK_PROCESSES', 'SEED_LITHOGRAPHY_PROCESSES',
+        'SEED_PLACEMENT_PROCESSES', 'SEED_PURIFICATION_PROCESSES',
+        'CellCharacterizationRun',
+    ))
+# microchip: the design-level ladder + traversal (separable from the
+# device modules — references their rows, never imports their code).
+try:
+    from microchip.chip_basis import (
+        DesignLevelDefinition, MicrochipDesignNode,
+        SEED_DESIGN_LEVELS, SEED_DESIGN_NODES,
+    )
+    from microchip.chip_pages_seed import (
+        SEED_MICROCHIP_PAGE_DISPLAYS,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('microchip', _exc, globals(), (
+        'DesignLevelDefinition', 'MicrochipDesignNode',
+        'SEED_DESIGN_LEVELS', 'SEED_DESIGN_NODES',
+        'SEED_MICROCHIP_PAGE_DISPLAYS',
+    ))
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -2071,6 +2130,17 @@ class polariServer(treeObject):
             from electrodevice.device_api import ElectroDeviceAPI
             electroDeviceEndpoint = ElectroDeviceAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('cntfet'):
+            # cnt-s1: the aligned-CNT FET acts (derive/iv/calibrate/
+            # validate/equivalence) + the D14 capability report.
+            from cntfet.cnt_api import CNTFETAPI
+            cntfetEndpoint = CNTFETAPI(
+                polServer=self, manager=self.manager)
+        if _feature_available('microchip'):
+            # The design-level ladder traversal interface.
+            from microchip.chip_api import MicrochipAPI
+            microchipEndpoint = MicrochipAPI(
+                polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -2347,6 +2417,19 @@ class polariServer(treeObject):
             CircuitRunResult, SemiconductorProfile,
             DeviceValidationReport, PhotoAbsorberDefinition,
             SolarStackDefinition, SolarLayerDefinition,
+            # cnt-s1: the aligned-CNT FET decomposed device (D2b) +
+            # parameter roles as rows (D8) + D18 calibration anchors.
+            CNTMaterialState, AlignedCNTFETGeometry, GateStack,
+            CNTContact, CNTTransportModel, CNTParasitics,
+            AlignedCNTFETDevice, CNTFETParameterRow,
+            CNTCalibrationAnchor, CNTFETSimResult,
+            # cnt-s3: process objects + MC run rows.
+            CNTAlignmentProcess, CNTPlacementProcess,
+            CNTPurificationProcess, ContactFormationProcess,
+            LithographyProcess, GateStackProcess,
+            CNTFETMonteCarloRun, CellCharacterizationRun,
+            # microchip: the design-level ladder + design nodes.
+            DesignLevelDefinition, MicrochipDesignNode,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             # mlb-2: per-boot module timing history (durable — later
@@ -3235,7 +3318,9 @@ class polariServer(treeObject):
              + SEED_SSP_PAGE_DISPLAYS
              + (SEED_CASTING_PAGE_DISPLAYS or [])
              + (SEED_APPSTORE_PAGE_DISPLAYS or [])
-             + (SEED_ISLEMESH_PAGE_DISPLAYS or [])),
+             + (SEED_ISLEMESH_PAGE_DISPLAYS or [])
+             + (SEED_CNTFET_PAGE_DISPLAYS or [])
+             + (SEED_MICROCHIP_PAGE_DISPLAYS or [])),
             # Materials basis — identities before their scale rows.
             ('MaterialsScienceMaterial', MaterialsScienceMaterial,
              SEED_MS_MATERIALS + SEED_STANDARD_MATERIALS
@@ -3270,6 +3355,39 @@ class polariServer(treeObject):
              SEED_DEVICES),
             ('SemiconductorProfile', SemiconductorProfile,
              SEED_SEMICONDUCTOR_PROFILES),
+            # cnt-s1: components before the device that names them.
+            ('CNTMaterialState', CNTMaterialState,
+             SEED_CNT_MATERIALS),
+            ('AlignedCNTFETGeometry', AlignedCNTFETGeometry,
+             SEED_CNT_GEOMETRIES),
+            ('GateStack', GateStack, SEED_GATE_STACKS),
+            ('CNTContact', CNTContact, SEED_CNT_CONTACTS),
+            ('CNTTransportModel', CNTTransportModel,
+             SEED_CNT_TRANSPORT),
+            ('CNTParasitics', CNTParasitics, SEED_CNT_PARASITICS),
+            ('AlignedCNTFETDevice', AlignedCNTFETDevice,
+             SEED_CNT_DEVICES),
+            ('CNTCalibrationAnchor', CNTCalibrationAnchor,
+             SEED_CALIBRATION_ANCHORS
+             + (SEED_REFERENCE_ANCHORS or [])),
+            # cnt-s3: the target line's process rows.
+            ('CNTAlignmentProcess', CNTAlignmentProcess,
+             SEED_ALIGNMENT_PROCESSES),
+            ('CNTPlacementProcess', CNTPlacementProcess,
+             SEED_PLACEMENT_PROCESSES),
+            ('CNTPurificationProcess', CNTPurificationProcess,
+             SEED_PURIFICATION_PROCESSES),
+            ('ContactFormationProcess', ContactFormationProcess,
+             SEED_CONTACT_PROCESSES),
+            ('LithographyProcess', LithographyProcess,
+             SEED_LITHOGRAPHY_PROCESSES),
+            ('GateStackProcess', GateStackProcess,
+             SEED_GATESTACK_PROCESSES),
+            # microchip: levels before the nodes that name them.
+            ('DesignLevelDefinition', DesignLevelDefinition,
+             SEED_DESIGN_LEVELS),
+            ('MicrochipDesignNode', MicrochipDesignNode,
+             SEED_DESIGN_NODES),
             ('PhotoAbsorberDefinition', PhotoAbsorberDefinition,
              SEED_PHOTO_ABSORBERS),
             ('SolarStackDefinition', SolarStackDefinition,

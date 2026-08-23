@@ -36,10 +36,11 @@ from polariApiServer.module_gating import module_enabled
 # always required and their imports stay static.
 FEATURE_MODULES = frozenset({
     'appstore',
-    'aquaponics', 'biomining', 'bizops', 'climate', 'dmvdata',
+    'aquaponics', 'biomining', 'bizops', 'climate', 'cntfet',
+    'dmvdata',
     'electrodevice',
     'gears', 'grpcbridge', 'hwdigital', 'hwfpga', 'magnetics',
-    'mathshapes', 'meshassets', 'microalgae', 'motors',
+    'mathshapes', 'meshassets', 'microalgae', 'microchip', 'motors',
     'nutrition', 'odooconnect', 'plant_morphology', 'polariapps',
     'scoring',
     'supplychain', 'tanks', 'techtree', 'testing', 'waxprint',
@@ -73,6 +74,9 @@ FEATURE_REQUIRES = {
     'meshassets': ('plant_morphology',),
     'mathshapes': ('aquaponics', 'plant_morphology'),
     'electrodevice': ('hwdigital',),
+    # cnt-s1: the aligned-CNT FET reuses the electrodevice
+    # standards-judge machinery (device_validator findings/reports).
+    'cntfet': ('electrodevice',),
     'zones': ('scoring',),
 }
 
