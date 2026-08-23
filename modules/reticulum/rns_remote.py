@@ -22,6 +22,7 @@ Never raises. Refusals carry evidence + knob + action.
 
 import json
 import os
+import urllib.error
 import urllib.request
 
 _MODULE = 'reticulum.mesh'
@@ -94,3 +95,91 @@ def sidecar_status(timeout=5):
                 'error': f'reticulum sidecar did not answer /status: {e}',
                 'suggestion': unavailable_suggestion(
                     f'{url} rejected or did not answer /status.')}
+
+
+# ---- ret-7 backend half: LXMF messaging over the sidecar ------------
+
+#: The compatibility truth every messaging surface must carry: our
+#: stack is pinned to the last MIT releases (rns 0.9.4), and RNS >= 1.0
+#: removed the handlers 0.9.x links need — NORMAL modern Reticulum
+#: clients (current Sideband/NomadNet/MeshChat) CANNOT reach this
+#: mesh. Peers must run the pinned-compatible stack (another polari
+#: sidecar, or a pre-1.0 client). The gated exit is RetiNet (AGPL) —
+#: see the licence gate. Stating this here keeps the wish honest:
+#: LXMF over wifi/LAN works TODAY between our own nodes.
+PIN_ISOLATION_NOTE = (
+    'peers must run the pinned MIT stack (rns 0.9.x — e.g. another '
+    'polari sidecar); modern RNS >= 1.0 clients cannot link with '
+    'this mesh (licence-pin isolation, RETICULUM_LICENCE_GATE.md)')
+
+
+def _sidecar_json(path, payload=None, timeout=6):
+    """GET (payload None) or POST json to the sidecar; honest
+    refusal ladder when unresolved/unreachable."""
+    url = server_url()
+    if not url:
+        return {'ok': False,
+                'error': 'no reticulum sidecar configured',
+                'suggestion': unavailable_suggestion(
+                    'RETICULUM_URL is unset and the topology '
+                    "resolves no provider for 'reticulum.mesh'.")}
+    try:
+        if payload is None:
+            req = url + path
+        else:
+            req = urllib.request.Request(
+                url + path, data=json.dumps(payload).encode(),
+                headers={'Content-Type': 'application/json'},
+                method='POST')
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = json.load(resp)
+            return body if isinstance(body, dict) else {
+                'ok': False, 'error': 'sidecar sent a non-object'}
+    except urllib.error.HTTPError as e:
+        try:
+            body = json.load(e)
+            if isinstance(body, dict):
+                return body  # sidecar refusals come through intact
+        except Exception:
+            pass
+        return {'ok': False,
+                'error': f'sidecar {path} -> HTTP {e.code}'}
+    except Exception as e:
+        return {'ok': False,
+                'error': f'reticulum sidecar did not answer '
+                         f'{path}: {e}',
+                'suggestion': unavailable_suggestion(
+                    f'{url} rejected or did not answer {path}.')}
+
+
+def lxmf_overview():
+    report = _sidecar_json('/lxmf')
+    if report.get('ok'):
+        report['pinIsolationNote'] = PIN_ISOLATION_NOTE
+    return report
+
+
+def lxmf_messages():
+    return _sidecar_json('/lxmf/messages')
+
+
+def lxmf_refusals():
+    return _sidecar_json('/lxmf/refusals')
+
+
+def lxmf_send(destination_hash, content, title=''):
+    return _sidecar_json('/lxmf/send', {
+        'destinationHash': destination_hash,
+        'content': content, 'title': title})
+
+
+def lxmf_policy(whitelist=None, max_per_window=None,
+                window_seconds=None):
+    payload = {}
+    if whitelist is not None:
+        payload['whitelist'] = whitelist
+    if max_per_window is not None:
+        payload['maxPerWindow'] = max_per_window
+    if window_seconds is not None:
+        payload['windowSeconds'] = window_seconds
+    return _sidecar_json('/lxmf/policy', payload)

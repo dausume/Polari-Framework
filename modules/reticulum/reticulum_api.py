@@ -52,6 +52,13 @@ class ReticulumAPI(treeObject):
         self.apiName = '/api/reticulum'
         if polServer is not None:
             add = polServer.falconServer.add_route
+            # ret-7: LXMF messaging over the sidecar (wifi/LAN
+            # bearers included — AutoInterface + TCP server).
+            add('/api/reticulum/messages', self, suffix='messages')
+            add('/api/reticulum/messages/refusals', self,
+                suffix='message_refusals')
+            add('/api/reticulum/messages/policy', self,
+                suffix='message_policy')
             add('/api/reticulum/capability', self, suffix='capability')
             add('/api/reticulum/arch', self, suffix='arch')
             add('/api/reticulum/arch-topology', self,
@@ -78,6 +85,79 @@ class ReticulumAPI(treeObject):
         response.media = body
 
     # ---- routes -----------------------------------------------------
+
+    # ---- ret-7: LXMF messaging ---------------------------------
+    def on_get_messages(self, request, response):
+        """Stored inbound messages + the messaging facts. The
+        pin-isolation note rides every response — 'normal'
+        Reticulum peers must run the pinned-compatible stack."""
+        from reticulum.rns_remote import (
+            lxmf_messages, lxmf_overview,
+        )
+        overview = lxmf_overview()
+        if not overview.get('ok'):
+            response.status = '503 Service Unavailable'
+            response.media = overview
+            return
+        messages = lxmf_messages()
+        response.media = {
+            'ok': True, 'facts': overview,
+            'messages': messages.get('messages', []),
+            'sendHow': 'POST here {destinationHash, content, '
+                       'title?}'}
+
+    def on_post_messages(self, request, response):
+        import json as _json
+        from reticulum.rns_remote import lxmf_send
+        try:
+            raw = request.bounded_stream.read()
+            payload = _json.loads(raw) if raw else {}
+        except Exception as e:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': f'bad JSON payload: {e}'}
+            return
+        if not payload.get('destinationHash') \
+                or 'content' not in payload:
+            response.status = '400 Bad Request'
+            response.media = {
+                'ok': False,
+                'error': 'send needs destinationHash + content'}
+            return
+        report = lxmf_send(payload['destinationHash'],
+                           payload['content'],
+                           payload.get('title', ''))
+        if not report.get('ok'):
+            response.status = ('409 Conflict'
+                               if 'refusal' in report
+                               else '503 Service Unavailable')
+        response.media = report
+
+    def on_get_message_refusals(self, request, response):
+        from reticulum.rns_remote import lxmf_refusals
+        report = lxmf_refusals()
+        if not report.get('ok'):
+            response.status = '503 Service Unavailable'
+        response.media = report
+
+    def on_post_message_policy(self, request, response):
+        import json as _json
+        from reticulum.rns_remote import lxmf_policy
+        try:
+            raw = request.bounded_stream.read()
+            payload = _json.loads(raw) if raw else {}
+        except Exception as e:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False,
+                              'error': f'bad JSON payload: {e}'}
+            return
+        report = lxmf_policy(
+            whitelist=payload.get('whitelist'),
+            max_per_window=payload.get('maxPerWindow'),
+            window_seconds=payload.get('windowSeconds'))
+        if not report.get('ok'):
+            response.status = '503 Service Unavailable'
+        response.media = report
 
     def on_get_capability(self, request, response):
         from reticulum import rns_remote as rr

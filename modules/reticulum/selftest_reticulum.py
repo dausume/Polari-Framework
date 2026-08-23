@@ -1135,6 +1135,61 @@ def run():
           '+ seed_pairs — miss one and seeds silently never land)',
           not missing, f'missing={missing}')
 
+    # ---- ret-7 backend half: LXMF over the sidecar ---------------
+    import io as _io
+    import os as _os
+    import urllib.request as _url
+    from reticulum import rns_remote as _rr
+
+    _os.environ.pop('RETICULUM_URL', None)
+    report = _rr.lxmf_overview()
+    check('lxmf: no sidecar configured -> honest refusal with the '
+          'knob + action named',
+          not report.get('ok') and 'suggestion' in report)
+
+    _os.environ['RETICULUM_URL'] = 'http://sidecar.test:4285'
+    _canned = {}
+
+    def _fake_urlopen(req, timeout=0):
+        import json as _json
+        target = req if isinstance(req, str) else req.full_url
+        target = target.split('4285', 1)[1]
+        body = _canned.get(target, {'ok': False, 'error': 'no can'})
+        return _io.BytesIO(_json.dumps(body).encode())
+
+    _real = _url.urlopen
+    _url.urlopen = _fake_urlopen
+    try:
+        _canned['/lxmf'] = {'ok': True, 'storedMessages': 2,
+                            'destinationHash': 'aa'}
+        _canned['/lxmf/messages'] = {'ok': True, 'messages': [
+            {'source': '01', 'content': 'hi'}]}
+        overview = _rr.lxmf_overview()
+        check('lxmf: overview proxies the sidecar facts AND '
+              'carries the pin-isolation note (the normal-'
+              'reticulum-peers truth rides every surface)',
+              overview['ok'] and overview['storedMessages'] == 2
+              and 'rns 0.9.x' in overview['pinIsolationNote'])
+        msgs = _rr.lxmf_messages()
+        check('lxmf: stored messages list through the proxy',
+              msgs['ok'] and msgs['messages'][0]['content'] == 'hi')
+        _canned['/lxmf/send'] = {'ok': False,
+                                 'refusal': 'destination identity '
+                                            'unknown ... announce'}
+        report = _rr.lxmf_send('99' * 16, 'x')
+        check('lxmf: sidecar refusals pass through INTACT '
+              '(announce-first recovery reaches the caller)',
+              not report['ok'] and 'announce' in report['refusal'])
+        _canned['/lxmf/policy'] = {'ok': True,
+                                   'policy': {'mode': 'whitelist'}}
+        report = _rr.lxmf_policy(whitelist=['02' * 16])
+        check('lxmf: policy updates proxy through',
+              report['ok'] and report['policy']['mode']
+              == 'whitelist')
+    finally:
+        _url.urlopen = _real
+        _os.environ.pop('RETICULUM_URL', None)
+
     failed = sum(1 for r in _results if not r)
     print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
     raise SystemExit(1 if failed else 0)
