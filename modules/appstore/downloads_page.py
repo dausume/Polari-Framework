@@ -45,6 +45,22 @@ _VERSION_RE = re.compile(
 INSTALL_ORDER = ['isle-mesh-cli', 'polari-shell-core',
                  'isle-app-store', 'polari-isle']
 
+#: Normal-user names + one-liners; a staged package outside this map
+#: still renders (raw name, no blurb) — the page never hides a file.
+PACKAGE_INFO = {
+    'isle-mesh-cli': ('Isle Mesh — networking',
+                      'Connects your computer to your isle\'s own '
+                      'private network.'),
+    'polari-shell-core': ('Polari Shell',
+                          'The desktop window your apps open in.'),
+    'isle-app-store': ('Isle App Store',
+                       'The app you\'ll actually open — install '
+                       'and manage everything from here.'),
+    'polari-isle': ('Polari Isle — finisher',
+                    'Ties the pieces together and finishes the '
+                    'setup.'),
+}
+
 
 def downloads_dir():
     configured = os.environ.get('POLARI_DOWNLOADS_DIR', '')
@@ -107,39 +123,57 @@ def render_page(debs, instance_title='Polari'):
     (the user-facing app), falling back to the first staged."""
     title = html.escape(instance_title)
     if not debs:
-        body = ('<h1>Downloads</h1>'
-                '<p>No installers are staged on this instance '
-                'yet.</p>'
-                '<p>If you run this deployment: build the bundle '
-                '(<code>./build-polari-isle-deb.sh</code>) and '
-                'stage <code>.generated/debs/</code> into the '
+        body = ('<header class="hero"><h1>Downloads</h1></header>'
+                '<div class="card"><p>No installers are staged on '
+                'this instance yet.</p>'
+                '<p class="note">If you run this deployment: build '
+                'the bundle (<code>./build-polari-isle-deb.sh</code>) '
+                'and stage <code>.generated/debs/</code> into the '
                 'downloads directory '
-                '(<code>POLARI_DOWNLOADS_DIR</code>).</p>')
+                '(<code>POLARI_DOWNLOADS_DIR</code>).</p></div>')
         return _wrap(title, body)
     headline = next((d for d in debs
                      if d['name'] == 'isle-app-store'), debs[0])
-    rows = ''.join(
-        f'<tr><td><a class="dl" href="/downloads/'
-        f'{html.escape(d["file"])}" download>'
-        f'{html.escape(d["name"])}</a></td>'
-        f'<td>{html.escape(d["version"])}</td>'
-        f'<td>{_human_size(d["size"])}</td></tr>'
-        for d in debs)
+    cards = ''
+    for index, d in enumerate(debs, start=1):
+        display, blurb = PACKAGE_INFO.get(
+            d['name'], (d['name'], ''))
+        blurb_html = (f'<p class="blurb">{html.escape(blurb)}</p>'
+                      if blurb else '')
+        cards += f'''
+<li class="dl-card">
+  <span class="ordinal" aria-hidden="true">{index}</span>
+  <span class="dl-info">
+    <span class="dl-name">{html.escape(display)}</span>
+    {blurb_html}
+    <span class="dl-meta">version {html.escape(d["version"])}
+      &middot; {_human_size(d["size"])}
+      &middot; <code>{html.escape(d["file"])}</code></span>
+  </span>
+  <a class="dl" href="/downloads/{html.escape(d["file"])}"
+     download>Download</a>
+</li>'''
     body = f'''
+<header class="hero">
 <h1>Install {title} on your computer</h1>
-<p class="version">Current version:
+<p class="version">Current version
    <strong>{html.escape(headline["version"])}</strong></p>
-<p>Works on Ubuntu and other Debian-family Linux. Download the
-   files below, then install them by clicking — no terminal
-   needed. Your computer fetches everything else it needs from
-   the internet during the install.</p>
-<h2>Step 1 — download these files</h2>
-<table>
-<tr><th>File</th><th>Version</th><th>Size</th></tr>
-{rows}
-</table>
-<h2>Step 2 — install them, in the order listed</h2>
-<ol>
+<p class="lede">Works on Ubuntu and other Debian-family Linux.
+   Download the files below, then install them by clicking —
+   no terminal needed. Your computer fetches everything else it
+   needs from the internet during the install.</p>
+</header>
+
+<section class="step">
+<h2><span class="step-no">1</span>Download these files</h2>
+<ol class="dl-list">{cards}
+</ol>
+</section>
+
+<section class="step">
+<h2><span class="step-no">2</span>Install them, in the order
+    listed</h2>
+<ol class="howto">
 <li>Open your <strong>Downloads</strong> folder.</li>
 <li>Double-click the first file and choose
     <strong>Install</strong>. Wait for it to finish.</li>
@@ -149,11 +183,16 @@ def render_page(debs, instance_title='Polari'):
     installer: right-click the file &rarr;
     <em>Open With</em> &rarr; <em>Software Install</em>.</li>
 </ol>
-<h2>Step 3 — first start</h2>
+</section>
+
+<section class="step">
+<h2><span class="step-no">3</span>First start</h2>
 <p>Open <strong>Isle App Store</strong> from your applications
    menu. It will walk you through creating your own isle or
    joining an existing one — passwords are asked by the system
    itself, never typed into a terminal.</p>
+</section>
+
 <p class="note">Installing from a CD/DVD or USB stick with no
    internet is a separate download — not available yet.</p>
 '''
@@ -166,17 +205,59 @@ def _wrap(title, body):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title} — Downloads</title>
 <style>
- body{{font-family:system-ui,sans-serif;max-width:44rem;
-      margin:2rem auto;padding:0 1rem;line-height:1.55;color:#222}}
- code{{background:#f4f4f4;padding:.1rem .35rem;border-radius:4px}}
- table{{border-collapse:collapse;width:100%;margin:.5rem 0}}
- th{{text-align:left;border-bottom:2px solid #ccc;
-    padding:.3rem .6rem}}
- td{{padding:.35rem .6rem;border-bottom:1px solid #eee}}
- a.dl{{font-weight:600}}
- .version{{font-size:1.1em}}
- .note{{color:#666;font-size:.9em}}
- ol li{{margin:.35rem 0}}
+ :root{{--bg:#fcfcfb;--card:#ffffff;--ink:#1d1d1c;--ink2:#5d5d58;
+   --line:#e4e4df;--accent:#2a78d6;--accent-ink:#ffffff;
+   --chip:#f1f1ec}}
+ @media (prefers-color-scheme: dark){{
+   :root{{--bg:#1a1a19;--card:#232322;--ink:#ececea;--ink2:#a5a5a0;
+     --line:#3a3a38;--accent:#3987e5;--accent-ink:#ffffff;
+     --chip:#2d2d2b}}}}
+ *{{box-sizing:border-box}}
+ body{{font-family:system-ui,sans-serif;max-width:46rem;
+   margin:0 auto;padding:2.5rem 1.25rem 3rem;line-height:1.55;
+   color:var(--ink);background:var(--bg)}}
+ h1{{font-size:1.7rem;margin:0 0 .5rem;line-height:1.25}}
+ h2{{font-size:1.12rem;margin:0 0 .8rem;display:flex;
+   align-items:center;gap:.6rem}}
+ code{{background:var(--chip);padding:.08rem .35rem;
+   border-radius:4px;font-size:.86em}}
+ .hero{{margin-bottom:2rem}}
+ .version{{margin:.1rem 0 .9rem;color:var(--ink2)}}
+ .version strong{{color:var(--ink);background:var(--chip);
+   border:1px solid var(--line);border-radius:999px;
+   padding:.12rem .7rem;margin-left:.25rem}}
+ .lede{{margin:0;color:var(--ink2)}}
+ .step{{background:var(--card);border:1px solid var(--line);
+   border-radius:12px;padding:1.1rem 1.25rem;margin:0 0 1.1rem}}
+ .step-no{{flex:none;width:1.7rem;height:1.7rem;border-radius:50%;
+   background:var(--accent);color:var(--accent-ink);
+   font-size:.95rem;font-weight:700;display:inline-flex;
+   align-items:center;justify-content:center}}
+ ol.dl-list{{list-style:none;margin:0;padding:0}}
+ .dl-card{{display:flex;align-items:center;gap:.9rem;
+   padding:.8rem .2rem;border-top:1px solid var(--line)}}
+ .dl-card:first-child{{border-top:0}}
+ .ordinal{{flex:none;width:1.5rem;height:1.5rem;border-radius:50%;
+   border:2px solid var(--accent);color:var(--accent);
+   font-size:.82rem;font-weight:700;display:inline-flex;
+   align-items:center;justify-content:center}}
+ .dl-info{{flex:1;min-width:0;display:flex;flex-direction:column;
+   gap:.1rem}}
+ .dl-name{{font-weight:650}}
+ .blurb{{margin:0;color:var(--ink2);font-size:.92em}}
+ .dl-meta{{color:var(--ink2);font-size:.82em;
+   overflow-wrap:anywhere}}
+ a.dl{{flex:none;background:var(--accent);color:var(--accent-ink);
+   text-decoration:none;font-weight:650;padding:.5rem 1.1rem;
+   border-radius:8px}}
+ a.dl:hover{{filter:brightness(1.08)}}
+ ol.howto{{margin:0;padding-left:1.3rem}}
+ ol.howto li{{margin:.4rem 0}}
+ .note{{color:var(--ink2);font-size:.9em}}
+ @media (max-width:480px){{
+   .dl-card{{flex-wrap:wrap}}
+   .dl-info{{flex-basis:calc(100% - 2.4rem)}}
+   a.dl{{margin-left:2.4rem}}}}
 </style></head><body>{body}</body></html>'''
 
 
