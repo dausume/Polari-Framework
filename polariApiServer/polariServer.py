@@ -1242,6 +1242,17 @@ except ImportError as _exc:
         'SolarLayerDefinition', 'SolarStackDefinition', 'SEED_PHOTO_ABSORBERS', 'SEED_SOLAR_LAYERS',
         'SEED_SOLAR_STACKS',
     ))
+# mqtt-1: the MQTT bridge (brokers/bindings/ledger as rows).
+try:
+    from mqttbridge.mqtt_basis import (
+        MqttBrokerDefinition, MqttMessageRecord, MqttTopicBinding,
+        SEED_MQTT_BINDINGS, SEED_MQTT_BROKERS,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('mqttbridge', _exc, globals(), (
+        'MqttBrokerDefinition', 'MqttMessageRecord', 'MqttTopicBinding',
+        'SEED_MQTT_BINDINGS', 'SEED_MQTT_BROKERS',
+    ))
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -1981,6 +1992,11 @@ class polariServer(treeObject):
             from appstore.appstore_api import AppStoreAPI
             appStoreEndpoint = AppStoreAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('mqttbridge'):
+            # mqtt-1: explicit connect/disconnect acts + status.
+            from mqttbridge.mqtt_api import MqttBridgeAPI
+            mqttBridgeEndpoint = MqttBridgeAPI(
+                polServer=self, manager=self.manager)
         if _feature_available('islemesh'):
             # islemesh (mac-1): ingest + read surface for isle-mesh
             # data (registry/fragments/device facts; mock flagged).
@@ -2347,6 +2363,9 @@ class polariServer(treeObject):
             CircuitRunResult, SemiconductorProfile,
             DeviceValidationReport, PhotoAbsorberDefinition,
             SolarStackDefinition, SolarLayerDefinition,
+            # mqtt-1: broker/binding/ledger rows.
+            MqttBrokerDefinition, MqttTopicBinding,
+            MqttMessageRecord,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             # mlb-2: per-boot module timing history (durable — later
@@ -3270,6 +3289,11 @@ class polariServer(treeObject):
              SEED_DEVICES),
             ('SemiconductorProfile', SemiconductorProfile,
              SEED_SEMICONDUCTOR_PROFILES),
+            # mqtt-1: disabled example rows only.
+            ('MqttBrokerDefinition', MqttBrokerDefinition,
+             SEED_MQTT_BROKERS),
+            ('MqttTopicBinding', MqttTopicBinding,
+             SEED_MQTT_BINDINGS),
             ('PhotoAbsorberDefinition', PhotoAbsorberDefinition,
              SEED_PHOTO_ABSORBERS),
             ('SolarStackDefinition', SolarStackDefinition,

@@ -344,6 +344,15 @@
       "wave": 7,
       "requires": [],
       "description": "isle-mesh convergence (mac-1): the polari-side acceptor for isle-mesh data \u2014 devices/uplinks/mesh-apps/protocol-permits ingested from the isle agent's registry.json + nginx fragments (isle stays authoritative over networking); mock ingests carry mock_network=true, surfaced as a banner. Feeds /display/isle-mesh and the mac-10 console."
+    },
+    "mqttbridge": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/mqttbridge",
+      "repo": "",
+      "wave": 3,
+      "requires": [],
+      "description": "MQTT bridge: brokers + topic->object bindings as rows, explicit connect, ingest with refusal ledger; publish knob OFF at mqtt-1. paho-mqtt==2.1.0 (EDL-1.0 edge)."
     }
   }
 }
