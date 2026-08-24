@@ -180,8 +180,10 @@ def _footer_notes():
             'Add individual apps</a> — every module this instance '
             'knows, packaged on request.</p>'
             '<p class="note">Installing from a CD/DVD or USB stick '
-            'with no internet is a separate download — not '
-            'available yet.</p>')
+            'with no internet: see the '
+            '<a href="/downloads/offline">offline install page</a> '
+            '— it says honestly whether the media set is built '
+            'yet.</p>')
 
 
 def _first_start(step_no=''):

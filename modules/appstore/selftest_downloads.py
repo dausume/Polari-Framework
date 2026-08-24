@@ -60,13 +60,15 @@ def main():
         page = dl.render_page(debs, 'Polari Demo')
         check('the page makes the normal-user promises: version '
               'headline, ordered click instructions, no-terminal '
-              'flow, archive-viewer fallback tip, offline honestly '
-              'named as not-yet',
+              'flow, archive-viewer fallback tip, offline surface '
+              'linked (dl-5 — that page owns the honesty about '
+              'whether media sets exist)',
               'Current version' in page and '0.1.32' in page
               and 'order matters' in page
               and 'Software Install' in page
               and 'no terminal' in page.lower()
-              and 'not available yet' in page)
+              and 'href="/downloads/offline"' in page
+              and 'href="/downloads/apps"' in page)
         check('every staged deb is a download link on the page',
               all(f'href="/downloads/{d["file"]}"' in page
                   for d in debs))
