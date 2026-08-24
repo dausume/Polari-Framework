@@ -2040,6 +2040,26 @@ class polariServer(treeObject):
             from appstore.appstore_api import AppStoreAPI
             appStoreEndpoint = AppStoreAPI(
                 polServer=self, manager=self.manager)
+            # dl-1: the PUBLIC no-terminal downloads page (server-
+            # rendered HTML + deb serving; POLARI_DOWNLOADS_DIR).
+            from appstore.downloads_page import DownloadsPage
+            downloadsEndpoint = DownloadsPage(
+                polServer=self, manager=self.manager)
+            # dl-4: /downloads/apps — registry modules as debs,
+            # generated on request (POLARI_APP_DEBS_DIR + TTL).
+            from appstore.app_debs_page import AppDebsPage
+            appDebsEndpoint = AppDebsPage(
+                polServer=self, manager=self.manager)
+            # dl-5: /downloads/offline — staged chunk sets or the
+            # honest not-built-yet page (POLARI_OFFLINE_DIR).
+            from appstore.offline_page import OfflinePage
+            offlineEndpoint = OfflinePage(
+                polServer=self, manager=self.manager)
+            # dl-6: /downloads/plan — the topology/bundle wizard
+            # (speculates roles + per-device downloads; read-only).
+            from appstore.planner_page import PlannerPage
+            plannerEndpoint = PlannerPage(
+                polServer=self, manager=self.manager)
         if _feature_available('islemesh'):
             # islemesh (mac-1): ingest + read surface for isle-mesh
             # data (registry/fragments/device facts; mock flagged).
