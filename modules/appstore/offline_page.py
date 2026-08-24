@@ -247,7 +247,9 @@ class OfflinePage(treeObject):
         if polServer is not None:
             add = polServer.falconServer.add_route
             add('/downloads/offline', self, suffix='page')
-            add('/downloads/offline/{filename}', self,
+            # :path converter — chunk files nest (repo/<deb>), a
+            # single-segment template would 404 them.
+            add('/downloads/offline/{filename:path}', self,
                 suffix='file')
 
     def on_get_page(self, request, response):

@@ -176,7 +176,10 @@ def _explainers(two_option=False):
 
 
 def _footer_notes():
-    return ('<p class="note">Want more? <a href="/downloads/apps">'
+    return ('<p class="note">Several computers, or not sure what '
+            'you need? <a href="/downloads/plan">Plan your setup'
+            '</a> — three questions, a per-device proposal.</p>'
+            '<p class="note">Want more? <a href="/downloads/apps">'
             'Add individual apps</a> — every module this instance '
             'knows, packaged on request.</p>'
             '<p class="note">Installing from a CD/DVD or USB stick '

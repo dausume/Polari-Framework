@@ -163,10 +163,13 @@ def wrap_page(title, body, page_label='Downloads'):
  .prov{{font-size:.82em;overflow-wrap:anywhere}}
  .prov-prepped{{color:var(--good)}}
  .prov-demand{{color:var(--ink2)}}
- a.dl{{flex:none;background:var(--accent);color:var(--accent-ink);
-   text-decoration:none;font-weight:650;padding:.5rem 1.1rem;
-   border-radius:8px}}
- a.dl:hover{{filter:brightness(1.08)}}
+ a.dl,button.dl{{flex:none;background:var(--accent);
+   color:var(--accent-ink);text-decoration:none;font-weight:650;
+   padding:.5rem 1.1rem;border-radius:8px;border:0;
+   font-size:1em;cursor:pointer}}
+ a.dl:hover,button.dl:hover{{filter:brightness(1.08)}}
+ label.pick{{display:block;margin:.3rem 0}}
+ select{{font-size:1em;padding:.15rem .3rem}}
  ol.howto{{margin:0;padding-left:1.3rem}}
  ol.howto li{{margin:.4rem 0}}
  .note{{color:var(--ink2);font-size:.9em}}
