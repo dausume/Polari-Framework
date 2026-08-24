@@ -1986,6 +1986,11 @@ class polariServer(treeObject):
             from appstore.downloads_page import DownloadsPage
             downloadsEndpoint = DownloadsPage(
                 polServer=self, manager=self.manager)
+            # dl-4: /downloads/apps — registry modules as debs,
+            # generated on request (POLARI_APP_DEBS_DIR + TTL).
+            from appstore.app_debs_page import AppDebsPage
+            appDebsEndpoint = AppDebsPage(
+                polServer=self, manager=self.manager)
         if _feature_available('islemesh'):
             # islemesh (mac-1): ingest + read surface for isle-mesh
             # data (registry/fragments/device facts; mock flagged).
