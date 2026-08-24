@@ -10,6 +10,13 @@ during install — that is the INTERNET-INSTALL flavor; the
 no-internet/media flavor is its own arc
 (AI-Notes/plans/OFFLINE_INSTALL_PLAN.md).
 
+dl-3 (2026-08-24): when the TRUE MERGED `polari-complete` deb is
+staged it renders as "Option A — one file installs everything"
+(the ONE pre-prepped headline installer, marked as such), and the
+piecewise list demotes to "Option B". With no combined deb staged
+the page keeps the dl-1b single-list layout. Every variant carries
+the transparency explainers (downloads_shared).
+
 Deliberately server-rendered HTML, zero JS, no SPA/auth in the
 path: it must work logged-out, in any browser, and survive
 right-click-save. ONE version is shown — whatever is staged; no
@@ -28,11 +35,17 @@ Security: filenames are served ONLY from the staged dir, only
   - appstore.selftest_downloads
 """
 
+import datetime
 import html
 import os
 import re
 
 from objectTreeDecorators import treeObject, treeObjectInit
+
+from appstore.downloads_shared import (
+    EXPLAIN_DEB, EXPLAIN_DISK, EXPLAIN_INTERNET,
+    EXPLAIN_PREPPED_VS_DEMAND, explainer_block, human_size,
+    prepped_provenance, wrap_page)
 
 _VERSION_RE = re.compile(
     r'^(?P<name>[a-z0-9][a-z0-9+.-]*)_(?P<version>[^_]+)_'
@@ -45,9 +58,16 @@ _VERSION_RE = re.compile(
 INSTALL_ORDER = ['isle-mesh-cli', 'polari-shell-core',
                  'isle-app-store', 'polari-isle']
 
+#: The TRUE MERGED all-in-one deb (dl-3): Provides/Conflicts every
+#: member, so a user picks Option A OR Option B — never both.
+COMBINED_NAME = 'polari-complete'
+
 #: Normal-user names + one-liners; a staged package outside this map
 #: still renders (raw name, no blurb) — the page never hides a file.
 PACKAGE_INFO = {
+    COMBINED_NAME: ('Polari Complete — everything in one file',
+                    'The whole suite as a single installer — all '
+                    'four pieces below, merged into one file.'),
     'isle-mesh-cli': ('Isle Mesh — networking',
                       'Connects your computer to your isle\'s own '
                       'private network.'),
@@ -61,6 +81,20 @@ PACKAGE_INFO = {
                     'setup.'),
 }
 
+#: /downloads-specific explainer alongside the shared set. Two
+#: phrasings: the piecewise-only page has no "options" to refer to.
+_ORDER_ANSWER = (
+    'Each piece builds on the one before it. Your computer\'s '
+    'installer checks that the earlier pieces are already in place '
+    'but cannot download them for you &mdash; so going top to '
+    'bottom is what makes every install succeed on the first try.')
+EXPLAIN_ORDER = ('Why does the install order matter?',
+                 _ORDER_ANSWER)
+EXPLAIN_ORDER_TWO_OPTION = (
+    'Why does the install order matter in Option B?',
+    _ORDER_ANSWER + ' Option A avoids the question entirely: one '
+    'file, one install.')
+
 
 def downloads_dir():
     configured = os.environ.get('POLARI_DOWNLOADS_DIR', '')
@@ -72,7 +106,9 @@ def downloads_dir():
 
 
 def staged_debs():
-    """[{file, name, version, arch, size}] in install order."""
+    """[{file, name, version, arch, size, built}] — install order
+    first, then extras (the combined deb rides in the extras;
+    render_page pulls it out by name)."""
     directory = downloads_dir()
     found = {}
     try:
@@ -89,6 +125,8 @@ def staged_debs():
                 'version': match.group('version'),
                 'arch': match.group('arch'),
                 'size': os.path.getsize(path),
+                'built': datetime.date.fromtimestamp(
+                    os.path.getmtime(path)).isoformat(),
             }
     except FileNotFoundError:
         return []
@@ -109,50 +147,138 @@ def resolve_download(filename):
     return path if os.path.isfile(path) else None
 
 
-def _human_size(size):
-    for unit in ('B', 'KB', 'MB', 'GB'):
-        if size < 1024 or unit == 'GB':
-            return (f'{size:.0f} {unit}' if unit == 'B'
-                    else f'{size / 1.0:.1f} {unit}')
-        size /= 1024.0
-    return f'{size:.1f} GB'
-
-
-def render_page(debs, instance_title='Polari'):
-    """The full HTML document. Version headline = the store deb's
-    (the user-facing app), falling back to the first staged."""
-    title = html.escape(instance_title)
-    if not debs:
-        body = ('<header class="hero"><h1>Downloads</h1></header>'
-                '<div class="card"><p>No installers are staged on '
-                'this instance yet.</p>'
-                '<p class="note">If you run this deployment: build '
-                'the bundle (<code>./build-polari-isle-deb.sh</code>) '
-                'and stage <code>.generated/debs/</code> into the '
-                'downloads directory '
-                '(<code>POLARI_DOWNLOADS_DIR</code>).</p></div>')
-        return _wrap(title, body)
-    headline = next((d for d in debs
-                     if d['name'] == 'isle-app-store'), debs[0])
-    cards = ''
-    for index, d in enumerate(debs, start=1):
-        display, blurb = PACKAGE_INFO.get(
-            d['name'], (d['name'], ''))
-        blurb_html = (f'<p class="blurb">{html.escape(blurb)}</p>'
-                      if blurb else '')
-        cards += f'''
+def _card(deb, badge_html):
+    display, blurb = PACKAGE_INFO.get(deb['name'], (deb['name'], ''))
+    blurb_html = (f'<p class="blurb">{html.escape(blurb)}</p>'
+                  if blurb else '')
+    return f'''
 <li class="dl-card">
-  <span class="ordinal" aria-hidden="true">{index}</span>
+  {badge_html}
   <span class="dl-info">
     <span class="dl-name">{html.escape(display)}</span>
     {blurb_html}
-    <span class="dl-meta">version {html.escape(d["version"])}
-      &middot; {_human_size(d["size"])}
-      &middot; <code>{html.escape(d["file"])}</code></span>
+    <span class="dl-meta">version {html.escape(deb["version"])}
+      &middot; {human_size(deb["size"])}
+      &middot; <code>{html.escape(deb["file"])}</code></span>
+    {prepped_provenance(deb["built"])}
   </span>
-  <a class="dl" href="/downloads/{html.escape(d["file"])}"
+  <a class="dl" href="/downloads/{html.escape(deb["file"])}"
      download>Download</a>
 </li>'''
+
+
+def _explainers(two_option=False):
+    order = (EXPLAIN_ORDER_TWO_OPTION if two_option
+             else EXPLAIN_ORDER)
+    return explainer_block([EXPLAIN_DEB, order,
+                            EXPLAIN_PREPPED_VS_DEMAND,
+                            EXPLAIN_INTERNET, EXPLAIN_DISK])
+
+
+def _footer_notes():
+    return ('<p class="note">Installing from a CD/DVD or USB stick '
+            'with no internet is a separate download — not '
+            'available yet.</p>')
+
+
+def _first_start(step_no=''):
+    badge = (f'<span class="step-no">{step_no}</span>' if step_no
+             else '')
+    return f'''
+<section class="step">
+<h2>{badge}First start</h2>
+<p>Open <strong>Isle App Store</strong> from your applications
+   menu. It will walk you through creating your own isle or
+   joining an existing one — passwords are asked by the system
+   itself, never typed into a terminal.</p>
+</section>'''
+
+
+def _piecewise_cards(pieces):
+    cards = ''
+    for index, deb in enumerate(pieces, start=1):
+        cards += _card(deb, f'<span class="ordinal" '
+                            f'aria-hidden="true">{index}</span>')
+    return cards
+
+
+def _render_two_option(title, headline, combined, pieces):
+    option_b = ''
+    if pieces:
+        option_b = f'''
+<section class="step">
+<p class="option-tag">Option B</p>
+<h2>Piece by piece</h2>
+<p class="option-note">The same software split into its parts —
+   use this if you want only some pieces or need to reinstall
+   one. Skip it if you used Option A: the two can't be installed
+   together, and the installer will say so if you try.</p>
+<ol class="dl-list">{_piecewise_cards(pieces)}
+</ol>
+<ol class="howto">
+<li>Download the files, then open your
+    <strong>Downloads</strong> folder.</li>
+<li>Double-click the first file and choose
+    <strong>Install</strong>. Wait for it to finish.</li>
+<li>Repeat for each file, top to bottom — the order matters,
+    because each one builds on the previous.</li>
+<li>If double-clicking opens an archive viewer instead of an
+    installer: right-click the file &rarr;
+    <em>Open With</em> &rarr; <em>Software Install</em>.</li>
+</ol>
+</section>'''
+    body = f'''
+<header class="hero">
+<h1>Install {title} on your computer</h1>
+<p class="version">Current version
+   <strong>{html.escape(headline["version"])}</strong></p>
+<p class="lede">Works on Ubuntu and other Debian-family Linux.
+   Install by clicking — no terminal needed. Your computer
+   fetches everything else it needs from the internet during
+   the install.</p>
+</header>
+
+<section class="step">
+<p class="option-tag">Option A &middot; recommended</p>
+<h2>One file installs everything</h2>
+<ol class="dl-list">
+<li class="dl-card hero-card">
+  <span class="dl-info">
+    <span class="dl-name">{html.escape(
+        PACKAGE_INFO[COMBINED_NAME][0])}</span>
+    <p class="blurb">{html.escape(
+        PACKAGE_INFO[COMBINED_NAME][1])}</p>
+    <span class="dl-meta">version
+      {html.escape(combined["version"])}
+      &middot; {human_size(combined["size"])}
+      &middot; <code>{html.escape(combined["file"])}</code></span>
+    {prepped_provenance(combined["built"])}
+  </span>
+  <a class="dl" href="/downloads/{html.escape(combined["file"])}"
+     download>Download</a>
+</li>
+</ol>
+<ol class="howto">
+<li>Download the file, then double-click it in your
+    <strong>Downloads</strong> folder and choose
+    <strong>Install</strong>.</li>
+<li>That's the whole install — this one file contains
+    everything.</li>
+<li>If double-clicking opens an archive viewer instead of an
+    installer: right-click the file &rarr;
+    <em>Open With</em> &rarr; <em>Software Install</em>.</li>
+</ol>
+</section>
+{option_b}
+{_first_start()}
+{_explainers(two_option=True)}
+{_footer_notes()}
+'''
+    return wrap_page(title, body)
+
+
+def _render_piecewise_only(title, headline, pieces):
+    """The dl-1b layout — no combined deb staged."""
     body = f'''
 <header class="hero">
 <h1>Install {title} on your computer</h1>
@@ -166,7 +292,7 @@ def render_page(debs, instance_title='Polari'):
 
 <section class="step">
 <h2><span class="step-no">1</span>Download these files</h2>
-<ol class="dl-list">{cards}
+<ol class="dl-list">{_piecewise_cards(pieces)}
 </ol>
 </section>
 
@@ -184,81 +310,37 @@ def render_page(debs, instance_title='Polari'):
     <em>Open With</em> &rarr; <em>Software Install</em>.</li>
 </ol>
 </section>
-
-<section class="step">
-<h2><span class="step-no">3</span>First start</h2>
-<p>Open <strong>Isle App Store</strong> from your applications
-   menu. It will walk you through creating your own isle or
-   joining an existing one — passwords are asked by the system
-   itself, never typed into a terminal.</p>
-</section>
-
-<p class="note">Installing from a CD/DVD or USB stick with no
-   internet is a separate download — not available yet.</p>
+{_first_start('3')}
+{_explainers()}
+{_footer_notes()}
 '''
-    return _wrap(title, body)
+    return wrap_page(title, body)
 
 
-def _wrap(title, body):
-    return f'''<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{title} — Downloads</title>
-<style>
- :root{{--bg:#fcfcfb;--card:#ffffff;--ink:#1d1d1c;--ink2:#5d5d58;
-   --line:#e4e4df;--accent:#2a78d6;--accent-ink:#ffffff;
-   --chip:#f1f1ec}}
- @media (prefers-color-scheme: dark){{
-   :root{{--bg:#1a1a19;--card:#232322;--ink:#ececea;--ink2:#a5a5a0;
-     --line:#3a3a38;--accent:#3987e5;--accent-ink:#ffffff;
-     --chip:#2d2d2b}}}}
- *{{box-sizing:border-box}}
- body{{font-family:system-ui,sans-serif;max-width:46rem;
-   margin:0 auto;padding:2.5rem 1.25rem 3rem;line-height:1.55;
-   color:var(--ink);background:var(--bg)}}
- h1{{font-size:1.7rem;margin:0 0 .5rem;line-height:1.25}}
- h2{{font-size:1.12rem;margin:0 0 .8rem;display:flex;
-   align-items:center;gap:.6rem}}
- code{{background:var(--chip);padding:.08rem .35rem;
-   border-radius:4px;font-size:.86em}}
- .hero{{margin-bottom:2rem}}
- .version{{margin:.1rem 0 .9rem;color:var(--ink2)}}
- .version strong{{color:var(--ink);background:var(--chip);
-   border:1px solid var(--line);border-radius:999px;
-   padding:.12rem .7rem;margin-left:.25rem}}
- .lede{{margin:0;color:var(--ink2)}}
- .step{{background:var(--card);border:1px solid var(--line);
-   border-radius:12px;padding:1.1rem 1.25rem;margin:0 0 1.1rem}}
- .step-no{{flex:none;width:1.7rem;height:1.7rem;border-radius:50%;
-   background:var(--accent);color:var(--accent-ink);
-   font-size:.95rem;font-weight:700;display:inline-flex;
-   align-items:center;justify-content:center}}
- ol.dl-list{{list-style:none;margin:0;padding:0}}
- .dl-card{{display:flex;align-items:center;gap:.9rem;
-   padding:.8rem .2rem;border-top:1px solid var(--line)}}
- .dl-card:first-child{{border-top:0}}
- .ordinal{{flex:none;width:1.5rem;height:1.5rem;border-radius:50%;
-   border:2px solid var(--accent);color:var(--accent);
-   font-size:.82rem;font-weight:700;display:inline-flex;
-   align-items:center;justify-content:center}}
- .dl-info{{flex:1;min-width:0;display:flex;flex-direction:column;
-   gap:.1rem}}
- .dl-name{{font-weight:650}}
- .blurb{{margin:0;color:var(--ink2);font-size:.92em}}
- .dl-meta{{color:var(--ink2);font-size:.82em;
-   overflow-wrap:anywhere}}
- a.dl{{flex:none;background:var(--accent);color:var(--accent-ink);
-   text-decoration:none;font-weight:650;padding:.5rem 1.1rem;
-   border-radius:8px}}
- a.dl:hover{{filter:brightness(1.08)}}
- ol.howto{{margin:0;padding-left:1.3rem}}
- ol.howto li{{margin:.4rem 0}}
- .note{{color:var(--ink2);font-size:.9em}}
- @media (max-width:480px){{
-   .dl-card{{flex-wrap:wrap}}
-   .dl-info{{flex-basis:calc(100% - 2.4rem)}}
-   a.dl{{margin-left:2.4rem}}}}
-</style></head><body>{body}</body></html>'''
+def render_page(debs, instance_title='Polari'):
+    """The full HTML document. Version headline = the store deb's
+    (the user-facing app), falling back to the combined deb, then
+    the first staged."""
+    title = html.escape(instance_title)
+    if not debs:
+        body = ('<header class="hero"><h1>Downloads</h1></header>'
+                '<div class="card"><p>No installers are staged on '
+                'this instance yet.</p>'
+                '<p class="note">If you run this deployment: build '
+                'the bundle (<code>./build-polari-isle-deb.sh</code>) '
+                'and stage <code>.generated/debs/</code> into the '
+                'downloads directory '
+                '(<code>POLARI_DOWNLOADS_DIR</code>).</p></div>')
+        return wrap_page(title, body)
+    combined = next((d for d in debs if d['name'] == COMBINED_NAME),
+                    None)
+    pieces = [d for d in debs if d['name'] != COMBINED_NAME]
+    headline = next((d for d in debs
+                     if d['name'] == 'isle-app-store'),
+                    combined or debs[0])
+    if combined:
+        return _render_two_option(title, headline, combined, pieces)
+    return _render_piecewise_only(title, headline, pieces)
 
 
 class DownloadsPage(treeObject):
