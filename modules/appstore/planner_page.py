@@ -248,8 +248,10 @@ def _device_bundle(device, net):
                  '<strong>Polari Complete</strong> — one file, the '
                  'whole suite (every module included).</li>')
         if device['modules']:
+            route = ('/downloads/apps/get-offline' if net == 'no'
+                     else '/downloads/apps/get')
             links = ', '.join(
-                f'<a href="/downloads/apps/get/{m}">{m}</a>'
+                f'<a href="{route}/{m}">{m}</a>'
                 for m in device['modules'])
             items += (f'<li>Enable here (topology): '
                       f'{links} <span class="dl-meta">— app-deb '

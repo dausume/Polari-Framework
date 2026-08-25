@@ -55,10 +55,13 @@ import json
 import os
 import re
 import statistics
+import subprocess
 import tarfile
 import time
 
 from moduleService import module_registry
+
+from appstore import module_requirements as modreqs
 
 BASE_VERSION = '0.1.0'
 _DEB_NAME_RE = re.compile(r'^[a-z0-9][a-z0-9+.-]+$')
@@ -331,11 +334,41 @@ def build_shared_deb(debname, group, pool):
     return filename
 
 
-def generate(module, root=None, analysis=None):
+def _fetch_wheels(libraries, dest):
+    """Download wheels for the OFFLINE flavor: installed libraries
+    pinned to their measured versions, unmeasured ones by name.
+    Returns sorted wheel filenames; raises RuntimeError with pip's
+    words on failure (caller renders the named refusal). Module-
+    level seam so selftests can substitute a fake fetcher."""
+    specs = [f'{l["name"]}=={l["version"]}' if l['installed']
+             else l['name'] for l in libraries]
+    if not specs:
+        return []
+    os.makedirs(dest, exist_ok=True)
+    result = subprocess.run(
+        ['python3', '-m', 'pip', 'download', '--no-deps',
+         '-d', dest] + specs,
+        capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(
+            'wheel download failed: '
+            + (result.stderr or result.stdout).strip()[-400:])
+    return sorted(os.listdir(dest))
+
+
+def generate(module, root=None, analysis=None, flavor='online'):
     """Generate module's deb (+ any shared debs it depends on) into
-    the pool. Returns {'ok': True, file, path, version, bytes,
-    seconds, cached, sharedFiles: [...]} or {'ok': False, 'refusal':
-    sentence} — named refusals, never exceptions, for bad input."""
+    the pool. flavor='online' (default): the small deb — libraries
+    + engines install DYNAMICALLY after download, and the manifest
+    says exactly what and how big. flavor='offline': the deb
+    CARRIES the pip-library wheels under wheels/ for no-internet
+    installs (package name gains -offline + Provides/Conflicts/
+    Replaces the online name so the two can never coexist); system
+    engines can never ride a wheel — the manifest names them as
+    coming from the distro/offline media instead. Returns
+    {'ok': True, file, path, version, bytes, seconds, cached,
+    sharedFiles: [...]} or {'ok': False, 'refusal': sentence} —
+    named refusals, never exceptions, for bad input."""
     started = time.time()
     steps = []
 
@@ -343,6 +376,11 @@ def generate(module, root=None, analysis=None):
         steps.append({'step': name,
                       'seconds': round(time.time() - t0, 3)})
 
+    if flavor not in ('online', 'offline'):
+        return {'ok': False,
+                'refusal': f'unknown flavor "{flavor}" — online '
+                           '(deps install after download) or '
+                           'offline (deps ride inside)'}
     t0 = time.time()
     analysis = analysis or analyze(root)
     if module in analysis['refusals']:
@@ -357,10 +395,35 @@ def generate(module, root=None, analysis=None):
     files = analysis['payloads'][module]
     shared_targets = analysis['sharedTargets'].get(module, {})
     shared_names = analysis['sharedByModule'].get(module, [])
-    content_hash = _content_hash(files, shared_targets)
-    step('analyze payload + shared overlap', t0)
+    requirements = modreqs.module_requirements(module, root)
+    step('analyze payload + shared overlap + requirements', t0)
 
-    debname = deb_package_name(module)
+    wheels = []
+    if flavor == 'offline':
+        t0 = time.time()
+        wheel_dir = os.path.join(work_dir(), 'wheels', module)
+        fresh = (os.path.isdir(wheel_dir) and os.listdir(wheel_dir)
+                 and time.time() - os.path.getmtime(wheel_dir)
+                 < ttl_seconds())
+        try:
+            names = (sorted(os.listdir(wheel_dir)) if fresh
+                     else _fetch_wheels(requirements['libraries'],
+                                        wheel_dir))
+        except RuntimeError as error:
+            return {'ok': False, 'refusal': f'{module}: {error}'}
+        wheels = [(name, os.path.join(wheel_dir, name),
+                   os.path.getsize(os.path.join(wheel_dir, name)))
+                  for name in names]
+        step('fetch dependency wheels'
+             + (' (cached)' if fresh else ''), t0)
+
+    content_hash = hashlib.sha256(
+        (_content_hash(files, shared_targets) + flavor
+         + ''.join(f'{n}:{s}' for n, _, s in wheels)).encode()
+    ).hexdigest()
+
+    debname = deb_package_name(module) + (
+        '-offline' if flavor == 'offline' else '')
     version = f'{BASE_VERSION}+g{content_hash[:10]}'
     filename = f'{debname}_{version}_all.deb'
     pool = pool_dir()
@@ -395,6 +458,12 @@ def generate(module, root=None, analysis=None):
             payload_bytes += size
         if not rel.endswith('.py'):
             data_files.append(rel)
+    for name, abspath, size in wheels:
+        arcname = f'{module_root}/wheels/{name}'
+        entries.extend(_dir_chain(seen, arcname))
+        with open(abspath, 'rb') as fh:
+            entries.append((arcname, 'file', fh.read()))
+        payload_bytes += size
     step('package module files', t0)
 
     t0 = time.time()
@@ -410,6 +479,21 @@ def generate(module, root=None, analysis=None):
         'licence': 'GPL-3.0-or-later',
         'dataFiles': data_files,
         'sharedDepends': shared_names,
+        'flavor': flavor,
+        'requirements': {
+            **requirements,
+            'delivery': ('carried-wheels: pip libraries ride in '
+                         'wheels/ — install with pip install '
+                         '--no-index --find-links wheels/; '
+                         'SYSTEM engines never ride a wheel, '
+                         'they come from the distro or the '
+                         'offline media closure'
+                         if flavor == 'offline' else
+                         'dynamic-after-install: libraries + '
+                         'engines are fetched from the internet '
+                         'when the app is admitted'),
+            'wheels': [name for name, _, _ in wheels],
+        },
         'admit': ('staged under /var/lib/polari/apps/ — goes live '
                   'through the dynamic-modules admit machinery; '
                   'until that merges, admission is a manual step '
@@ -427,9 +511,13 @@ def generate(module, root=None, analysis=None):
         for name in shared_names)
     description = entry.get('description',
                             f'Polari module {module}')
+    online_name = deb_package_name(module)
     size_bytes = _write_deb(path, [
         ('Package', debname),
         ('Version', version),
+        ('Provides', online_name if flavor == 'offline' else ''),
+        ('Conflicts', online_name if flavor == 'offline' else ''),
+        ('Replaces', online_name if flavor == 'offline' else ''),
         ('Architecture', 'all'),
         ('Maintainer', 'Polari Suite <downloads@polari>'),
         ('Installed-Size',
@@ -442,7 +530,8 @@ def generate(module, root=None, analysis=None):
     step('assemble deb', t0)
 
     seconds = round(time.time() - started, 3)
-    _append_record({'module': module, 'contentHash': content_hash,
+    _append_record({'module': module, 'flavor': flavor,
+                    'contentHash': content_hash,
                     'bytes': size_bytes, 'seconds': seconds,
                     'steps': steps,
                     'generatedAt': int(started)})
@@ -476,11 +565,14 @@ def generation_records(module=None):
     return records
 
 
-def estimate_seconds(module, recent=10):
-    """Median of the module's recent generation times, or None —
-    the page renders None as the honest 'never generated yet'."""
+def estimate_seconds(module, recent=10, flavor='online'):
+    """Median of the module's recent generation times for ONE
+    flavor (offline runs fetch wheels — a different animal), or
+    None — the page renders None as the honest 'never generated
+    yet'. Legacy rows without a flavor count as online."""
     times = [row['seconds'] for row in generation_records(module)
-             if isinstance(row.get('seconds'), (int, float))]
+             if isinstance(row.get('seconds'), (int, float))
+             and row.get('flavor', 'online') == flavor]
     return (round(statistics.median(times[-recent:]), 1)
             if times else None)
 

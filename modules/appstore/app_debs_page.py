@@ -35,9 +35,10 @@ import os
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from appstore import app_deb_builder as builder
+from appstore import module_requirements as modreqs
 from appstore.downloads_shared import (
     EXPLAIN_DEB, EXPLAIN_DISK, EXPLAIN_PREPPED_VS_DEMAND,
-    explainer_block, on_demand_provenance, wrap_page)
+    explainer_block, human_size, on_demand_provenance, wrap_page)
 
 GENERATION_STEPS = ('analyze shared payload &rarr; package module '
                     'files &rarr; write manifest &rarr; assemble '
@@ -61,6 +62,19 @@ EXPLAIN_ADMIT = (
     'manually. This page will say so until that changes; nothing '
     'happens invisibly.')
 
+EXPLAIN_FLAVORS = (
+    'Online deb vs offline deb — which do I want?',
+    '<strong>Online</strong> is small: it carries the app itself, '
+    'and the libraries it needs are fetched from the internet '
+    'when the app is set up — each card lists those libraries '
+    'and their measured sizes, so nothing downloads invisibly. '
+    '<strong>Offline</strong> carries the pip libraries INSIDE '
+    'the deb (bigger, slower to generate — wheels are fetched at '
+    'build time), for machines that will have no internet. '
+    'System engines (e.g. a SPICE simulator) can never ride '
+    'inside an app deb — they come from the distro\'s packages '
+    'or the offline install media, and each card names them.')
+
 EXPLAIN_SHARED = (
     'What are the "shared payload" files some apps mention?',
     'When two apps contain identical files, those files are '
@@ -70,11 +84,51 @@ EXPLAIN_SHARED = (
     'when it applies.')
 
 
-def _estimate_text(module):
-    seconds = builder.estimate_seconds(module)
+def _estimate_text(module, flavor='online'):
+    seconds = builder.estimate_seconds(module, flavor=flavor)
     if seconds is None:
         return ('never generated yet — the first run measures it')
     return f'usually ~{seconds:g} s'
+
+
+def _requirements_lines(module, payload_bytes):
+    """The honest space accounting: app payload + measured library
+    closure + engines — file counts say nothing about what an app
+    really needs to operate."""
+    reqs = modreqs.module_requirements(module)
+    parts = [f'app payload {human_size(payload_bytes)}']
+    libs = reqs['libraries']
+    if libs:
+        text = (f'{len(libs)} librar'
+                + ('y' if len(libs) == 1 else 'ies')
+                + f' ({human_size(reqs["librariesBytes"])} '
+                'measured'
+                + (f', {reqs["librariesUnmeasured"]} unmeasured '
+                   'here' if reqs['librariesUnmeasured'] else '')
+                + ')')
+        parts.append(text)
+    else:
+        parts.append('no extra libraries')
+    if reqs['polariRequires']:
+        parts.append('needs modules: '
+                     + ', '.join(reqs['polariRequires']))
+    line = ('<span class="dl-meta">'
+            + html.escape(' · '.join(parts)) + '</span>')
+    if reqs['engines']:
+        engine_bits = []
+        for engine in reqs['engines']:
+            size = (f' {human_size(engine["bytes"])}'
+                    if engine.get('bytes') else '')
+            state = ('' if engine['present']
+                     else ' — not on this server')
+            engine_bits.append(
+                f'{engine["name"]} ({engine["kind"]}{size}'
+                f'{state})')
+        line += ('<span class="dl-meta">engines: '
+                 + html.escape('; '.join(engine_bits))
+                 + ' — system engines come from the distro or '
+                 'offline media, never inside an app deb</span>')
+    return line, reqs
 
 
 def _module_card(module, entry, analysis):
@@ -102,19 +156,30 @@ def _module_card(module, entry, analysis):
             f'{html.escape(name)}</a>' for name in shared_names)
         shared_links = (f'<span class="dl-meta">Install first '
                         f'(shared payload): {links}</span>')
-    file_count = len(analysis['payloads'].get(module, []))
+    payload_bytes = sum(
+        size for _, _, size, _
+        in analysis['payloads'].get(module, []))
+    req_lines, _ = _requirements_lines(module, payload_bytes)
     return f'''
 <li class="dl-card">
   <span class="dl-info">
     <span class="dl-name">{html.escape(module)}</span>
     {blurb}
-    <span class="dl-meta">{file_count} files &middot; steps on
-      download: {GENERATION_STEPS}</span>
+    {req_lines}
+    <span class="dl-meta">steps on download:
+      {GENERATION_STEPS}</span>
     {shared_links}
     {on_demand_provenance(_estimate_text(module))}
+    <span class="dl-meta">offline flavor:
+      {html.escape(_estimate_text(module, 'offline'))}</span>
   </span>
+  <span class="dl-info" style="flex:none;gap:.4rem">
   <a class="dl" href="/downloads/apps/get/{html.escape(module)}"
-     download>Download</a>
+     download>Online deb</a>
+  <a class="dl"
+     href="/downloads/apps/get-offline/{html.escape(module)}"
+     download>Offline deb</a>
+  </span>
 </li>'''
 
 
@@ -162,7 +227,7 @@ def render_page(instance_title='Polari', root=None):
     the card explainers below say how it becomes live.</li>
 </ol>
 </section>
-{explainer_block([EXPLAIN_DEB, EXPLAIN_WAIT,
+{explainer_block([EXPLAIN_DEB, EXPLAIN_FLAVORS, EXPLAIN_WAIT,
                   EXPLAIN_PREPPED_VS_DEMAND, EXPLAIN_SHARED,
                   EXPLAIN_ADMIT, EXPLAIN_DISK])}
 <p class="note"><a href="/downloads">&larr; Back to Downloads</a>
@@ -198,6 +263,8 @@ class AppDebsPage(treeObject):
             add = polServer.falconServer.add_route
             add('/downloads/apps', self, suffix='page')
             add('/downloads/apps/get/{module}', self, suffix='get')
+            add('/downloads/apps/get-offline/{module}', self,
+                suffix='get_offline')
             add('/downloads/apps/shared/{debname}', self,
                 suffix='shared')
 
@@ -206,9 +273,9 @@ class AppDebsPage(treeObject):
         response.content_type = 'text/html; charset=utf-8'
         response.text = render_page()
 
-    def on_get_get(self, request, response, module):
+    def _generate_and_stream(self, response, module, flavor):
         builder.purge_expired()
-        result = builder.generate(module)
+        result = builder.generate(module, flavor=flavor)
         if not result.get('ok'):
             _refuse(response, result['refusal'])
             return
@@ -216,6 +283,12 @@ class AppDebsPage(treeObject):
         if builder.ttl_seconds() <= 0:
             # delete-after-delivery mode: no retry window asked for
             os.remove(result['path'])
+
+    def on_get_get(self, request, response, module):
+        self._generate_and_stream(response, module, 'online')
+
+    def on_get_get_offline(self, request, response, module):
+        self._generate_and_stream(response, module, 'offline')
 
     def on_get_shared(self, request, response, debname):
         builder.purge_expired()
