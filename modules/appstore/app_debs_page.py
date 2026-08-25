@@ -164,6 +164,35 @@ def _module_card(module, entry, analysis, flavor='online'):
     mode_note = ('<span class="dl-meta">this flavor carries the '
                  'pip libraries inside the deb</span>'
                  if flavor == 'offline' else '')
+    ready = builder.pool_file_for(module, flavor)
+    job = builder.generation_job(module, flavor)
+    if ready:
+        dl_est = builder.download_estimate_seconds(ready['bytes'])
+        dl_text = (('download usually &lt;1 s' if dl_est < 1 else
+                    f'download usually ~{dl_est:g} s')
+                   if dl_est is not None else
+                   'no download timing data yet — the first one '
+                   'measures it')
+        state = (f'<span class="prov prov-prepped">READY — '
+                 f'generated {ready["ageSeconds"] // 60} min ago, '
+                 f'held for the retry window · '
+                 f'{human_size(ready["bytes"])} · '
+                 f'{html.escape(dl_text)}</span>')
+        button = (f'<a class="dl" href="/downloads/apps/file/'
+                  f'{html.escape(ready["file"])}" download>'
+                  'Download</a>')
+    elif job and job['state'] == 'running':
+        state = (f'<span class="prov prov-demand">GENERATING NOW '
+                 f'— {html.escape(job["step"])}</span>')
+        button = (f'<a class="dl" href="/downloads/apps/status/'
+                  f'{html.escape(module)}?flavor={flavor}">'
+                  'View progress</a>')
+    else:
+        state = on_demand_provenance(_estimate_text(module,
+                                                    flavor))
+        button = (f'<a class="dl" href="/downloads/apps/status/'
+                  f'{html.escape(module)}?flavor={flavor}">'
+                  'Generate &amp; download</a>')
     return f'''
 <li class="dl-card">
   <span class="dl-info">
@@ -173,11 +202,9 @@ def _module_card(module, entry, analysis, flavor='online'):
     <span class="dl-meta">steps on download:
       {GENERATION_STEPS}</span>
     {shared_links}{mode_note}
-    {on_demand_provenance(_estimate_text(module, flavor))}
+    {state}
   </span>
-  <a class="dl"
-     href="/downloads/apps/status/{html.escape(module)}?flavor={flavor}"
-     >Download</a>
+  {button}
 </li>'''
 
 
@@ -332,7 +359,9 @@ class AppDebsPage(treeObject):
         if job['state'] == 'running':
             elapsed = int(time.time() - job['startedAt'])
             head = '<meta http-equiv="refresh" content="2">'
-            body = (f'<header class="hero"><h1>Generating the '
+            body = ('<header class="hero">'
+                    '<p class="option-tag">⚙ GENERATING</p>'
+                    f'<h1>Generating the '
                     f'{flavor} deb for {title}&hellip;</h1>'
                     '<p class="lede">Your download was initiated '
                     '— this page updates every 2 seconds and the '
@@ -348,16 +377,28 @@ class AppDebsPage(treeObject):
             url = f'/downloads/apps/file/{filename}'
             head = ('<meta http-equiv="refresh" '
                     f'content="0;url={url}">')
-            body = (f'<header class="hero"><h1>{title} '
-                    f'({flavor}) is ready</h1>'
-                    '<p class="lede">Your download starts now — '
-                    f'if it doesn\'t, <a href="{url}" download>'
-                    'click here</a>. The file stays available '
-                    'for a short retry window, then the server '
-                    'copy is removed.</p></header>'
+            dl_est = builder.download_estimate_seconds(
+                job['result']['bytes'])
+            dl_text = (('usually <1 s' if dl_est < 1 else
+                        f'usually ~{dl_est:g} s at your typical '
+                        'speed')
+                       if dl_est is not None else
+                       'no download timing data yet — this one '
+                       'measures it')
+            body = ('<header class="hero">'
+                    '<p class="option-tag">⬇ DOWNLOADING</p>'
+                    f'<h1>{title} ({flavor}) is ready — '
+                    'downloading now</h1>'
+                    '<p class="lede">Generation finished; the '
+                    'download starts by itself — if it doesn\'t, '
+                    f'<a href="{url}" download>click here</a>. '
+                    'The file stays available for a short retry '
+                    'window, then the server copy is removed.'
+                    '</p></header>'
                     f'<p class="note">{html.escape(filename)} '
                     f'&middot; generated in '
-                    f'{job["result"]["seconds"]}s</p>' + back)
+                    f'{job["result"]["seconds"]}s &middot; '
+                    f'{html.escape(dl_text)}</p>' + back)
         else:
             body = (f'<header class="hero"><h1>Could not '
                     f'generate {title}</h1></header>'
@@ -375,7 +416,16 @@ class AppDebsPage(treeObject):
                     'no such generated deb — it may have aged '
                     'out; start again from /downloads/apps')
             return
-        _stream_deb(response, path, filename)
+        # dl-9: stream + MEASURE the transfer — the WSGI server
+        # closes the stream when the client has the last byte, so
+        # close() timestamps a real download duration.
+        size = os.path.getsize(path)
+        response.content_type = (
+            'application/vnd.debian.binary-package')
+        response.downloadable_as = filename
+        response.content_length = size
+        response.stream = _TimedStream(path, filename, size)
+
 
     def on_get_shared(self, request, response, debname):
         builder.purge_expired()
@@ -393,3 +443,29 @@ class AppDebsPage(treeObject):
         _stream_deb(response, path, filename)
         if builder.ttl_seconds() <= 0:
             os.remove(path)
+
+
+class _TimedStream:
+    """File wrapper whose close() records the measured download
+    into the generation ledger (builder.record_download). The WSGI
+    server closes it once the client holds the last byte, so the
+    duration is a real transfer measurement."""
+
+    def __init__(self, path, filename, size):
+        self._fh = open(path, 'rb')
+        self._filename = filename
+        self._size = size
+        self._started = time.time()
+        self._closed = False
+
+    def read(self, n=-1):
+        return self._fh.read(n)
+
+    def close(self):
+        if not self._closed:
+            self._closed = True
+            elapsed = time.time() - self._started
+            if elapsed > 0:
+                builder.record_download(self._filename,
+                                        self._size, elapsed)
+        self._fh.close()

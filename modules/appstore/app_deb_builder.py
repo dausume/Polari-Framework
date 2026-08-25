@@ -573,6 +573,49 @@ def generation_records(module=None):
     return records
 
 
+def record_download(filename, size_bytes, seconds):
+    """dl-9: DOWNLOAD times are measured too — a row per completed
+    transfer, so the page can predict from history instead of
+    guessing bandwidth."""
+    _append_record({'kind': 'download', 'file': filename,
+                    'bytes': size_bytes,
+                    'seconds': round(seconds, 3),
+                    'generatedAt': int(time.time())})
+
+
+def download_estimate_seconds(size_bytes, recent=10):
+    """Predicted transfer time for size_bytes from the median
+    measured throughput, or None — no prior data means SAY no
+    prior data, never invent a speed."""
+    rates = [row['bytes'] / row['seconds']
+             for row in generation_records()
+             if row.get('kind') == 'download'
+             and row.get('seconds') and row.get('bytes')]
+    if not rates or not size_bytes:
+        return None
+    return round(size_bytes / statistics.median(rates[-recent:]),
+                 1)
+
+
+def pool_file_for(module, flavor='online'):
+    """The unexpired pool deb for module+flavor, or None —
+    {'file', 'bytes', 'ageSeconds'}. Drives the button honesty:
+    an already-generated app offers Download, not Generate."""
+    debname = deb_package_name(module) + (
+        '-offline' if flavor == 'offline' else '')
+    try:
+        for entry in sorted(os.listdir(pool_dir())):
+            if entry.startswith(debname + '_'):
+                path = os.path.join(pool_dir(), entry)
+                return {'file': entry,
+                        'bytes': os.path.getsize(path),
+                        'ageSeconds': int(time.time()
+                                          - os.path.getmtime(path))}
+    except FileNotFoundError:
+        pass
+    return None
+
+
 def estimate_seconds(module, recent=10, flavor='online'):
     """Median of the module's recent generation times for ONE
     flavor (offline runs fetch wheels — a different animal), or

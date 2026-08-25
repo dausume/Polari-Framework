@@ -246,14 +246,21 @@ def main():
               est_none is None
               and isinstance(est_real, float))
 
+        # age solo's pool copy out so the page shows BOTH states:
+        # alpha READY (download button), solo regenerate-with-
+        # history, beta never-generated
+        os.remove(os.path.join(builder.pool_dir(),
+                               builder.pool_file_for('solo')
+                               ['file']))
         page = page_mod.render_page('Polari Demo', root=root)
         check('the page lists the REGISTRY, not files on disk: '
-              'ghost renders as named-unavailable, downloadable '
-              'modules get generate links',
+              'ghost renders as named-unavailable; a READY app '
+              'offers the direct Download, an aged-out one offers '
+              'Generate & download again',
               'ghost' in page
               and 'Not available here' in page
-              and '/downloads/apps/status/alpha?flavor=online'
-              in page
+              and 'READY — ' in page
+              and '/downloads/apps/file/' in page
               and '/downloads/apps/status/solo?flavor=online'
               in page)
         check('per-item transparency: on-demand provenance, the '

@@ -156,6 +156,32 @@ def main():
           'unknown flavor' in builder.generate(
               'alpha', root=root, flavor='floppy')['refusal'])
 
+    # --- dl-9: pool awareness + measured download times ---
+    check('pool_file_for is flavor-exact: the online pool entry '
+          'never answers for offline and vice versa',
+          builder.pool_file_for('alpha', 'online')['file']
+          == online['file']
+          and builder.pool_file_for('alpha', 'offline')['file']
+          == offline['file']
+          and builder.pool_file_for('beta', 'online') is None)
+    check('download estimate: honest None with no history, then '
+          'a throughput-based prediction from measured rows',
+          builder.download_estimate_seconds(1_000_000) is None
+          and (builder.record_download('x.deb', 5_000_000, 2.5)
+               or builder.download_estimate_seconds(4_000_000)
+               == 2.0)
+          and len(builder.generation_records('alpha')) == 2)
+    from appstore import app_debs_page as page_mod
+    page = page_mod.render_page('X', root=root)
+    check('an already-generated app offers DOWNLOAD (direct file '
+          'link + READY state), never Generate & download',
+          f'/downloads/apps/file/{online["file"]}' in page
+          and 'READY — ' in page
+          and f'status/alpha?flavor=online">Generate' not in page)
+    check('a never-generated app offers Generate & download',
+          'status/beta?flavor=online">'
+          'Generate &amp; download' in page)
+
     passed = sum(1 for _, ok in _results if ok)
     print(f'\n{passed}/{len(_results)} checks passed')
     return 0 if passed == len(_results) else 1
