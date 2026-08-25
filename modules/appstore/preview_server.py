@@ -21,9 +21,18 @@ no TLS, no auth; kill it when the review pass is done.
 """
 
 import sys
-from wsgiref.simple_server import make_server
+from socketserver import ThreadingMixIn
+from wsgiref.simple_server import WSGIServer, make_server
 
 import falcon
+
+
+class _ThreadingWSGIServer(ThreadingMixIn, WSGIServer):
+    """One thread per request — a deb transfer or a status poll
+    must never block the Back link (bit Dustin live: clicks
+    appeared dead while a download held the single thread)."""
+
+    daemon_threads = True
 
 from appstore.app_debs_page import AppDebsPage
 from appstore.downloads_page import DownloadsPage
@@ -61,7 +70,8 @@ def build_app():
 
 def main(argv):
     port = int(argv[0]) if argv else 8090
-    server = make_server('0.0.0.0', port, build_app())
+    server = make_server('0.0.0.0', port, build_app(),
+                         server_class=_ThreadingWSGIServer)
     print(f'downloads preview on http://0.0.0.0:{port}/downloads '
           '(ctrl-c stops it)')
     server.serve_forever()
