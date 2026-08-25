@@ -104,11 +104,11 @@ def explainer_block(entries, heading='What is all this?'):
 
 # --- the page shell -------------------------------------------------
 
-def wrap_page(title, body, page_label='Downloads'):
+def wrap_page(title, body, page_label='Downloads', head_extra=''):
     return f'''<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{title} — {html.escape(page_label)}</title>
+{head_extra}<title>{title} — {html.escape(page_label)}</title>
 <style>
  :root{{--bg:#fcfcfb;--card:#ffffff;--ink:#1d1d1c;--ink2:#5d5d58;
    --line:#e4e4df;--accent:#2a78d6;--accent-ink:#ffffff;
@@ -169,6 +169,12 @@ def wrap_page(title, body, page_label='Downloads'):
    font-size:1em;cursor:pointer}}
  a.dl:hover,button.dl:hover{{filter:brightness(1.08)}}
  label.pick{{display:block;margin:.3rem 0}}
+ .tabs{{display:flex;gap:.4rem;margin:0 0 .6rem}}
+ .tab{{padding:.35rem 1rem;border-radius:999px;
+   border:1px solid var(--line);color:var(--ink);
+   text-decoration:none;font-weight:600}}
+ .tab-on{{background:var(--accent);color:var(--accent-ink);
+   border-color:var(--accent)}}
  select{{font-size:1em;padding:.15rem .3rem}}
  ol.howto{{margin:0;padding-left:1.3rem}}
  ol.howto li{{margin:.4rem 0}}

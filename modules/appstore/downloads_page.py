@@ -210,9 +210,18 @@ def _piecewise_cards(pieces):
     return cards
 
 
-def _render_two_option(title, headline, combined, pieces):
+def _render_two_option(title, headline, combined, pieces,
+                       mode='one'):
+    mode = mode if mode in ('one', 'steps') else 'one'
+    tab = lambda m, label: (            # noqa: E731
+        f'<a class="tab{" tab-on" if mode == m else ""}" '
+        f'href="/downloads?mode={m}">{label}</a>')
+    tabs = ('<nav class="tabs">'
+            + tab('one', 'One-file install')
+            + tab('steps', 'Stepped polari + isle install')
+            + '</nav>')
     option_b = ''
-    if pieces:
+    if pieces and mode == 'steps':
         option_b = f'''
 <section class="step">
 <p class="option-tag">Option B</p>
@@ -235,17 +244,9 @@ def _render_two_option(title, headline, combined, pieces):
     <em>Open With</em> &rarr; <em>Software Install</em>.</li>
 </ol>
 </section>'''
-    body = f'''
-<header class="hero">
-<h1>Install {title} on your computer</h1>
-<p class="version">Current version
-   <strong>{html.escape(headline["version"])}</strong></p>
-<p class="lede">Works on Ubuntu and other Debian-family Linux.
-   Install by clicking — no terminal needed. Your computer
-   fetches everything else it needs from the internet during
-   the install.</p>
-</header>
-
+    option_a = ''
+    if mode == 'one':
+        option_a = f'''
 <section class="step">
 <p class="option-tag">Option A &middot; recommended</p>
 <h2>One file installs everything</h2>
@@ -276,8 +277,19 @@ def _render_two_option(title, headline, combined, pieces):
     installer: right-click the file &rarr;
     <em>Open With</em> &rarr; <em>Software Install</em>.</li>
 </ol>
-</section>
-{option_b}
+</section>'''
+    body = f'''
+<header class="hero">
+<h1>Install {title} on your computer</h1>
+<p class="version">Current version
+   <strong>{html.escape(headline["version"])}</strong></p>
+<p class="lede">Works on Ubuntu and other Debian-family Linux.
+   Install by clicking — no terminal needed. Your computer
+   fetches everything else it needs from the internet during
+   the install.</p>
+</header>
+{tabs}
+{option_a if mode == 'one' else option_b}
 {_first_start()}
 {_explainers(two_option=True)}
 {_footer_notes()}
@@ -325,7 +337,7 @@ def _render_piecewise_only(title, headline, pieces):
     return wrap_page(title, body)
 
 
-def render_page(debs, instance_title='Polari'):
+def render_page(debs, instance_title='Polari', mode='one'):
     """The full HTML document. Version headline = the store deb's
     (the user-facing app), falling back to the combined deb, then
     the first staged."""
@@ -347,7 +359,8 @@ def render_page(debs, instance_title='Polari'):
                      if d['name'] == 'isle-app-store'),
                     combined or debs[0])
     if combined:
-        return _render_two_option(title, headline, combined, pieces)
+        return _render_two_option(title, headline, combined,
+                                  pieces, mode)
     return _render_piecewise_only(title, headline, pieces)
 
 
@@ -365,7 +378,9 @@ class DownloadsPage(treeObject):
 
     def on_get_page(self, request, response):
         response.content_type = 'text/html; charset=utf-8'
-        response.text = render_page(staged_debs())
+        response.text = render_page(
+            staged_debs(),
+            mode=request.params.get('mode', 'one'))
 
     def on_get_file(self, request, response, filename):
         path = resolve_download(filename)

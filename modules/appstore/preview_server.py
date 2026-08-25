@@ -46,6 +46,10 @@ def build_app():
                   suffix='get')
     app.add_route('/downloads/apps/get-offline/{module}', apps,
                   suffix='get_offline')
+    app.add_route('/downloads/apps/status/{module}', apps,
+                  suffix='status')
+    app.add_route('/downloads/apps/file/{filename}', apps,
+                  suffix='file')
     app.add_route('/downloads/apps/shared/{debname}', apps,
                   suffix='shared')
     app.add_route('/downloads/offline', offline, suffix='page')

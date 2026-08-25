@@ -57,6 +57,7 @@ import re
 import statistics
 import subprocess
 import tarfile
+import threading
 import time
 
 from moduleService import module_registry
@@ -356,7 +357,8 @@ def _fetch_wheels(libraries, dest):
     return sorted(os.listdir(dest))
 
 
-def generate(module, root=None, analysis=None, flavor='online'):
+def generate(module, root=None, analysis=None, flavor='online',
+             progress=None):
     """Generate module's deb (+ any shared debs it depends on) into
     the pool. flavor='online' (default): the small deb — libraries
     + engines install DYNAMICALLY after download, and the manifest
@@ -371,10 +373,13 @@ def generate(module, root=None, analysis=None, flavor='online'):
     named refusals, never exceptions, for bad input."""
     started = time.time()
     steps = []
+    progress = progress or (lambda name: None)
 
     def step(name, t0):
         steps.append({'step': name,
                       'seconds': round(time.time() - t0, 3)})
+
+    progress('analyzing payload, shared overlap + requirements')
 
     if flavor not in ('online', 'offline'):
         return {'ok': False,
@@ -400,6 +405,7 @@ def generate(module, root=None, analysis=None, flavor='online'):
 
     wheels = []
     if flavor == 'offline':
+        progress('fetching dependency wheels')
         t0 = time.time()
         wheel_dir = os.path.join(work_dir(), 'wheels', module)
         fresh = (os.path.isdir(wheel_dir) and os.listdir(wheel_dir)
@@ -439,6 +445,7 @@ def generate(module, root=None, analysis=None, flavor='online'):
                 'seconds': round(time.time() - started, 3),
                 'cached': True, 'sharedFiles': shared_files}
 
+    progress('packaging module files')
     t0 = time.time()
     seen = set()
     entries = [('./', 'dir', None)]
@@ -511,6 +518,7 @@ def generate(module, root=None, analysis=None, flavor='online'):
         for name in shared_names)
     description = entry.get('description',
                             f'Polari module {module}')
+    progress('assembling the deb')
     online_name = deb_package_name(module)
     size_bytes = _write_deb(path, [
         ('Package', debname),
@@ -575,6 +583,50 @@ def estimate_seconds(module, recent=10, flavor='online'):
              and row.get('flavor', 'online') == flavor]
     return (round(statistics.median(times[-recent:]), 1)
             if times else None)
+
+
+# --- background generation jobs (dl-8: the click must confirm,
+# show progress, and hand the file over when ready) -------------------
+
+_jobs = {}
+
+
+def generation_job(module, flavor):
+    return _jobs.get(f'{module}:{flavor}')
+
+
+def start_generation(module, flavor='online', root=None):
+    """Idempotent kick-off: a running job is returned as-is; a
+    finished one whose pool file the TTL already purged restarts.
+    The job dict is live — 'step' updates as generation moves."""
+    key = f'{module}:{flavor}'
+    job = _jobs.get(key)
+    if job:
+        if job['state'] == 'running':
+            return job
+        if (job['state'] == 'done'
+                and os.path.isfile(job['result']['path'])):
+            return job
+    job = {'module': module, 'flavor': flavor, 'state': 'running',
+           'step': 'starting', 'startedAt': time.time(),
+           'result': None}
+    _jobs[key] = job
+
+    def run():
+        try:
+            result = generate(
+                module, root=root, flavor=flavor,
+                progress=lambda name: job.__setitem__('step',
+                                                      name))
+            job['result'] = result
+            job['state'] = 'done' if result.get('ok') else 'refused'
+        except Exception as error:      # noqa: BLE001 — the page
+            job['result'] = {'ok': False,   # must never lose a job
+                             'refusal': f'unexpected: {error}'}
+            job['state'] = 'refused'
+
+    threading.Thread(target=run, daemon=True).start()
+    return job
 
 
 # --- pool lifecycle -------------------------------------------------

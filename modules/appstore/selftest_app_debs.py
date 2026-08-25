@@ -252,8 +252,10 @@ def main():
               'modules get generate links',
               'ghost' in page
               and 'Not available here' in page
-              and 'href="/downloads/apps/get/alpha"' in page
-              and 'href="/downloads/apps/get/solo"' in page)
+              and '/downloads/apps/status/alpha?flavor=online'
+              in page
+              and '/downloads/apps/status/solo?flavor=online'
+              in page)
         check('per-item transparency: on-demand provenance, the '
               'named generation steps BEFORE the click, honest '
               '"never generated yet" for unmeasured modules, '

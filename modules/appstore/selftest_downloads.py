@@ -103,38 +103,43 @@ def main():
 
         debs = dl.staged_debs()
         combined_page = dl.render_page(debs, 'Polari Demo')
-        check('combined deb staged: Option A hero card renders '
-              'first — one file installs everything, marked '
-              'pre-prepped, with its own download link',
+        steps_page = dl.render_page(debs, 'Polari Demo',
+                                    mode='steps')
+        check('combined deb staged: default tab = the one-file '
+              'install — Option A hero card, pre-prepped, its own '
+              'download link, and the tab toggle to the stepped '
+              'install',
               'Option A' in combined_page
               and 'One file installs everything' in combined_page
               and 'hero-card' in combined_page
               and ('href="/downloads/polari-complete_0.1.32_'
                    'amd64.deb"') in combined_page
-              and combined_page.index('Option A')
-                  < combined_page.index('Option B'))
-        check('the piecewise list DEMOTES to Option B and keeps '
-              'all four member debs + the order instructions',
-              'Piece by piece' in combined_page
+              and 'href="/downloads?mode=steps"' in combined_page
+              and 'tab-on' in combined_page)
+        check('the stepped tab carries the piecewise install: all '
+              'four member debs + the order instructions; the '
+              'one-file hero stays off this tab',
+              'Piece by piece' in steps_page
               and all(f'href="/downloads/{d["file"]}"'
-                      in combined_page
-                      for d in debs if d['name'] != 'polari-complete')
-              and 'order matters' in combined_page)
-        check('the page says A and B cannot be combined (the '
-              'Conflicts relationship, in user words)',
-              'can\'t be installed' in combined_page)
-        check('combined deb never double-lists inside Option B',
-              combined_page.count(
-                  'polari-complete_0.1.32_amd64.deb') == 2)
+                      in steps_page
+                      for d in debs
+                      if d['name'] != 'polari-complete')
+              and 'order matters' in steps_page
+              and 'class="dl-card hero-card"' not in steps_page)
+        check('the stepped tab says A and B cannot be combined '
+              '(the Conflicts relationship, in user words)',
+              'can\'t be installed' in steps_page)
         check('headline version still reads from the store deb',
               '<strong>0.1.32</strong>' in combined_page)
-        check('provenance renders for the combined deb too '
-              '(5 pre-prepped items total)',
-              combined_page.count(
-                  'class="prov prov-prepped"') == 5)
-        check('transparency explainers also on the two-option page',
+        check('provenance renders per tab: 1 pre-prepped item on '
+              'the one-file tab, 4 on the stepped tab',
+              combined_page.count('class="prov prov-prepped"')
+              == 1
+              and steps_page.count('class="prov prov-prepped"')
+              == 4)
+        check('transparency explainers on both tabs',
               'What is a .deb file?' in combined_page
-              and '<details class="explain">' in combined_page)
+              and 'What is a .deb file?' in steps_page)
 
         check('download resolution serves ONLY staged debs — '
               'traversal, absent files, and non-debs all refuse',

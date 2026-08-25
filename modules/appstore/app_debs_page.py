@@ -31,6 +31,7 @@ Zero JS, server-rendered, logged-out friendly — same shell as
 
 import html
 import os
+import time
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
@@ -131,7 +132,7 @@ def _requirements_lines(module, payload_bytes):
     return line, reqs
 
 
-def _module_card(module, entry, analysis):
+def _module_card(module, entry, analysis, flavor='online'):
     description = entry.get('description', '')
     blurb = (f'<p class="blurb">{html.escape(description)}</p>'
              if description else '')
@@ -160,6 +161,9 @@ def _module_card(module, entry, analysis):
         size for _, _, size, _
         in analysis['payloads'].get(module, []))
     req_lines, _ = _requirements_lines(module, payload_bytes)
+    mode_note = ('<span class="dl-meta">this flavor carries the '
+                 'pip libraries inside the deb</span>'
+                 if flavor == 'offline' else '')
     return f'''
 <li class="dl-card">
   <span class="dl-info">
@@ -168,22 +172,18 @@ def _module_card(module, entry, analysis):
     {req_lines}
     <span class="dl-meta">steps on download:
       {GENERATION_STEPS}</span>
-    {shared_links}
-    {on_demand_provenance(_estimate_text(module))}
-    <span class="dl-meta">offline flavor:
-      {html.escape(_estimate_text(module, 'offline'))}</span>
+    {shared_links}{mode_note}
+    {on_demand_provenance(_estimate_text(module, flavor))}
   </span>
-  <span class="dl-info" style="flex:none;gap:.4rem">
-  <a class="dl" href="/downloads/apps/get/{html.escape(module)}"
-     download>Online deb</a>
   <a class="dl"
-     href="/downloads/apps/get-offline/{html.escape(module)}"
-     download>Offline deb</a>
-  </span>
+     href="/downloads/apps/status/{html.escape(module)}?flavor={flavor}"
+     >Download</a>
 </li>'''
 
 
-def render_page(instance_title='Polari', root=None):
+def render_page(instance_title='Polari', root=None,
+                flavor='online'):
+    flavor = flavor if flavor in ('online', 'offline') else 'online'
     title = html.escape(instance_title)
     modules = builder.registry_modules(root)
     if not modules:
@@ -196,8 +196,25 @@ def render_page(instance_title='Polari', root=None):
         return wrap_page(title, body, 'Apps')
     analysis = builder.analyze(root)
     cards = ''.join(
-        _module_card(module, entry, analysis)
+        _module_card(module, entry, analysis, flavor)
         for module, entry in sorted(modules.items()))
+    tab = lambda f, label: (            # noqa: E731
+        f'<a class="tab{" tab-on" if flavor == f else ""}" '
+        f'href="/downloads/apps?flavor={f}">{label}</a>')
+    tabs = ('<nav class="tabs">'
+            + tab('online', 'Online installs')
+            + tab('offline', 'Offline installs')
+            + '</nav>'
+            + ('<p class="option-note">Offline debs carry each '
+               'app\'s pip libraries inside — bigger and slower '
+               'to generate, for machines with no internet. '
+               'System engines still come from the distro or the '
+               'offline media.</p>'
+               if flavor == 'offline' else
+               '<p class="option-note">Online debs are small — '
+               'each app\'s libraries are fetched from the '
+               'internet when it is set up, exactly as listed on '
+               'its card.</p>'))
     body = f'''
 <header class="hero">
 <h1>Add individual apps to {title}</h1>
@@ -210,6 +227,7 @@ def render_page(instance_title='Polari', root=None):
 
 <section class="step">
 <h2>Apps</h2>
+{tabs}
 <ol class="dl-list">{cards}
 </ol>
 </section>
@@ -265,13 +283,18 @@ class AppDebsPage(treeObject):
             add('/downloads/apps/get/{module}', self, suffix='get')
             add('/downloads/apps/get-offline/{module}', self,
                 suffix='get_offline')
+            add('/downloads/apps/status/{module}', self,
+                suffix='status')
+            add('/downloads/apps/file/{filename}', self,
+                suffix='file')
             add('/downloads/apps/shared/{debname}', self,
                 suffix='shared')
 
     def on_get_page(self, request, response):
         builder.purge_expired()
         response.content_type = 'text/html; charset=utf-8'
-        response.text = render_page()
+        response.text = render_page(
+            flavor=request.params.get('flavor', 'online'))
 
     def _generate_and_stream(self, response, module, flavor):
         builder.purge_expired()
@@ -289,6 +312,70 @@ class AppDebsPage(treeObject):
 
     def on_get_get_offline(self, request, response, module):
         self._generate_and_stream(response, module, 'offline')
+
+    def on_get_status(self, request, response, module):
+        """dl-8: the click lands HERE — immediate confirmation,
+        live named-step progress (meta-refresh, zero JS), then the
+        file hands over when ready. Same flow for both flavors."""
+        flavor = request.params.get('flavor', 'online')
+        flavor = flavor if flavor in ('online', 'offline') \
+            else 'online'
+        if module not in builder.registry_modules():
+            _refuse(response,
+                    f'"{module}" is not in the module registry')
+            return
+        job = builder.start_generation(module, flavor)
+        title = html.escape(module)
+        back = ('<p class="note"><a href="/downloads/apps?flavor='
+                f'{flavor}">&larr; Back to Apps</a></p>')
+        head = ''
+        if job['state'] == 'running':
+            elapsed = int(time.time() - job['startedAt'])
+            head = '<meta http-equiv="refresh" content="2">'
+            body = (f'<header class="hero"><h1>Generating the '
+                    f'{flavor} deb for {title}&hellip;</h1>'
+                    '<p class="lede">Your download was initiated '
+                    '— this page updates every 2 seconds and the '
+                    'file hands over when ready.</p></header>'
+                    '<section class="step"><h2>Progress</h2>'
+                    f'<p>Current step: <strong>'
+                    f'{html.escape(job["step"])}</strong></p>'
+                    f'<p class="dl-meta">{elapsed}s elapsed '
+                    f'&middot; {html.escape(_estimate_text(module, flavor))}'
+                    '</p></section>' + back)
+        elif job['state'] == 'done':
+            filename = job['result']['file']
+            url = f'/downloads/apps/file/{filename}'
+            head = ('<meta http-equiv="refresh" '
+                    f'content="0;url={url}">')
+            body = (f'<header class="hero"><h1>{title} '
+                    f'({flavor}) is ready</h1>'
+                    '<p class="lede">Your download starts now — '
+                    f'if it doesn\'t, <a href="{url}" download>'
+                    'click here</a>. The file stays available '
+                    'for a short retry window, then the server '
+                    'copy is removed.</p></header>'
+                    f'<p class="note">{html.escape(filename)} '
+                    f'&middot; generated in '
+                    f'{job["result"]["seconds"]}s</p>' + back)
+        else:
+            body = (f'<header class="hero"><h1>Could not '
+                    f'generate {title}</h1></header>'
+                    '<section class="step"><p>'
+                    f'{html.escape(job["result"]["refusal"])}'
+                    '</p></section>' + back)
+        response.content_type = 'text/html; charset=utf-8'
+        response.text = wrap_page(title, body, 'Generating',
+                                  head_extra=head)
+
+    def on_get_file(self, request, response, filename):
+        path = builder.resolve_pool_file(filename)
+        if path is None:
+            _refuse(response,
+                    'no such generated deb — it may have aged '
+                    'out; start again from /downloads/apps')
+            return
+        _stream_deb(response, path, filename)
 
     def on_get_shared(self, request, response, debname):
         builder.purge_expired()
