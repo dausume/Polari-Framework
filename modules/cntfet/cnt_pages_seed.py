@@ -66,6 +66,29 @@ def _figure(item_id, index, segments, title, figure_id):
     }
 
 
+def _device_graph(item_id, index, segments, title, device_name,
+                  curve):
+    """fet-viz: one device's curve family — the per-KIND seeded
+    GraphDefinition (cnt-device-transfer/-output) fed by that
+    device's own points path (per-object: another device's panel
+    is the same graph with a different dataPath)."""
+    return {
+        'id': item_id, 'index': index, 'type': 'component',
+        'rowSegmentsUsed': segments, 'gridColumnStart': None,
+        'title': title, 'visible': True, 'collapsed': False,
+        'cssClass': '',
+        'componentProps': {
+            'componentName': 'named-graph-panel',
+            'inputs': {
+                'graphName': f'cnt-device-{curve}',
+                'dataPath': f'/api/cntfet/device/{device_name}'
+                            f'/points?curve={curve}',
+            },
+        },
+        'item': None, 'nestedRows': [],
+    }
+
+
 def _row(index, items, min_height=320):
     return {
         'index': index, 'rowSegments': 12,
@@ -127,6 +150,22 @@ SEED_CNTFET_PAGE_DISPLAYS = [{
                     'D13: SCF barrier vs Laplace seed '
                     '(row-backed)',
                     'd13-scf-profile'),
+        ], min_height=430),
+        # fet-viz (2026-08-26): the S1 device's own curves +
+        # characterization — refuses verbatim until the device is
+        # derived (the affordance is named in the refusal).
+        _row(5, [
+            _device_graph('cntfet-device-transfer', 0, 4,
+                          'S1 device: transfer Id(Vg), log Y',
+                          'cnt-aligned-s1', 'transfer'),
+            _device_graph('cntfet-device-output', 1, 4,
+                          'S1 device: output Id(Vd)',
+                          'cnt-aligned-s1', 'output'),
+            _api('cntfet-device-characterization', 2, 4,
+                 'S1 device: characterization (SS/DIBL/Ion/Ioff/'
+                 'gm — refusals verbatim)',
+                 '/api/cntfet/device/cnt-aligned-s1'
+                 '/characterization'),
         ], min_height=430),
     ]}),
 }]

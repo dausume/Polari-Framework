@@ -39,6 +39,12 @@ class CNTFETAPI(treeObject):
             add('/api/cntfet/devices/{name}', self, suffix='device')
             add('/api/cntfet/devices/{name}/verilog-a', self,
                 suffix='verilog_a')
+            # fet-viz: per-device curve feeds + characterization
+            # (per-object surfaces — any display row points here).
+            add('/api/cntfet/device/{name}/points', self,
+                suffix='device_points')
+            add('/api/cntfet/device/{name}/characterization',
+                self, suffix='device_characterization')
             add('/api/cntfet/figures', self, suffix='figures')
             add('/api/cntfet/figures/{figure_id}', self,
                 suffix='figure')
@@ -113,6 +119,23 @@ class CNTFETAPI(treeObject):
         response.media = {'ok': True, 'devices': devices,
                           'recentResults': results[:10],
                           'capability': capability()}
+
+    def on_get_device_points(self, request, response, name):
+        from cntfet.cnt_device_viz import device_curve_points
+        report = device_curve_points(
+            self.manager, name,
+            curve=request.get_param('curve') or 'transfer')
+        if not report.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = report
+
+    def on_get_device_characterization(self, request, response,
+                                       name):
+        from cntfet.cnt_device_viz import device_characterization
+        report = device_characterization(self.manager, name)
+        if not report.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = report
 
     def on_get_verilog_a(self, request, response, name):
         device = get_row(self.manager, 'AlignedCNTFETDevice', name)
