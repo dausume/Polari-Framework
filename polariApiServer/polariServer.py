@@ -1270,6 +1270,14 @@ try:
     # cnt-s5: the characterization schema (D11/D16 — ours, above
     # any executor).
     from cntfet.cnt_characterization import CellCharacterizationRun
+    # cnt-s4d: the cell library's variant rows (generated from
+    # CELL_LIBRARY x DRIVES — subckts share the same source).
+    from cntfet.cnt_cell_library import (
+        CNTCellDefinition, SEED_CNT_CELLS,
+    )
+    # figure replicas as CONFIGURABLE GraphDefinition rows (the
+    # original graphs design — msim precedent).
+    from cntfet.cnt_figures import SEED_CNTFET_FIGURE_GRAPHS
 except ImportError as _exc:
     _stub_missing_feature('cntfet', _exc, globals(), (
         'AlignedCNTFETDevice', 'AlignedCNTFETGeometry', 'CNTCalibrationAnchor', 'CNTContact',
@@ -1284,6 +1292,8 @@ except ImportError as _exc:
         'SEED_GATESTACK_PROCESSES', 'SEED_LITHOGRAPHY_PROCESSES',
         'SEED_PLACEMENT_PROCESSES', 'SEED_PURIFICATION_PROCESSES',
         'CellCharacterizationRun',
+        'CNTCellDefinition', 'SEED_CNT_CELLS',
+        'SEED_CNTFET_FIGURE_GRAPHS',
     ))
 # microchip: the design-level ladder + traversal (separable from the
 # device modules — references their rows, never imports their code).
@@ -1300,6 +1310,38 @@ except ImportError as _exc:
         'DesignLevelDefinition', 'MicrochipDesignNode',
         'SEED_DESIGN_LEVELS', 'SEED_DESIGN_NODES',
         'SEED_MICROCHIP_PAGE_DISPLAYS',
+    ))
+# computerparts (ai-8): parts + builds as tracked data — dated part
+# prices, derived build cost, assembly checks over declared specs.
+try:
+    from computerparts.parts_basis import (
+        ComputerBuildDefinition, ComputerPartDefinition,
+    )
+    from computerparts.parts_seed import (
+        SEED_COMPUTER_BUILDS, SEED_COMPUTER_PARTS,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('computerparts', _exc, globals(), (
+        'ComputerBuildDefinition', 'ComputerPartDefinition',
+        'SEED_COMPUTER_BUILDS', 'SEED_COMPUTER_PARTS',
+    ))
+# computers (cmp-c): assembly + use-case profiles as their OWN app
+# over the computerparts catalog — taxonomy rows, DFA-style gates,
+# ai-6-shaped profile fits. Separable from the microchip ladder.
+try:
+    from computers.computers_basis import (
+        ComputerAssemblyDefinition, ComputerPartClassDefinition,
+        ComputerProfileDefinition,
+    )
+    from computers.computers_pages_seed import (
+        SEED_COMPUTERS_PAGE_DISPLAYS,
+    )
+    from computers.computers_ports import InterconnectDefinition
+except ImportError as _exc:
+    _stub_missing_feature('computers', _exc, globals(), (
+        'ComputerAssemblyDefinition', 'ComputerPartClassDefinition',
+        'ComputerProfileDefinition',
+        'SEED_COMPUTERS_PAGE_DISPLAYS', 'InterconnectDefinition',
     ))
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
@@ -2161,6 +2203,17 @@ class polariServer(treeObject):
             from microchip.chip_api import MicrochipAPI
             microchipEndpoint = MicrochipAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('computerparts'):
+            # ai-8: parts + builds with derived totals + assembly
+            # checks (feeds the appstore buy-vs-rent advisory).
+            from computerparts.parts_api import ComputerPartsAPI
+            computerPartsEndpoint = ComputerPartsAPI(
+                polServer=self, manager=self.manager)
+        if _feature_available('computers'):
+            # cmp-c: taxonomy + assembly gates + profile fits.
+            from computers.computers_api import ComputersAPI
+            computersEndpoint = ComputersAPI(
+                polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -2443,6 +2496,8 @@ class polariServer(treeObject):
             CNTContact, CNTTransportModel, CNTParasitics,
             AlignedCNTFETDevice, CNTFETParameterRow,
             CNTCalibrationAnchor, CNTFETSimResult,
+            # cnt-s4d: cell library variant rows.
+            CNTCellDefinition,
             # cnt-s3: process objects + MC run rows.
             CNTAlignmentProcess, CNTPlacementProcess,
             CNTPurificationProcess, ContactFormationProcess,
@@ -2450,6 +2505,14 @@ class polariServer(treeObject):
             CNTFETMonteCarloRun, CellCharacterizationRun,
             # microchip: the design-level ladder + design nodes.
             DesignLevelDefinition, MicrochipDesignNode,
+            # ai-8: computer parts + builds (dated prices, derived
+            # cost, assembly checks).
+            ComputerPartDefinition, ComputerBuildDefinition,
+            # cmp-c: taxonomy + assemblies + use-case profiles.
+            ComputerPartClassDefinition, ComputerAssemblyDefinition,
+            ComputerProfileDefinition,
+            # cmp-c-6: interconnect vocabulary (ports as data).
+            InterconnectDefinition,
             PeerNode, PolariModule, PeerAgreement, ModuleSourceConfig,
             PolariModuleDependency,
             # mlb-2: per-boot module timing history (durable — later
@@ -3340,7 +3403,8 @@ class polariServer(treeObject):
              + (SEED_APPSTORE_PAGE_DISPLAYS or [])
              + (SEED_ISLEMESH_PAGE_DISPLAYS or [])
              + (SEED_CNTFET_PAGE_DISPLAYS or [])
-             + (SEED_MICROCHIP_PAGE_DISPLAYS or [])),
+             + (SEED_MICROCHIP_PAGE_DISPLAYS or [])
+             + (SEED_COMPUTERS_PAGE_DISPLAYS or [])),
             # Materials basis — identities before their scale rows.
             ('MaterialsScienceMaterial', MaterialsScienceMaterial,
              SEED_MS_MATERIALS + SEED_STANDARD_MATERIALS
@@ -3390,6 +3454,9 @@ class polariServer(treeObject):
             ('CNTCalibrationAnchor', CNTCalibrationAnchor,
              SEED_CALIBRATION_ANCHORS
              + (SEED_REFERENCE_ANCHORS or [])),
+            # cnt-s4d: generated cell-variant rows.
+            ('CNTCellDefinition', CNTCellDefinition,
+             SEED_CNT_CELLS),
             # cnt-s3: the target line's process rows.
             ('CNTAlignmentProcess', CNTAlignmentProcess,
              SEED_ALIGNMENT_PROCESSES),
@@ -4037,6 +4104,47 @@ class polariServer(treeObject):
                           flush=True)
             except Exception as e:
                 print(f'[CompositionSeed] failed: {e}', flush=True)
+        # ai-8: computerparts rides the upsert path from day one —
+        # prices/dates change over time and must CONVERGE live prior
+        # rows (never insert-by-name).
+        if (_feature_available('composition')
+                and _feature_available('computerparts') and (
+                only_classes is None
+                or 'ComputerPartDefinition' in only_classes
+                or 'ComputerBuildDefinition' in only_classes)):
+            try:
+                from computerparts.parts_seed import (
+                    seed_computerparts,
+                )
+                for r in seed_computerparts(self.manager):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[ComputerPartsSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[ComputerPartsSeed] failed: {e}',
+                      flush=True)
+        # cmp-c: computers rides the same upsert path (floors and
+        # taxonomy vocabularies evolve; assemblies name builds the
+        # computerparts block above seeds first).
+        if (_feature_available('composition')
+                and _feature_available('computers') and (
+                only_classes is None
+                or 'ComputerPartClassDefinition' in only_classes
+                or 'ComputerProfileDefinition' in only_classes
+                or 'ComputerAssemblyDefinition' in only_classes
+                or 'InterconnectDefinition' in only_classes)):
+            try:
+                from computers.computers_seed import seed_computers
+                for r in seed_computers(self.manager):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[ComputersSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[ComputersSeed] failed: {e}', flush=True)
         # goal-1: scale/goal seeds, same upsert path, motors-gated.
         if _feature_available('motors') and (
                 only_classes is None
@@ -4304,6 +4412,39 @@ class polariServer(treeObject):
                               flush=True)
             except Exception as e:
                 print(f'[AppsNavSeed] failed: {e}', flush=True)
+        # cmp-c-nav / chip-nav: the two arc apps are MODULE-LOCAL
+        # rows (climate_app pattern — the row's source drops with
+        # its module, and the arcs' commit sets stay disjoint).
+        if (_feature_available('composition')
+                and _feature_available('computers') and (
+                only_classes is None
+                or 'PolariAppDefinition' in only_classes)):
+            try:
+                from computers.computers_app import (
+                    seed_computers_app,
+                )
+                for r in seed_computers_app(self.manager):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[ComputersAppSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[ComputersAppSeed] failed: {e}', flush=True)
+        if (_feature_available('composition')
+                and _feature_available('cntfet') and (
+                only_classes is None
+                or 'PolariAppDefinition' in only_classes)):
+            try:
+                from cntfet.cnt_app import seed_chip_app
+                for r in seed_chip_app(self.manager):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[ChipAppSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[ChipAppSeed] failed: {e}', flush=True)
         # appstore-1: shell definitions ride the upsert path from day
         # one (no legacy pass to converge). Same module-level-import
         # rule as AppsNavSeed above.
@@ -4447,7 +4588,8 @@ class polariServer(treeObject):
             ('InitialConditionInterfaceDefinition', InitialConditionInterfaceDefinition,
              SEED_IC_INTERFACES),
             # Demo graphs-over-time for the multi-scale page's graph panels.
-            ('GraphDefinition', GraphDefinition, SEED_MSIM_GRAPHS),
+            ('GraphDefinition', GraphDefinition, SEED_MSIM_GRAPHS
+             + (SEED_CNTFET_FIGURE_GRAPHS or [])),
             ('SimVariable', SimVariable, SEED_SIM_VARIABLES),
             # Equations: the live-readout set (KE/PE/E_total) PLUS the
             # per-step math each CalculusOperation references. Must seed

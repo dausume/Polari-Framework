@@ -364,6 +364,29 @@
       "wave": 3,
       "requires": [],
       "description": "Microchip design-level ladder (device -> cell -> block -> core -> chip) + traversal interface. Separable from the device modules: reads cntfet/electrodevice rows softly, imports no device code; absent modules degrade honestly."
+    },
+    "computerparts": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/computerparts",
+      "repo": "",
+      "wave": 3,
+      "requires": [
+        "composition"
+      ],
+      "description": "Computer parts + builds as tracked data (ai-8): dated part prices, derived build cost, assembly-feasibility checks over declared specs; feeds the appstore buy-vs-rent advisory (row reads). Seeding imports composition.seed_upsert (guarded) \u2014 prices converge on live rows."
+    },
+    "computers": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/computers",
+      "repo": "",
+      "wave": 3,
+      "requires": [
+        "computerparts",
+        "composition"
+      ],
+      "description": "Computer assembly + use-case profiles as their own app (cmp-c): component taxonomy rows (declared specs + honest gaps), DFA-style assembly gates over the computerparts catalog, profiles as data with ai-6-shaped evidence-bearing fits (db-binding declare-only v1). Separable from the microchip ladder (chip-4 seam deferred)."
     }
   }
 }

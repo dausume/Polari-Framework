@@ -37,7 +37,7 @@ from polariApiServer.module_gating import module_enabled
 FEATURE_MODULES = frozenset({
     'appstore',
     'aquaponics', 'biomining', 'bizops', 'climate', 'cntfet',
-    'dmvdata',
+    'computerparts', 'computers', 'dmvdata',
     'electrodevice',
     'gears', 'grpcbridge', 'hwdigital', 'hwfpga', 'magnetics',
     'mathshapes', 'meshassets', 'microalgae', 'microchip', 'motors',
@@ -77,6 +77,10 @@ FEATURE_REQUIRES = {
     # cnt-s1: the aligned-CNT FET reuses the electrodevice
     # standards-judge machinery (device_validator findings/reports).
     'cntfet': ('electrodevice',),
+    # cmp-c: the gate engine genuinely imports the ai-8 checks
+    # (parts_assembly/parts_basis); composition stays a guarded
+    # seed-path import only (registry requires, not here).
+    'computers': ('computerparts',),
     'zones': ('scoring',),
 }
 
