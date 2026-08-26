@@ -48,10 +48,14 @@ MODULE_LEDGER = {
                         'OSDI twin (cnt_inverter) — OPTIONAL, '
                         'needs openvaf + ngspice',
     },
+    'provides-optional': {
+        'F3-NEGF': 'kwant NEGF oracle (cnt_kwant/kwant_worker) — '
+                   'OPTIONAL, needs the kwant venv (numpy<2, '
+                   'subprocess-isolated, D14); fixed eq.(5) '
+                   'potential AND D13 self-consistent 1D Poisson '
+                   '(scf: true) modes',
+    },
     'absent_by_design': {
-        'F3-NEGF': 'Kwant-based NEGF kernel — S2+ (D13/D15: '
-                   'dausume/kwant fork-pin on a worker, never a '
-                   'hard import here)',
         'F4-atomistic': 'S2+',
         'multi-tube-aggregation': 'the array-device arc (pitch/'
                                   'count distributions already '
@@ -68,6 +72,14 @@ MODULE_LEDGER = {
                               'is the older-host fallback'},
         'ngspice': {'license': 'BSD-ish (ngspice license)',
                     'role': 'OSDI runtime, >= 42 for OSDI'},
+        'kwant': {'license': 'BSD-2-Clause (S0-gated '
+                             'incorporable; dausume/kwant '
+                             'fork-pin)',
+                  'role': 'F3 NEGF kernel — subprocess venv only '
+                          '(kwant 1.5 needs numpy<2), never a '
+                          'polari-process import',
+                  'gotcha': 'venv at ~/tools/kwant-venv or '
+                            'CNTFET_KWANT_PYTHON'},
     },
     'python_deps': ['numpy'],
     'polari_deps': ['electrodevice (device_validator judge '
@@ -88,8 +100,19 @@ def capability():
         'F2-ToB': {'present': True},
         'F3-NEGF': (
             {'present': True, 'worker': kwant_python,
-             'limits': 'coherent-only, fixed eq.(5) potential, '
-                       'zigzag tubes (subprocess venv — D14)'}
+             'limits': 'coherent-only, fixed eq.(5) potential '
+                       '(Laplace limit), zigzag tubes '
+                       '(subprocess venv — D14)'}
+            if kwant_python else
+            {'present': False, 'refusal': kwant_why}),
+        'F3-NEGF-SCF': (
+            {'present': True, 'worker': kwant_python,
+             'limits': 'coherent-only, D13 self-consistent 1D '
+                       'cylindrical Poisson (eq.(7) lambda + '
+                       'eq.(1) Cox), electron-band propagating-'
+                       'state charge only, abrupt-junction donor '
+                       'profile, zigzag tubes ({action: '
+                       'f3-oracle, scf: true})'}
             if kwant_python else
             {'present': False, 'refusal': kwant_why}),
         'verilog-a-generation': {'present': True},

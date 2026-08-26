@@ -14,8 +14,9 @@ questions:
 
 Adaptive-oracle groundwork (plan D12 corollary): grid points whose
 intrinsic-edge disagreement exceeds the threshold become the
-recorded F3 target list — when the Kwant kernel lands (S2+/D13),
-NEGF spend goes exactly there, not on a blanket sweep.
+recorded F3 target list — the kwant kernel (live since S5, D13
+self-consistent Poisson since 2026-08-25) reads exactly this list,
+so NEGF spend goes where F1/F2 disagree, not on a blanket sweep.
 
 @consumers
   - cntfet.cnt_api ({action: triangle})
@@ -143,8 +144,11 @@ def validation_triangle(manager, device, vg_list=None, vd_list=None,
                           'scattering, no BTBT — expect the '
                           'high-Vd corner to disagree; that is '
                           'what the F3 oracle is FOR',
-            'oracle_status': 'F3 (Kwant) NOT built — targets are '
-                             'recorded, not evaluated (D13/S2+)',
+            'oracle_status': 'F3 (kwant) LIVE behind the venv '
+                             'knob — {action: f3-oracle} reads '
+                             'these targets (fixed eq.(5) '
+                             'potential, or scf: true for the '
+                             'D13 self-consistent Poisson)',
             'quantum_bound': 'VS-intrinsic G_on may EXCEED G0 — '
                              'by design the VS family carries the '
                              'quantum resistance in Rs (RQ/2 per '

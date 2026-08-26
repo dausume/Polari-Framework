@@ -263,6 +263,42 @@ point. Limits riding every result: coherent-only, fixed eq.(5)
 potential (self-consistent Poisson = ours to build), zigzag only;
 F3 sees the second subband (T→4) that F1/F2 cannot.
 
+## chip-1 — D13 self-consistent Poisson (2026-08-25)
+
+The D13 solver is built and the fixed potential is now its
+degenerate limit: the worker solves the per-unit-length GAA Gauss
+law `λ² Ec″(x) − (Ec − C) = −q·Δn_l/Cox` on the ring grid
+(uniform 0.75·a_cc control volumes), whose zero-charge solution
+IS eq.(5) — asserted live by the `poisson-pin` worker mode
+(max dev ~8e-5 eV, true-boundary Dirichlet clamps). Charge comes
+from the NEGF scattering states themselves (`kwant.wave_function`
+per lead, Fermi-weighted, flux-normalized — pinned against
+`kwant.ldos` at machine precision each run); the neutrality
+reference is the source lead's own band structure
+(`kwant.physics.Bands`) under an abrupt-junction donor profile
+(lead density for |x| > Lg/2, undoped channel inside). Damped
+fixed-point mixing (0.35, cnt_tob house style) with recorded
+adaptive halving on oscillation, and continuation across bias
+points (the charge correction of point k seeds point k+1). Run it
+with `{action: f3-oracle, scf: true}` (knobs: damping, tol_ev,
+max_iter, charge_energy_points); fidelity `F3_NEGF_SCF`, own
+capability entry, per-point convergence/residual/profile recorded
+— an unconverged point is FLAGGED in the verdict, never absorbed.
+First numbers (16,0), Lg 15 nm: charge raises the barrier
++33 mV in deep subthreshold (junction spill-in) and +14 mV at
+on-state (self-limited by quantum-capacitance feedback), lowering
+Id accordingly.
+
+**Bug caught by the pin (2026-08-25)**: the original eq.(5)
+implementation had its a1/a2 coefficients SWAPPED — the interior
+ramp was mirrored (source side sat at the drain value), leaving
+~Vd-sized potential steps at both gate edges. A mirrored barrier
+has the same height and near-top shape, so currents stayed
+plausible and every earlier assertion passed; the discrete-vs-
+analytic identity pin flagged it at 0.57 eV on first run. Both
+modes now ride the corrected profile — S5-era fixed-mode F3
+numbers shift slightly (spurious edge-step reflection removed).
+
 ## [VS2] extrinsics (built 2026-08-21 evening)
 
 Clean-room from Part II (arXiv:1503.04398), `cnt_extrinsics.py`:

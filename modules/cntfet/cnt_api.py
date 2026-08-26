@@ -39,6 +39,13 @@ class CNTFETAPI(treeObject):
             add('/api/cntfet/devices/{name}', self, suffix='device')
             add('/api/cntfet/devices/{name}/verilog-a', self,
                 suffix='verilog_a')
+            add('/api/cntfet/figures', self, suffix='figures')
+            add('/api/cntfet/figures/{figure_id}', self,
+                suffix='figure')
+            add('/api/cntfet/figures/{figure_id}/points', self,
+                suffix='figure_points')
+            add('/api/cntfet/cell-library', self,
+                suffix='cell_library')
 
     def _refuse(self, response, error, status='400 Bad Request'):
         response.status = status
@@ -46,6 +53,32 @@ class CNTFETAPI(treeObject):
 
     def on_get_capability(self, request, response):
         response.media = capability()
+
+    def on_get_cell_library(self, request, response):
+        from cntfet.cnt_cell_library import library_report
+        response.media = library_report()
+
+    def on_get_figures(self, request, response):
+        from cntfet.cnt_figures import figures_index
+        response.media = figures_index()
+
+    def on_get_figure(self, request, response, figure_id):
+        from cntfet.cnt_figures import build_figure
+        report = build_figure(figure_id, manager=self.manager)
+        if not report.get('ok'):
+            response.status = ('404 Not Found'
+                               if 'error' in report
+                               else '503 Service Unavailable')
+        response.media = report
+
+    def on_get_figure_points(self, request, response, figure_id):
+        from cntfet.cnt_figures import figure_points
+        report = figure_points(figure_id, manager=self.manager)
+        if not report.get('ok'):
+            response.status = ('404 Not Found'
+                               if 'error' in report
+                               else '503 Service Unavailable')
+        response.media = report
 
     def on_get_citations(self, request, response):
         from cntfet.cnt_citations import citations_report
@@ -135,7 +168,32 @@ class CNTFETAPI(treeObject):
                 self.manager, device,
                 bias_points=payload.get('biasPoints'),
                 energy_points=int(payload.get('energyPoints',
-                                              60)))
+                                              60)),
+                scf=payload.get('scf'))
+            if not report.get('ok'):
+                response.status = ('503 Service Unavailable'
+                                   if 'refusal' in report
+                                   else '422 Unprocessable Entity')
+            response.media = report
+            return
+        if action == 'characterize-cells':
+            from cntfet.cnt_cell_library import characterize_cells
+            report = characterize_cells(
+                self.manager, device,
+                cells=payload.get('cells'),
+                drives=tuple(payload.get('drives', [1])),
+                vdd=float(payload.get('vdd', 0.6)))
+            if not report.get('ok'):
+                response.status = ('503 Service Unavailable'
+                                   if 'refusal' in report
+                                   else '422 Unprocessable Entity')
+            response.media = report
+            return
+        if action == 'd11-crosscheck':
+            from cntfet.cnt_cell_library import d11_crosscheck
+            report = d11_crosscheck(
+                self.manager, device,
+                vdd=float(payload.get('vdd', 0.6)))
             if not report.get('ok'):
                 response.status = ('503 Service Unavailable'
                                    if 'refusal' in report

@@ -44,6 +44,28 @@ def _api(item_id, index, segments, title, path):
     }
 
 
+def _figure(item_id, index, segments, title, figure_id):
+    """A figure-replica GRAPH panel (Dustin 2026-08-25: graphs,
+    not JSON — and CONFIGURABLE ones riding the original graphs
+    design: a seeded GraphDefinition row rendered by
+    graph-renderer, editable on the Graphs page)."""
+    return {
+        'id': item_id, 'index': index, 'type': 'component',
+        'rowSegmentsUsed': segments, 'gridColumnStart': None,
+        'title': title, 'visible': True, 'collapsed': False,
+        'cssClass': '',
+        'componentProps': {
+            'componentName': 'named-graph-panel',
+            'inputs': {
+                'graphName': f'cntfet-figure-{figure_id}',
+                'dataPath': f'/api/cntfet/figures/{figure_id}'
+                            f'/points',
+            },
+        },
+        'item': None, 'nestedRows': [],
+    }
+
+
 def _row(index, items, min_height=320):
     return {
         'index': index, 'rowSegments': 12,
@@ -89,5 +111,22 @@ SEED_CNTFET_PAGE_DISPLAYS = [{
                    'CNTFETSimResult',
                    'name,kind,engine,verdict,ran_at'),
         ]),
+        _row(3, [
+            _api('cntfet-figures', 0, 4,
+                 'Cited-figure replicas (proofing registry)',
+                 '/api/cntfet/figures'),
+            _figure('cntfet-figure-fig7a', 1, 8,
+                    'Replica: [VS1] Fig.7(a) digitized vs model',
+                    'vs1-fig7a'),
+        ], min_height=430),
+        _row(4, [
+            _figure('cntfet-figure-vxo', 0, 6,
+                    'v_xo vs Lg — anchors vs eq.(9)',
+                    'fc10-vxo-vs-lg'),
+            _figure('cntfet-figure-d13', 1, 6,
+                    'D13: SCF barrier vs Laplace seed '
+                    '(row-backed)',
+                    'd13-scf-profile'),
+        ], min_height=430),
     ]}),
 }]

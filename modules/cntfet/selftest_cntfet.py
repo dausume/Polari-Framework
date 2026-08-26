@@ -403,6 +403,88 @@ def main():
           and ((f3_state['present'] and f3_state['limits'])
                or (not f3_state['present']
                    and f3_state['refusal'])))
+    scf_state = fids['F3-NEGF-SCF']
+    check('capability: F3-NEGF-SCF (D13) rides the same live '
+          'probe — present with its own limits or refusing with '
+          'a reason, never a silent middle',
+          ((scf_state['present'] and 'Poisson' in
+            scf_state['limits'])
+           or (not scf_state['present'] and scf_state['refusal'])))
+
+    # ---- figure replicas (Dustin 2026-08-25) ----------------------
+    from cntfet.cnt_figures import (
+        FIGURE_REGISTRY, build_figure, figures_index,
+    )
+    idx = figures_index()
+    check('figures: the registry indexes every cited figure with '
+          'an honest status, and every refusing entry NAMES its '
+          'missing step',
+          idx['ok'] and len(idx['figures']) == len(FIGURE_REGISTRY)
+          and all(f.get('refusal')
+                  for f in idx['figures']
+                  if f['status'] == 'refusing')
+          and {f['status'] for f in idx['figures']}
+          == {'replica', 'model-only', 'refusing'})
+    fig7a = build_figure('vs1-fig7a')
+    flagship = next(r for r in fig7a['residuals']
+                    if 'ov+0.50' in r['quantity'])
+    check('figures: the vs1-fig7a REPLICA carries paper points '
+          'with the D18 error budget + model curves on the paper '
+          'axes + the recorded residuals (flagship curve at the '
+          'digitization noise floor)',
+          fig7a['ok'] and fig7a['status'] == 'replica'
+          and fig7a['axes']['y']['max'] == 15.0
+          and len(fig7a['paperSeries']) == 4
+          and len(fig7a['modelSeries']) == 4
+          and all(pt['sigmaY_ua'] > 0
+                  for pt in fig7a['paperSeries'])
+          and flagship['rmsErrorUa'] < 0.46,
+          f'flagship={flagship}')
+    vxo = build_figure('fc10-vxo-vs-lg')
+    resid_3um = next(r for r in vxo['residuals']
+                     if r['anchor'] == 'fc10-vxo-lg3000')
+    check('figures: the vxo-vs-Lg replica PLOTS the out-of-domain '
+          '3 um anchor and its ~-40% misfit — the domain edge is '
+          'visible, not hidden',
+          vxo['ok'] and resid_3um['fractional'] < -0.2
+          and vxo['axes']['x']['scale'] == 'log',
+          f'resid={resid_3um}')
+    cgg_fig = build_figure('vs1-fig9-cgg')
+    cgg_ys = [pt['y'] for pt in cgg_fig['modelSeries'][0]['points']]
+    check('figures: the Fig.9 entry is honestly MODEL-ONLY '
+          '(paper curve not digitized, said in limits) and its '
+          'curve shows the pinned peak-then-decline shape',
+          cgg_fig['status'] == 'model-only'
+          and not cgg_fig['paperSeries']
+          and any('MODEL-ONLY' in lim for lim in cgg_fig['limits'])
+          and max(cgg_ys) > cgg_ys[-1],
+          f'cgg range={min(cgg_ys)}..{max(cgg_ys)}')
+    from cntfet.cnt_figures import figure_points
+    pts = figure_points('vs1-fig7a')
+    dot_rows = [r for r in pts['rows'] if r['style'] == 'dot']
+    line_rows = [r for r in pts['rows'] if r['style'] == 'lineY']
+    check('figures: the LONG-FORM points endpoint feeds the '
+          'original graphs design — paper rows are dots carrying '
+          'the error interval (y_lo/y_hi), model rows are lines, '
+          'and the columns match the seeded GraphDefinition '
+          'dimensions exactly',
+          pts.get('ok') and dot_rows and line_rows
+          and all(r['y_lo'] is not None and r['y_hi'] > r['y']
+                  for r in dot_rows)
+          and all(r['y_lo'] is None for r in line_rows)
+          and set(dot_rows[0]) == {'series', 'style', 'dash',
+                                   'x', 'y', 'y_lo', 'y_hi'},
+          f'rows={len(pts.get("rows", []))}')
+    refusal = build_figure('fiori05-transfer')
+    missing = build_figure('no-such-figure')
+    check('figures: a refusing figure returns its refusal '
+          'verbatim (not ok), and an unknown id points at the '
+          'registry',
+          not refusal.get('ok')
+          and refusal['status'] == 'refusing'
+          and 'not digitized' in refusal['refusal']
+          and not missing.get('ok')
+          and 'registry' in missing['error'])
 
     # ---- citations linkage (Dustin 2026-08-21) --------------------
     from cntfet.cnt_citations import citations_report
@@ -448,11 +530,36 @@ def main():
                        for row in page_def['rows']
                        for item in row['items']]
     check('page: /display/cntfet seeds valid rows using only the '
-          'registered generic components',
+          'registered generic components — figure panels ride '
+          'the ORIGINAL graphs design (named-graph-panel over '
+          'seeded GraphDefinition rows), not a bespoke chart',
           page['isPage'] and page['pageRoute'] == 'cntfet'
           and set(page_components) <= {'class-rows-table',
-                                       'api-json-panel'}
-          and len(page_components) == 6)
+                                       'api-json-panel',
+                                       'named-graph-panel'}
+          and page_components.count('named-graph-panel') == 3
+          and len(page_components) == 10)
+    from cntfet.cnt_figures import SEED_CNTFET_FIGURE_GRAPHS
+    graph_names = {g['name'] for g in SEED_CNTFET_FIGURE_GRAPHS}
+    panel_refs = {item['componentProps']['inputs']['graphName']
+                  for row in page_def['rows']
+                  for item in row['items']
+                  if item['componentProps']['componentName']
+                  == 'named-graph-panel'}
+    check('page: every figure panel names a SEEDED GraphDefinition '
+          'row, and every seed round-trips the Graphs editor '
+          'shape (wrapped graphConfig with the long-form '
+          'series/style/error dimensions)',
+          panel_refs <= graph_names
+          and all(
+              json.loads(g['definition'])['graphConfig']
+              ['seriesDimension'] == 'series'
+              and json.loads(g['definition'])['graphConfig']
+              ['styleDimension'] == 'style'
+              and json.loads(g['definition'])['graphConfig']
+              ['errorLoDimension'] == 'y_lo'
+              for g in SEED_CNTFET_FIGURE_GRAPHS),
+          f'panels={panel_refs}, graphs={graph_names}')
 
     # ---- S3: process objects + Monte Carlo ------------------------
     from cntfet.cnt_montecarlo import monte_carlo
@@ -580,6 +687,7 @@ def main():
               battery.get('ok')
               and battery['verdict'] == 'cell-set-demonstrated'
               and cell_verdicts == {'nand2': 'works',
+                                    'nor2': 'works',
                                     'buf': 'works',
                                     'dff': 'works'},
               f'battery={cell_verdicts or battery}')
@@ -675,6 +783,75 @@ def main():
               f"char={char.get('verdict')}, "
               f"failures={char.get('failures')}")
 
+        # ---- S4d/S5b: cell library variants + D11 ------------------
+        from cntfet.cnt_cell_library import (
+            CELL_LIBRARY, DRIVES, SEED_CNT_CELLS, d11_crosscheck,
+            characterize_cells, fet_count, subckt_text,
+        )
+        x1 = subckt_text('cnand2', 1)
+        x2 = subckt_text('cnand2', 2)
+        check('S4d: variants are GENERATED — x2 has exactly twice '
+              'the x1 device lines, standin caps scale, and the '
+              'seed rows cover every (cell, drive)',
+              x2.count('cntn') == 2 * x1.count('cntn')
+              and x2.count('cntp') == 2 * x1.count('cntp')
+              and len(SEED_CNT_CELLS)
+              == len(CELL_LIBRARY) * len(DRIVES)
+              and fet_count('cbuf', 1) == 4
+              and fet_count('cnor2', 2) == 8)
+        nor2 = CELL_LIBRARY['cnor2']
+        check('S4d: NOR2 is the NAND2 mirror — series p-stack '
+              'through the mid node, parallel n to ground, '
+              'non-controlling tie 0',
+              ('p', 'midp', 'A', 'vddn') in nor2['devices']
+              and ('n', 'Y', 'A', '0') in nor2['devices']
+              and ('n', 'Y', 'B', '0') in nor2['devices']
+              and nor2['noncontrolling'] == 0)
+        lib = characterize_cells(
+            mgr, device, cells=['cinv', 'cnor2'], drives=(1, 2),
+            slews_s=None, loads_f=None,
+            result_factory=_row_factory(
+                mgr, 'CellCharacterizationRun'))
+        lib_names = {c['libertyName'] for c in lib.get('cells', [])}
+        nor2_arcs = next((c['arcs'] for c in lib.get('cells', [])
+                          if c['libertyName'] == 'NOR2X1'), [])
+        check('S5b: the sweep characterizes VARIANTS across cells '
+              '— INVX1/INVX2/NOR2X1/NOR2X2 in ONE Liberty, both '
+              'NOR2 input arcs measured (non-controlling tie), '
+              'every arc monotone in load, zero failed points',
+              lib.get('ok')
+              and lib_names == {'INVX1', 'INVX2', 'NOR2X1',
+                                'NOR2X2'}
+              and nor2_arcs == ['A', 'B']
+              and all(m['monotoneInLoad']
+                      for m in lib['monotone'])
+              and not lib['failures'],
+              f'lib={lib_names}, failures={lib.get("failures")}')
+        check('S5b: the multi-cell staGate reflects the live '
+              'binary — accepted when sta exists, refusing with '
+              'a reason otherwise (never a silent middle)',
+              (lib['staGate'].get('ran')
+               and lib['staGate'].get('accepted'))
+              or (not lib['staGate'].get('ran')
+                  and lib['staGate'].get('refusal')),
+              f'staGate={lib.get("staGate")}')
+        d11 = d11_crosscheck(mgr, device)
+        if d11.get('ok'):
+            check('D11: the MANDATORY SPICE-vs-STA composed-path '
+                  'cross-check CLOSES — the same INV chain timed '
+                  'by transient truth and by the Liberty '
+                  'abstraction, within the stated tolerance',
+                  d11['verdict'] == 'D11-CROSSCHECK-PASS'
+                  and abs(d11['fractionalError'])
+                  < d11['tolerance'],
+                  f'd11={d11}')
+        else:
+            check('D11: without OpenSTA the cross-check REFUSES '
+                  'with the install path named (open box stays '
+                  'visibly open)',
+                  'refusal' in d11 and 'OpenSTA' in d11['refusal'],
+                  f'd11={d11}')
+
     # ---- F3: kwant oracle (venv leg) ------------------------------
     from cntfet.cnt_kwant import f3_oracle, find_kwant_python, \
         sanity as kwant_sanity
@@ -704,6 +881,80 @@ def main():
               and 0.5 < on['f3_negf_a'] / on['f1_vs_intrinsic_a']
               < 2.0,
               f'comparison={f3.get("comparison")}')
+
+        # ---- D13: self-consistent Poisson -------------------------
+        from cntfet.cnt_kwant import poisson_pin
+        pin = poisson_pin(mgr, device)
+        check('D13 pin: the discrete Poisson solve at zero charge '
+              'reproduces the analytic eq.(5) profile to '
+              'discretization error — the fixed potential IS the '
+              'SCF Laplace limit (this pin caught the pre-D13 '
+              'a1/a2 mirror swap)',
+              pin.get('ok') and pin['max_dev_ev'] < 5e-4,
+              f'pin={pin}')
+        f3s = f3_oracle(mgr, device, energy_points=40,
+                        bias_points=[{'vg_v': 0.0, 'vd_v': 0.6},
+                                     {'vg_v': 0.6, 'vd_v': 0.6}],
+                        result_factory=fac_res,
+                        scf={'max_iter': 12, 'tol_ev': 5e-3,
+                             'charge_energy_points': 48})
+        subs_ = f3s['comparison'][0]
+        ons_ = f3s['comparison'][1]
+        check('D13 SCF: both points converge (continuation from '
+              'point to point), the wave-function charge '
+              'normalization pins against kwant.ldos at machine '
+              'precision, and no unconverged point is silently '
+              'absorbed',
+              f3s.get('ok')
+              and subs_['scfConverged'] and ons_['scfConverged']
+              and subs_['ldosPinRel'] < 1e-9
+              and 'unconverged' not in f3s
+              and f3s['engine'].endswith('1D Poisson)'),
+              f'sub={subs_}, on={ons_}')
+        check('D13 SCF physics: channel charge RAISES the barrier '
+              '(deltaEcTop > 0 both points) — in deep '
+              'subthreshold that visibly LOWERS the current vs '
+              'the fixed-potential run; at on-state quantum-'
+              'capacitance feedback self-limits the shift, so '
+              'the current stays within 1.5x of fixed (first '
+              'run: within 0.3%)',
+              subs_['deltaEcTop_ev'] > 0.005
+              and ons_['deltaEcTop_ev'] > 0.0
+              and subs_['f3_negf_a'] < sub['f3_negf_a']
+              and 0.67 < ons_['f3_negf_a'] / on['f3_negf_a']
+              < 1.5,
+              f'scf sub={subs_["f3_negf_a"]:.3e} vs '
+              f'fixed {sub["f3_negf_a"]:.3e}; '
+              f'scf on={ons_["f3_negf_a"]:.3e} vs '
+              f'fixed {on["f3_negf_a"]:.3e}')
+        scf_rows = [r for r in mgr.objectTables[
+            'CNTFETSimResult'].values()
+            if getattr(r, 'physics_fidelity', '') == 'F3_NEGF_SCF']
+        check('D13 SCF: the result row records its OWN fidelity '
+              '(F3_NEGF_SCF), its scf knobs, and the converged '
+              'potential profile — a fidelity is never a silent '
+              'change to F3',
+              len(scf_rows) == 1
+              and 'f3scf' in scf_rows[0].name
+              and json.loads(scf_rows[0].metrics_json
+                             ).get('profiles'),
+              f'rows={[getattr(r, "name", "?") for r in scf_rows]}')
+        d13fig = build_figure('d13-scf-profile', manager=mgr)
+        scf_first = next(s for s in d13fig.get('modelSeries', [])
+                         if '(SCF)' in s.get('label', ''))
+        lap_first = next(s for s in d13fig.get('modelSeries', [])
+                         if 'Laplace' in s.get('label', ''))
+        check('figures: the row-backed D13 profile chart shows '
+              'the EXPECTED characteristic — the converged SCF '
+              'barrier tops its dashed Laplace seed (coherence '
+              'is visible in the chart data, not just asserted '
+              'in a number); managerless access refuses',
+              d13fig.get('ok')
+              and max(p['y'] for p in scf_first['points'])
+              > max(p['y'] for p in lap_first['points'])
+              and lap_first.get('dashed')
+              and not build_figure('d13-scf-profile').get('ok'),
+              f'd13fig={d13fig.get("limits", d13fig)}')
     else:
         print('SKIP: F3 kwant legs — no kwant venv on this host '
               '(capability endpoint reports the same refusal)')
