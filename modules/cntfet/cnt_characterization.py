@@ -232,6 +232,7 @@ def _liberty(cell, vdd, slews_s, loads_f, tables, input_cap_f):
         '     no junction parasitics beyond the labeled '
         'stand-ins); 50/50 charge\n'
         '     partition (delay-grade). NOT signoff (plan D1). */\n'
+        '  delay_model : table_lookup;\n'
         '  time_unit : "1ps";\n'
         '  capacitive_load_unit (1, ff);\n'
         '  voltage_unit : "1V";\n'

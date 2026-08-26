@@ -233,6 +233,46 @@ def run_cell_battery(manager, device, vdd=0.6, workdir=None,
                           'error': f'{exc}; '
                                    f'{run.stderr[-500:]}'}
 
+    # ---- NOR2: four corners (library-generated subckt) ------------
+    # The subckt comes from cnt_cell_library's generator — the
+    # battery and the characterization sweep share one topology
+    # source (reinstall-dedup rule: no hand-maintained twins).
+    from cntfet.cnt_cell_library import subckt_text
+    nor2_subckt = subckt_text('cnor2', 1)
+    tstop = plateau * 4
+    netlist = '\n'.join([
+        '* nor2 truth table', card_n, card_p, nor2_subckt,
+        f'vdd vddnode 0 {vdd:.6g}',
+        f'va a 0 {_pwl(_step_pattern(a_levels, plateau, rise))}',
+        f'vb b 0 {_pwl(_step_pattern(b_levels, plateau, rise))}',
+        'Xdut a b out vddnode cnor2_x1',
+        '.options reltol=1e-4 abstol=1e-12 method=gear',
+        '.control', f'pre_osdi {compiled["osdiPath"]}',
+        f'tran {tstep:.3e} {tstop:.3e}',
+        'wrdata nor2.dat v(out)', 'quit', '.endc', '.end', ''])
+    run = _run_ngspice(ngspice_path, workdir, 'nor2.sp', netlist)
+    try:
+        times, volts = _read_full(workdir, 'nor2.dat', run, tstop)
+        table = []
+        for i in range(4):
+            t_mid = plateau * i + 0.75 * plateau
+            out = _sample_at(times, volts, t_mid)
+            table.append({'a': a_levels[i] > 0,
+                          'b': b_levels[i] > 0,
+                          'out_v': out})
+        expected = [True, False, False, False]
+        got = [entry['out_v'] > vdd / 2 for entry in table]
+        cells['nor2'] = {
+            'verdict': 'works' if got == expected else 'FAILS',
+            'truthTable': table,
+            'note': 'high only at (0,0); series p-stack / '
+                    'parallel n (the NAND2 mirror the D10 set '
+                    'lacked)'}
+    except Exception as exc:
+        cells['nor2'] = {'verdict': 'FAILS',
+                         'error': f'{exc}; '
+                                  f'{run.stderr[-500:]}'}
+
     # ---- BUF: follows input with full swing -----------------------
     netlist = '\n'.join([
         '* buf follow', card_n, card_p, _SUBCKTS,

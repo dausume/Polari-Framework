@@ -16,9 +16,25 @@ from the atomistic model itself: TB gap == compact-model Eg by
 construction; T == 2 valleys just above the edge — independently
 confirming the (4q/h) degeneracy the closed forms assume.
 
+D13 (2026-08-25): scf=True upgrades the kernel to a
+self-consistent 1D cylindrical Poisson <-> NEGF-charge loop —
+the eq.(5) barrier is exactly the zero-charge (Laplace) solution
+of the solved equation, so the fixed mode is the SCF's own
+degenerate limit and the worker's poisson-pin mode asserts that
+identity on the discrete grid. Building the pin also CAUGHT a
+latent a1/a2 coefficient swap in the original eq.(5)
+implementation (the interior ramp was mirrored, leaving ~vd-sized
+steps at the gate edges); both modes now ride the corrected
+profile, so fixed-mode F3 numbers shift slightly vs the S5-era
+rows.
+
 Honest limits riding every result: coherent-only (no phonons),
-FIXED eq.(5) potential (no self-consistent Poisson — D13 says
-that solver is ours to build), zigzag (n,0) tubes only.
+zigzag (n,0) tubes only; fixed mode: FIXED eq.(5) potential; scf
+mode: electron-band propagating-state charge in the transport
+window only (no valence/hole charge — VDD < Eg regime; quasi-
+bound well states flagged, not counted), 1D cylindrical Poisson
+through eq.(7) lambda + eq.(1) Cox, abrupt-junction donor
+profile.
 
 @consumers
   - cntfet.cnt_api ({action: f3-oracle})
@@ -35,12 +51,28 @@ from cntfet.cnt_constants import lit_value
 from cntfet.cnt_derive import resolve_components
 
 F3_LIMITS = ['coherent-only (no phonon scattering)',
-             'fixed eq.(5) potential (no self-consistent '
-             'Poisson — D13: that solver is ours to build)',
+             'fixed eq.(5) potential (Laplace limit — pass '
+             'scf: true for the self-consistent Poisson solve, '
+             'D13 built 2026-08-25)',
              'zigzag (n,0) tubes only',
              'F3 sees the second subband (T->4); F1/F2 are '
              'single-subband — expect divergence at high '
              'overdrive']
+
+F3_SCF_LIMITS = [
+    'coherent-only (no phonon scattering)',
+    'self-consistent 1D cylindrical Poisson (D13): eq.(7) '
+    'lambda + eq.(1) Cox coupling, mode-space — not a 3D solve',
+    'electron-band charge over the transport window only — no '
+    'valence/hole charge (VDD < Eg regime, labeled not fitted)',
+    'propagating-state charge only: quasi-bound well states '
+    'below both lead edges are not counted (flagged per point '
+    'as wellFormed)',
+    'abrupt-junction donor profile: lead density for |x| > '
+    'Lg/2, undoped channel inside',
+    'zigzag (n,0) tubes only',
+    'F3 sees the second subband (T->4); F1/F2 are '
+    'single-subband — expect divergence at high overdrive']
 
 _WORKER = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        'kwant_worker.py')
@@ -95,6 +127,34 @@ def sanity(python_path=None):
         'ep_ev': lit_value('Ep_eV')}, timeout_s=300)
 
 
+def poisson_pin(manager, device, vg_v=0.3, vd_v=0.6):
+    """The D13 identity pin: the discrete Poisson solve at zero
+    charge must reproduce the analytic eq.(5) profile to
+    discretization error (~1e-4 eV on the ring grid). Pure numpy
+    in the worker — no NEGF solve involved."""
+    python_path, why = find_kwant_python()
+    if python_path is None:
+        return {'ok': False, 'refusal': why}
+    rows, missing = resolve_components(manager, device)
+    if missing:
+        return {'ok': False,
+                'error': f'missing component rows: {missing}'}
+    mat, geo = rows['material'], rows['geometry']
+    gate, transport = rows['gate_stack'], rows['transport']
+    return _run_worker(python_path, {
+        'mode': 'poisson-pin', 'n': mat.chirality_n,
+        'a_cc_nm': lit_value('a_cc_nm'),
+        'ep_ev': lit_value('Ep_eV'),
+        'lg_nm': geo.lg_nm,
+        'lof_nm': lit_value('lof_over_tox') * gate.t_ox_nm,
+        'lambda_nm': transport.lambda_nm,
+        'efsd_ev': transport.efsd_ev,
+        'vt0_v': transport.vt0_v,
+        'temperature_k': device.temperature_k,
+        'bias_points': [{'vg_v': vg_v, 'vd_v': vd_v}],
+    }, timeout_s=300)
+
+
 def _default_bias_points(manager, device):
     """The latest triangle row's worst-disagreement points (the
     adaptive-oracle discipline: F3 spend goes where F1/F2
@@ -127,10 +187,12 @@ def _default_bias_points(manager, device):
 
 
 def f3_oracle(manager, device, bias_points=None, energy_points=60,
-              result_factory=None):
+              result_factory=None, scf=None):
     """Evaluate the F3 kernel at the oracle targets and lay it
     beside F1/F2 at the same alignment — the triangle's third
-    vertex."""
+    vertex. scf truthy (True or an options dict: damping, tol_ev,
+    max_iter, charge_energy_points) runs the D13 self-consistent
+    Poisson loop instead of the fixed eq.(5) potential."""
     if not getattr(device, 'derived_at', ''):
         return {'ok': False, 'error': 'device never derived — POST '
                                       '{"action": "derive"} first'}
@@ -165,7 +227,25 @@ def f3_oracle(manager, device, bias_points=None, energy_points=60,
         'energy_points': energy_points,
         'bias_points': picked,
     }
-    result = _run_worker(python_path, job)
+    timeout_s = 1200
+    scf_opts = None
+    if scf:
+        scf_opts = dict(scf) if isinstance(scf, dict) else {}
+        max_iter = int(scf_opts.get('max_iter', 30))
+        job['scf'] = {
+            'enabled': True,
+            'damping': float(scf_opts.get('damping', 0.35)),
+            'tol_ev': float(scf_opts.get('tol_ev', 2e-3)),
+            'max_iter': max_iter,
+            'charge_energy_points': scf_opts.get(
+                'charge_energy_points'),
+        }
+        job['cox_f_per_m'] = gate.cox_f_per_m
+        # The plan's budget prior is min–tens-of-min PER POINT for
+        # SCF NEGF — scale the subprocess timeout with the work
+        # instead of letting 1200 s bind first.
+        timeout_s = 600 + len(picked) * max_iter * 40
+    result = _run_worker(python_path, job, timeout_s=timeout_s)
     if not result.get('ok'):
         return result
     # F1/F2 at the same alignment, per point.
@@ -188,16 +268,45 @@ def f3_oracle(manager, device, bias_points=None, energy_points=60,
              'cd_over_cg': transport.dibl_v_per_v,
              'transmission_mode': 'ballistic'}
     comparison = []
+    profiles = []
+    unconverged = []
     for point in result['points']:
         vg, vd = point['vg_v'], point['vd_v']
         i_f1 = vs_terminal_current(vg, vd, p_vs)['id_a']
         i_f2 = tob_operating_point(vg, vd, p_tob)['id_a']
-        comparison.append({
+        entry = {
             'vg_v': vg, 'vd_v': vd,
             'f3_negf_a': point['id_a'],
             'f2_tob_a': i_f2, 'f1_vs_intrinsic_a': i_f1,
             'ecTop_ev': point['ec_top_ev'],
-            'tMax': point['t_max']})
+            'tMax': point['t_max']}
+        scf_rep = point.get('scf')
+        if scf_rep is not None:
+            entry.update({
+                'scfConverged': scf_rep['converged'],
+                'scfIterations': scf_rep['iterations'],
+                'scfResidual_ev': scf_rep['residual_ev'],
+                'ecTopLaplace_ev': scf_rep['ec_top_laplace_ev'],
+                'deltaEcTop_ev': (point['ec_top_ev']
+                                  - scf_rep['ec_top_laplace_ev']),
+                'wellFormed': scf_rep['wellFormed'],
+                'sourceDensityRatio':
+                    scf_rep['source_density_ratio'],
+                'ldosPinRel': scf_rep['ldos_pin_rel'],
+            })
+            profiles.append({'vg_v': vg, 'vd_v': vd,
+                             **scf_rep['profile']})
+            if not scf_rep['converged']:
+                unconverged.append(
+                    {'vg_v': vg, 'vd_v': vd,
+                     'residual_ev': scf_rep['residual_ev'],
+                     'iterations': scf_rep['iterations']})
+        comparison.append(entry)
+    scf_ran = bool(result.get('scf_enabled'))
+    limits = F3_SCF_LIMITS if scf_ran else F3_LIMITS
+    engine = ('kwant (subprocess venv, coherent NEGF, '
+              'self-consistent 1D Poisson)' if scf_ran else
+              'kwant (subprocess venv, coherent NEGF)')
     stamp = datetime.now(timezone.utc).isoformat()
     report = {
         'ok': True, 'device': device.name,
@@ -205,24 +314,42 @@ def f3_oracle(manager, device, bias_points=None, energy_points=60,
         'atoms': result['atoms'], 'cells': result['cells'],
         'egTb_ev': result['eg_tb_ev'],
         'comparison': comparison,
-        'limits': F3_LIMITS,
-        'engine': 'kwant (subprocess venv, coherent NEGF)',
+        'limits': limits,
+        'engine': engine,
     }
+    if scf_ran:
+        report['scf'] = job['scf']
+        report['profiles'] = profiles
+        if unconverged:
+            # Non-convergence is a per-point flag the caller must
+            # see — never absorbed into a plausible-looking number.
+            report['unconverged'] = unconverged
     if result_factory is None:
         from cntfet.cnt_basis import CNTFETSimResult
         result_factory = CNTFETSimResult
+    tag = 'f3scf' if scf_ran else 'f3'
+    verdict = 'triangle-third-vertex-recorded'
+    if unconverged:
+        verdict = 'scf-unconverged-points-flagged'
+    metrics = {'atoms': result['atoms'],
+               'egTb_ev': result['eg_tb_ev']}
+    if scf_ran:
+        metrics['scf'] = job['scf']
+        metrics['profiles'] = profiles
     row = result_factory(
-        name=f'{device.name}-f3-{stamp[11:19].replace(":", "")}',
+        name=f'{device.name}-{tag}-'
+             f'{stamp[11:19].replace(":", "")}',
         device=device.name, kind='f3-oracle',
-        engine=report['engine'], physics_fidelity='F3_NEGF',
+        engine=report['engine'],
+        physics_fidelity='F3_NEGF_SCF' if scf_ran else 'F3_NEGF',
         inputs_json=json.dumps({'biasPoints': picked,
                                 'energyPoints': energy_points,
-                                'from': picked_why}),
+                                'from': picked_why,
+                                'scf': job.get('scf')}),
         series_json=json.dumps(comparison),
-        metrics_json=json.dumps({'atoms': result['atoms'],
-                                 'egTb_ev': result['eg_tb_ev']}),
-        verdict='triangle-third-vertex-recorded', ran_at=stamp,
-        notes='; '.join(F3_LIMITS), manager=manager)
+        metrics_json=json.dumps(metrics),
+        verdict=verdict, ran_at=stamp,
+        notes='; '.join(limits), manager=manager)
     try:
         db = getattr(manager, 'db', None)
         if db is not None:
