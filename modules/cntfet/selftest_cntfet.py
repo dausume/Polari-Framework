@@ -537,10 +537,12 @@ def main():
           and set(page_components) <= {'class-rows-table',
                                        'api-json-panel',
                                        'named-graph-panel'}
-          and page_components.count('named-graph-panel') == 3
-          and len(page_components) == 10)
+          and page_components.count('named-graph-panel') == 5
+          and len(page_components) == 13)
+    from cntfet.cnt_device_viz import SEED_CNT_DEVICE_GRAPHS
     from cntfet.cnt_figures import SEED_CNTFET_FIGURE_GRAPHS
-    graph_names = {g['name'] for g in SEED_CNTFET_FIGURE_GRAPHS}
+    graph_names = ({g['name'] for g in SEED_CNTFET_FIGURE_GRAPHS}
+                   | {g['name'] for g in SEED_CNT_DEVICE_GRAPHS})
     panel_refs = {item['componentProps']['inputs']['graphName']
                   for row in page_def['rows']
                   for item in row['items']
@@ -560,6 +562,61 @@ def main():
               ['errorLoDimension'] == 'y_lo'
               for g in SEED_CNTFET_FIGURE_GRAPHS),
           f'panels={panel_refs}, graphs={graph_names}')
+
+    # ---- fet-viz: per-device curves + characterization ------------
+    from cntfet.cnt_device_viz import (
+        curve_rows_from_fn, device_characterization,
+        device_curve_points,
+    )
+    fake_id = lambda vg, vd: 1e-6 * vg * vd + 1e-12
+    t_rows = curve_rows_from_fn(fake_id, 'transfer')
+    o_rows = curve_rows_from_fn(fake_id, 'output')
+    check('fet-viz: curve families are long-form rows matching '
+          'the seeded graph dimensions (series/style/x/y), Id in '
+          'uA, 3 drain series x 31-pt sweep / 5 gate series',
+          len(t_rows) == 3 * 31 and len(o_rows) == 5 * 31
+          and {r['series'] for r in t_rows}
+          == {'Vd = 0.05 V', 'Vd = 0.3 V', 'Vd = 0.6 V'}
+          and all(set(r) == {'series', 'style', 'dash', 'x', 'y'}
+                  for r in t_rows)
+          and abs(t_rows[-1]['y'] - 0.6 * 0.6 - 1e-6 * 1e6 * 0)
+          < 0.5)
+    live_curves = device_curve_points(mgr, device.name)
+    live_char = device_characterization(mgr, device.name)
+    check('fet-viz: the DERIVED seed device serves transfer '
+          'points + a characterization whose every value carries '
+          'the F1 fidelity string and whose refusals are '
+          'verbatim (none expected on S1)',
+          live_curves['ok'] and len(live_curves['rows']) == 93
+          and 'F1' in live_curves['fidelity']
+          and live_char['ok']
+          and live_char['metrics']['on_off_ratio'] > 1e3
+          and live_char['metrics']['refusals'] == {},
+          f'curves={live_curves.get("error")}, '
+          f'char={live_char.get("error")}')
+    mgr.objectTables['AlignedCNTFETDevice']['underived-x'] = \
+        types.SimpleNamespace(name='underived-x', polarity='n',
+                              derived_at='')
+    check('fet-viz: refusals name the affordance — unknown '
+          'device, underived device, unknown curve, managerless',
+          not device_curve_points(mgr, 'no-such-device')['ok']
+          and 'no device'
+          in device_curve_points(mgr, 'no-such-device')['error']
+          and 'derive' in device_curve_points(
+              mgr, 'underived-x')['error']
+          and 'unknown curve' in device_curve_points(
+              mgr, device.name, curve='sideways')['error']
+          and not device_characterization(None, 'x')['ok'])
+    check('fet-viz: device graph seeds round-trip the Graphs '
+          'editor shape; transfer is log-Y (subthreshold decades '
+          'visible)',
+          {g['name'] for g in SEED_CNT_DEVICE_GRAPHS}
+          == {'cnt-device-transfer', 'cnt-device-output'}
+          and json.loads(SEED_CNT_DEVICE_GRAPHS[0]['definition'])
+          ['graphConfig']['options']['yType'] == 'log'
+          and all(json.loads(g['definition'])['graphConfig']
+                  ['seriesDimension'] == 'series'
+                  for g in SEED_CNT_DEVICE_GRAPHS))
 
     # ---- S3: process objects + Monte Carlo ------------------------
     from cntfet.cnt_montecarlo import monte_carlo

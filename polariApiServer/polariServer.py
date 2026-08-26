@@ -1278,6 +1278,9 @@ try:
     # figure replicas as CONFIGURABLE GraphDefinition rows (the
     # original graphs design — msim precedent).
     from cntfet.cnt_figures import SEED_CNTFET_FIGURE_GRAPHS
+    # fet-viz: per-device curve graphs (transfer/output), same
+    # configurable-row design.
+    from cntfet.cnt_device_viz import SEED_CNT_DEVICE_GRAPHS
 except ImportError as _exc:
     _stub_missing_feature('cntfet', _exc, globals(), (
         'AlignedCNTFETDevice', 'AlignedCNTFETGeometry', 'CNTCalibrationAnchor', 'CNTContact',
@@ -1293,7 +1296,7 @@ except ImportError as _exc:
         'SEED_PLACEMENT_PROCESSES', 'SEED_PURIFICATION_PROCESSES',
         'CellCharacterizationRun',
         'CNTCellDefinition', 'SEED_CNT_CELLS',
-        'SEED_CNTFET_FIGURE_GRAPHS',
+        'SEED_CNTFET_FIGURE_GRAPHS', 'SEED_CNT_DEVICE_GRAPHS',
     ))
 # microchip: the design-level ladder + traversal (separable from the
 # device modules — references their rows, never imports their code).
@@ -4589,7 +4592,8 @@ class polariServer(treeObject):
              SEED_IC_INTERFACES),
             # Demo graphs-over-time for the multi-scale page's graph panels.
             ('GraphDefinition', GraphDefinition, SEED_MSIM_GRAPHS
-             + (SEED_CNTFET_FIGURE_GRAPHS or [])),
+             + (SEED_CNTFET_FIGURE_GRAPHS or [])
+             + (SEED_CNT_DEVICE_GRAPHS or [])),
             ('SimVariable', SimVariable, SEED_SIM_VARIABLES),
             # Equations: the live-readout set (KE/PE/E_total) PLUS the
             # per-step math each CalculusOperation references. Must seed
