@@ -285,6 +285,11 @@ def _plan_page(perfs, net, goals, registry):
     <em>{device['role']}</em></h2>
 <p class="option-note">This machine {_ROLE_BLURB[device['role']]}.
 </p>{modules_line}
+<p class="dl-meta">Want a concrete build for this class? Once
+   your node is up, <code>/display/computers</code> scores real
+   part builds (dated prices, assembly gates) against the
+   use-case profiles matching "{html.escape(label)}" — the
+   cmp-c profile rows carry this planner class as data.</p>
 <ol class="howto">{_device_bundle(device, net)}</ol>
 </section>'''
     goal_names = ', '.join(GOALS[g][0] for g in goals
