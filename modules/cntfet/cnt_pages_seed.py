@@ -167,5 +167,23 @@ SEED_CNTFET_PAGE_DISPLAYS = [{
                  '/api/cntfet/device/cnt-aligned-s1'
                  '/characterization'),
         ], min_height=430),
+        # fi-0/fi-1 (FET_INTUITION_PLAN): the states the device
+        # passes through, what qualifies each (criteria as data),
+        # shaded onto the curves they govern.
+        _row(6, [
+            _device_graph('cntfet-device-transfer-states', 0, 4,
+                          'S1 device: operating states on Id(Vg) '
+                          '(bands = states, guides = what qualifies)',
+                          'cnt-aligned-s1', 'transfer-states'),
+            _device_graph('cntfet-device-output-states', 1, 4,
+                          'S1 device: linear vs saturation on '
+                          'Id(Vd) (Vdsat locus)',
+                          'cnt-aligned-s1', 'output-states'),
+            _api('cntfet-device-states', 2, 4,
+                 'S1 device: states, boundaries + sweep events '
+                 '(criteria evaluated with their numbers)',
+                 '/api/cntfet/device/cnt-aligned-s1/states'
+                 '?vd=0.6&vg=0.3'),
+        ], min_height=430),
     ]}),
 }]

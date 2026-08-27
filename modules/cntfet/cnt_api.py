@@ -45,6 +45,10 @@ class CNTFETAPI(treeObject):
                 suffix='device_points')
             add('/api/cntfet/device/{name}/characterization',
                 self, suffix='device_characterization')
+            # fi-0: operating states + the criteria that qualify a
+            # bias point (FET_INTUITION_PLAN).
+            add('/api/cntfet/device/{name}/states', self,
+                suffix='device_states')
             add('/api/cntfet/figures', self, suffix='figures')
             add('/api/cntfet/figures/{figure_id}', self,
                 suffix='figure')
@@ -122,9 +126,14 @@ class CNTFETAPI(treeObject):
 
     def on_get_device_points(self, request, response, name):
         from cntfet.cnt_device_viz import device_curve_points
+        try:
+            vd = float(request.get_param('vd') or 0.6)
+        except ValueError:
+            self._refuse(response, 'vd must be numeric')
+            return
         report = device_curve_points(
             self.manager, name,
-            curve=request.get_param('curve') or 'transfer')
+            curve=request.get_param('curve') or 'transfer', vd=vd)
         if not report.get('ok'):
             response.status = '422 Unprocessable Entity'
         response.media = report
@@ -136,6 +145,43 @@ class CNTFETAPI(treeObject):
         if not report.get('ok'):
             response.status = '422 Unprocessable Entity'
         response.media = report
+
+    def on_get_device_states(self, request, response, name):
+        """?vd= (default 0.6) ?vg= (optional point) ?direction=
+        rising|falling ?vov_decades= ?vdsat_criterion=model|textbook
+        — knobs echoed in the payload."""
+        from cntfet.cnt_device_viz import device_model
+        from cntfet.cnt_states import device_states_report
+        id_fn, p, device, refusal = device_model(self.manager, name)
+        if refusal is not None:
+            response.status = '422 Unprocessable Entity'
+            response.media = refusal
+            return
+        knobs = {}
+        try:
+            vd = float(request.get_param('vd') or 0.6)
+            vg_raw = request.get_param('vg')
+            vg = float(vg_raw) if vg_raw not in (None, '') else None
+            if request.get_param('vov_decades'):
+                knobs['vov_decades'] = float(
+                    request.get_param('vov_decades'))
+        except ValueError as exc:
+            self._refuse(response, f'bad numeric parameter: {exc}')
+            return
+        crit = request.get_param('vdsat_criterion')
+        if crit:
+            if crit not in ('model', 'textbook'):
+                self._refuse(response, 'vdsat_criterion must be '
+                                       'model | textbook')
+                return
+            knobs['vdsat_criterion'] = crit
+        direction = request.get_param('direction') or 'rising'
+        if direction not in ('rising', 'falling'):
+            self._refuse(response, 'direction must be rising | falling')
+            return
+        response.media = device_states_report(
+            p, device, vds_v=vd, vgs_v=vg, direction=direction,
+            knobs=knobs, manager=self.manager)
 
     def on_get_verilog_a(self, request, response, name):
         device = get_row(self.manager, 'AlignedCNTFETDevice', name)

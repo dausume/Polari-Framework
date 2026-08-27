@@ -51,23 +51,27 @@ def _refuse(error):
     return {'ok': False, 'error': error}
 
 
-def _device_id_fn(manager, name):
-    """(id_fn, device, None) or (None, None, refusal). The refusal
-    names the affordance, never a bare 404."""
+def device_model(manager, name):
+    """(id_fn, p, device, None) or (None, None, None, refusal) — the
+    device's F1 model as a callable PLUS its VS parameter set, so
+    consumers that need the characteristic equations themselves
+    (cnt_states: Vt(Vds), Vdsat, n_ss·φt) read the same p the
+    current came from. The refusal names the affordance, never a
+    bare 404."""
     if manager is None:
-        return None, None, _refuse('no manager — device rows are '
-                                   'not reachable')
+        return None, None, None, _refuse(
+            'no manager — device rows are not reachable')
     device = get_row(manager, 'AlignedCNTFETDevice', name)
     if device is None:
-        return None, None, _refuse(f'no device named "{name}"')
+        return None, None, None, _refuse(f'no device named "{name}"')
     if not getattr(device, 'derived_at', ''):
-        return None, None, _refuse(
+        return None, None, None, _refuse(
             f'device "{name}" never derived — POST '
             f'{{"action": "derive"}} to /api/cntfet/devices/'
             f'{name} first')
     rows, missing = resolve_components(manager, device)
     if missing:
-        return None, None, _refuse(
+        return None, None, None, _refuse(
             f'missing component rows: {missing}')
     mat, geo = rows['material'], rows['geometry']
     gate, contact = rows['gate_stack'], rows['contact']
@@ -80,7 +84,13 @@ def _device_id_fn(manager, name):
         {'vt0_v': transport.vt0_v, 'efsd_ev': transport.efsd_ev},
         device.temperature_k)
     return (lambda vg, vd: vs_terminal_current(vg, vd, p)['id_a'],
-            device, None)
+            p, device, None)
+
+
+def _device_id_fn(manager, name):
+    """(id_fn, device, None) or (None, None, refusal)."""
+    id_fn, _p, device, refusal = device_model(manager, name)
+    return id_fn, device, refusal
 
 
 def curve_rows_from_fn(id_fn, curve):
@@ -111,15 +121,60 @@ def curve_rows_from_fn(id_fn, curve):
     return rows
 
 
-def device_curve_points(manager, name, curve='transfer'):
+def state_curve_rows(id_fn, p, curve, vd=0.6, manager=None):
+    """fi-0/fi-1: the state-annotated families. 'transfer-states' =
+    the Id(Vg) line at one Vd PLUS shaded state bands + boundary
+    guides (styles band/guide — long-form, config-rendered);
+    'output-states' = the output family PLUS the dashed Vdsat locus
+    (linear/saturation boundary) as its own series."""
+    from cntfet.cnt_states import output_boundary, state_band_rows
+    rows = []
+    if curve == 'transfer-states':
+        ys = []
+        for vg in _sweep():
+            y = id_fn(vg, vd) * 1e6
+            ys.append(y)
+            rows.append({'series': f'Id, Vd = {vd:g} V',
+                         'style': 'line', 'dash': False,
+                         'x': vg, 'y': y})
+        y_lo = max(min(ys), 1e-9)   # log-Y safe floor
+        y_hi = max(ys)
+        rows.extend(state_band_rows(p, vd, y_lo, y_hi,
+                                    manager=manager))
+        return rows
+    if curve == 'output-states':
+        rows = curve_rows_from_fn(id_fn, 'output')
+        for vg in OUTPUT_VG:
+            b = output_boundary(p, vg)
+            if b['x'] is not None:
+                rows.append({'series': 'Vdsat locus', 'style': 'dot',
+                             'dash': True, 'x': b['x'],
+                             'y': b['id_a'] * 1e6})
+        return rows
+    return None
+
+
+def _sweep():
+    sweep, v = [], 0.0
+    while v <= SWEEP_MAX + 1e-9:
+        sweep.append(round(v, 4))
+        v += SWEEP_STEP
+    return sweep
+
+
+def device_curve_points(manager, name, curve='transfer', vd=0.6):
     """The named-graph-panel data feed for one device."""
-    id_fn, device, refusal = _device_id_fn(manager, name)
+    id_fn, p, device, refusal = device_model(manager, name)
     if refusal is not None:
         return refusal
     rows = curve_rows_from_fn(id_fn, curve)
     if rows is None:
+        rows = state_curve_rows(id_fn, p, curve, vd=vd,
+                                manager=manager)
+    if rows is None:
         return _refuse(f'unknown curve "{curve}" '
-                       '(transfer | output)')
+                       '(transfer | output | transfer-states | '
+                       'output-states)')
     return {'ok': True, 'device': name, 'curve': curve,
             'fidelity': FIDELITY,
             'temperature_k': device.temperature_k,
@@ -177,5 +232,22 @@ SEED_CNT_DEVICE_GRAPHS = [
     _device_graph(
         'output',
         'Device output characteristic Id(Vd) per gate bias',
+        'Vd (V)', 'Id (uA)'),
+    # fi-1: the intuition graphs — states shaded as bands, the
+    # qualifying boundaries as labelled guides (rows from
+    # cnt_states; styles band/guide are config-rendered).
+    _device_graph(
+        'transfer-states',
+        'Operating STATES on the transfer curve: off / '
+        'transition / on-linear / on-saturation shaded, with '
+        'the qualifying boundaries Vt(Vds) and Vt + Vov_min as '
+        'guides — what qualifies each state, on the curve it '
+        'governs',
+        'Vg (V)', 'Id (uA)', y_type='log'),
+    _device_graph(
+        'output-states',
+        'Output family with the linear/saturation boundary: the '
+        'Vdsat locus (Fsat knee) marks where each Vg curve stops '
+        'behaving like a resistor',
         'Vd (V)', 'Id (uA)'),
 ]

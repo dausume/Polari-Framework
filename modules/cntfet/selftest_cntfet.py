@@ -544,8 +544,8 @@ def main():
           and set(page_components) <= {'class-rows-table',
                                        'api-json-panel',
                                        'named-graph-panel'}
-          and page_components.count('named-graph-panel') == 5
-          and len(page_components) == 13)
+          and page_components.count('named-graph-panel') == 7
+          and len(page_components) == 16)
     from cntfet.cnt_device_viz import SEED_CNT_DEVICE_GRAPHS
     from cntfet.cnt_figures import SEED_CNTFET_FIGURE_GRAPHS
     graph_names = ({g['name'] for g in SEED_CNTFET_FIGURE_GRAPHS}
@@ -614,11 +614,101 @@ def main():
           and 'unknown curve' in device_curve_points(
               mgr, device.name, curve='sideways')['error']
           and not device_characterization(None, 'x')['ok'])
+
+    # ---- fi-0: operating states + qualifying criteria ------------
+    from cntfet.cnt_device_viz import device_model
+    from cntfet.cnt_states import (
+        SEED_FET_STATES, device_states_report, frame_at,
+        state_at_bias, state_band_rows, transfer_boundaries,
+        transitions_on_sweep,
+    )
+    _id, p_dev, dev_row, _ref = device_model(mgr, device.name)
+    b = transfer_boundaries(p_dev, 0.6)
+    f0 = frame_at(p_dev, 0.0, 0.6)
+    check('fi-0: states are DATA — 5 seeded rows, each with '
+          'criteria_json predicates over the frame and a governing '
+          'equation; boundaries ordered Vt < Vt+Vov_min with Vov_min '
+          '= vov_decades·SS from the model\'s own n_ss·φt·ln10',
+          len(SEED_FET_STATES) == 5
+          and all(json.loads(s['criteria_json'])
+                  and s['governing_equation']
+                  for s in SEED_FET_STATES)
+          and b[0]['x'] < b[1]['x']
+          and abs((b[1]['x'] - b[0]['x'])
+                  - 3.0 * f0['ss_v_per_dec']) < 1e-9
+          and 0.0 < f0['ss_v_per_dec'] < 0.2,
+          f'boundaries={b}, ss={f0["ss_v_per_dec"]}')
+    s_off = state_at_bias(p_dev, 0.0, 0.6)
+    s_lin = state_at_bias(p_dev, 0.6, 0.05)
+    s_sat = state_at_bias(p_dev, 0.6, 0.6)
+    check('fi-0: the S1 device qualifies as off at (0, 0.6), '
+          'on-linear at (0.6, 0.05) and on-saturation at (0.6, 0.6) '
+          '— every evaluation lists each inequality with both '
+          'numbers and its margin',
+          s_off['state'] == 'off' and s_lin['state'] == 'on-linear'
+          and s_sat['state'] == 'on-saturation'
+          and all('margin' in c and 'lhs_value' in c
+                  for e in s_sat['evaluations'] for c in e['criteria']),
+          f'off={s_off["state"]}, lin={s_lin["state"]}, '
+          f'sat={s_sat["state"]}, '
+          f'frame_sat={ {k: round(v, 4) for k, v in s_sat["frame"].items() if isinstance(v, float)} }')
+    ev_r = transitions_on_sweep(p_dev, 0.6, 'rising')
+    ev_f = transitions_on_sweep(p_dev, 0.6, 'falling')
+    check('fi-0: a rising Vgs sweep walks off -> transition-on -> '
+          'on-saturation and names the criterion that flipped at '
+          'each event; the falling sweep mirrors it through '
+          'transition-off (F1 is hysteresis-free, so bounds match)',
+          [e['to'] for e in ev_r]
+          == ['off', 'transition-on', 'on-saturation']
+          and all(e['flipped'] for e in ev_r[1:])
+          and [e['to'] for e in ev_f]
+          == ['on-saturation', 'transition-off', 'off']
+          and abs(ev_r[1]['vgs'] - ev_f[2]['vgs']) <= 0.005 + 1e-9,
+          f'rising={[(e["vgs"], e["to"]) for e in ev_r]}, '
+          f'falling={[(e["vgs"], e["to"]) for e in ev_f]}')
+    knob = state_at_bias(p_dev, b[1]['x'] - 0.01, 0.6,
+                         knobs={'vov_decades': 1.0})
+    tb = frame_at(p_dev, 0.6, 0.6, knobs={'vdsat_criterion':
+                                          'textbook'})
+    check('fi-0: knobs are explicit and change the verdict — '
+          'vov_decades=1 turns a near-threshold point "on"; '
+          'vdsat_criterion=textbook swaps Vdsat for Vgs-Vt and '
+          'echoes the knob in the frame',
+          knob['state'].startswith('on')
+          and knob['knobs']['vov_decades'] == 1.0
+          and abs(tb['vdsat'] - tb['vdsat_textbook']) < 1e-12
+          and tb['knobs']['vdsat_criterion'] == 'textbook')
+    rep = device_states_report(p_dev, dev_row, vds_v=0.6, vgs_v=0.3)
+    band = state_band_rows(p_dev, 0.6, 1e-3, 100.0)
+    ts_rows = device_curve_points(mgr, device.name,
+                                  curve='transfer-states')['rows']
+    os_rows = device_curve_points(mgr, device.name,
+                                  curve='output-states')['rows']
+    check('fi-0: the /states payload carries definitions, '
+          'boundaries, events, output Vdsat boundaries and the '
+          'point; the transfer-states curve = the Id line + band '
+          'rows (lo/hi) per state + guide rows at the boundaries; '
+          'output-states adds the dashed Vdsat locus',
+          rep['ok'] and len(rep['states']) == 5
+          and rep['point']['state'] in ('transition-on', 'off',
+                                        'on-saturation')
+          and all(ob['x'] is not None
+                  for ob in rep['output_boundaries'])
+          and any(r['style'] == 'band' for r in band)
+          and sum(1 for r in band if r['style'] == 'guide') == 2
+          and len([r for r in ts_rows if r['style'] == 'line'])
+          == 31
+          and any(r['series'] == 'Vdsat locus' for r in os_rows),
+          f'point={rep["point"]["state"]}, '
+          f'ob={[ob["x"] for ob in rep["output_boundaries"]]}, '
+          f'bands={sorted({r["series"] for r in band})}')
     check('fet-viz: device graph seeds round-trip the Graphs '
           'editor shape; transfer is log-Y (subthreshold decades '
           'visible)',
           {g['name'] for g in SEED_CNT_DEVICE_GRAPHS}
-          == {'cnt-device-transfer', 'cnt-device-output'}
+          == {'cnt-device-transfer', 'cnt-device-output',
+              'cnt-device-transfer-states',
+              'cnt-device-output-states'}
           and json.loads(SEED_CNT_DEVICE_GRAPHS[0]['definition'])
           ['graphConfig']['options']['yType'] == 'log'
           and all(json.loads(g['definition'])['graphConfig']

@@ -1281,6 +1281,8 @@ try:
     # fet-viz: per-device curve graphs (transfer/output), same
     # configurable-row design.
     from cntfet.cnt_device_viz import SEED_CNT_DEVICE_GRAPHS
+    # fi-0: FET operating states as rows (criteria = data).
+    from cntfet.cnt_states import FETOperatingState, SEED_FET_STATES
 except ImportError as _exc:
     _stub_missing_feature('cntfet', _exc, globals(), (
         'AlignedCNTFETDevice', 'AlignedCNTFETGeometry', 'CNTCalibrationAnchor', 'CNTContact',
@@ -1297,6 +1299,7 @@ except ImportError as _exc:
         'CellCharacterizationRun',
         'CNTCellDefinition', 'SEED_CNT_CELLS',
         'SEED_CNTFET_FIGURE_GRAPHS', 'SEED_CNT_DEVICE_GRAPHS',
+        'FETOperatingState', 'SEED_FET_STATES',
     ))
 # microchip: the design-level ladder + traversal (separable from the
 # device modules — references their rows, never imports their code).
@@ -2501,6 +2504,8 @@ class polariServer(treeObject):
             CNTCalibrationAnchor, CNTFETSimResult,
             # cnt-s4d: cell library variant rows.
             CNTCellDefinition,
+            # fi-0: operating states.
+            FETOperatingState,
             # cnt-s3: process objects + MC run rows.
             CNTAlignmentProcess, CNTPlacementProcess,
             CNTPurificationProcess, ContactFormationProcess,
@@ -3460,6 +3465,9 @@ class polariServer(treeObject):
             # cnt-s4d: generated cell-variant rows.
             ('CNTCellDefinition', CNTCellDefinition,
              SEED_CNT_CELLS),
+            # fi-0: operating-state rows (criteria as data).
+            ('FETOperatingState', FETOperatingState,
+             SEED_FET_STATES),
             # cnt-s3: the target line's process rows.
             ('CNTAlignmentProcess', CNTAlignmentProcess,
              SEED_ALIGNMENT_PROCESSES),
