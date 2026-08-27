@@ -70,6 +70,31 @@ class CNTFETAPI(treeObject):
                 self, suffix='device_characteristic')
             add('/api/cntfet/device/{name}/fields', self,
                 suffix='device_fields')
+            # fp-6: the weave — every page / partner / cell this FET
+            # is connected to, as data the nav rows render.
+            add('/api/cntfet/device/{name}/links', self,
+                suffix='device_links')
+            # fp arc: power (fp-1), taxonomy + signal score (fp-3),
+            # cell logic / circuit diagrams (fp-5).
+            add('/api/cntfet/device/{name}/power', self,
+                suffix='device_power')
+            add('/api/cntfet/device/{name}/cell-power', self,
+                suffix='device_cell_power')
+            add('/api/cntfet/device/{name}/taxonomy', self,
+                suffix='device_taxonomy')
+            add('/api/cntfet/device/{name}/signal-score', self,
+                suffix='device_signal_score')
+            add('/api/cntfet/cell/{cell}/logic', self,
+                suffix='cell_logic')
+            add('/api/cntfet/cells/logic', self, suffix='cells_logic')
+            # fp-2 / fp-4: silicon FETs on sol-gel + silicon refinement
+            # (the sifet module rides this API class — same server).
+            add('/api/sifet/capability', self, suffix='si_capability')
+            add('/api/sifet/devices', self, suffix='si_devices')
+            add('/api/sifet/devices/{name}', self, suffix='si_device')
+            add('/api/sifet/refinement', self, suffix='si_refinement')
+            add('/api/sifet/refinement/{route}', self,
+                suffix='si_refinement_route')
             add('/api/cntfet/figures', self, suffix='figures')
             add('/api/cntfet/figures/{figure_id}', self,
                 suffix='figure')
@@ -310,6 +335,140 @@ class CNTFETAPI(treeObject):
                                q.get('vg', 0.6), q.get('vd', 0.6))
         if not report.get('ok'):
             response.status = '422 Unprocessable Entity'
+        response.media = report
+
+    def on_get_device_links(self, request, response, name):
+        """fp-6 weave: pages + partners + cells for one FET."""
+        from cntfet.cnt_links import device_links
+        device = get_row(self.manager, 'AlignedCNTFETDevice', name)
+        if device is None:
+            return self._refuse(response, f'no device "{name}"',
+                                '404 Not Found')
+        response.media = device_links(self.manager, device)
+
+    def on_get_device_power(self, request, response, name):
+        """fp-1: static / leakage / dynamic power + budget checks.
+        ?vdd= ?activity= ?f="""
+        from cntfet.cnt_power import budget_report
+        m = self._modelled(response, name)
+        if m is None:
+            return
+        q = self._floats(request, response, ('vdd', 'activity', 'f'))
+        if q is None:
+            return
+        knobs = {k2: v for k, v in q.items()
+                 for k2 in ({'vdd': 'vdd_v', 'f': 'f_hz'}.get(k, k),)}
+        report = budget_report(self.manager, name, knobs=knobs or None)
+        if not report.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = report
+
+    def on_get_device_cell_power(self, request, response, name):
+        """fp-1: every characterized cell's leakage states + dynamic."""
+        from cntfet.cnt_power import library_power
+        m = self._modelled(response, name)
+        if m is None:
+            return
+        report = library_power(self.manager, name)
+        if not report.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = report
+
+    def on_get_device_taxonomy(self, request, response, name):
+        """fp-3: shape, optimization class (switching vs signal),
+        complementary partner + conditions, regions summary."""
+        from cntfet.cnt_taxonomy import device_taxonomy_report
+        if get_row(self.manager, 'AlignedCNTFETDevice', name) is None:
+            return self._refuse(response, f'no device "{name}"',
+                                '404 Not Found')
+        report = device_taxonomy_report(self.manager, name)
+        if not report.get('ok', True):
+            response.status = '422 Unprocessable Entity'
+        response.media = report
+
+    def on_get_device_signal_score(self, request, response, name):
+        """fp-3: the analog / signal-optimized score concept."""
+        from cntfet.cnt_taxonomy import score_signal
+        if get_row(self.manager, 'AlignedCNTFETDevice', name) is None:
+            return self._refuse(response, f'no device "{name}"',
+                                '404 Not Found')
+        report = score_signal(self.manager, name)
+        if not report.get('ok', True):
+            response.status = '422 Unprocessable Entity'
+        response.media = report
+
+    def on_get_cell_logic(self, request, response, cell):
+        """fp-5: boolean AST, gate DAG, truth table, transistor
+        netlist with placement, switch-level proof, state space."""
+        from cntfet.cnt_logic import cell_logic_report
+        try:
+            drive = int(request.get_param('drive') or 1)
+        except ValueError:
+            return self._refuse(response, 'drive must be an integer')
+        report = cell_logic_report(cell, drive=drive)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_cells_logic(self, request, response):
+        from cntfet.cnt_logic import library_logic_report
+        response.media = library_logic_report()
+
+    # ── sifet (fp-2 / fp-4) ────────────────────────────────────────
+
+    def on_get_si_capability(self, request, response):
+        from sifet.si_device import capability as si_capability
+        response.media = si_capability()
+
+    def on_get_si_devices(self, request, response):
+        tables = getattr(self.manager, 'objectTables', None) or {}
+        rows = [{'name': getattr(r, 'name', ''),
+                 'polarity': getattr(r, 'polarity', ''),
+                 'shape': getattr(r, 'shape', ''),
+                 'dielectric': getattr(r, 'dielectric', ''),
+                 'lg_nm': getattr(r, 'lg_nm', None),
+                 'derivedAt': getattr(r, 'derived_at', '')}
+                for r in (tables.get('SiliconMOSFET') or {}).values()]
+        rows.sort(key=lambda r: r['name'])
+        response.media = {'ok': True, 'devices': rows,
+                          'note': 'every /api/cntfet/device/{name}/* '
+                                  'surface (states, regimes, score, '
+                                  'transport, fields, characteristics, '
+                                  'compare) accepts these names too — '
+                                  'the VS parameterisation is shared'}
+
+    def on_post_si_device(self, request, response, name):
+        """{action: derive}"""
+        from sifet.si_device import derive_si_device, get_row as si_row
+        device = si_row(self.manager, 'SiliconMOSFET', name)
+        if device is None:
+            return self._refuse(response, f'no SiliconMOSFET "{name}"',
+                                '404 Not Found')
+        try:
+            raw = request.bounded_stream.read()
+            payload = json.loads(raw) if raw else {}
+        except ValueError:
+            return self._refuse(response, 'body must be JSON')
+        if payload.get('action', 'derive') != 'derive':
+            return self._refuse(response, 'actions: derive')
+        response.media = derive_si_device(self.manager, device)
+
+    def on_get_si_refinement(self, request, response):
+        from sifet.si_refinement import refinement_report
+        response.media = refinement_report(self.manager)
+
+    def on_get_si_refinement_route(self, request, response, route):
+        """?feed=<json ppm map> ?passes= ?fs_cut="""
+        from sifet.si_refinement import route_simulation
+        q = self._floats(request, response, ('passes', 'fs_cut'))
+        if q is None:
+            return
+        knobs = {k: (int(v) if k == 'passes' else v) for k, v in q.items()}
+        report = route_simulation(self.manager, route,
+                                  feed_ppm_json=request.get_param('feed'),
+                                  knobs=knobs or None)
+        if not report.get('ok', True):
+            response.status = '404 Not Found'
         response.media = report
 
     def on_get_device_cell_scores(self, request, response, name):

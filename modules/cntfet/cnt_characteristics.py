@@ -47,6 +47,11 @@ class FETCharacteristic(treeObject):
         related_regimes_json: str = '[]',
         related_terms_json: str = '[]',
         views_json: str = '[]',    # [{kind, graphName|componentName|simSpaceName, dataPath, title, why}]
+        # fp-6: input | output | transfer | structure — how a device
+        # datasheet organises characteristics (Dustin 2026-08-27)
+        category: str = '',
+        # fp-6: the average-person explanation (no equations)
+        explain: str = '',
         citations_json: str = '[]',
         fidelity: str = '',
         origin: str = 'seeded',
@@ -65,6 +70,8 @@ class FETCharacteristic(treeObject):
         self.related_regimes_json = related_regimes_json
         self.related_terms_json = related_terms_json
         self.views_json = views_json
+        self.category = category
+        self.explain = explain
         self.citations_json = citations_json
         self.fidelity = fidelity
         self.origin = origin
@@ -453,6 +460,127 @@ SEED_FET_CHARACTERISTICS = [
 ]
 
 
+# ── fp-6: datasheet categories + plain-language explanations ──────
+#
+# input     = what the gate/input terminal sees and sets
+# output    = what the drain/output terminal delivers
+# transfer  = how input becomes output (the switch itself)
+# structure = what the device is made of / how it is built
+
+CATEGORY = {
+    'input': ('gate-voltage', 'threshold-voltage', 'subthreshold-swing',
+              'n-doping-density', 'p-doping-density'),
+    'output': ('output-characteristic', 'drain-voltage', 'dibl',
+               'on-conductance', 'regime-map'),
+    'transfer': ('transfer-characteristic', 'on-off-ratio',
+                 'transconductance', 'switching-states',
+                 'transport-regime', 'scattering-contributors',
+                 'transport-over-time', 'stochastic-spread',
+                 'switching-quality-score'),
+    'structure': ('material-composition', 'potential-at-instant',
+                  'electron-density'),
+}
+CATEGORY_MEANING = {
+    'input': 'What you put in at the gate, and what it takes to make '
+             'the device listen.',
+    'output': 'What comes out at the drain: how much current, and how '
+              'steady it is.',
+    'transfer': 'How the input becomes the output — the switch itself, '
+                'how sharply and how reliably it flips.',
+    'structure': 'What the device is made of and what is happening '
+                 'inside it at a given moment.',
+}
+
+EXPLAIN = {
+    'transfer-characteristic':
+        'Turn the gate knob and watch the current: nothing, nothing, '
+        'then a steep climb, then a plateau. That curve is the whole '
+        'personality of the switch.',
+    'output-characteristic':
+        'Hold the gate steady and push harder on the drain: at first '
+        'the current grows like a resistor, then it stops growing — '
+        'the device has become a current source.',
+    'regime-map':
+        'A map of where the device behaves like a resistor, where it '
+        'behaves like a current source, and which law it obeys in '
+        'each region.',
+    'subthreshold-swing':
+        'How much gate voltage it costs to make the leakage ten times '
+        'smaller. Smaller is better; nature sets a floor at about 60 '
+        'millivolts per factor of ten at room temperature.',
+    'threshold-voltage':
+        'The gate voltage where the switch starts to open. Too low and '
+        'it leaks when it should be off; too high and there is little '
+        'supply left to turn it hard on.',
+    'dibl':
+        'When the drain pulls hard it also weakens the gate\'s grip — '
+        'the switch opens a little earlier than it should. Longer '
+        'channels and wrap-around gates fight this.',
+    'on-off-ratio':
+        'How much bigger the on-current is than the leak. More decades '
+        '= a cleaner switch and less wasted power.',
+    'transconductance':
+        'How much the current changes for a small nudge of the gate — '
+        'the device\'s sensitivity, and the engine of both speed and '
+        'amplifier gain.',
+    'on-conductance':
+        'How much resistance is left when the switch is fully on — the '
+        'contacts often dominate here.',
+    'switching-states':
+        'Off, waking up, on-as-a-resistor, on-as-a-current-source, and '
+        'back — each with the exact test that puts a bias point in it.',
+    'transport-regime':
+        'Do the electrons fly straight through (ballistic) or bounce '
+        'their way across (scattered)? Short channels fly; heat and '
+        'high voltage make them bounce.',
+    'scattering-contributors':
+        'What the electrons bounce off: lattice vibrations (always), '
+        'high-energy vibrations (only at high drain voltage), defects, '
+        'the contacts, and a crooked tube.',
+    'transport-over-time':
+        'Defects accumulate with use, so a device that flies today may '
+        'bounce in a few years — a margin the design must carry.',
+    'material-composition':
+        'The parts: metal contacts, doped ends, the bare nanotube '
+        'channel, the thin oxide shell, and the gate metal around it.',
+    'potential-at-instant':
+        'The hill electrons must climb to get from source to drain at '
+        'this instant; the gate lowers the hill, the drain tilts it.',
+    'gate-voltage':
+        'The control knob. It sets how tall the hill is.',
+    'drain-voltage':
+        'The pull. It tilts the hill and decides whether the device is '
+        'resistor-like or current-source-like.',
+    'electron-density':
+        'Where the electrons are along the channel right now — crowded '
+        'at the doped ends, thin over the hill.',
+    'n-doping-density':
+        'Extra electrons deliberately added at the ends so the contacts '
+        'connect well.',
+    'p-doping-density':
+        'Extra holes — zero on this n-type device; its p-type partner '
+        'mirrors the doping.',
+    'stochastic-spread':
+        'Manufacturing is never exact: this is how much the device '
+        'varies across a batch, and which imperfection matters most.',
+    'switching-quality-score':
+        'One number from 0 to 1 that says how close to an ideal switch '
+        'this device is — and 0 if it cannot even be shown to switch.',
+}
+
+
+def _apply_fp6(seed):
+    for cat, keys in CATEGORY.items():
+        if seed['name'] in keys:
+            seed['category'] = cat
+    seed.setdefault('category', 'transfer')
+    seed['explain'] = EXPLAIN.get(seed['name'], '')
+    return seed
+
+
+SEED_FET_CHARACTERISTICS = [_apply_fp6(s) for s in SEED_FET_CHARACTERISTICS]
+
+
 # ── resolution ─────────────────────────────────────────────────────
 
 def _rows(manager):
@@ -466,7 +594,8 @@ def _rows(manager):
                 'name', 'display_name', 'order', 'group', 'description',
                 'performance_meaning', 'equation', 'related_states_json',
                 'related_regimes_json', 'related_terms_json',
-                'views_json', 'citations_json', 'fidelity')}
+                'views_json', 'citations_json', 'fidelity',
+                'category', 'explain')}
     for seed in SEED_FET_CHARACTERISTICS:
         rows.setdefault(seed['name'], seed)
     return dict(sorted(rows.items(), key=lambda kv: kv[1]['order']))
@@ -516,9 +645,16 @@ def characteristics_index(manager, device_name):
     return {'ok': True, 'device': device_name,
             'groups': ['iv', 'switching', 'transport', 'fields',
                        'quality'],
+            # fp-6: the datasheet organisation (input / output /
+            # transfer / structure) beside the physics grouping
+            'categories': [{'key': c, 'meaning': CATEGORY_MEANING[c]}
+                           for c in ('input', 'output', 'transfer',
+                                     'structure')],
             'characteristics': [
                 {'key': r['name'], 'display_name': r['display_name'],
                  'group': r['group'], 'order': r['order'],
+                 'category': r.get('category', ''),
+                 'explain': r.get('explain', ''),
                  'performance_meaning': r['performance_meaning'],
                  'viewCount': len(json.loads(r['views_json']))}
                 for r in rows.values()],
@@ -536,6 +672,8 @@ def characteristic_detail(manager, device_name, key, scene_names=()):
                           _seeded_graph_names(manager), set(scene_names))
     return {'ok': True, 'device': device_name, 'key': key,
             'display_name': row['display_name'], 'group': row['group'],
+            'category': row.get('category', ''),
+            'explain': row.get('explain', ''),
             'description': row['description'],
             'performance_meaning': row['performance_meaning'],
             'equation': row['equation'], 'fidelity': row['fidelity'],

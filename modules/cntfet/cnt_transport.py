@@ -434,6 +434,18 @@ def transport_context(manager, device):
     S3 sampler does; low-confidence rows are listed, not hidden."""
     if manager is None or device is None:
         return None, {'ok': False, 'error': 'no manager / device'}
+    if not hasattr(device, 'material'):
+        # fp-2: a SiliconMOSFET row shares the VS model but not the
+        # CNT process rows (purity / alignment / Rc) this context
+        # reads — refuse by name rather than invent phonon data.
+        return None, {'ok': False,
+                      'error': 'transport context is CNT-specific today '
+                               '(process rows: purity, alignment, Rc); '
+                               f'"{getattr(device, "name", "?")}" is '
+                               'not an AlignedCNTFETDevice — a silicon '
+                               'scattering basis (phonon/impurity/'
+                               'surface-roughness mfps) is a sifet '
+                               'follow-up, not a hidden default'}
     rows, missing = resolve_components(manager, device)
     if missing:
         return None, {'ok': False,

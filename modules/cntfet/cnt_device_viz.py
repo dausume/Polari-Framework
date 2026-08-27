@@ -63,6 +63,14 @@ def device_model(manager, name):
             'no manager — device rows are not reachable')
     device = get_row(manager, 'AlignedCNTFETDevice', name)
     if device is None:
+        # fp-2: a silicon MOSFET row answers the SAME contract (VS
+        # parameterisation) so every fi/fv/fp surface works on it.
+        try:
+            from sifet.si_device import si_device_model
+            if get_row(manager, 'SiliconMOSFET', name) is not None:
+                return si_device_model(manager, name)
+        except ImportError:
+            pass
         return None, None, None, _refuse(f'no device named "{name}"')
     if not getattr(device, 'derived_at', ''):
         return None, None, None, _refuse(
@@ -83,7 +91,20 @@ def device_model(manager, name):
         {'rc_ohm': contact.rc_ohm},
         {'vt0_v': transport.vt0_v, 'efsd_ev': transport.efsd_ev},
         device.temperature_k)
-    return (lambda vg, vd: vs_terminal_current(vg, vd, p)['id_a'],
+    # fp-6: polarity reaches the model. The p-twin is the EXACT
+    # mirror ([VS1] premise ii): every characteristic is analysed in
+    # the device's OWN polarity frame (|Vgs|, |Vds|), so its numbers
+    # equal the n twin's and its SPICE card carries ptype = 1 (the
+    # cell netlists already use that). Stated on p, not hidden.
+    polarity = getattr(device, 'polarity', 'n') or 'n'
+    p = {**p, 'polarity': polarity, 'ptype': 1 if polarity == 'p' else 0,
+         'polarity_frame': ('mirrored: Id(vg, vd) here is |Id_p(-vg, '
+                            '-vd)| — the device\'s own frame'
+                            if polarity == 'p' else 'native n-frame')}
+    # the id_fn evaluates the mirror-symmetric n-frame model (ptype 0);
+    # p['ptype'] = 1 is for the SPICE card / cell netlists only
+    p_eval = {**p, 'ptype': 0}
+    return (lambda vg, vd: vs_terminal_current(vg, vd, p_eval)['id_a'],
             p, device, None)
 
 
@@ -243,7 +264,8 @@ def extra_curve_builders():
     `fn(id_fn, p, device, manager, knobs) -> rows`. A module that is
     absent simply contributes nothing (its curves refuse by name)."""
     builders = {}
-    for mod in ('cnt_regimes', 'cnt_transport', 'cnt_fields'):
+    for mod in ('cnt_regimes', 'cnt_transport', 'cnt_fields',
+                'cnt_power', 'cnt_taxonomy'):
         try:
             module = __import__(f'cntfet.{mod}', fromlist=['CURVE_BUILDERS'])
             builders.update(getattr(module, 'CURVE_BUILDERS', {}))
@@ -257,7 +279,9 @@ def extra_graph_seeds():
     seeds = []
     for mod, name in (('cnt_regimes', 'SEED_CNT_REGIME_GRAPHS'),
                       ('cnt_transport', 'SEED_CNT_TRANSPORT_GRAPHS'),
-                      ('cnt_fields', 'SEED_CNT_FIELD_GRAPHS')):
+                      ('cnt_fields', 'SEED_CNT_FIELD_GRAPHS'),
+                      ('cnt_power', 'SEED_CNT_POWER_GRAPHS'),
+                      ('cnt_taxonomy', 'SEED_CNT_TAXONOMY_GRAPHS')):
         try:
             module = __import__(f'cntfet.{mod}', fromlist=[name])
             seeds.extend(getattr(module, name, []))

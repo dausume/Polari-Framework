@@ -97,6 +97,65 @@ def _row(index, items, min_height=320):
     }
 
 
+def _cell_diagram(item_id, index, segments, title, component, cell,
+                  drive=1):
+    """fp-5: the d3 boolean-logic / transistor-schematic components
+    (generic registry) for one cell — the proof you can step through."""
+    return {
+        'id': item_id, 'index': index, 'type': 'component',
+        'rowSegmentsUsed': segments, 'gridColumnStart': None,
+        'title': title, 'visible': True, 'collapsed': False,
+        'cssClass': '',
+        'componentProps': {'componentName': component,
+                           'inputs': {'cell': cell, 'drive': drive}},
+        'item': None, 'nestedRows': [],
+    }
+
+
+def _cells_page():
+    """fp-5: /display/cntfet-cells — every cell's logic diagram +
+    schematic (config only: one row per cell, two components), the
+    library-wide switch-level proof, and the DFF state space."""
+    rows = [
+        _row(0, [
+            _api('cells-library-proof', 0, 6,
+                 'Cell library: boolean vs switch-level PROOF per cell '
+                 '(allProven, contention, floating) + DFF state space',
+                 '/api/cntfet/cells/logic'),
+            _api('cells-library', 1, 6,
+                 'Cell library (generated variants, drives, arcs)',
+                 '/api/cntfet/cell-library'),
+        ], min_height=360),
+    ]
+    for i, (cell, label) in enumerate((
+            ('cinv', 'INV'), ('cnand2', 'NAND2'), ('cnor2', 'NOR2'),
+            ('caoi21', 'AOI21'), ('coai21', 'OAI21'), ('cmux2', 'MUX2'),
+            ('cxor2', 'XOR2'), ('cnand3', 'NAND3'), ('cand2', 'AND2'),
+            ('cdff', 'DFF (sequential state space)'))):
+        rows.append(_row(i + 1, [
+            _cell_diagram(f'cells-{cell}-logic', 0, 6,
+                          f'{label}: boolean logic diagram — click '
+                          'inputs / step every vector; proven vs the '
+                          'transistor netlist', 'cell-logic-diagram',
+                          cell),
+            _cell_diagram(f'cells-{cell}-schematic', 1, 6,
+                          f'{label}: transistor-level schematic — '
+                          'conducting path per vector',
+                          'cell-schematic', cell),
+        ], min_height=460))
+    return {
+        'name': 'cntfet-cells',
+        'description': 'Standard cells as circuit + boolean logic '
+                       'diagrams generated from the cell library '
+                       '(no-code: one row per cell), with the switch-'
+                       'level proof and state-space stepping.',
+        'source_class': 'CNTCellDefinition',
+        'isPage': True, 'pageRoute': 'cntfet-cells',
+        'linkedSolutions': '[]',
+        'definition': json.dumps({'rows': rows}),
+    }
+
+
 SEED_CNTFET_PAGE_DISPLAYS = [{
     'name': 'cntfet-home',
     'description': 'Aligned-CNT FET S1: the one-tube device rows, '
@@ -217,4 +276,4 @@ SEED_CNTFET_PAGE_DISPLAYS = [{
                  '/api/cntfet/device/cnt-aligned-s1/cell-scores'),
         ], min_height=430),
     ]}),
-}]
+}, _cells_page()]

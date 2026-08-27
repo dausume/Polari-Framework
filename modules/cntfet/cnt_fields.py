@@ -115,6 +115,12 @@ def device_regions(manager, device, knobs=None):
     k = {**FIELD_KNOBS, **(knobs or {})}
     if manager is None or device is None:
         return _refuse('no manager/device — component rows unreachable')
+    if not hasattr(device, 'material'):
+        return _refuse('device regions are drawn from the CNT component '
+                       f'rows; "{getattr(device, "name", "?")}" is not '
+                       'an AlignedCNTFETDevice — silicon region sketches '
+                       '(bulk / fin / oxide / poly gate) are a sifet '
+                       'follow-up')
     rows, missing = resolve_components(manager, device)
     if missing:
         return _refuse(f'missing component rows: {missing}')

@@ -36,9 +36,12 @@ def compare_devices(manager, focus_name, knobs=None):
     """The /compare payload: every device scored + ranked; the focus
     device's per-term gap to the leader."""
     tables = getattr(manager, 'objectTables', None) or {}
-    names = sorted(getattr(r, 'name', '')
-                   for r in (tables.get('AlignedCNTFETDevice')
-                             or {}).values())
+    # fp-2: silicon MOSFETs compete on the same terms (shared VS
+    # parameterisation) — cross-technology ranking is the point.
+    names = sorted(
+        getattr(r, 'name', '')
+        for cls in ('AlignedCNTFETDevice', 'SiliconMOSFET')
+        for r in (tables.get(cls) or {}).values())
     if focus_name not in names:
         return {'ok': False, 'error': f'no device named "{focus_name}"'}
     scored = {n: score_device(manager, n, knobs) for n in names}
@@ -149,6 +152,10 @@ def _score_page(device_name):
                               f'{d}: stochastic Id(Vg) envelope',
                               d, 'transfer-envelope'),
             ], min_height=430),
+            _row(3, [_api(f'score-{d}-links', 0, 12,
+                          f'{d}: related pages, partner, cells',
+                          f'/api/cntfet/device/{d}/links')],
+                 min_height=220),
         ]}),
     }
 
@@ -195,6 +202,12 @@ def _detail_page(device_name):
             _row(0, [_explorer_item(f'detail-{d}-explorer', 0, 12,
                                     f'{d}: characteristics → views + '
                                     'meaning', d)], min_height=640),
+            # fp-6 weave: where else this FET lives (pages, partner,
+            # cells, comparators) — a reader never dead-ends here.
+            _row(9, [_api(f'detail-{d}-links', 0, 12,
+                          f'{d}: related pages, partner, cells',
+                          f'/api/cntfet/device/{d}/links')],
+                 min_height=220),
             _row(1, scene_page_items(d), min_height=420),
             _row(2, [
                 _device_graph(f'detail-{d}-field-potential', 0, 6,

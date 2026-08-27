@@ -972,7 +972,7 @@ def main():
           and all(pg['pageRoute'] == f'cntfet-score-{pg["name"][13:]}'
                   and pg['source_class'] == 'AlignedCNTFETDevice'
                   for pg in pages)
-          and all(len(pd['rows']) == 3 for pd in page_defs)
+          and all(len(pd['rows']) == 4 for pd in page_defs)   # + links row
           and any(lg30.name in item['componentProps']['inputs']
                   .get('dataPath', '')
                   for pd in page_defs[1:] for row in pd['rows']
@@ -1056,6 +1056,112 @@ def main():
           and dcomps.count('fet-characteristic-explorer') == 1
           and dcomps.count('sim-space-viewer') == 3,
           f'fp={fp.get("error")} view={scene_view} comps={dcomps}')
+
+    # ---- fp-6: datasheet categories, plain language, the weave -----
+    from cntfet.cnt_links import device_links
+    idx6 = characteristics_index(mgr, device.name)
+    cats = {c['category'] for c in idx6['characteristics']}
+    links = device_links(mgr, device)
+    p_dev_row = cd.get_row(mgr, 'AlignedCNTFETDevice', 'cnt-aligned-s1-p')
+    cd.derive_device(mgr, p_dev_row, parameter_factory=pfac)
+    _pid, p_p, _prow, _pref = device_model(mgr, p_dev_row.name)
+    check('fp-6: every characteristic carries a datasheet category '
+          '(input / output / transfer / structure) and a plain-'
+          'language explanation; the index states what each category '
+          'means; /links weaves pages + partner + cells + comparators; '
+          'the p device\'s model carries ptype 1 and names its '
+          'mirrored frame',
+          cats == {'input', 'output', 'transfer', 'structure'}
+          and all(c['explain'] for c in idx6['characteristics'])
+          and len(idx6['categories']) == 4
+          and links['ok'] and len(links['pages']) == 3
+          and links['cells_built_from_it']
+          and device.name in links['start_here']['route']
+          and p_p['ptype'] == 1 and 'mirrored' in p_p['polarity_frame']
+          and p_dev['ptype'] == 0,
+          f'cats={cats} links={links.get("error")} '
+          f'pp={p_p.get("polarity_frame")}')
+
+    # ---- fp arc: power, taxonomy, silicon dispatch, logic, cells page
+    from cntfet.cnt_power import (
+        budget_report, cell_leakage_states, fet_power,
+    )
+    from cntfet.cnt_taxonomy import device_taxonomy_report, score_signal
+    from cntfet.cnt_logic import cell_logic_report, library_logic_report
+    from sifet.si_basis import SEED_TABLES as SI_SEED_TABLES
+    from sifet.si_device import derive_si_device
+    fpw = fet_power(_id, p_dev, device)
+    pw = budget_report(mgr, device.name)
+    nand = cell_leakage_states('cnand2', 1, 1e-9, 1e-9)
+    leak = {s['when']: s['i_leak_a'] for s in nand['states']}
+    check('fp-1: FET static power = Vdd·Ioff with gate/GIDL leakage '
+          'named as unmodelled gaps, dynamic C·Vdd²; NAND2 leakage per '
+          'input state shows the stack effect (00 < 11); budget '
+          'checks carry per-limit results',
+          abs(fpw['static_w'] - 0.6 * fpw['ioff_a']) < 1e-18
+          and 'gate' in fpw['leakage_components']
+          and fpw['dynamic']['e_switch_j'] > 0
+          and pw['ok'] and pw['results']
+          and len(leak) == 4
+          and min(leak.values()) < max(leak.values()),
+          f'pw={ {k: pw.get(k) for k in ("ok", "error")} } leak={leak}')
+    tx = device_taxonomy_report(mgr, device.name)
+    sig = score_signal(mgr, device.name)
+    check('fp-3: taxonomy names the shape (cnt-gaa), the optimization '
+          'class S1 suits (switching, with the signal score beside it), '
+          'the complementary partner with evaluated conditions, and the '
+          'three regions with numeric boundaries (Vt, Vt+Vov_min, '
+          'Vdsat = BdSat per Vg)',
+          tx.get('ok', True) and sig.get('ok', True)
+          and 0.0 < sig['score'] < 1.0
+          and tx['optimization']['suited_to'] == 'switching-optimized'
+          and tx['complementary'] and len(tx['regions']) >= 3,
+          f'tx={ {k: tx.get(k) for k in ("error", "shape")} } '
+          f'sig={sig.get("score")}')
+    for table, seeds in SI_SEED_TABLES:
+        mgr.objectTables.setdefault(table, {})
+        for s in seeds:
+            _row_factory(mgr, table)(**s)
+    for n in ('si-nmos-planar-90', 'si-pmos-planar-90'):
+        derive_si_device(mgr, cd.get_row(mgr, 'SiliconMOSFET', n))
+    si_id, si_p, si_dev, si_ref = device_model(mgr, 'si-nmos-planar-90')
+    si_score = score_device(mgr, 'si-nmos-planar-90')
+    xcmp = compare_devices(mgr, 'si-nmos-planar-90')
+    check('fp-2: a SiliconMOSFET row (sol-gel or thermal oxide) answers '
+          'the SAME device_model contract — it is a valid FET under the '
+          'gate, scores on the same terms and competes in the cross-'
+          'technology ranking with the CNT devices; CNT-only surfaces '
+          '(transport context, field regions) refuse by name',
+          si_ref is None and si_score['validity']['valid']
+          and 0.0 < si_score['score'] < 1.0
+          and xcmp['ok'] and any(r['device'].startswith('cnt-')
+                                 for r in xcmp['ranking'])
+          and any(r['device'].startswith('si-')
+                  for r in xcmp['ranking'])
+          and not device_curve_points(mgr, 'si-nmos-planar-90',
+                                      curve='transport-vs-lg')['ok'],
+          f'ref={si_ref} score={si_score.get("score")} '
+          f'of={xcmp.get("of")}')
+    lg = cell_logic_report('cnand2')
+    lib = library_logic_report()
+    cells_page = SEED_CNTFET_PAGE_DISPLAYS[1]
+    cp_comps = [i['componentProps']['componentName']
+                for r in json.loads(cells_page['definition'])['rows']
+                for i in r['items']]
+    check('fp-5: every combinational cell PROVES (boolean function == '
+          'switch-level netlist over every vector; zero contention / '
+          'floating); NAND2 payload carries the gate DAG, truth table, '
+          'placed netlist and the state space; the cells page seeds a '
+          'logic diagram + schematic per cell over the generic '
+          'registry',
+          lg['ok'] and lg['proof']['proven'] and lg['gateDag']['nodes']
+          and lg['truthTable']['count'] == 4
+          and len(lg['netlist']['devices']) == 4
+          and lib['allProven']
+          and cells_page['pageRoute'] == 'cntfet-cells'
+          and cp_comps.count('cell-logic-diagram') == 10
+          and cp_comps.count('cell-schematic') == 10,
+          f'lg={lg.get("refusal")} allProven={lib.get("allProven")}')
 
     # ---- fi-2 (cells): the library scored vs intrinsic limits ------
     from cntfet.cnt_cell_scoring import (

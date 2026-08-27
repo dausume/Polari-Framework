@@ -1372,6 +1372,51 @@ try:
     SEED_CNT_FV_GRAPHS = _cnt_fv_graphs()
 except ImportError:
     SEED_CNT_FV_GRAPHS = []
+# fp arc (FET_CELL_POWER_SILICON_PLAN) — guarded per module.
+try:
+    from cntfet.cnt_taxonomy import (
+        ComplementaryPair, FETOptimizationClass, FETShapeType,
+        SEED_COMPLEMENTARY_PAIRS, SEED_FET_OPTIMIZATION_CLASSES,
+        SEED_FET_SHAPE_TYPES, SEED_SIGNAL_SCORE_CONCEPTS,
+        SEED_SIGNAL_SCORE_TERMS,
+    )
+except ImportError:
+    ComplementaryPair = FETOptimizationClass = FETShapeType = None
+    SEED_COMPLEMENTARY_PAIRS = SEED_FET_OPTIMIZATION_CLASSES = []
+    SEED_FET_SHAPE_TYPES = SEED_SIGNAL_SCORE_CONCEPTS = []
+    SEED_SIGNAL_SCORE_TERMS = []
+try:
+    from cntfet.cnt_power import (
+        PowerBudget, SEED_POWER_BUDGETS, SEED_POWER_SCORE_TERMS,
+    )
+except ImportError:
+    PowerBudget, SEED_POWER_BUDGETS, SEED_POWER_SCORE_TERMS = None, [], []
+try:
+    from sifet.si_basis import (
+        SEED_TABLES as _SI_SEED_TABLES, SiliconDopingProfile,
+        SiliconFETShape, SiliconMOSFET, SolGelDielectric, SolGelProcess,
+    )
+    _si_seeds = dict(_SI_SEED_TABLES)
+    SEED_SI_DOPINGS = _si_seeds.get('SiliconDopingProfile', [])
+    SEED_SI_SHAPES = _si_seeds.get('SiliconFETShape', [])
+    SEED_SI_DEVICES = _si_seeds.get('SiliconMOSFET', [])
+    SEED_SOLGEL_DIELECTRICS = _si_seeds.get('SolGelDielectric', [])
+    SEED_SOLGEL_PROCESSES = _si_seeds.get('SolGelProcess', [])
+except ImportError:
+    SiliconDopingProfile = SiliconFETShape = SiliconMOSFET = None
+    SolGelDielectric = SolGelProcess = None
+    SEED_SI_DOPINGS = SEED_SI_SHAPES = SEED_SI_DEVICES = []
+    SEED_SOLGEL_DIELECTRICS = SEED_SOLGEL_PROCESSES = []
+try:
+    from sifet.si_refinement import (
+        RefinementRoute, RefinementStep, SiliconGrade,
+        SEED_REFINEMENT_ROUTES, SEED_REFINEMENT_STEPS,
+        SEED_SILICON_GRADES, SEED_SI_REFINEMENT_GRAPHS,
+    )
+except ImportError:
+    RefinementRoute = RefinementStep = SiliconGrade = None
+    SEED_REFINEMENT_ROUTES = SEED_REFINEMENT_STEPS = []
+    SEED_SILICON_GRADES = SEED_SI_REFINEMENT_GRAPHS = []
 # microchip: the design-level ladder + traversal (separable from the
 # device modules — references their rows, never imports their code).
 try:
@@ -2581,6 +2626,12 @@ class polariServer(treeObject):
             # (None when the phase module is absent — filtered below).
             FETRegime, FETCharacteristic, ScatteringMechanism,
             TransportRegime, FETFieldBand, FETFieldSample,
+            # fp arc: taxonomy, power budgets, silicon FET + sol-gel,
+            # silicon refinement (None when absent — filtered below).
+            FETOptimizationClass, FETShapeType, ComplementaryPair,
+            PowerBudget, SiliconDopingProfile, SolGelDielectric,
+            SolGelProcess, SiliconFETShape, SiliconMOSFET,
+            SiliconGrade, RefinementStep, RefinementRoute,
             # cnt-s3: process objects + MC run rows.
             CNTAlignmentProcess, CNTPlacementProcess,
             CNTPurificationProcess, ContactFormationProcess,
@@ -3556,6 +3607,25 @@ class polariServer(treeObject):
             ('FETCharacteristic', FETCharacteristic,
              SEED_FET_CHARACTERISTICS or []),
             ('FETFieldBand', FETFieldBand, SEED_FET_FIELD_BANDS or []),
+            # fp arc rows.
+            ('FETOptimizationClass', FETOptimizationClass,
+             SEED_FET_OPTIMIZATION_CLASSES or []),
+            ('FETShapeType', FETShapeType, SEED_FET_SHAPE_TYPES or []),
+            ('ComplementaryPair', ComplementaryPair,
+             SEED_COMPLEMENTARY_PAIRS or []),
+            ('PowerBudget', PowerBudget, SEED_POWER_BUDGETS or []),
+            ('SolGelDielectric', SolGelDielectric,
+             SEED_SOLGEL_DIELECTRICS or []),
+            ('SolGelProcess', SolGelProcess, SEED_SOLGEL_PROCESSES or []),
+            ('SiliconDopingProfile', SiliconDopingProfile,
+             SEED_SI_DOPINGS or []),
+            ('SiliconFETShape', SiliconFETShape, SEED_SI_SHAPES or []),
+            ('SiliconMOSFET', SiliconMOSFET, SEED_SI_DEVICES or []),
+            ('SiliconGrade', SiliconGrade, SEED_SILICON_GRADES or []),
+            ('RefinementStep', RefinementStep,
+             SEED_REFINEMENT_STEPS or []),
+            ('RefinementRoute', RefinementRoute,
+             SEED_REFINEMENT_ROUTES or []),
             # cnt-s3: the target line's process rows.
             ('CNTAlignmentProcess', CNTAlignmentProcess,
              SEED_ALIGNMENT_PROCESSES),
@@ -3647,7 +3717,10 @@ class polariServer(treeObject):
              + SEED_PROVIDER_TERMS
              # fi-2: FET + cell figures of merit (cntfet).
              + (SEED_FET_SCORE_TERMS or [])
-             + (SEED_CELL_SCORE_TERMS or [])),
+             + (SEED_CELL_SCORE_TERMS or [])
+             # fp: signal-optimized terms + power terms.
+             + (SEED_SIGNAL_SCORE_TERMS or [])
+             + (SEED_POWER_SCORE_TERMS or [])),
             ('ScoreContext', ScoreContext,
              SEED_SCORE_CONTEXTS + SEED_DMV_GEO_CONTEXTS
              + SEED_DMV_TIMEFRAMES + SEED_PERSONA_CONTEXTS),
@@ -3677,7 +3750,8 @@ class polariServer(treeObject):
              + SEED_INTERPRETATION_SCORE_CONCEPTS
              + SEED_PROVIDER_CONCEPT
              + (SEED_FET_SCORE_CONCEPTS or [])
-             + (SEED_CELL_SCORE_CONCEPTS or [])),
+             + (SEED_CELL_SCORE_CONCEPTS or [])
+             + (SEED_SIGNAL_SCORE_CONCEPTS or [])),
             # Groups + the editable agreement-classification bands
             # (concepts first — groups reference member concepts).
             ('ScoreGroup', ScoreGroup,
@@ -4702,7 +4776,8 @@ class polariServer(treeObject):
             ('GraphDefinition', GraphDefinition, SEED_MSIM_GRAPHS
              + (SEED_CNTFET_FIGURE_GRAPHS or [])
              + (SEED_CNT_DEVICE_GRAPHS or [])
-             + (SEED_CNT_FV_GRAPHS or [])),
+             + (SEED_CNT_FV_GRAPHS or [])
+             + (SEED_SI_REFINEMENT_GRAPHS or [])),
             ('SimVariable', SimVariable, SEED_SIM_VARIABLES),
             # Equations: the live-readout set (KE/PE/E_total) PLUS the
             # per-step math each CalculusOperation references. Must seed

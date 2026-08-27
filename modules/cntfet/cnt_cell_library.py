@@ -56,7 +56,7 @@ from cntfet.cnt_characterization import _crossing, _sta_gate, \
     find_sta, run_sta
 from cntfet.cnt_derive import resolve_components
 from cntfet.cnt_osdi import compile_osdi, find_ngspice
-from cntfet.cnt_vs_model import build_vs_params
+from cntfet.cnt_vs_model import build_vs_params, vs_terminal_current
 
 #: The combinational library as data. devices: (type, drain,
 #: gate, source) with 'vddn'/'0' rails and internal nets named
@@ -649,6 +649,20 @@ def _liberty_library(vdd, slews_s, loads_f, cell_blocks):
         f'    index_2 ("{idx2}");\n  }}\n']
     for blk in cell_blocks:
         out.append(f'  cell ({blk["libertyName"]}) {{\n')
+        # fp-1 (cnt_power): optional per-state leakage {when: W} →
+        # leakage_power () groups in uW (the header's unit) + the
+        # state-mean as cell_leakage_power. Blocks without the
+        # entry emit nothing new (backward compatible).
+        leakage = blk.get('leakage') or {}
+        if leakage:
+            mean_uw = sum(leakage.values()) / len(leakage) * 1e6
+            out.append(f'    cell_leakage_power : {mean_uw:.5g};\n')
+            for when, watts in leakage.items():
+                out.append(
+                    '    leakage_power () {\n'
+                    f'      when : "{when}";\n'
+                    f'      value : {watts * 1e6:.5g};\n'
+                    '    }\n')
         for pin in blk['inputs']:
             out.append(
                 f'    pin ({pin}) {{\n'
@@ -796,6 +810,17 @@ def characterize_cells(manager, device, cells=None, drives=(1,),
         return {'ok': False,
                 'error': 'no arc survived the sweep',
                 'failures': failures}
+    # fp-1: static leakage per input state into the Liberty
+    # (`leakage_power () { when … }`), from the device's own Ioff —
+    # the p twin is the mirror, so ioff_p = ioff_n at S1.
+    try:
+        from cntfet.cnt_power import leakage_blocks_for
+        ioff_n = vs_terminal_current(0.0, vdd, p_n)['id_a']
+        for blk in blocks:
+            blk['leakage'] = leakage_blocks_for(
+                blk['cell'], blk['drive'], ioff_n, ioff_n)
+    except ImportError:
+        pass
     liberty = _liberty_library(vdd, slews_s, loads_f, blocks)
     lib_path = os.path.join(workdir, 'polari_cnt_lib.lib')
     with open(lib_path, 'w') as fh:
