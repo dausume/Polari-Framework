@@ -174,6 +174,81 @@ CELL_LIBRARY = {
              'sense': 'negative', 'when': 'A*!B'},
         ],
     },
+    # ---- fv-6 (FET_VIEWS_PLAN §1): 3-input stacks + composed
+    # single-inverter-stage cells. `compose` entries may now name
+    # SEVERAL input nets (a list) — the sub-cell's ports are wired
+    # in its declared input order, then the output net.
+    'cnand3': {
+        # Y = !(A*B*C): parallel p, 3-deep series n through two
+        # mid nodes (each carries a standin cap).
+        'function': 'NAND3', 'inputs': ['A', 'B', 'C'],
+        'output': 'Y', 'liberty_function': '(!(A*B*C))',
+        'unate': 'negative',
+        'devices': [('p', 'Y', 'A', 'vddn'),
+                    ('p', 'Y', 'B', 'vddn'),
+                    ('p', 'Y', 'C', 'vddn'),
+                    ('n', 'Y', 'A', 'mid1'),
+                    ('n', 'mid1', 'B', 'mid2'),
+                    ('n', 'mid2', 'C', '0')],
+        'midcaps': [('mid1', 0.5), ('mid2', 0.5), ('Y', 1.0)],
+        'noncontrolling': 1,  # tie hi: the series n-stack conducts
+    },
+    'cnor3': {
+        # Y = !(A+B+C): 3-deep series p through two mid nodes,
+        # parallel n to ground.
+        'function': 'NOR3', 'inputs': ['A', 'B', 'C'],
+        'output': 'Y', 'liberty_function': '(!(A+B+C))',
+        'unate': 'negative',
+        'devices': [('p', 'midp1', 'A', 'vddn'),
+                    ('p', 'midp2', 'B', 'midp1'),
+                    ('p', 'Y', 'C', 'midp2'),
+                    ('n', 'Y', 'A', '0'),
+                    ('n', 'Y', 'B', '0'),
+                    ('n', 'Y', 'C', '0')],
+        'midcaps': [('midp1', 0.5), ('midp2', 0.5), ('Y', 1.0)],
+        'noncontrolling': 0,  # tie lo: the series p-stack conducts
+    },
+    'cand2': {
+        # Y = A*B = INV(NAND2(A,B)) — 4 + 2 = 6 FETs.
+        'function': 'AND2', 'inputs': ['A', 'B'], 'output': 'Y',
+        'liberty_function': '(A*B)', 'unate': 'positive',
+        'compose': [('cnand2', ['A', 'B'], 'm1'),
+                    ('cinv', 'm1', 'Y')],
+        'devices': [], 'midcaps': [],
+        'noncontrolling': 1,
+    },
+    'cor2': {
+        # Y = A+B = INV(NOR2(A,B)) — 4 + 2 = 6 FETs.
+        'function': 'OR2', 'inputs': ['A', 'B'], 'output': 'Y',
+        'liberty_function': '(A+B)', 'unate': 'positive',
+        'compose': [('cnor2', ['A', 'B'], 'm1'),
+                    ('cinv', 'm1', 'Y')],
+        'devices': [], 'midcaps': [],
+        'noncontrolling': 0,
+    },
+    'cxor2': {
+        # Y = A^B = !((A*B) + !(A+B)) = AOI21(A, B, NOR2(A,B)) —
+        # the cheapest correct static-CMOS form from the library's
+        # primitives: 4 (NOR2) + 6 (AOI21) = 10 FETs (vs 16 for the
+        # four-NAND form, 12 for OAI21+NAND2+INV). Non-unate: each
+        # pin's sense depends on the other pin's state, so the arcs
+        # carry `when` conditions (the MUX2 pattern).
+        'function': 'XOR2', 'inputs': ['A', 'B'], 'output': 'Y',
+        'liberty_function': '((A*!B)+(!A*B))', 'unate': 'non-unate',
+        'compose': [('cnor2', ['A', 'B'], 'm1'),
+                    ('caoi21', ['A', 'B', 'm1'], 'Y')],
+        'devices': [], 'midcaps': [],
+        'arcs': [
+            {'pin': 'A', 'ties': {'B': 0},
+             'sense': 'positive', 'when': '!B'},
+            {'pin': 'A', 'ties': {'B': 1},
+             'sense': 'negative', 'when': 'B'},
+            {'pin': 'B', 'ties': {'A': 0},
+             'sense': 'positive', 'when': '!A'},
+            {'pin': 'B', 'ties': {'A': 1},
+             'sense': 'negative', 'when': 'A'},
+        ],
+    },
 }
 
 #: cell-2: x4 joins x1/x2 — still GENERATED (4 parallel devices per
@@ -181,7 +256,9 @@ CELL_LIBRARY = {
 DRIVES = (1, 2, 4)
 
 COMBINATIONAL = ['cinv', 'cnand2', 'cnor2', 'cbuf', 'caoi21',
-                 'coai21', 'cmux2']
+                 'coai21', 'cmux2',
+                 # fv-6
+                 'cnand3', 'cnor3', 'cand2', 'cor2', 'cxor2']
 
 
 def arc_id(arc):
@@ -285,10 +362,20 @@ def subckt_text(cell_key, drive):
     ports = ' '.join(cell['inputs'] + [cell['output'], 'vddn'])
     lines = [f'.subckt {subckt_name(cell_key, drive)} {ports}']
     if cell.get('compose'):
-        for idx, (sub, in_net, out_net) in enumerate(
+        for idx, (sub, in_nets, out_net) in enumerate(
                 cell['compose']):
-            lines.append(f'X{idx} {in_net} {out_net} vddn '
-                         f'{subckt_name(sub, drive)}')
+            # fv-6: a sub-cell with several inputs takes a LIST of
+            # nets in its declared input order (a bare string is
+            # the one-input case, e.g. cinv).
+            if isinstance(in_nets, str):
+                in_nets = [in_nets]
+            if len(in_nets) != len(CELL_LIBRARY[sub]['inputs']):
+                raise ValueError(
+                    f'{cell_key}: compose stage {idx} wires '
+                    f'{len(in_nets)} nets into {sub}, which has '
+                    f'{len(CELL_LIBRARY[sub]["inputs"])} inputs')
+            lines.append(f'X{idx} {" ".join(in_nets)} {out_net} '
+                         f'vddn {subckt_name(sub, drive)}')
     else:
         for d_idx, (dtype, dr, gt, src) in enumerate(
                 cell['devices']):

@@ -931,7 +931,9 @@ def main():
           cmp0['ok'] and cmp0['leader'] == device.name
           and unproven['score'] == 0.0 and unproven['unproven']
           and 'derive' in unproven['reason']
-          and unproven['rank'] == cmp0['of']
+          and all(r['score'] == 0.0 and r['unproven']
+                  for r in cmp0['ranking'][1:])   # every comparator
+          and cmp0['of'] == len(SEED_CNT_DEVICES)
           and cmp0['ranking'][0]['levelized'] == 100.0,
           f'cmp={[(r["device"], r["score"]) for r in cmp0["ranking"]]}')
     cd.derive_device(mgr, lg30, parameter_factory=pfac)
@@ -943,8 +945,9 @@ def main():
           'focus device carries its rank, levelized score and per-term '
           'gap to the leader (most-negative first)',
           sc30['validity']['valid'] and sc30['score'] > 0
-          and cmp1['ok'] and cmp1['of'] == 2
-          and all(r['valid'] for r in cmp1['ranking'])
+          and cmp1['ok'] and cmp1['of'] == len(SEED_CNT_DEVICES)
+          and all(r['valid'] for r in cmp1['ranking']
+                  if r['device'] in (device.name, lg30.name))
           and by30['fet-dibl']['raw'] < by_term['fet-dibl']['raw']
           and by30['fet-gm-over-g0']['raw'] < by_term['fet-gm-over-g0']['raw']
           and cmp1['focusRank'] in (1, 2)
@@ -962,7 +965,9 @@ def main():
           'its own paths, ranking + validity panels)',
           c_rows['ok']
           and {r['x'] for r in c_rows['rows'] if r['series'] == 'score'}
-          == {f'{device.name} ◀', lg30.name}
+          >= {f'{device.name} ◀', lg30.name}
+          and len({r['x'] for r in c_rows['rows']
+                   if r['series'] == 'score'}) == len(SEED_CNT_DEVICES)
           and len(pages) == len(SEED_CNT_DEVICES)
           and all(pg['pageRoute'] == f'cntfet-score-{pg["name"][13:]}'
                   and pg['source_class'] == 'AlignedCNTFETDevice'
@@ -973,6 +978,84 @@ def main():
                   for pd in page_defs[1:] for row in pd['rows']
                   for item in row['items']),
           f'rows={sorted({r["x"] for r in c_rows["rows"] if r["x"]})}')
+
+    # ---- fv-3: the characteristic registry + fv curve plug-ins -----
+    from cntfet.cnt_characteristics import (
+        SEED_FET_CHARACTERISTICS, characteristic_detail,
+        characteristics_index,
+    )
+    from cntfet.cnt_device_viz import extra_curve_builders, extra_graph_seeds
+    idx = characteristics_index(mgr, device.name)
+    keys = [c['key'] for c in idx['characteristics']]
+    detail = characteristic_detail(mgr, device.name, 'regime-map')
+    bad = characteristic_detail(mgr, device.name, 'no-such')
+    check('fv-3: the characteristic registry is DATA — ≥ 20 seeded '
+          'rows across iv/switching/transport/fields/quality, each '
+          'with a physics description, a performance meaning, an '
+          'equation and ≥ 1 view; details resolve {device} into the '
+          'device\'s own paths and never drop a view (unbuilt ones '
+          'are named with their owning phase); unknown keys refuse',
+          idx['ok'] and len(keys) >= 20 and len(set(keys)) == len(keys)
+          and all(c['description'] and c['performance_meaning']
+                  and c['equation'] and json.loads(c['views_json'])
+                  for c in SEED_FET_CHARACTERISTICS)
+          and detail['ok']
+          and all(device.name in v['dataPath'] for v in detail['views'])
+          and all(v['status'] in ('ready', 'unbuilt')
+                  for v in detail['views'])
+          and not bad['ok'] and 'known' in bad,
+          f'keys={len(keys)} unbuilt={detail.get("unbuiltViews")}')
+    builders = extra_curve_builders()
+    fv_graphs = {g['name'] for g in extra_graph_seeds()}
+    rm = device_curve_points(mgr, device.name, curve='regime-map')
+    tr = device_curve_points(mgr, device.name, curve='transport-vs-lg')
+    from cntfet.cnt_transport import transport_report
+    trep = transport_report(mgr, device, p_dev, vgs=0.6, vds=0.6)
+    trep_lo = transport_report(mgr, device, p_dev, vgs=0.6, vds=0.05)
+    check('fv-2 plug-in: transport rows come through the same registry '
+          '(tuple builders honoured) and the report names the regime '
+          'with its criteria — S1 is ballistic at low bias and the '
+          'optical-phonon branch pulls it down at Vdd',
+          'transport-vs-lg' in builders and tr['ok'] and len(tr['rows']) > 20
+          and trep['ok'] and trep_lo['ok']
+          and trep_lo['regime']['name'] == 'ballistic'
+          and trep['transmission'] < trep_lo['transmission']
+          and trep['topContributor'] == 'optical-phonon',
+          f'tr={tr.get("error")} lo={trep_lo.get("regime")} '
+          f'hi={trep.get("regime")} top={trep.get("topContributor")}')
+    check('fv-1 plug-in: sibling modules contribute curve builders + '
+          'graph seeds through one registry — regime-map rows come '
+          'back through device_curve_points and the regime graphs '
+          'are in the seed pass',
+          'regime-map' in builders and rm['ok'] and len(rm['rows']) > 100
+          and {'cnt-device-regime-map', 'cnt-device-exponent',
+               'cnt-device-output-regimes'} <= fv_graphs,
+          f'builders={sorted(builders)} graphs={sorted(fv_graphs)} '
+          f'rm={rm.get("error")}')
+
+    from cntfet.cnt_compare import detail_pages
+    from cntfet.cnt_scene import scene_name
+    fp = device_curve_points(mgr, device.name, curve='field-potential')
+    pot = characteristic_detail(mgr, device.name, 'potential-at-instant',
+                                scene_names={scene_name(device.name)})
+    scene_view = next(v for v in pot['views'] if v['kind'] == 'simspace')
+    dpages = detail_pages([device.name])
+    dcomps = [i['componentProps']['componentName']
+              for r in json.loads(dpages[0]['definition'])['rows']
+              for i in r['items']]
+    check('fv-4/fv-5 plug-in: field-potential rows come through the '
+          'registry; the potential characteristic resolves its scene '
+          'to THIS device\'s cnt-device-3d-{device} with the field\'s '
+          'run ref (ready when the scene row exists); the detail page '
+          'seeds the explorer + one sim-space viewer per scalar field',
+          fp['ok'] and len(fp['rows']) > 100
+          and scene_view['simSpaceName'] == scene_name(device.name)
+          and scene_view['run'] == f'fet-fields:{device.name}:potential'
+          and scene_view['status'] == 'ready'
+          and dpages[0]['pageRoute'] == f'cntfet-detail-{device.name}'
+          and dcomps.count('fet-characteristic-explorer') == 1
+          and dcomps.count('sim-space-viewer') == 3,
+          f'fp={fp.get("error")} view={scene_view} comps={dcomps}')
 
     # ---- fi-2 (cells): the library scored vs intrinsic limits ------
     from cntfet.cnt_cell_scoring import (

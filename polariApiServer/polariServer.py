@@ -1302,6 +1302,13 @@ try:
     from cntfet.cnt_compare import score_pages as _cnt_score_pages
     SEED_CNT_SCORE_PAGES = _cnt_score_pages(
         [d['name'] for d in SEED_CNT_DEVICES])
+    # fv-5: one characteristic-explorer DETAIL page per FET.
+    try:
+        from cntfet.cnt_compare import detail_pages as _cnt_detail_pages
+        SEED_CNT_SCORE_PAGES = SEED_CNT_SCORE_PAGES + _cnt_detail_pages(
+            [d['name'] for d in SEED_CNT_DEVICES])
+    except ImportError:
+        pass
 except ImportError as _exc:
     _stub_missing_feature('cntfet', _exc, globals(), (
         'AlignedCNTFETDevice', 'AlignedCNTFETGeometry', 'CNTCalibrationAnchor', 'CNTContact',
@@ -1324,6 +1331,47 @@ except ImportError as _exc:
         'SEED_CELL_SCORE_CONCEPTS', 'SEED_CELL_SCORE_TERMS',
         'SEED_CELL_SCORE_SUBJECTS', 'SEED_CNT_SCORE_PAGES',
     ))
+# fv arc (FET_VIEWS_PLAN): each phase module is guarded SEPARATELY so
+# an absent phase never stubs the whole cntfet feature.
+try:
+    from cntfet.cnt_regimes import FETRegime, SEED_FET_REGIMES
+except ImportError:
+    FETRegime, SEED_FET_REGIMES = None, []
+try:
+    from cntfet.cnt_characteristics import (
+        FETCharacteristic, SEED_FET_CHARACTERISTICS,
+    )
+except ImportError:
+    FETCharacteristic, SEED_FET_CHARACTERISTICS = None, []
+try:
+    from cntfet.cnt_transport import (
+        ScatteringMechanism, TransportRegime,
+        SEED_SCATTERING_MECHANISMS, SEED_TRANSPORT_REGIMES,
+    )
+except ImportError:
+    ScatteringMechanism = TransportRegime = None
+    SEED_SCATTERING_MECHANISMS, SEED_TRANSPORT_REGIMES = [], []
+try:
+    from cntfet.cnt_fields import (
+        FETFieldBand, FETFieldSample, SEED_FET_FIELD_BANDS,
+        SEED_FET_FIELD_MATERIALS_3D,
+    )
+except ImportError:
+    FETFieldBand = FETFieldSample = None
+    SEED_FET_FIELD_BANDS, SEED_FET_FIELD_MATERIALS_3D = [], []
+try:
+    from cntfet.cnt_scene import (
+        SEED_CNT_DEVICE_SCENES, SEED_FET_FIELD_BINDINGS,
+    )
+    SEED_CNT_DEVICE_SCENE_ROWS = SEED_CNT_DEVICE_SCENES(
+        [d['name'] for d in (SEED_CNT_DEVICES or [])])
+except (ImportError, TypeError):
+    SEED_CNT_DEVICE_SCENE_ROWS, SEED_FET_FIELD_BINDINGS = [], []
+try:
+    from cntfet.cnt_device_viz import extra_graph_seeds as _cnt_fv_graphs
+    SEED_CNT_FV_GRAPHS = _cnt_fv_graphs()
+except ImportError:
+    SEED_CNT_FV_GRAPHS = []
 # microchip: the design-level ladder + traversal (separable from the
 # device modules — references their rows, never imports their code).
 try:
@@ -2529,6 +2577,10 @@ class polariServer(treeObject):
             CNTCellDefinition,
             # fi-0: operating states.
             FETOperatingState,
+            # fv arc: regimes, characteristics, transport, fields
+            # (None when the phase module is absent — filtered below).
+            FETRegime, FETCharacteristic, ScatteringMechanism,
+            TransportRegime, FETFieldBand, FETFieldSample,
             # cnt-s3: process objects + MC run rows.
             CNTAlignmentProcess, CNTPlacementProcess,
             CNTPurificationProcess, ContactFormationProcess,
@@ -3411,7 +3463,9 @@ class polariServer(treeObject):
             # Textures BEFORE materials — materials reference them.
             ('Texture3DDefinition', Texture3DDefinition, SEED_TEXTURES_3D),
             ('Material3DDefinition', Material3DDefinition,
-             SEED_MATERIALS_3D + SEED_MOTOR_MATERIALS_3D),
+             SEED_MATERIALS_3D + SEED_MOTOR_MATERIALS_3D
+             # fv-4: device region + banded-field materials.
+             + (SEED_FET_FIELD_MATERIALS_3D or [])),
             ('MaterialPhaseAppearance', MaterialPhaseAppearance,
              SEED_MATERIAL_PHASE_APPEARANCES),
             ('SimSpaceDefinition', SimSpaceDefinition,
@@ -3493,6 +3547,15 @@ class polariServer(treeObject):
             # fi-0: operating-state rows (criteria as data).
             ('FETOperatingState', FETOperatingState,
              SEED_FET_STATES),
+            # fv arc rows (criteria / mechanisms / registry as data).
+            ('FETRegime', FETRegime, SEED_FET_REGIMES or []),
+            ('TransportRegime', TransportRegime,
+             SEED_TRANSPORT_REGIMES or []),
+            ('ScatteringMechanism', ScatteringMechanism,
+             SEED_SCATTERING_MECHANISMS or []),
+            ('FETCharacteristic', FETCharacteristic,
+             SEED_FET_CHARACTERISTICS or []),
+            ('FETFieldBand', FETFieldBand, SEED_FET_FIELD_BANDS or []),
             # cnt-s3: the target line's process rows.
             ('CNTAlignmentProcess', CNTAlignmentProcess,
              SEED_ALIGNMENT_PROCESSES),
@@ -4638,7 +4701,8 @@ class polariServer(treeObject):
             # Demo graphs-over-time for the multi-scale page's graph panels.
             ('GraphDefinition', GraphDefinition, SEED_MSIM_GRAPHS
              + (SEED_CNTFET_FIGURE_GRAPHS or [])
-             + (SEED_CNT_DEVICE_GRAPHS or [])),
+             + (SEED_CNT_DEVICE_GRAPHS or [])
+             + (SEED_CNT_FV_GRAPHS or [])),
             ('SimVariable', SimVariable, SEED_SIM_VARIABLES),
             # Equations: the live-readout set (KE/PE/E_total) PLUS the
             # per-step math each CalculusOperation references. Must seed
@@ -4649,8 +4713,12 @@ class polariServer(treeObject):
              # rather than Python — inspectable and editable without
              # a deploy.
              + SEED_EQUATION_ROWS),
-            ('SimSpaceDefinition', SimSpaceDefinition, SEED_PENDULUM_SIMSPACES),
-            ('SimSpaceBindingDefinition', SimSpaceBindingDefinition, SEED_PENDULUM_BINDINGS),
+            ('SimSpaceDefinition', SimSpaceDefinition,
+             SEED_PENDULUM_SIMSPACES
+             # fv-4: per-device 3-D scenes (regions + banded fields).
+             + (SEED_CNT_DEVICE_SCENE_ROWS or [])),
+            ('SimSpaceBindingDefinition', SimSpaceBindingDefinition,
+             SEED_PENDULUM_BINDINGS + (SEED_FET_FIELD_BINDINGS or [])),
             ('SimSpaceEvaluationEquation', SimSpaceEvaluationEquation, SEED_PENDULUM_EVALUATION_EQUATIONS),
             # Step solutions: the no-code graphs go in SolutionDefinition
             # (where the editor sees them), then thin metadata wrappers

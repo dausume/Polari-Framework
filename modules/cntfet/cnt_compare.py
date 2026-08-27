@@ -155,3 +155,59 @@ def _score_page(device_name):
 
 def score_pages(device_names):
     return [_score_page(n) for n in device_names]
+
+
+def _explorer_item(item_id, index, segments, title, device):
+    """fv-5: the characteristic explorer (generic registry component)
+    — lists the FETCharacteristic rows for this device and renders
+    the selected one's views through the existing panels."""
+    return {
+        'id': item_id, 'index': index, 'type': 'component',
+        'rowSegmentsUsed': segments, 'gridColumnStart': None,
+        'title': title, 'visible': True, 'collapsed': False,
+        'cssClass': '',
+        'componentProps': {
+            'componentName': 'fet-characteristic-explorer',
+            'inputs': {'device': device, 'hideUnbuilt': False},
+        },
+        'item': None, 'nestedRows': [],
+    }
+
+
+def _detail_page(device_name):
+    """fv-5: the per-FET DETAIL page — select a characteristic, get
+    its views + meaning; below it the 3-D field scenes (scrub Vg)."""
+    from cntfet.cnt_scene import scene_page_items
+    d = device_name
+    return {
+        'name': f'cntfet-detail-{d}',
+        'description': f'Detail view of {d}: select a FET '
+                       'characteristic (IV, switching, transport, '
+                       'fields, quality) and see the views that '
+                       'explain it plus what it means for '
+                       'performance; 2-D profiles and 3-D banded '
+                       'field scenes along the tube.',
+        'source_class': 'AlignedCNTFETDevice',
+        'isPage': True,
+        'pageRoute': f'cntfet-detail-{d}',
+        'linkedSolutions': '[]',
+        'definition': json.dumps({'rows': [
+            _row(0, [_explorer_item(f'detail-{d}-explorer', 0, 12,
+                                    f'{d}: characteristics → views + '
+                                    'meaning', d)], min_height=640),
+            _row(1, scene_page_items(d), min_height=420),
+            _row(2, [
+                _device_graph(f'detail-{d}-field-potential', 0, 6,
+                              f'{d}: potential along the tube '
+                              '(F1 sketch; D13 SCF beside it when '
+                              'present)', d, 'field-potential'),
+                _device_graph(f'detail-{d}-field-density', 1, 6,
+                              f'{d}: electron density along the tube',
+                              d, 'field-density'),
+            ], min_height=430),
+        ]}),
+    }
+
+
+def detail_pages(device_names):
+    return [_detail_page(n) for n in device_names]

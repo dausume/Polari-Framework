@@ -238,6 +238,34 @@ CURVES = ('transfer', 'output', 'transfer-states', 'output-states',
           'score-terms', 'transfer-envelope', 'cell-scores', 'compare')
 
 
+def extra_curve_builders():
+    """fv arc: curve builders contributed by sibling modules, each
+    `fn(id_fn, p, device, manager, knobs) -> rows`. A module that is
+    absent simply contributes nothing (its curves refuse by name)."""
+    builders = {}
+    for mod in ('cnt_regimes', 'cnt_transport', 'cnt_fields'):
+        try:
+            module = __import__(f'cntfet.{mod}', fromlist=['CURVE_BUILDERS'])
+            builders.update(getattr(module, 'CURVE_BUILDERS', {}))
+        except ImportError:
+            continue
+    return builders
+
+
+def extra_graph_seeds():
+    """GraphDefinition seeds contributed by the fv modules."""
+    seeds = []
+    for mod, name in (('cnt_regimes', 'SEED_CNT_REGIME_GRAPHS'),
+                      ('cnt_transport', 'SEED_CNT_TRANSPORT_GRAPHS'),
+                      ('cnt_fields', 'SEED_CNT_FIELD_GRAPHS')):
+        try:
+            module = __import__(f'cntfet.{mod}', fromlist=[name])
+            seeds.extend(getattr(module, name, []))
+        except ImportError:
+            continue
+    return seeds
+
+
 def device_curve_points(manager, name, curve='transfer', vd=0.6,
                         samples=DEFAULT_MC_SAMPLES, seed=1):
     """The named-graph-panel data feed for one device."""
@@ -255,8 +283,21 @@ def device_curve_points(manager, name, curve='transfer', vd=0.6,
         if refusal is not None:
             return refusal
     if rows is None:
+        builder = extra_curve_builders().get(curve)
+        if builder is not None:
+            built = builder(id_fn, p, device, manager, None)
+            # builders return rows, or (rows, refusal) like
+            # score_curve_rows — a refusal passes through verbatim
+            if isinstance(built, tuple):
+                rows, refusal = built
+                if refusal is not None:
+                    return refusal
+            else:
+                rows = built
+    if rows is None:
         return _refuse(f'unknown curve "{curve}" '
-                       f'({" | ".join(CURVES)})')
+                       f'({" | ".join(CURVES)} | '
+                       f'{" | ".join(sorted(extra_curve_builders()))})')
     return {'ok': True, 'device': name, 'curve': curve,
             'fidelity': FIDELITY,
             'temperature_k': device.temperature_k,

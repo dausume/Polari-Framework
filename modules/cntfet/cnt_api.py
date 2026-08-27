@@ -58,6 +58,18 @@ class CNTFETAPI(treeObject):
             # fi-4: competitive ranking against every other FET.
             add('/api/cntfet/device/{name}/compare', self,
                 suffix='device_compare')
+            # fv arc: regimes (fv-1), transport (fv-2), the
+            # characteristic registry (fv-3), device fields (fv-4).
+            add('/api/cntfet/device/{name}/regimes', self,
+                suffix='device_regimes')
+            add('/api/cntfet/device/{name}/transport', self,
+                suffix='device_transport')
+            add('/api/cntfet/device/{name}/characteristics', self,
+                suffix='device_characteristics')
+            add('/api/cntfet/device/{name}/characteristic/{key}',
+                self, suffix='device_characteristic')
+            add('/api/cntfet/device/{name}/fields', self,
+                suffix='device_fields')
             add('/api/cntfet/figures', self, suffix='figures')
             add('/api/cntfet/figures/{figure_id}', self,
                 suffix='figure')
@@ -204,6 +216,102 @@ class CNTFETAPI(treeObject):
             response.status = '404 Not Found'
         response.media = report
 
+    def _floats(self, request, response, keys):
+        """Optional float params → dict; refuses on a bad number."""
+        out = {}
+        for key in keys:
+            raw = request.get_param(key)
+            if raw in (None, ''):
+                continue
+            try:
+                out[key] = float(raw)
+            except ValueError:
+                self._refuse(response, f'{key} must be numeric')
+                return None
+        return out
+
+    def _modelled(self, response, name):
+        from cntfet.cnt_device_viz import device_model
+        id_fn, p, device, refusal = device_model(self.manager, name)
+        if refusal is not None:
+            response.status = '422 Unprocessable Entity'
+            response.media = refusal
+            return None
+        return id_fn, p, device
+
+    def on_get_device_regimes(self, request, response, name):
+        """fv-1: ?vg= ?vd= (point) + the map summary + exponent."""
+        from cntfet.cnt_regimes import device_regimes_report
+        m = self._modelled(response, name)
+        if m is None:
+            return
+        q = self._floats(request, response, ('vg', 'vd'))
+        if q is None:
+            return
+        response.media = device_regimes_report(
+            m[1], m[2], vgs=q.get('vg'), vds=q.get('vd'),
+            manager=self.manager)
+
+    def on_get_device_transport(self, request, response, name):
+        """fv-2: ?vg= ?vd= ?t= (hours) ?horizon= (hours)."""
+        from cntfet.cnt_transport import transport_report
+        m = self._modelled(response, name)
+        if m is None:
+            return
+        q = self._floats(request, response, ('vg', 'vd', 't', 'horizon'))
+        if q is None:
+            return
+        kwargs = {'vgs': q.get('vg', 0.6), 'vds': q.get('vd', 0.6),
+                  't_hours': q.get('t', 0.0)}
+        if 'horizon' in q:
+            kwargs['horizon_hours'] = q['horizon']
+        report = transport_report(self.manager, m[2], m[1], **kwargs)
+        if not report.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = report
+
+    def _scene_names(self):
+        tables = getattr(self.manager, 'objectTables', None) or {}
+        return {getattr(r, 'name', '')
+                for r in (tables.get('SimSpaceDefinition') or {}).values()}
+
+    def on_get_device_characteristics(self, request, response, name):
+        from cntfet.cnt_characteristics import characteristics_index
+        if get_row(self.manager, 'AlignedCNTFETDevice', name) is None:
+            return self._refuse(response, f'no device "{name}"',
+                                '404 Not Found')
+        response.media = characteristics_index(self.manager, name)
+
+    def on_get_device_characteristic(self, request, response, name,
+                                     key):
+        from cntfet.cnt_characteristics import characteristic_detail
+        if get_row(self.manager, 'AlignedCNTFETDevice', name) is None:
+            return self._refuse(response, f'no device "{name}"',
+                                '404 Not Found')
+        report = characteristic_detail(self.manager, name, key,
+                                       self._scene_names())
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_device_fields(self, request, response, name):
+        """fv-4: ?field=material|potential|electron-density|n-doping|
+        p-doping ?vg= ?vd= — the 1-D profile (F1 sketch, labelled)."""
+        from cntfet.cnt_fields import field_profile
+        device = get_row(self.manager, 'AlignedCNTFETDevice', name)
+        if device is None:
+            return self._refuse(response, f'no device "{name}"',
+                                '404 Not Found')
+        q = self._floats(request, response, ('vg', 'vd'))
+        if q is None:
+            return
+        report = field_profile(self.manager, device,
+                               request.get_param('field') or 'potential',
+                               q.get('vg', 0.6), q.get('vd', 0.6))
+        if not report.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = report
+
     def on_get_device_cell_scores(self, request, response, name):
         from cntfet.cnt_cell_scoring import score_cells
         report = score_cells(self.manager, name)
@@ -279,6 +387,21 @@ class CNTFETAPI(treeObject):
         action = payload.get('action', '')
         if action == 'derive':
             response.media = derive_device(self.manager, device)
+            return
+        if action == 'sample-fields':
+            # fv-4: generate the FETFieldSample rows the 3-D scene
+            # binds (one band-coloured cell per x per Vg per field).
+            from cntfet.cnt_fields import sample_fields
+            try:
+                vd = float(payload.get('vd', 0.6))
+                n_cells = int(payload.get('nCells', 40))
+            except (TypeError, ValueError):
+                return self._refuse(response, 'vd/nCells must be numeric')
+            report = sample_fields(self.manager, device, vd=vd,
+                                   n_cells=max(8, min(n_cells, 200)))
+            if not report.get('ok'):
+                response.status = '422 Unprocessable Entity'
+            response.media = report
             return
         if action == 'iv':
             report = run_iv(
