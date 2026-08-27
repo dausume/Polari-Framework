@@ -312,7 +312,7 @@ SEED_SI_DEVICES = [
               '2 nm thermal SiO2. Exists to compare against the CNT '
               'S1 device on every fv/fi surface and as the thermal-'
               'oxide baseline for the sol-gel variants. Derive before '
-              'use.'},
+              'use: unproven → scores 0 until derived.'},
     {'name': 'si-pmos-planar-90', 'polarity': 'p',
      'shape': 'planar-90nm-class', 'channel_doping': 'si-channel-n-1e17',
      'sd_doping': 'si-sd-p-plus-1e20', 'dielectric': 'thermal-sio2-2nm',
@@ -324,8 +324,9 @@ SEED_SI_DEVICES = [
      'notes': 'Complementary partner of si-nmos-planar-90: same '
               'stack, n-well, Vt NEGATIVE, hole mobility ~1/2.5 of '
               'electrons — exists to show why the p device needs '
-              'W_p/W_n ~ mu_n/mu_p for drive match (fp-3 pairs). '
-              'Derive before use.'},
+              'W_p/W_n ~ mu_n/mu_p for drive match (fp-3 pairs, '
+              'si-planar-90-pair). Derive before use: unproven → '
+              'scores 0 until derived.'},
     {'name': 'si-nmos-planar-solgel-hfo2', 'polarity': 'n',
      'shape': 'planar-90nm-class', 'channel_doping': 'si-channel-p-1e17',
      'sd_doping': 'si-sd-n-plus-1e20', 'dielectric': 'solgel-hfo2-4nm',
@@ -338,7 +339,8 @@ SEED_SI_DEVICES = [
               'exists to compare EOT 0.87 nm high-k vs 2 nm SiO2 — '
               'higher Cinv (drive), smaller scale length (less Vt '
               'roll-off / DIBL) — with the sol-gel leakage prior '
-              'stated, not simulated. Derive before use.'},
+              'stated, not simulated. Derive before use: unproven → '
+              'scores 0 until derived.'},
     {'name': 'si-nmos-finfet-solgel-hfo2', 'polarity': 'n',
      'shape': 'finfet-class', 'channel_doping': 'si-channel-p-1e17',
      'sd_doping': 'si-sd-n-plus-1e20', 'dielectric': 'solgel-hfo2-4nm',
@@ -350,7 +352,60 @@ SEED_SI_DEVICES = [
               'with sol-gel HfO2 (conformality of a spin-on film on '
               'a fin is a stated PRIOR gap). Exists to compare the '
               'fully-depleted body (n_ss -> 1, tiny DIBL) against '
-              'the planar 90 nm class. Derive before use.'},
+              'the planar 90 nm class. Derive before use: unproven '
+              '→ scores 0 until derived.'},
+    # ---- FET-SET flush (2026-08-27): every silicon FET gets its
+    # complementary partner where one exists + the TEOS sol-gel
+    # SiO2 planar device so the dielectric ladder (thermal SiO2 →
+    # sol-gel SiO2 → sol-gel HfO2) is complete on the same NMOS.
+    {'name': 'si-pmos-finfet-solgel-hfo2', 'polarity': 'p',
+     'shape': 'finfet-class', 'channel_doping': 'si-channel-n-1e17',
+     'sd_doping': 'si-sd-p-plus-1e20', 'dielectric': 'solgel-hfo2-4nm',
+     'process': 'spin-3000-1layer', 'lg_nm': 20.0, 'w_nm': 90.0,
+     'temperature_k': 300.0, 'vfb_v': 0.6,
+     'vfb_source': 'PRIOR: as si-pmos-planar-90 (n-well, phi_m ~ 4.8 '
+                   'eV; HfO2 dipole shift NOT modeled)',
+     'rc_ohm_um': 300.0, 'vdd_v': 0.8,
+     'notes': 'Complementary partner of si-nmos-finfet-solgel-hfo2 '
+              '(pair si-finfet-hfo2-pair): same fin, n-well body, '
+              'hole mobility. Exists to show that a FinFET pair '
+              'matches drive by FIN COUNT (W is quantized: one fin '
+              'each here, so the p side is weaker by ~mu_p/mu_n) '
+              'and to give the fully-depleted p device its own Vt. '
+              'Derive before use: unproven → scores 0 until derived.'},
+    {'name': 'si-nmos-planar-solgel-sio2', 'polarity': 'n',
+     'shape': 'planar-90nm-class', 'channel_doping': 'si-channel-p-1e17',
+     'sd_doping': 'si-sd-n-plus-1e20',
+     'dielectric': 'solgel-sio2-teos-4nm',
+     'process': 'spin-3000-1layer', 'lg_nm': 90.0, 'w_nm': 1000.0,
+     'temperature_k': 300.0, 'vfb_v': -0.6,
+     'vfb_source': 'PRIOR: same gate metal as si-nmos-planar-90 '
+                   '(sol-gel SiO2 fixed charge NOT modeled)',
+     'rc_ohm_um': 200.0, 'vdd_v': 1.0,
+     'notes': 'si-nmos-planar-90 with the 4 nm TEOS sol-gel SiO2 film '
+              '(k 3.8, 90 % of thermal density): exists to compare '
+              'the CHEAP spin-on oxide against 2 nm thermal SiO2 at '
+              'equal chemistry — lower Cinv (twice the EOT), larger '
+              'scale length (more Vt roll-off / DIBL) — the honest '
+              'cost of a thicker low-k film, with the leakage prior '
+              'stated, not simulated. Derive before use: unproven → '
+              'scores 0 until derived.'},
+    {'name': 'si-pmos-planar-solgel-hfo2', 'polarity': 'p',
+     'shape': 'planar-90nm-class', 'channel_doping': 'si-channel-n-1e17',
+     'sd_doping': 'si-sd-p-plus-1e20', 'dielectric': 'solgel-hfo2-4nm',
+     'process': 'spin-3000-1layer', 'lg_nm': 90.0, 'w_nm': 1000.0,
+     'temperature_k': 300.0, 'vfb_v': 0.6,
+     'vfb_source': 'PRIOR: as si-pmos-planar-90 (HfO2 dipole / '
+                   'fixed-charge Vfb shift NOT modeled)',
+     'rc_ohm_um': 300.0, 'vdd_v': 1.0,
+     'notes': 'Complementary partner of si-nmos-planar-solgel-hfo2 '
+              '(no pair declared yet — declare a ComplementaryPair '
+              'row to check it): the PMOS on the sol-gel HfO2 stack. '
+              'Exists to compare the high-k p device against the '
+              'thermal-oxide si-pmos-planar-90 (higher Cinv lifts the '
+              'weaker hole drive) and to complete the sol-gel planar '
+              'pair. Derive before use: unproven → scores 0 until '
+              'derived.'},
 ]
 
 SEED_TABLES = (

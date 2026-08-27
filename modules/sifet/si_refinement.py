@@ -915,7 +915,9 @@ def evaporation_removal(c0, coefficient, time_s, area_over_volume,
 # ------------------------------------------------------------------
 def _rows(manager, cls):
     tables = getattr(manager, 'objectTables', {}) or {}
-    return list(tables.get(cls, []) or [])
+    # the live manager keys each table by id (dict) — iterate VALUES
+    t = tables.get(cls) or {}
+    return list(t.values()) if isinstance(t, dict) else list(t)
 
 
 def get_row(manager, cls, name):

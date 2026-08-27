@@ -249,7 +249,379 @@ CELL_LIBRARY = {
              'sense': 'negative', 'when': 'A'},
         ],
     },
+    # ---- cells-2 (2026-08-27): the NEXT set. Same schema; three
+    # extensions ride on it (all backward compatible, normalized by
+    # _normalize_library at import):
+    #   outputs / liberty_functions  multi-output cells (cha, cfa);
+    #       `output` / `liberty_function` are DERIVED from the first
+    #       output when absent, so every single-output consumer keeps
+    #       working. Arcs of multi-output cells name their `output`.
+    #   three_state                  Liberty three_state condition
+    #       (ctbuf): the output is Z when it evaluates true; the
+    #       logic proof expects 'Z' there.
+    #   state                        sequential storage (clatch):
+    #       {output, nodes:{net: 'Q'|'!Q'}} seeds the switch-level
+    #       evaluator with the previous state.
+    'cxnor2': {
+        # Y = !(A^B) = !((A+B) * !(A*B)) = OAI21(A, B, NAND2(A,B)) —
+        # the OAI21 dual of cxor2's NOR2+AOI21 form: 4 + 6 = 10 FETs
+        # (vs 12 for XOR2 -> INV). Non-unate, `when` arcs.
+        'function': 'XNOR2', 'inputs': ['A', 'B'], 'output': 'Y',
+        'liberty_function': '((A*B)+(!A*!B))', 'unate': 'non-unate',
+        'compose': [('cnand2', ['A', 'B'], 'm1'),
+                    ('coai21', ['A', 'B', 'm1'], 'Y')],
+        'devices': [], 'midcaps': [],
+        'arcs': [
+            {'pin': 'A', 'ties': {'B': 0},
+             'sense': 'negative', 'when': '!B'},
+            {'pin': 'A', 'ties': {'B': 1},
+             'sense': 'positive', 'when': 'B'},
+            {'pin': 'B', 'ties': {'A': 0},
+             'sense': 'negative', 'when': '!A'},
+            {'pin': 'B', 'ties': {'A': 1},
+             'sense': 'positive', 'when': 'A'},
+        ],
+    },
+    'cand3': {
+        # Y = A*B*C = INV(NAND3) — 6 + 2 = 8 FETs.
+        'function': 'AND3', 'inputs': ['A', 'B', 'C'], 'output': 'Y',
+        'liberty_function': '(A*B*C)', 'unate': 'positive',
+        'compose': [('cnand3', ['A', 'B', 'C'], 'm1'),
+                    ('cinv', 'm1', 'Y')],
+        'devices': [], 'midcaps': [],
+        'noncontrolling': 1,
+    },
+    'cor3': {
+        # Y = A+B+C = INV(NOR3) — 6 + 2 = 8 FETs.
+        'function': 'OR3', 'inputs': ['A', 'B', 'C'], 'output': 'Y',
+        'liberty_function': '(A+B+C)', 'unate': 'positive',
+        'compose': [('cnor3', ['A', 'B', 'C'], 'm1'),
+                    ('cinv', 'm1', 'Y')],
+        'devices': [], 'midcaps': [],
+        'noncontrolling': 0,
+    },
+    'cnand4': {
+        # Y = !(A*B*C*D): 4 parallel p, a 4-deep series n stack (three
+        # mid nodes). The stack effect (cnt_power: stack_factor^(k-1))
+        # makes the all-low state leak 8x less than one off device;
+        # the price is the series-resistance delay on the fall arc.
+        'function': 'NAND4', 'inputs': ['A', 'B', 'C', 'D'],
+        'output': 'Y', 'liberty_function': '(!(A*B*C*D))',
+        'unate': 'negative',
+        'devices': [('p', 'Y', 'A', 'vddn'),
+                    ('p', 'Y', 'B', 'vddn'),
+                    ('p', 'Y', 'C', 'vddn'),
+                    ('p', 'Y', 'D', 'vddn'),
+                    ('n', 'Y', 'A', 'mid1'),
+                    ('n', 'mid1', 'B', 'mid2'),
+                    ('n', 'mid2', 'C', 'mid3'),
+                    ('n', 'mid3', 'D', '0')],
+        'midcaps': [('mid1', 0.5), ('mid2', 0.5), ('mid3', 0.5),
+                    ('Y', 1.0)],
+        'noncontrolling': 1,
+    },
+    'cnor4': {
+        # Y = !(A+B+C+D): 4-deep series p stack, 4 parallel n.
+        'function': 'NOR4', 'inputs': ['A', 'B', 'C', 'D'],
+        'output': 'Y', 'liberty_function': '(!(A+B+C+D))',
+        'unate': 'negative',
+        'devices': [('p', 'midp1', 'A', 'vddn'),
+                    ('p', 'midp2', 'B', 'midp1'),
+                    ('p', 'midp3', 'C', 'midp2'),
+                    ('p', 'Y', 'D', 'midp3'),
+                    ('n', 'Y', 'A', '0'),
+                    ('n', 'Y', 'B', '0'),
+                    ('n', 'Y', 'C', '0'),
+                    ('n', 'Y', 'D', '0')],
+        'midcaps': [('midp1', 0.5), ('midp2', 0.5), ('midp3', 0.5),
+                    ('Y', 1.0)],
+        'noncontrolling': 0,
+    },
+    'caoi22': {
+        # Y = !((A*B) + (C*D)): n = (A.B) || (C.D); p = (A||B).(C||D)
+        # — 8 FETs. Per-arc ties: the partner pin in the pin's own
+        # AND term high, the other term's pins low.
+        'function': 'AOI22', 'inputs': ['A', 'B', 'C', 'D'],
+        'output': 'Y', 'liberty_function': '(!((A*B)+(C*D)))',
+        'unate': 'negative',
+        'devices': [('p', 'midp', 'A', 'vddn'),
+                    ('p', 'midp', 'B', 'vddn'),
+                    ('p', 'Y', 'C', 'midp'),
+                    ('p', 'Y', 'D', 'midp'),
+                    ('n', 'Y', 'A', 'midn1'),
+                    ('n', 'midn1', 'B', '0'),
+                    ('n', 'Y', 'C', 'midn2'),
+                    ('n', 'midn2', 'D', '0')],
+        'midcaps': [('midp', 0.5), ('midn1', 0.5), ('midn2', 0.5),
+                    ('Y', 1.0)],
+        'arcs': [
+            {'pin': 'A', 'ties': {'B': 1, 'C': 0, 'D': 0},
+             'sense': 'negative', 'when': 'B*!C*!D'},
+            {'pin': 'B', 'ties': {'A': 1, 'C': 0, 'D': 0},
+             'sense': 'negative', 'when': 'A*!C*!D'},
+            {'pin': 'C', 'ties': {'A': 0, 'B': 0, 'D': 1},
+             'sense': 'negative', 'when': '!A*!B*D'},
+            {'pin': 'D', 'ties': {'A': 0, 'B': 0, 'C': 1},
+             'sense': 'negative', 'when': '!A*!B*C'},
+        ],
+    },
+    'coai22': {
+        # Y = !((A+B) * (C+D)): the AOI22 dual — p = (A.B) || (C.D);
+        # n = (A||B).(C||D) — 8 FETs. Ties: partner pin low, the
+        # other OR term satisfied by one high pin.
+        'function': 'OAI22', 'inputs': ['A', 'B', 'C', 'D'],
+        'output': 'Y', 'liberty_function': '(!((A+B)*(C+D)))',
+        'unate': 'negative',
+        'devices': [('p', 'midp1', 'A', 'vddn'),
+                    ('p', 'Y', 'B', 'midp1'),
+                    ('p', 'midp2', 'C', 'vddn'),
+                    ('p', 'Y', 'D', 'midp2'),
+                    ('n', 'Y', 'A', 'midn'),
+                    ('n', 'Y', 'B', 'midn'),
+                    ('n', 'midn', 'C', '0'),
+                    ('n', 'midn', 'D', '0')],
+        'midcaps': [('midp1', 0.5), ('midp2', 0.5), ('midn', 0.5),
+                    ('Y', 1.0)],
+        'arcs': [
+            {'pin': 'A', 'ties': {'B': 0, 'C': 1, 'D': 0},
+             'sense': 'negative', 'when': '!B*C*!D'},
+            {'pin': 'B', 'ties': {'A': 0, 'C': 1, 'D': 0},
+             'sense': 'negative', 'when': '!A*C*!D'},
+            {'pin': 'C', 'ties': {'A': 1, 'B': 0, 'D': 0},
+             'sense': 'negative', 'when': 'A*!B*!D'},
+            {'pin': 'D', 'ties': {'A': 1, 'B': 0, 'C': 0},
+             'sense': 'negative', 'when': 'A*!B*!C'},
+        ],
+    },
+    'cmux4': {
+        # Y = S1 ? (S0 ? D : C) : (S0 ? B : A) — a tree of three
+        # MUX2s (3 x 6 = 18 FETs). The data path crosses TWO
+        # transmission gates without restoration (pass-gate energy
+        # ~0 on the data arcs, as cmux2). 12 arcs: one per data pin
+        # (the select lane that routes it) and, per select, a rise
+        # and a fall arc in EACH lane of the other select.
+        'function': 'MUX4',
+        'inputs': ['A', 'B', 'C', 'D', 'S0', 'S1'], 'output': 'Y',
+        'liberty_function':
+            '((A*!S0*!S1)+(B*S0*!S1)+(C*!S0*S1)+(D*S0*S1))',
+        'unate': 'non-unate',
+        'compose': [('cmux2', ['A', 'B', 'S0'], 'm0'),
+                    ('cmux2', ['C', 'D', 'S0'], 'm1'),
+                    ('cmux2', ['m0', 'm1', 'S1'], 'Y')],
+        'devices': [], 'midcaps': [],
+        'arcs': [
+            {'pin': 'A', 'ties': {'B': 0, 'C': 0, 'D': 0, 'S0': 0, 'S1': 0},
+             'sense': 'positive', 'when': '!S0*!S1'},
+            {'pin': 'B', 'ties': {'A': 0, 'C': 0, 'D': 0, 'S0': 1, 'S1': 0},
+             'sense': 'positive', 'when': 'S0*!S1'},
+            {'pin': 'C', 'ties': {'A': 0, 'B': 0, 'D': 0, 'S0': 0, 'S1': 1},
+             'sense': 'positive', 'when': '!S0*S1'},
+            {'pin': 'D', 'ties': {'A': 0, 'B': 0, 'C': 0, 'S0': 1, 'S1': 1},
+             'sense': 'positive', 'when': 'S0*S1'},
+            {'pin': 'S0', 'ties': {'A': 0, 'B': 1, 'C': 0, 'D': 0, 'S1': 0},
+             'sense': 'positive', 'when': '!S1*!A*B'},
+            {'pin': 'S0', 'ties': {'A': 1, 'B': 0, 'C': 0, 'D': 0, 'S1': 0},
+             'sense': 'negative', 'when': '!S1*A*!B'},
+            {'pin': 'S0', 'ties': {'A': 0, 'B': 0, 'C': 0, 'D': 1, 'S1': 1},
+             'sense': 'positive', 'when': 'S1*!C*D'},
+            {'pin': 'S0', 'ties': {'A': 0, 'B': 0, 'C': 1, 'D': 0, 'S1': 1},
+             'sense': 'negative', 'when': 'S1*C*!D'},
+            {'pin': 'S1', 'ties': {'A': 0, 'B': 0, 'C': 1, 'D': 0, 'S0': 0},
+             'sense': 'positive', 'when': '!S0*!A*C'},
+            {'pin': 'S1', 'ties': {'A': 1, 'B': 0, 'C': 0, 'D': 0, 'S0': 0},
+             'sense': 'negative', 'when': '!S0*A*!C'},
+            {'pin': 'S1', 'ties': {'A': 0, 'B': 0, 'C': 0, 'D': 1, 'S0': 1},
+             'sense': 'positive', 'when': 'S0*!B*D'},
+            {'pin': 'S1', 'ties': {'A': 0, 'B': 1, 'C': 0, 'D': 0, 'S0': 1},
+             'sense': 'negative', 'when': 'S0*B*!C'},
+        ],
+    },
+    'cxor3': {
+        # Y = A^B^C = XOR2(XOR2(A,B), C) — 2 x 10 = 20 FETs. Each
+        # pin's sense is the parity of the other two: one `when`
+        # arc per minterm of the other pins (4 per pin, 12 arcs).
+        'function': 'XOR3', 'inputs': ['A', 'B', 'C'], 'output': 'Y',
+        'liberty_function': '(A^B^C)', 'unate': 'non-unate',
+        'compose': [('cxor2', ['A', 'B'], 'm1'),
+                    ('cxor2', ['m1', 'C'], 'Y')],
+        'devices': [], 'midcaps': [],
+        'arcs': [
+            {'pin': p, 'ties': {o1: v1, o2: v2},
+             'sense': 'positive' if (v1 + v2) % 2 == 0 else 'negative',
+             'when': f'{"" if v1 else "!"}{o1}*{"" if v2 else "!"}{o2}'}
+            for p, o1, o2 in (('A', 'B', 'C'), ('B', 'A', 'C'),
+                              ('C', 'A', 'B'))
+            for v1 in (0, 1) for v2 in (0, 1)
+        ],
+    },
+    # ---- multi-output cells ----------------------------------------
+    'cha': {
+        # Half adder: S = A^B, CO = A*B — XOR2 (10) + AND2 (6) = 16
+        # FETs; each output is one composed stage.
+        'function': 'HA', 'inputs': ['A', 'B'],
+        'outputs': ['S', 'CO'],
+        'liberty_functions': {'S': '((A*!B)+(!A*B))', 'CO': '(A*B)'},
+        'unate': 'non-unate',
+        'compose': [('cxor2', ['A', 'B'], 'S'),
+                    ('cand2', ['A', 'B'], 'CO')],
+        'devices': [], 'midcaps': [],
+        'arcs': [
+            {'pin': 'A', 'output': 'S', 'ties': {'B': 0},
+             'sense': 'positive', 'when': '!B'},
+            {'pin': 'A', 'output': 'S', 'ties': {'B': 1},
+             'sense': 'negative', 'when': 'B'},
+            {'pin': 'B', 'output': 'S', 'ties': {'A': 0},
+             'sense': 'positive', 'when': '!A'},
+            {'pin': 'B', 'output': 'S', 'ties': {'A': 1},
+             'sense': 'negative', 'when': 'A'},
+            {'pin': 'A', 'output': 'CO', 'ties': {'B': 1},
+             'sense': 'positive', 'when': 'B'},
+            {'pin': 'B', 'output': 'CO', 'ties': {'A': 1},
+             'sense': 'positive', 'when': 'A'},
+        ],
+    },
+    'cfa': {
+        # Full adder as the classic 28T MIRROR adder with explicit
+        # devices (chosen over XOR3 + MAJ3 composition = 20 + 12 =
+        # 32 FETs): the inverted carry `cob` = !MAJ(A,B,CI) is a
+        # 10T mirror network, the inverted sum `sb` reuses cob
+        # (S = A.B.CI + !CO.(A+B+CI)) in a 14T mirror network, and
+        # two inverters restore S and CO (4T). 10 + 14 + 4 = 28.
+        # cob gates the sum network — an internal gate net, resolved
+        # by the switch-level evaluator's fixed-point iteration.
+        'function': 'FA', 'inputs': ['A', 'B', 'CI'],
+        'outputs': ['S', 'CO'],
+        'liberty_functions': {'S': '(A^B^CI)',
+                              'CO': '((A*B)+(CI*(A+B)))'},
+        'unate': 'non-unate',
+        'devices': [
+            # !CO mirror: p = (A.B) || (CI.(A||B)); n = same shape
+            ('p', 'cp1', 'A', 'vddn'), ('p', 'cob', 'B', 'cp1'),
+            ('p', 'cp2', 'A', 'vddn'), ('p', 'cp2', 'B', 'vddn'),
+            ('p', 'cob', 'CI', 'cp2'),
+            ('n', 'cob', 'A', 'cn1'), ('n', 'cn1', 'B', '0'),
+            ('n', 'cob', 'CI', 'cn2'),
+            ('n', 'cn2', 'A', '0'), ('n', 'cn2', 'B', '0'),
+            # !S mirror: p = (A.B.CI) || (!CO.(A||B||CI)); n mirrors
+            ('p', 'sp1', 'A', 'vddn'), ('p', 'sp2', 'B', 'sp1'),
+            ('p', 'sb', 'CI', 'sp2'),
+            ('p', 'sp3', 'A', 'vddn'), ('p', 'sp3', 'B', 'vddn'),
+            ('p', 'sp3', 'CI', 'vddn'), ('p', 'sb', 'cob', 'sp3'),
+            ('n', 'sb', 'A', 'sn1'), ('n', 'sn1', 'B', 'sn2'),
+            ('n', 'sn2', 'CI', '0'),
+            ('n', 'sb', 'cob', 'sn3'),
+            ('n', 'sn3', 'A', '0'), ('n', 'sn3', 'B', '0'),
+            ('n', 'sn3', 'CI', '0'),
+            # restoring inverters
+            ('p', 'CO', 'cob', 'vddn'), ('n', 'CO', 'cob', '0'),
+            ('p', 'S', 'sb', 'vddn'), ('n', 'S', 'sb', '0'),
+        ],
+        'midcaps': [('cp1', 0.5), ('cp2', 0.5), ('cn1', 0.5),
+                    ('cn2', 0.5), ('cob', 1.0), ('sp1', 0.5),
+                    ('sp2', 0.5), ('sp3', 0.5), ('sn1', 0.5),
+                    ('sn2', 0.5), ('sn3', 0.5), ('sb', 1.0),
+                    ('S', 1.0), ('CO', 1.0)],
+        'arcs': (
+            # CO = majority: positive unate in each pin when the
+            # other two DIFFER (2 arcs per pin)
+            [{'pin': p, 'output': 'CO', 'ties': {o1: v, o2: 1 - v},
+              'sense': 'positive',
+              'when': f'{"" if v else "!"}{o1}*{"!" if v else ""}{o2}'}
+             for p, o1, o2 in (('A', 'B', 'CI'), ('B', 'A', 'CI'),
+                               ('CI', 'A', 'B'))
+             for v in (0, 1)]
+            # S = parity: one arc per minterm of the other two pins
+            + [{'pin': p, 'output': 'S', 'ties': {o1: v1, o2: v2},
+                'sense': 'positive' if (v1 + v2) % 2 == 0
+                else 'negative',
+                'when': f'{"" if v1 else "!"}{o1}*'
+                        f'{"" if v2 else "!"}{o2}'}
+               for p, o1, o2 in (('A', 'B', 'CI'), ('B', 'A', 'CI'),
+                                 ('CI', 'A', 'B'))
+               for v1 in (0, 1) for v2 in (0, 1)]
+        ),
+    },
+    # ---- tri-state ---------------------------------------------------
+    'ctbuf': {
+        # Tri-state buffer, clocked-inverter form: INV(A) -> ab, then
+        # a 4T tri-state inverter (p: vdd-enb-ab-Y, n: Y-ab-EN-gnd)
+        # with an EN inverter for enb: 2 + 2 + 4 = 8 FETs. EN=1: Y =
+        # A (two inversions, rail-driven — a real static drive, not a
+        # pass gate); EN=0: both stacks open, Y = Z. Only the EN=1
+        # data arc is a timing arc; the enable/disable arcs
+        # (Liberty three_state_enable/disable) are NOT characterized
+        # (stated in library_report).
+        'function': 'TBUF', 'inputs': ['A', 'EN'], 'output': 'Y',
+        'liberty_function': '(A)', 'three_state': '(!EN)',
+        'unate': 'positive',
+        'devices': [('p', 'ab', 'A', 'vddn'), ('n', 'ab', 'A', '0'),
+                    ('p', 'enb', 'EN', 'vddn'),
+                    ('n', 'enb', 'EN', '0'),
+                    ('p', 'mp', 'enb', 'vddn'),
+                    ('p', 'Y', 'ab', 'mp'),
+                    ('n', 'Y', 'ab', 'mn'),
+                    ('n', 'mn', 'EN', '0')],
+        'midcaps': [('ab', 0.5), ('enb', 0.5), ('mp', 0.5),
+                    ('mn', 0.5), ('Y', 1.0)],
+        'arcs': [
+            {'pin': 'A', 'ties': {'EN': 1},
+             'sense': 'positive', 'when': 'EN'},
+        ],
+    },
+    # ---- sequential (transparent latch) ------------------------------
+    'clatch': {
+        # Transparent-high D latch = the cdff master with G as the
+        # phase: INV(G) -> gb; input TG (n on G, p on gb) D -> m1;
+        # INV m1 -> m2; INV m2 -> Q; feedback TG (n on gb, p on G)
+        # Q -> m1 closes the loop while G=0. 2 + 2 + 2 + 2 + 2 = 10
+        # FETs. Storage nodes m1 (=Q), m2 (=!Q), Q seed the
+        # switch-level evaluator (cnt_logic) with the previous state.
+        'function': 'DLATCH', 'inputs': ['D', 'G'], 'output': 'Q',
+        'liberty_function': None, 'unate': 'non-unate',
+        'sequential': True,
+        'state': {'output': 'Q',
+                  'nodes': {'m1': 'Q', 'm2': '!Q', 'Q': 'Q'}},
+        'devices': [('p', 'gb', 'G', 'vddn'), ('n', 'gb', 'G', '0'),
+                    ('n', 'm1', 'G', 'D'), ('p', 'm1', 'gb', 'D'),
+                    ('p', 'm2', 'm1', 'vddn'), ('n', 'm2', 'm1', '0'),
+                    ('p', 'Q', 'm2', 'vddn'), ('n', 'Q', 'm2', '0'),
+                    ('n', 'm1', 'gb', 'Q'), ('p', 'm1', 'G', 'Q')],
+        'midcaps': [('gb', 0.5), ('m1', 0.5), ('m2', 0.5),
+                    ('Q', 1.0)],
+        'arcs': [
+            # transparent D -> Q (G=1); the G -> Q (open) arc and the
+            # setup/hold constraints are cnt_sequential's
+            # characterize_latch, not the combinational sweep.
+            {'pin': 'D', 'ties': {'G': 1},
+             'sense': 'positive', 'when': 'G'},
+        ],
+    },
 }
+
+
+def _normalize_library(library):
+    """cells-2: make the single- and multi-output faces of every
+    cell BOTH available. outputs/liberty_functions are the source
+    for multi-output cells (output/liberty_function derived from
+    the FIRST output); single-output cells get outputs =
+    [output] and liberty_functions = {output: function}."""
+    for key, cell in library.items():
+        if cell.get('outputs'):
+            cell.setdefault('output', cell['outputs'][0])
+            cell.setdefault('liberty_function',
+                            cell['liberty_functions'][cell['output']])
+        else:
+            cell['outputs'] = [cell['output']]
+            cell['liberty_functions'] = {
+                cell['output']: cell.get('liberty_function')}
+        cell.setdefault('three_state', None)
+        cell.setdefault('sequential', False)
+        for arc in cell.get('arcs') or []:
+            arc.setdefault('output', cell['outputs'][0])
+    return library
+
+
+_normalize_library(CELL_LIBRARY)
 
 #: cell-2: x4 joins x1/x2 — still GENERATED (4 parallel devices per
 #: position), never a hand twin.
@@ -258,27 +630,49 @@ DRIVES = (1, 2, 4)
 COMBINATIONAL = ['cinv', 'cnand2', 'cnor2', 'cbuf', 'caoi21',
                  'coai21', 'cmux2',
                  # fv-6
-                 'cnand3', 'cnor3', 'cand2', 'cor2', 'cxor2']
+                 'cnand3', 'cnor3', 'cand2', 'cor2', 'cxor2',
+                 # cells-2
+                 'cxnor2', 'cand3', 'cor3', 'cnand4', 'cnor4',
+                 'caoi22', 'coai22', 'cmux4', 'cxor3',
+                 'cha', 'cfa', 'ctbuf']
+
+#: cells-2: the sub-lists (ctbuf is ALSO combinational — its EN=1
+#: face is a boolean function; the Z face is the three_state).
+MULTI_OUTPUT = ['cha', 'cfa']
+TRISTATE = ['ctbuf']
+#: library-defined sequential cells (cdff stays the hand subckt in
+#: cnt_cells; clatch is the first sequential cell AS DATA).
+SEQUENTIAL_CELLS = ['clatch']
 
 
 def arc_id(arc):
-    return arc['pin'] if not arc.get('when') \
+    base = arc['pin'] if not arc.get('when') \
         else f"{arc['pin']}|{arc['when']}"
+    return base if not arc.get('output') else f"{arc['output']}:{base}"
 
 
 def cell_arcs(cell_key):
     """The measurable input arcs of a cell as explicit specs. Cells
     with one non-controlling value get one arc per pin (every other
-    pin tied to that value); cells with an 'arcs' list use it."""
+    pin tied to that value); cells with an 'arcs' list use it.
+    Every arc names its `output` (cells-2; the cell's first output
+    for single-output cells) and its id is prefixed `<output>:`
+    ONLY for multi-output cells (single-output ids are unchanged)."""
     cell = CELL_LIBRARY[cell_key]
+    multi = len(cell['outputs']) > 1
     if cell.get('arcs'):
-        return [dict(a, id=arc_id(a)) for a in cell['arcs']]
+        return [dict(a, output=a.get('output', cell['output']),
+                     id=arc_id(a) if multi
+                     else arc_id({k: v for k, v in a.items()
+                                  if k != 'output'}))
+                for a in cell['arcs']]
     out = []
     for pin in cell['inputs']:
         ties = {o: (1 if cell['noncontrolling'] else 0)
                 for o in cell['inputs'] if o != pin}
         out.append({'id': pin, 'pin': pin, 'ties': ties,
-                    'sense': cell['unate'], 'when': None})
+                    'sense': cell['unate'], 'when': None,
+                    'output': cell['output']})
     return out
 
 
@@ -339,12 +733,29 @@ def _seed_cells():
                 'fet_count': fet_count(key, drive),
                 'inputs_json': json.dumps(cell['inputs']),
                 'output_pin': cell['output'],
-                'liberty_function': cell['liberty_function'],
+                'liberty_function': cell['liberty_function'] or '',
                 'unate': cell['unate'],
                 'origin': 'generated', 'status': 'defined',
-                'notes': '', 'is_prior': True,
+                'notes': _seed_notes(cell), 'is_prior': True,
             })
     return rows
+
+
+def _seed_notes(cell):
+    """cells-2: the row keeps ONE output_pin/liberty_function (the
+    first output); the rest of a multi-output / tri-state /
+    sequential cell's face is stated here."""
+    notes = []
+    if len(cell['outputs']) > 1:
+        notes.append('outputs ' + ', '.join(
+            f'{o} = {cell["liberty_functions"][o]}'
+            for o in cell['outputs']))
+    if cell.get('three_state'):
+        notes.append(f'three_state {cell["three_state"]} (Y = Z)')
+    if cell.get('sequential'):
+        notes.append('sequential: state ' + json.dumps(
+            cell['state']['nodes'], sort_keys=True))
+    return '; '.join(notes)
 
 
 SEED_CNT_CELLS = _seed_cells()
@@ -359,7 +770,8 @@ def subckt_text(cell_key, drive):
     devices per position, standin caps scaled with N (they stand
     in for junction area, which scales with device count)."""
     cell = CELL_LIBRARY[cell_key]
-    ports = ' '.join(cell['inputs'] + [cell['output'], 'vddn'])
+    # cells-2: ports = inputs, then EVERY output in declared order
+    ports = ' '.join(cell['inputs'] + list(cell['outputs']) + ['vddn'])
     lines = [f'.subckt {subckt_name(cell_key, drive)} {ports}']
     if cell.get('compose'):
         for idx, (sub, in_nets, out_net) in enumerate(
@@ -473,13 +885,19 @@ def _measure_arc_point(ngspice_path, workdir, osdi_path, cards,
                 f'vtie{other.lower()} {other.lower()}tie 0 '
                 f'{tie:.6g}')
             nets.append(f'{other.lower()}tie')
-    dut = (f'Xdut {" ".join(nets)} out vddnode '
+    # cells-2: every output port is loaded; the arc's OWN output is
+    # the measured net ('out'); the others are 'out_<pin>'.
+    arc_out = arc.get('output', cell['output'])
+    out_nets = ['out' if o == arc_out else f'out_{o.lower()}'
+                for o in cell['outputs']]
+    dut = (f'Xdut {" ".join(nets)} {" ".join(out_nets)} vddnode '
            f'{subckt_name(cell_key, drive)}')
     netlist = '\n'.join([
         f'* {cell_key}_x{drive} arc {arc["id"]}', card_n, card_p,
         subckts,
         f'vdd vddnode 0 {vdd:.6g}', *sources, dut,
-        f'Cload out 0 {load_f:.6e}',
+        *[f'Cload{"" if o == "out" else o[3:]} {o} 0 {load_f:.6e}'
+          for o in out_nets],
         '.options reltol=1e-4 abstol=1e-12 method=gear',
         '.control', f'pre_osdi {osdi_path}',
         f'tran {min(tau / 4.0, ramp / 8.0):.3e} {tstop:.3e}',
@@ -669,55 +1087,118 @@ def _liberty_library(vdd, slews_s, loads_f, cell_blocks):
                 '      direction : input;\n'
                 f'      capacitance : '
                 f'{ff(blk["inputCap_f"]):.5g};\n    }}\n')
-        out.append(
-            '    pin (Y) {\n'
-            '      direction : output;\n'
-            f'      function : "{blk["function"]}";\n')
-        for arc in blk['arcs'].values():
-            sense = ('positive_unate' if arc['sense'] == 'positive'
-                     else 'negative_unate')
-            when = (f'        when : "{arc["when"]}";\n'
-                    if arc.get('when') else '')
-            tables = arc['tables']
+        # cells-2: one output pin block PER OUTPUT, each with its own
+        # function (+ three_state) and ONLY the arcs that end on it.
+        # Blocks without `outputs` are the single-output 'Y' shape
+        # (backward compatible: selftest_power's synthetic blocks).
+        outputs = blk.get('outputs') or [blk.get('output', 'Y')]
+        functions = blk.get('functions') or {
+            outputs[0]: blk['function']}
+        for out_pin in outputs:
             out.append(
-                '      timing () {\n'
-                f'        related_pin : "{arc["pin"]}";\n'
-                f'        timing_sense : {sense};\n'
-                f'{when}'
-                f'{table_block(tables, "cell_rise", tpl)}'
-                f'{table_block(tables, "cell_fall", tpl)}'
-                f'{table_block(tables, "rise_transition", tpl)}'
-                f'{table_block(tables, "fall_transition", tpl)}'
-                '      }\n'
-                '      internal_power () {\n'
-                f'        related_pin : "{arc["pin"]}";\n'
-                f'{when}'
-                f'{table_block(tables, "rise_power", "pwr_" + tpl)}'
-                f'{table_block(tables, "fall_power", "pwr_" + tpl)}'
-                '      }\n')
-        out.append('    }\n  }\n')
+                f'    pin ({out_pin}) {{\n'
+                '      direction : output;\n'
+                f'      function : "{functions[out_pin]}";\n')
+            if blk.get('three_state'):
+                out.append(
+                    f'      three_state : "{blk["three_state"]}";\n')
+            for arc in blk['arcs'].values():
+                if arc.get('output', outputs[0]) != out_pin:
+                    continue
+                sense = ('positive_unate'
+                         if arc['sense'] == 'positive'
+                         else 'negative_unate')
+                when = (f'        when : "{arc["when"]}";\n'
+                        if arc.get('when') else '')
+                tables = arc['tables']
+                out.append(
+                    '      timing () {\n'
+                    f'        related_pin : "{arc["pin"]}";\n'
+                    f'        timing_sense : {sense};\n'
+                    f'{when}'
+                    f'{table_block(tables, "cell_rise", tpl)}'
+                    f'{table_block(tables, "cell_fall", tpl)}'
+                    f'{table_block(tables, "rise_transition", tpl)}'
+                    f'{table_block(tables, "fall_transition", tpl)}'
+                    '      }\n'
+                    '      internal_power () {\n'
+                    f'        related_pin : "{arc["pin"]}";\n'
+                    f'{when}'
+                    f'{table_block(tables, "rise_power", "pwr_" + tpl)}'
+                    f'{table_block(tables, "fall_power", "pwr_" + tpl)}'
+                    '      }\n')
+            out.append('    }\n')
+        out.append('  }\n')
     out.append('}\n')
     return ''.join(out)
 
 
 def _device_params(manager, device):
-    rows, missing = resolve_components(manager, device)
-    if missing:
-        return None, {'ok': False,
-                      'error': f'missing component rows: '
-                               f'{missing}'}
-    mat, geo = rows['material'], rows['geometry']
-    gate = rows['gate_stack']
-    contact = rows['contact']
-    transport = rows['transport']
-    params = build_vs_params(
-        {'diameter_nm': mat.diameter_nm, 'eg_ev': mat.eg_ev},
-        {'lg_nm': geo.lg_nm},
-        {'t_ox_nm': gate.t_ox_nm, 'k_ox': gate.k_ox},
-        {'rc_ohm': contact.rc_ohm},
-        {'vt0_v': transport.vt0_v, 'efsd_ev': transport.efsd_ev},
-        device.temperature_k)
-    return params, None
+    """The device's OWN VS `p` (the OSDI card's parameter set), by
+    technology: AlignedCNTFETDevice → cnt_derive rows +
+    build_vs_params; SiliconMOSFET (fp-2) → si_device_model's p (the
+    OSDI card IS the VS model, so the same card keys apply; the Si p
+    is per-DEVICE width: cinv_f_per_m = Cinv_area × W_eff, so a
+    planar row with w_nm = 1000 is a 1 µm-wide card, a one-fin
+    FinFET a 90 nm W_eff card). Returns (p, err)."""
+    if type(device).__name__ != 'SiliconMOSFET' and not hasattr(
+            device, 'channel_doping'):
+        rows, missing = resolve_components(manager, device)
+        if missing:
+            return None, {'ok': False,
+                          'error': f'missing component rows: '
+                                   f'{missing}'}
+        mat, geo = rows['material'], rows['geometry']
+        gate = rows['gate_stack']
+        contact = rows['contact']
+        transport = rows['transport']
+        params = build_vs_params(
+            {'diameter_nm': mat.diameter_nm, 'eg_ev': mat.eg_ev},
+            {'lg_nm': geo.lg_nm},
+            {'t_ox_nm': gate.t_ox_nm, 'k_ox': gate.k_ox},
+            {'rc_ohm': contact.rc_ohm},
+            {'vt0_v': transport.vt0_v, 'efsd_ev': transport.efsd_ev},
+            device.temperature_k)
+        return params, None
+    from sifet.si_device import si_device_model
+    _id, p, _dev, refusal = si_device_model(manager, device.name)
+    if refusal is not None:
+        return None, {'ok': False, 'error': refusal['error']}
+    return p, None
+
+
+def _pair_params(manager, device):
+    """(p_n, p_p, err): the n card from the device's own p; the p
+    card PAIR-AWARE — from the complementary partner's own p (ptype
+    1) when a ComplementaryPair names one and it is derived (Si: the
+    real hole device — μ_p, n-well Vt; CNT: the mirror twin, whose p
+    equals the n p by construction), else the historical mirror
+    {**p_n, ptype: 1} with `p_side` saying so. The Si p card is NOT
+    width-matched to the n card (equal-W rows: ratio ≈ μ_p/μ_n);
+    W_p/W_n ≈ μ_n/μ_p is the pair's own affordance, not applied here."""
+    params, err = _device_params(manager, device)
+    if err:
+        return None, None, err
+    p_n = {**params, 'ptype': 0}
+    p_p, side = {**params, 'ptype': 1}, 'mirror of the n card (no ' \
+                                        'derived partner)'
+    try:
+        from cntfet.cnt_taxonomy import _pair_rows
+        partner = None
+        for pair in _pair_rows(manager).values():
+            if device.name == pair['n_device']:
+                partner = pair['p_device']
+                break
+        if partner:
+            from cntfet.cnt_device_viz import device_model
+            _id, pp, _pdev, refusal = device_model(manager, partner)
+            if refusal is None and pp is not None:
+                p_p = {**pp, 'ptype': 1}
+                side = f'partner "{partner}" (own derived p, ptype 1)'
+    except ImportError:
+        pass
+    p_n['p_side'] = p_p['p_side'] = side
+    return p_n, p_p, None
 
 
 def characterize_cells(manager, device, cells=None, drives=(1,),
@@ -742,16 +1223,23 @@ def characterize_cells(manager, device, cells=None, drives=(1,),
                          f'cells (cdff) = {{action: '
                          f'characterize-sequential}} '
                          f'(cnt_sequential, D14 ladder)'}
+    sequential = [c for c in cells if CELL_LIBRARY[c].get('sequential')]
+    if sequential:
+        return {'ok': False,
+                'error': f'sequential cells {sequential} have no '
+                         f'boolean output function — clatch = '
+                         f'cnt_sequential.characterize_latch '
+                         f'({{action: characterize-latch}}), cdff = '
+                         f'characterize_sequential'}
     bad_drives = [d for d in drives if d not in DRIVES]
     if bad_drives:
         return {'ok': False,
                 'error': f'drives {bad_drives} not generated — '
                          f'DRIVES = {list(DRIVES)}'}
-    params, err = _device_params(manager, device)
+    p_n, p_p, err = _pair_params(manager, device)
     if err:
         return err
-    p_n = {**params, 'ptype': 0}
-    p_p = {**params, 'ptype': 1}
+    params = p_n
     tau = _tau_estimate(p_n, vdd)
     cgg_device = params['cinv_f_per_m'] * params['lg_m']
     input_cap = 2.0 * cgg_device + PARASITIC_STANDIN_F
@@ -795,6 +1283,7 @@ def characterize_cells(manager, device, cells=None, drives=(1,),
                     arcs[arc['id']] = {'pin': arc['pin'],
                                        'sense': arc['sense'],
                                        'when': arc.get('when'),
+                                       'output': arc['output'],
                                        'tables': tables}
             if arcs:
                 blocks.append({
@@ -802,6 +1291,10 @@ def characterize_cells(manager, device, cells=None, drives=(1,),
                     'libertyName': liberty_cell_name(cell_key,
                                                      drive),
                     'function': cell['liberty_function'],
+                    # cells-2: per-output functions + three_state
+                    'outputs': list(cell['outputs']),
+                    'functions': dict(cell['liberty_functions']),
+                    'three_state': cell.get('three_state'),
                     'unate': cell['unate'],
                     'inputs': list(cell['inputs']),
                     'inputCap_f': input_cap * drive,
@@ -816,9 +1309,11 @@ def characterize_cells(manager, device, cells=None, drives=(1,),
     try:
         from cntfet.cnt_power import leakage_blocks_for
         ioff_n = vs_terminal_current(0.0, vdd, p_n)['id_a']
+        # pair-aware p card: |Id_p(0, -Vdd)| is the p side's own Ioff
+        ioff_p = abs(vs_terminal_current(0.0, -vdd, p_p)['id_a'])
         for blk in blocks:
             blk['leakage'] = leakage_blocks_for(
-                blk['cell'], blk['drive'], ioff_n, ioff_n)
+                blk['cell'], blk['drive'], ioff_n, ioff_p)
     except ImportError:
         pass
     liberty = _liberty_library(vdd, slews_s, loads_f, blocks)
@@ -839,6 +1334,7 @@ def characterize_cells(manager, device, cells=None, drives=(1,),
         'libertyBytes': len(liberty), 'libertyPath': lib_path,
         'staGate': sta, 'failures': failures,
         'executor': 'polari-own-loop',
+        'pSide': p_p.get('p_side', ''),
         'definitions': {
             'energy_per_transition':
                 'supply energy over the edge window (VDD x '
@@ -945,11 +1441,9 @@ def d11_crosscheck(manager, device, vdd=0.6, workdir=None,
     slew = slews[len(slews) // 2]
     load = loads[len(loads) // 2]
     ngspice_path, _ = find_ngspice()
-    params, err = _device_params(manager, device)
+    p_n, p_p, err = _pair_params(manager, device)
     if err:
         return err
-    p_n = {**params, 'ptype': 0}
-    p_p = {**params, 'ptype': 1}
     tau = _tau_estimate(p_n, vdd)
     cards = _cards(p_n, p_p)
     subckts = library_subckts(['cinv'], (1,))
@@ -1063,11 +1557,28 @@ def library_report():
             'drives': list(DRIVES),
             'combinational': list(COMBINATIONAL),
             'arcs': {k: [a['id'] for a in cell_arcs(k)]
-                     for k in COMBINATIONAL},
+                     for k in COMBINATIONAL + SEQUENTIAL_CELLS},
+            # cells-2
+            'multiOutput': {k: {'outputs': CELL_LIBRARY[k]['outputs'],
+                                'functions':
+                                    CELL_LIBRARY[k]['liberty_functions']}
+                            for k in MULTI_OUTPUT},
+            'tristate': {k: {'three_state': CELL_LIBRARY[k]['three_state'],
+                             'honesty': 'only the enabled data arc is '
+                                        'a timing arc; the Z '
+                                        '(disable/enable) arcs are '
+                                        'NOT characterized'}
+                         for k in TRISTATE},
             'sequential': {'cdff': 'demonstrated (S4c battery); '
                                    'setup/hold/clk->Q = {action: '
                                    'characterize-sequential} '
                                    '(polari-own-loop bisection)',
+                           'clatch': 'library cell AS DATA (10 FETs); '
+                                     'state space + proof = cnt_logic; '
+                                     'D->Q / setup / hold = '
+                                     'cnt_sequential.characterize_latch '
+                                     '(own-loop bisection on the G '
+                                     'falling edge)',
                            'lctime': lctime_status()},
             'source': 'CELL_LIBRARY (generated variants — '
                       'subckts are never hand-maintained twins)'}

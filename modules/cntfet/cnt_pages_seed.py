@@ -131,6 +131,13 @@ def _cells_page():
             ('cinv', 'INV'), ('cnand2', 'NAND2'), ('cnor2', 'NOR2'),
             ('caoi21', 'AOI21'), ('coai21', 'OAI21'), ('cmux2', 'MUX2'),
             ('cxor2', 'XOR2'), ('cnand3', 'NAND3'), ('cand2', 'AND2'),
+            # cells-2 (2026-08-27): the next set
+            ('cxnor2', 'XNOR2'), ('cnand4', 'NAND4 (4-stack)'),
+            ('caoi22', 'AOI22'), ('cmux4', 'MUX4'), ('cxor3', 'XOR3'),
+            ('cha', 'Half adder (S, CO)'),
+            ('cfa', 'Full adder — 28T mirror (S, CO)'),
+            ('ctbuf', 'Tri-state buffer (Z when EN = 0)'),
+            ('clatch', 'D latch (transparent, state space)'),
             ('cdff', 'DFF (sequential state space)'))):
         rows.append(_row(i + 1, [
             _cell_diagram(f'cells-{cell}-logic', 0, 6,

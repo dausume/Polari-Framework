@@ -157,7 +157,33 @@ def si_device_model(manager, name):
         return None, None, None, _refuse(
             f'missing component rows: {missing}')
     p = params_from_rows(rows, device)
-    return polarity_aware_id_fn(p, device.polarity), p, device, None
+    return frame_aware_id_fn(p, device.polarity), p, device, None
+
+
+def frame_aware_id_fn(p, polarity):
+    """id_fn(vg, vd) for the device_model contract. n: the VS model.
+    p: TWO frames, chosen by the sign of the biases —
+       * any negative bias → the SIGNED physical p current,
+         Id_p(vg, vd) = −Id_n(−vg, −vd) (ptype 1), so
+         Id_p(−1, −1) < 0 and the mirror identity holds;
+       * non-negative biases → the device's OWN frame, |Id_p(−vg,
+         −vd)|, the cnt_device_viz convention for the CNT p twin
+         ("every characteristic is analysed in the device's own
+         polarity frame (|Vgs|, |Vds|)"), so the fi/fv/fp consumers
+         that sweep 0..Vdd (states, metrics, validity, scoring,
+         characteristics) prove and score the PMOS on its own
+         numbers instead of zeroing it as 'no modulation'.
+    A reverse-biased PMOS (+Vd on the drain) is NOT what the second
+    frame returns — stated here and in capability()."""
+    signed = polarity_aware_id_fn(p, polarity)
+    if polarity != 'p':
+        return signed
+
+    def id_fn(vg, vd):
+        if vg < 0.0 or vd < 0.0:
+            return signed(vg, vd)
+        return -signed(-vg, -vd)
+    return id_fn
 
 
 def metric_spec(device):
@@ -185,7 +211,13 @@ def capability():
                             'refusal): every cntfet fv/fi surface '
                             'works on a SiliconMOSFET',
             'polarity': 'p devices via the mirror transform '
-                        '(ptype = 1, Id_p(vg,vd) = -Id_n(-vg,-vd))',
+                        '(ptype = 1, Id_p(vg,vd) = -Id_n(-vg,-vd)) — '
+                        'signed for any negative bias; for non-'
+                        'negative biases id_fn answers in the '
+                        'device\'s OWN frame |Id_p(-vg,-vd)| (the CNT '
+                        'p-twin convention) so 0..Vdd sweeps score '
+                        'the PMOS on its own numbers; a reverse-'
+                        'biased PMOS is not what that frame returns',
         },
         'refusals': {
             'gate-leakage': 'no tunnelling / gate-leakage model; the '

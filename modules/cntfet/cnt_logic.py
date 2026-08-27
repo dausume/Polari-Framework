@@ -32,9 +32,29 @@ Switch-level semantics (documented for the proof):
     (each sub-cell's output net feeds the next), values reported
     per stage.
 
+cells-2 (2026-08-27) — payload version 2 (additive, see
+payload_contract):
+  - MULTI-OUTPUT cells (cha, cfa): every evaluation carries
+    `outputValues: {pin: value}` next to `output` (= the FIRST
+    output, kept for v1 readers); the proof checks EVERY output
+    against its own Liberty function; the gate DAG has one output
+    node per output; truth-table rows carry `outputs`.
+  - TRI-STATE (ctbuf): a cell's `three_state` expression is part
+    of the boolean semantics — the EXPECTED output is 'Z' when it
+    evaluates true (expected_output), so the floating vectors of a
+    tri-state cell are proof PASSES, not failures.
+  - STORAGE (clatch): switch_level_eval accepts `initial` net
+    values. A component with NO driver (rails/inputs) takes the
+    value STORED on its member nets ({1}->1, {0}->0, both->'X',
+    none->'Z') — charge retention — and the fixed-point iteration
+    re-derives conduction from there, so a closed inverter loop
+    re-drives its own state from the rails. The latch proof is
+    exhaustive over (G, D, Q_prev) with the storage nodes seeded
+    from Q_prev (the cell's `state.nodes` map).
+
 @consumers
   - cntfet.cnt_api ({action: cell-logic}) — wired by the integrator
-  - cntfet.selftest_logic
+  - cntfet.selftest_logic, cntfet.selftest_cells2
 """
 
 import itertools
@@ -42,14 +62,16 @@ import json
 import re
 
 from cntfet.cnt_cell_library import (
-    CELL_LIBRARY, COMBINATIONAL, fet_count as _fet_count,
+    CELL_LIBRARY, COMBINATIONAL, MULTI_OUTPUT, SEQUENTIAL_CELLS,
+    TRISTATE, fet_count as _fet_count,
 )
 from cntfet.cnt_cells import _SUBCKTS
 
-LOGIC_PAYLOAD_VERSION = 1
+LOGIC_PAYLOAD_VERSION = 2
 
 VDD_NET = 'vddn'
 GND_NET = '0'
+#: the hand-subckt sequential cell (cnt_cells) — NOT in CELL_LIBRARY
 SEQUENTIAL = ['cdff']
 
 
@@ -167,6 +189,17 @@ def evaluate(ast, assignment):
     raise ValueError(f'unknown op {op}')
 
 
+def expected_output(cell, output, vector):
+    """cells-2: the boolean EXPECTATION for one output pin of one
+    vector — 'Z' when the cell's three_state expression is true
+    (tri-state semantics), else the pin's Liberty function."""
+    ts = cell.get('three_state')
+    if ts and evaluate(boolean_ast(ts), vector):
+        return 'Z'
+    return evaluate(boolean_ast(cell['liberty_functions'][output]),
+                    vector)
+
+
 def ast_vars(ast, acc=None):
     acc = [] if acc is None else acc
     if ast['op'] == 'var':
@@ -192,18 +225,24 @@ _GATE_OF = {'and': 'AND', 'or': 'OR', 'xor': 'XOR', 'not': 'NOT'}
 _FOLD = {'and': 'NAND', 'or': 'NOR'}
 
 
-def gate_dag(ast, cell_key=None):
+def gate_dag(ast, cell_key=None, output=None, _into=None):
     """Gate-level DAG. NOT over and/or folds into NAND/NOR; every
     other node is kept faithful to the AST (INV = NOT, BUF = a
-    bare variable, AOI21 = NOR over (AND, C))."""
+    bare variable, AOI21 = NOR over (AND, C)). cells-2: `output`
+    names the output node (default: the cell's first output);
+    `_into` = (nodes, edges, counter) appends a second output's
+    tree to an existing DAG (cell_gate_dag)."""
     cell = CELL_LIBRARY.get(cell_key) if cell_key else None
     inputs = list(cell['inputs']) if cell else ast_vars(ast)
-    output = cell['output'] if cell else 'Y'
-    nodes, edges = [], []
-    counter = itertools.count(1)
-    for name in inputs:
-        nodes.append({'id': name, 'kind': 'input', 'gate': None,
-                      'label': name, 'inputs': [], 'level': 0})
+    output = output or (cell['output'] if cell else 'Y')
+    if _into:
+        nodes, edges, counter = _into
+    else:
+        nodes, edges = [], []
+        counter = itertools.count(1)
+        for name in inputs:
+            nodes.append({'id': name, 'kind': 'input', 'gate': None,
+                          'label': name, 'inputs': [], 'level': 0})
 
     def build(node):
         """returns (node_id, level)"""
@@ -240,6 +279,25 @@ def gate_dag(ast, cell_key=None):
     return {'nodes': nodes, 'edges': edges}
 
 
+def cell_gate_dag(cell_key):
+    """cells-2: the cell's DAG with ONE output node PER OUTPUT
+    (inputs shared, gate ids numbered across outputs). Single-
+    output cells = gate_dag of their function."""
+    cell = _cell(cell_key)
+    if not cell.get('liberty_function'):
+        return None
+    dag = None
+    into = None
+    for out in cell['outputs']:
+        ast = boolean_ast(cell['liberty_functions'][out])
+        dag = gate_dag(ast, cell_key, output=out, _into=into)
+        into = (dag['nodes'], dag['edges'], into[2] if into
+                else itertools.count(
+                    1 + sum(1 for n in dag['nodes']
+                            if n['kind'] == 'gate')))
+    return dag
+
+
 def dag_values(dag, assignment):
     """Per-node logic value for one assignment (drives the
     interactive diagram)."""
@@ -274,11 +332,18 @@ def _vectors(inputs):
 
 
 def truth_table(cell_key):
+    """cells-2: rows carry `output` (first output, v1) AND
+    `outputs: {pin: value}`; a tri-state cell's rows read 'Z'
+    where its three_state holds."""
     cell = _cell(cell_key)
-    ast = boolean_ast(cell['liberty_function'])
-    rows = [{'vector': v, 'output': evaluate(ast, v)}
-            for v in _vectors(cell['inputs'])]
+    rows = []
+    for v in _vectors(cell['inputs']):
+        outs = {o: expected_output(cell, o, v) for o in cell['outputs']}
+        rows.append({'vector': v, 'output': outs[cell['output']],
+                     'outputs': outs})
     return {'inputs': list(cell['inputs']), 'output': cell['output'],
+            'outputs': list(cell['outputs']),
+            'threeState': cell.get('three_state'),
             'rows': rows, 'count': len(rows)}
 
 
@@ -301,6 +366,16 @@ def _stages(cell):
     return out
 
 
+def _sub_ports(sub, in_nets, out_net):
+    """port -> net for one compose stage; out_net may be a list for
+    a multi-output sub-cell (wired in its declared output order)."""
+    subcell = CELL_LIBRARY[sub]
+    ports = dict(zip(subcell['inputs'], in_nets))
+    outs = [out_net] if isinstance(out_net, str) else list(out_net)
+    ports.update(dict(zip(subcell['outputs'], outs)))
+    return ports
+
+
 def flat_devices(cell_key, drive=1, prefix=''):
     """(id, type, drain, gate, source) tuples; composed cells are
     flattened with instance-prefixed internal nets (X0.mid)."""
@@ -308,9 +383,7 @@ def flat_devices(cell_key, drive=1, prefix=''):
     out = []
     if cell.get('compose'):
         for idx, sub, in_nets, out_net in _stages(cell):
-            subcell = CELL_LIBRARY[sub]
-            port_map = dict(zip(subcell['inputs'], in_nets))
-            port_map[subcell['output']] = out_net
+            port_map = _sub_ports(sub, in_nets, out_net)
             inst = f'{prefix}X{idx}'
             for did, dtype, dr, gt, src in flat_devices(
                     sub, drive, prefix=inst + '.'):
@@ -344,7 +417,7 @@ def _net_kind(net, cell):
         return 'gnd'
     if net in cell['inputs']:
         return 'input'
-    if net == cell['output']:
+    if net in cell['outputs']:
         return 'output'
     return 'internal'
 
@@ -390,17 +463,14 @@ def netlist_graph(cell_key, drive=1, flatten=False):
     composed = []
     if cell.get('compose'):
         for idx, sub, in_nets, out_net in _stages(cell):
-            subcell = CELL_LIBRARY[sub]
-            ports = dict(zip(subcell['inputs'], in_nets))
-            ports[subcell['output']] = out_net
             composed.append({'sub_cell': sub, 'instance': f'X{idx}',
-                             'ports': ports})
+                             'ports': _sub_ports(sub, in_nets, out_net)})
         devices = flat_devices(cell_key, drive) if flatten else []
     else:
         devices = flat_devices(cell_key, drive)
     nets = []
     seen = []
-    order = [VDD_NET] + list(cell['inputs']) + [cell['output']]
+    order = [VDD_NET] + list(cell['inputs']) + list(cell['outputs'])
     for n in order:
         seen.append(n)
     for _id, _t, dr, gt, src in devices:
@@ -464,15 +534,20 @@ def _components(nets, devices, values):
     return {n: find(n) for n in nets}, on, unresolved_gates
 
 
-def _resolve(comp, nets, drivers):
-    """component -> value from the driver set."""
-    seen = {}
+def _resolve(comp, nets, drivers, stored=None):
+    """component -> value from the driver set. cells-2: a component
+    with NO driver takes the value STORED on its members (charge
+    retention: {1}->1, {0}->0, both->'X' (charge-sharing conflict),
+    none->'Z')."""
+    seen, kept = {}, {}
     for n in nets:
         if n in drivers:
             seen.setdefault(comp[n], set()).add(drivers[n])
+        elif stored and stored.get(n) in (0, 1):
+            kept.setdefault(comp[n], set()).add(stored[n])
     out = {}
     for n in nets:
-        ds = seen.get(comp[n], set())
+        ds = seen.get(comp[n], set()) or kept.get(comp[n], set())
         if ds == {1}:
             out[n] = 1
         elif ds == {0}:
@@ -512,22 +587,28 @@ def _paths(start, devices, on_ids, drivers):
     return paths
 
 
-def _eval_flat(cell, devices, vector, max_iter=8):
+def _eval_flat(cell, devices, vector, max_iter=12, initial=None):
     """Fixed-point switch-level evaluation of ONE flat device list.
     Inputs and rails are the drivers; internal nets that gate other
-    devices (cmux2's sb) resolve iteratively."""
-    nets = [VDD_NET, GND_NET] + list(cell['inputs']) + [cell['output']]
+    devices (cmux2's sb, cfa's cob) resolve iteratively. cells-2:
+    `initial` = stored values of storage nodes before the vector is
+    applied — they seed the first iteration's gate values and are
+    what an undriven component retains (see _resolve)."""
+    nets = [VDD_NET, GND_NET] + list(cell['inputs']) \
+        + list(cell['outputs'])
     for _id, _t, dr, gt, src in devices:
         for n in (dr, gt, src):
             if n not in nets:
                 nets.append(n)
     drivers = {VDD_NET: 1, GND_NET: 0}
     drivers.update({k: int(bool(vector[k])) for k in cell['inputs']})
-    values = dict(drivers)
+    stored = {k: v for k, v in (initial or {}).items() if k in nets}
+    values = dict(stored)
+    values.update(drivers)
     on, unresolved = [], []
     for _ in range(max_iter):
         comp, on, unresolved = _components(nets, devices, values)
-        resolved = _resolve(comp, nets, drivers)
+        resolved = _resolve(comp, nets, drivers, stored)
         new_values = dict(resolved)
         new_values.update(drivers)
         if new_values == values:
@@ -536,6 +617,7 @@ def _eval_flat(cell, devices, vector, max_iter=8):
     y = cell['output']
     return {
         'output': values[y],
+        'outputs': {o: values[o] for o in cell['outputs']},
         'nets': values,
         'conducting': on,
         'paths': _paths(y, devices, set(on), drivers),
@@ -547,16 +629,22 @@ def _classify(val):
     return {'X': 'contention', 'Z': 'floating'}.get(val, 'driven')
 
 
-def switch_level_eval(cell_key, vector):
+def switch_level_eval(cell_key, vector, initial=None):
     """One input vector through the transistor netlist. Composed
     cells evaluate stage by stage (sub-cell outputs feed the next
-    stage); every stage is reported."""
+    stage); every stage is reported. cells-2: `initial` = {net:
+    0|1} stored on storage nodes before the vector (latches);
+    `outputValues` = every output, `output` = the first."""
     cell = _cell(cell_key)
     vector = {k: int(bool(vector[k])) for k in cell['inputs']}
     if not cell.get('compose'):
-        r = _eval_flat(cell, flat_devices(cell_key), vector)
+        r = _eval_flat(cell, flat_devices(cell_key), vector,
+                       initial=initial)
         return {'cell': cell_key, 'vector': vector,
-                'output': r['output'], 'status': _classify(r['output']),
+                'output': r['output'], 'outputValues': r['outputs'],
+                'status': _classify(r['output']),
+                'statuses': {o: _classify(v)
+                             for o, v in r['outputs'].items()},
                 'nets': r['nets'], 'conducting': r['conducting'],
                 'paths': r['paths'],
                 'unresolvedGates': r['unresolvedGates'],
@@ -565,21 +653,26 @@ def switch_level_eval(cell_key, vector):
     stages, conducting, nets_all = [], [], {}
     for idx, sub, in_nets, out_net in _stages(cell):
         subcell = CELL_LIBRARY[sub]
+        ports = _sub_ports(sub, in_nets, out_net)
         sub_vec = {}
         for port, net in zip(subcell['inputs'], in_nets):
             v = net_vals.get(net, 'Z')
             sub_vec[port] = v
         if any(v in ('X', 'Z') for v in sub_vec.values()):
             out_v = 'X' if 'X' in sub_vec.values() else 'Z'
-            stage_r = {'output': out_v, 'nets': {}, 'conducting': [],
+            stage_r = {'output': out_v,
+                       'outputs': {o: out_v for o in subcell['outputs']},
+                       'nets': {}, 'conducting': [],
                        'paths': [], 'unresolvedGates': []}
         else:
             stage_r = _eval_flat(subcell, flat_devices(sub), sub_vec)
-        net_vals[out_net] = stage_r['output']
+        for o in subcell['outputs']:
+            net_vals[ports[o]] = stage_r['outputs'][o]
         inst = f'X{idx}'
         stages.append({'sub_cell': sub, 'instance': inst,
                        'inputs': {n: net_vals.get(n, 'Z') for n in in_nets},
-                       'ports': sub_vec, 'output_net': out_net,
+                       'ports': sub_vec,
+                       'output_net': ports[subcell['output']],
                        'output': stage_r['output'],
                        'status': _classify(stage_r['output']),
                        'conducting': [f'{inst}.{d}'
@@ -590,55 +683,147 @@ def switch_level_eval(cell_key, vector):
         conducting.extend(stages[-1]['conducting'])
         for n, v in stage_r['nets'].items():
             if n not in (VDD_NET, GND_NET) and n not in subcell['inputs'] \
-                    and n != subcell['output']:
+                    and n not in subcell['outputs']:
                 nets_all[f'{inst}.{n}'] = v
     nets_all.update(net_vals)
     nets_all[VDD_NET], nets_all[GND_NET] = 1, 0
-    out = net_vals.get(cell['output'], 'Z')
+    outs = {o: net_vals.get(o, 'Z') for o in cell['outputs']}
+    out = outs[cell['output']]
+    # the paths reported are those of the stage driving the FIRST
+    # output (v1 shape); per-stage paths stay in `stages`
+    first_stage = next((s for s in stages
+                        if s['output_net'] == cell['output']), None)
     return {'cell': cell_key, 'vector': vector, 'output': out,
-            'status': _classify(out), 'nets': nets_all,
+            'outputValues': outs,
+            'status': _classify(out),
+            'statuses': {o: _classify(v) for o, v in outs.items()},
+            'nets': nets_all,
             'conducting': conducting,
-            'paths': stages[-1]['paths'] if stages else [],
+            'paths': first_stage['paths'] if first_stage
+            else (stages[-1]['paths'] if stages else []),
             'unresolvedGates': [], 'stages': stages}
 
 
 def prove_cell(cell_key):
+    """cells-2: EVERY output is checked per vector (mismatches name
+    the output); a tri-state cell's expected 'Z' vectors are
+    counted in `expectedFloating` and PASS; library sequential
+    cells (clatch) are proven over (inputs x previous state) —
+    see prove_latch."""
     cell = CELL_LIBRARY.get(cell_key) if cell_key not in SEQUENTIAL \
         else {}
     if cell is None:
         raise KeyError(cell_key)
-    if cell_key in SEQUENTIAL or not cell.get('liberty_function'):
+    if cell_key in SEQUENTIAL:
         return {'cell': cell_key, 'proven': None, 'vectors': 0,
                 'mismatches': [], 'contention': [], 'floating': [],
                 'note': 'sequential cell: no single boolean function '
                         'to prove against; see state_space'}
-    ast = boolean_ast(cell['liberty_function'])
-    mismatches, contention, floating = [], [], []
+    if cell.get('sequential'):
+        return prove_latch(cell_key)
+    mismatches, contention, floating, expected_z = [], [], [], []
     n = 0
     for v in _vectors(cell['inputs']):
         n += 1
-        want = evaluate(ast, v)
-        got = switch_level_eval(cell_key, v)['output']
-        if got == 'X':
-            contention.append(v)
-        elif got == 'Z':
-            floating.append(v)
-        if got != want:
-            mismatches.append({'vector': v, 'boolean': want,
-                               'switch': got})
+        got_all = switch_level_eval(cell_key, v)['outputValues']
+        for out in cell['outputs']:
+            want = expected_output(cell, out, v)
+            got = got_all[out]
+            if got == 'X':
+                contention.append(dict(v, output=out) if len(
+                    cell['outputs']) > 1 else v)
+            elif got == 'Z' and want == 'Z':
+                expected_z.append(v)
+            elif got == 'Z':
+                floating.append(dict(v, output=out) if len(
+                    cell['outputs']) > 1 else v)
+            if got != want:
+                mismatches.append({'vector': v, 'output': out,
+                                   'boolean': want, 'switch': got})
     proven = not mismatches and not contention and not floating
+    fns = '; '.join(f'{o} = {cell["liberty_functions"][o]}'
+                    for o in cell['outputs'])
     if proven:
-        note = (f'all {n} vectors: switch-level output equals '
-                f'{cell["liberty_function"]}; no contention, no '
-                f'floating output')
+        note = (f'all {n} vectors x {len(cell["outputs"])} output(s): '
+                f'switch-level output equals {fns}; no contention, '
+                f'no floating output'
+                + (f'; {len(expected_z)} vector(s) Z as REQUIRED by '
+                   f'three_state {cell["three_state"]}'
+                   if cell.get('three_state') else ''))
     else:
         note = (f'{len(mismatches)} mismatch(es), {len(contention)} '
                 f'contention, {len(floating)} floating vector(s) — '
                 f'first counter-example: '
                 f'{(mismatches or [{"vector": None}])[0]["vector"]}')
     return {'cell': cell_key, 'proven': proven, 'vectors': n,
+            'outputs': list(cell['outputs']),
             'mismatches': mismatches, 'contention': contention,
-            'floating': floating, 'note': note}
+            'floating': floating, 'expectedFloating': expected_z,
+            'note': note}
+
+
+# ---------------------------------------------------------------
+# 3b. storage cells (clatch): seeded evaluation + exhaustive proof
+# ---------------------------------------------------------------
+
+def _seed_state(cell, q_prev):
+    """initial net values for one previous state, from the cell's
+    state.nodes map ('Q' = same as Q, '!Q' = complement)."""
+    return {net: (q_prev if ref == 'Q' else 1 - q_prev)
+            for net, ref in cell['state']['nodes'].items()}
+
+
+def latch_eval(cell_key, vector, q_prev):
+    """One (inputs, previous state) step of a library sequential
+    cell: the storage nodes are seeded from q_prev, then the fixed
+    point is found."""
+    cell = _cell(cell_key)
+    r = switch_level_eval(cell_key, vector,
+                          initial=_seed_state(cell, q_prev))
+    r['previousState'] = q_prev
+    r['stored'] = _seed_state(cell, q_prev)
+    return r
+
+
+def _latch_expected(vector, q_prev):
+    """transparent-high D latch: Q = D while G=1, holds while G=0."""
+    return vector['D'] if vector['G'] else q_prev
+
+
+def prove_latch(cell_key):
+    """Exhaustive over (G, D, Q_prev): 8 seeded switch-level
+    evaluations against the latch equation Q = G ? D : Q_prev."""
+    cell = _cell(cell_key)
+    q_pin = cell['state']['output']
+    mismatches, contention, floating = [], [], []
+    n = 0
+    for v in _vectors(cell['inputs']):
+        for q_prev in (0, 1):
+            n += 1
+            got = latch_eval(cell_key, v, q_prev)['outputValues'][q_pin]
+            want = _latch_expected(v, q_prev)
+            row = dict(v, Q_prev=q_prev)
+            if got == 'X':
+                contention.append(row)
+            elif got == 'Z':
+                floating.append(row)
+            if got != want:
+                mismatches.append({'vector': row, 'output': q_pin,
+                                   'boolean': want, 'switch': got})
+    proven = not mismatches and not contention and not floating
+    note = (f'all {n} (G, D, Q_prev) cases: seeded switch-level Q '
+            f'equals G ? D : Q_prev; no contention, no floating '
+            f'output' if proven else
+            f'{len(mismatches)} mismatch(es), {len(contention)} '
+            f'contention, {len(floating)} floating — first: '
+            f'{(mismatches or [{"vector": None}])[0]["vector"]}')
+    return {'cell': cell_key, 'proven': proven, 'vectors': n,
+            'outputs': [q_pin], 'mismatches': mismatches,
+            'contention': contention, 'floating': floating,
+            'expectedFloating': [], 'note': note,
+            'semantics': 'storage nodes seeded from Q_prev via '
+                         'state.nodes; undriven components retain '
+                         'their stored value; fixed-point iteration'}
 
 
 # ---------------------------------------------------------------
@@ -731,25 +916,82 @@ def _cdff_state_space():
     }
 
 
+def _latch_state_space(cell_key):
+    """clatch: states Q=0/1; from each state the three input
+    situations — G=1,D=0 / G=1,D=1 (transparent: Q follows D) and
+    G=0 (hold) — each transition carries its seeded switch-level
+    evaluation so the step-through shows the conducting TG."""
+    cell = _cell(cell_key)
+    q_pin = cell['state']['output']
+    transitions = []
+    for q in (0, 1):
+        for g, d in ((1, 0), (1, 1), (0, 0), (0, 1)):
+            r = latch_eval(cell_key, {'D': d, 'G': g}, q)
+            to = r['outputValues'][q_pin]
+            if g == 0:
+                kind = 'hold'
+            else:
+                kind = 'follow' if to != q else 'retain'
+            transitions.append({
+                'from': f'Q={q}', 'input': {'D': d, 'G': g},
+                'to': f'Q={to}', 'kind': kind,
+                'phase': 'transparent' if g else 'holding',
+                'output': to, 'status': r['status'],
+                'conducting': r['conducting'],
+                'nets': {k: v for k, v in r['nets'].items()
+                         if k in cell['state']['nodes'] or k == 'gb'}})
+    phases = [
+        {'G': 1, 'latch': 'transparent',
+         'description': 'G=1: the input TG (n on G, p on gb) passes '
+                        'D to m1; two inverters re-drive Q = D; the '
+                        'feedback TG is off'},
+        {'G': 0, 'latch': 'holding',
+         'description': 'G=0: the input TG opens, the feedback TG '
+                        '(n on gb, p on G) closes Q -> m1 and the '
+                        'inverter pair holds Q from the rails'},
+    ]
+    return {'kind': 'sequential', 'cell': cell_key,
+            'states': ['Q=0', 'Q=1'], 'transitions': transitions,
+            'phases': phases,
+            'latches': [{'name': 'loop',
+                         'nodes': list(cell['state']['nodes']),
+                         'input_tg': ['M2', 'M3'],
+                         'feedback_tg': ['M8', 'M9'],
+                         'inverters': [['M4', 'M5'], ['M6', 'M7']]}],
+            'description': 'transparent-high D latch: G inverter + '
+                           'input TG + 2 inverters + feedback TG (10 '
+                           'FETs); Q follows D while G=1 and holds '
+                           'while G=0',
+            'source': 'CELL_LIBRARY[clatch] devices, switch-level '
+                      'evaluated with the previous state seeded '
+                      '(not simulated)'}
+
+
 def state_space(cell_key):
     if cell_key in SEQUENTIAL:
         return _cdff_state_space()
     cell = _cell(cell_key)
-    ast = boolean_ast(cell['liberty_function'])
+    if cell.get('sequential'):
+        return _latch_state_space(cell_key)
     steps = []
     for idx, v in enumerate(_vectors(cell['inputs'])):
         r = switch_level_eval(cell_key, v)
+        booleans = {o: expected_output(cell, o, v)
+                    for o in cell['outputs']}
         steps.append({'index': idx, 'vector': v,
-                      'boolean': evaluate(ast, v),
-                      'output': r['output'], 'status': r['status'],
+                      'boolean': booleans[cell['output']],
+                      'booleans': booleans,
+                      'output': r['output'],
+                      'outputValues': r['outputValues'],
+                      'status': r['status'],
                       'conducting': r['conducting'],
                       'stages': [{'instance': s['instance'],
                                   'sub_cell': s['sub_cell'],
                                   'output': s['output']}
                                  for s in r['stages']]})
     return {'kind': 'combinational', 'inputs': list(cell['inputs']),
-            'output': cell['output'], 'steps': steps,
-            'count': len(steps)}
+            'output': cell['output'], 'outputs': list(cell['outputs']),
+            'steps': steps, 'count': len(steps)}
 
 
 def step(cell_key, index):
@@ -759,12 +1001,19 @@ def step(cell_key, index):
         return {'cell': cell_key, 'index': index, 'transition': t,
                 'phases': ss['phases']}
     cell = _cell(cell_key)
+    if cell.get('sequential'):
+        ss = _latch_state_space(cell_key)
+        t = ss['transitions'][index % len(ss['transitions'])]
+        return {'cell': cell_key, 'index': index, 'transition': t,
+                'phases': ss['phases']}
     vecs = list(_vectors(cell['inputs']))
     v = vecs[index % len(vecs)]
     r = switch_level_eval(cell_key, v)
-    dag = gate_dag(boolean_ast(cell['liberty_function']), cell_key)
+    dag = cell_gate_dag(cell_key)
     r['index'] = index
-    r['boolean'] = evaluate(boolean_ast(cell['liberty_function']), v)
+    r['boolean'] = expected_output(cell, cell['output'], v)
+    r['booleans'] = {o: expected_output(cell, o, v)
+                     for o in cell['outputs']}
     r['dagValues'] = dag_values(dag, v)
     return r
 
@@ -785,10 +1034,11 @@ def cell_logic_report(cell_key, drive=1):
         ss = _cdff_state_space()
         return {'ok': True, 'cell': cell_key, 'drive': 1,
                 'function': 'DFF', 'inputs': ['D', 'CLK'],
-                'output': 'Q', 'ast': None, 'gateDag': None,
+                'output': 'Q', 'outputs': ['Q'], 'ast': None,
+                'asts': None, 'gateDag': None,
                 'truthTable': None, 'netlist': None,
                 'proof': prove_cell(cell_key), 'stateSpace': ss,
-                'fetCount': 18,
+                'fetCount': 18, 'sequential': True,
                 'honesty': 'sequential: state graph parsed from the '
                            'cdff subckt; timing (setup/hold/clk->Q) '
                            'is cnt_sequential, not this module',
@@ -796,25 +1046,53 @@ def cell_logic_report(cell_key, drive=1):
     if cell_key not in CELL_LIBRARY:
         return _refusal(cell_key)
     cell = CELL_LIBRARY[cell_key]
-    ast = boolean_ast(cell['liberty_function'])
     proof = prove_cell(cell_key)
+    if cell.get('sequential'):
+        return {
+            'ok': True, 'cell': cell_key, 'drive': drive,
+            'function': cell['function'],
+            'inputs': list(cell['inputs']),
+            'output': cell['output'], 'outputs': list(cell['outputs']),
+            'libertyFunction': None, 'libertyFunctions': None,
+            'threeState': None, 'unate': cell['unate'],
+            'ast': None, 'asts': None, 'gateDag': None,
+            'truthTable': None,
+            'netlist': netlist_graph(cell_key, drive),
+            'proof': proof, 'stateSpace': state_space(cell_key),
+            'fetCount': _fet_count(cell_key, drive),
+            'sequential': True,
+            'honesty': ('library sequential cell: switch-level '
+                        'proof over (G, D, Q_prev) with the storage '
+                        'nodes seeded; timing (D->Q, setup, hold) is '
+                        'cnt_sequential.characterize_latch. '
+                        + ('PROVEN.' if proof['proven']
+                           else 'NOT PROVEN: ' + proof['note'])),
+            'payloadVersion': LOGIC_PAYLOAD_VERSION,
+        }
+    asts = {o: boolean_ast(cell['liberty_functions'][o])
+            for o in cell['outputs']}
     return {
         'ok': True, 'cell': cell_key, 'drive': drive,
         'function': cell['function'], 'inputs': list(cell['inputs']),
-        'output': cell['output'],
+        'output': cell['output'], 'outputs': list(cell['outputs']),
         'libertyFunction': cell['liberty_function'],
+        'libertyFunctions': dict(cell['liberty_functions']),
+        'threeState': cell.get('three_state'),
         'unate': cell['unate'],
-        'ast': ast, 'gateDag': gate_dag(ast, cell_key),
+        'ast': asts[cell['output']], 'asts': asts,
+        'gateDag': cell_gate_dag(cell_key),
         'truthTable': truth_table(cell_key),
         'netlist': netlist_graph(cell_key, drive,
                                  flatten=bool(cell.get('compose'))),
         'proof': proof, 'stateSpace': state_space(cell_key),
         'fetCount': _fet_count(cell_key, drive),
+        'sequential': False,
         'honesty': ('switch-level proof: ideal switches (a device '
                     'conducts iff its gate is at the controlling '
                     'level); no thresholds, no drive-fight '
                     'resolution, no timing. Composed cells are '
-                    'proven stage by stage. '
+                    'proven stage by stage; every output is checked; '
+                    "a tri-state cell's Z vectors are expected. "
                     + ('PROVEN.' if proof['proven']
                        else 'NOT PROVEN: ' + proof['note'])),
         'payloadVersion': LOGIC_PAYLOAD_VERSION,
@@ -825,19 +1103,31 @@ def library_logic_report():
     cells = []
     for key in COMBINATIONAL:
         p = prove_cell(key)
-        cells.append({'cell': key, 'function': CELL_LIBRARY[key]['function'],
-                      'inputs': list(CELL_LIBRARY[key]['inputs']),
-                      'libertyFunction': CELL_LIBRARY[key]['liberty_function'],
+        c = CELL_LIBRARY[key]
+        cells.append({'cell': key, 'function': c['function'],
+                      'inputs': list(c['inputs']),
+                      'outputs': list(c['outputs']),
+                      'libertyFunction': c['liberty_function'],
+                      'libertyFunctions': dict(c['liberty_functions']),
+                      'threeState': c.get('three_state'),
                       'fetCount': _fet_count(key, 1),
-                      'composed': bool(CELL_LIBRARY[key].get('compose')),
+                      'composed': bool(c.get('compose')),
                       'proven': p['proven'], 'vectors': p['vectors'],
                       'mismatches': p['mismatches'],
                       'contention': p['contention'],
-                      'floating': p['floating']})
+                      'floating': p['floating'],
+                      'expectedFloating': p.get('expectedFloating', [])})
+    seq = {'cdff': _cdff_state_space()}
+    seq_proofs = {}
+    for key in SEQUENTIAL_CELLS:
+        seq[key] = state_space(key)
+        seq_proofs[key] = prove_cell(key)
     return {'ok': True, 'payloadVersion': LOGIC_PAYLOAD_VERSION,
             'combinational': cells,
-            'allProven': all(c['proven'] for c in cells),
-            'sequential': {'cdff': _cdff_state_space()},
+            'allProven': all(c['proven'] for c in cells)
+            and all(p['proven'] for p in seq_proofs.values()),
+            'multiOutput': list(MULTI_OUTPUT), 'tristate': list(TRISTATE),
+            'sequential': seq, 'sequentialProofs': seq_proofs,
             'library': sorted(CELL_LIBRARY) + SEQUENTIAL}
 
 
@@ -848,17 +1138,38 @@ def library_logic_report():
 def payload_contract():
     return {
         'version': LOGIC_PAYLOAD_VERSION,
+        'changelog': {
+            '2': 'cells-2 (2026-08-27), ADDITIVE — every v1 key keeps '
+                 'its v1 meaning; `output` is always the FIRST output. '
+                 'New: outputs:[pin] and outputValues:{pin: value} on '
+                 'every evaluation/step; truthTable rows.outputs and '
+                 'top-level outputs/threeState; proof.outputs, '
+                 'proof.expectedFloating and mismatches[].output; '
+                 'gateDag with ONE output node per output; '
+                 'cellLogicReport asts/libertyFunctions/threeState/'
+                 'sequential; stateSpace.sequential for clatch (input '
+                 '{D, G}, kind follow|retain|hold, phase); '
+                 'switchLevel.initial (stored values) and '
+                 "'Z' as an EXPECTED value where three_state holds; "
+                 'libraryLogicReport multiOutput/tristate/'
+                 'sequentialProofs.',
+        },
         'ast': "{op:'and'|'or'|'xor'|'not', args:[ast]} | {op:'var', name}",
+        'asts': '{outputPin: ast} (v2; ast = asts[output])',
         'gateDag': {
             'nodes': "[{id, kind:'input'|'output'|'gate', gate:"
                      "'AND'|'OR'|'NOT'|'NAND'|'NOR'|'XOR'|'BUF'|null,"
                      " label, inputs:[id], level:int}]",
             'edges': '[{from:id, to:id}]',
             'note': 'NOT over and/or folded into NAND/NOR; inputs '
-                    'level 0; output = max gate level + 1',
+                    'level 0; output = max gate level + 1; v2: one '
+                    'output node PER OUTPUT pin (multi-output cells '
+                    'share the input nodes, gate ids run on)',
         },
-        'truthTable': "{inputs:[str], output:str, rows:[{vector:{pin:0|1},"
-                      " output:0|1}], count:int}",
+        'truthTable': "{inputs:[str], output:str, outputs:[str] (v2),"
+                      " threeState:str|null (v2), rows:[{vector:{pin:0|1},"
+                      " output:0|1|'Z', outputs:{pin:0|1|'Z'} (v2)}],"
+                      " count:int}",
         'netlist': {
             'nets': "[{id, kind:'vdd'|'gnd'|'input'|'output'|'internal'}]",
             'devices': "[{id, type:'n'|'p', drain, gate, source, x_hint:int"
@@ -873,26 +1184,40 @@ def payload_contract():
         },
         'switchLevel': {
             'shape': "{cell, vector:{pin:0|1}, output:0|1|'X'|'Z',"
+                     " outputValues:{pin: 0|1|'X'|'Z'} (v2),"
                      " status:'driven'|'contention'|'floating',"
+                     " statuses:{pin: status} (v2),"
                      " nets:{net: 0|1|'X'|'Z'}, conducting:[deviceId],"
                      " paths:[{to:net, value, devices:[deviceId]}],"
                      " unresolvedGates:[deviceId],"
                      " stages:[{sub_cell, instance, inputs:{net:val},"
                      " ports:{port:val}, output_net, output, status,"
-                     " conducting, paths}]}",
+                     " conducting, paths}], previousState:0|1 (v2,"
+                     " latch_eval only), stored:{net:0|1} (v2, latch_eval"
+                     " only)}",
             'semantics': 'n conducts at gate=1, p at gate=0; drivers = '
                          'vdd(1), gnd(0) and INPUT nets (pass gates '
                          'pass their source value); {1}->1 {0}->0 '
                          "both->'X' none->'Z'; internal gate nets "
-                         'resolved by fixed-point iteration',
+                         'resolved by fixed-point iteration. v2: an '
+                         'optional `initial` {net: 0|1} seeds storage '
+                         'nodes — a component with NO driver takes the '
+                         'value stored on its members (charge '
+                         "retention; conflicting stores -> 'X'); the "
+                         "output of a tri-state cell is EXPECTED 'Z' "
+                         'where its three_state expression holds',
         },
-        'proof': "{cell, proven:bool|null, vectors:int, mismatches:"
-                 "[{vector, boolean, switch}], contention:[vector],"
-                 " floating:[vector], note}",
+        'proof': "{cell, proven:bool|null, vectors:int, outputs:[pin]"
+                 " (v2), mismatches:[{vector, output (v2), boolean,"
+                 " switch}], contention:[vector], floating:[vector],"
+                 " expectedFloating:[vector] (v2, tri-state Z vectors"
+                 " that PASS), note, semantics (v2, latch only)}",
         'stateSpace': {
             'combinational': "{kind:'combinational', inputs, output,"
-                             " steps:[{index, vector, boolean, output,"
-                             " status, conducting:[deviceId],"
+                             " outputs (v2), steps:[{index, vector,"
+                             " boolean, booleans:{pin:val} (v2), output,"
+                             " outputValues (v2), status,"
+                             " conducting:[deviceId],"
                              " stages:[{instance, sub_cell, output}]}],"
                              " count}",
             'sequential': "{kind:'sequential', states:['Q=0','Q=1'],"
@@ -903,20 +1228,36 @@ def payload_contract():
                           " inverters, input_tg, feedback_tg}],"
                           " instances:[{instance, sub_cell, nets, role,"
                           " kind}], description, source}",
+            'latch': "(v2, clatch) {kind:'sequential', cell,"
+                     " states:['Q=0','Q=1'], transitions:[{from,"
+                     " input:{D, G}, to, kind:'follow'|'retain'|'hold',"
+                     " phase:'transparent'|'holding', output, status,"
+                     " conducting:[deviceId], nets:{storageNet:val}}],"
+                     " phases:[{G, latch, description}], latches:[{name,"
+                     " nodes, input_tg, feedback_tg, inverters}],"
+                     " description, source}",
         },
-        'step': "switchLevel shape + {index, boolean, dagValues:{nodeId:"
-                " 0|1}} (combinational) | {cell, index, transition,"
-                " phases} (cdff)",
+        'step': "switchLevel shape + {index, boolean, booleans (v2),"
+                " dagValues:{nodeId: 0|1}} (combinational) | {cell,"
+                " index, transition, phases} (cdff, clatch)",
         'cellLogicReport': "{ok, cell, drive, function, inputs, output,"
-                           " libertyFunction, unate, ast, gateDag,"
-                           " truthTable, netlist, proof, stateSpace,"
-                           " fetCount, honesty, payloadVersion}",
+                           " outputs (v2), libertyFunction,"
+                           " libertyFunctions:{pin:str} (v2),"
+                           " threeState (v2), unate, ast, asts (v2),"
+                           " gateDag, truthTable, netlist, proof,"
+                           " stateSpace, fetCount, sequential:bool (v2),"
+                           " honesty, payloadVersion}",
         'libraryLogicReport': "{ok, payloadVersion, combinational:[{cell,"
-                              " function, inputs, libertyFunction,"
-                              " fetCount, composed, proven, vectors,"
-                              " mismatches, contention, floating}],"
-                              " allProven, sequential:{cdff: stateSpace},"
-                              " library}",
+                              " function, inputs, outputs (v2),"
+                              " libertyFunction, libertyFunctions (v2),"
+                              " threeState (v2), fetCount, composed,"
+                              " proven, vectors, mismatches, contention,"
+                              " floating, expectedFloating (v2)}],"
+                              " allProven (v2: includes the latch proof),"
+                              " multiOutput:[cell] (v2), tristate:[cell]"
+                              " (v2), sequential:{cdff: stateSpace, clatch:"
+                              " stateSpace (v2)}, sequentialProofs:{clatch:"
+                              " proof} (v2), library}",
         'refusal': "{ok:false, refusal:str, library:[cell]}",
     }
 

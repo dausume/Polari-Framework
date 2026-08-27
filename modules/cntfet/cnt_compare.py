@@ -111,7 +111,7 @@ def compare_rows(report):
     return rows
 
 
-def _score_page(device_name):
+def _score_page(device_name, source_class='AlignedCNTFETDevice'):
     d = device_name
     return {
         'name': f'cntfet-score-{d}',
@@ -120,7 +120,7 @@ def _score_page(device_name):
                        'FET-validity proofs (score 0 if any fails), '
                        'the Monte Carlo spread, and the competitive '
                        'ranking against every other FET.',
-        'source_class': 'AlignedCNTFETDevice',
+        'source_class': source_class,
         'isPage': True,
         'pageRoute': f'cntfet-score-{d}',
         'linkedSolutions': '[]',
@@ -160,8 +160,8 @@ def _score_page(device_name):
     }
 
 
-def score_pages(device_names):
-    return [_score_page(n) for n in device_names]
+def score_pages(device_names, source_class='AlignedCNTFETDevice'):
+    return [_score_page(n, source_class) for n in device_names]
 
 
 def _explorer_item(item_id, index, segments, title, device):
@@ -181,33 +181,28 @@ def _explorer_item(item_id, index, segments, title, device):
     }
 
 
-def _detail_page(device_name):
+def _detail_page(device_name, with_scenes=True,
+                 source_class='AlignedCNTFETDevice'):
     """fv-5: the per-FET DETAIL page — select a characteristic, get
-    its views + meaning; below it the 3-D field scenes (scrub Vg)."""
+    its views + meaning; below it the 3-D field scenes (scrub Vg).
+    with_scenes=False drops the scene + field rows (fp-2 silicon
+    devices: the field scenes are CNT-only and refuse by name — a
+    Si detail page has no tube to draw)."""
     from cntfet.cnt_scene import scene_page_items
     d = device_name
-    return {
-        'name': f'cntfet-detail-{d}',
-        'description': f'Detail view of {d}: select a FET '
-                       'characteristic (IV, switching, transport, '
-                       'fields, quality) and see the views that '
-                       'explain it plus what it means for '
-                       'performance; 2-D profiles and 3-D banded '
-                       'field scenes along the tube.',
-        'source_class': 'AlignedCNTFETDevice',
-        'isPage': True,
-        'pageRoute': f'cntfet-detail-{d}',
-        'linkedSolutions': '[]',
-        'definition': json.dumps({'rows': [
-            _row(0, [_explorer_item(f'detail-{d}-explorer', 0, 12,
-                                    f'{d}: characteristics → views + '
-                                    'meaning', d)], min_height=640),
-            # fp-6 weave: where else this FET lives (pages, partner,
-            # cells, comparators) — a reader never dead-ends here.
-            _row(9, [_api(f'detail-{d}-links', 0, 12,
-                          f'{d}: related pages, partner, cells',
-                          f'/api/cntfet/device/{d}/links')],
-                 min_height=220),
+    rows = [
+        _row(0, [_explorer_item(f'detail-{d}-explorer', 0, 12,
+                                f'{d}: characteristics → views + '
+                                'meaning', d)], min_height=640),
+        # fp-6 weave: where else this FET lives (pages, partner,
+        # cells, comparators) — a reader never dead-ends here.
+        _row(9, [_api(f'detail-{d}-links', 0, 12,
+                      f'{d}: related pages, partner, cells',
+                      f'/api/cntfet/device/{d}/links')],
+             min_height=220),
+    ]
+    if with_scenes:
+        rows += [
             _row(1, scene_page_items(d), min_height=420),
             _row(2, [
                 _device_graph(f'detail-{d}-field-potential', 0, 6,
@@ -218,9 +213,24 @@ def _detail_page(device_name):
                               f'{d}: electron density along the tube',
                               d, 'field-density'),
             ], min_height=430),
-        ]}),
+        ]
+    return {
+        'name': f'cntfet-detail-{d}',
+        'description': f'Detail view of {d}: select a FET '
+                       'characteristic (IV, switching, transport, '
+                       'fields, quality) and see the views that '
+                       'explain it plus what it means for '
+                       'performance; 2-D profiles and 3-D banded '
+                       'field scenes along the tube.',
+        'source_class': source_class,
+        'isPage': True,
+        'pageRoute': f'cntfet-detail-{d}',
+        'linkedSolutions': '[]',
+        'definition': json.dumps({'rows': rows}),
     }
 
 
-def detail_pages(device_names):
-    return [_detail_page(n) for n in device_names]
+def detail_pages(device_names, with_scenes=True,
+                 source_class='AlignedCNTFETDevice'):
+    return [_detail_page(n, with_scenes, source_class)
+            for n in device_names]

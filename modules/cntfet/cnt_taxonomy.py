@@ -891,6 +891,16 @@ def shape_of(device, manager=None):
         key = _SHAPE_ALIASES.get(str(shape_field).lower())
         how = f'from the row\'s shape field "{shape_field}"'
         if key is None:
+            # fp-2 SiliconMOSFET rows reference a SiliconFETShape ROW
+            # by name ('planar-90nm-class'); its `kind` is the alias.
+            for srow in _rows_from_manager(manager, 'SiliconFETShape'):
+                if getattr(srow, 'name', '') == shape_field:
+                    kind = getattr(srow, 'kind', '')
+                    key = _SHAPE_ALIASES.get(str(kind).lower())
+                    how = (f'SiliconFETShape row "{shape_field}" '
+                           f'(kind "{kind}")')
+                    break
+        if key is None:
             return {'ok': False, 'shape': None,
                     'error': f'unknown shape "{shape_field}"',
                     'affordance': 'set shape to one of '
@@ -941,6 +951,61 @@ SEED_COMPLEMENTARY_PAIRS = [{
              'mirror explicitly, so the pair is exactly symmetric by '
              'construction. When derive consumes polarity, the same '
              'check reads real p numbers with zero code change.',
+}]
+
+# fp-2 silicon pairs (FET-SET flush 2026-08-27): the p side is a REAL
+# p device here (n-well doping, hole Caughey-Thomas mobility, its own
+# Vt via si_model) — check_pair reads real numbers on both sides.
+# Drive match for silicon is a WIDTH statement: W_p/W_n ≈ μ_n/μ_p;
+# both seeded rows carry equal widths so the drive-match condition is
+# expected to FAIL honestly and the evidence ratio Ion_p/Ion_n says
+# what W_p/W_n (= Ion_n/Ion_p) would close it.
+_SI_PAIR_CONDITIONS = json.dumps([
+    {'name': 'polarity', 'expr': 'polarity differs',
+     'why': 'one must pull up and the other pull down'},
+    {'name': 'vt-symmetry', 'expr': '| |Vt_n| − |Vt_p| | ≤ tol',
+     'why': 'symmetric Vfb priors (±0.6 V) on mirrored 1e17 dopings '
+            'give |Vt_n| = |Vt_p| by [SZE07] eq.6.28; a gate-metal '
+            'asymmetry would show here first'},
+    {'name': 'drive-match',
+     'expr': 'Ion_p/Ion_n within [ratio_lo, ratio_hi]; at equal W the '
+             'ratio ≈ μ_p/μ_n (rows carry mu_cm2_per_vs), so the '
+             'matching width is W_p/W_n = Ion_n/Ion_p ≈ μ_n/μ_p',
+     'why': 'equal rise and fall → equal delays and a centred transfer '
+            'curve; silicon buys it with a wider (or more-fin) p device'},
+])
+
+SEED_COMPLEMENTARY_PAIRS += [{
+    'name': 'si-planar-90-pair',
+    'n_device': 'si-nmos-planar-90',
+    'p_device': 'si-pmos-planar-90',
+    'logic': PAIR_LOGIC,
+    'conditions_json': _SI_PAIR_CONDITIONS,
+    'how_it_helps': 'The planar-bulk CMOS pair: no static current in '
+                    'either state, full-swing outputs, symmetric noise '
+                    'margins — once the p device is widened by '
+                    'μ_n/μ_p (≈ 2-3 at 1e17, [SZE07]/[CT67]).',
+    'status': 'declared (real p device: n-well, hole mobility, own Vt)',
+    'notes': 'Both rows are W = 1 um, so drive-match is expected to '
+             'fail with ratio ≈ μ_p/μ_n; the evidence names the width '
+             'ratio that would close it. Evaluate with knobs vdd_v = '
+             'the rows\' vdd_v (1.0 V), not the CNT 0.6 V default.',
+}, {
+    'name': 'si-finfet-hfo2-pair',
+    'n_device': 'si-nmos-finfet-solgel-hfo2',
+    'p_device': 'si-pmos-finfet-solgel-hfo2',
+    'logic': PAIR_LOGIC,
+    'conditions_json': _SI_PAIR_CONDITIONS,
+    'how_it_helps': 'The FinFET CMOS pair on the sol-gel HfO2 film: '
+                    'fully-depleted bodies (n_ss → 1) on both sides; '
+                    'drive is matched by FIN COUNT (W_eff quantized '
+                    'at 90 nm per fin), so W_p/W_n ≈ μ_n/μ_p rounds '
+                    'to the nearest whole fin.',
+    'status': 'declared (real p device; one fin each)',
+    'notes': 'One fin each → drive-match fails by ≈ μ_p/μ_n; the '
+             'evidence ratio says how many p fins per n fin would '
+             'match (ceil(Ion_n/Ion_p)). Evaluate at the rows\' '
+             'vdd_v = 0.8 V.',
 }]
 
 

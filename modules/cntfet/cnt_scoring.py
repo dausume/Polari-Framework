@@ -301,6 +301,15 @@ def score_frame(id_fn, p, temperature_k=300.0, knobs=None,
     return frame
 
 
+def device_knobs(device, knobs=None):
+    """Score/validity knobs scaled to THIS device's supply: a
+    SiliconMOSFET row carries vdd_v (1.0 / 0.8 V); CNT rows use the
+    S1 0.6 V window. Explicit knobs still win."""
+    vdd = getattr(device, 'vdd_v', None)
+    base = {'vdd_v': float(vdd)} if vdd else {}
+    return {**base, **(knobs or {})}
+
+
 def figures_of_merit(manager, device_name, knobs=None):
     """The dict the device row's `figures_of_merit` property (and
     the generic engine's objectRef bindings) read — raw values +
@@ -309,7 +318,9 @@ def figures_of_merit(manager, device_name, knobs=None):
     id_fn, p, device, refusal = device_model(manager, device_name)
     if refusal is not None:
         return {'refusal': refusal['error'], 'fet_valid': 0}
-    validity = fet_validity(id_fn, p, manager=manager)
+    knobs = device_knobs(device, knobs)
+    validity = fet_validity(id_fn, p, knobs={'vdd_v': knobs['vdd_v']}
+                            if 'vdd_v' in knobs else None, manager=manager)
     if not validity['valid']:
         # every binding resolves to a NAMED absence → the generic
         # engine scores 0 (missing terms contribute 0), same verdict
@@ -351,7 +362,10 @@ def fet_validity(id_fn, p, knobs=None, manager=None):
     vdd = k['vdd_v']
     checks = []
 
-    events = transitions_on_sweep(p, vdd, 'rising', manager=manager)
+    # the sweep and grids span THIS device's supply (a 1.0 V silicon
+    # device is not judged on a 0.6 V window)
+    events = transitions_on_sweep(p, vdd, 'rising', manager=manager,
+                                  vgs_max=vdd)
     order = [e['to'] for e in events]
     on_states = [s for s in order if s and s.startswith('on')]
     traversed = ('off' in order and 'transition-on' in order
@@ -380,7 +394,7 @@ def fet_validity(id_fn, p, knobs=None, manager=None):
         'why': 'the gate must actually modulate the channel — no '
                'modulation, no transistor (a wire or an open)'})
 
-    grid = [i * 0.02 for i in range(31)]
+    grid = [i * vdd / 30.0 for i in range(31)]
     ids = [id_fn(vg, vdd) for vg in grid]
     monotone = all(ids[i + 1] >= ids[i] * (1 - 1e-9)
                    for i in range(len(ids) - 1))
@@ -405,7 +419,8 @@ def fet_validity(id_fn, p, knobs=None, manager=None):
                'be measurable on the device, or the off state has '
                'no characteristic equation'})
 
-    bounds = [output_boundary(p, vg) for vg in (0.3, 0.4, 0.5, 0.6)]
+    bounds = [output_boundary(p, vg * vdd, vds_max=vdd)
+              for vg in (0.5, 0.667, 0.833, 1.0)]
     found = [b for b in bounds if b['x'] is not None]
     checks.append({
         'name': 'output-saturation',
@@ -535,7 +550,9 @@ def score_device(manager, device_name, knobs=None):
                 'idealTable': [], 'unproven': True,
                 'note': 'no derived model → no characteristic '
                         'equations to prove → score 0 (gate rule)'}
-    validity = fet_validity(id_fn, p, manager=manager)
+    knobs = device_knobs(device, knobs)
+    validity = fet_validity(id_fn, p, knobs={'vdd_v': knobs['vdd_v']}
+                            if 'vdd_v' in knobs else None, manager=manager)
     frame = score_frame(id_fn, p, device.temperature_k, knobs)
     result = score_from_frame(frame, manager)
     if not validity['valid']:

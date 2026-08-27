@@ -1159,8 +1159,8 @@ def main():
           and len(lg['netlist']['devices']) == 4
           and lib['allProven']
           and cells_page['pageRoute'] == 'cntfet-cells'
-          and cp_comps.count('cell-logic-diagram') == 10
-          and cp_comps.count('cell-schematic') == 10,
+          and cp_comps.count('cell-logic-diagram') == 19
+          and cp_comps.count('cell-schematic') == 19,
           f'lg={lg.get("refusal")} allProven={lib.get("allProven")}')
 
     # ---- fi-2 (cells): the library scored vs intrinsic limits ------

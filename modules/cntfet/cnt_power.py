@@ -367,6 +367,9 @@ def cell_leakage_states(cell_key, drive, ioff_n_a, ioff_p_a,
             'inputs': inputs,
             'when': _when(inputs, cell['inputs']),
             'output': y,
+            # cells-2: multi-output cells (HA/FA) report every pin
+            'outputs': {o: values.get(o)
+                        for o in cell.get('outputs', [cell['output']])},
             'off_network': ('pull-down (n) off — leaks to 0'
                             if y == 1 else
                             'pull-up (p) off — leaks from VDD'

@@ -158,43 +158,79 @@ def _clock_pairs(ctx, n_edges):
     return pairs
 
 
-def _transient(ctx, d_pairs, tstop, tag):
+#: cells-2: the two sequential DUTs this module can drive. cdff is
+#: the S4c hand subckt (cnt_cells); clatch is the library cell AS
+#: DATA (cnt_cell_library, generated x1 subckt). The capturing edge
+#: differs: cdff captures on the CLK RISING edge, the transparent-
+#: high latch closes on the G FALLING edge.
+_DUTS = {
+    'cdff': {'ports': 'd clk q', 'subckt': 'cdff', 'clock': 'CLK',
+             'capture_edge': 'rising', 'liberty': 'DFFX1'},
+    'clatch': {'ports': 'd clk q', 'subckt': 'clatch_x1',
+               'clock': 'G', 'capture_edge': 'falling',
+               'liberty': 'DLATCHX1'},
+}
+
+
+def _dut_subckts(cell):
+    if cell == 'cdff':
+        return _SUBCKTS
+    from cntfet.cnt_cell_library import subckt_text
+    return subckt_text('clatch', 1)
+
+
+def _capture_edge_time(ctx, cell):
+    """The test edge after 2 preamble cycles: rising edges sit at
+    P/2 + kP, falling edges at P + kP (see _clock_pairs)."""
+    P = ctx['period']
+    if _DUTS[cell]['capture_edge'] == 'rising':
+        return P / 2.0 + 2 * P
+    return P + 2 * P
+
+
+def _transient(ctx, d_pairs, tstop, tag, cell='cdff'):
+    dut = _DUTS[cell]
     netlist = '\n'.join([
-        f'* cdff {tag}', ctx['cards'][0], ctx['cards'][1], _SUBCKTS,
+        f'* {cell} {tag}', ctx['cards'][0], ctx['cards'][1],
+        _dut_subckts(cell),
         f'vdd vddnode 0 {ctx["vdd"]:.6g}',
         f'vclk clk 0 {_pwl(_clock_pairs(ctx, 4))}',
         f'vd d 0 {_pwl(d_pairs)}',
-        'Xdut d clk q vddnode cdff',
+        f'Xdut {dut["ports"]} vddnode {dut["subckt"]}',
         f'Cload q 0 {ctx["load_f"]:.6e}',
         '.options reltol=1e-4 abstol=1e-12 method=gear',
         '.control', f'pre_osdi {ctx["osdi"]}',
         f'tran {ctx["tstep"]:.3e} {tstop:.3e}',
-        'wrdata seq.dat v(q) v(clk)', 'quit', '.endc', '.end', ''])
+        'wrdata seq.dat v(q) v(clk) v(d)', 'quit', '.endc', '.end',
+        ''])
     run = _run_ngspice(ctx['ngspice'], ctx['workdir'], 'seq.sp',
                        netlist)
     ctx['runs'] += 1
-    times, v_q, v_clk = [], [], []
+    times, v_q, v_clk, v_d = [], [], [], []
     with open(os.path.join(ctx['workdir'], 'seq.dat')) as fh:
         for line in fh:
             parts = line.split()
-            if len(parts) >= 4:
+            if len(parts) >= 6:
                 times.append(float(parts[0]))
                 v_q.append(float(parts[1]))
                 v_clk.append(float(parts[3]))
+                v_d.append(float(parts[5]))
     if not times or times[-1] < 0.95 * tstop:
         raise RuntimeError(
             f'sequential transient TRUNCATED — '
             f'{(run.stdout + run.stderr)[-300:]}')
-    return times, v_q, v_clk
+    return times, v_q, v_clk, v_d
 
 
-def _probe(ctx, kind, d1, offset_s):
+def _probe(ctx, kind, d1, offset_s, cell='cdff'):
     """One capture probe. kind='setup': D goes d0->d1 at
     te-offset. kind='hold': D goes d0->d1 well before te and back
-    to d0 at te+offset. Returns (captured_d1, waveform)."""
+    to d0 at te+offset. Returns (captured_d1, waveform). cells-2:
+    `cell` picks the DUT and its capturing edge (cdff: CLK rising;
+    clatch: G falling — the latch closes)."""
     vdd, P, rise = ctx['vdd'], ctx['period'], ctx['rise']
-    te = P / 2.0 + 2 * P  # third rising edge (2 preamble cycles)
-    tstop = P / 2.0 + 3 * P
+    te = _capture_edge_time(ctx, cell)
+    tstop = te + P  # = P/2 + 3P for cdff (unchanged)
     lv = {True: vdd, False: 0.0}
     d0 = not d1
     pairs = [(0.0, lv[d0])]
@@ -214,29 +250,29 @@ def _probe(ctx, kind, d1, offset_s):
         t = max(t, last + ctx['tstep'])
         fixed.append((t, v))
         last = t
-    times, v_q, v_clk = _transient(ctx, fixed, tstop,
-                                   f'{kind} d1={d1} off={offset_s}')
+    times, v_q, v_clk, v_d = _transient(
+        ctx, fixed, tstop, f'{kind} d1={d1} off={offset_s}', cell)
     t_sample = te + 0.4 * P
     q_at = None
     for t, q in zip(times, v_q):
         if t <= t_sample:
             q_at = q
     captured = (q_at is not None) and ((q_at > vdd / 2) == d1)
-    return captured, (times, v_q, v_clk, te)
+    return captured, (times, v_q, v_clk, te, v_d)
 
 
-def _bisect(ctx, kind, d1, lo, hi, iters=6):
+def _bisect(ctx, kind, d1, lo, hi, iters=6, cell='cdff'):
     """Find the smallest offset in [lo, hi] that captures. Assumes
     monotone pass/fail (physical for a static latch); verifies the
     bracket ends first and refuses otherwise."""
-    pass_hi, wave_hi = _probe(ctx, kind, d1, hi)
+    pass_hi, wave_hi = _probe(ctx, kind, d1, hi, cell)
     if not pass_hi:
         return {'ok': False,
                 'refusal': f'{kind} (D {"rise" if d1 else "fall"}) '
                            f'does not capture even at offset '
                            f'{hi:.3e} s — DFF not functional at '
                            f'this bias, widen the bracket'}, None
-    pass_lo, _ = _probe(ctx, kind, d1, lo)
+    pass_lo, _ = _probe(ctx, kind, d1, lo, cell)
     if pass_lo:
         return {'ok': True, 'value_s': lo, 'resolution_s': None,
                 'bound': 'at-or-below-bracket-low',
@@ -244,7 +280,7 @@ def _bisect(ctx, kind, d1, lo, hi, iters=6):
     a, b = lo, hi
     for _ in range(iters):
         mid = 0.5 * (a + b)
-        ok, _ = _probe(ctx, kind, d1, mid)
+        ok, _ = _probe(ctx, kind, d1, mid, cell)
         if ok:
             b = mid
         else:
@@ -253,8 +289,24 @@ def _bisect(ctx, kind, d1, lo, hi, iters=6):
             'bound': None, 'bracket_s': [lo, hi]}, wave_hi
 
 
+def _d_to_q(ctx, wave, rising_q):
+    """cells-2 (latch): the TRANSPARENT D -> Q delay from the far-
+    offset setup probe (D edges while G=1, well before the closing
+    edge): D 50% -> Q 50%, plus the Q 20-80 transition."""
+    times, v_q, v_clk, te, v_d = wave
+    vdd = ctx['vdd']
+    t0 = te - 0.9 * ctx['period']
+    t_d = _crossing(times, v_d, vdd / 2, rising_q, t0)
+    t_q = _crossing(times, v_q, vdd / 2, rising_q, t0)
+    a = _crossing(times, v_q, 0.2 * vdd, rising_q, t0)
+    b = _crossing(times, v_q, 0.8 * vdd, rising_q, t0)
+    if None in (t_d, t_q, a, b) or t_q < t_d:
+        return None
+    return {'delay_s': t_q - t_d, 'transition_s': abs(b - a)}
+
+
 def _clk_to_q(ctx, wave, rising_q):
-    times, v_q, v_clk, te = wave
+    times, v_q, v_clk, te = wave[:4]
     vdd = ctx['vdd']
     t_clk = _crossing(times, v_clk, vdd / 2, True, te * 0.98)
     t_q = _crossing(times, v_q, vdd / 2, rising_q, te * 0.98)
@@ -368,6 +420,175 @@ def _sta_setup_check(workdir, lib_path, res):
             'librarySetupTime_ps': seen_ps,
             'ourSetup_ps': {'rise': expect, 'fall': expect_f},
             'output': '' if match else run.stdout[-600:]}
+
+
+def _liberty_latch(vdd, res, input_cap_f):
+    """cells-2: the transparent-high latch as a Liberty `latch`
+    group — setup/hold against the G FALLING edge (scalar, one
+    point) and the transparent D -> Q combinational arc. The G -> Q
+    (open) arc is NOT emitted: not characterized (stated)."""
+    def ps(x):
+        return x * 1e12
+
+    def ff(x):
+        return x * 1e15
+
+    def scalar(kind, value_s):
+        return (f'        {kind} (scalar) {{ values '
+                f'("{ps(value_s):.5g}"); }}\n')
+
+    su, ho, dq = res['setup'], res['hold'], res['dToQ']
+    return (
+        'library (polari_cnt_latch) {\n'
+        '  /* generated by cntfet.cnt_sequential — executor '
+        'polari-own-loop.\n'
+        '     UNITS: time ps, capacitance fF. Transparent-high D '
+        'latch (clatch,\n'
+        '     CELL_LIBRARY x1): setup/hold vs the G FALLING edge '
+        '(bisection),\n'
+        '     D->Q = the transparent arc. G->Q (open) arc NOT '
+        'characterized.\n'
+        '     INTRINSIC-grade, NOT signoff (plan D1). */\n'
+        '  delay_model : table_lookup;\n'
+        '  time_unit : "1ps";\n'
+        '  capacitive_load_unit (1, ff);\n'
+        '  voltage_unit : "1V";\n'
+        '  current_unit : "1uA";\n'
+        '  pulling_resistance_unit : "1kohm";\n'
+        '  leakage_power_unit : "1uW";\n'
+        f'  nom_voltage : {vdd};\n'
+        '  nom_temperature : 300;\n'
+        '  nom_process : 1;\n'
+        '  cell (DLATCHX1) {\n'
+        '    latch (IQ, IQN) { enable : "G"; data_in : "D"; }\n'
+        '    pin (G) {\n'
+        '      direction : input; clock : true;\n'
+        f'      capacitance : {ff(input_cap_f):.5g};\n    }}\n'
+        '    pin (D) {\n'
+        '      direction : input;\n'
+        f'      capacitance : {ff(input_cap_f):.5g};\n'
+        '      timing () {\n'
+        '        related_pin : "G";\n'
+        '        timing_type : setup_falling;\n'
+        f'{scalar("rise_constraint", su["rise"]["value_s"])}'
+        f'{scalar("fall_constraint", su["fall"]["value_s"])}'
+        '      }\n'
+        '      timing () {\n'
+        '        related_pin : "G";\n'
+        '        timing_type : hold_falling;\n'
+        f'{scalar("rise_constraint", ho["rise"]["value_s"])}'
+        f'{scalar("fall_constraint", ho["fall"]["value_s"])}'
+        '      }\n    }\n'
+        '    pin (Q) {\n'
+        '      direction : output;\n'
+        '      function : "IQ";\n'
+        '      timing () {\n'
+        '        related_pin : "D";\n'
+        '        timing_sense : positive_unate;\n'
+        f'{scalar("cell_rise", dq["rise"]["delay_s"])}'
+        f'{scalar("cell_fall", dq["fall"]["delay_s"])}'
+        f'{scalar("rise_transition", dq["rise"]["transition_s"])}'
+        f'{scalar("fall_transition", dq["fall"]["transition_s"])}'
+        '      }\n    }\n  }\n}\n')
+
+
+def characterize_latch(manager, device, vdd=0.6, workdir=None,
+                       iters=6, result_factory=None):
+    """cells-2: setup/hold of the transparent-high latch (clatch,
+    CELL_LIBRARY x1) against the G FALLING edge + the transparent
+    D->Q delay, by the SAME own-loop bisection as the DFF (the
+    probe's capturing edge is data: _DUTS). One declared slew/load
+    point; the G->Q open arc is a stated follow-up."""
+    ctx, err = _context(manager, device, vdd, workdir)
+    if err:
+        return err
+    tau = ctx['tau']
+    lo, hi = -10.0 * tau, 40.0 * tau
+    res = {'setup': {}, 'hold': {}, 'dToQ': {}}
+    waves = {}
+    for d1, label in ((True, 'rise'), (False, 'fall')):
+        try:
+            s, wave = _bisect(ctx, 'setup', d1, lo, hi, iters,
+                              cell='clatch')
+            if not s.get('ok'):
+                return {**s, 'runs': ctx['runs'], 'cell': 'DLATCHX1'}
+            res['setup'][label] = s
+            waves[label] = wave
+            h, _ = _bisect(ctx, 'hold', d1, lo, hi, iters,
+                           cell='clatch')
+            if not h.get('ok'):
+                return {**h, 'runs': ctx['runs'], 'cell': 'DLATCHX1'}
+            res['hold'][label] = h
+        except Exception as exc:
+            return {'ok': False, 'error': str(exc)[:400],
+                    'runs': ctx['runs'], 'cell': 'DLATCHX1'}
+    for label, rising in (('rise', True), ('fall', False)):
+        dq = _d_to_q(ctx, waves[label], rising)
+        if dq is None:
+            return {'ok': False,
+                    'error': f'D->Q {label}: a crossing was never '
+                             f'reached at the far-offset probe',
+                    'cell': 'DLATCHX1'}
+        res['dToQ'][label] = dq
+    liberty = _liberty_latch(vdd, res, ctx['input_cap_f'])
+    lib_path = os.path.join(ctx['workdir'], 'polari_cnt_latch.lib')
+    with open(lib_path, 'w') as fh:
+        fh.write(liberty)
+    gate = _sta_gate(ctx['workdir'], liberty)
+    stamp = datetime.now(timezone.utc).isoformat()
+    honesty = ('own-loop bisection at ONE slew/load point, x1 '
+               'generated clatch subckt, pass/fail capture criterion '
+               'against the G FALLING edge; D->Q = the transparent '
+               'arc measured on the far-offset setup probe; the '
+               'G->Q (open) arc is NOT characterized (follow-up); '
+               'intrinsic-grade')
+    report = {
+        'ok': True, 'device': device.name, 'vdd_v': vdd,
+        'cell': 'DLATCHX1', 'libraryCell': 'clatch',
+        'executor': 'polari-own-loop',
+        'point': {'slew_s': 0.6 * ctx['rise'],
+                  'load_f': ctx['load_f'], 'tau_s': tau},
+        'setup': res['setup'], 'hold': res['hold'],
+        'dToQ': res['dToQ'],
+        'bracket_s': [lo, hi], 'bisectionIters': iters,
+        'transients': ctx['runs'],
+        'libertyBytes': len(liberty), 'libertyPath': lib_path,
+        'staGate': gate,
+        'definitions': {**DEFINITIONS,
+                        'setup': DEFINITIONS['setup'].replace(
+                            'CLK-edge', 'G falling edge'),
+                        'hold': DEFINITIONS['hold'].replace(
+                            'CLK-edge', 'G falling edge'),
+                        'd_to_q': 'D 50% -> Q 50% while G=1 '
+                                  '(transparent)'},
+        'honesty': honesty, 'workdir': ctx['workdir'],
+    }
+    if result_factory is None:
+        from cntfet.cnt_characterization import (
+            CellCharacterizationRun,
+        )
+        result_factory = CellCharacterizationRun
+    row = result_factory(
+        name=f'{device.name}-latch-{stamp[11:19].replace(":", "")}',
+        device=device.name, cell='DLATCHX1',
+        executor='polari-own-loop', vdd_v=vdd,
+        slews_s_json=json.dumps([report['point']['slew_s']]),
+        loads_f_json=json.dumps([ctx['load_f']]),
+        input_cap_f=ctx['input_cap_f'],
+        tables_json=json.dumps(res),
+        liberty_text=liberty,
+        sta_gate_json=json.dumps({'gate': gate}),
+        definitions_json=json.dumps(report['definitions']),
+        verdict='latch-characterized',
+        ran_at=stamp, notes=honesty, manager=manager)
+    try:
+        db = getattr(manager, 'db', None)
+        if db is not None:
+            db.saveInstanceInDB(row)
+    except Exception:
+        pass
+    report['resultRow'] = row.name
+    return report
 
 
 def characterize_sequential(manager, device, vdd=0.6, workdir=None,

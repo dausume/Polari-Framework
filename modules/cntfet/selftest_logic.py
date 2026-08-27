@@ -63,12 +63,16 @@ def main():
     tt_ok = []
     for key in COMBINATIONAL:
         tt = L.truth_table(key)
-        a = L.boolean_ast(CELL_LIBRARY[key]['liberty_function'])
+        cell = CELL_LIBRARY[key]
+        # cells-2: expected_output = the Liberty function, or 'Z'
+        # where the cell's three_state holds (ctbuf)
         ok = tt['count'] == 2 ** len(tt['inputs']) and all(
-            r['output'] == L.evaluate(a, r['vector']) for r in tt['rows'])
+            r['output'] == L.expected_output(cell, cell['output'],
+                                             r['vector'])
+            for r in tt['rows'])
         tt_ok.append((key, ok))
-    check('truth tables (INV NAND2 NOR2 BUF AOI21 OAI21 MUX2 NAND3 NOR3 '
-          'AND2 OR2 XOR2) match evaluate() for every vector',
+    check('truth tables of EVERY combinational cell (first output) '
+          'match evaluate() for every vector',
           all(ok for _k, ok in tt_ok), str(tt_ok))
     tt_x = L.truth_table('cxor2')
     check('XOR2 truth table = [0,1,1,0]',
@@ -212,8 +216,10 @@ def main():
                                'netlist', 'proof', 'stateSpace', 'fetCount',
                                'honesty'}
           and lib['allProven'] and 'cdff' in lib['sequential']
-          and L.LOGIC_PAYLOAD_VERSION == 1
-          and L.payload_contract()['version'] == 1)
+          # cells-2: payload v2 (additive; v1 keys keep their meaning)
+          and L.LOGIC_PAYLOAD_VERSION == 2
+          and L.payload_contract()['version'] == 2
+          and '2' in L.payload_contract()['changelog'])
     bad = L.cell_logic_report('cnand99')
     check('unknown cell refuses, naming the library',
           bad['ok'] is False and 'cnand99' in bad['refusal']

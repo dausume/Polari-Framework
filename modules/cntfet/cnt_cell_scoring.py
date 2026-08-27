@@ -164,15 +164,41 @@ def parse_liberty(text):
         name, body = m.group(1), m.group(2)
         cap = re.search(r'capacitance : (' + _NUM + ')', body)
         arcs = {}
+        # cells-2: multi-output cells carry one `pin (<out>)` block per
+        # output with `when`-qualified arcs; key arcs by
+        # '<out>:<pin>[|when]' when there is more than one output (or a
+        # when), plain '<pin>' otherwise so v1 keys are unchanged.
+        out_pins = re.findall(r'pin \((\w+)\) \{\n      direction : '
+                              r'output;', body)
+        multi = len(out_pins) > 1
+        whens = {}   # single-output: the `when` a plain pin key holds
         for blk in re.finditer(
                 r'(timing|internal_power) \(\) \{\n\s*related_pin : '
-                r'"([^"]+)";(.*?)\n      \}', body, re.S):
-            pin = blk.group(2)
-            tables = arcs.setdefault(pin, {})
+                r'"([^"]+)";(?:\s*timing_sense : \w+;)?'
+                r'(?:\s*when : "([^"]*)";)?(.*?)\n      \}', body, re.S):
+            pin, when = blk.group(2), blk.group(3)
+            if multi:
+                # the enclosing output pin = the last `pin (…) { output`
+                # opened before this block
+                before = body[:blk.start()]
+                opened = re.findall(r'pin \((\w+)\) \{\n      direction '
+                                    r': output;', before)
+                out = opened[-1] if opened else out_pins[0]
+                key = f'{out}:{pin}' + (f'|{when}' if when else '')
+            else:
+                # timing + internal_power blocks of the SAME arc share
+                # the plain pin key; a second `when` on that pin gets
+                # its own key
+                if pin not in whens or whens[pin] == when:
+                    whens.setdefault(pin, when)
+                    key = pin
+                else:
+                    key = f'{pin}|{when}'
+            tables = arcs.setdefault(key, {})
             for tb in re.finditer(
                     r'(cell_rise|cell_fall|rise_transition|'
                     r'fall_transition|rise_power|fall_power) '
-                    r'\([^)]*\) \{.*?values \((.*?)\);', blk.group(3),
+                    r'\([^)]*\) \{.*?values \((.*?)\);', blk.group(4),
                     re.S):
                 rows = [[float(v) for v in row.split(',')]
                         for row in re.findall(r'"([^"]*)"',

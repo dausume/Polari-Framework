@@ -95,6 +95,8 @@ class CNTFETAPI(treeObject):
             add('/api/sifet/refinement', self, suffix='si_refinement')
             add('/api/sifet/refinement/{route}', self,
                 suffix='si_refinement_route')
+            add('/api/sifet/refinement/{route}/points', self,
+                suffix='si_refinement_points')
             add('/api/cntfet/figures', self, suffix='figures')
             add('/api/cntfet/figures/{figure_id}', self,
                 suffix='figure')
@@ -340,7 +342,8 @@ class CNTFETAPI(treeObject):
     def on_get_device_links(self, request, response, name):
         """fp-6 weave: pages + partners + cells for one FET."""
         from cntfet.cnt_links import device_links
-        device = get_row(self.manager, 'AlignedCNTFETDevice', name)
+        device = (get_row(self.manager, 'AlignedCNTFETDevice', name)
+                  or get_row(self.manager, 'SiliconMOSFET', name))
         if device is None:
             return self._refuse(response, f'no device "{name}"',
                                 '404 Not Found')
@@ -467,6 +470,17 @@ class CNTFETAPI(treeObject):
         report = route_simulation(self.manager, route,
                                   feed_ppm_json=request.get_param('feed'),
                                   knobs=knobs or None)
+        if not report.get('ok', True):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_si_refinement_points(self, request, response, route):
+        """?curve=impurity-ladder|scheil — the named-graph-panel feed."""
+        from sifet.si_pages_seed import refinement_points
+        report = refinement_points(
+            self.manager, route,
+            curve=request.get_param('curve') or 'impurity-ladder',
+            feed_ppm_json=request.get_param('feed'))
         if not report.get('ok', True):
             response.status = '404 Not Found'
         response.media = report
@@ -607,6 +621,20 @@ class CNTFETAPI(treeObject):
                 cells=payload.get('cells'),
                 drives=tuple(payload.get('drives', [1])),
                 vdd=float(payload.get('vdd', 0.6)))
+            if not report.get('ok'):
+                response.status = ('503 Service Unavailable'
+                                   if 'refusal' in report
+                                   else '422 Unprocessable Entity')
+            response.media = report
+            return
+        if action == 'characterize-latch':
+            # cells-2: the transparent D latch (setup/hold on the
+            # closing edge, D→Q) via the own-loop bisection.
+            from cntfet.cnt_sequential import characterize_latch
+            report = characterize_latch(
+                self.manager, device,
+                vdd=float(payload.get('vdd', 0.6)),
+                iters=int(payload.get('iters', 6)))
             if not report.get('ok'):
                 response.status = ('503 Service Unavailable'
                                    if 'refusal' in report
