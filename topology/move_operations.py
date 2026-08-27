@@ -250,6 +250,12 @@ MOVE_SUBJECTS = {
         'command': 'pol allocate engines {machine} --graceful',
         'what': 'stateless compute worker — blue-green through the '
                 'routing mesh, zero downtime'},
+    'cnt-engines': {
+        'kind': 'engine-relocation', 'stateful': False,
+        'command': 'pol allocate cnt-engines {machine}',
+        'what': 'stateless microchip compute worker (ngspice/OpenVAF/'
+                'OpenSTA/kwant) — image shipped by docker save|load, '
+                'constraint swap through the routing mesh (:9700)'},
     'backend': {
         'kind': 'instance-move', 'stateful': True,
         'command': 'pol swarm relocate backend {machine}',

@@ -79,6 +79,15 @@ _WORKER = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 
 def find_kwant_python():
+    """The kwant executor per the dist ladder (cnt_remote.resolve):
+    the CNTFET_ENGINES_URL worker wins, else a local venv
+    interpreter, else the topology's cnt-engines provider.
+    (path | 'remote', detail) or (None, why)."""
+    from cntfet.cnt_remote import resolve
+    return resolve('kwant', _find_kwant_python_local)
+
+
+def _find_kwant_python_local():
     """The venv interpreter that can import kwant, or (None, why)."""
     candidates = [os.environ.get('CNTFET_KWANT_PYTHON', ''),
                   os.path.expanduser(
@@ -102,6 +111,15 @@ def find_kwant_python():
 
 
 def _run_worker(python_path, job, timeout_s=1200):
+    from cntfet.cnt_remote import REMOTE, RemoteError, remote_post
+    if python_path == REMOTE:
+        try:
+            return remote_post('/kwant/run',
+                               {'job': job, 'timeout': timeout_s},
+                               timeout=timeout_s + 60)
+        except RemoteError as exc:
+            return {'ok': False, 'error': 'kwant worker unreachable',
+                    'stderr': str(exc)}
     run = subprocess.run(
         [python_path, _WORKER], input=json.dumps(job),
         capture_output=True, text=True, timeout=timeout_s)

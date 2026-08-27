@@ -1,0 +1,465 @@
+"""
+@module cntfet.cnt_sequential
+
+cell-2 (2026-08-26): SEQUENTIAL characterization of the S4c
+transmission-gate master-slave DFF (cdff) — setup, hold and
+clk->Q — behind the same CellCharacterizationRun schema as the
+combinational sweep (plan D11/D16: the executor is a FIELD).
+
+Two executors, one ladder:
+
+  polari-own-loop  built here. Setup/hold are found by BISECTION
+                   on the D-edge offset relative to the capturing
+                   clock edge, each probe a full ngspice transient
+                   of the OSDI twin (2 preamble cycles settle Q,
+                   the third rising edge is the test edge, Q is
+                   sampled 40% of a period later). The plan's
+                   sanctioned exit path ("or our own loop", D16).
+  lctime           AGPL-3.0-or-later; ABSENT BY DEFAULT behind the
+                   D14 knob `CNTFET_LCTIME_ENABLED`. The knob and
+                   the refusal ladder exist; the invocation is NOT
+                   wired and nothing is vendored or pinned until
+                   Dustin ratifies CHIP_COMPUTE_DISTRIBUTION_PLAN
+                   §6 D14. Asking for it refuses with the exact
+                   rung you are on.
+
+Definitions (recorded with every run):
+  setup    minimum D-before-CLK(50%) time for which Q captures the
+           NEW value (pass/fail capture, not the 10%-degradation
+           criterion — stated, not hidden)
+  hold     minimum D-after-CLK(50%) time D must keep the captured
+           value for Q to retain it (may be negative)
+  clk->Q   CLK 50% -> Q 50%, at one declared (slew, load) point
+  slew     the 20-80 ramp of every driven edge = 2 tau
+  x1 only  the cdff subckt is the S4c hand topology; drive
+           variants of sequential cells are cell-3+ scope
+
+@consumers
+  - cntfet.cnt_api ({action: characterize-sequential})
+  - cntfet.cnt_cell_library (library_report -> lctime_status)
+  - cntfet.selftest_cntfet
+"""
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import tempfile
+from datetime import datetime, timezone
+
+from cntfet.cnt_cells import (
+    PARASITIC_STANDIN_F, _cards, _pwl, _run_ngspice, _SUBCKTS,
+    _tau_estimate,
+)
+from cntfet.cnt_characterization import _crossing, _sta_gate, \
+    find_sta, run_sta
+from cntfet.cnt_osdi import compile_osdi, find_ngspice
+
+LCTIME_KNOB = 'CNTFET_LCTIME_ENABLED'
+
+DEFINITIONS = {
+    'setup': 'min D-edge(50%) before CLK-edge(50%) such that Q '
+             'captures the new value (pass/fail capture criterion)',
+    'hold': 'min D-edge(50%) after CLK-edge(50%) such that Q keeps '
+            'the captured value (negative allowed)',
+    'clk_to_q': 'CLK 50% -> Q 50% at the declared slew/load point',
+    'transition': 'Q 20% -> 80% of VDD',
+    'search': 'bisection over the offset range, resolution = the '
+              'final bracket width (reported)',
+    'liberty_units': 'time ps, capacitance fF',
+}
+
+
+def lctime_status():
+    """The D14 ladder, as data."""
+    enabled = os.environ.get(LCTIME_KNOB, '').lower() in (
+        '1', 'true', 'yes')
+    binary = shutil.which('lctime')
+    if not enabled:
+        rung = 'absent-by-default'
+    elif not binary:
+        rung = 'knob-on-binary-absent'
+    else:
+        rung = 'knob-on-binary-present-invocation-unwired'
+    return {'licence': 'AGPL-3.0-or-later', 'knob': LCTIME_KNOB,
+            'enabled': enabled, 'binary': binary, 'rung': rung,
+            'gate': 'CHIP_COMPUTE_DISTRIBUTION_PLAN §6 D14 — '
+                    'ratification pending; nothing vendored or '
+                    'pinned before it',
+            'exitPath': 'polari-own-loop (cnt_sequential)'}
+
+
+def _lctime_refusal():
+    st = lctime_status()
+    why = {
+        'absent-by-default':
+            f'lctime executor is ABSENT BY DEFAULT (AGPL, D14) — '
+            f'set {LCTIME_KNOB}=1 only after ratification; the '
+            f'own-loop executor answers the same question',
+        'knob-on-binary-absent':
+            f'{LCTIME_KNOB} is on but no `lctime` binary is on PATH '
+            f'— it is separately installed, never vendored',
+        'knob-on-binary-present-invocation-unwired':
+            'knob on and binary found, but the lctime invocation is '
+            'NOT wired: D14 ratification (Dustin) precedes any '
+            'pin/adapter code',
+    }[st['rung']]
+    return {'ok': False, 'refusal': why, 'lctime': st,
+            'executor': 'lctime'}
+
+
+def _context(manager, device, vdd, workdir):
+    from cntfet.cnt_cell_library import _device_params
+    if not getattr(device, 'derived_at', ''):
+        return None, {'ok': False,
+                      'error': 'device never derived — POST '
+                               '{"action": "derive"} first'}
+    ngspice_path, why = find_ngspice()
+    if ngspice_path is None:
+        return None, {'ok': False, 'refusal': why}
+    params, err = _device_params(manager, device)
+    if err:
+        return None, err
+    p_n = {**params, 'ptype': 0}
+    p_p = {**params, 'ptype': 1}
+    workdir = workdir or tempfile.mkdtemp(prefix='cntfet-seq-')
+    os.makedirs(workdir, exist_ok=True)
+    compiled = compile_osdi(workdir)
+    if not compiled.get('ok'):
+        return None, compiled
+    tau = _tau_estimate(p_n, vdd)
+    cgg = params['cinv_f_per_m'] * params['lg_m']
+    input_cap = 2.0 * cgg + PARASITIC_STANDIN_F
+    plateau = 100.0 * tau
+    return {
+        'ngspice': ngspice_path, 'workdir': workdir,
+        'osdi': compiled['osdiPath'], 'cards': _cards(p_n, p_p),
+        'vdd': vdd, 'tau': tau, 'rise': 2.0 * tau,
+        'plateau': plateau, 'period': 6.0 * plateau,
+        'tstep': tau / 4.0, 'load_f': input_cap,
+        'input_cap_f': input_cap, 'runs': 0,
+    }, None
+
+
+def _edge_pairs(t0, level0, level1, rise):
+    return [(t0, level0), (t0 + rise, level1)]
+
+
+def _clock_pairs(ctx, n_edges):
+    P, rise = ctx['period'], ctx['rise']
+    pairs = [(0.0, 0.0)]
+    t = P / 2.0
+    for _ in range(n_edges):
+        pairs += [(t, 0.0), (t + rise, ctx['vdd']),
+                  (t + P / 2.0, ctx['vdd']),
+                  (t + P / 2.0 + rise, 0.0)]
+        t += P
+    return pairs
+
+
+def _transient(ctx, d_pairs, tstop, tag):
+    netlist = '\n'.join([
+        f'* cdff {tag}', ctx['cards'][0], ctx['cards'][1], _SUBCKTS,
+        f'vdd vddnode 0 {ctx["vdd"]:.6g}',
+        f'vclk clk 0 {_pwl(_clock_pairs(ctx, 4))}',
+        f'vd d 0 {_pwl(d_pairs)}',
+        'Xdut d clk q vddnode cdff',
+        f'Cload q 0 {ctx["load_f"]:.6e}',
+        '.options reltol=1e-4 abstol=1e-12 method=gear',
+        '.control', f'pre_osdi {ctx["osdi"]}',
+        f'tran {ctx["tstep"]:.3e} {tstop:.3e}',
+        'wrdata seq.dat v(q) v(clk)', 'quit', '.endc', '.end', ''])
+    run = _run_ngspice(ctx['ngspice'], ctx['workdir'], 'seq.sp',
+                       netlist)
+    ctx['runs'] += 1
+    times, v_q, v_clk = [], [], []
+    with open(os.path.join(ctx['workdir'], 'seq.dat')) as fh:
+        for line in fh:
+            parts = line.split()
+            if len(parts) >= 4:
+                times.append(float(parts[0]))
+                v_q.append(float(parts[1]))
+                v_clk.append(float(parts[3]))
+    if not times or times[-1] < 0.95 * tstop:
+        raise RuntimeError(
+            f'sequential transient TRUNCATED — '
+            f'{(run.stdout + run.stderr)[-300:]}')
+    return times, v_q, v_clk
+
+
+def _probe(ctx, kind, d1, offset_s):
+    """One capture probe. kind='setup': D goes d0->d1 at
+    te-offset. kind='hold': D goes d0->d1 well before te and back
+    to d0 at te+offset. Returns (captured_d1, waveform)."""
+    vdd, P, rise = ctx['vdd'], ctx['period'], ctx['rise']
+    te = P / 2.0 + 2 * P  # third rising edge (2 preamble cycles)
+    tstop = P / 2.0 + 3 * P
+    lv = {True: vdd, False: 0.0}
+    d0 = not d1
+    pairs = [(0.0, lv[d0])]
+    if kind == 'setup':
+        t_change = te - offset_s
+        pairs += _edge_pairs(t_change, lv[d0], lv[d1], rise)
+        pairs.append((tstop, lv[d1]))
+    else:
+        t_arrive = te - 40.0 * ctx['tau']
+        t_leave = te + offset_s
+        pairs += _edge_pairs(t_arrive, lv[d0], lv[d1], rise)
+        pairs += _edge_pairs(t_leave, lv[d1], lv[d0], rise)
+        pairs.append((tstop, lv[d0]))
+    # PWL times must be monotone: clamp any preamble overlap
+    fixed, last = [], -1.0
+    for t, v in pairs:
+        t = max(t, last + ctx['tstep'])
+        fixed.append((t, v))
+        last = t
+    times, v_q, v_clk = _transient(ctx, fixed, tstop,
+                                   f'{kind} d1={d1} off={offset_s}')
+    t_sample = te + 0.4 * P
+    q_at = None
+    for t, q in zip(times, v_q):
+        if t <= t_sample:
+            q_at = q
+    captured = (q_at is not None) and ((q_at > vdd / 2) == d1)
+    return captured, (times, v_q, v_clk, te)
+
+
+def _bisect(ctx, kind, d1, lo, hi, iters=6):
+    """Find the smallest offset in [lo, hi] that captures. Assumes
+    monotone pass/fail (physical for a static latch); verifies the
+    bracket ends first and refuses otherwise."""
+    pass_hi, wave_hi = _probe(ctx, kind, d1, hi)
+    if not pass_hi:
+        return {'ok': False,
+                'refusal': f'{kind} (D {"rise" if d1 else "fall"}) '
+                           f'does not capture even at offset '
+                           f'{hi:.3e} s — DFF not functional at '
+                           f'this bias, widen the bracket'}, None
+    pass_lo, _ = _probe(ctx, kind, d1, lo)
+    if pass_lo:
+        return {'ok': True, 'value_s': lo, 'resolution_s': None,
+                'bound': 'at-or-below-bracket-low',
+                'bracket_s': [lo, hi]}, wave_hi
+    a, b = lo, hi
+    for _ in range(iters):
+        mid = 0.5 * (a + b)
+        ok, _ = _probe(ctx, kind, d1, mid)
+        if ok:
+            b = mid
+        else:
+            a = mid
+    return {'ok': True, 'value_s': b, 'resolution_s': b - a,
+            'bound': None, 'bracket_s': [lo, hi]}, wave_hi
+
+
+def _clk_to_q(ctx, wave, rising_q):
+    times, v_q, v_clk, te = wave
+    vdd = ctx['vdd']
+    t_clk = _crossing(times, v_clk, vdd / 2, True, te * 0.98)
+    t_q = _crossing(times, v_q, vdd / 2, rising_q, te * 0.98)
+    a = _crossing(times, v_q, 0.2 * vdd, rising_q, te * 0.98)
+    b = _crossing(times, v_q, 0.8 * vdd, rising_q, te * 0.98)
+    if None in (t_clk, t_q, a, b):
+        return None
+    return {'delay_s': t_q - t_clk, 'transition_s': abs(b - a)}
+
+
+def _liberty_dff(vdd, res, input_cap_f):
+    def ps(x):
+        return x * 1e12
+
+    def ff(x):
+        return x * 1e15
+
+    def scalar(kind, value_s):
+        return (f'        {kind} (scalar) {{ values '
+                f'("{ps(value_s):.5g}"); }}\n')
+
+    su, ho, cq = res['setup'], res['hold'], res['clkToQ']
+    return (
+        'library (polari_cnt_seq) {\n'
+        '  /* generated by cntfet.cnt_sequential — executor '
+        'polari-own-loop.\n'
+        '     UNITS: time ps, capacitance fF. Scalar constraints at '
+        'ONE declared\n'
+        '     slew/load point (bisection, resolution recorded in '
+        'the run row).\n'
+        '     INTRINSIC-grade, x1 only. NOT signoff (plan D1). */\n'
+        '  delay_model : table_lookup;\n'
+        '  time_unit : "1ps";\n'
+        '  capacitive_load_unit (1, ff);\n'
+        '  voltage_unit : "1V";\n'
+        '  current_unit : "1uA";\n'
+        '  pulling_resistance_unit : "1kohm";\n'
+        '  leakage_power_unit : "1uW";\n'
+        f'  nom_voltage : {vdd};\n'
+        '  nom_temperature : 300;\n'
+        '  nom_process : 1;\n'
+        '  cell (DFFX1) {\n'
+        '    ff (IQ, IQN) { next_state : "D"; clocked_on : "CLK"; }\n'
+        '    pin (CLK) {\n'
+        '      direction : input; clock : true;\n'
+        f'      capacitance : {ff(input_cap_f):.5g};\n    }}\n'
+        '    pin (D) {\n'
+        '      direction : input;\n'
+        f'      capacitance : {ff(input_cap_f):.5g};\n'
+        '      timing () {\n'
+        '        related_pin : "CLK";\n'
+        '        timing_type : setup_rising;\n'
+        f'{scalar("rise_constraint", su["rise"]["value_s"])}'
+        f'{scalar("fall_constraint", su["fall"]["value_s"])}'
+        '      }\n'
+        '      timing () {\n'
+        '        related_pin : "CLK";\n'
+        '        timing_type : hold_rising;\n'
+        f'{scalar("rise_constraint", ho["rise"]["value_s"])}'
+        f'{scalar("fall_constraint", ho["fall"]["value_s"])}'
+        '      }\n    }\n'
+        '    pin (Q) {\n'
+        '      direction : output;\n'
+        '      function : "IQ";\n'
+        '      timing () {\n'
+        '        related_pin : "CLK";\n'
+        '        timing_type : rising_edge;\n'
+        '        timing_sense : non_unate;\n'
+        f'{scalar("cell_rise", cq["rise"]["delay_s"])}'
+        f'{scalar("cell_fall", cq["fall"]["delay_s"])}'
+        f'{scalar("rise_transition", cq["rise"]["transition_s"])}'
+        f'{scalar("fall_transition", cq["fall"]["transition_s"])}'
+        '      }\n    }\n  }\n}\n')
+
+
+def _sta_setup_check(workdir, lib_path, res):
+    """OpenSTA consumes the constraint arcs: a reg->reg path under
+    a real clock must report OUR setup number as its 'library
+    setup time'. Refuses (never skips) without `sta`."""
+    sta, where = find_sta()
+    if not sta:
+        return {'ran': False,
+                'refusal': f'{where} — sequential constraint '
+                           f'consumption unverified'}
+    with open(os.path.join(workdir, 'reg2.v'), 'w') as fh:
+        fh.write('module reg2 (clk, d, q);\n'
+                 '  input clk, d; output q; wire w;\n'
+                 '  DFFX1 u1 (.D(d), .CLK(clk), .Q(w));\n'
+                 '  DFFX1 u2 (.D(w), .CLK(clk), .Q(q));\n'
+                 'endmodule\n')
+    run = run_sta(sta, workdir,
+                  'read_liberty polari_cnt_seq.lib\n'
+                  'read_verilog reg2.v\n'
+                  'link_design reg2\n'
+                  'create_clock -name clk -period 1000 '
+                  '[get_ports clk]\n'
+                  'report_checks -path_delay max -digits 6\n'
+                  'exit\n',
+                  files=('polari_cnt_seq.lib', 'reg2.v'), timeout=180)
+    m = re.search(r'^\s*(-?[0-9]*\.?[0-9]+)\s+-?[0-9.]+\s+'
+                  r'library setup time', run.stdout, re.M)
+    if not m:
+        return {'ran': True, 'accepted': False,
+                'output': run.stdout[-600:] + run.stderr[-200:]}
+    seen_ps = abs(float(m.group(1)))
+    expect = res['setup']['rise']['value_s'] * 1e12
+    expect_f = res['setup']['fall']['value_s'] * 1e12
+    match = any(abs(seen_ps - e) <= 0.01 * max(1.0, abs(e)) + 1e-3
+                for e in (expect, expect_f))
+    return {'ran': True, 'accepted': match, 'where': where,
+            'librarySetupTime_ps': seen_ps,
+            'ourSetup_ps': {'rise': expect, 'fall': expect_f},
+            'output': '' if match else run.stdout[-600:]}
+
+
+def characterize_sequential(manager, device, vdd=0.6, workdir=None,
+                            executor='polari-own-loop',
+                            iters=6, result_factory=None):
+    """Setup/hold/clk->Q of the cdff at one declared slew/load
+    point. executor='lctime' walks the D14 ladder and refuses."""
+    if executor == 'lctime':
+        return _lctime_refusal()
+    if executor != 'polari-own-loop':
+        return {'ok': False,
+                'error': f'unknown executor {executor!r} — '
+                         f'polari-own-loop | lctime'}
+    ctx, err = _context(manager, device, vdd, workdir)
+    if err:
+        return err
+    tau = ctx['tau']
+    lo, hi = -10.0 * tau, 40.0 * tau
+    res = {'setup': {}, 'hold': {}, 'clkToQ': {}}
+    waves = {}
+    for d1, label in ((True, 'rise'), (False, 'fall')):
+        try:
+            s, wave = _bisect(ctx, 'setup', d1, lo, hi, iters)
+            if not s.get('ok'):
+                return {**s, 'runs': ctx['runs']}
+            res['setup'][label] = s
+            waves[label] = wave
+            h, _ = _bisect(ctx, 'hold', d1, lo, hi, iters)
+            if not h.get('ok'):
+                return {**h, 'runs': ctx['runs']}
+            res['hold'][label] = h
+        except Exception as exc:
+            return {'ok': False, 'error': str(exc)[:400],
+                    'runs': ctx['runs']}
+    for label, rising in (('rise', True), ('fall', False)):
+        cq = _clk_to_q(ctx, waves[label], rising)
+        if cq is None:
+            return {'ok': False,
+                    'error': f'clk->Q {label}: a crossing was never '
+                             f'reached at the far-offset probe'}
+        res['clkToQ'][label] = cq
+    liberty = _liberty_dff(vdd, res, ctx['input_cap_f'])
+    lib_path = os.path.join(ctx['workdir'], 'polari_cnt_seq.lib')
+    with open(lib_path, 'w') as fh:
+        fh.write(liberty)
+    gate = _sta_gate(ctx['workdir'], liberty)
+    consume = _sta_setup_check(ctx['workdir'], lib_path, res)
+    stamp = datetime.now(timezone.utc).isoformat()
+    honesty = ('own-loop bisection at ONE slew/load point, x1 '
+               'S4c topology, pass/fail capture criterion (not '
+               '10% degradation); intrinsic-grade; lctime absent '
+               'by default (D14)')
+    report = {
+        'ok': True, 'device': device.name, 'vdd_v': vdd,
+        'cell': 'DFFX1', 'executor': 'polari-own-loop',
+        'point': {'slew_s': 0.6 * ctx['rise'],
+                  'load_f': ctx['load_f'], 'tau_s': tau},
+        'setup': res['setup'], 'hold': res['hold'],
+        'clkToQ': res['clkToQ'],
+        'bracket_s': [lo, hi], 'bisectionIters': iters,
+        'transients': ctx['runs'],
+        'libertyBytes': len(liberty), 'libertyPath': lib_path,
+        'staGate': gate, 'staConstraintCheck': consume,
+        'definitions': DEFINITIONS, 'honesty': honesty,
+        'lctime': lctime_status(), 'workdir': ctx['workdir'],
+    }
+    if result_factory is None:
+        from cntfet.cnt_characterization import (
+            CellCharacterizationRun,
+        )
+        result_factory = CellCharacterizationRun
+    row = result_factory(
+        name=f'{device.name}-seq-{stamp[11:19].replace(":", "")}',
+        device=device.name, cell='DFFX1',
+        executor='polari-own-loop', vdd_v=vdd,
+        slews_s_json=json.dumps([report['point']['slew_s']]),
+        loads_f_json=json.dumps([ctx['load_f']]),
+        input_cap_f=ctx['input_cap_f'],
+        tables_json=json.dumps({'setup': res['setup'],
+                                'hold': res['hold'],
+                                'clkToQ': res['clkToQ']}),
+        liberty_text=liberty,
+        sta_gate_json=json.dumps({'gate': gate,
+                                  'constraintCheck': consume}),
+        definitions_json=json.dumps(DEFINITIONS),
+        verdict='sequential-characterized',
+        ran_at=stamp, notes=honesty, manager=manager)
+    try:
+        db = getattr(manager, 'db', None)
+        if db is not None:
+            db.saveInstanceInDB(row)
+    except Exception:
+        pass
+    report['resultRow'] = row.name
+    return report

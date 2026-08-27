@@ -222,6 +222,26 @@ SEED_INSTANCE_DEFINITIONS = [
                  'engines` (single-node swarm today).',
     },
     {
+        # dist-1 (2026-08-26): the microchip engines worker —
+        # ngspice-46 + OpenVAF + OpenSTA + kwant behind :9700. Pinned
+        # to isle-core (the hardware-integration core; 6 cores for
+        # the F3 SCF chains). Consumer ladder: cntfet.cnt_remote.
+        'name': 'cnt-engines',
+        'kind': 'worker',
+        'service_kinds_json': json.dumps(['prf-cnt-engines']),
+        'replicas': 1,
+        'env_tier': 'staging',
+        'machine_name': 'isle-core',
+        'db_backend': 'sqlite',
+        'image_tag': 'staging',
+        'orchestration_target': 'swarm',
+        'topology_name': 'staging-a',
+        'notes': 'The polari-cnt-engines swarm stack (:9700) — the '
+                 'cntfet module\'s compute (OSDI equivalence, cell '
+                 'characterization, D11, F3 NEGF) on a worker node; '
+                 '`pol swarm deploy cnt-engines`.',
+    },
+    {
         'name': 'odoo',
         'kind': 'custom',
         'service_kinds_json': json.dumps(['odoo']),
@@ -291,6 +311,14 @@ SEED_MODULE_ASSIGNMENTS = [
      'instance_name': 'engines', 'state': 'enabled',
      'topology_name': 'staging-a',
      'notes': 'DFT engine capability on the engines worker.'},
+    {'name': 'cntfet.engines@cnt-engines',
+     'module_name': 'cntfet.engines',
+     'instance_name': 'cnt-engines', 'state': 'enabled',
+     'topology_name': 'staging-a',
+     'notes': 'dist-1: the cntfet engine capability (ngspice/OpenVAF/'
+              'OpenSTA/kwant) on the cnt-engines worker — the '
+              'provider cnt_remote resolves when CNTFET_ENGINES_URL '
+              'is unset and no local binary exists.'},
     {'name': 'scorecard@psc-a', 'module_name': 'scorecard',
      'instance_name': 'psc-a', 'state': 'enabled',
      'topology_name': 'staging-a',
@@ -316,6 +344,16 @@ SEED_MODULE_DEPENDENCY_EDGES = [
      'status': 'resolved',
      'topology_name': 'staging-a',
      'notes': 'Multiscale DFT delegation — same seam as fem.'},
+    {'name': 'cntfet@prf-a->cntfet.engines',
+     'module_name': 'cntfet',
+     'consumer_instance_name': 'prf-a',
+     'depends_on_module': 'cntfet.engines',
+     'provider_instance_name': 'cnt-engines',
+     'status': 'resolved',
+     'topology_name': 'staging-a',
+     'notes': 'dist-1: cntfet compute delegation — CNTFET_ENGINES_URL '
+              'knob wins, else this edge (live providers only), '
+              'else local ~/tools binaries, else refusal.'},
 ]
 
 SEED_SERVICE_CONNECTIONS = [

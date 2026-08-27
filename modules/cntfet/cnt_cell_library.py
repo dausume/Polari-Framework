@@ -20,9 +20,11 @@ Three capabilities ride the data:
     OpenSTA through the emitted Liberty — recorded side by side
     with a stated tolerance, refusing when `sta` is absent.
 
-Sequential characterization (DFF setup/hold) is NOT here — that
-is the lctime executor's job (AGPL, absent-by-default, D14) and
-refuses honestly until wired.
+cell-2 (2026-08-26): AOI21/OAI21/MUX2 with PER-ARC ties and
+Liberty `when` conditions, x4 drives, and energy-per-transition
+tables (internal_power) integrated from the SAME transients.
+Sequential characterization (DFF setup/hold/clk->Q) lives in
+cnt_sequential (own-loop bisection; lctime = D14 ladder).
 
 The ladder correspondence (cells -> the computers app's part
 classes) is DESIGN, recorded in
@@ -50,7 +52,8 @@ from cntfet.cnt_cells import (
     PARASITIC_STANDIN_F, _cards, _pwl, _run_ngspice,
     _tau_estimate,
 )
-from cntfet.cnt_characterization import _crossing, _sta_gate
+from cntfet.cnt_characterization import _crossing, _sta_gate, \
+    find_sta, run_sta
 from cntfet.cnt_derive import resolve_components
 from cntfet.cnt_osdi import compile_osdi, find_ngspice
 from cntfet.cnt_vs_model import build_vs_params
@@ -96,9 +99,110 @@ CELL_LIBRARY = {
         'devices': [], 'midcaps': [],
         'noncontrolling': None,
     },
+    # ---- cell-2 (2026-08-26): richer combinationals. Cells whose
+    # non-controlling tie DEPENDS on the pin under test carry an
+    # explicit 'arcs' list instead of one 'noncontrolling' value:
+    # {pin, ties{other: 0|1}, sense, when} — `when` is the Liberty
+    # state-dependent condition, emitted verbatim.
+    'caoi21': {
+        # Y = !((A*B) + C)
+        'function': 'AOI21', 'inputs': ['A', 'B', 'C'],
+        'output': 'Y', 'liberty_function': '(!((A*B)+C))',
+        'unate': 'negative',
+        'devices': [('p', 'Y', 'A', 'midp'),
+                    ('p', 'Y', 'B', 'midp'),
+                    ('p', 'midp', 'C', 'vddn'),
+                    ('n', 'Y', 'A', 'midn'),
+                    ('n', 'midn', 'B', '0'),
+                    ('n', 'Y', 'C', '0')],
+        'midcaps': [('midp', 0.5), ('midn', 0.5), ('Y', 1.0)],
+        'arcs': [
+            {'pin': 'A', 'ties': {'B': 1, 'C': 0},
+             'sense': 'negative', 'when': 'B*!C'},
+            {'pin': 'B', 'ties': {'A': 1, 'C': 0},
+             'sense': 'negative', 'when': 'A*!C'},
+            {'pin': 'C', 'ties': {'A': 0, 'B': 0},
+             'sense': 'negative', 'when': '!A*!B'},
+        ],
+    },
+    'coai21': {
+        # Y = !((A+B) * C)
+        'function': 'OAI21', 'inputs': ['A', 'B', 'C'],
+        'output': 'Y', 'liberty_function': '(!((A+B)*C))',
+        'unate': 'negative',
+        'devices': [('p', 'Y', 'A', 'midp'),
+                    ('p', 'midp', 'B', 'vddn'),
+                    ('p', 'Y', 'C', 'vddn'),
+                    ('n', 'Y', 'A', 'midn'),
+                    ('n', 'Y', 'B', 'midn'),
+                    ('n', 'midn', 'C', '0')],
+        'midcaps': [('midp', 0.5), ('midn', 0.5), ('Y', 1.0)],
+        'arcs': [
+            {'pin': 'A', 'ties': {'B': 0, 'C': 1},
+             'sense': 'negative', 'when': '!B*C'},
+            {'pin': 'B', 'ties': {'A': 0, 'C': 1},
+             'sense': 'negative', 'when': '!A*C'},
+            {'pin': 'C', 'ties': {'A': 1, 'B': 0},
+             'sense': 'negative', 'when': 'A*!B'},
+        ],
+    },
+    'cmux2': {
+        # Y = S ? B : A — two transmission gates + the select
+        # inverter (the S4c ctg topology, generated per drive).
+        # The data path is PASSED, not driven from a rail: the
+        # output charge on the A/B arcs comes from the input
+        # driver, so the supply-energy tables for those arcs are
+        # honestly ~0 (see energy note in the Liberty header).
+        'function': 'MUX2', 'inputs': ['A', 'B', 'S'],
+        'output': 'Y', 'liberty_function': '((A*!S)+(B*S))',
+        'unate': 'non-unate',
+        'devices': [('p', 'sb', 'S', 'vddn'),
+                    ('n', 'sb', 'S', '0'),
+                    ('n', 'Y', 'sb', 'A'),
+                    ('p', 'Y', 'S', 'A'),
+                    ('n', 'Y', 'S', 'B'),
+                    ('p', 'Y', 'sb', 'B')],
+        'midcaps': [('sb', 0.5), ('Y', 1.0)],
+        'arcs': [
+            {'pin': 'A', 'ties': {'S': 0, 'B': 0},
+             'sense': 'positive', 'when': '!S'},
+            {'pin': 'B', 'ties': {'S': 1, 'A': 0},
+             'sense': 'positive', 'when': 'S'},
+            {'pin': 'S', 'ties': {'A': 0, 'B': 1},
+             'sense': 'positive', 'when': '!A*B'},
+            {'pin': 'S', 'ties': {'A': 1, 'B': 0},
+             'sense': 'negative', 'when': 'A*!B'},
+        ],
+    },
 }
 
-DRIVES = (1, 2)
+#: cell-2: x4 joins x1/x2 — still GENERATED (4 parallel devices per
+#: position), never a hand twin.
+DRIVES = (1, 2, 4)
+
+COMBINATIONAL = ['cinv', 'cnand2', 'cnor2', 'cbuf', 'caoi21',
+                 'coai21', 'cmux2']
+
+
+def arc_id(arc):
+    return arc['pin'] if not arc.get('when') \
+        else f"{arc['pin']}|{arc['when']}"
+
+
+def cell_arcs(cell_key):
+    """The measurable input arcs of a cell as explicit specs. Cells
+    with one non-controlling value get one arc per pin (every other
+    pin tied to that value); cells with an 'arcs' list use it."""
+    cell = CELL_LIBRARY[cell_key]
+    if cell.get('arcs'):
+        return [dict(a, id=arc_id(a)) for a in cell['arcs']]
+    out = []
+    for pin in cell['inputs']:
+        ties = {o: (1 if cell['noncontrolling'] else 0)
+                for o in cell['inputs'] if o != pin}
+        out.append({'id': pin, 'pin': pin, 'ties': ties,
+                    'sense': cell['unate'], 'when': None})
+    return out
 
 
 class CNTCellDefinition(treeObject):
@@ -219,15 +323,51 @@ def liberty_cell_name(cell_key, drive):
     return f'{cell_key[1:].upper()}X{drive}'
 
 
+def _sample_before(times, values, t):
+    last = values[0]
+    for ti, vi in zip(times, values):
+        if ti > t:
+            break
+        last = vi
+    return last
+
+
+def _window_energy(times, i_vdd, vdd, t_a, t_b, t_edge):
+    """Supply energy delivered over [t_a, t_b] with the STATE
+    leakage subtracted — the static current before the edge
+    (sampled at t_a) for the pre-edge part, the settled current
+    after it (sampled at t_b) for the post-edge part; leakage
+    differs between the two logic states and a single baseline
+    over a 400-tau window swamps aJ-scale transitions (caught
+    live). Trapezoid on the transient's own grid. ngspice's i(vdd)
+    is positive INTO the source's + terminal, so delivered
+    current = -i."""
+    base_pre = _sample_before(times, i_vdd, t_a)
+    base_post = _sample_before(times, i_vdd, t_b)
+    e = 0.0
+    for k in range(1, len(times)):
+        if times[k] < t_a or times[k - 1] > t_b:
+            continue
+        base = base_pre if times[k] <= t_edge else base_post
+        dt = times[k] - times[k - 1]
+        e += 0.5 * ((base - i_vdd[k]) + (base - i_vdd[k - 1])) * dt
+    return vdd * e
+
+
 def _measure_arc_point(ngspice_path, workdir, osdi_path, cards,
-                       subckts, cell_key, drive, pin, vdd,
-                       slew_2080_s, load_f, tau):
-    """One (slew, load) point for one input pin's arc: a full
-    up/down pulse on `pin`, other inputs tied to the cell's
-    non-controlling value. Returns the 4 NLDM numbers with the
-    unate sense applied."""
+                       subckts, cell_key, drive, arc, vdd,
+                       slew_2080_s, load_f, tau, cell_cap_f=0.0):
+    """One (slew, load) point for one arc: a full up/down pulse on
+    the arc's pin, the other inputs tied per the arc spec. Returns
+    the 4 NLDM delay/transition numbers with the arc's sense
+    applied PLUS the energy per output transition from the SAME
+    transient (cell-2): supply energy over each edge's window,
+    leakage baseline subtracted, output-load CV^2 removed on the
+    rising edge so the number is Liberty-internal (short-circuit +
+    internal nodes)."""
     cell = CELL_LIBRARY[cell_key]
-    positive = cell['unate'] == 'positive'
+    pin = arc['pin']
+    positive = arc['sense'] == 'positive'
     ramp = slew_2080_s / 0.6
     plateau = max(400.0 * tau, 20.0 * slew_2080_s)
     t1, t2 = plateau, 2.0 * plateau
@@ -241,7 +381,7 @@ def _measure_arc_point(ngspice_path, workdir, osdi_path, cards,
         if other == pin:
             nets.append(f'{pin.lower()}in')
         else:
-            tie = vdd if cell['noncontrolling'] else 0.0
+            tie = vdd if arc['ties'][other] else 0.0
             sources.append(
                 f'vtie{other.lower()} {other.lower()}tie 0 '
                 f'{tie:.6g}')
@@ -249,30 +389,58 @@ def _measure_arc_point(ngspice_path, workdir, osdi_path, cards,
     dut = (f'Xdut {" ".join(nets)} out vddnode '
            f'{subckt_name(cell_key, drive)}')
     netlist = '\n'.join([
-        f'* {cell_key}_x{drive} arc {pin}', card_n, card_p,
+        f'* {cell_key}_x{drive} arc {arc["id"]}', card_n, card_p,
         subckts,
         f'vdd vddnode 0 {vdd:.6g}', *sources, dut,
         f'Cload out 0 {load_f:.6e}',
         '.options reltol=1e-4 abstol=1e-12 method=gear',
         '.control', f'pre_osdi {osdi_path}',
         f'tran {min(tau / 4.0, ramp / 8.0):.3e} {tstop:.3e}',
-        f'wrdata arcpoint.dat v({pin.lower()}in) v(out)',
+        f'wrdata arcpoint.dat v({pin.lower()}in) v(out) i(vdd)',
         'quit', '.endc', '.end', ''])
     run = _run_ngspice(ngspice_path, workdir, 'arcpoint.sp',
                        netlist)
-    times, v_in, v_out = [], [], []
+    times, v_in, v_out, i_vdd = [], [], [], []
     with open(os.path.join(workdir, 'arcpoint.dat')) as fh:
         for line in fh:
             parts = line.split()
-            if len(parts) >= 4:
+            if len(parts) >= 6:
                 times.append(float(parts[0]))
                 v_in.append(float(parts[1]))
                 v_out.append(float(parts[3]))
+                i_vdd.append(float(parts[5]))
     if not times or times[-1] < 0.95 * tstop:
         raise RuntimeError(
             f'arc transient TRUNCATED — '
             f'{(run.stdout + run.stderr)[-300:]}')
+    # energy windows: edge 1 = input rise (t1..t2), edge 2 = input
+    # fall (t2..tstop); each split at the input's 50% crossing for
+    # the two-state leakage baseline
     half, lo20, hi80 = vdd / 2, 0.2 * vdd, 0.8 * vdd
+    t_edge1 = _crossing(times, v_in, half, True, t1 * 0.5) or t1
+    t_edge2 = _crossing(times, v_in, half, False, t2 * 0.98) or t2
+    e_edge1 = _window_energy(times, i_vdd, vdd, 0.9 * t1,
+                             0.98 * t2, t_edge1)
+    e_edge2 = _window_energy(times, i_vdd, vdd, 0.98 * t2,
+                             tstop, t_edge2)
+    e_load = load_f * vdd * vdd
+    if positive:
+        supply_rise, supply_fall = e_edge1, e_edge2
+    else:
+        supply_fall, supply_rise = e_edge1, e_edge2
+    internal_rise = supply_rise - e_load
+    # a clamp is REPORTED only when it hides a real deficit (pass-
+    # gate arcs: the load charge came from the input driver), not
+    # the gate-coupling back-flow into VDD (Cgs of the p-devices on
+    # an input edge — scales with the cell's OWN capacitance, i.e.
+    # drive, seen live at x4: -2 aJ against a 7.5 aJ load)
+    noise = 0.10 * e_load + 0.25 * cell_cap_f * vdd * vdd
+    clamped = internal_rise < -noise or supply_fall < -noise
+    energy = {'supply_energy_rise_j': supply_rise,
+              'supply_energy_fall_j': supply_fall,
+              'energy_rise_j': max(internal_rise, 0.0),
+              'energy_fall_j': max(supply_fall, 0.0),
+              'energy_clamped': clamped}
     t_in_rise = _crossing(times, v_in, half, True, t1 * 0.5)
     t_in_fall = _crossing(times, v_in, half, False, t2 * 0.98)
     if positive:
@@ -310,70 +478,91 @@ def _measure_arc_point(ngspice_path, workdir, osdi_path, cards,
     if None in vals.values():
         raise RuntimeError('a crossing was never reached — grid '
                            'point outside the working range')
+    vals.update(energy)
     return vals
 
 
 def _liberty_library(vdd, slews_s, loads_f, cell_blocks):
-    """Multi-cell NLDM Liberty (ps/fF stated). cell_blocks:
-    [{libertyName, function, unate, inputCap_f,
-      arcs: {pin: tables[slew][load]{4 kinds}}}]."""
+    """Multi-cell NLDM Liberty (ps/fF stated; internal_power in
+    aJ = uW*ps). cell_blocks: [{libertyName, function, inputs,
+    inputCap_f, arcs: {arcId: {pin, sense, when,
+    tables[slew][load]{4 timing kinds + energy}}}}]."""
     def ps(x):
         return x * 1e12
 
     def ff(x):
         return x * 1e15
 
+    def aj(x):
+        return x * 1e18
+
     idx1 = ', '.join(f'{ps(s):.5g}' for s in slews_s)
     idx2 = ', '.join(f'{ff(c):.5g}' for c in loads_f)
-    kind_map = {'cell_rise': 'cell_rise_s',
-                'cell_fall': 'cell_fall_s',
-                'rise_transition': 'rise_transition_s',
-                'fall_transition': 'fall_transition_s'}
+    kind_map = {'cell_rise': ('cell_rise_s', ps),
+                'cell_fall': ('cell_fall_s', ps),
+                'rise_transition': ('rise_transition_s', ps),
+                'fall_transition': ('fall_transition_s', ps),
+                'rise_power': ('energy_rise_j', aj),
+                'fall_power': ('energy_fall_j', aj)}
+    tpl = f'tpl_{len(slews_s)}x{len(loads_f)}'
 
-    def values_rows(tables, kind):
+    def values_rows(tables, key, conv):
         return ', \\\n                '.join(
-            '"' + ', '.join(f'{ps(tables[si][li][kind]):.5g}'
+            '"' + ', '.join(f'{conv(tables[si][li][key]):.5g}'
                             for li in range(len(loads_f))) + '"'
             for si in range(len(slews_s)))
 
-    def timing_block(tables, kind):
-        return (f'          {kind} (tpl_{len(slews_s)}x'
-                f'{len(loads_f)}) {{\n'
+    def table_block(tables, kind, template):
+        key, conv = kind_map[kind]
+        return (f'          {kind} ({template}) {{\n'
                 f'            index_1 ("{idx1}");\n'
                 f'            index_2 ("{idx2}");\n'
                 f'            values ( \\\n                '
-                f'{values_rows(tables, kind_map[kind])} );\n'
+                f'{values_rows(tables, key, conv)} );\n'
                 '          }\n')
 
     out = [
         'library (polari_cnt) {\n'
         '  /* generated by cntfet.cnt_cell_library — executor '
         'polari-own-loop.\n'
-        '     UNITS: time ps, capacitance fF. INTRINSIC-grade '
-        '(S1 model, labeled\n'
-        '     standin parasitics, 50/50 charge partition). NOT '
-        'signoff (plan D1). */\n'
+        '     UNITS: time ps, capacitance fF, internal_power aJ '
+        '(uW x ps).\n'
+        '     internal_power = supply energy per output '
+        'transition from the SAME\n'
+        '     transient, leakage baseline subtracted, output-load '
+        'CV^2 removed on\n'
+        '     the rising edge (Liberty-internal). Pass-gate arcs '
+        '(MUX2 A/B) source\n'
+        '     their output charge from the input driver, so their '
+        'supply energy is\n'
+        '     honestly ~0 (clamped at 0, flagged in the run '
+        'report).\n'
+        '     INTRINSIC-grade (S1 model, labeled standin '
+        'parasitics, 50/50 charge\n'
+        '     partition). NOT signoff (plan D1). */\n'
         '  delay_model : table_lookup;\n'
         '  time_unit : "1ps";\n'
         '  capacitive_load_unit (1, ff);\n'
         '  voltage_unit : "1V";\n'
         '  current_unit : "1uA";\n'
         '  pulling_resistance_unit : "1kohm";\n'
-        '  leakage_power_unit : "1nW";\n'
+        '  leakage_power_unit : "1uW";\n'
         f'  nom_voltage : {vdd};\n'
         '  nom_temperature : 300;\n'
         '  nom_process : 1;\n'
-        f'  lu_table_template (tpl_{len(slews_s)}x'
-        f'{len(loads_f)}) {{\n'
+        f'  lu_table_template ({tpl}) {{\n'
         '    variable_1 : input_net_transition;\n'
+        '    variable_2 : total_output_net_capacitance;\n'
+        f'    index_1 ("{idx1}");\n'
+        f'    index_2 ("{idx2}");\n  }}\n'
+        f'  power_lut_template (pwr_{tpl}) {{\n'
+        '    variable_1 : input_transition_time;\n'
         '    variable_2 : total_output_net_capacitance;\n'
         f'    index_1 ("{idx1}");\n'
         f'    index_2 ("{idx2}");\n  }}\n']
     for blk in cell_blocks:
-        sense = ('positive_unate' if blk['unate'] == 'positive'
-                 else 'negative_unate')
         out.append(f'  cell ({blk["libertyName"]}) {{\n')
-        for pin in blk['arcs']:
+        for pin in blk['inputs']:
             out.append(
                 f'    pin ({pin}) {{\n'
                 '      direction : input;\n'
@@ -383,15 +572,27 @@ def _liberty_library(vdd, slews_s, loads_f, cell_blocks):
             '    pin (Y) {\n'
             '      direction : output;\n'
             f'      function : "{blk["function"]}";\n')
-        for pin, tables in blk['arcs'].items():
+        for arc in blk['arcs'].values():
+            sense = ('positive_unate' if arc['sense'] == 'positive'
+                     else 'negative_unate')
+            when = (f'        when : "{arc["when"]}";\n'
+                    if arc.get('when') else '')
+            tables = arc['tables']
             out.append(
                 '      timing () {\n'
-                f'        related_pin : "{pin}";\n'
+                f'        related_pin : "{arc["pin"]}";\n'
                 f'        timing_sense : {sense};\n'
-                f'{timing_block(tables, "cell_rise")}'
-                f'{timing_block(tables, "cell_fall")}'
-                f'{timing_block(tables, "rise_transition")}'
-                f'{timing_block(tables, "fall_transition")}'
+                f'{when}'
+                f'{table_block(tables, "cell_rise", tpl)}'
+                f'{table_block(tables, "cell_fall", tpl)}'
+                f'{table_block(tables, "rise_transition", tpl)}'
+                f'{table_block(tables, "fall_transition", tpl)}'
+                '      }\n'
+                '      internal_power () {\n'
+                f'        related_pin : "{arc["pin"]}";\n'
+                f'{when}'
+                f'{table_block(tables, "rise_power", "pwr_" + tpl)}'
+                f'{table_block(tables, "fall_power", "pwr_" + tpl)}'
                 '      }\n')
         out.append('    }\n  }\n')
     out.append('}\n')
@@ -431,14 +632,20 @@ def characterize_cells(manager, device, cells=None, drives=(1,),
     ngspice_path, why = find_ngspice()
     if ngspice_path is None:
         return {'ok': False, 'refusal': why}
-    cells = cells or ['cinv', 'cnand2', 'cnor2', 'cbuf']
+    cells = cells or list(COMBINATIONAL)
     unknown = [c for c in cells if c not in CELL_LIBRARY]
     if unknown:
         return {'ok': False,
                 'error': f'unknown cells {unknown} — library has '
                          f'{sorted(CELL_LIBRARY)}; sequential '
-                         f'cells (cdff) are the lctime '
-                         f'executor\'s scope (not wired)'}
+                         f'cells (cdff) = {{action: '
+                         f'characterize-sequential}} '
+                         f'(cnt_sequential, D14 ladder)'}
+    bad_drives = [d for d in drives if d not in DRIVES]
+    if bad_drives:
+        return {'ok': False,
+                'error': f'drives {bad_drives} not generated — '
+                         f'DRIVES = {list(DRIVES)}'}
     params, err = _device_params(manager, device)
     if err:
         return err
@@ -462,7 +669,7 @@ def characterize_cells(manager, device, cells=None, drives=(1,),
         cell = CELL_LIBRARY[cell_key]
         for drive in drives:
             arcs = {}
-            for pin in cell['inputs']:
+            for arc in cell_arcs(cell_key):
                 tables = []
                 for slew in slews_s:
                     row = []
@@ -471,19 +678,23 @@ def characterize_cells(manager, device, cells=None, drives=(1,),
                             row.append(_measure_arc_point(
                                 ngspice_path, workdir,
                                 compiled['osdiPath'], cards,
-                                subckts, cell_key, drive, pin,
-                                vdd, slew, load, tau))
+                                subckts, cell_key, drive, arc,
+                                vdd, slew, load, tau,
+                                cell_cap_f=input_cap * drive))
                         except Exception as exc:
                             failures.append(
                                 {'cell': cell_key,
-                                 'drive': drive, 'pin': pin,
+                                 'drive': drive, 'arc': arc['id'],
                                  'slew_s': slew, 'load_f': load,
                                  'error': str(exc)[:300]})
                             row.append(None)
                     tables.append(row)
                 if all(all(pt is not None for pt in row)
                        for row in tables):
-                    arcs[pin] = tables
+                    arcs[arc['id']] = {'pin': arc['pin'],
+                                       'sense': arc['sense'],
+                                       'when': arc.get('when'),
+                                       'tables': tables}
             if arcs:
                 blocks.append({
                     'cell': cell_key, 'drive': drive,
@@ -491,6 +702,7 @@ def characterize_cells(manager, device, cells=None, drives=(1,),
                                                      drive),
                     'function': cell['liberty_function'],
                     'unate': cell['unate'],
+                    'inputs': list(cell['inputs']),
                     'inputCap_f': input_cap * drive,
                     'arcs': arcs})
     if not blocks:
@@ -508,16 +720,26 @@ def characterize_cells(manager, device, cells=None, drives=(1,),
         'ok': True, 'device': device.name, 'vdd_v': vdd,
         'cells': [{'cell': b['cell'], 'drive': b['drive'],
                    'libertyName': b['libertyName'],
-                   'arcs': sorted(b['arcs'])} for b in blocks],
+                   'arcs': sorted(b['arcs']),
+                   'energy': _energy_summary(b)} for b in blocks],
         'gridSlews_s': slews_s, 'gridLoads_f': loads_f,
         'monotone': monotone,
         'libertyBytes': len(liberty), 'libertyPath': lib_path,
         'staGate': sta, 'failures': failures,
         'executor': 'polari-own-loop',
+        'definitions': {
+            'energy_per_transition':
+                'supply energy over the edge window (VDD x '
+                'integral of delivered current), leakage baseline '
+                'subtracted; rising-output value minus C_load x '
+                'VDD^2 = Liberty internal_power (aJ); negative '
+                'internals clamp to 0 and are flagged '
+                '(pass-gate arcs)'},
         'honesty': 'combinational arcs only — DFF setup/hold = '
-                   'lctime executor (absent by default, D14); '
-                   'intrinsic-grade numbers, labeled standin '
-                   'parasitics',
+                   '{action: characterize-sequential} (own-loop '
+                   'bisection; lctime stays absent by default, '
+                   'D14); intrinsic-grade numbers, labeled '
+                   'standin parasitics',
         'workdir': workdir,
     }
     if result_factory is None:
@@ -556,7 +778,8 @@ def _monotone_report(blocks):
     cheap physical sanity the INV run pinned, now per arc."""
     out = []
     for blk in blocks:
-        for pin, tables in blk['arcs'].items():
+        for arc_key, arc in blk['arcs'].items():
+            tables = arc['tables']
             ok = all(
                 tables[si][li]['cell_rise_s']
                 <= tables[si][li + 1]['cell_rise_s'] + 1e-15
@@ -564,8 +787,25 @@ def _monotone_report(blocks):
                 <= tables[si][li + 1]['cell_fall_s'] + 1e-15
                 for si in range(len(tables))
                 for li in range(len(tables[si]) - 1))
-            out.append({'cell': blk['libertyName'], 'pin': pin,
+            out.append({'cell': blk['libertyName'], 'pin': arc_key,
                         'monotoneInLoad': ok})
+    return out
+
+
+def _energy_summary(blk):
+    """Per-arc energy at the mid-grid point (aJ) + the clamp flag —
+    the report's readable face of the full tables."""
+    out = {}
+    for arc_key, arc in blk['arcs'].items():
+        tables = arc['tables']
+        mid = tables[len(tables) // 2][len(tables[0]) // 2]
+        out[arc_key] = {
+            'rise_aJ': mid['energy_rise_j'] * 1e18,
+            'fall_aJ': mid['energy_fall_j'] * 1e18,
+            'supplyRise_aJ': mid['supply_energy_rise_j'] * 1e18,
+            'supplyFall_aJ': mid['supply_energy_fall_j'] * 1e18,
+            'clamped': any(pt['energy_clamped']
+                           for row in tables for pt in row)}
     return out
 
 
@@ -576,13 +816,10 @@ def d11_crosscheck(manager, device, vdd=0.6, workdir=None,
     emitted Liberty (the abstraction under test). Recorded side
     by side; tolerance stated, not silent. Refuses without
     `sta`."""
-    if shutil.which('sta') is None \
-            and shutil.which('opensta') is None:
+    sta_bin, sta_where = find_sta()
+    if sta_bin is None:
         return {'ok': False,
-                'refusal': 'OpenSTA not installed — D11 stays an '
-                           'OPEN box (install parallaxsw/OpenSTA '
-                           'or the openroad/opensta docker '
-                           'wrapper)'}
+                'refusal': f'{sta_where} — D11 stays an OPEN box'}
     char = characterize_cells(
         manager, device, cells=['cinv'], drives=(1,), vdd=vdd,
         slews_s=slews_s, loads_f=loads_f, workdir=workdir,
@@ -656,8 +893,8 @@ def d11_crosscheck(manager, device, vdd=0.6, workdir=None,
     # A virtual clock + zero I/O delays make the a->y path a real
     # timing endpoint — bare report_checks -unconstrained answers
     # 'No paths found' for a clockless netlist (caught live).
-    tcl = (f'read_liberty {char["libertyPath"]}\n'
-           f'read_verilog {v_path}\n'
+    tcl = ('read_liberty polari_cnt_lib.lib\n'
+           'read_verilog chain.v\n'
            'link_design chain\n'
            'create_clock -name vclk -period 1e6\n'
            'set_input_delay 0 -clock vclk [get_ports a]\n'
@@ -667,13 +904,9 @@ def d11_crosscheck(manager, device, vdd=0.6, workdir=None,
            f'set_load {load * 1e15:.6g} [get_ports y]\n'
            'report_checks -path_delay max -digits 6\n'
            'exit\n')
-    tcl_path = os.path.join(workdir, 'd11.tcl')
-    with open(tcl_path, 'w') as fh:
-        fh.write(tcl)
-    sta_bin = shutil.which('sta') or shutil.which('opensta')
-    sta_run = subprocess.run(
-        [sta_bin, '-no_splash', '-exit', tcl_path],
-        capture_output=True, text=True, timeout=180)
+    sta_run = run_sta(sta_bin, workdir, tcl,
+                      files=('polari_cnt_lib.lib', 'chain.v'),
+                      timeout=180)
     m = re.search(r'([0-9]*\.?[0-9]+)\s+data arrival time',
                   sta_run.stdout)
     if not m:
@@ -696,6 +929,7 @@ def d11_crosscheck(manager, device, vdd=0.6, workdir=None,
         'tolerance': tolerance,
         'verdict': 'D11-CROSSCHECK-PASS' if abs(frac) < tolerance
         else 'D11-CROSSCHECK-FAIL',
+        'staWhere': sta_where,
         'honesty': 'STA interpolates the 2-input-cap-load point '
                    'for u1 from the table grid; tolerance is '
                    'stated (35%), the gap between transient '
@@ -711,12 +945,17 @@ def _null_row(**kwargs):
 
 def library_report():
     """The cell library's no-code face."""
+    from cntfet.cnt_sequential import lctime_status
     return {'ok': True,
             'cells': SEED_CNT_CELLS,
             'drives': list(DRIVES),
+            'combinational': list(COMBINATIONAL),
+            'arcs': {k: [a['id'] for a in cell_arcs(k)]
+                     for k in COMBINATIONAL},
             'sequential': {'cdff': 'demonstrated (S4c battery); '
-                                   'setup/hold characterization '
-                                   '= lctime executor, absent by '
-                                   'default (D14)'},
+                                   'setup/hold/clk->Q = {action: '
+                                   'characterize-sequential} '
+                                   '(polari-own-loop bisection)',
+                           'lctime': lctime_status()},
             'source': 'CELL_LIBRARY (generated variants — '
                       'subckts are never hand-maintained twins)'}

@@ -354,7 +354,7 @@
       "requires": [
         "electrodevice"
       ],
-      "description": "Aligned-CNT FET S1: decomposed one-tube device, clean-room VS-CNFET-derived compact model (first open CNFET compact model) + ToB F2 reference + Verilog-A/OSDI twin."
+      "description": "Aligned-CNT FET S1: decomposed one-tube device, clean-room VS-CNFET-derived compact model (first open CNFET compact model) + ToB F2 reference + Verilog-A/OSDI twin. Compute (OpenVAF/ngspice/OpenSTA/kwant) delegates to the cnt-engines worker (dist-1): CNTFET_ENGINES_URL knob, else topology provider cntfet.engines, else local ~/tools."
     },
     "microchip": {
       "kind": "official",

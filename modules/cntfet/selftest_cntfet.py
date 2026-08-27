@@ -59,6 +59,13 @@ def _insert(mgr, table, row):
     return row
 
 
+def seq_lib(seq):
+    try:
+        return open(seq['libertyPath']).read()
+    except Exception:
+        return ''
+
+
 def _row_factory(mgr, table):
     def factory(**fields):
         fields.pop('manager', None)
@@ -892,6 +899,139 @@ def main():
               or (not lib['staGate'].get('ran')
                   and lib['staGate'].get('refusal')),
               f'staGate={lib.get("staGate")}')
+        # ---- cell-2: richer combinationals, x4, energy, sequential --
+        from cntfet.cnt_cell_library import (
+            COMBINATIONAL, cell_arcs, liberty_cell_name,
+        )
+        from cntfet.cnt_sequential import (
+            characterize_sequential, lctime_status,
+        )
+        x4 = subckt_text('caoi21', 4)
+        mux_arcs = cell_arcs('cmux2')
+        aoi_arcs = {a['id']: a for a in cell_arcs('caoi21')}
+        check('cell-2: AOI21/OAI21/MUX2 join the library as DATA — '
+              'x4 is GENERATED (4 parallel devices per position), '
+              'per-arc ties depend on the pin under test, MUX2 '
+              'carries both S senses as `when` arcs',
+              4 in DRIVES
+              and x4.count('cntn') == 12 and x4.count('cntp') == 12
+              and fet_count('cmux2', 4) == 24
+              and len(SEED_CNT_CELLS)
+              == len(CELL_LIBRARY) * len(DRIVES)
+              and set(COMBINATIONAL) <= set(CELL_LIBRARY)
+              and aoi_arcs['A|B*!C']['ties'] == {'B': 1, 'C': 0}
+              and aoi_arcs['C|!A*!B']['ties'] == {'A': 0, 'B': 0}
+              and [a['id'] for a in mux_arcs]
+              == ['A|!S', 'B|S', 'S|!A*B', 'S|A*!B']
+              and {a['sense'] for a in mux_arcs}
+              == {'positive', 'negative'}
+              and liberty_cell_name('coai21', 4) == 'OAI21X4')
+        lib2 = characterize_cells(
+            mgr, device, cells=['coai21', 'cmux2'], drives=(4,),
+            result_factory=_row_factory(
+                mgr, 'CellCharacterizationRun'))
+        cells2 = {c['libertyName']: c for c in lib2.get('cells', [])}
+        oai = cells2.get('OAI21X4', {})
+        mux = cells2.get('MUX2X4', {})
+        lib2_text = open(lib2['libertyPath']).read() \
+            if lib2.get('ok') else ''
+        check('cell-2: OAI21X4 + MUX2X4 characterize in ONE Liberty '
+              'with state-dependent `when` arcs, every arc monotone '
+              'in load, zero failed points, and the multi-cell '
+              'staGate reflects the live binary',
+              lib2.get('ok')
+              and oai.get('arcs') == ['A|!B*C', 'B|!A*C', 'C|A*!B']
+              and mux.get('arcs') == ['A|!S', 'B|S', 'S|!A*B',
+                                      'S|A*!B']
+              and all(m['monotoneInLoad'] for m in lib2['monotone'])
+              and not lib2['failures']
+              and 'when : "!A*C";' in lib2_text
+              and 'timing_sense : positive_unate' in lib2_text
+              and 'timing_sense : negative_unate' in lib2_text
+              and ((lib2['staGate'].get('ran')
+                    and lib2['staGate'].get('accepted'))
+                   or (not lib2['staGate'].get('ran')
+                       and lib2['staGate'].get('refusal'))),
+              f'lib2={lib2.get("cells")}, '
+              f'failures={lib2.get("failures")}, '
+              f'sta={lib2.get("staGate")}')
+        oai_e = oai.get('energy', {}).get('C|A*!B', {})
+        mux_e = mux.get('energy', {})
+        check('cell-2: energy-per-transition rides the SAME '
+              'transients into internal_power tables — a rail-driven '
+              'arc has positive internal rise energy below its '
+              'supply energy (load CV^2 removed), and the pass-gate '
+              'MUX data arcs are honestly ~0 and FLAGGED clamped '
+              '(their charge comes from the input driver)',
+              lib2.get('ok')
+              and 0.0 < oai_e.get('rise_aJ', -1.0)
+              < oai_e.get('supplyRise_aJ', 0.0)
+              and not oai_e.get('clamped')
+              and mux_e.get('B|S', {}).get('clamped') is True
+              and mux_e.get('B|S', {}).get('rise_aJ') == 0.0
+              and 'internal_power ()' in lib2_text
+              and 'rise_power (pwr_tpl_3x3)' in lib2_text
+              and 'leakage_power_unit : "1uW";' in lib2_text,
+              f'oai={oai_e}, mux={mux_e}')
+        seq = characterize_sequential(
+            mgr, device, iters=4,
+            result_factory=_row_factory(
+                mgr, 'CellCharacterizationRun'))
+        su, ho, cq = (seq.get('setup', {}), seq.get('hold', {}),
+                      seq.get('clkToQ', {}))
+        tau_s = seq.get('point', {}).get('tau_s', 1.0)
+        check('cell-2: sequential characterization by the OWN-LOOP '
+              'executor — setup/hold found by bisection on the cdff '
+              '(both D senses), setup > hold, clk->Q positive, all '
+              'on the tau scale with the bracket resolution '
+              'recorded, x1 only, and a DFFX1 Liberty with ff() + '
+              'setup_rising/hold_rising constraint arcs',
+              seq.get('ok') and seq['executor'] == 'polari-own-loop'
+              and all(su[k]['ok'] and ho[k]['ok']
+                      for k in ('rise', 'fall'))
+              and all(su[k]['value_s'] > ho[k]['value_s']
+                      for k in ('rise', 'fall'))
+              and all(0.0 < cq[k]['delay_s'] < 40.0 * tau_s
+                      for k in ('rise', 'fall'))
+              and all(abs(su[k]['value_s']) < 40.0 * tau_s
+                      and abs(ho[k]['value_s']) < 40.0 * tau_s
+                      for k in ('rise', 'fall'))
+              and all(su[k]['resolution_s'] is not None
+                      for k in ('rise', 'fall'))
+              and seq['transients'] >= 4 * (2 + 4)
+              and 'ff (IQ, IQN)' in seq_lib(seq)
+              and 'timing_type : setup_rising;' in seq_lib(seq)
+              and 'timing_type : hold_rising;' in seq_lib(seq)
+              and seq['cell'] == 'DFFX1',
+              f'seq={ {k: seq.get(k) for k in ("ok", "error", "refusal", "setup", "hold", "clkToQ", "transients")} }')
+        cc = seq.get('staConstraintCheck', {})
+        check('cell-2: OpenSTA CONSUMES the sequential constraints — '
+              'a reg->reg path reports OUR setup as its library '
+              'setup time (or the check refuses by name without '
+              'sta; never a silent middle)',
+              (cc.get('ran') and cc.get('accepted'))
+              or (not cc.get('ran') and 'refusal' in cc),
+              f'cc={cc}')
+        lc = characterize_sequential(mgr, device, executor='lctime')
+        st = lctime_status()
+        check('cell-2 D14: the lctime executor is a KNOB LADDER, not '
+              'code — absent by default, refusing with the rung '
+              'named (knob / binary / ratification), AGPL stated, '
+              'the own-loop named as the exit path; nothing '
+              'vendored or pinned',
+              not lc.get('ok') and 'refusal' in lc
+              and lc['executor'] == 'lctime'
+              and st['licence'] == 'AGPL-3.0-or-later'
+              and st['rung'] in ('absent-by-default',
+                                 'knob-on-binary-absent',
+                                 'knob-on-binary-present-'
+                                 'invocation-unwired')
+              and 'own-loop' in st['exitPath']
+              and lc['lctime']['rung'] == st['rung']
+              and ('D14' in lc['refusal'] or 'PATH' in lc['refusal']
+                   or 'ratification' in lc['refusal']),
+              f'lc={lc}')
+
         d11 = d11_crosscheck(mgr, device)
         if d11.get('ok'):
             check('D11: the MANDATORY SPICE-vs-STA composed-path '

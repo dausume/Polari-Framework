@@ -141,6 +141,7 @@ SERVICE_LABEL_ALIASES = {
     'dask-worker': 'prf-dask',
     'msci-engines': 'prf-msci-engines',
     'remote-worker': 'prf-msci-engines',
+    'cnt-engines': 'prf-cnt-engines',
 }
 
 #: The 21 registry service kinds (pol-build/registry/services.yml:93).
@@ -151,5 +152,5 @@ KNOWN_SERVICE_KINDS = (
     'prf-file-store', 'prf-proxy',
     'prf-backend-b', 'prf-frontend-b', 'prf-keydb-b',
     'prf-dask', 'prf-msci-engines', 'prf-test-harness',
-    'odoo', 'odoo-postgres',
+    'odoo', 'odoo-postgres', 'prf-cnt-engines',
 )

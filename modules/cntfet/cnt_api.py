@@ -212,6 +212,19 @@ class CNTFETAPI(treeObject):
                                    else '422 Unprocessable Entity')
             response.media = report
             return
+        if action == 'characterize-sequential':
+            from cntfet.cnt_sequential import characterize_sequential
+            report = characterize_sequential(
+                self.manager, device,
+                vdd=float(payload.get('vdd', 0.6)),
+                executor=payload.get('executor', 'polari-own-loop'),
+                iters=int(payload.get('iters', 6)))
+            if not report.get('ok'):
+                response.status = ('503 Service Unavailable'
+                                   if 'refusal' in report
+                                   else '422 Unprocessable Entity')
+            response.media = report
+            return
         if action == 'd11-crosscheck':
             from cntfet.cnt_cell_library import d11_crosscheck
             report = d11_crosscheck(

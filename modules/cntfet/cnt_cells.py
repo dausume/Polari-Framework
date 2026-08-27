@@ -32,7 +32,7 @@ from datetime import datetime, timezone
 
 from cntfet.cnt_charge import PARTITION_NOTE
 from cntfet.cnt_derive import resolve_components
-from cntfet.cnt_osdi import _model_card, compile_osdi, find_ngspice
+from cntfet.cnt_osdi import _model_card, compile_osdi, find_ngspice, run_ngspice
 from cntfet.cnt_vs_model import build_vs_params, vs_terminal_current
 
 
@@ -111,9 +111,7 @@ def _run_ngspice(ngspice_path, workdir, name, text):
     path = os.path.join(workdir, name)
     with open(path, 'w') as fh:
         fh.write(text)
-    return subprocess.run([ngspice_path, '-b', path],
-                          capture_output=True, text=True,
-                          timeout=600, cwd=workdir)
+    return run_ngspice(ngspice_path, workdir, path, timeout=600)
 
 
 def _read_wrdata(workdir, name):

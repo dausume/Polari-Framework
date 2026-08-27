@@ -26,13 +26,17 @@ non-opaque.
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
+import types
 import tempfile
 from datetime import datetime, timezone
 
 from cntfet.cnt_constants import EQUATION_REVISION, MODEL_LABEL
 from cntfet.cnt_verilog_a import construct_gate_check, generate_va
+from cntfet.cnt_remote import REMOTE, RemoteError, active_url, \
+    remote_post
 from cntfet.cnt_vs_model import vs_terminal_current
 
 # Explicit regression tolerances (D3): ngspice solves KCL to its own
@@ -51,8 +55,15 @@ def _probe(cmd):
 
 
 def find_openvaf():
-    """First runnable compiler: env knob, PATH (reloaded first),
-    then ~/tools/openvaf. Returns (path, flavor) or (None, why)."""
+    """First runnable compiler: CNTFET_ENGINES_URL worker (knob wins),
+    env knob CNTFET_OPENVAF, PATH (reloaded first), ~/tools/openvaf,
+    then a topology-resolved worker. Returns (path | 'remote',
+    flavor) or (None, why) — cnt_remote.resolve is the ladder."""
+    from cntfet.cnt_remote import resolve
+    return resolve('openvaf', _find_openvaf_local)
+
+
+def _find_openvaf_local():
     home = os.path.expanduser('~')
     candidates = []
     env = os.environ.get('CNTFET_OPENVAF', '')
@@ -76,6 +87,12 @@ def find_openvaf():
 
 
 def find_ngspice():
+    """ngspice per the dist ladder (see find_openvaf)."""
+    from cntfet.cnt_remote import resolve
+    return resolve('ngspice', _find_ngspice_local)
+
+
+def _find_ngspice_local():
     home = os.path.expanduser('~')
     for cand in (shutil.which('ngspice'),
                  os.path.join(home, 'tools', 'ngspice', 'bin',
@@ -83,6 +100,42 @@ def find_ngspice():
         if cand and os.path.isfile(cand) and _probe(cand):
             return cand, ''
     return None, 'no runnable ngspice (PATH + ~/tools/ngspice)'
+
+
+def run_ngspice(ngspice_path, workdir, netlist_path, timeout=600):
+    """Run ONE netlist file (already written under workdir) locally
+    or on the cnt-engines worker; either way the outputs the netlist
+    writes (wrdata .dat) land in workdir and the return object
+    carries returncode/stdout/stderr like subprocess.run. Remote
+    transport failure = returncode -1 with the reason in stderr, so
+    callers' 'produced no output' branches report it."""
+    if ngspice_path != REMOTE:
+        return subprocess.run([ngspice_path, '-b', netlist_path],
+                              capture_output=True, text=True,
+                              timeout=timeout, cwd=workdir)
+    with open(netlist_path) as fh:
+        text = fh.read()
+    m = re.search(r'pre_osdi\s+remote://(\S+)', text)
+    payload = {'name': os.path.basename(netlist_path), 'netlist': text,
+               'timeout': timeout}
+    if m:
+        payload['osdiId'] = m.group(1)
+    try:
+        rep = remote_post('/ngspice/run', payload, timeout=timeout + 60)
+    except RemoteError as exc:
+        return types.SimpleNamespace(returncode=-1, stdout='',
+                                     stderr=f'cnt-engines: {exc}')
+    if not rep.get('ok'):
+        return types.SimpleNamespace(
+            returncode=-1, stdout='',
+            stderr=f'cnt-engines: {rep.get("error", rep)}')
+    for name, content in rep.get('files', {}).items():
+        with open(os.path.join(workdir, os.path.basename(name)),
+                  'w') as fh:
+            fh.write(content)
+    return types.SimpleNamespace(returncode=rep.get('returncode', 0),
+                                 stdout=rep.get('stdout', ''),
+                                 stderr=rep.get('stderr', ''))
 
 
 def compile_osdi(workdir):
@@ -97,6 +150,21 @@ def compile_osdi(workdir):
     va_path = os.path.join(workdir, 'cntfet_vs_s1.va')
     with open(va_path, 'w') as fh:
         fh.write(generate_va())
+    if compiler == REMOTE:
+        # the worker compiles + caches by content hash; the pseudo
+        # path travels through every netlist's `pre_osdi` line and
+        # run_ngspice hands the id back to the same worker
+        try:
+            rep = remote_post('/osdi/compile', {'va': generate_va()},
+                              timeout=300)
+        except RemoteError as exc:
+            return {'ok': False, 'refusal': f'cnt-engines: {exc}'}
+        if not rep.get('ok'):
+            return {'ok': False, 'error': 'remote openvaf failed',
+                    'stderr': rep.get('error', '')[-2000:]}
+        return {'ok': True, 'osdiPath': f'remote://{rep["osdiId"]}',
+                'vaPath': va_path,
+                'compiler': f'{rep.get("compiler")} @ {active_url()}'}
     run = subprocess.run([compiler, va_path], capture_output=True,
                          text=True, timeout=300, cwd=workdir)
     osdi_path = os.path.join(workdir, 'cntfet_vs_s1.osdi')
@@ -150,9 +218,7 @@ def run_osdi_grid(osdi_path, p, vg_list, vd_list, workdir,
     netlist = os.path.join(workdir, 'device-model.sp')
     with open(netlist, 'w') as fh:
         fh.write('\n'.join(lines) + '\n')
-    run = subprocess.run([ngspice_path, '-b', netlist],
-                         capture_output=True, text=True,
-                         timeout=600, cwd=workdir)
+    run = run_ngspice(ngspice_path, workdir, netlist, timeout=600)
     out = {}
     for i, vg in enumerate(vg_list):
         path = os.path.join(workdir, f'sweep_{i}.dat')

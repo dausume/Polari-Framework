@@ -270,30 +270,79 @@ _KIND_MAP = {'cell_rise': 'cell_rise_s',
              'fall_transition': 'fall_transition_s'}
 
 
+def _find_sta_local():
+    sta = shutil.which('sta') or shutil.which('opensta')
+    if sta:
+        return sta, sta
+    return None, ('OpenSTA not installed (no `sta`/`opensta` on PATH; '
+                  'install parallaxsw/OpenSTA or the openroad/opensta '
+                  'docker wrapper)')
+
+
+def find_sta():
+    """OpenSTA per the dist ladder (cnt_remote.resolve): the
+    CNTFET_ENGINES_URL worker wins, else local, else the topology's
+    cnt-engines provider. (path | 'remote', detail) or (None, why)."""
+    from cntfet.cnt_remote import resolve
+    return resolve('opensta', _find_sta_local)
+
+
+def run_sta(sta_path, workdir, script_text, files=(), timeout=180):
+    """Run one OpenSTA tcl script whose file references are
+    BASENAMES relative to workdir (the remote worker recreates the
+    directory from `files`). Returns an object with
+    returncode/stdout/stderr like subprocess.run; remote transport
+    failure = returncode -1 with the reason in stderr."""
+    import types
+    from cntfet.cnt_remote import REMOTE, RemoteError, remote_post
+    if sta_path != REMOTE:
+        script = os.path.join(workdir, 'run.tcl')
+        with open(script, 'w') as fh:
+            fh.write(script_text)
+        return subprocess.run([sta_path, '-no_splash', '-exit', script],
+                              capture_output=True, text=True,
+                              timeout=timeout, cwd=workdir)
+    payload_files = {}
+    for name in files:
+        with open(os.path.join(workdir, name)) as fh:
+            payload_files[name] = fh.read()
+    try:
+        rep = remote_post('/sta/run', {'files': payload_files,
+                                       'script': script_text,
+                                       'timeout': timeout},
+                          timeout=timeout + 60)
+    except RemoteError as exc:
+        return types.SimpleNamespace(returncode=-1, stdout='',
+                                     stderr=f'cnt-engines: {exc}')
+    if not rep.get('ok'):
+        return types.SimpleNamespace(
+            returncode=-1, stdout='',
+            stderr=f'cnt-engines: {rep.get("error", rep)}')
+    return types.SimpleNamespace(returncode=rep.get('returncode', 0),
+                                 stdout=rep.get('stdout', ''),
+                                 stderr=rep.get('stderr', ''))
+
+
 def _sta_gate(workdir, liberty_text):
     """OpenSTA acceptance: load the library, report a trivial
     path. Absent binary = recorded refusal (the D11 SPICE-vs-STA
     cross-check stays an OPEN box until then)."""
-    sta = shutil.which('sta') or shutil.which('opensta')
+    sta, why = find_sta()
     if not sta:
         return {'ran': False,
-                'refusal': 'OpenSTA not installed — the MANDATORY '
-                           'D11 SPICE-vs-STA cross-check remains '
-                           'OPEN; install parallaxsw/OpenSTA'}
+                'refusal': f'{why} — the MANDATORY D11 SPICE-vs-STA '
+                           f'cross-check remains OPEN'}
     lib_path = os.path.join(workdir, 'polari_cnt.lib')
     with open(lib_path, 'w') as fh:
         fh.write(liberty_text)
-    script = os.path.join(workdir, 'gate.tcl')
-    with open(script, 'w') as fh:
-        fh.write(f'read_liberty {lib_path}\n'
-                 'puts "LIBERTY-ACCEPTED"\nexit\n')
-    run = subprocess.run([sta, '-no_splash', '-exit', script],
-                         capture_output=True, text=True,
-                         timeout=120)
+    run = run_sta(sta, workdir,
+                  'read_liberty polari_cnt.lib\n'
+                  'puts "LIBERTY-ACCEPTED"\nexit\n',
+                  files=('polari_cnt.lib',), timeout=120)
     accepted = 'LIBERTY-ACCEPTED' in run.stdout
-    return {'ran': True, 'accepted': accepted,
-            'output': run.stdout[-500:] if not accepted else
-            'LIBERTY-ACCEPTED'}
+    return {'ran': True, 'accepted': accepted, 'where': why,
+            'output': (run.stdout[-500:] + run.stderr[-300:])
+            if not accepted else 'LIBERTY-ACCEPTED'}
 
 
 def characterize_inverter(manager, device, vdd=0.6, slews_s=None,

@@ -32,7 +32,7 @@ from datetime import datetime, timezone
 
 from cntfet.cnt_derive import resolve_components
 from cntfet.cnt_osdi import (
-    _model_card, compile_osdi, find_ngspice,
+    _model_card, compile_osdi, find_ngspice, run_ngspice,
 )
 from cntfet.cnt_vs_model import build_vs_params
 
@@ -124,9 +124,7 @@ def run_inverter_vtc(manager, device, vdd=0.6, step=0.005,
     with open(netlist, 'w') as fh:
         fh.write(_vtc_netlist(compiled['osdiPath'], p_n, p_p,
                               vdd, step))
-    run = subprocess.run([ngspice_path, '-b', netlist],
-                         capture_output=True, text=True,
-                         timeout=300, cwd=workdir)
+    run = run_ngspice(ngspice_path, workdir, netlist, timeout=300)
     data = os.path.join(workdir, 'vtc.dat')
     if not os.path.isfile(data):
         return {'ok': False, 'error': 'ngspice produced no VTC',

@@ -137,5 +137,8 @@ def capability():
              'refusal': (openvaf_why if not openvaf_path
                          else ngspice_why)}),
     }
+    from cntfet.cnt_remote import placement
     return {'ok': True, 'module': 'cntfet',
-            'fidelities': fidelities, 'ledger': MODULE_LEDGER}
+            'fidelities': fidelities, 'ledger': MODULE_LEDGER,
+            # dist-4: WHERE each engine would run, before dispatch
+            'placement': placement()}

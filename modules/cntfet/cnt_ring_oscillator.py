@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 
 from cntfet.cnt_charge import PARTITION_NOTE
 from cntfet.cnt_derive import resolve_components
-from cntfet.cnt_osdi import _model_card, compile_osdi, find_ngspice
+from cntfet.cnt_osdi import _model_card, compile_osdi, find_ngspice, run_ngspice
 from cntfet.cnt_vs_model import build_vs_params
 
 
@@ -118,9 +118,7 @@ def run_ring_oscillator(manager, device, vdd=0.6, stages=5,
     with open(netlist, 'w') as fh:
         fh.write(_ro_netlist(compiled['osdiPath'], p_n, p_p, vdd,
                              stages, tstep, tstop))
-    run = subprocess.run([ngspice_path, '-b', netlist],
-                         capture_output=True, text=True,
-                         timeout=600, cwd=workdir)
+    run = run_ngspice(ngspice_path, workdir, netlist, timeout=600)
     data = os.path.join(workdir, 'ro.dat')
     if not os.path.isfile(data):
         return {'ok': False, 'error': 'ngspice produced no RO '
