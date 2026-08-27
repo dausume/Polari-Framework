@@ -1283,6 +1283,21 @@ try:
     from cntfet.cnt_device_viz import SEED_CNT_DEVICE_GRAPHS
     # fi-0: FET operating states as rows (criteria = data).
     from cntfet.cnt_states import FETOperatingState, SEED_FET_STATES
+    # fi-2: scoring by characteristic equations — FET + cell terms,
+    # concepts, subjects (object_ref → the device/cell rows) and the
+    # live-bound ContextualizedValue rows for the generic engine.
+    from cntfet.cnt_scoring import (
+        SEED_FET_SCORE_CONCEPTS, SEED_FET_SCORE_TERMS,
+        seed_subjects_and_values as _fet_score_subjects,
+    )
+    from cntfet.cnt_cell_scoring import (
+        SEED_CELL_SCORE_CONCEPTS, SEED_CELL_SCORE_TERMS,
+        seed_cell_subjects as _cell_score_subjects,
+    )
+    SEED_FET_SCORE_SUBJECTS, SEED_FET_SCORE_VALUES = \
+        _fet_score_subjects([d['name'] for d in SEED_CNT_DEVICES])
+    SEED_CELL_SCORE_SUBJECTS = _cell_score_subjects(
+        [c['name'] for c in SEED_CNT_CELLS])
 except ImportError as _exc:
     _stub_missing_feature('cntfet', _exc, globals(), (
         'AlignedCNTFETDevice', 'AlignedCNTFETGeometry', 'CNTCalibrationAnchor', 'CNTContact',
@@ -1300,6 +1315,10 @@ except ImportError as _exc:
         'CNTCellDefinition', 'SEED_CNT_CELLS',
         'SEED_CNTFET_FIGURE_GRAPHS', 'SEED_CNT_DEVICE_GRAPHS',
         'FETOperatingState', 'SEED_FET_STATES',
+        'SEED_FET_SCORE_CONCEPTS', 'SEED_FET_SCORE_TERMS',
+        'SEED_FET_SCORE_SUBJECTS', 'SEED_FET_SCORE_VALUES',
+        'SEED_CELL_SCORE_CONCEPTS', 'SEED_CELL_SCORE_TERMS',
+        'SEED_CELL_SCORE_SUBJECTS',
     ))
 # microchip: the design-level ladder + traversal (separable from the
 # device modules — references their rows, never imports their code).
@@ -3556,7 +3575,10 @@ class polariServer(treeObject):
              + SEED_AQP_SCORE_TERMS + SEED_ENRICH_SCORE_TERMS
              + SEED_HOUSING_SCORE_TERMS + SEED_IMPLICATION_SCORE_TERMS
              + SEED_DMV_TERMS + SEED_ESCAPE_COST_TERMS
-             + SEED_PROVIDER_TERMS),
+             + SEED_PROVIDER_TERMS
+             # fi-2: FET + cell figures of merit (cntfet).
+             + (SEED_FET_SCORE_TERMS or [])
+             + (SEED_CELL_SCORE_TERMS or [])),
             ('ScoreContext', ScoreContext,
              SEED_SCORE_CONTEXTS + SEED_DMV_GEO_CONTEXTS
              + SEED_DMV_TIMEFRAMES + SEED_PERSONA_CONTEXTS),
@@ -3564,20 +3586,29 @@ class polariServer(treeObject):
              SEED_SCORE_SUBJECTS + SEED_POLICY_SUBJECTS
              + SEED_POLITICIAN_SUBJECTS + SEED_MEDIA_OUTLETS
              + SEED_AQP_SCORE_SUBJECTS + SEED_ENRICH_SCORE_SUBJECTS
-             + SEED_IMPLICATION_SUBJECTS + SEED_DMV_SUBJECTS),
+             + SEED_IMPLICATION_SUBJECTS + SEED_DMV_SUBJECTS
+             # fi-2: every seeded FET device / cell variant IS a
+             # subject (object_ref → its row).
+             + (SEED_FET_SCORE_SUBJECTS or [])
+             + (SEED_CELL_SCORE_SUBJECTS or [])),
             ('ContextualizedValue', ContextualizedValue,
              SEED_CONTEXTUALIZED_VALUES
              + SEED_AQP_CONTEXTUALIZED_VALUES
              + SEED_ENRICH_CONTEXTUALIZED_VALUES
              + SEED_HOUSING_CONTEXTUALIZED_VALUES
              + SEED_IMPLICATION_CONTEXTUALIZED_VALUES
-             + SEED_STATUTE_VALUES),
+             + SEED_STATUTE_VALUES
+             # fi-2: live objectRef bindings into
+             # AlignedCNTFETDevice.figures_of_merit (no numbers).
+             + (SEED_FET_SCORE_VALUES or [])),
             ('ScoreConcept', ScoreConcept,
              SEED_SCORE_CONCEPTS + SEED_AQP_SCORE_CONCEPTS
              + SEED_ENRICH_SCORE_CONCEPTS
              + SEED_HOUSING_SCORE_CONCEPTS
              + SEED_INTERPRETATION_SCORE_CONCEPTS
-             + SEED_PROVIDER_CONCEPT),
+             + SEED_PROVIDER_CONCEPT
+             + (SEED_FET_SCORE_CONCEPTS or [])
+             + (SEED_CELL_SCORE_CONCEPTS or [])),
             # Groups + the editable agreement-classification bands
             # (concepts first — groups reference member concepts).
             ('ScoreGroup', ScoreGroup,

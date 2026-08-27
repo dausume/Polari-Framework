@@ -162,7 +162,78 @@ def _sweep():
     return sweep
 
 
-def device_curve_points(manager, name, curve='transfer', vd=0.6):
+#: fi-3: Monte Carlo sample count behind the score-spread and
+#: envelope curves (~4 s per 100 on the node; a knob via ?samples=).
+DEFAULT_MC_SAMPLES = 100
+
+
+def _montecarlo(manager, device, samples, seed):
+    """One MC run for the fi-3 curves — no result row (a graph
+    refresh is not an S3 act); refusals pass through as data."""
+    from cntfet.cnt_montecarlo import monte_carlo
+    return monte_carlo(manager, device, sample_count=samples,
+                       seed=seed,
+                       result_factory=lambda **f:
+                       type('NoRow', (), {'name': 'unrecorded'})())
+
+
+def score_curve_rows(manager, id_fn, p, device, curve, vd=0.6,
+                     samples=DEFAULT_MC_SAMPLES, seed=1):
+    """fi-2/fi-3 families. 'score-terms' = normalized value per
+    term (dot; lo/hi = MC p05/p95 and best/worst-case dots when
+    samples > 0) + hguide at 1.0; 'transfer-envelope' = the
+    nominal Id(Vg) at Vd PLUS the MC p05–p95 and min–max bands;
+    'cell-scores' = per characterized cell, the score and each
+    term's normalized value. Returns (rows, refusal)."""
+    from cntfet.cnt_scoring import (
+        score_frame, score_from_frame, score_term_rows,
+    )
+    if curve == 'score-terms':
+        result = score_from_frame(
+            score_frame(id_fn, p, device.temperature_k), manager)
+        spread = best = worst = None
+        if samples > 0:
+            mc = _montecarlo(manager, device, samples, seed)
+            sc = mc.get('score') or {}
+            if mc.get('ok') and sc.get('quantiles'):
+                spread, best, worst = (sc['termSpread'], sc['best'],
+                                       sc['worst'])
+        return score_term_rows(result, spread, best, worst), None
+    if curve == 'transfer-envelope':
+        rows = []
+        for vg in _sweep():
+            rows.append({'series': f'nominal Id, Vd = {vd:g} V',
+                         'style': 'line', 'dash': False, 'x': vg,
+                         'y': id_fn(vg, vd) * 1e6})
+        mc = _montecarlo(manager, device, max(samples, 1), seed)
+        env = mc.get('envelope') if mc.get('ok') else None
+        if env is None:
+            return None, _refuse(
+                mc.get('refusal') or mc.get('error')
+                or 'no functional Monte Carlo sample for the '
+                   'envelope')
+        for lo_k, hi_k, label in (('p05', 'p95', 'MC p05–p95'),
+                                  ('min', 'max', 'MC min–max')):
+            for x, lo, hi in zip(env['vgs'], env[lo_k], env[hi_k]):
+                rows.append({'series': label, 'style': 'band',
+                             'dash': False, 'x': x,
+                             'lo': max(lo, 1e-9), 'hi': max(hi, 1e-9)})
+        return rows, None
+    if curve == 'cell-scores':
+        from cntfet.cnt_cell_scoring import cell_score_rows, score_cells
+        report = score_cells(manager, device.name)
+        if not report.get('ok'):
+            return None, report
+        return cell_score_rows(report), None
+    return None, None
+
+
+CURVES = ('transfer', 'output', 'transfer-states', 'output-states',
+          'score-terms', 'transfer-envelope', 'cell-scores')
+
+
+def device_curve_points(manager, name, curve='transfer', vd=0.6,
+                        samples=DEFAULT_MC_SAMPLES, seed=1):
     """The named-graph-panel data feed for one device."""
     id_fn, p, device, refusal = device_model(manager, name)
     if refusal is not None:
@@ -172,9 +243,14 @@ def device_curve_points(manager, name, curve='transfer', vd=0.6):
         rows = state_curve_rows(id_fn, p, curve, vd=vd,
                                 manager=manager)
     if rows is None:
+        rows, refusal = score_curve_rows(manager, id_fn, p, device,
+                                         curve, vd=vd,
+                                         samples=samples, seed=seed)
+        if refusal is not None:
+            return refusal
+    if rows is None:
         return _refuse(f'unknown curve "{curve}" '
-                       '(transfer | output | transfer-states | '
-                       'output-states)')
+                       f'({" | ".join(CURVES)})')
     return {'ok': True, 'device': name, 'curve': curve,
             'fidelity': FIDELITY,
             'temperature_k': device.temperature_k,
@@ -250,4 +326,28 @@ SEED_CNT_DEVICE_GRAPHS = [
         'Vdsat locus (Fsat knee) marks where each Vg curve stops '
         'behaving like a resistor',
         'Vd (V)', 'Id (uA)'),
+    # fi-2/fi-3: scoring by characteristic equations + the
+    # stochastic best/worst case (categorical x = the term; the
+    # hguide at 1.0 is the ideal).
+    _device_graph(
+        'score-terms',
+        'FET figures of merit normalized against their '
+        'characteristic-equation ideals (dot = nominal; error '
+        'interval = Monte Carlo p05–p95; dashed dots = best/worst '
+        'case by score; rule at 1.0 = ideal)',
+        'figure of merit', 'normalized (1 = ideal)'),
+    _device_graph(
+        'transfer-envelope',
+        'Stochastic envelope: the nominal Id(Vg) at Vdd with the '
+        'Monte Carlo p05–p95 and min–max bands from the bound '
+        'process set\'s distributions — the best/worst-case '
+        'devices live at the band edges',
+        'Vg (V)', 'Id (uA)', y_type='log'),
+    _device_graph(
+        'cell-scores',
+        'Standard cells scored against the driving FET\'s '
+        'intrinsic limits (delay/τ, transition/τ, energy/C·V², '
+        'FETs/min): score per cell + each term normalized; rule '
+        'at 1.0 = ideal',
+        'cell', 'normalized (1 = ideal)'),
 ]

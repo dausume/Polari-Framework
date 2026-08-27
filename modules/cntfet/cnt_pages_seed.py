@@ -185,5 +185,36 @@ SEED_CNTFET_PAGE_DISPLAYS = [{
                  '/api/cntfet/device/cnt-aligned-s1/states'
                  '?vd=0.6&vg=0.3'),
         ], min_height=430),
+        # fi-2/fi-3: scoring by characteristic equations — each
+        # term against its computed ideal — and the best/worst
+        # case from the process set's stochastic definitions.
+        _row(7, [
+            _device_graph('cntfet-device-score-terms', 0, 4,
+                          'S1 device: figures of merit vs their '
+                          'ideals (MC spread, best/worst case)',
+                          'cnt-aligned-s1', 'score-terms'),
+            _device_graph('cntfet-device-transfer-envelope', 1, 4,
+                          'S1 device: stochastic Id(Vg) envelope '
+                          '(p05–p95, min–max)',
+                          'cnt-aligned-s1', 'transfer-envelope'),
+            _api('cntfet-device-score', 2, 4,
+                 'S1 device: score by characteristic equations '
+                 '(ideal vs actual, MC best/worst)',
+                 '/api/cntfet/device/cnt-aligned-s1/score'
+                 '?samples=100'),
+        ], min_height=430),
+        # cells: the characterized library scored against the
+        # driving FET's own intrinsic limits (refuses by name
+        # until a library run exists).
+        _row(8, [
+            _device_graph('cntfet-device-cell-scores', 0, 6,
+                          'S1 cells: score + terms vs intrinsic '
+                          'limits (delay/τ, transition/τ, '
+                          'energy/C·V², FETs/min)',
+                          'cnt-aligned-s1', 'cell-scores'),
+            _api('cntfet-device-cell-scores-json', 1, 6,
+                 'S1 cells: scores (mid-grid point, ideal table)',
+                 '/api/cntfet/device/cnt-aligned-s1/cell-scores'),
+        ], min_height=430),
     ]}),
 }]

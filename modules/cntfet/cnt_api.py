@@ -49,6 +49,12 @@ class CNTFETAPI(treeObject):
             # bias point (FET_INTUITION_PLAN).
             add('/api/cntfet/device/{name}/states', self,
                 suffix='device_states')
+            # fi-2/fi-3: scoring by characteristic equations (+ MC
+            # best/worst case) and the cell-library scores.
+            add('/api/cntfet/device/{name}/score', self,
+                suffix='device_score')
+            add('/api/cntfet/device/{name}/cell-scores', self,
+                suffix='device_cell_scores')
             add('/api/cntfet/figures', self, suffix='figures')
             add('/api/cntfet/figures/{figure_id}', self,
                 suffix='figure')
@@ -125,15 +131,72 @@ class CNTFETAPI(treeObject):
                           'capability': capability()}
 
     def on_get_device_points(self, request, response, name):
-        from cntfet.cnt_device_viz import device_curve_points
+        """?curve= ?vd= ?samples= (fi-3 MC count behind score-terms /
+        transfer-envelope; 0 = nominal only) ?seed="""
+        from cntfet.cnt_device_viz import (
+            DEFAULT_MC_SAMPLES, device_curve_points,
+        )
         try:
             vd = float(request.get_param('vd') or 0.6)
+            samples = int(request.get_param('samples')
+                          or DEFAULT_MC_SAMPLES)
+            seed = int(request.get_param('seed') or 1)
         except ValueError:
-            self._refuse(response, 'vd must be numeric')
+            self._refuse(response, 'vd/samples/seed must be numeric')
             return
         report = device_curve_points(
             self.manager, name,
-            curve=request.get_param('curve') or 'transfer', vd=vd)
+            curve=request.get_param('curve') or 'transfer', vd=vd,
+            samples=max(0, min(samples, 2000)), seed=seed)
+        if not report.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = report
+
+    def on_get_device_score(self, request, response, name):
+        """fi-2: the device scored by its characteristic equations.
+        ?samples= (default 0) adds the fi-3 Monte Carlo best/worst
+        case + score quantiles; ?vt_definition=model|constant-current
+        ?off_decades= ?vov_decades= ?g_on_target_over_g0= are the
+        scoring knobs (echoed)."""
+        from cntfet.cnt_scoring import score_device
+        knobs = {}
+        try:
+            for key in ('off_decades', 'vov_decades',
+                        'g_on_target_over_g0'):
+                if request.get_param(key):
+                    knobs[key] = float(request.get_param(key))
+            samples = int(request.get_param('samples') or 0)
+            seed = int(request.get_param('seed') or 1)
+        except ValueError as exc:
+            self._refuse(response, f'bad numeric parameter: {exc}')
+            return
+        vt_def = request.get_param('vt_definition')
+        if vt_def:
+            if vt_def not in ('model', 'constant-current'):
+                self._refuse(response, 'vt_definition must be model '
+                                       '| constant-current')
+                return
+            knobs['vt_definition'] = vt_def
+        report = score_device(self.manager, name, knobs)
+        if not report.get('ok'):
+            response.status = '422 Unprocessable Entity'
+            response.media = report
+            return
+        if samples > 0:
+            from cntfet.cnt_device_viz import _montecarlo
+            device = get_row(self.manager, 'AlignedCNTFETDevice', name)
+            mc = _montecarlo(self.manager, device,
+                             max(1, min(samples, 2000)), seed)
+            report['monteCarlo'] = (
+                {'sampleCount': mc['sampleCount'], 'seed': seed,
+                 'yield': mc['yield'], **mc['score']}
+                if mc.get('ok') else
+                {'refusal': mc.get('refusal') or mc.get('error')})
+        response.media = report
+
+    def on_get_device_cell_scores(self, request, response, name):
+        from cntfet.cnt_cell_scoring import score_cells
+        report = score_cells(self.manager, name)
         if not report.get('ok'):
             response.status = '422 Unprocessable Entity'
         response.media = report

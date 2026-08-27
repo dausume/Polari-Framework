@@ -270,6 +270,19 @@ class AlignedCNTFETDevice(treeObject):
         self.provenance_json = provenance_json
         self.notes = notes
 
+    @property
+    def figures_of_merit(self):
+        """fi-2: the device's figures of merit + their characteristic
+        ideals, computed LIVE from the derived model (never stored —
+        a property is invisible to persistence, which walks
+        __dict__). The generic scoring engine reaches these through
+        objectRef bindings with path 'figures_of_merit.<key>'
+        (cnt_scoring seeds); an underived device answers with a
+        named refusal, not zeros."""
+        from cntfet.cnt_scoring import figures_of_merit
+        return figures_of_merit(getattr(self, 'manager', None),
+                                self.name)
+
 
 class CNTFETParameterRow(treeObject):
     """D8 as schema: one parameter, one role, one source — the

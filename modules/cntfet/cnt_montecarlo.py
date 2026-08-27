@@ -155,10 +155,101 @@ def _quantiles(values):
             'sigma': float(arr.std())}
 
 
+#: fi-3: the Vg grid the stochastic envelope is sampled on (matches
+#: cnt_device_viz SWEEP_STEP/SWEEP_MAX so the band overlays the
+#: nominal curve point-for-point).
+ENVELOPE_VG = [round(i * 0.02, 4) for i in range(31)]
+
+
+def _score_population(manager, device, nominal_p, samples, vdd):
+    """fi-3: score every functional sample with the fi-2 terms;
+    keep the best/worst-case devices (score max/min) WITH their
+    sampled process values and a per-term attribution against the
+    nominal device — 'which distribution moved it'. Pure over the
+    sample list."""
+    from cntfet.cnt_scoring import (
+        CONCEPT_NAME, score_frame, score_from_frame,
+    )
+    nominal_frame = score_frame(
+        lambda vg, vd: vs_terminal_current(vg, vd, nominal_p)['id_a'],
+        nominal_p, device.temperature_k, {'vdd_v': vdd})
+    nominal = score_from_frame(nominal_frame, manager)
+    scored = []
+    for params, metrics in samples:
+        frame = score_frame(None, params, device.temperature_k,
+                            {'vdd_v': vdd}, metrics=metrics)
+        res = score_from_frame(frame, manager)
+        scored.append((res['score'], params['_sampled'], res))
+    if not scored:
+        return {'concept': CONCEPT_NAME, 'nominal': nominal['score'],
+                'refusal': 'no functional sample to score'}
+    scored.sort(key=lambda s: s[0])
+    per_term = {}
+    for _s, _p, res in scored:
+        for t in res['terms']:
+            if t.get('found'):
+                per_term.setdefault(t['term'], []).append(
+                    t['normalized'])
+    nominal_norm = {t['term']: t['normalized']
+                    for t in nominal['terms'] if t.get('found')}
+
+    def _case(entry):
+        score, sampled, res = entry
+        attribution = sorted(
+            ({'term': t['term'], 'label': t['label'],
+              'normalized': t['normalized'],
+              'deltaVsNominal': round(
+                  t['normalized'] - nominal_norm.get(t['term'], 0.0),
+                  6)}
+             for t in res['terms'] if t.get('found')),
+            key=lambda a: abs(a['deltaVsNominal']), reverse=True)
+        return {'score': score, 'sampled': sampled,
+                'terms': res['terms'], 'attribution': attribution,
+                'movedMostBy': attribution[0]['term']
+                if attribution else None}
+
+    return {
+        'concept': CONCEPT_NAME,
+        'nominal': nominal['score'],
+        'quantiles': _quantiles([s[0] for s in scored]),
+        'termSpread': {k: _quantiles(v) for k, v in per_term.items()},
+        'best': _case(scored[-1]),
+        'worst': _case(scored[0]),
+        'scoredSamples': len(scored),
+        'note': 'best/worst = score max/min over the FUNCTIONAL '
+                'samples (dead tubes and criterion failures are the '
+                'yield report, not a score); attribution = per-term '
+                'normalized delta vs the nominal device, largest '
+                'first',
+    }
+
+
+def _envelope(samples, vdd):
+    """fi-3: Id(Vg) at Vd = vdd across the functional samples —
+    min/max and p05/p95 per grid point (µA), the band drawn over the
+    nominal transfer curve."""
+    if not samples:
+        return None
+    cols = []
+    for params, _m in samples:
+        cols.append([vs_terminal_current(vg, vdd, params)['id_a'] * 1e6
+                     for vg in ENVELOPE_VG])
+    arr = np.array(cols, dtype=float)
+    return {'vd_v': vdd, 'vgs': ENVELOPE_VG,
+            'min': arr.min(axis=0).tolist(),
+            'p05': np.quantile(arr, 0.05, axis=0).tolist(),
+            'p50': np.quantile(arr, 0.50, axis=0).tolist(),
+            'p95': np.quantile(arr, 0.95, axis=0).tolist(),
+            'max': arr.max(axis=0).tolist(),
+            'unit': 'uA', 'samples': len(cols)}
+
+
 def monte_carlo(manager, device, sample_count=200, seed=1,
-                criteria=None, result_factory=None):
+                criteria=None, result_factory=None, score=True):
     """The S3 act. Deterministic under `seed`; every kill and
-    criterion violation counted; dominant limitation named."""
+    criterion violation counted; dominant limitation named.
+    fi-3: `score=True` adds the per-sample fi-2 scores (best/worst
+    case + attribution) and the Id(Vg) envelope."""
     if not getattr(device, 'derived_at', ''):
         return {'ok': False, 'error': 'device never derived — POST '
                                       '{"action": "derive"} first'}
@@ -195,6 +286,7 @@ def monte_carlo(manager, device, sample_count=200, seed=1,
                    'ss_mv_per_dec': [], 'vt_cc_lin_v': [],
                    'gm_peak_s': [], 'rc_ohm': [], 'd_nm': []}
     functional = 0
+    samples = []   # fi-3: (params, metrics) of every functional device
     vdd = criteria['vdd_v']
     for _ in range(sample_count):
         params, kill = _sample_device_params(rng, targets, procs,
@@ -217,6 +309,7 @@ def monte_carlo(manager, device, sample_count=200, seed=1,
             ok = False
         if ok:
             functional += 1
+            samples.append((params, metrics))
         for key in ('ion_a', 'ioff_a', 'on_off_ratio',
                     'ss_mv_per_dec', 'vt_cc_lin_v', 'gm_peak_s'):
             value = metrics.get(key)
@@ -250,6 +343,24 @@ def monte_carlo(manager, device, sample_count=200, seed=1,
                    'PRIOR population until line data replaces '
                    f'them ({len(priors)} flagged rows)',
     }
+    if score:
+        # fi-3: best/worst case BY SCORE from the stochastic
+        # definitions + the Id(Vg) envelope; the nominal params come
+        # from the same builder the device's curves use.
+        from cntfet.cnt_vs_model import build_vs_params
+        nominal_p = build_vs_params(
+            {'diameter_nm': rows['material'].diameter_nm,
+             'eg_ev': rows['material'].eg_ev},
+            {'lg_nm': geo.lg_nm},
+            {'t_ox_nm': gate.t_ox_nm, 'k_ox': gate.k_ox},
+            {'rc_ohm': rows['contact'].rc_ohm},
+            {'vt0_v': transport.vt0_v, 'efsd_ev': transport.efsd_ev},
+            device.temperature_k)
+        report['score'] = _score_population(manager, device, nominal_p,
+                                            samples, vdd)
+        report['envelope'] = _envelope(samples, vdd)
+        if report['score'].get('quantiles'):
+            report['population']['score'] = report['score']['quantiles']
     if result_factory is None:
         from cntfet.cnt_process_basis import CNTFETMonteCarloRun
         result_factory = CNTFETMonteCarloRun

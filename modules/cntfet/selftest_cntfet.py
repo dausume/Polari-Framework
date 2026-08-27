@@ -11,6 +11,7 @@ same convention as electrodevice's ngspice leg).
 """
 
 import json
+import math
 import sys
 import types
 
@@ -544,8 +545,8 @@ def main():
           and set(page_components) <= {'class-rows-table',
                                        'api-json-panel',
                                        'named-graph-panel'}
-          and page_components.count('named-graph-panel') == 7
-          and len(page_components) == 16)
+          and page_components.count('named-graph-panel') == 10
+          and len(page_components) == 21)
     from cntfet.cnt_device_viz import SEED_CNT_DEVICE_GRAPHS
     from cntfet.cnt_figures import SEED_CNTFET_FIGURE_GRAPHS
     graph_names = ({g['name'] for g in SEED_CNTFET_FIGURE_GRAPHS}
@@ -708,7 +709,10 @@ def main():
           {g['name'] for g in SEED_CNT_DEVICE_GRAPHS}
           == {'cnt-device-transfer', 'cnt-device-output',
               'cnt-device-transfer-states',
-              'cnt-device-output-states'}
+              'cnt-device-output-states',
+              'cnt-device-score-terms',
+              'cnt-device-transfer-envelope',
+              'cnt-device-cell-scores'}
           and json.loads(SEED_CNT_DEVICE_GRAPHS[0]['definition'])
           ['graphConfig']['options']['yType'] == 'log'
           and all(json.loads(g['definition'])['graphConfig']
@@ -750,6 +754,215 @@ def main():
           'the point)',
           not rep_bad['ok'] and 'process_set' in rep_bad['refusal'])
     device.process_set = ps_keep
+
+    # ---- fi-2: scoring by characteristic equations ----------------
+    from cntfet.cnt_scoring import (
+        FET_TERMS, SEED_FET_SCORE_CONCEPTS, SEED_FET_SCORE_TERMS,
+        figures_of_merit, score_device, score_term_rows,
+        seed_subjects_and_values,
+    )
+    sc = score_device(mgr, device.name)
+    by_term = {t['term']: t for t in sc['terms']}
+    check('fi-2: every FET term is a seeded ScoreTerm with an '
+          'explicit min-max range, a stated equation and an ideal '
+          'that is COMPUTED from the model frame (SS ideal = φt·ln10, '
+          'on/off ceiling = Vdd/SS_ideal) — never typed',
+          {t['name'] for t in SEED_FET_SCORE_TERMS} == set(FET_TERMS)
+          and all(json.loads(t['normalization_json'])['method']
+                  == 'min-max' for t in SEED_FET_SCORE_TERMS)
+          and sc['ok'] and not sc['termsMissing']
+          and abs(by_term['fet-ss']['ideal']
+                  - p_dev['phit_v'] * math.log(10) * 1e3) < 1e-9
+          and abs(by_term['fet-on-off-decades']['ideal']
+                  - 0.6 / (p_dev['phit_v'] * math.log(10))) < 1e-9
+          and all(0.0 <= t['normalized'] <= 1.0 for t in sc['terms']),
+          f'missing={sc.get("termsMissing")}, '
+          f'ideals={ {k: v.get("ideal") for k, v in by_term.items()} }')
+    check('fi-2: the score is the generic weighted-mean (Σw·v/Σw, '
+          'AGGREGATION_NOTE stamped) with every term carrying raw, '
+          'ideal, distance and its applied normalization spec; the '
+          'ideal table mirrors it',
+          abs(sc['score'] - sum(t['weighted'] for t in sc['terms'])
+              / sc['totalWeight']) < 1e-9
+          and 'weighted-mean' in sc['aggregationNote']
+          and all({'raw', 'ideal', 'distance', 'normalization',
+                   'equation'} <= set(t) for t in sc['terms'])
+          and len(sc['idealTable']) == len(FET_TERMS)
+          and 0.0 < sc['score'] < 1.0,
+          f'score={sc["score"]}')
+    sc_cc = score_device(mgr, device.name,
+                         {'vt_definition': 'constant-current'})
+    check('fi-2: knobs are explicit and echoed — vt_definition '
+          'swaps the model Vt(Vdd) for the 1 nA crossing (which '
+          'sits at the Ioff level on S1, so the term drops); the '
+          'frame carries both Vt definitions and the target window',
+          sc['knobs']['vt_definition'] == 'model'
+          and sc_cc['knobs']['vt_definition'] == 'constant-current'
+          and sc_cc['frame']['vt_used_v'] == sc_cc['frame']['vt_cc_sat_v']
+          and sc['frame']['vt_used_v'] == sc['frame']['vt_model_v']
+          and sc['frame']['vt_window_v'][0] < sc['frame']['vt_target_v']
+          < sc['frame']['vt_window_v'][1]
+          and by_term['fet-vt-distance']['normalized']
+          > {t['term']: t for t in sc_cc['terms']}
+          ['fet-vt-distance']['normalized'])
+    fom = figures_of_merit(mgr, device.name)
+    device.figures_of_merit = fom   # the live property on real rows
+    subjects, values = seed_subjects_and_values([device.name])
+    mgr.objectTables['ScoreTerm'] = {}
+    mgr.objectTables['ScoreContext'] = {}
+    mgr.objectTables['ScoreSubject'] = {}
+    mgr.objectTables['ContextualizedValue'] = {}
+    mgr.objectTables['ScoreConcept'] = {}
+    for table, seeds in (('ScoreTerm', SEED_FET_SCORE_TERMS),
+                         ('ScoreSubject', subjects),
+                         ('ContextualizedValue', values),
+                         ('ScoreConcept', SEED_FET_SCORE_CONCEPTS)):
+        for seed in seeds:
+            _row_factory(mgr, table)(**seed)
+    from scoring.scoring_engine import score_concept
+    generic = score_concept(mgr, 'fet-switching-quality')
+    gsub = generic['subjects'][0] if generic.get('ok') else {}
+    check('fi-2: the GENERIC scoring engine scores the device through '
+          'objectRef bindings into AlignedCNTFETDevice.figures_of_merit '
+          '(no stored numbers) and lands on the SAME score as the '
+          'device endpoint; an underived device answers the binding '
+          'with a named refusal',
+          generic.get('ok') and gsub.get('subject') == f'fet-{device.name}'
+          and not gsub.get('termsMissing')
+          and abs(gsub['initialScore'] - sc['score']) < 1e-6
+          and 'refusal' in figures_of_merit(mgr, 'underived-x')
+          and 'derive' in figures_of_merit(mgr, 'underived-x')['refusal'],
+          f'generic={generic.get("error")}, sub={gsub}')
+    rows_sc = score_term_rows(sc)
+    check('fi-2: score-terms rows are long-form with a CATEGORICAL x '
+          '(the term label), one dot per term and an hguide at 1.0 '
+          '(the ideal) — config-rendered, no chart code',
+          sum(1 for r in rows_sc if r['style'] == 'dot')
+          == len(FET_TERMS)
+          and all(isinstance(r['x'], str) for r in rows_sc
+                  if r['style'] == 'dot')
+          and [r for r in rows_sc if r['style'] == 'hguide'][0]['y']
+          == 1.0)
+
+    # ---- fi-3: best / worst case from the stochastic definitions --
+    sc_mc = rep_mc['score']
+    env = rep_mc['envelope']
+    check('fi-3: the MC run scores every FUNCTIONAL sample with the '
+          'fi-2 terms — score quantiles, per-term spread, best/worst '
+          'case carrying their sampled process values and a per-term '
+          'attribution vs the nominal device (largest delta first)',
+          sc_mc['worst']['score'] <= sc_mc['quantiles']['p05']
+          <= sc_mc['quantiles']['p50'] <= sc_mc['quantiles']['p95']
+          <= sc_mc['best']['score']
+          and sc_mc['scoredSamples'] == rep_mc['yield']['functional']
+          and set(sc_mc['best']['sampled']) >= {'d_nm', 'rc_ohm',
+                                                'vt0_v', 'lg_eff_nm'}
+          and sc_mc['worst']['movedMostBy'] in FET_TERMS
+          and abs(sc_mc['worst']['attribution'][0]['deltaVsNominal'])
+          >= abs(sc_mc['worst']['attribution'][-1]['deltaVsNominal'])
+          and set(sc_mc['termSpread']) == set(FET_TERMS)
+          and rep_mc['population']['score']['p50'] == sc_mc['quantiles']['p50'],
+          f'score={sc_mc}')
+    check('fi-3: the Id(Vg) envelope brackets the nominal curve '
+          'point-for-point on the viz grid (min ≤ p05 ≤ p50 ≤ p95 ≤ max)',
+          env is not None and len(env['vgs']) == 31
+          and all(env['min'][i] <= env['p05'][i] <= env['p50'][i]
+                  <= env['p95'][i] <= env['max'][i]
+                  for i in range(31))
+          and env['samples'] == rep_mc['yield']['functional'])
+    env_rows = device_curve_points(mgr, device.name,
+                                   curve='transfer-envelope',
+                                   samples=30, seed=3)
+    st_rows = device_curve_points(mgr, device.name,
+                                  curve='score-terms', samples=30,
+                                  seed=3)
+    check('fi-3: transfer-envelope = nominal line + two band series '
+          '(p05–p95, min–max); score-terms with samples>0 adds the '
+          'MC interval (lo/hi) and best/worst-case dots; sample '
+          'count is a knob',
+          env_rows['ok']
+          and {r['series'] for r in env_rows['rows']
+               if r['style'] == 'band'}
+          == {'MC p05–p95', 'MC min–max'}
+          and sum(1 for r in env_rows['rows'] if r['style'] == 'line')
+          == 31
+          and st_rows['ok']
+          and any('lo' in r for r in st_rows['rows']
+                  if r['series'] == 'nominal')
+          and {'best case (MC)', 'worst case (MC)'}
+          <= {r['series'] for r in st_rows['rows']},
+          f'env={env_rows.get("error")}, st={st_rows.get("error")}')
+
+    # ---- fi-2 (cells): the library scored vs intrinsic limits ------
+    from cntfet.cnt_cell_scoring import (
+        CELL_TERMS, SEED_CELL_SCORE_TERMS, cell_frames, cell_score_rows,
+        parse_liberty, score_cells,
+    )
+    mgr.objectTables.setdefault('CellCharacterizationRun', {})
+    no_lib = score_cells(mgr, device.name)
+    check('fi-2 cells: without a library run the score REFUSES naming '
+          'the characterize affordance; terms are ratios to the '
+          'driving FET\'s own intrinsic limits (ideal 1)',
+          not no_lib['ok'] and 'characterize-cells' in no_lib['error']
+          and {t['name'] for t in SEED_CELL_SCORE_TERMS}
+          == set(CELL_TERMS)
+          and all(v['ideal'] == 1.0 for v in CELL_TERMS.values()))
+    # a synthetic 2-cell Liberty in the emitter's own format
+    from cntfet.cnt_cell_library import _liberty_library
+    tau_fake = 0.1e-12
+    def _pt(scale):
+        return {'cell_rise_s': 5 * tau_fake * scale,
+                'cell_fall_s': 5 * tau_fake * scale,
+                'rise_transition_s': 6 * tau_fake * scale,
+                'fall_transition_s': 6 * tau_fake * scale,
+                'energy_rise_j': 2e-18 * scale,
+                'energy_fall_j': 0.0}
+    blocks = [{'libertyName': 'INVX1', 'function': '(!A)',
+               'inputs': ['A'], 'inputCap_f': 1e-17,
+               'arcs': {'A': {'pin': 'A', 'sense': 'negative',
+                              'tables': [[_pt(1)] * 3] * 3}}},
+              {'libertyName': 'NAND2X4', 'function': '(!(A*B))',
+               'inputs': ['A', 'B'], 'inputCap_f': 4e-17,
+               'arcs': {'A': {'pin': 'A', 'sense': 'negative',
+                              'tables': [[_pt(2)] * 3] * 3},
+                        'B': {'pin': 'B', 'sense': 'negative',
+                              'tables': [[_pt(2)] * 3] * 3}}}]
+    lib_text = _liberty_library(0.6, [1e-12, 2e-12, 4e-12],
+                                [1e-17, 2e-17, 4e-17], blocks)
+    parsed = parse_liberty(lib_text)
+    frames = cell_frames(parsed, tau_fake, 0.6)
+    check('fi-2 cells: the emitter\'s Liberty parses back (cells, '
+          'arcs, 6 tables each, grid indices) and the mid-grid frame '
+          'reads delay/τ = 5, transition/τ = 6, energy/C·V² = '
+          '1 + E_int/(C_L·Vdd²), FETs/min = 4 for the x4 NAND',
+          set(parsed['cells']) == {'INVX1', 'NAND2X4'}
+          and len(parsed['cells']['NAND2X4']['arcs']['B']) == 6
+          and parsed['index_2_ff'] == [0.01, 0.02, 0.04]
+          and abs(frames['INVX1']['delay_over_tau'] - 5.0) < 1e-3
+          and abs(frames['INVX1']['transition_over_tau'] - 6.0) < 1e-3
+          # E_int 2 aJ over C_L·Vdd² = 0.02 fF · 0.36 V² = 7.2 aJ
+          and abs(frames['INVX1']['energy_over_cv2']
+                  - (1 + 2.0 / 7.2)) < 1e-3
+          and frames['NAND2X4']['fets_over_min'] == 4.0
+          and frames['NAND2X4']['cell'] == 'cnand2',
+          f'frames={frames}')
+    _row_factory(mgr, 'CellCharacterizationRun')(
+        name='lib-test', device=device.name, cell='library:INVX1',
+        liberty_text=lib_text, ran_at='2026-08-26T00:00:00', vdd_v=0.6)
+    cs = score_cells(mgr, device.name)
+    cs_rows = device_curve_points(mgr, device.name, curve='cell-scores')
+    check('fi-2 cells: the latest library row scores every cell '
+          '(ranked; the x4 NAND loses on FET count and its 2x '
+          'slower arcs), the curve is long-form with categorical x '
+          '= cell + hguide at 1.0',
+          cs['ok'] and cs['run'] == 'lib-test'
+          and [r['cell'] for r in cs['ranking']] == ['INVX1', 'NAND2X4']
+          and all(not c['termsMissing'] for c in cs['cells'])
+          and cs_rows['ok']
+          and {r['x'] for r in cs_rows['rows'] if r['style'] == 'dot'}
+          == {'INVX1', 'NAND2X4'}
+          and any(r['style'] == 'hguide' for r in cs_rows['rows']),
+          f'cs={cs.get("error")} ranking={cs.get("ranking")}')
 
     # ---- S4a: polarity + inverter ---------------------------------
     p_p = {**p, 'ptype': 1}
