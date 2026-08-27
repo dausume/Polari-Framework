@@ -225,11 +225,17 @@ def score_curve_rows(manager, id_fn, p, device, curve, vd=0.6,
         if not report.get('ok'):
             return None, report
         return cell_score_rows(report), None
+    if curve == 'compare':
+        from cntfet.cnt_compare import compare_devices, compare_rows
+        report = compare_devices(manager, device.name)
+        if not report.get('ok'):
+            return None, report
+        return compare_rows(report), None
     return None, None
 
 
 CURVES = ('transfer', 'output', 'transfer-states', 'output-states',
-          'score-terms', 'transfer-envelope', 'cell-scores')
+          'score-terms', 'transfer-envelope', 'cell-scores', 'compare')
 
 
 def device_curve_points(manager, name, curve='transfer', vd=0.6,
@@ -350,4 +356,14 @@ SEED_CNT_DEVICE_GRAPHS = [
         'FETs/min): score per cell + each term normalized; rule '
         'at 1.0 = ideal',
         'cell', 'normalized (1 = ideal)'),
+    # fi-4: the competitive ranking — every FET on one axis, the
+    # page's own device marked ◀; a device that fails the validity
+    # proofs sits at 0 with the failed proofs as its label.
+    _device_graph(
+        'compare',
+        'Competitive FET ranking: score + every term normalized for '
+        'each AlignedCNTFETDevice (◀ = this page\'s device); '
+        'unprovable FETs sit at 0 with their failed proofs named; '
+        'rule at 1.0 = ideal',
+        'device', 'normalized (1 = ideal)'),
 ]

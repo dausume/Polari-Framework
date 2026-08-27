@@ -712,7 +712,7 @@ def main():
               'cnt-device-output-states',
               'cnt-device-score-terms',
               'cnt-device-transfer-envelope',
-              'cnt-device-cell-scores'}
+              'cnt-device-cell-scores', 'cnt-device-compare'}
           and json.loads(SEED_CNT_DEVICE_GRAPHS[0]['definition'])
           ['graphConfig']['options']['yType'] == 'log'
           and all(json.loads(g['definition'])['graphConfig']
@@ -892,6 +892,87 @@ def main():
           and {'best case (MC)', 'worst case (MC)'}
           <= {r['series'] for r in st_rows['rows']},
           f'env={env_rows.get("error")}, st={st_rows.get("error")}')
+
+    # ---- fi-4: the FET-validity gate + competitive ranking --------
+    from cntfet.cnt_scoring import fet_validity
+    from cntfet.cnt_compare import (
+        compare_devices, compare_rows, score_pages,
+    )
+    val = fet_validity(_id, p_dev)
+    check('fi-4 gate: the S1 device PROVES it is a FET — all five '
+          'characteristic-equation proofs pass with their evidence '
+          '(states traversed, gate modulation, monotone Id(Vg), SS '
+          'measurable, output saturation) and the score stands',
+          val['valid'] and len(val['checks']) == 5
+          and all(c['evidence'] is not None for c in val['checks'])
+          and sc['validity']['valid'] and sc['score'] > 0,
+          f'failed={val["failed"]}')
+    dead_p = {**p_dev, 'vt0_v': 3.0}   # threshold far above the supply
+    dead_fn = lambda vg, vd: vs.vs_terminal_current(vg, vd, dead_p)['id_a']
+    val_dead = fet_validity(dead_fn, dead_p)
+    flat_fn = lambda vg, vd: 1e-6
+    val_flat = fet_validity(flat_fn, p_dev)
+    check('fi-4 gate: a model whose Vt sits above the supply never '
+          'switches (states not traversed → invalid); a gate-blind '
+          'constant current fails modulation + SS (invalid) — each '
+          'names the failed proofs',
+          not val_dead['valid'] and 'states-traversed' in val_dead['failed']
+          and not val_flat['valid']
+          and {'gate-modulation', 'subthreshold-measurable'}
+          <= set(val_flat['failed']),
+          f'dead={val_dead["failed"]}, flat={val_flat["failed"]}')
+    lg30 = cd.get_row(mgr, 'AlignedCNTFETDevice', 'cnt-aligned-s1-lg30')
+    mgr.objectTables['AlignedCNTFETDevice'].pop('underived-x', None)
+    cmp0 = compare_devices(mgr, device.name)
+    unproven = next(r for r in cmp0['ranking'] if r['device'] == lg30.name)
+    check('fi-4: the seeded Lg=30 comparator is UNDERIVED → scores 0 '
+          'as unproven and ranks last with the derive affordance '
+          'named; S1 leads (levelized 100)',
+          cmp0['ok'] and cmp0['leader'] == device.name
+          and unproven['score'] == 0.0 and unproven['unproven']
+          and 'derive' in unproven['reason']
+          and unproven['rank'] == cmp0['of']
+          and cmp0['ranking'][0]['levelized'] == 100.0,
+          f'cmp={[(r["device"], r["score"]) for r in cmp0["ranking"]]}')
+    cd.derive_device(mgr, lg30, parameter_factory=pfac)
+    cmp1 = compare_devices(mgr, lg30.name)
+    sc30 = score_device(mgr, lg30.name)
+    by30 = {t['term']: t for t in sc30['terms']}
+    check('fi-4: once derived, Lg=30 nm is a valid FET and competes — '
+          'better DIBL (longer channel), lower gm/G0 (lower v_xo); the '
+          'focus device carries its rank, levelized score and per-term '
+          'gap to the leader (most-negative first)',
+          sc30['validity']['valid'] and sc30['score'] > 0
+          and cmp1['ok'] and cmp1['of'] == 2
+          and all(r['valid'] for r in cmp1['ranking'])
+          and by30['fet-dibl']['raw'] < by_term['fet-dibl']['raw']
+          and by30['fet-gm-over-g0']['raw'] < by_term['fet-gm-over-g0']['raw']
+          and cmp1['focusRank'] in (1, 2)
+          and len(cmp1['gapToLeader']) == len(FET_TERMS)
+          and (cmp1['gapToLeader'][0]['delta']
+               <= cmp1['gapToLeader'][-1]['delta']),
+          f'lg30 score={sc30["score"]} s1={sc["score"]} '
+          f'rank={cmp1.get("focusRank")} gap={cmp1.get("gapToLeader")}')
+    c_rows = device_curve_points(mgr, device.name, curve='compare')
+    pages = score_pages([d['name'] for d in SEED_CNT_DEVICES])
+    page_defs = [json.loads(pg['definition']) for pg in pages]
+    check('fi-4: compare rows put every device on a categorical x with '
+          'the focus marked ◀ + hguide at 1.0; one scoring PAGE is '
+          'seeded PER FET (its own route, per-KIND graphs pointed at '
+          'its own paths, ranking + validity panels)',
+          c_rows['ok']
+          and {r['x'] for r in c_rows['rows'] if r['series'] == 'score'}
+          == {f'{device.name} ◀', lg30.name}
+          and len(pages) == len(SEED_CNT_DEVICES)
+          and all(pg['pageRoute'] == f'cntfet-score-{pg["name"][13:]}'
+                  and pg['source_class'] == 'AlignedCNTFETDevice'
+                  for pg in pages)
+          and all(len(pd['rows']) == 3 for pd in page_defs)
+          and any(lg30.name in item['componentProps']['inputs']
+                  .get('dataPath', '')
+                  for pd in page_defs[1:] for row in pd['rows']
+                  for item in row['items']),
+          f'rows={sorted({r["x"] for r in c_rows["rows"] if r["x"]})}')
 
     # ---- fi-2 (cells): the library scored vs intrinsic limits ------
     from cntfet.cnt_cell_scoring import (

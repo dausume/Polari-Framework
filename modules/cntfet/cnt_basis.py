@@ -417,6 +417,13 @@ SEED_CNT_GEOMETRIES = [
      'l_c_nm': 20.0, 'tube_count': 1, 'pitch_nm': 0.0,
      'notes': 'S1: one tube, Lg = 15 nm ([VS1] v_xo calibration '
               'flagship). pitch/tube_count aggregation = S2+.'},
+    # fi-4 comparator: the same stack at a relaxed Lg = 30 nm so the
+    # competitive scoring page has a real second FET (better SCE /
+    # DIBL, lower v_xo and drive — the trade-off the terms expose).
+    {'name': 'cnt-s1-lg30', 'lg_nm': 30.0, 'l_ext_nm': 0.0,
+     'l_c_nm': 20.0, 'tube_count': 1, 'pitch_nm': 0.0,
+     'notes': 'Comparator geometry: Lg = 30 nm, otherwise S1. Inside '
+              'the [VS1] v_xo(Lg) fit range.'},
 ]
 
 SEED_GATE_STACKS = [
@@ -467,4 +474,16 @@ SEED_CNT_DEVICES = [
               'Id-Vg/Id-Vd only. n-type ([VS1] flips the [FC10] '
               'p-type polarity; physics symmetric). Derive before '
               'use.'},
+    {'name': 'cnt-aligned-s1-lg30', 'polarity': 'n',
+     'material': 'cnt-16-0', 'geometry': 'cnt-s1-lg30',
+     'gate_stack': 'cnt-s1-hfo2-gaa', 'contact': 'cnt-s1-pd-contact',
+     'transport': 'cnt-s1-vs-transport',
+     'parasitics': 'cnt-s1-no-parasitics',
+     'temperature_k': 300.0,
+     'manufacturing_regime': 'aggressively_scaled',
+     'process_set': 's1-target-line',
+     'notes': 'fi-4 COMPARATOR: S1 stack at Lg = 30 nm, so the '
+              'per-FET scoring page ranks two real devices. Until '
+              'derived it scores 0 as UNPROVEN (validity gate) — '
+              'POST {"action": "derive"} to make it a candidate.'},
 ]

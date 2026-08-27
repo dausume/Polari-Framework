@@ -1298,6 +1298,10 @@ try:
         _fet_score_subjects([d['name'] for d in SEED_CNT_DEVICES])
     SEED_CELL_SCORE_SUBJECTS = _cell_score_subjects(
         [c['name'] for c in SEED_CNT_CELLS])
+    # fi-4: one competitive scoring page PER seeded FET.
+    from cntfet.cnt_compare import score_pages as _cnt_score_pages
+    SEED_CNT_SCORE_PAGES = _cnt_score_pages(
+        [d['name'] for d in SEED_CNT_DEVICES])
 except ImportError as _exc:
     _stub_missing_feature('cntfet', _exc, globals(), (
         'AlignedCNTFETDevice', 'AlignedCNTFETGeometry', 'CNTCalibrationAnchor', 'CNTContact',
@@ -1318,7 +1322,7 @@ except ImportError as _exc:
         'SEED_FET_SCORE_CONCEPTS', 'SEED_FET_SCORE_TERMS',
         'SEED_FET_SCORE_SUBJECTS', 'SEED_FET_SCORE_VALUES',
         'SEED_CELL_SCORE_CONCEPTS', 'SEED_CELL_SCORE_TERMS',
-        'SEED_CELL_SCORE_SUBJECTS',
+        'SEED_CELL_SCORE_SUBJECTS', 'SEED_CNT_SCORE_PAGES',
     ))
 # microchip: the design-level ladder + traversal (separable from the
 # device modules — references their rows, never imports their code).
@@ -3430,6 +3434,8 @@ class polariServer(treeObject):
              + (SEED_APPSTORE_PAGE_DISPLAYS or [])
              + (SEED_ISLEMESH_PAGE_DISPLAYS or [])
              + (SEED_CNTFET_PAGE_DISPLAYS or [])
+             # fi-4: per-FET competitive scoring pages.
+             + (SEED_CNT_SCORE_PAGES or [])
              + (SEED_MICROCHIP_PAGE_DISPLAYS or [])
              + (SEED_COMPUTERS_PAGE_DISPLAYS or [])),
             # Materials basis — identities before their scale rows.

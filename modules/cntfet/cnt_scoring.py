@@ -308,8 +308,121 @@ def figures_of_merit(manager, device_name, knobs=None):
     from cntfet.cnt_device_viz import device_model
     id_fn, p, device, refusal = device_model(manager, device_name)
     if refusal is not None:
-        return {'refusal': refusal['error']}
-    return score_frame(id_fn, p, device.temperature_k, knobs)
+        return {'refusal': refusal['error'], 'fet_valid': 0}
+    validity = fet_validity(id_fn, p, manager=manager)
+    if not validity['valid']:
+        # every binding resolves to a NAMED absence → the generic
+        # engine scores 0 (missing terms contribute 0), same verdict
+        # as score_device — never a "low" score for a non-FET
+        return {'refusal': 'not provably a FET: failed '
+                           + ', '.join(validity['failed']),
+                'fet_valid': 0, 'validity': validity}
+    return {**score_frame(id_fn, p, device.temperature_k, knobs),
+            'fet_valid': 1}
+
+
+# ── the FET-validity gate (Dustin 2026-08-27) ──────────────────────
+#
+# "if it fails to meet the conditions of being a FET at all (cannot be
+# proven to have valid characteristic equations that show switching
+# state transitions) the score will always be 0." The proof is the
+# fi-0 machinery itself: the same criteria-as-data that classify
+# states must, on THIS device, actually produce the transitions. Every
+# check below is a characteristic-equation statement with its numbers;
+# ALL must pass, an underivable model fails by construction (nothing to
+# prove), and the score is then 0 — not "low", zero — with the failed
+# proofs named.
+
+VALIDITY_KNOBS = {
+    # decades of gate modulation the device must show (Ion/Ioff) for
+    # the gate to count as controlling the channel at all
+    'min_modulation_decades': 1.0,
+    'vdd_v': 0.6,
+}
+
+
+def fet_validity(id_fn, p, knobs=None, manager=None):
+    """{valid, checks: [{name, equation, passed, evidence, why}],
+    failed: [...]} — the proof that this model IS a FET."""
+    from cntfet.cnt_states import (
+        output_boundary, transitions_on_sweep,
+    )
+    k = {**VALIDITY_KNOBS, **(knobs or {})}
+    vdd = k['vdd_v']
+    checks = []
+
+    events = transitions_on_sweep(p, vdd, 'rising', manager=manager)
+    order = [e['to'] for e in events]
+    on_states = [s for s in order if s and s.startswith('on')]
+    traversed = ('off' in order and 'transition-on' in order
+                 and bool(on_states)
+                 and order.index('off') < order.index('transition-on')
+                 < order.index(on_states[0]))
+    checks.append({
+        'name': 'states-traversed',
+        'equation': 'rising Vgs sweep at Vd = Vdd crosses Vt(Vds) then '
+                    'Vt + Vov_min: off → transition-on → on',
+        'passed': traversed,
+        'evidence': [(e['vgs'], e['to']) for e in events],
+        'why': 'a FET must leave the subthreshold tail and reach an '
+               'on state inside its supply window — the switching '
+               'event the states define'})
+
+    ion, ioff = id_fn(vdd, vdd), id_fn(0.0, vdd)
+    decades = (math.log10(ion / ioff) if ion > 0 and ioff > 0
+               else float('-inf'))
+    checks.append({
+        'name': 'gate-modulation',
+        'equation': 'log10(Id(Vdd,Vdd)/Id(0,Vdd)) ≥ '
+                    f"{k['min_modulation_decades']:g}",
+        'passed': decades >= k['min_modulation_decades'],
+        'evidence': {'ion_a': ion, 'ioff_a': ioff, 'decades': decades},
+        'why': 'the gate must actually modulate the channel — no '
+               'modulation, no transistor (a wire or an open)'})
+
+    grid = [i * 0.02 for i in range(31)]
+    ids = [id_fn(vg, vdd) for vg in grid]
+    monotone = all(ids[i + 1] >= ids[i] * (1 - 1e-9)
+                   for i in range(len(ids) - 1))
+    checks.append({
+        'name': 'gate-monotone',
+        'equation': 'dId/dVg ≥ 0 on [0, Vdd] at Vd = Vdd (n-type)',
+        'passed': monotone,
+        'evidence': {'min_id_a': min(ids), 'max_id_a': max(ids)},
+        'why': 'the transfer characteristic of an n-FET rises with '
+               'gate bias; a non-monotone Id(Vg) is not the '
+               'equation set the states are built on'})
+
+    m = extract_metrics(id_fn, {'vdd_v': vdd})
+    ss = m.get('ss_mv_per_dec')
+    checks.append({
+        'name': 'subthreshold-measurable',
+        'equation': 'SS = dVg/dlog10(Id) exists over [1e-6,1e-3]·Ion',
+        'passed': ss is not None and math.isfinite(ss) and ss > 0,
+        'evidence': {'ss_mv_per_dec': ss,
+                     'refusal': m['refusals'].get('ss_mv_per_dec')},
+        'why': 'the subthreshold equation Id ∝ 10^((Vgs-Vt)/SS) must '
+               'be measurable on the device, or the off state has '
+               'no characteristic equation'})
+
+    bounds = [output_boundary(p, vg) for vg in (0.3, 0.4, 0.5, 0.6)]
+    found = [b for b in bounds if b['x'] is not None]
+    checks.append({
+        'name': 'output-saturation',
+        'equation': 'some Vg ≥ Vt+Vov_min has Vds ≥ Vdsat inside '
+                    '[0, Vdd]: on-linear → on-saturation',
+        'passed': bool(found),
+        'evidence': [{'vgs': b['vgs'], 'vdsat_at_x': b['x']}
+                     for b in bounds],
+        'why': 'the on state must split into its linear and '
+               'velocity-saturated legs (Fsat knee) — otherwise the '
+               'output characteristic is a resistor, not a FET'})
+
+    failed = [c['name'] for c in checks if not c['passed']]
+    return {'valid': not failed, 'checks': checks, 'failed': failed,
+            'knobs': k,
+            'rule': 'ALL proofs must pass; an unprovable model scores '
+                    '0 — not low, zero'}
 
 
 # ── scoring ────────────────────────────────────────────────────────
@@ -412,12 +525,26 @@ def score_device(manager, device_name, knobs=None):
     from cntfet.cnt_device_viz import device_model
     id_fn, p, device, refusal = device_model(manager, device_name)
     if refusal is not None:
-        return refusal
+        # unprovable = not a FET yet: score 0 with the affordance named
+        return {'ok': True, 'device': device_name,
+                'concept': CONCEPT_NAME, 'score': 0.0,
+                'validity': {'valid': False, 'checks': [],
+                             'failed': ['model-underivable'],
+                             'reason': refusal['error']},
+                'terms': [], 'termsMissing': list(FET_TERMS),
+                'idealTable': [], 'unproven': True,
+                'note': 'no derived model → no characteristic '
+                        'equations to prove → score 0 (gate rule)'}
+    validity = fet_validity(id_fn, p, manager=manager)
     frame = score_frame(id_fn, p, device.temperature_k, knobs)
     result = score_from_frame(frame, manager)
+    if not validity['valid']:
+        result['scoreIfValid'] = result['score']
+        result['score'] = 0.0
     return {
         'ok': True, 'device': device_name, 'concept': CONCEPT_NAME,
         'fidelity': FIDELITY, 'temperature_k': device.temperature_k,
+        'validity': validity,
         'knobs': frame['knobs'],
         'frame': {k: v for k, v in frame.items()
                   if k not in ('knobs', 'refusals')},

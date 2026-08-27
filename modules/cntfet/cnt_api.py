@@ -55,6 +55,9 @@ class CNTFETAPI(treeObject):
                 suffix='device_score')
             add('/api/cntfet/device/{name}/cell-scores', self,
                 suffix='device_cell_scores')
+            # fi-4: competitive ranking against every other FET.
+            add('/api/cntfet/device/{name}/compare', self,
+                suffix='device_compare')
             add('/api/cntfet/figures', self, suffix='figures')
             add('/api/cntfet/figures/{figure_id}', self,
                 suffix='figure')
@@ -192,6 +195,13 @@ class CNTFETAPI(treeObject):
                  'yield': mc['yield'], **mc['score']}
                 if mc.get('ok') else
                 {'refusal': mc.get('refusal') or mc.get('error')})
+        response.media = report
+
+    def on_get_device_compare(self, request, response, name):
+        from cntfet.cnt_compare import compare_devices
+        report = compare_devices(self.manager, name)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
         response.media = report
 
     def on_get_device_cell_scores(self, request, response, name):
