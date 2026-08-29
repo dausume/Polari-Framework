@@ -101,6 +101,10 @@ class CNTFETAPI(treeObject):
             add('/api/cntfet/block/{key}', self, suffix='block')
             add('/api/cntfet/block/{key}/proof', self,
                 suffix='block_proof')
+            add('/api/cntfet/block/{key}/logic', self,
+                suffix='block_logic')
+            add('/api/cntfet/block/{key}/power', self,
+                suffix='block_power')
             add('/api/cntfet/device/{name}/cell-coverage', self,
                 suffix='device_cell_coverage')
             # ip: licensing / freedom-to-operate records per technology
@@ -499,12 +503,37 @@ class CNTFETAPI(treeObject):
             self.manager, request.get_param('device') or 'cnt-aligned-s1')
 
     def on_get_block(self, request, response, key):
+        """?device= ?timing=1 — OpenSTA runs only when asked (a GET
+        must not launch a docker run by default)."""
         from cntfet.cnt_blocks import block_report
         report = block_report(self.manager,
                               request.get_param('device') or 'cnt-aligned-s1',
-                              key)
+                              key,
+                              with_timing=request.get_param('timing') == '1')
         if not report.get('ok', True):
             response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_block_logic(self, request, response, key):
+        """the cell-logic-diagram payload for a block (state space,
+        gate DAG over cell instances)."""
+        from cntfet.cnt_blocks import block_logic
+        report = block_logic(key)
+        if not report.get('ok', True):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_block_power(self, request, response, key):
+        from cntfet.cnt_blocks import block_power
+        q = self._floats(request, response, ('activity', 'f'))
+        if q is None:
+            return
+        report = block_power(self.manager,
+                             request.get_param('device') or 'cnt-aligned-s1',
+                             key, activity=q.get('activity', 0.1),
+                             f_hz=q.get('f', 1e9))
+        if not report.get('ok', True):
+            response.status = '422 Unprocessable Entity'
         response.media = report
 
     def on_get_block_proof(self, request, response, key):

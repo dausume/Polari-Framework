@@ -859,8 +859,8 @@ def block_timing(manager, device_name, block_key, workdir=None,
              for i in range(1, len(sections) - 1, 2)}
     max_path = _parse_path(parts.get('MAX', ''))
     min_path = _parse_path(parts.get('MIN', ''))
-    wns = re.search(r'wns\s+(-?[0-9.]+)', parts.get('WNS', ''))
-    tns = re.search(r'tns\s+(-?[0-9.]+)', parts.get('TNS', ''))
+    wns = re.search(r'wns\s+(?:max\s+)?(-?[0-9.]+)', parts.get('WNS', ''))
+    tns = re.search(r'tns\s+(?:max\s+)?(-?[0-9.]+)', parts.get('TNS', ''))
     fmax = None
     if max_path:
         # the path's own delay budget = period - slack

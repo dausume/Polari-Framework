@@ -1263,6 +1263,35 @@ def main():
           f'si={u_si} s1={u_s1.get("statement")} ref={u_ref.get("statement")} '
           f'usable={lp.get("usableCount")} cov={dcov.get("cellsTotal")}')
 
+    # ---- functional blocks (ladder rank 3) from proven cells ---------
+    from cntfet.cnt_blocks import (
+        BLOCK_LIBRARY, block_provenance, generate, prove_block,
+    )
+    from cntfet.cnt_open_library import admit_cells
+    from cntfet.cnt_cell_library import CELL_LIBRARY as _CL
+    proofs = {k: prove_block(k) for k in BLOCK_LIBRARY}
+    adm_si = admit_cells(mgr, 'si-nmos-planar-90', 'si-pmos-planar-90')
+    adm_cnt = admit_cells(mgr, device.name, 'cnt-aligned-s1-p')
+    bp_si = block_provenance(mgr, 'si-nmos-planar-90', 'alu4')
+    check('blocks + open library: every functional block (ctr4, alu4, '
+          'fsm-traffic, reg4) is composed ONLY of library cells and '
+          'PROVES exhaustively against its golden model; the open '
+          'library admits all 26 cells on the proven-free Si planar pair '
+          '(open_source_ready) and refuses the CNT pair with the device '
+          'encumbrance named; alu4 on planar Si rolls up proven-free',
+          set(BLOCK_LIBRARY) >= {'ctr4', 'alu4', 'fsm-traffic', 'reg4'}
+          and all(p['proven'] for p in proofs.values())
+          and all(inst['cell'] in _CL or inst['cell'] == 'cdff'
+                  for k in BLOCK_LIBRARY
+                  for inst in generate(k)['instances'])
+          and adm_si['open_source_ready'] and len(adm_si['admitted']) == 26
+          and not adm_cnt['open_source_ready']
+          and '9825229' in json.dumps(adm_cnt)
+          and bp_si.get('status', bp_si.get('proofStatus')) == 'proven-free',
+          f'proofs={ {k: p["proven"] for k, p in proofs.items()} } '
+          f'si={adm_si.get("open_source_ready")} cnt={adm_cnt.get("why", "")[:80]} '
+          f'bp={bp_si.get("status") or bp_si.get("proofStatus")}')
+
     # ---- fi-2 (cells): the library scored vs intrinsic limits ------
     from cntfet.cnt_cell_scoring import (
         CELL_TERMS, SEED_CELL_SCORE_TERMS, cell_frames, cell_score_rows,

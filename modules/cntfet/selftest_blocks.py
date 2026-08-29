@@ -238,6 +238,8 @@ def main():
                   cp['arrival_ps'] > 0 and cp['met']
                   and cp['end'] and cp['start']
                   and timing['fmax_hz'] and timing['holdWorst'] is not None
+                  and timing['wns_ps'] is not None
+                  and timing['tns_ps'] is not None
                   and timing['sta']['accepted'])
         else:
             check('timing: alu4 OpenSTA refusal names its reason '
@@ -339,7 +341,15 @@ def main():
           and all(x['detailPath'].startswith('/api/cntfet/block/')
                   for x in libr['blocks']))
     seeds = b.SEED_FUNCTIONAL_BLOCKS
-    row_keys = set(b.FunctionalBlock.__init__.__code__.co_varnames)
+    row_keys = {'name', 'display_name', 'description', 'inputs_json',
+                'outputs_json', 'state_bits', 'instances_json',
+                'nets_json', 'clock', 'function_json', 'cell_count',
+                'fet_count', 'proven', 'proof_json', 'timing_json',
+                'power_json', 'provenance_json', 'status', 'notes',
+                'is_prior'}
+    probe = b.FunctionalBlock(**seeds[0])
+    check('FunctionalBlock(**seed) constructs with every seed field',
+          all(getattr(probe, k) == v for k, v in seeds[0].items()))
     check('SEED_FUNCTIONAL_BLOCKS: four rows whose keys are '
           'FunctionalBlock fields, proven=True, instances/nets JSON',
           len(seeds) == 4
