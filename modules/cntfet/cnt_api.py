@@ -728,7 +728,10 @@ class CNTFETAPI(treeObject):
             payload = json.loads(raw) if raw else {}
         except Exception as e:
             return self._refuse(response, f'bad JSON payload: {e}')
-        device = get_row(self.manager, 'AlignedCNTFETDevice', name)
+        # a SiliconMOSFET row takes the cell / power actions too (the
+        # VS card is shared; derive is the sifet route's job)
+        device = (get_row(self.manager, 'AlignedCNTFETDevice', name)
+                  or get_row(self.manager, 'SiliconMOSFET', name))
         if device is None:
             return self._refuse(response, f'no device "{name}"',
                                 '404 Not Found')
