@@ -192,6 +192,16 @@ def _montecarlo(manager, device, samples, seed):
     """One MC run for the fi-3 curves — no result row (a graph
     refresh is not an S3 act); refusals pass through as data."""
     from cntfet.cnt_montecarlo import monte_carlo
+    if not hasattr(device, 'process_set'):
+        # fp-2: a SiliconMOSFET row has no CNT process set to sample —
+        # the stochastic surfaces refuse by name instead of crashing
+        return {'ok': False,
+                'refusal': f'no stochastic (Monte Carlo) basis for '
+                           f'"{getattr(device, "name", "?")}": the S3 '
+                           'process rows (purity / alignment / Rc …) are '
+                           'CNT-specific; a silicon variability basis '
+                           '(Vt / Lg / tox distributions) is a sifet '
+                           'follow-up'}
     return monte_carlo(manager, device, sample_count=samples,
                        seed=seed,
                        result_factory=lambda **f:
@@ -215,7 +225,7 @@ def score_curve_rows(manager, id_fn, p, device, curve, vd=0.6,
         spread = best = worst = None
         if samples > 0:
             mc = _montecarlo(manager, device, samples, seed)
-            sc = mc.get('score') or {}
+            sc = (mc.get('score') or {}) if mc.get('ok') else {}
             if mc.get('ok') and sc.get('quantiles'):
                 spread, best, worst = (sc['termSpread'], sc['best'],
                                        sc['worst'])
