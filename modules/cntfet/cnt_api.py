@@ -304,7 +304,8 @@ class CNTFETAPI(treeObject):
 
     def on_get_device_characteristics(self, request, response, name):
         from cntfet.cnt_characteristics import characteristics_index
-        if get_row(self.manager, 'AlignedCNTFETDevice', name) is None:
+        if (get_row(self.manager, 'AlignedCNTFETDevice', name) is None
+                and get_row(self.manager, 'SiliconMOSFET', name) is None):
             return self._refuse(response, f'no device "{name}"',
                                 '404 Not Found')
         response.media = characteristics_index(self.manager, name)
@@ -312,7 +313,8 @@ class CNTFETAPI(treeObject):
     def on_get_device_characteristic(self, request, response, name,
                                      key):
         from cntfet.cnt_characteristics import characteristic_detail
-        if get_row(self.manager, 'AlignedCNTFETDevice', name) is None:
+        if (get_row(self.manager, 'AlignedCNTFETDevice', name) is None
+                and get_row(self.manager, 'SiliconMOSFET', name) is None):
             return self._refuse(response, f'no device "{name}"',
                                 '404 Not Found')
         report = characteristic_detail(self.manager, name, key,
@@ -381,7 +383,8 @@ class CNTFETAPI(treeObject):
         """fp-3: shape, optimization class (switching vs signal),
         complementary partner + conditions, regions summary."""
         from cntfet.cnt_taxonomy import device_taxonomy_report
-        if get_row(self.manager, 'AlignedCNTFETDevice', name) is None:
+        if (get_row(self.manager, 'AlignedCNTFETDevice', name) is None
+                and get_row(self.manager, 'SiliconMOSFET', name) is None):
             return self._refuse(response, f'no device "{name}"',
                                 '404 Not Found')
         report = device_taxonomy_report(self.manager, name)
@@ -392,7 +395,8 @@ class CNTFETAPI(treeObject):
     def on_get_device_signal_score(self, request, response, name):
         """fp-3: the analog / signal-optimized score concept."""
         from cntfet.cnt_taxonomy import score_signal
-        if get_row(self.manager, 'AlignedCNTFETDevice', name) is None:
+        if (get_row(self.manager, 'AlignedCNTFETDevice', name) is None
+                and get_row(self.manager, 'SiliconMOSFET', name) is None):
             return self._refuse(response, f'no device "{name}"',
                                 '404 Not Found')
         report = score_signal(self.manager, name)
