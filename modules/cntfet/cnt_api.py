@@ -87,6 +87,11 @@ class CNTFETAPI(treeObject):
             add('/api/cntfet/cell/{cell}/logic', self,
                 suffix='cell_logic')
             add('/api/cntfet/cells/logic', self, suffix='cells_logic')
+            # ip: licensing / freedom-to-operate records per technology
+            # (tracked like everything else; engineering record, not
+            # legal advice — every payload says so).
+            add('/api/cntfet/device/{name}/ip', self, suffix='device_ip')
+            add('/api/cntfet/ip', self, suffix='library_ip')
             # fp-2 / fp-4: silicon FETs on sol-gel + silicon refinement
             # (the sifet module rides this API class — same server).
             add('/api/sifet/capability', self, suffix='si_capability')
@@ -416,6 +421,18 @@ class CNTFETAPI(treeObject):
         if not report.get('ok'):
             response.status = '404 Not Found'
         response.media = report
+
+    def on_get_device_ip(self, request, response, name):
+        from cntfet.cnt_ip import device_ip_report
+        if (get_row(self.manager, 'AlignedCNTFETDevice', name) is None
+                and get_row(self.manager, 'SiliconMOSFET', name) is None):
+            return self._refuse(response, f'no device "{name}"',
+                                '404 Not Found')
+        response.media = device_ip_report(self.manager, name)
+
+    def on_get_library_ip(self, request, response):
+        from cntfet.cnt_ip import library_ip_report
+        response.media = library_ip_report(self.manager)
 
     def on_get_cells_logic(self, request, response):
         from cntfet.cnt_logic import library_logic_report

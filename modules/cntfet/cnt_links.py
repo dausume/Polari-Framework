@@ -57,7 +57,7 @@ def device_links(manager, device):
         'api': {k: f'/api/cntfet/device/{name}/{k}' for k in (
             'characterization', 'states', 'regimes', 'transport',
             'score', 'compare', 'characteristics', 'fields',
-            'cell-scores')},
+            'cell-scores', 'ip')},
         'complementary': partner,
         'compared_against': others,
         'cells_built_from_it': cells,

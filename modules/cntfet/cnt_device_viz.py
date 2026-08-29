@@ -265,7 +265,7 @@ def extra_curve_builders():
     absent simply contributes nothing (its curves refuse by name)."""
     builders = {}
     for mod in ('cnt_regimes', 'cnt_transport', 'cnt_fields',
-                'cnt_power', 'cnt_taxonomy'):
+                'cnt_power', 'cnt_taxonomy', 'cnt_ip'):
         try:
             module = __import__(f'cntfet.{mod}', fromlist=['CURVE_BUILDERS'])
             builders.update(getattr(module, 'CURVE_BUILDERS', {}))
@@ -281,7 +281,8 @@ def extra_graph_seeds():
                       ('cnt_transport', 'SEED_CNT_TRANSPORT_GRAPHS'),
                       ('cnt_fields', 'SEED_CNT_FIELD_GRAPHS'),
                       ('cnt_power', 'SEED_CNT_POWER_GRAPHS'),
-                      ('cnt_taxonomy', 'SEED_CNT_TAXONOMY_GRAPHS')):
+                      ('cnt_taxonomy', 'SEED_CNT_TAXONOMY_GRAPHS'),
+                      ('cnt_ip', 'SEED_CNT_IP_GRAPHS')):
         try:
             module = __import__(f'cntfet.{mod}', fromlist=[name])
             seeds.extend(getattr(module, name, []))

@@ -152,10 +152,16 @@ def _score_page(device_name, source_class='AlignedCNTFETDevice'):
                               f'{d}: stochastic Id(Vg) envelope',
                               d, 'transfer-envelope'),
             ], min_height=430),
-            _row(3, [_api(f'score-{d}-links', 0, 12,
-                          f'{d}: related pages, partner, cells',
-                          f'/api/cntfet/device/{d}/links')],
-                 min_height=220),
+            _row(3, [
+                _api(f'score-{d}-ip', 0, 6,
+                     f'{d}: licensing / freedom-to-operate (patents '
+                     'expired vs active, what we own, what to verify — '
+                     'engineering record, not legal advice)',
+                     f'/api/cntfet/device/{d}/ip'),
+                _api(f'score-{d}-links', 1, 6,
+                     f'{d}: related pages, partner, cells',
+                     f'/api/cntfet/device/{d}/links'),
+            ], min_height=300),
         ]}),
     }
 

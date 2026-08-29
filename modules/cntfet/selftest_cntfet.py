@@ -1163,6 +1163,33 @@ def main():
           and cp_comps.count('cell-schematic') == 19,
           f'lg={lg.get("refusal")} allProven={lib.get("allProven")}')
 
+    # ---- ip: licensing / FTO tracked like everything else ----------
+    from cntfet.cnt_ip import (
+        DISCLAIMER, SEED_TECHNOLOGY_IP, device_ip_report, library_ip_report,
+    )
+    ip_s1 = device_ip_report(mgr, device.name)
+    ip_si = device_ip_report(mgr, 'si-nmos-planar-90')
+    ip_lib = library_ip_report(mgr)
+    ip_rows = device_curve_points(mgr, device.name, curve='ip-verdicts')
+    check('ip: every technology carries an FTO record (verdict, patents '
+          'with expiry, what we own, self-manufacture note, verify_next, '
+          'confidence); S1 = amber (aligned-array process may be active), '
+          'the planar Si NMOS = green (MOSFET/CMOS/planar expired), no '
+          'red anywhere, the disclaimer rides every payload, and the '
+          'verdict graph comes through the registry',
+          len(SEED_TECHNOLOGY_IP) >= 20
+          and all(r['verdict'] in ('green', 'amber', 'red')
+                  and r['fto_reasoning'] and r['self_manufacture_note']
+                  and r['verify_next'] for r in SEED_TECHNOLOGY_IP)
+          and ip_s1['ok'] and ip_s1['worst_verdict'] == 'amber'
+          and 'does not' in ip_s1['self_manufacture_answer'].lower()
+          and ip_si['ok'] and ip_si['worst_verdict'] == 'green'
+          and ip_lib['ok'] and ip_lib['verdict_counts'].get('red', 0) == 0
+          and DISCLAIMER and ip_s1.get('disclaimer') == DISCLAIMER
+          and ip_rows['ok'] and len(ip_rows['rows']) >= 3,
+          f's1={ip_s1.get("worst_verdict")} si={ip_si.get("worst_verdict")} '
+          f'counts={ip_lib.get("verdict_counts")} rows={ip_rows.get("error")}')
+
     # ---- fi-2 (cells): the library scored vs intrinsic limits ------
     from cntfet.cnt_cell_scoring import (
         CELL_TERMS, SEED_CELL_SCORE_TERMS, cell_frames, cell_score_rows,
