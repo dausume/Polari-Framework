@@ -67,9 +67,13 @@ def device_cell_coverage(manager, device_name):
     covered_lib = _liberty_cells(getattr(latest, 'liberty_text', '')) \
         if latest else set()
     seq_runs = {}
+    # sequential runs label their cell by LIBERTY name (DFFX1 /
+    # DLATCHX1) — map back to the cell keys
+    seq_alias = {'DFFX1': 'cdff', 'DLATCHX1': 'clatch',
+                 'cdff': 'cdff', 'clatch': 'clatch'}
     for r in runs:
-        cell = str(getattr(r, 'cell', ''))
-        if cell in _sequential_keys() or cell in ('cdff', 'clatch'):
+        cell = seq_alias.get(str(getattr(r, 'cell', '')))
+        if cell:
             seq_runs[cell] = getattr(r, 'name', '')
     cells = []
     entries = list(CELL_LIBRARY.items()) + [('cdff', {'sequential': True})]
