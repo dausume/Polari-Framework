@@ -116,6 +116,10 @@ class TechnologyIPRecord(treeObject):
         sources_json: str = '[]',
         confidence: str = 'unverified',
         reviewed_at: str = REVIEWED_AT,
+        # JSON list of cnt_evidence.EvidenceItem names — the proof
+        # chain is a JOIN onto those rows (pat-us-…, pub-…, book-…,
+        # std-…, lic-…), never a re-derivation
+        evidence_json: str = '[]',
         notes: str = '',
         is_prior: bool = True,
         manager=None,
@@ -136,6 +140,7 @@ class TechnologyIPRecord(treeObject):
         self.sources_json = sources_json
         self.confidence = confidence
         self.reviewed_at = reviewed_at
+        self.evidence_json = evidence_json
         self.notes = notes
         self.is_prior = is_prior
 
@@ -154,7 +159,7 @@ def _pat(number, title, assignee, filed, expiry_est, status,
 def _rec(name, display_name, subject_kind, subject_ref, ip_kind,
          verdict, fto_reasoning, self_manufacture_note, verify_next,
          patents=(), licence='', what_we_own='', jurisdiction='US',
-         sources=(), confidence='unverified', notes=''):
+         sources=(), confidence='unverified', notes='', evidence=()):
     assert subject_kind in SUBJECT_KINDS, subject_kind
     assert ip_kind in IP_KINDS, ip_kind
     assert verdict in VERDICT_RANK, verdict
@@ -169,6 +174,7 @@ def _rec(name, display_name, subject_kind, subject_ref, ip_kind,
         'jurisdiction': jurisdiction, 'verify_next': verify_next,
         'sources_json': json.dumps(list(sources)),
         'confidence': confidence, 'reviewed_at': REVIEWED_AT,
+        'evidence_json': json.dumps(list(evidence)),
         'notes': notes, 'is_prior': True,
     }
 
@@ -211,7 +217,9 @@ SEED_TECHNOLOGY_IP = [
                        'between the gate and the semiconductor '
                        'channel (issued 1963-08-27)')],
          sources=['https://patents.google.com/patent/US3102230A/en'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['pat-us-3102230', 'book-sze-1981', 'pub-LUN97',
+                   'pub-CT67', 'book-taur-ning-1998']),
     _rec('cmos', 'CMOS (complementary pair logic)', 'device-shape',
          'planar-bulk', 'patent-expired', 'green',
          'Wanlass (Fairchild) filed 1963-06-18, granted 1967-12-05 '
@@ -231,7 +239,8 @@ SEED_TECHNOLOGY_IP = [
          sources=['https://patents.google.com/patent/US3356858A/en',
                   'https://www.computerhistory.org/siliconengine/'
                   'complementary-mos-circuit-configuration-is-invented/'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['pat-us-3356858', 'book-weste-eshraghian-1985']),
     _rec('planar-process', 'Planar process (oxide-masked diffusion)',
          'process', 'planar-bulk', 'patent-expired', 'green',
          'Hoerni (Fairchild) filed 1959-05-01, issued 1962-03-20: '
@@ -250,7 +259,8 @@ SEED_TECHNOLOGY_IP = [
          sources=['https://patents.google.com/patent/US3025589A/en',
                   'https://www.computerhistory.org/siliconengine/'
                   'invention-of-the-planar-manufacturing-process/'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['pat-us-3025589', 'book-sze-1981']),
     _rec('soi', 'SOI / FD-SOI (thin film on buried oxide)', 'device-shape',
          'soi', 'patent-mixed', 'amber',
          'The thin-film SOI transistor is old (SIMOX 1978, Smart Cut '
@@ -275,7 +285,8 @@ SEED_TECHNOLOGY_IP = [
          sources=['https://patents.google.com/patent/US5374564A/en'],
          confidence='partially-verified',
          notes='Basic device: green. Substrate + back-bias: amber '
-               'until searched.'),
+               'until searched.',
+         evidence=['pat-us-5374564', 'pub-YAN92', 'pub-SUZ93']),
     _rec('finfet', 'FinFET (tri-gate fin)', 'device-shape', 'finfet',
          'patent-expired', 'green',
          'The Berkeley FinFET patent (Hu, Bokor, King et al.) US '
@@ -300,7 +311,8 @@ SEED_TECHNOLOGY_IP = [
                        'dielectric + gate wrapping the fin, spacers, '
                        'S/D doping (granted 2002-07-02)')],
          sources=['https://patents.google.com/patent/US6413802B1/en'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['pat-us-6413802', 'pub-HIS00', 'pub-COL08']),
     _rec('gaa-nanowire', 'GAA nanowire', 'device-shape', 'gaa-nanowire',
          'patent-mixed', 'amber',
          'The round-wire GAA concept is old (Colinge GAA 1990, '
@@ -316,7 +328,8 @@ SEED_TECHNOLOGY_IP = [
          confidence='unverified',
          notes='No representative patent fetched — the nanosheet '
                'record carries the verified active claims that '
-               'also read on stacked wires.'),
+               'also read on stacked wires.',
+         evidence=['pub-COL90', 'pub-AP97']),
     _rec('gaa-nanosheet', 'GAA nanosheet (stacked ribbons)',
          'device-shape', 'gaa-nanosheet', 'patent-active', 'amber',
          'Stacked-nanosheet GAA is a 2014-2019 invention and its '
@@ -348,7 +361,8 @@ SEED_TECHNOLOGY_IP = [
                        '(priority 2018-10-10, granted 2021-09-14)')],
          sources=['https://patents.google.com/patent/US9966471B2/en',
                   'https://patents.google.com/patent/US11121044B2/en'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['pat-us-9966471', 'pat-us-11121044', 'pub-LOU17']),
     _rec('tfet', 'Tunnel FET', 'device-shape', 'tfet', 'patent-mixed',
          'amber',
          'The gated p-i-n tunnel transistor concept dates to the '
@@ -361,7 +375,8 @@ SEED_TECHNOLOGY_IP = [
          'find 1-2 representative TFET patents (e.g. Intel/IBM '
          'heterojunction TFET 2010-2016) and check status before any '
          'TFET build; nothing to do while it stays taxonomy-only.',
-         confidence='unverified'),
+         confidence='unverified',
+         evidence=['pub-RED95', 'pub-IR11']),
     # ---- CNT ------------------------------------------------------
     _rec('cnt-fet-basic', 'CNT FET (basic device)', 'device-material',
          'cnt-gaa', 'patent-expired', 'green',
@@ -385,7 +400,10 @@ SEED_TECHNOLOGY_IP = [
                        'gate separated by dielectric layers (granted '
                        '2005-05-10)')],
          sources=['https://patents.google.com/patent/US6891227B2/en'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['pat-us-6891227', 'pub-TANS98', 'pub-WIL98',
+                   'pub-ZF92', 'pub-JAV04', 'pub-PARK04', 'pub-FC10',
+                   'pub-FIO05', 'pub-RAH03', 'book-lundstrom-2000']),
     _rec('cnt-aligned-array-process',
          'Aligned semiconducting CNT arrays (growth/transfer/sort/'
          'purify)', 'process', 'cnt-gaa', 'patent-active', 'amber',
@@ -427,7 +445,8 @@ SEED_TECHNOLOGY_IP = [
                   'https://patents.google.com/patent/US8354291B2/en'],
          confidence='partially-verified',
          notes='Two representatives verified; the Stanford/MIT/IBM '
-               'families named in verify_next were NOT fetched.'),
+               'families named in verify_next were NOT fetched.',
+         evidence=['pat-us-9825229', 'pat-us-8354291', 'pub-HIL19']),
     # ---- dielectric chemistry ------------------------------------
     _rec('sol-gel-dielectric-generic', 'Sol-gel oxide chemistry '
          '(alkoxide hydrolysis/condensation)', 'chemistry',
@@ -444,7 +463,8 @@ SEED_TECHNOLOGY_IP = [
          'sol-gel-hfo2-formulations record.',
          sources=['Brinker & Scherer, Sol-Gel Science, Academic '
                   'Press 1990 (ISBN 978-0-12-134970-7)'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['book-brinker-scherer', 'pub-SG-SIO2']),
     _rec('sol-gel-hfo2-formulations', 'Sol-gel / solution HfO2 '
          'high-k formulations', 'chemistry', 'solgel-hfo2-4nm',
          'patent-mixed', 'amber',
@@ -472,7 +492,9 @@ SEED_TECHNOLOGY_IP = [
                        'then plasma/thermal treatment (granted '
                        '2008-08-05; "Expired - Fee Related")')],
          sources=['https://patents.google.com/patent/US7407895B2/en'],
-         confidence='partially-verified'),
+         confidence='partially-verified',
+         evidence=['pat-us-7407895', 'book-brinker-scherer',
+                   'pub-SG-HFO2']),
     # ---- cells ----------------------------------------------------
     _rec('standard-cells', 'Standard-cell circuits (all 25 library '
          'cells)', 'cell', '*', 'public-domain', 'green',
@@ -495,7 +517,10 @@ SEED_TECHNOLOGY_IP = [
          sources=['Weste & Harris, CMOS VLSI Design 4e (2010) ch.1, '
                   '10-11', 'Rabaey, Chandrakasan, Nikolic, Digital '
                   'Integrated Circuits 2e (2003)'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['pat-us-3356858', 'book-weste-eshraghian-1985',
+                   'book-rabaey-2003', 'book-weste-harris-2010',
+                   'pub-NAR01', 'lic-gpl-3.0']),
     _rec('mirror-adder', 'Mirror adder (full-adder cell)', 'cell', 'cfa',
          'public-domain', 'green',
          'The mirror adder is the classic 28-transistor symmetric '
@@ -507,7 +532,9 @@ SEED_TECHNOLOGY_IP = [
          licence='GPL-3.0-or-later (our cfa netlist)',
          what_we_own='CELL_LIBRARY["cfa"] — GPLv3',
          sources=['Rabaey et al. 2003 §11.3.2 (mirror adder)'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['book-weste-eshraghian-1985', 'book-rabaey-2003',
+                   'lic-gpl-3.0']),
     _rec('tg-latch', 'Transmission-gate latch / master-slave DFF',
          'cell', 'clatch', 'public-domain', 'green',
          'The transmission-gate latch and the master-slave DFF built '
@@ -522,7 +549,9 @@ SEED_TECHNOLOGY_IP = [
          what_we_own='CELL_LIBRARY["clatch"], cnt_sequential cdff — '
                      'GPLv3',
          sources=['Weste & Harris 2010 ch.10'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['book-weste-eshraghian-1985', 'book-rabaey-2003',
+                   'book-weste-harris-2010', 'lic-gpl-3.0']),
     # ---- silicon refinement --------------------------------------
     _rec('siemens-tcs', 'Siemens process (TCS distillation + CVD)',
          'process', 'siemens-tcs', 'trade-secret', 'amber',
@@ -550,7 +579,11 @@ SEED_TECHNOLOGY_IP = [
                   'review)', 'si_refinement [SCH19] [CEC12]'],
          notes='Original Siemens patent numbers NOT fetched — '
                'expired by age with certainty (1950s filing) but '
-               'the numbers are unverified.'),
+               'the numbers are unverified. (cnt_evidence fetched US '
+               '3,011,877: Siemens, filed 1957-06-11, expired '
+               '1978-12-05.)',
+         evidence=['pat-us-3011877', 'pub-SCH19', 'pub-CEC12',
+                   'std-semi-pv017']),
     _rec('fbr-silane', 'Fluidised-bed silane / TCS granular polysilicon',
          'process', 'fbr-silane', 'patent-active', 'amber',
          'The FBR concept is old (Union Carbide / Ethyl 1980s, US '
@@ -586,7 +619,9 @@ SEED_TECHNOLOGY_IP = [
                        'https://patents.justia.com/patent/9428830')],
          sources=['https://patents.google.com/patent/US8802046B2/en',
                   'https://patents.justia.com/patent/9428830'],
-         confidence='partially-verified'),
+         confidence='partially-verified',
+         evidence=['pat-us-8802046', 'pat-us-9428830', 'pat-us-4883687',
+                   'pub-SCH19', 'pub-CEC12']),
     _rec('directional-solidification', 'Directional solidification '
          '(Bridgman / HEM ingot casting)', 'process',
          'directional-solidification', 'patent-mixed', 'amber',
@@ -603,7 +638,10 @@ SEED_TECHNOLOGY_IP = [
          'and mono-like (seeded) casting claims if the furnace copies '
          'a commercial design.',
          confidence='unverified',
-         sources=['si_refinement [DEL12] [CEC12]']),
+         sources=['si_refinement [DEL12] [CEC12]'],
+         evidence=['pub-SCH42', 'pub-BCF52', 'pub-TRU60', 'pub-DEL12',
+                   'pub-CEC12', 'pub-SAF12', 'pub-HOP85', 'pub-ZHE11',
+                   'pub-ALE15']),
     _rec('zone-refining', 'Zone refining (Pfann)', 'process',
          'zone-refining', 'patent-expired', 'green',
          'Pfann (Bell Labs) US 2,739,088 "Process for controlling '
@@ -624,7 +662,9 @@ SEED_TECHNOLOGY_IP = [
          sources=['https://patents.google.com/patent/US2739088A/en',
                   'https://www.computerhistory.org/siliconengine/'
                   'development-of-zone-refining/'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['pat-us-2739088', 'book-pfann-1966', 'pub-TRU60',
+                   'pub-BCF52']),
     # ---- models / tools / formats --------------------------------
     _rec('vs-compact-model', 'VS-CNFET-derived compact model (ours)',
          'model', 'vs-model', 'open-licence', 'green',
@@ -654,7 +694,11 @@ SEED_TECHNOLOGY_IP = [
          sources=['cntfet/cnt_vs_model.py docstring',
                   'AI-Notes/evaluations/CNT_FET_SIM_LICENSE_GATE.md '
                   '(Stanford/CCAM gate)', 'arXiv:1503.04397'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['pub-VS1', 'pub-VS2', 'pub-KHA09', 'pub-RAH03',
+                   'pub-LUN97', 'pub-GUO04', 'book-lundstrom-2000',
+                   'lic-gpl-3.0', 'lic-cmc-modified',
+                   'std-verilog-ams-2.4']),
     _rec('liberty-format', 'Liberty (.lib) library format', 'format',
          'liberty-format', 'open-licence', 'green',
          'Liberty is published by Synopsys under the "Synopsys Open '
@@ -676,7 +720,8 @@ SEED_TECHNOLOGY_IP = [
          sources=['https://metacpan.org/pod/Parse::Liberty',
                   'https://news.synopsys.com/index.php?s=20295&'
                   'item=123415'],
-         confidence='partially-verified'),
+         confidence='partially-verified',
+         evidence=['std-liberty', 'lic-synopsys-osl-1.0', 'lic-gpl-3.0']),
     _rec('ngspice', 'ngspice circuit simulator', 'tool', 'ngspice',
          'open-licence', 'green',
          'ngspice base licence is BSD-3-Clause ("Modified BSD", '
@@ -693,7 +738,9 @@ SEED_TECHNOLOGY_IP = [
          what_we_own='cnt_osdi / cnt_cells drivers — GPLv3',
          sources=['https://github.com/ngspice/ngspice/blob/master/'
                   'COPYING', 'https://ngspice.sourceforge.io/devel.html'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['lic-bsd-3-clause', 'lic-lgpl-2.1', 'lic-mpl-2.0',
+                   'lic-mit']),
     _rec('openvaf', 'OpenVAF / OpenVAF-Reloaded Verilog-A compiler',
          'tool', 'openvaf', 'open-licence', 'green',
          'GPL-3.0 (+ MIT rustc-derived carve-outs) per the S0 gate; a '
@@ -706,7 +753,8 @@ SEED_TECHNOLOGY_IP = [
          sources=['AI-Notes/evaluations/CNT_FET_SIM_LICENSE_GATE.md '
                   '(OpenVAF/OSDI gate)',
                   'https://github.com/arpadbuermen/OpenVAF'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['lic-gpl-3.0', 'lic-mit', 'std-verilog-ams-2.4']),
     _rec('opensta', 'OpenSTA static timing analyser', 'tool', 'opensta',
          'open-licence', 'green',
          'GPL-3.0 (parallaxsw/OpenSTA, dual-licensed commercially). '
@@ -718,7 +766,8 @@ SEED_TECHNOLOGY_IP = [
          sources=['AI-Notes/evaluations/CNT_FET_SIM_LICENSE_GATE.md '
                   '(ASAP7 + characterization gate)',
                   'https://github.com/parallaxsw/OpenSTA'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['lic-gpl-3.0', 'std-liberty']),
     _rec('kwant', 'Kwant quantum-transport (F3 NEGF kernel)', 'tool',
          'kwant', 'open-licence', 'green',
          'BSD-2-Clause (LICENSE.rst verified in the S0 gate) — '
@@ -729,7 +778,8 @@ SEED_TECHNOLOGY_IP = [
          sources=['AI-Notes/evaluations/CNT_FET_SIM_LICENSE_GATE.md '
                   '(NEGF engine gate)',
                   'https://gitlab.kwant-project.org/kwant/kwant'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['lic-bsd-2-clause']),
     _rec('verilog-a', 'Verilog-A / Verilog-AMS language', 'format',
          'verilog-a', 'open-licence', 'green',
          'Verilog-AMS is an Accellera standard (LRM 2.4.0) built on '
@@ -741,7 +791,8 @@ SEED_TECHNOLOGY_IP = [
          licence='Accellera / IEEE standard (open use)',
          what_we_own='cnt_verilog_a.py emitted .va — GPLv3',
          sources=['https://www.accellera.org/downloads/standards/v-ams'],
-         confidence='verified'),
+         confidence='verified',
+         evidence=['std-verilog-ams-2.4', 'std-ieee-1364-2005']),
 ]
 
 SEED_BY_NAME = {s['name']: s for s in SEED_TECHNOLOGY_IP}

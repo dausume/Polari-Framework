@@ -1087,6 +1087,7 @@ def cell_logic_report(cell_key, drive=1):
         'proof': proof, 'stateSpace': state_space(cell_key),
         'fetCount': _fet_count(cell_key, drive),
         'sequential': False,
+        'provenance': _cell_provenance(cell_key),
         'honesty': ('switch-level proof: ideal switches (a device '
                     'conducts iff its gate is at the controlling '
                     'level); no thresholds, no drive-fight '
@@ -1264,3 +1265,10 @@ def payload_contract():
 
 def to_json(payload):
     return json.dumps(payload, sort_keys=True)
+
+
+def _cell_provenance(cell_key):
+    """evidence: the cell's IP verdict + proof-of-freedom summary
+    (seed-backed when no manager is at hand; click-through detailPath)."""
+    from cntfet.cnt_device_viz import provenance
+    return provenance(None, 'cell', cell_key)

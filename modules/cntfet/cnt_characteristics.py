@@ -658,6 +658,7 @@ def characteristics_index(manager, device_name):
                  'performance_meaning': r['performance_meaning'],
                  'viewCount': len(json.loads(r['views_json']))}
                 for r in rows.values()],
+            'provenance': _device_provenance(manager, device_name),
             'detailPath': f'/api/cntfet/device/{device_name}'
                           '/characteristic/{key}'}
 
@@ -684,3 +685,8 @@ def characteristic_detail(manager, device_name, key, scene_names=()):
             'views': views,
             'unbuiltViews': [v['title'] for v in views
                              if v['status'] == 'unbuilt']}
+
+
+def _device_provenance(manager, device_name):
+    from cntfet.cnt_device_viz import provenance
+    return provenance(manager, 'device', device_name)

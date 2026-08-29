@@ -259,13 +259,28 @@ CURVES = ('transfer', 'output', 'transfer-states', 'output-states',
           'score-terms', 'transfer-envelope', 'cell-scores', 'compare')
 
 
+def provenance(manager, subject_kind, name):
+    """The compact evidence / proof-of-freedom block every FET and
+    cell payload embeds (first-class, clickable via detailPath).
+    None when the evidence module is absent — callers omit the key
+    rather than fake it."""
+    try:
+        from cntfet.cnt_evidence import provenance_summary
+    except ImportError:
+        return None
+    try:
+        return provenance_summary(manager, subject_kind, name)
+    except Exception as exc:   # a broken chain is reported, not hidden
+        return {'error': f'provenance unavailable: {exc}'}
+
+
 def extra_curve_builders():
     """fv arc: curve builders contributed by sibling modules, each
     `fn(id_fn, p, device, manager, knobs) -> rows`. A module that is
     absent simply contributes nothing (its curves refuse by name)."""
     builders = {}
     for mod in ('cnt_regimes', 'cnt_transport', 'cnt_fields',
-                'cnt_power', 'cnt_taxonomy', 'cnt_ip'):
+                'cnt_power', 'cnt_taxonomy', 'cnt_ip', 'cnt_evidence'):
         try:
             module = __import__(f'cntfet.{mod}', fromlist=['CURVE_BUILDERS'])
             builders.update(getattr(module, 'CURVE_BUILDERS', {}))
@@ -282,7 +297,8 @@ def extra_graph_seeds():
                       ('cnt_fields', 'SEED_CNT_FIELD_GRAPHS'),
                       ('cnt_power', 'SEED_CNT_POWER_GRAPHS'),
                       ('cnt_taxonomy', 'SEED_CNT_TAXONOMY_GRAPHS'),
-                      ('cnt_ip', 'SEED_CNT_IP_GRAPHS')):
+                      ('cnt_ip', 'SEED_CNT_IP_GRAPHS'),
+                      ('cnt_evidence', 'SEED_CNT_EVIDENCE_GRAPHS')):
         try:
             module = __import__(f'cntfet.{mod}', fromlist=[name])
             seeds.extend(getattr(module, name, []))

@@ -117,7 +117,15 @@ def _cells_page():
     schematic (config only: one row per cell, two components), the
     library-wide switch-level proof, and the DFF state space."""
     rows = [
-        _row(0, [
+        # evidence: which cells are FREE to use — the library proof
+        # table + the clickable evidence browser (patents, papers).
+        _row(0, [_cell_diagram('cells-evidence-browser', 0, 12,
+                               'Evidence + proof status for every cell, '
+                               'FET and process (US) — click a row for '
+                               'the chain, click an item for detail',
+                               'evidence-browser', '', 0)],
+             min_height=520),
+        _row(100, [
             _api('cells-library-proof', 0, 6,
                  'Cell library: boolean vs switch-level PROOF per cell '
                  '(allProven, contention, floating) + DFF state space',
@@ -272,6 +280,19 @@ SEED_CNTFET_PAGE_DISPLAYS = [{
         # cells: the characterized library scored against the
         # driving FET's own intrinsic limits (refuses by name
         # until a library run exists).
+        # evidence: is it free to use? — every FET / cell / process
+        # with its proof status; click through to patents and papers.
+        _row(9, [{
+            'id': 'cntfet-evidence-browser', 'index': 0,
+            'type': 'component', 'rowSegmentsUsed': 12,
+            'gridColumnStart': None,
+            'title': 'Free to use? Evidence (patents, papers, licences) '
+                     '+ proof status per FET / cell / process (US)',
+            'visible': True, 'collapsed': False, 'cssClass': '',
+            'componentProps': {'componentName': 'evidence-browser',
+                               'inputs': {}},
+            'item': None, 'nestedRows': [],
+        }], min_height=520),
         _row(8, [
             _device_graph('cntfet-device-cell-scores', 0, 6,
                           'S1 cells: score + terms vs intrinsic '

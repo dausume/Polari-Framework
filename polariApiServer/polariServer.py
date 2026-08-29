@@ -1417,6 +1417,20 @@ except ImportError:
     RefinementRoute = RefinementStep = SiliconGrade = None
     SEED_REFINEMENT_ROUTES = SEED_REFINEMENT_STEPS = []
     SEED_SILICON_GRADES = SEED_SI_REFINEMENT_GRAPHS = []
+try:
+    from sifet.si_pages_seed import (
+        SEED_SI_PAGE_DISPLAYS, SEED_SI_SCORE_PAGES,
+    )
+except ImportError:
+    SEED_SI_PAGE_DISPLAYS, SEED_SI_SCORE_PAGES = [], []
+try:
+    from cntfet.cnt_ip import SEED_TECHNOLOGY_IP, TechnologyIPRecord
+except ImportError:
+    TechnologyIPRecord, SEED_TECHNOLOGY_IP = None, []
+try:
+    from cntfet.cnt_evidence import EvidenceItem, SEED_EVIDENCE
+except ImportError:
+    EvidenceItem, SEED_EVIDENCE = None, []
 # microchip: the design-level ladder + traversal (separable from the
 # device modules — references their rows, never imports their code).
 try:
@@ -2632,6 +2646,7 @@ class polariServer(treeObject):
             PowerBudget, SiliconDopingProfile, SolGelDielectric,
             SolGelProcess, SiliconFETShape, SiliconMOSFET,
             SiliconGrade, RefinementStep, RefinementRoute,
+            TechnologyIPRecord, EvidenceItem,
             # cnt-s3: process objects + MC run rows.
             CNTAlignmentProcess, CNTPlacementProcess,
             CNTPurificationProcess, ContactFormationProcess,
@@ -3541,6 +3556,9 @@ class polariServer(treeObject):
              + (SEED_CNTFET_PAGE_DISPLAYS or [])
              # fi-4: per-FET competitive scoring pages.
              + (SEED_CNT_SCORE_PAGES or [])
+             # fp-2: silicon home + per-Si-FET score/detail pages.
+             + (SEED_SI_PAGE_DISPLAYS or [])
+             + (SEED_SI_SCORE_PAGES or [])
              + (SEED_MICROCHIP_PAGE_DISPLAYS or [])
              + (SEED_COMPUTERS_PAGE_DISPLAYS or [])),
             # Materials basis — identities before their scale rows.
@@ -3626,6 +3644,11 @@ class polariServer(treeObject):
              SEED_REFINEMENT_STEPS or []),
             ('RefinementRoute', RefinementRoute,
              SEED_REFINEMENT_ROUTES or []),
+            # ip: licensing / FTO records per technology.
+            # evidence FIRST (records join to it by name), then records.
+            ('EvidenceItem', EvidenceItem, SEED_EVIDENCE or []),
+            ('TechnologyIPRecord', TechnologyIPRecord,
+             SEED_TECHNOLOGY_IP or []),
             # cnt-s3: the target line's process rows.
             ('CNTAlignmentProcess', CNTAlignmentProcess,
              SEED_ALIGNMENT_PROCESSES),

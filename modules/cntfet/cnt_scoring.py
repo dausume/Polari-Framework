@@ -578,7 +578,15 @@ def score_device(manager, device_name, knobs=None):
         'genericEngine': f"score_concept(manager, '{CONCEPT_NAME}') "
                          'levelizes every fet-device subject with the '
                          'same terms via objectRef bindings',
+        # evidence: first-class provenance (IP verdict, proof status,
+        # top evidence, click-through) on every scored FET
+        'provenance': _provenance(manager, 'device', device_name),
     }
+
+
+def _provenance(manager, kind, name):
+    from cntfet.cnt_device_viz import provenance
+    return provenance(manager, kind, name)
 
 
 # ── long-form rows for the fi-2/fi-3 graph ─────────────────────────

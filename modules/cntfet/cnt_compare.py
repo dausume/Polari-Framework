@@ -58,6 +58,9 @@ def compare_devices(manager, focus_name, knobs=None):
             'terms': {t['term']: t['normalized']
                       for t in s.get('terms', []) if t.get('found')},
             'isFocus': n == focus_name,
+            # evidence: proof-of-freedom beside the score — a fast
+            # device that is encumbered is a different answer
+            'provenance': s.get('provenance'),
         })
     ranking.sort(key=lambda r: (-r['score'], r['device']))
     best = ranking[0]['score'] if ranking else 0.0
@@ -152,11 +155,19 @@ def _score_page(device_name, source_class='AlignedCNTFETDevice'):
                               f'{d}: stochastic Id(Vg) envelope',
                               d, 'transfer-envelope'),
             ], min_height=430),
-            _row(3, [
+            # evidence: the proof-of-freedom chain (US) — status badge,
+            # governing records, clickable patents / papers / licences.
+            _row(3, [_component_item(f'score-{d}-proof', 0, 12,
+                                     f'{d}: is it free to use? — proof '
+                                     'chain (patents, papers, licences; '
+                                     'click any item)',
+                                     'freedom-proof-panel',
+                                     {'path': f'/api/cntfet/device/{d}/proof'})],
+                 min_height=420),
+            _row(4, [
                 _api(f'score-{d}-ip', 0, 6,
-                     f'{d}: licensing / freedom-to-operate (patents '
-                     'expired vs active, what we own, what to verify — '
-                     'engineering record, not legal advice)',
+                     f'{d}: licensing / freedom-to-operate records '
+                     '(engineering record, not legal advice)',
                      f'/api/cntfet/device/{d}/ip'),
                 _api(f'score-{d}-links', 1, 6,
                      f'{d}: related pages, partner, cells',
@@ -168,6 +179,18 @@ def _score_page(device_name, source_class='AlignedCNTFETDevice'):
 
 def score_pages(device_names, source_class='AlignedCNTFETDevice'):
     return [_score_page(n, source_class) for n in device_names]
+
+
+def _component_item(item_id, index, segments, title, component, inputs):
+    """Any generic-registry component as a page item."""
+    return {
+        'id': item_id, 'index': index, 'type': 'component',
+        'rowSegmentsUsed': segments, 'gridColumnStart': None,
+        'title': title, 'visible': True, 'collapsed': False,
+        'cssClass': '',
+        'componentProps': {'componentName': component, 'inputs': inputs},
+        'item': None, 'nestedRows': [],
+    }
 
 
 def _explorer_item(item_id, index, segments, title, device):
@@ -200,6 +223,13 @@ def _detail_page(device_name, with_scenes=True,
         _row(0, [_explorer_item(f'detail-{d}-explorer', 0, 12,
                                 f'{d}: characteristics → views + '
                                 'meaning', d)], min_height=640),
+        # evidence: proof chain on the detail page too (first-class)
+        _row(8, [_component_item(f'detail-{d}-proof', 0, 12,
+                                 f'{d}: is it free to use? — proof '
+                                 'chain (click any patent / paper)',
+                                 'freedom-proof-panel',
+                                 {'path': f'/api/cntfet/device/{d}/proof'})],
+             min_height=420),
         # fp-6 weave: where else this FET lives (pages, partner,
         # cells, comparators) — a reader never dead-ends here.
         _row(9, [_api(f'detail-{d}-links', 0, 12,

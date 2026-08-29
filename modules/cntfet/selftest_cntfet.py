@@ -544,9 +544,10 @@ def main():
           page['isPage'] and page['pageRoute'] == 'cntfet'
           and set(page_components) <= {'class-rows-table',
                                        'api-json-panel',
-                                       'named-graph-panel'}
+                                       'named-graph-panel',
+                                       'evidence-browser'}   # evidence
           and page_components.count('named-graph-panel') == 10
-          and len(page_components) == 21)
+          and len(page_components) == 22)   # + evidence-browser
     from cntfet.cnt_device_viz import SEED_CNT_DEVICE_GRAPHS
     from cntfet.cnt_figures import SEED_CNTFET_FIGURE_GRAPHS
     graph_names = ({g['name'] for g in SEED_CNTFET_FIGURE_GRAPHS}
@@ -972,7 +973,7 @@ def main():
           and all(pg['pageRoute'] == f'cntfet-score-{pg["name"][13:]}'
                   and pg['source_class'] == 'AlignedCNTFETDevice'
                   for pg in pages)
-          and all(len(pd['rows']) == 4 for pd in page_defs)   # + links row
+          and all(len(pd['rows']) == 5 for pd in page_defs)   # + proof + links rows
           and any(lg30.name in item['componentProps']['inputs']
                   .get('dataPath', '')
                   for pd in page_defs[1:] for row in pd['rows']
@@ -1189,6 +1190,48 @@ def main():
           and ip_rows['ok'] and len(ip_rows['rows']) >= 3,
           f's1={ip_s1.get("worst_verdict")} si={ip_si.get("worst_verdict")} '
           f'counts={ip_lib.get("verdict_counts")} rows={ip_rows.get("error")}')
+
+    # ---- evidence: proof-of-freedom as first-class, embedded ----------
+    from cntfet.cnt_evidence import (
+        SEED_EVIDENCE, evidence_detail, freedom_proof, library_proof,
+    )
+    mgr.objectTables.setdefault('EvidenceItem', {})
+    for seed in SEED_EVIDENCE:
+        _row_factory(mgr, 'EvidenceItem')(**seed)
+    pf_s1 = freedom_proof(mgr, 'device', device.name)
+    pf_si = freedom_proof(mgr, 'device', 'si-nmos-planar-90')
+    pf_inv = freedom_proof(mgr, 'cell', 'cinv')
+    ev = evidence_detail(mgr, 'pat-us-3102230')
+    lib_pf = library_proof(mgr)
+    sc_prov = score_device(mgr, 'si-nmos-planar-90').get('provenance')
+    cmp_prov = next(r for r in compare_devices(mgr, device.name)['ranking']
+                    if r['isFocus']).get('provenance')
+    lg_prov = cell_logic_report('cinv').get('provenance')
+    check('evidence: patents / papers / licences are first-class rows '
+          'joined to every IP record; the proof chain (US) makes the '
+          'planar Si NMOS PROVEN-FREE (expired patents verified online: '
+          'US 3,102,230 / 3,356,858 / 3,025,589), every cell proven-free, '
+          'and S1 ENCUMBERED with the active aligned-array patent named '
+          'as the gap; the Kahng patent detail lists what it supports; '
+          'provenance blocks (verdict, status, top evidence, click-through '
+          'detailPath) ride the score, compare and cell-logic payloads',
+          len(SEED_EVIDENCE) >= 60
+          and pf_si['status'] == 'proven-free' and not pf_si['gaps']
+          and pf_inv['status'] == 'proven-free'
+          and pf_s1['status'] == 'encumbered'
+          and any('9825229' in g or '9,825,229' in g for g in pf_s1['gaps'])
+          and pf_s1['jurisdiction'] == 'US' and pf_s1.get('disclaimer')
+          and ev['ok'] and ev['item']['verified']
+          and any(r.get('record') == 'mosfet-generic'
+                  for r in ev['supports']['records'])
+          and lib_pf['counts'].get('proven-free', 0) >= 26
+          and sc_prov and sc_prov['proofStatus'] == 'proven-free'
+          and sc_prov['detailPath'].endswith('/proof')
+          and cmp_prov and cmp_prov['proofStatus'] == 'encumbered'
+          and lg_prov and lg_prov['proofStatus'] == 'proven-free',
+          f's1={pf_s1.get("status")} si={pf_si.get("status")} '
+          f'inv={pf_inv.get("status")} counts={lib_pf.get("counts")} '
+          f'sc={sc_prov} lg={lg_prov}')
 
     # ---- fi-2 (cells): the library scored vs intrinsic limits ------
     from cntfet.cnt_cell_scoring import (

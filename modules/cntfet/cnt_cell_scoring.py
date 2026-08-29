@@ -406,7 +406,8 @@ def score_cells(manager, device_name, liberty_text=None):
         'gridPoint': next((c['frame']['gridPoint'] for c in scored),
                           None),
         'cells': cells,
-        'ranking': [{'cell': c['cell'], 'score': c['score']}
+        'ranking': [{'cell': c['cell'], 'score': c['score'],
+                     'provenance': _cell_prov(manager, c)}
                     for c in sorted(scored, key=lambda c: -c['score'])],
         'idealTable': [
             {'term': k, 'equation': v['equation'], 'ideal': v['ideal'],
@@ -433,3 +434,12 @@ def cell_score_rows(report):
     rows.append({'series': 'ideal', 'style': 'hguide', 'dash': True,
                  'x': None, 'y': 1.0, 'label': 'ideal = 1.0'})
     return rows
+
+
+def _cell_prov(manager, scored_cell):
+    """evidence: proof-of-freedom beside every cell score (first-class,
+    clickable via detailPath). The library name maps back to the cell
+    key through the frame."""
+    from cntfet.cnt_device_viz import provenance
+    key = (scored_cell.get('frame') or {}).get('cell') or scored_cell['cell']
+    return provenance(manager, 'cell', key)

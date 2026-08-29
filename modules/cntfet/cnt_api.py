@@ -92,6 +92,15 @@ class CNTFETAPI(treeObject):
             # legal advice — every payload says so).
             add('/api/cntfet/device/{name}/ip', self, suffix='device_ip')
             add('/api/cntfet/ip', self, suffix='library_ip')
+            # evidence: first-class patents / publications / licences and
+            # the proof-of-freedom chain per FET / cell / route (US).
+            add('/api/cntfet/device/{name}/proof', self,
+                suffix='device_proof')
+            add('/api/cntfet/cell/{cell}/proof', self, suffix='cell_proof')
+            add('/api/cntfet/proof', self, suffix='library_proof')
+            add('/api/cntfet/evidence', self, suffix='evidence_index')
+            add('/api/cntfet/evidence/{item}', self,
+                suffix='evidence_detail')
             # fp-2 / fp-4: silicon FETs on sol-gel + silicon refinement
             # (the sifet module rides this API class — same server).
             add('/api/sifet/capability', self, suffix='si_capability')
@@ -429,6 +438,38 @@ class CNTFETAPI(treeObject):
             return self._refuse(response, f'no device "{name}"',
                                 '404 Not Found')
         response.media = device_ip_report(self.manager, name)
+
+    def on_get_device_proof(self, request, response, name):
+        from cntfet.cnt_evidence import freedom_proof
+        if (get_row(self.manager, 'AlignedCNTFETDevice', name) is None
+                and get_row(self.manager, 'SiliconMOSFET', name) is None):
+            return self._refuse(response, f'no device "{name}"',
+                                '404 Not Found')
+        response.media = freedom_proof(self.manager, 'device', name)
+
+    def on_get_cell_proof(self, request, response, cell):
+        from cntfet.cnt_evidence import freedom_proof
+        report = freedom_proof(self.manager, 'cell', cell)
+        if not report.get('ok', True):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_library_proof(self, request, response):
+        from cntfet.cnt_evidence import library_proof
+        response.media = library_proof(self.manager)
+
+    def on_get_evidence_index(self, request, response):
+        from cntfet.cnt_evidence import evidence_index
+        response.media = evidence_index(
+            self.manager, kind=request.get_param('kind'),
+            subject=request.get_param('subject'))
+
+    def on_get_evidence_detail(self, request, response, item):
+        from cntfet.cnt_evidence import evidence_detail
+        report = evidence_detail(self.manager, item)
+        if not report.get('ok', True):
+            response.status = '404 Not Found'
+        response.media = report
 
     def on_get_library_ip(self, request, response):
         from cntfet.cnt_ip import library_ip_report
