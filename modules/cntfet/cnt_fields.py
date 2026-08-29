@@ -449,7 +449,7 @@ def _scalar_curve(field, log_floor=None):
             prof = field_profile(manager, device, field, vg=vg, vd=vd,
                                  n=k.get('n', 60), knobs=k)
             if not prof.get('ok'):
-                return rows
+                return None, prof   # refusal, not an empty chart
             profiles.append(prof)
             rows.extend(field_rows(prof, include_regions=False))
         if field == 'potential':
@@ -473,7 +473,7 @@ def _material_curve(id_fn, p, device, manager, knobs=None):
     prof = field_profile(manager, device, 'material', knobs=knobs)
     return field_rows(prof, include_regions=True,
                       y_range=(-0.5, len(prof['regions']) - 0.5)
-                      if prof.get('ok') else None)
+                      if prof.get('ok') else (None, prof))
 
 
 def _doping_curve(id_fn, p, device, manager, knobs=None):

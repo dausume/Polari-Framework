@@ -158,18 +158,22 @@ class CNTFETAPI(treeObject):
         from cntfet.cnt_figures import build_figure
         report = build_figure(figure_id, manager=self.manager)
         if not report.get('ok'):
+            # a REFUSAL (no row-backed run yet) is 422, never 503 — the
+            # proxy rewrites upstream 503 into "backend unavailable"
             response.status = ('404 Not Found'
                                if 'error' in report
-                               else '503 Service Unavailable')
+                               else '422 Unprocessable Entity')
         response.media = report
 
     def on_get_figure_points(self, request, response, figure_id):
         from cntfet.cnt_figures import figure_points
         report = figure_points(figure_id, manager=self.manager)
         if not report.get('ok'):
+            # a REFUSAL (no row-backed run yet) is 422, never 503 — the
+            # proxy rewrites upstream 503 into "backend unavailable"
             response.status = ('404 Not Found'
                                if 'error' in report
-                               else '503 Service Unavailable')
+                               else '422 Unprocessable Entity')
         response.media = report
 
     def on_get_citations(self, request, response):
@@ -816,7 +820,7 @@ class CNTFETAPI(treeObject):
                                               60)),
                 scf=payload.get('scf'))
             if not report.get('ok'):
-                response.status = ('503 Service Unavailable'
+                response.status = ('422 Unprocessable Entity'
                                    if 'refusal' in report
                                    else '422 Unprocessable Entity')
             response.media = report
@@ -829,7 +833,7 @@ class CNTFETAPI(treeObject):
                 drives=tuple(payload.get('drives', [1])),
                 vdd=float(payload.get('vdd', 0.6)))
             if not report.get('ok'):
-                response.status = ('503 Service Unavailable'
+                response.status = ('422 Unprocessable Entity'
                                    if 'refusal' in report
                                    else '422 Unprocessable Entity')
             response.media = report
@@ -843,7 +847,7 @@ class CNTFETAPI(treeObject):
                 vdd=float(payload.get('vdd', getattr(device, 'vdd_v', None) or 0.6)),
                 iters=int(payload.get('iters', 6)))
             if not report.get('ok'):
-                response.status = ('503 Service Unavailable'
+                response.status = ('422 Unprocessable Entity'
                                    if 'refusal' in report
                                    else '422 Unprocessable Entity')
             response.media = report
@@ -856,7 +860,7 @@ class CNTFETAPI(treeObject):
                 executor=payload.get('executor', 'polari-own-loop'),
                 iters=int(payload.get('iters', 6)))
             if not report.get('ok'):
-                response.status = ('503 Service Unavailable'
+                response.status = ('422 Unprocessable Entity'
                                    if 'refusal' in report
                                    else '422 Unprocessable Entity')
             response.media = report
@@ -867,7 +871,7 @@ class CNTFETAPI(treeObject):
                 self.manager, device,
                 vdd=float(payload.get('vdd', 0.6)))
             if not report.get('ok'):
-                response.status = ('503 Service Unavailable'
+                response.status = ('422 Unprocessable Entity'
                                    if 'refusal' in report
                                    else '422 Unprocessable Entity')
             response.media = report
@@ -880,7 +884,7 @@ class CNTFETAPI(treeObject):
                 self.manager, device,
                 vdd=float(payload.get('vdd', 0.6)))
             if not report.get('ok'):
-                response.status = ('503 Service Unavailable'
+                response.status = ('422 Unprocessable Entity'
                                    if 'refusal' in report
                                    else '422 Unprocessable Entity')
             response.media = report
@@ -891,7 +895,7 @@ class CNTFETAPI(treeObject):
                 self.manager, device,
                 vdd=float(payload.get('vdd', 0.6)))
             if not report.get('ok'):
-                response.status = ('503 Service Unavailable'
+                response.status = ('422 Unprocessable Entity'
                                    if 'refusal' in report
                                    else '422 Unprocessable Entity')
             response.media = report
@@ -905,7 +909,7 @@ class CNTFETAPI(treeObject):
                 vdd=float(payload.get('vdd', getattr(device, 'vdd_v', None) or 0.6)),
                 stages=int(payload.get('stages', 5)))
             if not report.get('ok'):
-                response.status = ('503 Service Unavailable'
+                response.status = ('422 Unprocessable Entity'
                                    if 'refusal' in report
                                    else '422 Unprocessable Entity')
             response.media = report
@@ -916,7 +920,7 @@ class CNTFETAPI(treeObject):
                 self.manager, device,
                 vdd=float(payload.get('vdd', 0.6)))
             if not report.get('ok'):
-                response.status = ('503 Service Unavailable'
+                response.status = ('422 Unprocessable Entity'
                                    if 'refusal' in report
                                    else '422 Unprocessable Entity')
             response.media = report
@@ -929,7 +933,7 @@ class CNTFETAPI(treeObject):
                 seed=int(payload.get('seed', 1)),
                 criteria=payload.get('criteria'))
             if not report.get('ok'):
-                response.status = ('503 Service Unavailable'
+                response.status = ('422 Unprocessable Entity'
                                    if 'refusal' in report
                                    else '422 Unprocessable Entity')
             response.media = report
@@ -951,7 +955,7 @@ class CNTFETAPI(treeObject):
             if not report.get('ok'):
                 response.status = ('422 Unprocessable Entity'
                                    if 'refusal' not in report
-                                   else '503 Service Unavailable')
+                                   else '422 Unprocessable Entity')
             response.media = report
             return
         return self._refuse(
