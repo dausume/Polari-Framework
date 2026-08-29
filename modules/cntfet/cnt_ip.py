@@ -590,7 +590,7 @@ SEED_TECHNOLOGY_IP = [
          '4,883,687 expired) but every practical FBR is wrapped in '
          'live claims: Wacker US 8,802,046 (filed 2013-04-12; LAPSED '
          'for fees 2022, so unenforceable) is the verified '
-         'representative, and REC Silicon (US 9,428,830 reverse-'
+         'representative, and GTAT (US 9,428,830 reverse-'
          'circulation FBR, granted 2016), GTAT/SunEdison-MEMC and '
          'Hanwha families from 2012-2020 are very likely ACTIVE. '
          'Amber: the base process is free, the reactor designs that '
@@ -598,7 +598,7 @@ SEED_TECHNOLOGY_IP = [
          _OWN_MAKE_ACTIVE + ' Building your own FBR that uses a '
          'claimed heating / gas-distribution / seed-handling scheme '
          'is infringing "making".',
-         'fetch US 9,428,830 (REC) status and filing date; search '
+         'confirm US 9,428,830 (GTAT) maintenance status; search '
          'REC Silicon, GTAT, SunEdison/MEMC, Hanwha, Wacker FBR '
          'families 2010-2022 against the intended reactor; confirm '
          '8,802,046 lapse is final.',
@@ -611,11 +611,13 @@ SEED_TECHNOLOGY_IP = [
                        'Fee Related" 2022-09-19)'),
                   _pat('9,428,830', 'Reverse circulation fluidized bed '
                        'reactor for granular polysilicon production',
-                       'REC Silicon', '', '', 'active-unverified',
+                       'GTAT Corp (now Advanced Material Solutions)',
+                       '2014-07-02', '2034-12-19', 'active',
                        'thermally-insulated vertical divider; particles '
                        'circulate up through a heating zone into the '
                        'silane reaction zone (granted 2016-08-30; '
-                       'filing date NOT fetched)',
+                       'Google Patents 2026-08-29: assignee GTAT, not '
+                       'REC — corrected; active to 2034-12-19)',
                        'https://patents.justia.com/patent/9428830')],
          sources=['https://patents.google.com/patent/US8802046B2/en',
                   'https://patents.justia.com/patent/9428830'],
