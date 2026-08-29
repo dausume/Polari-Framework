@@ -840,7 +840,7 @@ class CNTFETAPI(treeObject):
             from cntfet.cnt_sequential import characterize_latch
             report = characterize_latch(
                 self.manager, device,
-                vdd=float(payload.get('vdd', 0.6)),
+                vdd=float(payload.get('vdd', getattr(device, 'vdd_v', None) or 0.6)),
                 iters=int(payload.get('iters', 6)))
             if not report.get('ok'):
                 response.status = ('503 Service Unavailable'
@@ -852,7 +852,7 @@ class CNTFETAPI(treeObject):
             from cntfet.cnt_sequential import characterize_sequential
             report = characterize_sequential(
                 self.manager, device,
-                vdd=float(payload.get('vdd', 0.6)),
+                vdd=float(payload.get('vdd', getattr(device, 'vdd_v', None) or 0.6)),
                 executor=payload.get('executor', 'polari-own-loop'),
                 iters=int(payload.get('iters', 6)))
             if not report.get('ok'):
@@ -902,7 +902,7 @@ class CNTFETAPI(treeObject):
             )
             report = run_ring_oscillator(
                 self.manager, device,
-                vdd=float(payload.get('vdd', 0.6)),
+                vdd=float(payload.get('vdd', getattr(device, 'vdd_v', None) or 0.6)),
                 stages=int(payload.get('stages', 5)))
             if not report.get('ok'):
                 response.status = ('503 Service Unavailable'
