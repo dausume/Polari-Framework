@@ -44,6 +44,23 @@ def _api(item_id, index, segments, title, path):
     }
 
 
+def _sapi(item_id, index, segments, title, path, pick=''):
+    """A tabular API payload rendered as chips / tables (generic
+    structured-payload reading) — never a raw JSON wall. `pick` is a
+    dot-path into the payload (e.g. 'idealTable', 'ranking')."""
+    return {
+        'id': item_id, 'index': index, 'type': 'component',
+        'rowSegmentsUsed': segments, 'gridColumnStart': None,
+        'title': title, 'visible': True, 'collapsed': False,
+        'cssClass': '',
+        'componentProps': {
+            'componentName': 'api-structured-panel',
+            'inputs': {'path': path, 'pick': pick, 'title': ''},
+        },
+        'item': None, 'nestedRows': [],
+    }
+
+
 def _figure(item_id, index, segments, title, figure_id):
     """A figure-replica GRAPH panel (Dustin 2026-08-25: graphs,
     not JSON — and CONFIGURABLE ones riding the original graphs
@@ -126,13 +143,13 @@ def _cells_page():
                                'evidence-browser', '', 0)],
              min_height=520),
         _row(100, [
-            _api('cells-library-proof', 0, 6,
+            _sapi('cells-library-proof', 0, 6,
                  'Cell library: boolean vs switch-level PROOF per cell '
                  '(allProven, contention, floating) + DFF state space',
-                 '/api/cntfet/cells/logic'),
-            _api('cells-library', 1, 6,
+                 '/api/cntfet/cells/logic', pick='combinational'),
+            _sapi('cells-library', 1, 6,
                  'Cell library (generated variants, drives, arcs)',
-                 '/api/cntfet/cell-library'),
+                 '/api/cntfet/cell-library', pick='cells'),
         ], min_height=360),
     ]
     for i, (cell, label) in enumerate((
@@ -235,11 +252,11 @@ SEED_CNTFET_PAGE_DISPLAYS = [{
             _device_graph('cntfet-device-output', 1, 4,
                           'S1 device: output Id(Vd)',
                           'cnt-aligned-s1', 'output'),
-            _api('cntfet-device-characterization', 2, 4,
+            _sapi('cntfet-device-characterization', 2, 4,
                  'S1 device: characterization (SS/DIBL/Ion/Ioff/'
                  'gm — refusals verbatim)',
                  '/api/cntfet/device/cnt-aligned-s1'
-                 '/characterization'),
+                 '/characterization', pick='metrics'),
         ], min_height=430),
         # fi-0/fi-1 (FET_INTUITION_PLAN): the states the device
         # passes through, what qualifies each (criteria as data),
@@ -253,11 +270,11 @@ SEED_CNTFET_PAGE_DISPLAYS = [{
                           'S1 device: linear vs saturation on '
                           'Id(Vd) (Vdsat locus)',
                           'cnt-aligned-s1', 'output-states'),
-            _api('cntfet-device-states', 2, 4,
+            _sapi('cntfet-device-states', 2, 4,
                  'S1 device: states, boundaries + sweep events '
                  '(criteria evaluated with their numbers)',
                  '/api/cntfet/device/cnt-aligned-s1/states'
-                 '?vd=0.6&vg=0.3'),
+                 '?vd=0.6&vg=0.3', pick='boundaries'),
         ], min_height=430),
         # fi-2/fi-3: scoring by characteristic equations — each
         # term against its computed ideal — and the best/worst
@@ -271,11 +288,11 @@ SEED_CNTFET_PAGE_DISPLAYS = [{
                           'S1 device: stochastic Id(Vg) envelope '
                           '(p05–p95, min–max)',
                           'cnt-aligned-s1', 'transfer-envelope'),
-            _api('cntfet-device-score', 2, 4,
+            _sapi('cntfet-device-score', 2, 4,
                  'S1 device: score by characteristic equations '
                  '(ideal vs actual, MC best/worst)',
                  '/api/cntfet/device/cnt-aligned-s1/score'
-                 '?samples=100'),
+                 '?samples=100', pick='idealTable'),
         ], min_height=430),
         # cells: the characterized library scored against the
         # driving FET's own intrinsic limits (refuses by name
@@ -299,9 +316,10 @@ SEED_CNTFET_PAGE_DISPLAYS = [{
                           'limits (delay/τ, transition/τ, '
                           'energy/C·V², FETs/min)',
                           'cnt-aligned-s1', 'cell-scores'),
-            _api('cntfet-device-cell-scores-json', 1, 6,
+            _sapi('cntfet-device-cell-scores-json', 1, 6,
                  'S1 cells: scores (mid-grid point, ideal table)',
-                 '/api/cntfet/device/cnt-aligned-s1/cell-scores'),
+                 '/api/cntfet/device/cnt-aligned-s1/cell-scores',
+                 pick='ranking'),
         ], min_height=430),
     ]}),
 }, _cells_page()]

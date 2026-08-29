@@ -28,7 +28,7 @@ device's paths, plus the ranking/validity API panels.
 
 import json
 
-from cntfet.cnt_pages_seed import _api, _device_graph, _row
+from cntfet.cnt_pages_seed import _api, _device_graph, _row, _sapi
 from cntfet.cnt_scoring import CONCEPT_NAME, FET_TERMS, score_device
 
 
@@ -128,26 +128,32 @@ def _score_page(device_name, source_class='AlignedCNTFETDevice'):
         'pageRoute': f'cntfet-score-{d}',
         'linkedSolutions': '[]',
         'definition': json.dumps({'rows': [
-            _row(0, [
+            # the GENERIC FET display (same for every FET; sub-sections
+            # chosen by the device's own data: switching vs signal,
+            # CNT vs Si, usable vs not) — tables and graphs, no JSON
+            _row(0, [_component_item(f'score-{d}-overview', 0, 12,
+                                     f'{d}: overview', 'fet-overview',
+                                     {'device': d})], min_height=640),
+            _row(1, [
                 _device_graph(f'score-{d}-terms', 0, 6,
                               f'{d}: figures of merit vs ideals '
                               '(MC spread, best/worst)',
                               d, 'score-terms'),
-                _api(f'score-{d}-validity', 1, 6,
-                     f'{d}: is it a FET? (proofs) + score by '
-                     'characteristic equations',
-                     f'/api/cntfet/device/{d}/score?samples=100'),
+                _sapi(f'score-{d}-validity', 1, 6,
+                      f'{d}: figures of merit — actual vs ideal',
+                      f'/api/cntfet/device/{d}/score?samples=100',
+                      pick='idealTable'),
             ], min_height=430),
-            _row(1, [
+            _row(2, [
                 _device_graph(f'score-{d}-compare', 0, 6,
                               f'{d} vs every FET: score + terms '
                               '(◀ = this device)',
                               d, 'compare'),
-                _api(f'score-{d}-ranking', 1, 6,
-                     f'{d}: competitive ranking + gap to the leader',
-                     f'/api/cntfet/device/{d}/compare'),
+                _sapi(f'score-{d}-ranking', 1, 6,
+                      f'{d}: competitive ranking',
+                      f'/api/cntfet/device/{d}/compare', pick='ranking'),
             ], min_height=430),
-            _row(2, [
+            _row(3, [
                 _device_graph(f'score-{d}-transfer-states', 0, 6,
                               f'{d}: operating states on Id(Vg)',
                               d, 'transfer-states'),
@@ -157,21 +163,21 @@ def _score_page(device_name, source_class='AlignedCNTFETDevice'):
             ], min_height=430),
             # evidence: the proof-of-freedom chain (US) — status badge,
             # governing records, clickable patents / papers / licences.
-            _row(3, [_component_item(f'score-{d}-proof', 0, 12,
+            _row(4, [_component_item(f'score-{d}-proof', 0, 12,
                                      f'{d}: is it free to use? — proof '
                                      'chain (patents, papers, licences; '
                                      'click any item)',
                                      'freedom-proof-panel',
                                      {'path': f'/api/cntfet/device/{d}/proof'})],
                  min_height=420),
-            _row(4, [
-                _api(f'score-{d}-ip', 0, 6,
-                     f'{d}: licensing / freedom-to-operate records '
-                     '(engineering record, not legal advice)',
-                     f'/api/cntfet/device/{d}/ip'),
-                _api(f'score-{d}-links', 1, 6,
-                     f'{d}: related pages, partner, cells',
-                     f'/api/cntfet/device/{d}/links'),
+            _row(5, [
+                _sapi(f'score-{d}-ip', 0, 6,
+                      f'{d}: licensing / freedom-to-operate records '
+                      '(engineering record, not legal advice)',
+                      f'/api/cntfet/device/{d}/ip', pick='records'),
+                _sapi(f'score-{d}-links', 1, 6,
+                      f'{d}: related pages, partner, cells',
+                      f'/api/cntfet/device/{d}/links', pick='pages'),
             ], min_height=300),
         ]}),
     }

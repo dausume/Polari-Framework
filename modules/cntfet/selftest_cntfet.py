@@ -545,7 +545,8 @@ def main():
           and set(page_components) <= {'class-rows-table',
                                        'api-json-panel',
                                        'named-graph-panel',
-                                       'evidence-browser'}   # evidence
+                                       'evidence-browser',
+                                       'api-structured-panel'}   # no JSON walls
           and page_components.count('named-graph-panel') == 10
           and len(page_components) == 22)   # + evidence-browser
     from cntfet.cnt_device_viz import SEED_CNT_DEVICE_GRAPHS
@@ -973,7 +974,7 @@ def main():
           and all(pg['pageRoute'] == f'cntfet-score-{pg["name"][13:]}'
                   and pg['source_class'] == 'AlignedCNTFETDevice'
                   for pg in pages)
-          and all(len(pd['rows']) == 5 for pd in page_defs)   # + proof + links rows
+          and all(len(pd['rows']) == 6 for pd in page_defs)   # overview + proof + links
           and any(lg30.name in item['componentProps']['inputs']
                   .get('dataPath', '')
                   for pd in page_defs[1:] for row in pd['rows']
