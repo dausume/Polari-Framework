@@ -1233,6 +1233,36 @@ def main():
           f'inv={pf_inv.get("status")} counts={lib_pf.get("counts")} '
           f'sc={sc_prov} lg={lg_prov}')
 
+    # ---- usable vs reference (his binary) + cells x FETs coverage ----
+    from cntfet.cnt_cell_coverage import cells_coverage, device_cell_coverage
+    u_si = freedom_proof(mgr, 'device', 'si-nmos-planar-90')['usage']
+    u_s1 = freedom_proof(mgr, 'device', device.name)['usage']
+    u_ref = freedom_proof(mgr, 'record', 'tfet')['usage']
+    lp = library_proof(mgr)
+    cov = cells_coverage(mgr)
+    dcov = device_cell_coverage(mgr, device.name)
+    check('usable-vs-reference: every proof states the binary — the '
+          'planar Si NMOS is USABLE in open chips (candidate + proven '
+          'free), S1 is a CANDIDATE NOT YET USABLE (encumbered), TFET is '
+          'REFERENCE ONLY; evidence items carry a role (patents / papers '
+          '= reference, open licences / formats = usable); the cells x '
+          'FETs coverage matrix lists 26 cells per device (incl. cdff) '
+          'with the POST that fills each gap',
+          u_si['usable_in_open_chips'] and 'USABLE' in u_si['statement']
+          and not u_s1['usable_in_open_chips']
+          and 'NOT YET' in u_s1['statement']
+          and u_ref['intended_use'] == 'reference-only'
+          and 'REFERENCE ONLY' in u_ref['statement']
+          and lp['usableCount'] >= 26
+          and {s['role'] for s in SEED_EVIDENCE} == {'reference', 'usable'}
+          and cov['ok'] and len(cov['cells']) == 25
+          and dcov['cellsTotal'] == 26
+          and any(c['cell'] == 'cdff' for c in dcov['cells'])
+          and all('characterize' in c['fill'] for c in dcov['cells']
+                  if not c['covered']),
+          f'si={u_si} s1={u_s1.get("statement")} ref={u_ref.get("statement")} '
+          f'usable={lp.get("usableCount")} cov={dcov.get("cellsTotal")}')
+
     # ---- fi-2 (cells): the library scored vs intrinsic limits ------
     from cntfet.cnt_cell_scoring import (
         CELL_TERMS, SEED_CELL_SCORE_TERMS, cell_frames, cell_score_rows,

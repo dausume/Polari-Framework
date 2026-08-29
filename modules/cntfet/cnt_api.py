@@ -87,6 +87,22 @@ class CNTFETAPI(treeObject):
             add('/api/cntfet/cell/{cell}/logic', self,
                 suffix='cell_logic')
             add('/api/cntfet/cells/logic', self, suffix='cells_logic')
+            # cells wrap-up: which FET runs give which cells their data
+            add('/api/cntfet/cells/coverage', self,
+                suffix='cells_coverage')
+            # open library: proven-free cells on proven-free devices.
+            add('/api/cntfet/open-library', self, suffix='open_libraries')
+            add('/api/cntfet/open-library/{lib}', self,
+                suffix='open_library')
+            add('/api/cntfet/open-library/{lib}/liberty', self,
+                suffix='open_library_liberty')
+            # functional blocks (ladder rank 3) composed from cells.
+            add('/api/cntfet/blocks', self, suffix='blocks')
+            add('/api/cntfet/block/{key}', self, suffix='block')
+            add('/api/cntfet/block/{key}/proof', self,
+                suffix='block_proof')
+            add('/api/cntfet/device/{name}/cell-coverage', self,
+                suffix='device_cell_coverage')
             # ip: licensing / freedom-to-operate records per technology
             # (tracked like everything else; engineering record, not
             # legal advice — every payload says so).
@@ -474,6 +490,103 @@ class CNTFETAPI(treeObject):
     def on_get_library_ip(self, request, response):
         from cntfet.cnt_ip import library_ip_report
         response.media = library_ip_report(self.manager)
+
+    def on_get_blocks(self, request, response):
+        """?device= (default cnt-aligned-s1) — every block's proof /
+        timing / power / provenance on that device."""
+        from cntfet.cnt_blocks import library_blocks_report
+        response.media = library_blocks_report(
+            self.manager, request.get_param('device') or 'cnt-aligned-s1')
+
+    def on_get_block(self, request, response, key):
+        from cntfet.cnt_blocks import block_report
+        report = block_report(self.manager,
+                              request.get_param('device') or 'cnt-aligned-s1',
+                              key)
+        if not report.get('ok', True):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_block_proof(self, request, response, key):
+        from cntfet.cnt_blocks import block_proof
+        report = block_proof(self.manager,
+                             request.get_param('device') or 'cnt-aligned-s1',
+                             key)
+        if not report.get('ok', True):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_open_libraries(self, request, response):
+        from cntfet.cnt_open_library import open_library_index
+        response.media = open_library_index(self.manager)
+
+    def on_get_open_library(self, request, response, lib):
+        from cntfet.cnt_open_library import open_library_report
+        report = open_library_report(self.manager, lib)
+        if not report.get('ok', True):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_open_library_liberty(self, request, response, lib):
+        from cntfet.cnt_open_library import open_liberty_text
+        report = open_liberty_text(self.manager, lib)
+        if not report.get('ok', True) or not report.get('text'):
+            response.status = '422 Unprocessable Entity'
+            response.media = report
+            return
+        response.content_type = 'text/plain; charset=utf-8'
+        response.text = report['text']
+
+    def on_post_open_library(self, request, response, lib):
+        """{action: refresh | characterize {drives, cells, force} |
+        export {outdir, force} | ladder-update {apply}}"""
+        from cntfet.cnt_open_library import (
+            characterize_open_library, export_open_library,
+            ladder_cell_rung_update, refresh_open_library,
+        )
+        try:
+            raw = request.bounded_stream.read()
+            payload = json.loads(raw) if raw else {}
+        except ValueError:
+            return self._refuse(response, 'body must be JSON')
+        action = payload.get('action', 'refresh')
+        if action == 'refresh':
+            response.media = refresh_open_library(self.manager, lib)
+        elif action == 'characterize':
+            report = characterize_open_library(
+                self.manager, lib,
+                drives=tuple(payload.get('drives', [1])),
+                cells=payload.get('cells'),
+                force=bool(payload.get('force', False)))
+            if not report.get('ok'):
+                response.status = '422 Unprocessable Entity'
+            response.media = report
+        elif action == 'export':
+            report = export_open_library(
+                self.manager, lib,
+                payload.get('outdir') or f'/tmp/open-library/{lib}',
+                force=bool(payload.get('force', False)))
+            if not report.get('ok', True):
+                response.status = '422 Unprocessable Entity'
+            response.media = report
+        elif action == 'ladder-update':
+            response.media = ladder_cell_rung_update(
+                self.manager, apply=bool(payload.get('apply', False)))
+        else:
+            self._refuse(response, 'actions: refresh | characterize | '
+                                   'export | ladder-update')
+
+    def on_get_cells_coverage(self, request, response):
+        from cntfet.cnt_cell_coverage import cells_coverage
+        response.media = cells_coverage(self.manager)
+
+    def on_get_device_cell_coverage(self, request, response, name):
+        from cntfet.cnt_cell_coverage import device_cell_coverage
+        if (get_row(self.manager, 'AlignedCNTFETDevice', name) is None
+                and get_row(self.manager, 'SiliconMOSFET', name) is None):
+            return self._refuse(response, f'no device "{name}"',
+                                '404 Not Found')
+        response.media = device_cell_coverage(self.manager, name)
 
     def on_get_cells_logic(self, request, response):
         from cntfet.cnt_logic import library_logic_report

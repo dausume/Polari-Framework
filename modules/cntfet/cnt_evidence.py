@@ -167,6 +167,11 @@ class EvidenceItem(treeObject):
         licence_bucket: str = '',
         subjects_json: str = '[]',
         citation_key: str = '',   # '[VS1]' etc. — reverse lookup
+        # Dustin 2026-08-29 binary: 'reference' = proves our processes /
+        # sims make sense (patents, papers, textbooks); 'usable' = an
+        # artefact we actually build with (open licences, formats).
+        role: str = 'reference',
+        role_reason: str = '',
         notes: str = '',
         is_prior: bool = True,
         manager=None,
@@ -189,6 +194,8 @@ class EvidenceItem(treeObject):
         self.subjects_json = subjects_json
         self.citation_key = citation_key
         self.notes = notes
+        self.role = role
+        self.role_reason = role_reason
         self.is_prior = is_prior
 
 
@@ -238,6 +245,70 @@ def age_years(date, today=None):
 
 # ── seed helpers ───────────────────────────────────────────────────
 
+ROLE_RULES = {
+    # kind → (role, reason)
+    'patent': ('reference', 'a patent is evidence of what is (or was) '
+                            'claimed — it proves freedom or encumbrance; '
+                            'we never "use" a patent'),
+    'publication': ('reference', 'cited to validate our equations, '
+                                 'anchors and simulations'),
+    'prior-art': ('reference', 'dated prior art — proves the idea was '
+                               'public before a claim'),
+    'textbook': ('reference', 'public-domain teaching — proves the '
+                              'circuit / physics is common knowledge'),
+    'standard': ('usable', 'a format / language we actually emit and '
+                           'consume in open-source artefacts'),
+}
+ROLE_MEANING = {
+    'reference': 'helps as PROOF that our processes and simulations '
+                 'make sense (research material)',
+    'usable': 'something Polari / the OSEB can actually USE in '
+              'open-source chips and artefacts',
+}
+
+
+def _role(kind, proves):
+    if kind == 'licence':
+        if proves == 'open-licence':
+            return {'role': 'usable',
+                    'role_reason': 'open licence — our artefacts can '
+                                   'carry or depend on it'}
+        return {'role': 'reference',
+                'role_reason': 'proprietary licence — recorded as a '
+                               'boundary we do NOT cross, never used'}
+    role, why = ROLE_RULES.get(kind, ('reference', 'default: reference'))
+    return {'role': role, 'role_reason': why}
+
+
+def usage_block(status, intended_use='open-chip-candidate',
+                subject_kind='device'):
+    """The quick binary for one subject: can Polari / the OSEB USE
+    this in open chips (candidate AND proven free in the US), or is
+    it reference material?"""
+    candidate = intended_use == 'open-chip-candidate'
+    usable = candidate and status == 'proven-free'
+    if not candidate:
+        statement = ('REFERENCE ONLY — cited to validate our processes '
+                     'and simulations; not something we build')
+    elif usable:
+        statement = ('USABLE in open-source chips — candidate AND '
+                     'proven free to use (US)')
+    elif status == 'encumbered':
+        statement = ('CANDIDATE, NOT YET USABLE — encumbered; see gaps '
+                     '(expiry, licence, invalidity or design-around)')
+    elif status == 'free-unverified':
+        statement = ('CANDIDATE, NOT YET USABLE — free on the evidence '
+                     'recorded but not verified to the proof rule')
+    else:
+        statement = 'CANDIDATE, status unknown — no evidence attached'
+    return {'intended_use': intended_use,
+            'intended_use_meaning': (
+                'something we build with' if candidate
+                else 'reference material for research'),
+            'usable_in_open_chips': usable,
+            'statement': statement, 'jurisdiction': JURISDICTION}
+
+
 def _item(name, kind, title, parties, ref, date, proves, proves_detail,
           subjects, url='', expiry='', verified=False, verified_via='',
           licence_bucket='', citation_key='', notes='',
@@ -254,6 +325,7 @@ def _item(name, kind, title, parties, ref, date, proves, proves_detail,
         'licence_bucket': licence_bucket,
         'subjects_json': json.dumps(list(subjects)),
         'citation_key': citation_key, 'notes': notes, 'is_prior': True,
+        **_role(kind, proves),
     }
 
 
@@ -1099,7 +1171,7 @@ def _detail_path(subject_kind, subject_name):
 
 # ── freedom_proof ──────────────────────────────────────────────────
 
-def freedom_proof(manager, subject_kind, subject_name, today=None):
+def _freedom_proof_core(manager, subject_kind, subject_name, today=None):
     """{status, chain: [{record, verdict, why, recordStatus,
     evidence: [item summaries with detailPath]}], gaps,
     rule_applied, reasons, scope, disclaimer}."""
@@ -1271,6 +1343,7 @@ def provenance_summary(manager, subject_kind, name, today=None):
                              'detailPath': e['detailPath']}
                             for e in ev[:3]],
             'gaps': proof.get('gaps', [])[:3],
+            'usage': proof.get('usage'),
             'detailPath': proof['detailPath'],
             'jurisdiction': JURISDICTION, 'scope': SCOPE_LINE,
             'disclaimer': DISCLAIMER}
@@ -1278,7 +1351,7 @@ def provenance_summary(manager, subject_kind, name, today=None):
 
 # ── library ────────────────────────────────────────────────────────
 
-def library_proof(manager, today=None):
+def _library_proof_core(manager, today=None):
     subjects = []
     for cls in ('AlignedCNTFETDevice', 'SiliconMOSFET'):
         for dev in _rows(manager, cls):
@@ -1387,3 +1460,54 @@ SEED_CNT_EVIDENCE_GRAPHS = [{
         'aggregation': None,
     }}),
 }]
+
+
+# ── Dustin 2026-08-29: the usable-vs-reference binary on every proof ─
+
+def _intended_use_of(manager, subject_kind, name):
+    """A record's own intended_use; devices / cells / routes are
+    candidates by definition (they are what we build) unless every
+    governing record is reference-only."""
+    if subject_kind == 'record':
+        rec = _records(manager).get(name) if '_records' in globals() else None
+        if rec is not None:
+            return (rec.get('intended_use') if isinstance(rec, dict)
+                    else getattr(rec, 'intended_use', None)) \
+                or 'open-chip-candidate'
+        try:
+            from cntfet.cnt_ip import INTENDED_USE
+            return INTENDED_USE.get(name, 'open-chip-candidate')
+        except ImportError:
+            return 'open-chip-candidate'
+    return 'open-chip-candidate'
+
+
+def freedom_proof(manager, subject_kind, subject_name, today=None):
+    proof = _freedom_proof_core(manager, subject_kind, subject_name, today)
+    if proof.get('status'):
+        proof['usage'] = usage_block(
+            proof['status'], _intended_use_of(manager, subject_kind,
+                                              subject_name), subject_kind)
+        for c in proof.get('chain', []):
+            c['usage'] = usage_block(
+                c.get('recordStatus') or proof['status'],
+                _intended_use_of(manager, 'record', c.get('record', '')),
+                'record')
+    return proof
+
+
+def library_proof(manager, today=None):
+    lib = _library_proof_core(manager, today)
+    for s in lib.get('subjects', []):
+        # the frontend contract names: subject_kind / status (keep the
+        # core's kind / proofStatus too — both are honest names)
+        s.setdefault('subject_kind', s.get('kind', 'device'))
+        s.setdefault('status', s.get('proofStatus', 'unknown'))
+        s['usage'] = usage_block(
+            s['status'],
+            _intended_use_of(manager, s['subject_kind'], s.get('subject', '')),
+            s['subject_kind'])
+    lib['usableCount'] = sum(1 for s in lib.get('subjects', [])
+                             if s['usage']['usable_in_open_chips'])
+    lib['roleMeaning'] = ROLE_MEANING
+    return lib

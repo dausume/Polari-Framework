@@ -31,12 +31,17 @@ def device_links(manager, device):
     except ImportError:
         partner = {'status': 'taxonomy module absent (fp-3)'}
     cells = []
+    coverage = None
     try:
-        from cntfet.cnt_cell_library import COMBINATIONAL, DRIVES
-        cells = [{'cell': c, 'drives': list(DRIVES),
-                  'logic': f'/api/cntfet/cell/{c}/logic',
-                  'scores': f'/api/cntfet/device/{name}/cell-scores'}
-                 for c in COMBINATIONAL]
+        from cntfet.cnt_cell_coverage import device_cell_coverage
+        cov = device_cell_coverage(manager, name)
+        coverage = {k: cov[k] for k in ('latestLibraryRun', 'covered',
+                                        'missing', 'coverageFraction',
+                                        'missingByKind')}
+        cells = [{'cell': c['cell'], 'kind': c['kind'],
+                  'covered': c['covered'], 'run': c['run'],
+                  'fill': c['fill'], **c['dataPaths']}
+                 for c in cov['cells']]
     except ImportError:
         pass
     return {
@@ -61,6 +66,7 @@ def device_links(manager, device):
         'complementary': partner,
         'compared_against': others,
         'cells_built_from_it': cells,
+        'cell_coverage': coverage,
         'categories': {
             'input': 'gate side: threshold, swing, doping',
             'output': 'drain side: Id(Vd), DIBL, on-conductance',

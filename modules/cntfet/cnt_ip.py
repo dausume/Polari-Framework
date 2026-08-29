@@ -115,6 +115,11 @@ class TechnologyIPRecord(treeObject):
         verify_next: str = '',
         sources_json: str = '[]',
         confidence: str = 'unverified',
+        # Dustin 2026-08-29: 'open-chip-candidate' = something Polari /
+        # the OSEB can actually BUILD WITH (subject to the proof);
+        # 'reference-only' = cited to validate our processes and
+        # simulations, never something we intend to build.
+        intended_use: str = 'open-chip-candidate',
         reviewed_at: str = REVIEWED_AT,
         # JSON list of cnt_evidence.EvidenceItem names — the proof
         # chain is a JOIN onto those rows (pat-us-…, pub-…, book-…,
@@ -139,6 +144,7 @@ class TechnologyIPRecord(treeObject):
         self.verify_next = verify_next
         self.sources_json = sources_json
         self.confidence = confidence
+        self.intended_use = intended_use
         self.reviewed_at = reviewed_at
         self.evidence_json = evidence_json
         self.notes = notes
@@ -156,16 +162,38 @@ def _pat(number, title, assignee, filed, expiry_est, status,
             f'https://patents.google.com/patent/US{number.replace(",", "")}'}
 
 
+#: Dustin 2026-08-29 — the BINARY: what we intend to BUILD WITH (open
+#: chips) vs what we only CITE to prove our processes / simulations
+#: make sense. Intent is separate from freedom: a candidate can be
+#: encumbered (then "candidate, not yet usable"); a reference-only
+#: item is never "usable" no matter how free it is.
+INTENDED_USE = {
+    'tfet': 'reference-only',              # research comparison only
+    'siemens-tcs': 'reference-only',       # industrial route we cite
+    'fbr-silane': 'reference-only',        # industrial route we cite
+    'gaa-nanowire': 'reference-only',      # cited shape, not our target
+}
+INTENDED_USE_MEANING = {
+    'open-chip-candidate': 'something Polari / the OSEB can actually '
+                           'build with in open-source chips — subject '
+                           'to the proof-of-freedom',
+    'reference-only': 'cited to validate our processes and '
+                      'simulations; not something we intend to build',
+}
+
+
 def _rec(name, display_name, subject_kind, subject_ref, ip_kind,
          verdict, fto_reasoning, self_manufacture_note, verify_next,
          patents=(), licence='', what_we_own='', jurisdiction='US',
-         sources=(), confidence='unverified', notes='', evidence=()):
+         sources=(), confidence='unverified', notes='', evidence=(),
+         intended_use=None):
     assert subject_kind in SUBJECT_KINDS, subject_kind
     assert ip_kind in IP_KINDS, ip_kind
     assert verdict in VERDICT_RANK, verdict
     return {
         'name': name, 'display_name': display_name,
         'subject_kind': subject_kind, 'subject_ref': subject_ref,
+        'intended_use': intended_use or INTENDED_USE.get(name, 'open-chip-candidate'),
         'ip_kind': ip_kind, 'verdict': verdict,
         'key_patents_json': json.dumps(list(patents)),
         'licence': licence, 'what_we_own': what_we_own,

@@ -1431,6 +1431,18 @@ try:
     from cntfet.cnt_evidence import EvidenceItem, SEED_EVIDENCE
 except ImportError:
     EvidenceItem, SEED_EVIDENCE = None, []
+try:
+    from cntfet.cnt_open_library import (
+        OpenCellLibrary, SEED_OPEN_LIBRARIES, SEED_OPEN_LIBRARY_PAGES,
+    )
+except ImportError:
+    OpenCellLibrary, SEED_OPEN_LIBRARIES, SEED_OPEN_LIBRARY_PAGES = None, [], []
+try:
+    from cntfet.cnt_blocks import (
+        FunctionalBlock, SEED_FUNCTIONAL_BLOCKS, SEED_BLOCK_PAGES,
+    )
+except ImportError:
+    FunctionalBlock, SEED_FUNCTIONAL_BLOCKS, SEED_BLOCK_PAGES = None, [], []
 # microchip: the design-level ladder + traversal (separable from the
 # device modules — references their rows, never imports their code).
 try:
@@ -2646,7 +2658,8 @@ class polariServer(treeObject):
             PowerBudget, SiliconDopingProfile, SolGelDielectric,
             SolGelProcess, SiliconFETShape, SiliconMOSFET,
             SiliconGrade, RefinementStep, RefinementRoute,
-            TechnologyIPRecord, EvidenceItem,
+            TechnologyIPRecord, EvidenceItem, OpenCellLibrary,
+            FunctionalBlock,
             # cnt-s3: process objects + MC run rows.
             CNTAlignmentProcess, CNTPlacementProcess,
             CNTPurificationProcess, ContactFormationProcess,
@@ -3559,6 +3572,8 @@ class polariServer(treeObject):
              # fp-2: silicon home + per-Si-FET score/detail pages.
              + (SEED_SI_PAGE_DISPLAYS or [])
              + (SEED_SI_SCORE_PAGES or [])
+             + (SEED_OPEN_LIBRARY_PAGES or [])
+             + (SEED_BLOCK_PAGES or [])
              + (SEED_MICROCHIP_PAGE_DISPLAYS or [])
              + (SEED_COMPUTERS_PAGE_DISPLAYS or [])),
             # Materials basis — identities before their scale rows.
@@ -3649,6 +3664,11 @@ class polariServer(treeObject):
             ('EvidenceItem', EvidenceItem, SEED_EVIDENCE or []),
             ('TechnologyIPRecord', TechnologyIPRecord,
              SEED_TECHNOLOGY_IP or []),
+            # open library (proven-free cells on proven-free devices)
+            # + functional blocks (ladder rank 3).
+            ('OpenCellLibrary', OpenCellLibrary, SEED_OPEN_LIBRARIES or []),
+            ('FunctionalBlock', FunctionalBlock,
+             SEED_FUNCTIONAL_BLOCKS or []),
             # cnt-s3: the target line's process rows.
             ('CNTAlignmentProcess', CNTAlignmentProcess,
              SEED_ALIGNMENT_PROCESSES),
