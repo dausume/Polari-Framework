@@ -1360,6 +1360,9 @@ def characterize_cells(manager, device, cells=None, drives=(1,),
         device=device.name, cell='library:' + ','.join(
             b['libertyName'] for b in blocks),
         executor='polari-own-loop',
+        # the Vdd the SPICE actually ran at (was silently the class
+        # default 0.6 V before 2026-08-30 — FO4 reads it)
+        vdd_v=vdd,
         grid_json=json.dumps({'slews_s': slews_s,
                               'loads_f': loads_f,
                               'drives': list(drives)}),

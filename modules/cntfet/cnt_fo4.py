@@ -113,6 +113,12 @@ def fo4_report(manager, device_name, knobs=None):
                          f'"characterize-cells"}} to /api/cntfet/devices/'
                          f'{device_name} first', 'fidelity': FIDELITY}
     vdd = float(getattr(row, 'vdd_v', 0.6) or 0.6)
+    # the Liberty header is the ground truth for the run's Vdd (rows
+    # written before 2026-08-30 carry the class default instead)
+    import re
+    m = re.search(r'nom_voltage\s*:\s*([0-9.]+)', row.liberty_text or '')
+    if m:
+        vdd = float(m.group(1))
     # device-relative honesty: the run must be at the device's OWN Vdd
     from cntfet.cnt_derive import get_row
     dev = (get_row(manager, 'AlignedCNTFETDevice', device_name)
