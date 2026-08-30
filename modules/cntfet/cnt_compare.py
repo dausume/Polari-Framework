@@ -134,6 +134,12 @@ def _score_page(device_name, source_class='AlignedCNTFETDevice'):
             _row(0, [_component_item(f'score-{d}-overview', 0, 12,
                                      f'{d}: overview', 'fet-overview',
                                      {'device': d})], min_height=640),
+            # parts & purpose: every piece, its material, doping and row
+            _row(10, [_sapi(f'score-{d}-parts', 0, 12,
+                            f'{d}: parts & purpose — material, doping '
+                            '(n / p / undoped), dielectric, process, row',
+                            f'/api/cntfet/device/{d}/parts', pick='parts')],
+                 min_height=360),
             _row(1, [
                 _device_graph(f'score-{d}-terms', 0, 6,
                               f'{d}: figures of merit vs ideals '
@@ -230,6 +236,11 @@ def _detail_page(device_name, with_scenes=True,
                                 f'{d}: characteristics → views + '
                                 'meaning', d)], min_height=640),
         # evidence: proof chain on the detail page too (first-class)
+        _row(7, [_sapi(f'detail-{d}-parts', 0, 12,
+                       f'{d}: parts & purpose — material, doping, '
+                       'dielectric, process, row',
+                       f'/api/cntfet/device/{d}/parts', pick='parts')],
+             min_height=360),
         _row(8, [_component_item(f'detail-{d}-proof', 0, 12,
                                  f'{d}: is it free to use? — proof '
                                  'chain (click any patent / paper)',

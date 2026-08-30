@@ -974,7 +974,7 @@ def main():
           and all(pg['pageRoute'] == f'cntfet-score-{pg["name"][13:]}'
                   and pg['source_class'] == 'AlignedCNTFETDevice'
                   for pg in pages)
-          and all(len(pd['rows']) == 6 for pd in page_defs)   # overview + proof + links
+          and all(len(pd['rows']) == 7 for pd in page_defs)   # overview + parts + proof + links
           and any(lg30.name in item['componentProps']['inputs']
                   .get('dataPath', '')
                   for pd in page_defs[1:] for row in pd['rows']
@@ -1292,6 +1292,25 @@ def main():
           f'proofs={ {k: p["proven"] for k, p in proofs.items()} } '
           f'si={adm_si.get("open_source_ready")} cnt={adm_cnt.get("why", "")[:80]} '
           f'bp={bp_si.get("status") or bp_si.get("proofStatus")}')
+
+    # ---- parts & purpose (generic over CNT + Si) ---------------------
+    from cntfet.cnt_parts import device_parts
+    pc = device_parts(mgr, device)
+    ps = device_parts(mgr, cd.get_row(mgr, 'SiliconMOSFET', 'si-nmos-planar-90'))
+    check('parts: every FET lists its pieces with purpose, material, '
+          'doping (n / p / undoped / metal / insulator), dimensions, '
+          'process and the ROW it comes from — CNT: n+ extensions + '
+          'undoped channel + HfO2 dielectric; Si: n-type S/D + p-type '
+          'body + the sol-gel / thermal dielectric row',
+          pc['ok'] and ps['ok']
+          and 'source extension' in pc['summary']['n_doped']
+          and 'channel' in pc['summary']['undoped']
+          and any('HfO2' in x for x in pc['summary']['dielectrics'])
+          and 'source / drain' in ps['summary']['n_doped']
+          and 'channel / body' in ps['summary']['p_doped']
+          and all(p['row']['name'] for p in pc['parts'] + ps['parts'])
+          and all(p['regionKind'] != '' for p in ps['parts']),
+          f'cnt={pc.get("summary")} si={ps.get("summary")}')
 
     # ---- fi-2 (cells): the library scored vs intrinsic limits ------
     from cntfet.cnt_cell_scoring import (

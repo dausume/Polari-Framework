@@ -384,7 +384,7 @@ def _device_graph(kind, description, x_label, y_label,
         'name': f'cnt-device-{kind}',
         'description': description + ' — data: /api/cntfet/'
                        'device/{name}/points?curve=' + kind,
-        'source_class': 'AlignedCNTFETDevice',
+        'source_class': 'AlignedCNTFETDevice',   # any FET (Si rows too)
         'definition': json.dumps({'graphConfig': {
             'renderStyle': 'lineY',
             'xDimension': 'x',
@@ -459,7 +459,7 @@ SEED_CNT_DEVICE_GRAPHS = [
     _device_graph(
         'compare',
         'Competitive FET ranking: score + every term normalized for '
-        'each AlignedCNTFETDevice (◀ = this page\'s device); '
+        'each FET (CNT and silicon) (◀ = this page\'s device); '
         'unprovable FETs sit at 0 with their failed proofs named; '
         'rule at 1.0 = ideal',
         'device', 'normalized (1 = ideal)'),

@@ -74,6 +74,10 @@ class CNTFETAPI(treeObject):
             # is connected to, as data the nav rows render.
             add('/api/cntfet/device/{name}/links', self,
                 suffix='device_links')
+            # parts & purpose: every piece of the FET, its material,
+            # doping and the row it comes from (generic: CNT + Si).
+            add('/api/cntfet/device/{name}/parts', self,
+                suffix='device_parts')
             # fp arc: power (fp-1), taxonomy + signal score (fp-3),
             # cell logic / circuit diagrams (fp-5).
             add('/api/cntfet/device/{name}/power', self,
@@ -264,7 +268,8 @@ class CNTFETAPI(treeObject):
             return
         if samples > 0:
             from cntfet.cnt_device_viz import _montecarlo
-            device = get_row(self.manager, 'AlignedCNTFETDevice', name)
+            device = (get_row(self.manager, 'AlignedCNTFETDevice', name)
+                      or get_row(self.manager, 'SiliconMOSFET', name))
             mc = _montecarlo(self.manager, device,
                              max(1, min(samples, 2000)), seed)
             report['monteCarlo'] = (
@@ -692,6 +697,15 @@ class CNTFETAPI(treeObject):
         if not report.get('ok', True):
             response.status = '404 Not Found'
         response.media = report
+
+    def on_get_device_parts(self, request, response, name):
+        from cntfet.cnt_parts import device_parts
+        device = (get_row(self.manager, 'AlignedCNTFETDevice', name)
+                  or get_row(self.manager, 'SiliconMOSFET', name))
+        if device is None:
+            return self._refuse(response, f'no device "{name}"',
+                                '404 Not Found')
+        response.media = device_parts(self.manager, device)
 
     def on_get_device_cell_scores(self, request, response, name):
         from cntfet.cnt_cell_scoring import score_cells
