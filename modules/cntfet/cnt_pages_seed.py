@@ -98,7 +98,8 @@ def _device_graph(item_id, index, segments, title, device_name,
             'componentName': 'named-graph-panel',
             'inputs': {
                 'graphName': f'cnt-device-{curve}',
-                'dataPath': f'/api/cntfet/device/{device_name}'
+                # fet, not cntfet: the generic per-device surface
+                'dataPath': f'/api/fet/device/{device_name}'
                             f'/points?curve={curve}',
             },
         },
@@ -321,5 +322,13 @@ SEED_CNTFET_PAGE_DISPLAYS = [{
                  '/api/cntfet/device/cnt-aligned-s1/cell-scores',
                  pick='ranking'),
         ], min_height=430),
+        # fg-2: the generic FET catalogue — every FET (CNT + Si)
+        # with its /display/fet?object= pages and summary path.
+        _row(10, [
+            _sapi('cntfet-fet-catalogue', 0, 12,
+                  'Every FET (CNT + Si): the generic score / detail '
+                  'pages (?object=) + the one-payload summary',
+                  '/api/fet/devices', pick='devices'),
+        ], min_height=360),
     ]}),
 }, _cells_page()]

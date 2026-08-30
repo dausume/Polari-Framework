@@ -44,22 +44,27 @@ def device_links(manager, device):
                  for c in cov['cells']]
     except ImportError:
         pass
+    # fg-2 (fet, not cntfet): the generic pages, object-addressed.
+    is_si = any(getattr(r, 'name', '') == name
+                for r in (tables.get('SiliconMOSFET') or {}).values())
+    home_route, home_title = (('sifet', 'Silicon FET home') if is_si
+                              else ('cntfet', 'CNT FET home'))
     return {
         'ok': True, 'device': name,
-        'start_here': _page(f'cntfet-detail-{name}',
+        'start_here': _page(f'fet-detail?object={name}',
                             f'{name}: pick a characteristic',
                             'plain-language explanations, the views '
                             'that show it, 3-D field scenes'),
         'pages': [
-            _page('cntfet', 'CNT FET home',
+            _page(home_route, home_title,
                   'every device, parameters, anchors, figures'),
-            _page(f'cntfet-score-{name}', f'{name}: scoring',
+            _page(f'fet?object={name}', f'{name}: scoring',
                   'figures of merit vs ideals, validity proofs, '
                   'competitive ranking'),
-            _page(f'cntfet-detail-{name}', f'{name}: detail',
+            _page(f'fet-detail?object={name}', f'{name}: detail',
                   'characteristic explorer + fields'),
         ],
-        'api': {k: f'/api/cntfet/device/{name}/{k}' for k in (
+        'api': {k: f'/api/fet/device/{name}/{k}' for k in (
             'characterization', 'states', 'regimes', 'transport',
             'score', 'compare', 'characteristics', 'fields',
             'cell-scores', 'ip')},

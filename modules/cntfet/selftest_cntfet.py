@@ -961,24 +961,27 @@ def main():
     c_rows = device_curve_points(mgr, device.name, curve='compare')
     pages = score_pages([d['name'] for d in SEED_CNT_DEVICES])
     page_defs = [json.loads(pg['definition']) for pg in pages]
-    check('fi-4: compare rows put every device on a categorical x with '
-          'the focus marked ◀ + hguide at 1.0; one scoring PAGE is '
-          'seeded PER FET (its own route, per-KIND graphs pointed at '
-          'its own paths, ranking + validity panels)',
+    generic_inputs = [str(v)
+                      for pd in page_defs for row in pd['rows']
+                      for item in row['items']
+                      for v in item['componentProps']['inputs']
+                      .values()]
+    check('fi-4→fg-2: compare rows put every device on a categorical '
+          'x with the focus marked ◀ + hguide at 1.0; the scoring '
+          'page is ONE generic seed (route fet, {object} in every '
+          'device-scoped input, /api/fet paths — fet, not cntfet)',
           c_rows['ok']
           and {r['x'] for r in c_rows['rows'] if r['series'] == 'score'}
           >= {f'{device.name} ◀', lg30.name}
           and len({r['x'] for r in c_rows['rows']
                    if r['series'] == 'score'}) == len(SEED_CNT_DEVICES)
-          and len(pages) == len(SEED_CNT_DEVICES)
-          and all(pg['pageRoute'] == f'cntfet-score-{pg["name"][13:]}'
-                  and pg['source_class'] == 'AlignedCNTFETDevice'
-                  for pg in pages)
-          and all(len(pd['rows']) == 8 for pd in page_defs)   # overview + parts + fo4 + proof + links
-          and any(lg30.name in item['componentProps']['inputs']
-                  .get('dataPath', '')
-                  for pd in page_defs[1:] for row in pd['rows']
-                  for item in row['items']),
+          and len(pages) == 1
+          and pages[0]['name'] == 'fet'
+          and pages[0]['pageRoute'] == 'fet'
+          and len(page_defs[0]['rows']) == 9   # overview + parts2d + parts + fo4 + proof + links
+          and any('/api/fet/device/{object}/' in v
+                  for v in generic_inputs)
+          and not any('/api/cntfet/' in v for v in generic_inputs),
           f'rows={sorted({r["x"] for r in c_rows["rows"] if r["x"]})}')
 
     # ---- fv-3: the characteristic registry + fv curve plug-ins -----
@@ -1054,7 +1057,7 @@ def main():
           and scene_view['simSpaceName'] == scene_name(device.name)
           and scene_view['run'] == f'fet-fields:{device.name}:potential'
           and scene_view['status'] == 'ready'
-          and dpages[0]['pageRoute'] == f'cntfet-detail-{device.name}'
+          and dpages[0]['pageRoute'] == 'fet-detail'   # fg-2: generic
           and dcomps.count('fet-characteristic-explorer') == 1
           and dcomps.count('sim-space-viewer') == 3,
           f'fp={fp.get("error")} view={scene_view} comps={dcomps}')

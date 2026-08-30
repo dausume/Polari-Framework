@@ -96,6 +96,11 @@ class CNTFETAPI(treeObject):
             # doping and the row it comes from (generic: CNT + Si).
             add('/api/cntfet/device/{name}/parts', self,
                 suffix='device_parts')
+            # fg-3 (fv-7): the 2-D parts view — regions in device
+            # coordinates + optional field overlay at the device's
+            # own Vdd (Si overlays refuse until a sifet field basis).
+            add('/api/cntfet/device/{name}/parts2d', self,
+                suffix='device_parts2d')
             # FO4 → clock estimate (intrinsic upper bound) per device
             add('/api/cntfet/device/{name}/fo4', self, suffix='device_fo4')
             # fp arc: power (fp-1), taxonomy + signal score (fp-3),
@@ -166,6 +171,9 @@ class CNTFETAPI(treeObject):
                 suffix='figure_points')
             add('/api/cntfet/cell-library', self,
                 suffix='cell_library')
+            # fg-2: the GENERIC FET catalogue — both technologies,
+            # each device with its generic page + summary paths.
+            add('/api/fet/devices', self, suffix='fet_devices')
 
     def _refuse(self, response, error, status='400 Bad Request'):
         response.status = status
@@ -237,6 +245,12 @@ class CNTFETAPI(treeObject):
         response.media = {'ok': True, 'devices': devices,
                           'recentResults': results[:10],
                           'capability': capability()}
+
+    def on_get_fet_devices(self, request, response):
+        """fg-2: the generic FET catalogue (CNT + Si), each row with
+        its /display/fet?object= pages and /api/fet summary path."""
+        from cntfet.cnt_fet_summary import fet_catalogue
+        response.media = fet_catalogue(self.manager)
 
     def on_get_device_points(self, request, response, name):
         """?curve= ?vd= ?samples= (fi-3 MC count behind score-terms /
@@ -786,6 +800,23 @@ class CNTFETAPI(treeObject):
         report = fo4_report(self.manager, name, knobs)
         if not report.get('ok'):
             response.status = '422 Unprocessable Entity'
+        response.media = report
+
+    def on_get_device_parts2d(self, request, response, name):
+        """fg-3: ?field=potential|electron-density|n-doping|p-doping|
+        material ?vg= ?vd= (defaults: the device's OWN Vdd)."""
+        from cntfet.cnt_parts_svg import parts2d_report
+        q = self._floats(request, response, ('vg', 'vd'))
+        if q is None:
+            return
+        report = parts2d_report(
+            self.manager, name,
+            field=request.get_param('field') or 'potential',
+            vg=q.get('vg'), vd=q.get('vd'))
+        if not report.get('ok'):
+            response.status = ('404 Not Found'
+                               if 'no device' in str(report.get('error'))
+                               else '422 Unprocessable Entity')
         response.media = report
 
     def on_get_device_parts(self, request, response, name):

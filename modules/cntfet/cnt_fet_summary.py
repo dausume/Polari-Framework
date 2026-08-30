@@ -199,3 +199,32 @@ def fet_summary(manager, name):
                  'serves; a section that cannot answer carries its '
                  'refusal inline — the key set never changes'),
     }
+
+
+def fet_catalogue(manager):
+    """fg-2: the GENERIC FET catalogue — every FET row, both
+    technologies, each with its generic-page and summary paths.
+    (The per-technology catalogues stay at /api/cntfet/devices and
+    /api/sifet/devices until the fet-module split, fg-5.)"""
+    from cntfet.cnt_device_viz import device_vdd
+    tables = getattr(manager, 'objectTables', None) or {}
+    devices = []
+    for cls, tech in (('AlignedCNTFETDevice', 'cnt'),
+                      ('SiliconMOSFET', 'silicon')):
+        for r in (tables.get(cls) or {}).values():
+            n = getattr(r, 'name', '')
+            devices.append({
+                'device': n, 'technology': tech,
+                'polarity': getattr(r, 'polarity', ''),
+                'shape': getattr(r, 'shape', ''),
+                'vdd_v': device_vdd(r),
+                'derived': bool(getattr(r, 'derived_at', '')),
+                'scorePage': f'/display/fet?object={n}',
+                'detailPage': f'/display/fet-detail?object={n}',
+                'summary': f'{_FET_PREFIX}{n}/summary',
+            })
+    devices.sort(key=lambda d: (d['technology'], d['device']))
+    return {'ok': True, 'devices': devices,
+            'note': ('the generic FET catalogue — open scorePage / '
+                     'detailPage (?object= pages), or GET summary '
+                     'for the whole FET in one payload')}

@@ -1365,6 +1365,13 @@ try:
     )
     SEED_CNT_DEVICE_SCENE_ROWS = SEED_CNT_DEVICE_SCENES(
         [d['name'] for d in (SEED_CNT_DEVICES or [])])
+    # fg-3: the 2-D parts view per device (fet-2d-{name}) beside
+    # the 3-D scenes — freestandingOnly region rectangles.
+    from cntfet.cnt_parts_svg import SEED_FET_2D_SCENES
+    SEED_CNT_DEVICE_SCENE_ROWS = (
+        SEED_CNT_DEVICE_SCENE_ROWS
+        + SEED_FET_2D_SCENES(
+            [d['name'] for d in (SEED_CNT_DEVICES or [])]))
 except (ImportError, TypeError):
     SEED_CNT_DEVICE_SCENE_ROWS, SEED_FET_FIELD_BINDINGS = [], []
 try:
@@ -1440,6 +1447,11 @@ try:
     from sifet.si_pages_seed import (
         SEED_SI_PAGE_DISPLAYS, SEED_SI_SCORE_PAGES,
     )
+    # fg-3: a 2-D parts view (fet-2d-{name}) per silicon device too.
+    from cntfet.cnt_parts_svg import SEED_FET_2D_SCENES as _fet2d
+    from sifet.si_pages_seed import SI_DEVICE_NAMES as _si2d_names
+    SEED_CNT_DEVICE_SCENE_ROWS = (
+        (SEED_CNT_DEVICE_SCENE_ROWS or []) + _fet2d(list(_si2d_names)))
 except ImportError:
     SEED_SI_PAGE_DISPLAYS, SEED_SI_SCORE_PAGES = [], []
 try:

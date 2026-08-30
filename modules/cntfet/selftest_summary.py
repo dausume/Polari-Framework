@@ -12,7 +12,7 @@ import types
 from cntfet import cnt_derive as cd
 from cntfet import selftest_cntfet as st
 from cntfet.cnt_fet_summary import (
-    SCHEMA, SUMMARY_KEYS, fet_alias, fet_summary,
+    SCHEMA, SUMMARY_KEYS, fet_alias, fet_catalogue, fet_summary,
 )
 from cntfet.cnt_scoring import score_device
 from sifet.si_basis import SEED_TABLES
@@ -154,20 +154,32 @@ def main():
           and fet_alias('/api/cntfet/devices') is None
           and fet_alias('/api/cntfet/devices/{name}') is None
           and fet_alias('/api/sifet/ladder') is None)
+    cat = fet_catalogue(mgr)
+    check('catalogue: /api/fet/devices lists BOTH technologies, '
+          'each device with its generic ?object= pages + summary '
+          'path',
+          cat['ok']
+          and {d['technology'] for d in cat['devices']}
+          == {'cnt', 'silicon'}
+          and all(d['scorePage'] == f"/display/fet?object={d['device']}"
+                  and d['detailPage']
+                  == f"/display/fet-detail?object={d['device']}"
+                  and d['summary'].startswith('/api/fet/device/')
+                  for d in cat['devices']))
     paths = []
     fake = types.SimpleNamespace(falconServer=types.SimpleNamespace(
         add_route=lambda p, r, suffix=None: paths.append(p)))
     from cntfet.cnt_api import CNTFETAPI
     CNTFETAPI(polServer=fake, manager=None)
     check('routes: the server registers every device surface under '
-          'BOTH prefixes (summary + score shown), and /api/fet '
-          'carries no CNT-catalogue route',
+          'BOTH prefixes (summary + score shown); /api/fet/devices '
+          'is the GENERIC catalogue, never an alias of the CNT one',
           '/api/fet/device/{name}/summary' in paths
           and '/api/cntfet/device/{name}/summary' in paths
           and '/api/fet/device/{name}/score' in paths
           and '/api/fet/device/{name}/points' in paths
-          and not any(p in ('/api/fet/devices', '/api/fet/devices/'
-                            '{name}') for p in paths),
+          and '/api/fet/devices' in paths
+          and '/api/fet/devices/{name}' not in paths,
           f'{len(paths)} paths')
 
     passed = sum(1 for _, ok in _results if ok)
