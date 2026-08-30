@@ -1,0 +1,16 @@
+[
+  {
+    "id": "prov-fcs-speculative-v0.1",
+    "version": "0.1",
+    "credibilityLevel": "low:speculative",
+    "sourceIds": "source-llm-chatgpt4o-2025,source-research-detts-2025",
+    "notes": "Filament-Composite-Sim initial data, speculative estimates requiring experimental validation"
+  },
+  {
+    "id": "prov-dustin-lit-2026-07-06",
+    "version": "v1",
+    "credibilityLevel": "literature",
+    "sourceIds": "",
+    "notes": "Literature-derived linear slopes supplied by Dustin 2026-07-06 (Priority-1 effect worksheet). Shore A slopes converted to approx Shore D (x0.5, overlapping mid-range rule) because profile targets are Shore D \u2014 original Shore A values preserved in testConditions."
+  }
+]

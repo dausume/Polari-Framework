@@ -1,0 +1,20 @@
+[
+    {
+        "id": "source-llm-chatgpt4o-2025",
+        "sourceType": "llm_generated",
+        "sourceName": "ChatGPT-4o Material Property Estimates",
+        "sourceReference": "",
+        "sourceAuthor": "OpenAI ChatGPT-4o",
+        "sourceDate": "2025-05-17",
+        "notes": "Initial property estimates generated via ChatGPT-4o for open-source wax filament simulation"
+    },
+    {
+        "id": "source-research-detts-2025",
+        "sourceType": "research_paper",
+        "sourceName": "Open-Source Wax Filament Simulation Research",
+        "sourceReference": "",
+        "sourceAuthor": "D. Etts",
+        "sourceDate": "2025-05-17",
+        "notes": "Compiled for open-source wax filament simulation using ChatGPT and manual refinement"
+    }
+]

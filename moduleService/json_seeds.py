@@ -81,8 +81,17 @@ def list_files(package):
 
 
 def read_file(path):
+    """A payload in the convention, or a LEGACY bare list (pre-convention
+    files such as polariMaterialsScienceModule/initialData/*.json, named
+    by collection not class) marked `legacy: True` with class None — kept
+    loadable-by-listing, skipped loudly by seed_pairs until renamed to
+    <ClassName>.json with the schema header."""
     with open(path, encoding='utf-8') as f:
         payload = json.load(f)
+    if isinstance(payload, list):
+        return {'schema': 'legacy-list', 'class': None, 'legacy': True,
+                'file': os.path.basename(path), 'count': len(payload),
+                'rows': payload}
     if not isinstance(payload, dict) or 'rows' not in payload:
         raise ValueError(f'{path}: not a module-initial-data payload')
     payload.setdefault('class', os.path.basename(path)[:-5])
@@ -149,7 +158,12 @@ def seed_pairs(package, manager=None, payloads=None):
     payloads = payloads if payloads is not None else [
         read_file(p) for p in list_files(package)]
     for payload in payloads:
-        class_name = payload['class']
+        class_name = payload.get('class')
+        if payload.get('legacy') or not class_name:
+            skipped.append((payload.get('file', '?'),
+                            'legacy bare-list file — rename to <ClassName>.json '
+                            'with the module-initial-data/1 header to load'))
+            continue
         cls = _class_lookup(manager, class_name, package)
         if cls is None:
             skipped.append((class_name, 'class not importable / not booted'))

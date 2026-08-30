@@ -1,0 +1,12 @@
+[
+    {
+        "id": "compat-soy-lecithin",
+        "rawMaterialId": "raw-soy-lecithin",
+        "name": "Soy Lecithin",
+        "compatibilizationType": "emulsifier",
+        "effectiveness": 0.7,
+        "compatibleBaseTypes": "wax,resin",
+        "compatibleAdditiveTypes": "powder,flake,liquid",
+        "provenanceId": "prov-fcs-speculative-v0.1"
+    }
+]

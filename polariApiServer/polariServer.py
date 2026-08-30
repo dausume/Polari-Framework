@@ -4682,7 +4682,11 @@ class polariServer(treeObject):
                 for pkg in json_seeds.packages_with_data():
                     if not _feature_available(pkg):
                         continue
-                    res = json_seeds.apply(pkg, self.manager, tag='JsonSeeds')
+                    try:
+                        res = json_seeds.apply(pkg, self.manager, tag='JsonSeeds')
+                    except Exception as e:  # one module's files never block another's
+                        print(f'[JsonSeeds] {pkg} failed: {e}', flush=True)
+                        continue
                     print(f'[JsonSeeds] {pkg}: {len(res["reports"])} class(es) '
                           f'+{sum(len(r.get("inserted", [])) for r in res["reports"])} '
                           f'~{sum(len(r.get("updated", [])) for r in res["reports"])} '

@@ -1,0 +1,58 @@
+[
+    {
+        "id": "profile-pla",
+        "name": "PLA (Standard FDM Filament)",
+        "description": "Polylactic acid standard FDM 3D printing filament target. Biodegradable thermoplastic with good stiffness and detail.",
+        "purposeId": "",
+        "referenceMaterialId": ""
+    },
+    {
+        "id": "profile-petg",
+        "name": "PETG (Durable Engineering Filament)",
+        "description": "Polyethylene terephthalate glycol-modified engineering filament. Excellent chemical resistance and durability.",
+        "purposeId": "",
+        "referenceMaterialId": ""
+    },
+    {
+        "id": "profile-polysmooth",
+        "name": "Polymaker PolySmooth (PVB-Based)",
+        "description": "PVB-based filament with smooth surface finish, alcohol-smoothable. Targets aesthetic and post-processable prints.",
+        "purposeId": "",
+        "referenceMaterialId": ""
+    },
+    {
+        "id": "profile-pvb",
+        "name": "Polyvinyl Butyral (PVB)",
+        "description": "PVB filament with good interlayer adhesion and alcohol solubility for smoothing.",
+        "purposeId": "",
+        "referenceMaterialId": ""
+    },
+    {
+        "id": "profile-machinable-wax",
+        "name": "Machinable Wax (Print2Cast)",
+        "description": "Wax-based filament designed for lost-wax casting workflows. Low melting point, clean burnout.",
+        "purposeId": "",
+        "referenceMaterialId": ""
+    },
+    {
+        "id": "profile-silk-pla",
+        "name": "Silk PLA (Glossy Aesthetic Filament)",
+        "description": "Modified PLA with silk-like glossy surface finish for aesthetic prints.",
+        "purposeId": "",
+        "referenceMaterialId": ""
+    },
+    {
+        "id": "profile-resin-highres-50um",
+        "name": "High-Resolution Resin (50um Voxel Target)",
+        "description": "UV-curable resin targeting 50 micron voxel resolution. High hardness and layer adhesion.",
+        "purposeId": "",
+        "referenceMaterialId": ""
+    },
+    {
+        "id": "profile-min-viable-wax-filament",
+        "name": "Minimum Viable Wax Filament",
+        "description": "Optimization target for the minimum viable safe wax filament. Defines acceptable ranges for key properties with priority weights.",
+        "purposeId": "",
+        "referenceMaterialId": ""
+    }
+]

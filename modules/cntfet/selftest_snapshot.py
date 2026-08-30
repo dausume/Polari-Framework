@@ -109,6 +109,14 @@ def main():
               and 'id' not in rows[1] and rows[1]['polarity'] == 'p' and not sk
               and json_seeds.resolve_package('cntfet') == 'cntfet',
               f'rows={rows} sk={sk}')
+    ms_pairs, ms_skipped = json_seeds.seed_pairs('polariMaterialsScienceModule',
+                                                 manager=None)
+    check('json_seeds: a legacy bare-list initialData dir (materials science, '
+          'Feb 2026) lists, loads nothing, and is skipped LOUDLY per file — '
+          'never raises',
+          not ms_pairs and len(ms_skipped) >= 5
+          and all('rename to <ClassName>.json' in why for _f, why in ms_skipped),
+          f'skipped={ms_skipped[:2]}')
     check('json_seeds: packages_with_data lists cntfet and sifet',
           {'cntfet', 'sifet'} <= set(json_seeds.packages_with_data()))
     print(f'{PASSED}/{PASSED + FAILED} checks passed')

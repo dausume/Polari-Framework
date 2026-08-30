@@ -1,0 +1,286 @@
+[
+  {
+    "id": "additive-beeswax",
+    "rawMaterialId": "raw-beeswax",
+    "name": "Beeswax",
+    "description": "Natural wax that mildly reduces shrinkage in composite formulations. Often used as a primary base but also functions as a blend stabilizer.",
+    "additiveForm": "flake",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-rosin",
+    "rawMaterialId": "raw-rosin",
+    "name": "Pine Rosin",
+    "description": "Pine-derived resin providing strong adhesion, hardness, and tack. Essential for filament structural integrity.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1",
+    "maxLoadingPercent": 20.0
+  },
+  {
+    "id": "additive-carnauba-wax",
+    "rawMaterialId": "raw-carnauba-wax",
+    "name": "Carnauba Wax",
+    "description": "High-hardness plant wax used to significantly increase surface polish and rigidity.",
+    "additiveForm": "flake",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1",
+    "maxLoadingPercent": 12.0
+  },
+  {
+    "id": "additive-soy-wax",
+    "rawMaterialId": "raw-soy-wax",
+    "name": "Soy Wax",
+    "description": "Semi-crystalline wax that gently increases viscosity and reduces shrinkage in blends.",
+    "additiveForm": "flake",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-coconut-wax",
+    "rawMaterialId": "raw-coconut-wax",
+    "name": "Coconut Wax",
+    "description": "Soft fatty wax providing gentle thickening and dimensional control.",
+    "additiveForm": "flake",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-soy-lecithin",
+    "rawMaterialId": "raw-soy-lecithin",
+    "name": "Soy Lecithin",
+    "description": "Phospholipid emulsifier that increases viscosity, enhances miscibility, and improves tack and adhesion.",
+    "additiveForm": "liquid",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-cork-flour",
+    "rawMaterialId": "raw-cork-flour",
+    "name": "Cork Flour",
+    "description": "Lightweight elastic filler that enhances shock absorption, reduces hardness, and acts as thermal insulator.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-grog-1um",
+    "rawMaterialId": "raw-grog-1um",
+    "name": "Grog (1 um)",
+    "description": "Ultra-fine ceramic grog for maximizing hardness, viscosity, and shrinkage reduction at low loadings.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-grog-3um",
+    "rawMaterialId": "raw-grog-3um",
+    "name": "Grog (3 um)",
+    "description": "Fine ceramic filler improving mold rigidity, shrinkage control, and dimensional stability.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-grog-6um",
+    "rawMaterialId": "raw-grog-6um",
+    "name": "Grog (6 um)",
+    "description": "Moderately fine grog balancing structural rigidity and flow resistance.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-kaolinite-clay",
+    "rawMaterialId": "raw-kaolinite-clay",
+    "name": "Kaolinite Clay",
+    "description": "Mineral clay with fine platelets increasing hardness and flexural modulus. Mild thickener and stabilizing filler.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-calcium-bentonite-clay",
+    "rawMaterialId": "raw-calcium-bentonite-clay",
+    "name": "Calcium Bentonite Clay",
+    "description": "Swelling clay providing thixotropy, shock absorption, and shrinkage reduction.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-calcium-alginate",
+    "rawMaterialId": "raw-calcium-alginate",
+    "name": "Calcium Alginate",
+    "description": "Seaweed-derived ionic gel contributing to hardness and shock absorption.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-graphite-powder",
+    "rawMaterialId": "raw-graphite-powder",
+    "name": "Graphite Powder",
+    "description": "Highly conductive carbon additive for improved heat distribution.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-diatomaceous-earth",
+    "rawMaterialId": "raw-diatomaceous-earth",
+    "name": "Diatomaceous Earth",
+    "description": "Amorphous silica with high porosity and surface area for significant viscosity increase.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-attapulgite-clay",
+    "rawMaterialId": "raw-attapulgite-clay",
+    "name": "Attapulgite Clay",
+    "description": "Fibrous clay adding thixotropy and particulate dispersion stability.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-stearin",
+    "rawMaterialId": "raw-stearin",
+    "name": "Stearin",
+    "description": "Fatty acid ester stabilizer and viscosity modifier for flow control.",
+    "additiveForm": "flake",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-glass-microfibers",
+    "rawMaterialId": "raw-glass-microfibers",
+    "name": "Glass Microfibers",
+    "description": "High-modulus glass fiber for strong flexural stiffness increase. Reduces shock absorption.",
+    "additiveForm": "fiber",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-silica-flour",
+    "rawMaterialId": "raw-silica-flour",
+    "name": "Silica Flour",
+    "description": "Fine inert powder flow modifier and anti-stick agent.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-chalk-powder",
+    "rawMaterialId": "raw-chalk-powder",
+    "name": "Chalk Powder",
+    "description": "Calcium carbonate filler that reduces layer bonding for anti-adhesion control.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-illite-clay",
+    "rawMaterialId": "raw-illite-clay",
+    "name": "Illite Clay",
+    "description": "Abundant clay offering moderate flexural stiffness reinforcement.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-copaiba-balsam",
+    "rawMaterialId": "raw-copaiba-balsam",
+    "name": "Copaiba Balsam",
+    "description": "Viscous oleoresin adding impact resistance, elasticity, and tack.",
+    "additiveForm": "liquid",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-frankincense",
+    "rawMaterialId": "raw-frankincense",
+    "name": "Frankincense",
+    "description": "Aromatic resin adding moderate resilience, elasticity, and soft stickiness.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-myrrh-oleoresin",
+    "rawMaterialId": "raw-myrrh-oleoresin",
+    "name": "Myrrh Oleoresin",
+    "description": "Thick aromatic oleoresin improving adhesion, toughness, tack, and crack resistance.",
+    "additiveForm": "liquid",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-ginger-oleoresin",
+    "rawMaterialId": "raw-ginger-oleoresin",
+    "name": "Ginger Oleoresin",
+    "description": "Warm spicy additive providing moderate tackiness and softening.",
+    "additiveForm": "liquid",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-benzoin-resin-extract",
+    "rawMaterialId": "raw-benzoin-resin-extract",
+    "name": "Benzoin Resin Extract",
+    "description": "Sticky aromatic resin enhancing tack and interlayer bonding.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-copal-resin",
+    "rawMaterialId": "raw-copal-resin",
+    "name": "Copal Resin",
+    "description": "Semi-hard resin improving surface bonding, hardness, and durability.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-carrageenan-resin",
+    "rawMaterialId": "raw-carrageenan-resin",
+    "name": "Carrageenan Resin",
+    "description": "Seaweed-derived gelling agent enhancing surface wetting, tack, and adhesion.",
+    "additiveForm": "powder",
+    "compatibilizerRequired": false,
+    "provenanceId": "prov-fcs-speculative-v0.1"
+  },
+  {
+    "id": "additive-eva",
+    "rawMaterialId": "raw-eva",
+    "name": "Ethylene-Vinyl Acetate (EVA)",
+    "additiveForm": "pellet",
+    "maxLoadingPercent": 15.0,
+    "compatibilizerRequired": false,
+    "description": "Elastomeric co-polymer modifier; softens matrices, strongly improves inter-layer bonding.",
+    "provenanceId": "prov-dustin-lit-2026-07-06"
+  },
+  {
+    "id": "additive-pe-wax",
+    "rawMaterialId": "raw-pe-wax",
+    "name": "Polyethylene Wax (Low MW)",
+    "additiveForm": "flake",
+    "maxLoadingPercent": 10.0,
+    "compatibilizerRequired": false,
+    "description": "Highly crystalline synthetic wax; steep hardness gain, mild adhesion penalty.",
+    "provenanceId": "prov-dustin-lit-2026-07-06"
+  },
+  {
+    "id": "additive-microcrystalline-wax",
+    "rawMaterialId": "raw-microcrystalline-wax",
+    "name": "Microcrystalline Wax (Heavy)",
+    "additiveForm": "slab",
+    "maxLoadingPercent": 25.0,
+    "compatibilizerRequired": false,
+    "description": "Amorphous branched isoparaffins; plasticizes and damps hot-tearing across layers.",
+    "provenanceId": "prov-dustin-lit-2026-07-06"
+  }
+]
