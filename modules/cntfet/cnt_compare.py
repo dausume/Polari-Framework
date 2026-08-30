@@ -286,6 +286,17 @@ def _generic_detail_page():
                                 f'{d}: characteristics → views + '
                                 'meaning', d)], min_height=640),
         # evidence: proof chain on the detail page too (first-class)
+        # the registered 2-D sim space (fet-2d-{object}) — EVERY
+        # FET has one (CNT and Si), so a silicon device's page has
+        # a defined 2-D sim even though the 3-D tube scenes refuse.
+        _row(4, [_component_item(f'detail-{d}-sim2d', 0, 12,
+                                 f'{d}: 2-D sim space (fet-2d-{d}) '
+                                 '— the registered region layout '
+                                 'under /sim-spaces',
+                                 'sim-space-viewer',
+                                 {'simSpaceName': f'fet-2d-{d}',
+                                  'hideRunPanel': True})],
+             min_height=380),
         # fg-3: the full 2-D parts view — field overlay + sliders
         _row(3, [_component_item(f'detail-{d}-parts2d', 0, 12,
                                  f'{d}: 2-D parts view — every region '

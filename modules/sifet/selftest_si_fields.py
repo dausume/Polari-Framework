@@ -105,6 +105,19 @@ def main():
     check('unknown field refuses by name',
           not field_profile(mgr, nmos, 'no-such').get('ok'))
 
+    from cntfet.cnt_device_viz import device_curve_points
+    fp = device_curve_points(mgr, 'si-pmos-planar-90',
+                             curve='field-potential')
+    labels = {r['series'] for r in fp.get('rows', [])
+              if r.get('style') == 'line'}
+    check('graph curves: the field-potential graph sweeps the Si '
+          'device\'s OWN Vdd (Vg 0 / 0.5 / 1 V at Vd 1 V), not the '
+          'CNT 0.6 V series',
+          fp.get('ok')
+          and any('Vg = 1 V' in s and 'Vd = 1 V' in s
+                  for s in labels)
+          and not any('Vd = 0.6' in s for s in labels),
+          str(sorted(labels))[:200])
     cpot = field_profile(mgr, cnt, 'potential', vg=0.6, vd=0.6)
     check('CNT unchanged: S1 still serves the CNT basis (Efsd leads, '
           'radial shells present)',

@@ -1059,7 +1059,7 @@ def main():
           and scene_view['status'] == 'ready'
           and dpages[0]['pageRoute'] == 'fet-detail'   # fg-2: generic
           and dcomps.count('fet-characteristic-explorer') == 1
-          and dcomps.count('sim-space-viewer') == 3,
+          and dcomps.count('sim-space-viewer') == 4,   # 3 fields + fet-2d
           f'fp={fp.get("error")} view={scene_view} comps={dcomps}')
 
     # ---- fp-6: datasheet categories, plain language, the weave -----

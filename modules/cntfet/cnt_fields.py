@@ -459,9 +459,19 @@ def _scf_profile_rows(manager, device_name, x_center):
 def _scalar_curve(field, log_floor=None):
     def build(id_fn, p, device, manager, knobs=None):
         k = {**FIELD_KNOBS, **(knobs or {})}
-        vd = k.get('vd', 0.6)
+        from cntfet.cnt_device_viz import device_vdd
+        vdd = device_vdd(device)
+        # device-relative rule (fg-4): sweep 0 → the device's OWN
+        # Vdd unless the caller pinned an explicit series. For the
+        # S1 0.6 V window the fractions give exactly the old
+        # (0, 0.3, 0.6) series — CNT graphs bit-identical; a 1.0 V
+        # silicon device now sweeps (0, 0.5, 1.0) instead of being
+        # drawn at CNT voltages.
+        vd = k.get('vd', vdd)
+        vg_series = ((knobs or {}).get('vg_series_v')
+                     or [round(f * vdd, 4) for f in (0.0, 0.5, 1.0)])
         rows, profiles = [], []
-        for vg in k['vg_series_v']:
+        for vg in vg_series:
             prof = field_profile(manager, device, field, vg=vg, vd=vd,
                                  n=k.get('n', 60), knobs=k)
             if not prof.get('ok'):
