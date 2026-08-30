@@ -721,6 +721,20 @@ def _log_times(horizon_hours, points=25):
 def transport_report(manager, device, p, vgs=0.6, vds=0.6,
                      t_hours=0.0, horizon_hours=8760 * 5, knobs=None):
     """The /transport payload (see module docstring)."""
+    if device is not None and not hasattr(device, 'material'):
+        # fg-4: a SiliconMOSFET row has its OWN cited scattering
+        # basis now (sifet.si_transport) — one dispatch point so
+        # /transport, the summary and fet-overview all un-refuse
+        # together; absent module → the old honest refusal below.
+        try:
+            from sifet.si_transport import si_transport_report
+        except ImportError:
+            pass
+        else:
+            return si_transport_report(manager, device, p, vgs=vgs,
+                                       vds=vds, t_hours=t_hours,
+                                       horizon_hours=horizon_hours,
+                                       knobs=knobs)
     ctx, refusal = transport_context(manager, device)
     if refusal is not None:
         return refusal
