@@ -19,6 +19,7 @@ from cntfet.cnt_calibration import (
     calibrate_device, seed_anchor_rows,
 )
 from cntfet.cnt_capability import capability
+from cntfet.cnt_fet_summary import fet_alias
 from cntfet.cnt_derive import derive_device, get_row, run_iv
 from cntfet.cnt_validate import validate
 from cntfet.cnt_verilog_a import generate_va
@@ -32,7 +33,18 @@ class CNTFETAPI(treeObject):
         self.polServer = polServer
         self.apiName = '/api/cntfet'
         if polServer is not None:
-            add = polServer.falconServer.add_route
+            raw_add = polServer.falconServer.add_route
+
+            def add(path, resource, suffix=None):
+                # fet, not cntfet (Dustin 2026-08-30): every generic
+                # per-device surface ALSO answers under /api/fet/…
+                # (cnt_fet_summary.fet_alias) — the cntfet path keeps
+                # answering until the fet-module split (fg-5).
+                raw_add(path, resource, suffix=suffix)
+                alias = fet_alias(path)
+                if alias is not None:
+                    raw_add(alias, resource, suffix=suffix)
+
             add('/api/cntfet/capability', self, suffix='capability')
             add('/api/cntfet/citations', self, suffix='citations')
             add('/api/cntfet/devices', self, suffix='devices')
@@ -43,6 +55,12 @@ class CNTFETAPI(treeObject):
             # (per-object surfaces — any display row points here).
             add('/api/cntfet/device/{name}/points', self,
                 suffix='device_points')
+            # fg-0: the common FET data format — ONE stable payload
+            # (fet-summary/1) every FET answers; sections carry the
+            # same reports the per-section endpoints serve, refusals
+            # inline, the key set never changes.
+            add('/api/cntfet/device/{name}/summary', self,
+                suffix='device_summary')
             add('/api/cntfet/device/{name}/characterization',
                 self, suffix='device_characterization')
             # fi-0: operating states + the criteria that qualify a
@@ -241,6 +259,17 @@ class CNTFETAPI(treeObject):
             samples=max(0, min(samples, 2000)), seed=seed)
         if not report.get('ok'):
             response.status = '422 Unprocessable Entity'
+        response.media = report
+
+    def on_get_device_summary(self, request, response, name):
+        """fg-0: GET /api/fet/device/{name}/summary — the whole FET
+        in one stable fet-summary/1 payload; a section that cannot
+        answer carries its refusal inline (never a 500, the key set
+        never changes)."""
+        from cntfet.cnt_fet_summary import fet_summary
+        report = fet_summary(self.manager, name)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
         response.media = report
 
     def on_get_device_score(self, request, response, name):
