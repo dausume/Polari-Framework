@@ -906,7 +906,9 @@ class CNTFETAPI(treeObject):
                 self.manager, device,
                 cells=payload.get('cells'),
                 drives=tuple(payload.get('drives', [1])),
-                vdd=float(payload.get('vdd', 0.6)))
+                # device-relative: the library is characterized at the
+                # device's OWN Vdd unless the caller says otherwise
+                vdd=float(payload.get('vdd', getattr(device, 'vdd_v', None) or 0.6)))
             if not report.get('ok'):
                 response.status = ('422 Unprocessable Entity'
                                    if 'refusal' in report
