@@ -644,12 +644,22 @@ def _budget_rows(manager):
             'PowerBudget') or {}
         rows = list(table.values() if isinstance(table, dict)
                     else table)
-    return rows or [dict(b) for b in SEED_POWER_BUDGETS]
+    if rows:
+        return rows
+    try:
+        from cntfet.cnt_targets import SEED_TARGET_POWER_BUDGETS
+    except ImportError:
+        SEED_TARGET_POWER_BUDGETS = []
+    return [dict(b) for b in SEED_POWER_BUDGETS + SEED_TARGET_POWER_BUDGETS]
 
 
 def budget_report(manager, device_name, knobs=None):
-    """Every budget row checked against the FET and the cells."""
+    """Budgets are TARGET-scoped (Dustin 2026-08-29): a check is
+    pass / fail only against a DesignTarget the device is mapped to;
+    against every other target it is INFORMATIONAL — a device is
+    never "failing" a budget it was not engineered for."""
     from cntfet.cnt_device_viz import device_model
+    from cntfet.cnt_targets import targets_for_device
     id_fn, p, device, refusal = device_model(manager, device_name)
     if refusal is not None:
         return refusal
@@ -659,25 +669,75 @@ def budget_report(manager, device_name, knobs=None):
                   'dynamic_w': fet['dynamic']['p_dyn_w'],
                   'temperature_k': p.get('temperature_k')}
     lib = library_power(manager, device_name, k)
-    results = []
-    for b in _budget_rows(manager):
-        scope = _get(b, 'scope')
-        if scope == 'fet':
-            results.append({'subject': device_name,
+    budgets = {_get(b, 'name'): b for b in _budget_rows(manager)}
+    mapped, mapping, all_targets = targets_for_device(manager, device_name)
+    mapped_names = {t['name'] for t in mapped}
+
+    def _checks_for(target):
+        out = []
+        for bname in json.loads(target.get('budgets_json') or '[]'):
+            b = budgets.get(bname)
+            if b is None:
+                out.append({'subject': device_name, 'budget': bname,
+                            'scope': '?', 'pass': None, 'failed': [],
+                            'checks': [], 'why': 'no PowerBudget row'})
+                continue
+            scope = _get(b, 'scope')
+            if scope == 'fet':
+                out.append({'subject': device_name,
                             **check_budget(fet_report, b)})
-        elif scope == 'cell':
-            for c in lib['cells']:
-                results.append({'subject': c['libertyName'],
+            elif scope == 'cell':
+                for c in lib.get('cells', []):
+                    out.append({'subject': c['libertyName'],
                                 **check_budget(c, b)})
-        else:
-            results.append({'subject': f'{device_name}-block',
+            else:
+                out.append({'subject': f'{device_name}-block',
                             **check_budget(
-                                {'temperature_k':
-                                 p.get('temperature_k'),
+                                {'temperature_k': p.get('temperature_k'),
                                  'density_w_per_cm2': None}, b)})
+        return out
+
+    def _verdict(checks):
+        evaluated = [c for c in checks if c.get('pass') is not None]
+        if not evaluated:
+            return 'unevaluated'
+        return 'misses' if any(c['failed'] for c in evaluated) else 'meets'
+
+    targets_out = []
+    for name, t in all_targets.items():
+        checks = _checks_for(t)
+        is_mapped = name in mapped_names
+        verdict = _verdict(checks)
+        targets_out.append({
+            'target': name, 'display_name': t.get('display_name', name),
+            'description': t.get('description', ''),
+            'optimization': t.get('optimization', ''),
+            'mapped': is_mapped,
+            'status': (verdict if is_mapped else 'not-a-target'),
+            'informational': (None if is_mapped else verdict),
+            'statement': (
+                f"engineered for {t.get('display_name', name)}: "
+                f"{verdict.upper()} its budgets" if is_mapped else
+                f"not a target for this device — would "
+                f"{'meet' if verdict == 'meets' else 'not meet' if verdict == 'misses' else 'be unevaluated against'} "
+                f"{t.get('display_name', name)} (informational only)"),
+            'checks': checks,
+            'failingSubjects': sorted({c['subject'] for c in checks
+                                       if c.get('failed')}),
+        })
+    targets_out.sort(key=lambda t: (not t['mapped'], t['target']))
+    mapped_results = [c for t in targets_out if t['mapped']
+                      for c in t['checks']]
     return {'ok': True, 'device': device_name, 'fidelity': FIDELITY,
-            'fet': fet_report, 'results': results,
-            'failing': [r for r in results if r['failed']],
+            'fet': fet_report,
+            'engineeredFor': mapping,
+            'targets': targets_out,
+            # the mapped-target checks only (what "fail" may mean)
+            'results': mapped_results,
+            'failing': [r for r in mapped_results if r.get('failed')],
+            'rule': 'pass / fail exists only against a target the FET '
+                    'is engineered for (FETTargetMapping); every other '
+                    'target is informational, never a failure',
             'honesty': 'density W/cm² needs a layout-backed area — '
                        'unevaluated until one exists',
             'knobs': k}

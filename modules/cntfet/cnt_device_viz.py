@@ -193,8 +193,13 @@ def _montecarlo(manager, device, samples, seed):
     refresh is not an S3 act); refusals pass through as data."""
     from cntfet.cnt_montecarlo import monte_carlo
     if not hasattr(device, 'process_set'):
-        # fp-2: a SiliconMOSFET row has no CNT process set to sample —
-        # the stochastic surfaces refuse by name instead of crashing
+        # fp-2: a SiliconMOSFET row has no CNT process set — sample the
+        # silicon variability PRIORS instead (same report shape).
+        try:
+            from sifet.si_montecarlo import monte_carlo as si_mc
+            return si_mc(manager, device, sample_count=samples, seed=seed)
+        except ImportError:
+            pass
         return {'ok': False,
                 'refusal': f'no stochastic (Monte Carlo) basis for '
                            f'"{getattr(device, "name", "?")}": the S3 '

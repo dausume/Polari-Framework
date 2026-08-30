@@ -1392,6 +1392,15 @@ try:
 except ImportError:
     PowerBudget, SEED_POWER_BUDGETS, SEED_POWER_SCORE_TERMS = None, [], []
 try:
+    from cntfet.cnt_targets import (
+        DesignTarget, FETTargetMapping, SEED_DESIGN_TARGETS,
+        SEED_FET_TARGET_MAPPINGS, SEED_TARGET_POWER_BUDGETS,
+    )
+except ImportError:
+    DesignTarget = FETTargetMapping = None
+    SEED_DESIGN_TARGETS = SEED_FET_TARGET_MAPPINGS = []
+    SEED_TARGET_POWER_BUDGETS = []
+try:
     from sifet.si_basis import (
         SEED_TABLES as _SI_SEED_TABLES, SiliconDopingProfile,
         SiliconFETShape, SiliconMOSFET, SolGelDielectric, SolGelProcess,
@@ -2659,7 +2668,7 @@ class polariServer(treeObject):
             SolGelProcess, SiliconFETShape, SiliconMOSFET,
             SiliconGrade, RefinementStep, RefinementRoute,
             TechnologyIPRecord, EvidenceItem, OpenCellLibrary,
-            FunctionalBlock,
+            FunctionalBlock, DesignTarget, FETTargetMapping,
             # cnt-s3: process objects + MC run rows.
             CNTAlignmentProcess, CNTPlacementProcess,
             CNTPurificationProcess, ContactFormationProcess,
@@ -3646,7 +3655,11 @@ class polariServer(treeObject):
             ('FETShapeType', FETShapeType, SEED_FET_SHAPE_TYPES or []),
             ('ComplementaryPair', ComplementaryPair,
              SEED_COMPLEMENTARY_PAIRS or []),
-            ('PowerBudget', PowerBudget, SEED_POWER_BUDGETS or []),
+            ('PowerBudget', PowerBudget,
+             (SEED_POWER_BUDGETS or []) + (SEED_TARGET_POWER_BUDGETS or [])),
+            ('DesignTarget', DesignTarget, SEED_DESIGN_TARGETS or []),
+            ('FETTargetMapping', FETTargetMapping,
+             SEED_FET_TARGET_MAPPINGS or []),
             ('SolGelDielectric', SolGelDielectric,
              SEED_SOLGEL_DIELECTRICS or []),
             ('SolGelProcess', SolGelProcess, SEED_SOLGEL_PROCESSES or []),

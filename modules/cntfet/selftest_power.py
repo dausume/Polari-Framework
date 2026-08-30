@@ -216,18 +216,23 @@ def main():
     for seed in cp.SEED_POWER_BUDGETS:
         st._row_factory(mgr, 'PowerBudget')(**seed)
     br = cp.budget_report(mgr, DEV, k)
-    check('fp-1 budget_report: fet + per-cell + block rows checked '
-          '(S1 FET 0.5 nW under the 1 nW prior; density unevaluated '
-          'until a layout area exists)',
-          br['ok']
+    mapped = [t for t in br['targets'] if t['mapped']]
+    other = [t for t in br['targets'] if not t['mapped']]
+    check('fp-1 budget_report is TARGET-scoped: S1 is engineered for '
+          'low-power-logic (its FET + cell checks are pass/fail there); '
+          'every other target is informational (would / would not meet, '
+          'never a failure); density stays unevaluated until a layout '
+          'area exists',
+          br['ok'] and br['engineeredFor']['targets'] == ['low-power-logic']
+          and len(mapped) == 1 and mapped[0]['status'] in ('meets', 'misses')
           and any(r['scope'] == 'fet' and r['pass'] for r in br['results'])
           and sum(r['scope'] == 'cell' for r in br['results']) == 3
-          and any(r['scope'] == 'block' and not r['failed']
+          and all(t['status'] == 'not-a-target' for t in other)
+          and any(t['target'] == 'high-performance-logic'
                   and any(c['limit'] == 'max_density_w_per_cm2'
-                          and c['pass'] is None for c in r['checks'])
-                  and any(c['limit'] == 'max_temperature_k'
-                          and c['pass'] for c in r['checks'])
-                  for r in br['results'])
+                          and c['pass'] is None
+                          for r in t['checks'] for c in r['checks'])
+                  for t in other)
           and len(cp.PowerBudget.__init__.__code__.co_varnames) > 5)
 
     # ---- 6. Liberty emission ------------------------------------------
