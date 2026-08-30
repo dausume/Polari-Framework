@@ -192,13 +192,10 @@ def _si_layout(device, parts, knobs, kind):
 
 
 def _overlay(manager, device, field, vg, vd):
-    """The 1-D field profile along x (CNT: cnt_fields at the
-    device's own Vdd; Si: an honest refusal until fg-4)."""
-    if not hasattr(device, 'material'):
-        return {'ok': False, 'refusal': (
-            'silicon field overlays refuse until a sifet transport/'
-            'field basis exists (fg-4) — the region geometry above '
-            'is still row-backed')}
+    """The 1-D field profile along x at the device's own Vdd —
+    field_profile dispatches CNT and Si rows to their own bases
+    (fg-4: the Si sketch lives in sifet.si_fields; its x axis uses
+    the SAME parts2d sketch lengths so the overlay aligns)."""
     from cntfet.cnt_device_viz import device_vdd
     from cntfet.cnt_fields import FIELDS, field_profile
     vdd = device_vdd(device)

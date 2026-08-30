@@ -88,11 +88,16 @@ def main():
           any(r['kind'] == 'oxide' and r['part']
               and r['h'] == r['part']['dimensions']['thickness_nm']
               for r in si['regions']))
-    check('Si: field overlay REFUSES naming the sifet basis gap '
-          '(fg-4) — stated, not faked',
-          si['field'].get('ok') is False
-          and 'sifet' in si['field'].get('refusal', ''),
-          str(si['field']))
+    check('Si: field overlay now SERVES the si_fields sketch at the '
+          'device\'s own Vdd (fg-4 basis landed), labelled F1 '
+          'SKETCH, x aligned with the parts2d lengths',
+          si['field'].get('ok') is True
+          and si['field']['unit'] == 'eV'
+          and abs(si['field']['vg'] - 1.0) < 1e-9
+          and 'SKETCH' in si['field'].get('fidelity', '')
+          and len(si['field']['x_nm']) == len(si['field']['value']),
+          str({kk: si['field'].get(kk)
+               for kk in ('ok', 'refusal', 'unit', 'vg')}))
 
     lg30 = parts2d_report(mgr, 'cnt-aligned-s1-lg30')
     check('underived comparator: still answers — its component rows '

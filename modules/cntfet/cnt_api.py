@@ -421,17 +421,20 @@ class CNTFETAPI(treeObject):
     def on_get_device_fields(self, request, response, name):
         """fv-4: ?field=material|potential|electron-density|n-doping|
         p-doping ?vg= ?vd= — the 1-D profile (F1 sketch, labelled)."""
+        from cntfet.cnt_device_viz import device_vdd
         from cntfet.cnt_fields import field_profile
-        device = get_row(self.manager, 'AlignedCNTFETDevice', name)
+        device = (get_row(self.manager, 'AlignedCNTFETDevice', name)
+                  or get_row(self.manager, 'SiliconMOSFET', name))
         if device is None:
             return self._refuse(response, f'no device "{name}"',
                                 '404 Not Found')
         q = self._floats(request, response, ('vg', 'vd'))
         if q is None:
             return
+        vdd = device_vdd(device)   # device-relative default (fg-4)
         report = field_profile(self.manager, device,
                                request.get_param('field') or 'potential',
-                               q.get('vg', 0.6), q.get('vd', 0.6))
+                               q.get('vg', vdd), q.get('vd', vdd))
         if not report.get('ok'):
             response.status = '422 Unprocessable Entity'
         response.media = report

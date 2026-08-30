@@ -261,7 +261,7 @@ def _potential(p, geo_report, frame, transport, gate, xs):
                    'Vdsi); leads: -Efsd | -Efsd - Vds'}
 
 
-def field_profile(manager, device, field, vg=0.0, vd=0.6, n=60,
+def field_profile(manager, device, field, vg=None, vd=None, n=60,
                   knobs=None):
     """{ok, device, field, vg, vd, fidelity, x_nm[], value[], unit,
     regions, note, formula, frame, knobs} — one field along x at one
@@ -271,6 +271,22 @@ def field_profile(manager, device, field, vg=0.0, vd=0.6, n=60,
     id_fn, p, dev, refusal = device_model(manager, name)
     if refusal is not None:
         return {**refusal, 'fidelity': FIDELITY}
+    if dev is not None and not hasattr(dev, 'material'):
+        # fg-4: a SiliconMOSFET row has its OWN field sketch now
+        # (sifet.si_fields — same eq.(5) barrier, silicon λ); one
+        # dispatch point so /fields and the parts2d overlays
+        # un-refuse together. Absent module → the old refusal.
+        try:
+            from sifet.si_fields import field_profile_si
+        except ImportError:
+            pass
+        else:
+            return field_profile_si(manager, dev, field,
+                                    vg=vg, vd=vd, n=n, knobs=knobs)
+    # CNT legacy defaults (bit-identical to the fv-4 behavior);
+    # the Si path above defaults to the device's OWN Vdd instead.
+    vg = 0.0 if vg is None else vg
+    vd = 0.6 if vd is None else vd
     if field not in FIELDS:
         return _refuse(f'unknown field "{field}" ({" | ".join(FIELDS)})')
     geo_report = device_regions(manager, dev, knobs=k)
