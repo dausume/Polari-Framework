@@ -717,8 +717,19 @@ class CNTFETAPI(treeObject):
             payload = json.loads(raw) if raw else {}
         except ValueError:
             return self._refuse(response, 'body must be JSON')
-        if payload.get('action', 'derive') != 'derive':
-            return self._refuse(response, 'actions: derive')
+        action = payload.get('action', 'derive')
+        if action == 'apply-anchor-knob':
+            # fg-4: the explicit act that applies the vfb_v anchor
+            # suggestion to the row (provenance in vfb_source).
+            from sifet.si_ladder import apply_anchor_knob
+            report = apply_anchor_knob(self.manager, name)
+            if not report.get('ok'):
+                response.status = '422 Unprocessable Entity'
+            response.media = report
+            return
+        if action != 'derive':
+            return self._refuse(response,
+                                'actions: derive | apply-anchor-knob')
         response.media = derive_si_device(self.manager, device)
 
     def on_get_si_ladder(self, request, response):
