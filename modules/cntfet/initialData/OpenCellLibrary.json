@@ -1,0 +1,48 @@
+{
+ "class": "OpenCellLibrary",
+ "count": 2,
+ "rows": [
+  {
+   "cells_json": "[]",
+   "description": "The same cell circuits on the cnt-aligned-s1 / cnt-aligned-s1-p pair. The cells are individually proven free; the DEVICE carries the aligned-array process encumbrance (US 9,825,229 active), so the library is NOT open-source-ready — research use with force=True only.",
+   "device_proof_status": "unevaluated",
+   "display_name": "Polari CNT S1 library (NOT open-source-ready)",
+   "evidence_summary_json": "{}",
+   "excluded_json": "[]",
+   "generated_at": "",
+   "is_prior": true,
+   "liberty_bytes": 0,
+   "library_proof_status": "unevaluated",
+   "licence": "GPL-3.0",
+   "n_device": "cnt-aligned-s1",
+   "name": "polari-open-cnt-s1",
+   "notes": "Expected: NOT open_source_ready — reason = the aligned-array encumbrance on the device, not the cells. Admission is computed live from the evidence rows (refresh_open_library stamps it); the seed declares the pair only.",
+   "open_source_ready": false,
+   "p_device": "cnt-aligned-s1-p",
+   "pair_name": "cnt-s1-mirror-pair",
+   "run_ref": ""
+  },
+  {
+   "cells_json": "[\"cand2\", \"cand3\", \"caoi21\", \"caoi22\", \"cbuf\", \"cfa\", \"cha\", \"cinv\", \"clatch\", \"cmux2\", \"cmux4\", \"cnand2\", \"cnand3\", \"cnand4\", \"cnor2\", \"cnor3\", \"cnor4\", \"coai21\", \"coai22\", \"cor2\", \"cor3\", \"ctbuf\", \"cxnor2\", \"cxor2\", \"cxor3\", \"cdff\"]",
+   "description": "Every proven-free cell on the si-nmos-planar-90 / si-pmos-planar-90 pair: planar bulk MOSFET + CMOS + planar process all expired (verified) — the library we can ship as open source today.",
+   "device_proof_status": "proven-free",
+   "display_name": "Polari open library — Si planar 90 nm-class CMOS",
+   "evidence_summary_json": "{\"deviceStatus\": {\"n\": \"proven-free\", \"p\": \"proven-free\"}, \"counts\": {\"cells\": 26, \"admitted\": 26, \"excluded\": 0}, \"evidence\": [\"pat-us-3102230\", \"pub-LUN97\", \"pub-EKV95\", \"pub-CT67\", \"book-sze-1981\", \"book-taur-ning-1998\", \"pat-us-3356858\", \"pat-us-3025589\", \"pub-RAH03\", \"book-lundstrom-2000\", \"lic-gpl-3.0\", \"pub-NAR01\", \"book-weste-eshraghian-1985\", \"book-rabaey-2003\"], \"reviewed_at\": \"2026-08-29\"}",
+   "excluded_json": "[]",
+   "generated_at": "2026-08-29T17:10:28.095039+00:00",
+   "is_prior": true,
+   "liberty_bytes": 148883,
+   "library_proof_status": "proven-free",
+   "licence": "GPL-3.0",
+   "n_device": "si-nmos-planar-90",
+   "name": "polari-open-si-planar-90",
+   "notes": "Expected: open_source_ready (device pair proven-free, every cell proven-free). Admission is computed live from the evidence rows (refresh_open_library stamps it); the seed declares the pair only.",
+   "open_source_ready": true,
+   "p_device": "si-pmos-planar-90",
+   "pair_name": "si-planar-90-pair",
+   "run_ref": "si-nmos-planar-90-lib-170958"
+  }
+ ],
+ "schema": "module-initial-data/1",
+ "source": "https://api.prf.192.168.0.210.nip.io"
+}

@@ -4671,6 +4671,33 @@ class polariServer(treeObject):
                               flush=True)
             except Exception as e:
                 print(f'[AppsNavSeed] failed: {e}', flush=True)
+        # JsonSeeds: the module data convention — every admitted module's
+        # initialData/*.json (moduleService.json_seeds) converges into the
+        # live tables through the upsert path, so a fresh clone boots with
+        # the data code cannot regenerate (e.g. cntfet's characterized
+        # libraries); customized rows (is_prior False) are never clobbered.
+        if _feature_available('composition'):
+            try:
+                from moduleService import json_seeds
+                for pkg in json_seeds.packages_with_data():
+                    if not _feature_available(pkg):
+                        continue
+                    res = json_seeds.apply(pkg, self.manager, tag='JsonSeeds')
+                    print(f'[JsonSeeds] {pkg}: {len(res["reports"])} class(es) '
+                          f'+{sum(len(r.get("inserted", [])) for r in res["reports"])} '
+                          f'~{sum(len(r.get("updated", [])) for r in res["reports"])} '
+                          f'={sum(len(r.get("unchanged", [])) for r in res["reports"])} '
+                          f'skipped={len(res["skipped"])}', flush=True)
+                    for n, why in res['skipped']:
+                        print(f'[JsonSeeds] {pkg}.{n} skipped: {why}', flush=True)
+                    for r in res['reports']:
+                        if r.get('inserted') or r.get('updated') or r.get('errors'):
+                            print(f'[JsonSeeds] {pkg}.{r["class"]}: '
+                                  f'+{len(r.get("inserted", []))} '
+                                  f'~{len(r.get("updated", []))} '
+                                  f'!{len(r.get("errors", []))}', flush=True)
+            except Exception as e:
+                print(f'[JsonSeeds] failed: {e}', flush=True)
         # cmp-c-nav / chip-nav: the two arc apps are MODULE-LOCAL
         # rows (climate_app pattern — the row's source drops with
         # its module, and the arcs' commit sets stay disjoint).

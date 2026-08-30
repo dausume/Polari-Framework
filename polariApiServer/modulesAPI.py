@@ -32,6 +32,9 @@ class ModulesAPI(treeObject):
             polServer.falconServer.add_route(self.apiName + '/create', self, suffix='create')
             polServer.falconServer.add_route(self.apiName + '/registry', self, suffix='registry')
             polServer.falconServer.add_route(self.apiName + '/{module_id}', self, suffix='detail')
+            # module data convention: the module's initialData/*.json served
+            # so another instance can install it by API (json_seeds)
+            polServer.falconServer.add_route(self.apiName + '/{module_id}/initial-data', self, suffix='initial_data')
 
     # ------------------------------------------------------------------
     # GET /modules
@@ -213,27 +216,59 @@ class ModulesAPI(treeObject):
     # ------------------------------------------------------------------
     # POST /modules/seed
     # ------------------------------------------------------------------
+    def on_get_initial_data(self, request, response, module_id):
+        """GET /modules/{module_id}/initial-data — the module's committed
+        initialData/*.json payloads (module data convention), for another
+        instance's POST /modules/seed {"moduleId", "source": <this api>}."""
+        from moduleService import json_seeds
+        pkg = json_seeds.resolve_package(module_id)
+        if json_seeds.data_dir(pkg) is None or not json_seeds.list_files(pkg):
+            response.status = falcon.HTTP_404
+            response.media = {"success": False, "error": f"module {module_id} carries no initialData"}
+            return
+        body = json_seeds.serve(pkg)
+        body['success'] = True
+        body['moduleId'] = module_id
+        response.media = body
+        response.set_header('Powered-By', 'Polari')
+
     def on_post_seed(self, request, response):
         """Load seed data for an enabled module.
 
-        Request body: { "moduleId": "<module_id>" }
+        Request body: { "moduleId": "<module_id>", "source"?: "<api base of
+        another instance to pull initial-data from instead of the local
+        files> }
         """
         try:
             body = request.media
             module_id = body.get('moduleId')
+            source = body.get('source')
 
             if not module_id:
                 response.status = falcon.HTTP_400
                 response.media = {"success": False, "error": "moduleId is required"}
                 return
 
+            from moduleService import json_seeds
+            pkg = json_seeds.resolve_package(module_id)
             module_classes = self.polServer._module_classes.get(module_id, [])
-            if not module_classes:
+            if not module_classes and not json_seeds.list_files(pkg) and not source:
                 response.status = falcon.HTTP_400
                 response.media = {"success": False, "error": f"Module {module_id} must be enabled before loading seed data"}
                 return
 
-            seed_result = self._seed_module(module_id)
+            if source:
+                payloads = json_seeds.fetch(source, module_id)
+                res = json_seeds.apply(pkg, self.manager, payloads=payloads,
+                                       tag=f'{module_id}.initialData@{source}')
+                seed_result = {
+                    "totalCount": sum(len(v) for v in res['created'].values()),
+                    "classCount": len(res['created']),
+                    "classes": {k: len(v) for k, v in res['created'].items()},
+                    "source": source, "reports": res['reports'],
+                    "skipped": res['skipped']}
+            else:
+                seed_result = self._seed_module(module_id)
             response.media = {
                 "success": True,
                 "message": f"Loaded {seed_result['totalCount']} seed records across {seed_result['classCount']} classes",
@@ -713,9 +748,9 @@ class ModulesAPI(treeObject):
 
     def _seed_module(self, module_id):
         """Load seed data for a module."""
-        from moduleService.moduleDiscovery import module_id_to_package
+        from moduleService.json_seeds import resolve_package
 
-        package_name = module_id_to_package(module_id)
+        package_name = resolve_package(module_id)
         seed_module = importlib.import_module(f'{package_name}.seedData')
 
         print(f"[ModulesAPI] Loading seed data for {module_id}...")

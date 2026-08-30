@@ -6,6 +6,8 @@
 # downloaded, where each sub-project repo lives) — a fresh clone
 # without it loses the waves/requires/repo config.
 !modules/polari-modules.json
+# module data convention: committed initial data (plain JSON, small)
+!modules/*/initialData/*.json
 *.pyc
 *.db
 */falcon
