@@ -603,8 +603,18 @@ def check_budget(power_report, budget):
     checks, failed = [], []
     for limit_key, value_key, unit in _LIMITS:
         limit = _get(budget, limit_key)
-        if limit is None:
+        if limit is None or limit == '':
             continue
+        try:
+            # live rows come back with string-typed numbers (persistence)
+            limit = float(limit)
+        except (TypeError, ValueError):
+            checks.append({'limit': limit_key, 'max': limit, 'unit': unit,
+                           'value': None, 'pass': None,
+                           'why': f'limit "{limit}" is not numeric'})
+            continue
+        if limit <= 0:
+            continue   # 0 / negative = "no limit declared" on the row
         value = _get(power_report, value_key)
         if value is None:
             checks.append({'limit': limit_key, 'max': limit,
