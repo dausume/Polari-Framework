@@ -113,6 +113,17 @@ def fo4_report(manager, device_name, knobs=None):
                          f'"characterize-cells"}} to /api/cntfet/devices/'
                          f'{device_name} first', 'fidelity': FIDELITY}
     vdd = float(getattr(row, 'vdd_v', 0.6) or 0.6)
+    # device-relative honesty: the run must be at the device's OWN Vdd
+    from cntfet.cnt_derive import get_row
+    dev = (get_row(manager, 'AlignedCNTFETDevice', device_name)
+           or get_row(manager, 'SiliconMOSFET', device_name))
+    dev_vdd = float(getattr(dev, 'vdd_v', 0) or 0) if dev is not None else 0.0
+    vdd_note = ''
+    if dev_vdd and abs(dev_vdd - vdd) > 1e-9:
+        vdd_note = (f'library run {row.name} was characterized at {vdd:g} V '
+                    f'but this device\'s own Vdd is {dev_vdd:g} V — '
+                    f're-characterize (POST characterize-cells) for an '
+                    f'own-Vdd FO4')
     fo4 = fo4_from_liberty(row.liberty_text, knobs=k)
     if not fo4.get('ok'):
         return {**fo4, 'run': row.name, 'fidelity': FIDELITY}
@@ -123,6 +134,7 @@ def fo4_report(manager, device_name, knobs=None):
     slow = min(bands, key=lambda b: b['f_ghz'] or 0)
     return {
         'ok': True, 'device': device_name, 'run': row.name, 'vdd_v': vdd,
+        'device_vdd_v': dev_vdd or vdd, 'vddMismatch': vdd_note,
         'fidelity': FIDELITY, 'knobs': k,
         'fo4': fo4,
         'energy': {'internal_aJ': fo4['energy_internal_aJ'],
