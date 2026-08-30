@@ -46,7 +46,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/bizops",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-bizops.git",
       "requires": [
         "supplychain"
       ],
@@ -57,7 +57,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/odooconnect",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-odooconnect.git",
       "wave": 2,
       "description": "Odoo ERP connector: JSON-RPC client with sim/ops write guards, instance configs, /api/odoo status."
     },
@@ -220,14 +220,14 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/polariMaterialsScienceModule",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-materials_science.git",
       "description": "Legacy registry module (optional, toggleable)."
     },
     "agro_forestry": {
       "kind": "official",
       "downloaded": true,
       "path": "modules/polariAgroForestryModule",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-agro_forestry.git",
       "description": "Legacy registry module (user-created example)."
     },
     "pspp": {
@@ -245,7 +245,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/composition",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-composition.git",
       "requires": [
         "mathshapes",
         "techtree"
@@ -257,7 +257,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/magnetics",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-magnetics.git",
       "requires": [
         "supplychain",
         "materialsScience"
@@ -269,7 +269,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/motors",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-motors.git",
       "requires": [
         "magnetics",
         "composition"
@@ -281,7 +281,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/gears",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-gears.git",
       "requires": [
         "mathshapes"
       ],
@@ -292,7 +292,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/meshassets",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-meshassets.git",
       "requires": [
         "plant_morphology"
       ],
@@ -323,13 +323,14 @@
         "waxsupply",
         "pspp"
       ],
-      "description": "Mold nesting: derived negatives, casting chains with derived parity/thermal gates, sprues, fill/demold sims, the nesting wizard. Requires the shape algebra (mathshapes), seed_upsert (composition), the bead model + mold lifecycle (waxprint), wax rankings (waxsupply), and the exotherm/ceramics data (pspp) \u2014 admission must order them first (caught live 2026-08-05)."
+      "description": "Mold nesting: derived negatives, casting chains with derived parity/thermal gates, sprues, fill/demold sims, the nesting wizard. Requires the shape algebra (mathshapes), seed_upsert (composition), the bead model + mold lifecycle (waxprint), wax rankings (waxsupply), and the exotherm/ceramics data (pspp) \u2014 admission must order them first (caught live 2026-08-05).",
+      "repo": "https://github.com/dausume/polari-module-casting.git"
     },
     "appstore": {
       "kind": "official",
       "downloaded": true,
       "path": "modules/appstore",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-appstore.git",
       "wave": 7,
       "requires": [
         "polariapps"
@@ -340,7 +341,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/islemesh",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-islemesh.git",
       "wave": 7,
       "requires": [],
       "description": "isle-mesh convergence (mac-1): the polari-side acceptor for isle-mesh data \u2014 devices/uplinks/mesh-apps/protocol-permits ingested from the isle agent's registry.json + nginx fragments (isle stays authoritative over networking); mock ingests carry mock_network=true, surfaced as a banner. Feeds /display/isle-mesh and the mac-10 console."
@@ -349,7 +350,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/cntfet",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-cntfet.git",
       "wave": 3,
       "requires": [
         "electrodevice"
@@ -360,7 +361,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/microchip",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-microchip.git",
       "wave": 3,
       "requires": [],
       "description": "Microchip design-level ladder (device -> cell -> block -> core -> chip) + traversal interface. Separable from the device modules: reads cntfet/electrodevice rows softly, imports no device code; absent modules degrade honestly."
@@ -369,7 +370,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/computerparts",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-computerparts.git",
       "wave": 3,
       "requires": [
         "composition"
@@ -380,7 +381,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/computers",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-computers.git",
       "wave": 3,
       "requires": [
         "computerparts",
@@ -392,7 +393,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/sifet",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-sifet.git",
       "wave": 3,
       "requires": [
         "cntfet"
