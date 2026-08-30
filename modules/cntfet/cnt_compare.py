@@ -183,6 +183,18 @@ def _generic_score_page():
                       f'{d}: competitive ranking',
                       f'/api/fet/device/{d}/compare', pick='ranking'),
             ], min_height=430),
+            # fv-8: the normalized cross-device view — every DERIVED
+            # FET's Id/Ion vs Vg/Vdd on one plot (each on its own
+            # supply; ◀ = this device; underived devices named).
+            _row(13, [_component_item(
+                f'score-{d}-normalized', 0, 12,
+                f'{d} vs every FET, normalized: Id/Ion vs Vg/Vdd '
+                '(log y; each device on its OWN Vdd; ◀ = this '
+                'device)', 'named-graph-panel',
+                {'graphName': 'fet-compare-normalized',
+                 'dataPath': f'/api/fet/device/{d}/points'
+                             '?curve=transfer-normalized'})],
+                min_height=430),
             _row(3, [
                 _device_graph(f'score-{d}-transfer-states', 0, 6,
                               f'{d}: operating states on Id(Vg)',

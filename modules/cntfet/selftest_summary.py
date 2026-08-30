@@ -182,6 +182,38 @@ def main():
           and '/api/fet/devices/{name}' not in paths,
           f'{len(paths)} paths')
 
+    # ---- fv-8: the normalized cross-device curve ------------------
+    from cntfet.cnt_device_viz import CURVES, device_curve_points
+    norm = device_curve_points(mgr, 'cnt-aligned-s1',
+                               curve='transfer-normalized')
+    series = {r['series'] for r in norm.get('rows', [])
+              if r.get('style') == 'line'}
+    line_rows = [r for r in norm.get('rows', [])
+                 if r.get('style') == 'line']
+    guide = next((r for r in norm.get('rows', [])
+                  if r.get('style') == 'hguide'), {})
+    check('fv-8: transfer-normalized puts BOTH technologies on one '
+          'normalized plot (x = Vg/Vdd ≤ 1, y = Id/Ion ≤ ~1, focus '
+          '◀), names the underived devices instead of dropping '
+          'them, and is a registered curve',
+          norm.get('ok')
+          and 'transfer-normalized' in CURVES
+          and any(s.startswith('si-') for s in series)
+          and any(s.startswith('cnt-') for s in series)
+          and 'cnt-aligned-s1 ◀' in series
+          and all(0.0 <= r['x'] <= 1.0 and r['y'] <= 1.05
+                  for r in line_rows)
+          and 'underived' in guide.get('label', '')
+          and 'cnt-aligned-s1-lg30' in guide.get('label', ''),
+          f'series={sorted(series)[:6]} '
+          f'guide={guide.get("label", "")[:90]}')
+    from cntfet.cnt_device_viz import SEED_CNT_DEVICE_GRAPHS
+    check('fv-8: the fet-compare-normalized graph seed exists '
+          '(fet-named, log y)',
+          any(g['name'] == 'fet-compare-normalized'
+              and '"yType": "log"' in g['definition']
+              for g in SEED_CNT_DEVICE_GRAPHS))
+
     passed = sum(1 for _, ok in _results if ok)
     print(f'\n{passed}/{len(_results)} checks passed')
     return 0 if passed == len(_results) else 1

@@ -978,7 +978,7 @@ def main():
           and len(pages) == 1
           and pages[0]['name'] == 'fet'
           and pages[0]['pageRoute'] == 'fet'
-          and len(page_defs[0]['rows']) == 9   # overview + parts2d + parts + fo4 + proof + links
+          and len(page_defs[0]['rows']) == 10   # overview + parts2d + parts + fo4 + normalized + proof + links
           and any('/api/fet/device/{object}/' in v
                   for v in generic_inputs)
           and not any('/api/cntfet/' in v for v in generic_inputs),
