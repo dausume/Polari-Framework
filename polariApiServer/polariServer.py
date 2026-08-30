@@ -4676,7 +4676,10 @@ class polariServer(treeObject):
         # live tables through the upsert path, so a fresh clone boots with
         # the data code cannot regenerate (e.g. cntfet's characterized
         # libraries); customized rows (is_prior False) are never clobbered.
-        if _feature_available('composition'):
+        # composition.seed_upsert is a plain helper on the modules path —
+        # NOT gated on the composition module being enabled (prf-a runs
+        # without it; gating here silently skipped every module's data).
+        if True:
             try:
                 from moduleService import json_seeds
                 for pkg in json_seeds.packages_with_data():
