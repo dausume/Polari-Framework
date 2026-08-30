@@ -681,6 +681,17 @@ SEED_FET_FIELD_MATERIALS_3D = [
          opacity=0.15),
     _mat('fet-gate-metal', '#ffb300', 'Gate metal shell (W prior)',
          opacity=0.45),
+    # fg-6: silicon region materials (sifet.si_scene box stacks)
+    _mat('fet-si-body', '#546e7a', 'Silicon body / substrate',
+         opacity=0.30),
+    _mat('fet-si-sd-n', '#2e7d32', 'n+ source/drain junction',
+         opacity=0.45),
+    _mat('fet-si-sd-p', '#ad1457', 'p+ source/drain junction',
+         opacity=0.45),
+    _mat('fet-si-channel', '#263238', 'Gated silicon channel',
+         opacity=0.40),
+    _mat('fet-sio2-oxide', '#b3e5fc', 'Gate dielectric (thermal '
+         'SiO2 / sol-gel)', opacity=0.20),
 ]
 
 SEEDED_STYLE_NAMES = [m['name'] for m in SEED_FET_FIELD_MATERIALS_3D]
@@ -720,19 +731,37 @@ def _drop_old_samples(manager, device_name):
     return len(doomed)
 
 
-def sample_fields(manager, device, vg_list=(0.0, 0.1, 0.2, 0.3, 0.4,
-                                            0.5, 0.6),
-                  vd=0.6, n_cells=40, row_factory=None, knobs=None,
+def sample_fields(manager, device, vg_list=None,
+                  vd=None, n_cells=40, row_factory=None, knobs=None,
                   bands=None):
     """Generate FETFieldSample rows for the 3 scalar fields along the
-    tube axis (pos_x centred, scene units; one cube per cell), band
+    channel axis (pos_x centred, scene units; one cube per cell), band
     them, replace older samples of the device, persist when a db
-    exists. Returns {ok, rows, perField, vgSteps, replaced, ...}."""
+    exists. Returns {ok, rows, perField, vgSteps, replaced, ...}.
+
+    Device-relative (fg-6): vg_list defaults to 7 steps 0 → the
+    device's OWN Vdd (for the S1 0.6 V window that is exactly the old
+    (0, 0.1, …, 0.6) list — CNT bit-identical) and vd defaults to its
+    Vdd; a SILICON device is banded with sifet.si_fields.
+    SI_FIELD_BANDS (areal cm^-2 / cm^-3 ranges — the CNT per-tube 1/m
+    bands would put every silicon value in the top band)."""
     k = {**FIELD_KNOBS, **(knobs or {})}
     name = device if isinstance(device, str) else getattr(device, 'name', '')
     _id_fn, _p, dev, refusal = device_model(manager, name)
     if refusal is not None:
         return {**refusal, 'fidelity': FIDELITY}
+    from cntfet.cnt_device_viz import device_vdd
+    vdd = device_vdd(dev)
+    if vd is None:
+        vd = vdd
+    if vg_list is None:
+        vg_list = tuple(round(vdd * i / 6.0, 4) for i in range(7))
+    if bands is None and not hasattr(dev, 'material'):
+        try:
+            from sifet.si_fields import SI_FIELD_BANDS
+            bands = SI_FIELD_BANDS
+        except ImportError:
+            pass
     if row_factory is None:
         row_factory = FETFieldSample
     tables = getattr(manager, 'objectTables', None)

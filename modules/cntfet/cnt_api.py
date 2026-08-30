@@ -926,10 +926,12 @@ class CNTFETAPI(treeObject):
             # binds (one band-coloured cell per x per Vg per field).
             from cntfet.cnt_fields import sample_fields
             try:
-                vd = float(payload.get('vd', 0.6))
+                raw_vd = payload.get('vd')
+                vd = None if raw_vd in (None, '') else float(raw_vd)
                 n_cells = int(payload.get('nCells', 40))
             except (TypeError, ValueError):
                 return self._refuse(response, 'vd/nCells must be numeric')
+            # vd None → the device's OWN Vdd (device-relative, fg-6)
             report = sample_fields(self.manager, device, vd=vd,
                                    n_cells=max(8, min(n_cells, 200)))
             if not report.get('ok'):

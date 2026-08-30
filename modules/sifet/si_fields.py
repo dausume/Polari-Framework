@@ -220,3 +220,48 @@ def field_profile_si(manager, device, field, vg=None, vd=None, n=60,
                       '[SZE07]); n_SD = N_SD·x_j (areal, the S/D '
                       'row); contacts: None (metal)')
     return out
+
+
+# ---- fg-6: silicon FIELD BANDS for the 3-D sample rows -------------
+# Built as a TRANSFORM of the CNT band set: same (field, order) →
+# same style_ref (colours / Material3DDefinition rows already
+# seeded), silicon RANGES swapped in — the sheet density is areal
+# (cm^-2, ~1e9–1e14) and doping volumetric (cm^-3); the CNT per-tube
+# 1/m bands would put every silicon value in the top band. Potential
+# bands (eV) keep the CNT ranges (same physical scale).
+
+_INF_ = float('inf')
+
+#: (field, order) → (min, max, unit, label); fields absent here keep
+#: the CNT band's own range (potential).
+_SI_RANGES = {
+    ('electron-density', 0): (0.0, 1e10, 'cm^-2', 'n_s < 1e10'),
+    ('electron-density', 1): (1e10, 1e11, 'cm^-2', '1e10..1e11'),
+    ('electron-density', 2): (1e11, 1e12, 'cm^-2', '1e11..1e12'),
+    ('electron-density', 3): (1e12, 1e13, 'cm^-2', '1e12..1e13'),
+    ('electron-density', 4): (1e13, 1e14, 'cm^-2', '1e13..1e14'),
+    ('electron-density', 5): (1e14, _INF_, 'cm^-2', 'n_s > 1e14'),
+    ('n-doping', 0): (0.0, 1.0, 'cm^-3', 'intrinsic'),
+    ('n-doping', 1): (1.0, 1e18, 'cm^-3', 'N < 1e18'),
+    ('n-doping', 2): (1e18, 1e20, 'cm^-3', 'N 1e18..1e20'),
+    ('n-doping', 3): (1e20, _INF_, 'cm^-3', 'N > 1e20'),
+    ('p-doping', 0): (0.0, 1.0, 'cm^-3', 'intrinsic'),
+    ('p-doping', 1): (1.0, 1e18, 'cm^-3', 'N < 1e18'),
+    ('p-doping', 2): (1e18, 1e20, 'cm^-3', 'N 1e18..1e20'),
+    ('p-doping', 3): (1e20, _INF_, 'cm^-3', 'N > 1e20'),
+}
+
+
+def _si_bands():
+    from cntfet.cnt_fields import SEED_FET_FIELD_BANDS
+    out = []
+    for b in SEED_FET_FIELD_BANDS:
+        r = _SI_RANGES.get((b['field'], b['order']))
+        nb = dict(b)
+        if r is not None:
+            nb['min_value'], nb['max_value'], nb['unit'], nb['label'] = r
+        out.append(nb)
+    return out
+
+
+SI_FIELD_BANDS = _si_bands()

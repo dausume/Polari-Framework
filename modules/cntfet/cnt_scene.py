@@ -50,7 +50,10 @@ from cntfet.cnt_fields import (
 )
 from cntfet.cnt_derive import get_row
 
-SCENE_PREFIX = 'cnt-device-3d-'
+SCENE_PREFIX = 'fet-3d-'   # fet, not cntfet (was 'cnt-device-3d-';
+#                            the old rows are the backfill script's
+#                            legacy list — Si devices get fet-3d-*
+#                            scenes too, sifet.si_scene)
 BINDING_NAME = 'FETFieldSample-3d'
 
 _REGION_STYLE = {
@@ -104,63 +107,134 @@ def _sketch_geometry(device_name):
             'diameter_nm': d, 't_ox_nm': tox}
 
 
-def region_freestanding(geo, knobs=None):
-    """The static region meshes in scene units, device centred at
-    x = 0 on the tube axis."""
-    k = {**FIELD_KNOBS, **(knobs or {})}
-    s, rx = k['scene_scale'], k['radial_exaggeration']
+def _slug(text):
+    return str(text).replace(' ', '-')
+
+
+def _pieces(geo, device_name):
+    """(shape_rows, entry_specs) for every FET piece from ONE source
+    — the seeded MathShapeDefinition rows and the scene entries that
+    reference them can never disagree. fg-6 (Dustin): the 3-D pieces
+    are MATH SHAPES — true-nanometre geometry, device centred at
+    x = 0: contacts as analytic boxes, tube segments as x-axis
+    cylinders, the oxide/gate shells as CSG differences of coaxial
+    cylinders. Every row is an exact math object: mathshapes.
+    shape_equations.shape_equation_rows() yields its 4×4
+    matrix-equation form (the [[matrix-equation-operation-node]]
+    round-trip)."""
     length = geo['length_nm']
-    polarity = geo.get('polarity', 'n')
-    entries = []
+    shapes, specs = [], []
 
-    def user(r):
-        return {'region': r['name'], 'kind': r['kind'],
-                'material': r['material'], 'componentRow': r['componentRow'],
-                'x0_nm': r['x0'], 'x1_nm': r['x1'], 'r0_nm': r['r0'],
-                'r1_nm': r['r1'], 'radialExaggeration': rx,
-                'fidelity': 'geometry sketch from the component rows'}
+    def shape(name, family, kind='', params=None, csg=None,
+              bounds=None, notes=''):
+        shapes.append({
+            'name': name, 'display_name': name, 'family': family,
+            'primitive_kind': kind,
+            'parameters_json': json.dumps(params or {}),
+            'csg_json': json.dumps(csg) if csg else '',
+            'quadric_matrix_json': '',
+            'bounds_json': json.dumps(bounds) if bounds else '',
+            'notes': notes, 'provenance_id': 'fg-6'})
 
-    # contacts: cubes spanning their length, a little taller than the tube
     for r in geo['regions']:
-        if r['kind'] != 'contact':
-            continue
-        cx = (0.5 * (r['x0'] + r['x1']) - length / 2) * s
-        side = max(2 * r['r1'] * rx * s, 0.05)
-        entries.append({'id': f"region-{r['name'].replace(' ', '-')}",
-                        'label': f"{r['name']} ({r['material']})",
-                        'position': [cx, 0.0, 0.0], 'rotation': [0, 0, 0],
-                        'scale': [(r['x1'] - r['x0']) * s, side * 1.5,
-                                  side * 1.5],
-                        'shapeRef': 'cube', 'styleRef': _style(r, polarity),
-                        'userData': user(r)})
-    # tube segments (extensions + channel) as cylinders along x
-    for r in geo['regions']:
+        cx = 0.5 * (r['x0'] + r['x1']) - length / 2.0
+        ln = r['x1'] - r['x0']
+        nm = f"fet-part-{device_name}-{_slug(r['name'])}"
         if r['kind'] == 'contact':
-            continue
-        cx = (0.5 * (r['x0'] + r['x1']) - length / 2) * s
-        diam = 2 * r['r1'] * rx * s
-        entries.append({'id': f"region-{r['name'].replace(' ', '-')}",
-                        'label': f"{r['name']} ({r['material']})",
-                        'position': [cx, 0.0, 0.0],
-                        'rotation': [0, 0, math.pi / 2],
-                        'scale': [diam, (r['x1'] - r['x0']) * s, diam],
-                        'shapeRef': 'cylinder',
-                        'styleRef': _style(r, polarity),
-                        'userData': user(r)})
-    # radial shells (oxide, gate) as larger transparent cylinders
+            side = 2.0 * r['r1'] * 1.5
+            shape(nm, 'primitive', 'box',
+                  {'center': [cx, 0.0, 0.0], 'size': [ln, side, side]},
+                  notes='contact pad — length row-backed; the 1.5x-'
+                        'tube cross-section is a SKETCH (no row '
+                        'carries the pad geometry)')
+        else:
+            shape(nm, 'primitive', 'cylinder',
+                  {'radius': r['r1'], 'height': ln, 'axis': 'x',
+                   'center': [cx, 0.0, 0.0]},
+                  notes='tube segment — true nm from the component '
+                        'rows')
+        specs.append((r, nm))
     for r in geo['radial']:
         if r['kind'] == 'channel':
             continue   # the tube is already drawn per region
-        cx = (0.5 * (r['x0'] + r['x1']) - length / 2) * s
-        diam = 2 * r['r1'] * rx * s
-        entries.append({'id': f"shell-{r['name'].replace(' ', '-')}",
-                        'label': f"{r['name']} ({r['material']})",
-                        'position': [cx, 0.0, 0.0],
-                        'rotation': [0, 0, math.pi / 2],
-                        'scale': [diam, (r['x1'] - r['x0']) * s, diam],
-                        'shapeRef': 'cylinder',
-                        'styleRef': _style(r, polarity),
-                        'userData': user(r)})
+        cx = 0.5 * (r['x0'] + r['x1']) - length / 2.0
+        ln = r['x1'] - r['x0']
+        base = f"fet-part-{device_name}-{_slug(r['name'])}"
+        shape(base + '-outer', 'primitive', 'cylinder',
+              {'radius': r['r1'], 'height': ln, 'axis': 'x',
+               'center': [cx, 0.0, 0.0]},
+              notes=f'component of {base} (shell outer)')
+        shape(base + '-inner', 'primitive', 'cylinder',
+              {'radius': r['r0'], 'height': ln * 1.02, 'axis': 'x',
+               'center': [cx, 0.0, 0.0]},
+              notes=f'component of {base} (shell bore)')
+        shape(base, 'csg',
+              csg={'op': 'difference',
+                   'shapes': [base + '-outer', base + '-inner']},
+              bounds=[[cx - ln / 2.0, cx + ln / 2.0],
+                      [-r['r1'], r['r1']], [-r['r1'], r['r1']]],
+              notes='shell = outer − inner coaxial cylinders (CSG '
+                    'of matrix-equation solids); true nm')
+        specs.append((r, base))
+    return shapes, specs
+
+
+def part_shape_seeds(device_name, manager=None, knobs=None):
+    """The per-device MathShapeDefinition rows (fg-6) — seeded
+    beside the motor/pot part shapes and referenced by the scene's
+    `mathshape:` entries."""
+    k = {**FIELD_KNOBS, **(knobs or {})}
+    shapes, _specs = _pieces(_geometry(device_name, manager, k),
+                             device_name)
+    return shapes
+
+
+def _geometry(device_name, manager, k):
+    geo = None
+    if manager is not None:
+        dev = get_row(manager, 'AlignedCNTFETDevice', device_name)
+        if dev is not None and getattr(dev, 'derived_at', ''):
+            rep = device_regions(manager, dev, knobs=k)
+            if rep.get('ok'):
+                geo = rep
+    return geo if geo is not None else _sketch_geometry(device_name)
+
+
+def region_freestanding(geo, knobs=None, device_name=''):
+    """Scene entries referencing the per-piece math shapes. The
+    shapes carry TRUE nanometre geometry; the stated radial
+    exaggeration is applied here as a VIEW transform only
+    (scale [s, s·rx, s·rx]) — it never touches the math."""
+    k = {**FIELD_KNOBS, **(knobs or {})}
+    s, rx = k['scene_scale'], k['radial_exaggeration']
+    polarity = geo.get('polarity', 'n')
+    _shapes, specs = _pieces(geo, device_name)
+    entries = []
+    for r, shape_name in specs:
+        entries.append({
+            'id': f"piece-{_slug(r['name'])}",
+            'label': f"{r['name']} ({r['material']})",
+            'position': [0.0, 0.0, 0.0], 'rotation': [0, 0, 0],
+            'scale': [s, s * rx, s * rx],
+            'shapeRef': f'mathshape:{shape_name}',
+            'styleRef': _style(r, polarity),
+            'userData': {
+                'region': r['name'], 'kind': r['kind'],
+                'material': r['material'],
+                'componentRow': r.get('componentRow'),
+                'x0_nm': r['x0'], 'x1_nm': r['x1'],
+                'r0_nm': r.get('r0'), 'r1_nm': r.get('r1'),
+                'mathShape': shape_name,
+                'viewScale': (f'[{s:g}, {s * rx:g}, {s * rx:g}] — '
+                              f'radial ×{rx:g} VIEW exaggeration; '
+                              'the shape row carries true nm'),
+                'equations': ('the piece is a MathShapeDefinition — '
+                              'shape_equation_rows() gives its 4×4 '
+                              'matrix-equation form'),
+                'fidelity': 'geometry from the component rows; '
+                            'sketch lengths labelled in the shape '
+                            'row notes'},
+        })
     return entries
 
 
@@ -169,15 +243,7 @@ def device_scene_seeds(device_name, manager=None, knobs=None):
     a derived device the regions are row-backed; otherwise the S1
     sketch geometry (stated in the description)."""
     k = {**FIELD_KNOBS, **(knobs or {})}
-    geo = None
-    if manager is not None:
-        dev = get_row(manager, 'AlignedCNTFETDevice', device_name)
-        if dev is not None and getattr(dev, 'derived_at', ''):
-            rep = device_regions(manager, dev, knobs=k)
-            if rep.get('ok'):
-                geo = rep
-    if geo is None:
-        geo = _sketch_geometry(device_name)
+    geo = _geometry(device_name, manager, k)
     s, rx = k['scene_scale'], k['radial_exaggeration']
     half = geo['length_nm'] * s / 2
     r_max = max(r['r1'] for r in geo['radial']) * rx * s
@@ -202,7 +268,8 @@ def device_scene_seeds(device_name, manager=None, knobs=None):
             'freestandingOnly': False,
             'device': device_name,
             'runRefs': {f: run_ref(device_name, f) for f in SCALAR_FIELDS},
-            'freestanding': region_freestanding(geo, knobs=k),
+            'freestanding': region_freestanding(
+                geo, knobs=k, device_name=device_name),
         }),
         'camera_json': json.dumps({
             'mode': 'fixed', 'projection': 'orthographic',

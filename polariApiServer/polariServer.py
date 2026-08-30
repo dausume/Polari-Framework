@@ -1372,8 +1372,15 @@ try:
         SEED_CNT_DEVICE_SCENE_ROWS
         + SEED_FET_2D_SCENES(
             [d['name'] for d in (SEED_CNT_DEVICES or [])]))
+    # fg-6 (Dustin): every 3-D FET piece is a MathShapeDefinition
+    # row — the scenes reference them via mathshape: refs.
+    from cntfet.cnt_scene import part_shape_seeds as _cnt_psh
+    SEED_FET_PART_SHAPES_CNT = [
+        sh for _pn in [d['name'] for d in (SEED_CNT_DEVICES or [])]
+        for sh in _cnt_psh(_pn)]
 except (ImportError, TypeError):
     SEED_CNT_DEVICE_SCENE_ROWS, SEED_FET_FIELD_BINDINGS = [], []
+    SEED_FET_PART_SHAPES_CNT = []
 try:
     from cntfet.cnt_device_viz import extra_graph_seeds as _cnt_fv_graphs
     SEED_CNT_FV_GRAPHS = _cnt_fv_graphs()
@@ -1452,8 +1459,18 @@ try:
     from sifet.si_pages_seed import SI_DEVICE_NAMES as _si2d_names
     SEED_CNT_DEVICE_SCENE_ROWS = (
         (SEED_CNT_DEVICE_SCENE_ROWS or []) + _fet2d(list(_si2d_names)))
+    # fg-6: the silicon 3-D device scenes (fet-3d-{name} box stacks
+    # with the FETFieldSample binding — scrub Vg like the CNT tubes).
+    from sifet.si_scene import SEED_SI_DEVICE_SCENES as _si3d
+    SEED_CNT_DEVICE_SCENE_ROWS = (
+        SEED_CNT_DEVICE_SCENE_ROWS + _si3d(list(_si2d_names)))
+    # fg-6: the silicon pieces as MathShapeDefinition rows too.
+    from sifet.si_scene import part_shape_seeds_si as _si_psh
+    SEED_FET_PART_SHAPES_SI = [
+        sh for _pn in list(_si2d_names) for sh in _si_psh(_pn)]
 except ImportError:
     SEED_SI_PAGE_DISPLAYS, SEED_SI_SCORE_PAGES = [], []
+    SEED_FET_PART_SHAPES_SI = []
 try:
     from cntfet.cnt_ip import SEED_TECHNOLOGY_IP, TechnologyIPRecord
 except ImportError:
@@ -4109,7 +4126,10 @@ class polariServer(treeObject):
              + SEED_LAVET_PART_SHAPES
              + SEED_LAVET_V2_PART_SHAPES
              + SEED_M1_PART_SHAPES + SEED_M2_PART_SHAPES
-             + SEED_M3_PART_SHAPES),
+             + SEED_M3_PART_SHAPES
+             # fg-6: the FET pieces (CNT tubes/shells, Si boxes)
+             + (SEED_FET_PART_SHAPES_CNT or [])
+             + (SEED_FET_PART_SHAPES_SI or [])),
             # shape-2: aquaponic towers (reference math-defined pots).
             ('AquaponicTowerDefinition', AquaponicTowerDefinition,
              SEED_TOWERS),

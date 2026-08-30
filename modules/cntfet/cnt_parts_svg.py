@@ -284,12 +284,19 @@ def fet2d_scene(device_name, manager=None, knobs=None):
     cx = (view['x0'] + view['x1']) / 2
     cy = (view['y0'] + view['y1']) / 2
     entries = []
+    # The 2-D renderer's styles draw a 40x40 base rectangle and
+    # `scale` multiplies it (non-uniform [sx, sy] supported) — so a
+    # region w x h nm needs scale [w/40, h/40]. Feeding raw nm here
+    # once produced one giant rectangle covering the whole viewport
+    # (Dustin's gray-screen find).
+    style_base = 40.0
     for r in rects:
         entries.append({
             'id': r['id'], 'label': r['label'],
             'position': [r['x'] + r['w'] / 2 - cx,
                          r['y'] + r['h'] / 2 - cy],
-            'scale': [r['w'], r['h']],
+            'scale': [round(r['w'] / style_base, 4),
+                      round(max(r['h'], 0.8) / style_base, 4)],
             'shapeRef': 'rectangle',
             'styleRef': KIND_STYLE.get(r['kind'], 'default'),
             'userData': {'kind': r['kind'], 'material': r['material'],
