@@ -30,7 +30,7 @@ from sifet.si_pages_seed import (
 )
 
 _results = []
-REGISTERED = {'class-rows-table', 'api-json-panel', 'named-graph-panel'}
+REGISTERED = {'class-rows-table', 'api-json-panel', 'named-graph-panel', 'api-structured-panel'}
 
 
 def check(label, cond, extra=''):
@@ -108,9 +108,9 @@ def main():
     reports = {n: derive_si_device(mgr, get_row(mgr, 'SiliconMOSFET', n))
                for n in SI_DEVICE_NAMES}
     check(f'derive: all {len(SI_DEVICE_NAMES)} seeded SiliconMOSFETs '
-          'derive ok (3 new: pmos finfet HfO2, nmos planar sol-gel '
+          'derive ok (+ the freepdk45-class ladder pair; earlier: pmos finfet HfO2, nmos planar sol-gel '
           'SiO2, pmos planar HfO2)',
-          len(SI_DEVICE_NAMES) == 7
+          len(SI_DEVICE_NAMES) == 9
           and all(r['ok'] for r in reports.values()),
           str({n: r.get('error') for n, r in reports.items()
                if not r['ok']}))
@@ -252,7 +252,7 @@ def main():
     home = SEED_SI_PAGE_DISPLAYS[0]
     comps = _components(home['definition'])
     check('sifet-home (route sifet) uses only registered components '
-          '(class-rows-table, api-json-panel, named-graph-panel)',
+          '(class-rows-table, api-json-panel, named-graph-panel, api-structured-panel)',
           home['pageRoute'] == 'sifet' and home['name'] == 'sifet-home'
           and comps <= REGISTERED and comps == REGISTERED, str(comps))
     hd = home['definition']

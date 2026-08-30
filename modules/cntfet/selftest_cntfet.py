@@ -974,7 +974,7 @@ def main():
           and all(pg['pageRoute'] == f'cntfet-score-{pg["name"][13:]}'
                   and pg['source_class'] == 'AlignedCNTFETDevice'
                   for pg in pages)
-          and all(len(pd['rows']) == 7 for pd in page_defs)   # overview + parts + proof + links
+          and all(len(pd['rows']) == 8 for pd in page_defs)   # overview + parts + fo4 + proof + links
           and any(lg30.name in item['componentProps']['inputs']
                   .get('dataPath', '')
                   for pd in page_defs[1:] for row in pd['rows']
@@ -1368,6 +1368,29 @@ def main():
     _row_factory(mgr, 'CellCharacterizationRun')(
         name='lib-test', device=device.name, cell='library:INVX1',
         liberty_text=lib_text, ran_at='2026-08-26T00:00:00', vdd_v=0.6)
+    from cntfet.cnt_fo4 import fo4_report, fo4_rows
+    fo4 = fo4_report(mgr, device.name)
+    fo4_custom = fo4_report(mgr, device.name,
+                            {'fo4_per_cycle_bands': {'n10': 10}})
+    fo4_r, fo4_ref = fo4_rows(fo4)
+    check('speed (cell layer owns it): FO4 = INV delay at the 4×Cin '
+          'load (0.04 fF → 5τ = 0.5 ps), transition energy = measured '
+          'E_int 2 aJ + C_L·Vdd² 14.4 aJ, clock range 66.7–166.7 GHz for the '
+          '30–12 FO4/cycle bands, bands configurable, caveat names the '
+          'exclusions, 4 dot rows for the graph',
+          fo4['ok'] and abs(fo4['fo4']['fo4_ps'] - 0.5) < 1e-6
+          and fo4['fo4']['load_ff'] == 0.04
+          and abs(fo4['energy']['per_transition_aJ'] - 16.4) < 1e-3
+          and fo4['energy']['measured']
+          and fo4['clockRange']['fo4_per_cycle'] == [30, 12]
+          and abs(fo4['clockRange']['f_ghz_min'] - 1e3 / 15) < 1e-6
+          and abs(fo4['clockRange']['f_ghz_max'] - 1e3 / 6) < 1e-6
+          and 'excludes extracted interconnect' in fo4['headline']
+          and fo4_custom['clock'][0]['fo4_per_cycle'] == 10
+          and abs(fo4_custom['clock'][0]['f_ghz'] - 200.0) < 1e-6
+          and fo4_ref is None and len(fo4_r) == 4
+          and 'CELL layer' in fo4['owner'],
+          f'fo4={fo4}')
     cs = score_cells(mgr, device.name)
     cs_rows = device_curve_points(mgr, device.name, curve='cell-scores')
     check('fi-2 cells: the latest library row scores every cell '

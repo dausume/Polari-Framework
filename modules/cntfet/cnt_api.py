@@ -78,6 +78,8 @@ class CNTFETAPI(treeObject):
             # doping and the row it comes from (generic: CNT + Si).
             add('/api/cntfet/device/{name}/parts', self,
                 suffix='device_parts')
+            # FO4 → clock estimate (intrinsic upper bound) per device
+            add('/api/cntfet/device/{name}/fo4', self, suffix='device_fo4')
             # fp arc: power (fp-1), taxonomy + signal score (fp-3),
             # cell logic / circuit diagrams (fp-5).
             add('/api/cntfet/device/{name}/power', self,
@@ -130,6 +132,10 @@ class CNTFETAPI(treeObject):
             add('/api/sifet/capability', self, suffix='si_capability')
             add('/api/sifet/devices', self, suffix='si_devices')
             add('/api/sifet/devices/{name}', self, suffix='si_device')
+            add('/api/sifet/ladder', self, suffix='si_ladder')
+            add('/api/sifet/ladder/points', self, suffix='si_ladder_points')
+            add('/api/sifet/devices/{name}/anchors', self,
+                suffix='si_device_anchors')
             add('/api/sifet/refinement', self, suffix='si_refinement')
             add('/api/sifet/refinement/{route}', self,
                 suffix='si_refinement_route')
@@ -221,7 +227,8 @@ class CNTFETAPI(treeObject):
             DEFAULT_MC_SAMPLES, device_curve_points,
         )
         try:
-            vd = float(request.get_param('vd') or 0.6)
+            vd_raw = request.get_param('vd')
+            vd = float(vd_raw) if vd_raw not in (None, '') else None
             samples = int(request.get_param('samples')
                           or DEFAULT_MC_SAMPLES)
             seed = int(request.get_param('seed') or 1)
@@ -331,7 +338,9 @@ class CNTFETAPI(treeObject):
         q = self._floats(request, response, ('vg', 'vd', 't', 'horizon'))
         if q is None:
             return
-        kwargs = {'vgs': q.get('vg', 0.6), 'vds': q.get('vd', 0.6),
+        from cntfet.cnt_device_viz import device_vdd
+        vdd = device_vdd(m[2])   # device-relative: Vg = Vd = its OWN Vdd
+        kwargs = {'vgs': q.get('vg', vdd), 'vds': q.get('vd', vdd),
                   't_hours': q.get('t', 0.0)}
         if 'horizon' in q:
             kwargs['horizon_hours'] = q['horizon']
@@ -669,6 +678,32 @@ class CNTFETAPI(treeObject):
             return self._refuse(response, 'actions: derive')
         response.media = derive_si_device(self.manager, device)
 
+    def on_get_si_ladder(self, request, response):
+        """The open-silicon ladder: rungs with TWO independent axes
+        (rights_class / fabrication_evidence), frontier /
+        predictive_frontier / manufacturable_frontier."""
+        from sifet.si_ladder import ladder_report
+        response.media = ladder_report(self.manager)
+
+    def on_get_si_ladder_points(self, request, response):
+        """?curve=ion-vs-node — the named-graph-panel feed."""
+        from sifet.si_ladder import ladder_ion_rows
+        curve = request.get_param('curve') or 'ion-vs-node'
+        if curve != 'ion-vs-node':
+            return self._refuse(response, f'unknown ladder curve {curve!r}'
+                                          ' (ion-vs-node)', '422 Unprocessable Entity')
+        rows = ladder_ion_rows(self.manager)
+        response.media = {'ok': True, 'curve': curve, 'rows': rows,
+                          'count': len(rows)}
+
+    def on_get_si_device_anchors(self, request, response, name):
+        """Our reconstruction vs the documented anchors of its rung."""
+        from sifet.si_ladder import compare_to_anchors
+        report = compare_to_anchors(self.manager, name)
+        if not report.get('ok', True):
+            response.status = '422 Unprocessable Entity'
+        response.media = report
+
     def on_get_si_refinement(self, request, response):
         from sifet.si_refinement import refinement_report
         response.media = refinement_report(self.manager)
@@ -696,6 +731,32 @@ class CNTFETAPI(treeObject):
             feed_ppm_json=request.get_param('feed'))
         if not report.get('ok', True):
             response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_device_fo4(self, request, response, name):
+        """?fo4_per_cycle=12,15,20,30 (configurable logic depth
+        bands; default FO4_KNOBS) ?fanout=4"""
+        from cntfet.cnt_fo4 import fo4_report
+        knobs = {}
+        raw = request.get_param('fo4_per_cycle')
+        if raw:
+            try:
+                ns = sorted({int(float(x)) for x in raw.split(',') if x.strip()})
+            except ValueError:
+                return self._refuse(response, 'fo4_per_cycle must be a '
+                                              'comma list of numbers')
+            if not ns or any(n <= 0 for n in ns):
+                return self._refuse(response, 'fo4_per_cycle must be > 0')
+            knobs['fo4_per_cycle_bands'] = {f'{n} FO4/cycle': n for n in ns}
+        fan = request.get_param('fanout')
+        if fan:
+            try:
+                knobs['fanout'] = max(1, int(float(fan)))
+            except ValueError:
+                return self._refuse(response, 'fanout must be numeric')
+        report = fo4_report(self.manager, name, knobs)
+        if not report.get('ok'):
+            response.status = '422 Unprocessable Entity'
         response.media = report
 
     def on_get_device_parts(self, request, response, name):

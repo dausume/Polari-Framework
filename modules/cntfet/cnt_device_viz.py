@@ -51,6 +51,21 @@ def _refuse(error):
     return {'ok': False, 'error': error}
 
 
+def device_vdd(device):
+    """The device's own supply (a SiliconMOSFET row carries vdd_v;
+    CNT rows use the S1 0.6 V window) — every curve window scales
+    with it so a 1.0 V device is not drawn on a 0.6 V axis."""
+    v = getattr(device, 'vdd_v', None)
+    return float(v) if v else 0.6
+
+
+def _windows(vdd):
+    """(transfer Vd list, output Vg list, sweep max) for a supply."""
+    return ((0.05, round(vdd / 2, 3), vdd),
+            tuple(round(vdd * f, 3) for f in (1/3, 0.5, 2/3, 5/6, 1.0)),
+            vdd)
+
+
 def device_model(manager, name):
     """(id_fn, p, device, None) or (None, None, None, refusal) — the
     device's F1 model as a callable PLUS its VS parameter set, so
@@ -114,24 +129,21 @@ def _device_id_fn(manager, name):
     return id_fn, device, refusal
 
 
-def curve_rows_from_fn(id_fn, curve):
+def curve_rows_from_fn(id_fn, curve, vdd=0.6):
     """Pure: long-form rows for one curve family. Id in µA (the
     figure convention)."""
     rows = []
-    sweep = []
-    v = 0.0
-    while v <= SWEEP_MAX + 1e-9:
-        sweep.append(round(v, 4))
-        v += SWEEP_STEP
+    transfer_vd, output_vg, sweep_max = _windows(vdd)
+    sweep = _sweep(sweep_max)
     if curve == 'transfer':
-        for vd in TRANSFER_VD:
+        for vd in transfer_vd:
             for vg in sweep:
                 rows.append({'series': f'Vd = {vd:g} V',
                              'style': 'line', 'dash': False,
                              'x': vg,
                              'y': id_fn(vg, vd) * 1e6})
     elif curve == 'output':
-        for vg in OUTPUT_VG:
+        for vg in output_vg:
             for vd in sweep:
                 rows.append({'series': f'Vg = {vg:g} V',
                              'style': 'line', 'dash': False,
@@ -142,7 +154,7 @@ def curve_rows_from_fn(id_fn, curve):
     return rows
 
 
-def state_curve_rows(id_fn, p, curve, vd=0.6, manager=None):
+def state_curve_rows(id_fn, p, curve, vd=0.6, manager=None, vdd=0.6):
     """fi-0/fi-1: the state-annotated families. 'transfer-states' =
     the Id(Vg) line at one Vd PLUS shaded state bands + boundary
     guides (styles band/guide — long-form, config-rendered);
@@ -152,7 +164,7 @@ def state_curve_rows(id_fn, p, curve, vd=0.6, manager=None):
     rows = []
     if curve == 'transfer-states':
         ys = []
-        for vg in _sweep():
+        for vg in _sweep(vdd):
             y = id_fn(vg, vd) * 1e6
             ys.append(y)
             rows.append({'series': f'Id, Vd = {vd:g} V',
@@ -160,13 +172,13 @@ def state_curve_rows(id_fn, p, curve, vd=0.6, manager=None):
                          'x': vg, 'y': y})
         y_lo = max(min(ys), 1e-9)   # log-Y safe floor
         y_hi = max(ys)
-        rows.extend(state_band_rows(p, vd, y_lo, y_hi,
+        rows.extend(state_band_rows(p, vd, y_lo, y_hi, vgs_max=vdd,
                                     manager=manager))
         return rows
     if curve == 'output-states':
-        rows = curve_rows_from_fn(id_fn, 'output')
-        for vg in OUTPUT_VG:
-            b = output_boundary(p, vg)
+        rows = curve_rows_from_fn(id_fn, 'output', vdd=vdd)
+        for vg in _windows(vdd)[1]:
+            b = output_boundary(p, vg, vds_max=vdd)
             if b['x'] is not None:
                 rows.append({'series': 'Vdsat locus', 'style': 'dot',
                              'dash': True, 'x': b['x'],
@@ -175,11 +187,11 @@ def state_curve_rows(id_fn, p, curve, vd=0.6, manager=None):
     return None
 
 
-def _sweep():
-    sweep, v = [], 0.0
-    while v <= SWEEP_MAX + 1e-9:
+def _sweep(sweep_max=SWEEP_MAX):
+    sweep, v, step = [], 0.0, sweep_max / 30.0
+    while v <= sweep_max + 1e-9:
         sweep.append(round(v, 4))
-        v += SWEEP_STEP
+        v += step
     return sweep
 
 
@@ -237,7 +249,7 @@ def score_curve_rows(manager, id_fn, p, device, curve, vd=0.6,
         return score_term_rows(result, spread, best, worst), None
     if curve == 'transfer-envelope':
         rows = []
-        for vg in _sweep():
+        for vg in _sweep(device_vdd(device)):
             rows.append({'series': f'nominal Id, Vd = {vd:g} V',
                          'style': 'line', 'dash': False, 'x': vg,
                          'y': id_fn(vg, vd) * 1e6})
@@ -322,16 +334,19 @@ def extra_graph_seeds():
     return seeds
 
 
-def device_curve_points(manager, name, curve='transfer', vd=0.6,
+def device_curve_points(manager, name, curve='transfer', vd=None,
                         samples=DEFAULT_MC_SAMPLES, seed=1):
     """The named-graph-panel data feed for one device."""
     id_fn, p, device, refusal = device_model(manager, name)
     if refusal is not None:
         return refusal
-    rows = curve_rows_from_fn(id_fn, curve)
+    vdd = device_vdd(device)
+    if vd is None:
+        vd = vdd
+    rows = curve_rows_from_fn(id_fn, curve, vdd=vdd)
     if rows is None:
         rows = state_curve_rows(id_fn, p, curve, vd=vd,
-                                manager=manager)
+                                manager=manager, vdd=vdd)
     if rows is None:
         rows, refusal = score_curve_rows(manager, id_fn, p, device,
                                          curve, vd=vd,

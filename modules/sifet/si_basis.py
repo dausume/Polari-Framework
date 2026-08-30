@@ -245,6 +245,23 @@ SEED_SI_DIELECTRICS = [
               'compare a high-k spin-on film against thermal SiO2: '
               'higher Cinv, lower Vt roll-off, at a leakage the '
               'model does not represent.'},
+    # ---- ladder (2026-08-30): FreePDK45-class nominal stack ----------
+    {'name': 'freepdk45-highk-nominal', 'material': 'HfO2',
+     'precursor': 'reference — PDK nominal', 'solvent': 'none',
+     'hydrolysis_ratio': 0.0, 'anneal_c': 0.0, 'anneal_min': 0.0,
+     'thickness_nm': 5.77, 'k_rel': 18.0, 'breakdown_mv_per_cm': 4.0,
+     'leakage_prior_a_per_cm2': 1e-3,
+     'density_fraction_of_thermal': 1.0, 'confidence': 'medium',
+     'citation': '[FREEPDK45] / [PTM] 45 nm HP card: toxe 1.25 nm',
+     'notes': 'REFERENCE dielectric for the FreePDK45-class device: '
+              'the PTM 45 nm HP card (which FreePDK45 uses) states '
+              'toxe = 1.25 nm (electrical EOT, NMOS; 1.30 PMOS) and '
+              'toxp = 1.0 nm physical, header "Metal Gate / High-K". '
+              'Represented as HfO2 k 18 x 5.77 nm so EOT = 3.9/18 x '
+              '5.77 = 1.25 nm — the k / physical thickness split is '
+              'OUR choice (only EOT is documented); leakage / Ebd are '
+              'priors and never enter Id. Process "reference — PDK '
+              'nominal": no sol-gel step.'},
 ]
 
 SEED_SI_PROCESSES = [
@@ -280,6 +297,19 @@ SEED_SI_DOPINGS = [
      'concentration_cm3': 1e20, 'method': 'implant',
      'activation_fraction': 0.8, 'junction_depth_nm': 30.0,
      'notes': 'PMOS source/drain: B 1e20 (80 % active).'},
+    # ---- ladder (2026-08-30): FreePDK45-class channel doping ---------
+    {'name': 'si-channel-p-3.24e18-ptm45', 'dopant_type': 'p',
+     'species': 'B', 'concentration_cm3': 3.24e18, 'method': 'implant',
+     'activation_fraction': 1.0, 'junction_depth_nm': 0.0,
+     'notes': 'FreePDK45-class NMOS channel: ndep = 3.24e18 cm^-3 from '
+              'the PTM 45 nm HP NMOS card ([PTM] via FreePDK45). A '
+              'BSIM4 "ndep" is a uniform-channel equivalent, not a '
+              'measured halo profile — stated.'},
+    {'name': 'si-channel-n-2.44e18-ptm45', 'dopant_type': 'n',
+     'species': 'P', 'concentration_cm3': 2.44e18, 'method': 'implant',
+     'activation_fraction': 1.0, 'junction_depth_nm': 0.0,
+     'notes': 'FreePDK45-class PMOS n-well/channel: ndep = 2.44e18 '
+              'cm^-3 from the PTM 45 nm HP PMOS card.'},
 ]
 
 SEED_SI_SHAPES = [
@@ -297,6 +327,16 @@ SEED_SI_SHAPES = [
                              '  [SUZ93]',
      'notes': 'Tri-gate fin H 40 / W 10 nm, one fin: W_eff = 90 nm. '
               'Body fully depleted at 1e17 (x_dmax >> W/2).'},
+    # ---- ladder (2026-08-30): FreePDK45-class planar shape -----------
+    {'name': 'planar-45nm-class', 'kind': 'planar-bulk',
+     'channel_width_nm': 1000.0, 'fin_height_nm': 0.0,
+     'fin_width_nm': 0.0, 'n_fins': 1, 'gate_all_around': False,
+     'scale_length_formula': 'lambda = sqrt((eps_si/eps_ox) t_ox '
+                             'x_dmax)  [TN09] Sec.3.2.1',
+     'notes': 'Planar bulk, W = 1 um, for the FreePDK45-class device: '
+              'FreePDK45 draws 50 nm poly (POLY.1) and "assumes the '
+              'actual gate length is 45nm" ([FREEPDK45] docs v1.4); '
+              'the device row carries Lg 45 nm.'},
 ]
 
 SEED_SI_DEVICES = [
@@ -406,6 +446,48 @@ SEED_SI_DEVICES = [
               'weaker hole drive) and to complete the sol-gel planar '
               'pair. Derive before use: unproven → scores 0 until '
               'derived.'},
+    # ---- ladder S1 (2026-08-30): FreePDK45-class pair -----------------
+    {'name': 'si-nmos-freepdk45-class', 'polarity': 'n',
+     'shape': 'planar-45nm-class',
+     'channel_doping': 'si-channel-p-3.24e18-ptm45',
+     'sd_doping': 'si-sd-n-plus-1e20',
+     'dielectric': 'freepdk45-highk-nominal',
+     'process': 'thermal-oxidation', 'lg_nm': 45.0, 'w_nm': 1000.0,
+     'temperature_k': 300.0, 'vfb_v': -0.93,
+     'vfb_source': 'PRIOR chosen so the derived Vt lands at the PTM 45 '
+                   'nm HP NMOS vth0 = 0.469 V (band-edge-like metal '
+                   'gate phi_m ~ 4.2 eV on p-Si 3.24e18, phi_s ~ 5.12 '
+                   'eV) — a stated calibration, not a measurement',
+     'rc_ohm_um': 155.0, 'vdd_v': 1.0,
+     'notes': 'S1 LADDER RUNG (freepdk45): our VS-parameterised '
+              'reconstruction CALIBRATED against the FreePDK45 '
+              'published numbers (VTG NMOS Ion 975.5 uA/um, Ioff 10 '
+              'nA/um at 1.0 V; Lg 45 nm; EOT 1.25 nm; ndep 3.24e18) — '
+              'NOT the FreePDK45 BSIM4 card. Exists to compare the '
+              'open 45 nm rung against our 90-class reference (Lg, '
+              'EOT, doping all documented) on every fv/fi surface. Rc '
+              'prior = PTM rdsw 155 ohm-um. The gap to the anchors is '
+              'reported by '
+              'si_ladder.compare_to_anchors, never fitted silently. '
+              'Derive before use: unproven → scores 0 until derived.'},
+    {'name': 'si-pmos-freepdk45-class', 'polarity': 'p',
+     'shape': 'planar-45nm-class',
+     'channel_doping': 'si-channel-n-2.44e18-ptm45',
+     'sd_doping': 'si-sd-p-plus-1e20',
+     'dielectric': 'freepdk45-highk-nominal',
+     'process': 'thermal-oxidation', 'lg_nm': 45.0, 'w_nm': 1000.0,
+     'temperature_k': 300.0, 'vfb_v': 0.93,
+     'vfb_source': 'PRIOR chosen so |Vt| lands near the PTM 45 nm HP '
+                   'PMOS vth0 = -0.492 V (n-well 2.44e18; HfO2 dipole '
+                   'shift NOT modeled) — a stated calibration',
+     'rc_ohm_um': 155.0, 'vdd_v': 1.0,
+     'notes': 'Complementary partner of si-nmos-freepdk45-class: our '
+              'VS-parameterised reconstruction CALIBRATED against the '
+              'FreePDK45 published numbers (VTG PMOS Ion 650.3 uA/um, '
+              'Ioff 10 nA/um at 1.0 V) — NOT the FreePDK45 BSIM4 card. '
+              'Exists to complete the freepdk45-class pair so the cell '
+              'layer can characterize INV/NAND/DFF on the S1 rung. '
+              'Derive before use: unproven → scores 0 until derived.'},
 ]
 
 SEED_TABLES = (

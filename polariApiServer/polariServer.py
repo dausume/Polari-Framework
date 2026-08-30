@@ -1427,6 +1427,16 @@ except ImportError:
     SEED_REFINEMENT_ROUTES = SEED_REFINEMENT_STEPS = []
     SEED_SILICON_GRADES = SEED_SI_REFINEMENT_GRAPHS = []
 try:
+    from sifet.si_ladder import (
+        SiliconProcessNode, SEED_SILICON_PROCESS_NODES,
+        SEED_SILICON_ANCHORS, SEED_LADDER_EVIDENCE, SEED_LADDER_IP,
+        SEED_SI_LADDER_GRAPHS,
+    )
+except ImportError:
+    SiliconProcessNode = None
+    SEED_SILICON_PROCESS_NODES = SEED_SILICON_ANCHORS = []
+    SEED_LADDER_EVIDENCE = SEED_LADDER_IP = SEED_SI_LADDER_GRAPHS = []
+try:
     from sifet.si_pages_seed import (
         SEED_SI_PAGE_DISPLAYS, SEED_SI_SCORE_PAGES,
     )
@@ -2667,6 +2677,7 @@ class polariServer(treeObject):
             PowerBudget, SiliconDopingProfile, SolGelDielectric,
             SolGelProcess, SiliconFETShape, SiliconMOSFET,
             SiliconGrade, RefinementStep, RefinementRoute,
+            SiliconProcessNode,
             TechnologyIPRecord, EvidenceItem, OpenCellLibrary,
             FunctionalBlock, DesignTarget, FETTargetMapping,
             # cnt-s3: process objects + MC run rows.
@@ -3633,7 +3644,9 @@ class polariServer(treeObject):
              SEED_CNT_DEVICES),
             ('CNTCalibrationAnchor', CNTCalibrationAnchor,
              SEED_CALIBRATION_ANCHORS
-             + (SEED_REFERENCE_ANCHORS or [])),
+             + (SEED_REFERENCE_ANCHORS or [])
+             # open-silicon ladder: FreePDK45 documented Ion/Ioff
+             + (SEED_SILICON_ANCHORS or [])),
             # cnt-s4d: generated cell-variant rows.
             ('CNTCellDefinition', CNTCellDefinition,
              SEED_CNT_CELLS),
@@ -3672,11 +3685,16 @@ class polariServer(treeObject):
              SEED_REFINEMENT_STEPS or []),
             ('RefinementRoute', RefinementRoute,
              SEED_REFINEMENT_ROUTES or []),
+            # open-silicon ladder rungs (two independent axes: rights /
+            # fabrication evidence; manufacturable never inferred)
+            ('SiliconProcessNode', SiliconProcessNode,
+             SEED_SILICON_PROCESS_NODES or []),
             # ip: licensing / FTO records per technology.
             # evidence FIRST (records join to it by name), then records.
-            ('EvidenceItem', EvidenceItem, SEED_EVIDENCE or []),
+            ('EvidenceItem', EvidenceItem,
+             (SEED_EVIDENCE or []) + (SEED_LADDER_EVIDENCE or [])),
             ('TechnologyIPRecord', TechnologyIPRecord,
-             SEED_TECHNOLOGY_IP or []),
+             (SEED_TECHNOLOGY_IP or []) + (SEED_LADDER_IP or [])),
             # open library (proven-free cells on proven-free devices)
             # + functional blocks (ladder rank 3).
             ('OpenCellLibrary', OpenCellLibrary, SEED_OPEN_LIBRARIES or []),
@@ -4833,7 +4851,8 @@ class polariServer(treeObject):
              + (SEED_CNTFET_FIGURE_GRAPHS or [])
              + (SEED_CNT_DEVICE_GRAPHS or [])
              + (SEED_CNT_FV_GRAPHS or [])
-             + (SEED_SI_REFINEMENT_GRAPHS or [])),
+             + (SEED_SI_REFINEMENT_GRAPHS or [])
+             + (SEED_SI_LADDER_GRAPHS or [])),
             ('SimVariable', SimVariable, SEED_SIM_VARIABLES),
             # Equations: the live-readout set (KE/PE/E_total) PLUS the
             # per-step math each CalculusOperation references. Must seed

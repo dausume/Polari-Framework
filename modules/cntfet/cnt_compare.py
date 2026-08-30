@@ -140,6 +140,16 @@ def _score_page(device_name, source_class='AlignedCNTFETDevice'):
                             '(n / p / undoped), dielectric, process, row',
                             f'/api/cntfet/device/{d}/parts', pick='parts')],
                  min_height=360),
+            # speed, OWNED BY THE CELL LAYER: FO4 from the characterized
+            # INV of this device's library → clock range for a
+            # configurable 30–12 FO4/cycle logic depth (intrinsic-grade)
+            _row(11, [_sapi(f'score-{d}-fo4', 0, 12,
+                            f'{d}: intrinsic cell speed — FO4, INV '
+                            'transition energy, clock range per FO4/cycle '
+                            'band (excludes interconnect, clock tree, '
+                            'SRAM, IR drop, package)',
+                            f'/api/cntfet/device/{d}/fo4', pick='clock')],
+                 min_height=300),
             _row(1, [
                 _device_graph(f'score-{d}-terms', 0, 6,
                               f'{d}: figures of merit vs ideals '

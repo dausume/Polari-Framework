@@ -33,7 +33,7 @@ Exposed for the integrator (polariServer DisplayDefinition seeds):
 import json
 
 from cntfet.cnt_compare import detail_pages, score_pages
-from cntfet.cnt_pages_seed import _api, _device_graph, _row, _table
+from cntfet.cnt_pages_seed import _api, _device_graph, _row, _sapi, _table
 from sifet.si_basis import SEED_SI_DEVICES
 
 SI_DEVICE_NAMES = [d['name'] for d in SEED_SI_DEVICES]
@@ -168,7 +168,43 @@ def _home_page():
                      'routes (openness), PV vs semiconductor grade '
                      'reachability', '/api/sifet/refinement'),
             ], min_height=360),
+            # open-silicon ladder: 90 → 65 → 45 → 32 → 22 → 14 → 7 nm;
+            # TWO independent axes per rung (rights / fabrication
+            # evidence); manufacturability never inferred from a PDK.
+            _row(6, [
+                _ladder_graph('sifet-ladder-ion', 0, 6,
+                              'Open-silicon ladder: documented Ion per '
+                              'rung vs node (log x) + our derived devices'),
+                _sapi('sifet-ladder-rungs', 1, 6,
+                      'Open-silicon ladder: rungs — rights class × '
+                      'fabrication evidence, frontier / predictive / '
+                      'manufacturable', '/api/sifet/ladder', pick='rungs'),
+            ], min_height=430),
+            _row(7, [
+                _sapi('sifet-ladder-anchors-n', 0, 6,
+                      'si-nmos-freepdk45-class vs the FreePDK45 '
+                      'documented anchors (gap + nearest knob, NOT applied)',
+                      '/api/sifet/devices/si-nmos-freepdk45-class/anchors'),
+                _sapi('sifet-ladder-anchors-p', 1, 6,
+                      'si-pmos-freepdk45-class vs the FreePDK45 '
+                      'documented anchors',
+                      '/api/sifet/devices/si-pmos-freepdk45-class/anchors'),
+            ], min_height=360),
         ]}),
+    }
+
+
+def _ladder_graph(item_id, index, segments, title, curve='ion-vs-node'):
+    return {
+        'id': item_id, 'index': index, 'type': 'component',
+        'rowSegmentsUsed': segments, 'gridColumnStart': None,
+        'title': title, 'visible': True, 'collapsed': False,
+        'cssClass': '',
+        'componentProps': {
+            'componentName': 'named-graph-panel',
+            'inputs': {'graphName': f'si-ladder-{curve}',
+                       'dataPath': f'/api/sifet/ladder/points?curve={curve}'},
+        },
     }
 
 
