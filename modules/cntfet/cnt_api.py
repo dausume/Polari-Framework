@@ -190,6 +190,10 @@ class CNTFETAPI(treeObject):
             add('/api/fet/blockcfg/{key}/{device}/summary', self,
                 suffix='fblock_config_summary')
             add('/api/fet/blocks', self, suffix='fblocks_catalogue')
+            # multiscale scenes: generate/upsert the cell- and
+            # block-level 2-D/3-D scenes on demand (?dim=&lod=).
+            add('/api/fet/scene/{level}/{key}/{device}', self,
+                suffix='level_scene')
 
     def _refuse(self, response, error, status='400 Bad Request'):
         response.status = status
@@ -300,6 +304,21 @@ class CNTFETAPI(treeObject):
             with_timing=request.get_param('timing') != '0')
         if not report.get('ok'):
             response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_level_scene(self, request, response, level, key,
+                           device):
+        """Multiscale scene generation: GET upserts the scene row
+        idempotently and returns its name + stats. ?dim=3d|2d,
+        ?lod=real|blackbox (cell default real, block blackbox —
+        the performance choice is the caller's knob)."""
+        from cntfet.cnt_level_scenes import generate_scene
+        report = generate_scene(
+            self.manager, level, key, device,
+            dim=request.get_param('dim') or '3d',
+            lod=request.get_param('lod'))
+        if not report.get('ok'):
+            response.status = '422 Unprocessable Entity'
         response.media = report
 
     def on_get_fblocks_catalogue(self, request, response):
