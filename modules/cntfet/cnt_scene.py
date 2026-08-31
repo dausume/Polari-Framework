@@ -160,21 +160,18 @@ def _pieces(geo, device_name):
         cx = 0.5 * (r['x0'] + r['x1']) - length / 2.0
         ln = r['x1'] - r['x0']
         base = f"fet-part-{device_name}-{_slug(r['name'])}"
-        shape(base + '-outer', 'primitive', 'cylinder',
-              {'radius': r['r1'], 'height': ln, 'axis': 'x',
+        # ONE annular_sector primitive (mq-2 — the radial-machine
+        # primitive with exact closed forms, an exact triangulated
+        # mesh and a quadric emission): half_angle 180° = the full
+        # ring. The CSG outer−inner form meshed as a POINT CLOUD in
+        # the 3-D renderer — invisible pieces (Dustin's find).
+        shape(base, 'primitive', 'annular_sector',
+              {'r_inner': r['r0'], 'r_outer': r['r1'],
+               'half_angle_deg': 180.0, 'azimuth_deg': 0.0,
+               'height': ln, 'axis': 'x',
                'center': [cx, 0.0, 0.0]},
-              notes=f'component of {base} (shell outer)')
-        shape(base + '-inner', 'primitive', 'cylinder',
-              {'radius': r['r0'], 'height': ln * 1.02, 'axis': 'x',
-               'center': [cx, 0.0, 0.0]},
-              notes=f'component of {base} (shell bore)')
-        shape(base, 'csg',
-              csg={'op': 'difference',
-                   'shapes': [base + '-outer', base + '-inner']},
-              bounds=[[cx - ln / 2.0, cx + ln / 2.0],
-                      [-r['r1'], r['r1']], [-r['r1'], r['r1']]],
-              notes='shell = outer − inner coaxial cylinders (CSG '
-                    'of matrix-equation solids); true nm')
+              notes='shell as an annular ring (r_in..r_out about '
+                    'the tube axis); true nm')
         specs.append((r, base))
     return shapes, specs
 
@@ -272,7 +269,10 @@ def device_scene_seeds(device_name, manager=None, knobs=None):
                 geo, knobs=k, device_name=device_name),
         }),
         'camera_json': json.dumps({
-            'mode': 'fixed', 'projection': 'orthographic',
+            # orbit: the authored pose is the START; navigation stays
+            # free (mode 'fixed' DISABLES the controls — Dustin
+            # could not move the scene at all)
+            'mode': 'orbit', 'projection': 'orthographic',
             'position': [0.0, 0.0, max(half * 2, 2.0)],
             'target': [0.0, 0.0, 0.0], 'up': [0, 1, 0], 'fit': 'auto',
         }),

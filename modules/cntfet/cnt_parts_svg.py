@@ -317,10 +317,13 @@ def fet2d_scene(device_name, manager=None, knobs=None):
         'dimensionality': '2d',
         'coordinate_system': 'math',
         'unit_scale': 1.0,
+        # extent = HALF-sizes: hug the content (a roomy viewport made
+        # the layout read as scattered pieces — Dustin's find)
         'viewport_json': json.dumps({
-            'center': [0, 0],
-            'extent': [(view['x1'] - view['x0']) * 0.6,
-                       (view['y1'] - view['y0']) * 0.75]}),
+            'center': [0, round((view['y0'] + view['y1']) / 2.0, 3)],
+            'extent': [round((view['x1'] - view['x0']) / 2 * 1.08, 3),
+                       round((view['y1'] - view['y0']) / 2 * 1.25,
+                             3)]}),
         'bound_classes_json': '[]',
         'definition': json.dumps({'freestandingOnly': True,
                                   'template': template,

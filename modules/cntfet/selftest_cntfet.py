@@ -548,7 +548,9 @@ def main():
                                        'evidence-browser',
                                        'api-structured-panel'}   # no JSON walls
           and page_components.count('named-graph-panel') == 10
-          and len(page_components) == 22)   # + evidence-browser
+          # 21 originals + evidence-browser + the fg-2 /api/fet
+          # catalogue row
+          and len(page_components) == 23)
     from cntfet.cnt_device_viz import SEED_CNT_DEVICE_GRAPHS
     from cntfet.cnt_figures import SEED_CNTFET_FIGURE_GRAPHS
     graph_names = ({g['name'] for g in SEED_CNTFET_FIGURE_GRAPHS}
@@ -714,7 +716,9 @@ def main():
               'cnt-device-output-states',
               'cnt-device-score-terms',
               'cnt-device-transfer-envelope',
-              'cnt-device-cell-scores', 'cnt-device-compare'}
+              'cnt-device-cell-scores', 'cnt-device-compare',
+              # fv-8, fet-named (fet, not cntfet)
+              'fet-compare-normalized'}
           and json.loads(SEED_CNT_DEVICE_GRAPHS[0]['definition'])
           ['graphConfig']['options']['yType'] == 'log'
           and all(json.loads(g['definition'])['graphConfig']

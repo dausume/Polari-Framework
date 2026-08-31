@@ -172,7 +172,9 @@ def si_device_scene(device_name, manager=None, knobs=None):
             'freestanding': entries,
         }),
         'camera_json': json.dumps({
-            'mode': 'fixed', 'projection': 'orthographic',
+            # orbit start pose — free navigation ('fixed' disables
+            # the controls entirely)
+            'mode': 'orbit', 'projection': 'orthographic',
             'position': [0.0, 0.0, max(half * 2.0, 2.0)],
             'target': [0.0, round((y_lo + y_hi) / 2.0, 4), 0.0],
             'up': [0, 1, 0], 'fit': 'auto',
