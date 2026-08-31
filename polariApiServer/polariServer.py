@@ -1317,6 +1317,14 @@ try:
     SEED_CNT_SCORE_PAGES = SEED_CNT_SCORE_PAGES + SEED_CELL_PAGES
     SEED_CELL_CONFIGS = seed_cell_configs(
         [d['name'] for d in SEED_CNT_DEVICES])
+    # block level (rank 3): the generic block-detail page + the
+    # block×FET configuration grid (Si devices extend it below).
+    from cntfet.cnt_block_pages import (
+        BlockFETConfiguration, SEED_BLOCK_PAGES, seed_block_configs,
+    )
+    SEED_CNT_SCORE_PAGES = SEED_CNT_SCORE_PAGES + SEED_BLOCK_PAGES
+    SEED_BLOCK_CONFIGS = seed_block_configs(
+        [d['name'] for d in SEED_CNT_DEVICES])
 except ImportError as _exc:
     _stub_missing_feature('cntfet', _exc, globals(), (
         'AlignedCNTFETDevice', 'AlignedCNTFETGeometry', 'CNTCalibrationAnchor', 'CNTContact',
@@ -1340,6 +1348,8 @@ except ImportError as _exc:
         'SEED_CELL_SCORE_SUBJECTS', 'SEED_CNT_SCORE_PAGES',
         'CellFETConfiguration', 'SEED_CELL_PAGES',
         'SEED_CELL_CONFIGS',
+        'BlockFETConfiguration', 'SEED_BLOCK_PAGES',
+        'SEED_BLOCK_CONFIGS',
     ))
 # fv arc (FET_VIEWS_PLAN): each phase module is guarded SEPARATELY so
 # an absent phase never stubs the whole cntfet feature.
@@ -1481,6 +1491,11 @@ try:
     # cell arc: the config grid covers the silicon devices too.
     from cntfet.cnt_cell_pages import seed_cell_configs as _scc
     SEED_CELL_CONFIGS = _scc(
+        [d['name'] for d in (SEED_CNT_DEVICES or [])]
+        + list(_si2d_names))
+    # block level: the block grid covers the silicon devices too.
+    from cntfet.cnt_block_pages import seed_block_configs as _sbc
+    SEED_BLOCK_CONFIGS = _sbc(
         [d['name'] for d in (SEED_CNT_DEVICES or [])]
         + list(_si2d_names))
 except ImportError:
@@ -2709,6 +2724,11 @@ class polariServer(treeObject):
             CNTCalibrationAnchor, CNTFETSimResult,
             # cnt-s4d: cell library variant rows.
             CNTCellDefinition,
+            # cell/block arcs (2026-08-31): the cell×FET and
+            # block×FET configuration objects — REGISTRATION lives
+            # HERE (defClassList), not in the seed-pairs list alone
+            # (the classic seeds-silently-vanish gotcha, hit live).
+            CellFETConfiguration, BlockFETConfiguration,
             # fi-0: operating states.
             FETOperatingState,
             # fv arc: regimes, characteristics, transport, fields
@@ -3697,6 +3717,9 @@ class polariServer(treeObject):
             # cell arc: the cell×FET configuration objects.
             ('CellFETConfiguration', CellFETConfiguration,
              SEED_CELL_CONFIGS or []),
+            # block level: the block×FET configuration objects.
+            ('BlockFETConfiguration', BlockFETConfiguration,
+             SEED_BLOCK_CONFIGS or []),
             # fi-0: operating-state rows (criteria as data).
             ('FETOperatingState', FETOperatingState,
              SEED_FET_STATES),
