@@ -1528,6 +1528,9 @@ try:
         DesignLevelDefinition, MicrochipDesignNode,
         SEED_DESIGN_LEVELS, SEED_DESIGN_NODES,
     )
+    from microchip.chip_families import (
+        DeviceFamilyDefinition, SEED_DEVICE_FAMILIES,
+    )
     from microchip.chip_pages_seed import (
         SEED_MICROCHIP_PAGE_DISPLAYS,
     )
@@ -1535,6 +1538,7 @@ except ImportError as _exc:
     _stub_missing_feature('microchip', _exc, globals(), (
         'DesignLevelDefinition', 'MicrochipDesignNode',
         'SEED_DESIGN_LEVELS', 'SEED_DESIGN_NODES',
+        'DeviceFamilyDefinition', 'SEED_DEVICE_FAMILIES',
         'SEED_MICROCHIP_PAGE_DISPLAYS',
     ))
 # computerparts (ai-8): parts + builds as tracked data — dated part
@@ -2749,8 +2753,10 @@ class polariServer(treeObject):
             CNTPurificationProcess, ContactFormationProcess,
             LithographyProcess, GateStackProcess,
             CNTFETMonteCarloRun, CellCharacterizationRun,
-            # microchip: the design-level ladder + design nodes.
+            # microchip: the design-level ladder + design nodes +
+            # rank-1 device families (lad §2c).
             DesignLevelDefinition, MicrochipDesignNode,
+            DeviceFamilyDefinition,
             # ai-8: computer parts + builds (dated prices, derived
             # cost, assembly checks).
             ComputerPartDefinition, ComputerBuildDefinition,
@@ -3788,6 +3794,8 @@ class polariServer(treeObject):
              SEED_DESIGN_LEVELS),
             ('MicrochipDesignNode', MicrochipDesignNode,
              SEED_DESIGN_NODES),
+            ('DeviceFamilyDefinition', DeviceFamilyDefinition,
+             SEED_DEVICE_FAMILIES),
             ('PhotoAbsorberDefinition', PhotoAbsorberDefinition,
              SEED_PHOTO_ABSORBERS),
             ('SolarStackDefinition', SolarStackDefinition,
