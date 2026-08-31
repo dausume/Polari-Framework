@@ -41,10 +41,13 @@ _FET_PREFIX = '/api/fet/device/'
 
 def fet_alias(path):
     """The /api/fet route a cntfet route also answers at, or None
-    for a route that is NOT part of the generic per-device
-    contract."""
-    if path.startswith(_GENERIC_PREFIX):
-        return _FET_PREFIX + path[len(_GENERIC_PREFIX):]
+    for a route that is NOT part of the generic contract. Generic =
+    the per-device surfaces AND the cell surfaces (cells are
+    technology-agnostic — the cell arc pages ride /api/fet)."""
+    for prefix in (_GENERIC_PREFIX, '/api/cntfet/cell/',
+                   '/api/cntfet/cells/'):
+        if path.startswith(prefix):
+            return '/api/fet/' + path[len('/api/cntfet/'):]
     return None
 
 

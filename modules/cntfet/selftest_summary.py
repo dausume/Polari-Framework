@@ -179,6 +179,12 @@ def main():
           and '/api/fet/device/{name}/score' in paths
           and '/api/fet/device/{name}/points' in paths
           and '/api/fet/devices' in paths
+          # cell arc: cell surfaces alias to /api/fet too
+          and '/api/fet/cell/{cell}/logic' in paths
+          and '/api/fet/cells/coverage' in paths
+          and '/api/fet/cell/{cell}/summary' in paths
+          and '/api/fet/cellcfg/{cell}/{device}/summary' in paths
+          and '/api/fet/cells' in paths
           and '/api/fet/devices/{name}' not in paths,
           f'{len(paths)} paths')
 

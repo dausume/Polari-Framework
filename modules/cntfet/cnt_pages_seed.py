@@ -143,6 +143,14 @@ def _cells_page():
                                'the chain, click an item for detail',
                                'evidence-browser', '', 0)],
              min_height=520),
+        # cell arc: the generic catalogue — each cell's detail page
+        # (general + FET-configuration selector).
+        _row(99, [
+            _sapi('cells-catalogue', 0, 12,
+                  'Every cell: the generic detail page (general + '
+                  'FET configurations, open-source samples flagged)',
+                  '/api/fet/cells', pick='cells'),
+        ], min_height=360),
         _row(100, [
             _sapi('cells-library-proof', 0, 6,
                  'Cell library: boolean vs switch-level PROOF per cell '

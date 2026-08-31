@@ -174,6 +174,13 @@ class CNTFETAPI(treeObject):
             # fg-2: the GENERIC FET catalogue — both technologies,
             # each device with its generic page + summary paths.
             add('/api/fet/devices', self, suffix='fet_devices')
+            # cell arc: the general cell + the cell×FET configuration
+            # object (fet-named; /api/cntfet/cell/* aliases too).
+            add('/api/fet/cell/{cell}/summary', self,
+                suffix='cell_summary')
+            add('/api/fet/cellcfg/{cell}/{device}/summary', self,
+                suffix='cell_config_summary')
+            add('/api/fet/cells', self, suffix='cells_catalogue')
 
     def _refuse(self, response, error, status='400 Bad Request'):
         response.status = status
@@ -245,6 +252,28 @@ class CNTFETAPI(treeObject):
         response.media = {'ok': True, 'devices': devices,
                           'recentResults': results[:10],
                           'capability': capability()}
+
+    def on_get_cell_summary(self, request, response, cell):
+        """cell arc: the GENERAL cell + its configuration index."""
+        from cntfet.cnt_cell_pages import cell_summary
+        report = cell_summary(self.manager, cell)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_cell_config_summary(self, request, response, cell,
+                                   device):
+        """cell arc: this cell ON this FET (the configuration
+        object's numbers, or the fill affordance)."""
+        from cntfet.cnt_cell_pages import cell_config_summary
+        report = cell_config_summary(self.manager, cell, device)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_cells_catalogue(self, request, response):
+        from cntfet.cnt_cell_pages import cells_catalogue
+        response.media = cells_catalogue(self.manager)
 
     def on_get_fet_devices(self, request, response):
         """fg-2: the generic FET catalogue (CNT + Si), each row with

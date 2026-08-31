@@ -1309,6 +1309,14 @@ try:
             [d['name'] for d in SEED_CNT_DEVICES])
     except ImportError:
         pass
+    # cell arc (2026-08-31): the generic cell-detail page + the
+    # cell×FET configuration grid (Si devices extend it below).
+    from cntfet.cnt_cell_pages import (
+        CellFETConfiguration, SEED_CELL_PAGES, seed_cell_configs,
+    )
+    SEED_CNT_SCORE_PAGES = SEED_CNT_SCORE_PAGES + SEED_CELL_PAGES
+    SEED_CELL_CONFIGS = seed_cell_configs(
+        [d['name'] for d in SEED_CNT_DEVICES])
 except ImportError as _exc:
     _stub_missing_feature('cntfet', _exc, globals(), (
         'AlignedCNTFETDevice', 'AlignedCNTFETGeometry', 'CNTCalibrationAnchor', 'CNTContact',
@@ -1330,6 +1338,8 @@ except ImportError as _exc:
         'SEED_FET_SCORE_SUBJECTS', 'SEED_FET_SCORE_VALUES',
         'SEED_CELL_SCORE_CONCEPTS', 'SEED_CELL_SCORE_TERMS',
         'SEED_CELL_SCORE_SUBJECTS', 'SEED_CNT_SCORE_PAGES',
+        'CellFETConfiguration', 'SEED_CELL_PAGES',
+        'SEED_CELL_CONFIGS',
     ))
 # fv arc (FET_VIEWS_PLAN): each phase module is guarded SEPARATELY so
 # an absent phase never stubs the whole cntfet feature.
@@ -1468,6 +1478,11 @@ try:
     from sifet.si_scene import part_shape_seeds_si as _si_psh
     SEED_FET_PART_SHAPES_SI = [
         sh for _pn in list(_si2d_names) for sh in _si_psh(_pn)]
+    # cell arc: the config grid covers the silicon devices too.
+    from cntfet.cnt_cell_pages import seed_cell_configs as _scc
+    SEED_CELL_CONFIGS = _scc(
+        [d['name'] for d in (SEED_CNT_DEVICES or [])]
+        + list(_si2d_names))
 except ImportError:
     SEED_SI_PAGE_DISPLAYS, SEED_SI_SCORE_PAGES = [], []
     SEED_FET_PART_SHAPES_SI = []
@@ -3679,6 +3694,9 @@ class polariServer(treeObject):
             # cnt-s4d: generated cell-variant rows.
             ('CNTCellDefinition', CNTCellDefinition,
              SEED_CNT_CELLS),
+            # cell arc: the cell×FET configuration objects.
+            ('CellFETConfiguration', CellFETConfiguration,
+             SEED_CELL_CONFIGS or []),
             # fi-0: operating-state rows (criteria as data).
             ('FETOperatingState', FETOperatingState,
              SEED_FET_STATES),
