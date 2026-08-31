@@ -181,6 +181,9 @@ class CNTFETAPI(treeObject):
             add('/api/fet/cellcfg/{cell}/{device}/summary', self,
                 suffix='cell_config_summary')
             add('/api/fet/cells', self, suffix='cells_catalogue')
+            # the cells-advance service: first-step characterization
+            # for every blank cell×FET (GET report, POST one device).
+            add('/api/fet/cells/advance', self, suffix='cells_advance')
 
     def _refuse(self, response, error, status='400 Bad Request'):
         response.status = status
@@ -274,6 +277,33 @@ class CNTFETAPI(treeObject):
     def on_get_cells_catalogue(self, request, response):
         from cntfet.cnt_cell_pages import cells_catalogue
         response.media = cells_catalogue(self.manager)
+
+    def on_get_cells_advance(self, request, response):
+        """The first-step ladder report (dry run of the sweep)."""
+        from cntfet.cnt_cell_advance import advance_report
+        response.media = advance_report(self.manager)
+
+    def on_post_cells_advance(self, request, response):
+        """{"device": name} — take ONE device to the first step
+        (coarse library + sequential; long call, the sweep script
+        loops devices)."""
+        from cntfet.cnt_cell_advance import advance_device
+        try:
+            raw = request.bounded_stream.read()
+            payload = json.loads(raw) if raw else {}
+        except ValueError:
+            return self._refuse(response, 'body must be JSON')
+        name = payload.get('device', '')
+        if not name:
+            return self._refuse(response,
+                                'send {"device": "<name>"} — GET '
+                                'this path for the report')
+        report = advance_device(
+            self.manager, name,
+            include_sequential=payload.get('sequential', True))
+        if not report.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = report
 
     def on_get_fet_devices(self, request, response):
         """fg-2: the generic FET catalogue (CNT + Si), each row with
