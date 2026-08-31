@@ -184,6 +184,12 @@ class CNTFETAPI(treeObject):
             # the cells-advance service: first-step characterization
             # for every blank cell×FET (GET report, POST one device).
             add('/api/fet/cells/advance', self, suffix='cells_advance')
+            # block level (rank 3: FET → cell → BLOCK → core → chip)
+            add('/api/fet/block/{key}/summary', self,
+                suffix='fblock_summary')
+            add('/api/fet/blockcfg/{key}/{device}/summary', self,
+                suffix='fblock_config_summary')
+            add('/api/fet/blocks', self, suffix='fblocks_catalogue')
 
     def _refuse(self, response, error, status='400 Bad Request'):
         response.status = status
@@ -277,6 +283,28 @@ class CNTFETAPI(treeObject):
     def on_get_cells_catalogue(self, request, response):
         from cntfet.cnt_cell_pages import cells_catalogue
         response.media = cells_catalogue(self.manager)
+
+    def on_get_fblock_summary(self, request, response, key):
+        from cntfet.cnt_block_pages import block_summary
+        report = block_summary(self.manager, key)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_fblock_config_summary(self, request, response, key,
+                                     device):
+        """?timing=0 skips the OpenSTA pass (fast index views)."""
+        from cntfet.cnt_block_pages import block_config_summary
+        report = block_config_summary(
+            self.manager, key, device,
+            with_timing=request.get_param('timing') != '0')
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_fblocks_catalogue(self, request, response):
+        from cntfet.cnt_block_pages import blocks_catalogue
+        response.media = blocks_catalogue(self.manager)
 
     def on_get_cells_advance(self, request, response):
         """The first-step ladder report (dry run of the sweep)."""

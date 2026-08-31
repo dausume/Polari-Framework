@@ -277,6 +277,28 @@ def cell_config_summary(manager, cell, device_name):
                     else {'refusal': pw.get('error',
                                             pw.get('refusal',
                                                    'power refused'))})
+    # the upward weave: which blocks build on this configuration
+    out['usedInBlocks'] = used_in_blocks(cell, device_name)
+    return out
+
+
+def used_in_blocks(cell, device_name=''):
+    """The blocks one level UP that this cell composes into — the
+    other direction of the FET → cell → block linkage."""
+    try:
+        from cntfet.cnt_blocks import BLOCK_LIBRARY, block_cells
+    except ImportError:
+        return []
+    out = []
+    for b in sorted(BLOCK_LIBRARY):
+        count = block_cells(b).get(cell)
+        if count:
+            out.append({
+                'block': b, 'instances': count,
+                'page': (f'/display/block-detail?object={b}'
+                         + (f'&device={device_name}'
+                            if device_name else '')),
+            })
     return out
 
 
