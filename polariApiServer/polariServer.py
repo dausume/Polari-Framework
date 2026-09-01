@@ -560,6 +560,23 @@ except ImportError as _exc:
         'SEED_CHARACTERIZATION_DATASETS',
         'GLASS_DIGITIZED_DATASETS', 'GLASS_THRESHOLD_WINDOWS',
     ))
+# foodstate (fsp-0): food as PSPP state evolution — vocabulary rows
+# ride the pspp classes (zero schema changes); the one new class is
+# the domain-contract shell (FOOD_STATE_PSPP_PLAN.md).
+try:
+    from foodstate.food_contracts import (
+        FoodDomainContract, SEED_FOOD_DOMAIN_CONTRACTS,
+    )
+    from foodstate.food_pspp_seed import (
+        SEED_FOOD_EVIDENCE_METHODS, SEED_FOOD_PROCESSES,
+        SEED_FOOD_STAGES,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('foodstate', _exc, globals(), (
+        'FoodDomainContract', 'SEED_FOOD_DOMAIN_CONTRACTS',
+        'SEED_FOOD_EVIDENCE_METHODS', 'SEED_FOOD_PROCESSES',
+        'SEED_FOOD_STAGES',
+    ))
 try:
     from aquaponics.pot_materials_seed import (
         SEED_POT_MATERIALS, SEED_POT_PROPERTY_MEANINGS,
@@ -2370,6 +2387,11 @@ class polariServer(treeObject):
             from microchip.chip_api import MicrochipAPI
             microchipEndpoint = MicrochipAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('foodstate'):
+            # fsp-0: food domain contracts + vocabulary read surface.
+            from foodstate.food_api import FoodStateAPI
+            foodstateEndpoint = FoodStateAPI(
+                polServer=self, manager=self.manager)
         if _feature_available('computerparts'):
             # ai-8: parts + builds with derived totals + assembly
             # checks (feeds the appstore buy-vs-rent advisory).
@@ -2431,7 +2453,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition, CrystalStructureDefinition, ThermalProcessingProfile, CeramicSample, LadderRung, EvidenceMethod, PropertyClaim, StructureClaim, ValidationClaim, DigitizedDataset, MaterialState, ProcessingStage, ScaleStructureDefinition, ReactionWindow, MaterialProcessDefinition, MaterialProcessExecution, ChemicalSpecies, ReactionRule, ScaleTransferDefinition, ExposureScenario, MaterialPerformanceScenario,
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition, CrystalStructureDefinition, ThermalProcessingProfile, CeramicSample, LadderRung, EvidenceMethod, PropertyClaim, StructureClaim, ValidationClaim, DigitizedDataset, MaterialState, ProcessingStage, ScaleStructureDefinition, ReactionWindow, MaterialProcessDefinition, MaterialProcessExecution, FoodDomainContract, ChemicalSpecies, ReactionRule, ScaleTransferDefinition, ExposureScenario, MaterialPerformanceScenario,
             # Simulations
             SimulationDefinition, SimulationRun, SimVariable,
             SimSpaceEvaluationEquation,
@@ -3735,7 +3757,9 @@ class polariServer(treeObject):
              + (SEED_CMC_PROPERTY_MEANINGS or [])),
             # pspp (pspp-1): evidence vocabulary + book datasets —
             # claims have no seeds (they are earned, never seeded).
-            ('EvidenceMethod', EvidenceMethod, SEED_EVIDENCE_METHODS),
+            ('EvidenceMethod', EvidenceMethod,
+             SEED_EVIDENCE_METHODS
+             + (SEED_FOOD_EVIDENCE_METHODS or [])),
             ('DigitizedDataset', DigitizedDataset,
              SEED_DIGITIZED_DATASETS
              + (SOLGEL_DIGITIZED_DATASETS or [])
@@ -3747,13 +3771,18 @@ class polariServer(treeObject):
             ('ProcessingStage', ProcessingStage,
              SEED_PROCESSING_STAGES
              + (SEED_CMC_PROCESSING_STAGES or [])
-             + (SOLGEL_PROCESSING_STAGES or [])),
+             + (SOLGEL_PROCESSING_STAGES or [])
+             + (SEED_FOOD_STAGES or [])),
             # pspp-4: process vocabulary, patent windows, and the
             # reaction-network library (species before the rules that
             # trade in them). Executions/states are earned, not seeded.
             ('MaterialProcessDefinition', MaterialProcessDefinition,
              SEED_PROCESS_DEFINITIONS
-             + (SEED_CMC_PROCESS_DEFINITIONS or [])),
+             + (SEED_CMC_PROCESS_DEFINITIONS or [])
+             + (SEED_FOOD_PROCESSES or [])),
+            # fsp-0: the food domain contracts (the one new class).
+            ('FoodDomainContract', FoodDomainContract,
+             SEED_FOOD_DOMAIN_CONTRACTS),
             ('ReactionWindow', ReactionWindow, SEED_REACTION_WINDOWS),
             ('ThresholdReactionWindow', ThresholdReactionWindow,
              SEED_THRESHOLD_WINDOWS

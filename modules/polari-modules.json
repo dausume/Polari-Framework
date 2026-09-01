@@ -399,6 +399,18 @@
         "cntfet"
       ],
       "description": "Silicon MOSFETs (planar / FinFET) on thermal and SOL-GEL dielectrics sharing the cntfet VS device contract (states, regimes, scoring, validity, cross-technology ranking), complementary pairs, and silicon refinement routes (MG -> UMG -> SoG -> EG; PV open, EG novel)."
+    },
+    "foodstate": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/foodstate",
+      "repo": "",
+      "wave": 0,
+      "requires": [
+        "pspp",
+        "nutrition"
+      ],
+      "description": "Food as PSPP state evolution (fsp arc): food stages/processes/evidence methods as pspp rows + property-domain contracts; transform engines arrive fsp-2 (FOOD_STATE_PSPP_PLAN.md)."
     }
   }
 }
