@@ -579,6 +579,8 @@ try:
     from foodstate.food_composition import (
         build_composition_claim_seeds, vendor_food_index,
     )
+    # mpa-1: literature pH priors (chemistry-domain claims).
+    from foodstate.food_ph_seed import SEED_FOOD_PH_CLAIMS
     SEED_FOOD_MATERIALS = build_food_material_seeds(
         vendor_food_index())
     SEED_FOOD_COMPOSITION_CLAIMS = build_composition_claim_seeds()
@@ -587,7 +589,7 @@ except ImportError as _exc:
         'FoodDomainContract', 'SEED_FOOD_DOMAIN_CONTRACTS',
         'SEED_FOOD_EVIDENCE_METHODS', 'SEED_FOOD_PROCESSES',
         'SEED_FOOD_STAGES', 'FoodMaterial', 'SEED_FOOD_MATERIALS',
-        'SEED_FOOD_COMPOSITION_CLAIMS',
+        'SEED_FOOD_COMPOSITION_CLAIMS', 'SEED_FOOD_PH_CLAIMS',
     ))
 try:
     from aquaponics.pot_materials_seed import (
@@ -675,6 +677,7 @@ try:
     from nutrition.meal_basis import (
         MealTemplate, VariationDefinition, MealPlanDefinition,
         MealEntry, SEED_MEAL_TEMPLATES, SEED_VARIATIONS,
+        SEED_MEAL_PLANS, SEED_MEAL_ENTRIES,
     )
     # nmp-5: activity (curated Compendium subset) + logs.
     from nutrition.activity_basis import (
@@ -699,6 +702,20 @@ try:
         DishBase, IngredientRole, FoodRole, IngredientAffinity,
         SEED_DISH_BASES, SEED_INGREDIENT_ROLES, SEED_FOOD_ROLES,
         SEED_INGREDIENT_AFFINITIES,
+    )
+    # mpa-2/3/4: market (geolocated prices + weight priors), pantry,
+    # keycloak account links, intake tracking.
+    from nutrition.market_basis import (
+        SourceLocation, PriceObservation, UnitWeightPrior,
+        SEED_SOURCE_LOCATIONS, SEED_PRICE_OBSERVATIONS,
+        SEED_UNIT_WEIGHTS,
+    )
+    from nutrition.pantry_basis import PantryItem, SEED_PANTRY_ITEMS
+    from nutrition.account_basis import (
+        UserAccountLink, SEED_USER_ACCOUNT_LINKS,
+    )
+    from nutrition.intake_basis import (
+        IntakeRecord, SEED_INTAKE_RECORDS,
     )
 except ImportError as _exc:
     _stub_missing_feature('nutrition', _exc, globals(), (
@@ -726,6 +743,12 @@ except ImportError as _exc:
         'IngredientAffinity', 'SEED_DISH_BASES',
         'SEED_INGREDIENT_ROLES', 'SEED_FOOD_ROLES',
         'SEED_INGREDIENT_AFFINITIES',
+        'SEED_MEAL_PLANS', 'SEED_MEAL_ENTRIES',
+        'SourceLocation', 'PriceObservation', 'UnitWeightPrior',
+        'SEED_SOURCE_LOCATIONS', 'SEED_PRICE_OBSERVATIONS',
+        'SEED_UNIT_WEIGHTS', 'PantryItem', 'SEED_PANTRY_ITEMS',
+        'UserAccountLink', 'SEED_USER_ACCOUNT_LINKS',
+        'IntakeRecord', 'SEED_INTAKE_RECORDS',
     ))
 # Plant morphology: 3D organ + root stand-in models + confinement
 # (morph-1).
@@ -1642,6 +1665,9 @@ except ImportError as _exc:
 # vermicompost, tanks, biomining, microalgae, wax, supply chain,
 # morphology, authority) — pure class-rows-table/api-json-panel data.
 from polariApiServer.module_pages_seed import SEED_MODULE_PAGE_DISPLAYS
+from polariApiServer.mealplan_pages_seed import (
+    SEED_MEALPLAN_PAGE_DISPLAYS,
+)
 # The engine-model layer: the FEM/DFT catalog + the specialized
 # domain-shaped model definitions (msci-15).
 from materialsScience.engine_model_template import EngineModelTemplate
@@ -2165,6 +2191,12 @@ class polariServer(treeObject):
             from nutrition.food_api import NutritionFoodAPI
             nutritionFoodEndpoint = NutritionFoodAPI(
                 polServer=self, manager=self.manager)
+            # mpa-5: the meal-planning app's derived-view surface
+            # (me / dashboard / series / plan cost / pantry /
+            # prices / acidity / the PSPP state chain).
+            from nutrition.mealplanning_api import MealPlanningAPI
+            mealPlanningEndpoint = MealPlanningAPI(
+                polServer=self, manager=self.manager)
         if _feature_available('plant_morphology'):
             # Plant morphology: 3D organ/root stand-ins + confinement /
             # dwarfing assessment (morph-1).
@@ -2613,6 +2645,9 @@ class polariServer(treeObject):
             StepMethod, StorageActionDefinition, MethodPreference,
             ToolAdvisorDismissal, CookingWorkflow,
             DishBase, IngredientRole, FoodRole, IngredientAffinity,
+            # mpa-2/3/4: market + pantry + accounts + intake.
+            SourceLocation, PriceObservation, UnitWeightPrior,
+            PantryItem, UserAccountLink, IntakeRecord,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
             # Plant-growth-sim phase 1: normalized-growth instance state.
@@ -3691,6 +3726,7 @@ class polariServer(treeObject):
             ('DisplayDefinition', DisplayDefinition,
              SEED_PERIODIC_DISPLAYS + SEED_MSCI_PAGE_DISPLAYS
              + SEED_AQUAPONICS_PAGE_DISPLAYS + SEED_MODULE_PAGE_DISPLAYS
+             + SEED_MEALPLAN_PAGE_DISPLAYS
              + SEED_GROUP_DISPLAYS + SEED_WAXPRINT_PAGE_DISPLAYS
              + (SEED_PSPP_PAGE_DISPLAYS or [])
              + SEED_SSP_PAGE_DISPLAYS
@@ -3881,7 +3917,8 @@ class polariServer(treeObject):
             # counterpart of seeding DigitizedDataset book rows.
             ('FoodMaterial', FoodMaterial, SEED_FOOD_MATERIALS),
             ('PropertyClaim', PropertyClaim,
-             SEED_FOOD_COMPOSITION_CLAIMS),
+             (SEED_FOOD_COMPOSITION_CLAIMS or [])
+             + (SEED_FOOD_PH_CLAIMS or [])),
             ('ReactionWindow', ReactionWindow, SEED_REACTION_WINDOWS),
             ('ThresholdReactionWindow', ThresholdReactionWindow,
              SEED_THRESHOLD_WINDOWS
@@ -4226,6 +4263,10 @@ class polariServer(treeObject):
             ('MealTemplate', MealTemplate, SEED_MEAL_TEMPLATES),
             ('VariationDefinition', VariationDefinition,
              SEED_VARIATIONS),
+            # mpa-5: the demo plan the app pages render.
+            ('MealPlanDefinition', MealPlanDefinition,
+             SEED_MEAL_PLANS),
+            ('MealEntry', MealEntry, SEED_MEAL_ENTRIES),
             # nmp-5: the curated Compendium activities.
             ('ActivityDefinition', ActivityDefinition,
              SEED_ACTIVITY_DEFINITIONS),
@@ -4247,6 +4288,16 @@ class polariServer(treeObject):
             ('FoodRole', FoodRole, SEED_FOOD_ROLES),
             ('IngredientAffinity', IngredientAffinity,
              SEED_INGREDIENT_AFFINITIES),
+            # mpa-2/3/4: market, pantry, accounts, intake (locations
+            # before the prices that reference them).
+            ('SourceLocation', SourceLocation, SEED_SOURCE_LOCATIONS),
+            ('PriceObservation', PriceObservation,
+             SEED_PRICE_OBSERVATIONS),
+            ('UnitWeightPrior', UnitWeightPrior, SEED_UNIT_WEIGHTS),
+            ('PantryItem', PantryItem, SEED_PANTRY_ITEMS),
+            ('UserAccountLink', UserAccountLink,
+             SEED_USER_ACCOUNT_LINKS),
+            ('IntakeRecord', IntakeRecord, SEED_INTAKE_RECORDS),
             # morph-1: 3D organ + root stand-in models.
             ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
@@ -4980,7 +5031,22 @@ class polariServer(treeObject):
                           SEED_INGREDIENT_ROLES),
                          ('FoodRole', FoodRole, SEED_FOOD_ROLES),
                          ('IngredientAffinity', IngredientAffinity,
-                          SEED_INGREDIENT_AFFINITIES)],
+                          SEED_INGREDIENT_AFFINITIES),
+                         ('MealPlanDefinition', MealPlanDefinition,
+                          SEED_MEAL_PLANS),
+                         ('MealEntry', MealEntry, SEED_MEAL_ENTRIES),
+                         ('SourceLocation', SourceLocation,
+                          SEED_SOURCE_LOCATIONS),
+                         ('PriceObservation', PriceObservation,
+                          SEED_PRICE_OBSERVATIONS),
+                         ('UnitWeightPrior', UnitWeightPrior,
+                          SEED_UNIT_WEIGHTS),
+                         ('PantryItem', PantryItem,
+                          SEED_PANTRY_ITEMS),
+                         ('UserAccountLink', UserAccountLink,
+                          SEED_USER_ACCOUNT_LINKS),
+                         ('IntakeRecord', IntakeRecord,
+                          SEED_INTAKE_RECORDS)],
                         tag='NutritionSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[NutritionSeed] {r["class"]}: '
