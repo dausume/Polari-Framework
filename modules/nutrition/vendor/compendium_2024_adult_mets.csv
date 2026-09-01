@@ -1,0 +1,1112 @@
+activity_code,met_value,description,category
+01003,14.0,"Bicycling, mountain, uphill, vigorous",bicycling
+01004,16.0,"Bicycling, mountain, competitive racing",bicycling
+01008,8.5,"Bicycling, BMX",bicycling
+01009,8.5,"Bicycling, mountain, general",bicycling
+01010,4.0,"Bicycling, <10 mph, leisure, to work or for pleasure (Taylor Code 115)",bicycling
+01011,6.8,"Bicycling, to/from work, self selected pace",bicycling
+01013,5.8,"Bicycling, on dirt or farm road, moderate pace",bicycling
+01014,7.0,"Bicycling, general",bicycling
+01015,4.3,"Bicycling, self-selected easy pace",bicycling
+01016,7.0,"Bicycling, self-selected moderate pace",bicycling
+01017,9.0,"Bicycling, self-selected vigorous pace",bicycling
+01018,3.5,"Bicycling, leisure 5.5 mph",bicycling
+01019,5.8,"Bicycling, leisure, 9.4 mph",bicycling
+01020,6.8,"Bicycling, 10-11.9 mph, leisure, slow, light effort",bicycling
+01030,8.0,"Bicycling, 12-13.9 mph, leisure, moderate effort",bicycling
+01040,10.0,"Bicycling, 14-15.9 mph, racing or leisure, fast, vigorous effort",bicycling
+01050,12.0,"Bicycling, 16-19 mph, racing/not drafting or >19 mph drafting, very fast, racing general",bicycling
+01060,16.8,"Bicycling, >20 mph, racing, not drafting",bicycling
+01065,8.5,"Bicycling, 12 mph, seated, hands on brake hoods or bar drops, 80 rpm",bicycling
+01066,9.0,"Bicycling, 12 mph, standing, hands on brake hoods, 60 rpm",bicycling
+01070,5.0,Unicycling,bicycling
+01080,6.8,E-bike (electrically assisted) without electronic support,bicycling
+01084,6.0,E-bike (electrically assisted) with light electronic support,bicycling
+01088,4.0,E-bike (electrically assisted) with high electronic support,bicycling
+01200,6.8,"Bicycling, stationary, general",bicycling
+01210,3.5,"Bicycling, stationary, 25-30 watts, very light to light effort",bicycling
+01214,4.0,"Bicycling, stationary, 50 watts, light effort",bicycling
+01216,5.0,"Bicycling, stationary, 60 watts, light to moderate effort",bicycling
+01218,5.8,"Bicycling, stationary, 70-80 watts",bicycling
+01220,6.0,"Bicycling, stationary, 90-100 watts,  moderate to vigorous",bicycling
+01224,6.8,"Bicycling, stationary, 101-125 watts",bicycling
+01228,8.0,"Bicycling, stationary, 126-150 watts",bicycling
+01232,10.3,"Bicycling, stationary, 151-199 watts",bicycling
+01236,10.8,"Bicycling, stationary, 200-229 watts, vigorous",bicycling
+01240,12.5,"Bicycling, stationary, 230-250 watts, very vigorous",bicycling
+01244,13.8,"Bicycling, stationary, 270-305 watts, very vigorous",bicycling
+01248,16.3,"Bicycling, stationary, >325 watts, very vigorous",bicycling
+01252,5.5,"Bicycling, concentric only, 100 W",bicycling
+01254,11.0,"Bicycling, concentric only, 200 W",bicycling
+01262,2.3,"Bicycling, eccentric only, 100 to 149 W",bicycling
+01264,4.0,"Bicycling, eccentric only, 200 W",bicycling
+01270,9.0,"Bicycling, stationary, RPM/Spin bike class",bicycling
+01290,8.8,"Bicycling, interactive virtual cycling, indoor cycle ergometer",bicycling
+01305,8.8,"Bicycling, high intensity interval training",bicycling
+02000,7.3,"Aerobic, general",conditioning-exercise
+02001,5.5,"Aerobic, step, with 4-inch step",conditioning-exercise
+02002,7.3,"Aerobic, step, with 6 – 8 inch step",conditioning-exercise
+02003,9.0,"Aerobic, step, with 10 – 12 inch step",conditioning-exercise
+02004,7.8,"Bench step class, general",conditioning-exercise
+02005,4.8,"Aerobic dance, low impact, moderate effort",conditioning-exercise
+02006,8.0,"Aerobic dance, high impact, vigorous effort",conditioning-exercise
+02007,10.0,Aerobic dance wearing 10-15 lb weights,conditioning-exercise
+02008,5.0,"Army type obstacle course exercise, boot camp training program",conditioning-exercise
+02020,7.5,"Calisthenics (e.g., pushups, sit ups, pull-ups, jumping jacks, burpees, battling ropes), vigorous effort",conditioning-exercise
+02022,3.8,"Calisthenics (e.g., pushups, sit ups, pull-ups, lunges), moderate effort",conditioning-exercise
+02024,2.8,"Calisthenics (e.g., curl ups, abdominal crunches, plank),  light effort",conditioning-exercise
+02030,3.5,"Calisthenics, light or moderate effort, general (e.g., back exercises), going up & down from floor (Taylor Code 150)",conditioning-exercise
+02032,6.0,"Circuit training, body weight exercises",conditioning-exercise
+02034,3.5,"Circuit training, light effort",conditioning-exercise
+02035,5.0,"Circuit training, moderate effort",conditioning-exercise
+02040,7.5,"Circuit training, including kettlebells, some aerobic movement with minimal rest, general, vigorous intensity",conditioning-exercise
+02045,3.5,Curves™ exercise routines in women,conditioning-exercise
+02048,5.0,"Elliptical trainer, moderate effort",conditioning-exercise
+02049,9.0,"Elliptical trainer, vigorous effort",conditioning-exercise
+02050,6.0,"Resistance (weight lifting – free weight, nautilus or universal-type), power lifting or body building, vigorous effort (Taylor Code 210)",conditioning-exercise
+02052,5.0,"Resistance (weight) training, squats, deadlift, slow or explosive effort",conditioning-exercise
+02054,3.5,"Resistance (weight) training, multiple exercises, 8-15 reps at varied resistance",conditioning-exercise
+02055,5.8,"Resistance Training, circuit, reciprocal supersets, peripheral heart action training",conditioning-exercise
+02056,3.0,"Body weight resistance exercises (e.g., squat, lunge, push-up, crunch), general",conditioning-exercise
+02057,6.5,"Body weight resistance exercises (e.g., squat, lunge, push-up, crunch), high intensity",conditioning-exercise
+02058,9.8,Kettlebell swings,conditioning-exercise
+02060,5.5,"Health club exercise, general (Taylor Code 160)",conditioning-exercise
+02061,5.0,"Health club exercise classes, general, gym/weight training combined in one visit",conditioning-exercise
+02062,7.8,"Health club exercise, conditioning classes",conditioning-exercise
+02064,3.8,"Home exercise, general",conditioning-exercise
+02065,9.3,"Stair treadmill ergometer, general",conditioning-exercise
+02068,11.0,"Rope skipping exercise, general",conditioning-exercise
+02069,9.0,"Jumping rope, Digi-Jump Machine, 120 jumps/minute",conditioning-exercise
+02070,7.3,"Rowing, stationary ergometer, general, vigorous effort",conditioning-exercise
+02071,5.0,"Rowing, stationary ergometer, general, <100 watts,  moderate effort",conditioning-exercise
+02072,7.5,"Rowing, stationary, 100 to 149 watts, vigorous effort",conditioning-exercise
+02073,11.0,"Rowing, stationary, 150 to 199 watts, vigorous effort",conditioning-exercise
+02074,14.0,"Rowing, stationary, ≥ 200 watts, very vigorous effort",conditioning-exercise
+02078,11.0,"Shuttle running, forward/backward/lateral",conditioning-exercise
+02080,6.8,"Ski machine, general",conditioning-exercise
+02082,10.5,"Ski ergometer, cross country, double poling, slow to moderate speed",conditioning-exercise
+02084,18.0,"Ski ergometer, cross country, double poling, fast to maximum speed",conditioning-exercise
+02085,10.5,"Slide board exercise, general",conditioning-exercise
+02090,6.0,"Slimnastics, jazzercise",conditioning-exercise
+02101,2.3,"Stretching, mild",conditioning-exercise
+02103,1.8,"Pilates, traditional, mat",conditioning-exercise
+02105,2.8,"Pilates, general",conditioning-exercise
+02107,8.5,"Pound, combination of Pilates and body movements with drumming",conditioning-exercise
+02108,4.5,"Pole dancing, exercise class",conditioning-exercise
+02110,6.8,"Teaching exercise classes (e.g., aerobic, water)",conditioning-exercise
+02112,2.8,"Therapeutic exercise ball, Fitball exercise",conditioning-exercise
+02114,9.5,"Therapeutic exercise ball, Fitball exercise, high intensity",conditioning-exercise
+02115,2.8,"Upper body exercise, arm ergometer, general, light",conditioning-exercise
+02116,2.0,"Arm Ergometer, hand bike, 15W",conditioning-exercise
+02117,2.8,"Arm Ergometer, hand bike, 25-30W",conditioning-exercise
+02118,3.5,"Arm Ergometer, hand bike, 45W",conditioning-exercise
+02119,4.3,"Upper body exercise, stationary bicycle – Airdyne (arms only) 40 rpm, moderate intensity",conditioning-exercise
+02120,5.3,"Water aerobics, water calisthenics, water exercise",conditioning-exercise
+02135,1.3,"Whirlpool, sitting",conditioning-exercise
+02140,2.5,"Video, exercise workouts, TV conditioning programs (e.g., yoga, stretching, seated), light effort",conditioning-exercise
+02143,4.0,"Video, exercise workouts, TV conditioning programs (e.g., cardio-resistance training), moderate",conditioning-exercise
+02145,6.0,"Video, exercise workouts, TV conditioning programs (e.g., cardio-resistance training), vigorous",conditioning-exercise
+02150,2.3,"Yoga, Hatha",conditioning-exercise
+02153,8.0,"Yoga, Hatha, high intensity",conditioning-exercise
+02155,3.0,"Yoga, Hot",conditioning-exercise
+02160,4.0,"Yoga, Power",conditioning-exercise
+02170,2.0,"Yoga, Nadisodhana",conditioning-exercise
+02175,2.3,"Yoga, General",conditioning-exercise
+02180,3.5,"Yoga, Surya Namaskar",conditioning-exercise
+02185,2.7,"Yoga, Vinyasa",conditioning-exercise
+02200,5.3,"Native New Zealander PA, (e.g., Haka Powhiri, Poi, Moteatea, etc.), general moderate effort",conditioning-exercise
+02205,6.8,"Native New Zealander PA, general, vigorous effort",conditioning-exercise
+02210,7.0,"High intensity interval exercise,  moderate effort",conditioning-exercise
+02214,11.0,"High intensity interval exercise,  burpees, mountain climbers, squat jumps, Tabata, vigorous effort",conditioning-exercise
+02225,2.3,"Balance Exercise Assist Robot (BEAR), simulated skiing, tennis, rodeo",conditioning-exercise
+02230,5.8,Hooping (formerly known as hula® hooping),conditioning-exercise
+02240,9.0,"Impulse Training System, Inertial Exercise Trainer",conditioning-exercise
+02280,7.9,"Virtual Reality Fitness,  Supernatural™ “Flow”, “Boxing” vigorous intensity",conditioning-exercise
+02284,9.3,"ExerCube, workout series",conditioning-exercise
+02288,13.0,"Blackbox Immersive virtual reality exergaming system, vigorous intensity",conditioning-exercise
+02300,3.0,"Wand exercise, Life-Build-Line",conditioning-exercise
+02310,6.5,"Zumba, group class",conditioning-exercise
+02315,5.5,"Zumba, home video",conditioning-exercise
+02340,2.8,"Sit to stand exercise, 6-12 times/min",conditioning-exercise
+02344,4.0,"Sit to stand exercise, 18-24 times/min",conditioning-exercise
+03005,6.0,"Afro-Cuban salsa (Cuban cha-cha-cha, mambo, Afro rumba, contratiempo son steps, orisha/santo movements)",dancing
+03010,5.0,"Ballet, modern, or jazz general, rehearsal or class",dancing
+03011,6.3,"Ballet exercises (plie, tendus, jetes, rond de Jambes, fondus, grand battement, grand adage, sautes, temp Leve’s)",dancing
+03012,6.8,"Ballet, modern, or jazz, performance, vigorous effort",dancing
+03014,4.8,Tap,dancing
+03025,4.5,"Ethnic or cultural dancing (e.g. Greek, Middle Eastern, hula, salsa, merengue, bamba y plena,  flamenco, belly, and swing)",dancing
+03028,5.5,"Chinese square dance, Ballet & Tibetan dance",dancing
+03029,7.3,"Chinese square dance, aerobic dance",dancing
+03030,5.5,"Ballroom dancing, fast (Taylor Code 125)",dancing
+03031,9.8,"Nightclub or folk dancing, vigorous effort (e.g., nightclub, disco, folk, line dancing, Irish step dancing, polka, contra)",dancing
+03033,5.0,"Folk dancing, moderate effort",dancing
+03038,11.3,"Ballroom dancing, competitive, general",dancing
+03039,13.0,"Ballroom dance, DanceSport competition (modern waltz, tango, Viennese waltz, slow fox, quick step, samba, chacha, rumba, paso doble, jive)",dancing
+03040,3.0,"Ballroom, slow, examples: waltz, foxtrot, slow dancing, samba tango, rumba, 19th century dance, mambo, cha cha",dancing
+03042,6.0,"Ballroom Dance, Recreational (Waltz, Foxtrot, Cha-cha, Swing)",dancing
+03050,5.5,"Anishinaabe Jingle dancing, brisk pace, other traditional American Indian dancing performed by women, moderate effort",dancing
+03060,3.5,"Caribbean dance (Abakua, Beguine, Bellair, Bongo, Brukin’s, Caribbean Quadrills, Dinki  Mini, Gere, Gumbay, Ibo, Jonkonnu, Kumina,  Oreisha, Jambu)",dancing
+03070,3.8,"Contemporary dancing, general",dancing
+03072,4.3,"Contemporary dancing, nightclub",dancing
+03075,8.5,Flamenco dance,dancing
+03078,4.5,"Jazz dancing, general",dancing
+03080,10.3,"Musical Theater, Singing/dancing",dancing
+03085,5.8,"Polynesian dance, Hawaiian hula slow, Maori haka, Tongan",dancing
+03086,7.0,"Polynesian dance, Hawaiian hula fast, Samoan sasa, Fijian style fast, Filipino Tinikling",dancing
+03087,8.8,"Polynesian dance, Samoan slap, Tahitian",dancing
+03090,4.8,"Salsa Dancing, with partner",dancing
+03091,6.3,"Salsa dancing, to a video",dancing
+03093,5.5,"Square Dancing, American Western, country",dancing
+04001,3.5,"Fishing, general",fishing-hunting
+04005,4.5,"Fishing, crab fishing",fishing-hunting
+04007,4.0,"Fishing, catching fish with hands",fishing-hunting
+04010,4.3,"Fishing related, digging worms, with shovel",fishing-hunting
+04020,4.0,Fishing from river bank and walking,fishing-hunting
+04030,2.0,"Fishing from boat or canoe, sitting",fishing-hunting
+04040,3.5,"Fishing from river bank, standing (Taylor Code 660)",fishing-hunting
+04050,6.0,"Fishing in stream, in waders (Taylor Code 670)",fishing-hunting
+04060,2.0,"Fishing, ice, sitting",fishing-hunting
+04061,1.8,"Fishing, jig or line, standing, general",fishing-hunting
+04062,3.5,"Fishing, dip net, setting net and retrieving fish, general",fishing-hunting
+04063,3.8,"Fishing, set net, setting net and retrieving fish, general",fishing-hunting
+04064,3.0,"Fishing, fishing wheel, setting net and retrieving fish, general",fishing-hunting
+04065,2.3,"Fishing with a spear, standing",fishing-hunting
+04070,2.5,"Hunting, bow and arrow or crossbow",fishing-hunting
+04080,6.0,"Hunting, deer, elk, large game (Taylor Code 170)",fishing-hunting
+04081,9.8,"Hunting large game, dragging carcass",fishing-hunting
+04083,4.0,Hunting large marine animals,fishing-hunting
+04085,2.5,"Hunting, large game from a hunting stand, limited walking",fishing-hunting
+04086,2.0,"Hunting large game from a car, plane, or boat",fishing-hunting
+04090,2.5,"Hunting, duck, wading",fishing-hunting
+04095,3.0,"Hunting flying fox, squirrel",fishing-hunting
+04100,5.0,"Hunting, general",fishing-hunting
+04110,6.0,"Hunting, pheasants or grouse (Taylor Code 680)",fishing-hunting
+04115,3.3,Hunting birds,fishing-hunting
+04120,5.0,"Hunting, rabbit, squirrel, prairie chick, raccoon, small game (Taylor Code 690)",fishing-hunting
+04123,3.3,"Hunting pigs, wild",fishing-hunting
+04124,2.0,"Trapping game, general",fishing-hunting
+04125,9.5,Hunting – hiking with hunting gear,fishing-hunting
+04130,2.5,"Pistol shooting or trap shooting, standing",fishing-hunting
+04140,2.3,"Rifle exercises, shooting, lying down",fishing-hunting
+04145,2.5,"Rifle exercises, shooting, kneeling or standing",fishing-hunting
+04150,2.8,"Foraging, 0-9.9kg backpack",fishing-hunting
+04152,3.0,"Foraging, 10-15kg backpack",fishing-hunting
+04160,1.0,"Sitting in boat, passenger",fishing-hunting
+04164,1.5,Standing in boat,fishing-hunting
+04168,3.3,"Activities in a boat, lifting, lowering",fishing-hunting
+05010,3.3,"Cleaning, sweeping carpet or floors, general",home-activities
+05011,2.3,"Cleaning, sweeping, slow, light effort",home-activities
+05012,3.8,"Cleaning, sweeping, fast, moderate effort",home-activities
+05020,3.5,"Cleaning  heavy or major (e.g., wash car, clean garage), moderate effort",home-activities
+05021,3.5,"Cleaning, mopping, standing, moderate effort",home-activities
+05022,3.3,"Cleaning windows, washing windows, general",home-activities
+05023,2.5,"Mopping, standing, light effort",home-activities
+05024,4.5,"Polishing floors, standing, walking slowly, using electric polishing machine",home-activities
+05025,2.8,"Multiple household tasks all at once, light effort",home-activities
+05026,3.3,"Multiple household tasks all at once, moderate effort",home-activities
+05027,4.3,"Multiple household tasks all at once, vigorous effort",home-activities
+05030,3.3,"Cleaning, house or cabin, general, moderate effort",home-activities
+05032,2.5,"Dusting or polishing furniture, general",home-activities
+05035,3.3,"Kitchen activity, general, (e.g., cooking, washing dishes, cleaning up) moderate effort",home-activities
+05040,2.5,"Cleaning, general (straightening up, changing linen, carrying out trash), light effort",home-activities
+05041,2.0,"Wash dishes, standing or in general (not broken into stand/walk components)",home-activities
+05042,2.0,"Wash dishes, clearing dishes from table, walking, light effort",home-activities
+05043,3.0,"Vacuuming, general, moderate effort",home-activities
+05044,3.0,"Butchering animals, small",home-activities
+05045,6.0,"Butchering animals, large, vigorous effort",home-activities
+05046,2.3,"Cutting and smoking fish, drying fish or meat",home-activities
+05048,4.0,"Tanning hides, general",home-activities
+05049,3.5,"Cooking or food preparation, moderate effort",home-activities
+05050,2.0,"Cooking or food preparation – standing or sitting or in general (not broken into stand/walk components), manual appliances, light effort",home-activities
+05051,2.3,"Cooking or food preparation, walking",home-activities
+05052,2.3,"Serving food, setting/cleaning table, implied walking or standing",home-activities
+05053,2.5,Feeding household animals,home-activities
+05054,3.5,"carrying groceries, on level ground, walking",home-activities
+05055,2.5,"Putting away groceries (e.g. carrying groceries, carrying packages)",home-activities
+05056,5.3,Carrying groceries upstairs,home-activities
+05057,3.0,Cooking Indian bread or other food on an outside stove,home-activities
+05060,3.3,Food shopping with or without a grocery cart; carrying a 10 lb bag; standing or walking,home-activities
+05065,2.3,"Non-food shopping, with or without cart, standing or walking",home-activities
+05070,1.8,Ironing,home-activities
+05080,1.3,"Knitting, sewing, light effort, wrapping presents, sitting",home-activities
+05082,2.8,Sewing with a machine,home-activities
+05090,2.3,"Laundry, fold or hang clothes, put clothes in washer or dryer, packing suitcase, washing clothes by hand,  implied standing, light effort",home-activities
+05091,2.0,"Laundry, fold or hang clothes, sitting",home-activities
+05092,4.0,"Laundry,  moderate effort",home-activities
+05095,2.0,"Laundry,  putting away clothes, gathering clothes to pack, putting away laundry, implied walking",home-activities
+05100,3.0,"Making bed, changing linens",home-activities
+05110,5.0,"Maple syruping/sugar bushing (including carrying buckets, carrying wood)",home-activities
+05120,5.8,"Moving furniture, household items, carrying boxes",home-activities
+05121,5.0,"Moving, lifting light loads",home-activities
+05125,4.8,Organizing a room,home-activities
+05130,3.5,"Scrubbing floors, on hands and knees, scrubbing bathroom, bathtub, moderate effort",home-activities
+05131,2.0,"Scrubbing floors, on hands and knees, scrubbing bathroom, bathtub, light effort",home-activities
+05132,6.5,"Scrubbing floors, on hands and knees, scrubbing bathroom, bathtub, vigorous effort",home-activities
+05140,3.0,"Sweeping garage, sidewalk, or outside house",home-activities
+05146,3.8,"Standing, packing/unpacking boxes, occasional lifting lightweight household items, loading or unloading items into a car, moderate effort",home-activities
+05147,3.0,"Implied walking, putting away household items, moderate effort",home-activities
+05148,2.0,Watering  plants,home-activities
+05149,2.5,Building a fire inside,home-activities
+05150,9.0,"Moving household items upstairs, carrying boxes or furniture",home-activities
+05160,2.0,"Standing, light effort tasks (pump gas, change light bulb, etc.)",home-activities
+05165,3.5,"Walking, moderate effort tasks, non-cleaning (readying to leave, shut/lock doors, close windows, etc.",home-activities
+05170,2.3,"Sitting, playing with child(ren), light effort, only active periods",home-activities
+05171,2.8,"Standing, playing with child(ren), light effort, only active periods",home-activities
+05175,3.5,"Walking/running, playing with child(ren), moderate effort, only active periods",home-activities
+05180,5.8,"Walking/running, playing with child(ren), vigorous effort, only active periods",home-activities
+05181,3.0,"Walking and carrying small child, child weighing 15 lbs or more",home-activities
+05182,2.5,"Walking and carrying small child, child weighing less than 15 lbs",home-activities
+05183,2.0,"Standing, holding child",home-activities
+05184,2.5,"Child care, infant, general",home-activities
+05185,2.0,"Child care: sitting or kneeling, dressing, bathing, grooming, feeding, occasional lifting of child-light effort, general",home-activities
+05186,3.5,"Child care: standing, dressing, bathing, grooming, feeding, occasional lifting of child- light effort",home-activities
+05188,1.5,Reclining with baby,home-activities
+05189,2.0,"Breastfeeding, sitting or reclining",home-activities
+05190,2.5,"Sit, playing with animals, light, only active period",home-activities
+05191,2.8,"Stand, playing with animals, light effort, only active periods",home-activities
+05192,2.8,"Walk or run, playing with animals, general, light effort, only active periods",home-activities
+05193,4.0,"Walk/run, playing with animals, moderate effort, only active periods",home-activities
+05194,5.0,"Walk/run, playing with animals, vigorous effort, only active periods",home-activities
+05195,3.5,"Standing, bathing dog",home-activities
+05197,2.3,"Animal care, household animals, general",home-activities
+05200,3.0,"Elder care, disabled adult, bathing, dressing, moving into and out of bed, only active periods",home-activities
+05205,1.8,"Elder care, disabled adult, feeding, combing hair, light effort, only active periods",home-activities
+05300,1.3,Handwashing,home-activities
+06010,3.0,Airplane repair,home-repair
+06020,4.0,Automobile body work,home-repair
+06030,3.3,"Automobile repair, light or moderate effort",home-repair
+06040,3.0,"Carpentry, general, workshop (Taylor Code 620)",home-repair
+06050,6.0,"Carpentry, outside house, (Taylor Code 640)",home-repair
+06052,3.8,"Carpentry, outside house, building a fence",home-repair
+06060,3.3,"Carpentry, finishing, varnishing, or refinishing cabinets or furniture",home-repair
+06070,6.0,"Carpentry, sawing hardwood, planing and drilling wood, moderate-to-vigorous effort",home-repair
+06072,4.0,"Carpentry, home remodeling tasks, moderate effort",home-repair
+06074,2.3,"Carpentry, home remodeling tasks, light effort",home-repair
+06080,5.0,"Caulking, chinking log cabin",home-repair
+06090,4.5,"Caulking, except log cabin",home-repair
+06100,5.0,Cleaning gutters,home-repair
+06110,5.0,Excavating garage,home-repair
+06120,5.0,Hanging storm windows,home-repair
+06122,5.0,Hanging sheet rock inside house,home-repair
+06124,3.0,Hammering nails,home-repair
+06126,2.5,"Home repair, general, light effort",home-repair
+06127,4.5,"Home repair, general, moderate effort",home-repair
+06128,6.0,"Home repair, general, vigorous effort",home-repair
+06130,4.5,Laying or removing carpet,home-repair
+06140,3.8,Laying tile or linoleum,home-repair
+06144,3.0,Repairing appliances,home-repair
+06150,5.0,"Painting, outside home (Taylor Code 650)",home-repair
+06160,3.3,"Painting inside house, wallpapering, scraping paint",home-repair
+06165,4.5,Painting (Taylor Code 630),home-repair
+06167,3.0,"Plumbing, general",home-repair
+06170,3.0,Put on and removal of tarp – sailboat,home-repair
+06180,6.0,Roofing,home-repair
+06190,4.5,Sanding floors with a power sander,home-repair
+06200,4.5,Scraping and painting sailboat or powerboat,home-repair
+06205,2.0,Sharpening tools,home-repair
+06210,5.0,Spreading dirt with a shovel,home-repair
+06220,4.5,Washing and waxing hull of sailboat or airplane,home-repair
+06225,2.0,Washing and waxing car,home-repair
+06230,4.5,"Washing fence, painting fence, moderate effort",home-repair
+06240,3.3,"Wiring, tapping-splicing",home-repair
+07009,1.0,Lying quietly and watching television,inactivity
+07011,1.0,"Lying quietly, doing nothing, lying in bed awake, listening to music (not talking or reading)",inactivity
+07020,1.0,"Sit, watch television",inactivity
+07021,1.0,"Sitting quietly, general",inactivity
+07022,1.5,"Sitting quietly, fidgeting, general, fidgeting hands",inactivity
+07023,1.8,"Sitting, fidget feet",inactivity
+07024,1.3,Sitting smoking,inactivity
+07025,1.5,"Sitting, listening to music (not talking or reading) or watching a movie in a theater",inactivity
+07026,1.3,"Sitting at a desk, resting head in hands",inactivity
+07030,1.0,Sleeping,inactivity
+07040,1.3,Standing quietly (standing in a line),inactivity
+07041,1.5,Standing (fidgeting),inactivity
+07045,1.3,Standing watching television,inactivity
+07050,1.5,"Reclining, writing",inactivity
+07060,1.3,"Reclining, talking or talking on phone",inactivity
+07070,1.3,"Reclining, reading",inactivity
+07075,1.0,Meditating,inactivity
+08009,4.1,"Carrying, loading or stacking wood, loading/unloading or carrying lumber, light-to- moderate effort",lawn-garden
+08010,5.5,"Carrying, loading or stacking wood, loading/unloading or carrying lumber, moderate effort",lawn-garden
+08019,4.5,"Chopping wood, splitting logs, moderate effort",lawn-garden
+08020,6.5,"Chopping wood, splitting logs, vigorous effort",lawn-garden
+08025,3.5,"Clearing light brush, thinning garden, moderate effort",lawn-garden
+08030,6.3,"Clearing land, haul brush, undergrowth, or ground, vigorous effort",lawn-garden
+08040,5.0,"Digging sandbox, shoveling sand",lawn-garden
+08045,3.5,"Digging, spading, filling garden, composting, light-to-moderate effort",lawn-garden
+08050,5.0,"Digging, spading, filling garden, composting (Taylor Code 590)",lawn-garden
+08052,7.3,"Digging, spading, filling garden, composting, vigorous effort",lawn-garden
+08055,2.8,Driving tractor,lawn-garden
+08057,8.3,"Felling trees, large size",lawn-garden
+08058,5.3,"Felling trees, small-medium size",lawn-garden
+08060,5.8,"Gardening with heavy power tools, using chain saw, tilling a garden",lawn-garden
+08066,2.0,"gardening, general",lawn-garden
+08070,4.0,"Irrigation channels, opening and closing ports",lawn-garden
+08080,6.3,Laying crushed rock or gravel,lawn-garden
+08090,5.0,Laying sod,lawn-garden
+08095,5.5,"Mowing lawn, general, walking, moderate effort",lawn-garden
+08100,2.5,"Mowing lawn, riding mower (Taylor Code 550)",lawn-garden
+08110,6.0,"Mowing lawn, hand mower, vigorous effort (Taylor Code 570)",lawn-garden
+08120,5.0,"Mowing lawn, walk, power mower,  moderate or vigorous effort",lawn-garden
+08125,4.5,"Mowing lawn, power mower, light or moderate effort (Taylor Code 590)",lawn-garden
+08130,2.5,"Operating snow blower, walking",lawn-garden
+08135,2.6,"Planting, potting, transplanting seedlings or plants, light effort",lawn-garden
+08140,4.3,"Planting seedlings, shrubs, stooping, moderate effort",lawn-garden
+08145,4.3,"Planting crops or garden, stooping, moderate effort",lawn-garden
+08150,4.5,Planting trees,lawn-garden
+08160,4.0,"Raking lawn or leaves, moderate effort",lawn-garden
+08165,4.0,Raking lawn (Taylor Code 600),lawn-garden
+08170,4.0,Raking roof with snow rake,lawn-garden
+08180,3.0,Riding snow blower,lawn-garden
+08190,4.0,"Sacking grass, leaves",lawn-garden
+08192,5.5,Shoveling dirt or mud,lawn-garden
+08195,5.3,"Shoveling snow, by hand, moderate effort",lawn-garden
+08200,6.0,"Shoveling snow, by hand (Taylor Code 610)",lawn-garden
+08202,7.5,"Shoveling snow, by hand, vigorous effort",lawn-garden
+08210,3.8,"Trimming shrubs or trees, manual cutter",lawn-garden
+08215,3.3,"Trimming shrubs or trees, power cutter, using leaf blower, edger, moderate effort",lawn-garden
+08220,3.0,"Walking, applying fertilizer or seeding a lawn, push applicator",lawn-garden
+08230,4.0,"Watering lawn or garden, standing or walking",lawn-garden
+08239,3.8,"Weeding, cultivating garden, light-to-moderate effort",lawn-garden
+08240,4.5,"Weeding, cultivating garden, moderate effort (Taylor Code 580)",lawn-garden
+08241,5.0,"Weeding, cultivating garden, using hoe moderate-to-vigorous effort",lawn-garden
+08245,3.8,"Gardening, general, moderate effort",lawn-garden
+08246,3.5,"Picking fruit or coffee from trees, moderate effort",lawn-garden
+08248,4.5,"Harvesting Produce, Picking fruit off trees, gleaning fruits, picking fruits/vegetables, climbing ladder to pick fruit, vigorous effort",lawn-garden
+08250,3.0,"Implied walking/standing – picking up yard, light, picking flowers or vegetables",lawn-garden
+08251,3.0,"Walking, gathering gardening tools",lawn-garden
+08255,4.8,"Wheel barrow, pushing garden cart or wheelbarrow, general",lawn-garden
+08256,6.0,"Wheel barrow, pushing large garden cart or heavy wheelbarrow up to 150kg",lawn-garden
+08260,2.3,"Yardwork, general, light effort",lawn-garden
+08261,4.0,"Yardwork, general, moderate effort",lawn-garden
+08262,6.0,"Yardwork, general, vigorous effort",lawn-garden
+09000,1.3,"Board game playing, sitting",miscellaneous
+09005,2.5,"Casino gambling, standing",miscellaneous
+09010,1.5,"Card playing, sitting",miscellaneous
+09013,1.5,"Chess game, sitting",miscellaneous
+09015,1.5,"Copying or filing documents, standing",miscellaneous
+09020,1.8,"Drawing, writing, painting, standing",miscellaneous
+09025,1.0,"Laughter, sitting",miscellaneous
+09030,1.0,"Sitting: reading, book, newspaper, magazine",miscellaneous
+09034,1.8,"sitting, typing or reading on a balance chair/stability ball",miscellaneous
+09036,2.0,"watching tv, stepping during commercial breaks",miscellaneous
+09040,1.3,"Sitting: writing, desk work, typing",miscellaneous
+09050,1.3,"Standing:  talking in person, on the phone, computer, text messaging, writing",miscellaneous
+09055,1.3,"Sitting: talking in person, on the phone, computer, or  text messaging, light effort",miscellaneous
+09060,1.5,"Sitting – studying, general, including reading and/or writing, light effort",miscellaneous
+09065,1.8,"Sitting – in class, general, including note-taking or class discussion",miscellaneous
+09070,1.0,Standing – reading,miscellaneous
+09071,2.5,Standing: miscellaneous,miscellaneous
+09075,1.8,"Sitting: arts and crafts, carving wood, weaving, spinning wool, light effort",miscellaneous
+09080,3.0,"Sitting: arts and crafts, carving wood, weaving, spinning wool, moderate effort",miscellaneous
+09085,2.5,"Standing: arts and crafts, sand painting, carving, weaving, light effort",miscellaneous
+09090,3.3,"Standing – arts and crafts, sand painting, carving, weaving, moderate effort",miscellaneous
+09095,3.5,"Standing – arts and crafts, sand painting, carving, weaving, vigorous effort",miscellaneous
+09100,1.5,"Retreat/family reunion activities involving sitting, relaxing, talking, eating",miscellaneous
+09101,2.5,Retreat/family reunion activities involving playing games with children,miscellaneous
+09105,2.0,Touring/traveling/vacation involving  riding in vehicle,miscellaneous
+09106,3.5,Touring/traveling/vacation involving walking,miscellaneous
+09110,2.5,"Camping involving standing, walking, sitting, light-to-moderate effort",miscellaneous
+09115,1.5,"Sitting at a sporting event, spectator",miscellaneous
+10010,1.8,"Accordion, sitting",music-playing
+10020,2.3,"Cello, sitting",music-playing
+10030,2.3,"Conducting orchestra, standing",music-playing
+10035,2.5,"Double bass, standing",music-playing
+10040,3.8,"Drums, sitting",music-playing
+10045,3.0,"Drumming (e.g., bongo, conga, benbe), moderate, sitting",music-playing
+10048,8.3,"Drumming, concert/live show",music-playing
+10050,2.0,"Flute, sitting",music-playing
+10060,1.8,"Horn, standing",music-playing
+10070,2.3,"Piano, sitting",music-playing
+10074,2.0,"Playing musical instruments, general",music-playing
+10077,2.0,"Organ, sitting",music-playing
+10080,3.5,"Trombone, standing",music-playing
+10090,2.5,"Trumpet, standing",music-playing
+10100,2.5,"Violin, sitting",music-playing
+10110,1.8,"Woodwind instruments, sitting",music-playing
+10115,1.8,"Brass instruments, sitting",music-playing
+10120,2.0,"Guitar, classical, folk, sitting",music-playing
+10125,3.0,"Guitar, rock and roll band, standing",music-playing
+10130,4.0,"Marching band, baton twirling, walking, moderate pace, general",music-playing
+10131,5.5,"Marching band, playing an instrument, walking, brisk pace, general",music-playing
+10135,3.5,"Marching band, drum major, walking",music-playing
+11000,2.0,"Active workstation, Pedal desk, balance chair/ball, General, light effort",occupation
+11001,3.5,"Active workstation, Pedal desk (40 watts)",occupation
+11002,5.3,"Active workstation, Pedal desk (80 watts)",occupation
+11003,2.0,"Active workstation, treadmill desk, walking slowly 1.0 mph or less",occupation
+11004,2.8,"Active workstation, treadmill desk, walking 1.0 – 2.0 mph",occupation
+11006,3.0,Airline flight attendant,occupation
+11008,4.8,Apple Harvesting,occupation
+11010,4.0,"Bakery, general, moderate effort",occupation
+11015,2.0,"Bakery, light effort",occupation
+11020,2.3,Bookbinding,occupation
+11030,6.0,"Building road, driving heavy machinery",occupation
+11035,2.0,"Building road, directing traffic, standing",occupation
+11038,2.5,"Carpentry, general, light effort",occupation
+11040,4.3,"Carpentry, general, moderate effort",occupation
+11042,7.0,"Carpentry, general, heavy or vigorous effort",occupation
+11050,8.0,"Carrying heavy loads (e.g., bricks, tools)",occupation
+11060,8.0,"Carrying moderate loads up stairs, moving  boxes, 25-49 lbs",occupation
+11070,4.0,"Chambermaid, hotel housekeeper, making bed, cleaning bathroom, pushing cart",occupation
+11072,4.3,"Cleaning, vacuuming a commercial space",occupation
+11080,5.3,"Coal mining, drilling coal, rock",occupation
+11090,5.0,"Coal mining, erecting supports",occupation
+11100,5.5,"Coal mining, general",occupation
+11110,6.3,"Coal mining, shoveling coal, by hand",occupation
+11115,2.5,"Cook, chef",occupation
+11120,4.0,"Construction, outside, remodeling, new structures (e.g., roof repair, miscellaneous)",occupation
+11124,2.3,"Construction, rebar, bar bending/fixing",occupation
+11125,2.3,"Custodial work, light effort (e.g., cleaning sink and toilet, dusting, vacuuming, light cleaning)",occupation
+11126,3.8,"Custodial work, moderate effort (e.g., buffing floors with electric buffer, feathering or sweeping arena floors, mopping, taking out the trash, vacuuming)",occupation
+11130,3.3,"Electrical work (e.g., hook up wire, tapping, splicing); plumbing moved to 11516",occupation
+11135,1.8,"Engineer (e.g., mechanical or electrical)",occupation
+11145,7.8,"Farming, vigorous effort (e.g., baling hay, cleaning barn), includes former code 11200",occupation
+11146,4.8,"Farming, moderate effort (e.g., feeding animals, chasing cattle by walking and/or horseback, spreading manure, harvesting crops)",occupation
+11147,2.0,"Farming, light effort, (e.g., cleaning animal sheds, preparing animal feed)",occupation
+11170,2.8,"Farming, driving tasks (e.g., driving tractor or harvester)",occupation
+11180,3.5,"Farming, feeding small animals",occupation
+11190,4.3,"Farming, feeding cattle, horses",occupation
+11191,4.3,"Farming, hauling water for animals, fetching water from a well or stream",occupation
+11192,4.5,"Farming, taking care of animals (e.g.,  grooming, brushing, shearing sheep, assisting with birthing, medical care, branding), general",occupation
+11195,3.8,"Farming, rice, planting, grain milling activities",occupation
+11210,3.5,"Farming, milking by hand, cleaning pails, moderate effort",occupation
+11220,1.3,"Farming, milking by machine, light effort",occupation
+11222,3.0,"Farming, milking Cows, full milking process, modern milking parlor with milking machines",occupation
+11240,8.0,"Fire fighter, general",occupation
+11244,6.8,"Firefighter, rescue victim, automobile  accident, using pike pole",occupation
+11245,8.0,"Firefighter, raising and climbing ladder with full gear, simulated fire suppression",occupation
+11246,9.0,"Firefighter, hauling hoses on ground, carrying/hoisting equipment, breaking down  walls etc., wearing full gear",occupation
+11247,3.5,"Fishing, commercial, light effort",occupation
+11248,5.0,"Fishing, commercial, moderate effort",occupation
+11250,17.5,"Forestry, ax chopping, very fast, 1.25 kg axe, 51 blows/min, extremely vigorous effort",occupation
+11260,5.0,"Forestry, ax chopping, slow, 1.25 kg axe, 19 blows/min, moderate effort",occupation
+11262,8.0,"Forestry, ax chopping, fast, 1.25 kg axe, 35 blows/min, vigorous effort",occupation
+11264,5.0,"Forestry, moderate effort (e.g., sawing wood with power saw, weeding, hoeing)",occupation
+11266,8.5,"Forestry, vigorous effort (e.g., barking, felling, or trimming trees, carrying or stacking logs, planting seeds, sawing lumber by hand )",occupation
+11370,4.8,Furriery,occupation
+11375,3.8,"Garbage collector, walking, dumping bins into truck, street cleaning",occupation
+11378,1.8,"Hairstylist (e.g., plaiting hair, manicure, make-up artist)",occupation
+11380,7.3,"Horse grooming, including feeding, cleaning stalls, bathing, brushing, clipping, longeing and exercising horses.",occupation
+11381,4.3,"Horse, feeding, watering, cleaning stalls, implied walking and lifting loads",occupation
+11383,4.5,"Horseback riding, working, cutting cows",occupation
+11390,7.8,"Horse racing, Jockey, canter",occupation
+11400,6.3,"Horse racing, Jockey, trotting",occupation
+11410,2.3,"Horse racing, Jockey, walking",occupation
+11413,3.0,Kitchen maid,occupation
+11415,4.0,"Lawn keeper, yardwork, general",occupation
+11416,3.0,"Lawn keeper, weeding, gas powered",occupation
+11418,3.3,Laundry worker,occupation
+11420,3.0,Locksmith,occupation
+11430,3.0,"Machine tooling (e.g., machining, working  sheet metal, machine fitter, operating lathe,  welding) light-to-moderate effort",occupation
+11450,5.0,"Machine tooling, operating punch press, moderate effort",occupation
+11472,1.8,"Manager, property",occupation
+11475,2.8,"Manual or unskilled labor, general, light effort",occupation
+11476,4.5,"Manual or unskilled labor, general, moderate effort",occupation
+11477,6.5,"Manual or unskilled labor, general, vigorous effort",occupation
+11480,4.3,"Masonry, concrete, moderate effort",occupation
+11482,2.5,"Masonry, concrete, light effort",occupation
+11485,5.5,"Massage therapist, standing",occupation
+11486,2.3,"Mail carrier, walking to deliver mail",occupation
+11487,1.5,"Mail delivery, motorbike",occupation
+11488,3.5,"Mail delivery, Electronically Assisted Bicycle",occupation
+11490,7.5,"Moving, carrying, or pushing heavy objects, 75 lbs or more, only active time (e.g., desks, moving van work)",occupation
+11493,8.5,"Mining, general services, drilling, mining support jobs (mechanical, welding, pipe installation, general construction)",occupation
+11495,12.0,"Skindiving or SCUBA diving as a frogman, Navy Seal",occupation
+11500,2.5,"Operating heavy-duty equipment, automated, not driving",occupation
+11510,3.5,"Orange grove work, picking fruit",occupation
+11514,3.3,"Painting, house, furniture, moderate effort",occupation
+11516,3.0,Plumbing activities,occupation
+11520,2.0,"Printing, paper industry worker, standing",occupation
+11524,3.8,"Police Officer, Walking",occupation
+11525,2.5,"Police, directing traffic, standing",occupation
+11526,2.0,"Police, driving a squad car, sitting",occupation
+11527,1.3,"Police, riding in a squad car, sitting",occupation
+11528,4.0,"Police, making an arrest, standing",occupation
+11529,9.0,"Counter terrorism maneuvers, clearing building",occupation
+11530,2.0,"Shoe repair, general",occupation
+11540,7.3,"Shoveling, digging ditches",occupation
+11550,8.8,"Shoveling, more than 16 lbs/minute, deep digging, vigorous effort",occupation
+11560,5.0,"Shoveling, less than 10 lbs/minute, moderate effort",occupation
+11570,6.5,"Shoveling, 10 to 15 lbs/minute, vigorous effort",occupation
+11580,1.5,"Sitting tasks, light effort (e.g., office work, chemistry lab work, light assembly repair, watch repair, reading, desk  work)",occupation
+11582,1.3,"Sitting, computer work",occupation
+11583,1.3,"Standing workstation, typing, computer work",occupation
+11585,1.3,"Sitting meetings, light effort, general, and/or with talking involved (e.g., eating at a business meeting)",occupation
+11590,2.5,"Sitting tasks, moderate effort (e.g. pushing heavy levers, riding mower/forklift, crane  operation)",occupation
+11593,2.8,"Sitting, teaching stretching or yoga, or light effort exercise classes",occupation
+11600,1.8,"Standing tasks, light effort (e.g., bartending, store clerk, assembling, filing, duplicating,  librarian, putting up a Christmas tree, standing and talking at work, changing clothes when teaching physical education)",occupation
+11610,3.3,"Standing, light/moderate effort (e.g., assemble/repair heavy parts, welding, stocking  parts, auto repair, packing boxes, nursing patient care, laundry)",occupation
+11615,4.5,"Standing, moderate effort, lifting items continuously, 10 – 20 lbs, with limited walking  or resting",occupation
+11620,3.8,"Standing, moderate effort, intermittent lifting 50 lbs, hitch or twisting ropes",occupation
+11630,4.5,"Standing, moderate/heavy tasks (e.g., lifting more than 50 lbs, masonry, painting, paper  hanging)",occupation
+11650,2.3,"Patient care, healthcare activites",occupation
+11660,3.5,"Patient care, room cleaning/preperation",occupation
+11708,5.3,"Steel mill, moderate effort (e.g., fettling, forging, tipping molds)",occupation
+11710,8.3,"Steel mill, vigorous effort (e.g., hand rolling, merchant mill rolling, removing slag, tending furnace)",occupation
+11720,2.3,"Tailoring, cutting fabric",occupation
+11730,2.5,"Tailoring, general",occupation
+11740,1.8,"Tailoring, hand sewing",occupation
+11750,2.5,"Tailoring, machine sewing",occupation
+11760,3.5,"Tailoring, pressing",occupation
+11763,2.0,"Tailoring, weaving, light effort (e.g., finishing operations, washing, dyeing, inspecting cloth, counting yards, paperwork)",occupation
+11765,4.0,"Tailoring, weaving, moderate effort (e.g., spinning and weaving operations, delivering boxes of yarn to spinners, loading of warp beam, pinwinding, conewinding, warping, cloth clutting)",occupation
+11766,6.5,"Truck driving, loading and unloading truck, tying down load, standing, walking and carrying heavy loads",occupation
+11767,2.0,"Truck driving, delivery truck, taxi, shuttlebus, school bus",occupation
+11770,1.3,"Typing, electric, manual or computer",occupation
+11780,6.3,"Using heavy power tools such as pneumatic tools (e.g., jackhammers, drills, etc.)",occupation
+11790,7.8,"Using heavy tools (not power) such as shovel, pick, tunnel bar, spade",occupation
+11791,2.0,"Walking on job, less than 2.0 mph, very slow speed, in office or lab area",occupation
+11792,3.8,"Walking on job, 2.8 to 3.4 mph, in office, moderate speed, not carrying anything",occupation
+11793,4.8,"Walking on job, 3.5 to 3.9 mph, in office, brisk speed, not carrying anything",occupation
+11795,3.5,"Walking on job, 2.5 mph, slow speed, carrying light objects less than 25 lbs",occupation
+11796,3.0,"Walking, gathering things at work, ready to leave",occupation
+11797,3.8,"Walking, 2.5 mph, slow speed, carrying heavy objects more than 25 lbs",occupation
+11800,4.5,"Walking, 3.0 mph, moderately and carrying light objects less than 25 lbs",occupation
+11805,3.8,"Walking, pushing a wheelchair",occupation
+11810,4.5,"Walking, 3.5 mph, briskly and carrying objects less than 25 lbs",occupation
+11820,4.0,"Walking or walk downstairs or standing, carrying objects about 25 to 49 lbs",occupation
+11830,5.5,"Walking or walk downstairs or standing, carrying objects about 50 to 74 lbs",occupation
+11840,7.0,"Walking or walk downstairs or standing, carrying objects about 75 to 99 lbs",occupation
+11850,7.3,"Walking or walk downstairs or standing, carrying objects about 100 lbs or more",occupation
+11860,2.3,"Warehouse/Shipping Center, Loading/Unloading boxes",occupation
+11862,4.3,"Warehouse/Shipping Center, Moving boxes (~5kg)",occupation
+11870,3.0,"Working in scene shop, theater actor, backstage employee",occupation
+11880,3.5,"Soldiers, military marching, unloaded, 1.5 to 2.5 mph",occupation
+11882,4.0,"Soldiers, military marching, 1.5 to 2.5 mph, 10 to 30 kg load",occupation
+11884,5.0,"Airborne Shuffle, 2.5 to 3.5 mph, 20-30 kg load",occupation
+11886,6.3,"Soldiers, military loaded marching, varying terrain, 25-40 kg load",occupation
+11887,6.0,"Soldiers, walking, 2.8 mph, 5% grade, up to 21.5 kg load",occupation
+11888,8.5,"Soldiers, walking, 2.8 mph, 10% grade, up to 21.5 kg load",occupation
+11889,11.0,"Soldiers, walking, 2.8 mph, 15% grade, up to 21.5 kg load",occupation
+11892,6.0,"Military activities, arterial field preparation, digging defensive positions",occupation
+12010,6.0,Jog/walk combination (jogging component of less than 10 minutes) (Taylor Code 180),running
+12020,7.5,"Jogging, general, self-selected pace",running
+12025,4.8,"Jogging, in place",running
+12026,3.3,Jogging 2.6 to 3.7 mph,running
+12027,4.5,Jogging on a mini-tramp,running
+12028,6.5,"Running, 4 to 4.2 mph (13 min/mile)",running
+12029,7.8,Running 4.3 to 4.8 mph,running
+12030,8.5,"Running, 5.0 to 5.2 mph (12 min/mile)",running
+12045,9.0,"Running, 5.5 -5.8 mph",running
+12050,9.3,"Running, 6-6.3 mph (10 min/mile)",running
+12060,10.5,"Running, 6.7 mph (9 min/mile)",running
+12070,11.0,"Running, 7 mph (8.5 min/mile)",running
+12080,11.8,"Running, 7.5 mph (8 min/mile)",running
+12090,12.0,"Running, 8 mph (7.5 min/mile)",running
+12100,12.5,"Running, 8.6 mph (7 min/mile)",running
+12110,13.0,"Running, 9 mph (6.5 min/mile)",running
+12115,14.8,"Running, 9.3 to 9.6 mph",running
+12120,14.8,"Running, 10 mph (6 min/mile)",running
+12130,16.8,"Running, 11 mph (5.5 min/mile)",running
+12132,18.5,"Running, 12 mph (5.0 min/mile)",running
+12134,19.8,"Running, 13 mph (4.6 min/mile)",running
+12135,23.0,"Running, 14 mph (4.3 min/mile)",running
+12140,9.3,"Running, cross country",running
+12145,10.5,"Running, self-selected pace",running
+12150,8.0,Running (Taylor Code 200),running
+12170,15.0,"Running, stairs, up",running
+12180,10.0,"Running, on a track, team practice",running
+12184,18.0,"Running, on track, 500-1500m, competitive",running
+12186,19.3,"Running, on track, 2000-3000m, competitive",running
+12190,8.0,"Running, training, pushing a wheelchair or baby carrier",running
+12200,13.3,"Running, marathon",running
+12255,10.3,"Running uphill, 4.5mph, 5% incline",running
+12260,13.3,"Running uphill, 6.0 mph, 5% incline",running
+12265,15.5,"Running uphill, 7.0 mph, 5% incline",running
+12325,17.5,"Running uphill, 5.0 to 5.9 mph, 15% incline",running
+12335,8.8,"Running uphill, 0.6 to 0.79 mph, 30% incline",running
+12337,10.3,"Running uphill, 0.8 to 0.99 mph, 30% incline",running
+12339,11.8,"Running uphill, 1.0 to 1.19 mph, 30% incline",running
+12341,13.5,"Running uphill, 1.2 to 1.39 mph, 30-40% incline",running
+12343,14.8,"Running uphill, 1.4 to 1.59 mph, 30% incline",running
+12345,16.3,"Running uphill, >1.6mph, 10-30% incline",running
+12350,16.0,"Running, hilly terrain, ±100m change in elevation",running
+12352,5.8,"Running downhill, 5.0 to 5.9 mph, -10% to -15%",running
+12353,7.5,"Running downhill, 6.0 to 6.9 mph, -10% to -15%",running
+12355,9.0,"Running downhill, 7.0 to 8.9 mph, -10% to -15%",running
+12358,9.3,"Running downhill, 6.0 to 7.9 mph, -3% to -9%",running
+12361,13.8,"Running downhill, 8.0 to 10.5 mph, -3% to -9%",running
+12405,5.3,"Running/jogging, curved treadmill, 3.0 to 3.9 mph",running
+12408,6.5,"Running/jogging, curved treadmill, 4.0 to 4.9 mph",running
+12410,11.0,"Running curved treadmill, 5.0 to 5.9 mph",running
+12412,12.0,"Running curved treadmill, 7.0 to 7.9 mph",running
+12414,14.0,"Running curved treadmill, 8.0 to 8.9 mph",running
+12416,16.8,"Running curved treadmill, 9.0 to 9.9 mph",running
+12508,8.5,"Running, 5.0 – 5.9 mph, 1.0 to 3.0 kg backpack",running
+12510,9.5,"Running, 6.0 – 6.9 mph, 1.0 to 3.0 kg backpack",running
+12512,9.8,"Running, 7.0 – 7.9 mph, 1.0 to 3.0 kg backpack",running
+12514,12.0,"Running, 8.0 – 8.9 mph, 1.0 to 3.0 kg backpack",running
+12555,7.8,"Running, barefoot, 3.5-5.9 mph",running
+12560,12.0,"Running, barefoot, 6.0-7.9 mph",running
+12565,13.5,"Running, barefoot, 8.0-8.9 mph",running
+12585,8.0,"Running, jogging stroller, indoors, 5 mph",running
+12588,9.0,"Running, jogging stroller, indoors, 6 mph",running
+12593,10.0,"Running, jogging stroller, outdoors, 5 mph",running
+12595,11.5,"Running, jogging stroller, outdoors, 6 mph",running
+12600,11.5,"Skipping, 5.5-6.0 mph",running
+12620,13.0,"Triathlon, Running",running
+13000,2.3,"Getting ready for bed, general, standing",self-care
+13009,2.3,"Sitting on toilet, eliminating while standing or  squatting",self-care
+13010,1.5,"Bathing, sitting",self-care
+13020,2.8,"Dressing, undressing, standing or sitting",self-care
+13030,1.5,"Eating, sitting",self-care
+13035,2.0,"Talking and eating or eating only, standing",self-care
+13036,1.5,"Taking medication, sitting or standing",self-care
+13040,2.0,"Grooming, washing hands, shaving, brushing  teeth, putting on make-up, sitting or standing",self-care
+13045,2.5,"Hairstyling, standing",self-care
+13046,1.3,"Having hair or nails done by someone else,  sitting",self-care
+13050,2.0,"Showering, toweling off, standing",self-care
+14010,5.8,"Active, vigorous effort",sexual-activity
+14020,3.0,"General, moderate effort",sexual-activity
+14030,1.8,"Passive, light effort, kissing, hugging",sexual-activity
+15000,5.5,"Alaska Native Games, Eskimo Olympics, general",sports
+15010,4.3,Archery (non-hunting),sports
+15020,7.0,"Badminton, competitive (Taylor Code 450)",sports
+15025,9.0,"Badminton, competitive, match play",sports
+15030,5.5,"Badminton, social singles and doubles, general",sports
+15040,8.0,"Basketball, game (Taylor Code 490)",sports
+15050,6.0,"Basketball, non-game, general (Taylor Code 480)",sports
+15055,7.5,"Basketball, general",sports
+15060,7.0,"Basketball, officiating (Taylor Code 500)",sports
+15062,5.8,"Basketball, officiating",sports
+15070,5.0,"Basketball, shooting baskets",sports
+15072,9.3,"Basketball, drills, practice",sports
+15080,2.5,Billiards,sports
+15090,3.0,Bowling (Taylor Code 390),sports
+15092,3.8,"Bowling, indoor, bowling alley",sports
+15100,12.3,"Boxing, in ring, general",sports
+15110,5.8,"Boxing, punching bag",sports
+15113,7.0,"Boxing, punching bag, 60 b/min",sports
+15115,8.5,"Boxing, punching bag, 120 b/min",sports
+15118,10.8,"Boxing, punching bag, 180 b/min",sports
+15120,7.8,"Boxing, sparring",sports
+15125,9.3,"Boxing, simulated boxing round, exercise",sports
+15130,7.0,Broomball,sports
+15135,5.8,"Children’s games, adults playing (e.g., hopscotch, 4-square, dodge ball, playground apparatus, t-ball,  tetherball, marbles, jacks, arcade games), moderate effort",sports
+15138,6.0,"Cheerleading, gymnastic moves, competitive",sports
+15140,4.0,"Coaching, football, soccer, basketball, baseball, swimming, etc.",sports
+15142,8.0,"Coaching, actively playing sport with players",sports
+15150,4.8,"Cricket, batting, bowling, fielding",sports
+15160,3.3,Croquet,sports
+15170,4.0,Curling,sports
+15180,2.5,"Darts, wall or lawn",sports
+15190,6.0,"Drag racing, pushing or driving a car",sports
+15192,8.5,"Auto racing, open wheel",sports
+15195,7.8,Futsal,sports
+15200,6.0,"Fencing, general",sports
+15203,9.8,"Fencing, epee, competitive",sports
+15205,10.5,Floorball,sports
+15210,8.0,"Football, competitive",sports
+15230,8.0,"Football, touch, flag, general (Taylor Code 510)",sports
+15232,4.0,"Football, touch, flag, light effort",sports
+15235,2.5,"Football or baseball, playing catch",sports
+15240,3.0,"Frisbee playing, general",sports
+15250,8.0,"Frisbee, ultimate",sports
+15252,3.8,Frisbee golf,sports
+15255,4.5,"Golf, general",sports
+15265,4.3,"Golf, walking, carrying clubs",sports
+15270,3.5,"Golf, miniature, driving range",sports
+15285,4.5,"Golf, walking, pulling clubs",sports
+15290,3.5,"Golf, using power cart (Taylor Code 070)",sports
+15300,3.8,"Gymnastics, general",sports
+15310,4.0,Hacky sack,sports
+15320,12.0,"Handball, general (Taylor Code 520)",sports
+15330,8.0,"Handball, team",sports
+15335,4.0,"High ropes course, multiple elements",sports
+15340,3.5,Hang gliding,sports
+15350,7.8,"Hockey, field",sports
+15360,8.0,"Hockey, ice, general",sports
+15362,10.0,"Hockey, ice, competitive",sports
+15370,5.5,"Horseback riding, general",sports
+15380,4.5,"Horse grooming, maintenance, saddling tasks",sports
+15390,5.8,"Horseback riding, trotting",sports
+15395,7.3,"Horseback riding, canter or gallop",sports
+15400,3.8,"Horseback riding, walking",sports
+15402,9.0,"Horseback riding, jumping",sports
+15403,6.0,"Horseback riding, reining",sports
+15406,2.1,"Horseback riding, simulator",sports
+15408,1.8,"Horse cart, driving, standing or sitting",sports
+15410,3.0,"Horseshoe pitching, quoits",sports
+15420,12.0,Jai alai,sports
+15425,5.3,"Martial Arts, different types, slower pace, novice performers, practice",sports
+15430,10.3,"Martial Arts, different types, moderate pace (e.g., judo, jujitsu, karate, kick boxing, tae kwon do, tai-bo, Muay Thai boxing)",sports
+15432,14.3,"Taekwondo, combat simulation",sports
+15433,11.3,Judo,sports
+15440,4.0,Juggling,sports
+15444,6.5,"Kendo, kihon-keiko style, moderate intensity",sports
+15445,9.6,"Kendo, kirikaeshi style, high intensity",sports
+15446,11.3,"Kendo, kakari keiko style, very high intensity",sports
+15450,7.0,Kickball,sports
+15455,5.5,Kung Fu Gymnastics,sports
+15457,7.3,Kickboxing,sports
+15460,8.0,Lacrosse,sports
+15465,3.3,"Lawn bowling, bocce ball, outdoor",sports
+15470,4.0,"Motocross, off-road motor sports, all-terrain vehicle, general",sports
+15475,5.3,"Motorcycle racing, Supormoto racing",sports
+15477,7.0,Netball,sports
+15480,9.0,Orienteering,sports
+15490,10.0,"Paddleball, competitive",sports
+15500,6.0,"Paddleball, casual, general (Taylor Code 460)",sports
+15503,1.8,"Paragliding, moderate altitude",sports
+15506,6.5,Prusik climbing,sports
+15510,8.0,"Polo, on horseback",sports
+15520,10.0,"Racquetball, competitive",sports
+15525,10.3,"Race Walking, 3.1 m/s (6.9 mph)",sports
+15527,13.8,"Race Walking, 3.7 m/s (8.3 mph)",sports
+15528,15.5,"Race Walking, racing speed, 4.0 m/s (8.95 mph)",sports
+15530,7.0,"Racquetball, general (Taylor Code 470)",sports
+15533,8.0,"Rock or mountain climbing (Taylor Code 060), (formerly code 17120)",sports
+15534,8.8,"Rock climbing, free boulder",sports
+15535,7.3,"Rock climbing, ascending rock, high difficulty",sports
+15536,10.5,"Rock climbing, speed climbing, very difficult",sports
+15537,5.8,"Rock climbing, ascending or traversing rock, low-to-moderate difficulty",sports
+15538,10.5,"Rock climbing, treadwall, 4-6 m/min",sports
+15539,10.5,"Rock climbing, treadwall, 7-10 m/min",sports
+15540,5.0,"Rock climbing, rappelling,",sports
+15542,4.0,"Rodeo sports, general, light effort",sports
+15544,5.5,"Rodeo sports, general, moderate effort",sports
+15546,7.0,"Rodeo sports, general, vigorous effort",sports
+15550,12.3,"Rope jumping, fast pace, 120-160 skips/min",sports
+15551,11.8,"Rope jumping, moderate pace, general, 100 to 120 skips/min, 2 foot skip, plain bounce",sports
+15552,8.3,"Rope jumping, slow pace, < 100 skips/min, 2 foot skip, rhythm bounce",sports
+15554,10.0,"Rope jumping, double under or more",sports
+15560,8.3,"Rugby, union, team, competitive",sports
+15562,6.3,"Rugby, touch, non-competitive",sports
+15570,3.0,Shuffleboard,sports
+15580,5.0,"Skateboarding, general, moderate effort",sports
+15582,6.0,"Skateboarding, competitive, vigorous effort",sports
+15590,7.0,"Skating, roller (Taylor Code 360)",sports
+15591,7.5,"Roller blading, in-line skating, 14.4 km/h (9.0 mph), recreational pace",sports
+15592,9.8,"Roller blading, in-line skating, 17.7 km/h (11.0 mph), moderate pace, exercise training",sports
+15593,12.3,"Roller blading, in-line skating, 21.0 to 21.7 km/h (13.0 to 13.6 mph), fast pace, exercise training",sports
+15594,15.5,"Rollerblading, in-line skating, 24.0 km/h (15.0 mph), maximal effort",sports
+15595,6.8,"Skateboard, longboard, 13.3 km/h, slow speed",sports
+15596,8.3,"Skateboard, longboard, 16.2 km/h, typical speed",sports
+15597,10.5,"Skateboard, longboard, 18.4 km/h, fast speed",sports
+15600,3.5,"Skydiving, base-jumping, bungee jumping",sports
+15605,9.5,"Soccer, competitive",sports
+15610,7.0,"Soccer, casual, general (Taylor Code 540)",sports
+15615,3.5,Walking football/soccer,sports
+15620,5.0,"Softball or baseball, fast or slow pitch, general, moderate effort (Taylor Code 440)",sports
+15625,4.0,"Softball, practice",sports
+15630,4.0,"Softball, officiating",sports
+15640,6.0,"Softball, pitching",sports
+15645,3.3,"Sports spectator, very excited, emotional, physically moving",sports
+15650,12.0,Squash (Taylor Code 530),sports
+15652,7.3,"Squash, general",sports
+15660,4.0,"Table tennis, ping pong (Taylor Code 410)",sports
+15670,3.3,"Tai chi, qi gong, general",sports
+15672,1.5,"Tai chi, qi gong, sitting, light effort",sports
+15674,6.0,"Tai chi chuan, Yang style",sports
+15675,6.8,"Tennis, general, moderate effort",sports
+15676,8.0,"Tennis, general, competitive",sports
+15680,6.0,"Tennis, doubles (Taylor Code 430)",sports
+15685,4.5,"Tennis, doubles",sports
+15690,8.0,"Tennis, singles (Taylor Code 420)",sports
+15695,5.0,"Tennis, hitting balls, non-game play, moderate effort",sports
+15700,6.3,"Trampoline, recreational",sports
+15702,10.3,"Trampoline, competitive",sports
+15710,4.0,Volleyball (Taylor Code 400),sports
+15711,6.0,"Volleyball, competitive, in gymnasium",sports
+15720,3.0,"Volleyball, non-competitive, 6 – 9 member team, general",sports
+15725,8.0,"Volleyball, beach, in sand",sports
+15730,6.0,"Wrestling, competitive (one match = 5 minutes)",sports
+15731,7.0,"Wallyball, general",sports
+15732,4.0,"Track and field (e.g., shot, discus, hammer throw)",sports
+15733,6.0,"Track and field (e.g., high jump, long jump, triple jump, javelin, pole vault)",sports
+15734,10.0,"Track and field (e.g., steeplechase, hurdles)",sports
+16002,6.8,"Bicycling for transportation, moderate effort",transportation
+16004,9.3,"Bicycling for transportation, high effort",transportation
+16005,6.8,E-bike (electrically assisted) for transportation,transportation
+16010,2.0,Automobile or light truck (not a semi) driving,transportation
+16015,1.3,Riding in a car or truck,transportation
+16016,1.3,Riding in a bus or train,transportation
+16020,1.8,Flying airplane or helicoptor,transportation
+16030,2.8,"Motor scooter, motorcycle",transportation
+16035,6.3,Pulling rickshaw,transportation
+16040,6.0,Pushing plane in and out of hangar,transportation
+16050,2.5,"Truck, semi, tractor, ≥1 ton, or bus, driving",transportation
+16060,3.5,"Walking for transportation, 2.8-3.2 mph, level, moderate pace, firm surface",transportation
+17010,7.0,Backpacking (Taylor Code 050),walking
+17011,3.5,"Walking with a day pack, level ground, assumed in the city",walking
+17012,7.8,"Backpacking,  hiking with a daypack, organized walking with daypack",walking
+17016,4.0,"Carrying 5 to 14 lb (2.3 to 6.4 kg) load (e.g. suitcase, boxes, groceries), level ground, moderate pace",walking
+17018,4.5,"Carrying 15 – 155 lb (6.8 – 70.4 kg) load (e.g. suitcase, boxes, furniture), level ground or downstairs, slow pace",walking
+17019,6.5,"Carrying 50 to 150 pound load (e.g., equine or bovine feed, fence pipes, furniture), level ground, moderate pace",walking
+17021,2.3,"Carrying ~10 lb child, slow walking",walking
+17025,8.3,"Carrying load upstairs, general",walking
+17026,5.5,"Carrying load, 1 to 15 lb load, upstairs",walking
+17027,6.0,"Carrying load, 16 to 24 lb load, upstairs",walking
+17028,8.0,"Carrying load, 25 to 49 lb load, upstairs",walking
+17029,10.0,"Carrying load, 50 to 74 lb load, upstairs",walking
+17030,12.0,"Carrying load, >74 lb load, upstairs",walking
+17031,3.8,"Loading  and/or unloading a car, implied walking",walking
+17032,5.0,"Climbing hills, no load, 5 to 20% grade, very slow pace",walking
+17033,3.8,"Climbing hills, 15-50 lb load, 1 to 2% grade, slow pace",walking
+17034,5.3,"Climbing hills, no load, 1 to 5% grade, moderate-to-brisk pace",walking
+17035,7.0,"Climbing hills, no load, 6 to 10% grade, moderate-to-brisk pace",walking
+17036,8.8,"Climbing hills, no load, 11 to 20% grade, slow-to-moderate pace",walking
+17037,10.0,"Climbing hills, no load, 4.0 to 5.0 mph, 3 to 5% grade, very fast pace",walking
+17038,8.5,"Climbing hills, no load, steep grade (30%), slow pace (less than 1.2 mph)",walking
+17039,15.5,"Climbing hills, no load, very steep grade (30-40%), 1.2 to 1.8 mph",walking
+17040,16.3,"Climbing hills, no load, steep grade (10-40%), 1.8 to 5.0 mph",walking
+17045,6.5,"Climbing hills, 10 to 20 lb load, 5 to 10% grade, moderate",walking
+17050,7.5,"Climbing hills, 21 to 40 lb load, 3 to 10% grade, moderate-to-brisk pace",walking
+17060,10.0,"Climbing hills, 20+ pound load, 5 to 20% grade, moderate to brisk pace",walking
+17070,3.5,Descending stairs,walking
+17076,4.5,"Hauling water, head hauling, walking on flat surface",walking
+17080,6.0,"Hiking, cross country (Taylor Code 040)",walking
+17081,3.8,"Hiking slowly or ambling through fields and hillsides, no load",walking
+17082,5.3,"Hiking or walking at a normal pace through fields and hillsides, no load",walking
+17085,2.5,"Bird watching, walking and stopping",walking
+17088,4.5,"Marching, moderate speed, military, no pack",walking
+17090,8.0,"Marching rapidly, military, no pack",walking
+17100,3.8,"Pushing or pulling stroller with child or walking with children, 2.5 to 3.1 mph",walking
+17105,3.8,"Pushing a wheelchair, non-occupational",walking
+17110,6.5,Race walking,walking
+17130,8.0,"Stair climbing, using or climbing up ladder (Taylor Code 030)",walking
+17131,6.8,"Stair climbing, general",walking
+17133,4.5,"Stair climbing, slow pace",walking
+17134,9.3,"Stair climbing, fast pace, one step at a time",walking
+17136,7.5,"Stair climbing, two steps at a time",walking
+17138,7.5,"Stair climbing, ascending and descending stairs",walking
+17140,4.5,"Using crutches, level ground, general",walking
+17142,7.0,"Using crutches, fast pace",walking
+17145,4.3,Using medical knee scooter,walking
+17150,2.3,"Walking, household",walking
+17151,2.3,"Walking, less than 2.0 mph, level, strolling, very slow",walking
+17152,2.8,"Walking, 2.0 to 2.4 mph, level, slow pace, firm surface",walking
+17160,3.5,Walking for pleasure (Taylor Code 010),walking
+17161,2.5,"Walking from house to car or bus, from car or bus to go places, from car or bus to and from the worksite",walking
+17162,2.5,Walking to neighbor’s house or family’s house for social reasons,walking
+17165,3.0,Walking the dog,walking
+17170,3.0,"Walking, 2.5 mph, firm, level surface",walking
+17180,3.3,"Walking, 2.5 mph, downhill",walking
+17190,3.8,"Walking, 2.8 to 3.4 mph, level, moderate pace, firm surface",walking
+17200,4.8,"Walking, 3.5 to 3.9 mph, level, brisk, firm surface, walking for exercise",walking
+17220,5.5,"Walking, 4.0 to 4.4 mph (6.4 to 7.1 km/h), level, firm surface, very brisk pace",walking
+17230,7.0,"Walking, 4.5 to 4.9 mph, level, firm surface, very, very brisk",walking
+17231,8.5,"Walking, 5.0 to 5.5 mph (8.8 to 8.9 km/h), level, firm surface",walking
+17250,3.5,"Walking, for pleasure, work break",walking
+17255,4.0,"Walking, self-selected speed, indoor track or outdoors, firm surface",walking
+17260,4.8,"Walking, grass track",walking
+17262,4.5,"Walking, normal pace, plowed field or sand",walking
+17270,4.0,"Walking, to work or class (Taylor Code 015)",walking
+17280,2.5,"Walking, to and from an outhouse",walking
+17302,4.3,"Walking, for exercise, 2.5 to 3.5 mph (4.0 to 5.6 km/h), with ski poles, Nordic walking, level, moderate pace",walking
+17304,5.3,"Walking, for exercise, 3.6 to 4.4 mph (5.8 to 7.1 km/h), with ski poles, Nordic walking, level, moderate pace",walking
+17305,8.5,"Walking, for exercise, 4.5 to 5.0 mph, with ski poles, Nordic walking, level, fast pace",walking
+17310,8.8,"Walking, for exercise, with ski poles, Nordic walking, uphill, moderate pace",walking
+17313,10.8,"Walking, for exercise, with ski poles, Nordic walking, level ground, carrying 20 to 30 lb load (9.0 to 15.0 kg)",walking
+17315,12.3,"Walking, for exercise, with ski poles, Nordic walking, uphill, carrying 20 to 30 lb load (9.0 to 15.0 kg)",walking
+17320,6.0,"Walking, backward, 3.5 mph, level",walking
+17325,7.8,"Walking, backward, 3.5 mph, uphill, 5% grade",walking
+17330,8.0,"Walking, Teabag walk, Monty Python Ministry of Silly Walks",walking
+17332,3.5,"Walking, Putey walk, Monty Python Ministry of Silly Walks",walking
+17340,2.1,"Walking, treadmill, less than 1.0 mph, 0% grade",walking
+17343,2.3,"Walking, treadmill, 1.0 mph, 0% grade",walking
+17346,2.8,"Walking, treadmill, 1.2 to 1.9 mph, 0% grade (1.9 to 3.1 km/h)",walking
+17349,3.0,"Walking, treadmill, 2.0 to 2.4 mph (3.2 to 3.9 km/h), 0% grade",walking
+17352,3.5,"Walking, treadmill, 2.5 to 2.9 mph (4.0 to 4.7 km/h), 0% grade",walking
+17355,3.8,"Walking, treadmill, 3.0 to 3.4 mph (4.8 to 5.5 km/h), 0% grade",walking
+17358,4.8,"Walking, treadmill, 3.5 to 3.9 mph (5.6 to 6.3 km/h), 0% grade",walking
+17361,5.8,"Walking, treadmill, 4.0 to 4.4 mph (6.4 to 7.1 km/h), 0% grade",walking
+17364,6.8,"Walking, treadmill, 4.5 to 4.9 mph (7.2 to 7.9 km/h), 0% grade",walking
+17367,8.3,"Walking, treadmill, 5.0 to 5.5 mph (8.0 to 8.9 km/h), 0% grade",walking
+17382,3.3,"Walking, treadmill, downhill (-3% to -12% grade), 2.8 to 3.1 mph",walking
+17412,3.3,"Walking, treadmill, downhill (-5% to -25% grade), 2.8 mph, with Nordic Poles",walking
+17434,4.8,"Walking, treadmill, 2.5 mph, 0% grade, 5 to 20 degrees C, 40 lb (18.2 kg) load",walking
+17438,5.8,"Walking, treadmill, 2.5 mph, 0% grade, -10 to 0 degrees C, 40 lb (18.2 kg) load",walking
+17455,8.3,"Walking, Curved treadmill, 3.0 to 5.0 mph, brisk pace",walking
+17475,7.8,"Walking treadmill, backwards, 2.5 mph, +10% grade",walking
+17492,1.5,"Walking, with a walker or step-to gait on treadmill, 0.7 mph (1.1 km/h), 0% grade",walking
+18010,2.5,"Boating, power, driving",water-activities
+18012,1.3,"Boating, power, passenger, light",water-activities
+18020,4.0,"Canoeing, on camping trip (Taylor Code 270)",water-activities
+18025,3.3,"Canoeing, harvesting wild rice, knocking rice off the stalks",water-activities
+18030,7.0,"Canoeing, portaging",water-activities
+18040,2.8,"Canoeing, rowing, 2.0-3.9 mph, light effort",water-activities
+18050,5.8,"Canoeing, rowing, 4.0-5.9 mph, moderate effort",water-activities
+18060,12.5,"Canoeing, rowing, kayaking, competition, > 6 mph, vigorous effort",water-activities
+18070,3.5,"Canoeing, rowing, for pleasure, general (Taylor Code 250)",water-activities
+18080,12.0,"Canoeing or rowing, in competition, crew or sculling (Taylor Code 260)",water-activities
+18090,3.0,"Diving, springboard or platform",water-activities
+18100,5.0,"Kayaking, moderate effort",water-activities
+18104,13.5,"kayaking, competition",water-activities
+18106,9.0,"kayaking, slalom, flat water",water-activities
+18110,4.0,Paddle boat,water-activities
+18112,15.5,"Rowing, simulated crew in a water tank, single oar, 33 strokes/min,",water-activities
+18114,15.5,"Rowing, single scull, ergometer, ergometer on slides, racing speed (32+ strokes/min, >10 mph)",water-activities
+18120,3.0,"Sailing, boat and board sailing, windsurfing, ice sailing, general (Taylor Code 235)",water-activities
+18130,4.5,"Sailing, in competition, general",water-activities
+18132,9.3,"Sailing, in competition, high effort",water-activities
+18140,3.3,"Sailing, Sunfish/Laser/Hobby Cat, Keel boats, ocean sailing, yachting, leisure",water-activities
+18142,2.0,"Sailing, dingy",water-activities
+18150,6.0,"Skiing, water or wake boarding (Taylor Code 220)",water-activities
+18160,7.0,"Jet skiing, driving, in water",water-activities
+18180,15.8,"Skindiving, fast",water-activities
+18190,11.8,"Skindiving, moderate",water-activities
+18200,7.0,"Skindiving, scuba diving, general (Taylor Code 310)",water-activities
+18202,5.3,"Scuba diving, general, light effort",water-activities
+18204,5.8,"Scuba diving, general, moderate effort",water-activities
+18206,5.5,"Scuba diving, professional diver",water-activities
+18208,6.8,"Scuba diving, recreational diver",water-activities
+18210,5.0,Snorkeling (Taylor Code 320),water-activities
+18220,3.0,"Surfing, body or board, general",water-activities
+18221,6.8,"Surfboard, paddling",water-activities
+18222,5.0,"Surfing, body or board, competitive",water-activities
+18224,6.5,"Stand up paddle boarding, general",water-activities
+18225,2.8,"Stand up Paddleboard, standing, 10-19 strokes/min",water-activities
+18226,3.8,"Stand up Paddleboard, standing, 20-29 strokes/min",water-activities
+18227,5.0,"Stand up Paddleboard, standing, 30-39 strokes/min",water-activities
+18228,9.8,"Stand up Paddleboard, standing, 40-49 strokes/min",water-activities
+18229,11.0,"Stand up Paddleboard, standing, 50-69 strokes/min",water-activities
+18230,9.8,"Swimming laps, freestyle, fast, vigorous effort",water-activities
+18240,5.8,"Swimming laps, freestyle, slow, recreational",water-activities
+18250,9.5,"Swimming, backstroke, training or competition",water-activities
+18255,4.8,"Swimming, backstroke, recreational",water-activities
+18260,10.3,"Swimming, breaststroke, general, training or  competition",water-activities
+18265,5.3,"Swimming breaststroke, recreational",water-activities
+18270,13.8,"Swimming, butterfly, general",water-activities
+18280,10.5,"Swimming, crawl, fast speed, ~75 yards/minute,  vigorous effort",water-activities
+18285,10.5,"Swimming, open water, 5k",water-activities
+18290,8.00,"Swimming, crawl, medium speed, ~50 yards/minute, vigorous effort",water-activities
+18292,5.8,"Swimming, crawl, slow speed, 30-45 yards/minute, moderate effort",water-activities
+18294,14.5,"Swimming, crawl, elite swimmers, competition, >90 yards/minute",water-activities
+18300,6.0,"Swimming, lake, ocean, river (Taylor Codes 280,  295)",water-activities
+18310,6.0,"Swimming, leisurely, not lap swimming, general",water-activities
+18320,7.0,"Swimming, sidestroke, general",water-activities
+18330,8.0,"Swimming, synchronized",water-activities
+18340,9.8,"Swimming, treading water, fast, vigorous effort",water-activities
+18350,3.5,"Swimming, treading water, moderate effort,  general",water-activities
+18352,2.3,"Tubing, floating on a river, general",water-activities
+18355,5.5,"Water aerobics, water calisthenics, general",water-activities
+18356,3.8,"Water aerobics, resistance exercises",water-activities
+18358,7.5,"Water aerobics, high intensity",water-activities
+18360,10.0,Water polo,water-activities
+18365,3.0,Water volleyball,water-activities
+18366,9.8,"Water jogging, vigorous effort",water-activities
+18367,2.5,"Water walking, light effort, slow pace",water-activities
+18368,4.8,"Water walking, moderate effort, moderate pace",water-activities
+18369,6.8,"Water walking, vigorous effort, brisk pace",water-activities
+18370,5.0,"Whitewater rafting, kayaking, or canoeing",water-activities
+18374,6.5,"Water running, 30 steps/min, slow",water-activities
+18375,7.5,"Water running, 40 steps/min, moderate",water-activities
+18376,8.5,"Water running, 50 steps/min, fast",water-activities
+18377,9.8,"Water running, 60 steps/min, very fast",water-activities
+18380,5.0,"Windsurfing, not pumping for speed",water-activities
+18385,11.0,"Windsurfing or kitesurfing, crossing trial",water-activities
+18390,14.0,"Windsurfing, competition, pumping for speed",water-activities
+18404,2.8,"Aquatic cycling, 25 W, 40-50 RPM",water-activities
+18408,4.8,"Aquatic cycling, 25 W, 60-70 RPM",water-activities
+18412,3.8,"Aquatic cycling, 50 W, 40-50 RPM",water-activities
+18416,6.0,"Aquatic cycling,  50 W, 60-70 RPM",water-activities
+18420,5.0,"Aquatic cycling, 75 W, 40-50 RPM",water-activities
+18424,6.3,"Aquatic cycling, 75 W, 60-70 RPM",water-activities
+18428,6.3,"Aquatic cycling, 100 W, 40-50 RPM",water-activities
+18432,7.5,"Aquatic cycling, 100 W, 60-70 RPM",water-activities
+18436,8.5,"Aquatic cycling, 80-89 RPM",water-activities
+18440,10.3,"Aquatic cycling, 90+ RPM",water-activities
+19005,7.5,"Dog sledding, mushing",winter-activities
+19006,2.5,"Dog sledding, passenger",winter-activities
+19010,6.0,"Moving icehouse, set up/drill holes",winter-activities
+19011,2.0,Ice fishing,winter-activities
+19018,14.0,"Skating, ice dancing",winter-activities
+19020,5.5,"Skating, ice, 9 mph or less",winter-activities
+19030,7.0,"Skating, ice, general (Taylor Code 360)",winter-activities
+19040,9.0,"Skating, ice, rapidly, more than 9 mph but not competitive",winter-activities
+19045,9.0,"Skating Treadmill, 6 – 6.9 mph, 2% grade",winter-activities
+19046,10.0,"Skating Treadmill, 7 – 7.9 mph, 2% grade",winter-activities
+19047,10.5,"Skating Treadmill, 8 – 8.9 mph, 2% grade",winter-activities
+19048,11.0,"Skating Treadmill, 9 – 9.9 mph, 2% grade",winter-activities
+19050,13.8,"Skating, speed, competitive",winter-activities
+19060,7.0,"Ski jumping, climb up carrying skis",winter-activities
+19075,7.0,"Skiing, general",winter-activities
+19080,6.8,"Skiing, cross country, 2.5 mph, slow or light effort, ski walking",winter-activities
+19090,8.5,"Skiing, cross country, 4.0-4.9 mph, moderate speed and effort, general",winter-activities
+19100,11.3,"Skiing, cross country, 5.0-7.9 mph, brisk speed, vigorous effort",winter-activities
+19110,14.0,"Skiing, cross country, elite skier, >8.0-11.9 mph, racing",winter-activities
+19112,16.0,"Skiing, cross country, 12-16 mph, elite skier, racing",winter-activities
+19115,9.5,"Skiing, cross-country skiing high-intensity training",winter-activities
+19130,15.5,"Skiing, cross country, hard snow, uphill, maximum, snow mountaineering",winter-activities
+19135,13.3,"Skiing, cross-country, skating",winter-activities
+19140,13.5,"Skiing, cross-country, biathlon, skating technique",winter-activities
+19142,12.8,"Biathlon training, 5 degree incline, 8 km/h (5 mph), with/without rifle",winter-activities
+19144,15.8,"Biathlon training, 5 degree incline, 10.7 km/h (6.6 mph), with/without rifle",winter-activities
+19146,9.3,"Skiing, slalom",winter-activities
+19150,4.3,"Skiing, downhill, alpine or snowboarding, light effort, active time only",winter-activities
+19160,6.3,"Skiing, downhill, alpine or snowboarding, moderate effort, general, active time only",winter-activities
+19170,8.0,"Skiing, downhill, alpine or snowboarding, vigorous effort, active time only",winter-activities
+19174,7.3,"Skiing, Alpine skiing high-intensity training",winter-activities
+19180,7.0,"Sledding, tobogganing, bobsledding, luge (Taylor Code 370)",winter-activities
+19190,5.3,"Snow shoeing, moderate effort",winter-activities
+19192,10.0,"Snow shoeing, vigorous effort",winter-activities
+19200,3.8,"Snowmobiling, driving, moderate pace, flat land",winter-activities
+19201,7.5,"snowboarding, recreational, moderate pace, mountain",winter-activities
+19202,2.0,"Snowmobiling, passenger, light",winter-activities
+19252,5.3,"Snow shoveling, by hand, moderate effort",winter-activities
+19254,7.5,"Snow shoveling, by hand, vigorous effort",winter-activities
+19260,2.5,"Snow blower, walking and pushing",winter-activities
+19300,12.5,"Skiing, roller, elite racers",winter-activities
+19305,5.5,"Rollerskiing, 10 – 12.9 km/h, no incline",winter-activities
+19310,6.8,"Rollerskiing, 13 – 16.9 km/h, no incline",winter-activities
+19315,8.3,"Rollerskiing, 17 – 19.9 km/h, no incline",winter-activities
+19320,10.5,"Rollerskiing, 20 – 23.9 km/h, no incline",winter-activities
+19325,15.0,"Rollerskiing, 24 – 27.9 km/h, no incline",winter-activities
+19330,12.5,"Rollerskiing, 10-15 km/h, 2-5 degree incline",winter-activities
+19335,14.3,"Rollerskiing, 16-22 km/h, 2-5 degree incline",winter-activities
+19340,12.3,"Rollerskiing, 6-9 km/h, 6-10 degree incline",winter-activities
+19345,16.0,"Rollerskiing, >10 km/h, 6-10 degree incline",winter-activities
+19400,9.0,"Mountaineering, downhill climbing, walking down with rope",winter-activities
+19405,10.3,"Mountaineering, downhill climbing/cross-country skiing",winter-activities
+20000,1.0,"Sitting in church, in service, attending a ceremony, sitting quietly",religious-activities
+20001,2.0,"Sitting, playing an instrument at church",religious-activities
+20005,1.8,"Sitting in church, talking or singing, attending a ceremony, sitting, active participation",religious-activities
+20010,1.5,"Sitting, reading religious materials at home",religious-activities
+20015,1.3,"Standing quietly in church, attending a ceremony",religious-activities
+20020,2.0,"Standing, singing in church, attending a ceremony, standing, active participation",religious-activities
+20025,1.3,"Kneeling in church or at home, praying",religious-activities
+20030,1.3,"Standing, talking in church",religious-activities
+20035,2.0,Walking in church,religious-activities
+20036,2.0,"Walking, less than 2.0 mph, very slow",religious-activities
+20037,3.8,"Walking, 2.8 to 3.4 mph, moderate speed, not carrying anything",religious-activities
+20038,4.8,"Walking, 3.5 to 3.9 mph, brisk speed, not carrying anything",religious-activities
+20039,2.0,"Walk/stand combination for religious purposes, usher",religious-activities
+20040,5.0,"Praise with dance or run, spiritual dancing in church",religious-activities
+20045,2.3,Serving food at church,religious-activities
+20046,2.0,Preparing food at church,religious-activities
+20047,3.3,"Washing dishes, cleaning kitchen at church",religious-activities
+20050,1.5,Eating at church,religious-activities
+20055,2.0,"Eating/talking at church or standing eating, American Indian Feast days",religious-activities
+20060,3.3,Cleaning church,religious-activities
+20061,4.0,General yard work at church,religious-activities
+20065,3.8,"Standing , moderate effort (e.g., lifting heavy objects, assembling at fast rate)",religious-activities
+20095,4.5,"Standing, moderate-to-heavy effort, manual labor, lifting ≥ 50 lbs, heavy maintenance",religious-activities
+20100,1.3,"Typing, electric, manual, or computer",religious-activities
+21000,1.3,"sitting, meeting, general, and/or with talking involved",volunteer-activities
+21005,1.5,"Sitting, light office work, in general",volunteer-activities
+21010,2.5,"Sitting, moderate work",volunteer-activities
+21015,1.8,"Standing, light work (filing, talking, assembling)",volunteer-activities
+21016,2.0,"Sitting, child care, only active periods",volunteer-activities
+21017,3.5,"Standing, child care, only active periods",volunteer-activities
+21018,3.5,"Walk/run play with children, moderate, only active periods",volunteer-activities
+21019,5.8,"Walk/run play with children, vigorous, only active periods",volunteer-activities
+21020,3.3,"Standing, light/moderate work (e.g., pack boxes, assemble/repair, set up chairs/furniture)",volunteer-activities
+21025,3.5,"Standing, moderate (e.g., lifting 50 lbs., assembling at fast rate)",volunteer-activities
+21030,4.5,"Standing, moderate/heavy work",volunteer-activities
+21035,1.3,"Typing, electric, manual, or computer",volunteer-activities
+21040,2.3,"Walking, less than 2.0 mph, very slow",volunteer-activities
+21045,3.8,"Walking, 2.8 to 3.4 mph, moderate speed, not carrying anything",volunteer-activities
+21050,4.8,"Walking, 3.5 to 3.9 mph, brisk speed, not carrying anything",volunteer-activities
+21055,3.5,"Walking, 2.5 mph slowly and carrying objects less than 25 pounds",volunteer-activities
+21060,4.5,"Walking, 3.0 mph moderately and carrying objects less than 25 pounds, pushing something",volunteer-activities
+21065,4.5,"Walking, 3.5 mph, briskly and carrying objects less than 25 pounds",volunteer-activities
+21070,3.0,"Walk/stand combination, for volunteer purposes",volunteer-activities
+22040,1.3,"Seated, video game, handheld controller (inactive)",video-games
+22120,1.5,"Video game, handheld controller (light effort)",video-games
+22160,2.3,"Video game, light effort (Wii Fit, yoga, bowling, etc.)",video-games
+22200,3.0,"Active video game, motion sensing game/using upper body (light to moderate effort)",video-games
+22240,4.0,"Active video game, motion sensing game/using total body (moderate effort)",video-games
+22280,5.0,"Active video game, motion sensing game/using total body (moderate-to-vigorous effort)",video-games
+22320,7.5,"Active video game, motion sensing game/using total body, exergames, workouts, dancing (vigorous effort)",video-games
+22360,9.8,"Conditioning/exercise virtual reality fitness, vigorous intensity",video-games

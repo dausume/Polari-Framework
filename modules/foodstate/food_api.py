@@ -7,6 +7,11 @@ fsp-0 read surface:
   GET /api/foodstate/vocabulary  — food stages / processes / added
                                    evidence methods AS SEEDED (rows
                                    live in the pspp classes)
+  GET /api/foodstate/ingredients        — the base-ingredient roster
+                                          + per-ingredient coverage
+  GET /api/foodstate/ingredients/{slug} — one ingredient's identity
+                                          + its FDC-cited claims +
+                                          NAMED contract gaps
 
 Transform execution deliberately ABSENT until fsp-2 — the vocabulary
 rows say so themselves.
@@ -20,6 +25,7 @@ import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
+from foodstate.food_composition import ingredient_report
 from foodstate.food_contracts import contracts_report
 
 
@@ -92,9 +98,22 @@ class FoodStateAPI(treeObject):
             add('/api/foodstate/contracts', self, suffix='contracts')
             add('/api/foodstate/vocabulary', self,
                 suffix='vocabulary')
+            add('/api/foodstate/ingredients', self,
+                suffix='ingredients')
+            add('/api/foodstate/ingredients/{slug}', self,
+                suffix='ingredient')
 
     def on_get_contracts(self, request, response):
         response.media = contracts_report(self.manager)
 
     def on_get_vocabulary(self, request, response):
         response.media = vocabulary_report(self.manager)
+
+    def on_get_ingredients(self, request, response):
+        response.media = ingredient_report(self.manager)
+
+    def on_get_ingredient(self, request, response, slug):
+        report = ingredient_report(self.manager, slug=slug)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report

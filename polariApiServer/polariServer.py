@@ -571,11 +571,23 @@ try:
         SEED_FOOD_EVIDENCE_METHODS, SEED_FOOD_PROCESSES,
         SEED_FOOD_STAGES,
     )
+    # fsp-1: the base-ingredient roster + FDC-cited composition
+    # claims (identity + values resolved FROM the vendored file).
+    from foodstate.food_materials import (
+        FoodMaterial, build_food_material_seeds,
+    )
+    from foodstate.food_composition import (
+        build_composition_claim_seeds, vendor_food_index,
+    )
+    SEED_FOOD_MATERIALS = build_food_material_seeds(
+        vendor_food_index())
+    SEED_FOOD_COMPOSITION_CLAIMS = build_composition_claim_seeds()
 except ImportError as _exc:
     _stub_missing_feature('foodstate', _exc, globals(), (
         'FoodDomainContract', 'SEED_FOOD_DOMAIN_CONTRACTS',
         'SEED_FOOD_EVIDENCE_METHODS', 'SEED_FOOD_PROCESSES',
-        'SEED_FOOD_STAGES',
+        'SEED_FOOD_STAGES', 'FoodMaterial', 'SEED_FOOD_MATERIALS',
+        'SEED_FOOD_COMPOSITION_CLAIMS',
     ))
 try:
     from aquaponics.pot_materials_seed import (
@@ -2453,7 +2465,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition, CrystalStructureDefinition, ThermalProcessingProfile, CeramicSample, LadderRung, EvidenceMethod, PropertyClaim, StructureClaim, ValidationClaim, DigitizedDataset, MaterialState, ProcessingStage, ScaleStructureDefinition, ReactionWindow, MaterialProcessDefinition, MaterialProcessExecution, FoodDomainContract, ChemicalSpecies, ReactionRule, ScaleTransferDefinition, ExposureScenario, MaterialPerformanceScenario,
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition, CrystalStructureDefinition, ThermalProcessingProfile, CeramicSample, LadderRung, EvidenceMethod, PropertyClaim, StructureClaim, ValidationClaim, DigitizedDataset, MaterialState, ProcessingStage, ScaleStructureDefinition, ReactionWindow, MaterialProcessDefinition, MaterialProcessExecution, FoodDomainContract, FoodMaterial, ChemicalSpecies, ReactionRule, ScaleTransferDefinition, ExposureScenario, MaterialPerformanceScenario,
             # Simulations
             SimulationDefinition, SimulationRun, SimVariable,
             SimSpaceEvaluationEquation,
@@ -3783,6 +3795,16 @@ class polariServer(treeObject):
             # fsp-0: the food domain contracts (the one new class).
             ('FoodDomainContract', FoodDomainContract,
              SEED_FOOD_DOMAIN_CONTRACTS),
+            # fsp-1: the base-ingredient roster (identity from the
+            # vendored FDC file) + composition claims. The pspp
+            # "claims are earned, never seeded" posture holds in
+            # spirit: every one of these is earned BY CITATION to
+            # the sha-pinned CC0 FDC subset (evidence 'literature',
+            # provenance carries fdc_id + sha) — the scalar
+            # counterpart of seeding DigitizedDataset book rows.
+            ('FoodMaterial', FoodMaterial, SEED_FOOD_MATERIALS),
+            ('PropertyClaim', PropertyClaim,
+             SEED_FOOD_COMPOSITION_CLAIMS),
             ('ReactionWindow', ReactionWindow, SEED_REACTION_WINDOWS),
             ('ThresholdReactionWindow', ThresholdReactionWindow,
              SEED_THRESHOLD_WINDOWS
