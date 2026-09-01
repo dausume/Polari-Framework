@@ -42,6 +42,8 @@ _CITE = ('USDA FoodData Central (Foundation 2025-04-24 / SR Legacy '
 #: fsp-0 composition-contract quantities the vendor subset does NOT
 #: carry — named per ingredient by the coverage report, never filled.
 CONTRACT_GAPS = (
+    'water (vendor subset carries no water rows — mass-balance '
+    'transforms name this gap on every claim)',
     'starch (vs sugars split)', 'sugars (free)',
     'organic-acids per species (citric|malic|acetic|lactic)',
     'amino-acids per species', 'caffeine', 'capsaicinoids',
