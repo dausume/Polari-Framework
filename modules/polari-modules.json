@@ -234,7 +234,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/pspp",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-pspp.git",
       "wave": 0,
       "requires": [
         "materialsScience"
