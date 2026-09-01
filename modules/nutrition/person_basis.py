@@ -24,6 +24,15 @@ ACTIVITY_PAL = {'sedentary': 1.2, 'light': 1.375, 'moderate': 1.55,
 
 WEIGHT_GOALS = ('maintain', 'lose', 'gain')
 
+#: nmp-1 (decision 4): eating patterns are the PERSON'S choice.
+EATING_PATTERNS = ('2-meal', '3-meal', '3-small-2-snacks')
+
+#: nmp-1 (decision 3 + nmp-0 DRI rows): the single person-axis beyond
+#: age/sex. '' = general; the DRI table carries transcribed
+#: pregnancy/lactation rows (this replaces the old x1.3 multiplier
+#: when set — the bool field stays as a legacy hint).
+LIFE_STAGES = ('', 'pregnancy', 'lactation')
+
 
 class PersonProfile(treeObject):
     """One household member's nutritional profile."""
@@ -56,6 +65,30 @@ class PersonProfile(treeObject):
         body_fat_fraction: float = 0.0,
         # Life-stage that raises several nutrient needs.
         pregnant_or_lactating: bool = False,
+        # nmp-1 (decision 4): EATING_PATTERNS entry — how the day's
+        # calories are meant to be split into meals.
+        eating_pattern: str = '3-meal',
+        # nmp-1 (decision 6): activity ASKED as minutes of exercise
+        # per week, in felt terms — vigorous = exertion that leaves
+        # you out of breath; moderate = brisk but you can hold a
+        # conversation (WHO/DGA 150-300 moderate ≍ 75-150 vigorous).
+        # When either is > 0, the calorie math uses these instead of
+        # the abstract activity_level PAL guess (labeled which).
+        weekly_moderate_minutes: float = 0.0,
+        weekly_vigorous_minutes: float = 0.0,
+        # nmp-1: LIFE_STAGES entry — picks the transcribed DRI
+        # pregnancy/lactation rows when set.
+        life_stage: str = '',
+        # nmp-1: optional waist circumference (cm), a screening knob
+        # for the obesity classification (0 = not measured).
+        waist_cm: float = 0.0,
+        # nmp-10 (decision 12): stated cooking skill — drives the
+        # method duration models; refined from observed durations
+        # later (labeled which).
+        cooking_skill: str = 'intermediate',
+        # nmp-11 (decision 11): the cuisine/cultural context that
+        # RANKS suggestions — a stated knob, NEVER inferred.
+        cuisine_context: str = 'general-western',
         provenance_id: str = '',
         notes: str = '',
         manager=None,
@@ -72,5 +105,12 @@ class PersonProfile(treeObject):
         self.metabolism_factor = metabolism_factor
         self.body_fat_fraction = body_fat_fraction
         self.pregnant_or_lactating = pregnant_or_lactating
+        self.eating_pattern = eating_pattern
+        self.weekly_moderate_minutes = weekly_moderate_minutes
+        self.weekly_vigorous_minutes = weekly_vigorous_minutes
+        self.life_stage = life_stage
+        self.waist_cm = waist_cm
+        self.cooking_skill = cooking_skill
+        self.cuisine_context = cuisine_context
         self.provenance_id = provenance_id
         self.notes = notes

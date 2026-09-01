@@ -653,11 +653,79 @@ try:
     # Nutrition: plant harvest -> meal-nutrient yield (nut-2).
     from nutrition.food_basis import FoodItem, NutrientContent
     from nutrition.food_seed import SEED_FOOD_ITEMS, SEED_NUTRIENT_CONTENTS
+    # nmp-0: the FDC starter pantry (49 base ingredients, vendored).
+    from nutrition.fdc_seed import (
+        SEED_FDC_FOOD_ITEMS, SEED_FDC_NUTRIENT_CONTENTS,
+    )
+    # nmp-1: the threshold layer (patterns + override knobs).
+    from nutrition.threshold_basis import (
+        EatingPatternDefinition, PersonThreshold,
+        SEED_EATING_PATTERNS,
+    )
+    # nmp-2: the tolerance/adverse-effect table.
+    from nutrition.tolerance_basis import (
+        ToleranceThreshold, SEED_TOLERANCE_THRESHOLDS,
+    )
+    # nmp-3: recipes + the retention/yield rollup.
+    from nutrition.recipe_basis import (
+        Recipe, IngredientLine, CookingStep,
+        SEED_RECIPES, SEED_INGREDIENT_LINES, SEED_COOKING_STEPS,
+    )
+    # nmp-4: meal templates + plans (the hard gate rides the API).
+    from nutrition.meal_basis import (
+        MealTemplate, VariationDefinition, MealPlanDefinition,
+        MealEntry, SEED_MEAL_TEMPLATES, SEED_VARIATIONS,
+    )
+    # nmp-5: activity (curated Compendium subset) + logs.
+    from nutrition.activity_basis import (
+        ActivityDefinition, ActivityLog, SEED_ACTIVITY_DEFINITIONS,
+    )
+    # nmp-6: measured weights (the trajectory's ground truth).
+    from nutrition.weight_basis import WeightObservation
+    # nmp-7: the garden loop (nut-5, meal-plan-aware).
+    from nutrition.fulfillment_basis import (
+        GardenPlanDefinition, SEED_GARDEN_PLANS,
+    )
+    # nmp-10: cooking workflows (tools x methods x storage).
+    from nutrition.workflow_basis import (
+        KitchenToolDefinition, KitchenTool, CookingTaskDefinition,
+        StepMethod, StorageActionDefinition, MethodPreference,
+        ToolAdvisorDismissal, CookingWorkflow,
+        SEED_KITCHEN_TOOLS, SEED_TASK_KINDS, SEED_STEP_METHODS,
+        SEED_STORAGE_ACTIONS,
+    )
+    # nmp-11: dish bases + roles + the affinity norms.
+    from nutrition.affinity_basis import (
+        DishBase, IngredientRole, FoodRole, IngredientAffinity,
+        SEED_DISH_BASES, SEED_INGREDIENT_ROLES, SEED_FOOD_ROLES,
+        SEED_INGREDIENT_AFFINITIES,
+    )
 except ImportError as _exc:
     _stub_missing_feature('nutrition', _exc, globals(), (
         'DietaryNutrient', 'NutrientReference', 'SEED_DIETARY_NUTRIENTS', 'SEED_NUTRIENT_REFERENCES',
         'PersonProfile', 'HouseholdProfile', 'SEED_HOUSEHOLDS', 'SEED_PERSONS',
         'FoodItem', 'NutrientContent', 'SEED_FOOD_ITEMS', 'SEED_NUTRIENT_CONTENTS',
+        'SEED_FDC_FOOD_ITEMS', 'SEED_FDC_NUTRIENT_CONTENTS',
+        'EatingPatternDefinition', 'PersonThreshold',
+        'SEED_EATING_PATTERNS',
+        'ToleranceThreshold', 'SEED_TOLERANCE_THRESHOLDS',
+        'Recipe', 'IngredientLine', 'CookingStep', 'SEED_RECIPES',
+        'SEED_INGREDIENT_LINES', 'SEED_COOKING_STEPS',
+        'MealTemplate', 'VariationDefinition', 'MealPlanDefinition',
+        'MealEntry', 'SEED_MEAL_TEMPLATES', 'SEED_VARIATIONS',
+        'ActivityDefinition', 'ActivityLog',
+        'SEED_ACTIVITY_DEFINITIONS', 'WeightObservation',
+        'GardenPlanDefinition', 'SEED_GARDEN_PLANS',
+        'KitchenToolDefinition', 'KitchenTool',
+        'CookingTaskDefinition', 'StepMethod',
+        'StorageActionDefinition', 'MethodPreference',
+        'ToolAdvisorDismissal', 'CookingWorkflow',
+        'SEED_KITCHEN_TOOLS', 'SEED_TASK_KINDS', 'SEED_STEP_METHODS',
+        'SEED_STORAGE_ACTIONS',
+        'DishBase', 'IngredientRole', 'FoodRole',
+        'IngredientAffinity', 'SEED_DISH_BASES',
+        'SEED_INGREDIENT_ROLES', 'SEED_FOOD_ROLES',
+        'SEED_INGREDIENT_AFFINITIES',
     ))
 # Plant morphology: 3D organ + root stand-in models + confinement
 # (morph-1).
@@ -2533,9 +2601,18 @@ class polariServer(treeObject):
             WaterBatchSchedule,
             CompostBinDefinition, VermicompostProfile,
             CompostLoopDefinition, PlantGrowthModel,
-            # Nutrition (nut-1/3/4 + nut-2 foods).
+            # Nutrition (nut-1/3/4 + nut-2 foods + nmp-1 thresholds).
             DietaryNutrient, NutrientReference, PersonProfile,
             HouseholdProfile, FoodItem, NutrientContent,
+            EatingPatternDefinition, PersonThreshold,
+            ToleranceThreshold, Recipe, IngredientLine, CookingStep,
+            MealTemplate, VariationDefinition, MealPlanDefinition,
+            MealEntry, ActivityDefinition, ActivityLog,
+            WeightObservation, GardenPlanDefinition,
+            KitchenToolDefinition, KitchenTool, CookingTaskDefinition,
+            StepMethod, StorageActionDefinition, MethodPreference,
+            ToolAdvisorDismissal, CookingWorkflow,
+            DishBase, IngredientRole, FoodRole, IngredientAffinity,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
             # Plant-growth-sim phase 1: normalized-growth instance state.
@@ -4130,9 +4207,46 @@ class polariServer(treeObject):
             ('PersonProfile', PersonProfile, SEED_PERSONS),
             ('HouseholdProfile', HouseholdProfile, SEED_HOUSEHOLDS),
             # nut-2: foods before their per-nutrient contents.
-            ('FoodItem', FoodItem, SEED_FOOD_ITEMS),
+            # nmp-0: + the FDC starter pantry (vendored, cited).
+            ('FoodItem', FoodItem,
+             SEED_FOOD_ITEMS + SEED_FDC_FOOD_ITEMS),
             ('NutrientContent', NutrientContent,
-             SEED_NUTRIENT_CONTENTS),
+             SEED_NUTRIENT_CONTENTS + SEED_FDC_NUTRIENT_CONTENTS),
+            # nmp-1: eating patterns (Q5 fractions, tunable priors).
+            ('EatingPatternDefinition', EatingPatternDefinition,
+             SEED_EATING_PATTERNS),
+            # nmp-2: cited adverse-effect thresholds.
+            ('ToleranceThreshold', ToleranceThreshold,
+             SEED_TOLERANCE_THRESHOLDS),
+            # nmp-3: recipes before their lines/steps.
+            ('Recipe', Recipe, SEED_RECIPES),
+            ('IngredientLine', IngredientLine, SEED_INGREDIENT_LINES),
+            ('CookingStep', CookingStep, SEED_COOKING_STEPS),
+            # nmp-4: templates before their variations.
+            ('MealTemplate', MealTemplate, SEED_MEAL_TEMPLATES),
+            ('VariationDefinition', VariationDefinition,
+             SEED_VARIATIONS),
+            # nmp-5: the curated Compendium activities.
+            ('ActivityDefinition', ActivityDefinition,
+             SEED_ACTIVITY_DEFINITIONS),
+            # nmp-7: the demo garden plan.
+            ('GardenPlanDefinition', GardenPlanDefinition,
+             SEED_GARDEN_PLANS),
+            # nmp-10: tools/tasks/methods/storage vocabularies.
+            ('KitchenToolDefinition', KitchenToolDefinition,
+             SEED_KITCHEN_TOOLS),
+            ('CookingTaskDefinition', CookingTaskDefinition,
+             SEED_TASK_KINDS),
+            ('StepMethod', StepMethod, SEED_STEP_METHODS),
+            ('StorageActionDefinition', StorageActionDefinition,
+             SEED_STORAGE_ACTIONS),
+            # nmp-11: composition vocabulary before its norms.
+            ('DishBase', DishBase, SEED_DISH_BASES),
+            ('IngredientRole', IngredientRole,
+             SEED_INGREDIENT_ROLES),
+            ('FoodRole', FoodRole, SEED_FOOD_ROLES),
+            ('IngredientAffinity', IngredientAffinity,
+             SEED_INGREDIENT_AFFINITIES),
             # morph-1: 3D organ + root stand-in models.
             ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
@@ -4809,6 +4923,72 @@ class polariServer(treeObject):
                               flush=True)
             except Exception as e:
                 print(f'[AppStoreSeed] failed: {e}', flush=True)
+        # nmp-0: nutrition joins the upsert path — the DRI life-stage
+        # table added fields to NutrientReference (ear/value_type/
+        # life_stage/jurisdiction/edition) and FoodItem (fdc_id/
+        # fdc_dataset); only an upsert delivers them to live rows
+        # (the ten-strikes gotcha). Legacy entries above stay as the
+        # no-composition fallback. Same module-level-import rule as
+        # AppsNavSeed.
+        if (_feature_available('composition')
+                and _feature_available('nutrition') and (
+                only_classes is None
+                or 'NutrientReference' in only_classes
+                or 'FoodItem' in only_classes)):
+            try:
+                from composition.seed_upsert import upsert_seed_pairs
+                for r in upsert_seed_pairs(
+                        self.manager,
+                        [('DietaryNutrient', DietaryNutrient,
+                          SEED_DIETARY_NUTRIENTS),
+                         ('NutrientReference', NutrientReference,
+                          SEED_NUTRIENT_REFERENCES),
+                         ('FoodItem', FoodItem,
+                          SEED_FOOD_ITEMS + SEED_FDC_FOOD_ITEMS),
+                         ('NutrientContent', NutrientContent,
+                          SEED_NUTRIENT_CONTENTS
+                          + SEED_FDC_NUTRIENT_CONTENTS),
+                         ('EatingPatternDefinition',
+                          EatingPatternDefinition,
+                          SEED_EATING_PATTERNS),
+                         ('ToleranceThreshold', ToleranceThreshold,
+                          SEED_TOLERANCE_THRESHOLDS),
+                         ('Recipe', Recipe, SEED_RECIPES),
+                         ('IngredientLine', IngredientLine,
+                          SEED_INGREDIENT_LINES),
+                         ('CookingStep', CookingStep,
+                          SEED_COOKING_STEPS),
+                         ('MealTemplate', MealTemplate,
+                          SEED_MEAL_TEMPLATES),
+                         ('VariationDefinition', VariationDefinition,
+                          SEED_VARIATIONS),
+                         ('ActivityDefinition', ActivityDefinition,
+                          SEED_ACTIVITY_DEFINITIONS),
+                         ('GardenPlanDefinition', GardenPlanDefinition,
+                          SEED_GARDEN_PLANS),
+                         ('KitchenToolDefinition',
+                          KitchenToolDefinition, SEED_KITCHEN_TOOLS),
+                         ('CookingTaskDefinition',
+                          CookingTaskDefinition, SEED_TASK_KINDS),
+                         ('StepMethod', StepMethod,
+                          SEED_STEP_METHODS),
+                         ('StorageActionDefinition',
+                          StorageActionDefinition,
+                          SEED_STORAGE_ACTIONS),
+                         ('DishBase', DishBase, SEED_DISH_BASES),
+                         ('IngredientRole', IngredientRole,
+                          SEED_INGREDIENT_ROLES),
+                         ('FoodRole', FoodRole, SEED_FOOD_ROLES),
+                         ('IngredientAffinity', IngredientAffinity,
+                          SEED_INGREDIENT_AFFINITIES)],
+                        tag='NutritionSeed'):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[NutritionSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[NutritionSeed] failed: {e}', flush=True)
         # tt-8: the single 'oseb' tree became three DOMAIN trees —
         # retire its persisted rows (idempotent no-op once gone) and
         # remap stale PolariModule.tech_node_ref hints.
