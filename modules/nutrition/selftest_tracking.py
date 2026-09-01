@@ -125,6 +125,27 @@ check('weight observations ride the series',
       and series['weightObservations'][0]['date'] == '2026-08-30')
 check('honesty names the gap policy',
       'NAMED gaps' in series['honesty'])
+
+# mpa-8: the derive-on-demand metric cache
+cached = tracking_series(MANAGER, 'demo-alex',
+                         start_date='2026-08-31',
+                         end_date='2026-09-01', persist=True)
+check('duck manager SKIPS the cache upsert and says why',
+      cached['metricCache']['cached'] is False
+      and 'typing dict' in cached['metricCache']['note'])
+check('unpersisted series reports cache not requested',
+      series['metricCache']['note'] == 'not requested')
+import inspect
+from nutrition.intake_basis import DailyIntakeMetric
+# signature, not co_varnames — treeObjectInit wraps __init__ and
+# the wrapper's varnames are the decorator's, not the schema's.
+metric_fields = set(
+    inspect.signature(DailyIntakeMetric.__init__).parameters)
+check('cache row fields all exist on DailyIntakeMetric (schema '
+      'agreement)',
+      {'person_name', 'date', 'calories', 'protein_g', 'fiber_g',
+       'sodium_mg', 'max_meal_gl', 'max_meal_acid_share',
+       'meals_logged', 'day_warning_count'} <= metric_fields)
 nobody = tracking_series(MANAGER, 'nobody')
 check('unknown person refuses with the next step',
       not nobody.get('ok') and 'log a meal' in nobody['error'])

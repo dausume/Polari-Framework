@@ -68,6 +68,53 @@ class IntakeRecord(treeObject):
         self.notes = notes
 
 
+class DailyIntakeMetric(treeObject):
+    """One person-day's derived metrics — a DERIVE-ON-DEMAND CACHE
+    row (the D5/level-scenes precedent), upserted when the tracking
+    series is computed so class-backed charts (embeddedGraph) can
+    render the day series. Never hand-edited: the IntakeRecords are
+    the facts; this row is their rollup, recomputed on read."""
+
+    @treeObjectInit
+    def __init__(
+        self,
+        # unique key ('demo-alex-2026-09-01').
+        name: str = '',
+        person_name: str = '',
+        date: str = '',
+        calories: float = 0.0,
+        protein_g: float = 0.0,
+        fiber_g: float = 0.0,
+        sodium_mg: float = 0.0,
+        # spike metrics: the day's MAX per-meal values.
+        max_meal_gl: float = 0.0,
+        max_meal_acid_share: float = 0.0,
+        meals_logged: int = 0,
+        day_warning_count: int = 0,
+        computed_from: str = 'intake-day rollup (derive-on-demand '
+                             'cache — IntakeRecords are the facts)',
+        is_prior: bool = False,
+        provenance_id: str = '',
+        notes: str = '',
+        manager=None,
+    ):
+        self.name = name
+        self.person_name = person_name
+        self.date = date
+        self.calories = calories
+        self.protein_g = protein_g
+        self.fiber_g = fiber_g
+        self.sodium_mg = sodium_mg
+        self.max_meal_gl = max_meal_gl
+        self.max_meal_acid_share = max_meal_acid_share
+        self.meals_logged = meals_logged
+        self.day_warning_count = day_warning_count
+        self.computed_from = computed_from
+        self.is_prior = is_prior
+        self.provenance_id = provenance_id
+        self.notes = notes
+
+
 def _ir(name, date, slot, template, variation, note=''):
     return {'name': name, 'person_name': 'demo-alex', 'date': date,
             'slot': slot, 'template_name': template,

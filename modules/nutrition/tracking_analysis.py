@@ -167,8 +167,13 @@ def _date_range(start, end):
 
 
 def tracking_series(manager, person_name, start_date=None,
-                    end_date=None, nutrients=None):
-    """Date-series of day metrics + weight, gaps named."""
+                    end_date=None, nutrients=None, persist=False):
+    """Date-series of day metrics + weight, gaps named.
+
+    persist=True upserts each computed day as a DailyIntakeMetric
+    cache row (derive-on-demand, the D5 precedent) so class-backed
+    charts can render the series — only on a real manager (the
+    duck-typed selftest managers skip it, reported)."""
     nutrients = tuple(nutrients or DEFAULT_SERIES_NUTRIENTS)
     record_dates = sorted({
         getattr(r, 'date', '') for r in _rows(manager, 'IntakeRecord')
@@ -181,7 +186,7 @@ def tracking_series(manager, person_name, start_date=None,
                          f'confirm a plan entry)'}
     start = start_date or record_dates[0]
     end = end_date or (record_dates[-1] if record_dates else start)
-    days, gaps = [], []
+    days, gaps, metric_rows = [], [], []
     for day in _date_range(start, end):
         report = intake_day(manager, person_name, day)
         if not report.get('ok'):
@@ -200,6 +205,42 @@ def tracking_series(manager, person_name, start_date=None,
                                      if acids else 0.0)
         entry['dayWarningCount'] = len(report.get('dayWarnings', []))
         days.append(entry)
+        totals = report['dayTotals']
+        metric_rows.append({
+            'name': f'{person_name}-{day}',
+            'person_name': person_name, 'date': day,
+            'calories': round(totals.get('calories', 0.0), 1),
+            'protein_g': round(totals.get('protein', 0.0), 1),
+            'fiber_g': round(totals.get('fiber', 0.0), 1),
+            'sodium_mg': round(totals.get('sodium', 0.0), 1),
+            'max_meal_gl': entry['maxMealGL'],
+            'max_meal_acid_share': entry['maxMealAcidShare'],
+            'meals_logged': entry['mealsLogged'],
+            'day_warning_count': entry['dayWarningCount'],
+            'is_prior': False, 'provenance_id': 'mpa-8 series cache',
+        })
+    cached = False
+    cache_note = 'not requested'
+    if persist and metric_rows:
+        if getattr(manager, 'objectTypingDict', None) is None:
+            cache_note = ('skipped — no typing dict on this manager '
+                          '(selftest/duck manager); cache rows need '
+                          'the live server')
+        else:
+            try:
+                from composition.seed_upsert import upsert_seed_pairs
+                from nutrition.intake_basis import DailyIntakeMetric
+                upsert_seed_pairs(
+                    manager,
+                    [('DailyIntakeMetric', DailyIntakeMetric,
+                      metric_rows)],
+                    tag='IntakeMetricCache')
+                cached = True
+                cache_note = (f'{len(metric_rows)} DailyIntakeMetric '
+                              f'cache rows upserted (charts read '
+                              f'these)')
+            except Exception as exc:
+                cache_note = f'cache upsert failed: {exc}'
     weights = sorted(
         [{'date': getattr(w, 'date', ''),
           'weightKg': _f(w, 'weight_kg', 0.0),
@@ -214,6 +255,7 @@ def tracking_series(manager, person_name, start_date=None,
             'nutrients': list(nutrients),
             'days': days,
             'gapDays': gaps,
+            'metricCache': {'cached': cached, 'note': cache_note},
             'weightObservations': weights,
             'honesty': 'days without records are NAMED gaps, never '
                        'zeros; per-meal GL and acid share chart '

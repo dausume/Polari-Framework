@@ -161,11 +161,15 @@ class MealPlanningAPI(treeObject):
             nutrients = [n.strip() for n in
                          request.params['nutrients'].split(',')
                          if n.strip()]
+        # persist=True: reading the series refreshes the
+        # DailyIntakeMetric cache rows the trend charts read
+        # (derive-on-demand + cached, idempotent upsert).
         response.media = tracking_series(
             self.manager, person,
             start_date=request.params.get('start'),
             end_date=request.params.get('end'),
-            nutrients=nutrients)
+            nutrients=nutrients,
+            persist=request.params.get('persist', '1') != '0')
 
     # ── plans vs pantry vs market ────────────────────────
     def _plan(self, name, response):

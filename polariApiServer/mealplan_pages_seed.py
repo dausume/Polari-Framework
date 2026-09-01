@@ -50,6 +50,48 @@ SEED_MEALPLAN_GRAPHS = [
 ]
 
 
+def _metric_graph(name, description, y_dims, y_label, colors):
+    """mpa-8: day-series charts over the DailyIntakeMetric cache
+    rows (derive-on-demand: reading /series refreshes them)."""
+    return {'name': name, 'description': description,
+            'source_class': 'DailyIntakeMetric',
+            'definition': json.dumps({'graphConfig': {
+                'renderStyle': 'lineY',
+                'xDimension': 'date',
+                'yDimensions': list(y_dims),
+                'seriesColors': list(colors),
+                'options': {
+                    'width': 800, 'height': 280,
+                    'marginTop': 20, 'marginRight': 30,
+                    'marginBottom': 40, 'marginLeft': 60,
+                    'showLegend': len(y_dims) > 1,
+                    'showGrid': True,
+                    'xLabel': 'date', 'yLabel': y_label,
+                },
+                'aggregation': {'enabled': False,
+                                'strategy': 'average'},
+            }})}
+
+
+SEED_MEALPLAN_GRAPHS += [
+    _metric_graph('mealplan-calories-trend',
+                  'Calories per day from logged intake (cache rows '
+                  'refresh when the series is read; gap days have '
+                  'no row — honest absence, not zeros).',
+                  ['calories'], 'kcal/day', ['#1565c0']),
+    _metric_graph('mealplan-gl-trend',
+                  'The day\'s MAX per-meal glycemic load (spike '
+                  'metric; GL>20 = the published high convention).',
+                  ['max_meal_gl'], 'max per-meal GL', ['#ef6c00']),
+    _metric_graph('mealplan-acid-trend',
+                  'The day\'s MAX per-meal acid mass share '
+                  '(fraction of meal mass at pH<=4.6; comfort '
+                  'heuristic, not medical advice).',
+                  ['max_meal_acid_share'], 'max acid share (0-1)',
+                  ['#c62828']),
+]
+
+
 def _graph_item(item_id, index, segments, title, graph_name,
                 class_name, filter_field='', filter_value=''):
     return {
@@ -209,14 +251,31 @@ SEED_MEALPLAN_PAGE_DISPLAYS = [
                      'chicken-bowl-dinner/acidity'),
             ]),
             _row(2, [
-                _graph_item('mp-weight-chart', 0, 12,
+                _graph_item('mp-calories-chart', 0, 6,
+                            'Calories/day — demo-alex',
+                            'mealplan-calories-trend',
+                            'DailyIntakeMetric',
+                            'person_name', 'demo-alex'),
+                _graph_item('mp-weight-chart', 1, 6,
                             'Weight over time — demo-alex '
                             '(measured observations)',
                             'mealplan-weight-trend',
                             'WeightObservation',
                             'person_name', 'demo-alex'),
-            ]),
+            ], min_height=300),
             _row(3, [
+                _graph_item('mp-gl-chart', 0, 6,
+                            'Max per-meal GL — demo-alex',
+                            'mealplan-gl-trend',
+                            'DailyIntakeMetric',
+                            'person_name', 'demo-alex'),
+                _graph_item('mp-acid-chart', 1, 6,
+                            'Max per-meal acid share — demo-alex',
+                            'mealplan-acid-trend',
+                            'DailyIntakeMetric',
+                            'person_name', 'demo-alex'),
+            ], min_height=300),
+            _row(4, [
                 _api('mp-state-chain', 0, 12,
                      'The PSPP state chain behind the meal '
                      '(mass-balance + retention claims; model rungs '

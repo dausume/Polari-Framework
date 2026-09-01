@@ -717,7 +717,7 @@ try:
         UserAccountLink, SEED_USER_ACCOUNT_LINKS,
     )
     from nutrition.intake_basis import (
-        IntakeRecord, SEED_INTAKE_RECORDS,
+        IntakeRecord, DailyIntakeMetric, SEED_INTAKE_RECORDS,
     )
 except ImportError as _exc:
     _stub_missing_feature('nutrition', _exc, globals(), (
@@ -750,7 +750,7 @@ except ImportError as _exc:
         'SEED_SOURCE_LOCATIONS', 'SEED_PRICE_OBSERVATIONS',
         'SEED_UNIT_WEIGHTS', 'PantryItem', 'SEED_PANTRY_ITEMS',
         'UserAccountLink', 'SEED_USER_ACCOUNT_LINKS',
-        'IntakeRecord', 'SEED_INTAKE_RECORDS',
+        'IntakeRecord', 'DailyIntakeMetric', 'SEED_INTAKE_RECORDS',
         'SEED_WEIGHT_OBSERVATIONS',
     ))
 # Plant morphology: 3D organ + root stand-in models + confinement
@@ -2648,9 +2648,11 @@ class polariServer(treeObject):
             StepMethod, StorageActionDefinition, MethodPreference,
             ToolAdvisorDismissal, CookingWorkflow,
             DishBase, IngredientRole, FoodRole, IngredientAffinity,
-            # mpa-2/3/4: market + pantry + accounts + intake.
+            # mpa-2/3/4: market + pantry + accounts + intake
+            # (+ the mpa-8 derive-on-demand day-metric cache).
             SourceLocation, PriceObservation, UnitWeightPrior,
             PantryItem, UserAccountLink, IntakeRecord,
+            DailyIntakeMetric,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
             # Plant-growth-sim phase 1: normalized-growth instance state.
