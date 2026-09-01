@@ -106,15 +106,54 @@ SEED_POLARI_APPS = [
     _app('nutrition-planner', 'Nutrition & Meal Planning',
          'A household planning meals: profiles with thresholds, '
          'meal plans checked against healthy bands, cooking '
-         'workflows, activity, and the garden loop.',
+         'workflows, activity, the garden loop — and the mpa app '
+         'layer: pantry, prices by geolocation, per-login tracking '
+         'of nutrition/acidity/weight over time, PSPP food states.',
          'Person/household profiles + DRI thresholds, the FDC '
          'starter pantry, foods and nutrient contents, and the '
-         'harvest loop (nutrition + aquaponics); the meal/recipe/'
-         'activity layers land phase by phase (nmp arc).',
-         ('nutrition', 'aquaponics'),
-         ('/display/nutrition-home', '/display/nutrition/profile',
+         'harvest loop (nutrition + aquaponics); meal/recipe/'
+         'activity layers (nmp arc); market/pantry/accounts/'
+         'tracking + the foodstate PSPP substrate (mpa arc).',
+         ('nutrition', 'aquaponics', 'foodstate', 'pspp'),
+         ('/display/mealplan', '/display/mealplan/planner',
+          '/display/mealplan/pantry', '/display/mealplan/market',
+          '/display/mealplan/trends',
+          '/display/nutrition-home', '/display/nutrition/profile',
           '/display/nutrition/meals', '/display/nutrition/recipes',
-          '/display/nutrition/activity', '/display/nutrition/garden')),
+          '/display/nutrition/activity', '/display/nutrition/garden'),
+         nav=(
+             _tgrp('Meal Planning',
+                   _it('Home', 'page', '/display/mealplan',
+                       'nutrition'),
+                   _it('Planner', 'page', '/display/mealplan/planner',
+                       'nutrition'),
+                   _it('Pantry', 'page', '/display/mealplan/pantry',
+                       'nutrition'),
+                   _it('Market & Prices', 'page',
+                       '/display/mealplan/market', 'nutrition'),
+                   _it('Trends', 'page', '/display/mealplan/trends',
+                       'nutrition')),
+             _tgrp('Kitchen',
+                   _it('Meals & Templates', 'page',
+                       '/display/nutrition/meals', 'nutrition'),
+                   _it('Recipes', 'page',
+                       '/display/nutrition/recipes', 'nutrition'),
+                   _it('Garden Loop', 'page',
+                       '/display/nutrition/garden', 'nutrition')),
+             _grp('Profile & Tracking',
+                  _it('My Profile', 'page',
+                      '/display/nutrition/profile', 'nutrition'),
+                  _it('Activity', 'page',
+                      '/display/nutrition/activity', 'nutrition'),
+                  _it('Trends', 'page', '/display/mealplan/trends',
+                      'nutrition')),
+             _grp('Foundations',
+                  _it('Nutrition Home', 'page',
+                      '/display/nutrition-home', 'nutrition'),
+                  _it('Food States (PSPP)', 'page',
+                      '/display/mealplan/trends', 'foodstate')),
+         ),
+         personas=('household-cook', 'meal-planner')),
 
     # ------------------------------------------------------------------
     # Discipline apps (nav-1). Personas per NAVIGATION_REVAMP_PLAN §4.4
