@@ -684,7 +684,9 @@ try:
         ActivityDefinition, ActivityLog, SEED_ACTIVITY_DEFINITIONS,
     )
     # nmp-6: measured weights (the trajectory's ground truth).
-    from nutrition.weight_basis import WeightObservation
+    from nutrition.weight_basis import (
+        WeightObservation, SEED_WEIGHT_OBSERVATIONS,
+    )
     # nmp-7: the garden loop (nut-5, meal-plan-aware).
     from nutrition.fulfillment_basis import (
         GardenPlanDefinition, SEED_GARDEN_PLANS,
@@ -749,6 +751,7 @@ except ImportError as _exc:
         'SEED_UNIT_WEIGHTS', 'PantryItem', 'SEED_PANTRY_ITEMS',
         'UserAccountLink', 'SEED_USER_ACCOUNT_LINKS',
         'IntakeRecord', 'SEED_INTAKE_RECORDS',
+        'SEED_WEIGHT_OBSERVATIONS',
     ))
 # Plant morphology: 3D organ + root stand-in models + confinement
 # (morph-1).
@@ -1666,7 +1669,7 @@ except ImportError as _exc:
 # morphology, authority) — pure class-rows-table/api-json-panel data.
 from polariApiServer.module_pages_seed import SEED_MODULE_PAGE_DISPLAYS
 from polariApiServer.mealplan_pages_seed import (
-    SEED_MEALPLAN_PAGE_DISPLAYS,
+    SEED_MEALPLAN_GRAPHS, SEED_MEALPLAN_PAGE_DISPLAYS,
 )
 # The engine-model layer: the FEM/DFT catalog + the specialized
 # domain-shaped model definitions (msci-15).
@@ -4298,6 +4301,8 @@ class polariServer(treeObject):
             ('UserAccountLink', UserAccountLink,
              SEED_USER_ACCOUNT_LINKS),
             ('IntakeRecord', IntakeRecord, SEED_INTAKE_RECORDS),
+            ('WeightObservation', WeightObservation,
+             SEED_WEIGHT_OBSERVATIONS),
             # morph-1: 3D organ + root stand-in models.
             ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
@@ -5046,7 +5051,9 @@ class polariServer(treeObject):
                          ('UserAccountLink', UserAccountLink,
                           SEED_USER_ACCOUNT_LINKS),
                          ('IntakeRecord', IntakeRecord,
-                          SEED_INTAKE_RECORDS)],
+                          SEED_INTAKE_RECORDS),
+                         ('WeightObservation', WeightObservation,
+                          SEED_WEIGHT_OBSERVATIONS)],
                         tag='NutritionSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[NutritionSeed] {r["class"]}: '
@@ -5183,7 +5190,8 @@ class polariServer(treeObject):
              + (SEED_CNT_DEVICE_GRAPHS or [])
              + (SEED_CNT_FV_GRAPHS or [])
              + (SEED_SI_REFINEMENT_GRAPHS or [])
-             + (SEED_SI_LADDER_GRAPHS or [])),
+             + (SEED_SI_LADDER_GRAPHS or [])
+             + SEED_MEALPLAN_GRAPHS),
             ('SimVariable', SimVariable, SEED_SIM_VARIABLES),
             # Equations: the live-readout set (KE/PE/E_total) PLUS the
             # per-step math each CalculusOperation references. Must seed

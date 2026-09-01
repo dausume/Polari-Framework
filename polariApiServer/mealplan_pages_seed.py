@@ -18,9 +18,54 @@ Routes: /display/mealplan, /display/mealplan/planner,
 @see AI-Notes/plans/MEAL_PLANNING_APP_PLAN.md §mpa-5
 """
 
+import json
+
 from polariApiServer.module_pages_seed import (
     _api, _page, _row, _table,
 )
+
+#: mpa-5: GraphDefinition rows addressed BY NAME (ids are
+#: instance-local — the embeddedGraph component's graphName input,
+#: added this arc, is what makes a seeded chart possible at all).
+SEED_MEALPLAN_GRAPHS = [
+    {'name': 'mealplan-weight-trend',
+     'description': 'Measured weights over time for one person '
+                    '(facts, never the Hall projection — drift '
+                    'between the two lives on the profile page).',
+     'source_class': 'WeightObservation',
+     'definition': json.dumps({'graphConfig': {
+         'renderStyle': 'dot',
+         'xDimension': 'date',
+         'yDimensions': ['weight_kg'],
+         'seriesColors': ['#2e7d32'],
+         'options': {
+             'width': 800, 'height': 320,
+             'marginTop': 20, 'marginRight': 30,
+             'marginBottom': 40, 'marginLeft': 60,
+             'showLegend': False, 'showGrid': True,
+             'xLabel': 'date', 'yLabel': 'weight (kg)',
+         },
+         'aggregation': {'enabled': False, 'strategy': 'average'},
+     }})},
+]
+
+
+def _graph_item(item_id, index, segments, title, graph_name,
+                class_name, filter_field='', filter_value=''):
+    return {
+        'id': item_id, 'index': index, 'type': 'component',
+        'rowSegmentsUsed': segments, 'gridColumnStart': None,
+        'title': title, 'visible': True, 'collapsed': False,
+        'cssClass': '',
+        'componentProps': {
+            'componentName': 'embeddedGraph',
+            'inputs': {'graphName': graph_name,
+                       'className': class_name,
+                       'filterField': filter_field,
+                       'filterValue': filter_value},
+        },
+        'item': None, 'nestedRows': [],
+    }
 
 SEED_MEALPLAN_PAGE_DISPLAYS = [
     _page(
@@ -164,6 +209,14 @@ SEED_MEALPLAN_PAGE_DISPLAYS = [
                      'chicken-bowl-dinner/acidity'),
             ]),
             _row(2, [
+                _graph_item('mp-weight-chart', 0, 12,
+                            'Weight over time — demo-alex '
+                            '(measured observations)',
+                            'mealplan-weight-trend',
+                            'WeightObservation',
+                            'person_name', 'demo-alex'),
+            ]),
+            _row(3, [
                 _api('mp-state-chain', 0, 12,
                      'The PSPP state chain behind the meal '
                      '(mass-balance + retention claims; model rungs '

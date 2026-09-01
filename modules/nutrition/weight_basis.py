@@ -54,3 +54,18 @@ class WeightObservation(treeObject):
         self.is_prior = is_prior
         self.provenance_id = provenance_id
         self.notes = notes
+
+
+#: mpa-5: demo observations so the trends chart renders before real
+#: measurements land (is_prior=True marks them as replaceable demo
+#: rows — a real scale beats these).
+SEED_WEIGHT_OBSERVATIONS = [
+    {'name': f'demo-alex-{d}', 'person_name': 'demo-alex',
+     'date': d, 'day_index': i, 'weight_kg': w,
+     'context': 'morning', 'is_prior': True,
+     'provenance_id': 'mpa-5',
+     'notes': 'demo observation — replace with real measurements'}
+    for i, (d, w) in enumerate((
+        ('2026-08-25', 80.4), ('2026-08-28', 80.1),
+        ('2026-08-31', 79.8), ('2026-09-01', 79.9)))
+]
