@@ -581,6 +581,8 @@ try:
     )
     # mpa-1: literature pH priors (chemistry-domain claims).
     from foodstate.food_ph_seed import SEED_FOOD_PH_CLAIMS
+    # fsp-3 slice: cited organic-acid claims (the tomato proof).
+    from foodstate.food_acid_seed import SEED_FOOD_ACID_CLAIMS
     SEED_FOOD_MATERIALS = build_food_material_seeds(
         vendor_food_index())
     SEED_FOOD_COMPOSITION_CLAIMS = build_composition_claim_seeds()
@@ -590,6 +592,7 @@ except ImportError as _exc:
         'SEED_FOOD_EVIDENCE_METHODS', 'SEED_FOOD_PROCESSES',
         'SEED_FOOD_STAGES', 'FoodMaterial', 'SEED_FOOD_MATERIALS',
         'SEED_FOOD_COMPOSITION_CLAIMS', 'SEED_FOOD_PH_CLAIMS',
+        'SEED_FOOD_ACID_CLAIMS',
     ))
 try:
     from aquaponics.pot_materials_seed import (
@@ -3923,7 +3926,8 @@ class polariServer(treeObject):
             ('FoodMaterial', FoodMaterial, SEED_FOOD_MATERIALS),
             ('PropertyClaim', PropertyClaim,
              (SEED_FOOD_COMPOSITION_CLAIMS or [])
-             + (SEED_FOOD_PH_CLAIMS or [])),
+             + (SEED_FOOD_PH_CLAIMS or [])
+             + (SEED_FOOD_ACID_CLAIMS or [])),
             ('ReactionWindow', ReactionWindow, SEED_REACTION_WINDOWS),
             ('ThresholdReactionWindow', ThresholdReactionWindow,
              SEED_THRESHOLD_WINDOWS

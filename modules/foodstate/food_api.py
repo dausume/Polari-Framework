@@ -102,6 +102,11 @@ class FoodStateAPI(treeObject):
                 suffix='ingredients')
             add('/api/foodstate/ingredients/{slug}', self,
                 suffix='ingredient')
+            # fsp-3 slice: cited-constants chemistry.
+            add('/api/foodstate/chemistry/speciation', self,
+                suffix='speciation')
+            add('/api/foodstate/ingredients/{slug}/acidity', self,
+                suffix='acidity')
 
     def on_get_contracts(self, request, response):
         response.media = contracts_report(self.manager)
@@ -117,3 +122,13 @@ class FoodStateAPI(treeObject):
         if not report.get('ok'):
             response.status = '404 Not Found'
         response.media = report
+
+    def on_get_speciation(self, request, response):
+        from foodstate.food_chemistry import speciation
+        response.media = speciation(
+            request.params.get('acid', ''),
+            request.params.get('ph', ''))
+
+    def on_get_acidity(self, request, response, slug):
+        from foodstate.food_chemistry import ingredient_acidity
+        response.media = ingredient_acidity(self.manager, slug)
