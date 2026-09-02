@@ -167,6 +167,30 @@ SEED_MEALPLAN_PAGE_DISPLAYS = [
                      '/api/nutrition/plans/demo-alex-week'
                      '/prep-schedule'),
             ]),
+            # mpb: safety + steering + budget on the same planner.
+            _row(3, [
+                _api('mp-exclusion-screen', 0, 6,
+                     'Exclusion screen (declared allergies — hard '
+                     'safety filter)',
+                     '/api/mealplanning/plans/demo-alex-week'
+                     '/exclusion-screen'),
+                _api('mp-conditions', 1, 6,
+                     'Stated-condition flags ("do not make it '
+                     'worse" — never diagnosis)',
+                     '/api/mealplanning/plans/demo-alex-week'
+                     '/conditions'),
+            ]),
+            _row(4, [
+                _api('mp-budget', 0, 6,
+                     'Budget envelope — spend vs cap, drivers '
+                     'named',
+                     '/api/mealplanning/plans/demo-alex-week'
+                     '/budget'),
+                _api('mp-protein-value', 1, 6,
+                     'Protein per dollar (observed prices)',
+                     '/api/mealplanning/nutrient-value'
+                     '?nutrient=protein'),
+            ]),
         ]),
     _page(
         'mealplan-pantry', 'mealplan/pantry',
@@ -194,6 +218,17 @@ SEED_MEALPLAN_PAGE_DISPLAYS = [
                      'Shopping list — demo-alex-week',
                      '/api/mealplanning/plans/demo-alex-week'
                      '/shopping-list'),
+            ]),
+            # mpb-4/9: the waste leak + the quick-add grammar.
+            _row(2, [
+                _api('mp-waste', 0, 6,
+                     'Waste ledger — the honest budget leak',
+                     '/api/mealplanning/waste/demo-household'),
+                _api('mp-quickadd', 1, 6,
+                     'Quick-add preview (edit ?q= — proposals '
+                     'only, you apply them)',
+                     '/api/mealplanning/quick-add?q=2+lb+chicken'
+                     '+breast+11.98+%40+demo-grocery'),
             ]),
         ]),
     _page(
@@ -276,6 +311,16 @@ SEED_MEALPLAN_PAGE_DISPLAYS = [
                             'person_name', 'demo-alex'),
             ], min_height=300),
             _row(4, [
+                _api('mp-coverage', 0, 6,
+                     'Coverage steering — 7-day under-targets + '
+                     'cheapest exclusion-safe closers',
+                     '/api/mealplanning/users/demo-alex/coverage'),
+                _api('mp-exclusions', 1, 6,
+                     'Declared exclusions (yours, in your words)',
+                     '/api/mealplanning/users/demo-alex'
+                     '/exclusions'),
+            ]),
+            _row(5, [
                 _api('mp-state-chain', 0, 12,
                      'The PSPP state chain behind the meal '
                      '(mass-balance + retention claims; model rungs '

@@ -108,6 +108,11 @@ class MealPlanningAPI(treeObject):
                 suffix='plan_budget')
             add('/api/mealplanning/users/{person}/coverage', self,
                 suffix='coverage')
+            # mpb-4/9: waste ledger + quick-add preview.
+            add('/api/mealplanning/waste/{household}', self,
+                suffix='waste')
+            add('/api/mealplanning/quick-add', self,
+                suffix='quick_add')
 
     # ── identity ─────────────────────────────────────────
     def on_get_me(self, request, response):
@@ -361,6 +366,17 @@ class MealPlanningAPI(treeObject):
         response.media = coverage_steering(
             self.manager, person, days=days,
             end_date=request.params.get('end') or None)
+
+    # ── mpb-4: waste ledger ──────────────────────────────
+    def on_get_waste(self, request, response, household):
+        from nutrition.waste_analysis import waste_report
+        response.media = waste_report(self.manager, household)
+
+    # ── mpb-9: quick-add preview (read-only proposal) ────
+    def on_get_quick_add(self, request, response):
+        from nutrition.quick_add import parse_quick_add
+        response.media = parse_quick_add(
+            self.manager, request.params.get('q', ''))
 
     def on_get_state_chain(self, request, response, name):
         try:
