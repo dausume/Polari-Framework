@@ -90,6 +90,24 @@ class MealPlanningAPI(treeObject):
                 suffix='template_acidity')
             add('/api/mealplanning/templates/{name}/state-chain',
                 self, suffix='state_chain')
+            # mpb-1/2/3/6: exclusions, conditions, budget, coverage.
+            add('/api/mealplanning/users/{person}/exclusions',
+                self, suffix='exclusions')
+            add('/api/mealplanning/plans/{name}/exclusion-screen',
+                self, suffix='exclusion_screen')
+            add('/api/mealplanning/plans/{name}/exclusion-swaps',
+                self, suffix='exclusion_swaps')
+            add('/api/mealplanning/plans/{name}/conditions', self,
+                suffix='plan_conditions')
+            add('/api/mealplanning/templates/{name}/conditions',
+                self, suffix='template_conditions')
+            add('/api/mealplanning/nutrient-value', self,
+                suffix='nutrient_value')
+            add('/api/mealplanning/closers', self, suffix='closers')
+            add('/api/mealplanning/plans/{name}/budget', self,
+                suffix='plan_budget')
+            add('/api/mealplanning/users/{person}/coverage', self,
+                suffix='coverage')
 
     # ── identity ─────────────────────────────────────────
     def on_get_me(self, request, response):
@@ -253,6 +271,96 @@ class MealPlanningAPI(treeObject):
             scale = 1.0
         response.media = template_acidity(
             self.manager, template, variation, scale)
+
+    # ── mpb-1: exclusions ────────────────────────────────
+    def on_get_exclusions(self, request, response, person):
+        from nutrition.exclusion_analysis import person_exclusions
+        hard, soft = person_exclusions(self.manager, person)
+        response.media = {'ok': True, 'person': person,
+                          'hard': hard, 'soft': soft}
+
+    def on_get_exclusion_screen(self, request, response, name):
+        from nutrition.exclusion_analysis import screen_plan
+        plan = self._plan(name, response)
+        if plan is not None:
+            response.media = screen_plan(
+                self.manager, plan,
+                request.params.get('person') or None)
+
+    def on_get_exclusion_swaps(self, request, response, name):
+        from nutrition.exclusion_analysis import (
+            exclusion_safe_swaps,
+        )
+        plan = self._plan(name, response)
+        if plan is not None:
+            response.media = exclusion_safe_swaps(
+                self.manager, plan,
+                request.params.get('person') or None)
+
+    # ── mpb-2: stated-condition steering ─────────────────
+    def on_get_plan_conditions(self, request, response, name):
+        from nutrition.condition_analysis import (
+            plan_condition_report,
+        )
+        plan = self._plan(name, response)
+        if plan is not None:
+            response.media = plan_condition_report(
+                self.manager, plan,
+                request.params.get('person') or None)
+
+    def on_get_template_conditions(self, request, response, name):
+        from nutrition.condition_analysis import (
+            meal_condition_report,
+        )
+        person = request.params.get('person', '')
+        if not person:
+            response.media = {'ok': False,
+                              'error': '?person=<name> required'}
+            return
+        try:
+            scale = float(request.params.get('scale', '1'))
+        except ValueError:
+            scale = 1.0
+        response.media = meal_condition_report(
+            self.manager, person, name,
+            request.params.get('variation', ''), scale)
+
+    # ── mpb-3: budget ────────────────────────────────────
+    def on_get_nutrient_value(self, request, response):
+        from nutrition.budget_analysis import nutrient_value_report
+        nutrient = request.params.get('nutrient', '')
+        if not nutrient:
+            response.media = {'ok': False,
+                              'error': '?nutrient=<name> required'}
+            return
+        response.media = nutrient_value_report(self.manager,
+                                               nutrient)
+
+    def on_get_closers(self, request, response):
+        from nutrition.budget_analysis import cheapest_closers
+        try:
+            gap = float(request.params.get('gap', '0'))
+        except ValueError:
+            gap = 0.0
+        response.media = cheapest_closers(
+            self.manager, request.params.get('nutrient', ''), gap)
+
+    def on_get_plan_budget(self, request, response, name):
+        from nutrition.budget_analysis import plan_budget_report
+        plan = self._plan(name, response)
+        if plan is not None:
+            response.media = plan_budget_report(self.manager, plan)
+
+    # ── mpb-6: coverage steering ─────────────────────────
+    def on_get_coverage(self, request, response, person):
+        from nutrition.coverage_analysis import coverage_steering
+        try:
+            days = int(request.params.get('days', '7'))
+        except ValueError:
+            days = 7
+        response.media = coverage_steering(
+            self.manager, person, days=days,
+            end_date=request.params.get('end') or None)
 
     def on_get_state_chain(self, request, response, name):
         try:

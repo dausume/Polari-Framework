@@ -722,6 +722,16 @@ try:
     from nutrition.intake_basis import (
         IntakeRecord, DailyIntakeMetric, SEED_INTAKE_RECORDS,
     )
+    # mpb-1/2/3: exclusions, stated-condition steering, budget.
+    from nutrition.exclusion_basis import (
+        FoodAllergenFlag, PersonExclusion,
+        SEED_FOOD_ALLERGEN_FLAGS, SEED_PERSON_EXCLUSIONS,
+    )
+    from nutrition.condition_basis import (
+        StatedCondition, ConditionSteering,
+        SEED_STATED_CONDITIONS, SEED_CONDITION_STEERINGS,
+    )
+    from nutrition.budget_basis import PlanBudget, SEED_PLAN_BUDGETS
 except ImportError as _exc:
     _stub_missing_feature('nutrition', _exc, globals(), (
         'DietaryNutrient', 'NutrientReference', 'SEED_DIETARY_NUTRIENTS', 'SEED_NUTRIENT_REFERENCES',
@@ -755,6 +765,11 @@ except ImportError as _exc:
         'UserAccountLink', 'SEED_USER_ACCOUNT_LINKS',
         'IntakeRecord', 'DailyIntakeMetric', 'SEED_INTAKE_RECORDS',
         'SEED_WEIGHT_OBSERVATIONS',
+        'FoodAllergenFlag', 'PersonExclusion',
+        'SEED_FOOD_ALLERGEN_FLAGS', 'SEED_PERSON_EXCLUSIONS',
+        'StatedCondition', 'ConditionSteering',
+        'SEED_STATED_CONDITIONS', 'SEED_CONDITION_STEERINGS',
+        'PlanBudget', 'SEED_PLAN_BUDGETS',
     ))
 # Plant morphology: 3D organ + root stand-in models + confinement
 # (morph-1).
@@ -2656,6 +2671,9 @@ class polariServer(treeObject):
             SourceLocation, PriceObservation, UnitWeightPrior,
             PantryItem, UserAccountLink, IntakeRecord,
             DailyIntakeMetric,
+            # mpb-1/2/3: exclusions + conditions + budget.
+            FoodAllergenFlag, PersonExclusion,
+            StatedCondition, ConditionSteering, PlanBudget,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
             # Plant-growth-sim phase 1: normalized-growth instance state.
@@ -4309,6 +4327,16 @@ class polariServer(treeObject):
             ('IntakeRecord', IntakeRecord, SEED_INTAKE_RECORDS),
             ('WeightObservation', WeightObservation,
              SEED_WEIGHT_OBSERVATIONS),
+            # mpb-1/2/3: exclusions, condition steering, budget.
+            ('FoodAllergenFlag', FoodAllergenFlag,
+             SEED_FOOD_ALLERGEN_FLAGS),
+            ('PersonExclusion', PersonExclusion,
+             SEED_PERSON_EXCLUSIONS),
+            ('ConditionSteering', ConditionSteering,
+             SEED_CONDITION_STEERINGS),
+            ('StatedCondition', StatedCondition,
+             SEED_STATED_CONDITIONS),
+            ('PlanBudget', PlanBudget, SEED_PLAN_BUDGETS),
             # morph-1: 3D organ + root stand-in models.
             ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
@@ -5059,7 +5087,17 @@ class polariServer(treeObject):
                          ('IntakeRecord', IntakeRecord,
                           SEED_INTAKE_RECORDS),
                          ('WeightObservation', WeightObservation,
-                          SEED_WEIGHT_OBSERVATIONS)],
+                          SEED_WEIGHT_OBSERVATIONS),
+                         ('FoodAllergenFlag', FoodAllergenFlag,
+                          SEED_FOOD_ALLERGEN_FLAGS),
+                         ('PersonExclusion', PersonExclusion,
+                          SEED_PERSON_EXCLUSIONS),
+                         ('ConditionSteering', ConditionSteering,
+                          SEED_CONDITION_STEERINGS),
+                         ('StatedCondition', StatedCondition,
+                          SEED_STATED_CONDITIONS),
+                         ('PlanBudget', PlanBudget,
+                          SEED_PLAN_BUDGETS)],
                         tag='NutritionSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[NutritionSeed] {r["class"]}: '
