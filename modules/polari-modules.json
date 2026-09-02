@@ -404,7 +404,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/foodstate",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-foodstate.git",
       "wave": 0,
       "requires": [
         "pspp",
