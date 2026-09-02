@@ -113,6 +113,14 @@ class MealPlanningAPI(treeObject):
                 suffix='waste')
             add('/api/mealplanning/quick-add', self,
                 suffix='quick_add')
+            # mpb-8: ratings + ranked templates.
+            add('/api/mealplanning/users/{person}/ratings', self,
+                suffix='ratings')
+            add('/api/mealplanning/users/{person}'
+                '/templates-ranked', self, suffix='templates_ranked')
+            # mpb-7: the trajectory fed by the PLAN's real calories.
+            add('/api/mealplanning/users/{person}'
+                '/plan-trajectory', self, suffix='plan_trajectory')
 
     # ── identity ─────────────────────────────────────────
     def on_get_me(self, request, response):
@@ -371,6 +379,76 @@ class MealPlanningAPI(treeObject):
     def on_get_waste(self, request, response, household):
         from nutrition.waste_analysis import waste_report
         response.media = waste_report(self.manager, household)
+
+    # ── mpb-7: trajectory fed by the plan's calories ─────
+    def on_get_plan_trajectory(self, request, response, person):
+        """The nmp-6 observed-vs-projected drift loop, driven by
+        the named plan's ACTUAL day-average calories instead of a
+        hand-typed number — the drift suggestion (a knob nudge,
+        never a silent recalibration) comes with it."""
+        from nutrition.meal_analysis import plan_rollup
+        from nutrition.weight_trajectory import (
+            observed_vs_projected,
+        )
+        profile = _named(self.manager, 'PersonProfile', person)
+        if profile is None:
+            response.status = '404 Not Found'
+            response.media = {'ok': False,
+                              'error': f'no PersonProfile '
+                                       f'"{person}"'}
+            return
+        plan_name = request.params.get('plan', '')
+        if not plan_name:
+            response.media = {'ok': False,
+                              'error': '?plan=<name> required — '
+                                       'the point is the PLAN\'s '
+                                       'real calories'}
+            return
+        plan = _named(self.manager, 'MealPlanDefinition', plan_name)
+        if plan is None:
+            response.status = '404 Not Found'
+            response.media = {'ok': False,
+                              'error': f'no MealPlanDefinition '
+                                       f'"{plan_name}"'}
+            return
+        roll = plan_rollup(self.manager, plan)
+        if not roll.get('ok'):
+            response.media = roll
+            return
+        day_kcals = {}
+        for meal in roll.get('entries', []):
+            if 'error' in meal:
+                continue
+            day_kcals[meal['day']] = (day_kcals.get(meal['day'], 0)
+                                      + meal.get('calories', 0.0))
+        if not day_kcals:
+            response.media = {'ok': False,
+                              'error': 'plan rolled up no calories'}
+            return
+        avg = sum(day_kcals.values()) / len(day_kcals)
+        report = observed_vs_projected(self.manager, profile, avg)
+        if report.get('ok'):
+            report['planCaloriesBasis'] = {
+                'plan': plan_name,
+                'avgDailyKcal': round(avg, 0),
+                'daysAveraged': len(day_kcals),
+                'note': 'projection driven by the plan\'s own '
+                        'day-average calories — change the plan '
+                        'and the curve follows',
+            }
+        response.media = report
+
+    # ── mpb-8: ratings ───────────────────────────────────
+    def on_get_ratings(self, request, response, person):
+        from nutrition.rating_analysis import rating_summary
+        response.media = rating_summary(self.manager, person)
+
+    def on_get_templates_ranked(self, request, response, person):
+        from nutrition.rating_analysis import rank_templates
+        names = sorted(
+            getattr(t, 'name', '') for t in
+            _rows(self.manager, 'MealTemplate'))
+        response.media = rank_templates(self.manager, person, names)
 
     # ── mpb-9: quick-add preview (read-only proposal) ────
     def on_get_quick_add(self, request, response):

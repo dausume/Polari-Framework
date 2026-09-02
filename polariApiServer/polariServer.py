@@ -734,6 +734,8 @@ try:
     from nutrition.budget_basis import PlanBudget, SEED_PLAN_BUDGETS
     # mpb-4: the waste ledger.
     from nutrition.waste_basis import WasteRecord, SEED_WASTE_RECORDS
+    # mpb-8: meal ratings.
+    from nutrition.rating_basis import MealRating, SEED_MEAL_RATINGS
 except ImportError as _exc:
     _stub_missing_feature('nutrition', _exc, globals(), (
         'DietaryNutrient', 'NutrientReference', 'SEED_DIETARY_NUTRIENTS', 'SEED_NUTRIENT_REFERENCES',
@@ -773,6 +775,7 @@ except ImportError as _exc:
         'SEED_STATED_CONDITIONS', 'SEED_CONDITION_STEERINGS',
         'PlanBudget', 'SEED_PLAN_BUDGETS',
         'WasteRecord', 'SEED_WASTE_RECORDS',
+        'MealRating', 'SEED_MEAL_RATINGS',
     ))
 # Plant morphology: 3D organ + root stand-in models + confinement
 # (morph-1).
@@ -2677,7 +2680,7 @@ class polariServer(treeObject):
             # mpb-1/2/3: exclusions + conditions + budget.
             FoodAllergenFlag, PersonExclusion,
             StatedCondition, ConditionSteering, PlanBudget,
-            WasteRecord,
+            WasteRecord, MealRating,
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
             # Plant-growth-sim phase 1: normalized-growth instance state.
@@ -4342,6 +4345,7 @@ class polariServer(treeObject):
              SEED_STATED_CONDITIONS),
             ('PlanBudget', PlanBudget, SEED_PLAN_BUDGETS),
             ('WasteRecord', WasteRecord, SEED_WASTE_RECORDS),
+            ('MealRating', MealRating, SEED_MEAL_RATINGS),
             # morph-1: 3D organ + root stand-in models.
             ('OrganModel', OrganModel, SEED_ORGAN_MODELS),
             ('RootSystemModel', RootSystemModel, SEED_ROOT_MODELS),
@@ -5104,7 +5108,9 @@ class polariServer(treeObject):
                          ('PlanBudget', PlanBudget,
                           SEED_PLAN_BUDGETS),
                          ('WasteRecord', WasteRecord,
-                          SEED_WASTE_RECORDS)],
+                          SEED_WASTE_RECORDS),
+                         ('MealRating', MealRating,
+                          SEED_MEAL_RATINGS)],
                         tag='NutritionSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[NutritionSeed] {r["class"]}: '
