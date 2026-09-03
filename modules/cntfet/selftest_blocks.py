@@ -365,7 +365,7 @@ def main():
           'freedom-proof-panel; sequential blocks get the '
           'cell-logic-diagram via its `path` override',
           page['pageRoute'] == 'cntfet-blocks' and page['isPage']
-          and set(comps) <= {'class-rows-table', 'api-json-panel',
+          and set(comps) <= {'class-rows-table', 'api-structured-panel',
                              'freedom-proof-panel', 'cell-logic-diagram'}
           and comps.count('freedom-proof-panel') == 4
           and comps.count('cell-logic-diagram') == 3

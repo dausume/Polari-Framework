@@ -12,8 +12,10 @@ Two seed shapes live here, and both are pure data:
       matching the frontend's GraphConfigData exactly, so the
       Graphs editor can open, edit and round-trip a seeded graph.
   DisplayDefinition.definition = {'rows': [...]}
-      of the two generic registered components (api-json-panel,
-      class-rows-table), the module_pages_seed pattern.
+      of the two generic registered components (api-structured-panel,
+      class-rows-table), the module_pages_seed pattern — no JSON on
+      screen: each panel picks its record list or hides the
+      dict-of-lists roll-ups that would land in the JSON expander.
 
 ⚠ TWO BUGS IN THE EXISTING msim GRAPH SEEDS ARE NOT REPEATED HERE.
 They write `options.legend`, but the frontend reads
@@ -24,7 +26,7 @@ to invent one, which means the seeded row and the editor's saved
 row differ for no reason. Every graph below writes `showLegend`
 and a real {'enabled', 'strategy'} aggregation.
 
-The row helpers (`_row`/`_api`/`_table`) are COPIED from
+The row helpers (`_row`/`_api`/`_sapi`/`_table`) are COPIED from
 polariApiServer.module_pages_seed rather than imported: that
 module is core-seed territory and the climate module must stay
 droppable. Copying three dict builders is cheaper than a core
@@ -265,15 +267,20 @@ def _table(item_id, index, segments, title, class_name,
     }
 
 
-def _api(item_id, index, segments, title, path):
+def _sapi(item_id, index, segments, title, path, pick='', hide=''):
+    """The STRUCTURED reading of a GET payload (chips / prose / tables /
+    key-value; module_pages_seed._sapi shape) — no JSON on screen.
+    `pick` = dot-path to render; `hide` = csv of top-level keys to
+    drop so nothing lands in the panel's JSON expander."""
     return {
         'id': item_id, 'index': index, 'type': 'component',
         'rowSegmentsUsed': segments, 'gridColumnStart': None,
         'title': title, 'visible': True, 'collapsed': False,
         'cssClass': '',
         'componentProps': {
-            'componentName': 'api-json-panel',
-            'inputs': {'path': path},
+            'componentName': 'api-structured-panel',
+            'inputs': {'path': path, 'pick': pick, 'hideKeys': hide,
+                       'title': ''},
         },
         'item': None, 'nestedRows': [],
     }
@@ -301,26 +308,39 @@ SEED_CLIMATE_PAGE_DISPLAYS = [{
     'pageRoute': 'co2/health',
     'linkedSolutions': '[]',
     'definition': json.dumps({'rows': [
+        # Every panel below is the STRUCTURED reading: the study
+        # index as a table of sections, the crossing tables picked
+        # out of their kv wrappers, the grade/kind roll-up dicts
+        # (dict -> list, the JSON-expander shape) hidden.
         _row(0, [
-            _api('co2h-study', 0, 12,
-                 'CO2 and human health - the study',
-                 '/api/climate/view/view-co2-health'),
+            _sapi('co2h-study', 0, 12,
+                  'CO2 and human health - the study (sections, '
+                  'their sources and leads)',
+                  '/api/climate/view/view-co2-health'),
         ], min_height=640),
         _row(1, [
-            _api('co2h-crossings', 0, 6,
-                 'When each threshold arrives, indoors and out',
-                 '/api/climate/crossings'),
-            _api('co2h-thresholds', 1, 6,
-                 'Health thresholds, graded by evidence',
-                 '/api/climate/thresholds'),
+            _sapi('co2h-crossings', 0, 4,
+                  'When each threshold arrives per room (coupled: '
+                  'outdoor fit + indoor offset)',
+                  '/api/climate/crossings', pick='coupled.rows'),
+            _sapi('co2h-crossings-outdoor', 1, 4,
+                  'When each threshold arrives outdoors (per fit)',
+                  '/api/climate/crossings', pick='outdoor.crossings'),
+            _sapi('co2h-thresholds', 2, 4,
+                  'Health thresholds, graded by evidence',
+                  '/api/climate/thresholds', pick='thresholds'),
         ]),
         _row(2, [
-            _api('co2h-history', 0, 6,
-                 'What CO2 humans actually lived in',
-                 '/api/climate/history'),
-            _api('co2h-sources', 1, 6,
-                 'Sources and coverage spans',
-                 '/api/climate/sources'),
+            _sapi('co2h-history', 0, 4,
+                  'What CO2 humans actually lived in - per era',
+                  '/api/climate/history', pick='eras.eras'),
+            _sapi('co2h-history-range', 1, 4,
+                  'Outside the experienced range? (record vs '
+                  'present) + the cognition question',
+                  '/api/climate/history', hide='eras'),
+            _sapi('co2h-sources', 2, 4,
+                  'Sources and coverage spans',
+                  '/api/climate/sources', pick='sources'),
         ]),
         _row(3, [
             _table('co2h-series', 0, 6, 'Series',
@@ -352,29 +372,40 @@ SEED_CLIMATE_ERA_DISPLAYS = [{
     'isPage': True, 'pageRoute': 'co2/eras',
     'linkedSolutions': '[]',
     'definition': json.dumps({'rows': [
+        # the settings payload nests its three ladders one level
+        # down (indoor.spaces / outdoor.settings / the era exposure
+        # verdict) — one panel each, so each renders as a table.
         _row(0, [
-            _api('co2e-scenarios', 0, 12,
-                 'Historical, modern and future - one ladder, '
-                 'three eras, decreasing confidence',
-                 '/api/climate/settings')]),
+            _sapi('co2e-scenarios', 0, 4,
+                  'Indoors: the room ladder against the thresholds',
+                  '/api/climate/settings', pick='indoor.spaces'),
+            _sapi('co2e-scenarios-outdoor', 1, 4,
+                  'Outdoors: historical, modern and future - one '
+                  'ladder, three eras, decreasing confidence',
+                  '/api/climate/settings', pick='outdoor.settings'),
+            _sapi('co2e-eras-exposure', 2, 4,
+                  'Era exposure: background, band, and what was '
+                  'worse in the past',
+                  '/api/climate/settings',
+                  hide='outdoor,indoor,observedLevels')]),
         _row(1, [
-            _api('co2e-claims', 0, 6,
-                 'Every number, classified: measured, cited, '
-                 'derived, or OUR MODEL',
-                 '/api/climate/claims'),
-            _api('co2e-symptoms', 1, 6,
-                 'The cited symptom ladder, from headache to the '
-                 'levels that kill',
-                 '/api/climate/symptoms')]),
+            _sapi('co2e-claims', 0, 6,
+                  'Every number, classified: measured, cited, '
+                  'derived, or OUR MODEL',
+                  '/api/climate/claims', pick='claims'),
+            _sapi('co2e-symptoms', 1, 6,
+                  'The cited symptom ladder, from headache to the '
+                  'levels that kill',
+                  '/api/climate/symptoms', pick='ladder')]),
         _row(2, [
-            _api('co2e-biochem', 0, 6,
-                 'Chemical imbalances: bicarbonate against '
-                 'calcium and measured blood pressure',
-                 '/api/climate/biochemistry'),
-            _api('co2e-citations', 1, 6,
-                 'Sources, graded - study vs standard vs '
-                 'credentialed press',
-                 '/api/climate/citations')]),
+            _sapi('co2e-biochem', 0, 6,
+                  'Chemical imbalances: bicarbonate against '
+                  'calcium and measured blood pressure',
+                  '/api/climate/biochemistry'),
+            _sapi('co2e-citations', 1, 6,
+                  'Sources, graded - study vs standard vs '
+                  'credentialed press',
+                  '/api/climate/citations', pick='thresholds')]),
         _row(3, [
             _table('co2e-spans', 0, 6,
                    'Which source covers which years',

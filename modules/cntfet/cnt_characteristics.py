@@ -13,7 +13,9 @@ GraphDefinition (or an API panel, or a sim-space scene) and a
 device-relative dataPath template, plus WHY that view is the one to
 look at. Nothing here renders: the explorer (fv-5) and the per-device
 detail page resolve `{device}` and hand the paths to the existing
-named-graph-panel / api-json-panel / sim-space components.
+named-graph-panel / api-structured-panel / sim-space components
+(report views carry `pick` / `hideKeys` so no JSON reaches the
+screen).
 
 Honesty: a view whose graph is not (yet) seeded on this node is
 reported `status: 'unbuilt'` with the phase that owns it — a
@@ -86,9 +88,15 @@ def _graph(graph, curve, title, why, extra=''):
             'title': title, 'why': why}
 
 
-def _api(path, title, why):
-    return {'kind': 'api', 'componentName': 'api-json-panel',
+def _api(path, title, why, pick='', hide=''):
+    """A report view: the STRUCTURED reading of the device's GET
+    payload (chips / prose / tables / key-value — never a JSON
+    wall). `pick` = dot-path to render; `hide` = csv of keys to
+    drop so nothing lands in the panel's JSON expander (an empty
+    `refusals` dict is that shape)."""
+    return {'kind': 'api', 'componentName': 'api-structured-panel',
             'dataPath': '/api/cntfet/device/{device}' + path,
+            'pick': pick, 'hideKeys': hide,
             'title': title, 'why': why}
 
 
@@ -197,7 +205,7 @@ SEED_FET_CHARACTERISTICS = [
                'the subthreshold decade band on Id(Vg)',
                'the slope IS the swing'),
         _api('/score', 'score: SS vs its ideal',
-             'distance to the 59.5 mV/dec floor')],
+             'distance to the 59.5 mV/dec floor', pick='idealTable')],
        states=('off',), terms=('fet-ss',), cites=('[VS1]',)),
     _c('threshold-voltage', 'Threshold voltage', 4, 'switching',
        'The gate voltage at which the barrier collapses: '
@@ -239,7 +247,7 @@ SEED_FET_CHARACTERISTICS = [
                'Id(Vg) with the stochastic envelope',
                'shows how the ratio spreads across the process'),
         _api('/score?samples=100', 'score + MC best/worst',
-             'the decades term and its spread')],
+             'the decades term and its spread', hide='refusals')],
        states=('off', 'on-saturation'), terms=('fet-on-off-decades',),
        cites=('[VS1]',)),
     _c('transconductance', 'Transconductance gm', 7, 'switching',
@@ -253,7 +261,8 @@ SEED_FET_CHARACTERISTICS = [
                'the exponent curve (gm/Id ∝ m/Vov)',
                'm and Vov set gm/Id'),
         _api('/characterization', 'characterization: gm_peak',
-             'the measured peak and where')],
+             'the measured peak and where', pick='metrics',
+             hide='refusals')],
        terms=('fet-gm-over-g0',), cites=('[FC10]', '[LUN97]')),
     _c('on-conductance', 'On-conductance g_on vs 0.7·G0', 8,
        'switching',
@@ -455,7 +464,7 @@ SEED_FET_CHARACTERISTICS = [
         _graph('cnt-device-compare', 'compare',
                'this FET vs every FET', 'the ranking'),
         _api('/score?samples=100', 'score + validity proofs',
-             'the numbers')],
+             'the numbers', hide='refusals')],
        terms=tuple()),
 ]
 

@@ -75,6 +75,15 @@ def publish_crude_change(manager, class_name, operation, instance_ids,
     identical to the historical polariCRUDE._notify_ws_subscribers,
     now routed through the MUX. Never raises (failure-isolated at the
     caller too, belt and braces)."""
+    # cal-2: OBJECT triggers ride this one lifecycle hook — every
+    # CRUDE create/update/delete reaches EventTrigger rows here.
+    # Never raises (the dispatcher is failure-isolated itself).
+    try:
+        from polariNoCode.event_dispatcher import dispatch_object_change
+        dispatch_object_change(manager, class_name, operation, instance_ids)
+    except Exception as e:
+        print(f'[transport_mux] event dispatch failed for {class_name}: {e}',
+              flush=True)
     typing = (getattr(manager, 'objectTypingDict', None)
               or {}).get(class_name)
     format_config = getattr(typing, 'apiFormatConfig', None)

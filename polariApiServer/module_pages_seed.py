@@ -6,9 +6,13 @@ frontend surface (FRONTEND_WORK_MAP.md section B3, Dustin 2026-07-16:
 "build out UIs for ones that do not have UIs yet, no-code based
 primarily if at all possible"). Every page here is PURE DATA — rows of
 the two generic registered components (class-rows-table /
-api-json-panel, see polari-platform-angular
+api-structured-panel, see polari-platform-angular
 components/dashboard/generic/) — so future module pages need a seed
-row, not Angular work.
+row, not Angular work. No api-json-panel (Dustin: "there should not
+be any json showing on the screens, everything should be configured
+tables, graphs, or visualizations"): every GET payload reads through
+the STRUCTURED panel, with `pick`/`hide` tuned per path so nothing
+lands in its JSON expander.
 
 Routes land at /display/<pageRoute> (the aquaponics pot-geometry
 pattern). Detail panels point at the modules' seeded demo rows
@@ -49,6 +53,27 @@ def _api(item_id, index, segments, title, path):
     }
 
 
+def _sapi(item_id, index, segments, title, path, pick='', hide=''):
+    """A GET payload through the generic STRUCTURED reading (chips /
+    prose / tables / key-value) — never a JSON wall (Dustin: "there
+    should not be any json showing on the screens"). `pick` = dot-path
+    into the payload to render instead of the whole; `hide` = csv of
+    top-level keys to drop — tuned per path so no key is left for the
+    panel's JSON expander (dict-of-dicts and empty dicts land there)."""
+    return {
+        'id': item_id, 'index': index, 'type': 'component',
+        'rowSegmentsUsed': segments, 'gridColumnStart': None,
+        'title': title, 'visible': True, 'collapsed': False,
+        'cssClass': '',
+        'componentProps': {
+            'componentName': 'api-structured-panel',
+            'inputs': {'path': path, 'pick': pick, 'hideKeys': hide,
+                       'title': ''},
+        },
+        'item': None, 'nestedRows': [],
+    }
+
+
 def _row(index, items, min_height=320):
     return {
         'index': index, 'rowSegments': 12,
@@ -83,12 +108,21 @@ SEED_MODULE_PAGE_DISPLAYS = [
                        'DietaryNutrient'),
             ]),
             _row(1, [
-                _api('nutrition-person-needs', 0, 6,
-                     'Daily needs — demo-alex',
-                     '/api/nutrition/persons/demo-alex/needs'),
-                _api('nutrition-household-needs', 1, 6,
-                     'Household needs — demo-household',
-                     '/api/nutrition/households/demo-household/needs'),
+                # /persons/{name}/needs is POST-only (405 on GET) —
+                # the GET surface for one person's daily needs is the
+                # thresholds report: calorie target + DGA limits +
+                # AMDR tables (the per-nutrient map is on the profile
+                # page).
+                _sapi('nutrition-person-needs', 0, 6,
+                      'Daily needs — demo-alex (calorie target, DGA '
+                      'limits, AMDR)',
+                      '/api/nutrition/persons/demo-alex/thresholds'
+                      '?period=day', hide='thresholds'),
+                _sapi('nutrition-household-needs', 1, 6,
+                      'Household needs — demo-household (week totals '
+                      'per nutrient)',
+                      '/api/nutrition/households/demo-household/needs',
+                      pick='totals'),
             ]),
         ]),
     # ── nmp-8: the meal-planning pages (all pure data) ────────
@@ -102,23 +136,33 @@ SEED_MODULE_PAGE_DISPLAYS = [
         [
             _row(0, [
                 _table('nmp-profiles', 0, 6, 'People', 'PersonProfile'),
-                _api('nmp-obesity', 1, 6,
-                     'Obesity screening — demo-alex',
-                     '/api/nutrition/persons/demo-alex/obesity'),
+                _sapi('nmp-obesity', 1, 6,
+                      'Obesity screening — demo-alex (with caveats)',
+                      '/api/nutrition/persons/demo-alex/obesity'),
             ]),
             _row(1, [
-                _api('nmp-envelope', 0, 6,
-                     'Calorie envelope + slot bands — demo-alex',
-                     '/api/nutrition/persons/demo-alex/envelope'),
-                _api('nmp-thresholds', 1, 6,
-                     'Thresholds (day) — demo-alex',
-                     '/api/nutrition/persons/demo-alex/thresholds'),
+                _sapi('nmp-envelope', 0, 4,
+                      'Calorie envelope + slot bands — demo-alex',
+                      '/api/nutrition/persons/demo-alex/envelope'),
+                # the per-nutrient map is {nutrient: {min,max,…}} —
+                # picked, every nutrient renders as its own key/value
+                # block; the day-level limits ride beside it.
+                _sapi('nmp-thresholds', 1, 4,
+                      'Thresholds (day) — demo-alex, per nutrient',
+                      '/api/nutrition/persons/demo-alex/thresholds',
+                      pick='thresholds'),
+                _sapi('nmp-thresholds-limits', 2, 4,
+                      'Thresholds (day) — demo-alex: calorie target, '
+                      'DGA limits, AMDR',
+                      '/api/nutrition/persons/demo-alex/thresholds',
+                      hide='thresholds'),
             ]),
             _row(2, [
-                _api('nmp-trajectory', 0, 12,
-                     'Weight trajectory (Hall model; own profile '
-                     'only by default)',
-                     '/api/nutrition/persons/demo-alex/trajectory'),
+                _sapi('nmp-trajectory', 0, 12,
+                      'Weight trajectory (Hall model; own profile '
+                      'only by default) — projection, band, '
+                      'observations',
+                      '/api/nutrition/persons/demo-alex/trajectory'),
             ]),
         ]),
     _page(
@@ -135,14 +179,21 @@ SEED_MODULE_PAGE_DISPLAYS = [
                        'VariationDefinition'),
             ]),
             _row(1, [
-                _api('nmp-template-gate', 0, 6,
-                     'The authoring gate — chicken-bowl-dinner',
-                     '/api/nutrition/templates/chicken-bowl-dinner'
-                     '/validate'),
-                _api('nmp-template-rollup', 1, 6,
-                     'Per-meal rollup — chicken-bowl-dinner',
-                     '/api/nutrition/templates/chicken-bowl-dinner'
-                     '/rollup'),
+                _sapi('nmp-template-gate', 0, 4,
+                      'The authoring gate — chicken-bowl-dinner '
+                      '(refusals, warnings, named gaps)',
+                      '/api/nutrition/templates/chicken-bowl-dinner'
+                      '/validate'),
+                _sapi('nmp-template-rollup', 1, 4,
+                      'Per-meal rollup — chicken-bowl-dinner, per '
+                      'nutrient',
+                      '/api/nutrition/templates/chicken-bowl-dinner'
+                      '/rollup', pick='perMeal'),
+                _sapi('nmp-template-gl', 2, 4,
+                      'Glycemic load — chicken-bowl-dinner (foods '
+                      'without a GI named)',
+                      '/api/nutrition/templates/chicken-bowl-dinner'
+                      '/rollup', hide='perMeal'),
             ]),
             _row(2, [
                 _table('nmp-plans', 0, 6, 'Meal plans',
@@ -164,13 +215,19 @@ SEED_MODULE_PAGE_DISPLAYS = [
                        'IngredientLine'),
             ]),
             _row(1, [
-                _api('nmp-recipe-nutrition', 0, 6,
-                     'Per-serving label — chicken-rice-bowl',
-                     '/api/nutrition/recipes/chicken-rice-bowl'
-                     '/nutrition'),
-                _api('nmp-tolerances', 1, 6,
-                     'Tolerance table (cited, confidence-graded)',
-                     '/api/nutrition/tolerances'),
+                _sapi('nmp-recipe-nutrition', 0, 4,
+                      'Per-serving label — chicken-rice-bowl, per '
+                      'nutrient (raw-vs-cooked provenance)',
+                      '/api/nutrition/recipes/chicken-rice-bowl'
+                      '/nutrition', pick='perServing'),
+                _sapi('nmp-recipe-lines', 1, 4,
+                      'Recipe lines — chicken-rice-bowl (mass, '
+                      'retention method per line)',
+                      '/api/nutrition/recipes/chicken-rice-bowl'
+                      '/nutrition', hide='perServing,total'),
+                _sapi('nmp-tolerances', 2, 4,
+                      'Tolerance table (cited, confidence-graded)',
+                      '/api/nutrition/tolerances', pick='tolerances'),
             ]),
         ]),
     _page(
@@ -188,12 +245,14 @@ SEED_MODULE_PAGE_DISPLAYS = [
                        'ActivityLog'),
             ]),
             _row(1, [
-                _api('nmp-activity-week', 0, 6,
-                     'Logged week — demo-alex',
-                     '/api/nutrition/persons/demo-alex/activity-week'),
-                _api('nmp-fasted', 1, 6,
-                     'Fasted exercise — honestly',
-                     '/api/nutrition/fasted-exercise'),
+                _sapi('nmp-activity-week', 0, 6,
+                      'Logged week — demo-alex (minutes by band, '
+                      'sessions, kcal)',
+                      '/api/nutrition/persons/demo-alex/activity-week'),
+                _sapi('nmp-fasted', 1, 6,
+                      'Fasted exercise — honestly (does / does not '
+                      'do, caveats, citations)',
+                      '/api/nutrition/fasted-exercise'),
             ]),
         ]),
     _page(
@@ -204,18 +263,24 @@ SEED_MODULE_PAGE_DISPLAYS = [
         'GardenPlanDefinition',
         [
             _row(0, [
-                _table('nmp-gardens', 0, 6, 'Garden plans',
+                _table('nmp-gardens', 0, 4, 'Garden plans',
                        'GardenPlanDefinition'),
-                _api('nmp-coverage', 1, 6,
-                     'Coverage — starter-garden (week)',
-                     '/api/nutrition/garden-plans/starter-garden'
-                     '/coverage'),
+                _sapi('nmp-coverage', 1, 4,
+                      'Coverage — starter-garden (week), per nutrient',
+                      '/api/nutrition/garden-plans/starter-garden'
+                      '/coverage', pick='coverage'),
+                _sapi('nmp-coverage-harvests', 2, 4,
+                      'Coverage — starter-garden: harvests + the '
+                      'limiting nutrient',
+                      '/api/nutrition/garden-plans/starter-garden'
+                      '/coverage', hide='coverage'),
             ]),
             _row(1, [
-                _api('nmp-garden-suggest', 0, 12,
-                     'Planting suggestions (arithmetic shown)',
-                     '/api/nutrition/garden-plans/starter-garden'
-                     '/suggest'),
+                _sapi('nmp-garden-suggest', 0, 12,
+                      'Planting suggestions (arithmetic shown) + '
+                      'uncoverable nutrients and their real source',
+                      '/api/nutrition/garden-plans/starter-garden'
+                      '/suggest'),
             ]),
         ]),
     _page(
@@ -232,14 +297,16 @@ SEED_MODULE_PAGE_DISPLAYS = [
                        'CompostBinDefinition'),
             ]),
             _row(1, [
-                _api('vc-compare', 0, 6,
-                     'Mode comparison — basil-loop-direct',
-                     '/api/aquaponics/compost-loops/basil-loop-direct/'
-                     'compare-modes'),
-                _api('vc-enriched', 1, 6,
-                     'Enriched water — basil-loop-direct',
-                     '/api/aquaponics/compost-loops/basil-loop-direct/'
-                     'enriched-water'),
+                _sapi('vc-compare', 0, 6,
+                      'Mode comparison — basil-loop-direct (direct vs '
+                      'periodic, recommendation + why)',
+                      '/api/aquaponics/compost-loops/basil-loop-direct/'
+                      'compare-modes'),
+                _sapi('vc-enriched', 1, 6,
+                      'Enriched water — basil-loop-direct (base / '
+                      'uplift / enriched mg per L)',
+                      '/api/aquaponics/compost-loops/basil-loop-direct/'
+                      'enriched-water'),
             ]),
         ]),
     _page(
@@ -255,12 +322,14 @@ SEED_MODULE_PAGE_DISPLAYS = [
                        'TankSubstrateDefinition'),
             ]),
             _row(1, [
-                _api('tanks-balance', 0, 6,
-                     'Balance — saltwater-food-forest',
-                     '/api/tanks/systems/saltwater-food-forest/balance'),
-                _api('tanks-yield', 1, 6,
-                     'Yield — saltwater-food-forest',
-                     '/api/tanks/systems/saltwater-food-forest/yield'),
+                _sapi('tanks-balance', 0, 6,
+                      'Balance — saltwater-food-forest (N/P per day, '
+                      'substrate beds, roles present)',
+                      '/api/tanks/systems/saltwater-food-forest/balance'),
+                _sapi('tanks-yield', 1, 6,
+                      'Yield — saltwater-food-forest (per species + '
+                      'nutrients supplied)',
+                      '/api/tanks/systems/saltwater-food-forest/yield'),
             ]),
         ]),
     _page(
@@ -278,9 +347,10 @@ SEED_MODULE_PAGE_DISPLAYS = [
             _row(1, [
                 _table('bm-systems', 0, 6, 'Biomine systems',
                        'BiomineSystemDefinition'),
-                _api('bm-yield', 1, 6,
-                     'Yield — iron-ferrite-biomine',
-                     '/api/biomining/systems/iron-ferrite-biomine/yield'),
+                _sapi('bm-yield', 1, 6,
+                      'Yield — iron-ferrite-biomine (per agent, '
+                      'refined product)',
+                      '/api/biomining/systems/iron-ferrite-biomine/yield'),
             ]),
         ]),
     _page(
@@ -297,14 +367,14 @@ SEED_MODULE_PAGE_DISPLAYS = [
                        'AlgaeReactorDefinition'),
             ]),
             _row(1, [
-                _api('ma-sustainability', 0, 6,
-                     'Sustainability — chlorella-hydro-reactor',
-                     '/api/microalgae/reactors/chlorella-hydro-reactor/'
-                     'sustainability'),
-                _api('ma-decarb', 1, 6,
-                     'Decarbonization — chlorella-hydro-reactor',
-                     '/api/microalgae/reactors/chlorella-hydro-reactor/'
-                     'decarbonization'),
+                _sapi('ma-sustainability', 0, 6,
+                      'Sustainability — chlorella-hydro-reactor',
+                      '/api/microalgae/reactors/chlorella-hydro-reactor/'
+                      'sustainability'),
+                _sapi('ma-decarb', 1, 6,
+                      'Decarbonization — chlorella-hydro-reactor',
+                      '/api/microalgae/reactors/chlorella-hydro-reactor/'
+                      'decarbonization'),
             ]),
         ]),
     _page(
@@ -316,8 +386,9 @@ SEED_MODULE_PAGE_DISPLAYS = [
             _row(0, [
                 _table('wax-sources', 0, 7, 'Wax sources',
                        'WaxSourceDefinition'),
-                _api('wax-for-use', 1, 5, 'Suitability by use',
-                     '/api/wax/for-use'),
+                _sapi('wax-for-use', 1, 5,
+                      'Suitability by use (ranked; recommended)',
+                      '/api/wax/for-use'),
             ]),
         ]),
     _page(
@@ -331,17 +402,24 @@ SEED_MODULE_PAGE_DISPLAYS = [
                 _table('sc-flows', 1, 6, 'Supply flows', 'SupplyFlow'),
             ]),
             _row(1, [
-                _api('sc-inventory', 0, 4,
-                     'Inventory — household-bio-chain',
-                     '/api/supplychain/chains/household-bio-chain/'
-                     'inventory'),
-                _api('sc-carbon', 1, 4,
-                     'Carbon — household-bio-chain',
-                     '/api/supplychain/chains/household-bio-chain/carbon'),
-                _api('sc-deps', 2, 4,
-                     'Dependencies — household-bio-chain',
-                     '/api/supplychain/chains/household-bio-chain/'
-                     'dependencies'),
+                # inventory: the per-resource rate maps are dict-of-
+                # dicts ({resource: {ratePerYear, unit}}) — the JSON-
+                # expander shape — so they are hidden; the counts and
+                # the per-module roll-up render. Flattening those maps
+                # into record rows is an API follow-up (chain_analysis).
+                _sapi('sc-inventory', 0, 4,
+                      'Inventory — household-bio-chain (counts, '
+                      'nodes per module)',
+                      '/api/supplychain/chains/household-bio-chain/'
+                      'inventory', hide='materials,foods,carbon,nutrients'),
+                _sapi('sc-carbon', 1, 4,
+                      'Carbon — household-bio-chain (contributions, '
+                      'net sink verdict)',
+                      '/api/supplychain/chains/household-bio-chain/carbon'),
+                _sapi('sc-deps', 2, 4,
+                      'Dependencies — household-bio-chain',
+                      '/api/supplychain/chains/household-bio-chain/'
+                      'dependencies'),
             ]),
         ]),
     _page(
@@ -357,13 +435,14 @@ SEED_MODULE_PAGE_DISPLAYS = [
                        'RootSystemModel'),
             ]),
             _row(1, [
-                _api('morph-geometry', 0, 6,
-                     'Geometry — sweet-basil',
-                     '/api/morphology/plants/sweet-basil/geometry'),
-                _api('morph-confinement', 1, 6,
-                     'Confinement — sweet-basil in demo-herb-pot',
-                     '/api/morphology/plants/sweet-basil/confinement'
-                     '?pot=demo-herb-pot'),
+                _sapi('morph-geometry', 0, 6,
+                      'Geometry — sweet-basil (per organ, canopy '
+                      'envelope)',
+                      '/api/morphology/plants/sweet-basil/geometry'),
+                _sapi('morph-confinement', 1, 6,
+                      'Confinement — sweet-basil in demo-herb-pot',
+                      '/api/morphology/plants/sweet-basil/confinement'
+                      '?pot=demo-herb-pot'),
             ]),
         ]),
     _page(
@@ -392,19 +471,20 @@ SEED_MODULE_PAGE_DISPLAYS = [
                 _table('zones-points', 0, 6, 'Placed points',
                        'ZonePoint',
                        'zone_name,index,kind,x,y,z,confidence', 60),
-                _api('zones-site-summary', 1, 6,
-                     'House summary — demo-house (0.25 m cubes)',
-                     '/api/sites/demo-house/summary?cube_size_m=0.25'),
+                _sapi('zones-site-summary', 1, 6,
+                      'House summary — demo-house (0.25 m cubes; '
+                      'rooms + totals)',
+                      '/api/sites/demo-house/summary?cube_size_m=0.25'),
             ]),
             _row(3, [
-                _api('zones-room-summary', 0, 6,
-                     'Room summary — demo-room-zone (room volume vs '
-                     'selected volumes)',
-                     '/api/zones/demo-room-zone/room-summary'
-                     '?cube_size_m=0.25'),
-                _api('zones-air-estimate', 1, 6,
-                     'Estimate — demo-air-shape (direct-3D hull)',
-                     '/api/zones/demo-air-shape/estimate'),
+                _sapi('zones-room-summary', 0, 6,
+                      'Room summary — demo-room-zone (room volume vs '
+                      'selected volumes, per selection)',
+                      '/api/zones/demo-room-zone/room-summary'
+                      '?cube_size_m=0.25', pick='selections'),
+                _sapi('zones-air-estimate', 1, 6,
+                      'Estimate — demo-air-shape (direct-3D hull)',
+                      '/api/zones/demo-air-shape/estimate'),
             ]),
         ]),
     _page(

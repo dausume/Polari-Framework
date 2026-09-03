@@ -30,6 +30,15 @@ from polariApiServer.modulesAPI import ModulesAPI
 from polariApiServer.displayDefinition import DisplayDefinition
 from polariApiServer.tableDefinition import TableDefinition
 from polariApiServer.graphDefinition import GraphDefinition
+# cal-1: calendars + events as base definitions (event definitions
+# tie a class's temporal fields to events; calendars compose them;
+# CalendarEvent is the generic event; triggers are the no-code hook).
+from polariApiServer.eventDefinition import EventDefinition
+from polariApiServer.calendarDefinition import CalendarDefinition
+from polariApiServer.calendarEvent import CalendarEvent
+from polariNoCode.event_triggers import EventTrigger, TriggerFiring
+from polariNoCode.calendar_events import SEED_CORE_EVENT_DEFINITIONS
+from polariNoCode.analysis_calls import AnalysisDefinition
 from polariApiServer.geoJsonDefinition import GeoJsonDefinition
 from polariApiServer.dataSetDefinition import DataSetDefinition
 from polariApiServer.fieldProfileDefinition import FieldProfileDefinition
@@ -645,6 +654,18 @@ except ImportError as _exc:
         'SEED_ENRICH_CONTEXTUALIZED_VALUES', 'SEED_ENRICH_SCORE_CONCEPTS', 'SEED_ENRICH_SCORE_SUBJECTS', 'SEED_ENRICH_SCORE_TERMS',
         'SEED_VERMICOMPOST_PROFILES', 'PlantGrowthModel', 'SEED_PLANT_GROWTH_MODELS',
     ))
+# household (hh-1): the household layer the meal-logistics round
+# built — schedules + sleep, members + work shares + ledger, skills +
+# safety + duration observations, dish strategies — one registration
+# list (names unchanged on the move; nutrition requires it).
+try:
+    from household.household_basis import (
+        HOUSEHOLD_CLASSES, HOUSEHOLD_SEED_PAIRS,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('household', _exc, globals(), (
+        'HOUSEHOLD_CLASSES', 'HOUSEHOLD_SEED_PAIRS',
+    ))
 # Nutrition: dietary-nutrient vocab + person + household profiling
 # (nut-1/3/4).
 try:
@@ -716,11 +737,25 @@ try:
         SEED_UNIT_WEIGHTS,
     )
     from nutrition.pantry_basis import PantryItem, SEED_PANTRY_ITEMS
+    # cal-4: long-shelf-life staples bought in bulk on a cadence.
+    from nutrition.purchase_basis import BulkStaple, SEED_BULK_STAPLES
+    # mlg-3: the MEAL-specific logistics rows (situations, per-entry
+    # logistics, eating-time profiles); the household half moved to
+    # household.household_basis (hh-1).
+    from nutrition.logistics_basis import (
+        LOGISTICS_CLASSES, LOGISTICS_SEED_PAIRS,
+    )
+    # hh-1: importing the meal analyses registers the MEAL step
+    # builders (pre-prep / meal-prep / packing) with household's
+    # assign_work, so `household.household_analysis:assign_work`
+    # called from a trigger allocates meal events before any
+    # nutrition surface has imported them.
+    from nutrition.logistics_analysis import MEAL_STEP_BUILDERS
     from nutrition.account_basis import (
         UserAccountLink, SEED_USER_ACCOUNT_LINKS,
     )
     from nutrition.intake_basis import (
-        IntakeRecord, DailyIntakeMetric, SEED_INTAKE_RECORDS,
+        IntakeRecord, DailyIntakeMetric, PeriodIntakeMetric, SEED_INTAKE_RECORDS,
     )
     # mpb-1/2/3: exclusions, stated-condition steering, budget.
     from nutrition.exclusion_basis import (
@@ -766,8 +801,11 @@ except ImportError as _exc:
         'SourceLocation', 'PriceObservation', 'UnitWeightPrior',
         'SEED_SOURCE_LOCATIONS', 'SEED_PRICE_OBSERVATIONS',
         'SEED_UNIT_WEIGHTS', 'PantryItem', 'SEED_PANTRY_ITEMS',
+        'BulkStaple', 'SEED_BULK_STAPLES',
+        'LOGISTICS_CLASSES', 'LOGISTICS_SEED_PAIRS',
+        'MEAL_STEP_BUILDERS',
         'UserAccountLink', 'SEED_USER_ACCOUNT_LINKS',
-        'IntakeRecord', 'DailyIntakeMetric', 'SEED_INTAKE_RECORDS',
+        'IntakeRecord', 'DailyIntakeMetric', 'PeriodIntakeMetric', 'SEED_INTAKE_RECORDS',
         'SEED_WEIGHT_OBSERVATIONS',
         'FoodAllergenFlag', 'PersonExclusion',
         'SEED_FOOD_ALLERGEN_FLAGS', 'SEED_PERSON_EXCLUSIONS',
@@ -1473,52 +1511,66 @@ except ImportError as _exc:
         'CNTCellDefinition', 'SEED_CNT_CELLS',
         'SEED_CNTFET_FIGURE_GRAPHS', 'SEED_CNT_DEVICE_GRAPHS',
         'FETOperatingState', 'SEED_FET_STATES',
-        'SEED_FET_SCORE_CONCEPTS', 'SEED_FET_SCORE_TERMS',
-        'SEED_FET_SCORE_SUBJECTS', 'SEED_FET_SCORE_VALUES',
-        'SEED_CELL_SCORE_CONCEPTS', 'SEED_CELL_SCORE_TERMS',
-        'SEED_CELL_SCORE_SUBJECTS', 'SEED_CNT_SCORE_PAGES',
+        'SEED_FET_SCORE_CONCEPTS', 'SEED_FET_SCORE_TERMS', '_fet_score_subjects',
+        'SEED_CELL_SCORE_CONCEPTS', 'SEED_CELL_SCORE_TERMS', '_cell_score_subjects',
+        '_cnt_score_pages',
     ))
+    # Derived (not imported) seed tables — empty when cntfet is absent.
+    SEED_FET_SCORE_SUBJECTS = SEED_FET_SCORE_VALUES = []
+    SEED_CELL_SCORE_SUBJECTS = SEED_CNT_SCORE_PAGES = []
 # fv arc (FET_VIEWS_PLAN): each phase module is guarded SEPARATELY so
 # an absent phase never stubs the whole cntfet feature.
 try:
     from cntfet.cnt_regimes import FETRegime, SEED_FET_REGIMES
-except ImportError:
-    FETRegime, SEED_FET_REGIMES = None, []
+except ImportError as _exc:
+    _stub_missing_feature('cntfet', _exc, globals(), (
+        'FETRegime', 'SEED_FET_REGIMES',
+    ))
 try:
     from cntfet.cnt_characteristics import (
         FETCharacteristic, SEED_FET_CHARACTERISTICS,
     )
-except ImportError:
-    FETCharacteristic, SEED_FET_CHARACTERISTICS = None, []
+except ImportError as _exc:
+    _stub_missing_feature('cntfet', _exc, globals(), (
+        'FETCharacteristic', 'SEED_FET_CHARACTERISTICS',
+    ))
 try:
     from cntfet.cnt_transport import (
         ScatteringMechanism, TransportRegime,
         SEED_SCATTERING_MECHANISMS, SEED_TRANSPORT_REGIMES,
     )
-except ImportError:
-    ScatteringMechanism = TransportRegime = None
-    SEED_SCATTERING_MECHANISMS, SEED_TRANSPORT_REGIMES = [], []
+except ImportError as _exc:
+    _stub_missing_feature('cntfet', _exc, globals(), (
+        'ScatteringMechanism', 'TransportRegime',
+        'SEED_SCATTERING_MECHANISMS', 'SEED_TRANSPORT_REGIMES',
+    ))
 try:
     from cntfet.cnt_fields import (
         FETFieldBand, FETFieldSample, SEED_FET_FIELD_BANDS,
         SEED_FET_FIELD_MATERIALS_3D,
     )
-except ImportError:
-    FETFieldBand = FETFieldSample = None
-    SEED_FET_FIELD_BANDS, SEED_FET_FIELD_MATERIALS_3D = [], []
+except ImportError as _exc:
+    _stub_missing_feature('cntfet', _exc, globals(), (
+        'FETFieldBand', 'FETFieldSample', 'SEED_FET_FIELD_BANDS',
+        'SEED_FET_FIELD_MATERIALS_3D',
+    ))
 try:
     from cntfet.cnt_scene import (
         SEED_CNT_DEVICE_SCENES, SEED_FET_FIELD_BINDINGS,
     )
     SEED_CNT_DEVICE_SCENE_ROWS = SEED_CNT_DEVICE_SCENES(
         [d['name'] for d in (SEED_CNT_DEVICES or [])])
-except (ImportError, TypeError):
-    SEED_CNT_DEVICE_SCENE_ROWS, SEED_FET_FIELD_BINDINGS = [], []
+except (ImportError, TypeError) as _exc:
+    _stub_missing_feature('cntfet', _exc, globals(), (
+        'SEED_CNT_DEVICE_SCENES', 'SEED_FET_FIELD_BINDINGS',
+    ))
+    SEED_CNT_DEVICE_SCENE_ROWS = []  # derived, not imported
 try:
     from cntfet.cnt_device_viz import extra_graph_seeds as _cnt_fv_graphs
     SEED_CNT_FV_GRAPHS = _cnt_fv_graphs()
-except ImportError:
-    SEED_CNT_FV_GRAPHS = []
+except ImportError as _exc:
+    _stub_missing_feature('cntfet', _exc, globals(), ('_cnt_fv_graphs',))
+    SEED_CNT_FV_GRAPHS = []  # derived, not imported
 # fp arc (FET_CELL_POWER_SILICON_PLAN) — guarded per module.
 try:
     from cntfet.cnt_taxonomy import (
@@ -1527,26 +1579,31 @@ try:
         SEED_FET_SHAPE_TYPES, SEED_SIGNAL_SCORE_CONCEPTS,
         SEED_SIGNAL_SCORE_TERMS,
     )
-except ImportError:
-    ComplementaryPair = FETOptimizationClass = FETShapeType = None
-    SEED_COMPLEMENTARY_PAIRS = SEED_FET_OPTIMIZATION_CLASSES = []
-    SEED_FET_SHAPE_TYPES = SEED_SIGNAL_SCORE_CONCEPTS = []
-    SEED_SIGNAL_SCORE_TERMS = []
+except ImportError as _exc:
+    _stub_missing_feature('cntfet', _exc, globals(), (
+        'ComplementaryPair', 'FETOptimizationClass', 'FETShapeType',
+        'SEED_COMPLEMENTARY_PAIRS', 'SEED_FET_OPTIMIZATION_CLASSES',
+        'SEED_FET_SHAPE_TYPES', 'SEED_SIGNAL_SCORE_CONCEPTS',
+        'SEED_SIGNAL_SCORE_TERMS',
+    ))
 try:
     from cntfet.cnt_power import (
         PowerBudget, SEED_POWER_BUDGETS, SEED_POWER_SCORE_TERMS,
     )
-except ImportError:
-    PowerBudget, SEED_POWER_BUDGETS, SEED_POWER_SCORE_TERMS = None, [], []
+except ImportError as _exc:
+    _stub_missing_feature('cntfet', _exc, globals(), (
+        'PowerBudget', 'SEED_POWER_BUDGETS', 'SEED_POWER_SCORE_TERMS',
+    ))
 try:
     from cntfet.cnt_targets import (
         DesignTarget, FETTargetMapping, SEED_DESIGN_TARGETS,
         SEED_FET_TARGET_MAPPINGS, SEED_TARGET_POWER_BUDGETS,
     )
-except ImportError:
-    DesignTarget = FETTargetMapping = None
-    SEED_DESIGN_TARGETS = SEED_FET_TARGET_MAPPINGS = []
-    SEED_TARGET_POWER_BUDGETS = []
+except ImportError as _exc:
+    _stub_missing_feature('cntfet', _exc, globals(), (
+        'DesignTarget', 'FETTargetMapping', 'SEED_DESIGN_TARGETS',
+        'SEED_FET_TARGET_MAPPINGS', 'SEED_TARGET_POWER_BUDGETS',
+    ))
 try:
     from sifet.si_basis import (
         SEED_TABLES as _SI_SEED_TABLES, SiliconDopingProfile,
@@ -1591,24 +1648,32 @@ except ImportError:
     SEED_SI_PAGE_DISPLAYS, SEED_SI_SCORE_PAGES = [], []
 try:
     from cntfet.cnt_ip import SEED_TECHNOLOGY_IP, TechnologyIPRecord
-except ImportError:
-    TechnologyIPRecord, SEED_TECHNOLOGY_IP = None, []
+except ImportError as _exc:
+    _stub_missing_feature('cntfet', _exc, globals(), (
+        'SEED_TECHNOLOGY_IP', 'TechnologyIPRecord',
+    ))
 try:
     from cntfet.cnt_evidence import EvidenceItem, SEED_EVIDENCE
-except ImportError:
-    EvidenceItem, SEED_EVIDENCE = None, []
+except ImportError as _exc:
+    _stub_missing_feature('cntfet', _exc, globals(), (
+        'EvidenceItem', 'SEED_EVIDENCE',
+    ))
 try:
     from cntfet.cnt_open_library import (
         OpenCellLibrary, SEED_OPEN_LIBRARIES, SEED_OPEN_LIBRARY_PAGES,
     )
-except ImportError:
-    OpenCellLibrary, SEED_OPEN_LIBRARIES, SEED_OPEN_LIBRARY_PAGES = None, [], []
+except ImportError as _exc:
+    _stub_missing_feature('cntfet', _exc, globals(), (
+        'OpenCellLibrary', 'SEED_OPEN_LIBRARIES', 'SEED_OPEN_LIBRARY_PAGES',
+    ))
 try:
     from cntfet.cnt_blocks import (
         FunctionalBlock, SEED_FUNCTIONAL_BLOCKS, SEED_BLOCK_PAGES,
     )
-except ImportError:
-    FunctionalBlock, SEED_FUNCTIONAL_BLOCKS, SEED_BLOCK_PAGES = None, [], []
+except ImportError as _exc:
+    _stub_missing_feature('cntfet', _exc, globals(), (
+        'FunctionalBlock', 'SEED_FUNCTIONAL_BLOCKS', 'SEED_BLOCK_PAGES',
+    ))
 # microchip: the design-level ladder + traversal (separable from the
 # device modules — references their rows, never imports their code).
 try:
@@ -1692,9 +1757,9 @@ except ImportError as _exc:
 # vermicompost, tanks, biomining, microalgae, wax, supply chain,
 # morphology, authority) — pure class-rows-table/api-json-panel data.
 from polariApiServer.module_pages_seed import SEED_MODULE_PAGE_DISPLAYS
-from polariApiServer.mealplan_pages_seed import (
-    SEED_MEALPLAN_GRAPHS, SEED_MEALPLAN_PAGE_DISPLAYS,
-)
+# (the meal-planning pages ride the UPSERT path — seed_mealplan_pages
+# in the display seed pass, beside seed_motors_pages — so their
+# tables/graphs/pages converge on edit instead of insert-by-name.)
 # The engine-model layer: the FEM/DFT catalog + the specialized
 # domain-shaped model definitions (msci-15).
 from materialsScience.engine_model_template import EngineModelTemplate
@@ -2061,6 +2126,27 @@ class polariServer(treeObject):
 
         # Create Solution Execution endpoint for running no-code solutions
         solutionExecEndpoint = SolutionExecutionAPI(polServer=self, manager=self.manager)
+
+        # cal-1: the calendar/event read surface (definitions,
+        # calendars resolved into events, schedule expansion, previews).
+        from polariApiServer.calendarAPI import CalendarAPI
+        calendarEndpoint = CalendarAPI(polServer=self, manager=self.manager)
+        # cal-2: schedule + window triggers need a clock — ONE tick
+        # thread (knob POLARI_EVENT_TICK_S, default 60; '0' disables,
+        # e.g. on replicas that share the core DB — D13).
+        import os as _os
+        try:
+            _tick = float(_os.environ.get('POLARI_EVENT_TICK_S', '60') or 0)
+        except ValueError:
+            _tick = 60.0
+        if _tick > 0:
+            from polariNoCode.event_dispatcher import start_tick_thread
+            if start_tick_thread(self.manager, _tick):
+                print(f'[EventDispatcher] tick thread started ({_tick:g}s)', flush=True)
+        else:
+            print('[EventDispatcher] tick disabled (POLARI_EVENT_TICK_S=0) — '
+                  'schedule/window triggers will not fire on this instance',
+                  flush=True)
 
         # Create Equation Execution endpoint for testing / running calculus equations
         equationExecEndpoint = EquationExecutionAPI(polServer=self, manager=self.manager)
@@ -2592,7 +2678,7 @@ class polariServer(treeObject):
         # these data-container classes so the frontend knows CRUDE is available.
         # Also pre-populate polyTypedVars from the class signature since there
         # are no instances at startup for runAnalysis() to inspect.
-        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition, CrystalStructureDefinition, ThermalProcessingProfile, CeramicSample, LadderRung, EvidenceMethod, PropertyClaim, StructureClaim, ValidationClaim, DigitizedDataset, MaterialState, ProcessingStage, ScaleStructureDefinition, ReactionWindow, MaterialProcessDefinition, MaterialProcessExecution, FoodDomainContract, FoodMaterial, ChemicalSpecies, ReactionRule, ScaleTransferDefinition, ExposureScenario, MaterialPerformanceScenario,
+        self.defClassList = [DisplayDefinition, TableDefinition, GraphDefinition, EventDefinition, CalendarDefinition, CalendarEvent, EventTrigger, TriggerFiring, AnalysisDefinition, GeoJsonDefinition, DataSetDefinition, FieldProfileDefinition, FilterChainDefinition, EquationDefinition, MatrixDefinition, MatrixEquationDefinition, TileSourceDefinition, GeocoderDefinition, SolutionDefinition, SolutionVersion, SolutionTestCase, ExecutionStepAssertion, SolutionProcessLink, MapPointDefinition, MapLineSegmentDefinition, MapPolygonDefinition, Role, SimSpaceDefinition, SimSpaceBindingDefinition, Shape2DDefinition, Style2DDefinition, Mesh3DDefinition, Material3DDefinition, Texture3DDefinition, MaterialPhaseAppearance, ChemicalElementDefinition, MaterialsScienceMaterial, MaterialScaleDefinition, CrystalStructureDefinition, ThermalProcessingProfile, CeramicSample, LadderRung, EvidenceMethod, PropertyClaim, StructureClaim, ValidationClaim, DigitizedDataset, MaterialState, ProcessingStage, ScaleStructureDefinition, ReactionWindow, MaterialProcessDefinition, MaterialProcessExecution, FoodDomainContract, FoodMaterial, ChemicalSpecies, ReactionRule, ScaleTransferDefinition, ExposureScenario, MaterialPerformanceScenario,
             # Simulations
             SimulationDefinition, SimulationRun, SimVariable,
             SimSpaceEvaluationEquation,
@@ -2676,11 +2762,16 @@ class polariServer(treeObject):
             # (+ the mpa-8 derive-on-demand day-metric cache).
             SourceLocation, PriceObservation, UnitWeightPrior,
             PantryItem, UserAccountLink, IntakeRecord,
-            DailyIntakeMetric,
+            DailyIntakeMetric, PeriodIntakeMetric,
             # mpb-1/2/3: exclusions + conditions + budget.
             FoodAllergenFlag, PersonExclusion,
             StatedCondition, ConditionSteering, PlanBudget,
-            WasteRecord, MealRating,
+            WasteRecord, MealRating, BulkStaple,
+            # hh-1: the household layer (schedules, members + work,
+            # skills + safety, dishes) before the meal rows that
+            # reference its people.
+            *(HOUSEHOLD_CLASSES or []),
+            *(LOGISTICS_CLASSES or []),
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
             # Plant-growth-sim phase 1: normalized-growth instance state.
@@ -2928,6 +3019,20 @@ class polariServer(treeObject):
                 print(f'[DefInit] {className}: polyTypedVarsDict keys={list(defTyping.polyTypedVarsDict.keys())}, identifiers={defTyping.identifiers}, created={created}', flush=True)
             else:
                 print(f'[DefInit] {className}: getObjectTyping returned None!', flush=True)
+        # cal-1: semantic temporal types the signature cannot express
+        # (a str default reads as 'str') — the same override the module
+        # scaffold generator emits. CalendarEvent.span IS base Polari's
+        # datetime_duration ({start,end}); recurrence IS `schedule`.
+        for _cls_name, _field_name, _field_type in (
+                ('CalendarEvent', 'span', 'datetime_duration'),
+                ('CalendarEvent', 'recurrence', 'schedule'),
+                # mlg-1: a person's recurring commitments ARE schedules.
+                ('PersonSchedule', 'recurrence', 'schedule')):
+            _typing = self.manager.objectTypingDict.get(_cls_name)
+            _var = (getattr(_typing, 'polyTypedVarsDict', {}) or {}).get(_field_name) \
+                if _typing is not None else None
+            if _var is not None:
+                _var.pythonTypeDefault = _field_type
         # NOTE: DB table creation and instance restoration happen later via
         # ensureDefinitionTables(), called from managerObject.__init__ AFTER
         # jumpstartDatabase() completes (self.manager.db is still None here).
@@ -3759,7 +3864,6 @@ class polariServer(treeObject):
             ('DisplayDefinition', DisplayDefinition,
              SEED_PERIODIC_DISPLAYS + SEED_MSCI_PAGE_DISPLAYS
              + SEED_AQUAPONICS_PAGE_DISPLAYS + SEED_MODULE_PAGE_DISPLAYS
-             + SEED_MEALPLAN_PAGE_DISPLAYS
              + SEED_GROUP_DISPLAYS + SEED_WAXPRINT_PAGE_DISPLAYS
              + (SEED_PSPP_PAGE_DISPLAYS or [])
              + SEED_SSP_PAGE_DISPLAYS
@@ -4081,6 +4185,18 @@ class polariServer(treeObject):
             ('GraphCompilerDefinition', GraphCompilerDefinition,
              SEED_GRAPH_COMPILERS),
             ('CourtCase', CourtCase, []),
+            # cal-1: calendars + events. The core 'calendar-events'
+            # EventDefinition reads CalendarEvent rows through their
+            # own span/recurrence fields; module seeds add theirs via
+            # the upsert path. Events/triggers/firings = runtime rows.
+            ('EventDefinition', EventDefinition, SEED_CORE_EVENT_DEFINITIONS),
+            ('CalendarDefinition', CalendarDefinition, []),
+            ('CalendarEvent', CalendarEvent, []),
+            ('EventTrigger', EventTrigger, []),
+            ('TriggerFiring', TriggerFiring, []),
+            # cal-4: registered analyses the AnalysisCall node runs
+            # (module seeds add their rows via the upsert path).
+            ('AnalysisDefinition', AnalysisDefinition, []),
             # Group/instance authority rows are runtime data (grants
             # and bindings are explicit acts, never seeded) — the
             # tables just register.
@@ -4329,6 +4445,11 @@ class polariServer(treeObject):
              SEED_PRICE_OBSERVATIONS),
             ('UnitWeightPrior', UnitWeightPrior, SEED_UNIT_WEIGHTS),
             ('PantryItem', PantryItem, SEED_PANTRY_ITEMS),
+            ('BulkStaple', BulkStaple, SEED_BULK_STAPLES),
+            # hh-1: household layer rows before the meal logistics
+            # rows that name its people.
+            *(HOUSEHOLD_SEED_PAIRS or []),
+            *(LOGISTICS_SEED_PAIRS or []),
             ('UserAccountLink', UserAccountLink,
              SEED_USER_ACCOUNT_LINKS),
             ('IntakeRecord', IntakeRecord, SEED_INTAKE_RECORDS),
@@ -4803,6 +4924,26 @@ class polariServer(treeObject):
                               flush=True)
             except Exception as e:
                 print(f'[MotorsPagesSeed] failed: {e}', flush=True)
+        # The meal-planning classes' OWN display configuration —
+        # TableDefinitions per class, the trend GraphDefinitions and
+        # the five app pages that embed them (Dustin 2026-09-02: no
+        # JSON on screens — configured tables/graphs embedded into
+        # displays). Same upsert + repoint contract as motors.
+        if (_feature_available('nutrition') and (
+                only_classes is None
+                or 'DisplayDefinition' in only_classes)):
+            try:
+                from polariApiServer.mealplan_pages_seed import (
+                    seed_mealplan_pages,
+                )
+                for r in seed_mealplan_pages(self.manager):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[MealplanPagesSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[MealplanPagesSeed] failed: {e}', flush=True)
         if (_feature_available('motors')
                 and _feature_available('mathshapes')
                 and _feature_available('composition') and (
@@ -5091,6 +5232,9 @@ class polariServer(treeObject):
                           SEED_UNIT_WEIGHTS),
                          ('PantryItem', PantryItem,
                           SEED_PANTRY_ITEMS),
+                         ('BulkStaple', BulkStaple, SEED_BULK_STAPLES),
+                         *(HOUSEHOLD_SEED_PAIRS or []),
+                         *(LOGISTICS_SEED_PAIRS or []),
                          ('UserAccountLink', UserAccountLink,
                           SEED_USER_ACCOUNT_LINKS),
                          ('IntakeRecord', IntakeRecord,
@@ -5247,8 +5391,7 @@ class polariServer(treeObject):
              + (SEED_CNT_DEVICE_GRAPHS or [])
              + (SEED_CNT_FV_GRAPHS or [])
              + (SEED_SI_REFINEMENT_GRAPHS or [])
-             + (SEED_SI_LADDER_GRAPHS or [])
-             + SEED_MEALPLAN_GRAPHS),
+             + (SEED_SI_LADDER_GRAPHS or [])),
             ('SimVariable', SimVariable, SEED_SIM_VARIABLES),
             # Equations: the live-readout set (KE/PE/E_total) PLUS the
             # per-step math each CalculusOperation references. Must seed

@@ -28,7 +28,7 @@ device's paths, plus the ranking/validity API panels.
 
 import json
 
-from cntfet.cnt_pages_seed import _api, _device_graph, _row, _sapi
+from cntfet.cnt_pages_seed import _device_graph, _row, _sapi
 from cntfet.cnt_scoring import CONCEPT_NAME, FET_TERMS, score_device
 
 
@@ -259,9 +259,9 @@ def _detail_page(device_name, with_scenes=True,
              min_height=420),
         # fp-6 weave: where else this FET lives (pages, partner,
         # cells, comparators) — a reader never dead-ends here.
-        _row(9, [_api(f'detail-{d}-links', 0, 12,
-                      f'{d}: related pages, partner, cells',
-                      f'/api/cntfet/device/{d}/links')],
+        _row(9, [_sapi(f'detail-{d}-links', 0, 12,
+                       f'{d}: related pages, partner, cells',
+                       f'/api/cntfet/device/{d}/links')],
              min_height=220),
     ]
     if with_scenes:

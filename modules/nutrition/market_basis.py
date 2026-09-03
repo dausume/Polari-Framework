@@ -222,6 +222,19 @@ SEED_SOURCE_LOCATIONS = [
      'address': '', 'household_name': '', 'is_prior': True,
      'provenance_id': _PROV,
      'notes': 'demo row — replace with a real market'},
+    # mlg-1: the workplace as a LOCATED source so "shop on the way
+    # home" (mlg-6) can use distance; PersonSchedule rows point here.
+    {'name': 'demo-workplace', 'display_name': 'Demo workplace',
+     'kind': 'workplace', 'latitude': 38.9072, 'longitude': -77.0369,
+     'region_label': 'DMV (demo placeholder)', 'address': '',
+     'household_name': 'demo-household', 'is_prior': True,
+     'provenance_id': 'mlg-1',
+     'notes': 'demo row — where Alex and Sam work; not a store'},
+    {'name': 'demo-warehouse', 'display_name': 'Demo warehouse club',
+     'kind': 'warehouse-club', 'latitude': 38.8339, 'longitude': -77.1194,
+     'region_label': 'DMV (demo placeholder)', 'address': '',
+     'household_name': '', 'is_prior': True, 'provenance_id': 'cal-4',
+     'notes': 'demo row — the bulk offers on BulkStaple rows point here'},
 ]
 
 

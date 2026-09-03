@@ -925,7 +925,14 @@ def _item(item_id, index, segments, title, component, inputs):
 
 
 def _open_library_page():
-    from cntfet.cnt_pages_seed import _api, _device_graph, _row, _table
+    from cntfet.cnt_pages_seed import _device_graph, _row, _sapi, _table
+    # Every GET payload reads through api-structured-panel (chips /
+    # prose / tables / key-value) — never a JSON wall. hide/pick are
+    # tuned to the report shape: `row` is the OpenCellLibrary record
+    # (already the table above, and it carries *_json strings),
+    # `proof` is a dict-of-dicts (the freedom-proof-panel beside it
+    # IS that reading) and `artifacts` is a dict-of-dicts that only
+    # renders once picked as its own panel.
     rows = [
         _row(0, [
             _table('open-library-table', 0, 6,
@@ -935,19 +942,20 @@ def _open_library_page():
                    'name,n_device,p_device,pair_name,'
                    'library_proof_status,open_source_ready,licence,'
                    'run_ref,liberty_bytes'),
-            _api('open-library-index', 1, 6,
-                 'Open libraries: ready flag + counts + why '
-                 '(US; circuits public domain, artifacts GPL-3.0)',
-                 '/api/cntfet/open-library'),
+            _sapi('open-library-index', 1, 6,
+                  'Open libraries: ready flag + counts + why '
+                  '(US; circuits public domain, artifacts GPL-3.0)',
+                  '/api/cntfet/open-library', hide='cellUniverse'),
         ], min_height=360),
     ]
     for i, seed in enumerate(SEED_OPEN_LIBRARIES):
         name, n_dev = seed['name'], seed['n_device']
         rows.append(_row(10 * (i + 1), [
-            _api(f'open-library-{name}', 0, 6,
-                 f'{seed["display_name"]}: admission, characterization, '
-                 f'artifacts, licence',
-                 f'/api/cntfet/open-library/{name}'),
+            _sapi(f'open-library-{name}', 0, 6,
+                  f'{seed["display_name"]}: admission, characterization, '
+                  f'scores, power, licence',
+                  f'/api/cntfet/open-library/{name}',
+                  hide='row,proof,artifacts'),
             _item(f'open-library-{name}-proof', 1, 6,
                   f'{name}: freedom proof of the n device {n_dev} '
                   f'(the chain that gates the library)',
@@ -955,7 +963,10 @@ def _open_library_page():
                   {'path': f'/api/cntfet/device/{n_dev}/proof'}),
         ], min_height=460))
         rows.append(_row(10 * (i + 1) + 1, [
-            _device_graph(f'open-library-{name}-cell-scores', 0, 12,
+            _sapi(f'open-library-{name}-artifacts', 0, 4,
+                  f'{name}: artifacts (Liberty, netlists, export)',
+                  f'/api/cntfet/open-library/{name}', pick='artifacts'),
+            _device_graph(f'open-library-{name}-cell-scores', 1, 8,
                           f'{name}: admitted cells scored vs {n_dev}\'s '
                           f'intrinsic limits (refuses until '
                           f'characterized)',

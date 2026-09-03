@@ -4,8 +4,8 @@
 fp-6 (FET_CELL_POWER_SILICON_PLAN): the WEAVE — for one FET, every
 page and alternate view it has, its complementary partner, the cells
 built from it, and the other FETs it is compared against, as DATA a
-nav row renders (api-json-panel today; a link strip is a frontend
-follow-up). The point (Dustin 2026-08-27): "weaving together pages and
+nav row renders (api-structured-panel — tables of links, never a JSON
+wall; a link strip is a frontend follow-up). The point (Dustin 2026-08-27): "weaving together pages and
 alternate views for FETs so we can more easily understand it for the
 average person" — a reader never dead-ends on one page.
 

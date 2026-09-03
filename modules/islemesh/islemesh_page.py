@@ -13,7 +13,7 @@ payload as a proper large banner; until then the no-code panel is
 the honest version.
 """
 
-from polariApiServer.module_pages_seed import _api, _page, _row, _table
+from polariApiServer.module_pages_seed import _page, _row, _sapi, _table
 
 SEED_ISLEMESH_PAGE_DISPLAYS = [
     _page(
@@ -24,13 +24,18 @@ SEED_ISLEMESH_PAGE_DISPLAYS = [
         'in the summary banner at the top.',
         'IsleDevice',
         [
+            # STRUCTURED reading (no JSON wall): the summary renders
+            # as chips + a counts key/value block + a devices table;
+            # the matrix is picked so each device's permit list is
+            # its own table (the bare dict-of-lists would otherwise
+            # land in the panel's unrendered-fields expander).
             _row(0, [
-                _api('islemesh-summary', 0, 7,
-                     'Isle summary (mock banner lives here)',
-                     '/api/islemesh'),
-                _api('islemesh-matrix', 1, 5,
-                     'Protocol matrix (the proxies ARE the policy)',
-                     '/api/islemesh/matrix'),
+                _sapi('islemesh-summary', 0, 7,
+                      'Isle summary (mock banner lives here)',
+                      '/api/islemesh'),
+                _sapi('islemesh-matrix', 1, 5,
+                      'Protocol matrix (the proxies ARE the policy)',
+                      '/api/islemesh/matrix', pick='matrix'),
             ]),
             _row(1, [
                 _table('islemesh-devices', 0, 6, 'Devices',

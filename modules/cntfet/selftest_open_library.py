@@ -28,7 +28,9 @@ from sifet.si_basis import SEED_TABLES
 from sifet.si_device import derive_si_device, get_row
 
 _results = []
-REGISTERED = {'class-rows-table', 'api-json-panel', 'named-graph-panel',
+#: no api-json-panel: every GET payload reads through the STRUCTURED
+#: panel (Dustin: "there should not be any json showing on the screens").
+REGISTERED = {'class-rows-table', 'api-structured-panel', 'named-graph-panel',
               'freedom-proof-panel', 'evidence-browser'}
 SI, CNT = 'polari-open-si-planar-90', 'polari-open-cnt-s1'
 
@@ -375,7 +377,7 @@ def main():
     defn = page['definition']
     check('SEED_OPEN_LIBRARY_PAGES: /display/open-library (route '
           'open-library, source_class OpenCellLibrary) uses only '
-          'registered components (class-rows-table, api-json-panel, '
+          'registered components (class-rows-table, api-structured-panel, '
           'named-graph-panel, freedom-proof-panel, evidence-browser)',
           page['pageRoute'] == 'open-library' and page['isPage']
           and page['source_class'] == 'OpenCellLibrary'

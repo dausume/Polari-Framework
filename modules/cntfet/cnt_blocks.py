@@ -1280,8 +1280,9 @@ def _blocks_page(device='cnt-aligned-s1'):
                         'maxRows': 0}),
             _component('blocks-library', 1, 6,
                        'Block library: proof per block, cells, FETs',
-                       'api-json-panel',
-                       {'path': f'/api/cntfet/blocks?device={device}'}),
+                       'api-structured-panel',
+                       {'path': f'/api/cntfet/blocks?device={device}',
+                        'pick': 'blocks', 'hideKeys': '', 'title': ''}),
         ], min_height=360),
     ]
     for i, key in enumerate(BLOCK_LIBRARY):
@@ -1290,8 +1291,9 @@ def _blocks_page(device='cnt-aligned-s1'):
             _component(f'blocks-{key}-report', 0, 4,
                        f'{blk["display_name"]}: netlist, proof, timing, '
                        f'power, ladder',
-                       'api-json-panel',
-                       {'path': f'/api/cntfet/block/{key}?device={device}'}),
+                       'api-structured-panel',
+                       {'path': f'/api/cntfet/block/{key}?device={device}',
+                        'pick': '', 'hideKeys': '', 'title': ''}),
             _component(f'blocks-{key}-proof', 1, 4,
                        f'{blk["display_name"]}: free to use? (device + '
                        f'every cell)', 'freedom-proof-panel',
@@ -1309,8 +1311,9 @@ def _blocks_page(device='cnt-aligned-s1'):
             items.append(_component(
                 f'blocks-{key}-power', 2, 4,
                 f'{blk["display_name"]}: power roll-up',
-                'api-json-panel',
-                {'path': f'/api/cntfet/block/{key}/power?device={device}'}))
+                'api-structured-panel',
+                {'path': f'/api/cntfet/block/{key}/power?device={device}',
+                 'pick': '', 'hideKeys': '', 'title': ''}))
         rows.append(_row(i + 1, items, min_height=460))
     return {
         'name': 'cntfet-blocks',

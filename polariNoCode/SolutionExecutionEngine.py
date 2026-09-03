@@ -28,7 +28,7 @@ import json
 import time
 import uuid
 import operator
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from polariNoCode.ExecutionTrace.ExecutionTrace import ExecutionTrace
 from polariNoCode.ExecutionTrace.ExecutionStepSnapshot import (
@@ -668,11 +668,18 @@ class SolutionExecutionEngine:
         run ride the ambient context as tied children; a manager-less
         engine (unit selftests) has no tree to lock and runs ungated."""
         if _invocation_chain or self.manager is None:
-            return self._execute_ungated(
+            trace = self._execute_ungated(
                 solution_data, input_params, config=config,
                 target_runtime=target_runtime,
                 instance_fields=instance_fields,
                 _invocation_chain=_invocation_chain)
+            # cal-2: a TOP-LEVEL run's EmitEvent outputs chain into
+            # event triggers (nested invocations report to their
+            # caller instead). Never raises.
+            if not _invocation_chain and self.manager is not None:
+                from polariNoCode.event_dispatcher import dispatch_trace_events
+                dispatch_trace_events(self.manager, trace, input_params)
+            return trace
         solution_name = (solution_data.get('solutionName', 'untitled')
                          if isinstance(solution_data, dict)
                          else 'untitled')
@@ -689,11 +696,15 @@ class SolutionExecutionEngine:
                     f"{slot.get('entry')}, position "
                     f"{slot.get('position')})")
                 return trace
-            return self._execute_ungated(
+            trace = self._execute_ungated(
                 solution_data, input_params, config=config,
                 target_runtime=target_runtime,
                 instance_fields=instance_fields,
                 _invocation_chain=_invocation_chain)
+            # cal-2: chain this top-level run's emitted events (see above).
+            from polariNoCode.event_dispatcher import dispatch_trace_events
+            dispatch_trace_events(self.manager, trace, input_params)
+            return trace
 
     def _execute_ungated(self, solution_data, input_params, config=None, target_runtime='python_backend', instance_fields=None, _invocation_chain=()):
         """
@@ -2505,6 +2516,233 @@ class SolutionExecutionEngine:
                     f'{", ".join(invalid_fields)} — '
                     f'{first_errs[0] if first_errs else "invalid"}'
                 )
+
+        elif state_class == 'AnalysisCall':
+            # cal-4: one registered backend analysis as one step —
+            # `analysis` = an AnalysisDefinition row name (the knob) or
+            # a bare 'module:function'; `params` = {name: literal |
+            # value-source}; the dict result lands in resultVariable
+            # (default 'analysis'). Backend-only; provenance stamped.
+            from polariNoCode.analysis_calls import call_analysis
+            raw_params = field_values.get('params') or {}
+            params = {}
+            if isinstance(raw_params, dict) and 'sourceType' not in raw_params:
+                for k, v in raw_params.items():
+                    if isinstance(v, dict) and 'sourceType' in v:
+                        params[k] = _resolve_value_source_config(v, context)
+                    else:
+                        params[k] = v
+            analysis_ref = field_values.get('analysis')
+            if isinstance(analysis_ref, dict) and 'sourceType' in analysis_ref:
+                analysis_ref = _resolve_value_source_config(analysis_ref, context)
+            if not analysis_ref:
+                raise ValueError(f"AnalysisCall '{state_name}': name an analysis "
+                                 f"(AnalysisDefinition row or module:function).")
+            if self.manager is None:
+                raise ValueError(f"AnalysisCall '{state_name}': no manager.")
+            outcome = call_analysis(self.manager, analysis_ref, params)
+            var = field_values.get('resultVariable') or 'analysis'
+            # `pick` = dot-path INTO the result (e.g. 'proposals') so a
+            # list inside the analysis lands directly in the context
+            # for ForEach / GenerateEvent(eventsFrom) to consume.
+            picked = outcome
+            for seg in str(field_values.get('pick') or '').split('.'):
+                if seg and isinstance(picked, dict):
+                    picked = picked.get(seg)
+            context[var] = picked
+            result['result'] = {'analysis': str(analysis_ref),
+                                'ok': outcome.get('ok') if isinstance(outcome, dict) else None}
+            log_output.append(f'[{state_name}] analysis {analysis_ref!r} → {var}')
+
+        elif state_class in ('GenerateEvent', 'ModifyEvent', 'CancelEvent',
+                             'ScheduleOccurrences', 'EventWindowQuery'):
+            # cal-2: the no-code EVENT family — event logic as data.
+            # GenerateEvent creates a row (CalendarEvent by default —
+            # the first real create path, scoped to event-bearing
+            # classes); ModifyEvent/CancelEvent update one (the
+            # StateChangeCommit commit path); ScheduleOccurrences
+            # expands a `schedule` value; EventWindowQuery reads an
+            # EventDefinition/CalendarDefinition window. Backend-only.
+            from polariNoCode import event_dispatcher as _ed
+
+            def _cfg(key, default=None):
+                raw = field_values.get(key, default)
+                if isinstance(raw, dict) and 'sourceType' in raw:
+                    return _resolve_value_source_config(raw, context)
+                return raw
+
+            def _deep(v):
+                # A value source may sit INSIDE a structured field
+                # (span: {start: <var>}, payload: {...}) — resolve it
+                # wherever it appears; plain literals stay literal.
+                if isinstance(v, dict):
+                    if 'sourceType' in v:
+                        return _resolve_value_source_config(v, context)
+                    return {k: _deep(x) for k, x in v.items()}
+                if isinstance(v, list):
+                    return [_deep(x) for x in v]
+                return v
+
+            def _writes():
+                writes = {}
+                for mapping in field_values.get('fieldMappings', []) or []:
+                    if not isinstance(mapping, dict):
+                        continue
+                    fname = mapping.get('fieldName') or mapping.get('outputFieldName')
+                    if fname:
+                        writes[fname] = _resolve_value_source_config(
+                            mapping.get('valueSource'), context)
+                raw_fields = field_values.get('fields')
+                if isinstance(raw_fields, dict) and 'sourceType' not in raw_fields:
+                    for k, v in raw_fields.items():
+                        if isinstance(v, (dict, list)):
+                            writes[k] = _deep(v)
+                        else:
+                            writes[k] = _safe_resolve_value(v, context)
+                return writes
+
+            depth = int(context.get(_ed.TRIGGER_DEPTH_KEY, 0) or 0)
+            target_cls = (_cfg('targetClassName') or 'CalendarEvent').strip()
+            if state_class == 'GenerateEvent':
+                base = _writes()
+                # eventsFrom: a value-source resolving to a LIST of field
+                # dicts (an analysis' proposals) → one event each, the
+                # base fields as defaults; without it, one event.
+                batch = _cfg('eventsFrom')
+                if batch is None:
+                    items = [None]
+                elif isinstance(batch, list):
+                    items = batch
+                else:
+                    raise ValueError(f"GenerateEvent '{state_name}': eventsFrom must "
+                                     f"resolve to a list of field dicts, got "
+                                     f"{type(batch).__name__}.")
+                dedupe = _cfg('dedupeBy')
+                summaries = []
+                for item in items:
+                    fields = dict(base)
+                    if isinstance(item, dict):
+                        fields.update(item)
+                    elif item is not None:
+                        raise ValueError(f"GenerateEvent '{state_name}': every eventsFrom "
+                                         f"item must be a dict of fields.")
+                    if not fields.get('title') and not fields.get('name'):
+                        raise ValueError(
+                            f"GenerateEvent '{state_name}': give the event at least a "
+                            f"title (fields.title) — an unnamed event tells nobody anything.")
+                    fields.setdefault('generated_by', context.get(_ed.TRIGGER_NAME_KEY, ''))
+                    for k, v in list(fields.items()):
+                        if isinstance(v, (dict, list)):
+                            fields[k] = json.dumps(v, default=str)
+                    existing = None
+                    if dedupe and fields.get(dedupe) is not None:
+                        for inst in ((self.manager.objectTables.get(target_cls, {}) or {}).values()
+                                     if self.manager is not None and hasattr(self.manager, 'objectTables') else []):
+                            if str(getattr(inst, dedupe, None)) == str(fields[dedupe]):
+                                existing = inst
+                                break
+                    if existing is not None:
+                        inst = existing
+                        created = False
+                    else:
+                        if self.manager is None:
+                            raise ValueError(f"GenerateEvent '{state_name}': no manager — "
+                                             f"nothing to create the {target_cls} in.")
+                        inst = _ed.create_instance(self.manager, target_cls, fields, depth=depth)
+                        created = True
+                    summary = {'class': target_cls, 'id': str(getattr(inst, 'id', '')),
+                               'name': str(getattr(inst, 'name', '')), 'created': created}
+                    context.setdefault('_generated_events', []).append(summary)
+                    summaries.append(summary)
+                last = summaries[-1] if summaries else {'class': target_cls, 'created': False,
+                                                         'name': '', 'id': ''}
+                context[_cfg('resultVariable') or 'generatedEvent'] = last
+                context[(_cfg('resultVariable') or 'generatedEvent') + 'Batch'] = summaries
+                result['result'] = last if len(summaries) == 1 else {'count': len(summaries),
+                                                                     'created': sum(1 for s in summaries if s['created'])}
+                log_output.append(f'[{state_name}] generated {sum(1 for s in summaries if s["created"])} '
+                                  f'{target_cls} row(s), reused {sum(1 for s in summaries if not s["created"])}')
+            elif state_class in ('ModifyEvent', 'CancelEvent'):
+                ref = _cfg('instanceRef')
+                if ref is None:
+                    ref = context.get('generatedEvent', {}).get('name') \
+                        if isinstance(context.get('generatedEvent'), dict) else None
+                if ref is None:
+                    raise ValueError(f"{state_class} '{state_name}': instanceRef did not "
+                                     f"resolve — which {target_cls} should change?")
+                if self.manager is None:
+                    raise ValueError(f"{state_class} '{state_name}': no manager.")
+                target = _ed.find_instance(self.manager, target_cls, ref)
+                if target is None:
+                    raise ValueError(f"{state_class} '{state_name}': no {target_cls} "
+                                     f"matching '{ref}' was found.")
+                writes = _writes()
+                if state_class == 'CancelEvent':
+                    writes['status'] = 'cancelled'
+                    reason = _cfg('reason')
+                    if reason:
+                        writes['notes'] = (str(getattr(target, 'notes', '') or '')
+                                           + f' [cancelled: {reason}]').strip()
+                if not writes:
+                    raise ValueError(f"ModifyEvent '{state_name}': nothing to change — "
+                                     f"configure fields / fieldMappings.")
+                for k, v in writes.items():
+                    setattr(target, k, json.dumps(v, default=str) if isinstance(v, (dict, list)) else v)
+                _ed.save_instance(self.manager, target)
+                _ed.dispatch_object_change(self.manager, target_cls, 'update',
+                                           [str(getattr(target, 'id', ''))], depth=depth)
+                context.setdefault(COMMITTED_CHANGES_KEY, []).append(
+                    {'class': target_cls, 'instance': str(ref), 'fields': list(writes)})
+                result['result'] = {'class': target_cls, 'instance': str(ref),
+                                    'fields': list(writes)}
+                log_output.append(f'[{state_name}] {state_class} {target_cls} "{ref}": '
+                                  f'{", ".join(writes)}')
+            elif state_class == 'ScheduleOccurrences':
+                from polariNoCode.recurrence import expand_schedule
+                sched = _cfg('schedule')
+                frm = _cfg('from') or datetime.now().strftime('%Y-%m-%d')
+                to = _cfg('to') or (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+                occ = expand_schedule(sched, frm, to)
+                rows = [{'start': o['start'].isoformat(timespec='minutes'),
+                         'end': o['end'].isoformat(timespec='minutes') if o['end'] else None,
+                         'allDay': o['allDay'], 'index': o['index']} for o in occ]
+                var = _cfg('resultVariable') or 'occurrences'
+                context[var] = rows
+                context[f'{var}Count'] = len(rows)
+                result['result'] = rows
+                log_output.append(f'[{state_name}] {len(rows)} occurrence(s) in [{frm}, {to}]')
+            else:  # EventWindowQuery
+                from polariNoCode.calendar_events import (
+                    calendar_by_name, definition_by_name,
+                    resolve_calendar_events, resolve_definition_events)
+                frm = _cfg('from') or datetime.now().strftime('%Y-%m-%d')
+                to = _cfg('to') or (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
+                person = _cfg('person') or None
+                household = _cfg('household') or None
+                cal_name = _cfg('calendar')
+                def_name = _cfg('definition')
+                if self.manager is None:
+                    raise ValueError(f"EventWindowQuery '{state_name}': no manager.")
+                if cal_name:
+                    cal = calendar_by_name(self.manager, cal_name)
+                    if cal is None:
+                        raise ValueError(f"EventWindowQuery '{state_name}': CalendarDefinition "
+                                         f"'{cal_name}' is not on this node.")
+                    found = resolve_calendar_events(self.manager, cal, frm, to, person, household)
+                elif def_name:
+                    defn = definition_by_name(self.manager, def_name)
+                    if defn is None:
+                        raise ValueError(f"EventWindowQuery '{state_name}': EventDefinition "
+                                         f"'{def_name}' is not on this node.")
+                    found = resolve_definition_events(self.manager, defn, frm, to, person, household)
+                else:
+                    raise ValueError(f"EventWindowQuery '{state_name}': name a calendar or a "
+                                     f"definition to read.")
+                var = _cfg('resultVariable') or 'events'
+                context[var] = found['events']
+                context[f'{var}Count'] = len(found['events'])
+                result['result'] = {'count': len(found['events'])}
+                log_output.append(f'[{state_name}] {len(found["events"])} event(s) in [{frm}, {to}]')
 
         elif state_class == 'StateChangeCommit':
             # Persist field changes onto an EXISTING instance through the

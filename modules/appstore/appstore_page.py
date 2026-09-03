@@ -8,7 +8,7 @@ future Angular store page replaces this; until then the store is
 browsable with zero frontend work.
 """
 
-from polariApiServer.module_pages_seed import _api, _page, _row, _table
+from polariApiServer.module_pages_seed import _page, _row, _sapi, _table
 
 SEED_APPSTORE_PAGE_DISPLAYS = [
     _page(
@@ -18,12 +18,16 @@ SEED_APPSTORE_PAGE_DISPLAYS = [
         'registered installs.',
         'AppShellDefinition',
         [
+            # /api/appstore carries two record tables (shells, apps);
+            # each gets its own STRUCTURED panel — no JSON wall.
             _row(0, [
-                _api('appstore-catalog', 0, 7, 'Catalog',
-                     '/api/appstore'),
-                _api('appstore-identity', 1, 5,
-                     'Instance identity (the shell probe)',
-                     '/api/appstore/identity'),
+                _sapi('appstore-catalog', 0, 4, 'Catalog: shells',
+                      '/api/appstore', pick='shells'),
+                _sapi('appstore-apps', 1, 4, 'Catalog: installable apps',
+                      '/api/appstore', pick='apps'),
+                _sapi('appstore-identity', 2, 4,
+                      'Instance identity (the shell probe)',
+                      '/api/appstore/identity'),
             ]),
             _row(1, [
                 _table('appstore-shells', 0, 6, 'Shell definitions',

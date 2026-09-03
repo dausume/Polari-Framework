@@ -36,12 +36,10 @@ nmp-10 — cooking as a task-oriented WORKFLOW (decisions 10/12/13):
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
-
-SKILL_LEVELS = ('novice', 'intermediate', 'experienced')
-#: labeled convention priors — refined per person from observed
-#: durations (the judicial-process refinement loop).
-SKILL_FACTORS = {'novice': 1.3, 'intermediate': 1.0,
-                 'experienced': 0.8}
+# hh-1: the skill vocabulary + the labeled level priors (refined per
+# person from observed durations) live in the household layer now;
+# re-exported here so existing importers keep working.
+from household.household_basis import SKILL_FACTORS, SKILL_LEVELS  # noqa: F401
 
 FIDELITY = ('estimate', 'observed')
 PROVENANCES = ('seeded', 'mine')
@@ -258,6 +256,10 @@ SEED_KITCHEN_TOOLS = [
     _tool('microwave', 'Microwave', 'appliance'),
     _tool('fridge', 'Refrigerator', 'fixed'),
     _tool('freezer', 'Freezer', 'fixed'),
+    # mlg-3: portability + dishes vocabulary (a household marks what it owns).
+    _tool('insulated-lunchbox', 'Insulated lunchbox', 'container'),
+    _tool('cold-pack', 'Cold pack (frozen gel)', 'container'),
+    _tool('dishwasher', 'Dishwasher', 'appliance'),
 ]
 
 

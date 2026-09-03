@@ -30,7 +30,10 @@ from sifet.si_pages_seed import (
 )
 
 _results = []
-REGISTERED = {'class-rows-table', 'api-json-panel', 'named-graph-panel', 'api-structured-panel'}
+#: no api-json-panel: every GET payload reads through the STRUCTURED
+#: panel (Dustin: "there should not be any json showing on the screens").
+REGISTERED = {'class-rows-table', 'named-graph-panel', 'api-structured-panel'}
+FORBIDDEN = {'api-json-panel'}
 
 
 def check(label, cond, extra=''):
@@ -252,9 +255,13 @@ def main():
     home = SEED_SI_PAGE_DISPLAYS[0]
     comps = _components(home['definition'])
     check('sifet-home (route sifet) uses only registered components '
-          '(class-rows-table, api-json-panel, named-graph-panel, api-structured-panel)',
+          '(class-rows-table, named-graph-panel, api-structured-panel) '
+          '— and no api-json-panel anywhere on the Si pages',
           home['pageRoute'] == 'sifet' and home['name'] == 'sifet-home'
-          and comps <= REGISTERED and comps == REGISTERED, str(comps))
+          and comps <= REGISTERED and comps == REGISTERED
+          and not any(_components(p['definition']) & FORBIDDEN
+                      for p in SEED_SI_PAGE_DISPLAYS + SEED_SI_SCORE_PAGES),
+          str(comps))
     hd = home['definition']
     check('sifet-home: SiliconMOSFET + dielectric/doping/shape tables, '
           '/api/sifet/capability, the cross-technology ranking from '

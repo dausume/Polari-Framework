@@ -44,10 +44,12 @@ def _api(item_id, index, segments, title, path):
     }
 
 
-def _sapi(item_id, index, segments, title, path, pick=''):
+def _sapi(item_id, index, segments, title, path, pick='', hide=''):
     """A tabular API payload rendered as chips / tables (generic
     structured-payload reading) — never a raw JSON wall. `pick` is a
-    dot-path into the payload (e.g. 'idealTable', 'ranking')."""
+    dot-path into the payload (e.g. 'idealTable', 'ranking'); `hide`
+    is a csv of top-level keys to drop (dict-of-dicts / empty dicts
+    would otherwise land in the panel's JSON expander)."""
     return {
         'id': item_id, 'index': index, 'type': 'component',
         'rowSegmentsUsed': segments, 'gridColumnStart': None,
@@ -55,7 +57,8 @@ def _sapi(item_id, index, segments, title, path, pick=''):
         'cssClass': '',
         'componentProps': {
             'componentName': 'api-structured-panel',
-            'inputs': {'path': path, 'pick': pick, 'title': ''},
+            'inputs': {'path': path, 'pick': pick, 'hideKeys': hide,
+                       'title': ''},
         },
         'item': None, 'nestedRows': [],
     }
@@ -204,9 +207,11 @@ SEED_CNTFET_PAGE_DISPLAYS = [{
                    'AlignedCNTFETDevice',
                    'name,polarity,temperature_k,'
                    'manufacturing_regime,derived_at'),
-            _api('cntfet-capability', 1, 6,
-                 'Capability (honest refusals)',
-                 '/api/cntfet/capability'),
+            # fidelities = {F0…S4a: {status, refusal…}} — picked, each
+            # fidelity renders as its own key/value block.
+            _sapi('cntfet-capability', 1, 6,
+                  'Capability (honest refusals) — per fidelity',
+                  '/api/cntfet/capability', pick='fidelities'),
         ]),
         _row(1, [
             _table('cntfet-parameters', 0, 6,
@@ -218,17 +223,18 @@ SEED_CNTFET_PAGE_DISPLAYS = [{
                    'name,value,unit,status,doi'),
         ]),
         _row(2, [
-            _api('cntfet-citations', 0, 6,
-                 'Citation linkage (source -> rows)',
-                 '/api/cntfet/citations'),
+            _sapi('cntfet-citations', 0, 6,
+                  'Citation linkage (source -> rows)',
+                  '/api/cntfet/citations',
+                  hide='unlinked,papersRegistry'),
             _table('cntfet-results', 1, 6, 'Sim results',
                    'CNTFETSimResult',
                    'name,kind,engine,verdict,ran_at'),
         ]),
         _row(3, [
-            _api('cntfet-figures', 0, 4,
-                 'Cited-figure replicas (proofing registry)',
-                 '/api/cntfet/figures'),
+            _sapi('cntfet-figures', 0, 4,
+                  'Cited-figure replicas (proofing registry)',
+                  '/api/cntfet/figures', pick='figures'),
             _figure('cntfet-figure-fig7a', 1, 8,
                     'Replica: [VS1] Fig.7(a) digitized vs model',
                     'vs1-fig7a'),
@@ -256,7 +262,8 @@ SEED_CNTFET_PAGE_DISPLAYS = [{
                  'S1 device: characterization (SS/DIBL/Ion/Ioff/'
                  'gm — refusals verbatim)',
                  '/api/cntfet/device/cnt-aligned-s1'
-                 '/characterization', pick='metrics'),
+                 '/characterization', pick='metrics',
+                 hide='refusals'),   # {} when none — expander shape
         ], min_height=430),
         # fi-0/fi-1 (FET_INTUITION_PLAN): the states the device
         # passes through, what qualifies each (criteria as data),

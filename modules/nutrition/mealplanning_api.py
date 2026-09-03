@@ -121,6 +121,45 @@ class MealPlanningAPI(treeObject):
             # mpb-7: the trajectory fed by the PLAN's real calories.
             add('/api/mealplanning/users/{person}'
                 '/plan-trajectory', self, suffix='plan_trajectory')
+            # cal-4: purchase / bulk / coordination PROPOSALS (what the
+            # event triggers would generate — nothing written here).
+            add('/api/mealplanning/plans/{name}/purchase-proposal',
+                self, suffix='purchase_proposal')
+            add('/api/mealplanning/bulk-proposal', self,
+                suffix='bulk_proposal')
+            add('/api/mealplanning/plans/{name}/coordination', self,
+                suffix='coordination')
+            # mlg-1..4: logistics previews (all proposals; nothing written).
+            add('/api/mealplanning/users/{person}/availability', self,
+                suffix='availability')
+            add('/api/mealplanning/plans/{name}/timing-check', self,
+                suffix='timing_check')
+            add('/api/mealplanning/entries/{name}/prep-profile', self,
+                suffix='prep_profile')
+            add('/api/mealplanning/plans/{name}/portability', self,
+                suffix='portability')
+            add('/api/mealplanning/plans/{name}/dish-plan', self,
+                suffix='dish_plan')
+            add('/api/mealplanning/plans/{name}/work-allocation', self,
+                suffix='work_allocation')
+            add('/api/mealplanning/households/{household}/fairness',
+                self, suffix='fairness')
+            add('/api/mealplanning/speed-refinement', self,
+                suffix='speed_refinement')
+            # mpc: plan the week — coverage, portion fit, apply-meal preview.
+            add('/api/mealplanning/plans/{name}/week-coverage', self,
+                suffix='week_coverage')
+            add('/api/mealplanning/plans/{name}/apply-meal', self,
+                suffix='apply_meal')
+            add('/api/mealplanning/templates/{name}/portion-fit', self,
+                suffix='portion_fit')
+            add('/api/mealplanning/users/{person}/expected-slots', self,
+                suffix='expected_slots')
+            # mpt: per-person tracking condensed to weeks / months
+            # (reading refreshes the PeriodIntakeMetric cache the
+            # period charts read).
+            add('/api/mealplanning/users/{person}/periods', self,
+                suffix='periods')
 
     # ── identity ─────────────────────────────────────────
     def on_get_me(self, request, response):
@@ -468,3 +507,114 @@ class MealPlanningAPI(treeObject):
                          f'the PSPP state chain needs it enabled'}
             return
         response.media = template_state_chain(self.manager, name)
+
+    # ---- cal-4: purchase / bulk / coordination proposals ----------
+    def on_get_purchase_proposal(self, request, response, name):
+        from nutrition.purchase_analysis import weekly_purchase_proposal
+        response.media = weekly_purchase_proposal(
+            self.manager, name, request.params.get('household') or '',
+            request.params.get('purchase_date') or None)
+
+    def on_get_bulk_proposal(self, request, response):
+        from nutrition.purchase_analysis import bulk_purchase_proposal
+        try:
+            cadence = int(request.params.get('cadence') or 3)
+        except ValueError:
+            cadence = 3
+        response.media = bulk_purchase_proposal(
+            self.manager, request.params.get('household') or 'demo-household',
+            cadence, request.params.get('purchase_date') or None)
+
+    def on_get_coordination(self, request, response, name):
+        from nutrition.purchase_analysis import coordinate_week
+        response.media = coordinate_week(
+            self.manager, name, request.params.get('household') or '',
+            request.params.get('week_start') or None)
+
+    # ---- mlg-1..4: logistics -------------------------------------
+    def on_get_availability(self, request, response, person):
+        from nutrition.logistics_analysis import availability_windows
+        response.media = availability_windows(
+            self.manager, person, request.params.get('from') or None,
+            request.params.get('to') or None)
+
+    def on_get_timing_check(self, request, response, name):
+        from nutrition.logistics_analysis import meal_timing_check
+        response.media = meal_timing_check(
+            self.manager, name, request.params.get('week_start') or None)
+
+    def on_get_prep_profile(self, request, response, name):
+        from nutrition.logistics_analysis import prep_time_profile
+        response.media = prep_time_profile(
+            self.manager, name, request.params.get('person') or 'demo-alex')
+
+    def on_get_portability(self, request, response, name):
+        from nutrition.logistics_analysis import portability_plan
+        response.media = portability_plan(
+            self.manager, name, request.params.get('week_start') or None)
+
+    def on_get_dish_plan(self, request, response, name):
+        from nutrition.logistics_analysis import dish_plan
+        response.media = dish_plan(
+            self.manager, name, request.params.get('week_start') or None)
+
+    def on_get_work_allocation(self, request, response, name):
+        from nutrition.logistics_analysis import assign_work
+        from nutrition.purchase_analysis import coordinate_week
+        co = coordinate_week(self.manager, name, request.params.get('household') or '',
+                             request.params.get('week_start') or None)
+        if not co.get('ok'):
+            response.media = co
+            return
+        response.media = assign_work(self.manager, co['proposals'], co['household'])
+
+    def on_get_fairness(self, request, response, household):
+        from nutrition.logistics_analysis import fairness_readout
+        response.media = fairness_readout(
+            self.manager, household, request.params.get('from') or None,
+            request.params.get('to') or None)
+
+    def on_get_speed_refinement(self, request, response):
+        from nutrition.logistics_analysis import refine_speed_factors
+        response.media = refine_speed_factors(
+            self.manager, request.params.get('person') or None)
+
+    # ---- mpc: plan the week ---------------------------------------
+    def on_get_week_coverage(self, request, response, name):
+        from nutrition.planning_analysis import week_coverage
+        response.media = week_coverage(self.manager, name)
+
+    def on_get_apply_meal(self, request, response, name):
+        from nutrition.planning_analysis import apply_meal_proposal
+        p = request.params
+        try:
+            scale = float(p.get('scale') or 0)
+        except ValueError:
+            scale = 0.0
+        response.media = apply_meal_proposal(
+            self.manager, name, p.get('template') or '', p.get('variation') or '',
+            p.get('slots') or 'all', p.get('days') or 'all', p.get('person') or '', scale)
+
+    def on_get_portion_fit(self, request, response, name):
+        from nutrition.planning_analysis import portion_fit
+        p = request.params
+        persons = [x for x in (p.get('persons') or '').split(',') if x]
+        # KNOB: ?objective=calories|nutrients (default calories);
+        # ?weights=protein=0.9,sodium=0.2 (or a JSON object) overrides the
+        # labelled prior — echoed back on the payload either way.
+        response.media = portion_fit(
+            self.manager, name, p.get('variation') or '', p.get('slot') or 'dinner',
+            persons or None, p.get('household') or 'demo-household',
+            objective=p.get('objective') or 'calories', weights=p.get('weights') or None)
+
+    def on_get_expected_slots(self, request, response, person):
+        from nutrition.planning_analysis import expected_slots
+        response.media = {'ok': True, 'schema': 'expected-slots/1',
+                          **expected_slots(self.manager, person)}
+
+    def on_get_periods(self, request, response, person):
+        from nutrition.tracking_periods import period_summary
+        response.media = period_summary(
+            self.manager, person, request.params.get('kind') or 'week',
+            request.params.get('from') or None, request.params.get('to') or None,
+            persist=True)

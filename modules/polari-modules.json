@@ -18,12 +18,24 @@
       "wave": 0,
       "description": "Photobioreactor decarbonization route."
     },
+    "household": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/household",
+      "repo": "",
+      "wave": 1,
+      "requires": [],
+      "description": "Household layer: people's schedules and sleep, members and work shares, skills and safety, dish strategies, the allocation and fairness"
+    },
     "nutrition": {
       "kind": "official",
       "downloaded": true,
       "path": "modules/nutrition",
       "repo": "https://github.com/dausume/polari-module-nutrition.git",
       "wave": 1,
+      "requires": [
+        "household"
+      ],
       "description": "Dietary nutrients, person/household profiling, harvest -> meal-nutrient yield."
     },
     "tanks": {

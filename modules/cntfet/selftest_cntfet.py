@@ -543,7 +543,6 @@ def main():
           'seeded GraphDefinition rows), not a bespoke chart',
           page['isPage'] and page['pageRoute'] == 'cntfet'
           and set(page_components) <= {'class-rows-table',
-                                       'api-json-panel',
                                        'named-graph-panel',
                                        'evidence-browser',
                                        'api-structured-panel'}   # no JSON walls

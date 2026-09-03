@@ -70,6 +70,10 @@ BACKEND_ONLY_RUNTIME_CLASSES = {
     'EngineModelOperation',     # FEM/DFT engine models (msci-18)
     'WaxPrintOperation',        # wax-printer command engine (wp-7)
     'StateChangeCommit',        # persists instances via the manager/DB
+    # cal-2: the event family writes rows / reads the object tree
+    'GenerateEvent', 'ModifyEvent', 'CancelEvent',
+    'ScheduleOccurrences', 'EventWindowQuery',
+    'AnalysisCall',             # cal-4: registered backend analyses
     'SimulationStateStep',      # simulation-runner entry
     'SimStepNextState',         # simulation-runner terminators
     'SimStepContribution',
@@ -688,6 +692,147 @@ class StateBuildingBlockRegistry:
                                 'saveInstanceInDB. PERMISSION-BLIND until the '
                                 'auth/authz nodes land (P6); create/delete '
                                 'arrive with the data-access node family.'),
+            ),
+
+            # === Events (cal-2): event logic as no-code ===
+            StateBuildingBlock(
+                class_name='GenerateEvent',
+                display_name='Generate Event',
+                description=('Create a CalendarEvent (or a row of any class an '
+                             'EventDefinition reads) from resolved fields — the '
+                             'first real create path. dedupeBy names a field '
+                             'whose value must be unique (an existing row is '
+                             'reused, not duplicated).'),
+                category='Events',
+                supported_runtimes=['python_backend'],
+                code_templates=[CodeTemplate('python_backend',
+                                             '# Generate {targetClassName} event')],
+                default_input_slots=[{'name': 'input', 'displayName': 'Input',
+                                      'slotType': 'input', 'dataType': 'object',
+                                      'isRequired': True}],
+                default_output_slots=[{'name': 'generated', 'displayName': 'Generated',
+                                       'slotType': 'output', 'dataType': 'object',
+                                       'isRequired': False}],
+                display_fields=[],
+                icon='event', color='#1565c0',
+                execution_status='real',
+                execution_note=('targetClassName (default CalendarEvent), fields / '
+                                'fieldMappings (title required), dedupeBy, '
+                                'resultVariable (default generatedEvent). Sets '
+                                'generated_by to the firing trigger.'),
+            ),
+            StateBuildingBlock(
+                class_name='ModifyEvent',
+                display_name='Modify Event',
+                description=('Update fields of an existing event (or linked row): '
+                             'instanceRef + fields / fieldMappings — the '
+                             'StateChangeCommit commit path.'),
+                category='Events',
+                supported_runtimes=['python_backend'],
+                code_templates=[CodeTemplate('python_backend',
+                                             '# Modify {targetClassName} "{instanceRef}"')],
+                default_input_slots=[{'name': 'input', 'displayName': 'Input',
+                                      'slotType': 'input', 'dataType': 'object',
+                                      'isRequired': True}],
+                default_output_slots=[{'name': 'modified', 'displayName': 'Modified',
+                                       'slotType': 'output', 'dataType': 'object',
+                                       'isRequired': False}],
+                display_fields=[],
+                icon='edit_calendar', color='#ef6c00',
+                execution_status='real',
+                execution_note=('instanceRef defaults to the last GenerateEvent '
+                                'result in this run.'),
+            ),
+            StateBuildingBlock(
+                class_name='CancelEvent',
+                display_name='Cancel Event',
+                description=('Soft-cancel an event (status=cancelled, reason kept '
+                             'in notes). Hard delete stays a human CRUDE act.'),
+                category='Events',
+                supported_runtimes=['python_backend'],
+                code_templates=[CodeTemplate('python_backend',
+                                             '# Cancel {targetClassName} "{instanceRef}"')],
+                default_input_slots=[{'name': 'input', 'displayName': 'Input',
+                                      'slotType': 'input', 'dataType': 'object',
+                                      'isRequired': True}],
+                default_output_slots=[{'name': 'cancelled', 'displayName': 'Cancelled',
+                                       'slotType': 'output', 'dataType': 'object',
+                                       'isRequired': False}],
+                display_fields=[],
+                icon='event_busy', color='#c62828',
+                execution_status='real',
+                execution_note='instanceRef + optional reason.',
+            ),
+            StateBuildingBlock(
+                class_name='ScheduleOccurrences',
+                display_name='Schedule Occurrences',
+                description=('Expand a `schedule` value (recurrence JSON) into its '
+                             'occurrences inside [from, to] — a list the ForEach '
+                             'loop walks.'),
+                category='Events',
+                supported_runtimes=['python_backend'],
+                code_templates=[CodeTemplate('python_backend',
+                                             '# Expand schedule into {resultVariable}')],
+                default_input_slots=[{'name': 'input', 'displayName': 'Input',
+                                      'slotType': 'input', 'dataType': 'object',
+                                      'isRequired': True}],
+                default_output_slots=[{'name': 'expanded', 'displayName': 'Expanded',
+                                       'slotType': 'output', 'dataType': 'list',
+                                       'isRequired': False}],
+                display_fields=[],
+                icon='repeat', color='#6a1b9a',
+                execution_status='real',
+                execution_note=('schedule, from, to (defaults: today .. +30d), '
+                                'resultVariable (default occurrences; also '
+                                '<var>Count). Rides python-dateutil rrule.'),
+            ),
+            StateBuildingBlock(
+                class_name='EventWindowQuery',
+                display_name='Event Window Query',
+                description=('Read the events an EventDefinition or a '
+                             'CalendarDefinition produces inside [from, to] '
+                             '(person/household scoped) into a context list.'),
+                category='Events',
+                supported_runtimes=['python_backend'],
+                code_templates=[CodeTemplate('python_backend',
+                                             '# Query events into {resultVariable}')],
+                default_input_slots=[{'name': 'input', 'displayName': 'Input',
+                                      'slotType': 'input', 'dataType': 'object',
+                                      'isRequired': True}],
+                default_output_slots=[{'name': 'found', 'displayName': 'Found',
+                                       'slotType': 'output', 'dataType': 'list',
+                                       'isRequired': False}],
+                display_fields=[],
+                icon='calendar_view_week', color='#2e7d32',
+                execution_status='real',
+                execution_note=('definition | calendar, from, to (defaults: today '
+                                '.. +7d), person, household, resultVariable '
+                                '(default events; also <var>Count).'),
+            ),
+            StateBuildingBlock(
+                class_name='AnalysisCall',
+                display_name='Analysis Call',
+                description=('Run one registered backend analysis (an '
+                             'AnalysisDefinition row, or module:function) with '
+                             'resolved params; its dict result lands in the '
+                             'context for the steps that follow.'),
+                category='Events',
+                supported_runtimes=['python_backend'],
+                code_templates=[CodeTemplate('python_backend',
+                                             '# analysis {analysis} → {resultVariable}')],
+                default_input_slots=[{'name': 'input', 'displayName': 'Input',
+                                      'slotType': 'input', 'dataType': 'object',
+                                      'isRequired': True}],
+                default_output_slots=[{'name': 'done', 'displayName': 'Done',
+                                       'slotType': 'output', 'dataType': 'object',
+                                       'isRequired': False}],
+                display_fields=[],
+                icon='analytics', color='#00695c',
+                execution_status='real',
+                execution_note=('analysis (row name or module:function), params '
+                                '{name: literal | valueSource}, resultVariable '
+                                '(default analysis). A disabled row refuses plainly; '
+                                'provenance is stamped under _analysis.'),
             ),
         ]
 

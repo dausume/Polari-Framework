@@ -3,8 +3,9 @@
 
 The /display/sifet home page + one score page and one detail page
 PER seeded SiliconMOSFET — pure no-code data over the generic
-registry components (class-rows-table, api-json-panel,
-named-graph-panel), the cntfet-home shape. Every /api/cntfet/device/
+registry components (class-rows-table, api-structured-panel,
+named-graph-panel — no JSON on screen: each report panel picks
+its table or hides the dict-of-dicts keys), the cntfet-home shape. Every /api/cntfet/device/
 {name}/… surface accepts the Si names (shared VS parameterisation),
 so the per-device pages are the cnt_compare builders re-pointed at
 the Si rows (with_scenes=False: the 3-D field scenes are CNT-only
@@ -33,7 +34,7 @@ Exposed for the integrator (polariServer DisplayDefinition seeds):
 import json
 
 from cntfet.cnt_compare import detail_pages, score_pages
-from cntfet.cnt_pages_seed import _api, _device_graph, _row, _sapi, _table
+from cntfet.cnt_pages_seed import _device_graph, _row, _sapi, _table
 from sifet.si_basis import SEED_SI_DEVICES
 
 SI_DEVICE_NAMES = [d['name'] for d in SEED_SI_DEVICES]
@@ -105,10 +106,10 @@ def _home_page():
                        'SiliconMOSFET',
                        'name,polarity,shape,dielectric,lg_nm,w_nm,'
                        'vdd_v,vt0_v,n_ss,mu_cm2_per_vs,derived_at'),
-                _api('sifet-capability', 1, 4,
-                     'Capability (honest refusals: gate leakage, GIDL, '
-                     'traps, strain, sol-gel conformality)',
-                     '/api/sifet/capability'),
+                _sapi('sifet-capability', 1, 4,
+                      'Capability (honest refusals: gate leakage, GIDL, '
+                      'traps, strain, sol-gel conformality)',
+                      '/api/sifet/capability', hide='citations'),
             ], min_height=360),
             _row(1, [
                 _table('sifet-dielectrics', 0, 4,
@@ -133,10 +134,11 @@ def _home_page():
                               'of width)', d, 'transfer'),
                 _device_graph('sifet-device-output', 1, 4,
                               f'{d}: output Id(Vd)', d, 'output'),
-                _api('sifet-device-characterization', 2, 4,
-                     f'{d}: characterization (SS/DIBL/Ion/Ioff/gm — '
-                     'refusals verbatim)',
-                     f'/api/cntfet/device/{d}/characterization'),
+                _sapi('sifet-device-characterization', 2, 4,
+                      f'{d}: characterization (SS/DIBL/Ion/Ioff/gm — '
+                      'refusals verbatim)',
+                      f'/api/cntfet/device/{d}/characterization',
+                      pick='metrics', hide='refusals'),
             ], min_height=430),
             # cross-technology ranking: every CNT + Si device on the
             # same terms, the reference NMOS as focus.
@@ -144,10 +146,10 @@ def _home_page():
                 _device_graph('sifet-compare-graph', 0, 6,
                               f'{d} vs every FET (CNT + Si): score + '
                               'terms (◀ = this device)', d, 'compare'),
-                _api('sifet-compare', 1, 6,
-                     'Cross-technology ranking (CNT + Si on the same '
-                     'characteristic-equation terms; unproven = 0)',
-                     f'/api/cntfet/device/{d}/compare'),
+                _sapi('sifet-compare', 1, 6,
+                      'Cross-technology ranking (CNT + Si on the same '
+                      'characteristic-equation terms; unproven = 0)',
+                      f'/api/cntfet/device/{d}/compare', pick='ranking'),
             ], min_height=430),
             # fp-4 silicon refinement: the ladder + Scheil graphs and
             # the report (grade reachability statement).
@@ -163,10 +165,21 @@ def _home_page():
                                   'MG feed', 'scheil'),
             ], min_height=430),
             _row(5, [
-                _api('sifet-refinement', 0, 12,
-                     'Silicon refinement report: grade ladder, steps, '
-                     'routes (openness), PV vs semiconductor grade '
-                     'reachability', '/api/sifet/refinement'),
+                # the report's grade ladder / steps / routes are
+                # record tables; the reachability statement is
+                # {pv_grade: {...}, semiconductor_grade: {...}} — its
+                # own panel, picked, so each grade is a key/value
+                # block (segregation coefficients + citations are the
+                # same dict-of-dicts shape and back the graphs above).
+                _sapi('sifet-refinement', 0, 8,
+                      'Silicon refinement report: grade ladder, steps, '
+                      'routes (openness), knobs, MG feed',
+                      '/api/sifet/refinement',
+                      hide='segregation_coefficients,statement,citations'),
+                _sapi('sifet-refinement-statement', 1, 4,
+                      'PV vs semiconductor grade reachability '
+                      '(the statement)',
+                      '/api/sifet/refinement', pick='statement'),
             ], min_height=360),
             # open-silicon ladder: 90 → 65 → 45 → 32 → 22 → 14 → 7 nm;
             # TWO independent axes per rung (rights / fabrication
@@ -180,15 +193,33 @@ def _home_page():
                       'fabrication evidence, frontier / predictive / '
                       'manufacturable', '/api/sifet/ladder', pick='rungs'),
             ], min_height=430),
+            # anchors: `comparisons` = {ion: {...}, ioff: {...}} —
+            # picked into its own panel per device (key/value per
+            # metric); the verdict / tolerance / knob suggestions
+            # beside it.
             _row(7, [
-                _sapi('sifet-ladder-anchors-n', 0, 6,
+                _sapi('sifet-ladder-anchors-n', 0, 3,
                       'si-nmos-freepdk45-class vs the FreePDK45 '
-                      'documented anchors (gap + nearest knob, NOT applied)',
-                      '/api/sifet/devices/si-nmos-freepdk45-class/anchors'),
-                _sapi('sifet-ladder-anchors-p', 1, 6,
+                      'documented anchors: verdict, tolerance, nearest '
+                      'knob (NOT applied)',
+                      '/api/sifet/devices/si-nmos-freepdk45-class/anchors',
+                      hide='comparisons'),
+                _sapi('sifet-ladder-anchors-n-gap', 1, 3,
+                      'si-nmos-freepdk45-class: ours vs anchor, per '
+                      'metric',
+                      '/api/sifet/devices/si-nmos-freepdk45-class/anchors',
+                      pick='comparisons'),
+                _sapi('sifet-ladder-anchors-p', 2, 3,
                       'si-pmos-freepdk45-class vs the FreePDK45 '
-                      'documented anchors',
-                      '/api/sifet/devices/si-pmos-freepdk45-class/anchors'),
+                      'documented anchors: verdict, tolerance, nearest '
+                      'knob',
+                      '/api/sifet/devices/si-pmos-freepdk45-class/anchors',
+                      hide='comparisons'),
+                _sapi('sifet-ladder-anchors-p-gap', 3, 3,
+                      'si-pmos-freepdk45-class: ours vs anchor, per '
+                      'metric',
+                      '/api/sifet/devices/si-pmos-freepdk45-class/anchors',
+                      pick='comparisons'),
             ], min_height=360),
         ]}),
     }

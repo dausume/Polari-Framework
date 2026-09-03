@@ -304,7 +304,7 @@ def main():
     check('page seed: /display/computers is a PAGE of the two '
           'generic components only — zero Angular work',
           page['isPage'] and page['pageRoute'] == 'computers'
-          and comps <= {'class-rows-table', 'api-json-panel'},
+          and comps <= {'class-rows-table', 'api-structured-panel'},
           f'components={comps}')
 
     # ---- seed hygiene ----------------------------------------------

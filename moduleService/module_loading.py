@@ -39,7 +39,7 @@ FEATURE_MODULES = frozenset({
     'aquaponics', 'biomining', 'bizops', 'climate', 'cntfet',
     'computerparts', 'computers', 'dmvdata',
     'electrodevice',
-    'gears', 'grpcbridge', 'hwdigital', 'hwfpga', 'magnetics',
+    'gears', 'grpcbridge', 'household', 'hwdigital', 'hwfpga', 'magnetics',
     'mathshapes', 'meshassets', 'microalgae', 'microchip', 'motors',
     'nutrition', 'odooconnect', 'plant_morphology', 'polariapps',
     'scoring',
@@ -81,6 +81,9 @@ FEATURE_REQUIRES = {
     # (parts_assembly/parts_basis); composition stays a guarded
     # seed-path import only (registry requires, not here).
     'computers': ('computerparts',),
+    # hh-1: nutrition's logistics/workflow modules import the moved
+    # household layer (schedules, members, skills, dishes) directly.
+    'nutrition': ('household',),
     'zones': ('scoring',),
 }
 

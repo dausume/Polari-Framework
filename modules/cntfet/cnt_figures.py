@@ -16,7 +16,8 @@ names the missing step — absence is visible, never silent
 Payload shape is chart-ready for the cnt-2 SVG chart component
 (series of {x, y} points + an axes spec with units/scale/ranges
 taken from the publication axes), and readable through
-api-json-panel until the replica chart lands in the frontend.
+api-structured-panel (the figures index as a table; never a JSON
+wall) beside the replica chart in the frontend.
 
 @consumers
   - cntfet.cnt_api (GET /api/cntfet/figures[/{figure_id}])
