@@ -86,6 +86,14 @@ class DailyIntakeMetric(treeObject):
         protein_g: float = 0.0,
         fiber_g: float = 0.0,
         sodium_mg: float = 0.0,
+        # N6: total sugars (FDC 269) summed over the ingredients that
+        # carry a row; sugars_basis says whether ANY did ('fdc-269')
+        # or the day has no sugars data ('' — then sugars_g 0.0 is an
+        # absence, not a zero). Added 2026-09-03 with a default — an
+        # existing DB needs the field-addition path in
+        # composition.seed_upsert (schema change, see the seed gotcha).
+        sugars_g: float = 0.0,
+        sugars_basis: str = '',
         # spike metrics: the day's MAX per-meal values.
         max_meal_gl: float = 0.0,
         max_meal_acid_share: float = 0.0,
@@ -105,6 +113,8 @@ class DailyIntakeMetric(treeObject):
         self.protein_g = protein_g
         self.fiber_g = fiber_g
         self.sodium_mg = sodium_mg
+        self.sugars_g = sugars_g
+        self.sugars_basis = sugars_basis
         self.max_meal_gl = max_meal_gl
         self.max_meal_acid_share = max_meal_acid_share
         self.meals_logged = meals_logged
@@ -160,6 +170,12 @@ class PeriodIntakeMetric(treeObject):
         carbohydrate_g_mean: float = 0.0,
         fiber_g_mean: float = 0.0,
         sodium_mg_mean: float = 0.0,
+        # N6: mean total sugars over the bucket's days WITH sugars
+        # data, and which basis the "sweets" readout used
+        # ('sugars-total' | 'gl+carbohydrate'). Added 2026-09-03 with
+        # defaults — same seed_upsert field-addition caveat as above.
+        sugars_g_mean: float = 0.0,
+        sweets_basis: str = '',
         max_meal_gl_mean: float = 0.0,
         max_meal_acid_share_mean: float = 0.0,
         weight_kg_mean: float = 0.0,
@@ -184,6 +200,8 @@ class PeriodIntakeMetric(treeObject):
         self.carbohydrate_g_mean = carbohydrate_g_mean
         self.fiber_g_mean = fiber_g_mean
         self.sodium_mg_mean = sodium_mg_mean
+        self.sugars_g_mean = sugars_g_mean
+        self.sweets_basis = sweets_basis
         self.max_meal_gl_mean = max_meal_gl_mean
         self.max_meal_acid_share_mean = max_meal_acid_share_mean
         self.weight_kg_mean = weight_kg_mean

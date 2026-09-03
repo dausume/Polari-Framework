@@ -40,7 +40,8 @@ FEATURE_MODULES = frozenset({
     'computerparts', 'computers', 'dmvdata',
     'electrodevice',
     'gears', 'grpcbridge', 'household', 'hwdigital', 'hwfpga', 'magnetics',
-    'mathshapes', 'meshassets', 'microalgae', 'microchip', 'motors',
+    'mathshapes', 'mealoptions', 'meshassets', 'microalgae', 'microchip',
+    'motors',
     'nutrition', 'odooconnect', 'plant_morphology', 'polariapps',
     'scoring',
     'supplychain', 'tanks', 'techtree', 'testing', 'waxprint',
@@ -82,8 +83,9 @@ FEATURE_REQUIRES = {
     # seed-path import only (registry requires, not here).
     'computers': ('computerparts',),
     # hh-1: nutrition's logistics/workflow modules import the moved
-    # household layer (schedules, members, skills, dishes) directly.
-    'nutrition': ('household',),
+    # household layer (schedules, members, skills, dishes) directly;
+    # mo-1: and re-export the moved meal data from mealoptions.
+    'nutrition': ('household', 'mealoptions'),
     'zones': ('scoring',),
 }
 

@@ -37,6 +37,12 @@ from nutrition.tolerance_analysis import evaluate_tolerances
 #: a selection knob, not a limit (the API takes ?nutrients=).
 DEFAULT_SERIES_NUTRIENTS = ('calories', 'protein', 'fiber', 'sodium')
 
+#: N6 — the basis tag a day carries when at least one ingredient had
+#: an FDC total-sugars row (nbr 269 / 269.3). Ingredients WITHOUT a
+#: row contribute nothing, so a day's sugars_g is a lower bound; a
+#: day with no such ingredient has sugarsG None (absence, not zero).
+SUGARS_BASIS_FDC = 'fdc-269 total sugars (sum over ingredients that carry a row — lower bound)'
+
 
 def resolve_me(manager, user_info):
     """Keycloak identity dict → the linked person, honestly."""
@@ -133,6 +139,15 @@ def intake_day(manager, person_name, day):
                   'meals': meals,
                   'dayTotals': {n: round(v, 2)
                                 for n, v in sorted(totals.items())}}
+    # N6: total sugars rides the rollup like any nutrient, but its
+    # ABSENCE must stay distinguishable from zero — the key only
+    # exists when some ingredient carried an FDC total-sugars row.
+    if 'sugars-total' in totals:
+        day_report['sugarsG'] = round(totals['sugars-total'], 2)
+        day_report['sugarsBasis'] = SUGARS_BASIS_FDC
+    else:
+        day_report['sugarsG'] = None
+        day_report['sugarsBasis'] = ''
     if person is not None:
         th = person_thresholds(manager, person, 'day')
         if th.get('ok'):
@@ -204,6 +219,8 @@ def tracking_series(manager, person_name, start_date=None,
         entry['maxMealAcidShare'] = (round(max(acids), 3)
                                      if acids else 0.0)
         entry['dayWarningCount'] = len(report.get('dayWarnings', []))
+        # N6: None when no ingredient carried a total-sugars row
+        entry['sugarsG'] = report.get('sugarsG')
         days.append(entry)
         totals = report['dayTotals']
         metric_rows.append({
@@ -213,6 +230,9 @@ def tracking_series(manager, person_name, start_date=None,
             'protein_g': round(totals.get('protein', 0.0), 1),
             'fiber_g': round(totals.get('fiber', 0.0), 1),
             'sodium_mg': round(totals.get('sodium', 0.0), 1),
+            # the cache row is flat: 0.0 + blank basis = no data
+            'sugars_g': round(entry['sugarsG'] or 0.0, 1),
+            'sugars_basis': report.get('sugarsBasis', ''),
             'max_meal_gl': entry['maxMealGL'],
             'max_meal_acid_share': entry['maxMealAcidShare'],
             'meals_logged': entry['mealsLogged'],
@@ -260,6 +280,8 @@ def tracking_series(manager, person_name, start_date=None,
             'honesty': 'days without records are NAMED gaps, never '
                        'zeros; per-meal GL and acid share chart '
                        'their day MAX (a spike metric, not an '
-                       'average); comfort thresholds stay '
-                       'general-population heuristics, not medical '
-                       'advice'}
+                       'average); sugarsG is FDC total sugars summed '
+                       'over ingredients that carry a row (None when '
+                       'none did — an absence, not a zero); comfort '
+                       'thresholds stay general-population '
+                       'heuristics, not medical advice'}

@@ -484,17 +484,51 @@ def _parse_list(value, universe, all_word='all'):
     return parts, False
 
 
+def _day_label(plan_row, day):
+    """'Tue' from the plan's start_date + day_index, else 'day N' —
+    the words a person reads in the form's message."""
+    try:
+        start = datetime.fromisoformat(str(getattr(plan_row, 'start_date', ''))[:10]).date()
+        return (start + timedelta(days=int(day) - 1)).strftime('%a')
+    except (TypeError, ValueError):
+        return f'day {day}'
+
+
+def _refused(error):
+    """A refused proposal: the error IS the message the form shows."""
+    return {'ok': False, 'error': error, 'message': error, 'proposals': []}
+
+
+def apply_meal_message(plan_row, proposals, already):
+    """Plain words for the "Add to the week" form: what was added,
+    what was already planned and kept — every slot named."""
+    added = [f'{_day_label(plan_row, p["day_index"])} {p["slot"]}' for p in proposals]
+    kept = [f'{_day_label(plan_row, a["day"])} {a["slot"]} ({a["template"] or a["entry"]})'
+            for a in already]
+    parts = []
+    if added:
+        parts.append(f'Added {len(added)} entr{"y" if len(added) == 1 else "ies"} ({", ".join(added)})')
+    if kept:
+        parts.append(f'{len(kept)} slot{"" if len(kept) == 1 else "s"} already planned and kept: '
+                     + ', '.join(kept))
+    if not parts:
+        return 'Nothing to add — no slot matched'
+    if not added:
+        return 'Nothing added — ' + parts[0]
+    return '; '.join(parts)
+
+
 def apply_meal_proposal(manager, plan, template, variation='', slots='all', days='all',
                         person='', scale=0.0):
     """Proposed MealEntry rows for a meal across slots × days, with
-    per-person portions; existing entries are NAMED and skipped."""
+    per-person portions; existing entries are NAMED and skipped.
+    `message` = the plain-words outcome the form shows."""
     plan_row = plan if not isinstance(plan, str) else _named(manager, 'MealPlanDefinition', plan)
     if plan_row is None:
-        return {'ok': False, 'error': f"MealPlanDefinition '{plan}' not found", 'proposals': []}
+        return _refused(f"MealPlanDefinition '{plan}' not found")
     t = _named(manager, 'MealTemplate', template)
     if t is None:
-        return {'ok': False, 'error': f"MealTemplate '{template}' not found — pick one from the "
-                                      f"meals table", 'proposals': []}
+        return _refused(f"MealTemplate '{template}' not found — pick one from the meals table")
     template_slots = _json_list(t, 'slots_json') or list(MEAL_SLOTS)
     people = [person] if person else _members(manager, plan_row)
     n_days = int(getattr(plan_row, 'days', 0) or 0) or 7
@@ -502,8 +536,7 @@ def apply_meal_proposal(manager, plan, template, variation='', slots='all', days
     try:
         day_list = [int(d) for d in day_list]
     except ValueError:
-        return {'ok': False, 'error': f"days must be numbers like '1,3,5' or 'all' — got {days!r}",
-                'proposals': []}
+        return _refused(f"days must be numbers like '1,3,5' or 'all' — got {days!r}")
     bad_days = [d for d in day_list if d < 1 or d > n_days]
     slot_list, all_slots = _parse_list(slots, template_slots)
     if all_slots:
@@ -557,6 +590,7 @@ def apply_meal_proposal(manager, plan, template, variation='', slots='all', days
             'unknownSlots': unknown, 'daysOutOfRange': bad_days, 'warnings': warnings,
             'portions': fits_by_slot,
             'counts': {'proposed': len(proposals), 'alreadyPlanned': len(already)},
+            'message': apply_meal_message(plan_row, proposals, already),
             'honesty': ('proposals only — the "Add to the week" form runs the no-code solution '
                         'that writes them (GenerateEvent → MealEntry, dedupe by name); the entry '
                         'trigger then re-coordinates pre-prep, packing, dishes and the allocation')}

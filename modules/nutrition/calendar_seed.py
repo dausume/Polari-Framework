@@ -234,46 +234,74 @@ def _proposal_solution(name, analysis, params, event_name, description):
     return _solution(name, graph, description)
 
 
+#: Every FORM solution ends with what a person can read: the proposal
+#: function's plain-words `message` (picked BEFORE the writes, so
+#: "already planned / already logged — kept" is judged against the
+#: rows as they stood when the form was submitted) lands in the
+#: context as the variable `message` and rides the refreshDisplay
+#: payload. The /executeSolutionStepped response therefore carries it
+#: at trace.steps[-1].contextAfter.variables.message.value (what the
+#: display-solution-runner reads first) and at trace.finalReturnValue.
+#: payload.message (EmitFrontendEvent IS the engine's terminal state —
+#: a ReturnValue wired after it would never run, so none is). Dotted
+#: paths do not walk into dicts, so this is its own AnalysisCall
+#: rather than a second pick off the first.
+def message_call(name, analysis, params, nxt):
+    return gb.node(name, 'AnalysisCall',
+                   {'analysis': analysis, 'params': params, 'pick': 'message',
+                    'resultVariable': 'message'}, outs=[[nxt]])
+
+
+def refresh_with_message(payload):
+    """The terminal EmitFrontendEvent(refreshDisplay) every form
+    solution shares; `message` is always in the payload."""
+    return gb.node('Refresh', 'EmitFrontendEvent',
+                   {'eventName': 'refreshDisplay',
+                    'payload': dict(payload, message=gb.var_src('message'))})
+
+
+_APPLY_PARAMS = {'plan': gb.var_src('plan'), 'template': gb.var_src('template'),
+                 'variation': gb.var_src('variation'), 'slots': gb.var_src('slots'),
+                 'days': gb.var_src('days'), 'person': gb.var_src('person'),
+                 'scale': gb.var_src('scale')}
+
 #: mpc: the "Add to the week" FORM runs this — FormSubscription entry
 #: (the form's fields are the context) → the apply-meal proposal →
 #: MealEntry rows (GenerateEvent on a class an EventDefinition reads;
 #: dedupe by name never overwrites a planned entry) → the page
-#: refreshes; the MealEntry create trigger re-coordinates the week.
+#: refreshes → the message ("Added …; … already planned and kept");
+#: the MealEntry create trigger re-coordinates the week.
 APPLY_MEAL_SOLUTION = _solution(
     'mealplan-apply-meal-to-week',
     gb.solution(
         'mealplan-apply-meal-to-week',
         gb.node('Start', 'FormSubscription', {}, outs=[['Propose']]),
         gb.node('Propose', 'AnalysisCall',
-                {'analysis': 'mealplan-apply-meal',
-                 'params': {'plan': gb.var_src('plan'), 'template': gb.var_src('template'),
-                            'variation': gb.var_src('variation'), 'slots': gb.var_src('slots'),
-                            'days': gb.var_src('days'), 'person': gb.var_src('person'),
-                            'scale': gb.var_src('scale')},
-                 'pick': 'proposals', 'resultVariable': 'proposals'}, outs=[['Write']]),
+                {'analysis': 'mealplan-apply-meal', 'params': _APPLY_PARAMS,
+                 'pick': 'proposals', 'resultVariable': 'proposals'}, outs=[['Message']]),
+        message_call('Message', 'mealplan-apply-meal', _APPLY_PARAMS, 'Write'),
         gb.node('Write', 'GenerateEvent',
                 {'targetClassName': 'MealEntry', 'eventsFrom': gb.var_src('proposals'),
                  'dedupeBy': 'name', 'fields': {}}, outs=[['Refresh']]),
-        gb.node('Refresh', 'EmitFrontendEvent',
-                {'eventName': 'refreshDisplay',
-                 'payload': {'written': gb.var_src('generatedEventBatch')}}),
+        refresh_with_message({'written': gb.var_src('generatedEventBatch')}),
     ),
-    'Apply a meal to any slots × days of the week as MealEntry rows with per-person portions.')
+    'Apply a meal to any slots × days of the week as MealEntry rows with per-person portions; '
+    'says what was added and which slots were already planned and kept.')
 
 def _log_form_solution(name, analysis, params, target_class, description):
-    """FormSubscription → validated proposal → ONE row → refresh."""
+    """FormSubscription → validated proposal → ONE row → refresh →
+    the message ("Logged … " / "Already logged … — kept")."""
     return _solution(name, gb.solution(
         name,
         gb.node('Start', 'FormSubscription', {}, outs=[['Validate']]),
         gb.node('Validate', 'AnalysisCall',
                 {'analysis': analysis, 'params': params, 'pick': 'proposals',
-                 'resultVariable': 'proposals'}, outs=[['Write']]),
+                 'resultVariable': 'proposals'}, outs=[['Message']]),
+        message_call('Message', analysis, params, 'Write'),
         gb.node('Write', 'GenerateEvent',
                 {'targetClassName': target_class, 'eventsFrom': gb.var_src('proposals'),
                  'dedupeBy': 'name', 'fields': {}}, outs=[['Refresh']]),
-        gb.node('Refresh', 'EmitFrontendEvent',
-                {'eventName': 'refreshDisplay',
-                 'payload': {'written': gb.var_src('generatedEventBatch')}}),
+        refresh_with_message({'written': gb.var_src('generatedEventBatch')}),
     ), description)
 
 
@@ -385,12 +413,30 @@ def seed_mealplan_calendar(manager):
     from polariNoCode.analysis_calls import AnalysisDefinition
     from polariNoCode.event_triggers import EventTrigger
 
+    # Night run 2026-09-03: the view pages' analyses / solutions /
+    # triggers ride the same upsert (lazy imports — those modules import
+    # page helpers from polariApiServer, so a top-level import would be
+    # circular). A missing one is reported, never fatal.
+    analyses = list(SEED_MEALPLAN_ANALYSES)
+    solutions = list(SEED_MEALPLAN_SOLUTIONS)
+    triggers = list(SEED_MEALPLAN_TRIGGERS)
+    for _mod, _pre in (('nutrition.today_seed', 'TODAY'),
+                       ('nutrition.shoptrip_seed', 'SHOPTRIP'),
+                       ('nutrition.cooknow_seed', 'COOKNOW'),
+                       ('nutrition.weekreview_seed', 'WEEKREVIEW')):
+        try:
+            _m = __import__(_mod, fromlist=['x'])
+            analyses += list(getattr(_m, f'SEED_{_pre}_ANALYSES', []))
+            solutions += list(getattr(_m, f'SEED_{_pre}_SOLUTIONS', []))
+            triggers += list(getattr(_m, f'SEED_{_pre}_TRIGGERS', []))
+        except Exception as e:  # noqa: BLE001
+            print(f'[MealplanCalendarSeed] {_mod} skipped: {e}', flush=True)
     reports = upsert_seed_pairs(manager, [
         ('EventDefinition', EventDefinition, SEED_MEALPLAN_EVENT_DEFINITIONS),
         ('CalendarDefinition', CalendarDefinition, SEED_MEALPLAN_CALENDARS),
-        ('AnalysisDefinition', AnalysisDefinition, SEED_MEALPLAN_ANALYSES),
-        ('SolutionDefinition', SolutionDefinition, SEED_MEALPLAN_SOLUTIONS),
-        ('EventTrigger', EventTrigger, SEED_MEALPLAN_TRIGGERS),
+        ('AnalysisDefinition', AnalysisDefinition, analyses),
+        ('SolutionDefinition', SolutionDefinition, solutions),
+        ('EventTrigger', EventTrigger, triggers),
     ], tag='MealplanCalendarSeed')
 
     tables = getattr(manager, 'objectTables', {}) or {}

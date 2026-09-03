@@ -24,6 +24,7 @@ from nutrition.calendar_seed import (
     SEED_MEALPLAN_TRIGGERS,
 )
 from nutrition.fdc_seed import SEED_FDC_FOOD_ITEMS, SEED_FDC_NUTRIENT_CONTENTS
+from mealoptions import MEALOPTIONS_SEED_PAIRS
 from nutrition.logistics_basis import HOUSEHOLD_SEED_PAIRS, LOGISTICS_SEED_PAIRS
 from nutrition.market_basis import (
     SEED_PRICE_OBSERVATIONS, SEED_SOURCE_LOCATIONS, SEED_UNIT_WEIGHTS,
@@ -88,7 +89,8 @@ def _manager():
     }
     # hh-1: the household layer's seeds moved with it; LOGISTICS_SEED_PAIRS
     # is meal-only now.
-    for cls, _c, seeds in HOUSEHOLD_SEED_PAIRS + LOGISTICS_SEED_PAIRS:
+    # mo-1: the shareable meal data (incl. MealSituation) lives in mealoptions.
+    for cls, _c, seeds in HOUSEHOLD_SEED_PAIRS + LOGISTICS_SEED_PAIRS + MEALOPTIONS_SEED_PAIRS:
         tables[cls] = _rows(seeds)
     return SimpleNamespace(objectTables=tables, db=_DB())
 
@@ -181,6 +183,31 @@ def main():
                                 'slots': 'lunch', 'days': 'all', 'person': '', 'scale': 0})
     check('running the form again never duplicates (already planned → named; dedupe by name)',
           trace2.status == 'completed' and len(mgr.objectTables['MealEntry']) == before + 3)
+
+    # --- what the form SHOWS: the message (fix 2026-09-03: a submit was a silent no-op) ---
+    print('\nthe form message')
+    check('apply-meal proposal carries a plain-words message: "Added 3 entries (Tue lunch, …); 3 slots '
+          'already planned and kept: Tue dinner (chicken-bowl-dinner), …" — every slot named',
+          ap['message'].startswith('Added 3 entries (Tue lunch, Wed lunch, Thu lunch); 3 slots already '
+                                   'planned and kept: Tue dinner (chicken-bowl-dinner)'), ap['message'])
+    check('a refused proposal\'s message IS its error (no JSON, no diagnosis words)',
+          ap3['message'] == ap3['error'] and 'not found' in ap3['message'], ap3['message'])
+    msg1 = ctx.get('message')
+    refresh1 = next((ev for ev in ctx.get('_emitted_events', []) if ev.get('name') == 'refreshDisplay'), {})
+    check('through the engine the FIRST run leaves `message` as a context variable '
+          '(steps[-1].contextAfter.variables.message) AND in the refreshDisplay payload: "Added 3 entries"',
+          isinstance(msg1, str) and msg1.startswith('Added 3 entries (Tue lunch, Wed lunch, Thu lunch)')
+          and refresh1.get('payload', {}).get('message') == msg1, str(msg1))
+    msg2 = (final_context_of(trace2) or {}).get('message')
+    check('the SECOND run (every lunch already planned) says so in words — "Nothing added — 3 slots '
+          'already planned and kept: Tue lunch (chicken-bowl-dinner), …" — never a silent no-op',
+          isinstance(msg2, str) and msg2.startswith('Nothing added — 3 slots already planned and kept: '
+                                                     'Tue lunch (chicken-bowl-dinner)')
+          and 'Wed lunch' in msg2 and 'Thu lunch' in msg2, str(msg2))
+    check('the message is the graph\'s last step (Refresh is the terminal EmitFrontendEvent) — a '
+          'reader finds it without digging: trace.steps[-1].contextAfter.variables.message.value',
+          trace2.steps[-1].state_name == 'Refresh'
+          and trace2.steps[-1].context_after.variables['message']['value'] == msg2)
     firings = list(mgr.objectTables['TriggerFiring'].values())
     check('each new MealEntry fired the entry trigger (re-coordination) — audited firings',
           any(f.trigger_name == 'coordinate-week-on-entry' for f in firings), str(len(firings)))

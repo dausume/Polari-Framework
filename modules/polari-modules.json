@@ -27,6 +27,15 @@
       "requires": [],
       "description": "Household layer: people's schedules and sleep, members and work shares, skills and safety, dish strategies, the allocation and fairness"
     },
+    "mealoptions": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/mealoptions",
+      "repo": "",
+      "wave": 1,
+      "requires": [],
+      "description": "Meal options: templates, variations, recipes, steps, ingredient affinities, cooking methods, tool and task vocabularies, meal situations, bulk staples \u2014 the shareable meal data; no person or place data"
+    },
     "nutrition": {
       "kind": "official",
       "downloaded": true,
@@ -34,7 +43,8 @@
       "repo": "https://github.com/dausume/polari-module-nutrition.git",
       "wave": 1,
       "requires": [
-        "household"
+        "household",
+        "mealoptions"
       ],
       "description": "Dietary nutrients, person/household profiling, harvest -> meal-nutrient yield."
     },

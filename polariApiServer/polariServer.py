@@ -666,6 +666,20 @@ except ImportError as _exc:
     _stub_missing_feature('household', _exc, globals(), (
         'HOUSEHOLD_CLASSES', 'HOUSEHOLD_SEED_PAIRS',
     ))
+# mealoptions (mo-1): the shareable meal DATA nutrition accumulated —
+# templates + variations, recipes + lines + steps, dish bases / roles
+# / affinity norms, the cooking vocabulary (tools, task kinds, step
+# methods, storage actions, workflow DAGs), meal situations, bulk
+# staples — one registration list (names unchanged on the move;
+# nutrition requires it; no person / place / day data).
+try:
+    from mealoptions import (
+        MEALOPTIONS_CLASSES, MEALOPTIONS_SEED_PAIRS,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('mealoptions', _exc, globals(), (
+        'MEALOPTIONS_CLASSES', 'MEALOPTIONS_SEED_PAIRS',
+    ))
 # Nutrition: dietary-nutrient vocab + person + household profiling
 # (nut-1/3/4).
 try:
@@ -692,16 +706,14 @@ try:
     from nutrition.tolerance_basis import (
         ToleranceThreshold, SEED_TOLERANCE_THRESHOLDS,
     )
-    # nmp-3: recipes + the retention/yield rollup.
-    from nutrition.recipe_basis import (
-        Recipe, IngredientLine, CookingStep,
-        SEED_RECIPES, SEED_INGREDIENT_LINES, SEED_COOKING_STEPS,
-    )
-    # nmp-4: meal templates + plans (the hard gate rides the API).
+    # nmp-3 recipes, nmp-4 templates + variations, nmp-10 cooking
+    # vocabulary, nmp-11 dish bases + affinities, mlg-3 situations
+    # and cal-4 bulk staples moved to mealoptions (mo-1) and
+    # register under its own gate above.
+    # nmp-4: a person's plans + entries (the hard gate rides the API).
     from nutrition.meal_basis import (
-        MealTemplate, VariationDefinition, MealPlanDefinition,
-        MealEntry, SEED_MEAL_TEMPLATES, SEED_VARIATIONS,
-        SEED_MEAL_PLANS, SEED_MEAL_ENTRIES,
+        MealPlanDefinition, MealEntry, SEED_MEAL_PLANS,
+        SEED_MEAL_ENTRIES,
     )
     # nmp-5: activity (curated Compendium subset) + logs.
     from nutrition.activity_basis import (
@@ -715,19 +727,10 @@ try:
     from nutrition.fulfillment_basis import (
         GardenPlanDefinition, SEED_GARDEN_PLANS,
     )
-    # nmp-10: cooking workflows (tools x methods x storage).
+    # nmp-10: the OWNED / STATED workflow rows (the vocabulary is
+    # mealoptions').
     from nutrition.workflow_basis import (
-        KitchenToolDefinition, KitchenTool, CookingTaskDefinition,
-        StepMethod, StorageActionDefinition, MethodPreference,
-        ToolAdvisorDismissal, CookingWorkflow,
-        SEED_KITCHEN_TOOLS, SEED_TASK_KINDS, SEED_STEP_METHODS,
-        SEED_STORAGE_ACTIONS,
-    )
-    # nmp-11: dish bases + roles + the affinity norms.
-    from nutrition.affinity_basis import (
-        DishBase, IngredientRole, FoodRole, IngredientAffinity,
-        SEED_DISH_BASES, SEED_INGREDIENT_ROLES, SEED_FOOD_ROLES,
-        SEED_INGREDIENT_AFFINITIES,
+        KitchenTool, MethodPreference, ToolAdvisorDismissal,
     )
     # mpa-2/3/4: market (geolocated prices + weight priors), pantry,
     # keycloak account links, intake tracking.
@@ -737,11 +740,10 @@ try:
         SEED_UNIT_WEIGHTS,
     )
     from nutrition.pantry_basis import PantryItem, SEED_PANTRY_ITEMS
-    # cal-4: long-shelf-life staples bought in bulk on a cadence.
-    from nutrition.purchase_basis import BulkStaple, SEED_BULK_STAPLES
-    # mlg-3: the MEAL-specific logistics rows (situations, per-entry
-    # logistics, eating-time profiles); the household half moved to
-    # household.household_basis (hh-1).
+    # mlg-3: the person-side logistics rows (per-entry logistics,
+    # eating-time profiles); the household half moved to
+    # household.household_basis (hh-1), the situation vocabulary to
+    # mealoptions (mo-1).
     from nutrition.logistics_basis import (
         LOGISTICS_CLASSES, LOGISTICS_SEED_PAIRS,
     )
@@ -751,6 +753,9 @@ try:
     # called from a trigger allocates meal events before any
     # nutrition surface has imported them.
     from nutrition.logistics_analysis import MEAL_STEP_BUILDERS
+    # N3 (night run 2026-09-03): store aisle order + food→aisle priors
+    # for the Shopping trip page.
+    from nutrition.shoptrip_basis import SHOPTRIP_CLASSES, SHOPTRIP_SEED_PAIRS
     from nutrition.account_basis import (
         UserAccountLink, SEED_USER_ACCOUNT_LINKS,
     )
@@ -780,30 +785,18 @@ except ImportError as _exc:
         'EatingPatternDefinition', 'PersonThreshold',
         'SEED_EATING_PATTERNS',
         'ToleranceThreshold', 'SEED_TOLERANCE_THRESHOLDS',
-        'Recipe', 'IngredientLine', 'CookingStep', 'SEED_RECIPES',
-        'SEED_INGREDIENT_LINES', 'SEED_COOKING_STEPS',
-        'MealTemplate', 'VariationDefinition', 'MealPlanDefinition',
-        'MealEntry', 'SEED_MEAL_TEMPLATES', 'SEED_VARIATIONS',
+        'MealPlanDefinition', 'MealEntry',
+        'SEED_MEAL_PLANS', 'SEED_MEAL_ENTRIES',
         'ActivityDefinition', 'ActivityLog',
         'SEED_ACTIVITY_DEFINITIONS', 'WeightObservation',
         'GardenPlanDefinition', 'SEED_GARDEN_PLANS',
-        'KitchenToolDefinition', 'KitchenTool',
-        'CookingTaskDefinition', 'StepMethod',
-        'StorageActionDefinition', 'MethodPreference',
-        'ToolAdvisorDismissal', 'CookingWorkflow',
-        'SEED_KITCHEN_TOOLS', 'SEED_TASK_KINDS', 'SEED_STEP_METHODS',
-        'SEED_STORAGE_ACTIONS',
-        'DishBase', 'IngredientRole', 'FoodRole',
-        'IngredientAffinity', 'SEED_DISH_BASES',
-        'SEED_INGREDIENT_ROLES', 'SEED_FOOD_ROLES',
-        'SEED_INGREDIENT_AFFINITIES',
-        'SEED_MEAL_PLANS', 'SEED_MEAL_ENTRIES',
+        'KitchenTool', 'MethodPreference', 'ToolAdvisorDismissal',
         'SourceLocation', 'PriceObservation', 'UnitWeightPrior',
         'SEED_SOURCE_LOCATIONS', 'SEED_PRICE_OBSERVATIONS',
         'SEED_UNIT_WEIGHTS', 'PantryItem', 'SEED_PANTRY_ITEMS',
-        'BulkStaple', 'SEED_BULK_STAPLES',
         'LOGISTICS_CLASSES', 'LOGISTICS_SEED_PAIRS',
         'MEAL_STEP_BUILDERS',
+        'SHOPTRIP_CLASSES', 'SHOPTRIP_SEED_PAIRS',
         'UserAccountLink', 'SEED_USER_ACCOUNT_LINKS',
         'IntakeRecord', 'DailyIntakeMetric', 'PeriodIntakeMetric', 'SEED_INTAKE_RECORDS',
         'SEED_WEIGHT_OBSERVATIONS',
@@ -2310,6 +2303,19 @@ class polariServer(treeObject):
             from nutrition.mealplanning_api import MealPlanningAPI
             mealPlanningEndpoint = MealPlanningAPI(
                 polServer=self, manager=self.manager)
+            # Night run 2026-09-03: the four view pages' own resources
+            # (Today / Shopping trip / Cook now / Weekly review). Each
+            # guards its routes; a missing one must not take the rest.
+            for _mod, _cls in (('nutrition.today_api', 'TodayAPI'),
+                               ('nutrition.shoptrip_api', 'ShoptripAPI'),
+                               ('nutrition.cooknow_api', 'CookNowAPI'),
+                               ('nutrition.weekreview_api', 'WeekReviewAPI')):
+                try:
+                    _api_cls = getattr(__import__(_mod, fromlist=[_cls]), _cls)
+                    _api_cls(polServer=self, manager=self.manager)
+                except Exception as _e:  # noqa: BLE001
+                    print(f'[MealplanPages] {_cls} not registered: {_e}',
+                          flush=True)
         if _feature_available('plant_morphology'):
             # Plant morphology: 3D organ/root stand-ins + confinement /
             # dwarfing assessment (morph-1).
@@ -2750,14 +2756,16 @@ class polariServer(treeObject):
             DietaryNutrient, NutrientReference, PersonProfile,
             HouseholdProfile, FoodItem, NutrientContent,
             EatingPatternDefinition, PersonThreshold,
-            ToleranceThreshold, Recipe, IngredientLine, CookingStep,
-            MealTemplate, VariationDefinition, MealPlanDefinition,
+            ToleranceThreshold,
+            # mo-1: the shareable meal data (recipes, templates,
+            # cooking vocabulary, dish bases + affinities, meal
+            # situations, bulk staples) before the person-side
+            # plans / entries / owned tools that name it.
+            *(MEALOPTIONS_CLASSES or []),
+            MealPlanDefinition,
             MealEntry, ActivityDefinition, ActivityLog,
             WeightObservation, GardenPlanDefinition,
-            KitchenToolDefinition, KitchenTool, CookingTaskDefinition,
-            StepMethod, StorageActionDefinition, MethodPreference,
-            ToolAdvisorDismissal, CookingWorkflow,
-            DishBase, IngredientRole, FoodRole, IngredientAffinity,
+            KitchenTool, MethodPreference, ToolAdvisorDismissal,
             # mpa-2/3/4: market + pantry + accounts + intake
             # (+ the mpa-8 derive-on-demand day-metric cache).
             SourceLocation, PriceObservation, UnitWeightPrior,
@@ -2766,12 +2774,13 @@ class polariServer(treeObject):
             # mpb-1/2/3: exclusions + conditions + budget.
             FoodAllergenFlag, PersonExclusion,
             StatedCondition, ConditionSteering, PlanBudget,
-            WasteRecord, MealRating, BulkStaple,
+            WasteRecord, MealRating,
             # hh-1: the household layer (schedules, members + work,
             # skills + safety, dishes) before the meal rows that
             # reference its people.
             *(HOUSEHOLD_CLASSES or []),
             *(LOGISTICS_CLASSES or []),
+            *(SHOPTRIP_CLASSES or []),
             # Plant morphology 3D stand-ins (morph-1).
             OrganModel, RootSystemModel,
             # Plant-growth-sim phase 1: normalized-growth instance state.
@@ -3798,7 +3807,14 @@ class polariServer(treeObject):
             ('Style2DDefinition', Style2DDefinition, SEED_STYLES_2D),
             ('SimSpaceDefinition', SimSpaceDefinition, SEED_SIM_SPACES_2D),
         ]
-        for class_name, cls, seed_list in seed_pairs:
+        for _pair in seed_pairs:
+            if not isinstance(_pair, (tuple, list)) or len(_pair) != 3:
+                # A malformed pair must not take every later seed with
+                # it (2026-09-03: a 2-tuple crashed the whole pass).
+                print(f'[SeedSimSpace3D] malformed seed pair skipped: '
+                      f'{_pair!r}', flush=True)
+                continue
+            class_name, cls, seed_list = _pair
             typingObj = self.manager.objectTypingDict.get(class_name)
             if typingObj is None:
                 print(f'[SeedSimSpace2D] {class_name} not in objectTypingDict, skipping', flush=True)
@@ -4405,14 +4421,12 @@ class polariServer(treeObject):
             # nmp-2: cited adverse-effect thresholds.
             ('ToleranceThreshold', ToleranceThreshold,
              SEED_TOLERANCE_THRESHOLDS),
-            # nmp-3: recipes before their lines/steps.
-            ('Recipe', Recipe, SEED_RECIPES),
-            ('IngredientLine', IngredientLine, SEED_INGREDIENT_LINES),
-            ('CookingStep', CookingStep, SEED_COOKING_STEPS),
-            # nmp-4: templates before their variations.
-            ('MealTemplate', MealTemplate, SEED_MEAL_TEMPLATES),
-            ('VariationDefinition', VariationDefinition,
-             SEED_VARIATIONS),
+            # mo-1: the shareable meal data (recipes before their
+            # lines/steps, templates before their variations, the
+            # cooking vocabulary, dish bases before their norms,
+            # meal situations, bulk staples) before the person-side
+            # rows that name it.
+            *(MEALOPTIONS_SEED_PAIRS or []),
             # mpa-5: the demo plan the app pages render.
             ('MealPlanDefinition', MealPlanDefinition,
              SEED_MEAL_PLANS),
@@ -4423,21 +4437,6 @@ class polariServer(treeObject):
             # nmp-7: the demo garden plan.
             ('GardenPlanDefinition', GardenPlanDefinition,
              SEED_GARDEN_PLANS),
-            # nmp-10: tools/tasks/methods/storage vocabularies.
-            ('KitchenToolDefinition', KitchenToolDefinition,
-             SEED_KITCHEN_TOOLS),
-            ('CookingTaskDefinition', CookingTaskDefinition,
-             SEED_TASK_KINDS),
-            ('StepMethod', StepMethod, SEED_STEP_METHODS),
-            ('StorageActionDefinition', StorageActionDefinition,
-             SEED_STORAGE_ACTIONS),
-            # nmp-11: composition vocabulary before its norms.
-            ('DishBase', DishBase, SEED_DISH_BASES),
-            ('IngredientRole', IngredientRole,
-             SEED_INGREDIENT_ROLES),
-            ('FoodRole', FoodRole, SEED_FOOD_ROLES),
-            ('IngredientAffinity', IngredientAffinity,
-             SEED_INGREDIENT_AFFINITIES),
             # mpa-2/3/4: market, pantry, accounts, intake (locations
             # before the prices that reference them).
             ('SourceLocation', SourceLocation, SEED_SOURCE_LOCATIONS),
@@ -4445,11 +4444,11 @@ class polariServer(treeObject):
              SEED_PRICE_OBSERVATIONS),
             ('UnitWeightPrior', UnitWeightPrior, SEED_UNIT_WEIGHTS),
             ('PantryItem', PantryItem, SEED_PANTRY_ITEMS),
-            ('BulkStaple', BulkStaple, SEED_BULK_STAPLES),
             # hh-1: household layer rows before the meal logistics
             # rows that name its people.
             *(HOUSEHOLD_SEED_PAIRS or []),
             *(LOGISTICS_SEED_PAIRS or []),
+            *(SHOPTRIP_SEED_PAIRS or []),
             ('UserAccountLink', UserAccountLink,
              SEED_USER_ACCOUNT_LINKS),
             ('IntakeRecord', IntakeRecord, SEED_INTAKE_RECORDS),
@@ -4691,7 +4690,14 @@ class polariServer(treeObject):
         if only_classes is not None:
             seed_pairs = [(n, c, s) for n, c, s in seed_pairs
                           if n in only_classes]
-        for class_name, cls, seed_list in seed_pairs:
+        for _pair in seed_pairs:
+            if not isinstance(_pair, (tuple, list)) or len(_pair) != 3:
+                # A malformed pair must not take every later seed with
+                # it (2026-09-03: a 2-tuple crashed the whole pass).
+                print(f'[SeedSimSpace3D] malformed seed pair skipped: '
+                      f'{_pair!r}', flush=True)
+                continue
+            class_name, cls, seed_list = _pair
             typingObj = self.manager.objectTypingDict.get(class_name)
             if typingObj is None:
                 print(f'[SeedSimSpace3D] {class_name} not in objectTypingDict, skipping', flush=True)
@@ -5193,34 +5199,12 @@ class polariServer(treeObject):
                           SEED_EATING_PATTERNS),
                          ('ToleranceThreshold', ToleranceThreshold,
                           SEED_TOLERANCE_THRESHOLDS),
-                         ('Recipe', Recipe, SEED_RECIPES),
-                         ('IngredientLine', IngredientLine,
-                          SEED_INGREDIENT_LINES),
-                         ('CookingStep', CookingStep,
-                          SEED_COOKING_STEPS),
-                         ('MealTemplate', MealTemplate,
-                          SEED_MEAL_TEMPLATES),
-                         ('VariationDefinition', VariationDefinition,
-                          SEED_VARIATIONS),
+                         # mo-1: the shareable meal data.
+                         *(MEALOPTIONS_SEED_PAIRS or []),
                          ('ActivityDefinition', ActivityDefinition,
                           SEED_ACTIVITY_DEFINITIONS),
                          ('GardenPlanDefinition', GardenPlanDefinition,
                           SEED_GARDEN_PLANS),
-                         ('KitchenToolDefinition',
-                          KitchenToolDefinition, SEED_KITCHEN_TOOLS),
-                         ('CookingTaskDefinition',
-                          CookingTaskDefinition, SEED_TASK_KINDS),
-                         ('StepMethod', StepMethod,
-                          SEED_STEP_METHODS),
-                         ('StorageActionDefinition',
-                          StorageActionDefinition,
-                          SEED_STORAGE_ACTIONS),
-                         ('DishBase', DishBase, SEED_DISH_BASES),
-                         ('IngredientRole', IngredientRole,
-                          SEED_INGREDIENT_ROLES),
-                         ('FoodRole', FoodRole, SEED_FOOD_ROLES),
-                         ('IngredientAffinity', IngredientAffinity,
-                          SEED_INGREDIENT_AFFINITIES),
                          ('MealPlanDefinition', MealPlanDefinition,
                           SEED_MEAL_PLANS),
                          ('MealEntry', MealEntry, SEED_MEAL_ENTRIES),
@@ -5232,9 +5216,9 @@ class polariServer(treeObject):
                           SEED_UNIT_WEIGHTS),
                          ('PantryItem', PantryItem,
                           SEED_PANTRY_ITEMS),
-                         ('BulkStaple', BulkStaple, SEED_BULK_STAPLES),
                          *(HOUSEHOLD_SEED_PAIRS or []),
                          *(LOGISTICS_SEED_PAIRS or []),
+                         *(SHOPTRIP_SEED_PAIRS or []),
                          ('UserAccountLink', UserAccountLink,
                           SEED_USER_ACCOUNT_LINKS),
                          ('IntakeRecord', IntakeRecord,
@@ -5422,7 +5406,14 @@ class polariServer(treeObject):
             # full simulation run.
             ('SolutionTestCase', SolutionTestCase, SEED_PENDULUM_STEP_TEST_CASES),
         ]
-        for class_name, cls, seed_list in seed_pairs:
+        for _pair in seed_pairs:
+            if not isinstance(_pair, (tuple, list)) or len(_pair) != 3:
+                # A malformed pair must not take every later seed with
+                # it (2026-09-03: a 2-tuple crashed the whole pass).
+                print(f'[SeedSimSpace3D] malformed seed pair skipped: '
+                      f'{_pair!r}', flush=True)
+                continue
+            class_name, cls, seed_list = _pair
             typingObj = self.manager.objectTypingDict.get(class_name)
             if typingObj is None:
                 print(f'[SeedSimulations] {class_name} not in objectTypingDict, skipping', flush=True)

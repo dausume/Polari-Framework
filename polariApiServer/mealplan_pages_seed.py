@@ -156,6 +156,9 @@ SEED_MEALPLAN_TABLES = [
                [('name', 'Location', 'str', 150),
                 ('display_name', 'Name', 'str', 170),
                 ('kind', 'Kind', 'str', 110),
+                # mo-2: who sets the price (chain vs independent).
+                ('ownership_kind', 'Ownership', 'str', 120),
+                ('chain_name', 'Chain', 'str', 120),
                 ('region_label', 'Region', 'str', 170),
                 ('latitude', 'Lat', 'float', 90),
                 ('longitude', 'Lon', 'float', 90)]),
@@ -168,6 +171,21 @@ SEED_MEALPLAN_TABLES = [
                 ('package_quantity', 'Pkg qty', 'float', 80),
                 ('package_unit', 'Pkg unit', 'str', 90),
                 ('observed_date', 'Observed', 'str', 110)]),
+    # mo-2: the published, person-free month references (mealoptions).
+    _table_def('mealplan-price-reference-standard', 'PriceReference',
+               'Price references',
+               'Month-level $/kg by source type (chain named, independents '
+               'typed only); purchaser, place and day stripped.',
+               [('food_name', 'Food', 'str', 160),
+                ('month', 'Month', 'str', 90),
+                ('source_type', 'Source type', 'str', 120),
+                ('chain_name', 'Chain', 'str', 120),
+                ('region_label', 'Region', 'str', 150),
+                ('price_per_kg_median', 'Median $/kg', 'float', 100),
+                ('price_per_kg_min', 'Min', 'float', 80),
+                ('price_per_kg_max', 'Max', 'float', 80),
+                ('sample_count', 'Samples', 'int', 80),
+                ('varies_by_vendor', 'Varies by vendor', 'bool', 120)]),
     _table_def('mealplan-intake-standard', 'IntakeRecord',
                'Intake records', 'What was actually eaten.',
                [('person_name', 'Person', 'str', 110),
@@ -817,7 +835,7 @@ SEED_MEALPLAN_PAGE_DISPLAYS = [
             _row(2, [
                 _form('mp-me-log-intake', 0, 6, 'Log what I ate', 'mealplan-log-intake', [
                     ('person', 'Person', 'string', '{object}', '', True),
-                    ('date', 'Date (YYYY-MM-DD, blank = today)', 'string', '', '2026-09-02', False),
+                    ('date', 'Date (YYYY-MM-DD, blank = today)', 'string', '', 'YYYY-MM-DD (blank = today)', False),
                     ('slot', 'Slot', 'string', 'dinner', 'breakfast / lunch / dinner / snack …', True),
                     ('template', 'Meal', 'string', '', 'a MealTemplate name', True),
                     ('variation', 'Variation', 'string', '', 'blank = base', False),
@@ -826,7 +844,7 @@ SEED_MEALPLAN_PAGE_DISPLAYS = [
                 ], submit_label='Log it'),
                 _form('mp-me-log-weight', 1, 6, 'Log my weight', 'mealplan-log-weight', [
                     ('person', 'Person', 'string', '{object}', '', True),
-                    ('date', 'Date (YYYY-MM-DD, blank = today)', 'string', '', '2026-09-02', False),
+                    ('date', 'Date (YYYY-MM-DD, blank = today)', 'string', '', 'YYYY-MM-DD (blank = today)', False),
                     ('weight_kg', 'Weight (kg)', 'number', '', '80.1', True),
                     ('context', 'Context', 'string', 'morning', 'morning / evening / after workout', False),
                 ], submit_label='Log it'),
@@ -1079,10 +1097,37 @@ SEED_MEALPLAN_PAGE_DISPLAYS = [
                       f'{_MP}/bulk-proposal?household={HOUSEHOLD}&cadence=12', hide='proposals'),
             ]),
             _row(4, [
+                # mo-1: the shipped staples are mealoptions data with a
+                # BLANK household_name (= any household), so the table
+                # is unfiltered — a household's own rows list beside them.
                 _etable('mp-supply-staples', 0, 6, 'Bulk staples (cadence, shelf life, bulk offer)',
-                        'mealplan-bulk-staple-standard', 'BulkStaple', 'household_name', HOUSEHOLD),
+                        'mealplan-bulk-staple-standard', 'BulkStaple'),
                 _etable('mp-supply-events', 1, 6, 'Purchase events on the calendar',
                         'mealplan-event-standard', 'CalendarEvent', 'category', 'purchase'),
+            ]),
+            # mo-2: local-first price advice over the month references
+            # (chain vs farmers market vs X; the 10 % knob labelled) +
+            # the published reference rows. Publishing a month =
+            # `POST /api/mealplanning/prices/publish` (or, from mo-3,
+            # `pol modules export mealoptions`) — no form: the export
+            # is not a no-code solution.
+            _row(5, [
+                _sapi('mp-supply-advice', 0, 8,
+                      'Price advice — local first (chicken breast: chain vs '
+                      'farmers market, $/kg, which rule decided)',
+                      f'{_MP}/prices/advice?food=chicken-breast-raw',
+                      pick='ranking'),
+                _sapi('mp-supply-advice-pick', 1, 4,
+                      'Recommended source + the local-preference knob',
+                      f'{_MP}/prices/advice?food=chicken-breast-raw',
+                      hide='ranking,recommended,knob,honesty,whyLocalFirst'),
+            ]),
+            _row(6, [
+                _etable('mp-supply-references', 0, 12,
+                        'Price references — food × month × source type '
+                        '(chain named; independents typed only; no place, '
+                        'no day). Publish: POST /api/mealplanning/prices/publish',
+                        'mealplan-price-reference-standard', 'PriceReference'),
             ]),
         ]),
     _page(
@@ -1341,6 +1386,7 @@ def _repoint_display_refs(manager):
     ids (ids are assigned at insert, so a seeded page cannot carry a
     working reference). Returns how many items were repointed."""
     wanted = {d['name'] for d in SEED_MEALPLAN_PAGE_DISPLAYS}
+    wanted |= {d['name'] for d in _view_page_seeds()['displays']}
     repointed = 0
     for row in list((getattr(manager, 'objectTables', {}) or {})
                     .get('DisplayDefinition', {}).values()):
@@ -1380,6 +1426,40 @@ def _repoint_display_refs(manager):
     return repointed
 
 
+SEED_MEALPLAN_GEOCODERS = [
+    {'name': 'osm-nominatim-public', 'type': 'web-limited',
+     'provider': 'nominatim',
+     'definition': json.dumps({
+         'baseUrl': 'https://nominatim.openstreetmap.org',
+         'note': ('OSM Nominatim public instance — a labelled convenience '
+                  'prior for the Places table (usage policy: at most 1 '
+                  'request/s, attribution required, no bulk). Replace with '
+                  'a self-hosted Pelias/Nominatim row for volume.')})},
+]
+
+
+def _view_page_seeds():
+    """Night run 2026-09-03: the view pages (Today / Shopping trip /
+    Cook now / Weekly review) keep their seeds in their own modules,
+    which import this module's helpers — so they are pulled in lazily
+    here (a top-level import would be circular). A missing one is
+    reported, never fatal."""
+    out = {'tables': [], 'graphs': [], 'displays': []}
+    for mod, pre in (('nutrition.today_seed', 'TODAY'),
+                     ('nutrition.shoptrip_seed', 'SHOPTRIP'),
+                     ('nutrition.cooknow_seed', 'COOKNOW'),
+                     ('nutrition.weekreview_seed', 'WEEKREVIEW')):
+        try:
+            m = __import__(mod, fromlist=['x'])
+        except Exception as e:  # noqa: BLE001
+            print(f'[MealplanPagesSeed] {mod} skipped: {e}', flush=True)
+            continue
+        out['tables'] += list(getattr(m, f'SEED_{pre}_TABLES', []))
+        out['graphs'] += list(getattr(m, f'SEED_{pre}_GRAPHS', []))
+        out['displays'] += list(getattr(m, f'SEED_{pre}_PAGE_DISPLAYS', []))
+    return out
+
+
 def seed_mealplan_pages(manager):
     """Upsert the meal-planning classes' display configuration —
     converges on edit (no INSERT-BY-NAME backfill), then re-points
@@ -1390,13 +1470,22 @@ def seed_mealplan_pages(manager):
     from polariApiServer.displayDefinition import DisplayDefinition
 
     from polariApiServer.geoJsonDefinition import GeoJsonDefinition
+    from polariApiServer.geocoderDefinition import GeocoderDefinition
 
+    views = _view_page_seeds()
     reports = upsert_seed_pairs(manager, [
-        ('TableDefinition', TableDefinition, SEED_MEALPLAN_TABLES),
-        ('GraphDefinition', GraphDefinition, SEED_MEALPLAN_GRAPHS),
+        ('TableDefinition', TableDefinition,
+         list(SEED_MEALPLAN_TABLES) + views['tables']),
+        ('GraphDefinition', GraphDefinition,
+         list(SEED_MEALPLAN_GRAPHS) + views['graphs']),
         ('GeoJsonDefinition', GeoJsonDefinition, SEED_MEALPLAN_GEOJSON),
+        # Night run 2026-09-03: the CRUD dialog's "Find coordinates from
+        # address" needs a GeocoderDefinition; staging had none (real-
+        # browser pass). One labelled convenience prior — delete or
+        # replace with a self-hosted Pelias/Nominatim for volume.
+        ('GeocoderDefinition', GeocoderDefinition, SEED_MEALPLAN_GEOCODERS),
         ('DisplayDefinition', DisplayDefinition,
-         SEED_MEALPLAN_PAGE_DISPLAYS),
+         list(SEED_MEALPLAN_PAGE_DISPLAYS) + views['displays']),
     ], tag='MealplanPagesSeed')
 
     repointed = _repoint_display_refs(manager)

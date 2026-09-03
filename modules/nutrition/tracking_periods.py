@@ -26,16 +26,25 @@ little".
                    validated (the person, a real template, a valid
                    date/slot), written by GenerateEvent.
 
-"Sweets" are read through glycemic load + carbohydrate: the seeded
-FDC nutrient set carries no sugars column — said on the payload.
+"Sweets" (N6, 2026-09-03): read from TOTAL SUGARS (FDC 269 / 269.3,
+the vendored subset carries it for 24 of 49 pantry foods) whenever a
+bucket has at least one day with sugars data; otherwise the pre-N6
+basis, glycemic load + carbohydrate. Each bucket's `sweets.basis`
+says which. The person's sugars line is a labelled CEILING derived
+from the DGA added-sugar share (total >= added, so conservative) —
+there is no DRI for total sugars, so it is never a target.
 """
 
 import json
 from datetime import date, datetime, timedelta
 from statistics import mean
 
+from nutrition.dga_limits import total_sugars_ceiling_g
 from nutrition.meal_basis import MEAL_SLOTS
 from nutrition.tracking_analysis import tracking_series
+
+SWEETS_BASIS_SUGARS = 'sugars-total'
+SWEETS_BASIS_GL = 'gl+carbohydrate'
 
 PERIOD_KINDS = ('week', 'month')
 SERIES_NUTRIENTS = ('calories', 'protein', 'carbohydrate', 'fiber', 'sodium')
@@ -81,6 +90,12 @@ def _lines(manager, person, sample_day=None):
             if env.get('ok'):
                 lines['calories'] = {'min': env['minDailyKcal'], 'max': env['maxDailyKcal'],
                                      'target': env['targetDailyKcal'], 'source': 'calorie envelope'}
+                # N6: the sugars line is a CEILING only (no DRI for
+                # total sugars) — derived from the calorie target
+                ceiling = total_sugars_ceiling_g(env['targetDailyKcal'])
+                if ceiling:
+                    lines['sugars-total'] = {'max': ceiling['grams'], 'kind': ceiling['kind'],
+                                             'source': ceiling['source'], 'caveat': ceiling['caveat']}
     except Exception as e:  # the line stays absent, named
         lines['_note'] = f'calorie envelope unavailable: {e}'
     if sample_day:
@@ -103,6 +118,35 @@ def _lines(manager, person, sample_day=None):
                                'source': getattr(row, 'citation', 'sodium CDRR')}
     return {k: v for k, v in lines.items() if k.startswith('_') or (v and any(
         isinstance(x, (int, float)) for x in v.values()))}
+
+
+def _sweets(p, lines):
+    """The bucket's "sweets" readout. `basis` names what it was read
+    from: total sugars when any day in the bucket has sugars data,
+    else glycemic load + carbohydrate (the pre-N6 reading)."""
+    n, k = p['daysLogged'], p['daysWithSugars']
+    if p['sugarsGMean'] is not None:
+        line = lines.get('sugars-total')
+        out = {'basis': SWEETS_BASIS_SUGARS, 'value': p['sugarsGMean'], 'unit': 'g/day',
+               'daysWithSugars': k, 'daysLogged': n, 'line': line, 'overCeiling': None,
+               'reading': (f'mean total sugars {p["sugarsGMean"]} g/day over {k} of {n} logged '
+                           f'day(s) (FDC 269 rows; ingredients without a total-sugars row add '
+                           f'nothing, so this is a lower bound)')}
+        if line:
+            out['overCeiling'] = p['sugarsGMean'] > line['max']
+            out['reading'] += (f'; {"above" if out["overCeiling"] else "within"} the '
+                               f'{line["max"]} g ceiling — {line["caveat"]}')
+        else:
+            out['reading'] += '; no calorie target, so no ceiling line is drawn'
+        return out
+    return {'basis': SWEETS_BASIS_GL, 'value': p['maxMealGlMean'], 'unit': 'GL (day max meal)',
+            'carbohydrateGMean': p['carbohydrateMean'], 'daysWithSugars': 0, 'daysLogged': n,
+            'line': {'max': GL_MEAL_CAP, 'kind': 'convention',
+                     'source': 'GL>20 per meal (Atkinson 2008 convention, nmp-2 row)'},
+            'overCeiling': p['maxMealGlMean'] > GL_MEAL_CAP,
+            'reading': (f'no total-sugars data in this bucket — "sweets" read through glycemic '
+                        f'load + carbohydrate (day-max meal GL {p["maxMealGlMean"]} vs the GL>20 '
+                        f'convention; carbohydrate {p["carbohydrateMean"]} g/day)')}
 
 
 def period_summary(manager, person, kind='week', start_date=None, end_date=None, persist=False):
@@ -141,6 +185,12 @@ def period_summary(manager, person, kind='week', start_date=None, end_date=None,
             p[f'{nut}Mean'] = round(mean(float(d.get(nut, 0) or 0) for d in days), 1) if n else None
         p['maxMealGlMean'] = round(mean(float(d.get('maxMealGL', 0) or 0) for d in days), 1) if n else None
         p['maxMealAcidShareMean'] = round(mean(float(d.get('maxMealAcidShare', 0) or 0) for d in days), 3) if n else None
+        # N6: sugars mean over the days that HAVE sugars data only —
+        # a day without is an absence, never a zero in the mean
+        sug = [float(d['sugarsG']) for d in days if d.get('sugarsG') is not None]
+        p['sugarsGMean'] = round(mean(sug), 1) if sug else None
+        p['daysWithSugars'] = len(sug)
+        p['sweets'] = _sweets(p, lines) if n else None
         if n:
             def flag(metric, direction, value, line, reading):
                 p['verdicts'].append({'metric': metric, 'direction': direction, 'value': value,
@@ -154,8 +204,13 @@ def period_summary(manager, person, kind='week', start_date=None, end_date=None,
                 flag('calories', 'too little', cal, cal_line['min'], 'mean kcal/day below the envelope min')
             if lines['sodium'].get('max') and p['sodiumMean'] > lines['sodium']['max']:
                 flag('sodium (salty foods)', 'too much', p['sodiumMean'], lines['sodium']['max'], 'mean sodium/day above the CDRR')
+            if p['sweets']['basis'] == SWEETS_BASIS_SUGARS and p['sweets']['overCeiling']:
+                flag('sweets (total sugars)', 'too much', p['sugarsGMean'], p['sweets']['line']['max'],
+                     'mean total sugars/day above the conservative DGA-derived ceiling (total >= '
+                     'added sugars, so the added-sugar line itself is not shown crossed)')
             if p['maxMealGlMean'] > GL_MEAL_CAP:
-                flag('glycemic load (sweets / refined carbs)', 'too much', p['maxMealGlMean'], GL_MEAL_CAP,
+                flag('glycemic load (refined carbs; the sweets fallback basis)', 'too much',
+                     p['maxMealGlMean'], GL_MEAL_CAP,
                      'mean of the day\'s highest-GL meal above the GL>20 convention')
             if p['maxMealAcidShareMean'] > ACID_SHARE_CAP:
                 flag('acid share (acid-inducing foods)', 'too much', p['maxMealAcidShareMean'], ACID_SHARE_CAP,
@@ -182,15 +237,25 @@ def period_summary(manager, person, kind='week', start_date=None, end_date=None,
     cached, cache_note = False, 'not requested'
     if persist and periods:
         cached, cache_note = _persist(manager, person, kind, periods)
+    bases = {SWEETS_BASIS_SUGARS: 0, SWEETS_BASIS_GL: 0}
+    for p in periods:
+        if p['sweets']:
+            bases[p['sweets']['basis']] += 1
     return {'ok': True, 'schema': 'tracking-periods/1', 'person': person, 'period': kind,
             'start': series.get('start'), 'end': series.get('end'),
             'periods': periods, 'count': len(periods),
             'consistency': consistency,
             'lines': {k: v for k, v in lines.items() if not k.startswith('_')},
+            'sweetsBasis': {'bucketsOnSugars': bases[SWEETS_BASIS_SUGARS],
+                            'bucketsOnGlCarb': bases[SWEETS_BASIS_GL],
+                            'note': 'each bucket\'s sweets.basis names its own reading'},
             'metricCache': {'cached': cached, 'note': cache_note},
             'honesty': ('means are per LOGGED day (gap days never count as zero); a bucket with fewer '
                         f'than {MIN_LOGGED_DAYS[kind]} logged days is low-confidence; "sweets" are read '
-                        'through glycemic load + carbohydrate (no sugars column in the seeded FDC set); '
+                        'from total sugars (FDC 269, 24 of 49 pantry foods carry it — a lower bound) '
+                        'when a bucket has sugars data, else through glycemic load + carbohydrate — '
+                        'each bucket\'s sweets.basis says which; the sugars line is a conservative '
+                        'CEILING from the DGA added-sugar share (total >= added), never a target; '
                         'acid share rides the low-confidence tolerance row; lines are the person\'s own '
                         'envelope/targets — comfort readings, never diagnosis')}
 
@@ -208,6 +273,8 @@ def _persist(manager, person, kind, periods):
                  'calories_mean': p['caloriesMean'] or 0.0, 'protein_g_mean': p['proteinMean'] or 0.0,
                  'carbohydrate_g_mean': p['carbohydrateMean'] or 0.0, 'fiber_g_mean': p['fiberMean'] or 0.0,
                  'sodium_mg_mean': p['sodiumMean'] or 0.0, 'max_meal_gl_mean': p['maxMealGlMean'] or 0.0,
+                 'sugars_g_mean': p['sugarsGMean'] or 0.0,
+                 'sweets_basis': p['sweets']['basis'] if p['sweets'] else '',
                  'max_meal_acid_share_mean': p['maxMealAcidShareMean'] or 0.0,
                  'weight_kg_mean': p['weightKgMean'] or 0.0, 'weight_kg_delta': p['weightKgDelta'] or 0.0,
                  'verdicts_json': json.dumps(p['verdicts']), 'low_confidence': p['lowConfidence'],
@@ -236,6 +303,11 @@ def _valid_date(text):
         return None
 
 
+def _refused(error):
+    """A refused log: the error IS the message the form shows."""
+    return {'ok': False, 'error': error, 'message': error, 'proposals': []}
+
+
 def intake_proposal(manager, person='', date_iso='', slot='', template='', variation='',
                     scale=1.0, time_hhmm=''):
     problems = []
@@ -259,12 +331,20 @@ def intake_proposal(manager, person='', date_iso='', slot='', template='', varia
         problems.append(f"scale '{scale}' is not a number")
         scale = 1.0
     if problems:
-        return {'ok': False, 'error': '; '.join(problems), 'proposals': []}
+        return _refused('; '.join(problems))
     row = {'name': f'{person}-{d}-{slot}', 'person_name': person, 'date': d, 'slot': slot,
            'template_name': t.name, 'variation_name': v, 'scale': scale,
            'time_hhmm': time_hhmm or '', 'source': 'logged', 'plan_entry_name': '',
            'is_prior': False, 'provenance_id': 'mpt log form', 'notes': 'logged from the tracking page'}
+    existing = _named(manager, 'IntakeRecord', row['name'])
+    if existing is not None:
+        message = (f'Already logged {slot} on {d} for {person} '
+                   f'({getattr(existing, "template_name", "") or "that meal"}) — kept; edit that '
+                   f'row to change it')
+    else:
+        message = f'Logged {slot} on {d} for {person}: {t.name} ×{scale:g}'
     return {'ok': True, 'schema': 'intake-proposal/1', 'proposals': [row],
+            'alreadyLogged': existing is not None, 'message': message,
             'honesty': 'one IntakeRecord per person × date × slot — logging the same slot again reuses it (dedupe by name)'}
 
 
@@ -282,9 +362,16 @@ def weight_proposal(manager, person='', date_iso='', weight_kg=0.0, context=''):
     if not (20 <= w <= 400):
         problems.append(f"weight {weight_kg!r} kg is outside 20–400")
     if problems:
-        return {'ok': False, 'error': '; '.join(problems), 'proposals': []}
+        return _refused('; '.join(problems))
     row = {'name': f'{person}-weight-{d}', 'person_name': person, 'date': d, 'day_index': 0,
            'weight_kg': round(w, 2), 'context': context or 'logged', 'is_prior': False,
            'provenance_id': 'mpt log form', 'notes': 'logged from the tracking page'}
+    existing = _named(manager, 'WeightObservation', row['name'])
+    if existing is not None:
+        message = (f'Already logged {float(getattr(existing, "weight_kg", 0) or 0):.1f} kg on {d} '
+                   f'for {person} — kept; edit that row to change it')
+    else:
+        message = f'Logged {w:.1f} kg on {d} for {person}'
     return {'ok': True, 'schema': 'weight-proposal/1', 'proposals': [row],
+            'alreadyLogged': existing is not None, 'message': message,
             'honesty': 'one WeightObservation per person × date (dedupe by name)'}

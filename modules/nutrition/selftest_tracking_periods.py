@@ -7,6 +7,10 @@ lines, consistency across well-logged buckets, low-confidence
 buckets named, gap days never counted as zero; the "log it" form
 proposals (validated) and their solutions through the REAL engine
 writing IntakeRecord / WeightObservation rows (dedupe by name).
+N6: "sweets" read on the total-sugars basis when the days carry FDC
+269 rows, the GL + carbohydrate fallback named when they do not, the
+sugars line a DERIVED conservative ceiling (never a target), a
+sugar-heavy bucket crossing it.
 
 Run from polari-framework/modules/:
   PYTHONPATH=..:../polariApiServer python3 -m nutrition.selftest_tracking_periods
@@ -92,8 +96,58 @@ def main():
     check('month buckets: Aug and Sep separate; days in period = the month length',
           mo['ok'] and {q['periodStart'] for q in mo['periods']} >= {'2026-08-01', '2026-09-01'}
           and any(q['daysInPeriod'] == 31 for q in mo['periods']), str([(q['periodStart'], q['daysInPeriod']) for q in mo['periods']]))
-    check('"sweets" are read through GL + carbohydrate and the payload SAYS there is no sugars column',
-          'no sugars column' in wk['honesty'])
+    # --- N6: "sweets" on the total-sugars basis, with the fallback named
+    sw = p['sweets']
+    check('a bucket whose days carry FDC total-sugars rows reads "sweets" on the sugars-total basis '
+          '(mean g/day over the days WITH data, said to be a lower bound)',
+          sw['basis'] == 'sugars-total' and p['sugarsGMean'] is not None and p['daysWithSugars'] == 2
+          and 'lower bound' in sw['reading'], str(sw))
+    line = wk['lines'].get('sugars-total')
+    check('the person\'s sugars line is a CEILING from the DGA added-sugar share, labelled conservative '
+          '(total >= added) and never a target',
+          line is not None and line['kind'] == 'ceiling' and line['max'] > 0
+          and 'DGA' in line['source'] and 'added-sugar' in line['source']
+          and 'conservative' in line['caveat'] and 'never a target' in line['caveat']
+          and 'target' not in line, str(line))
+    from nutrition.dga_limits import total_sugars_ceiling_g
+    from nutrition.threshold_analysis import calorie_envelope
+    alex = next(r for r in mgr.objectTables['PersonProfile'].values() if r.name == 'demo-alex')
+    env = calorie_envelope(mgr, alex)
+    check('the ceiling is DERIVED: target kcal x 10% / 4 kcal per g (no number typed by hand)',
+          line['max'] == round(env['targetDailyKcal'] * 0.10 / 4.0, 1)
+          and total_sugars_ceiling_g(2000)['grams'] == 50.0 and total_sugars_ceiling_g(0) is None,
+          f"{line['max']} vs {env['targetDailyKcal']}")
+    check('the readout says whether the mean is within/above the ceiling and repeats the caveat',
+          sw['overCeiling'] is False and 'within' in sw['reading'] and 'conservative ceiling' in sw['reading'],
+          sw['reading'])
+    check('the payload honesty names BOTH bases and that the sugars line is a ceiling, not a target',
+          'total sugars' in wk['honesty'] and 'glycemic load + carbohydrate' in wk['honesty']
+          and 'never a target' in wk['honesty'] and wk['sweetsBasis']['bucketsOnSugars'] >= 1)
+    # a day with NO sugars data falls back to GL + carbohydrate and names it
+    nosug = _manager()
+    nosug.objectTables['NutrientContent'] = {k: v for k, v in nosug.objectTables['NutrientContent'].items()
+                                             if v.nutrient_name != 'sugars-total'}
+    fb = period_summary(nosug, 'demo-alex', 'week')['periods'][-1]
+    check('with no total-sugars rows the bucket falls back to GL + carbohydrate and SAYS so in sweets.basis',
+          fb['sweets']['basis'] == 'gl+carbohydrate' and fb['sugarsGMean'] is None and fb['daysWithSugars'] == 0
+          and 'no total-sugars data' in fb['sweets']['reading'] and 'glycemic load' in fb['sweets']['reading'],
+          str(fb['sweets']))
+    check('the fallback bucket never flags a sugars verdict (there is nothing to read it from)',
+          not any(v['metric'].startswith('sweets') for v in fb['verdicts']))
+    # a sugar-heavy day crosses the ceiling -> a "sweets (total sugars)" verdict with the caveat
+    sweet = _manager()
+    sweet.objectTables['IngredientLine'] = dict(sweet.objectTables['IngredientLine'])
+    sweet.objectTables['IngredientLine']['sugar'] = SimpleNamespace(
+        id='sugar', name='chicken-rice-bowl-sugar-white', recipe_name='chicken-rice-bowl',
+        food_name='sugar-white', grams=400.0, method='raw', yield_percent=100.0, retention_code='',
+        prep_note='test: 400 g sugar', order=99, is_prior=True, provenance_id='test')
+    sp = period_summary(sweet, 'demo-alex', 'week')['periods'][-1]
+    check('400 g of (cited, FDC 334247) white sugar in the bowl puts the bucket ABOVE the ceiling: '
+          'verdict "sweets (total sugars)" too much, reading keeps the total>=added caveat',
+          sp['sweets']['overCeiling'] is True and any(
+              v['metric'] == 'sweets (total sugars)' and v['direction'] == 'too much'
+              and 'conservative' in v['reading'] and 'added sugars' in v['reading'] for v in sp['verdicts']),
+          str(sp['sweets']) + str(sp['verdicts']))
     check('a duck-typed manager skips the cache and REPORTS it',
           period_summary(mgr, 'demo-alex', 'week', persist=True)['metricCache']['cached'] is False)
 
@@ -139,12 +193,35 @@ def main():
                             'template': 'chicken-bowl-dinner', 'variation': '', 'scale': 1, 'time': '12:30'})
     check('logging the same slot again reuses the row (dedupe by name)', t2.status == 'completed'
           and len(mgr.objectTables['IntakeRecord']) == n0 + 1)
+    # the message the form shows (fix 2026-09-03: the log forms were silent)
+    from polariNoCode.graph_compilers import final_context_of
+    m1 = (final_context_of(t) or {}).get('message')
+    m2 = (final_context_of(t2) or {}).get('message')
+    check('the first log says "Logged lunch on 2026-09-02 for demo-alex: chicken-bowl-dinner ×1" '
+          '(context variable `message` + the refreshDisplay payload)',
+          m1 == 'Logged lunch on 2026-09-02 for demo-alex: chicken-bowl-dinner ×1'
+          and any(ev.get('payload', {}).get('message') == m1
+                  for ev in (final_context_of(t) or {}).get('_emitted_events', [])), str(m1))
+    check('the dedupe run says "Already logged lunch on 2026-09-02 for demo-alex (chicken-bowl-dinner) '
+          '— kept; …" — never a silent no-op',
+          isinstance(m2, str) and m2.startswith('Already logged lunch on 2026-09-02 for demo-alex '
+                                                 '(chicken-bowl-dinner) — kept'), str(m2))
+    check('a refused log\'s message IS its error', bad['message'] == bad['error'])
     solw = [x for x in SEED_MEALPLAN_SOLUTIONS if x['name'] == 'mealplan-log-weight'][0]
     w0 = len(mgr.objectTables['WeightObservation'])
     tw = gb.execute(json.loads(solw['definition']), manager=mgr,
                     params={'person': 'demo-alex', 'date': '2026-09-02', 'weight_kg': 79.6, 'context': 'morning'})
     check('the "Log my weight" form solution writes a WeightObservation', tw.status == 'completed'
           and len(mgr.objectTables['WeightObservation']) == w0 + 1, f'{tw.status} {tw.error_summary}')
+    mw = (final_context_of(tw) or {}).get('message')
+    tw2 = gb.execute(json.loads(solw['definition']), manager=mgr,
+                     params={'person': 'demo-alex', 'date': '2026-09-02', 'weight_kg': 80.2, 'context': 'evening'})
+    mw2 = (final_context_of(tw2) or {}).get('message')
+    check('weight messages: "Logged 79.6 kg on 2026-09-02 for demo-alex"; the same day again → '
+          '"Already logged 79.6 kg on 2026-09-02 for demo-alex — kept …" and the row is unchanged',
+          mw == 'Logged 79.6 kg on 2026-09-02 for demo-alex'
+          and isinstance(mw2, str) and mw2.startswith('Already logged 79.6 kg on 2026-09-02 for demo-alex — kept')
+          and len(mgr.objectTables['WeightObservation']) == w0 + 1, f'{mw} | {mw2}')
     wk2 = period_summary(mgr, 'demo-alex', 'week')
     check('the new log shows up in the week means (3 logged days now)',
           wk2['periods'][-1]['daysLogged'] == 3, str(wk2['periods'][-1]['daysLogged']))

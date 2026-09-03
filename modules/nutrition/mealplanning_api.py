@@ -16,6 +16,12 @@ these):
   GET /api/mealplanning/plans/{name}/shopping-list priced gap
   GET /api/mealplanning/plans/{name}/suggestions   stock-aware swaps
   GET /api/mealplanning/prices                     price compare
+  POST /api/mealplanning/prices/publish            mo-2: observations →
+                                                   month PriceReference rows
+  GET /api/mealplanning/prices/references?food=    mo-2: the reference rows
+  GET /api/mealplanning/prices/advice?food=        mo-2: local-first advice
+       &local_preference_pct=10&month=YYYY-MM      (0 = strict cheapest;
+                                                   month = latest on file)
   GET /api/mealplanning/pantry/{household}         what's on hand
   GET /api/mealplanning/purchase-preview           weight+nutrition
                                                    for a purchase
@@ -38,8 +44,10 @@ is the derived-view layer, not a second write path.
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from nutrition.acidity_analysis import template_acidity
-from nutrition.market_analysis import (price_report,
-                                       purchased_item_report)
+from nutrition.market_analysis import (
+    advice as price_advice_report, export_price_references,
+    price_references, price_report, purchased_item_report,
+)
 from nutrition.meal_analysis import _named
 from nutrition.pantry_analysis import (
     availability_suggestions, pantry_stock, plan_cost,
@@ -82,6 +90,14 @@ class MealPlanningAPI(treeObject):
             add('/api/mealplanning/plans/{name}/suggestions', self,
                 suffix='suggestions')
             add('/api/mealplanning/prices', self, suffix='prices')
+            # mo-2: month-level references (mealoptions) + local-first
+            # advice; publish = aggregate live observations → rows.
+            add('/api/mealplanning/prices/publish', self,
+                suffix='prices_publish')
+            add('/api/mealplanning/prices/references', self,
+                suffix='prices_references')
+            add('/api/mealplanning/prices/advice', self,
+                suffix='prices_advice')
             add('/api/mealplanning/pantry/{household}', self,
                 suffix='pantry')
             add('/api/mealplanning/purchase-preview', self,
@@ -281,6 +297,32 @@ class MealPlanningAPI(treeObject):
     def on_get_prices(self, request, response):
         response.media = price_report(
             self.manager, request.params.get('food') or None)
+
+    # mo-2: references + local-first advice.
+    def on_post_prices_publish(self, request, response):
+        response.media = export_price_references(self.manager)
+
+    def on_get_prices_references(self, request, response):
+        response.media = price_references(
+            self.manager, request.params.get('food') or None)
+
+    def on_get_prices_advice(self, request, response):
+        food = request.params.get('food', '')
+        if not food:
+            response.media = {
+                'ok': False,
+                'error': 'prices/advice?food=<slug>'
+                         '&local_preference_pct=10'}
+            return
+        try:
+            pct = float(request.params.get('local_preference_pct', '10'))
+        except ValueError:
+            response.media = {'ok': False,
+                              'error': 'local_preference_pct must be a '
+                                       'number (0 = strict cheapest)'}
+            return
+        response.media = price_advice_report(
+            self.manager, food, pct, request.params.get('month') or None)
 
     def on_get_pantry(self, request, response, household):
         response.media = pantry_stock(self.manager, household)

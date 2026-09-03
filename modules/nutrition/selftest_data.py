@@ -15,7 +15,8 @@ from nutrition.dga_limits import AMDR, DGA_EDITION, DGA_LIMITS
 from nutrition.dri_seed import SEED_DRI_REFERENCES
 from nutrition.fdc_seed import (SEED_FDC_FOOD_ITEMS,
                                 SEED_FDC_NUTRIENT_CONTENTS)
-from nutrition.nutrient_seed import SEED_DIETARY_NUTRIENTS
+from nutrition.nutrient_seed import (SEED_DIETARY_NUTRIENTS,
+                                     SEED_NUTRIENT_REFERENCES)
 from nutrition import vendor_data
 
 PASS, FAIL = '\033[0;32mPASS\033[0m', '\033[0;31mFAIL\033[0m'
@@ -57,8 +58,8 @@ def main():
     print('nmp-0 FDC subset -> seed rows')
     check('49 starter foods', len(SEED_FDC_FOOD_ITEMS) == 49,
           f'got {len(SEED_FDC_FOOD_ITEMS)}')
-    check('949 content rows',
-          len(SEED_FDC_NUTRIENT_CONTENTS) == 949,
+    check('973 content rows (949 nmp-0 + 24 N6 total-sugars rows)',
+          len(SEED_FDC_NUTRIENT_CONTENTS) == 973,
           f'got {len(SEED_FDC_NUTRIENT_CONTENTS)}')
     check('every content row names a known nutrient',
           all(c['nutrient_name'] in nutrients
@@ -79,11 +80,63 @@ def main():
           by_key['almonds-raw-copper']['unit'] == 'ug'
           and by_key['almonds-raw-copper']['amount_per_100g'] > 100)
 
+    print('N6 total sugars (FDC 269 / 269.3)')
+    sug = [c for c in SEED_FDC_NUTRIENT_CONTENTS
+           if c['nutrient_name'] == 'sugars-total']
+    raw = [r for r in vendor_data.fdc_subset()
+           if r['nutrient'] == 'sugars-total']
+    check('24 foods carry a cited total-sugars row (25 honest absences)',
+          len(sug) == 24 and len(raw) == 24
+          and len(slugs - {c['food_name'] for c in sug}) == 25,
+          f'got {len(sug)} rows')
+    check('every sugars row is grams and pins nbr 269 or 269.3 on the '
+          'food\'s OWN fdc_id',
+          all(r['unit'] == 'g' and r['fdc_nutrient_nbr'] in ('269', '269.3')
+              for r in raw)
+          and all(c['source'] == (f"USDA FDC {r['fdc_dataset']} "
+                                  f"fdc_id={r['fdc_id']} "
+                                  f"nbr={r['fdc_nutrient_nbr']}")
+                  for c, r in zip(sug, raw)))
+    check('269.3 rows (Foundation "Sugars, Total", id 1063) say so in '
+          'derivation; 269 rows carry none',
+          all((r['fdc_nutrient_nbr'] == '269.3') == ('269.3' in r['derivation'])
+              for r in raw))
+    food_ids = {f['name']: f['fdc_id'] for f in SEED_FDC_FOOD_ITEMS}
+    check('the same fdc_id as the food\'s other rows (one dataset entry)',
+          all(int(r['fdc_id']) == food_ids[r['food_slug']] for r in raw))
+    # spot values: the bulk-CSV values, three cross-checked live
+    # against api.nal.usda.gov before the DEMO_KEY rate limit hit
+    check('white sugar 99.8 g / almonds 4.35 g / beef chuck 0.0 g '
+          '(API-confirmed) / avocado NO row',
+          by_key['sugar-white-sugars-total']['amount_per_100g'] == 99.8
+          and by_key['almonds-raw-sugars-total']['amount_per_100g'] == 4.35
+          and by_key['beef-chuck-raw-sugars-total']['amount_per_100g'] == 0.0
+          and 'avocado-raw-sugars-total' not in by_key)
+    check('sugars-total is in the vocabulary as grams, carbohydrate, '
+          'with the NOT-added-sugars note',
+          any(n['name'] == 'sugars-total' and n['unit'] == 'g'
+              and n['category'] == 'carbohydrate'
+              and 'NOT added sugars' in n.get('notes', '')
+              for n in SEED_DIETARY_NUTRIENTS))
+    from nutrition.dga_limits import total_sugars_ceiling_g
+    c = total_sugars_ceiling_g(2000)
+    check('total_sugars_ceiling_g: 2000 kcal -> 50 g, labelled ceiling + '
+          'conservative; no kcal -> None (no invented line)',
+          c['grams'] == 50.0 and c['kind'] == 'ceiling'
+          and 'conservative' in c['caveat']
+          and total_sugars_ceiling_g(0) is None)
+
     print('nmp-0 DRI transcription')
-    ref_nutrients = {r['nutrient_name'] for r in SEED_DRI_REFERENCES}
-    check('every nutrient has >=1 DRI row',
+    # the SEEDED reference table = the DRI transcription + the N6
+    # sugars-total 'none' marker (no DRI exists for total sugars)
+    ref_nutrients = {r['nutrient_name'] for r in SEED_NUTRIENT_REFERENCES}
+    check('every nutrient has >=1 reference row (DRI table, or the '
+          'sugars-total marker)',
           nutrients <= ref_nutrients,
           f'missing: {sorted(nutrients - ref_nutrients)}')
+    check('every nutrient but sugars-total has a real DRI row',
+          nutrients - {'sugars-total'}
+          <= {r['nutrient_name'] for r in SEED_DRI_REFERENCES})
     names = [r['name'] for r in SEED_DRI_REFERENCES]
     check('row names unique', len(names) == len(set(names)))
     check('life-stage rows present (pregnancy + lactation)',
@@ -116,6 +169,14 @@ def main():
     check('firm RDA rows are non-prior; AI/prior rows flagged',
           all((r['value_type'] == 'rda') == (not r['is_prior'])
               for r in SEED_DRI_REFERENCES))
+    sug_ref = [r for r in SEED_NUTRIENT_REFERENCES
+               if r['nutrient_name'] == 'sugars-total']
+    check('sugars-total has ONE reference row and it is a value_type '
+          '"none" marker (no DRI exists): target 0 / max 0 / prior',
+          len(sug_ref) == 1 and sug_ref[0]['value_type'] == 'none'
+          and sug_ref[0]['rda_per_day'] == 0
+          and sug_ref[0]['upper_limit_per_day'] == 0
+          and sug_ref[0]['is_prior'] is True)
     # boundary-age rule: within a nutrient+sex+stage, higher bands
     # must be seeded first (person_analysis first-match)
     seen = {}

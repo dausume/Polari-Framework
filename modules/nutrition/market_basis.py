@@ -29,6 +29,12 @@ and weight approximately for things that are purchased"):
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
+# mo-2: the ONE source-ownership vocabulary lives in mealoptions (the
+# published module must not import nutrition; nutrition requires it).
+from mealoptions.price_reference_basis import (  # noqa: F401
+    CHAIN_KINDS, LOCAL_KINDS, OWNERSHIP_KINDS,
+)
+
 LOCATION_KINDS = ('grocery', 'farmers-market', 'warehouse-club',
                   'online', 'garden', 'other')
 
@@ -38,7 +44,23 @@ EXACT_UNIT_GRAMS = {'g': 1.0, 'kg': 1000.0, 'lb': 453.592,
 
 
 class SourceLocation(treeObject):
-    """One buying/growing location with its geolocation."""
+    """One buying/growing location with its geolocation.
+
+    mo-2 source typing (MEAL_OPTIONS_MODULE_PLAN.md §2): `ownership_kind`
+    (OWNERSHIP_KINDS — chain / franchise / online-chain /
+    warehouse-chain / independent / farmers-market / coop / direct-farm
+    / other) says WHO sets the price; `chain_name` is the brand slug
+    ('kroger') and stays BLANK unless ownership_kind is a CHAIN_KINDS
+    entry. `kind` (LOCATION_KINDS) keeps saying what the place IS.
+
+    Schema-addition gotcha: live rows created before mo-2 lack both new
+    fields (they read as the defaults 'other' / '' until written).
+    The demo rows converge through composition.seed_upsert on boot
+    (is_prior=True rows are diffed field-by-field); a household's OWN
+    rows (is_prior=False) are never touched by seeds — type them from
+    the Food Supply page (Places table → ownership_kind, chain_name)
+    or the price export files them under 'other'.
+    """
 
     @treeObjectInit
     def __init__(
@@ -48,6 +70,10 @@ class SourceLocation(treeObject):
         display_name: str = '',
         # LOCATION_KINDS entry.
         kind: str = 'grocery',
+        # OWNERSHIP_KINDS entry (mo-2): who sets the price here.
+        ownership_kind: str = 'other',
+        # brand slug for CHAIN_KINDS ('kroger'); '' for everything else.
+        chain_name: str = '',
         latitude: float = 0.0,
         longitude: float = 0.0,
         # free-text region ('' = unstated; NO geocoding, A2).
@@ -63,6 +89,8 @@ class SourceLocation(treeObject):
         self.name = name
         self.display_name = display_name
         self.kind = kind
+        self.ownership_kind = ownership_kind
+        self.chain_name = chain_name
         self.latitude = latitude
         self.longitude = longitude
         self.region_label = region_label
@@ -208,16 +236,22 @@ SEED_UNIT_WEIGHTS = [
 #: Demo market rows so the pages render before real data lands
 #: (the module-pages precedent: demo rows are knobs, repoint/delete
 #: freely). Coordinates are the DMV area the dmvdata module already
-#: models — placeholders, labeled.
+#: models — placeholders, labeled. mo-2: each row is TYPED by
+#: ownership (chain rows carry a demo brand slug; the market is one
+#: of many independent vendors; the workplace is not a store).
 SEED_SOURCE_LOCATIONS = [
     {'name': 'demo-grocery', 'display_name': 'Demo Grocery (chain)',
-     'kind': 'grocery', 'latitude': 38.8951, 'longitude': -77.0364,
+     'kind': 'grocery', 'ownership_kind': 'chain',
+     'chain_name': 'demo-chain',
+     'latitude': 38.8951, 'longitude': -77.0364,
      'region_label': 'DMV (demo placeholder)', 'address': '',
      'household_name': '', 'is_prior': True, 'provenance_id': _PROV,
      'notes': 'demo row — replace with a real store'},
     {'name': 'demo-farmers-market',
      'display_name': 'Demo Farmers Market',
-     'kind': 'farmers-market', 'latitude': 38.9847,
+     'kind': 'farmers-market', 'ownership_kind': 'farmers-market',
+     'chain_name': '',
+     'latitude': 38.9847,
      'longitude': -77.0947, 'region_label': 'DMV (demo placeholder)',
      'address': '', 'household_name': '', 'is_prior': True,
      'provenance_id': _PROV,
@@ -225,16 +259,20 @@ SEED_SOURCE_LOCATIONS = [
     # mlg-1: the workplace as a LOCATED source so "shop on the way
     # home" (mlg-6) can use distance; PersonSchedule rows point here.
     {'name': 'demo-workplace', 'display_name': 'Demo workplace',
-     'kind': 'workplace', 'latitude': 38.9072, 'longitude': -77.0369,
+     'kind': 'workplace', 'ownership_kind': 'other', 'chain_name': '',
+     'latitude': 38.9072, 'longitude': -77.0369,
      'region_label': 'DMV (demo placeholder)', 'address': '',
      'household_name': 'demo-household', 'is_prior': True,
      'provenance_id': 'mlg-1',
      'notes': 'demo row — where Alex and Sam work; not a store'},
     {'name': 'demo-warehouse', 'display_name': 'Demo warehouse club',
-     'kind': 'warehouse-club', 'latitude': 38.8339, 'longitude': -77.1194,
+     'kind': 'warehouse-club', 'ownership_kind': 'warehouse-chain',
+     'chain_name': 'demo-warehouse-chain',
+     'latitude': 38.8339, 'longitude': -77.1194,
      'region_label': 'DMV (demo placeholder)', 'address': '',
      'household_name': '', 'is_prior': True, 'provenance_id': 'cal-4',
-     'notes': 'demo row — the bulk offers on BulkStaple rows point here'},
+     'notes': 'demo row — a household\'s own BulkStaple offers may point here '
+              '(the shipped mealoptions staples leave the pointer blank)'},
 ]
 
 
@@ -250,14 +288,16 @@ def _po(name, food, location, price, qty, unit, date, note=''):
 SEED_PRICE_OBSERVATIONS = [
     _po('demo-chicken-grocery', 'chicken-breast-raw', 'demo-grocery',
         11.98, 2.0, 'lb', '2026-09-01'),
+    # mo-2: the market observations share the grocery's month so the
+    # month-level references compare chain vs farmers market.
     _po('demo-chicken-market', 'chicken-breast-raw',
-        'demo-farmers-market', 8.50, 1.0, 'lb', '2026-08-30'),
+        'demo-farmers-market', 8.50, 1.0, 'lb', '2026-09-01'),
     _po('demo-rice-grocery', 'rice-white-raw', 'demo-grocery',
         12.99, 5.0, 'lb', '2026-09-01'),
     _po('demo-eggs-grocery', 'egg-whole-raw', 'demo-grocery',
         3.79, 1.0, 'dozen', '2026-09-01'),
     _po('demo-tomato-market', 'tomato-raw', 'demo-farmers-market',
-        2.50, 1.0, 'lb', '2026-08-30'),
+        2.50, 1.0, 'lb', '2026-09-01'),
     _po('demo-spinach-grocery', 'spinach-raw', 'demo-grocery',
         2.99, 1.0, 'bunch', '2026-09-01'),
     _po('demo-oil-grocery', 'olive-oil', 'demo-grocery',

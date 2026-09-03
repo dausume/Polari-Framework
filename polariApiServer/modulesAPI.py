@@ -6,6 +6,9 @@ Provides endpoints for viewing, toggling, creating, and seeding optional modules
 GET  /modules        — list all discovered modules with status
 PUT  /modules        — enable or disable a module
 POST /modules/seed   — load seed data for an enabled module
+POST /modules/export — write a module's user-authored rows to its
+                       initialData/ (json_seeds.export_rows + the
+                       module's export_hook privacy strip)
 POST /modules/create — create a new module from a definition
 """
 
@@ -35,6 +38,9 @@ class ModulesAPI(treeObject):
             # module data convention: the module's initialData/*.json served
             # so another instance can install it by API (json_seeds)
             polServer.falconServer.add_route(self.apiName + '/{module_id}/initial-data', self, suffix='initial_data')
+            # mo-3: the reverse path — live user-authored rows written back
+            # to the module's initialData/ through its privacy hook
+            polServer.falconServer.add_route(self.apiName + '/export', self, suffix='export')
 
     # ------------------------------------------------------------------
     # GET /modules
@@ -284,6 +290,77 @@ class ModulesAPI(treeObject):
             import traceback
             traceback.print_exc()
 
+        response.set_header('Powered-By', 'Polari')
+
+    # ------------------------------------------------------------------
+    # POST /modules/export
+    # ------------------------------------------------------------------
+    def on_post_export(self, request, response):
+        """Write a module's live rows to modules/<pkg>/initialData/
+        (mo-3, the reverse of /modules/seed).
+
+        Request body: { "moduleId": "<module_id>", "classes"?: [names],
+        "onlyNonPrior"?: true }. Only is_prior=False (user-authored)
+        rows leave the tables by default — seeds stay in code (D5) —
+        and every field the module's export_hook.strip_fields() names
+        is removed. Refuses when the module carries no export_hook AND
+        no class list can be found. The files then travel with
+        `pol modules publish <module>` / push-all-dev.
+        """
+        try:
+            body = request.media or {}
+            module_id = body.get('moduleId')
+            if not module_id:
+                response.status = falcon.HTTP_400
+                response.media = {"success": False, "error": "moduleId is required"}
+                return
+            from moduleService import json_seeds
+            pkg = json_seeds.resolve_package(module_id)
+            if json_seeds.package_dir(pkg) is None:
+                response.status = falcon.HTTP_404
+                response.media = {"success": False,
+                                  "error": f"module {module_id}: no package dir (modules/{pkg})"}
+                return
+            hook = json_seeds.load_export_hook(pkg)
+            classes = body.get('classes') or None
+            if classes and not isinstance(classes, list):
+                classes = [c.strip() for c in str(classes).split(',') if c.strip()]
+            if not classes and not hook:
+                classes = (json_seeds.package_class_names(pkg)
+                           or list(self.polServer._module_classes.get(module_id, []) or []))
+                if not classes:
+                    response.status = falcon.HTTP_400
+                    response.media = {
+                        "success": False,
+                        "error": (f"module {module_id} has no modules/{pkg}/export_hook.py "
+                                  f"(include_classes / strip_fields / filter_row) and no "
+                                  f"class list ({pkg.upper()}_CLASSES absent, module not "
+                                  f"booted, no \"classes\" in the body) — nothing to export")}
+                    return
+            res = json_seeds.export_rows(
+                self.manager, pkg, class_names=classes,
+                only_non_prior=bool(body.get('onlyNonPrior', True)),
+                hook=hook, source=f'{module_id} live tables')
+            response.media = {
+                "success": True, "moduleId": module_id, "package": pkg,
+                "hook": bool(hook),
+                "message": (f"exported {res['total']} row(s) across "
+                            f"{len(res['files'])} file(s); stripped fields: "
+                            f"{', '.join(res['stripped_fields']) or '-'}"),
+                "files": res['files'], "removed": res['removed'],
+                "classes": res['classes'], "stripped": res['stripped_fields'],
+                "dropped": res['dropped'], "skipped": res['skipped'],
+            }
+            response.status = falcon.HTTP_200
+        except ValueError as err:
+            response.status = falcon.HTTP_400
+            response.media = {"success": False, "error": str(err)}
+        except Exception as err:
+            response.status = falcon.HTTP_500
+            response.media = {"success": False, "error": str(err)}
+            print(f"[ModulesAPI] Error in POST /export: {err}")
+            import traceback
+            traceback.print_exc()
         response.set_header('Powered-By', 'Polari')
 
     # ------------------------------------------------------------------

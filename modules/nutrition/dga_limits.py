@@ -59,6 +59,38 @@ AMDR_SOURCE = ('NASEM Dietary Reference Intakes: Energy, '
                'Carbohydrate, Fiber, Fat, Fatty Acids (2005); '
                'adults 19+')
 
+# N6 (2026-09-03): the ONLY published sugar line is the DGA added-sugar
+# share above. The vendored FDC subset carries TOTAL sugars (nbr 269 /
+# 269.3), never added sugars, and total >= added by definition — so the
+# added-sugar share applied to a total-sugars reading is a CONSERVATIVE
+# upper ceiling (a total-sugars reading above it does NOT imply the
+# added-sugar line was crossed; one below it guarantees it was not).
+# It is never a target: there is no DRI for total sugars at all.
+SUGAR_KCAL_PER_G = 4.0     # Atwater general factor for carbohydrate
+
+
+def total_sugars_ceiling_g(kcal_per_day):
+    """The labelled ceiling for a TOTAL-sugars reading, in grams/day,
+    derived from the person's calorie target. Returns None when no
+    calorie target is available (no ceiling is invented)."""
+    try:
+        kcal = float(kcal_per_day or 0)
+    except (TypeError, ValueError):
+        kcal = 0.0
+    if kcal <= 0:
+        return None
+    lim = next(l for l in DGA_LIMITS if l['name'] == 'added-sugar-share')
+    return {
+        'grams': round(kcal * lim['limit'] / SUGAR_KCAL_PER_G, 1),
+        'kind': 'ceiling',
+        'source': (f'DGA {DGA_EDITION} added-sugar share (<{lim["limit"]:.0%} '
+                   f'of {kcal:.0f} kcal) / {SUGAR_KCAL_PER_G:g} kcal per g'),
+        'caveat': ('total sugars >= added sugars, so this is a '
+                   'conservative ceiling — never a target (no DRI '
+                   'exists for total sugars)'),
+    }
+
+
 # Fiber has NO UL and no RDA — the DGA/NASEM daily value is an AI of
 # 14 g per 1000 kcal. nut-1 does not carry fiber as a nutrient yet;
 # nmp-2's tolerance table is where fiber thresholds land. Recorded

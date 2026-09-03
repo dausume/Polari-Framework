@@ -29,6 +29,7 @@ from nutrition.logistics_analysis import (
     meal_timing_check, portability_plan, prep_time_profile,
     refine_speed_factors, safety_check, step_minutes, where_is,
 )
+from mealoptions import MEALOPTIONS_SEED_PAIRS
 from nutrition.logistics_basis import (
     HOUSEHOLD_SEED_PAIRS, LOGISTICS_SEED_PAIRS, SPEED_FACTOR_FLOOR,
 )
@@ -90,7 +91,8 @@ def _manager():
     }
     # hh-1: the household layer's seeds moved with it; LOGISTICS_SEED_PAIRS
     # is meal-only now.
-    for cls, _c, seeds in HOUSEHOLD_SEED_PAIRS + LOGISTICS_SEED_PAIRS:
+    # mo-1: the shareable meal data (incl. MealSituation) lives in mealoptions.
+    for cls, _c, seeds in HOUSEHOLD_SEED_PAIRS + LOGISTICS_SEED_PAIRS + MEALOPTIONS_SEED_PAIRS:
         tables[cls] = _rows(seeds)
     return SimpleNamespace(objectTables=tables, db=_DB())
 

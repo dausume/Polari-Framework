@@ -22,9 +22,25 @@ are:
     rows converge field-by-field;
   - SERVED by `GET /modules/{module_id}/initial-data` so another
     instance can install the module's data from this API instead of a
-    git pull: `POST /modules/seed {"moduleId", "source": "<api base>"}`.
+    git pull: `POST /modules/seed {"moduleId", "source": "<api base>"}`;
+  - WRITTEN by the reverse path (mo-3, MEAL_OPTIONS_MODULE_PLAN D5):
+    `export_rows` / `POST /modules/export {"moduleId"}` /
+    `pol modules export <module>` takes the live tables' USER-AUTHORED
+    rows (is_prior False — seeds stay in code) back into the files,
+    minus META_KEYS and every field the module's privacy strip names.
 
-@consumers polariServer (boot pass), modulesAPI, modules/*/seedData.py
+The export hook protocol — a module may carry `export_hook.py`
+(discovered by importlib; every function optional):
+    include_classes()       -> class names to export (else <PKG>_CLASSES)
+    include_prior_classes() -> names exported REGARDLESS of is_prior
+                               (computed reference rows, e.g. PriceReference)
+    strip_fields()          -> field names removed from every row
+    filter_row(class_name, row) -> the row (possibly edited) or None to
+                               drop it; runs BEFORE the strip so it can
+                               see (and refuse) a leaking value.
+
+@consumers polariServer (boot pass), modulesAPI, modules/*/seedData.py,
+modules/*/export_hook.py
 """
 
 import importlib
@@ -98,16 +114,26 @@ def read_file(path):
     return payload
 
 
-def write_file(package, class_name, rows, source=''):
-    """Write rows in the convention (indented, sorted — git-diffable)."""
-    d = data_dir(package)
+def _json_default(value):
+    """Live rows may hold non-JSON values (dates, sets, objects); a
+    seed file is plain text, so they degrade to their str form."""
+    if isinstance(value, (set, frozenset, tuple)):
+        return sorted(value, key=str)
+    return str(value)
+
+
+def write_file(package, class_name, rows, source='', out_dir=None):
+    """Write rows in the convention (indented, sorted — git-diffable).
+    `out_dir` replaces the package's initialData/ dir (tests)."""
+    d = out_dir or data_dir(package)
     os.makedirs(d, exist_ok=True)
     path = os.path.join(d, f'{class_name}.json')
     rows = sorted(rows, key=lambda r: str(r.get('name', '')))
     payload = {'schema': SCHEMA, 'class': class_name, 'source': source,
                'count': len(rows), 'rows': rows}
     with open(path, 'w', encoding='utf-8') as f:
-        json.dump(payload, f, indent=1, sort_keys=True, ensure_ascii=False)
+        json.dump(payload, f, indent=1, sort_keys=True, ensure_ascii=False,
+                  default=_json_default)
         f.write('\n')
     return path
 
@@ -215,3 +241,130 @@ def packages_with_data():
         return []
     return sorted(p for p in os.listdir(MODULES_ROOT)
                   if os.path.isdir(os.path.join(MODULES_ROOT, p, DATA_DIR)))
+
+
+# ---------------------------------------------------------------------------
+# The EXPORT path (mo-3): live tables -> initialData/<Class>.json
+# ---------------------------------------------------------------------------
+
+#: `source` prefix of every file export_rows writes — the only files
+#: it will ever delete (a class whose user rows all went away).
+EXPORT_SOURCE_PREFIX = 'export_rows:'
+
+
+def load_export_hook(package):
+    """The module's `export_hook` module, or None when it has none.
+    A hook that exists but fails to import is an error worth seeing."""
+    try:
+        return importlib.import_module(f'{package}.export_hook')
+    except ModuleNotFoundError as exc:
+        if exc.name == f'{package}.export_hook':
+            return None
+        raise
+
+
+def _hook_call(hook, fn_name, *args, default=None):
+    fn = getattr(hook, fn_name, None) if hook is not None else None
+    return fn(*args) if callable(fn) else default
+
+
+def package_class_names(package):
+    """The class names a package registers, from its `<PKG>_CLASSES`
+    list (class objects or names); [] when it has none."""
+    try:
+        mod = importlib.import_module(package)
+    except Exception:  # noqa: BLE001
+        return []
+    classes = getattr(mod, f'{package.upper()}_CLASSES', None) or []
+    return [c if isinstance(c, str) else getattr(c, '__name__', str(c))
+            for c in classes]
+
+
+def row_dict(obj):
+    """A live object as a plain dict: every public attribute except the
+    tree bookkeeping (META_KEYS). Extra attributes a row picked up are
+    KEPT so a privacy hook can see them; the load side re-filters to
+    constructor fields (to_seed)."""
+    if isinstance(obj, dict):
+        items = obj.items()
+    else:
+        items = vars(obj).items()
+    return {k: v for k, v in items
+            if k not in META_KEYS and not k.startswith('_')
+            and not callable(v)}
+
+
+def _table_rows(manager, class_name):
+    table = (getattr(manager, 'objectTables', None) or {}).get(class_name)
+    if table is None:
+        return None
+    return list(table.values()) if isinstance(table, dict) else list(table)
+
+
+def export_rows(manager, package, class_names=None, only_non_prior=True,
+                strip_fields=(), hook=None, out_dir=None, source=''):
+    """Write the package's live rows to initialData/<Class>.json.
+
+    Class list: `class_names` > hook.include_classes() > <PKG>_CLASSES.
+    Rows kept: is_prior EXPLICITLY False when `only_non_prior` (D5:
+    user-authored; seeds stay in code) — except classes the hook's
+    include_prior_classes() names, exported whole. Then per row:
+    hook.filter_row (None drops it), then META_KEYS + `strip_fields` +
+    hook.strip_fields() removed. Files are written only for classes
+    with rows; a stale file this exporter wrote earlier is removed.
+
+    Returns {'package', 'classes': {cls: count}, 'files': [paths],
+    'removed': [paths], 'stripped_fields': [...], 'dropped': {cls:
+    [names]}, 'skipped': [(cls, why)], 'total'}.
+    """
+    hook = hook if hook is not None else load_export_hook(package)
+    names = list(class_names or _hook_call(hook, 'include_classes', default=None)
+                 or package_class_names(package))
+    if not names:
+        raise ValueError(
+            f'{package}: nothing to export — no class list given, no '
+            f'{package}.export_hook with include_classes(), and no '
+            f'{package.upper()}_CLASSES in the package')
+    whole = set(_hook_call(hook, 'include_prior_classes', default=()) or ())
+    stripped = set(strip_fields) | set(_hook_call(hook, 'strip_fields', default=()) or ())
+    label = f'{EXPORT_SOURCE_PREFIX} {package} from {source or "live tables"}; ' \
+            f'{"is_prior=False rows only" if only_non_prior else "all rows"}; ' \
+            f'stripped: {", ".join(sorted(stripped)) or "-"}'
+    result = {'package': package, 'classes': {}, 'files': [], 'removed': [],
+              'stripped_fields': sorted(stripped), 'dropped': {},
+              'skipped': [], 'total': 0}
+    target_dir = out_dir or data_dir(package)
+    for class_name in names:
+        objs = _table_rows(manager, class_name)
+        if objs is None:
+            result['skipped'].append((class_name, 'no live table (class not booted?)'))
+            continue
+        kept, dropped = [], []
+        for obj in objs:
+            row = row_dict(obj)
+            if only_non_prior and class_name not in whole:
+                flag = row.get('is_prior', True)
+                if flag is None or flag:
+                    continue
+            filtered = _hook_call(hook, 'filter_row', class_name, row, default=row)
+            if filtered is None:
+                dropped.append(str(row.get('name', '?')))
+                continue
+            kept.append({k: v for k, v in filtered.items() if k not in stripped})
+        result['classes'][class_name] = len(kept)
+        result['total'] += len(kept)
+        if dropped:
+            result['dropped'][class_name] = dropped
+        path = os.path.join(target_dir, f'{class_name}.json') if target_dir else None
+        if kept:
+            result['files'].append(write_file(package, class_name, kept,
+                                              source=label, out_dir=out_dir))
+        elif path and os.path.isfile(path):
+            try:
+                stale = read_file(path).get('source', '')
+            except Exception:  # noqa: BLE001
+                stale = ''
+            if str(stale).startswith(EXPORT_SOURCE_PREFIX):
+                os.remove(path)
+                result['removed'].append(path)
+    return result

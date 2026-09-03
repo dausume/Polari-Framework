@@ -99,11 +99,49 @@ SEED_DIETARY_NUTRIENTS = [
     for (n, d, c, u, r, pa, alt) in _NUTRIENTS
 ]
 
+# N6 (2026-09-03): total sugars, so the tracking readout can read
+# "sweets" directly instead of through glycemic load + carbohydrate.
+# The vendored FDC subset carries it as the CSV nutrient 'sugars-total'
+# (fdc_seed maps CSV nutrient names to DietaryNutrient names 1:1) for
+# the 24 of 49 foods whose FDC entry publishes a total-sugars row.
+SUGARS_TOTAL_NOTE = ('FDC 269 — total sugars, NOT added sugars; DGA\'s '
+                     'added-sugar line cannot be read from this (total '
+                     '>= added, so any added-sugar ceiling applied to it '
+                     'is conservative)')
+SEED_DIETARY_NUTRIENTS.append({
+    'name': 'sugars-total', 'display_name': 'Sugars, total',
+    'category': 'carbohydrate', 'unit': 'g',
+    'role': 'Mono- + disaccharides (the "sweets" signal); energy',
+    'plant_availability': 'common', 'alternate_source': '',
+    'provenance_id': 'N6', 'notes': SUGARS_TOTAL_NOTE})
+
 # References: nmp-0 SUPERSEDED the adult-only single-band table that
 # lived here with the full NASEM DRI life-stage transcription
 # (EAR + RDA/AI + UL, adults 19+ per DRI band + pregnancy/lactation).
 # Re-exported under the historical name so every consumer — the
 # legacy seed list, person_analysis, the selftests — keeps working
 # against the one richer table.
-from nutrition.dri_seed import SEED_DRI_REFERENCES as \
-    SEED_NUTRIENT_REFERENCES  # noqa: F401  (re-export)
+from nutrition.dri_seed import SEED_DRI_REFERENCES, JURISDICTION, EDITION
+
+# N6: total sugars has NO DRI (no EAR/RDA/AI/UL exists — NASEM 2005
+# only discusses ADDED sugars, and the DGA line is for added sugars
+# too). The vocabulary rule "every nutrient has a reference row" is
+# met with a 'none' MARKER row (the calories precedent): target 0 /
+# max 0 so person_thresholds and coverage skip it (target <= 0), and
+# the tracking readout applies its own labelled CEILING (dga_limits.
+# total_sugars_ceiling_g) instead of a target.
+_SUGARS_MARKER_REFERENCE = {
+    'name': 'sugars-total-any-19-120', 'nutrient_name': 'sugars-total',
+    'sex': 'any', 'age_min': 19.0, 'age_max': 120.0,
+    'rda_per_day': 0.0, 'upper_limit_per_day': 0.0, 'ear_per_day': 0.0,
+    'per_kg_body_mass': 0.0, 'value_type': 'none', 'life_stage': '',
+    'jurisdiction': JURISDICTION, 'edition': EDITION,
+    'source': 'no DRI exists for total sugars (marker row)',
+    'is_prior': True,
+    'notes': ('no EAR/RDA/AI/UL for total sugars; the only published '
+              'line is the DGA added-sugar share (<10 % kcal), which '
+              'tracking_periods applies as a labelled conservative '
+              'ceiling, never a target'),
+    'provenance_id': 'N6'}
+
+SEED_NUTRIENT_REFERENCES = SEED_DRI_REFERENCES + [_SUGARS_MARKER_REFERENCE]

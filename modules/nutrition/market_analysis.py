@@ -19,15 +19,30 @@ mpa-2 — market arithmetic over the market_basis rows:
                        one purchase → approx grams + per-item
                        nutrient amounts (per-100g × grams) with
                        provenance labels riding every step.
+  export_price_references  mo-2: live observations → month-level
+                       PriceReference rows (mealoptions), purchaser /
+                       place / day stripped, upserted so a re-export
+                       converges.
+  advice               mo-2: the local-first price advice over the
+                       PriceReference rows (or, when none are
+                       published yet, over the live observations
+                       aggregated on the fly — and it SAYS so).
 
 @consumers
   - nutrition.pantry_analysis, mealplanning_api
   - nutrition.selftest_market
-@see AI-Notes/plans/MEAL_PLANNING_APP_PLAN.md §mpa-2
+@see AI-Notes/plans/MEAL_PLANNING_APP_PLAN.md §mpa-2,
+     AI-Notes/plans/MEAL_OPTIONS_MODULE_PLAN.md §mo-2
 """
 
 from datetime import date
 
+from mealoptions.price_reference_analysis import (
+    aggregate_references, price_advice,
+)
+from mealoptions.price_reference_basis import (
+    CHAIN_KINDS, LOCAL_KINDS, PriceReference,
+)
 from nutrition.market_basis import EXACT_UNIT_GRAMS
 from nutrition.person_analysis import _f, _rows
 
@@ -96,11 +111,20 @@ def normalized_prices(manager, food_name=None, today=None):
             continue
         loc = locations.get(getattr(obs, 'location_name', ''))
         price = _f(obs, 'price', 0.0)
+        # mo-2: live rows from before the typing fields read as
+        # 'other' / '' (the class docstring's gotcha).
+        ownership = (getattr(loc, 'ownership_kind', '') or 'other') \
+            if loc else 'other'
+        chain = (getattr(loc, 'chain_name', '') or '') \
+            if loc and ownership in CHAIN_KINDS else ''
         entry = {
             'observation': getattr(obs, 'name', ''),
             'food': food,
             'location': getattr(obs, 'location_name', ''),
             'locationKind': getattr(loc, 'kind', '') if loc else '',
+            'ownershipKind': ownership,
+            'chainName': chain,
+            'isLocal': ownership in LOCAL_KINDS,
             'region': getattr(loc, 'region_label', '') if loc else '',
             'latitude': _f(loc, 'latitude', 0.0) if loc else 0.0,
             'longitude': _f(loc, 'longitude', 0.0) if loc else 0.0,
@@ -208,3 +232,100 @@ def purchased_item_report(manager, food_name, quantity, unit,
                                   if price['ageDays'] is not None
                                   else ''))
     return report
+
+
+# ── mo-2: month-level references + local-first advice ────────
+
+def _reference_record(row):
+    """One PriceReference row as a FLAT record (screens + advice)."""
+    return {
+        'name': getattr(row, 'name', ''),
+        'food_name': getattr(row, 'food_name', ''),
+        'month': getattr(row, 'month', ''),
+        'source_type': getattr(row, 'source_type', 'other'),
+        'chain_name': getattr(row, 'chain_name', '') or '',
+        'region_label': getattr(row, 'region_label', 'unstated'),
+        'currency': getattr(row, 'currency', 'USD'),
+        'price_per_kg_median': _f(row, 'price_per_kg_median', 0.0),
+        'price_per_kg_min': _f(row, 'price_per_kg_min', 0.0),
+        'price_per_kg_max': _f(row, 'price_per_kg_max', 0.0),
+        'sample_count': int(_f(row, 'sample_count', 0)),
+        'weight_basis': getattr(row, 'weight_basis', 'exact'),
+        'varies_by_vendor': bool(getattr(row, 'varies_by_vendor', False)),
+        'notes': getattr(row, 'notes', ''),
+    }
+
+
+def price_references(manager, food_name=None):
+    """Published PriceReference rows as flat records (optionally one
+    food), sorted by food, month, median."""
+    records = [_reference_record(r) for r in _rows(manager, 'PriceReference')
+               if food_name is None
+               or getattr(r, 'food_name', '') == food_name]
+    records.sort(key=lambda r: (r['food_name'], r['month'],
+                                r['price_per_kg_median']))
+    return {'ok': True, 'schema': 'price-references/1',
+            'count': len(records), 'references': records,
+            'honesty': 'month-level aggregates; purchaser, place and '
+                       'day were stripped before these rows were built'}
+
+
+def export_price_references(manager, today=None):
+    """Live PriceObservation rows → PriceReference rows (mealoptions),
+    upserted so a re-export converges. Returns the counts + rows."""
+    from composition.seed_upsert import upsert_seed_pairs
+    norm = normalized_prices(manager, None, today)
+    entries = norm['prices']
+    undated = [e['observation'] for e in entries
+               if not (e.get('observedDate') or '').strip()]
+    rows = aggregate_references(entries, today)
+    reports = upsert_seed_pairs(
+        manager, [('PriceReference', PriceReference, rows)],
+        tag='PriceReferenceExport')
+    report = reports[0] if reports else {}
+    return {
+        'ok': True, 'schema': 'price-reference-export/1',
+        'observationCount': len(entries),
+        'referenceCount': len(rows),
+        'inserted': len(report.get('inserted', [])),
+        'updated': len(report.get('updated', [])),
+        'unchanged': len(report.get('unchanged', [])),
+        'skippedCustom': len(report.get('skipped_custom', [])),
+        'errors': len(report.get('errors', [])),
+        'skippedClass': bool(report.get('skipped', False)),
+        'undatedObservations': len(undated),
+        'refusedObservations': len(norm['refused']),
+        'references': rows,
+        'honesty': 'every reference is food × month × source type '
+                   '(× chain only for chains) × coarse region; '
+                   'purchaser, place and day stripped; undated '
+                   'observations have no month and are left out',
+    }
+
+
+def advice(manager, food_name, local_preference_pct=10.0, month=None,
+           today=None):
+    """Local-first price advice: over the published PriceReference
+    rows if any exist for the food, else over the live observations
+    aggregated on the fly (and the honesty lines say which). `month`
+    None = the latest month on file for the food."""
+    published = [r for r in _rows(manager, 'PriceReference')
+                 if getattr(r, 'food_name', '') == food_name]
+    if published:
+        result = price_advice(published, food_name, local_preference_pct,
+                              month)
+        result['basis'] = 'published PriceReference rows'
+        result['honesty'].append(
+            f'basis: {len(published)} published reference row(s) for '
+            f'"{food_name}"')
+        return result
+    norm = normalized_prices(manager, food_name, today)
+    rows = aggregate_references(norm['prices'], today)
+    result = price_advice(rows, food_name, local_preference_pct, month)
+    result['basis'] = 'live observations aggregated on the fly (unpublished)'
+    result['honesty'].append(
+        f'basis: NO published PriceReference rows for "{food_name}" — '
+        f'this ranking aggregated {len(norm["prices"])} live '
+        f'observation(s) on the fly; POST /api/mealplanning/prices/publish '
+        f'to file the month\'s references')
+    return result

@@ -12,6 +12,7 @@ almonds-raw,170567,sr_legacy,"Nuts, almonds",potassium,733.0,mg,306,
 almonds-raw,170567,sr_legacy,"Nuts, almonds",protein,21.15,g,203,
 almonds-raw,170567,sr_legacy,"Nuts, almonds",selenium,4.1,ug,317,
 almonds-raw,170567,sr_legacy,"Nuts, almonds",sodium,1.0,mg,307,
+almonds-raw,170567,sr_legacy,"Nuts, almonds",sugars-total,4.35,g,269,
 almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-a,0.0,ug,320,RAE
 almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-b1,0.205,mg,404,
 almonds-raw,170567,sr_legacy,"Nuts, almonds",vitamin-b12,0.0,ug,418,
@@ -36,6 +37,7 @@ apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",manganese,0
 apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",potassium,95.0,mg,306,
 apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",protein,0.19,g,203,
 apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",sodium,0.0,mg,307,
+apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",sugars-total,11.1,g,269.3,"FDC 'Sugars, Total' nbr 269.3 (id 1063) — the Foundation entry's total-sugars row; nbr 269 absent for this entry"
 apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",vitamin-b1,0.009,mg,404,
 apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",vitamin-b2,0.066,mg,405,
 apple-raw,1105430,foundation,"Apples, red delicious, with skin, raw",vitamin-b3,0.09,mg,406,
@@ -93,6 +95,7 @@ beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only
 beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",protein,22.11,g,203,
 beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",selenium,25.2,ug,317,
 beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",sodium,74.0,mg,307,
+beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",sugars-total,0.0,g,269,
 beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",vitamin-a,0.0,ug,320,RAE
 beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",vitamin-b1,0.081,mg,404,
 beef-chuck-raw,174051,sr_legacy,"Beef, chuck, arm pot roast, separable lean only, trimmed to 1/8"" fat, all grades, raw",vitamin-b12,1.88,ug,418,
@@ -138,6 +141,7 @@ black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",potassium,148
 black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",protein,21.6,g,203,
 black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",selenium,3.2,ug,317,
 black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",sodium,5.0,mg,307,
+black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",sugars-total,2.12,g,269,
 black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",vitamin-a,0.0,ug,320,RAE
 black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",vitamin-b1,0.9,mg,404,
 black-beans-dry,173734,sr_legacy,"Beans, black, mature seeds, raw",vitamin-b12,0.0,ug,418,
@@ -162,6 +166,7 @@ blueberries-raw,2263889,foundation,"Blueberries, raw",manganese,0.4228,mg,315,
 blueberries-raw,2263889,foundation,"Blueberries, raw",potassium,85.64,mg,306,
 blueberries-raw,2263889,foundation,"Blueberries, raw",protein,0.703125,g,203,
 blueberries-raw,2263889,foundation,"Blueberries, raw",sodium,0.0,mg,307,
+blueberries-raw,2263889,foundation,"Blueberries, raw",sugars-total,9.356,g,269.3,"FDC 'Sugars, Total' nbr 269.3 (id 1063) — the Foundation entry's total-sugars row; nbr 269 absent for this entry"
 blueberries-raw,2263889,foundation,"Blueberries, raw",vitamin-b7,0.0,ug,416,
 blueberries-raw,2263889,foundation,"Blueberries, raw",vitamin-c,8.059,mg,401,
 blueberries-raw,2263889,foundation,"Blueberries, raw",zinc,0.08534,mg,309,
@@ -177,6 +182,7 @@ broccoli-raw,321900,foundation,"Broccoli, raw",potassium,303.0,mg,306,
 broccoli-raw,321900,foundation,"Broccoli, raw",protein,2.57,g,203,
 broccoli-raw,321900,foundation,"Broccoli, raw",selenium,1.6,ug,317,
 broccoli-raw,321900,foundation,"Broccoli, raw",sodium,36.0,mg,307,
+broccoli-raw,321900,foundation,"Broccoli, raw",sugars-total,1.4,g,269.3,"FDC 'Sugars, Total' nbr 269.3 (id 1063) — the Foundation entry's total-sugars row; nbr 269 absent for this entry"
 broccoli-raw,321900,foundation,"Broccoli, raw",vitamin-a,8.0,ug,320,RAE
 broccoli-raw,321900,foundation,"Broccoli, raw",vitamin-b1,0.077,mg,404,
 broccoli-raw,321900,foundation,"Broccoli, raw",vitamin-b2,0.114,mg,405,
@@ -202,6 +208,7 @@ butter-unsalted,173430,sr_legacy,"Butter, without salt",potassium,24.0,mg,306,
 butter-unsalted,173430,sr_legacy,"Butter, without salt",protein,0.85,g,203,
 butter-unsalted,173430,sr_legacy,"Butter, without salt",selenium,1.0,ug,317,
 butter-unsalted,173430,sr_legacy,"Butter, without salt",sodium,11.0,mg,307,
+butter-unsalted,173430,sr_legacy,"Butter, without salt",sugars-total,0.06,g,269,
 butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-a,684.0,ug,320,RAE
 butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-b1,0.005,mg,404,
 butter-unsalted,173430,sr_legacy,"Butter, without salt",vitamin-b12,0.17,ug,418,
@@ -262,6 +269,7 @@ cheese-cheddar,328637,foundation,"Cheese, cheddar",potassium,77.0,mg,306,
 cheese-cheddar,328637,foundation,"Cheese, cheddar",protein,23.3,g,203,
 cheese-cheddar,328637,foundation,"Cheese, cheddar",selenium,28.3,ug,317,
 cheese-cheddar,328637,foundation,"Cheese, cheddar",sodium,654.0,mg,307,
+cheese-cheddar,328637,foundation,"Cheese, cheddar",sugars-total,0.33,g,269.3,"FDC 'Sugars, Total' nbr 269.3 (id 1063) — the Foundation entry's total-sugars row; nbr 269 absent for this entry"
 cheese-cheddar,328637,foundation,"Cheese, cheddar",vitamin-a,316.0,ug,320,RAE
 cheese-cheddar,328637,foundation,"Cheese, cheddar",vitamin-b1,0.029,mg,404,
 cheese-cheddar,328637,foundation,"Cheese, cheddar",vitamin-b12,1.06,ug,418,
@@ -286,6 +294,7 @@ chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinles
 chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",protein,22.5,g,203,
 chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",selenium,22.8,ug,317,
 chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",sodium,45.0,mg,307,
+chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",sugars-total,0.0,g,269,
 chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",vitamin-a,9.0,ug,320,RAE
 chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",vitamin-b1,0.094,mg,404,
 chicken-breast-raw,171077,sr_legacy,"Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",vitamin-b12,0.21,ug,418,
@@ -355,6 +364,7 @@ egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",potassium,132.
 egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",protein,12.4,g,203,
 egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",selenium,31.1,ug,317,
 egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",sodium,129.0,mg,307,
+egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",sugars-total,0.2,g,269.3,"FDC 'Sugars, Total' nbr 269.3 (id 1063) — the Foundation entry's total-sugars row; nbr 269 absent for this entry"
 egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",vitamin-a,180.0,ug,320,RAE
 egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",vitamin-b1,0.077,mg,404,
 egg-whole-raw,748967,foundation,"Eggs, Grade A, Large, egg whole",vitamin-b12,1.02,ug,418,
@@ -431,6 +441,7 @@ kale-raw,323505,foundation,"Kale, raw",manganese,0.92,mg,315,
 kale-raw,323505,foundation,"Kale, raw",potassium,348.0,mg,306,
 kale-raw,323505,foundation,"Kale, raw",protein,2.92,g,203,
 kale-raw,323505,foundation,"Kale, raw",sodium,53.0,mg,307,
+kale-raw,323505,foundation,"Kale, raw",sugars-total,0.8,g,269.3,"FDC 'Sugars, Total' nbr 269.3 (id 1063) — the Foundation entry's total-sugars row; nbr 269 absent for this entry"
 kale-raw,323505,foundation,"Kale, raw",vitamin-a,241.0,ug,320,RAE
 kale-raw,323505,foundation,"Kale, raw",vitamin-b1,0.113,mg,404,
 kale-raw,323505,foundation,"Kale, raw",vitamin-b2,0.347,mg,405,
@@ -484,6 +495,7 @@ milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",
 milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",protein,3.28,g,203,
 milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",selenium,1.9,ug,317,
 milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",sodium,38.0,mg,307,
+milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",sugars-total,4.81,g,269.3,"FDC 'Sugars, Total' nbr 269.3 (id 1063) — the Foundation entry's total-sugars row; nbr 269 absent for this entry"
 milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",vitamin-a,32.0,ug,320,RAE
 milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",vitamin-b1,0.056,mg,404,
 milk-whole,322892,foundation,"Milk, whole, 3.25% milkfat, with added vitamin D",vitamin-b12,0.54,ug,418,
@@ -508,6 +520,7 @@ mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",potassium,318.0,mg,3
 mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",protein,3.09,g,203,
 mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",selenium,9.3,ug,317,
 mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",sodium,5.0,mg,307,
+mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",sugars-total,1.98,g,269,
 mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-a,0.0,ug,320,RAE
 mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-b1,0.081,mg,404,
 mushroom-white-raw,169251,sr_legacy,"Mushrooms, white, raw",vitamin-b12,0.04,ug,418,
@@ -553,6 +566,7 @@ olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",potassium,1.0,mg,306,
 olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",protein,0.0,g,203,
 olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",selenium,0.0,ug,317,
 olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",sodium,2.0,mg,307,
+olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",sugars-total,0.0,g,269,
 olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",vitamin-a,0.0,ug,320,RAE
 olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",vitamin-b1,0.0,mg,404,
 olive-oil,171413,sr_legacy,"Oil, olive, salad or cooking",vitamin-b12,0.0,ug,418,
@@ -579,6 +593,7 @@ onion-raw,790646,foundation,"Onions, yellow, raw",potassium,182.0,mg,306,
 onion-raw,790646,foundation,"Onions, yellow, raw",protein,0.83,g,203,
 onion-raw,790646,foundation,"Onions, yellow, raw",selenium,0.0,ug,317,
 onion-raw,790646,foundation,"Onions, yellow, raw",sodium,1.0,mg,307,
+onion-raw,790646,foundation,"Onions, yellow, raw",sugars-total,5.82,g,269.3,"FDC 'Sugars, Total' nbr 269.3 (id 1063) — the Foundation entry's total-sugars row; nbr 269 absent for this entry"
 onion-raw,790646,foundation,"Onions, yellow, raw",vitamin-b7,0.0,ug,416,
 onion-raw,790646,foundation,"Onions, yellow, raw",vitamin-c,8.2,mg,401,
 onion-raw,790646,foundation,"Onions, yellow, raw",zinc,0.2,mg,309,
@@ -594,6 +609,7 @@ orange-raw,746771,foundation,"Oranges, raw, navels",potassium,166.0,mg,306,
 orange-raw,746771,foundation,"Oranges, raw, navels",protein,0.91,g,203,
 orange-raw,746771,foundation,"Oranges, raw, navels",selenium,0.0,ug,317,
 orange-raw,746771,foundation,"Oranges, raw, navels",sodium,9.0,mg,307,
+orange-raw,746771,foundation,"Oranges, raw, navels",sugars-total,8.57,g,269.3,"FDC 'Sugars, Total' nbr 269.3 (id 1063) — the Foundation entry's total-sugars row; nbr 269 absent for this entry"
 orange-raw,746771,foundation,"Oranges, raw, navels",vitamin-b1,0.068,mg,404,
 orange-raw,746771,foundation,"Oranges, raw, navels",vitamin-b2,0.051,mg,405,
 orange-raw,746771,foundation,"Oranges, raw, navels",vitamin-b3,0.425,mg,406,
@@ -616,6 +632,7 @@ pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",potassium,223.0,mg,306,
 pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",protein,13.04,g,203,
 pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",selenium,63.2,ug,317,
 pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",sodium,6.0,mg,307,
+pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",sugars-total,2.67,g,269,
 pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-a,0.0,ug,320,RAE
 pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-b1,0.09,mg,404,
 pasta-dry,168927,sr_legacy,"Pasta, dry, unenriched",vitamin-b12,0.0,ug,418,
@@ -654,6 +671,7 @@ potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",potas
 potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",protein,2.27375,g,203,
 potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",selenium,0.0,ug,317,
 potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",sodium,2.743,mg,307,
+potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",sugars-total,0.5263,g,269.3,"FDC 'Sugars, Total' nbr 269.3 (id 1063) — the Foundation entry's total-sugars row; nbr 269 absent for this entry"
 potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",vitamin-b1,0.07375,mg,404,
 potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",vitamin-b3,1.501,mg,406,
 potato-russet-raw,2346401,foundation,"Potatoes, russet, without skin, raw",vitamin-b6,0.1573,mg,415,
@@ -781,6 +799,7 @@ strawberries-raw,327699,foundation,"Strawberries, raw",potassium,89.0,mg,306,
 strawberries-raw,327699,foundation,"Strawberries, raw",protein,0.64,g,203,
 strawberries-raw,327699,foundation,"Strawberries, raw",selenium,0.4,ug,317,
 strawberries-raw,327699,foundation,"Strawberries, raw",sodium,10.0,mg,307,
+strawberries-raw,327699,foundation,"Strawberries, raw",sugars-total,5.34,g,269.3,"FDC 'Sugars, Total' nbr 269.3 (id 1063) — the Foundation entry's total-sugars row; nbr 269 absent for this entry"
 strawberries-raw,327699,foundation,"Strawberries, raw",vitamin-a,1.0,ug,320,RAE
 strawberries-raw,327699,foundation,"Strawberries, raw",vitamin-b1,0.025,mg,404,
 strawberries-raw,327699,foundation,"Strawberries, raw",vitamin-b2,0.016,mg,405,
@@ -802,6 +821,7 @@ sugar-white,334247,foundation,"Sugars, granulated",manganese,0.004,mg,315,
 sugar-white,334247,foundation,"Sugars, granulated",potassium,2.0,mg,306,
 sugar-white,334247,foundation,"Sugars, granulated",protein,0.0,g,203,
 sugar-white,334247,foundation,"Sugars, granulated",sodium,1.0,mg,307,
+sugar-white,334247,foundation,"Sugars, granulated",sugars-total,99.8,g,269.3,"FDC 'Sugars, Total' nbr 269.3 (id 1063) — the Foundation entry's total-sugars row; nbr 269 absent for this entry"
 sugar-white,334247,foundation,"Sugars, granulated",zinc,0.01,mg,309,
 sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",calcium,22.33,mg,301,
 sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",calories,78.999,kcal,208;957;958,"Energy: measured 208 preferred, else Atwater General 957, else Atwater Specific 958"
@@ -816,6 +836,7 @@ sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin,
 sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",protein,1.578125,g,203,
 sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",selenium,0.0,ug,317,
 sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",sodium,0.0,mg,307,
+sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",sugars-total,6.0588,g,269.3,"FDC 'Sugars, Total' nbr 269.3 (id 1063) — the Foundation entry's total-sugars row; nbr 269 absent for this entry"
 sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",vitamin-b1,0.045,mg,404,
 sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",vitamin-b3,0.4325,mg,406,
 sweet-potato-raw,2346404,foundation,"Sweet potatoes, orange flesh, without skin, raw",vitamin-b6,0.1241,mg,415,
@@ -835,6 +856,7 @@ tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",potassium,302.0,mg,306,
 tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",protein,20.08,g,203,
 tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",selenium,41.8,ug,317,
 tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",sodium,52.0,mg,307,
+tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",sugars-total,0.0,g,269,
 tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-a,0.0,ug,320,RAE
 tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-b1,0.041,mg,404,
 tilapia-raw,175176,sr_legacy,"Fish, tilapia, raw",vitamin-b12,1.58,ug,418,
@@ -915,6 +937,7 @@ walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",potassium,441.0,mg,306,
 walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",protein,15.23,g,203,
 walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",selenium,4.9,ug,317,
 walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",sodium,2.0,mg,307,
+walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",sugars-total,2.61,g,269,
 walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-a,1.0,ug,320,RAE
 walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-b1,0.341,mg,404,
 walnuts-raw,170187,sr_legacy,"Nuts, walnuts, english",vitamin-b12,0.0,ug,418,
@@ -940,6 +963,7 @@ yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",manganese,0.00
 yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",potassium,164.1,mg,306,
 yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",protein,3.824172,g,203,
 yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",sodium,41.78,mg,307,
+yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",sugars-total,4.0936,g,269.3,"FDC 'Sugars, Total' nbr 269.3 (id 1063) — the Foundation entry's total-sugars row; nbr 269 absent for this entry"
 yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",vitamin-b1,0.05519,mg,404,
 yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",vitamin-b2,0.2431,mg,405,
 yogurt-plain-whole,2259793,foundation,"Yogurt, plain, whole milk",vitamin-b3,0.135,mg,406,
