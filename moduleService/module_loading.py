@@ -39,12 +39,17 @@ FEATURE_MODULES = frozenset({
     'aquaponics', 'biomining', 'bizops', 'climate', 'cntfet',
     'computerparts', 'computers', 'dmvdata',
     'electrodevice',
-    'gears', 'grpcbridge', 'household', 'hwdigital', 'hwfpga', 'magnetics',
+    'gears', 'grpcbridge', 'household', 'hwdigital', 'hwfpga',
+    # vpn-1: islemesh was always a guarded modules/ import; listing it
+    # lets vpn declare it in FEATURE_REQUIRES (drop refuses honestly).
+    'islemesh',
+    'magnetics',
     'mathshapes', 'mealoptions', 'meshassets', 'microalgae', 'microchip',
     'motors',
     'nutrition', 'odooconnect', 'plant_morphology', 'polariapps',
     'scoring',
     'supplychain', 'tanks', 'techtree', 'testing', 'waxprint',
+    'vpn',
     'waxsupply', 'zones',
 })
 
@@ -87,6 +92,10 @@ FEATURE_REQUIRES = {
     # mo-1: and re-export the moved meal data from mealoptions.
     'nutrition': ('household', 'mealoptions'),
     'zones': ('scoring',),
+    # vpn-1: the isle-vpn mirror rides the islemesh acceptor family
+    # (IsleEngine / IsleIngestReceipt / IsleDevice rows, the
+    # netledger's free_port, the catalog + engine idioms).
+    'vpn': ('islemesh',),
 }
 
 # Modules that MOVE into modules/ (mp-4) but stay required for boot

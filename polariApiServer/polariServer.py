@@ -1313,6 +1313,21 @@ except ImportError as _exc:
         'IsleProtocolPermit', 'IsleUplink', 'MeshAppRealization',
         'SEED_CATALOG', 'SEED_ISLEMESH_PAGE_DISPLAYS',
     ))
+# vpn (vpn-1): the isle-vpn MIRROR + proposal INBOX (authority is the
+# isle side, D9) — networks / peers (public keys only) / rules /
+# federation links / .vpn exposures replaced per device by the isle's
+# push; VpnProposal rows an operator applies on the isle. Requires
+# islemesh (acceptor family, netledger, catalog + engine idioms).
+try:
+    from vpn import (
+        VPN_CLASSES, VPN_SEED_PAIRS, SEED_VPN_CATALOG,
+        SEED_VPN_PAGE_DISPLAYS,
+    )
+except ImportError as _exc:
+    _stub_missing_feature('vpn', _exc, globals(), (
+        'VPN_CLASSES', 'VPN_SEED_PAIRS', 'SEED_VPN_CATALOG',
+        'SEED_VPN_PAGE_DISPLAYS',
+    ))
 # Tech tree (tt-3): technologies with theory/real/business/politics
 # segments; completion always DERIVED (techtree_analysis), edges
 # derived from depends_on_json with tt-1 transient designation.
@@ -2523,6 +2538,11 @@ class polariServer(treeObject):
             from islemesh.islemesh_api import IsleMeshAPI
             isleMeshEndpoint = IsleMeshAPI(
                 polServer=self, manager=self.manager)
+        if _feature_available('vpn') and _feature_available('islemesh'):
+            # vpn (vpn-1): /api/vpn read + proposals, and the isle's
+            # VPN-state acceptor at /api/islemesh/ingest/vpn.
+            from vpn.vpn_api import VpnAPI
+            vpnEndpoint = VpnAPI(polServer=self, manager=self.manager)
         if _feature_available('techtree'):
             # Tech tree (tt-3): trees/nodes/segments + derived completion
             # rollup — the topology expansion toward the OSEB.
@@ -2909,6 +2929,8 @@ class polariServer(treeObject):
             IsleDevice, IsleUplink, IsleApp, IsleAppService,
             MeshAppRealization, IsleProtocolPermit, IsleEngine,
             IsleCatalogEntry, IsleIngestReceipt,
+            # vpn (vpn-1): the isle-vpn mirror + proposal inbox.
+            *(VPN_CLASSES or []),
             # Tech tree (tt-3) + segment content (tt-6).
             TechTreeDefinition, TechNode, TechSegment,
             TechSegmentAssignment, TechDependencyEdge,
@@ -3886,6 +3908,7 @@ class polariServer(treeObject):
              + (SEED_CASTING_PAGE_DISPLAYS or [])
              + (SEED_APPSTORE_PAGE_DISPLAYS or [])
              + (SEED_ISLEMESH_PAGE_DISPLAYS or [])
+             + (SEED_VPN_PAGE_DISPLAYS or [])
              + (SEED_CNTFET_PAGE_DISPLAYS or [])
              # fi-4: per-FET competitive scoring pages.
              + (SEED_CNT_SCORE_PAGES or [])
@@ -4357,6 +4380,13 @@ class polariServer(treeObject):
             # islemesh (§20): the general isle app store catalog —
             # the two proven variants (mesh-app + polari-app) + odoo.
             ('IsleCatalogEntry', IsleCatalogEntry, SEED_CATALOG),
+            # vpn-1: the ten isle-vpn listings (Isle Link / Isle
+            # Bridge) join the same catalog; mirror + inbox classes
+            # register with no seeds (rows come from the isle's push
+            # or an operator's proposal).
+            ('IsleCatalogEntry', IsleCatalogEntry,
+             SEED_VPN_CATALOG or []),
+            *(VPN_SEED_PAIRS or []),
             # aqp-1: self-watering pots + their side holes (pots
             # before holes — holes reference their pot).
             ('PotDefinition', PotDefinition, SEED_POTS),
@@ -4950,6 +4980,21 @@ class polariServer(treeObject):
                               flush=True)
             except Exception as e:
                 print(f'[MealplanPagesSeed] failed: {e}', flush=True)
+        # vpn-1: the propose forms' analysis + solutions (upsert path
+        # when composition is present, insert-by-name otherwise).
+        if (_feature_available('vpn') and _feature_available('islemesh')
+                and (only_classes is None
+                     or 'SolutionDefinition' in only_classes)):
+            try:
+                from vpn.vpn_seed import seed_vpn_nocode
+                for r in seed_vpn_nocode(self.manager):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[VpnNocodeSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[VpnNocodeSeed] failed: {e}', flush=True)
         if (_feature_available('motors')
                 and _feature_available('mathshapes')
                 and _feature_available('composition') and (
