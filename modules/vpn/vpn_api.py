@@ -111,6 +111,70 @@ class VpnAPI(treeObject):
             add('/api/vpn/matrix', self, suffix='matrix')
             add('/api/vpn/demo', self, suffix='demo')
             add('/api/islemesh/ingest/vpn', self, suffix='ingest_vpn')
+            # vpn-3: the trust bridge
+            add('/api/vpn/join-request', self, suffix='join_request')
+            add('/api/vpn/agreements', self, suffix='agreements')
+        self.register_trust_bridge()
+
+    def register_trust_bridge(self):
+        """vpn-3: react to PeerAgreement approve / deny / revoke. The
+        MODULE-LEVEL listener is registered, and once: polariServer
+        constructs its endpoints on every boot cycle, so a bound method
+        per instance would stack up (61 listeners = 61 tear-downs per
+        revoke on the first live run)."""
+        from polariPeers import agreements_api
+        from vpn.vpn_trust import on_agreement_event
+        if on_agreement_event not in agreements_api.AGREEMENT_LISTENERS:
+            agreements_api.AGREEMENT_LISTENERS.append(on_agreement_event)
+        return on_agreement_event
+
+    # ---- vpn-3: join requests + the consent view ---------------------
+
+    def on_post_join_request(self, request, response):
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        from vpn.vpn_trust import file_join_request
+        result, status = file_join_request(self.manager, payload,
+                                           save=self._save)
+        response.status = status
+        response.media = result
+        return result
+
+    def on_get_agreements(self, request, response):
+        """PeerAgreement rows the bridge owns (requested_role vpn-*),
+        each with the proposals that hang off it."""
+        from vpn.vpn_trust import proposals_of_agreement
+        params = self._params(request)
+        out = []
+        for a in self._table('PeerAgreement').values():
+            role = getattr(a, 'requested_role', '')
+            if not role.startswith('vpn-'):
+                continue
+            if params.get('status') and getattr(a, 'status', '') \
+                    != params['status']:
+                continue
+            aid = getattr(a, 'agreement_id', '')
+            out.append({
+                'agreement_id': aid, 'direction': getattr(a, 'direction', ''),
+                'requester_name': getattr(a, 'requester_name', ''),
+                'requester_base_url': getattr(a, 'requester_base_url', ''),
+                'requested_role': role, 'status': getattr(a, 'status', ''),
+                'scope': getattr(a, 'scope', ''),
+                'requested_at': getattr(a, 'requested_at', ''),
+                'approved_by': getattr(a, 'approved_by', ''),
+                'approved_at': getattr(a, 'approved_at', ''),
+                'revoked_at': getattr(a, 'revoked_at', ''),
+                'proposals': ', '.join(
+                    '%s (%s)' % (getattr(p, 'name', ''),
+                                 getattr(p, 'status', ''))
+                    for p in proposals_of_agreement(self.manager, aid)),
+            })
+        out.sort(key=lambda d: d['requested_at'])
+        response.media = {'ok': True, 'count': len(out),
+                          'knobs': 'POST /api/peers/agreements/{id}/approve '
+                                   '| /deny | /revoke',
+                          'agreements': out}
 
     # ---- helpers ----------------------------------------------------
 

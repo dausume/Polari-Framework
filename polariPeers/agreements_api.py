@@ -46,6 +46,24 @@ import falcon
 from objectTreeDecorators import treeObject, treeObjectInit
 
 
+#: vpn-3 (the trust bridge): modules that must react when an agreement
+#: is approved / denied / revoked register a callable here —
+#: fn(manager, agreement, event) with event in ('approved', 'denied',
+#: 'revoked'). A listener failure is printed, never raised: consent
+#: bookkeeping must not break admission.
+AGREEMENT_LISTENERS: List[Any] = []
+
+
+def notify_agreement(manager, agreement, event: str) -> None:
+    for fn in list(AGREEMENT_LISTENERS):
+        try:
+            fn(manager, agreement, event)
+        except Exception as e:  # noqa: BLE001
+            print(f'[PeerAgreement] listener {getattr(fn, "__name__", fn)} '
+                  f'failed on {event} {getattr(agreement, "agreement_id", "?")}'
+                  f': {e}', flush=True)
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -282,6 +300,7 @@ class AgreementsAPI(treeObject):
         print(f'[PeerAgreement] approved {agreement.agreement_id} '
               f'("{agreement.requester_name}" as {agreement.requested_role}, '
               f'scope {agreement.scope}) by {approved_by}.', flush=True)
+        notify_agreement(self.manager, agreement, 'approved')
 
     def on_post_deny(self, request, response, agreement_id):
         agreement = find_agreement(self.manager, agreement_id)
@@ -294,6 +313,7 @@ class AgreementsAPI(treeObject):
         agreement.token_hash = ''
         agreement.token_pending_delivery = ''
         self._persist(agreement)
+        notify_agreement(self.manager, agreement, 'denied')
         response.media = {'success': True, 'data': {
             'agreementId': agreement_id, 'status': 'denied'}}
         response.status = falcon.HTTP_200
@@ -314,6 +334,7 @@ class AgreementsAPI(treeObject):
         print(f'[PeerAgreement] revoked {agreement_id} '
               f'("{agreement.requester_name}"); peer row removed: {removed}.',
               flush=True)
+        notify_agreement(self.manager, agreement, 'revoked')
         response.media = {'success': True, 'data': {
             'agreementId': agreement_id, 'status': 'revoked',
             'peerRemoved': removed}}

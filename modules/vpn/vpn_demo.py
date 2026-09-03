@@ -112,8 +112,11 @@ def run_demo(api):
         step('%s push accepted (Link Gateway, mock)' % device,
              (sink.media or {}).get('ok'),
              json.dumps((sink.media or {}).get('counts')))
+    # (only isle-a / isle-b: on a live instance the control isle-c's
+    # row from an earlier demo run is DB-restored before its push)
     nets = [r for r in api._table('VpnNetwork').values()
-            if getattr(r, 'network_name', '') == NET]
+            if getattr(r, 'network_name', '') == NET
+            and getattr(r, 'device_name', '') in (ISLE_A, ISLE_B)]
     step('two networks mirrored', len(nets) == 2,
          ', '.join(sorted(getattr(n, 'name', '') for n in nets)))
     step('gateway label is a plain endpoint (Link Gateway sees only '

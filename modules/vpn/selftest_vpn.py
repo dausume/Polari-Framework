@@ -333,6 +333,109 @@ check('no class declares a private/preshared key field',
           for cls in VPN_CLASSES
           for f in cls.__init__.__code__.co_varnames))
 
+# ---- 8. vpn-3: the trust bridge -----------------------------------------
+print('\n[8] trust bridge: join request -> PeerAgreement -> proposal inbox')
+from polariPeers.agreements_api import AGREEMENT_LISTENERS, AgreementsAPI, notify_agreement
+from vpn.vpn_trust import file_join_request, on_agreement_event, proposals_of_agreement
+m3 = manager()
+api3 = api_for(m3)
+listener = api3.register_trust_bridge()
+api_for(m3).register_trust_bridge()   # a second construction (boot cycles)
+api_for(m3).register_trust_bridge()
+check('listener registered ONCE across repeated endpoint constructions',
+      AGREEMENT_LISTENERS.count(listener) == 1
+      and listener is on_agreement_event)
+# a network to join (mirror, mock)
+sink = _R()
+from vpn.vpn_demo import base_push, ISLE_A
+api3.ingest(base_push(ISLE_A, opaque_public_key()), sink)
+agr = AgreementsAPI.__new__(AgreementsAPI); agr.manager = m3
+res, st = file_join_request(m3, {'device': ISLE_A, 'kind': 'peer',
+                                 'network_name': 'arch-demo',
+                                 'peer_name': 'phone-x', 'kind_': '',
+                                 'public_key': opaque_public_key(),
+                                 'requester_name': 'phone-x',
+                                 'requester_base_url': 'http://phone-x:3000',
+                                 'fingerprint': 'fp-x', 'mock_network': True})
+check('join request -> 201 with agreement + waiting proposal',
+      st.startswith('201') and res['ok'] and res['proposal_status']
+      == 'awaiting-consent', res)
+aid = res.get('agreement_id', '')
+agreement = next(a for a in m3.objectTables['PeerAgreement'].values()
+                 if a.agreement_id == aid)
+check('agreement is pending, role vpn-member, scope names the network',
+      agreement.status == 'pending' and agreement.requested_role == 'vpn-member'
+      and agreement.scope == 'vpn:peer:arch-demo@isle-a', agreement.scope)
+prow = proposals_of_agreement(m3, aid)[0]
+check('proposal carries agreement_id, is NOT in the inbox yet',
+      json.loads(prow.payload_json)['agreement_id'] == aid
+      and prow.status == 'awaiting-consent')
+res2, st2 = file_join_request(m3, {'device': ISLE_A, 'kind': 'peer',
+                                   'network_name': 'arch-demo',
+                                   'peer_name': 'phone-x2',
+                                   'public_key': opaque_public_key(),
+                                   'requester_name': 'phone-x',
+                                   'requester_base_url': 'http://phone-x:3000',
+                                   'fingerprint': 'fp-x'})
+check('re-asking while pending returns the SAME agreement (idempotent)',
+      st2.startswith('200') and res2.get('already_pending')
+      and res2['agreement_id'] == aid)
+bad, stb = file_join_request(m3, {'device': ISLE_A, 'kind': 'peer',
+                                  'network_name': 'nope', 'peer_name': 'p',
+                                  'public_key': 'x', 'requester_name': 'r',
+                                  'requester_base_url': 'u', 'fingerprint': 'f'})
+check('a join request that fails VPN validation makes NO agreement',
+      stb.startswith('400') and len(m3.objectTables['PeerAgreement']) == 1)
+before_networks = len(m3.objectTables.get('VpnNetwork', {}))
+agr._approve(agreement, approved_by='operator@test')
+check('approve -> proposal moves into the inbox (proposed), mirror untouched',
+      prow.status == 'proposed' and 'approved by operator@test' in prow.note
+      and len(m3.objectTables.get('VpnNetwork', {})) == before_networks)
+# the isle applies it (push with the proposal receipt)
+sink = _R()
+api3.ingest(dict(base_push(ISLE_A, opaque_public_key()),
+                 proposals=[{'id': prow.name, 'status': 'applied',
+                             'applied_by': 'operator@isle-a'}]), sink)
+check('isle applies -> proposal applied', prow.status == 'applied')
+agreement.status = 'revoked'; agreement.revoked_at = '2026-09-03T15:00:00+00:00'
+notify_agreement(m3, agreement, 'revoked')
+revokes = [r for r in m3.objectTables['VpnProposal'].values()
+           if r.kind == 'revoke']
+check('revoke -> exactly ONE revoke proposal for the applied peer, in the '
+      'inbox (proposed)',
+      len(revokes) == 1 and json.loads(revokes[0].payload_json)['name']
+      == 'phone-x' and revokes[0].status == 'proposed', [r.note for r in revokes])
+notify_agreement(m3, agreement, 'revoked')   # a second revoke event
+revokes2 = [r for r in m3.objectTables['VpnProposal'].values()
+            if r.kind == 'revoke']
+check('a repeated revoke event files nothing new and keeps the tear-down '
+      'proposed', len(revokes2) == 1 and revokes2[0].status == 'proposed')
+# deny path on a fresh federation request
+resl, stl = file_join_request(m3, {'device': ISLE_A, 'kind': 'link',
+                                   'network_name': 'arch-demo',
+                                   'remote_device': 'isle-z',
+                                   'remote_network': 'arch-demo',
+                                   'remote_gateway_public_key': opaque_public_key(),
+                                   'remote_cidrs': '10.60.9.0/24',
+                                   'requester_name': 'isle-z',
+                                   'requester_base_url': 'http://isle-z:3000',
+                                   'fingerprint': 'fp-z'})
+check('federation join request -> vpn-federation agreement + waiting link '
+      'proposal', stl.startswith('201') and resl['ok'], resl)
+agr_z = next(a for a in m3.objectTables['PeerAgreement'].values()
+             if a.agreement_id == resl['agreement_id'])
+check('federation role', agr_z.requested_role == 'vpn-federation')
+agr_z.status = 'denied'
+notify_agreement(m3, agr_z, 'denied')
+lrow = proposals_of_agreement(m3, resl['agreement_id'])[0]
+check('deny -> the waiting proposal is rejected, never reached the isle',
+      lrow.status == 'rejected' and 'DENIED' in lrow.note)
+check('a non-vpn agreement is ignored by the bridge',
+      on_agreement_event(m3, SimpleNamespace(requested_role='child',
+                                             agreement_id='x'),
+                         'approved') == {'handled': False})
+AGREEMENT_LISTENERS.remove(listener)
+
 passed, total = sum(results), len(results)
 print(f'\n{passed}/{total} checks passed')
 sys.exit(0 if passed == total else 1)

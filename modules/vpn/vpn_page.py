@@ -199,6 +199,23 @@ SEED_VPN_PAGE_DISPLAYS = [
                       ]),
             ]),
             _row(6, [
+                # vpn-3: the consent records behind join requests — the
+                # approve / deny / revoke knobs live on
+                # /api/peers/agreements/{id}/...; approval moves the
+                # waiting proposal into the isle's inbox.
+                _table('vpn-agreements', 0, 6,
+                       'Join requests = PeerAgreements (never auto-'
+                       'admitted; approve moves the proposal into the '
+                       'inbox, revoke files a tear-down)',
+                       'PeerAgreement',
+                       columns='agreement_id,requester_name,'
+                               'requested_role,status,scope,requested_at,'
+                               'approved_by,approved_at,revoked_at'),
+                _sapi('vpn-agreements-view', 1, 6,
+                      'VPN agreements with their proposals',
+                      _VPN + '/agreements', pick='agreements'),
+            ]),
+            _row(7, [
                 _sapi('vpn-matrix', 0, 7,
                       'Per-isle matrix: kind, Blind / Sees traffic, '
                       'networks, .vpn names',

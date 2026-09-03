@@ -96,10 +96,17 @@ SEED_VPN_SOLUTIONS = [_propose_solution(kind) for kind in _FIELDS]
 def seed_vpn_nocode(manager):
     """Upsert the analysis + solutions. Returns the upsert reports
     (composition path) or a one-line insert report."""
+    from polariApiServer.displayDefinition import DisplayDefinition
     from polariApiServer.solutionDefinition import SolutionDefinition
     from polariNoCode.analysis_calls import AnalysisDefinition
+    from vpn.vpn_page import SEED_VPN_PAGE_DISPLAYS
+    # The page rides the UPSERT too: the plain seed pass is insert-by-
+    # name, so a row added to /display/vpn (vpn-3's agreements row)
+    # never reaches a live instance that already has the page (the
+    # seed-field-addition gotcha, caught live 2026-09-03).
     pairs = [('AnalysisDefinition', AnalysisDefinition, SEED_VPN_ANALYSES),
-             ('SolutionDefinition', SolutionDefinition, SEED_VPN_SOLUTIONS)]
+             ('SolutionDefinition', SolutionDefinition, SEED_VPN_SOLUTIONS),
+             ('DisplayDefinition', DisplayDefinition, SEED_VPN_PAGE_DISPLAYS)]
     try:
         from composition.seed_upsert import upsert_seed_pairs
     except ImportError:

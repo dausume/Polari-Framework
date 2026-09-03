@@ -145,7 +145,16 @@ RELAY_KINDS = ('direct', 'blind', 'routing')
 
 #: Proposal lifecycle (D9): Polari proposes, a local operator applies
 #: on the isle. Only the isle's push flips proposed -> applied|rejected.
-PROPOSAL_STATUSES = ('proposed', 'applied', 'rejected')
+#: vpn-3: a proposal born from a JOIN REQUEST waits for consent first —
+#: 'awaiting-consent' until its PeerAgreement is approved (-> proposed)
+#: or denied (-> rejected); a later revoke files a 'revoke' proposal.
+PROPOSAL_STATUSES = ('awaiting-consent', 'proposed', 'applied',
+                     'rejected')
+
+#: PeerAgreement.requested_role values the trust bridge owns (vpn-3):
+#: a device asking to be a member peer, or a remote isle asking to
+#: federate (its gateway becomes a peer + a VpnFederationLink).
+AGREEMENT_ROLES = {'peer': 'vpn-member', 'link': 'vpn-federation'}
 
 #: What a proposal can ask for. 'revoke' names a peer or link to drop.
 PROPOSAL_KINDS = ('network', 'peer', 'rule', 'link', 'exposure',
