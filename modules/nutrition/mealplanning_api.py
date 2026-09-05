@@ -147,7 +147,7 @@ class MealPlanningAPI(treeObject):
                 suffix='coordination')
             # mlg-1..4: logistics previews (all proposals; nothing written).
             add('/api/mealplanning/users/{person}/availability', self,
-                suffix='availability')
+                suffix='person_availability')
             add('/api/mealplanning/plans/{name}/timing-check', self,
                 suffix='timing_check')
             add('/api/mealplanning/entries/{name}/prep-profile', self,
@@ -574,7 +574,10 @@ class MealPlanningAPI(treeObject):
             request.params.get('week_start') or None)
 
     # ---- mlg-1..4: logistics -------------------------------------
-    def on_get_availability(self, request, response, person):
+    def on_get_person_availability(self, request, response, person):
+        # (was a second on_get_availability that SHADOWED the plan one —
+        # /plans/{name}/availability 500'd with "unexpected keyword
+        # argument 'name'"; caught by the 2026-09-05 page sweep.)
         from nutrition.logistics_analysis import availability_windows
         response.media = availability_windows(
             self.manager, person, request.params.get('from') or None,
