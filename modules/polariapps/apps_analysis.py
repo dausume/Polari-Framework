@@ -162,6 +162,13 @@ def export_app(manager, app_name, topology_name=''):
             'description': getattr(app, 'description', ''),
             'modules_json': getattr(app, 'modules_json', '[]'),
             'pages_json': getattr(app, 'pages_json', '[]'),
+            # sep-2: an exported app must be able to rebuild its
+            # MENU — these three ride _APP_FIELDS on the apply side
+            # and were silently dropped here.
+            'nav_json': getattr(app, 'nav_json', '[]'),
+            'personas_json': getattr(app, 'personas_json', '[]'),
+            'discipline': getattr(app, 'discipline', ''),
+            'engine_page': getattr(app, 'engine_page', ''),
             'notes': getattr(app, 'notes', ''),
         },
     }

@@ -69,6 +69,7 @@ from polariApiServer.updateClassConfigAPI import UpdateClassConfigAPI
 from polariApiServer.systemInfoAPI import systemInfoAPI
 from polariApiServer.aiChatAPI import aiChatAPI
 from polariApiServer.providersAPI import providersAPI
+from polariApiServer.voiceAPI import voiceAPI
 from polariApiServer.aiActionsAPI import aiActionsAPI
 from polariApiServer.apiFormatConfig import ApiFormatConfig
 from polariApiServer.configuredFormattedAPIs import FlatJsonAPI, D3ColumnAPI, GeoJsonAPI
@@ -119,1131 +120,40 @@ from materialsScience.property_meanings import (
     MaterialPropertyMeaning, SEED_PROPERTY_MEANINGS,
 )
 # mp-3 (MODULE_PROJECTS_PLAN): feature modules may be ABSENT from a
-# checkout (pol modules get/drop). Every feature-module import below
-# sits in a guarded block: present code imports exactly as before;
-# absent code stubs its symbols (SEED_* -> [], classes -> None) and
-# records itself in MISSING_FEATURE_MODULES so surfaces stay honest.
-# A downloaded module that fails to import still raises — lazy
-# loading never swallows broken code.
+# checkout (pol modules get/drop) — the core must boot without them.
+# dyn-1 (DYNAMIC_MODULES_PLAN): those guarded imports now live as
+# DATA in feature_imports.FEATURE_IMPORT_BLOCKS, replayed here by
+# import_feature_blocks with the exact old semantics: present code
+# imports exactly as before; absent code stubs its symbols (SEED_*
+# -> [], classes -> None) and records itself in
+# MISSING_FEATURE_MODULES so surfaces stay honest; a downloaded
+# module that fails to import still raises — lazy loading never
+# swallows broken code. The same table drives un-stubbing at live
+# admission (dyn-2/4). Never re-inline a feature import here — the
+# drift guard (moduleService.selftest_lazy_imports) refuses it.
 from moduleService.module_loading import (
     feature_available as _feature_available,
-    feature_import_error as _feature_import_error,
-    stub_feature_symbols as _stub_feature_symbols,
     boot_report as _module_loading_boot_report,
+    import_feature_blocks as _import_feature_blocks,
 )
-
-
-def _stub_missing_feature(module_name, exc, globalns, symbols):
-    _feature_import_error(module_name, exc)  # re-raises when downloaded
-    _stub_feature_symbols(globalns, module_name, symbols)
-
-
-# Context-based scoring: the Political Scorecard's term/context/weight
-# system generalized over arbitrary Polari data (scr-1).
-try:
-    from scoring.scoring_basis import (
-        ContextualizedValue, ScoreContext, ScoreSubject, ScoreTerm,
-    )
-    from scoring.score_concept import ScoreConcept
-    from scoring.score_group import ScoreGroup
-    from scoring.agreement_policy import (
-        AgreementPolicy, SEED_AGREEMENT_POLICIES,
-    )
-    from scoring.scoring_seed import (
-        SEED_CONTEXTUALIZED_VALUES, SEED_SCORE_CONCEPTS,
-        SEED_SCORE_CONTEXTS, SEED_SCORE_GROUPS, SEED_SCORE_SUBJECTS,
-        SEED_SCORE_TERMS,
-    )
-    # scr-5: assertions bind policy text to concepts; evidence carries
-    # graded proof; contributors make individuals/orgs/lobbies trackable
-    # (or pseudonymous) accountable identities.
-    from scoring.assertions import AssertionValidityVote, ScoreAssertion
-    from scoring.contributors import Contributor, SEED_CONTRIBUTORS
-    from scoring.evidence import (
-        EvidencePolicy, MediaEvidence, SEED_EVIDENCE_POLICIES,
-    )
-    from scoring.assertion_seed import (
-        SEED_MEDIA_EVIDENCE, SEED_POLICY_SUBJECTS, SEED_SCORE_ASSERTIONS,
-        SEED_VALIDITY_VOTES,
-    )
-    # scr-6: politician voting records → vote-weighted politician scores.
-    from scoring.policy_votes import (
-        PolicyVote, SEED_COHORT_GROUPS, SEED_POLICY_VOTES,
-        SEED_POLITICIAN_SUBJECTS,
-    )
-    # scr-8: worldview elections → vote-derived group member weights.
-    from scoring.worldview_elections import (
-        SEED_ASSEMBLY_GROUPS, SEED_WORLDVIEW_BALLOTS,
-        SEED_WORLDVIEW_ELECTIONS, WorldviewBallot, WorldviewElection,
-    )
-    # Democratic Scorecard revamp Phase 2: Housing Affordability, the first
-    # real (non-demo) Context Tree — mechanism B applied to real content.
-    from scoring.housing_affordability_seed import (
-        SEED_HOUSING_BALLOTS, SEED_HOUSING_CONTEXTUALIZED_VALUES,
-        SEED_HOUSING_CONTRIBUTORS, SEED_HOUSING_ELECTIONS,
-        SEED_HOUSING_SCORE_CONCEPTS, SEED_HOUSING_SCORE_GROUPS,
-        SEED_HOUSING_SCORE_TERMS,
-    )
-    # Democratic Scorecard revamp Phase 4: mechanism A (Group Display
-    # votes) — vote on which Display best EXPLAINS a score, distinct from
-    # mechanism B's vote on term-WEIGHTING worldviews.
-    from scoring.group_display_vote import (
-        GroupDisplayBallot, GroupDisplayVote, SEED_GROUP_DISPLAY_BALLOTS,
-        SEED_GROUP_DISPLAY_VOTES, SEED_GROUP_DISPLAYS,
-    )
-    # Democratic Scorecard revamp mechanism C: logic-fork criterion votes
-    # — vote on which alternate criterion a SPECIFIC decision point/fork
-    # inside a decision procedure should use, distinct from mechanism A
-    # (whole Displays) and mechanism B (whole worldview concepts).
-    from scoring.logic_fork_vote import (
-        DecisionProcedureEdge, LogicForkBallot, LogicForkCriterion,
-        LogicForkVote, SEED_DECISION_PROCEDURE_EDGES,
-        SEED_LOGIC_FORK_BALLOTS, SEED_LOGIC_FORK_CONTRIBUTORS,
-        SEED_LOGIC_FORK_CRITERIA, SEED_LOGIC_FORK_VOTES,
-    )
-    # System-choice implications: which criterion is actually deployed
-    # where over time (SystemChoiceInForce), and evidence-weighted claims
-    # that a system choice affects a real-world score (reuses
-    # ScoreAssertion unchanged).
-    from scoring.system_choice_implications import (
-        SEED_IMPLICATION_ASSERTIONS, SEED_IMPLICATION_CONTEXTUALIZED_VALUES,
-        SEED_IMPLICATION_SCORE_TERMS, SEED_IMPLICATION_SUBJECTS,
-        SEED_IMPLICATION_VALIDITY_VOTES, SEED_INTERPRETATION_BALLOTS,
-        SEED_INTERPRETATION_ELECTIONS, SEED_INTERPRETATION_SCORE_CONCEPTS,
-        SEED_INTERPRETATION_SCORE_GROUPS, SEED_SYSTEM_CHOICES_IN_FORCE,
-        SystemChoiceInForce,
-    )
-    # Policy drafts scoreable through their lifecycle; venue-mismatch
-    # pattern analysis (findings adjudicated by scr-6 validity votes).
-    from scoring.policy_drafts import PolicyDraft
-    from scoring.venue_patterns import (SEED_VENUE_PATTERNS,
-                                        VenueActionRecord,
-                                        VenueMismatchPattern)
-    # Org-defined data-gathering procedures on the graph seam + the
-    # step-credibility assertions comparing equivalent terms' methods.
-    from scoring.data_gathering import (DataGatheringSolution,
-                                        StepCredibilityAssertion)
-    # Assertion credibility voting (group + individual units) and
-    # drafter-set PolicyIntent (opt-in personal participation).
-    from scoring.assertion_credibility import AssertionCredibilityVote
-    from scoring.policy_intent import PolicyIntent
-    # Term Competition (the PSC termcompetition draft, built): cited
-    # composite proposals, relation assertions, scope votes, elections.
-    from scoring.term_competition import (TermProposal,
-                                          TermRelationAssertion,
-                                          TermScopeVote)
-    # Credibility bases: professional/impact/methodological/locality
-    # standing per context, attestations, relevance voting, prioritized
-    # (never-excluding) stance readings.
-    from scoring.credibility_bases import (ClaimAttestation,
-                                           CredibilityClaim,
-                                           QualificationRelevanceVote,
-                                           StanceBasis)
-    # Democratic term proofs: rebuttable re-runnable demonstrations,
-    # validity + comprehension votes, the manipulation-pattern catalog.
-    # (SEED_TERM_PROOFS held back — its demo terms await a demo-content
-    # pass; the pattern catalog seeds now.)
-    from scoring.term_proofs import (DataManipulationPattern,
-                                     ProofRebuttal, ProofVote,
-                                     SEED_MANIPULATION_PATTERNS,
-                                     TermProof)
-    # Legislation tracking: who drafted what, who voted, provision-level
-    # contributor attribution; official legislative API registrations.
-    from scoring.legislation import (LegislationProvision,
-                                     LegislationRecord,
-                                     LegislativeVoteEvent)
-except ImportError as _exc:
-    _stub_missing_feature('scoring', _exc, globals(), (
-        'ContextualizedValue', 'ScoreContext', 'ScoreSubject', 'ScoreTerm',
-        'ScoreConcept', 'ScoreGroup', 'AgreementPolicy', 'SEED_AGREEMENT_POLICIES',
-        'SEED_CONTEXTUALIZED_VALUES', 'SEED_SCORE_CONCEPTS', 'SEED_SCORE_CONTEXTS', 'SEED_SCORE_GROUPS',
-        'SEED_SCORE_SUBJECTS', 'SEED_SCORE_TERMS', 'AssertionValidityVote', 'ScoreAssertion',
-        'Contributor', 'SEED_CONTRIBUTORS', 'EvidencePolicy', 'MediaEvidence',
-        'SEED_EVIDENCE_POLICIES', 'SEED_MEDIA_EVIDENCE', 'SEED_POLICY_SUBJECTS', 'SEED_SCORE_ASSERTIONS',
-        'SEED_VALIDITY_VOTES', 'PolicyVote', 'SEED_COHORT_GROUPS', 'SEED_POLICY_VOTES',
-        'SEED_POLITICIAN_SUBJECTS', 'SEED_ASSEMBLY_GROUPS', 'SEED_WORLDVIEW_BALLOTS', 'SEED_WORLDVIEW_ELECTIONS',
-        'WorldviewBallot', 'WorldviewElection', 'SEED_HOUSING_BALLOTS', 'SEED_HOUSING_CONTEXTUALIZED_VALUES',
-        'SEED_HOUSING_CONTRIBUTORS', 'SEED_HOUSING_ELECTIONS', 'SEED_HOUSING_SCORE_CONCEPTS', 'SEED_HOUSING_SCORE_GROUPS',
-        'SEED_HOUSING_SCORE_TERMS', 'GroupDisplayBallot', 'GroupDisplayVote', 'SEED_GROUP_DISPLAY_BALLOTS',
-        'SEED_GROUP_DISPLAY_VOTES', 'SEED_GROUP_DISPLAYS', 'DecisionProcedureEdge', 'LogicForkBallot',
-        'LogicForkCriterion', 'LogicForkVote', 'SEED_DECISION_PROCEDURE_EDGES', 'SEED_LOGIC_FORK_BALLOTS',
-        'SEED_LOGIC_FORK_CONTRIBUTORS', 'SEED_LOGIC_FORK_CRITERIA', 'SEED_LOGIC_FORK_VOTES', 'SEED_IMPLICATION_ASSERTIONS',
-        'SEED_IMPLICATION_CONTEXTUALIZED_VALUES', 'SEED_IMPLICATION_SCORE_TERMS', 'SEED_IMPLICATION_SUBJECTS', 'SEED_IMPLICATION_VALIDITY_VOTES',
-        'SEED_INTERPRETATION_BALLOTS', 'SEED_INTERPRETATION_ELECTIONS', 'SEED_INTERPRETATION_SCORE_CONCEPTS', 'SEED_INTERPRETATION_SCORE_GROUPS',
-        'SEED_SYSTEM_CHOICES_IN_FORCE', 'SystemChoiceInForce', 'PolicyDraft', 'SEED_VENUE_PATTERNS',
-        'VenueActionRecord', 'VenueMismatchPattern', 'DataGatheringSolution', 'StepCredibilityAssertion',
-        'AssertionCredibilityVote', 'PolicyIntent', 'TermProposal', 'TermRelationAssertion',
-        'TermScopeVote', 'ClaimAttestation', 'CredibilityClaim', 'QualificationRelevanceVote',
-        'StanceBasis', 'DataManipulationPattern', 'ProofRebuttal', 'ProofVote',
-        'SEED_MANIPULATION_PATTERNS', 'TermProof', 'LegislationProvision', 'LegislationRecord',
-        'LegislativeVoteEvent',
-    ))
-try:
-    from dmvdata.legis_sources import (SEED_LEGIS_DOMAINS,
-                                       SEED_LEGIS_ENDPOINTS,
-                                       SEED_LEGIS_GOV_SOURCES)
-except ImportError as _exc:
-    _stub_missing_feature('dmvdata', _exc, globals(), (
-        'SEED_LEGIS_DOMAINS', 'SEED_LEGIS_ENDPOINTS', 'SEED_LEGIS_GOV_SOURCES',
-    ))
-# ncg-2: court cases advanced fork-by-fork through compiled no-code
-# graphs (the judicial client of the graph-compiler seam).
-try:
-    from scoring.court_case import CourtCase
-    # Group/instance authority: users hold primary/shared authority over
-    # groups + instances; bindings make an instance THE authoritative
-    # source for a group (both-sides definition with the PSC); signals
-    # are admitted only through the three-check authority verdict.
-    from scoring.group_authority import (GroupAuthorityGrant,
-                                         GroupInstanceBinding,
-                                         InstanceAuthorityGrant,
-                                         TermAvailabilitySignal)
-except ImportError as _exc:
-    _stub_missing_feature('scoring', _exc, globals(), (
-        'CourtCase', 'GroupAuthorityGrant', 'GroupInstanceBinding', 'InstanceAuthorityGrant',
-        'TermAvailabilitySignal',
-    ))
-# AR zone capture (arz-1): 3+ placed points become a volume (prism)
-# or a shape in the air (hull); sites aggregate zones house-wide.
-try:
-    from zones.zone_basis import (SEED_SITES, SEED_ZONE_POINTS,
-                                  SEED_ZONES, SiteDefinition,
-                                  ZoneDefinition, ZoneEstimateRecord,
-                                  ZonePoint)
-except ImportError as _exc:
-    _stub_missing_feature('zones', _exc, globals(), (
-        'SEED_SITES', 'SEED_ZONE_POINTS', 'SEED_ZONES', 'SiteDefinition',
-        'ZoneDefinition', 'ZoneEstimateRecord', 'ZonePoint',
-    ))
+from polariApiServer.feature_imports import FEATURE_IMPORT_BLOCKS
+_import_feature_blocks(globals(), FEATURE_IMPORT_BLOCKS)
 from polariNoCode.graph_compilers import (GraphCompilerDefinition,
                                           SEED_GRAPH_COMPILERS)
-# ncg-3: digital-logic diagrams as rows -> generated Verilog/bench,
-# iCE40 synthesis target (the hwdigital client of the same seam).
-try:
-    from hwdigital.logic_basis import (LogicBlockDesign, LogicBlockNode,
-                                       SEED_LOGIC_DESIGNS,
-                                       SEED_LOGIC_NODES)
-except ImportError as _exc:
-    _stub_missing_feature('hwdigital', _exc, globals(), (
-        'LogicBlockDesign', 'LogicBlockNode', 'SEED_LOGIC_DESIGNS', 'SEED_LOGIC_NODES',
-    ))
-# ncg-4: circuits as rows -> generated SPICE netlists (the circuit
-# client of the same seam).
-try:
-    from electrodevice.circuit_basis import (
-        CircuitComponentDefinition, CircuitDefinition,
-        CircuitNetDefinition, SEED_CIRCUIT_COMPONENTS,
-        SEED_CIRCUIT_NETS, SEED_CIRCUITS)
-    # ncg-5: breadboards — placements wired by tie point, jumpers
-    # joining boards, boards re-wrappable as components.
-    from electrodevice.breadboard_basis import (
-        BoardJumper, BreadboardDefinition, ComponentPlacement,
-        SEED_BREADBOARDS, SEED_JUMPERS, SEED_PLACEMENTS)
-except ImportError as _exc:
-    _stub_missing_feature('electrodevice', _exc, globals(), (
-        'CircuitComponentDefinition', 'CircuitDefinition', 'CircuitNetDefinition', 'SEED_CIRCUIT_COMPONENTS',
-        'SEED_CIRCUIT_NETS', 'SEED_CIRCUITS', 'BoardJumper', 'BreadboardDefinition',
-        'ComponentPlacement', 'SEED_BREADBOARDS', 'SEED_JUMPERS', 'SEED_PLACEMENTS',
-    ))
-# col-1 (DMV cost of living): persona/geography vocabulary, the
-# obscure-factor terms, escape-cost walkthrough categories, and the
-# law-as-data statute values (DMV_COST_OF_LIVING_DATA_PLAN.md).
-try:
-    from scoring.dmv_col_seed import (
-        SEED_DMV_GEO_CONTEXTS, SEED_DMV_SUBJECTS, SEED_DMV_TERMS,
-        SEED_DMV_TIMEFRAMES, SEED_ESCAPE_COST_CATEGORIES,
-        SEED_ESCAPE_COST_TERMS, SEED_PERSONA_CONTEXTS,
-        SEED_STATUTE_VALUES)
-except ImportError as _exc:
-    _stub_missing_feature('scoring', _exc, globals(), (
-        'SEED_DMV_GEO_CONTEXTS', 'SEED_DMV_SUBJECTS', 'SEED_DMV_TERMS', 'SEED_DMV_TIMEFRAMES',
-        'SEED_ESCAPE_COST_CATEGORIES', 'SEED_ESCAPE_COST_TERMS', 'SEED_PERSONA_CONTEXTS', 'SEED_STATUTE_VALUES',
-    ))
-# col-2: the official-source registrations the API profiler ingests
-# from (auth via env knobs only — repos are public).
-try:
-    from dmvdata.source_seed import (SEED_API_DOMAINS,
-                                     SEED_API_ENDPOINTS)
-    # GovSource registry: acronym glossary + key requirements +
-    # duplication-origin records (retrievals are runtime data, no seeds).
-    from dmvdata.gov_sources import (GovSource, SEED_GOV_SOURCES,
-                                     SourceRetrieval)
-    # Cross-validation: independent re-pull confirmations + provider-
-    # group reliability terms/concept (weights mechanism-B votable).
-    from dmvdata.cross_validation import (RetrievalConfirmation,
-                                          SEED_PROVIDER_CONCEPT,
-                                          SEED_PROVIDER_TERMS)
-    # Varying legal source types — nonprofit/company/political-group/
-    # individual siblings of GovSource, one cross-type machinery.
-    from dmvdata.legal_sources import (
-        AcademicSource, CompanySource, IndividualSource,
-        JournalisticSource, NonProfitSource,
-        PoliticalGroupSource, SEED_COMPANY_SOURCES,
-        SEED_INDIVIDUAL_SOURCES, SEED_NONPROFIT_SOURCES,
-        SEED_POLITICAL_SOURCES)
-except ImportError as _exc:
-    _stub_missing_feature('dmvdata', _exc, globals(), (
-        'SEED_API_DOMAINS', 'SEED_API_ENDPOINTS', 'GovSource', 'SEED_GOV_SOURCES',
-        'SourceRetrieval', 'RetrievalConfirmation', 'SEED_PROVIDER_CONCEPT', 'SEED_PROVIDER_TERMS',
-        'AcademicSource', 'CompanySource', 'IndividualSource',
-        'JournalisticSource', 'NonProfitSource', 'PoliticalGroupSource',
-        'SEED_COMPANY_SOURCES', 'SEED_INDIVIDUAL_SOURCES', 'SEED_NONPROFIT_SOURCES', 'SEED_POLITICAL_SOURCES',
-    ))
-# ncg-6: design-output -> circuit-source bindings, and authorable
-# no-code test cases/packs (the acct-6 seed).
-try:
-    from electrodevice.level_bridge import (PinBindingDefinition,
-                                            SEED_PIN_BINDINGS)
-except ImportError as _exc:
-    _stub_missing_feature('electrodevice', _exc, globals(), (
-        'PinBindingDefinition', 'SEED_PIN_BINDINGS',
-    ))
 from polariNoCode.nocode_tests import (NoCodeTestCase,
                                        NoCodeTestPack,
                                        SEED_TEST_CASES,
                                        SEED_TEST_PACKS)
-# scr-15: media outlets held accountable for accuracy to the data.
-try:
-    from scoring.media_accuracy import (
-        AccuracyPolicy, FactualClaim, SEED_ACCURACY_POLICIES,
-        SEED_FACTUAL_CLAIMS, SEED_MEDIA_OUTLETS,
-    )
-    # scr-16: per-group bias reads (bands are editable rows).
-    from scoring.group_bias import BiasPolicy, SEED_BIAS_POLICIES
-    # scr-12a: survival-cost walkthrough (categories ARE the wizard).
-    from scoring.survival_costs import (
-        CostCategory, SEED_COST_CATEGORIES, SEED_COST_TERMS,
-        SEED_SURVIVAL_PROFILES, SurvivalCostProfile,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('scoring', _exc, globals(), (
-        'AccuracyPolicy', 'FactualClaim', 'SEED_ACCURACY_POLICIES', 'SEED_FACTUAL_CLAIMS',
-        'SEED_MEDIA_OUTLETS', 'BiasPolicy', 'SEED_BIAS_POLICIES', 'CostCategory',
-        'SEED_COST_CATEGORIES', 'SEED_COST_TERMS', 'SEED_SURVIVAL_PROFILES', 'SurvivalCostProfile',
-    ))
-# Aquaponics module (aqp-1): self-watering pot geometry as first-class
-# objects + waterproof pot materials (ceramic/geopolymer).
-try:
-    from aquaponics.pot_basis import PotDefinition, PotHole
-    from aquaponics.pot_seed import SEED_POTS, SEED_POT_HOLES
-except ImportError as _exc:
-    _stub_missing_feature('aquaponics', _exc, globals(), (
-        'PotDefinition', 'PotHole', 'SEED_POTS', 'SEED_POT_HOLES',
-    ))
-# waxprint module (wp-1): pellet-fed auger-screw wax 3D-printer sim —
-# printer assembly + wax feedstock + print condition + device materials,
-# with the two-zone (auger + hotend) melt and wax thermal-safety gate.
-try:
-    from waxprint.waxprint_basis import (
-        DeviceMaterialDefinition, PrinterAssemblyDefinition,
-        WaxFeedstockDefinition, PrintConditionDefinition,
-        WaxReclaimBatch, MoldLifecycleRecord,
-    )
-    from waxprint.waxprint_seed import (
-        SEED_DEVICE_MATERIALS, SEED_FEEDSTOCKS, SEED_ASSEMBLIES, SEED_CONDITIONS,
-        SEED_WAXPRINT_MODULES,
-    )
-    # waxprint sim space (wp-5/wp-6): a registered, 3D-viewable multiscale sim
-    # (WaxPrintSimState rows over build height) + condition-evaluation gates.
-    # Importing sim_seed appends the scene/bindings/equations/sim-def/runs/msim/
-    # ic-picker to the shared framework seed lists (trigger-on-import pattern).
-    from waxprint.sim_state import WaxPrintSimState
-    from waxprint import sim_seed  # noqa: F401 (import triggers the seed appends)
-    from waxprint.sim_seed import (
-        SEED_WAXPRINT_STATE_ROWS, SEED_WAXPRINT_PAGE_DISPLAYS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('waxprint', _exc, globals(), (
-        'DeviceMaterialDefinition', 'PrinterAssemblyDefinition', 'WaxFeedstockDefinition', 'PrintConditionDefinition', 'WaxReclaimBatch', 'MoldLifecycleRecord',
-        'SEED_DEVICE_MATERIALS', 'SEED_FEEDSTOCKS', 'SEED_ASSEMBLIES', 'SEED_CONDITIONS',
-        'SEED_WAXPRINT_MODULES', 'WaxPrintSimState', 'sim_seed', 'SEED_WAXPRINT_STATE_ROWS',
-        'SEED_WAXPRINT_PAGE_DISPLAYS',
-    ))
-# pspp module (pspp-1): PSPP evidence + claims + digitized-dataset
-# foundation — the one EvidenceMethod vocabulary, claims-not-values
-# rows, and book figures/tables as data read by one generic engine.
-try:
-    from pspp.evidence_methods import EvidenceMethod, SEED_EVIDENCE_METHODS
-    from pspp.claims import PropertyClaim, StructureClaim, ValidationClaim
-    from pspp.digitized_datasets import DigitizedDataset
-    from pspp.datasets_seed import SEED_DIGITIZED_DATASETS
-    # pspp-2: the MaterialState DAG + processing-stage vocabulary.
-    # MaterialState rows are EARNED (canonical states stay implicit
-    # until written — pspp.state_resolution), so only stages seed.
-    from pspp.material_states import (
-        MaterialState, ProcessingStage, SEED_PROCESSING_STAGES,
-    )
-    # pspp-3: structure rows (earned, never seeded) + reaction
-    # windows (Ch.8 ranges arrive as cited rows — none hardcoded).
-    from pspp.pages_seed import SEED_PSPP_PAGE_DISPLAYS
-    from pspp.material_structure import ScaleStructureDefinition
-    from pspp.reaction_windows import ReactionWindow, SEED_REACTION_WINDOWS
-    # pspp-8: threshold-shaped (banded/asymmetric) windows — p.193
-    # graded bands + condition gates the stepping engine enforces.
-    from pspp.threshold_windows import (
-        ThresholdReactionWindow, SEED_THRESHOLD_WINDOWS,
-    )
-    # pspp-V3: the Ch.8 patent/lab examples as benchmark rows the
-    # measured-vs-predicted overlay runs against.
-    from pspp.benchmark_cases import (
-        BenchmarkCase, SEED_BENCHMARK_CASES,
-    )
-    # pspp-4: processes as first-class transformations + the reaction
-    # network as data (generic reactive-material engine).
-    from pspp.material_processes import (
-        MaterialProcessDefinition, MaterialProcessExecution,
-        SEED_PROCESS_DEFINITIONS,
-    )
-    from pspp.cmc_library_seed import (
-        SEED_CMC_PROCESS_DEFINITIONS, SEED_CMC_PROCESSING_STAGES,
-        SEED_CMC_PROPERTY_MEANINGS,
-    )
-    from pspp.exposure_scenarios import (
-        ExposureScenario, SEED_EXPOSURE_SCENARIOS,
-    )
-    from pspp.performance_scenarios import MaterialPerformanceScenario
-    from pspp.scale_transfers import (
-        ScaleTransferDefinition, SEED_SCALE_TRANSFERS,
-    )
-    from pspp.reaction_network import (
-        ChemicalSpecies, ReactionRule, SEED_CHEMICAL_SPECIES,
-        SEED_REACTION_RULES,
-    )
-    # mtt-2 sg: the sol-gel LIBRARY — the third swap-the-library
-    # proof; rows concatenate into the pspp seeds below.
-    from pspp.solgel_network import (
-        SOLGEL_CHEMICAL_SPECIES, SOLGEL_REACTION_RULES,
-        SOLGEL_THRESHOLD_WINDOWS,
-    )
-    from pspp.solgel_process import (
-        SOLGEL_DIGITIZED_DATASETS, SOLGEL_PROCESSING_STAGES,
-    )
-    # mtt-2 sg-community: precursor sourcing / common-material routes.
-    from pspp.solgel_sourcing import (
-        PrecursorSource, SEED_PRECURSOR_SOURCES,
-    )
-    # mtt-2 Part B: the ceramic sintering engine's master-curve
-    # calibration data (provisional until digitized).
-    from pspp.sintering_seed import SEED_SINTERING_DATASETS
-    # mtt-2 ceramics: usable samples (local + olivine tracks) + the
-    # furnace escalation ladder + the olivine-carbonation dataset.
-    from pspp.ceramics_samples import (
-        CeramicSample, SEED_CERAMIC_SAMPLES, SEED_CERAMICS_DATASETS,
-    )
-    from pspp.ceramics_ladder import LadderRung, SEED_LADDER_RUNGS
-    # mtt-2 research tools: buildable open-source instruments (the
-    # measurement half — FTIR, red-cabbage pH, Brix, spectrometer...).
-    from pspp.research_tools import ResearchTool, SEED_RESEARCH_TOOLS
-    # mtt-2 characterization: the FTIR band-calibration data gap.
-    from pspp.characterization import SEED_CHARACTERIZATION_DATASETS
-    # mtt-2 glass core: viscosity reference points + refinement
-    # windows + the devit/viscous-master-curve data asks.
-    from pspp.glass_refinement import (
-        GLASS_DIGITIZED_DATASETS, GLASS_THRESHOLD_WINDOWS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('pspp', _exc, globals(), (
-        'EvidenceMethod', 'SEED_EVIDENCE_METHODS', 'PropertyClaim',
-        'StructureClaim', 'ValidationClaim', 'DigitizedDataset',
-        'SEED_DIGITIZED_DATASETS', 'MaterialState', 'ProcessingStage',
-        'SEED_PROCESSING_STAGES', 'ScaleStructureDefinition',
-        'ReactionWindow', 'SEED_REACTION_WINDOWS',
-        'ThresholdReactionWindow', 'SEED_THRESHOLD_WINDOWS',
-        'BenchmarkCase', 'SEED_BENCHMARK_CASES',
-        'SEED_PSPP_PAGE_DISPLAYS', 'MaterialProcessDefinition', 'MaterialProcessExecution',
-        'SEED_PROCESS_DEFINITIONS', 'ChemicalSpecies', 'ReactionRule',
-        'SEED_CHEMICAL_SPECIES', 'SEED_REACTION_RULES',
-        'ScaleTransferDefinition', 'SEED_SCALE_TRANSFERS',
-        'ExposureScenario', 'SEED_EXPOSURE_SCENARIOS',
-        'SEED_CMC_PROCESS_DEFINITIONS', 'SEED_CMC_PROCESSING_STAGES',
-        'SEED_CMC_PROPERTY_MEANINGS',
-        'MaterialPerformanceScenario',
-        'SOLGEL_CHEMICAL_SPECIES', 'SOLGEL_REACTION_RULES',
-        'SOLGEL_THRESHOLD_WINDOWS', 'SOLGEL_DIGITIZED_DATASETS',
-        'SOLGEL_PROCESSING_STAGES',
-        'PrecursorSource', 'SEED_PRECURSOR_SOURCES',
-        'SEED_SINTERING_DATASETS',
-        'CeramicSample', 'SEED_CERAMIC_SAMPLES', 'SEED_CERAMICS_DATASETS',
-        'LadderRung', 'SEED_LADDER_RUNGS',
-        'ResearchTool', 'SEED_RESEARCH_TOOLS',
-        'SEED_CHARACTERIZATION_DATASETS',
-        'GLASS_DIGITIZED_DATASETS', 'GLASS_THRESHOLD_WINDOWS',
-    ))
-# foodstate (fsp-0): food as PSPP state evolution — vocabulary rows
-# ride the pspp classes (zero schema changes); the one new class is
-# the domain-contract shell (FOOD_STATE_PSPP_PLAN.md).
-try:
-    from foodstate.food_contracts import (
-        FoodDomainContract, SEED_FOOD_DOMAIN_CONTRACTS,
-    )
-    from foodstate.food_pspp_seed import (
-        SEED_FOOD_EVIDENCE_METHODS, SEED_FOOD_PROCESSES,
-        SEED_FOOD_STAGES,
-    )
-    # fsp-1: the base-ingredient roster + FDC-cited composition
-    # claims (identity + values resolved FROM the vendored file).
-    from foodstate.food_materials import (
-        FoodMaterial, build_food_material_seeds,
-    )
-    from foodstate.food_composition import (
-        build_composition_claim_seeds, vendor_food_index,
-    )
-    # mpa-1: literature pH priors (chemistry-domain claims).
-    from foodstate.food_ph_seed import SEED_FOOD_PH_CLAIMS
-    # fsp-3 slice: cited organic-acid claims (the tomato proof).
-    from foodstate.food_acid_seed import SEED_FOOD_ACID_CLAIMS
-    SEED_FOOD_MATERIALS = build_food_material_seeds(
-        vendor_food_index())
-    SEED_FOOD_COMPOSITION_CLAIMS = build_composition_claim_seeds()
-except ImportError as _exc:
-    _stub_missing_feature('foodstate', _exc, globals(), (
-        'FoodDomainContract', 'SEED_FOOD_DOMAIN_CONTRACTS',
-        'SEED_FOOD_EVIDENCE_METHODS', 'SEED_FOOD_PROCESSES',
-        'SEED_FOOD_STAGES', 'FoodMaterial', 'SEED_FOOD_MATERIALS',
-        'SEED_FOOD_COMPOSITION_CLAIMS', 'SEED_FOOD_PH_CLAIMS',
-        'SEED_FOOD_ACID_CLAIMS',
-    ))
-try:
-    from aquaponics.pot_materials_seed import (
-        SEED_POT_MATERIALS, SEED_POT_PROPERTY_MEANINGS,
-        SEED_POT_SCALE_DEFINITIONS,
-    )
-    # aqp-2: multiscale soil + water + nutrient profiles.
-    from aquaponics.growth_media import (
-        NutrientProfile, NutrientSpecies, SoilDefinition, WaterDefinition,
-    )
-    from aquaponics.media_seed import (
-        SEED_NUTRIENT_PROFILES, SEED_NUTRIENT_SPECIES, SEED_SOILS,
-        SEED_WATERS,
-    )
-    # aqp-4: per-part plant profiles (permanent structure + carbon/nutrient
-    # capture + CO2/O2 flux).
-    from aquaponics.plant_basis import PlantDefinition, PlantPart
-    from aquaponics.plant_seed import SEED_PLANTS, SEED_PLANT_PARTS
-    # aqp-5: full atmospheric conditions + plant<->air gas exchange.
-    from aquaponics.atmosphere_basis import AtmosphereDefinition
-    from aquaponics.atmosphere_seed import SEED_ATMOSPHERES
-    # aqp-6: bound pot systems + environmental-impact/survival synthesis +
-    # the scoring bridge (systems ranked through the context-scoring engine).
-    from aquaponics.pot_system import PotSystemDefinition
-    from aquaponics.pot_system_seed import (
-        SEED_AQP_CONTEXTUALIZED_VALUES, SEED_AQP_SCORE_CONCEPTS,
-        SEED_AQP_SCORE_SUBJECTS, SEED_AQP_SCORE_TERMS, SEED_POT_SYSTEMS,
-    )
-    # Aquaponics worm-compost enrichment loop (aqp-7).
-    from aquaponics.vermicompost import (
-        CompostBinDefinition, CompostLoopDefinition, VermicompostProfile,
-    )
-    from aquaponics.vermicompost_seed import (
-        SEED_COMPOST_BINS, SEED_COMPOST_LOOPS, SEED_ENRICH_CONTEXTUALIZED_VALUES,
-        SEED_ENRICH_SCORE_CONCEPTS, SEED_ENRICH_SCORE_SUBJECTS,
-        SEED_ENRICH_SCORE_TERMS, SEED_VERMICOMPOST_PROFILES,
-    )
-    # Aquaponics per-part plant growth / growth-failure (aqp-8).
-    from aquaponics.plant_growth_basis import PlantGrowthModel
-    from aquaponics.plant_growth_seed import SEED_PLANT_GROWTH_MODELS
-except ImportError as _exc:
-    _stub_missing_feature('aquaponics', _exc, globals(), (
-        'SEED_POT_MATERIALS', 'SEED_POT_PROPERTY_MEANINGS', 'SEED_POT_SCALE_DEFINITIONS', 'NutrientProfile',
-        'NutrientSpecies', 'SoilDefinition', 'WaterDefinition', 'SEED_NUTRIENT_PROFILES',
-        'SEED_NUTRIENT_SPECIES', 'SEED_SOILS', 'SEED_WATERS', 'PlantDefinition',
-        'PlantPart', 'SEED_PLANTS', 'SEED_PLANT_PARTS', 'AtmosphereDefinition',
-        'SEED_ATMOSPHERES', 'PotSystemDefinition', 'SEED_AQP_CONTEXTUALIZED_VALUES', 'SEED_AQP_SCORE_CONCEPTS',
-        'SEED_AQP_SCORE_SUBJECTS', 'SEED_AQP_SCORE_TERMS', 'SEED_POT_SYSTEMS', 'CompostBinDefinition',
-        'CompostLoopDefinition', 'VermicompostProfile', 'SEED_COMPOST_BINS', 'SEED_COMPOST_LOOPS',
-        'SEED_ENRICH_CONTEXTUALIZED_VALUES', 'SEED_ENRICH_SCORE_CONCEPTS', 'SEED_ENRICH_SCORE_SUBJECTS', 'SEED_ENRICH_SCORE_TERMS',
-        'SEED_VERMICOMPOST_PROFILES', 'PlantGrowthModel', 'SEED_PLANT_GROWTH_MODELS',
-    ))
-# household (hh-1): the household layer the meal-logistics round
-# built — schedules + sleep, members + work shares + ledger, skills +
-# safety + duration observations, dish strategies — one registration
-# list (names unchanged on the move; nutrition requires it).
-try:
-    from household.household_basis import (
-        HOUSEHOLD_CLASSES, HOUSEHOLD_SEED_PAIRS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('household', _exc, globals(), (
-        'HOUSEHOLD_CLASSES', 'HOUSEHOLD_SEED_PAIRS',
-    ))
-# mealoptions (mo-1): the shareable meal DATA nutrition accumulated —
-# templates + variations, recipes + lines + steps, dish bases / roles
-# / affinity norms, the cooking vocabulary (tools, task kinds, step
-# methods, storage actions, workflow DAGs), meal situations, bulk
-# staples — one registration list (names unchanged on the move;
-# nutrition requires it; no person / place / day data).
-try:
-    from mealoptions import (
-        MEALOPTIONS_CLASSES, MEALOPTIONS_SEED_PAIRS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('mealoptions', _exc, globals(), (
-        'MEALOPTIONS_CLASSES', 'MEALOPTIONS_SEED_PAIRS',
-    ))
-# Nutrition: dietary-nutrient vocab + person + household profiling
-# (nut-1/3/4).
-try:
-    from nutrition.nutrient_basis import DietaryNutrient, NutrientReference
-    from nutrition.nutrient_seed import (
-        SEED_DIETARY_NUTRIENTS, SEED_NUTRIENT_REFERENCES,
-    )
-    from nutrition.person_basis import PersonProfile
-    from nutrition.household_basis import HouseholdProfile
-    from nutrition.person_seed import SEED_HOUSEHOLDS, SEED_PERSONS
-    # Nutrition: plant harvest -> meal-nutrient yield (nut-2).
-    from nutrition.food_basis import FoodItem, NutrientContent
-    from nutrition.food_seed import SEED_FOOD_ITEMS, SEED_NUTRIENT_CONTENTS
-    # nmp-0: the FDC starter pantry (49 base ingredients, vendored).
-    from nutrition.fdc_seed import (
-        SEED_FDC_FOOD_ITEMS, SEED_FDC_NUTRIENT_CONTENTS,
-    )
-    # nmp-1: the threshold layer (patterns + override knobs).
-    from nutrition.threshold_basis import (
-        EatingPatternDefinition, PersonThreshold,
-        SEED_EATING_PATTERNS,
-    )
-    # nmp-2: the tolerance/adverse-effect table.
-    from nutrition.tolerance_basis import (
-        ToleranceThreshold, SEED_TOLERANCE_THRESHOLDS,
-    )
-    # nmp-3 recipes, nmp-4 templates + variations, nmp-10 cooking
-    # vocabulary, nmp-11 dish bases + affinities, mlg-3 situations
-    # and cal-4 bulk staples moved to mealoptions (mo-1) and
-    # register under its own gate above.
-    # nmp-4: a person's plans + entries (the hard gate rides the API).
-    from nutrition.meal_basis import (
-        MealPlanDefinition, MealEntry, SEED_MEAL_PLANS,
-        SEED_MEAL_ENTRIES,
-    )
-    # nmp-5: activity (curated Compendium subset) + logs.
-    from nutrition.activity_basis import (
-        ActivityDefinition, ActivityLog, SEED_ACTIVITY_DEFINITIONS,
-    )
-    # nmp-6: measured weights (the trajectory's ground truth).
-    from nutrition.weight_basis import (
-        WeightObservation, SEED_WEIGHT_OBSERVATIONS,
-    )
-    # nmp-7: the garden loop (nut-5, meal-plan-aware).
-    from nutrition.fulfillment_basis import (
-        GardenPlanDefinition, SEED_GARDEN_PLANS,
-    )
-    # nmp-10: the OWNED / STATED workflow rows (the vocabulary is
-    # mealoptions').
-    from nutrition.workflow_basis import (
-        KitchenTool, MethodPreference, ToolAdvisorDismissal,
-    )
-    # mpa-2/3/4: market (geolocated prices + weight priors), pantry,
-    # keycloak account links, intake tracking.
-    from nutrition.market_basis import (
-        SourceLocation, PriceObservation, UnitWeightPrior,
-        SEED_SOURCE_LOCATIONS, SEED_PRICE_OBSERVATIONS,
-        SEED_UNIT_WEIGHTS,
-    )
-    from nutrition.pantry_basis import PantryItem, SEED_PANTRY_ITEMS
-    # mlg-3: the person-side logistics rows (per-entry logistics,
-    # eating-time profiles); the household half moved to
-    # household.household_basis (hh-1), the situation vocabulary to
-    # mealoptions (mo-1).
-    from nutrition.logistics_basis import (
-        LOGISTICS_CLASSES, LOGISTICS_SEED_PAIRS,
-    )
-    # hh-1: importing the meal analyses registers the MEAL step
-    # builders (pre-prep / meal-prep / packing) with household's
-    # assign_work, so `household.household_analysis:assign_work`
-    # called from a trigger allocates meal events before any
-    # nutrition surface has imported them.
-    from nutrition.logistics_analysis import MEAL_STEP_BUILDERS
-    # N3 (night run 2026-09-03): store aisle order + food→aisle priors
-    # for the Shopping trip page.
-    from nutrition.shoptrip_basis import SHOPTRIP_CLASSES, SHOPTRIP_SEED_PAIRS
-    from nutrition.account_basis import (
-        UserAccountLink, SEED_USER_ACCOUNT_LINKS,
-    )
-    from nutrition.intake_basis import (
-        IntakeRecord, DailyIntakeMetric, PeriodIntakeMetric, SEED_INTAKE_RECORDS,
-    )
-    # mpb-1/2/3: exclusions, stated-condition steering, budget.
-    from nutrition.exclusion_basis import (
-        FoodAllergenFlag, PersonExclusion,
-        SEED_FOOD_ALLERGEN_FLAGS, SEED_PERSON_EXCLUSIONS,
-    )
-    from nutrition.condition_basis import (
-        StatedCondition, ConditionSteering,
-        SEED_STATED_CONDITIONS, SEED_CONDITION_STEERINGS,
-    )
-    from nutrition.budget_basis import PlanBudget, SEED_PLAN_BUDGETS
-    # mpb-4: the waste ledger.
-    from nutrition.waste_basis import WasteRecord, SEED_WASTE_RECORDS
-    # mpb-8: meal ratings.
-    from nutrition.rating_basis import MealRating, SEED_MEAL_RATINGS
-except ImportError as _exc:
-    _stub_missing_feature('nutrition', _exc, globals(), (
-        'DietaryNutrient', 'NutrientReference', 'SEED_DIETARY_NUTRIENTS', 'SEED_NUTRIENT_REFERENCES',
-        'PersonProfile', 'HouseholdProfile', 'SEED_HOUSEHOLDS', 'SEED_PERSONS',
-        'FoodItem', 'NutrientContent', 'SEED_FOOD_ITEMS', 'SEED_NUTRIENT_CONTENTS',
-        'SEED_FDC_FOOD_ITEMS', 'SEED_FDC_NUTRIENT_CONTENTS',
-        'EatingPatternDefinition', 'PersonThreshold',
-        'SEED_EATING_PATTERNS',
-        'ToleranceThreshold', 'SEED_TOLERANCE_THRESHOLDS',
-        'MealPlanDefinition', 'MealEntry',
-        'SEED_MEAL_PLANS', 'SEED_MEAL_ENTRIES',
-        'ActivityDefinition', 'ActivityLog',
-        'SEED_ACTIVITY_DEFINITIONS', 'WeightObservation',
-        'GardenPlanDefinition', 'SEED_GARDEN_PLANS',
-        'KitchenTool', 'MethodPreference', 'ToolAdvisorDismissal',
-        'SourceLocation', 'PriceObservation', 'UnitWeightPrior',
-        'SEED_SOURCE_LOCATIONS', 'SEED_PRICE_OBSERVATIONS',
-        'SEED_UNIT_WEIGHTS', 'PantryItem', 'SEED_PANTRY_ITEMS',
-        'LOGISTICS_CLASSES', 'LOGISTICS_SEED_PAIRS',
-        'MEAL_STEP_BUILDERS',
-        'SHOPTRIP_CLASSES', 'SHOPTRIP_SEED_PAIRS',
-        'UserAccountLink', 'SEED_USER_ACCOUNT_LINKS',
-        'IntakeRecord', 'DailyIntakeMetric', 'PeriodIntakeMetric', 'SEED_INTAKE_RECORDS',
-        'SEED_WEIGHT_OBSERVATIONS',
-        'FoodAllergenFlag', 'PersonExclusion',
-        'SEED_FOOD_ALLERGEN_FLAGS', 'SEED_PERSON_EXCLUSIONS',
-        'StatedCondition', 'ConditionSteering',
-        'SEED_STATED_CONDITIONS', 'SEED_CONDITION_STEERINGS',
-        'PlanBudget', 'SEED_PLAN_BUDGETS',
-        'WasteRecord', 'SEED_WASTE_RECORDS',
-        'MealRating', 'SEED_MEAL_RATINGS',
-    ))
-# Plant morphology: 3D organ + root stand-in models + confinement
-# (morph-1).
-try:
-    from plant_morphology.organ_basis import OrganModel, RootSystemModel
-    from plant_morphology.morphology_seed import (
-        SEED_ORGAN_MODELS, SEED_ROOT_MODELS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('plant_morphology', _exc, globals(), (
-        'OrganModel', 'RootSystemModel', 'SEED_ORGAN_MODELS', 'SEED_ROOT_MODELS',
-    ))
-# Plant-growth-sim phase 1: per-part normalized-growth instance state
-# (2026-07-15 — the missing "this specific plant, in this pot, this
-# far along" object; see aquaponics/plant_growth_normalized.py).
-try:
-    from aquaponics.plant_growth_normalized import PotPlanting
-    from aquaponics.plant_growth_normalized_seed import SEED_POT_PLANTINGS
-    # Plant-growth-sim phase 7: stress-type-differentiated response curves
-    # (2026-07-15 — see aquaponics/plant_stress.py).
-    from aquaponics.plant_stress import StressResponseCurve
-    from aquaponics.plant_stress_seed import SEED_STRESS_CURVES
-    # Plant-growth-sim phase 8: direct-light field simulation (2026-07-15
-    # — see aquaponics/light_field.py).
-    from aquaponics.light_basis import LightSourceDefinition, LightSpectrumDefinition
-    from aquaponics.light_seed import SEED_LIGHT_SOURCES, SEED_LIGHT_SPECTRA
-    # Plant-growth-sim phase 10: water batching + real nutrient uptake
-    # (2026-07-15 — see aquaponics/water_batch.py, nutrient_uptake.py).
-    from aquaponics.water_batch import WaterBatchSchedule
-    from aquaponics.water_batch_seed import SEED_WATER_BATCH_SCHEDULES
-except ImportError as _exc:
-    _stub_missing_feature('aquaponics', _exc, globals(), (
-        'PotPlanting', 'SEED_POT_PLANTINGS', 'StressResponseCurve', 'SEED_STRESS_CURVES',
-        'LightSourceDefinition', 'LightSpectrumDefinition', 'SEED_LIGHT_SOURCES', 'SEED_LIGHT_SPECTRA',
-        'WaterBatchSchedule', 'SEED_WATER_BATCH_SCHEDULES',
-    ))
-# Math-defined shapes: quadric/primitive/CSG geometry core (shape-1).
-try:
-    from mathshapes.shape_basis import MathShapeDefinition
-    from mathshapes.shape_seed import SEED_MATH_SHAPES
-    # Aquaponic tower: vertical stack of math-defined pots (shape-2).
-    from mathshapes.tower_basis import AquaponicTowerDefinition
-    from mathshapes.tower_seed import SEED_TOWERS
-    # CAD import/export via cad-engines worker + MinIO (shape-3).
-    from mathshapes.cad_basis import ImportedCadObject
-except ImportError as _exc:
-    _stub_missing_feature('mathshapes', _exc, globals(), (
-        'MathShapeDefinition', 'SEED_MATH_SHAPES', 'AquaponicTowerDefinition', 'SEED_TOWERS',
-        'ImportedCadObject',
-    ))
 from polariRefs.write_journal import WriteJournalEntry
 from simulationLocks.lease import LeaseBreakEvent, MutationLease
 from simulationLocks.object_locks import LockBreakEvent, ObjectLockEntry
 from simulationLocks.sim_queue import SimulationQueueEntry
-# Tanks: freshwater + saltwater ecosystem simulation — alternate
-# nutrient source (tank-1).
-try:
-    from tanks.tank_basis import (
-        AquacultureSpecies, TankDefinition, TankSubstrateDefinition,
-        TankSystemDefinition,
-    )
-    from tanks.tank_seed import (
-        SEED_AQUACULTURE_SPECIES, SEED_TANK_SUBSTRATES, SEED_TANK_SYSTEMS,
-        SEED_TANKS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('tanks', _exc, globals(), (
-        'AquacultureSpecies', 'TankDefinition', 'TankSubstrateDefinition', 'TankSystemDefinition',
-        'SEED_AQUACULTURE_SPECIES', 'SEED_TANK_SUBSTRATES', 'SEED_TANK_SYSTEMS', 'SEED_TANKS',
-    ))
-# Microalgae photobioreactors — the decarbonization route, coupled
-# sustainably to aquaponics / tanks / hydroponics (algae-1).
-try:
-    from microalgae.reactor_basis import AlgaeStrain, AlgaeReactorDefinition
-    from microalgae.reactor_seed import (
-        SEED_ALGAE_REACTORS, SEED_ALGAE_STRAINS,
-    )
-    # Integrated excess-source + reactor loops (algae-2).
-    from microalgae.integrated_basis import IntegratedLoopDefinition
-    from microalgae.integrated_seed import SEED_INTEGRATED_LOOPS
-except ImportError as _exc:
-    _stub_missing_feature('microalgae', _exc, globals(), (
-        'AlgaeStrain', 'AlgaeReactorDefinition', 'SEED_ALGAE_REACTORS', 'SEED_ALGAE_STRAINS',
-        'IntegratedLoopDefinition', 'SEED_INTEGRATED_LOOPS',
-    ))
-# Biomining / bioextraction specialized aquaponic variants (biomine-1).
-try:
-    from biomining.biomining_basis import (
-        BioextractionAgent, BiomineralProduct, BiomineSystemDefinition,
-    )
-    from biomining.biomining_seed import (
-        SEED_BIOEXTRACTION_AGENTS, SEED_BIOMINERAL_PRODUCTS,
-        SEED_BIOMINE_SYSTEMS,
-    )
-    # Fully-bio optical-dielectric biomining variants (dielectric-optics-1).
-    from biomining.optical_seed import (
-        SEED_OPTICAL_AGENTS, SEED_OPTICAL_BIOMINE_SYSTEMS,
-        SEED_OPTICAL_PRODUCTS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('biomining', _exc, globals(), (
-        'BioextractionAgent', 'BiomineralProduct', 'BiomineSystemDefinition', 'SEED_BIOEXTRACTION_AGENTS',
-        'SEED_BIOMINERAL_PRODUCTS', 'SEED_BIOMINE_SYSTEMS', 'SEED_OPTICAL_AGENTS', 'SEED_OPTICAL_BIOMINE_SYSTEMS',
-        'SEED_OPTICAL_PRODUCTS',
-    ))
 from materialsScience.dielectric_optics_seed import (
     SEED_DIELECTRIC_MATERIALS, SEED_DIELECTRIC_PROPERTY_MEANINGS,
 )
-# Bio ferrous alloys: Ni phytomining + galvanized bio-steel (bio-alloys-1).
-try:
-    from biomining.alloy_seed import (
-        SEED_ALLOY_AGENTS, SEED_ALLOY_BIOMINE_SYSTEMS, SEED_ALLOY_PRODUCTS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('biomining', _exc, globals(), (
-        'SEED_ALLOY_AGENTS', 'SEED_ALLOY_BIOMINE_SYSTEMS', 'SEED_ALLOY_PRODUCTS',
-    ))
 from materialsScience.bio_alloys_seed import (
     SEED_BIO_ALLOY_MATERIALS, SEED_BIO_ALLOY_PROPERTY_MEANINGS,
 )
-# Self-hosted video (video-1): WebM/MP4 + optional adaptive HLS.
-try:
-    from video.video_basis import VideoAsset
-except ImportError as _exc:
-    _stub_missing_feature('video', _exc, globals(), ('VideoAsset',))
-# Business ops — setup/upgrade flows, economy track, order planner
-# (biz-1).
-try:
-    from bizops.bizops_basis import (
-        BusinessStageDefinition, BusinessUpgradeStep,
-        BusinessProfile, LocalEconomyMilestone,
-        ProcessWorkflowDefinition, ProductOrder,
-        MarketSessionRecord, ProductionRunRecord,
-        PartnershipAgreement, BusinessRiskNote,
-        ComplianceRequirement, ComplianceRecord,
-        QualityCheckDefinition, QualityCheckRecord,
-    )
-    from bizops.bizops_seed import (
-        SEED_BUSINESS_STAGES, SEED_BUSINESS_UPGRADES,
-        SEED_BUSINESS_PROFILES, SEED_ECONOMY_MILESTONES,
-        SEED_PROCESS_WORKFLOWS, SEED_RISK_NOTES,
-        SEED_PARTNERSHIPS, SEED_COMPLIANCE_REQUIREMENTS,
-        SEED_QUALITY_CHECKS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('bizops', _exc, globals(), (
-        'BusinessStageDefinition', 'BusinessUpgradeStep',
-        'BusinessProfile', 'LocalEconomyMilestone',
-        'ProcessWorkflowDefinition', 'ProductOrder',
-        'MarketSessionRecord', 'ProductionRunRecord',
-        'PartnershipAgreement', 'BusinessRiskNote',
-        'ComplianceRequirement', 'ComplianceRecord',
-        'QualityCheckDefinition', 'QualityCheckRecord',
-        'SEED_BUSINESS_STAGES', 'SEED_BUSINESS_UPGRADES',
-        'SEED_BUSINESS_PROFILES', 'SEED_ECONOMY_MILESTONES',
-        'SEED_PROCESS_WORKFLOWS', 'SEED_RISK_NOTES',
-        'SEED_PARTNERSHIPS', 'SEED_COMPLIANCE_REQUIREMENTS',
-        'SEED_QUALITY_CHECKS',
-    ))
-# Part composition (arch-2..5): components/interfaces with derived
-# levels, EBOM/MBOM split, routings + promotion, archetypes +
-# design matrices. Seeds are NOT listed in the legacy insert-only
-# pass — composition seeds itself through its arch-1 upsert path
-# (see the seed_composition call in _seedSimSpace3D).
-try:
-    from composition.archetype_basis import PartArchetypeDefinition
-    from composition.component_basis import PartComponentDefinition
-    from composition.design_matrix import DesignMatrixDefinition
-    from composition.failure_modes import FailureModeDefinition
-    from composition.functional_basis import (
-        ConstructionVariantDefinition, FunctionalPartDefinition,
-    )
-    from composition.interface_basis import InterfaceDefinition
-    from composition.node_basis import CompositionNode
-    from composition.routing_basis import (
-        RoutingDefinition, RoutingOperation,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('composition', _exc, globals(), (
-        'PartArchetypeDefinition', 'PartComponentDefinition',
-        'DesignMatrixDefinition', 'FailureModeDefinition',
-        'ConstructionVariantDefinition', 'FunctionalPartDefinition',
-        'InterfaceDefinition', 'CompositionNode',
-        'RoutingDefinition', 'RoutingOperation',
-    ))
-# Magnetic materials Section A — option catalog + role taxonomy +
-# powder designer (mag-2/2r/2t).
-try:
-    from magnetics.magnet_basis import (
-        MagneticMaterialOption, MagneticPowderDefinition,
-        MaterialUseRole,
-    )
-    from magnetics.magnet_seed import (
-        SEED_MAGNETIC_POWDERS, SEED_MATERIAL_OPTIONS, SEED_USE_ROLES,
-    )
-    from magnetics.magnet_circuit_basis import (
-        FluxNodeDefinition, MagneticCircuitDefinition,
-        MagneticElementDefinition, SEED_FLUX_NODES,
-        SEED_MAGNETIC_CIRCUITS, SEED_MAGNETIC_ELEMENTS,
-    )
-    from magnetics.magnet_block_basis import (
-        BlockLayoutDefinition, BlockPlacement, BlockSizeVariant,
-        JointMortarAssignment, SEED_BLOCK_LAYOUTS,
-        SEED_BLOCK_PLACEMENTS, SEED_BLOCK_VARIANTS,
-        SEED_JOINT_MORTARS,
-    )
-    from magnetics.field_view_basis import (
-        FieldThresholdBand, FieldViewDefinition, FieldViewGroup,
-        SEED_FIELD_BANDS, SEED_FIELD_GROUPS, SEED_FIELD_VIEWS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('magnetics', _exc, globals(), (
-        'MagneticMaterialOption', 'MagneticPowderDefinition',
-        'MaterialUseRole', 'SEED_MAGNETIC_POWDERS',
-        'SEED_MATERIAL_OPTIONS', 'SEED_USE_ROLES',
-        'FluxNodeDefinition', 'MagneticCircuitDefinition',
-        'MagneticElementDefinition', 'SEED_FLUX_NODES',
-        'SEED_MAGNETIC_CIRCUITS', 'SEED_MAGNETIC_ELEMENTS',
-        'BlockLayoutDefinition', 'BlockPlacement',
-        'BlockSizeVariant', 'JointMortarAssignment',
-        'SEED_BLOCK_LAYOUTS', 'SEED_BLOCK_PLACEMENTS',
-        'SEED_BLOCK_VARIANTS', 'SEED_JOINT_MORTARS',
-        'FieldThresholdBand', 'FieldViewDefinition',
-        'FieldViewGroup', 'SEED_FIELD_BANDS', 'SEED_FIELD_GROUPS',
-        'SEED_FIELD_VIEWS',
-    ))
-# Electric motors Section C — the M0..M3 ladder of buildable
-# samples (mag-5).
-try:
-    from motors.motor_basis import (
-        MotorDesignDefinition, MotorVerificationRun,
-        SEED_MOTOR_DESIGNS,
-    )
-    from motors.motor_shapes import (
-        SEED_LAVET_PART_SHAPES, SEED_LAVET_SIM_SPACES,
-        SEED_LAVET_V2_PART_SHAPES, SEED_LAVET_V2_SIM_SPACES,
-        SEED_M1_PART_SHAPES, SEED_M1_SIM_SPACES,
-        SEED_M2_PART_SHAPES, SEED_M2_SIM_SPACES,
-        SEED_M3_PART_SHAPES, SEED_M3_SIM_SPACES,
-        SEED_MOTOR_MATERIALS_3D, SEED_MOTOR_PART_SHAPES,
-        SEED_MOTOR_SIM_SPACES,
-    )
-    from motors.motor_parts import (
-        MotorPartDefinition, SEED_MOTOR_PARTS,
-    )
-    from motors.physics_equations import SEED_EQUATION_ROWS
-    from motors.motor_drive import (
-        MotorControllerProfile, PhaseBindingDefinition,
-        SEED_CONTROLLER_PROFILES, SEED_PHASE_BINDINGS,
-    )
-    from motors.scale_goals import (
-        ClockScaleDefinition, MotorGoalSpec,
-    )
-    from motors.clock_views import ClockViewDefinition
-    from motors.clock_scene import ClockSceneLayerDefinition
-    from motors.m1_positioning import PrinterAxisRequirement
-    from motors.m2_lift import CrucibleHoistRequirement
-except ImportError as _exc:
-    # The stub tuple must list EVERY name the try block imports —
-    # stub_feature_symbols already maps SEED_* to [] and everything
-    # else to None, so the three SEED_MOTOR_* names belong here
-    # rather than in hand-written `= []` lines after the block
-    # (which is what the lazy-import selftest was flagging).
-    _stub_missing_feature('motors', _exc, globals(), (
-        'MotorDesignDefinition', 'MotorVerificationRun',
-        'SEED_MOTOR_DESIGNS', 'MotorControllerProfile',
-        'PhaseBindingDefinition', 'SEED_CONTROLLER_PROFILES',
-        'SEED_PHASE_BINDINGS', 'SEED_MOTOR_MATERIALS_3D',
-        'SEED_MOTOR_PART_SHAPES', 'SEED_MOTOR_SIM_SPACES',
-        'SEED_LAVET_PART_SHAPES', 'SEED_LAVET_SIM_SPACES',
-        'SEED_LAVET_V2_PART_SHAPES', 'SEED_LAVET_V2_SIM_SPACES',
-        'SEED_M1_PART_SHAPES', 'SEED_M1_SIM_SPACES',
-        'SEED_M2_PART_SHAPES', 'SEED_M2_SIM_SPACES',
-        'SEED_M3_PART_SHAPES', 'SEED_M3_SIM_SPACES',
-        'MotorPartDefinition', 'SEED_MOTOR_PARTS',
-        'SEED_EQUATION_ROWS',
-        'ClockScaleDefinition', 'MotorGoalSpec',
-        'ClockViewDefinition', 'ClockSceneLayerDefinition',
-        'PrinterAxisRequirement', 'CrucibleHoistRequirement',
-    ))
-# mesh-1: license-GATED external mesh catalog + the fit engine
-# (borrowed meshes measured against our vector organ definitions).
-try:
-    from meshassets.mesh_asset_basis import (
-        MeshAssetReference, MeshAssetSource, OrganMeshChoice,
-    )
-    from meshassets.mesh_asset_seed import (
-        SEED_MESH_ASSETS, SEED_MESH_SOURCES,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('meshassets', _exc, globals(), (
-        'MeshAssetSource', 'MeshAssetReference', 'OrganMeshChoice',
-        'SEED_MESH_SOURCES', 'SEED_MESH_ASSETS',
-    ))
-# Gear trains (gr-1) — the mechanical twin of the reluctance
-# network: shaft nodes as graph nodes, meshes as edges.
-try:
-    from gears.gear_basis import (
-        GearDefinition, GearMeshDefinition, GearTrainDefinition,
-        GearTypeDefinition, GearVerificationRun,
-        ShaftNodeDefinition,
-    )
-    from gears.gear_seed import (
-        SEED_GEAR_MESHES, SEED_GEAR_TRAINS, SEED_GEAR_TYPES,
-        SEED_GEARS, SEED_SHAFT_NODES,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('gears', _exc, globals(), (
-        'GearTypeDefinition', 'GearDefinition',
-        'GearMeshDefinition', 'ShaftNodeDefinition',
-        'GearTrainDefinition', 'GearVerificationRun',
-        'SEED_GEAR_TYPES', 'SEED_GEARS', 'SEED_GEAR_MESHES',
-        'SEED_SHAFT_NODES', 'SEED_GEAR_TRAINS',
-    ))
-# Climate Change & Atmosphere (co2-A) — measured series and the
-# spans that cover them, health thresholds WITH their evidence
-# grade, room archetypes, and stored crossing projections.
-try:
-    from climate.climate_basis import (
-        AtmosphericObservation, AtmosphericSeriesDefinition,
-        AmbientSettingProfile, AtmosphericTrendFit,
-        BiomarkerCycleObservation,
-        CO2HealthThreshold, CarbonSinkSeries, ExposureProjection,
-        HealthSymptomDefinition, HumanEraDefinition,
-        IndoorSpaceProfile, ObservedLevelReference,
-        SymptomOnsetClaim,
-        PopulationBiomarkerSeries, SourceCoverageSpan,
-    )
-    from climate.co2_thresholds import SEED_CO2_THRESHOLDS
-    from climate.co2_indoor import SEED_INDOOR_SPACES
-    from climate.climate_history import SEED_HUMAN_ERAS
-    from climate.climate_series import SEED_CLIMATE_SERIES
-    from climate.sim_binding import (
-        AtmosphereSeriesBinding, SEED_ATMOSPHERE_BINDINGS,
-    )
-    from climate.climate_compress import SeriesCompressionRecord
-except ImportError as _exc:
-    _stub_missing_feature('climate', _exc, globals(), (
-        'AtmosphericSeriesDefinition', 'AtmosphericObservation',
-        'SourceCoverageSpan', 'AtmosphericTrendFit',
-        'SeriesCompressionRecord',
-        'CO2HealthThreshold', 'IndoorSpaceProfile',
-        'ExposureProjection', 'PopulationBiomarkerSeries',
-        'BiomarkerCycleObservation', 'CarbonSinkSeries',
-        'HumanEraDefinition', 'AtmosphereSeriesBinding',
-        'HealthSymptomDefinition', 'SymptomOnsetClaim',
-        'AmbientSettingProfile', 'ObservedLevelReference',
-        'SEED_CO2_THRESHOLDS', 'SEED_INDOOR_SPACES',
-        'SEED_HUMAN_ERAS', 'SEED_CLIMATE_SERIES',
-        'SEED_ATMOSPHERE_BINDINGS',
-    ))
-# Odoo ERP connector — instance configs + sim/ops write guards (od-3).
-try:
-    from odooconnect.odoo_basis import OdooInstanceConfig
-    from odooconnect.odoo_bindings import (
-        OdooModelBinding, OdooSyncReceipt, SEED_ODOO_BINDINGS,
-    )
-    from odooconnect.odoo_scenarios import (
-        BusinessScenarioDefinition, SEED_BUSINESS_SCENARIOS,
-    )
-    from odooconnect.odoo_seed import SEED_ODOO_INSTANCES
-except ImportError as _exc:
-    _stub_missing_feature('odooconnect', _exc, globals(), (
-        'OdooInstanceConfig', 'OdooModelBinding', 'OdooSyncReceipt',
-        'BusinessScenarioDefinition', 'SEED_ODOO_INSTANCES',
-        'SEED_ODOO_BINDINGS', 'SEED_BUSINESS_SCENARIOS',
-    ))
-# Bio wax sources (wax-1) + the unifying supply-chain ledger (chain-1).
-try:
-    from waxsupply.wax_basis import WaxSourceDefinition
-    from waxsupply.wax_seed import SEED_WAX_SOURCES
-except ImportError as _exc:
-    _stub_missing_feature('waxsupply', _exc, globals(), (
-        'WaxSourceDefinition', 'SEED_WAX_SOURCES',
-    ))
-# Casting molds (cast-1): the inversion primitive — molds DERIVED as
-# negatives of math-defined parts (WAX_MOLD_NESTING_PLAN).
-try:
-    from casting.casting_basis import (
-        CastingMaterialThermalProfile, MasterFeedstockDefinition,
-        MoldDefinition,
-    )
-    from casting.fill_sim import MoldFillSimState
-    from casting.interventions import FillInterventionDefinition
-    from casting.demold import DemoldPlanDefinition
-    from casting.coatings import (
-        CastingRunRecord, MoldCoatingDefinition,
-    )
-    from casting.nesting_wizard import NestingPlanDefinition
-    # trigger-on-import: registers the mold-fill scene/binding/sim
-    # into the shared seed lists (the waxprint sim_seed pattern).
-    from casting.sim_seed import SEED_CASTING_PAGE_DISPLAYS
-    from casting.chain_basis import (
-        CastingStageDefinition, MoldNestingChain,
-    )
-    from casting.sprue_basis import (
-        SprueSetInstance, SprueStrategyDefinition,
-    )
-    from casting.casting_seed import SEED_CASTING_MODULES, seed_casting
-except ImportError as _exc:
-    _stub_missing_feature('casting', _exc, globals(), (
-        'MoldDefinition', 'MasterFeedstockDefinition',
-        'MoldNestingChain', 'CastingStageDefinition',
-        'SprueStrategyDefinition', 'SprueSetInstance',
-        'CastingMaterialThermalProfile', 'MoldFillSimState',
-        'FillInterventionDefinition', 'DemoldPlanDefinition',
-        'MoldCoatingDefinition', 'CastingRunRecord',
-        'NestingPlanDefinition',
-        'SEED_CASTING_PAGE_DISPLAYS',
-        'SEED_CASTING_MODULES', 'seed_casting',
-    ))
-try:
-    from supplychain.chain_basis import (
-        SupplyChainDefinition, SupplyFlow, SupplyNode,
-    )
-    from supplychain.chain_seed import (
-        SEED_SUPPLY_CHAINS, SEED_SUPPLY_FLOWS, SEED_SUPPLY_NODES,
-    )
-    from supplychain.sourcing_basis import (
-        PriceCitation, ProductFormula, ProductInputRequirement,
-        SourcePreferencePolicy, SupplySourceProfile,
-    )
-    from supplychain.sourcing_seed import (
-        SEED_PRICE_CITATIONS, SEED_PRODUCT_FORMULAS,
-        SEED_PRODUCT_REQUIREMENTS, SEED_SOURCE_POLICIES,
-        SEED_SUPPLY_SOURCES,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('supplychain', _exc, globals(), (
-        'SupplyChainDefinition', 'SupplyFlow', 'SupplyNode', 'SEED_SUPPLY_CHAINS',
-        'SEED_SUPPLY_FLOWS', 'SEED_SUPPLY_NODES',
-        'SupplySourceProfile', 'PriceCitation',
-        'SourcePreferencePolicy', 'ProductInputRequirement',
-        'ProductFormula', 'SEED_SUPPLY_SOURCES',
-        'SEED_PRICE_CITATIONS', 'SEED_SOURCE_POLICIES',
-        'SEED_PRODUCT_REQUIREMENTS', 'SEED_PRODUCT_FORMULAS',
-    ))
 # Topology orchestration (top-1): the swarm/compose topology as
 # object-tree data — machines, instances, module assignments +
 # dependency edges, typed connections, desired vs observed state.
@@ -1251,6 +161,7 @@ from topology.topology_basis import (
     InstanceDefinition, OrchestrationTarget, PolariNodeMachine,
 )
 from topology.topology_modules import (
+    EngineProviderBinding, EngineUsageWindow,
     ModuleAssignment, ModuleDependencyEdge,
 )
 from topology.topology_links import ServiceConnection
@@ -1261,82 +172,12 @@ from topology.topology_state import (
 # as observed-state rows (never seeded).
 from topology.topology_testing import IntegrationPing, TopologyTestRun
 from topology.move_operations import MoveOperation
-# tt-12: Polari-Apps — module configurations per use-case; plans are
-# exportable JSON packages the pol CLI deploys (rows only).
-try:
-    from polariapps.apps_basis import (
-        AppDeploymentPlan, PolariAppDefinition,
-    )
-    from polariapps.apps_seed import SEED_POLARI_APPS
-except ImportError as _exc:
-    _stub_missing_feature('polariapps', _exc, globals(), (
-        'AppDeploymentPlan', 'PolariAppDefinition', 'SEED_POLARI_APPS',
-    ))
-# appstore-1: the Polari App Store — downloadable native shells over
-# the polariapps content layer (one-time enrollment tokens hashed at
-# rest, overlaid Gradle source archives, prebuilt binaries in MinIO).
-try:
-    from appstore.appstore_basis import (
-        AppShellDefinition, ShellArtifact, ShellEnrollment,
-        ShellInstallation,
-    )
-    from appstore.appstore_seed import SEED_APP_SHELLS
-    from appstore.appstore_page import SEED_APPSTORE_PAGE_DISPLAYS
-except ImportError as _exc:
-    _stub_missing_feature('appstore', _exc, globals(), (
-        'AppShellDefinition', 'ShellArtifact', 'ShellEnrollment',
-        'ShellInstallation', 'SEED_APP_SHELLS',
-        'SEED_APPSTORE_PAGE_DISPLAYS',
-    ))
 from topology.topology_seed import (
     SEED_INSTANCE_DEFINITIONS, SEED_MODULE_ASSIGNMENTS,
     SEED_MODULE_DEPENDENCY_EDGES, SEED_NODE_MACHINES,
     SEED_ORCHESTRATION_TARGETS, SEED_SERVICE_CONNECTIONS,
     SEED_TOPOLOGY_DEFINITIONS,
 )
-# islemesh (mac-1): the polari-side acceptor for isle-mesh data —
-# devices/uplinks/apps/permits rows are isle's ACCEPTED copy (isle
-# stays authoritative over networking); mock ingests carry a flag
-# real data never does, surfaced as the summary banner.
-try:
-    from islemesh.islemesh_basis import (
-        IsleApp, IsleAppService, IsleCatalogEntry, IsleDevice,
-        IsleEngine, IsleIngestReceipt, IsleProtocolPermit,
-        IsleUplink, MeshAppRealization,
-    )
-    from islemesh.islemesh_catalog import SEED_CATALOG
-    from islemesh.islemesh_page import SEED_ISLEMESH_PAGE_DISPLAYS
-except ImportError as _exc:
-    _stub_missing_feature('islemesh', _exc, globals(), (
-        'IsleApp', 'IsleAppService', 'IsleCatalogEntry',
-        'IsleDevice', 'IsleEngine', 'IsleIngestReceipt',
-        'IsleProtocolPermit', 'IsleUplink', 'MeshAppRealization',
-        'SEED_CATALOG', 'SEED_ISLEMESH_PAGE_DISPLAYS',
-    ))
-# Tech tree (tt-3): technologies with theory/real/business/politics
-# segments; completion always DERIVED (techtree_analysis), edges
-# derived from depends_on_json with tt-1 transient designation.
-try:
-    from techtree.techtree_basis import (
-        TechDependencyEdge, TechNode, TechSegment, TechSegmentAssignment,
-        TechTreeDefinition,
-    )
-    from techtree.techtree_content import (
-        BusinessModelDefinition, BusinessOutcome, PolicyDefinition,
-        RealArtifact,
-    )
-    from techtree.techtree_seed import (
-        SEED_BUSINESS_MODELS, SEED_OSEB_POLARI_MODULES,
-        SEED_POLICY_DEFINITIONS, SEED_REAL_ARTIFACTS, SEED_TECH_NODES,
-        SEED_TECH_SEGMENT_ASSIGNMENTS, SEED_TECH_TREE_DEFINITIONS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('techtree', _exc, globals(), (
-        'TechDependencyEdge', 'TechNode', 'TechSegment', 'TechSegmentAssignment',
-        'TechTreeDefinition', 'BusinessModelDefinition', 'BusinessOutcome', 'PolicyDefinition',
-        'RealArtifact', 'SEED_BUSINESS_MODELS', 'SEED_OSEB_POLARI_MODULES', 'SEED_POLICY_DEFINITIONS',
-        'SEED_REAL_ARTIFACTS', 'SEED_TECH_NODES', 'SEED_TECH_SEGMENT_ASSIGNMENTS', 'SEED_TECH_TREE_DEFINITIONS',
-    ))
 # Resource profiles (res-2): each module/engine's floor, scalability,
 # character, and storage-tier recommendation — the admission basis.
 from resources.profile_basis import ModuleResourceProfile
@@ -1350,33 +191,6 @@ from resources.profile_seed import SEED_MODULE_RESOURCE_PROFILES
 from polariDataTyping.schema_stability_basis import (
     SchemaDeviationEvent, SchemaStabilityProfile,
 )
-# Testing accountability spine (acct-0): checks as tree objects.
-# TEST-BUILD ONLY — `testing` is an OPT_IN package (module_gating),
-# so these classes register/seed only under POLARI_TEST_BUILD or an
-# explicit POLARI_MODULES entry; import alone registers nothing.
-try:
-    from testing.capability_basis import CapabilityCheck, CheckRun
-    from testing.testing_seed import SEED_CAPABILITY_CHECKS
-except ImportError as _exc:
-    _stub_missing_feature('testing', _exc, globals(), (
-        'CapabilityCheck', 'CheckRun', 'SEED_CAPABILITY_CHECKS',
-    ))
-# gRPC contracts (grpc-1): per-class exposure KNOB + append-only
-# contract versions, generated from stabilization snapshots only.
-try:
-    from grpcbridge.contract_basis import (
-        GrpcExposure, ProtoContractVersion,
-    )
-    # Polari Hardware Bridge (grpc-j1): generatable Java bridge apps —
-    # simulation-first, per-bridge knob rows.
-    from grpcbridge.java_bridge_basis import HardwareBridgeDefinition
-    # hwsim-1: hardware rig digital twins (Renode firmware streams here).
-    from grpcbridge.hwsim_basis import SimRigState, SEED_SIM_RIGS
-except ImportError as _exc:
-    _stub_missing_feature('grpcbridge', _exc, globals(), (
-        'GrpcExposure', 'ProtoContractVersion', 'HardwareBridgeDefinition', 'SimRigState',
-        'SEED_SIM_RIGS',
-    ))
 # msci-26: L3 MD + L2 mesoscale model definitions + seeds.
 from materialsScience.md_model_definition import MDModelDefinition
 from materialsScience.meso_model_definition import MesoModelDefinition
@@ -1384,337 +198,6 @@ from materialsScience.l2_l3_models_seed import (
     SEED_MD_MODELS, SEED_MESO_MODELS, SEED_L2_L3_SCALE_ROWS,
     SEED_DERIVED_VFC_MODELS,
 )
-# hwsim-3: FPGA register maps as DATA (every register = a knob row;
-# Verilog/C/testbench artifacts generate FROM the rows).
-try:
-    from hwfpga.fpga_basis import (
-        FpgaRegisterState, RegisterDefinition, RegisterMapDefinition,
-        SEED_FPGA_STATES, SEED_REGISTER_MAPS, SEED_REGISTERS,
-    )
-    # The 4x4 LED demo grid (driver knob: fpga | mcu profiles).
-    from hwfpga.led_basis import LedMatrix4x4State, SEED_LED_MATRICES
-except ImportError as _exc:
-    _stub_missing_feature('hwfpga', _exc, globals(), (
-        'FpgaRegisterState', 'RegisterDefinition', 'RegisterMapDefinition', 'SEED_FPGA_STATES',
-        'SEED_REGISTER_MAPS', 'SEED_REGISTERS', 'LedMatrix4x4State', 'SEED_LED_MATRICES',
-    ))
-# Material-derived electronic devices (materials -> SPICE ladder).
-try:
-    from electrodevice.device_basis import (
-        CircuitRunResult, ElectronicDeviceDefinition, SpiceModelCard,
-        SEED_DEVICES,
-    )
-    from electrodevice.semiconductor import (
-        SemiconductorProfile, SEED_SEMICONDUCTOR_PROFILES,
-    )
-    from electrodevice.device_validator import DeviceValidationReport
-    from electrodevice.photo_basis import (
-        PhotoAbsorberDefinition, SolarLayerDefinition,
-        SolarStackDefinition, SEED_PHOTO_ABSORBERS, SEED_SOLAR_LAYERS,
-        SEED_SOLAR_STACKS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('electrodevice', _exc, globals(), (
-        'CircuitRunResult', 'ElectronicDeviceDefinition', 'SpiceModelCard', 'SEED_DEVICES',
-        'SemiconductorProfile', 'SEED_SEMICONDUCTOR_PROFILES', 'DeviceValidationReport', 'PhotoAbsorberDefinition',
-        'SolarLayerDefinition', 'SolarStackDefinition', 'SEED_PHOTO_ABSORBERS', 'SEED_SOLAR_LAYERS',
-        'SEED_SOLAR_STACKS',
-    ))
-# cnt-s1: the aligned-CNT FET (decomposed one-tube device, VS-derived
-# compact model + ToB reference, D18 calibration anchors).
-try:
-    from cntfet.cnt_basis import (
-        AlignedCNTFETDevice, AlignedCNTFETGeometry,
-        CNTCalibrationAnchor, CNTContact, CNTFETParameterRow,
-        CNTFETSimResult, CNTMaterialState, CNTParasitics,
-        CNTTransportModel, GateStack,
-        SEED_CNT_CONTACTS, SEED_CNT_DEVICES, SEED_CNT_GEOMETRIES,
-        SEED_CNT_MATERIALS, SEED_CNT_PARASITICS, SEED_CNT_TRANSPORT,
-        SEED_GATE_STACKS,
-    )
-    from cntfet.cnt_calibration import SEED_CALIBRATION_ANCHORS
-    from cntfet.cnt_reference_papers import SEED_REFERENCE_ANCHORS
-    from cntfet.cnt_pages_seed import SEED_CNTFET_PAGE_DISPLAYS
-    # cnt-s3: manufacturing processes as distribution objects + MC.
-    from cntfet.cnt_process_basis import (
-        CNTAlignmentProcess, CNTFETMonteCarloRun,
-        CNTPlacementProcess, CNTPurificationProcess,
-        ContactFormationProcess, GateStackProcess,
-        LithographyProcess,
-        SEED_ALIGNMENT_PROCESSES, SEED_CONTACT_PROCESSES,
-        SEED_GATESTACK_PROCESSES, SEED_LITHOGRAPHY_PROCESSES,
-        SEED_PLACEMENT_PROCESSES, SEED_PURIFICATION_PROCESSES,
-    )
-    # cnt-s5: the characterization schema (D11/D16 — ours, above
-    # any executor).
-    from cntfet.cnt_characterization import CellCharacterizationRun
-    # cnt-s4d: the cell library's variant rows (generated from
-    # CELL_LIBRARY x DRIVES — subckts share the same source).
-    from cntfet.cnt_cell_library import (
-        CNTCellDefinition, SEED_CNT_CELLS,
-    )
-    # figure replicas as CONFIGURABLE GraphDefinition rows (the
-    # original graphs design — msim precedent).
-    from cntfet.cnt_figures import SEED_CNTFET_FIGURE_GRAPHS
-    # fet-viz: per-device curve graphs (transfer/output), same
-    # configurable-row design.
-    from cntfet.cnt_device_viz import SEED_CNT_DEVICE_GRAPHS
-    # fi-0: FET operating states as rows (criteria = data).
-    from cntfet.cnt_states import FETOperatingState, SEED_FET_STATES
-    # fi-2: scoring by characteristic equations — FET + cell terms,
-    # concepts, subjects (object_ref → the device/cell rows) and the
-    # live-bound ContextualizedValue rows for the generic engine.
-    from cntfet.cnt_scoring import (
-        SEED_FET_SCORE_CONCEPTS, SEED_FET_SCORE_TERMS,
-        seed_subjects_and_values as _fet_score_subjects,
-    )
-    from cntfet.cnt_cell_scoring import (
-        SEED_CELL_SCORE_CONCEPTS, SEED_CELL_SCORE_TERMS,
-        seed_cell_subjects as _cell_score_subjects,
-    )
-    SEED_FET_SCORE_SUBJECTS, SEED_FET_SCORE_VALUES = \
-        _fet_score_subjects([d['name'] for d in SEED_CNT_DEVICES])
-    SEED_CELL_SCORE_SUBJECTS = _cell_score_subjects(
-        [c['name'] for c in SEED_CNT_CELLS])
-    # fi-4: one competitive scoring page PER seeded FET.
-    from cntfet.cnt_compare import score_pages as _cnt_score_pages
-    SEED_CNT_SCORE_PAGES = _cnt_score_pages(
-        [d['name'] for d in SEED_CNT_DEVICES])
-    # fv-5: one characteristic-explorer DETAIL page per FET.
-    try:
-        from cntfet.cnt_compare import detail_pages as _cnt_detail_pages
-        SEED_CNT_SCORE_PAGES = SEED_CNT_SCORE_PAGES + _cnt_detail_pages(
-            [d['name'] for d in SEED_CNT_DEVICES])
-    except ImportError:
-        pass
-except ImportError as _exc:
-    _stub_missing_feature('cntfet', _exc, globals(), (
-        'AlignedCNTFETDevice', 'AlignedCNTFETGeometry', 'CNTCalibrationAnchor', 'CNTContact',
-        'CNTFETParameterRow', 'CNTFETSimResult', 'CNTMaterialState', 'CNTParasitics',
-        'CNTTransportModel', 'GateStack', 'SEED_CNT_CONTACTS', 'SEED_CNT_DEVICES',
-        'SEED_CNT_GEOMETRIES', 'SEED_CNT_MATERIALS', 'SEED_CNT_PARASITICS', 'SEED_CNT_TRANSPORT',
-        'SEED_GATE_STACKS', 'SEED_CALIBRATION_ANCHORS',
-        'SEED_REFERENCE_ANCHORS', 'SEED_CNTFET_PAGE_DISPLAYS',
-        'CNTAlignmentProcess', 'CNTFETMonteCarloRun', 'CNTPlacementProcess',
-        'CNTPurificationProcess', 'ContactFormationProcess', 'GateStackProcess',
-        'LithographyProcess', 'SEED_ALIGNMENT_PROCESSES', 'SEED_CONTACT_PROCESSES',
-        'SEED_GATESTACK_PROCESSES', 'SEED_LITHOGRAPHY_PROCESSES',
-        'SEED_PLACEMENT_PROCESSES', 'SEED_PURIFICATION_PROCESSES',
-        'CellCharacterizationRun',
-        'CNTCellDefinition', 'SEED_CNT_CELLS',
-        'SEED_CNTFET_FIGURE_GRAPHS', 'SEED_CNT_DEVICE_GRAPHS',
-        'FETOperatingState', 'SEED_FET_STATES',
-        'SEED_FET_SCORE_CONCEPTS', 'SEED_FET_SCORE_TERMS', '_fet_score_subjects',
-        'SEED_CELL_SCORE_CONCEPTS', 'SEED_CELL_SCORE_TERMS', '_cell_score_subjects',
-        '_cnt_score_pages',
-    ))
-    # Derived (not imported) seed tables — empty when cntfet is absent.
-    SEED_FET_SCORE_SUBJECTS = SEED_FET_SCORE_VALUES = []
-    SEED_CELL_SCORE_SUBJECTS = SEED_CNT_SCORE_PAGES = []
-# fv arc (FET_VIEWS_PLAN): each phase module is guarded SEPARATELY so
-# an absent phase never stubs the whole cntfet feature.
-try:
-    from cntfet.cnt_regimes import FETRegime, SEED_FET_REGIMES
-except ImportError as _exc:
-    _stub_missing_feature('cntfet', _exc, globals(), (
-        'FETRegime', 'SEED_FET_REGIMES',
-    ))
-try:
-    from cntfet.cnt_characteristics import (
-        FETCharacteristic, SEED_FET_CHARACTERISTICS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('cntfet', _exc, globals(), (
-        'FETCharacteristic', 'SEED_FET_CHARACTERISTICS',
-    ))
-try:
-    from cntfet.cnt_transport import (
-        ScatteringMechanism, TransportRegime,
-        SEED_SCATTERING_MECHANISMS, SEED_TRANSPORT_REGIMES,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('cntfet', _exc, globals(), (
-        'ScatteringMechanism', 'TransportRegime',
-        'SEED_SCATTERING_MECHANISMS', 'SEED_TRANSPORT_REGIMES',
-    ))
-try:
-    from cntfet.cnt_fields import (
-        FETFieldBand, FETFieldSample, SEED_FET_FIELD_BANDS,
-        SEED_FET_FIELD_MATERIALS_3D,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('cntfet', _exc, globals(), (
-        'FETFieldBand', 'FETFieldSample', 'SEED_FET_FIELD_BANDS',
-        'SEED_FET_FIELD_MATERIALS_3D',
-    ))
-try:
-    from cntfet.cnt_scene import (
-        SEED_CNT_DEVICE_SCENES, SEED_FET_FIELD_BINDINGS,
-    )
-    SEED_CNT_DEVICE_SCENE_ROWS = SEED_CNT_DEVICE_SCENES(
-        [d['name'] for d in (SEED_CNT_DEVICES or [])])
-except (ImportError, TypeError) as _exc:
-    _stub_missing_feature('cntfet', _exc, globals(), (
-        'SEED_CNT_DEVICE_SCENES', 'SEED_FET_FIELD_BINDINGS',
-    ))
-    SEED_CNT_DEVICE_SCENE_ROWS = []  # derived, not imported
-try:
-    from cntfet.cnt_device_viz import extra_graph_seeds as _cnt_fv_graphs
-    SEED_CNT_FV_GRAPHS = _cnt_fv_graphs()
-except ImportError as _exc:
-    _stub_missing_feature('cntfet', _exc, globals(), ('_cnt_fv_graphs',))
-    SEED_CNT_FV_GRAPHS = []  # derived, not imported
-# fp arc (FET_CELL_POWER_SILICON_PLAN) — guarded per module.
-try:
-    from cntfet.cnt_taxonomy import (
-        ComplementaryPair, FETOptimizationClass, FETShapeType,
-        SEED_COMPLEMENTARY_PAIRS, SEED_FET_OPTIMIZATION_CLASSES,
-        SEED_FET_SHAPE_TYPES, SEED_SIGNAL_SCORE_CONCEPTS,
-        SEED_SIGNAL_SCORE_TERMS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('cntfet', _exc, globals(), (
-        'ComplementaryPair', 'FETOptimizationClass', 'FETShapeType',
-        'SEED_COMPLEMENTARY_PAIRS', 'SEED_FET_OPTIMIZATION_CLASSES',
-        'SEED_FET_SHAPE_TYPES', 'SEED_SIGNAL_SCORE_CONCEPTS',
-        'SEED_SIGNAL_SCORE_TERMS',
-    ))
-try:
-    from cntfet.cnt_power import (
-        PowerBudget, SEED_POWER_BUDGETS, SEED_POWER_SCORE_TERMS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('cntfet', _exc, globals(), (
-        'PowerBudget', 'SEED_POWER_BUDGETS', 'SEED_POWER_SCORE_TERMS',
-    ))
-try:
-    from cntfet.cnt_targets import (
-        DesignTarget, FETTargetMapping, SEED_DESIGN_TARGETS,
-        SEED_FET_TARGET_MAPPINGS, SEED_TARGET_POWER_BUDGETS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('cntfet', _exc, globals(), (
-        'DesignTarget', 'FETTargetMapping', 'SEED_DESIGN_TARGETS',
-        'SEED_FET_TARGET_MAPPINGS', 'SEED_TARGET_POWER_BUDGETS',
-    ))
-try:
-    from sifet.si_basis import (
-        SEED_TABLES as _SI_SEED_TABLES, SiliconDopingProfile,
-        SiliconFETShape, SiliconMOSFET, SolGelDielectric, SolGelProcess,
-    )
-    _si_seeds = dict(_SI_SEED_TABLES)
-    SEED_SI_DOPINGS = _si_seeds.get('SiliconDopingProfile', [])
-    SEED_SI_SHAPES = _si_seeds.get('SiliconFETShape', [])
-    SEED_SI_DEVICES = _si_seeds.get('SiliconMOSFET', [])
-    SEED_SOLGEL_DIELECTRICS = _si_seeds.get('SolGelDielectric', [])
-    SEED_SOLGEL_PROCESSES = _si_seeds.get('SolGelProcess', [])
-except ImportError:
-    SiliconDopingProfile = SiliconFETShape = SiliconMOSFET = None
-    SolGelDielectric = SolGelProcess = None
-    SEED_SI_DOPINGS = SEED_SI_SHAPES = SEED_SI_DEVICES = []
-    SEED_SOLGEL_DIELECTRICS = SEED_SOLGEL_PROCESSES = []
-try:
-    from sifet.si_refinement import (
-        RefinementRoute, RefinementStep, SiliconGrade,
-        SEED_REFINEMENT_ROUTES, SEED_REFINEMENT_STEPS,
-        SEED_SILICON_GRADES, SEED_SI_REFINEMENT_GRAPHS,
-    )
-except ImportError:
-    RefinementRoute = RefinementStep = SiliconGrade = None
-    SEED_REFINEMENT_ROUTES = SEED_REFINEMENT_STEPS = []
-    SEED_SILICON_GRADES = SEED_SI_REFINEMENT_GRAPHS = []
-try:
-    from sifet.si_ladder import (
-        SiliconProcessNode, SEED_SILICON_PROCESS_NODES,
-        SEED_SILICON_ANCHORS, SEED_LADDER_EVIDENCE, SEED_LADDER_IP,
-        SEED_SI_LADDER_GRAPHS,
-    )
-except ImportError:
-    SiliconProcessNode = None
-    SEED_SILICON_PROCESS_NODES = SEED_SILICON_ANCHORS = []
-    SEED_LADDER_EVIDENCE = SEED_LADDER_IP = SEED_SI_LADDER_GRAPHS = []
-try:
-    from sifet.si_pages_seed import (
-        SEED_SI_PAGE_DISPLAYS, SEED_SI_SCORE_PAGES,
-    )
-except ImportError:
-    SEED_SI_PAGE_DISPLAYS, SEED_SI_SCORE_PAGES = [], []
-try:
-    from cntfet.cnt_ip import SEED_TECHNOLOGY_IP, TechnologyIPRecord
-except ImportError as _exc:
-    _stub_missing_feature('cntfet', _exc, globals(), (
-        'SEED_TECHNOLOGY_IP', 'TechnologyIPRecord',
-    ))
-try:
-    from cntfet.cnt_evidence import EvidenceItem, SEED_EVIDENCE
-except ImportError as _exc:
-    _stub_missing_feature('cntfet', _exc, globals(), (
-        'EvidenceItem', 'SEED_EVIDENCE',
-    ))
-try:
-    from cntfet.cnt_open_library import (
-        OpenCellLibrary, SEED_OPEN_LIBRARIES, SEED_OPEN_LIBRARY_PAGES,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('cntfet', _exc, globals(), (
-        'OpenCellLibrary', 'SEED_OPEN_LIBRARIES', 'SEED_OPEN_LIBRARY_PAGES',
-    ))
-try:
-    from cntfet.cnt_blocks import (
-        FunctionalBlock, SEED_FUNCTIONAL_BLOCKS, SEED_BLOCK_PAGES,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('cntfet', _exc, globals(), (
-        'FunctionalBlock', 'SEED_FUNCTIONAL_BLOCKS', 'SEED_BLOCK_PAGES',
-    ))
-# microchip: the design-level ladder + traversal (separable from the
-# device modules — references their rows, never imports their code).
-try:
-    from microchip.chip_basis import (
-        DesignLevelDefinition, MicrochipDesignNode,
-        SEED_DESIGN_LEVELS, SEED_DESIGN_NODES,
-    )
-    from microchip.chip_pages_seed import (
-        SEED_MICROCHIP_PAGE_DISPLAYS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('microchip', _exc, globals(), (
-        'DesignLevelDefinition', 'MicrochipDesignNode',
-        'SEED_DESIGN_LEVELS', 'SEED_DESIGN_NODES',
-        'SEED_MICROCHIP_PAGE_DISPLAYS',
-    ))
-# computerparts (ai-8): parts + builds as tracked data — dated part
-# prices, derived build cost, assembly checks over declared specs.
-try:
-    from computerparts.parts_basis import (
-        ComputerBuildDefinition, ComputerPartDefinition,
-    )
-    from computerparts.parts_seed import (
-        SEED_COMPUTER_BUILDS, SEED_COMPUTER_PARTS,
-    )
-except ImportError as _exc:
-    _stub_missing_feature('computerparts', _exc, globals(), (
-        'ComputerBuildDefinition', 'ComputerPartDefinition',
-        'SEED_COMPUTER_BUILDS', 'SEED_COMPUTER_PARTS',
-    ))
-# computers (cmp-c): assembly + use-case profiles as their OWN app
-# over the computerparts catalog — taxonomy rows, DFA-style gates,
-# ai-6-shaped profile fits. Separable from the microchip ladder.
-try:
-    from computers.computers_basis import (
-        ComputerAssemblyDefinition, ComputerPartClassDefinition,
-        ComputerProfileDefinition,
-    )
-    from computers.computers_pages_seed import (
-        SEED_COMPUTERS_PAGE_DISPLAYS,
-    )
-    from computers.computers_ports import InterconnectDefinition
-except ImportError as _exc:
-    _stub_missing_feature('computers', _exc, globals(), (
-        'ComputerAssemblyDefinition', 'ComputerPartClassDefinition',
-        'ComputerProfileDefinition',
-        'SEED_COMPUTERS_PAGE_DISPLAYS', 'InterconnectDefinition',
-    ))
 # Formulation searches as OBJECTS (object-coherence: the wax derivation
 # is configurable/runnable at these rows, not just API knobs).
 from materialsScience.formulation_search_definition import (
@@ -1739,13 +222,6 @@ from materialsScience.wax_multiscale_seed import (
 )
 # The materials-basis + formulation-search DisplayDefinition pages.
 from materialsScience.msci_pages_seed import SEED_MSCI_PAGE_DISPLAYS
-# The aquaponics-pot-shape phase 2 pot-geometry-editor DisplayDefinition page.
-try:
-    from aquaponics.aquaponics_pages_seed import SEED_AQUAPONICS_PAGE_DISPLAYS
-except ImportError as _exc:
-    _stub_missing_feature('aquaponics', _exc, globals(), (
-        'SEED_AQUAPONICS_PAGE_DISPLAYS',
-    ))
 # No-code pages for the modules that had APIs but no UI (nutrition,
 # vermicompost, tanks, biomining, microalgae, wax, supply chain,
 # morphology, authority) — pure class-rows-table/api-json-panel data.
@@ -2102,6 +578,10 @@ class polariServer(treeObject):
         # Create reasoning-provider management endpoint (select/auth/validate)
         providersEndpoint = providersAPI(polServer=self, manager=self.manager)
 
+        # ai-4: the sovereign voice seam (provider-backed STT/TTS,
+        # browser Web Speech as the STATED fallback)
+        voiceEndpoint = voiceAPI(polServer=self, manager=self.manager)
+
         # Create in-app AI action loop endpoint (gated propose->confirm->execute)
         aiActionsEndpoint = aiActionsAPI(polServer=self, manager=self.manager)
 
@@ -2209,156 +689,22 @@ class polariServer(treeObject):
         crystalStructureEndpoint = CrystalStructureAPI(
             polServer=self, manager=self.manager)
 
-        # PSPP: dataset curves + reaction network + composition
-        # grading + cure progress (pspp-V — every chart generated
-        # from rows so a book figure proofs against live data).
-        if _feature_available('pspp'):
-            from pspp.pspp_api import PsppAPI
-            psppEndpoint = PsppAPI(polServer=self, manager=self.manager)
+        # dyn-1: feature-module endpoint constructions extracted to
+        # module_endpoints.MODULE_ENDPOINT_CONSTRUCTORS — one code
+        # path for boot and live admission (dyn-2). Same gate as
+        # before: absent/disabled modules register no routes.
+        from polariApiServer.module_endpoints import (
+            MODULE_ENDPOINT_CONSTRUCTORS,
+        )
+        # dyn-2: record which modules' endpoints exist — falcon has no
+        # route removal, so live admission must never construct twice.
+        self.endpointConstructed = set()
+        for _mod, _ctor in MODULE_ENDPOINT_CONSTRUCTORS.items():
+            if _feature_available(_mod):
+                _ctor(self)
+                self.endpointConstructed.add(_mod)
 
-        # Context-based scoring: concept list + the scoring pipeline
-        # (normalize -> context-match -> weight -> levelize) (scr-1).
-        # mp-3: every feature-module endpoint below is gated on the
-        # module's code being downloaded + enabled — an absent module
-        # registers no routes (the /modules surface says why).
-        if _feature_available('scoring'):
-            from scoring.scoring_api import ScoringAPI
-            scoringEndpoint = ScoringAPI(polServer=self, manager=self.manager)
-            from scoring.authority_api import AuthorityAPI
-            authorityEndpoint = AuthorityAPI(polServer=self,
-                                             manager=self.manager)
-            from scoring.epistemics_api import EpistemicsAPI
-            epistemicsEndpoint = EpistemicsAPI(polServer=self,
-                                               manager=self.manager)
-        if _feature_available('zones'):
-            from zones.zones_api import ZonesAPI
-            zonesEndpoint = ZonesAPI(polServer=self, manager=self.manager)
 
-        if _feature_available('aquaponics'):
-            # Aquaponics: self-watering pot geometry validation + hole
-            # generation (aqp-1).
-            from aquaponics.pot_api import AquaponicsPotAPI
-            aquaponicsPotEndpoint = AquaponicsPotAPI(
-                polServer=self, manager=self.manager)
-            # Aquaponics: soil / water / nutrient-profile analysis (aqp-2).
-            from aquaponics.media_api import AquaponicsMediaAPI
-            aquaponicsMediaEndpoint = AquaponicsMediaAPI(
-                polServer=self, manager=self.manager)
-            # Aquaponics: per-part plant capture + budget (aqp-4).
-            from aquaponics.plant_api import AquaponicsPlantAPI
-            aquaponicsPlantEndpoint = AquaponicsPlantAPI(
-                polServer=self, manager=self.manager)
-            # Aquaponics: atmospheric conditions + gas exchange (aqp-5).
-            from aquaponics.atmosphere_api import AquaponicsAtmosphereAPI
-            aquaponicsAtmosphereEndpoint = AquaponicsAtmosphereAPI(
-                polServer=self, manager=self.manager)
-            # Aquaponics: bound pot systems — survival + impact (aqp-6).
-            from aquaponics.pot_system_api import AquaponicsSystemAPI
-            aquaponicsSystemEndpoint = AquaponicsSystemAPI(
-                polServer=self, manager=self.manager)
-            # Aquaponics: Darcy pot hydraulics — drains-by-gravity +
-            # head field, fidelity ladder fem->reservoir (aqp-3).
-            from aquaponics.hydraulics_api import AquaponicsHydraulicsAPI
-            aquaponicsHydraulicsEndpoint = AquaponicsHydraulicsAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('waxprint'):
-            # waxprint (wp-1): pellet-fed auger-screw wax printer — list rows +
-            # run the two-zone melt with the wax thermal-safety gate.
-            from waxprint.waxprint_api import WaxPrintAPI
-            waxPrintEndpoint = WaxPrintAPI(polServer=self, manager=self.manager)
-            # waxprint sim space (wp-5/wp-6): run one IC / a range + evaluate the
-            # condition gates for a run.
-            from waxprint.sim_api import WaxPrintSimAPI
-            waxPrintSimEndpoint = WaxPrintSimAPI(polServer=self,
-                                                 manager=self.manager)
-        if _feature_available('aquaponics'):
-            # Aquaponics: worm-compost enrichment loop — release /
-            # simulate / compare-modes / enriched-water (aqp-7).
-            from aquaponics.vermicompost_api import AquaponicsCompostAPI
-            aquaponicsCompostEndpoint = AquaponicsCompostAPI(
-                polServer=self, manager=self.manager)
-            # Aquaponics: SIMPLIFIED/AGGREGATE growth model (was aqp-8;
-            # renamed + rebuilt 2026-07-15 to pull its constants + curve
-            # from the real detailed model, plant_growth_normalized).
-            from aquaponics.plant_growth_simplified_api import (
-                AquaponicsPlantGrowthSimplifiedAPI,
-            )
-            aquaponicsPlantGrowthSimplifiedEndpoint = (
-                AquaponicsPlantGrowthSimplifiedAPI(
-                    polServer=self, manager=self.manager))
-        if _feature_available('nutrition'):
-            # Nutrition: dietary-nutrient vocab + person BMR/needs +
-            # household demand aggregation (nut-1/3/4).
-            from nutrition.nutrition_api import NutritionAPI
-            nutritionEndpoint = NutritionAPI(
-                polServer=self, manager=self.manager)
-            # Nutrition: plant harvest -> meal-nutrient yield, closing the
-            # self-watering-pot grow loop (nut-2).
-            from nutrition.food_api import NutritionFoodAPI
-            nutritionFoodEndpoint = NutritionFoodAPI(
-                polServer=self, manager=self.manager)
-            # mpa-5: the meal-planning app's derived-view surface
-            # (me / dashboard / series / plan cost / pantry /
-            # prices / acidity / the PSPP state chain).
-            from nutrition.mealplanning_api import MealPlanningAPI
-            mealPlanningEndpoint = MealPlanningAPI(
-                polServer=self, manager=self.manager)
-            # Night run 2026-09-03: the four view pages' own resources
-            # (Today / Shopping trip / Cook now / Weekly review). Each
-            # guards its routes; a missing one must not take the rest.
-            for _mod, _cls in (('nutrition.today_api', 'TodayAPI'),
-                               ('nutrition.shoptrip_api', 'ShoptripAPI'),
-                               ('nutrition.cooknow_api', 'CookNowAPI'),
-                               ('nutrition.weekreview_api', 'WeekReviewAPI')):
-                try:
-                    _api_cls = getattr(__import__(_mod, fromlist=[_cls]), _cls)
-                    _api_cls(polServer=self, manager=self.manager)
-                except Exception as _e:  # noqa: BLE001
-                    print(f'[MealplanPages] {_cls} not registered: {_e}',
-                          flush=True)
-        if _feature_available('plant_morphology'):
-            # Plant morphology: 3D organ/root stand-ins + confinement /
-            # dwarfing assessment (morph-1).
-            from plant_morphology.morphology_api import PlantMorphologyAPI
-            plantMorphologyEndpoint = PlantMorphologyAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('aquaponics'):
-            # Plant-growth-sim phase 1: free-soil/constrained-limits +
-            # per-part PotPlanting state + animation-bones skeleton
-            # (2026-07-15).
-            from aquaponics.plant_growth_normalized_api import (
-                AquaponicsPlantGrowthNormalizedAPI,
-            )
-            aquaponicsPlantGrowthNormalizedEndpoint = (
-                AquaponicsPlantGrowthNormalizedAPI(
-                    polServer=self, manager=self.manager))
-            # Plant-growth-sim phase 8: direct-light field diagnostics.
-            from aquaponics.light_field_api import AquaponicsLightFieldAPI
-            aquaponicsLightFieldEndpoint = AquaponicsLightFieldAPI(
-                polServer=self, manager=self.manager)
-            # Plant-growth-sim phase 10: water batching + nutrient uptake.
-            from aquaponics.water_batch_api import AquaponicsWaterBatchAPI
-            aquaponicsWaterBatchEndpoint = AquaponicsWaterBatchAPI(
-                polServer=self, manager=self.manager)
-            # Plant-growth-sim phase 11: decomposed water-level trajectory.
-            from aquaponics.water_level_api import AquaponicsWaterLevelAPI
-            aquaponicsWaterLevelEndpoint = AquaponicsWaterLevelAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('mathshapes'):
-            # Math-defined shapes: quadric/primitive/CSG geometry (shape-1)
-            # + parametric modification (shape-2, POST /modify).
-            from mathshapes.shape_api import MathShapesAPI
-            mathShapesEndpoint = MathShapesAPI(
-                polServer=self, manager=self.manager)
-            # Aquaponic towers: stacked math-defined pots (shape-2) +
-            # growth forecast (shape-4).
-            from mathshapes.tower_api import AquaponicTowerAPI
-            aquaponicTowerEndpoint = AquaponicTowerAPI(
-                polServer=self, manager=self.manager)
-            # CAD import/export via cad-engines worker + MinIO (shape-3).
-            from mathshapes.cad_api import CadImportAPI
-            cadImportEndpoint = CadImportAPI(
-                polServer=self, manager=self.manager)
         # xsim-2: single-writer lease + object locks + simulation queue.
         from simulationLocks.locks_api import SimulationLocksAPI
         simulationLocksEndpoint = SimulationLocksAPI(
@@ -2367,110 +713,6 @@ class polariServer(treeObject):
         from polariRefs.refs_api import PolariRefsAPI
         polariRefsEndpoint = PolariRefsAPI(
             polServer=self, manager=self.manager)
-        if _feature_available('tanks'):
-            # Tanks: freshwater + saltwater ecosystem nutrient balance +
-            # harvest yield (the alternate nutrient source, tank-1).
-            from tanks.tank_api import TankSystemAPI
-            tankSystemEndpoint = TankSystemAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('microalgae'):
-            # Microalgae reactors: sustainability (no-collapse) + CO2
-            # decarbonization coupled to a parent system (algae-1).
-            from microalgae.reactor_api import MicroalgaeReactorAPI
-            microalgaeReactorEndpoint = MicroalgaeReactorAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('biomining'):
-            # Biomining: element extraction + refinement + nutrient recovery
-            # specialized aquaponic variants (biomine-1).
-            from biomining.biomining_api import BiomineAPI
-            biomineEndpoint = BiomineAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('video'):
-            # Self-hosted video: presigned upload/stream URLs + ffmpeg
-            # conversion trigger (video-1).
-            from video.video_api import VideoAPI
-            videoEndpoint = VideoAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('bizops'):
-            # Business flows + economy track + order planner (biz-1).
-            from bizops.bizops_api import BizOpsAPI
-            bizOpsEndpoint = BizOpsAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('odooconnect'):
-            # Odoo ERP connector status/catalog (od-3).
-            from odooconnect.odoo_api import OdooConnectAPI
-            odooConnectEndpoint = OdooConnectAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('waxsupply'):
-            # Wax sources for molds/masks (wax-1).
-            from waxsupply.wax_api import WaxSupplyAPI
-            waxSupplyEndpoint = WaxSupplyAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('casting'):
-            # The nesting wizard: part × material → the full derived
-            # mold-nesting process, every step viewable (nest-1).
-            from casting.casting_api import CastingAPI
-            castingEndpoint = CastingAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('composition'):
-            # Part composition (arch-7): derived levels, variant
-            # reports, routings, audited promotions, archetypes.
-            from composition.composition_api import CompositionAPI
-            compositionEndpoint = CompositionAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('magnetics'):
-            # Magnetic materials Section A: catalog gates, role
-            # search, powder designer (mag-2/2r/2t).
-            from magnetics.magnet_api import MagneticsAPI
-            magneticsEndpoint = MagneticsAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('motors'):
-            # Motors Section C: ladder designs, clock control case,
-            # torque curves, parity (mag-5).
-            from motors.motor_api import MotorsAPI
-            motorsEndpoint = MotorsAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('climate'):
-            # co2-A: Climate Change & Atmosphere — series, spans,
-            # trends, thresholds, the coupled crossing table and
-            # the citation/export surfaces.
-            from climate.climate_api import ClimateAPI
-            climateEndpoint = ClimateAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('meshassets'):
-            # mesh-1: the licence-gated catalog + organ fit.
-            from meshassets.mesh_asset_api import MeshAssetsAPI
-            meshAssetsEndpoint = MeshAssetsAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('gears'):
-            # Gear trains: taxonomy + the abstract kinematic solve
-            # (gr-1); the motor splice lands at gr-5.
-            from gears.gear_api import GearsAPI
-            gearsEndpoint = GearsAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('supplychain'):
-            # The unifying bio supply-chain ledger — materials + food +
-            # carbon accounting (chain-1).
-            from supplychain.chain_api import SupplyChainAPI
-            supplyChainEndpoint = SupplyChainAPI(
-                polServer=self, manager=self.manager)
-            # Sourcing: cited prices + preference ladder (src-1).
-            from supplychain.sourcing_api import SourcingAPI
-            sourcingEndpoint = SourcingAPI(
-                polServer=self, manager=self.manager)
-        # acct-0: the accountability matrix. Endpoint construction is
-        # NOT auto-gated (only defClassList is), so guard explicitly —
-        # a normal build must register no /api/accountability route.
-        # mp-3: the gate also requires the testing code to be present.
-        if _feature_available('testing'):
-            from testing.accountability_api import AccountabilityAPI
-            accountabilityEndpoint = AccountabilityAPI(
-                polServer=self, manager=self.manager)
-            # acct-3: the twin rehearsal's out-of-process lease
-            # handle (production keeps NO HTTP lease surface).
-            from testing.twin_lease_api import TwinLeaseAPI
-            twinLeaseEndpoint = TwinLeaseAPI(
-                polServer=self, manager=self.manager)
 
         # Topology orchestration: graph/validate/assign/drift/observe
         # + portable package export/import (top-1).
@@ -2484,56 +726,16 @@ class polariServer(treeObject):
         from topology.topology_testing_api import TopologyTestingAPI
         topologyTestingEndpoint = TopologyTestingAPI(
             polServer=self, manager=self.manager)
-        if _feature_available('polariapps'):
-            # Polari-Apps (tt-12): use-case module configurations —
-            # plan/export/apply (rows only; deploys stay pol commands).
-            from polariapps.apps_api import AppsAPI
-            appsEndpoint = AppsAPI(polServer=self, manager=self.manager)
-        if _feature_available('appstore'):
-            # App Store (appstore-1): installable shells over the
-            # polariapps content layer — catalog/identity/enroll/
-            # redeem/download. Endpoint construction is NOT
-            # auto-gated (only defClassList is), hence the guard.
-            from appstore.appstore_api import AppStoreAPI
-            appStoreEndpoint = AppStoreAPI(
-                polServer=self, manager=self.manager)
-            # dl-1: the PUBLIC no-terminal downloads page (server-
-            # rendered HTML + deb serving; POLARI_DOWNLOADS_DIR).
-            from appstore.downloads_page import DownloadsPage
-            downloadsEndpoint = DownloadsPage(
-                polServer=self, manager=self.manager)
-            # dl-4: /downloads/apps — registry modules as debs,
-            # generated on request (POLARI_APP_DEBS_DIR + TTL).
-            from appstore.app_debs_page import AppDebsPage
-            appDebsEndpoint = AppDebsPage(
-                polServer=self, manager=self.manager)
-            # dl-5: /downloads/offline — staged chunk sets or the
-            # honest not-built-yet page (POLARI_OFFLINE_DIR).
-            from appstore.offline_page import OfflinePage
-            offlineEndpoint = OfflinePage(
-                polServer=self, manager=self.manager)
-            # dl-6: /downloads/plan — the topology/bundle wizard
-            # (speculates roles + per-device downloads; read-only).
-            from appstore.planner_page import PlannerPage
-            plannerEndpoint = PlannerPage(
-                polServer=self, manager=self.manager)
-        if _feature_available('islemesh'):
-            # islemesh (mac-1): ingest + read surface for isle-mesh
-            # data (registry/fragments/device facts; mock flagged).
-            from islemesh.islemesh_api import IsleMeshAPI
-            isleMeshEndpoint = IsleMeshAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('techtree'):
-            # Tech tree (tt-3): trees/nodes/segments + derived completion
-            # rollup — the topology expansion toward the OSEB.
-            from techtree.techtree_api import TechTreeAPI
-            techTreeEndpoint = TechTreeAPI(
-                polServer=self, manager=self.manager)
         # Provider routing (top-7): module delegation resolves its
         # provider from the topology rows when no explicit URL knob
         # is set (see materialsScience.engines.remote's ladder).
         from topology.provider_registry import set_manager
         set_manager(self.manager)
+        # sep-4 (decision 9): engine data pages — placement +
+        # reachability ladder + usage windows per engine kind.
+        from topology.engines_api import EnginesAPI
+        enginesEndpoint = EnginesAPI(
+            polServer=self, manager=self.manager)
         # Node resource inventory (res-1): every PolariNodeMachine
         # carries observed cores/RAM/disk — isoSys bridged into the
         # topology; remote nodes pull (system_info_url knob) or push.
@@ -2563,77 +765,6 @@ class polariServer(treeObject):
         )
         schemaStabilityEndpoint = SchemaStabilityAPI(
             polServer=self, manager=self.manager)
-        if _feature_available('grpcbridge'):
-            # gRPC contracts (grpc-1): exposure catalogue + the
-            # enable/disable/regenerate knob + .proto download. Contracts
-            # generate ONLY from stabilized schemas.
-            from grpcbridge.contract_api import GrpcContractsAPI
-            grpcContractsEndpoint = GrpcContractsAPI(
-                polServer=self, manager=self.manager)
-            # Polari Hardware Bridge (grpc-j1): bridge-definition rows +
-            # generate/download of the buildable Java app (tar.gz).
-            from grpcbridge.java_bridge_api import HardwareBridgeAPI
-            hardwareBridgeEndpoint = HardwareBridgeAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('hwfpga'):
-            # FPGA register maps (hwsim-3): catalogue + generated
-            # Verilog/C/testbench artifacts, all FROM the knob rows.
-            from hwfpga.fpga_api import FpgaRegisterMapAPI
-            fpgaRegisterMapEndpoint = FpgaRegisterMapAPI(
-                polServer=self, manager=self.manager)
-        # ncg-7 (Dustin: split across small devices): endpoint
-        # construction is NOT auto-gated (only defClassList is), so
-        # the ncg level surfaces guard explicitly — a node assigned
-        # only 'scoring' must carry no /api/hw or circuit routes,
-        # and vice versa, exactly like the testing surface.
-        # mp-3: the gate also requires the module code to be present.
-        if _feature_available('hwdigital'):
-            # ncg-3: logic diagrams as rows — catalogue, generated
-            # artifacts (through the compiler seam), evaluate.
-            from hwdigital.logic_api import LogicDesignAPI
-            logicDesignEndpoint = LogicDesignAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('electrodevice'):
-            # ncg-4: circuits as rows — catalogue, netlist, run.
-            from electrodevice.circuit_api import (BreadboardAPI,
-                                                   CircuitRowsAPI)
-            circuitRowsEndpoint = CircuitRowsAPI(
-                polServer=self, manager=self.manager)
-            # ncg-5: jumpered breadboards, run as one netlist.
-            breadboardEndpoint = BreadboardAPI(
-                polServer=self, manager=self.manager)
-            # Material-derived electronic devices (derive from msci sims,
-            # SPICE cards, ngspice circuit tests).
-            from electrodevice.device_api import ElectroDeviceAPI
-            electroDeviceEndpoint = ElectroDeviceAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('cntfet'):
-            # cnt-s1: the aligned-CNT FET acts (derive/iv/calibrate/
-            # validate/equivalence) + the D14 capability report.
-            from cntfet.cnt_api import CNTFETAPI
-            cntfetEndpoint = CNTFETAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('microchip'):
-            # The design-level ladder traversal interface.
-            from microchip.chip_api import MicrochipAPI
-            microchipEndpoint = MicrochipAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('foodstate'):
-            # fsp-0: food domain contracts + vocabulary read surface.
-            from foodstate.food_api import FoodStateAPI
-            foodstateEndpoint = FoodStateAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('computerparts'):
-            # ai-8: parts + builds with derived totals + assembly
-            # checks (feeds the appstore buy-vs-rent advisory).
-            from computerparts.parts_api import ComputerPartsAPI
-            computerPartsEndpoint = ComputerPartsAPI(
-                polServer=self, manager=self.manager)
-        if _feature_available('computers'):
-            # cmp-c: taxonomy + assembly gates + profile fits.
-            from computers.computers_api import ComputersAPI
-            computersEndpoint = ComputersAPI(
-                polServer=self, manager=self.manager)
 
         # Multi-scale family conformance (profile_ref → slot-by-slot
         # findings + suggestions; separate module keeps SimulationAPI
@@ -2803,6 +934,22 @@ class polariServer(treeObject):
             BiomineSystemDefinition,
             # Self-hosted video: WebM/MP4 + optional adaptive HLS (video-1).
             VideoAsset,
+            # Collaboration sessions (mtg-2): the room row + the
+            # durable meeting record (a NEW class gets all THREE
+            # registrations — manifest import, stub tuple and this
+            # list — or its seeds silently never land).
+            CollaborationSession, MeetingRecord, AvatarDefinition,
+            # Reticulum mesh transport (ret-1): facts about the mesh;
+            # the RNS stack lives only in the pol-reticulum sidecar.
+            ReticulumIdentity, ReticulumDestination, ReticulumInterface,
+            TransportBinding, LinkMeasurement, AirtimeBudget,
+            ArchipelagoNode, ArchipelagoTrust,
+            WatchedObject, ObjectStateVersion, StateConflict,
+            OperatorLicense, DeviceLink, DeviceModel,
+            AppArchExposure, MeshAppRelay, MeshConsumer,
+            AppDataRule, QuarantinedSubmission, PeerSighting,
+            KitProfile,
+            MeshSimScenario, MeshSimNode, MeshSimResult,
             # Casting (cast-1/2b/3/4): derived negatives, master
             # feedstocks, nesting chains with DERIVED parity +
             # thermal ordering, and sprue strategies/instances.
@@ -2893,6 +1040,10 @@ class polariServer(treeObject):
             PolariNodeMachine, OrchestrationTarget,
             InstanceDefinition, ModuleAssignment,
             ModuleDependencyEdge, ServiceConnection,
+            # sep-4: engine bindings (row form of *_ENGINES_URL) +
+            # usage windows (metering at the *_remote seams).
+            # Observed/bound data — never seeded.
+            EngineProviderBinding, EngineUsageWindow,
             # gm-2-lite: graceful moves as observable data.
             MoveOperation,
             TopologyDefinition, TopologyObservation,
@@ -2900,10 +1051,25 @@ class polariServer(treeObject):
             TopologyTestRun, IntegrationPing,
             # Polari-Apps (tt-12): app configs + plan receipts.
             PolariAppDefinition, AppDeploymentPlan,
+            # sep-7: per-app permission profiles.
+            AppPermissionProfile,
             # App Store (appstore-1): installable shells, artifact
             # records, one-time enrollments, install receipts.
             AppShellDefinition, ShellArtifact, ShellEnrollment,
             ShellInstallation,
+            # sep-5: edge behaviors as reusable data (decision 8) —
+            # what a shell may do beyond wrapping the webapp.
+            AppEdgeBehavior,
+            # ai-0: AI tools as first-class store citizens —
+            # hosting kind + honest linkage claims + sovereignty.
+            AiToolDefinition,
+            # ai-7: remote-hosting suggestions w/ dated prices.
+            RemoteHostingOption,
+            # ai-8: computer parts + builds (dated prices,
+            # derived cost, assembly checks).
+            ComputerPartDefinition, ComputerBuildDefinition,
+            # ai-9: the fork-pin ledger.
+            ForkPin,
             # islemesh (mac-1): isle's accepted copy + the mesh-app
             # model (ingest-owned rows; is_mock stamps mock data).
             IsleDevice, IsleUplink, IsleApp, IsleAppService,
@@ -3012,6 +1178,11 @@ class polariServer(treeObject):
                   f"{_gate['modulesKnob']}): dropped "
                   f"{sum(_gate['dropped'].values())} classes from "
                   f"{sorted(_gate['dropped'])}", flush=True)
+        # dyn-1: retain the PRE-GATE list (real classes, Nones already
+        # dropped). Live admission (dyn-2) admits gated-out modules
+        # from it, and the placement-aware directory (dyn-8) answers
+        # "served elsewhere" from it instead of dropping the class key.
+        self.allDefClassList = list(self.defClassList)
         self.defClassList = [c for c in self.defClassList
                              if class_enabled(c)]
         # mlb-1: the middleware resolves each CRUDE route's owning
@@ -4348,12 +2519,33 @@ class polariServer(treeObject):
             # AppDeploymentPlan rows are receipts — never seeded.
             ('PolariAppDefinition', PolariAppDefinition,
              SEED_POLARI_APPS),
+            # sep-7: profile exemplars (legacy fallback for prf-a
+            # where composition/upsert is off — the 12th-strike rule).
+            ('AppPermissionProfile', AppPermissionProfile,
+             SEED_PERMISSION_PROFILES),
             # appstore-1: legacy insert-only fallback so shells seed
             # even where composition (the upsert path) is disabled —
             # prf-a's live reality. Field ADDITIONS later must ride
             # the AppStoreSeed upsert hook (ten-strikes gotcha).
             ('AppShellDefinition', AppShellDefinition,
              SEED_APP_SHELLS),
+            # sep-5: exemplar edge behaviors (same legacy-fallback
+            # rationale as the shells above).
+            ('AppEdgeBehavior', AppEdgeBehavior,
+             SEED_EDGE_BEHAVIORS),
+            # ai-0: the four AI tools (same legacy-fallback
+            # rationale — prf-a runs without composition).
+            ('AiToolDefinition', AiToolDefinition, SEED_AI_TOOLS),
+            # ai-7: dated-price hosting suggestions (same rationale).
+            ('RemoteHostingOption', RemoteHostingOption,
+             SEED_REMOTE_HOSTING),
+            # ai-8: parts before builds (builds reference parts).
+            ('ComputerPartDefinition', ComputerPartDefinition,
+             SEED_COMPUTER_PARTS),
+            ('ComputerBuildDefinition', ComputerBuildDefinition,
+             SEED_COMPUTER_BUILDS),
+            # ai-9: fork pins (same legacy-fallback rationale).
+            ('ForkPin', ForkPin, SEED_FORK_PINS),
             # islemesh (§20): the general isle app store catalog —
             # the two proven variants (mesh-app + polari-app) + odoo.
             ('IsleCatalogEntry', IsleCatalogEntry, SEED_CATALOG),
@@ -4514,6 +2706,51 @@ class polariServer(treeObject):
              + SEED_ALLOY_BIOMINE_SYSTEMS),
             # video-1: no baseline seed data — assets are user-uploaded.
             ('VideoAsset', VideoAsset, []),
+            # mtg-2: no baseline seed data — sessions are user-created;
+            # records follow sessions.
+            ('CollaborationSession', CollaborationSession, []),
+            ('MeetingRecord', MeetingRecord, []),
+            # mtg-5: primitive avatars — no geometry files, so a
+            # meeting works on a fresh instance with no asset pipeline.
+            ('AvatarDefinition', AvatarDefinition, SEED_AVATARS),
+            # ret-1: only the ret-0-proven TCP interface shape is
+            # seeded (disabled — declaring is not enabling); radios
+            # come from real udev facts, never hopeful defaults, and
+            # everything else is user/gateway-created.
+            ('ReticulumIdentity', ReticulumIdentity, []),
+            ('ReticulumDestination', ReticulumDestination, []),
+            ('ReticulumInterface', ReticulumInterface,
+             SEED_RNS_INTERFACES),
+            ('TransportBinding', TransportBinding, []),
+            ('LinkMeasurement', LinkMeasurement, []),
+            ('AirtimeBudget', AirtimeBudget, []),
+            ('ArchipelagoNode', ArchipelagoNode, []),
+            ('ArchipelagoTrust', ArchipelagoTrust, []),
+            ('WatchedObject', WatchedObject, []),
+            ('ObjectStateVersion', ObjectStateVersion, []),
+            ('StateConflict', StateConflict, []),
+            ('OperatorLicense', OperatorLicense, []),
+            ('DeviceLink', DeviceLink, []),
+            # catalog seeds: legacy insert as the no-composition
+            # fallback (AppsNav precedent); the upsert pass below
+            # converges field additions on live rows.
+            ('DeviceModel', DeviceModel, SEED_DEVICE_MODELS),
+            # ret-1c: exposures/relays/consumers are user-created;
+            # every rung raised is a deliberate act, never a seed.
+            ('AppArchExposure', AppArchExposure, []),
+            ('MeshAppRelay', MeshAppRelay, []),
+            ('MeshConsumer', MeshConsumer, []),
+            ('AppDataRule', AppDataRule, []),
+            ('QuarantinedSubmission', QuarantinedSubmission, []),
+            # ret-1d: sightings arrive by hearing, never by seed.
+            ('PeerSighting', PeerSighting, []),
+            # §5q kit profiles: legacy list carries the seeds too
+            # (the composition-gated-boot lesson); upsert converges.
+            ('KitProfile', KitProfile, SEED_KIT_PROFILES),
+            # ret-1e: scenarios/nodes/results are user-created plans.
+            ('MeshSimScenario', MeshSimScenario, []),
+            ('MeshSimNode', MeshSimNode, []),
+            ('MeshSimResult', MeshSimResult, []),
             # wax-1: bio wax sources for molds / electronic masks.
             ('WaxSourceDefinition', WaxSourceDefinition,
              SEED_WAX_SOURCES),
@@ -5074,7 +3311,11 @@ class polariServer(treeObject):
                 for r in upsert_seed_pairs(
                         self.manager,
                         [('PolariAppDefinition', PolariAppDefinition,
-                          SEED_POLARI_APPS)], tag='AppsNavSeed'):
+                          SEED_POLARI_APPS),
+                         ('AppPermissionProfile',
+                          AppPermissionProfile,
+                          SEED_PERMISSION_PROFILES)],
+                        tag='AppsNavSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[AppsNavSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '
@@ -5155,13 +3396,30 @@ class polariServer(treeObject):
         if (_feature_available('composition')
                 and _feature_available('appstore') and (
                 only_classes is None
-                or 'AppShellDefinition' in only_classes)):
+                or 'AppShellDefinition' in only_classes
+                or 'AppEdgeBehavior' in only_classes
+                or 'AiToolDefinition' in only_classes
+                or 'RemoteHostingOption' in only_classes
+                or 'ForkPin' in only_classes)):
             try:
                 from composition.seed_upsert import upsert_seed_pairs
                 for r in upsert_seed_pairs(
                         self.manager,
                         [('AppShellDefinition', AppShellDefinition,
-                          SEED_APP_SHELLS)], tag='AppStoreSeed'):
+                          SEED_APP_SHELLS),
+                         ('AppEdgeBehavior', AppEdgeBehavior,
+                          SEED_EDGE_BEHAVIORS),
+                         # ai-0: linkage-claim edits to live rows
+                         # converge here (the ten-strikes gotcha).
+                         ('AiToolDefinition', AiToolDefinition,
+                          SEED_AI_TOOLS),
+                         # ai-7: price/date bumps converge too.
+                         ('RemoteHostingOption',
+                          RemoteHostingOption,
+                          SEED_REMOTE_HOSTING),
+                         # ai-9: verified_at bumps converge.
+                         ('ForkPin', ForkPin, SEED_FORK_PINS)],
+                        tag='AppStoreSeed'):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[AppStoreSeed] {r["class"]}: '
                               f'+{len(r.get("inserted", []))} '
@@ -5247,6 +3505,34 @@ class polariServer(treeObject):
                               flush=True)
             except Exception as e:
                 print(f'[NutritionSeed] failed: {e}', flush=True)
+        # ret-1: the interface seed rides the upsert path from day one
+        # (AppStoreSeed precedent) so field additions converge live
+        # rows (the ten-strikes gotcha). Same module-level-import rule
+        # as AppsNavSeed above.
+        if (_feature_available('composition')
+                and _feature_available('reticulum') and (
+                only_classes is None
+                or 'ReticulumInterface' in only_classes
+                or 'DeviceModel' in only_classes
+                or 'KitProfile' in only_classes)):
+            try:
+                from composition.seed_upsert import upsert_seed_pairs
+                for r in upsert_seed_pairs(
+                        self.manager,
+                        [('ReticulumInterface', ReticulumInterface,
+                          SEED_RNS_INTERFACES),
+                         ('DeviceModel', DeviceModel,
+                          SEED_DEVICE_MODELS),
+                         ('KitProfile', KitProfile,
+                          SEED_KIT_PROFILES)],
+                        tag='ReticulumSeed'):
+                    if r.get('inserted') or r.get('updated'):
+                        print(f'[ReticulumSeed] {r["class"]}: '
+                              f'+{len(r.get("inserted", []))} '
+                              f'~{len(r.get("updated", []))}',
+                              flush=True)
+            except Exception as e:
+                print(f'[ReticulumSeed] failed: {e}', flush=True)
         # tt-8: the single 'oseb' tree became three DOMAIN trees —
         # retire its persisted rows (idempotent no-op once gone) and
         # remap stale PolariModule.tech_node_ref hints.

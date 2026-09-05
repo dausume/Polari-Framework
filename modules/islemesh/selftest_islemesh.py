@@ -275,6 +275,124 @@ def main():
           _BINDERS['business-ops'][0] == 'odooconnect'
           and _BINDERS['odoo'][0] == 'odooconnect')
 
+    # ---- sep-4: ladder-engine binders (msci/cad) ---------------------
+    # treeObjectInit does not insert into a FAKE manager's tables —
+    # save() stands in for the real persistence, inserting into the
+    # table so the second bind exercises the real dedup path.
+    table = {}
+    fakemgr.objectTables['EngineProviderBinding'] = table
+
+    def save_binding(row):
+        table[getattr(row, 'name', '')] = row
+
+    bound, to, note = bind_engine(fakemgr, 'science-1', 'msci',
+                                  'http://msci.isle:9500',
+                                  save_binding)
+    binding = table.get('msci')
+    check('sep-4: msci binds an EngineProviderBinding row at the '
+          'url (the row form of MSCI_ENGINES_URL)',
+          bound and to == 'EngineProviderBinding:msci'
+          and binding is not None
+          and getattr(binding, 'url', '') == 'http://msci.isle:9500'
+          and getattr(binding, 'bound_from', '') == 'science-1',
+          note)
+    # re-bind updates the SAME row, never a duplicate. (The table
+    # may hold the row under an id key too — treeObjectInit
+    # self-inserts on real-ish managers — so count by NAME.)
+    bind_engine(fakemgr, 'science-2', 'msci',
+                'http://msci2.isle:9500', save_binding)
+    named = {id(r) for r in table.values()
+             if getattr(r, 'name', '') == 'msci'}
+    check('sep-4: re-binding msci updates the one row',
+          len(named) == 1
+          and getattr(table['msci'], 'url', '')
+          == 'http://msci2.isle:9500'
+          and getattr(table['msci'], 'bound_from', '')
+          == 'science-2')
+    # a manager without the topology tables refuses honestly
+    bare = type('M', (), {'objectTables': {}, 'idList': []})()
+    bound, to, note = bind_engine(bare, 'x', 'cad', 'http://c',
+                                  save_binding)
+    check('sep-4: cad binder refuses when topology tables absent, '
+          'names the consumer',
+          not bound and to == 'topology' and 'not present' in note,
+          f'{bound} {to!r} {note!r}')
+
+    # ---- ai-3: the reasoning binder ----------------------------------
+    # NEVER exercise the real set_active here — in-container this
+    # selftest runs on the LIVE instance and would flip its active
+    # provider. A recorder stands in; restored in finally.
+    check('ai-3: reasoning maps to the reasoning_config binder',
+          _BINDERS['reasoning'][0] == 'reasoning_config')
+    try:
+        from polariApiServer import reasoning_config as _rc
+    except ImportError:
+        _rc = None
+    if _rc is None:
+        bound, to, note = bind_engine(fakemgr, 'localai',
+                                      'reasoning', 'http://l',
+                                      saved.append)
+        check('ai-3: reasoning unbound when reasoning_config '
+              'absent, names it',
+              not bound and to == 'reasoning_config')
+    else:
+        recorded = []
+        real_set_active = _rc.set_active
+        _rc.set_active = lambda name, settings=None: recorded.append(
+            (name, settings or {}))
+        try:
+            bound, to, note = bind_engine(
+                fakemgr, 'localai', 'reasoning',
+                'http://localai.isle:8080/', saved.append)
+        finally:
+            _rc.set_active = real_set_active
+        check('ai-3: reasoning binds the managed config to '
+              'openai_compatible at the /v1 base_url',
+              bound and to == 'reasoning_config:openai_compatible'
+              and recorded == [('openai_compatible',
+                                {'base_url':
+                                 'http://localai.isle:8080/v1'})],
+              f'{bound} {to!r} {recorded!r}')
+
+    # ---- ai-2: the derived AI store section --------------------------
+    from islemesh.islemesh_catalog import (ai_tool_install_plan,
+                                           ai_tool_options)
+    try:
+        from appstore.appstore_seed import SEED_AI_TOOLS
+    except ImportError:
+        SEED_AI_TOOLS = []
+    if SEED_AI_TOOLS:
+        ai_opts = ai_tool_options(SEED_AI_TOOLS, set())
+        check('ai-2: all four seeded tools derive as category-ai '
+              'entries with sovereignty stated',
+              [o['name'] for o in ai_opts]
+              == ['claude', 'localai', 'null', 'openai']
+              and all(o['category'] == 'ai' and o['derived']
+                      and 'internet_required' in o
+                      and 'data_leaves_isle' in o
+                      for o in ai_opts))
+        plans = {o['name']: ai_tool_install_plan(o)
+                 for o in ai_opts}
+        check('ai-2: built-in installs as NOTHING (honesty)',
+              plans['null']['ok'] and plans['null']['steps'] == [])
+        check('ai-2: remote intermediaries install as the '
+              '/ai/providers binding flow, credential human-only',
+              all('select' in p['steps'][0]
+                  and 'set_auth' in p['steps'][1]
+                  and 'human' in p['steps'][1]
+                  for p in (plans['claude'], plans['openai'])))
+        check('ai-2: local-hosted installs as isle app deploy '
+              '--engine reasoning (the ai-3 binder wires it)',
+              'isle app deploy localai' in plans['localai']['steps'][0]
+              and '--engine reasoning' in plans['localai']['steps'][0])
+        check('ai-2: a taken name is skipped (persisted rows win)',
+              len(ai_tool_options(SEED_AI_TOOLS, {'localai'})) == 3)
+        check('ai-2: unknown hosting kind refuses honestly',
+              not ai_tool_install_plan({'hosting': 'bogus'})['ok'])
+    else:
+        check('ai-2: appstore seeds unavailable in this context '
+              '(stated, suite skipped)', True)
+
     # ---- catalog install plans (§20.1/§20.3) ------------------------
     from islemesh.islemesh_catalog import SEED_CATALOG, install_plan
     kinds = {e['kind'] for e in SEED_CATALOG}
@@ -299,6 +417,57 @@ def main():
     check('unknown kind plan refuses honestly',
           not install_plan({'kind': 'bogus',
                             'name': 'x'})['ok'])
+
+    # ---- sep-3: derived app options (§43 projection) -----------------
+    from islemesh.islemesh_catalog import (
+        option_install_plan, polari_app_options)
+
+    class _Row:
+        def __init__(self, **kw):
+            self.__dict__.update(kw)
+
+    app_defs = [
+        _Row(name='app-climate', title='Climate', use_case='co2',
+             modules_json='["climate"]', is_prior=True),
+        _Row(name='wax-print-shop', title='Wax Print Shop',
+             use_case='', description='wax', modules_json='[]',
+             is_prior=True),
+        _Row(name='my-app', title='Mine', use_case='',
+             modules_json='[]', is_prior=False),
+        _Row(name='polari', title='shadowed', modules_json='[]'),
+    ]
+    shell_defs = [
+        _Row(name='wax-print-shop-shell', scope='app',
+             app_name='wax-print-shop'),
+        _Row(name='polari-instance-shell', scope='instance',
+             app_name=''),
+    ]
+    opts = polari_app_options(app_defs, shell_defs, {'polari'})
+    by = {o['name']: o for o in opts}
+    check('sep-3: every app projects as a derived OPTION; names '
+          'taken by real catalog entries are skipped',
+          set(by) == {'app-climate', 'wax-print-shop', 'my-app'})
+    check('sep-3: converted marker rides the scope=app shell row '
+          '(instance shells never convert an app)',
+          by['wax-print-shop']['converted']
+          and by['wax-print-shop']['shell'] == 'wax-print-shop-shell'
+          and not by['app-climate']['converted'])
+    check('sep-3: standard marker = seeded (is_prior)',
+          by['app-climate']['standard']
+          and not by['my-app']['standard'])
+    check('sep-3: options are derived, never rows '
+          '(kind/derived/defined_at)',
+          all(o['derived'] and o['kind'] == 'polari-app-option'
+              and o['defined_at'] == 'isle-core' for o in opts))
+    unconverted = option_install_plan(by['app-climate'])
+    converted = option_install_plan(by['wax-print-shop'])
+    check('sep-3: ONE idempotent command either way '
+          '(pol apps shell <name>)',
+          unconverted['steps'] == ['pol apps shell app-climate']
+          and converted['steps']
+          == ['pol apps shell wax-print-shop']
+          and 'launcher row exists' in converted['note']
+          and 'AT INSTALL TIME' in unconverted['note'])
 
     # ---- instance tracking (chosen duplicates across devices) -------
     from islemesh.islemesh_catalog import instances_of
@@ -442,6 +611,75 @@ def main():
         {'name': 'b', 'cidr': '10.0.0.0/24'}], 'ports': []}])
     check('netledger: assess flags a pool overlap per host',
           any(a['code'] == 'pool-overlap' for a in ra))
+
+    # ---- UDP port ranges (mtg-0: media servers own RANGES) ----------
+    from islemesh.islemesh_netledger import (
+        udp_range_conflicts, free_udp_range)
+    check('netledger: same port different proto is NOT a conflict',
+          port_conflicts([{'port': 80},
+                          {'port': 80, 'proto': 'udp'}]) == []
+          and port_conflicts([{'port': 80, 'proto': 'udp'},
+                              {'port': 80, 'proto': 'udp'}])
+          == ['80/udp'])
+    rc = udp_range_conflicts([
+        {'name': 'livekit-media', 'lo': 50000, 'hi': 50099},
+        {'name': 'other-webrtc', 'lo': 50050, 'hi': 50149},
+        {'name': 'clear', 'lo': 51000, 'hi': 51099}])
+    check('netledger: overlapping UDP ranges named, disjoint ignored',
+          len(rc) == 1 and rc[0]['a'] == 'livekit-media'
+          and rc[0]['b'] == 'other-webrtc')
+    check('netledger: a single udp port inside a range collides',
+          udp_range_conflicts(
+              [{'name': 'livekit-media', 'lo': 50000, 'hi': 50099}],
+              [{'port': 50007, 'proto': 'udp', 'container': 'wg'}])
+          != [] and udp_range_conflicts(
+              [{'name': 'livekit-media', 'lo': 50000, 'hi': 50099}],
+              [{'port': 50007, 'container': 'tcp-thing'}]) == [])
+    fr = free_udp_range([{'name': 'x', 'lo': 50000, 'hi': 50099}],
+                        [{'port': 50100, 'proto': 'udp'}], width=100)
+    check('netledger: free_udp_range skips ranges AND udp ports',
+          fr == {'lo': 50101, 'hi': 50200})
+    ra2 = assess_resources([{'name': 'pol-core', 'pools': [],
+                             'ports': [],
+                             'udp_ranges': [
+                                 {'name': 'a', 'lo': 1, 'hi': 9},
+                                 {'name': 'b', 'lo': 5, 'hi': 14}]}])
+    check('netledger: assess flags a UDP range collision per host',
+          any(a['code'] == 'udp-range-conflict' for a in ra2))
+
+    # ---- synthetic-IP pools (ret-3: the mesh resolver's kind) --------
+    from islemesh.islemesh_netledger import (
+        synthetic_pool_conflicts, free_synthetic_pool)
+    sc = synthetic_pool_conflicts(
+        [{'name': 'rns-isle', 'cidr': '10.77.0.0/24'},
+         {'name': 'rns-arch', 'cidr': '10.77.0.128/25'}],
+        [{'name': 'polari-link', 'cidr': '172.20.0.0/16'}])
+    check('netledger: synthetic pools colliding with each other are '
+          'named as such',
+          len(sc) == 1 and sc[0]['kind'] == 'synthetic-vs-synthetic')
+    sc = synthetic_pool_conflicts(
+        [{'name': 'rns-isle', 'cidr': '172.20.5.0/24'}],
+        [{'name': 'polari-link', 'cidr': '172.20.0.0/16'}])
+    check('netledger: a synthetic pool inside a REAL docker pool is '
+          'the dangerous case and is flagged',
+          len(sc) == 1 and sc[0]['kind'] == 'synthetic-vs-real')
+    check('netledger: disjoint synthetic + real pools are clean',
+          synthetic_pool_conflicts(
+              [{'name': 'rns-isle', 'cidr': '10.77.0.0/24'}],
+              [{'name': 'polari-link', 'cidr': '172.20.0.0/16'}]) == [])
+    fs = free_synthetic_pool(
+        [{'name': 'weird', 'cidr': '10.77.0.0/24'}],
+        [{'name': 'rns-other', 'cidr': '10.77.1.0/24'}])
+    check('netledger: free_synthetic_pool skips real AND synthetic '
+          'reservations', fs == '10.77.2.0/24')
+    ra3 = assess_resources([{'name': 'pol-core', 'pools': [
+        {'name': 'polari-link', 'cidr': '172.20.0.0/16'}],
+        'ports': [], 'synthetic_pools': [
+            {'name': 'rns-isle', 'cidr': '172.20.9.0/24'}]}])
+    check('netledger: assess flags a synthetic pool the resolver and '
+          'docker would both route',
+          any(a['code'] == 'synthetic-pool-conflict'
+              and 'docker also routes' in a['message'] for a in ra3))
 
     # ---- vocabulary coherence ---------------------------------------
     check('availability presets are named modes over the triple',

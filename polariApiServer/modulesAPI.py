@@ -41,6 +41,109 @@ class ModulesAPI(treeObject):
             # mo-3: the reverse path — live user-authored rows written back
             # to the module's initialData/ through its privacy hook
             polServer.falconServer.add_route(self.apiName + '/export', self, suffix='export')
+            # dyn-2/3: live admission + put-away — no recreate.
+            polServer.falconServer.add_route(
+                self.apiName + '/{module_id}/admit', self,
+                suffix='admit')
+            polServer.falconServer.add_route(
+                self.apiName + '/{module_id}/put-away', self,
+                suffix='putaway')
+            # dyn-4: pull a module DEFINITION in and bring it online.
+            polServer.falconServer.add_route(
+                self.apiName + '/{module_id}/fetch-admit', self,
+                suffix='fetchadmit')
+
+    # ------------------------------------------------------------------
+    # POST /modules/{module_id}/admit  (dyn-2)
+    # ------------------------------------------------------------------
+    def on_post_admit(self, request, response, module_id):
+        """Admit an on-disk module into THIS running server — the
+        boot admission steps replayed live (typing, tables, seeds,
+        CRUDE + custom routes, lifecycle rows). Refusals are honest
+        dicts with a suggestion; nothing here recreates containers.
+        POLARI_MODULES is treated as the derived cache it is — the
+        durable placement truth stays the ModuleAssignment row."""
+        try:
+            from polariApiServer.live_admission import (
+                admit_module_live,
+            )
+            raw = (request.get_param('withDeps') or '').strip().lower()
+            result = admit_module_live(
+                self.manager, module_id,
+                with_deps=raw in ('1', 'true', 'yes', 'on'))
+            response.media = {'success': bool(result.get('ok')),
+                              **result}
+            response.status = (falcon.HTTP_200 if result.get('ok')
+                               else falcon.HTTP_409)
+        except Exception as err:
+            response.status = falcon.HTTP_500
+            response.media = {'success': False, 'error': str(err)}
+            print(f'[ModulesAPI] admit({module_id}) failed: {err}')
+            import traceback
+            traceback.print_exc()
+        response.set_header('Powered-By', 'Polari')
+
+    # ------------------------------------------------------------------
+    # POST /modules/{module_id}/fetch-admit  (dyn-4)
+    # ------------------------------------------------------------------
+    def on_post_fetchadmit(self, request, response, module_id):
+        """Pull a module's DEFINITION into this instance and bring it
+        online in one act: fetch code -> optional per-module pip deps
+        -> un-stub from the dyn-1 declaration -> live admission.
+        Body knobs (all optional): sourceRef, sourceKind,
+        installDeps. Peer-sourced CODE stays refused."""
+        try:
+            body = {}
+            try:
+                body = request.media or {}
+            except Exception:
+                body = {}
+            from polariApiServer.live_admission import (
+                fetch_and_admit_module,
+            )
+            result = fetch_and_admit_module(
+                self.manager, module_id,
+                source_ref=body.get('sourceRef'),
+                source_kind=body.get('sourceKind'),
+                install_deps=bool(body.get('installDeps')))
+            response.media = {'success': bool(result.get('ok')),
+                              **result}
+            response.status = (falcon.HTTP_200 if result.get('ok')
+                               else falcon.HTTP_409)
+        except Exception as err:
+            response.status = falcon.HTTP_500
+            response.media = {'success': False, 'error': str(err)}
+            print(f'[ModulesAPI] fetch-admit({module_id}) failed: '
+                  f'{err}')
+            import traceback
+            traceback.print_exc()
+        response.set_header('Powered-By', 'Polari')
+
+    # ------------------------------------------------------------------
+    # POST /modules/{module_id}/put-away  (dyn-3)
+    # ------------------------------------------------------------------
+    def on_post_putaway(self, request, response, module_id):
+        """Non-destructive live deactivation: in-memory rows/typing/
+        CRUDE freed, defClassList shrunk, DB TABLES KEPT; requests
+        answer 410 Gone with the bring-back hint. Never
+        purgeObjectType (that drops tables). Code memory stays until
+        the next recreate — the result says so."""
+        try:
+            from polariApiServer.live_admission import (
+                put_away_module_live,
+            )
+            result = put_away_module_live(self.manager, module_id)
+            response.media = {'success': bool(result.get('ok')),
+                              **result}
+            response.status = (falcon.HTTP_200 if result.get('ok')
+                               else falcon.HTTP_409)
+        except Exception as err:
+            response.status = falcon.HTTP_500
+            response.media = {'success': False, 'error': str(err)}
+            print(f'[ModulesAPI] put-away({module_id}) failed: {err}')
+            import traceback
+            traceback.print_exc()
+        response.set_header('Powered-By', 'Polari')
 
     # ------------------------------------------------------------------
     # GET /modules

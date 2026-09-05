@@ -48,12 +48,76 @@ def _bind_odoo(manager, app_name, url, save):
     return 'OdooInstanceConfig:%s' % app_name
 
 
+def _bind_engine_row(engine):
+    """sep-4: the generic binder for ladder-resolved engines (msci /
+    cad) — upsert the EngineProviderBinding row, the ROW FORM of the
+    *_ENGINES_URL knob. The consumers' resolution ladders read it
+    between the env knob and the topology resolve, so an
+    isle-deployed engine wires without a redeploy. Refuses when the
+    topology classes are absent (host tool context)."""
+    def bind(manager, app_name, url, save):
+        try:
+            from topology.topology_modules import (
+                EngineProviderBinding)
+        except ImportError:
+            return None
+        tables = getattr(manager, 'objectTables', None) or {}
+        if 'EngineProviderBinding' not in tables:
+            return None
+        existing = None
+        for row in tables['EngineProviderBinding'].values():
+            if getattr(row, 'name', '') == engine:
+                existing = row
+                break
+        import datetime
+        now = datetime.datetime.now(
+            datetime.timezone.utc).isoformat()
+        if existing is None:
+            existing = EngineProviderBinding(
+                name=engine, url=url, bound_from=app_name,
+                bound_at=now, is_prior=False,
+                notes='bound from isle app deploy --engine',
+                manager=manager)
+        else:
+            existing.url = url
+            existing.bound_from = app_name
+            existing.bound_at = now
+        save(existing)
+        return 'EngineProviderBinding:%s' % engine
+    return bind
+
+
+def _bind_reasoning(manager, app_name, url, save):
+    """ai-3: reasoning → the managed reasoning config (the
+    _bind_odoo shape, but the consumer is CONFIG, not a row):
+    deploying an OpenAI-compatible server anywhere on the isle
+    (LocalAI) sets this instance's active provider to
+    openai_compatible with the app's /v1 base_url — the assistant
+    follows the engine with no redeploy. Refuses (returns None)
+    when reasoning_config is unavailable (host tool context)."""
+    try:
+        from polariApiServer import reasoning_config
+    except ImportError:
+        return None
+    base_url = url.rstrip('/') + '/v1'
+    reasoning_config.set_active('openai_compatible',
+                                {'base_url': base_url})
+    return 'reasoning_config:openai_compatible'
+
+
 #: kind -> (consumer label, binder). The label is what an unbound
 #: engine WOULD wire, so the honest "available but <module> absent"
 #: message can name it.
 _BINDERS = {
     'business-ops': ('odooconnect', _bind_odoo),
     'odoo': ('odooconnect', _bind_odoo),
+    # sep-4: ladder-resolved engines — the binding row IS the wiring
+    # (any instance's remote seam reads it), so the consumer label
+    # names the row class, not a module that must be present.
+    'msci': ('topology', _bind_engine_row('msci')),
+    'cad': ('topology', _bind_engine_row('cad')),
+    # ai-3: the consumer is the managed reasoning config itself.
+    'reasoning': ('reasoning_config', _bind_reasoning),
 }
 
 

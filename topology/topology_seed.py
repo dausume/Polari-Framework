@@ -242,6 +242,51 @@ SEED_INSTANCE_DEFINITIONS = [
                  '`pol swarm deploy cnt-engines`.',
     },
     {
+        # mtg-1: the self-hosted LiveKit media server. Placement is a
+        # NAMED host for v1 (Dustin's open question defaulted
+        # 2026-08-12): pol-core/staging-a; a measured bandwidth
+        # dimension on the resource ledger is the recorded follow-up,
+        # not built. Media = 50000-50049/udp published DIRECTLY
+        # (netledger range, mtg-0); signalling TLS at prf-proxy.
+        'name': 'livekit',
+        'kind': 'worker',
+        'service_kinds_json': json.dumps(['pol-livekit']),
+        'replicas': 1,
+        'env_tier': 'staging',
+        'machine_name': 'staging-a',
+        'db_backend': 'sqlite',
+        'image_tag': 'v1.9.12',
+        'orchestration_target': 'compose',
+        'accessibility_scope': 'local',
+        'topology_name': 'staging-a',
+        'notes': 'LiveKit media server (:7880 signalling, '
+                 '50000-50049/udp media), `pol compose livekit up`; '
+                 'LAN-only 2026, family-sized 4-8 '
+                 '(LIVEKIT_COLLABORATION_PLAN.md v2).',
+    },
+    {
+        # ret-2: the Reticulum mesh sidecar — THE LICENCE BOUNDARY
+        # (rns/lxmf pinned to the last MIT releases, imported only in
+        # this container; RETICULUM_LICENCE_GATE.md). Never in the
+        # default up; RX-first posture; no radio until a DeviceLink
+        # row carries real udev facts (§5j).
+        'name': 'reticulum',
+        'kind': 'worker',
+        'service_kinds_json': json.dumps(['pol-reticulum']),
+        'replicas': 1,
+        'env_tier': 'staging',
+        'machine_name': 'staging-a',
+        'db_backend': 'sqlite',
+        'image_tag': 'staging',
+        'orchestration_target': 'compose',
+        'accessibility_scope': 'local',
+        'topology_name': 'staging-a',
+        'notes': 'Reticulum mesh sidecar (:4242 RNS TCP bearer, :4285 '
+                 'status), `pol compose reticulum up`; the backend\'s '
+                 'rns_remote ladder resolves this instance for '
+                 "'reticulum.mesh' (RETICULUM_TRANSPORT_PLAN.md).",
+    },
+    {
         'name': 'odoo',
         'kind': 'custom',
         'service_kinds_json': json.dumps(['odoo']),
@@ -324,6 +369,30 @@ SEED_MODULE_ASSIGNMENTS = [
      'topology_name': 'staging-a',
      'notes': 'Political Scorecard app (scr-7 seam consumes '
               'prf\'s scoring API).'},
+    {'name': 'collab@prf-a', 'module_name': 'collab',
+     'instance_name': 'prf-a', 'state': 'enabled',
+     'topology_name': 'staging-a',
+     'notes': 'Collaboration sessions (mtg-2): session rows + '
+              'KC-verified LiveKit token minting.'},
+    {'name': 'collab.media@livekit',
+     'module_name': 'collab.media',
+     'instance_name': 'livekit', 'state': 'enabled',
+     'topology_name': 'staging-a',
+     'notes': 'Media-server capability on the livekit worker '
+              '(mtg-1) — what the LIVEKIT_URL-unset ladder '
+              'resolves.'},
+    {'name': 'reticulum@prf-a', 'module_name': 'reticulum',
+     'instance_name': 'prf-a', 'state': 'enabled',
+     'topology_name': 'staging-a',
+     'notes': 'Reticulum mesh rows + capability/.arch/inbound seam '
+              '(ret-1).'},
+    {'name': 'reticulum.mesh@reticulum',
+     'module_name': 'reticulum.mesh',
+     'instance_name': 'reticulum', 'state': 'enabled',
+     'topology_name': 'staging-a',
+     'notes': 'Mesh-sidecar capability on the reticulum worker '
+              '(ret-2) — what the RETICULUM_URL-unset ladder '
+              'resolves.'},
 ]
 
 SEED_MODULE_DEPENDENCY_EDGES = [
@@ -354,6 +423,27 @@ SEED_MODULE_DEPENDENCY_EDGES = [
      'notes': 'dist-1: cntfet compute delegation — CNTFET_ENGINES_URL '
               'knob wins, else this edge (live providers only), '
               'else local ~/tools binaries, else refusal.'},
+    {'name': 'collab@prf-a->collab.media',
+     'module_name': 'collab',
+     'consumer_instance_name': 'prf-a',
+     'depends_on_module': 'collab.media',
+     'provider_instance_name': 'livekit',
+     'status': 'resolved',
+     'topology_name': 'staging-a',
+     'notes': 'Meeting media delegation (mtg-2) — LIVEKIT_URL seam, '
+              'registry-resolved like the msci/cad edges; media '
+              'itself is direct UDP, only signalling/tokens ride '
+              'this.'},
+    {'name': 'reticulum@prf-a->reticulum.mesh',
+     'module_name': 'reticulum',
+     'consumer_instance_name': 'prf-a',
+     'depends_on_module': 'reticulum.mesh',
+     'provider_instance_name': 'reticulum',
+     'status': 'resolved',
+     'topology_name': 'staging-a',
+     'notes': 'Mesh delegation (ret-2) — RETICULUM_URL seam, '
+              'registry-resolved like the livekit edge; the sidecar '
+              'holds the RNS stack, the backend holds the rows.'},
 ]
 
 SEED_SERVICE_CONNECTIONS = [

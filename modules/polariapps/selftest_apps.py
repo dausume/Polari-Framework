@@ -67,19 +67,26 @@ if __name__ == '__main__':
     print('== suite: seeds ==')
     use_case_apps = [s for s in SEED_POLARI_APPS if not s['discipline']]
     discipline_apps = [s for s in SEED_POLARI_APPS if s['discipline']]
-    check('four use-case apps seeded (wax shop, judicial, dmv, '
-          'nutrition — nmp-0)',
+    check('use-case apps seeded (wax shop, judicial, dmv, nutrition + the '
+          'sep-4 engine tiles + the ai-4 linkage apps)',
           sorted(s['name'] for s in use_case_apps)
-          == ['dmv-policy-analysis', 'judicial-lean',
-              'nutrition-planner', 'wax-print-shop'])
-    check('eight discipline apps seeded (nav-1)',
+          == ['ai-assistant-reasoning', 'ai-voice',
+              'dmv-policy-analysis', 'engine-cad', 'engine-msci',
+              'judicial-lean', 'nutrition-planner', 'wax-print-shop'])
+    check('ten discipline apps seeded (nav-1 + mtg-3 collaboration '
+          '+ ret-1b archipelago)',
           sorted(s['name'] for s in discipline_apps)
-          == ['app-business', 'app-magnetics',
-              'app-materials-science', 'app-mechanical',
-              'app-policy', 'app-scorecards-data-analysis',
+          == ['app-archipelago', 'app-business', 'app-collaboration',
+              'app-magnetics', 'app-materials-science',
+              'app-mechanical', 'app-policy',
+              'app-scorecards-data-analysis',
               'app-software-engineering', 'app-topology-network'])
-    check('every seed carries modules + pages + use case',
-          all(json.loads(s['modules_json'])
+    # ai-4: the two linkage apps ride the CORE seam — an empty
+    # modules list is their honest shape, not an omission.
+    check('every seed carries modules + pages + use case '
+          '(ai-4 linkage apps: core seam, modules honestly empty)',
+          all((json.loads(s['modules_json'])
+               or s['name'].startswith('ai-'))
               and json.loads(s['pages_json']) and s['use_case']
               for s in SEED_POLARI_APPS))
 
@@ -220,12 +227,13 @@ if __name__ == '__main__':
     reqs = {'composition': ['mathshapes']}
     result = apps_nav(navmgr, feature_check=gate, requires_map=reqs)
     napps = {a['name']: a for a in result['apps']}
-    check('nav payload covers all 12 apps, gating readable',
+    check('nav payload covers all 18 apps (14 + sep-4 engine '
+          'tiles + ai-4 linkage apps), gating readable',
           result['ok'] and result['gatingReadable']
-          and len(napps) == 12)
+          and len(napps) == 18)
     check('discipline apps sort before use-case apps',
           [a['discipline'] != '' for a in result['apps']].index(False)
-          == 8)
+          == 10)
     mag = napps['app-magnetics']
     mag_items = [it for g in mag['nav'] for it in g['items']]
     absent = [it for it in mag_items
@@ -274,11 +282,14 @@ if __name__ == '__main__':
                          feature_check=lambda m: m != 'testing',
                          requires_map={})
     check('single-app report works; testing item absent, no chain '
-          'when registry unreadable',
+          'when registry unreadable, and dyn-6 offers the admit act',
           one['ok'] and any(
               it.get('requiresModule') == 'testing'
               and it['availability'] == 'absent'
-              and it['bringup'] == {'route': '/modules/bringup'}
+              and it['bringup']['route'] == '/modules/bringup'
+              and 'requires' not in it['bringup']
+              and it['bringup']['admit']['withDeps']
+              == 'POST /modules/testing/admit?withDeps=true'
               for g in one['nav'] for it in g['items']))
     check('unknown app refused honestly',
           not app_nav_report(navmgr, 'nope',
@@ -330,6 +341,10 @@ if __name__ == '__main__':
     check('package is credential-free (no secret-shaped keys)',
           not any(k in json.dumps(doc).lower()
                   for k in ('password', 'secret', 'token')))
+    check('sep-2: export carries the MENU fields the apply side '
+          'reads (nav_json/personas_json/discipline)',
+          all(k in doc['app'] for k in
+              ('nav_json', 'personas_json', 'discipline')))
     check('document validation accepts the export',
           validate_app_document(doc) == '')
     check('non-app document refused honestly',
@@ -364,6 +379,120 @@ if __name__ == '__main__':
                       assignment_factory=lambda **f: _ns(**f))
     check('re-apply is idempotent (everything already placed)',
           again['created'] == [] and len(again['skipped']) == 6)
+
+    print('== suite: sep-7 per-app permission profiles ==')
+    import os
+    from polariapps.apps_permissions import (
+        AppPermissionProfile, SEED_PERMISSION_PROFILES,
+        classes_for_app, permission_verdict, resolve_grants)
+    from accessControl.app_permissions_gate import (
+        ADVISORY_HEADER, crude_permission_gate)
+
+    mgr = _mgr()
+    # Seeds are UNPUBLISHED templates bound to NO groups (never
+    # invent groups). First pin that they grant nothing as-seeded,
+    # then do what authoring does: bind EXISTING group names +
+    # publish.
+    profiles = {}
+    for seed in SEED_PERMISSION_PROFILES:
+        row = AppPermissionProfile(**seed)
+        profiles[row.name] = row
+    mgr.objectTables['AppPermissionProfile'] = profiles
+    check('sep-7: template seeds are unpublished + group-less — '
+          'they grant NOTHING until bound to real groups',
+          all(not s['published']
+              and json.loads(s['kc_groups_json']) == []
+              for s in SEED_PERMISSION_PROFILES)
+          and resolve_grants(mgr, {'roles': ['anything'],
+                                   'raw_claims': {}})['profiles']
+          == [])
+    # bind-and-publish (what the auth section does with a KNOWN
+    # group picked from /api/groups):
+    profiles['wax-print-shop-operator'].kc_groups_json = \
+        '["wax-print-shop-operators"]'
+    profiles['wax-print-shop-operator'].published = True
+    profiles['app-climate-viewer'].kc_groups_json = \
+        '["climate-viewers"]'
+    profiles['app-climate-viewer'].published = True
+
+    wax_classes = classes_for_app(mgr, 'wax-print-shop')
+    check('sep-7: app -> modules -> classes derivation yields real '
+          'class names', 'WaxPrintSimState' in wax_classes
+          and 'MathShapeDefinition' in wax_classes)
+
+    operator = {'roles': [], 'raw_claims':
+                {'groups': ['/wax-print-shop-operators']}}
+    grants = resolve_grants(mgr, operator)
+    check('sep-7: KC groups claim grants the profile (leading / '
+          'stripped; source stamped)',
+          grants['profiles'][0]['profile']
+          == 'wax-print-shop-operator'
+          and grants['apps'] == ['wax-print-shop']
+          and 'jwt-groups-claim' in grants['groupSources'])
+    check('sep-7: granted classes carry the profile verbs, not more',
+          set(grants['classes'].get('WaxPrintSimState', []))
+          == {'create', 'read', 'update'})
+
+    verdict = permission_verdict(mgr, operator,
+                                 'WaxPrintSimState', 'update')
+    refusal = permission_verdict(mgr, operator,
+                                 'WaxPrintSimState', 'delete')
+    anon = permission_verdict(mgr, None, 'WaxPrintSimState', 'read')
+    check('sep-7: verdicts are evidence-bearing, never bare booleans',
+          verdict['allowed'] and verdict['via']
+          and not refusal['allowed'] and refusal['suggestion']
+          and not anon['allowed'] and 'identity' in anon['why'])
+    check('sep-7: roles also grant (ungroomed realms work) + admin '
+          'bypass stated',
+          resolve_grants(mgr, {'roles':
+              ['climate-viewers']})['apps'] == ['app-climate']
+          and permission_verdict(mgr, {'roles': ['polari-admin']},
+                                 'Anything', 'delete')['allowed'])
+
+    class _Resp:
+        def __init__(self):
+            self.status = '200 OK'
+            self.media = None
+            self.headers = {}
+        def set_header(self, k, v):
+            self.headers[k] = v
+    req = _ns(context=_ns(user_info=operator, roles=[]))
+    saved_mode = os.environ.pop('POLARI_APP_PERMISSIONS', None)
+    try:
+        resp = _Resp()
+        check('sep-7 gate: mode OFF (default) never checks',
+              crude_permission_gate(mgr, req, resp, 'delete',
+                                    'WaxPrintSimState') is True
+              and resp.headers == {})
+        os.environ['POLARI_APP_PERMISSIONS'] = 'advisory'
+        resp = _Resp()
+        check('sep-7 gate: ADVISORY proceeds but says would-deny',
+              crude_permission_gate(mgr, req, resp, 'delete',
+                                    'WaxPrintSimState') is True
+              and 'would-deny' in resp.headers.get(
+                  ADVISORY_HEADER, ''))
+        os.environ['POLARI_APP_PERMISSIONS'] = 'enforce'
+        resp = _Resp()
+        check('sep-7 gate: ENFORCE refuses with the verdict (403)',
+              crude_permission_gate(mgr, req, resp, 'delete',
+                                    'WaxPrintSimState') is False
+              and resp.status.startswith('403')
+              and resp.media['verdict']['suggestion'])
+        resp = _Resp()
+        check('sep-7 gate: ENFORCE passes granted verbs',
+              crude_permission_gate(mgr, req, resp, 'read',
+                                    'WaxPrintSimState') is True)
+        bare = _ns(objectTables={}, idList=[])
+        resp = _Resp()
+        check('sep-7 gate: no profile table -> proceed (module '
+              'absent = today\'s behavior, stated)',
+              crude_permission_gate(bare, req, resp, 'delete',
+                                    'X') is True)
+    finally:
+        if saved_mode is None:
+            os.environ.pop('POLARI_APP_PERMISSIONS', None)
+        else:
+            os.environ['POLARI_APP_PERMISSIONS'] = saved_mode
 
     failed = [label for label, ok in _results if not ok]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} checks '

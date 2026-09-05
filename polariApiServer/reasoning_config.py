@@ -125,6 +125,12 @@ def has_credential(name: str) -> bool:
     # anthropic can auth via an `ant` profile with no explicit key
     if name == "anthropic":
         return sdk_installed("anthropic")  # SDK resolves profile at call time
+    # openai_compatible: the key is OPTIONAL (the provider sends
+    # 'not-needed' when only a base_url is given — local servers
+    # ignore it). A keyed endpoint (OpenRouter) that refuses shows
+    # up honestly in the validate probe, not here.
+    if name == "openai_compatible":
+        return True
     return False
 
 
@@ -136,7 +142,10 @@ def provider_status(name: str) -> dict[str, Any]:
     needs: list[str] = []
     if not installed:
         needs.append(f"pip install {spec.get('sdk')}")
-    if name != "null" and not get_secret(name) and name != "anthropic":
+    # openai_compatible's key is optional — never listed as a need
+    # (ai-1: a bound local server must be able to show ready).
+    if (name not in ("null", "anthropic", "openai_compatible")
+            and not get_secret(name)):
         needs.append(f"set {spec.get('secret_env')} (or enter it via the backend)")
     if spec.get("needs_base_url") and not settings.get("base_url"):
         needs.append("set base_url")

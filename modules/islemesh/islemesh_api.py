@@ -39,7 +39,9 @@ from islemesh.islemesh_basis import (
 )
 from islemesh.islemesh_engines import bind_engine
 from islemesh.islemesh_catalog import (
-    install_plan, instances_of, resolve_app_placement)
+    ai_tool_install_plan, ai_tool_options, install_plan,
+    instances_of, option_install_plan, polari_app_options,
+    resolve_app_placement)
 from islemesh.islemesh_coherence import assess_topology
 from islemesh.islemesh_constants import (
     AGENT_MODES, CONNECTIVITY_MODES, MOCK_BANNER, UPLINK_KINDS,
@@ -546,7 +548,11 @@ class IsleMeshAPI(treeObject):
     def on_get_catalog(self, request, response):
         """The browsable store: published entries, both variants —
         each annotated with its running instances (count + which
-        devices), so a second install is a CHOSEN duplicate."""
+        devices), so a second install is a CHOSEN duplicate.
+        sep-3 (§43): PLUS the isle-wide app picture — every
+        PolariAppDefinition projected as a derived OPTION (standard /
+        converted markers, placement completeness); launcher debs
+        materialize at install time, so options never become rows."""
         entries = []
         for r in self._table('IsleCatalogEntry').values():
             if not getattr(r, 'published', True):
@@ -555,9 +561,38 @@ class IsleMeshAPI(treeObject):
             info['instances'] = self._instances_of(info['name'])
             info['instance_count'] = len(info['instances'])
             entries.append(info)
+        options = polari_app_options(
+            self._table('PolariAppDefinition').values(),
+            self._table('AppShellDefinition').values(),
+            {e['name'] for e in entries})
+        placements = self._polari_placements()
+        for o in options:
+            place = resolve_app_placement(
+                o['name'], o.pop('modules', []), placements)
+            o['placement'] = {'complete': place['complete'],
+                              'missing': place['missing']}
+            o['install_plan'] = option_install_plan(o)
+        entries.extend(options)
+        # ai-2 (decision 1): the DEDICATED AI section — every
+        # AiToolDefinition projected as a derived category-'ai'
+        # entry (hosting + sovereignty on the tile; the readiness
+        # join lives on /api/appstore/ai-tools).
+        ai_entries = ai_tool_options(
+            self._table('AiToolDefinition').values(),
+            {e['name'] for e in entries})
+        for a in ai_entries:
+            a['install_plan'] = ai_tool_install_plan(a)
+        entries.extend(ai_entries)
         entries.sort(key=lambda e: (e['category'], e['name']))
         response.media = {'ok': True, 'count': len(entries),
                           'entries': entries}
+
+    def _polari_placements(self):
+        """Deployed polari instances (incl. the core), each with its
+        module list — the placement input for app options."""
+        return [{'name': i['app'], 'device': i['device'],
+                 'modules': i.get('modules', [])}
+                for i in self._instances_of('polari')]
 
     def on_get_catalog_entry(self, request, response, entry):
         """One entry + its INSTALL PLAN (host commands the isle CLI
@@ -568,6 +603,37 @@ class IsleMeshAPI(treeObject):
                 row = candidate
                 break
         if row is None:
+            # sep-3: derived app options answer here too — same
+            # detail shape, plan included.
+            options = polari_app_options(
+                self._table('PolariAppDefinition').values(),
+                self._table('AppShellDefinition').values(), set())
+            match = [o for o in options if o['name'] == entry]
+            if match:
+                option = match[0]
+                place = resolve_app_placement(
+                    entry, option.pop('modules', []),
+                    self._polari_placements())
+                option['placement'] = {'complete': place['complete'],
+                                       'missing': place['missing'],
+                                       'plan': place['plan']}
+                option['install_plan'] = option_install_plan(option)
+                option['instances'] = []
+                option['instance_count'] = 0
+                response.media = {'ok': True, 'entry': option}
+                return
+            # ai-2: derived AI-tool entries answer here too — same
+            # detail shape, install plan per hosting kind.
+            ai_match = [a for a in ai_tool_options(
+                self._table('AiToolDefinition').values(), set())
+                if a['name'] == entry]
+            if ai_match:
+                tool = ai_match[0]
+                tool['install_plan'] = ai_tool_install_plan(tool)
+                tool['instances'] = self._instances_of(entry)
+                tool['instance_count'] = len(tool['instances'])
+                response.media = {'ok': True, 'entry': tool}
+                return
             return self._refuse(response,
                                 'no catalog entry %r' % entry,
                                 '404 Not Found')

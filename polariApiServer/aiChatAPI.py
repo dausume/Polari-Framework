@@ -17,8 +17,27 @@ endpoint is the conversation surface, not a mutation bypass.
 
 from objectTreeDecorators import *
 import falcon
+import time
 
 from polariApiServer.reasoning_provider import get_provider
+
+
+def _meter(provider_name, ok, started, message, reply):
+    """ai-3: meter the reasoning seam the way msci/cad meter theirs
+    — call counts / bytes / latency ONLY, NEVER conversation content
+    (plan open question 3, assumed yes). The null provider is local
+    and deterministic, not a remote call — not metered. Failure
+    never breaks the chat path (engine_metering's own contract)."""
+    if provider_name in ('', 'null', 'action'):
+        return
+    try:
+        from topology.engine_metering import record
+        record('reasoning', ok, started,
+               bytes_out=len((message or '').encode('utf-8')),
+               bytes_in=len((reply or '').encode('utf-8')))
+    except Exception:
+        pass
+
 
 _AWARENESS_CLASSES = (
     "PolariModule", "DisplayDefinition", "SolutionDefinition",
@@ -90,11 +109,14 @@ class aiChatAPI(treeObject):
                 provider_name, mode, model = "action", "command", None
             else:
                 provider = get_provider()
+                started = time.time()
                 try:
                     result = provider.respond(message, node_context, history)
                 except Exception as exc:  # noqa: BLE001
+                    _meter(provider.name, False, started, message, '')
                     yield f"data: {_json.dumps({'type': 'done', 'reply': '', 'proposals': [], 'error': str(exc)})}\n\n".encode()
                     return
+                _meter(provider.name, True, started, message, result.get('reply', ''))
                 reply = result.get('reply', '') or ''
                 proposals = result.get('proposals', [])
                 provider_name, mode, model = provider.name, result.get('mode'), result.get('model')
@@ -151,14 +173,20 @@ class aiChatAPI(treeObject):
             response.status = falcon.HTTP_200
             response.set_header('Powered-By', 'Polari')
             return
+        provider = None
+        started = time.time()
         try:
             provider = get_provider()
             result = provider.respond(message, node_context, history)
         except Exception as err:  # never 500 — refuse honestly
+            if provider is not None:
+                _meter(provider.name, False, started, message, '')
             response.status = falcon.HTTP_400
             response.media = {"error": f"reasoning provider failed: {err}"}
             response.set_header('Powered-By', 'Polari')
             return
+        _meter(provider.name, True, started, message,
+               result.get("reply", ""))
         response.media = {
             "provider": provider.name,
             "mode": result.get("mode"),

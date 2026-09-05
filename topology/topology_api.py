@@ -93,6 +93,23 @@ class TopologyAPI(treeObject):
                 suffix='move_op_finish')
             add('/api/topology/providers/reprobe', self,
                 suffix='reprobe')
+            # dyn-5: the baseline instance — a light, explicit floor
+            # that everything else is admitted onto, on demand.
+            add('/api/topology/baseline/{instance}', self,
+                suffix='baseline')
+            # dyn-2b: the authoritative placement read + 3-way diff.
+            add('/api/topology/placement', self, suffix='placement')
+            # dyn-7: move a module between LIVE instances, no
+            # recreate (plan, then this side's half).
+            add('/api/topology/module-move/plan', self,
+                suffix='module_move_plan')
+            add('/api/topology/module-move/local-half', self,
+                suffix='module_move_local')
+            # dyn-9: agent-reported devices + what they grant, and
+            # the consumed-vs-available ledger across all of them.
+            add('/api/topology/devices', self, suffix='devices')
+            add('/api/topology/resource-ledger', self,
+                suffix='resource_ledger')
 
     # ---- helpers ----------------------------------------------------
 
@@ -547,6 +564,89 @@ class TopologyAPI(treeObject):
         response.media = {
             'ok': True, 'clearedEntries': cleared,
             'note': 'next resolve_provider call probes live'}
+
+    def on_get_baseline(self, request, response, instance):
+        """dyn-5 PREVIEW: what a baseline floor for `instance` would
+        declare, what it would stand down, and what stays core.
+        Executes nothing."""
+        from topology.baseline_profile import plan_baseline
+        response.media = plan_baseline(self.manager, instance)
+
+    def on_post_baseline(self, request, response, instance):
+        """dyn-5 APPLY: write the baseline ModuleAssignment rows.
+        ?standDown=true additionally marks non-floor enabled rows
+        'transient' (visible, inert, one click back — never
+        deleted). Live modules are not torn down here; put-away
+        (dyn-3) is the live act."""
+        from topology.baseline_profile import apply_baseline
+        raw = (request.get_param('standDown') or '').strip().lower()
+        response.media = apply_baseline(
+            self.manager, instance,
+            stand_down=raw in ('1', 'true', 'yes', 'on'))
+
+    def on_get_devices(self, request, response):
+        """dyn-9: every device the agents know about, joined to the
+        resources it grants (res-1 observation). Unmirrored devices
+        and unobserved machines are NAMED, never omitted."""
+        from topology.device_resources import device_inventory
+        devices = device_inventory(self.manager)
+        response.media = {
+            'ok': True, 'devices': devices,
+            'counts': {
+                'total': len(devices),
+                'withAgent': sum(1 for d in devices
+                                 if d['agentPresent']),
+                'capacityKnown': sum(1 for d in devices
+                                     if d['grants']['known'])}}
+
+    def on_get_resource_ledger(self, request, response):
+        """dyn-9: consumed vs available per device and overall —
+        threads and RAM, split into container presence and code
+        placed on the device."""
+        from topology.device_resources import resource_ledger
+        response.media = resource_ledger(self.manager)
+
+    def on_post_module_move_plan(self, request, response):
+        """dyn-7 PREVIEW: the ordered steps to move a module between
+        live instances, who performs each, and every refusal —
+        before anything moves. Executes nothing."""
+        from topology.module_move_live import plan_module_move
+        payload, error = self._payload(request)
+        if error:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False, 'refusal': error}
+            return
+        payload = payload or {}
+        response.media = plan_module_move(
+            self.manager, payload.get('module', ''),
+            payload.get('to', ''), payload.get('from'))
+
+    def on_post_module_move_local(self, request, response):
+        """dyn-7 APPLY (this side only): put the module away here and
+        land the new placement in the rows. Requires dataMoved=true —
+        the backend will not let the rows claim a move the data did
+        not make."""
+        from topology.module_move_live import execute_local_half
+        payload, error = self._payload(request)
+        if error:
+            response.status = '400 Bad Request'
+            response.media = {'ok': False, 'refusal': error}
+            return
+        payload = payload or {}
+        result = execute_local_half(
+            self.manager, payload.get('module', ''),
+            payload.get('to', ''),
+            data_moved=bool(payload.get('dataMoved')))
+        response.media = result
+        if not result.get('ok'):
+            response.status = '409 Conflict'
+
+    def on_get_placement(self, request, response):
+        """dyn-2b: the authoritative placement read for THIS
+        instance + the three-way coherence diff (rows vs live/env vs
+        isle registry). Also served inside /api/modules/status."""
+        from topology.placement_truth import placement_report
+        response.media = placement_report(self.manager)
 
     def on_post_move(self, request, response):
         """tt-13 dynamic re-placement: plan_move decides whether

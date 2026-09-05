@@ -108,3 +108,67 @@ class ModuleDependencyEdge(treeObject):
         self.evidence_json = evidence_json
         self.topology_name = topology_name
         self.notes = notes
+
+
+class EngineProviderBinding(treeObject):
+    """sep-4: an engine URL BOUND from an isle app deploy (the
+    islemesh binder writes these — the row form of the *_ENGINES_URL
+    env knob). The remotes' resolution ladder reads it between the
+    env knob and the topology resolve, so an isle-deployed engine
+    wires consumers without a redeploy."""
+
+    @treeObjectInit
+    def __init__(
+        self,
+        # Engine kind ('msci', 'cad', 'business-ops', ...).
+        name: str = '',
+        url: str = '',
+        # The isle app the binder saw ('' = hand-written row).
+        bound_from: str = '',
+        bound_at: str = '',
+        is_prior: bool = False,
+        notes: str = '',
+        manager=None,
+    ):
+        self.name = name
+        self.url = url
+        self.bound_from = bound_from
+        self.bound_at = bound_at
+        self.is_prior = is_prior
+        self.notes = notes
+
+
+class EngineUsageWindow(treeObject):
+    """sep-4 (decision 9): metering at the *_remote seams — call
+    counts / bytes / latency per HOUR window, rows not logs. One row
+    per engine x window; the engine data page renders these (and
+    says 'not tracked yet' where none exist). Observed data — never
+    seeded."""
+
+    @treeObjectInit
+    def __init__(
+        self,
+        # '<engine>:<window_start>' (unique key).
+        name: str = '',
+        engine: str = '',
+        # UTC hour bucket, ISO ('2026-08-15T14:00:00Z').
+        window_start: str = '',
+        calls: int = 0,
+        errors: int = 0,
+        bytes_out: int = 0,
+        bytes_in: int = 0,
+        latency_ms_sum: int = 0,
+        latency_ms_max: int = 0,
+        is_prior: bool = False,
+        manager=None,
+    ):
+        self.name = name
+        self.engine = engine
+        self.window_start = window_start
+        self.calls = calls
+        self.errors = errors
+        self.bytes_out = bytes_out
+        self.bytes_in = bytes_in
+        self.latency_ms_sum = latency_ms_sum
+        self.latency_ms_max = latency_ms_max
+        self.is_prior = is_prior

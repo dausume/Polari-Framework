@@ -84,6 +84,9 @@ class ModuleBootRegistry:
         self.modules = {}
         # {className: module} for middleware resolution.
         self.class_owner = {}
+        # dyn-3: modules deactivated live — their requests answer
+        # 410 Gone (with the bring-back hint), NOT 503 and NOT 404.
+        self.put_away_modules = set()
         # In monolithic boots everything is online by construction.
         self.all_online = not self.lazy
 
@@ -115,6 +118,33 @@ class ModuleBootRegistry:
     def core_ready(self):
         with self._lock:
             self.core_data_ready_at = time.time()
+
+    def put_away(self, module):
+        with self._lock:
+            self.put_away_modules.add(module)
+
+    def readmit(self, module):
+        with self._lock:
+            self.put_away_modules.discard(module)
+
+    def is_put_away(self, module):
+        with self._lock:
+            return module in self.put_away_modules
+
+    def reopen(self, module):
+        """dyn-2: live admission re-arms the honesty middleware for
+        ONE module — all_online drops until finish() recomputes it,
+        and a monolithic boot (which never stamped core-ready; no
+        request could arrive pre-listen) is stamped core-ready NOW so
+        every OTHER module keeps answering during the window."""
+        with self._lock:
+            if self.core_data_ready_at is None:
+                self.core_data_ready_at = time.time()
+            self.all_online = False
+            self.modules.setdefault(module, {
+                'status': 'pending', 'started_at': None,
+                'finished_at': None, 'error': '', 'seeded_rows': 0,
+                'deps': [], 'deps_ready_at': None, 'eta_s': None})
 
     def finish(self):
         with self._lock:
@@ -190,7 +220,7 @@ class ModuleLoadingMiddleware:
 
     def process_resource(self, req, resp, resource, params):
         registry = getattr(self._polServer, 'bootRegistry', None)
-        if registry is None or registry.all_online:
+        if registry is None:
             return
         if type(resource).__name__ in self.ALWAYS_OPEN:
             return
@@ -204,6 +234,20 @@ class ModuleLoadingMiddleware:
                 # Core custom APIs stay open — they carry no
                 # module-owned table data of their own.
                 return
+        # dyn-3: a put-away module answers 410 Gone — checked BEFORE
+        # the all_online short-circuit (put-away happens while
+        # everything else is online) and covering BOTH the CRUDE
+        # routes (which falcon cannot remove) and the custom APIs.
+        if registry.is_put_away(module):
+            raise falcon.HTTPGone(
+                title='module put away',
+                description=(
+                    f"module '{module}' has been put away on this "
+                    f'instance — POST /modules/{module}/admit '
+                    'brings it back (DB tables were kept)'),
+            ) from None
+        if registry.all_online:
+            return
         if not registry.is_data_pending(module):
             return
         status = registry.status_of(module) or {}
@@ -269,7 +313,16 @@ class ModulesStatusEndpoint:
                               'note': 'registry absent — monolithic '
                                       'boot, everything online'}
             return
-        response.media = {'ok': True, **registry.snapshot()}
+        # dyn-2b: this is the authoritative placement READ — the isle
+        # agent (and any other cache) refreshes from here; STOMP
+        # /topic/PolariModule is the refresh signal.
+        try:
+            from topology.placement_truth import placement_report
+            placement = placement_report(self._polServer.manager)
+        except Exception as exc:
+            placement = {'error': f'{type(exc).__name__}: {exc}'}
+        response.media = {'ok': True, **registry.snapshot(),
+                          'placement': placement}
 
 
 def _stomp_publish(module, row):
@@ -521,6 +574,15 @@ class AdmissionWorker:
             manager.persistTree()
         except BaseException as exc:
             print(f'[LazyBoot] persistTree failed: {exc}', flush=True)
+        # dyn-2b: report what this boot ACTUALLY brought online.
+        try:
+            from topology.placement_truth import (
+                record_placement_observation,
+            )
+            record_placement_observation(manager, 'lazy boot')
+        except Exception as exc:
+            print(f'[LazyBoot] placement observation failed '
+                  f'(non-fatal): {exc}', flush=True)
         try:
             from polariPeers.module_fetcher import (
                 auto_fetch_configured,

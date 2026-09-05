@@ -164,6 +164,14 @@ def registration_document(manager, shell_row, enrollment_wire=None,
             getattr(shell_row, 'branding_json', '{}') or '{}')
     except ValueError:
         pass
+    capabilities = []
+    try:
+        parsed = json.loads(
+            getattr(shell_row, 'capabilities_json', '[]') or '[]')
+        if isinstance(parsed, list):
+            capabilities = [str(c) for c in parsed]
+    except ValueError:
+        pass
     ca = load_ca()
     api = urls['apiUrl']
     instance = {
@@ -202,6 +210,9 @@ def registration_document(manager, shell_row, enrollment_wire=None,
             'startRoute': getattr(shell_row, 'start_route', ''),
             'brandColor': branding.get('brandColor', ''),
             'icon': branding.get('icon', ''),
+            # sep-2: references to edge-behavior rows (sep-5), never
+            # the definitions themselves.
+            'capabilities': capabilities,
         },
         'instances': [instance],
         'enrollment': enrollment,

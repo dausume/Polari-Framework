@@ -63,7 +63,190 @@ SEED_CATALOG = [
         'provides_engine': 'business-ops', 'category': 'engine',
         'source': 'official',
     },
+    # sep-4 (decision 9): every compute engine gets its own tile —
+    # deploying one binds consumers automatically via the
+    # EngineProviderBinding row (the msci/cad _BINDERS).
+    {
+        'name': 'msci-engines',
+        'title': 'Materials-science engines (DFT / FEM)',
+        'description': 'The compiled-extension science worker '
+                       '(pyscf, pymatgen, sfepy, scikit-fem) as an '
+                       'isle app; every Polari instance\'s '
+                       'materials seams resolve it automatically '
+                       'once deployed. Data page: /engines/msci.',
+        'kind': 'mesh-app',
+        'source_ref': 'docker-compose.msci-engines.yml',
+        'service': 'prf-msci-engines', 'port': 9500,
+        'provides_engine': 'msci', 'category': 'engine',
+        'source': 'official',
+    },
+    {
+        'name': 'cad-engines',
+        'title': 'CAD engines (trimesh / FreeCAD)',
+        'description': 'The mesh/CAD worker (trimesh + optional '
+                       'FreeCAD/OpenCASCADE) as an isle app; '
+                       'mathshapes seams resolve it automatically '
+                       'once deployed. Data page: /engines/cad.',
+        'kind': 'mesh-app',
+        'source_ref': 'docker-compose.cad-engines.yml',
+        'service': 'prf-cad-engines', 'port': 9600,
+        'provides_engine': 'cad', 'category': 'engine',
+        'source': 'official',
+    },
 ]
+
+
+def polari_app_options(app_rows, shell_rows, taken_names):
+    """sep-3 (§43, decision 7): PolariAppDefinition rows PROJECTED
+    into the store as OPTIONS — derived at read time, never persisted
+    catalog rows, so app counts can balloon without the catalog
+    growing state. Markers: standard (seeded), defined_at (this core
+    holds the isle-level definitions), converted (a scope=app
+    AppShellDefinition exists) + its shell name. Launcher debs
+    MATERIALIZE at install time — options, not shelved artifacts.
+    Pure function; rows may be objects or dicts via getattr."""
+    def field(row, name, default=''):
+        return getattr(row, name, default)
+    shells_by_app = {}
+    for s in shell_rows:
+        if field(s, 'scope') == 'app' and field(s, 'app_name'):
+            shells_by_app.setdefault(field(s, 'app_name'),
+                                     field(s, 'name'))
+    options = []
+    for a in app_rows:
+        name = field(a, 'name')
+        if not name or name in taken_names:
+            continue
+        try:
+            import json as _json
+            modules = _json.loads(field(a, 'modules_json', '[]')
+                                  or '[]')
+        except ValueError:
+            modules = []
+        shell = shells_by_app.get(name, '')
+        options.append({
+            'name': name,
+            'title': field(a, 'title'),
+            'description': field(a, 'use_case')
+            or field(a, 'description'),
+            'kind': 'polari-app-option',
+            'category': 'polari-app',
+            'derived': True,
+            'standard': bool(field(a, 'is_prior', False)),
+            'defined_at': 'isle-core',
+            'converted': bool(shell),
+            'shell': shell,
+            'modules': modules,
+            'source': 'derived',
+        })
+    options.sort(key=lambda o: o['name'])
+    return options
+
+
+def ai_tool_options(tool_rows, taken_names):
+    """ai-2 (decision 1): AiToolDefinition rows PROJECTED into the
+    store as the DEDICATED AI section — derived at read time (the
+    sep-3 pattern: rows stay in appstore, the section derives; never
+    persisted catalog rows). Every entry states its hosting kind and
+    sovereignty facts (decision 6) plus a linkage summary; the full
+    readiness join lives on /api/appstore/ai-tools. Pure function;
+    rows may be objects or dicts."""
+    import json as _json
+
+    def field(row, name, default=''):
+        if isinstance(row, dict):
+            return row.get(name, default)
+        return getattr(row, name, default)
+    options = []
+    for t in tool_rows:
+        name = field(t, 'name')
+        if (not name or name in taken_names
+                or not field(t, 'published', True)):
+            continue
+        try:
+            linkages = _json.loads(field(t, 'linkages_json', '[]')
+                                   or '[]')
+        except ValueError:
+            linkages = []
+        options.append({
+            'name': name,
+            'title': field(t, 'title'),
+            'description': field(t, 'description'),
+            'kind': 'ai-tool',
+            'category': 'ai',
+            'derived': True,
+            'hosting': field(t, 'hosting'),
+            'api_family': field(t, 'api_family'),
+            'provider_name': field(t, 'provider_name'),
+            'internet_required': bool(field(t, 'internet_required',
+                                            False)),
+            'data_leaves_isle': bool(field(t, 'data_leaves_isle',
+                                           False)),
+            'source_ref': field(t, 'source_ref'),
+            'linkages': [{'kind': l.get('kind', ''),
+                          'status': l.get('status', '')}
+                         for l in linkages],
+            'detail': '/api/appstore/ai-tools/%s' % name,
+            'source': 'derived',
+        })
+    options.sort(key=lambda o: o['name'])
+    return options
+
+
+def ai_tool_install_plan(option):
+    """ai-2: the install path per HOSTING KIND. built-in → nothing;
+    remote-intermediary → the /ai/providers binding flow (the
+    credential is entered by a HUMAN — never through an AI channel,
+    never into git); local-hosted → the isle app deploy whose
+    --engine declaration the ai-3 binder wires automatically."""
+    hosting = option.get('hosting', '')
+    name = option.get('name', '')
+    provider = option.get('provider_name', '')
+    if hosting == 'built-in':
+        return {'ok': True, 'steps': [],
+                'note': 'built in — always available, nothing to '
+                        'install'}
+    if hosting == 'remote-intermediary':
+        return {'ok': True, 'steps': [
+            'POST /ai/providers {"action": "select", '
+            '"provider": "%s"}' % provider,
+            'POST /ai/providers {"action": "set_auth", '
+            '"provider": "%s", "secret": <entered by a human — '
+            'never via the AI channel, never into git>}' % provider,
+            'POST /ai/providers {"action": "validate", '
+            '"provider": "%s"}' % provider,
+        ], 'note': 'a thin binding to a remote server over the '
+                   'internet — installing = selecting + '
+                   'authenticating the provider; data leaves the '
+                   'isle (privacy-filter recommended upstream)'}
+    if hosting == 'local-hosted':
+        image = option.get('source_ref', '')
+        return {'ok': True, 'steps': [
+            'isle app deploy %s --image %s --service %s '
+            '--port 8080 --engine reasoning' % (name, image, name),
+        ], 'note': 'deploys %s as an .isle app; the reasoning '
+                   'binder auto-wires every polari instance\'s '
+                   'assistant to it (ai-3), no redeploy' % name}
+    return {'ok': False, 'steps': [],
+            'note': 'unknown hosting kind %r' % hosting}
+
+
+def option_install_plan(option):
+    """The convert/install path for one derived app option — ONE
+    command either way (`pol apps shell <name>` is idempotent: row
+    reused when it exists, registration re-emitted, deb rebuilt)."""
+    name = option.get('name', '')
+    steps = ['pol apps shell %s' % name]
+    if option.get('converted'):
+        note = ('launcher row exists (%s) — re-emits the '
+                'registration and rebuilds the deb at install time'
+                % option.get('shell', ''))
+    else:
+        note = ('creates the scope=app AppShellDefinition row, '
+                'emits the registration, and builds the launcher '
+                'deb AT INSTALL TIME (options, never a shelf of '
+                'pre-built artifacts)')
+    return {'ok': True, 'steps': steps, 'note': note}
 
 
 def modules_of(row):

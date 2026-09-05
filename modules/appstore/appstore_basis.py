@@ -67,6 +67,10 @@ class AppShellDefinition(treeObject):
         # Initial web-UI route; '' = the app's first page (scope=app)
         # or '/' (scope=instance).
         start_route: str = '',
+        # sep-2: JSON list of edge-behavior REFERENCES the shell may
+        # use (camera, device passthrough...). The definitions live
+        # as rows in the app's own module (sep-5); this names them.
+        capabilities_json: str = '[]',
         published: bool = True,
         is_prior: bool = True,
         notes: str = '',
@@ -81,6 +85,55 @@ class AppShellDefinition(treeObject):
         self.distribution = distribution
         self.branding_json = branding_json
         self.start_route = start_route
+        self.capabilities_json = capabilities_json
+        self.published = published
+        self.is_prior = is_prior
+        self.notes = notes
+
+
+#: AppEdgeBehavior.kind vocabulary — what a shell may do at the edge.
+BEHAVIOR_KINDS = ('device', 'network', 'nocode-graph')
+
+
+class AppEdgeBehavior(treeObject):
+    """sep-5 (decision 8): one EDGE BEHAVIOR as reusable data — what
+    a shell may do beyond wrapping the webapp (attach a device, join
+    a network, run a no-code graph edge-side) and with what
+    configuration. Written once, referenced by ANY app whose
+    AppShellDefinition.capabilities_json names it — the registration
+    carries REFERENCES, never these definitions. The native half
+    (Gradle capability modules, ServiceLoader) stays rare and gated
+    on the declaration; `requires_native` names it so the gate can
+    refuse honestly when the module is absent (§5l precedent: the
+    helper holds the privilege, never the shell)."""
+
+    @treeObjectInit
+    def __init__(
+        self,
+        # Unique reference key ('lora-radio-attach').
+        name: str = '',
+        title: str = '',
+        description: str = '',
+        # BEHAVIOR_KINDS entry.
+        kind: str = 'device',
+        # The reusable configuration (JSON object): which devices
+        # (DeviceLink correspondence), which networks (ssid...),
+        # which no-code graph runs edge-side.
+        config_json: str = '{}',
+        # Gradle capability module the shell needs ('' = pure
+        # config, no native code).
+        requires_native: str = '',
+        published: bool = True,
+        is_prior: bool = True,
+        notes: str = '',
+        manager=None,
+    ):
+        self.name = name
+        self.title = title
+        self.description = description
+        self.kind = kind
+        self.config_json = config_json
+        self.requires_native = requires_native
         self.published = published
         self.is_prior = is_prior
         self.notes = notes

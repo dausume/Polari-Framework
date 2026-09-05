@@ -16,6 +16,9 @@
 
 from objectTreeDecorators import *
 from accessControl.polariPermissionSet import polariPermissionSet
+# sep-7: the per-app permission gate (knob POLARI_APP_PERMISSIONS,
+# default off — see accessControl.app_permissions_gate).
+from accessControl.app_permissions_gate import crude_permission_gate
 from polariAnalytics.functionalityAnalysis import getAccessToClass
 import json
 import setOperators
@@ -176,6 +179,8 @@ class polariCRUDE(treeObject):
     def on_get(self, request, response):
         if self._guard_purged(response):
             return
+        if not crude_permission_gate(self.manager, request, response, 'read', self.apiObject):
+            return
         #Get the authorization data, user data, and potential url parameters, which are both commonly relevant to both cases.
         userAuthInfo = request.auth
         #Create a list of all
@@ -249,6 +254,8 @@ class polariCRUDE(treeObject):
         """Serve data with a named field profile's reference resolution applied."""
         if self._guard_purged(response):
             return
+        if not crude_permission_gate(self.manager, request, response, 'read', self.apiObject):
+            return
         profileConfig = self.objTyping.getFieldProfile(profileName)
         if not profileConfig:
             response.status = falcon.HTTP_404
@@ -302,6 +309,8 @@ class polariCRUDE(treeObject):
         """List all field profiles configured on this class."""
         if self._guard_purged(response):
             return
+        if not crude_permission_gate(self.manager, request, response, 'read', self.apiObject):
+            return
         response.media = {"profiles": self.objTyping.fieldProfiles}
         response.status = falcon.HTTP_200
         response.set_header('Powered-By', 'Polari')
@@ -335,6 +344,8 @@ class polariCRUDE(treeObject):
 
     def on_put(self, request, response):
         if self._guard_purged(response):
+            return
+        if not crude_permission_gate(self.manager, request, response, 'update', self.apiObject):
             return
         # Verbose request logging - commented out for cleaner output
         # print("In Update API execution segment.")
@@ -436,6 +447,8 @@ class polariCRUDE(treeObject):
     #Create object instances in CRUDE
     def on_post(self, request, response):
         if self._guard_purged(response):
+            return
+        if not crude_permission_gate(self.manager, request, response, 'create', self.apiObject):
             return
         print(f"[polariCRUDE] ========== POST request for {self.apiObject} ==========")
         userAuthInfo = request.auth
@@ -683,6 +696,8 @@ class polariCRUDE(treeObject):
     def on_delete(self, request, response):
         if self._guard_purged(response):
             return
+        if not crude_permission_gate(self.manager, request, response, 'delete', self.apiObject):
+            return
         userAuthInfo = request.auth
         urlParameters = request.query_string
         (accessQueryDict, permissionQueryDict) = self.getUsersObjectAccessPermissions(userAuthInfo)
@@ -787,6 +802,8 @@ class polariCRUDE(treeObject):
 
     def on_event(self, request, response):
         if self._guard_purged(response):
+            return
+        if not crude_permission_gate(self.manager, request, response, 'events', self.apiObject):
             return
         # Verbose request logging - commented out for cleaner output
         # print("In Event API execution segment.")
