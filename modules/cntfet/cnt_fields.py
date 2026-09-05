@@ -261,7 +261,7 @@ def _potential(p, geo_report, frame, transport, gate, xs):
                    'Vdsi); leads: -Efsd | -Efsd - Vds'}
 
 
-def field_profile(manager, device, field, vg=0.0, vd=0.6, n=60,
+def field_profile(manager, device, field, vg=None, vd=None, n=60,
                   knobs=None):
     """{ok, device, field, vg, vd, fidelity, x_nm[], value[], unit,
     regions, note, formula, frame, knobs} — one field along x at one
@@ -271,6 +271,22 @@ def field_profile(manager, device, field, vg=0.0, vd=0.6, n=60,
     id_fn, p, dev, refusal = device_model(manager, name)
     if refusal is not None:
         return {**refusal, 'fidelity': FIDELITY}
+    if dev is not None and not hasattr(dev, 'material'):
+        # fg-4: a SiliconMOSFET row has its OWN field sketch now
+        # (sifet.si_fields — same eq.(5) barrier, silicon λ); one
+        # dispatch point so /fields and the parts2d overlays
+        # un-refuse together. Absent module → the old refusal.
+        try:
+            from sifet.si_fields import field_profile_si
+        except ImportError:
+            pass
+        else:
+            return field_profile_si(manager, dev, field,
+                                    vg=vg, vd=vd, n=n, knobs=knobs)
+    # CNT legacy defaults (bit-identical to the fv-4 behavior);
+    # the Si path above defaults to the device's OWN Vdd instead.
+    vg = 0.0 if vg is None else vg
+    vd = 0.6 if vd is None else vd
     if field not in FIELDS:
         return _refuse(f'unknown field "{field}" ({" | ".join(FIELDS)})')
     geo_report = device_regions(manager, dev, knobs=k)
@@ -443,9 +459,19 @@ def _scf_profile_rows(manager, device_name, x_center):
 def _scalar_curve(field, log_floor=None):
     def build(id_fn, p, device, manager, knobs=None):
         k = {**FIELD_KNOBS, **(knobs or {})}
-        vd = k.get('vd', 0.6)
+        from cntfet.cnt_device_viz import device_vdd
+        vdd = device_vdd(device)
+        # device-relative rule (fg-4): sweep 0 → the device's OWN
+        # Vdd unless the caller pinned an explicit series. For the
+        # S1 0.6 V window the fractions give exactly the old
+        # (0, 0.3, 0.6) series — CNT graphs bit-identical; a 1.0 V
+        # silicon device now sweeps (0, 0.5, 1.0) instead of being
+        # drawn at CNT voltages.
+        vd = k.get('vd', vdd)
+        vg_series = ((knobs or {}).get('vg_series_v')
+                     or [round(f * vdd, 4) for f in (0.0, 0.5, 1.0)])
         rows, profiles = [], []
-        for vg in k['vg_series_v']:
+        for vg in vg_series:
             prof = field_profile(manager, device, field, vg=vg, vd=vd,
                                  n=k.get('n', 60), knobs=k)
             if not prof.get('ok'):
@@ -655,6 +681,17 @@ SEED_FET_FIELD_MATERIALS_3D = [
          opacity=0.15),
     _mat('fet-gate-metal', '#ffb300', 'Gate metal shell (W prior)',
          opacity=0.45),
+    # fg-6: silicon region materials (sifet.si_scene box stacks)
+    _mat('fet-si-body', '#546e7a', 'Silicon body / substrate',
+         opacity=0.30),
+    _mat('fet-si-sd-n', '#2e7d32', 'n+ source/drain junction',
+         opacity=0.45),
+    _mat('fet-si-sd-p', '#ad1457', 'p+ source/drain junction',
+         opacity=0.45),
+    _mat('fet-si-channel', '#263238', 'Gated silicon channel',
+         opacity=0.40),
+    _mat('fet-sio2-oxide', '#b3e5fc', 'Gate dielectric (thermal '
+         'SiO2 / sol-gel)', opacity=0.20),
 ]
 
 SEEDED_STYLE_NAMES = [m['name'] for m in SEED_FET_FIELD_MATERIALS_3D]
@@ -694,19 +731,37 @@ def _drop_old_samples(manager, device_name):
     return len(doomed)
 
 
-def sample_fields(manager, device, vg_list=(0.0, 0.1, 0.2, 0.3, 0.4,
-                                            0.5, 0.6),
-                  vd=0.6, n_cells=40, row_factory=None, knobs=None,
+def sample_fields(manager, device, vg_list=None,
+                  vd=None, n_cells=40, row_factory=None, knobs=None,
                   bands=None):
     """Generate FETFieldSample rows for the 3 scalar fields along the
-    tube axis (pos_x centred, scene units; one cube per cell), band
+    channel axis (pos_x centred, scene units; one cube per cell), band
     them, replace older samples of the device, persist when a db
-    exists. Returns {ok, rows, perField, vgSteps, replaced, ...}."""
+    exists. Returns {ok, rows, perField, vgSteps, replaced, ...}.
+
+    Device-relative (fg-6): vg_list defaults to 7 steps 0 → the
+    device's OWN Vdd (for the S1 0.6 V window that is exactly the old
+    (0, 0.1, …, 0.6) list — CNT bit-identical) and vd defaults to its
+    Vdd; a SILICON device is banded with sifet.si_fields.
+    SI_FIELD_BANDS (areal cm^-2 / cm^-3 ranges — the CNT per-tube 1/m
+    bands would put every silicon value in the top band)."""
     k = {**FIELD_KNOBS, **(knobs or {})}
     name = device if isinstance(device, str) else getattr(device, 'name', '')
     _id_fn, _p, dev, refusal = device_model(manager, name)
     if refusal is not None:
         return {**refusal, 'fidelity': FIDELITY}
+    from cntfet.cnt_device_viz import device_vdd
+    vdd = device_vdd(dev)
+    if vd is None:
+        vd = vdd
+    if vg_list is None:
+        vg_list = tuple(round(vdd * i / 6.0, 4) for i in range(7))
+    if bands is None and not hasattr(dev, 'material'):
+        try:
+            from sifet.si_fields import SI_FIELD_BANDS
+            bands = SI_FIELD_BANDS
+        except ImportError:
+            pass
     if row_factory is None:
         row_factory = FETFieldSample
     tables = getattr(manager, 'objectTables', None)

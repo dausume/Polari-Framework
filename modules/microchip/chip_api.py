@@ -19,6 +19,9 @@ edits them; acts (e.g. 'synthesize') arrive with their S-phases.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
+from microchip.chip_families import (
+    families_report, family_report,
+)
 from microchip.chip_traverse import (
     design_tree, levels_report, traverse,
 )
@@ -38,6 +41,10 @@ class MicrochipAPI(treeObject):
             add('/api/microchip/designs/{design}', self,
                 suffix='design')
             add('/api/microchip/nodes/{name}', self, suffix='node')
+            # §2c rank-1 device families (fet live, shells honest)
+            add('/api/microchip/families', self, suffix='families')
+            add('/api/microchip/families/{name}', self,
+                suffix='family')
 
     def on_get_levels(self, request, response):
         response.media = {'ok': True,
@@ -69,6 +76,15 @@ class MicrochipAPI(treeObject):
 
     def on_get_node(self, request, response, name):
         report = traverse(self.manager, name)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_families(self, request, response):
+        response.media = families_report(self.manager)
+
+    def on_get_family(self, request, response, name):
+        report = family_report(self.manager, name)
         if not report.get('ok'):
             response.status = '404 Not Found'
         response.media = report

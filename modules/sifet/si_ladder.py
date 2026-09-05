@@ -1001,6 +1001,57 @@ def compare_to_anchors(manager, device_name):
     }
 
 
+def apply_anchor_knob(manager, device_name):
+    """fg-4 (the FreePDK45-class Ioff gap): the EXPLICIT act that
+    applies the vfb_v knob suggestion to the device ROW — never
+    automatic, never SI_LIT (a literature knob stays a deliberate
+    edit). vfb is a per-device PRIOR (vfb_source says so); tuning it
+    to sit within the DOCUMENTED FreePDK45 anchors turns the prior
+    into an anchor-calibrated value with the calibration recorded in
+    vfb_source (old value kept there — reversible). The default
+    seeds keep the honest gap until someone posts this act."""
+    rep = compare_to_anchors(manager, device_name)
+    if not rep.get('ok'):
+        return rep
+    if rep['within_tolerance']:
+        return {'ok': False, 'device': device_name,
+                'error': 'already within tolerance — nothing to apply',
+                'report': rep}
+    vfb = next((s for s in rep['knob_suggestions']
+                if s['knob'] == 'vfb_v'), None)
+    if vfb is None:
+        return {'ok': False, 'device': device_name,
+                'error': 'no single-parameter vfb_v tune closes the '
+                         'gap — the remaining suggestions (if any) '
+                         'are SI_LIT knobs, which stay deliberate '
+                         'edits',
+                'report': rep}
+    device = get_row(manager, 'SiliconMOSFET', device_name)
+    old = device.vfb_v
+    device.vfb_v = float(vfb['value'])
+    device.vfb_source = (
+        f'calibrated: vfb {old:+.3f} -> {device.vfb_v:+.3f} V so '
+        f'Ion/Ioff sit within the documented anchors '
+        f'({", ".join(a["anchor_row"] for a in rep["comparisons"].values() if a.get("anchor_row"))}); '
+        f'{_FPDK45_SRC}')
+    from sifet.si_device import derive_si_device as _derive
+    derive = _derive(manager, device)
+    after = compare_to_anchors(manager, device_name)
+    return {'ok': bool(derive.get('ok')), 'device': device_name,
+            'applied': {'knob': 'vfb_v', 'old': old,
+                        'new': device.vfb_v,
+                        'vfb_source': device.vfb_source},
+            'before': {k: v.get('verdict')
+                       for k, v in rep['comparisons'].items()},
+            'after': after.get('comparisons'),
+            'within_tolerance': after.get('within_tolerance'),
+            'derive': {k: derive.get(k) for k in ('ok', 'error')},
+            'note': ('an explicit, recorded act — the seeds keep the '
+                     'honest gap by default; POST again after editing '
+                     'anchors to re-tune, or set vfb_v/vfb_source '
+                     'back to revert')}
+
+
 # ── the ladder report ─────────────────────────────────────────────
 
 def _nodes(manager):

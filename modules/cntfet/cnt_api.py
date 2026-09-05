@@ -19,6 +19,7 @@ from cntfet.cnt_calibration import (
     calibrate_device, seed_anchor_rows,
 )
 from cntfet.cnt_capability import capability
+from cntfet.cnt_fet_summary import fet_alias
 from cntfet.cnt_derive import derive_device, get_row, run_iv
 from cntfet.cnt_validate import validate
 from cntfet.cnt_verilog_a import generate_va
@@ -32,7 +33,18 @@ class CNTFETAPI(treeObject):
         self.polServer = polServer
         self.apiName = '/api/cntfet'
         if polServer is not None:
-            add = polServer.falconServer.add_route
+            raw_add = polServer.falconServer.add_route
+
+            def add(path, resource, suffix=None):
+                # fet, not cntfet (Dustin 2026-08-30): every generic
+                # per-device surface ALSO answers under /api/fet/…
+                # (cnt_fet_summary.fet_alias) — the cntfet path keeps
+                # answering until the fet-module split (fg-5).
+                raw_add(path, resource, suffix=suffix)
+                alias = fet_alias(path)
+                if alias is not None:
+                    raw_add(alias, resource, suffix=suffix)
+
             add('/api/cntfet/capability', self, suffix='capability')
             add('/api/cntfet/citations', self, suffix='citations')
             add('/api/cntfet/devices', self, suffix='devices')
@@ -43,6 +55,12 @@ class CNTFETAPI(treeObject):
             # (per-object surfaces — any display row points here).
             add('/api/cntfet/device/{name}/points', self,
                 suffix='device_points')
+            # fg-0: the common FET data format — ONE stable payload
+            # (fet-summary/1) every FET answers; sections carry the
+            # same reports the per-section endpoints serve, refusals
+            # inline, the key set never changes.
+            add('/api/cntfet/device/{name}/summary', self,
+                suffix='device_summary')
             add('/api/cntfet/device/{name}/characterization',
                 self, suffix='device_characterization')
             # fi-0: operating states + the criteria that qualify a
@@ -78,6 +96,11 @@ class CNTFETAPI(treeObject):
             # doping and the row it comes from (generic: CNT + Si).
             add('/api/cntfet/device/{name}/parts', self,
                 suffix='device_parts')
+            # fg-3 (fv-7): the 2-D parts view — regions in device
+            # coordinates + optional field overlay at the device's
+            # own Vdd (Si overlays refuse until a sifet field basis).
+            add('/api/cntfet/device/{name}/parts2d', self,
+                suffix='device_parts2d')
             # FO4 → clock estimate (intrinsic upper bound) per device
             add('/api/cntfet/device/{name}/fo4', self, suffix='device_fo4')
             # fp arc: power (fp-1), taxonomy + signal score (fp-3),
@@ -148,6 +171,29 @@ class CNTFETAPI(treeObject):
                 suffix='figure_points')
             add('/api/cntfet/cell-library', self,
                 suffix='cell_library')
+            # fg-2: the GENERIC FET catalogue — both technologies,
+            # each device with its generic page + summary paths.
+            add('/api/fet/devices', self, suffix='fet_devices')
+            # cell arc: the general cell + the cell×FET configuration
+            # object (fet-named; /api/cntfet/cell/* aliases too).
+            add('/api/fet/cell/{cell}/summary', self,
+                suffix='cell_summary')
+            add('/api/fet/cellcfg/{cell}/{device}/summary', self,
+                suffix='cell_config_summary')
+            add('/api/fet/cells', self, suffix='cells_catalogue')
+            # the cells-advance service: first-step characterization
+            # for every blank cell×FET (GET report, POST one device).
+            add('/api/fet/cells/advance', self, suffix='cells_advance')
+            # block level (rank 3: FET → cell → BLOCK → core → chip)
+            add('/api/fet/block/{key}/summary', self,
+                suffix='fblock_summary')
+            add('/api/fet/blockcfg/{key}/{device}/summary', self,
+                suffix='fblock_config_summary')
+            add('/api/fet/blocks', self, suffix='fblocks_catalogue')
+            # multiscale scenes: generate/upsert the cell- and
+            # block-level 2-D/3-D scenes on demand (?dim=&lod=).
+            add('/api/fet/scene/{level}/{key}/{device}', self,
+                suffix='level_scene')
 
     def _refuse(self, response, error, status='400 Bad Request'):
         response.status = status
@@ -220,6 +266,98 @@ class CNTFETAPI(treeObject):
                           'recentResults': results[:10],
                           'capability': capability()}
 
+    def on_get_cell_summary(self, request, response, cell):
+        """cell arc: the GENERAL cell + its configuration index."""
+        from cntfet.cnt_cell_pages import cell_summary
+        report = cell_summary(self.manager, cell)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_cell_config_summary(self, request, response, cell,
+                                   device):
+        """cell arc: this cell ON this FET (the configuration
+        object's numbers, or the fill affordance)."""
+        from cntfet.cnt_cell_pages import cell_config_summary
+        report = cell_config_summary(self.manager, cell, device)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_cells_catalogue(self, request, response):
+        from cntfet.cnt_cell_pages import cells_catalogue
+        response.media = cells_catalogue(self.manager)
+
+    def on_get_fblock_summary(self, request, response, key):
+        from cntfet.cnt_block_pages import block_summary
+        report = block_summary(self.manager, key)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_fblock_config_summary(self, request, response, key,
+                                     device):
+        """?timing=0 skips the OpenSTA pass (fast index views)."""
+        from cntfet.cnt_block_pages import block_config_summary
+        report = block_config_summary(
+            self.manager, key, device,
+            with_timing=request.get_param('timing') != '0')
+        if not report.get('ok'):
+            response.status = '404 Not Found'
+        response.media = report
+
+    def on_get_level_scene(self, request, response, level, key,
+                           device):
+        """Multiscale scene generation: GET upserts the scene row
+        idempotently and returns its name + stats. ?dim=3d|2d,
+        ?lod=real|blackbox (cell default real, block blackbox —
+        the performance choice is the caller's knob)."""
+        from cntfet.cnt_level_scenes import generate_scene
+        report = generate_scene(
+            self.manager, level, key, device,
+            dim=request.get_param('dim') or '3d',
+            lod=request.get_param('lod'))
+        if not report.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = report
+
+    def on_get_fblocks_catalogue(self, request, response):
+        from cntfet.cnt_block_pages import blocks_catalogue
+        response.media = blocks_catalogue(self.manager)
+
+    def on_get_cells_advance(self, request, response):
+        """The first-step ladder report (dry run of the sweep)."""
+        from cntfet.cnt_cell_advance import advance_report
+        response.media = advance_report(self.manager)
+
+    def on_post_cells_advance(self, request, response):
+        """{"device": name} — take ONE device to the first step
+        (coarse library + sequential; long call, the sweep script
+        loops devices)."""
+        from cntfet.cnt_cell_advance import advance_device
+        try:
+            raw = request.bounded_stream.read()
+            payload = json.loads(raw) if raw else {}
+        except ValueError:
+            return self._refuse(response, 'body must be JSON')
+        name = payload.get('device', '')
+        if not name:
+            return self._refuse(response,
+                                'send {"device": "<name>"} — GET '
+                                'this path for the report')
+        report = advance_device(
+            self.manager, name,
+            include_sequential=payload.get('sequential', True))
+        if not report.get('ok'):
+            response.status = '422 Unprocessable Entity'
+        response.media = report
+
+    def on_get_fet_devices(self, request, response):
+        """fg-2: the generic FET catalogue (CNT + Si), each row with
+        its /display/fet?object= pages and /api/fet summary path."""
+        from cntfet.cnt_fet_summary import fet_catalogue
+        response.media = fet_catalogue(self.manager)
+
     def on_get_device_points(self, request, response, name):
         """?curve= ?vd= ?samples= (fi-3 MC count behind score-terms /
         transfer-envelope; 0 = nominal only) ?seed="""
@@ -241,6 +379,17 @@ class CNTFETAPI(treeObject):
             samples=max(0, min(samples, 2000)), seed=seed)
         if not report.get('ok'):
             response.status = '422 Unprocessable Entity'
+        response.media = report
+
+    def on_get_device_summary(self, request, response, name):
+        """fg-0: GET /api/fet/device/{name}/summary — the whole FET
+        in one stable fet-summary/1 payload; a section that cannot
+        answer carries its refusal inline (never a 500, the key set
+        never changes)."""
+        from cntfet.cnt_fet_summary import fet_summary
+        report = fet_summary(self.manager, name)
+        if not report.get('ok'):
+            response.status = '404 Not Found'
         response.media = report
 
     def on_get_device_score(self, request, response, name):
@@ -378,17 +527,20 @@ class CNTFETAPI(treeObject):
     def on_get_device_fields(self, request, response, name):
         """fv-4: ?field=material|potential|electron-density|n-doping|
         p-doping ?vg= ?vd= — the 1-D profile (F1 sketch, labelled)."""
+        from cntfet.cnt_device_viz import device_vdd
         from cntfet.cnt_fields import field_profile
-        device = get_row(self.manager, 'AlignedCNTFETDevice', name)
+        device = (get_row(self.manager, 'AlignedCNTFETDevice', name)
+                  or get_row(self.manager, 'SiliconMOSFET', name))
         if device is None:
             return self._refuse(response, f'no device "{name}"',
                                 '404 Not Found')
         q = self._floats(request, response, ('vg', 'vd'))
         if q is None:
             return
+        vdd = device_vdd(device)   # device-relative default (fg-4)
         report = field_profile(self.manager, device,
                                request.get_param('field') or 'potential',
-                               q.get('vg', 0.6), q.get('vd', 0.6))
+                               q.get('vg', vdd), q.get('vd', vdd))
         if not report.get('ok'):
             response.status = '422 Unprocessable Entity'
         response.media = report
@@ -674,8 +826,19 @@ class CNTFETAPI(treeObject):
             payload = json.loads(raw) if raw else {}
         except ValueError:
             return self._refuse(response, 'body must be JSON')
-        if payload.get('action', 'derive') != 'derive':
-            return self._refuse(response, 'actions: derive')
+        action = payload.get('action', 'derive')
+        if action == 'apply-anchor-knob':
+            # fg-4: the explicit act that applies the vfb_v anchor
+            # suggestion to the row (provenance in vfb_source).
+            from sifet.si_ladder import apply_anchor_knob
+            report = apply_anchor_knob(self.manager, name)
+            if not report.get('ok'):
+                response.status = '422 Unprocessable Entity'
+            response.media = report
+            return
+        if action != 'derive':
+            return self._refuse(response,
+                                'actions: derive | apply-anchor-knob')
         response.media = derive_si_device(self.manager, device)
 
     def on_get_si_ladder(self, request, response):
@@ -757,6 +920,23 @@ class CNTFETAPI(treeObject):
         report = fo4_report(self.manager, name, knobs)
         if not report.get('ok'):
             response.status = '422 Unprocessable Entity'
+        response.media = report
+
+    def on_get_device_parts2d(self, request, response, name):
+        """fg-3: ?field=potential|electron-density|n-doping|p-doping|
+        material ?vg= ?vd= (defaults: the device's OWN Vdd)."""
+        from cntfet.cnt_parts_svg import parts2d_report
+        q = self._floats(request, response, ('vg', 'vd'))
+        if q is None:
+            return
+        report = parts2d_report(
+            self.manager, name,
+            field=request.get_param('field') or 'potential',
+            vg=q.get('vg'), vd=q.get('vd'))
+        if not report.get('ok'):
+            response.status = ('404 Not Found'
+                               if 'no device' in str(report.get('error'))
+                               else '422 Unprocessable Entity')
         response.media = report
 
     def on_get_device_parts(self, request, response, name):
@@ -852,10 +1032,12 @@ class CNTFETAPI(treeObject):
             # binds (one band-coloured cell per x per Vg per field).
             from cntfet.cnt_fields import sample_fields
             try:
-                vd = float(payload.get('vd', 0.6))
+                raw_vd = payload.get('vd')
+                vd = None if raw_vd in (None, '') else float(raw_vd)
                 n_cells = int(payload.get('nCells', 40))
             except (TypeError, ValueError):
                 return self._refuse(response, 'vd/nCells must be numeric')
+            # vd None → the device's OWN Vdd (device-relative, fg-6)
             report = sample_fields(self.manager, device, vd=vd,
                                    n_cells=max(8, min(n_cells, 200)))
             if not report.get('ok'):

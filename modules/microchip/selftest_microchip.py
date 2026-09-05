@@ -169,11 +169,19 @@ def main():
                        for row in page_def['rows']
                        for item in row['items']]
     check('page: /display/microchip seeds the interactive '
-          'microchip-ladder component + the row tables',
+          'microchip-ladder component + the row tables + the '
+          'rank-1 device-families row (fam-1)',
           page['isPage'] and page['pageRoute'] == 'microchip'
           and page_components[0] == 'microchip-ladder'
           and set(page_components) <= {'microchip-ladder',
-                                       'class-rows-table'})
+                                       'class-rows-table',
+                                       'api-json-panel'}
+          and any(item['componentProps']['inputs'].get('className')
+                  == 'DeviceFamilyDefinition'
+                  for row in page_def['rows']
+                  for item in row['items']
+                  if item['componentProps']['componentName']
+                  == 'class-rows-table'))
 
     passed = sum(1 for _, ok in _results if ok)
     print(f'\n{passed}/{len(_results)} checks passed')

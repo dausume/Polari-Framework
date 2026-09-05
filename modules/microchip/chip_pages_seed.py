@@ -62,5 +62,19 @@ SEED_MICROCHIP_PAGE_DISPLAYS = [{
                                    'status',
                         'maxRows': 0}),
         ]),
+        _row(2, [
+            _component('microchip-families-table', 0, 6,
+                       'Rank-1 device families (fet live; shells '
+                       'carry their contract as data — plan §2c)',
+                       'class-rows-table',
+                       {'className': 'DeviceFamilyDefinition',
+                        'columns': 'name,status,first_target,'
+                                   'plan_pointer',
+                        'maxRows': 0}),
+            _component('microchip-families-api', 1, 6,
+                       'Families report (live artifact counts + '
+                       'contracts)', 'api-json-panel',
+                       {'path': '/api/microchip/families'}),
+        ]),
     ]}),
 }]

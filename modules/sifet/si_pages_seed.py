@@ -221,6 +221,14 @@ def _home_page():
                       '/api/sifet/devices/si-pmos-freepdk45-class/anchors',
                       pick='comparisons'),
             ], min_height=360),
+            # fg-2: the generic FET catalogue — every FET (CNT + Si)
+            # with its /display/fet?object= pages and summary path.
+            _row(8, [
+                _sapi('sifet-fet-catalogue', 0, 12,
+                      'Every FET (CNT + Si): the generic score / '
+                      'detail pages (?object=) + the one-payload '
+                      'summary', '/api/fet/devices', pick='devices'),
+            ], min_height=360),
         ]}),
     }
 
@@ -241,9 +249,9 @@ def _ladder_graph(item_id, index, segments, title, curve='ion-vs-node'):
 
 SEED_SI_PAGE_DISPLAYS = [_home_page()]
 
-#: One score page + one detail page per seeded Si device (routes
-#: cntfet-score-{name} / cntfet-detail-{name}); scenes dropped.
-SEED_SI_SCORE_PAGES = (
-    score_pages(SI_DEVICE_NAMES, source_class='SiliconMOSFET')
-    + detail_pages(SI_DEVICE_NAMES, with_scenes=False,
-                   source_class='SiliconMOSFET'))
+#: fg-2 (fet, not cntfet): per-device Si pages are GONE — the two
+#: generic pages (cnt_compare.generic_pages: routes `fet` /
+#: `fet-detail`, seeded once by the integrator) serve every Si device
+#: via /display/fet?object=<name>. Kept exported (empty) for the old
+#: consumers.
+SEED_SI_SCORE_PAGES = []

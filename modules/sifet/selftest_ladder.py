@@ -242,6 +242,34 @@ def main():
                                               'polari-model (derived)'}
           and L.CURVE_BUILDERS == {}, f'{len(rows)} rows')
 
+    # ---- fg-4: the FreePDK45 Ioff gap -> apply-anchor-knob act -------
+    before = L.compare_to_anchors(mgr, 'si-nmos-freepdk45-class')
+    act = L.apply_anchor_knob(mgr, 'si-nmos-freepdk45-class')
+    dev45 = get_row(mgr, 'SiliconMOSFET', 'si-nmos-freepdk45-class')
+    check('fg-4: the NMOS FreePDK45-class Ioff gap is REPORTED with a '
+          'knob suggestion, never auto-applied',
+          before['ok'] and not before['within_tolerance']
+          and any(s['knob'] == 'vfb_v'
+                  for s in before['knob_suggestions'])
+          and 'never fitted' in before['rule'],
+          str(before.get('knob_suggestions')))
+    check('fg-4: apply-anchor-knob is the EXPLICIT act — applies the '
+          'vfb_v suggestion to the ROW, records the calibration in '
+          'vfb_source (old value kept, source cited), re-derives, and '
+          'lands within tolerance',
+          act.get('ok') and act.get('within_tolerance')
+          and act['applied']['knob'] == 'vfb_v'
+          and dev45.vfb_v == act['applied']['new']
+          and dev45.vfb_source.startswith('calibrated:')
+          and f"{act['applied']['old']:+.3f}" in dev45.vfb_source
+          and 'FreePDK45 documentation' in dev45.vfb_source,
+          str({k: act.get(k) for k in ('ok', 'error',
+                                       'within_tolerance')}))
+    check('fg-4: a second apply refuses honestly (already within '
+          'tolerance)',
+          not L.apply_anchor_knob(
+              mgr, 'si-nmos-freepdk45-class').get('ok'))
+
     # ---- plan file ----------------------------------------------------
     here = os.path.dirname(os.path.abspath(__file__))
     plan = os.path.normpath(os.path.join(

@@ -226,17 +226,19 @@ def main():
     scene = cs.device_scene_seeds(DEV, manager=mgr)
     blob = json.loads(scene['definition'])
     ids = {e['id'] for e in blob['freestanding']}
-    check('fv-4: scene seed json parses; region freestanding entries '
-          '(5 regions + oxide + gate shells), cylinders rotated onto x',
-          scene['name'] == f'cnt-device-3d-{DEV}'
+    check('fv-4/fg-6: scene seed json parses; every piece is a '
+          'MATH-SHAPE reference (fet-part rows: boxes, x-axis '
+          'cylinders, CSG shells) with the view transform stated, '
+          'scene named fet-3d-*',
+          scene['name'] == f'fet-3d-{DEV}'
           and not blob['freestandingOnly']
           and json.loads(scene['bound_classes_json'])[0]['className']
           == 'FETFieldSample'
-          and {'region-channel', 'region-source-contact',
-               'shell-oxide-shell', 'shell-gate-metal-shell'} <= ids
+          and {'piece-channel', 'piece-source-contact',
+               'piece-oxide-shell', 'piece-gate-metal-shell'} <= ids
           and len(blob['freestanding']) == 7
-          and all(abs(e['rotation'][2] - 1.5708) < 1e-3
-                  for e in blob['freestanding'] if e['shapeRef'] == 'cylinder')
+          and all(e['shapeRef'].startswith('mathshape:fet-part-')
+                  for e in blob['freestanding'])
           and json.loads(scene['camera_json'])['projection'] == 'orthographic'
           and blob['freestanding'][0]['userData']['componentRow'] is not None,
           str(sorted(ids)))

@@ -102,7 +102,7 @@ def _api(path, title, why, pick='', hide=''):
 
 def _scene(scene, field, title, why):
     """fv-4 sim-space views (scene rows seeded by cnt_scene)."""
-    # scene = cnt_scene.scene_name(device) = 'cnt-device-3d-{device}';
+    # scene = cnt_scene.scene_name(device) = 'fet-3d-{device}';
     # run = cnt_fields.run_ref(device, field) selects that field's
     # FETFieldSample rows (compile_3d's only row filter is ?run=).
     return {'kind': 'simspace', 'simSpaceName': scene + '-{device}',
@@ -350,7 +350,7 @@ SEED_FET_CHARACTERISTICS = [
        'Every electrical number traces to a material choice: contact '
        'metal → Rc, oxide k/t → Cinv and SS, tube chirality → Eg.',
        'regions ← CNTMaterialState / GateStack / CNTContact rows',
-       [_scene('cnt-device-3d', 'material',
+       [_scene('fet-3d', 'material',
                '3-D device coloured by material',
                'the geometry the equations live in'),
         _graph('cnt-device-field-material', 'field-material',
@@ -368,7 +368,7 @@ SEED_FET_CHARACTERISTICS = [
        'and DIBL; the drop = where carriers gain the optical-phonon '
        'energy.',
        'U(x) ≈ U_barrier(Vgs) · exp(−|x−x0|/λ) − q·Vds·f(x)  [F1 SKETCH]',
-       [_scene('cnt-device-3d', 'potential',
+       [_scene('fet-3d', 'potential',
                'potential along the channel, at this Vg/Vd',
                'the barrier you switch'),
         _graph('cnt-device-field-potential', 'field-potential',
@@ -382,7 +382,7 @@ SEED_FET_CHARACTERISTICS = [
        'The control knob: overdrive Vgs − Vt buys current linearly '
        '(velocity-saturated) or quadratically (square-law).',
        'Qxo = Cinv n_ss φt ln(1 + exp((Vgsi − Vt)/(n_ss φt)))',
-       [_scene('cnt-device-3d', 'potential',
+       [_scene('fet-3d', 'potential',
                'potential with the gate at Vgs',
                'the gate region and what it does to U(x)'),
         _graph('cnt-device-transfer-states', 'transfer-states',
@@ -395,7 +395,7 @@ SEED_FET_CHARACTERISTICS = [
        'Sets the linear/saturation boundary, the DIBL penalty and '
        'whether carriers reach the optical-phonon energy.',
        'Vdsat = (v_xo Lg/μ)(1 − Ff) + φt Ff',
-       [_scene('cnt-device-3d', 'potential',
+       [_scene('fet-3d', 'potential',
                'potential with the drain at Vds', 'the drop'),
         _graph('cnt-device-output-states', 'output-states',
                'Id(Vd) with the Vdsat locus', 'the drain sweep')],
@@ -408,7 +408,7 @@ SEED_FET_CHARACTERISTICS = [
        'the device is resistive, where it is pinned the gate has '
        'lost control.',
        'n(x) ≈ (Qxo/q) · exp(−(U(x) − U(x0))/kT)  [F1 SKETCH]',
-       [_scene('cnt-device-3d', 'electron-density',
+       [_scene('fet-3d', 'electron-density',
                'electron density along the channel',
                'where the carriers are at this bias'),
         _graph('cnt-device-field-density', 'field-density',
@@ -422,7 +422,7 @@ SEED_FET_CHARACTERISTICS = [
        'Doped extensions lower series resistance and set the contact '
        'barrier picture ([FIO05] doped-extension CNTFETs).',
        'n_ext = ∫ D1D(E) f(E − Efsd) dE',
-       [_scene('cnt-device-3d', 'n-doping', 'n-doping by region',
+       [_scene('fet-3d', 'n-doping', 'n-doping by region',
                'the extensions vs the intrinsic channel'),
         _graph('cnt-device-field-doping', 'field-doping',
                'n/p doping along x', 'the profile')],
@@ -434,7 +434,7 @@ SEED_FET_CHARACTERISTICS = [
        'For a CMOS pair the p-device\'s doping mirrors the n-device; '
        'unequal doping = unequal drive = skewed cells.',
        'p-twin: n_ext → p_ext, Vt → −Vt',
-       [_scene('cnt-device-3d', 'p-doping', 'p-doping by region',
+       [_scene('fet-3d', 'p-doping', 'p-doping by region',
                'zero on the n-FET, mirrored on the p-twin'),
         _graph('cnt-device-field-doping', 'field-doping',
                'n/p doping along x', 'the profile')],

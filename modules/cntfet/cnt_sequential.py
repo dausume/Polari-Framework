@@ -189,16 +189,64 @@ def _capture_edge_time(ctx, cell):
 
 
 def _transient(ctx, d_pairs, tstop, tag, cell='cdff'):
+    """One transient; on a 'timestep too small' abort, ONE retry
+    with the DUT-internal STANDIN caps scaled to the device's own
+    input cap (fg-4, the Si sequential truncation). Root cause,
+    proven on the saved netlists: the hand subckts' aF-scale
+    standin caps (cnt_cells — sized for the one-tube CNT, labelled
+    standins) leave the storage nodes (cdff m1, the latch loop)
+    nearly massless against ~350x larger Si device currents, and
+    the integrator collapses at the D edge ('timestep too small …
+    trouble with node xdut.m1') at every reltol/method. τ was never
+    the problem — tstep and tstop already scale from the device's
+    own τ. The CNT cards never truncate, never retry, and stay
+    bit-identical; a retried run records `numericalAid` on its
+    report and result row (cell-3 upgrades the standins to [VS2]
+    junction capacitance properly)."""
+    try:
+        return _transient_once(ctx, d_pairs, tstop, tag, cell)
+    except RuntimeError:
+        from cntfet.cnt_cells import PARASITIC_STANDIN_F
+        scale = max(2.0, ctx['input_cap_f']
+                    / (4.0 * PARASITIC_STANDIN_F))
+        out = _transient_once(ctx, d_pairs, tstop, tag, cell,
+                              cap_scale=scale)
+        ctx['numericalAid'] = (
+            f'DUT standin caps scaled ×{scale:.0f} to the device '
+            'input cap after a timestep-too-small abort — the '
+            'values stay LABELLED standins, not measured '
+            'parasitics (cell-3)')
+        return out
+
+
+def _scale_caps(subckts, scale):
+    """Every `Cxxx node 0 <value>` line in the DUT subckt text,
+    value × scale (the standin caps and nothing else — device
+    lines start with N/X)."""
+    import re
+    pattern = re.compile(r'^(C\S+\s+\S+\s+\S+\s+)([0-9.eE+-]+)\s*$',
+                         re.M)
+    return pattern.sub(
+        lambda m: f'{m.group(1)}{float(m.group(2)) * scale:.3e}',
+        subckts)
+
+
+def _transient_once(ctx, d_pairs, tstop, tag, cell='cdff',
+                    cap_scale=1.0):
     dut = _DUTS[cell]
+    subckts = _dut_subckts(cell)
+    if cap_scale > 1.0:
+        subckts = _scale_caps(subckts, cap_scale)
+    opts = '.options reltol=1e-4 abstol=1e-12 method=gear'
     netlist = '\n'.join([
         f'* {cell} {tag}', ctx['cards'][0], ctx['cards'][1],
-        _dut_subckts(cell),
+        subckts,
         f'vdd vddnode 0 {ctx["vdd"]:.6g}',
         f'vclk clk 0 {_pwl(_clock_pairs(ctx, 4))}',
         f'vd d 0 {_pwl(d_pairs)}',
         f'Xdut {dut["ports"]} vddnode {dut["subckt"]}',
         f'Cload q 0 {ctx["load_f"]:.6e}',
-        '.options reltol=1e-4 abstol=1e-12 method=gear',
+        opts,
         '.control', f'pre_osdi {ctx["osdi"]}',
         f'tran {ctx["tstep"]:.3e} {tstop:.3e}',
         'wrdata seq.dat v(q) v(clk) v(d)', 'quit', '.endc', '.end',
@@ -552,6 +600,7 @@ def characterize_latch(manager, device, vdd=0.6, workdir=None,
         'dToQ': res['dToQ'],
         'bracket_s': [lo, hi], 'bisectionIters': iters,
         'transients': ctx['runs'],
+        'numericalAid': ctx.get('numericalAid', ''),
         'libertyBytes': len(liberty), 'libertyPath': lib_path,
         'staGate': gate,
         'definitions': {**DEFINITIONS,
@@ -650,6 +699,7 @@ def characterize_sequential(manager, device, vdd=0.6, workdir=None,
         'clkToQ': res['clkToQ'],
         'bracket_s': [lo, hi], 'bisectionIters': iters,
         'transients': ctx['runs'],
+        'numericalAid': ctx.get('numericalAid', ''),
         'libertyBytes': len(liberty), 'libertyPath': lib_path,
         'staGate': gate, 'staConstraintCheck': consume,
         'definitions': DEFINITIONS, 'honesty': honesty,

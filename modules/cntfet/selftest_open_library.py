@@ -393,7 +393,9 @@ def main():
           and '/api/cntfet/device/si-nmos-planar-90/proof' in defn
           and '/api/cntfet/device/cnt-aligned-s1/proof' in defn
           and 'cnt-device-cell-scores' in defn
-          and '/api/cntfet/device/si-nmos-planar-90/points?curve='
+          # device-scoped points ride the generic /api/fet alias
+          # since the fg-2 fet-not-cntfet sweep
+          and '/api/fet/device/si-nmos-planar-90/points?curve='
               'cell-scores' in defn
           and DISCLAIMER in page['description'])
 

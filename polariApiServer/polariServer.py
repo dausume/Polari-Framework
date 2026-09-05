@@ -1110,6 +1110,11 @@ class polariServer(treeObject):
             CNTCalibrationAnchor, CNTFETSimResult,
             # cnt-s4d: cell library variant rows.
             CNTCellDefinition,
+            # cell/block arcs (2026-08-31): the cell×FET and
+            # block×FET configuration objects — REGISTRATION lives
+            # HERE (defClassList), not in the seed-pairs list alone
+            # (the classic seeds-silently-vanish gotcha, hit live).
+            CellFETConfiguration, BlockFETConfiguration,
             # fi-0: operating states.
             FETOperatingState,
             # fv arc: regimes, characteristics, transport, fields
@@ -1130,8 +1135,10 @@ class polariServer(treeObject):
             CNTPurificationProcess, ContactFormationProcess,
             LithographyProcess, GateStackProcess,
             CNTFETMonteCarloRun, CellCharacterizationRun,
-            # microchip: the design-level ladder + design nodes.
+            # microchip: the design-level ladder + design nodes +
+            # rank-1 device families (lad §2c).
             DesignLevelDefinition, MicrochipDesignNode,
+            DeviceFamilyDefinition,
             # ai-8: computer parts + builds (dated prices, derived
             # cost, assembly checks).
             ComputerPartDefinition, ComputerBuildDefinition,
@@ -2121,6 +2128,12 @@ class polariServer(treeObject):
             # cnt-s4d: generated cell-variant rows.
             ('CNTCellDefinition', CNTCellDefinition,
              SEED_CNT_CELLS),
+            # cell arc: the cell×FET configuration objects.
+            ('CellFETConfiguration', CellFETConfiguration,
+             SEED_CELL_CONFIGS or []),
+            # block level: the block×FET configuration objects.
+            ('BlockFETConfiguration', BlockFETConfiguration,
+             SEED_BLOCK_CONFIGS or []),
             # fi-0: operating-state rows (criteria as data).
             ('FETOperatingState', FETOperatingState,
              SEED_FET_STATES),
@@ -2189,6 +2202,8 @@ class polariServer(treeObject):
              SEED_DESIGN_LEVELS),
             ('MicrochipDesignNode', MicrochipDesignNode,
              SEED_DESIGN_NODES),
+            ('DeviceFamilyDefinition', DeviceFamilyDefinition,
+             SEED_DEVICE_FAMILIES),
             ('PhotoAbsorberDefinition', PhotoAbsorberDefinition,
              SEED_PHOTO_ABSORBERS),
             ('SolarStackDefinition', SolarStackDefinition,
@@ -2673,7 +2688,10 @@ class polariServer(treeObject):
              + SEED_LAVET_PART_SHAPES
              + SEED_LAVET_V2_PART_SHAPES
              + SEED_M1_PART_SHAPES + SEED_M2_PART_SHAPES
-             + SEED_M3_PART_SHAPES),
+             + SEED_M3_PART_SHAPES
+             # fg-6: the FET pieces (CNT tubes/shells, Si boxes)
+             + (SEED_FET_PART_SHAPES_CNT or [])
+             + (SEED_FET_PART_SHAPES_SI or [])),
             # shape-2: aquaponic towers (reference math-defined pots).
             ('AquaponicTowerDefinition', AquaponicTowerDefinition,
              SEED_TOWERS),

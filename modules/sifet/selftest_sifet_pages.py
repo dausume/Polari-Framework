@@ -229,29 +229,30 @@ def main():
           and xc['of'] >= 9, str(ranked))
 
     # ---- 5. pages ----------------------------------------------------
-    by_route = {p['pageRoute']: p for p in SEED_SI_SCORE_PAGES}
-    check('SEED_SI_SCORE_PAGES: one score + one detail page per Si '
-          'device (14), routes cntfet-score-/cntfet-detail-{name}, '
-          'source_class SiliconMOSFET',
-          len(SEED_SI_SCORE_PAGES) == 2 * len(SI_DEVICE_NAMES)
-          and all(f'cntfet-score-{n}' in by_route
-                  and f'cntfet-detail-{n}' in by_route
-                  for n in SI_DEVICE_NAMES)
-          and all(p['source_class'] == 'SiliconMOSFET' and p['isPage']
-                  for p in SEED_SI_SCORE_PAGES))
-    det = json.loads(by_route['cntfet-detail-si-nmos-planar-90']
-                     ['definition'])
+    check('fg-2 (fet, not cntfet): per-device Si pages are GONE — '
+          'SEED_SI_SCORE_PAGES is empty; the generic fet / '
+          'fet-detail pages serve every Si device via ?object=',
+          SEED_SI_SCORE_PAGES == [])
+    from cntfet.cnt_compare import generic_pages
+    gp = {p['pageRoute']: p for p in generic_pages()}
+    det = json.loads(gp['fet-detail']['definition'])
     ids = [i['id'] for r in det['rows'] for i in r['items']]
-    check('Si detail pages drop the CNT-only field scenes '
-          '(with_scenes=False) but keep the explorer + links',
-          not any('scene' in i or 'field' in i for i in ids)
+    check('the generic detail page keeps explorer + links + the '
+          'scene rows ({object}-addressed; scene panels refuse by '
+          'name on a device without scenes — Si has no tube)',
+          set(gp) == {'fet', 'fet-detail'}
           and any('explorer' in i for i in ids)
-          and any('links' in i for i in ids), str(ids))
-    score_def = by_route['cntfet-score-si-pmos-planar-90']['definition']
-    check('Si score page points every panel at /api/cntfet/device/'
-          '{si-name}/… (the shared VS surfaces accept Si names)',
-          '/api/cntfet/device/si-pmos-planar-90/compare' in score_def
-          and 'curve=score-terms' in score_def)
+          and any('links' in i for i in ids)
+          and any('scene' in i for i in ids)
+          and all('{object}' in i for i in ids if 'scene' in i),
+          str(ids))
+    score_def = gp['fet']['definition']
+    check('the generic score page points every panel at '
+          '/api/fet/device/{object}/… — one definition for every '
+          'FET, Si included',
+          '/api/fet/device/{object}/compare' in score_def
+          and 'curve=score-terms' in score_def
+          and '/api/cntfet/' not in score_def)
     home = SEED_SI_PAGE_DISPLAYS[0]
     comps = _components(home['definition'])
     check('sifet-home (route sifet) uses only registered components '

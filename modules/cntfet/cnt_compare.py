@@ -13,11 +13,15 @@ term. Invalid / underived devices stay in the ranking at 0 with the
 failed proofs (or the derive affordance) named — absence is data, a
 missing competitor is not silently dropped.
 
-Per-object surfaces ([[per-object-display-config]]): one seeded
-DisplayDefinition PER DEVICE (`cntfet-score-{device}`, route
-`cntfet-score-{device}`) generated from the seeded device list —
-graphs are the same per-KIND GraphDefinition rows pointed at that
-device's paths, plus the ranking/validity API panels.
+fg-2 (FET_GENERIC_PAGES_PLAN; fet, not cntfet — Dustin 2026-08-30):
+the per-device page stamping is GONE. TWO generic DisplayDefinition
+seeds — `fet` (score) and `fet-detail` — carry '{object}' in every
+dataPath/input; display-page substitutes it from ?object=<name>
+(fg-1), so what the 90 nm display shows is what EVERY FET's view
+shows. Graphs stay the same per-KIND GraphDefinition rows, pointed
+at '{object}''s own paths. `legacy_page_names()` lists the
+per-device rows the backfill script deletes only after explicit
+confirmation.
 
 @consumers
   - cntfet.cnt_api (GET /api/cntfet/device/{name}/compare)
@@ -114,18 +118,21 @@ def compare_rows(report):
     return rows
 
 
-def _score_page(device_name, source_class='AlignedCNTFETDevice'):
-    d = device_name
+def _generic_score_page():
+    d = '{object}'
     return {
-        'name': f'cntfet-score-{d}',
-        'description': f'Per-FET scoring page for {d}: figures of '
-                       'merit vs their characteristic ideals, the '
-                       'FET-validity proofs (score 0 if any fails), '
-                       'the Monte Carlo spread, and the competitive '
+        'name': 'fet',
+        'description': 'The generic FET scoring page — one definition '
+                       'for every FET, CNT or Si. Open as /display/'
+                       'fet?object=<device>: figures of merit vs '
+                       'their characteristic ideals, the FET-validity '
+                       'proofs (score 0 if any fails), the Monte '
+                       'Carlo spread, parts & purpose, cell-layer '
+                       'speed, proof of freedom and the competitive '
                        'ranking against every other FET.',
-        'source_class': source_class,
+        'source_class': '',
         'isPage': True,
-        'pageRoute': f'cntfet-score-{d}',
+        'pageRoute': 'fet',
         'linkedSolutions': '[]',
         'definition': json.dumps({'rows': [
             # the GENERIC FET display (same for every FET; sub-sections
@@ -134,11 +141,18 @@ def _score_page(device_name, source_class='AlignedCNTFETDevice'):
             _row(0, [_component_item(f'score-{d}-overview', 0, 12,
                                      f'{d}: overview', 'fet-overview',
                                      {'device': d})], min_height=640),
+            # fg-3: the 2-D parts view (compact on the score page)
+            _row(12, [_component_item(f'score-{d}-parts2d', 0, 12,
+                                      f'{d}: 2-D parts view — regions, '
+                                      'materials, doping (compact)',
+                                      'fet-parts-2d',
+                                      {'device': d, 'compact': True})],
+                 min_height=360),
             # parts & purpose: every piece, its material, doping and row
             _row(10, [_sapi(f'score-{d}-parts', 0, 12,
                             f'{d}: parts & purpose — material, doping '
                             '(n / p / undoped), dielectric, process, row',
-                            f'/api/cntfet/device/{d}/parts', pick='parts')],
+                            f'/api/fet/device/{d}/parts', pick='parts')],
                  min_height=360),
             # speed, OWNED BY THE CELL LAYER: FO4 from the characterized
             # INV of this device's library → clock range for a
@@ -148,7 +162,7 @@ def _score_page(device_name, source_class='AlignedCNTFETDevice'):
                             'transition energy, clock range per FO4/cycle '
                             'band (excludes interconnect, clock tree, '
                             'SRAM, IR drop, package)',
-                            f'/api/cntfet/device/{d}/fo4', pick='clock')],
+                            f'/api/fet/device/{d}/fo4', pick='clock')],
                  min_height=300),
             _row(1, [
                 _device_graph(f'score-{d}-terms', 0, 6,
@@ -157,7 +171,7 @@ def _score_page(device_name, source_class='AlignedCNTFETDevice'):
                               d, 'score-terms'),
                 _sapi(f'score-{d}-validity', 1, 6,
                       f'{d}: figures of merit — actual vs ideal',
-                      f'/api/cntfet/device/{d}/score?samples=100',
+                      f'/api/fet/device/{d}/score?samples=100',
                       pick='idealTable'),
             ], min_height=430),
             _row(2, [
@@ -167,8 +181,20 @@ def _score_page(device_name, source_class='AlignedCNTFETDevice'):
                               d, 'compare'),
                 _sapi(f'score-{d}-ranking', 1, 6,
                       f'{d}: competitive ranking',
-                      f'/api/cntfet/device/{d}/compare', pick='ranking'),
+                      f'/api/fet/device/{d}/compare', pick='ranking'),
             ], min_height=430),
+            # fv-8: the normalized cross-device view — every DERIVED
+            # FET's Id/Ion vs Vg/Vdd on one plot (each on its own
+            # supply; ◀ = this device; underived devices named).
+            _row(13, [_component_item(
+                f'score-{d}-normalized', 0, 12,
+                f'{d} vs every FET, normalized: Id/Ion vs Vg/Vdd '
+                '(log y; each device on its OWN Vdd; ◀ = this '
+                'device)', 'named-graph-panel',
+                {'graphName': 'fet-compare-normalized',
+                 'dataPath': f'/api/fet/device/{d}/points'
+                             '?curve=transfer-normalized'})],
+                min_height=430),
             _row(3, [
                 _device_graph(f'score-{d}-transfer-states', 0, 6,
                               f'{d}: operating states on Id(Vg)',
@@ -184,23 +210,38 @@ def _score_page(device_name, source_class='AlignedCNTFETDevice'):
                                      'chain (patents, papers, licences; '
                                      'click any item)',
                                      'freedom-proof-panel',
-                                     {'path': f'/api/cntfet/device/{d}/proof'})],
+                                     {'path': f'/api/fet/device/{d}/proof'})],
                  min_height=420),
             _row(5, [
                 _sapi(f'score-{d}-ip', 0, 6,
                       f'{d}: licensing / freedom-to-operate records '
                       '(engineering record, not legal advice)',
-                      f'/api/cntfet/device/{d}/ip', pick='records'),
+                      f'/api/fet/device/{d}/ip', pick='records'),
                 _sapi(f'score-{d}-links', 1, 6,
                       f'{d}: related pages, partner, cells',
-                      f'/api/cntfet/device/{d}/links', pick='pages'),
+                      f'/api/fet/device/{d}/links', pick='pages'),
             ], min_height=300),
         ]}),
     }
 
 
-def score_pages(device_names, source_class='AlignedCNTFETDevice'):
-    return [_score_page(n, source_class) for n in device_names]
+def score_pages(device_names=None, source_class=''):
+    """fg-2: per-device stamping is gone — the ONE generic page.
+    (Signature kept for the old call sites; arguments ignored.)"""
+    return [_generic_score_page()]
+
+
+def generic_pages():
+    """The two generic FET page seeds (fg-2)."""
+    return [_generic_score_page(), _generic_detail_page()]
+
+
+def legacy_page_names(device_names):
+    """The per-device DisplayDefinition rows fg-2 replaces — the
+    backfill script lists these and deletes them only after explicit
+    confirmation (plan decision 2)."""
+    return ([f'cntfet-score-{n}' for n in device_names]
+            + [f'cntfet-detail-{n}' for n in device_names])
 
 
 def _component_item(item_id, index, segments, title, component, inputs):
@@ -232,68 +273,86 @@ def _explorer_item(item_id, index, segments, title, device):
     }
 
 
-def _detail_page(device_name, with_scenes=True,
-                 source_class='AlignedCNTFETDevice'):
-    """fv-5: the per-FET DETAIL page — select a characteristic, get
-    its views + meaning; below it the 3-D field scenes (scrub Vg).
-    with_scenes=False drops the scene + field rows (fp-2 silicon
-    devices: the field scenes are CNT-only and refuse by name — a
-    Si detail page has no tube to draw)."""
+def _generic_detail_page():
+    """fv-5 → fg-2: the ONE generic DETAIL page — select a
+    characteristic, get its views + meaning; below it the 3-D field
+    scenes (scrub Vg). The scene rows STAY on the generic page: a
+    device with no scene rows (Si — no tube to draw) shows the
+    viewer's own named refusal, stated not faked (plan decision 3)."""
     from cntfet.cnt_scene import scene_page_items
-    d = device_name
+    d = '{object}'
     rows = [
         _row(0, [_explorer_item(f'detail-{d}-explorer', 0, 12,
                                 f'{d}: characteristics → views + '
                                 'meaning', d)], min_height=640),
         # evidence: proof chain on the detail page too (first-class)
+        # the registered 2-D sim space (fet-2d-{object}) — EVERY
+        # FET has one (CNT and Si), so a silicon device's page has
+        # a defined 2-D sim even though the 3-D tube scenes refuse.
+        _row(4, [_component_item(f'detail-{d}-sim2d', 0, 12,
+                                 f'{d}: 2-D sim space (fet-2d-{d}) '
+                                 '— the registered region layout '
+                                 'under /sim-spaces',
+                                 'sim-space-viewer',
+                                 {'simSpaceName': f'fet-2d-{d}',
+                                  'hideRunPanel': True})],
+             min_height=380),
+        # fg-3: the full 2-D parts view — field overlay + sliders
+        _row(3, [_component_item(f'detail-{d}-parts2d', 0, 12,
+                                 f'{d}: 2-D parts view — every region '
+                                 'with its material, doping and row; '
+                                 'field overlay at its own Vdd',
+                                 'fet-parts-2d', {'device': d})],
+             min_height=460),
         _row(7, [_sapi(f'detail-{d}-parts', 0, 12,
                        f'{d}: parts & purpose — material, doping, '
                        'dielectric, process, row',
-                       f'/api/cntfet/device/{d}/parts', pick='parts')],
+                       f'/api/fet/device/{d}/parts', pick='parts')],
              min_height=360),
         _row(8, [_component_item(f'detail-{d}-proof', 0, 12,
                                  f'{d}: is it free to use? — proof '
                                  'chain (click any patent / paper)',
                                  'freedom-proof-panel',
-                                 {'path': f'/api/cntfet/device/{d}/proof'})],
+                                 {'path': f'/api/fet/device/{d}/proof'})],
              min_height=420),
         # fp-6 weave: where else this FET lives (pages, partner,
         # cells, comparators) — a reader never dead-ends here.
         _row(9, [_sapi(f'detail-{d}-links', 0, 12,
                        f'{d}: related pages, partner, cells',
-                       f'/api/cntfet/device/{d}/links')],
+                       f'/api/fet/device/{d}/links')],
              min_height=220),
     ]
-    if with_scenes:
-        rows += [
-            _row(1, scene_page_items(d), min_height=420),
-            _row(2, [
-                _device_graph(f'detail-{d}-field-potential', 0, 6,
-                              f'{d}: potential along the tube '
-                              '(F1 sketch; D13 SCF beside it when '
-                              'present)', d, 'field-potential'),
-                _device_graph(f'detail-{d}-field-density', 1, 6,
-                              f'{d}: electron density along the tube',
-                              d, 'field-density'),
-            ], min_height=430),
-        ]
+    rows += [
+        _row(1, scene_page_items(d), min_height=420),
+        _row(2, [
+            _device_graph(f'detail-{d}-field-potential', 0, 6,
+                          f'{d}: potential along the tube '
+                          '(F1 sketch; D13 SCF beside it when '
+                          'present)', d, 'field-potential'),
+            _device_graph(f'detail-{d}-field-density', 1, 6,
+                          f'{d}: electron density along the tube',
+                          d, 'field-density'),
+        ], min_height=430),
+    ]
     return {
-        'name': f'cntfet-detail-{d}',
-        'description': f'Detail view of {d}: select a FET '
+        'name': 'fet-detail',
+        'description': 'The generic FET detail page — one definition '
+                       'for every FET, CNT or Si. Open as /display/'
+                       'fet-detail?object=<device>: select a FET '
                        'characteristic (IV, switching, transport, '
                        'fields, quality) and see the views that '
                        'explain it plus what it means for '
                        'performance; 2-D profiles and 3-D banded '
-                       'field scenes along the tube.',
-        'source_class': source_class,
+                       'field scenes along the tube (scene panels '
+                       'refuse by name on a device without scenes).',
+        'source_class': '',
         'isPage': True,
-        'pageRoute': f'cntfet-detail-{d}',
+        'pageRoute': 'fet-detail',
         'linkedSolutions': '[]',
         'definition': json.dumps({'rows': rows}),
     }
 
 
-def detail_pages(device_names, with_scenes=True,
-                 source_class='AlignedCNTFETDevice'):
-    return [_detail_page(n, with_scenes, source_class)
-            for n in device_names]
+def detail_pages(device_names=None, with_scenes=True, source_class=''):
+    """fg-2: the ONE generic detail page (arguments ignored)."""
+    return [_generic_detail_page()]

@@ -279,11 +279,49 @@ def score_curve_rows(manager, id_fn, p, device, curve, vd=0.6,
         if not report.get('ok'):
             return None, report
         return compare_rows(report), None
+    if curve == 'transfer-normalized':
+        # fv-8: cross-device comparison needs a NORMALIZED view —
+        # every per-device plot is device-relative (0 → its OWN
+        # Vdd), so here x = Vg/Vdd and y = Id/Ion (Ion = Id at
+        # (Vdd, Vdd)), one series per DERIVED device, both
+        # technologies; underived devices are named, not dropped
+        # silently.
+        tables = getattr(manager, 'objectTables', None) or {}
+        names = sorted(
+            getattr(r, 'name', '')
+            for cls in ('AlignedCNTFETDevice', 'SiliconMOSFET')
+            for r in (tables.get(cls) or {}).values())
+        rows, excluded = [], []
+        for n in names:
+            n_fn, n_p, n_dev, refusal = device_model(manager, n)
+            if refusal is not None:
+                excluded.append(n)
+                continue
+            vdd = device_vdd(n_dev)
+            ion = max(n_fn(vdd, vdd), 1e-30)
+            label = n + (' ◀' if n == device.name else '')
+            for f in range(31):
+                u = f / 30.0
+                rows.append({'series': label, 'style': 'line',
+                             'dash': not n.startswith(
+                                 device.name.split('-')[0]),
+                             'x': round(u, 4),
+                             'y': max(n_fn(u * vdd, vdd) / ion,
+                                      1e-9)})
+        note = 'Id/Ion = 1 at (Vdd, Vdd) — each device on its OWN supply'
+        if excluded:
+            note += ('; excluded (underived — POST derive): '
+                     + ', '.join(excluded))
+        rows.append({'series': 'Ion', 'style': 'hguide',
+                     'dash': True, 'x': None, 'y': 1.0,
+                     'label': note})
+        return rows, None
     return None, None
 
 
 CURVES = ('transfer', 'output', 'transfer-states', 'output-states',
-          'score-terms', 'transfer-envelope', 'cell-scores', 'compare')
+          'score-terms', 'transfer-envelope', 'cell-scores', 'compare',
+          'transfer-normalized')
 
 
 def provenance(manager, subject_kind, name):
@@ -479,3 +517,17 @@ SEED_CNT_DEVICE_GRAPHS = [
         'rule at 1.0 = ideal',
         'device', 'normalized (1 = ideal)'),
 ]
+
+# fv-8: the normalized cross-device view — fet-named (fet, not
+# cntfet): every DERIVED FET's Id/Ion vs Vg/Vdd on one plot, each
+# device on its OWN supply (device-relative rule), underived
+# devices named on the guide instead of silently dropped.
+_FV8_NORMALIZED = _device_graph(
+    'transfer-normalized',
+    'Normalized cross-device transfer: x = Vg/Vdd, y = Id/Ion '
+    '(log), one series per derived FET — CNT and silicon on one '
+    'plot although each runs at its own Vdd; ◀ = this page\'s '
+    'device; the guide names any underived device',
+    'Vg / Vdd', 'Id / Ion', y_type='log')
+_FV8_NORMALIZED['name'] = 'fet-compare-normalized'
+SEED_CNT_DEVICE_GRAPHS.append(_FV8_NORMALIZED)
