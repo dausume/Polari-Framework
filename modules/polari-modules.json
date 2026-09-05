@@ -453,6 +453,15 @@
       "requires": [],
       "description": "Reticulum mesh transport (ret-1, RETICULUM_TRANSPORT_PLAN): identities/destinations/interfaces/bindings as rows, per-PATH link measurements, ledgered airtime budgets, .arch archipelago with GRADED trust, parent+child state replication, operator-licence assertions + device links. RNS stack lives ONLY in the pol-reticulum sidecar, pinned rns==0.9.4+lxmf==0.6.3 (RETICULUM_LICENCE_GATE.md \u2014 pins are licence pins). THE LINE (ret-8): nothing arriving over Reticulum mutates Polari state. Third module born manifest-first on dyn-1.",
       "notes": ""
+    },
+    "mqttbridge": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/mqttbridge",
+      "repo": "",
+      "wave": 3,
+      "requires": [],
+      "description": "MQTT bridge: brokers + topic->object bindings as rows, explicit connect, ingest with refusal ledger; publish knob OFF at mqtt-1. paho-mqtt==2.1.0 (EDL-1.0 edge)."
     }
   }
 }

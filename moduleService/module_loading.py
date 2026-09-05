@@ -39,7 +39,7 @@ FEATURE_MODULES = frozenset({
     'cntfet', 'collab', 'computerparts', 'computers', 'dmvdata',
     'electrodevice', 'gears', 'grpcbridge', 'household', 'hwdigital',
     'hwfpga', 'magnetics', 'mathshapes', 'mealoptions', 'meshassets',
-    'microalgae', 'microchip', 'motors', 'nutrition', 'odooconnect',
+    'microalgae', 'microchip', 'motors', 'mqttbridge', 'nutrition', 'odooconnect',
     'plant_morphology', 'polariapps', 'reticulum', 'scoring', 'supplychain',
     'tanks', 'techtree', 'testing', 'waxprint', 'waxsupply',
     'zones',
@@ -156,14 +156,27 @@ def _import_one_block(globalns, module_name, imports, importlib):
         for path, symbols in imports:
             mod = importlib.import_module(path)
             for symbol in symbols:
-                staged[symbol] = _resolve_from_import(
-                    mod, path, symbol, importlib)
+                # 'orig as alias' = ``from path import orig as alias``
+                # (the 2026-09-04 merge: cntfet's seed helpers are
+                # imported under private aliases).
+                orig, alias = _split_alias(symbol)
+                staged[alias] = _resolve_from_import(
+                    mod, path, orig, importlib)
     except ImportError as exc:
         feature_import_error(module_name, exc)  # re-raises if downloaded
-        all_symbols = tuple(s for _, syms in imports for s in syms)
+        all_symbols = tuple(_split_alias(s)[1]
+                            for _, syms in imports for s in syms)
         stub_feature_symbols(globalns, module_name, all_symbols)
         return
     globalns.update(staged)
+
+
+def _split_alias(symbol):
+    """'name' -> ('name', 'name'); 'name as alias' -> ('name', 'alias')."""
+    if ' as ' in symbol:
+        orig, alias = symbol.split(' as ', 1)
+        return orig.strip(), alias.strip()
+    return symbol, symbol
 
 
 def unstub_feature_module(globalns, module_name, blocks):
@@ -183,9 +196,17 @@ def unstub_feature_module(globalns, module_name, blocks):
         for path, symbols in imports:
             mod = importlib.import_module(path)
             for symbol in symbols:
-                globalns[symbol] = _resolve_from_import(
-                    mod, path, symbol, importlib)
+                orig, alias = _split_alias(symbol)
+                globalns[alias] = _resolve_from_import(
+                    mod, path, orig, importlib)
     MISSING_FEATURE_MODULES.pop(module_name, None)
+    # the derived seed values that hang off this module's imports
+    try:
+        from polariApiServer.feature_derived import derive_feature_seeds
+        derive_feature_seeds(globalns)
+    except Exception as e:  # noqa: BLE001
+        print(f'[module_loading] derived seeds after un-stubbing '
+              f'{module_name}: {e}', flush=True)
 
 
 def _resolve_from_import(mod, path, symbol, importlib):

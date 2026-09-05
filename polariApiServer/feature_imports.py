@@ -965,14 +965,14 @@ FEATURE_IMPORT_BLOCKS = (
         )),
         ('cntfet.cnt_scoring', (
             'SEED_FET_SCORE_CONCEPTS', 'SEED_FET_SCORE_TERMS',
-            'seed_subjects_and_values',
+            'seed_subjects_and_values as _fet_score_subjects',
         )),
         ('cntfet.cnt_cell_scoring', (
             'SEED_CELL_SCORE_CONCEPTS', 'SEED_CELL_SCORE_TERMS',
-            'seed_cell_subjects',
+            'seed_cell_subjects as _cell_score_subjects',
         )),
         ('cntfet.cnt_compare', (
-            'score_pages',
+            'score_pages as _cnt_score_pages',
         )),
         ('cntfet.cnt_cell_pages', (
             'CellFETConfiguration', 'SEED_CELL_PAGES', 'seed_cell_configs',
@@ -1011,7 +1011,8 @@ FEATURE_IMPORT_BLOCKS = (
     )),
     ('cntfet', (
         ('cntfet.cnt_device_viz', (
-            'extra_graph_seeds', 'SEED_CNT_DEVICE_GRAPHS',
+            'extra_graph_seeds as _cnt_fv_graphs',
+            'SEED_CNT_DEVICE_GRAPHS',
         )),
     )),
     ('cntfet', (
@@ -1090,6 +1091,12 @@ FEATURE_IMPORT_BLOCKS = (
     ('aquaponics', (
         ('aquaponics.aquaponics_pages_seed', (
             'SEED_AQUAPONICS_PAGE_DISPLAYS',
+        )),
+    )),
+    ('mqttbridge', (
+        ('mqttbridge.mqtt_basis', (
+            'MqttBrokerDefinition', 'MqttMessageRecord',
+            'MqttTopicBinding', 'SEED_MQTT_BINDINGS', 'SEED_MQTT_BROKERS',
         )),
     )),
     ('collab', (

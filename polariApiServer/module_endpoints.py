@@ -421,6 +421,13 @@ def construct_computers_endpoints(polServer):
         polServer=polServer, manager=manager)
 
 
+def construct_mqttbridge_endpoints(polServer):
+    manager = polServer.manager
+    from mqttbridge.mqtt_api import MqttBridgeAPI
+    mqttBridgeEndpoint = MqttBridgeAPI(
+        polServer=polServer, manager=manager)
+
+
 MODULE_ENDPOINT_CONSTRUCTORS = {
     'pspp': construct_pspp_endpoints,
     'scoring': construct_scoring_endpoints,
@@ -461,4 +468,5 @@ MODULE_ENDPOINT_CONSTRUCTORS = {
     'microchip': construct_microchip_endpoints,
     'foodstate': construct_foodstate_endpoints,
     'computers': construct_computers_endpoints,
+    'mqttbridge': construct_mqttbridge_endpoints,
 }

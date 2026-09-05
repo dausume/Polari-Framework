@@ -138,6 +138,9 @@ from moduleService.module_loading import (
 )
 from polariApiServer.feature_imports import FEATURE_IMPORT_BLOCKS
 _import_feature_blocks(globals(), FEATURE_IMPORT_BLOCKS)
+# derived seed values that lived inside those blocks (see feature_derived).
+from polariApiServer.feature_derived import derive_feature_seeds
+derive_feature_seeds(globals())
 from polariNoCode.graph_compilers import (GraphCompilerDefinition,
                                           SEED_GRAPH_COMPILERS)
 from polariNoCode.nocode_tests import (NoCodeTestCase,
@@ -1075,6 +1078,8 @@ class polariServer(treeObject):
             IsleDevice, IsleUplink, IsleApp, IsleAppService,
             MeshAppRealization, IsleProtocolPermit, IsleEngine,
             IsleCatalogEntry, IsleIngestReceipt,
+            # mqtt-1: brokers / topic bindings / message ledger.
+            MqttBrokerDefinition, MqttTopicBinding, MqttMessageRecord,
             # Tech tree (tt-3) + segment content (tt-6).
             TechTreeDefinition, TechNode, TechSegment,
             TechSegmentAssignment, TechDependencyEdge,
@@ -2564,6 +2569,11 @@ class polariServer(treeObject):
             # islemesh (§20): the general isle app store catalog —
             # the two proven variants (mesh-app + polari-app) + odoo.
             ('IsleCatalogEntry', IsleCatalogEntry, SEED_CATALOG),
+            # mqtt-1: brokers before the bindings that name them.
+            ('MqttBrokerDefinition', MqttBrokerDefinition,
+             SEED_MQTT_BROKERS),
+            ('MqttTopicBinding', MqttTopicBinding,
+             SEED_MQTT_BINDINGS),
             # aqp-1: self-watering pots + their side holes (pots
             # before holes — holes reference their pot).
             ('PotDefinition', PotDefinition, SEED_POTS),
