@@ -347,7 +347,7 @@ def _put_away_locked(manager, module):
             load_module_requires,
         )
         active = {top_module(c) for c in polServer.defClassList} \
-            | getattr(polServer, 'endpointConstructed', set())
+            | set(getattr(polServer, 'endpointConstructed', ()))
         active.discard(module)
         dependents = sorted(
             m for m, reqs in load_module_requires().items()
@@ -402,7 +402,7 @@ def _put_away_locked(manager, module):
     else:
         active = sorted(
             ({top_module(c) for c in polServer.defClassList}
-             | getattr(polServer, 'endpointConstructed', set()))
+             | set(getattr(polServer, 'endpointConstructed', ())))
             - set(CORE_PACKAGES) - {module})
         os.environ['POLARI_MODULES'] = ','.join(active)
 
@@ -555,7 +555,7 @@ def _admit_locked(manager, module):
             if ctor is not None:
                 ctor(polServer)
                 constructed = True
-            polServer.endpointConstructed.add(module)
+            polServer.endpointConstructed.append(module)
 
         worker._transition(module, 'online', finished_at=time.time(),
                            seeded_rows=seeded)

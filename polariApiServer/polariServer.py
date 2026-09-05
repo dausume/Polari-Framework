@@ -701,11 +701,14 @@ class polariServer(treeObject):
         )
         # dyn-2: record which modules' endpoints exist — falcon has no
         # route removal, so live admission must never construct twice.
-        self.endpointConstructed = set()
+        # a LIST, not a set: this object is served by CRUDE (GET
+        # /polariServer, the frontend's poll) and json cannot render a
+        # set — caught live 2026-09-05 after the dyn-1 merge.
+        self.endpointConstructed = []
         for _mod, _ctor in MODULE_ENDPOINT_CONSTRUCTORS.items():
             if _feature_available(_mod):
                 _ctor(self)
-                self.endpointConstructed.add(_mod)
+                self.endpointConstructed.append(_mod)
 
 
         # xsim-2: single-writer lease + object locks + simulation queue.
