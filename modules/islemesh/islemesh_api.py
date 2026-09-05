@@ -940,18 +940,50 @@ class IsleMeshAPI(treeObject):
         device, per server_name → protocol/port/upstream. The
         proxies ARE the policy; this is it, readable."""
         mock = self._any_mock()
+        # vpn-1: the `.vpn` column — an AppVpnExposure row (the vpn
+        # module's mirror, read by table name so islemesh never
+        # imports vpn) gives the app its <app>.vpn name and the
+        # gateway's Blind / Sees-traffic label on the same line.
+        vpn_by_app = {}
+        for row in self._table('AppVpnExposure').values():
+            if getattr(row, 'status', '') == 'revoked':
+                continue
+            key = (getattr(row, 'device_name', ''),
+                   getattr(row, 'app_name', ''))
+            vpn_by_app[key] = {
+                'vpn': getattr(row, 'vpn_name', ''),
+                'vpn_label': getattr(row, 'label', '') or 'endpoint',
+                'vpn_network': getattr(row, 'network_name', ''),
+                'is_mock': getattr(row, 'is_mock', False)}
         matrix = {}
+        seen_vpn = set()
         for row in self._table('IsleProtocolPermit').values():
             device = getattr(row, 'device_name', '')
+            app = getattr(row, 'app_name', '')
+            vpn = vpn_by_app.get((device, app), {})
+            seen_vpn.add((device, app))
             matrix.setdefault(device, []).append({
                 'server_name': getattr(row, 'server_name', ''),
-                'app': getattr(row, 'app_name', ''),
+                'app': app,
                 'port': getattr(row, 'listen_port', 0),
                 'protocol': getattr(row, 'protocol', ''),
                 'upstream': getattr(row, 'upstream', ''),
                 'fragment': getattr(row, 'fragment_ref', ''),
+                'vpn': vpn.get('vpn', ''),
+                'vpn_label': vpn.get('vpn_label', ''),
                 'is_mock': getattr(row, 'is_mock', False),
             })
+        # a .vpn exposure whose app has no permit row yet still shows
+        # (the rung is a fact of the isle's push, not of a fragment)
+        for (device, app), vpn in vpn_by_app.items():
+            if (device, app) in seen_vpn:
+                continue
+            matrix.setdefault(device, []).append({
+                'server_name': vpn['vpn'], 'app': app, 'port': 0,
+                'protocol': 'vpn', 'upstream': '',
+                'fragment': '(no fragment yet — .vpn rung only)',
+                'vpn': vpn['vpn'], 'vpn_label': vpn['vpn_label'],
+                'is_mock': vpn['is_mock']})
         for device in matrix:
             matrix[device].sort(
                 key=lambda p: (p['server_name'], p['port']))

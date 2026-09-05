@@ -1139,4 +1139,10 @@ FEATURE_IMPORT_BLOCKS = (
             'MeshSimScenario', 'MeshSimNode', 'MeshSimResult',
         )),
     )),
+    ('vpn', (
+        ('vpn', (
+            'VPN_CLASSES', 'VPN_SEED_PAIRS', 'SEED_VPN_CATALOG',
+            'SEED_VPN_PAGE_DISPLAYS',
+        )),
+    )),
 )

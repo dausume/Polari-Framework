@@ -38,10 +38,10 @@ FEATURE_MODULES = frozenset({
     'appstore', 'aquaponics', 'biomining', 'bizops', 'climate',
     'cntfet', 'collab', 'computerparts', 'computers', 'dmvdata',
     'electrodevice', 'gears', 'grpcbridge', 'household', 'hwdigital',
-    'hwfpga', 'magnetics', 'mathshapes', 'mealoptions', 'meshassets',
+    'hwfpga', 'islemesh', 'magnetics', 'mathshapes', 'mealoptions', 'meshassets',
     'microalgae', 'microchip', 'motors', 'mqttbridge', 'nutrition', 'odooconnect',
     'plant_morphology', 'polariapps', 'reticulum', 'scoring', 'supplychain',
-    'tanks', 'techtree', 'testing', 'waxprint', 'waxsupply',
+    'tanks', 'techtree', 'testing', 'vpn', 'waxprint', 'waxsupply',
     'zones',
 })
 
@@ -84,6 +84,10 @@ FEATURE_REQUIRES = {
     # mo-1: and re-export the moved meal data from mealoptions.
     'nutrition': ('household', 'mealoptions'),
     'zones': ('scoring',),
+    # vpn-1: the isle-vpn mirror rides the islemesh acceptor family
+    # (IsleEngine / IsleIngestReceipt / IsleDevice rows, the
+    # netledger's free_port, the catalog + engine idioms).
+    'vpn': ('islemesh',),
 }
 
 # Modules that MOVE into modules/ (mp-4) but stay required for boot

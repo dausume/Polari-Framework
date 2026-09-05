@@ -166,10 +166,11 @@ def main():
     # ---- the mock feed ----------------------------------------------
     ingests = mock_ingests()
     # 'engine' is an app-declared ingest (isle app deploy --engine),
-    # not part of the device/registry/fragment mock feed.
+    # not part of the device/registry/fragment mock feed; 'vpn' is
+    # the vpn module's acceptor (its own mock = vpn_demo, vpn-1).
     check('mock covers every device-facing ingest kind',
           {kind for kind, _ in ingests}
-          == set(INGEST_KINDS) - {'engine'})
+          == set(INGEST_KINDS) - {'engine', 'vpn'})
     check('EVERY mock payload declares mock_network '
           '(the flag real data never carries)',
           all(payload.get('mock_network') is True

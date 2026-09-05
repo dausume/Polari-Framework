@@ -65,6 +65,13 @@ ENGINE_MAP = {
         {'name': 'docker', 'kind': 'system', 'probe': 'docker',
          'note': 'container runtime for mesh apps'},
     ],
+    # vpn-1: Polari only mirrors + renders; the engines run on the
+    # isle. `cryptography` is the keygen fallback (one-time delivery),
+    # wireguard-tools is optional (qr / wg pubkey on this box).
+    'vpn': [
+        {'name': 'cryptography', 'kind': 'python', 'probe': 'cryptography',
+         'note': 'X25519 keygen fallback (device-side keys preferred)'},
+    ],
     'grpcbridge': [
         {'name': 'grpcio', 'kind': 'python', 'probe': 'grpc',
          'note': 'gRPC runtime'},

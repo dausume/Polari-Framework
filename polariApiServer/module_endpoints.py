@@ -428,6 +428,15 @@ def construct_mqttbridge_endpoints(polServer):
         polServer=polServer, manager=manager)
 
 
+def construct_vpn_endpoints(polServer):
+    manager = polServer.manager
+    # vpn requires islemesh (the acceptor family): the registry's
+    # requires-closure carries islemesh into POLARI_MODULES and refuses
+    # a drop while vpn is downloaded, so no second gate here.
+    from vpn.vpn_api import VpnAPI
+    vpnEndpoint = VpnAPI(polServer=polServer, manager=manager)
+
+
 MODULE_ENDPOINT_CONSTRUCTORS = {
     'pspp': construct_pspp_endpoints,
     'scoring': construct_scoring_endpoints,
@@ -469,4 +478,5 @@ MODULE_ENDPOINT_CONSTRUCTORS = {
     'foodstate': construct_foodstate_endpoints,
     'computers': construct_computers_endpoints,
     'mqttbridge': construct_mqttbridge_endpoints,
+    'vpn': construct_vpn_endpoints,
 }

@@ -394,6 +394,16 @@ def install_plan(entry):
         ], 'note': 'deploys a NEW polari instance (backend + '
                    'frontend) behind THIS device\'s agent — add '
                    '--name/--modules to customize'}
+    if kind == 'isle-vpn':
+        # vpn-1: the ten Isle Link / Isle Bridge listings — the vpn
+        # module owns the plan; absent module = honest refusal.
+        try:
+            from vpn.vpn_catalog import vpn_install_plan
+        except ImportError:
+            return {'ok': False, 'steps': [],
+                    'note': 'isle-vpn listings need the vpn module '
+                            '(pol modules get vpn)'}
+        return vpn_install_plan(entry)
     if kind == 'polari-module':
         # a polari module installed into the local instance via the
         # module .deb (mac-8) or, until the deb repo lands, the

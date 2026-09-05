@@ -462,6 +462,17 @@
       "wave": 3,
       "requires": [],
       "description": "MQTT bridge: brokers + topic->object bindings as rows, explicit connect, ingest with refusal ledger; publish knob OFF at mqtt-1. paho-mqtt==2.1.0 (EDL-1.0 edge)."
+    },
+    "vpn": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/vpn",
+      "repo": "",
+      "wave": 7,
+      "requires": [
+        "islemesh"
+      ],
+      "description": "Isle VPN (vpn-1): the isle-vpn app family (Isle Link = WireGuard-based, Isle Bridge = OpenVPN-based, ten kinds, Blind / Sees-traffic on every row) \u2014 Polari MIRRORS each isle's VPN app state (networks, peers with public keys only, access rules, federation links, .vpn exposures; POST /api/islemesh/ingest/vpn) and PROPOSES changes an operator applies on the isle (VpnProposal inbox; D9 authority is isle-side). Engine renders Link confs / nftables text; Bridge refuses until step-ca. Feeds /display/vpn and the .vpn column of /display/isle-mesh."
     }
   }
 }
