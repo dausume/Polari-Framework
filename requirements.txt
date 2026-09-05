@@ -1,6 +1,6 @@
-pip==25.3
+pip==26.2.1
 cffi==2.0.0
-cryptography==46.0.4
+cryptography==50.0.1
 falcon==4.2.0
 # PyJWT (not the `jwt` package) — needed for PyJWKClient + RS256 JWKS-based
 # verification of Keycloak access tokens. The [crypto] extra pulls in the
@@ -12,12 +12,12 @@ PyYAML==6.0.2
 # acct-3: code coverage for the accountability matrix
 # (POLARI_COVERAGE=true wraps every subprocess check).
 coverage==7.6.10
-requests==2.32.5
-setuptools==70.0.0
+requests==2.34.2
+setuptools==84.0.0
 svgwrite==1.4.3
 tippecanoe
 minio==7.2.15
-urllib3==2.6.3
+urllib3==2.7.0
 websockets>=13.0,<14.0
 # gRPC serving layer (grpcbridge/grpc_server.py, GRPC_BRIDGE_PLAN.md
 # grpc-2): musllinux wheels ride the Alpine image directly — verified
