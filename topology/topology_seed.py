@@ -38,7 +38,7 @@ SEED_NODE_MACHINES = [
         'arch': 'x86_64',
         'mem_gb': 7.6,
         'roles_json': json.dumps(['engines', 'remote-worker', 'node']),
-        'swarm_role': 'none',
+        'swarm_role': 'worker',
         'repo_dir': '~/polari-suite',
         'source': 'nodes.yml',
         # res-1 knob: prf-cad-engines is PINNED here

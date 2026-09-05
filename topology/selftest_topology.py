@@ -116,12 +116,14 @@ if __name__ == '__main__':
     print('== suite: graph payload ==')
     graph = graph_payload(mgr, 'staging-a')
     check('graph ok', graph.get('ok'))
-    check('graph carries 10 instances',
-          len(graph.get('instances', [])) == 10)
+    from topology.topology_seed import (
+        SEED_INSTANCE_DEFINITIONS as _SI, SEED_MODULE_ASSIGNMENTS as _SA)
+    check('graph carries every seeded instance (%d)' % len(_SI),
+          len(graph.get('instances', [])) == len(_SI))
     check('graph carries 3 machines',
           len(graph.get('machines', [])) == 3)
-    check('graph carries 12 assignments',
-          len(graph.get('assignments', [])) == 12)
+    check('graph carries every seeded assignment (%d)' % len(_SA),
+          len(graph.get('assignments', [])) == len(_SA))
     check('graph edges resolved to their provider workers',
           all(e['providerInstanceName'] in ('engines', 'livekit',
                                             'reticulum')
@@ -238,7 +240,7 @@ if __name__ == '__main__':
     check('no observations => every instance unobserved',
           report['inDrift'] and all(
               r['kind'] == 'unobserved' for r in report['rows'])
-          and len(report['rows']) == 10)
+          and len(report['rows']) == len(_SI))
     check('unobserved rows suggest pol topology report',
           all(r['suggestedCommand'] == 'pol topology report'
               for r in report['rows']))
