@@ -38,6 +38,47 @@ SIGHTING_STATUS_VALUES = ('unadjudicated', 'archipelago', 'mesh',
 ADJUDICATION_VALUES = ('archipelago', 'mesh', 'ignored')
 
 
+#: Who acts when no Keycloak user is on the request (Dustin 2026-09-07:
+#: "naming a peer should not require keycloak … a single static isle
+#: identity for the reticulum should be sufficient; we can enable
+#: multiple keycloak-tied reticulum identities, but the default can be
+#: an isle identity for more lightweight isles"). Being on the isle IS
+#: the trusted private LAN (§5c-b), so the isle's own Reticulum identity
+#: is the default actor; RETICULUM_ACTOR_MODE=keycloak restores the
+#: strict tier where every act must carry a person.
+ACTOR_MODES = ('isle', 'keycloak')
+
+
+def resolve_actor(user, mode='isle', isle_identity='', instance_name=''):
+    """(ok, actor | refusal). A KC user always wins (a person with a
+    name). Otherwise mode 'isle' names the isle's Reticulum identity
+    ('isle:<hash>' — or 'isle:<instance>' while the sidecar is not
+    reachable, stated), and mode 'keycloak' refuses."""
+    if user and user.get('sub'):
+        return True, {'actor': user.get('username') or user['sub'],
+                      'tier': 'keycloak'}
+    if mode not in ACTOR_MODES:
+        return False, {'evidence': f'RETICULUM_ACTOR_MODE={mode!r} is not '
+                                   f'one of {ACTOR_MODES}'}
+    if mode == 'keycloak':
+        return False, {'evidence': 'this isle runs RETICULUM_ACTOR_MODE='
+                                   'keycloak — a Keycloak-verified caller '
+                                   'is required for this act',
+                       'knob': 'RETICULUM_ACTOR_MODE=isle (the '
+                               'lightweight default: the isle identity '
+                               'acts)'}
+    if isle_identity:
+        return True, {'actor': f'isle:{isle_identity[:16]}',
+                      'tier': 'isle'}
+    if instance_name:
+        return True, {'actor': f'isle:{instance_name}', 'tier': 'isle',
+                      'note': 'sidecar identity not reachable — the '
+                              'instance name stands in'}
+    return False, {'evidence': 'no Keycloak user, no sidecar identity '
+                               'and no POLARI_INSTANCE_NAME — nothing '
+                               'to sign this act with'}
+
+
 def adjudicate(sighting, decision, decided_by, arch_name=''):
     """The adjudication act as a pure rule. Returns
     (ok, changes | refusal): changes = fields to write on the

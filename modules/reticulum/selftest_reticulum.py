@@ -563,6 +563,23 @@ def run():
           and 'payload_sample' in inspect.signature(
               dr.QuarantinedSubmission.__init__).parameters)
 
+    # -- the actor: isle identity by default, KC when present (2026-09-07)
+    from reticulum import discovery_basis as db
+    ra = db.resolve_actor
+    check('KC user always wins', ra({'sub': 'u1', 'username': 'dustin'},
+                                    'isle', 'abcd' * 8)[1]['actor'] == 'dustin')
+    check('isle identity is the default actor',
+          ra(None, 'isle', 'abcdef0123456789ff')[1] ==
+          {'actor': 'isle:abcdef0123456789', 'tier': 'isle'})
+    check('instance name stands in without a sidecar, stated',
+          ra(None, 'isle', '', 'prf-isle')[1]['actor'] == 'isle:prf-isle'
+          and 'note' in ra(None, 'isle', '', 'prf-isle')[1])
+    check('keycloak mode refuses with the knob named',
+          not ra(None, 'keycloak', 'ab')[0]
+          and 'RETICULUM_ACTOR_MODE' in ra(None, 'keycloak', 'ab')[1]['knob'])
+    check('nothing to sign with → refusal', not ra(None, 'isle')[0])
+    check('bad mode → refusal', not ra(None, 'lagoon', 'ab')[0])
+
     # -- peer discovery + adjudication (ret-1d, row 21) -------------------
     from reticulum import discovery_basis as db
     check('sighting lifecycle: unadjudicated is neither .arch nor '

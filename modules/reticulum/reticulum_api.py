@@ -84,6 +84,33 @@ class ReticulumAPI(treeObject):
             body['suggestion'] = suggestion
         response.media = body
 
+    def _actor(self, request, act):
+        """The actor for an act that used to demand Keycloak: a KC
+        user when present, else the ISLE IDENTITY (the lightweight
+        default — Dustin 2026-09-07), else the strict refusal when
+        RETICULUM_ACTOR_MODE=keycloak. Returns (who, None) or
+        (None, (error, status, suggestion))."""
+        import os
+        from reticulum.discovery_basis import resolve_actor
+        user = getattr(request.context, 'user_info', None)
+        mode = os.environ.get('RETICULUM_ACTOR_MODE', 'isle').strip() \
+            or 'isle'
+        ident = ''
+        if not (user and user.get('sub')) and mode == 'isle':
+            try:
+                from reticulum.rns_remote import sidecar_status
+                st = sidecar_status(timeout=2)
+                ident = (st.get('identityHash') or '') \
+                    if isinstance(st, dict) else ''
+            except Exception:
+                ident = ''
+        ok, result = resolve_actor(
+            user, mode, ident, os.environ.get('POLARI_INSTANCE_NAME', ''))
+        if not ok:
+            return None, (f'{act} refused: {result["evidence"]}',
+                          falcon.HTTP_401, result)
+        return result['actor'], None
+
     # ---- routes -----------------------------------------------------
 
     # ---- ret-7: LXMF messaging ---------------------------------
@@ -636,16 +663,15 @@ class ReticulumAPI(treeObject):
         }
 
     def on_post_adjudicate(self, request, response, name):
-        """The adjudication ACT: a KC-verified human decides what a
-        heard peer becomes. Identity before existence (the standing
-        401-vs-404 rule)."""
+        """The adjudication ACT: a named actor decides what a heard
+        peer becomes — a Keycloak user when present, else the isle's
+        own identity (the lightweight default). Identity before
+        existence (the standing 401-vs-404 rule)."""
         from reticulum.discovery_basis import PeerSighting, adjudicate
-        user = getattr(request.context, 'user_info', None)
-        if not user or not user.get('sub'):
-            return self._refuse(
-                response, 'adjudicating a peer requires a Keycloak-'
-                          'verified caller — admission is a human act '
-                          'with a name on it', falcon.HTTP_401)
+        who, refusal = self._actor(request, 'adjudicating a peer')
+        if refusal:
+            return self._refuse(response, refusal[0], refusal[1],
+                                suggestion=refusal[2])
         try:
             body = request.media or {}
         except Exception:
@@ -673,7 +699,6 @@ class ReticulumAPI(treeObject):
             sighting = {'status': 'unadjudicated',
                         'dest_hash': live.get('destHash', ''),
                         'last_heard_ms': live.get('lastHeardMs', 0)}
-        who = user.get('username') or user['sub']
         ok, result = adjudicate(sighting, decision, who, arch_name)
         if not ok:
             return self._refuse(response, result['evidence'],
@@ -725,14 +750,15 @@ class ReticulumAPI(treeObject):
         being on the mesh, and its trust grade only raises what may be
         auto-approved LATER, on the proposal side; it buys no direct
         write here or anywhere."""
-        user = getattr(request.context, 'user_info', None)
-        if not user or not user.get('sub'):
-            # Identity FIRST, shape second (401-vs-400/404 must not
-            # leak which watched objects exist).
-            return self._refuse(
-                response, 'inbound mesh data requires a Keycloak-'
-                          'verified LOCAL caller — arrival on the mesh '
-                          'is not authorization', falcon.HTTP_401)
+        # Identity FIRST, shape second (401-vs-400/404 must not leak
+        # which watched objects exist). The isle identity is the
+        # default actor (lightweight tier); a remote isle is still not
+        # authorized merely by being on the mesh — this caller is the
+        # LOCAL sidecar/operator, and the result is a PROPOSAL.
+        who, refusal = self._actor(request, 'inbound mesh data')
+        if refusal:
+            return self._refuse(response, refusal[0], refusal[1],
+                                suggestion=refusal[2])
         try:
             body = request.media or {}
         except Exception:
@@ -754,7 +780,6 @@ class ReticulumAPI(treeObject):
             return self._refuse(
                 response, f'the proposal kernel is unavailable: {exc}',
                 falcon.HTTP_503)
-        who = user.get('username') or user['sub']
         proposal = kernel.propose(
             'rns_inbound',
             f'mesh data ({kind}) from {arch_name!r} via {who}',
