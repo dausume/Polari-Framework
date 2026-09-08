@@ -256,7 +256,11 @@ def load_export_hook(package):
     """The module's `export_hook` module, or None when it has none.
     A hook that exists but fails to import is an error worth seeing."""
     try:
-        return importlib.import_module(f'{package}.export_hook')
+        try:
+            return importlib.import_module(f'{package}.export_hook')
+        except ModuleNotFoundError:
+            # sap-2: concept-less code lives in custom/ — the hook moved there
+            return importlib.import_module(f'{package}.custom.export_hook')
     except ModuleNotFoundError as exc:
         if exc.name == f'{package}.export_hook':
             return None

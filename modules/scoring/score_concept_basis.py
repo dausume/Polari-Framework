@@ -14,67 +14,11 @@ accountability framework is another).
   - scoring.custom.scoring_engine (the math) / scoring.scoring_api
 @see /OVERLAP_MAP.md
 """
+# sap-2c INDEX (design §7): the classes live one-per-file under objects/score_concept/;
+# this file re-exports them (imports keep working) and holds what they share.
+# The original imports stay: names this file imported were re-exported implicitly.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-#: Supported aggregations. weighted-mean = Σ(w·v)/Σw (the scorecard
-#: spreadsheet behavior; its live TS service divides by term COUNT —
-#: a known divergence we do NOT copy, noted in every result).
-AGGREGATIONS = ('weighted-mean',)
-
-
-class ScoreConcept(treeObject):
-    """One composed score definition."""
-
-    @treeObjectInit
-    def __init__(
-        self,
-        # kebab-case unique key ('labor-quality').
-        name: str = '',
-        display_name: str = '',
-        description: str = '',
-        # What this concept holds accountable ('policy', 'state'…) —
-        # matches ScoreSubject.kind; '' = any.
-        subject_kind: str = '',
-        # JSON list of subject names to score ([] = every subject of
-        # subject_kind).
-        subject_names_json: str = '[]',
-        # The weighted term bundle (JSON list):
-        # [{"term": "union-participation", "weight": 5}, ...] — sign
-        # comes from the term's is_positive, not the weight.
-        term_weights_json: str = '[]',
-        # Contexts every evaluation must hold under (JSON name list,
-        # e.g. ["year-2022"]); subject-specific contexts (their state,
-        # their district) come from the values themselves.
-        required_context_names_json: str = '[]',
-        # AGGREGATIONS entry.
-        aggregation: str = 'weighted-mean',
-        # Scale scores to the best subject = 100 (the scorecard's
-        # levelization) — an explicit knob, not silent behavior.
-        levelize: bool = True,
-        # Generic-intent vocabulary (JSON list) — the abstraction seam
-        # (scr-5): assertions of generic intent match concepts through
-        # these tags; suggestions only, never auto-bound.
-        abstract_tags_json: str = '[]',
-        # Time knobs (JSON): {"allowInterpolation": true,
-        # "allowExtrapolation": false} — whether gap values may be
-        # interpolated (always labeled) and whether frames beyond the
-        # measured range may be served at all.
-        time_policy_json: str = '',
-        provenance_id: str = '',
-        notes: str = '',
-        manager=None,
-    ):
-        self.name = name
-        self.display_name = display_name
-        self.description = description
-        self.subject_kind = subject_kind
-        self.subject_names_json = subject_names_json
-        self.term_weights_json = term_weights_json
-        self.required_context_names_json = required_context_names_json
-        self.aggregation = aggregation
-        self.levelize = levelize
-        self.abstract_tags_json = abstract_tags_json
-        self.time_policy_json = time_policy_json
-        self.provenance_id = provenance_id
-        self.notes = notes
+from scoring.objects.score_concept._shared import AGGREGATIONS  # noqa: F401
+from scoring.objects.score_concept.ScoreConcept import ScoreConcept  # noqa: F401

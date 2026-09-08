@@ -19,52 +19,11 @@ fermentation) per the honest-absence rule.
 @see AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md §nmp-7;
      /HOUSEHOLD_NUTRITION_PLAN.md §nut-5
 """
+# sap-2c INDEX (design §7): the classes live one-per-file under objects/fulfillment/;
+# this file re-exports them (imports keep working) and holds what they share.
+# The original imports stay: names this file imported were re-exported implicitly.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-
-class GardenPlanDefinition(treeObject):
-    """One garden configuration to simulate coverage for."""
-
-    @treeObjectInit
-    def __init__(
-        self,
-        # kebab-case unique key ('starter-garden').
-        name: str = '',
-        display_name: str = '',
-        # demand source: a household... or (nmp-7) a MealPlan —
-        # exactly one set; the meal plan wins when both are.
-        household_name: str = '',
-        meal_plan_name: str = '',
-        # JSON {food_name: plant_count} — GROWN FoodItems only
-        # (plant-linked, nut-2); pantry foods are not growable.
-        plantings_json: str = '{}',
-        # days between harvests of the roster.
-        harvest_period_days: float = 30.0,
-        # persisted snapshot of the last coverage run (scoring seam).
-        coverage_result_json: str = '',
-        is_prior: bool = True,
-        provenance_id: str = '',
-        notes: str = '',
-        manager=None,
-    ):
-        self.name = name
-        self.display_name = display_name
-        self.household_name = household_name
-        self.meal_plan_name = meal_plan_name
-        self.plantings_json = plantings_json
-        self.harvest_period_days = harvest_period_days
-        self.coverage_result_json = coverage_result_json
-        self.is_prior = is_prior
-        self.provenance_id = provenance_id
-        self.notes = notes
-
-
-SEED_GARDEN_PLANS = [
-    {'name': 'starter-garden', 'display_name': 'Starter garden',
-     'household_name': 'demo-household', 'meal_plan_name': '',
-     'plantings_json': '{"basil-leaf": 6, "kale-leaf": 8}',
-     'harvest_period_days': 30.0,
-     'is_prior': True, 'provenance_id': 'nmp-7',
-     'notes': 'the nut-2 basil+kale pot roster as a coverage demo'},
-]
+from nutrition.objects.fulfillment._shared import SEED_GARDEN_PLANS  # noqa: F401
+from nutrition.objects.fulfillment.GardenPlanDefinition import GardenPlanDefinition  # noqa: F401

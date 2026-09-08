@@ -77,14 +77,14 @@ Usage:
 """
 
 # Core classes
-from materials_science.material_basis import Material
-from materials_science.materialProperty_basis import MaterialProperty
-from materials_science.materialResolution_basis import MaterialResolution
-from materials_science.materialPurpose_basis import MaterialPurpose
-from materials_science.materialRelatedDevice_basis import MaterialRelatedDevice
+from materials_science.objects.material import Material
+from materials_science.objects.materialProperty import MaterialProperty
+from materials_science.objects.materialResolution import MaterialResolution
+from materials_science.objects.materialPurpose import MaterialPurpose
+from materials_science.objects.materialRelatedDevice import MaterialRelatedDevice
 
 # Import from properties module
-from materials_science.custom.properties import (
+from materials_science.objects.properties import (
     # Base category
     PropertyCategory,
 
@@ -119,7 +119,7 @@ from materials_science.custom.properties import (
 )
 
 # Import from resolutions module
-from materials_science.custom.resolutions import (
+from materials_science.objects.resolutions import (
     # Base category
     ResolutionCategory,
 
@@ -151,7 +151,7 @@ from materials_science.custom.resolutions import (
 )
 
 # Import from purposes module
-from materials_science.custom.purposes import (
+from materials_science.objects.purposes import (
     # Base category
     PurposeCategory,
 
@@ -179,7 +179,7 @@ from materials_science.custom.purposes import (
 )
 
 # Import from devices module
-from materials_science.custom.devices import (
+from materials_science.objects.devices import (
     # Base category
     DeviceCategory,
 
@@ -206,7 +206,7 @@ from materials_science.custom.devices import (
 )
 
 # Import from referenceMaterials module
-from materials_science.custom.referenceMaterials import (
+from materials_science.objects.referenceMaterials import (
     ReferenceMaterial,
     PropertyValueSource,
 
@@ -216,12 +216,12 @@ from materials_science.custom.referenceMaterials import (
 )
 
 # Import from rawMaterials module
-from materials_science.rawMaterials_basis import (
+from materials_science.objects.rawMaterials import (
     RawMaterial
 )
 
 # Import from materialSourcing module
-from materials_science.custom.materialSourcing import (
+from materials_science.objects.materialSourcing import (
     MaterialSourcing,
     NaturalSourcing,
     OpenSourceLocalSourcing,
@@ -229,13 +229,13 @@ from materials_science.custom.materialSourcing import (
 )
 
 # Import from dataProvenance module
-from materials_science.dataProvenance_basis import (
+from materials_science.objects.dataProvenance import (
     DataProvenance,
     DataSource
 )
 
 # Import from materialAdditives module
-from materials_science.materialAdditives_basis import (
+from materials_science.objects.materialAdditives import (
     MaterialAdditive,
     PropertyEffect,
     AdditiveCompatibility,
@@ -243,13 +243,13 @@ from materials_science.materialAdditives_basis import (
 )
 
 # Import from targetProfiles module
-from materials_science.targetProfiles_basis import (
+from materials_science.objects.targetProfiles import (
     TargetMaterialProfile,
     PropertyTarget
 )
 
 # Import from formulation module
-from materials_science.formulation_basis import (
+from materials_science.objects.formulation import (
     Formulation,
     FormulationComponent,
     FormulationIntent

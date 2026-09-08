@@ -19,31 +19,18 @@ Run from polari-framework/ (the parity check runs it twice):
 
 Prints one machine-readable line: PARITY_RESULT {json}.
 """
+# sap-2c INDEX (design §7): the classes live one-per-file under objects/parity_probe/;
+# this file re-exports them (imports keep working) and holds what they share.
+# The original imports stay: names this file imported were re-exported implicitly.
 
 import json
 import os
-
 from objectTreeDecorators import treeObject, treeObjectInit
 
-TABLE = 'Acct1ParityProbe'
-COLUMN_DEFS = [
-    'name TEXT PRIMARY KEY',
-    'count INTEGER',
-    'ratio REAL',
-    'note NONE',   # sqlite's typeless affinity — the translation
-                   # edge case (mariadb has no NONE; adapter maps it)
-]
+from testing.objects.parity_probe._shared import COLUMN_DEFS, TABLE  # noqa: F401
+from testing.objects.parity_probe.Acct1ParityProbe import Acct1ParityProbe  # noqa: F401
 
-
-class Acct1ParityProbe(treeObject):
-    @treeObjectInit
-    def __init__(self, name: str = '', count: int = 0,
-                 ratio: float = 0.0, note: str = '', manager=None):
-        self.name = name
-        self.count = count
-        self.ratio = ratio
-        self.note = note
-
+import json
 
 def main():
     from objectTreeManagerDecorators import managerObject
@@ -77,7 +64,5 @@ def main():
     ok = (result['created'] and result['save_ok']
           and result['roundtrip'])
     raise SystemExit(0 if ok else 1)
-
-
 if __name__ == '__main__':
     main()

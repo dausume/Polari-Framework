@@ -11,92 +11,12 @@ so disciplines share environments instead of re-describing them.
   - polariServer.defClassList (auto-CRUDE + persistence)
   - pspp.performance_scenarios_basis (scenarios reference these by name)
 """
+# sap-2c INDEX (design §7): the classes live one-per-file under objects/exposure_scenarios/;
+# this file re-exports them (imports keep working) and holds what they share.
+# The original imports stay: names this file imported were re-exported implicitly.
 
 import json
-
 from objectTreeDecorators import treeObject, treeObjectInit
 
-
-class ExposureScenario(treeObject):
-    """One named environment a material can sit in."""
-
-    @treeObjectInit
-    def __init__(
-        self,
-        name: str = '',
-        display_name: str = '',
-        description: str = '',
-        # JSON environment dict — temperature_c, relative_humidity,
-        # water_contact ('none'|'humid'|'immersed'|'flowing'),
-        # co2_exposure, chemical, uv, vacuum, thermal_cycling...
-        environment_json: str = '{}',
-        provenance_id: str = '',
-        notes: str = '',
-        manager=None,
-    ):
-        self.name = name
-        self.display_name = display_name
-        self.description = description
-        self.environment_json = environment_json
-        self.provenance_id = provenance_id
-        self.notes = notes
-
-
-_PROV = 'pspp-9 exposure vocabulary (PSPP_MATERIALS_PLAN §2)'
-
-SEED_EXPOSURE_SCENARIOS = [
-    {'name': 'indoor-ambient', 'display_name': 'Indoor ambient',
-     'environment_json': json.dumps(
-         {'temperature_c': 22, 'relative_humidity': 0.45,
-          'water_contact': 'none'})},
-    {'name': 'outdoor', 'display_name': 'Outdoor weathering',
-     'environment_json': json.dumps(
-         {'temperature_c': [-10, 40], 'relative_humidity': [0.2, 1.0],
-          'water_contact': 'humid', 'uv': True,
-          'thermal_cycling': True})},
-    {'name': 'hydroponic', 'display_name': 'Hydroponic / aquaponic',
-     'description': 'Continuously wet growing systems (the pot '
-                    'world) — water transport dominates.',
-     'environment_json': json.dumps(
-         {'temperature_c': [15, 30], 'water_contact': 'flowing',
-          'nutrient_solution': True})},
-    {'name': 'marine', 'display_name': 'Marine immersion',
-     'environment_json': json.dumps(
-         {'water_contact': 'immersed', 'chloride': True})},
-    {'name': 'acid', 'display_name': 'Acid exposure',
-     'environment_json': json.dumps(
-         {'water_contact': 'immersed', 'ph': 2})},
-    {'name': 'freeze-thaw', 'display_name': 'Freeze-thaw cycling',
-     'environment_json': json.dumps(
-         {'temperature_c': [-20, 20], 'water_contact': 'humid',
-          'thermal_cycling': True})},
-    {'name': 'fire', 'display_name': 'Fire / high temperature',
-     'environment_json': json.dumps(
-         {'temperature_c': [20, 1000], 'water_contact': 'none'})},
-]
-
-for _row in SEED_EXPOSURE_SCENARIOS:
-    _row.setdefault('description', '')
-    _row.setdefault('provenance_id', _PROV)
-
-
-def exposure_index(manager):
-    rows = (getattr(manager, 'objectTables', None) or {}).get(
-        'ExposureScenario', {})
-    rows = list(rows.values()) if isinstance(rows, dict) else list(rows)
-    if not rows:
-        rows = [type('R', (), dict(r))() for r in
-                SEED_EXPOSURE_SCENARIOS]
-    out = {}
-    for r in rows:
-        try:
-            environment = json.loads(
-                getattr(r, 'environment_json', '') or '{}')
-        except Exception:
-            environment = {}
-        out[getattr(r, 'name', '')] = {
-            'name': getattr(r, 'name', ''),
-            'displayName': getattr(r, 'display_name', ''),
-            'environment': environment,
-        }
-    return out
+from pspp.objects.exposure_scenarios._shared import SEED_EXPOSURE_SCENARIOS, _PROV, _row, exposure_index  # noqa: F401
+from pspp.objects.exposure_scenarios.ExposureScenario import ExposureScenario  # noqa: F401

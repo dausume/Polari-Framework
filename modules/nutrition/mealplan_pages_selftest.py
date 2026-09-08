@@ -50,12 +50,14 @@ def _class_fields(class_name):
     # module classes live under modules/<pkg>/; the core definition +
     # event classes (CalendarEvent, EventTrigger, …) under the
     # framework's polariApiServer / polariNoCode packages.
-    candidates = list(root.glob('*/*.py')) \
+    # sap-2c: row classes live one per file under objects/ (any depth)
+    candidates = list(root.glob('*/*.py')) + list(root.glob('*/objects/**/*.py')) \
         + list((root.parent / 'polariApiServer').glob('*.py')) \
         + list((root.parent / 'polariNoCode').glob('*.py'))
     for py in candidates:
         if pattern.search(py.read_text(errors='ignore')):
-            module = importlib.import_module(f'{py.parent.name}.{py.stem}')
+            base = root if py.is_relative_to(root) else root.parent   # modules/<pkg>/objects/… or a core package
+            module = importlib.import_module('.'.join(py.relative_to(base).with_suffix('').parts))
             cls = getattr(module, class_name)
             return set(inspect.signature(cls.__init__).parameters) - {'self'}
     return None

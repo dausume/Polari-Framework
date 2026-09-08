@@ -38,13 +38,13 @@ def seed_initial_data(manager=None):
     Returns:
         dict: Mapping of class name to list of created instances.
     """
-    from materials_science.dataProvenance_basis import DataProvenance, DataSource
-    from materials_science.rawMaterials_basis import RawMaterial
-    from materials_science.materialAdditives_basis import (
+    from materials_science.objects.dataProvenance import DataProvenance, DataSource
+    from materials_science.objects.rawMaterials import RawMaterial
+    from materials_science.objects.materialAdditives import (
         MaterialAdditive, PropertyEffect, AdditiveCompatibility, Compatibilizer
     )
-    from materials_science.targetProfiles_basis import TargetMaterialProfile, PropertyTarget
-    from materials_science.formulation_basis import Formulation, FormulationComponent, FormulationIntent
+    from materials_science.objects.targetProfiles import TargetMaterialProfile, PropertyTarget
+    from materials_science.objects.formulation import Formulation, FormulationComponent, FormulationIntent
 
     data_dir = os.path.join(os.path.dirname(__file__), 'initialData')
 

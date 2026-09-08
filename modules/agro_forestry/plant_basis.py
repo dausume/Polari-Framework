@@ -1,25 +1,7 @@
+# sap-2c INDEX (design §7): the classes live one-per-file under objects/plant/;
+# this file re-exports them (imports keep working) and holds what they share.
+# The original imports stay: names this file imported were re-exported implicitly.
+
 from objectTreeDecorators import treeObject, treeObjectInit
 
-
-class Plant(treeObject):
-    """
-    Plant model class.
-
-    Attributes:
-        maxHeight: float
-        maxRootDepth: float
-    """
-
-    @treeObjectInit
-    def __init__(self,
-                 manager=None,
-                 branch=None,
-                 id=None,
-                 maxHeight=0.0,
-                 maxRootDepth=0.0):
-        treeObject.__init__(self, manager=manager, branch=branch, id=id)
-        self.maxHeight = maxHeight
-        self.maxRootDepth = maxRootDepth
-
-    def __repr__(self):
-        return f"Plant(id='{self.id}')"
+from agro_forestry.objects.plant.Plant import Plant  # noqa: F401

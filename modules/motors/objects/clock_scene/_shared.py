@@ -1,0 +1,541 @@
+"""@module motors.objects.clock_scene._shared — what the clock_scene row classes share (constants, seeds, helpers); split from clock_scene_basis.py (sap-2c)."""
+import json
+from composition.custom.data_refs import resolve_named, rows
+
+LAYER_KINDS = ('part-coloring', 'vector-field', 'replay', 'markers',
+               'shape-swap', 'gear-replay', 'phase-replay')
+V2_PART_BODIES = {
+    'lavet-v2-stator': ['stator'],
+    'lavet-v2-rotor-magnet': ['rotor-magnet'],
+    'lavet-v2-coil': ['coil'],
+    'lavet-v2-pinion': ['rotor-pinion'],
+    'lavet-v2-bobbin-flanges': ['bobbin-flange-a',
+                                'bobbin-flange-b'],
+    'lavet-v2-leads': ['lead-a', 'lead-b'],
+    'lavet-v2-index': ['rotor-index'],
+}
+PALETTE = ('#4e9a63', '#c98a00', '#5b7fd4', '#b5525c', '#7a5bd4',
+           '#3fa7a0', '#c46fb1', '#8a8f3f')
+def _ramp(fraction):
+    """0..1 → green→amber→red hex (mass share, load share...)."""
+    f = max(0.0, min(1.0, fraction))
+    if f < 0.5:
+        r, g = int(0x4e + (0xc9 - 0x4e) * (f * 2)), 0x9a
+    else:
+        r, g = 0xc9, int(0x9a - (0x9a - 0x52) * ((f - 0.5) * 2))
+    return f'#{r:02x}{g:02x}45'
+def mass_bodies(masses, part_bodies):
+    """Pure coloring math: {part: massG} → per-body colors ramped
+    by mass share (heaviest = full red end) + legend."""
+    total = sum(masses.values()) or 1.0
+    top = max((m / total for m in masses.values()), default=1.0)
+    bodies, legend = {}, []
+    for part, mass in sorted(masses.items(),
+                             key=lambda kv: -kv[1]):
+        frac = mass / total
+        color = _ramp(frac / top)
+        for body in part_bodies.get(part, []):
+            bodies[body] = {'color': color, 'value': round(mass, 4),
+                            'part': part}
+        legend.append({'label': f'{part} — {mass:.3g} g '
+                                f'({frac:.0%})', 'color': color})
+    return bodies, legend
+def _mass_coloring(manager, design, part_bodies):
+    from motors.motor_parts_basis import part_report
+    rep = part_report(manager, design)
+    if not rep.get('ok'):
+        return {'ok': False,
+                'refusal': rep.get('refusal', 'mass bill refused')}
+    masses = {p['part']: p.get('massG') for p in rep.get('parts', [])
+              if isinstance(p.get('massG'), (int, float))}
+    if not masses:
+        return {'ok': False,
+                'refusal': 'no part masses resolve — the bill '
+                           'derives mass from shape + material '
+                           'rows, and none answered here'}
+    bodies, legend = mass_bodies(masses, part_bodies)
+    unmapped = [p['part'] for p in rep.get('parts', [])
+                if p['part'] not in masses]
+    return {'ok': True, 'bodies': bodies, 'legend': legend,
+            'unit': 'g',
+            'note': ('parts with no resolvable mass keep their '
+                     'base material: ' + ', '.join(unmapped)
+                     if unmapped else
+                     'color ramps by mass share of the bill')}
+def _stress_coloring(manager, design, part_bodies, style):
+    from motors.custom.motor_stress import part_stress
+    warn = float(style.get('warnBelow', 4.0))
+    fail = float(style.get('failBelow', 1.5))
+    bodies, legend_rows = {}, []
+    for part, mapped in part_bodies.items():
+        try:
+            rep = part_stress(manager, design, part)
+        except Exception as e:
+            rep = {'ok': False, 'refusal': f'raised: {e}'}
+        if rep.get('ok'):
+            sf = (rep.get('safetyFactor')
+                  or rep.get('verdict', {}).get('safetyFactor'))
+        else:
+            sf = None
+        if isinstance(sf, (int, float)):
+            color = ('#b5525c' if sf < fail else
+                     '#c98a00' if sf < warn else '#4e9a63')
+            note = f'SF {sf:.2f}'
+        else:
+            color = '#6b7078'
+            note = rep.get('refusal', 'no stress answer')[:80]
+        for body in mapped:
+            bodies[body] = {'color': color, 'value': sf,
+                            'part': part, 'note': note}
+        legend_rows.append({'label': f'{part} — {note}',
+                            'color': color})
+    return {'ok': True, 'bodies': bodies, 'legend': legend_rows,
+            'unit': 'safety factor',
+            'note': f'red < {fail}, amber < {warn}, green ≥ {warn}; '
+                    f'gray = the engine refused (reason kept)'}
+def _material_coloring(manager, design, part_bodies):
+    parts = [p for p in rows(manager, 'MotorPartDefinition')
+             if getattr(p, 'design_ref', '') == design]
+    if not parts:
+        return {'ok': False,
+                'refusal': f'no MotorPartDefinition rows for '
+                           f'"{design}" — motors seeds not booted?'}
+    materials = sorted({getattr(p, 'material_ref', '') or
+                        '(unresolved)' for p in parts})
+    color_of = {m: PALETTE[i % len(PALETTE)]
+                for i, m in enumerate(materials)}
+    bodies = {}
+    for p in parts:
+        mat = getattr(p, 'material_ref', '') or '(unresolved)'
+        for body in part_bodies.get(getattr(p, 'name', ''), []):
+            bodies[body] = {'color': color_of[mat], 'value': mat,
+                            'part': getattr(p, 'name', ''),
+                            'route': f'/materials/{mat}'
+                            if mat != '(unresolved)' else ''}
+    legend = [{'label': m, 'color': c}
+              for m, c in color_of.items()]
+    return {'ok': True, 'bodies': bodies, 'legend': legend,
+            'unit': 'material option',
+            'note': 'same accountability chain as the sourcing '
+                    'view; body click-through rides the part rows'}
+def _vector_field(manager, params):
+    view_name = params.get('field_view', '')
+    try:
+        from magnetics.custom.field_views import dispersion_payload
+    except ImportError:
+        return {'ok': False,
+                'refusal': 'magnetics module not importable here — '
+                           'the field layer needs it enabled'}
+    rep = dispersion_payload(manager, view_name)
+    if not rep.get('ok'):
+        return {'ok': False,
+                'refusal': rep.get('refusal',
+                                   f'field view "{view_name}" '
+                                   f'refused')}
+    legend = [{'label': f"{b.get('name')} "
+                        f"({b.get('min')}–{b.get('max')} T)",
+               'color': b.get('color')}
+              for b in rep.get('bands', [])]
+    return {'ok': True, 'vectors': rep.get('vectors', []),
+            'legend': legend, 'fieldView': view_name,
+            'placement': params.get('placement', {}),
+            'note': (rep.get('note', '') +
+                     ' | placement is ILLUSTRATIVE: the view '
+                     'samples its own region in meters and is '
+                     'scaled into the scene at the declared '
+                     'anchor, not spatially registered')}
+def _markers(manager, params):
+    from motors.custom.composition_splice import interface_specs
+    fm_rows = {getattr(f, 'name', ''): f
+               for f in rows(manager, 'FailureModeDefinition')}
+    seeded = {m.get('interface'): m
+              for m in params.get('markers', [])}
+    out, legend = [], []
+    # m1-3/4: the interface set follows the layer's design (M1
+    # layers pin theirs in params; the default stays M0).
+    for spec in interface_specs(params.get('design')
+                                or 'clock-lavet-m0'):
+        mark = seeded.get(spec['name'])
+        if not mark:
+            continue
+        modelled = [ref for ref in spec['failure_modes']
+                    if fm_rows.get(ref) is not None
+                    and getattr(fm_rows[ref], 'equation_ref', '')]
+        unknown = [ref for ref in spec['failure_modes']
+                   if fm_rows.get(ref) is None]
+        color = '#4e9a63' if len(modelled) == len(
+            spec['failure_modes']) else '#c98a00'
+        out.append({
+            'id': f"marker-{spec['name']}",
+            'interface': spec['name'],
+            'position': mark.get('position', [0, 0, 0]),
+            'radius': mark.get('radius', 0.9),
+            'color': color, 'alpha': 0.55,
+            'between': [spec['member_a'], spec['member_b']],
+            'failureModes': spec['failure_modes'],
+            'modelled': modelled,
+            'modeRowsMissing': unknown})
+    legend = [
+        {'label': 'every failure mode modelled', 'color': '#4e9a63'},
+        {'label': 'unmodelled modes present (named in the marker)',
+         'color': '#c98a00'}]
+    return {'ok': True, 'markers': out, 'legend': legend,
+            'positionsDerived': bool(params.get(
+                'positions_derived')),
+            'note': ('positions are DERIVED from the same shape '
+                     'rows the scene draws (mq-3 / m2-4), so a '
+                     'marker cannot drift away from the joint it '
+                     'marks'
+                     if params.get('positions_derived') else
+                     'positions are seeded approximations of the '
+                     'joints, not derived geometry — the shape '
+                     'rows carry absolute coords these markers '
+                     'do not read yet')}
+def _shape_swap(manager, params, design):
+    """ws-2: swap one scene body's shapeRef for another shape row —
+    the observable winding replaces the solid coil while the layer
+    is on. When the target is a WINDING, its coherence + derived
+    numbers ride along, plus the geometry-vs-electrical MTL
+    CROSS-CHECK: two modules assert the coil's mean turn length
+    (this math object, and motor_winding's bobbin model) — when
+    they disagree, the payload says so instead of choosing."""
+    swaps = list(params.get('swaps') or [])
+    if params.get('body') and params.get('shape'):
+        swaps.append({'body': params['body'],
+                      'shape': params['shape']})
+    if not swaps:
+        return {'ok': False,
+                'refusal': 'shape-swap needs {swaps: [{body, '
+                           'shape}...]} params'}
+    from mathshapes.custom.shape_analysis import shape_properties
+    resolved, problems, first_drv = [], [], {}
+    for s in swaps:
+        props = shape_properties(manager, s.get('shape', ''))
+        if not props.get('ok'):
+            problems.append(f'"{s.get("shape")}" refuses: '
+                            f'{props.get("error")}')
+            continue
+        resolved.append({'body': s.get('body', ''),
+                         'shapeRef': f'mathshape:{s["shape"]}',
+                         'derived': props.get('derived'),
+                         'note': props.get('method', '')})
+        if not first_drv:
+            first_drv = props.get('derived') or {}
+    if not resolved:
+        return {'ok': False,
+                'refusal': '; '.join(problems)}
+    out = {'ok': True, 'swaps': resolved,
+           'hide': list(params.get('hide') or []),
+           'body': resolved[0]['body'],
+           'shapeRef': resolved[0]['shapeRef'],
+           'derived': resolved[0]['derived'],
+           'note': resolved[0]['note'],
+           **({'partialRefusals': problems} if problems else {})}
+    drv = first_drv
+    if drv.get('meanTurnLength'):
+        try:
+            from motors.custom.motor_winding import winding_report
+            rep = winding_report(manager, design)
+            elec_mtl = (rep.get('meanTurnLengthMm')
+                        or rep.get('mtl_mm')
+                        or (rep.get('winding') or {}).get(
+                            'meanTurnLengthMm'))
+        except Exception:
+            rep, elec_mtl = None, None
+        geom_mtl = drv['meanTurnLength']
+        cross = {'geometryMTL': geom_mtl,
+                 'electricalMTL': elec_mtl}
+        if isinstance(elec_mtl, (int, float)) and elec_mtl > 0:
+            ratio = geom_mtl / elec_mtl
+            cross['ratio'] = round(ratio, 3)
+            cross['note'] = (
+                'geometry (this math object, scene mm) and '
+                'motor_winding (the design row bobbin) assert the '
+                'coil MTL independently — '
+                + ('they AGREE' if 0.67 < ratio < 1.5 else
+                   'they DISAGREE: the drawn as-built scene and '
+                   'the design row carry different bobbin '
+                   'geometry, a modeling gap to reconcile, not '
+                   'a number to average'))
+        else:
+            cross['note'] = ('electrical MTL not resolvable from '
+                             'the design row — cross-check '
+                             'unavailable, said rather than '
+                             'skipped')
+        out['crossCheck'] = cross
+    return out
+def layer_payload(manager, layer_row,
+                  design='clock-lavet-m0'):
+    kind = getattr(layer_row, 'kind', '')
+    try:
+        params = json.loads(getattr(layer_row, 'params_json', '')
+                            or '{}')
+        style = json.loads(getattr(layer_row, 'style_json', '')
+                           or '{}')
+    except ValueError:
+        return {'ok': False, 'refusal': 'layer params do not parse'}
+    part_bodies = params.get('part_bodies', V2_PART_BODIES)
+    # m1-3: a layer may PIN its design (M1 layers do) so a
+    # caller's M0 default can never silently color another
+    # design's bodies from the wrong bill.
+    design = params.get('design') or design
+    source = getattr(layer_row, 'source', '')
+    try:
+        if kind == 'part-coloring' and source == 'mass-bill':
+            data = _mass_coloring(manager, design, part_bodies)
+        elif kind == 'part-coloring' and source == 'part-stress':
+            data = _stress_coloring(manager, design, part_bodies,
+                                    style)
+        elif kind == 'part-coloring' and source == 'materials':
+            data = _material_coloring(manager, design, part_bodies)
+        elif kind == 'vector-field':
+            data = _vector_field(manager, params)
+        elif kind == 'replay':
+            data = {'ok': True, 'geometry': params,
+                    'note': 'the page drives the animation from '
+                            'the clock-sim step history — this '
+                            'layer carries the geometry config '
+                            'that used to live hard-coded in the '
+                            'Angular motor page'}
+        elif kind == 'phase-replay':
+            data = {'ok': True, 'geometry': params,
+                    'note': 'the page drives rotor angle AND coil '
+                            'excitation from the m1-sequence step '
+                            'history — each entry names its '
+                            'excited phase; this layer carries '
+                            'the phase→coil-body map and the '
+                            'excited/idle styles'}
+        elif kind == 'markers':
+            data = _markers(manager, params)
+        elif kind == 'shape-swap':
+            data = _shape_swap(manager, params, design)
+        elif kind == 'gear-replay':
+            try:
+                from gears.gear_scene_seed import gear_scene_replay
+            except ImportError:
+                data = {'ok': False,
+                        'refusal': 'gears module not importable '
+                                   'here — the gear-train replay '
+                                   'needs it enabled'}
+            else:
+                data = gear_scene_replay(
+                    manager,
+                    train_name=params.get('train',
+                                          'clock-train-m0'),
+                    time_scale=float(params.get('time_scale', 60)))
+        else:
+            data = {'ok': False,
+                    'refusal': f'unknown layer kind/source '
+                               f'"{kind}/{source}" — one of '
+                               f'{LAYER_KINDS}'}
+    except Exception as e:
+        data = {'ok': False, 'refusal': f'layer raised: {e}'}
+    return {'name': getattr(layer_row, 'name', ''),
+            'displayName': getattr(layer_row, 'display_name', ''),
+            'kind': kind, 'source': source,
+            'description': getattr(layer_row, 'description', ''),
+            **data}
+def clock_scene_payload(manager, view_name,
+                        design='clock-lavet-m0', scene_name=''):
+    """The 3D assembly for one discipline view: base scene + every
+    layer's render-ready data + which layers that view turns on by
+    default. Stacking any combination is the caller's toggle. A
+    view may carry MULTIPLE scenes (gr-4: the isolated gear train
+    beside the motor) — ?scene= picks one, the payload lists all."""
+    view, refusal = resolve_named(manager, 'ClockViewDefinition',
+                                  view_name)
+    if refusal:
+        return {'ok': False, **refusal}
+    try:
+        scene = json.loads(getattr(view, 'scene_json', '') or '{}')
+    except ValueError:
+        return {'ok': False, 'view': view_name,
+                'refusal': 'scene_json does not parse'}
+    scene_list = None
+    if scene.get('scenes'):
+        scene_list = [{'name': s.get('name', ''),
+                       'title': s.get('title', '')}
+                      for s in scene['scenes']]
+        wanted = scene_name or scene['scenes'][0].get('name', '')
+        picked = next((s for s in scene['scenes']
+                       if s.get('name') == wanted), None)
+        if picked is None:
+            return {'ok': False, 'view': view_name,
+                    'refusal': f'no scene "{scene_name}" on this '
+                               f'view — one of '
+                               f'{[s["name"] for s in scene_list]}'}
+        scene = picked
+    if not scene.get('base'):
+        return {'ok': False, 'view': view_name,
+                'refusal': 'view has no scene_json — nav-4 gave it '
+                           'leads/links; viz-1 needs base + layers',
+                'suggestion': {'knob': 'ClockViewDefinition.'
+                                       'scene_json'}}
+    by_name = {getattr(r, 'name', ''): r
+               for r in rows(manager, 'ClockSceneLayerDefinition')}
+    layers = []
+    for name in scene.get('layers', []):
+        row = by_name.get(name)
+        if row is None:
+            layers.append({'name': name, 'ok': False,
+                           'refusal': 'layer row not seeded'})
+            continue
+        payload = layer_payload(manager, row, design=design)
+        payload['defaultOn'] = name in scene.get('defaultOn', [])
+        layers.append(payload)
+    return {'ok': True, 'view': view_name,
+            'discipline': getattr(view, 'discipline', ''),
+            'design': design,
+            'baseScene': scene['base'],
+            **({'scenes': scene_list,
+                'scene': scene.get('name', '')}
+               if scene_list else {}),
+            'layers': layers,
+            'refusedLayers': [l['name'] for l in layers
+                              if not l.get('ok')],
+            'note': 'layers stack — any combination renders on the '
+                    'one canvas; a refused layer stays listed with '
+                    'its reason'}
+PROV = 'viz-1'
+def _j(o):
+    return json.dumps(o)
+SEED_CLOCK_SCENE_LAYERS = [
+    {'name': 'layer-motion-replay',
+     'display_name': 'Motion — solver replay',
+     'kind': 'replay', 'source': 'clock-sim',
+     'params_json': _j({
+         'rotorBodies': ['rotor-magnet', 'rotor-pinion',
+                         'rotor-index'],
+         'rotorAxisX': -9.5,
+         'coilBody': 'coil',
+         'coilStyles': {'idle': 'motor-coil-idle',
+                        'pos': 'motor-coil-pos',
+                        'neg': 'motor-coil-neg'},
+         'orientationOrigin': [-9.5, 0, 4.2],
+         'orientationScale': 3.0,
+         'fieldOrigin': [4.0, 0, 0], 'fieldAxis': [1, 0, 0],
+         'fieldScale': 7.0}),
+     'style_json': '{}',
+     'description': 'Rotor rotation + coil polarity replayed from '
+                    'the solver step history — motion is runtime, '
+                    'never baked into the scene.',
+     'is_prior': True, 'provenance_id': PROV, 'notes': ''},
+    {'name': 'layer-mass-coloring',
+     'display_name': 'Mass — share of the bill',
+     'kind': 'part-coloring', 'source': 'mass-bill',
+     'params_json': _j({'part_bodies': V2_PART_BODIES}),
+     'style_json': '{}',
+     'description': 'Bodies ramp green→red by mass share, from the '
+                    'same shape rows the scene draws.',
+     'is_prior': True, 'provenance_id': PROV, 'notes': ''},
+    {'name': 'layer-stress-coloring',
+     'display_name': 'Stress — governing safety factor',
+     'kind': 'part-coloring', 'source': 'part-stress',
+     'params_json': _j({'part_bodies': V2_PART_BODIES}),
+     'style_json': _j({'failBelow': 1.5, 'warnBelow': 4.0}),
+     'description': 'Bodies color by static stress SF under the '
+                    'criterion their failure class demands; a '
+                    'refusing engine grays the part with its '
+                    'reason.',
+     'is_prior': True, 'provenance_id': PROV, 'notes': ''},
+    {'name': 'layer-material-coloring',
+     'display_name': 'Materials — what each part is made of',
+     'kind': 'part-coloring', 'source': 'materials',
+     'params_json': _j({'part_bodies': V2_PART_BODIES}),
+     'style_json': '{}',
+     'description': 'One color per material option; the legend is '
+                    'the sourcing story at a glance.',
+     'is_prior': True, 'provenance_id': PROV, 'notes': ''},
+    {'name': 'layer-field-dispersion',
+     'display_name': 'B field — banded dispersion',
+     'kind': 'vector-field', 'source': 'magnetics-fieldview',
+     'params_json': _j({'field_view': 'dipole-b-dispersion',
+                        'placement': {'anchor': [-9.5, 0, 0],
+                                      'fitExtent': 8.0}}),
+     'style_json': '{}',
+     'description': 'The mag-fv threshold-gated vector dispersion, '
+                    'overlaid on the motor scene.',
+     'is_prior': True, 'provenance_id': PROV, 'notes': ''},
+    {'name': 'layer-winding-detail',
+     'display_name': 'Winding — the actual wire',
+     'kind': 'shape-swap', 'source': 'mathshapes-winding',
+     'params_json': _j({'swaps': [
+         {'body': 'coil', 'shape': 'motor-m0v2-winding'},
+         {'body': 'bobbin-flange-a', 'shape': 'motor-m0v2-spool'},
+         {'body': 'rotor-pinion',
+          'shape': 'motor-m0v2-pinion-gear'}],
+         'hide': ['bobbin-flange-b']}),
+     'style_json': '{}',
+     'description': 'Replaces the solid coil with the OBSERVABLE '
+                    'winding (ws-1 math object), the flanges with '
+                    'the SPOOL that derives from it, and the '
+                    'pinion with its scale-follower — the whole '
+                    'coupled family, with the geometry-vs-'
+                    'electrical MTL cross-check riding the '
+                    'payload.',
+     'is_prior': True, 'provenance_id': PROV, 'notes': ''},
+    {'name': 'layer-gear-train-replay',
+     'display_name': 'Gear train — solved motion',
+     'kind': 'gear-replay', 'source': 'gears-train',
+     'params_json': _j({'train': 'clock-train-m0',
+                        'time_scale': 60.0}),
+     'style_json': '{}',
+     'description': 'Every math-defined gear of the M0 clock train '
+                    'turning at its SOLVED shaft speed (signed by '
+                    'the solve, time-scaled by a named knob) — the '
+                    'isolated mechanical story, with the driving '
+                    'pinion as the only motor piece in sight.',
+     'is_prior': True, 'provenance_id': PROV, 'notes': ''},
+    {'name': 'layer-interface-markers',
+     'display_name': 'Interfaces — joints & failure modes',
+     'kind': 'markers', 'source': 'composition-interfaces',
+     'params_json': _j({'markers': [
+         {'interface': 'ifm0-rotor-shaft',
+          'position': [-9.5, 0, 0], 'radius': 1.0},
+         {'interface': 'ifm0-working-gap',
+          'position': [-6.2, 0, 0], 'radius': 0.9},
+         {'interface': 'ifm0-coil-bobbin',
+          'position': [4.0, 0, 0], 'radius': 1.0},
+         {'interface': 'ifm0-bobbin-stator',
+          'position': [4.0, 0, -2.0], 'radius': 0.9},
+         {'interface': 'ifm0-leads-coil',
+          'position': [9.5, 0, 0], 'radius': 0.8}]}),
+     'style_json': '{}',
+     'description': 'A sphere per M0 interface, green when every '
+                    'failure mode is modelled, amber when not — '
+                    'the composition splice made visible.',
+     'is_prior': True, 'provenance_id': PROV, 'notes': ''},
+]
+ALL_LAYERS = [l['name'] for l in SEED_CLOCK_SCENE_LAYERS]
+V2_BASE = 'motor-m0-lavet-v2-viz'
+VIEW_SCENES = {
+    'view-goal-explorer': ['layer-motion-replay'],
+    'view-mechanical': ['layer-stress-coloring',
+                        'layer-interface-markers'],
+    'view-electrical': ['layer-winding-detail',
+                        'layer-motion-replay'],
+    'view-magnetic': ['layer-field-dispersion',
+                      'layer-motion-replay'],
+    'view-materials-sourcing': ['layer-material-coloring'],
+    'view-mass': ['layer-mass-coloring'],
+    'view-motion': ['layer-motion-replay'],
+    'view-cost': ['layer-material-coloring'],
+}
+GEAR_TRAIN_SCENE = {
+    'name': 'gear-train',
+    'title': 'Gear train — isolated',
+    'base': 'gear-train-m0-viz',
+    'layers': ['layer-gear-train-replay'],
+    'defaultOn': ['layer-gear-train-replay'],
+}
+def scene_json_for_view(view_name):
+    default_on = VIEW_SCENES.get(view_name)
+    if default_on is None:
+        return ''
+    motor_scene = {'name': 'motor', 'title': 'Motor (v2 as built)',
+                   'base': V2_BASE, 'layers': ALL_LAYERS,
+                   'defaultOn': default_on}
+    if view_name == 'view-mechanical':
+        return _j({'scenes': [motor_scene, GEAR_TRAIN_SCENE]})
+    return _j({'base': V2_BASE, 'layers': ALL_LAYERS,
+               'defaultOn': default_on})

@@ -24,86 +24,19 @@ Never auto-applied: compression is a knob (POST
 /api/climate/compress/{series}); the series detail SUGGESTS it for
 oversized series with the evidence (point count), house style.
 """
+# sap-2c INDEX (design §7): the classes live one-per-file under objects/climate_compress/;
+# this file re-exports them (imports keep working) and holds what they share.
+# The original imports stay: names this file imported were re-exported implicitly.
 
 import json
 from types import SimpleNamespace
-
 from objectTreeDecorators import treeObject, treeObjectInit
 
-#: Series at or under this many points render fine — refuse to
-#: compress them (no-op compression is data churn for nothing).
-MIN_POINTS_TO_COMPRESS = 400
-DEFAULT_TARGET_POINTS = 250
-#: A bin whose value swing exceeds this multiple of the NORM (the
-#: median swing across all bins of its span) is a SIGNIFICANT
-#: DEVIATION — its raw points are KEPT (expanded view), never
-#: averaged away. A named prior, tunable per call.
-DEVIATION_EXPAND_FACTOR = 2.0
+from climate.objects.climate_compress._shared import DEFAULT_TARGET_POINTS, DEVIATION_EXPAND_FACTOR, MIN_POINTS_TO_COMPRESS, _mean, _median, _rows, _stdev, compression_suggestion  # noqa: F401
+from climate.objects.climate_compress.SeriesCompressionRecord import SeriesCompressionRecord  # noqa: F401
 
-
-class SeriesCompressionRecord(treeObject):
-    """How one series was compressed — method, counts, per-span
-    breakdown, and the re-ingest path back to the originals."""
-
-    @treeObjectInit
-    def __init__(self, name='', series_ref='', method='',
-                 target_points=0, original_points=0,
-                 compressed_points=0, bin_width_years=0.0,
-                 first_year=0.0, last_year=0.0,
-                 # the deviation story: the largest swing any bin
-                 # absorbed (up/down from its mean), the norm it was
-                 # judged against, and how many bins were EXPANDED
-                 # (raw points kept) for exceeding it.
-                 max_deviation_up=0.0, max_deviation_down=0.0,
-                 deviation_norm=0.0, expanded_bin_count=0,
-                 spans_json='[]', reingest_note='',
-                 is_prior=False, provenance_id='', notes='',
-                 manager=None):
-        self.name = name
-        self.series_ref = series_ref
-        self.method = method
-        self.target_points = target_points
-        self.original_points = original_points
-        self.compressed_points = compressed_points
-        self.bin_width_years = bin_width_years
-        self.first_year = first_year
-        self.last_year = last_year
-        self.max_deviation_up = max_deviation_up
-        self.max_deviation_down = max_deviation_down
-        self.deviation_norm = deviation_norm
-        self.expanded_bin_count = expanded_bin_count
-        self.spans_json = spans_json
-        self.reingest_note = reingest_note
-        #: a record of an act performed on data — never a prior.
-        self.is_prior = is_prior
-        self.provenance_id = provenance_id
-        self.notes = notes
-
-
-def _rows(manager, class_name):
-    table = (getattr(manager, 'objectTables', None) or {}).get(
-        class_name, {})
-    return list(table.values()) if isinstance(table, dict) else list(table)
-
-
-def _mean(vals):
-    return sum(vals) / len(vals) if vals else 0.0
-
-
-def _stdev(vals):
-    if len(vals) < 2:
-        return 0.0
-    m = _mean(vals)
-    return (sum((v - m) ** 2 for v in vals) / (len(vals) - 1)) ** 0.5
-
-
-def _median(vals):
-    s = sorted(vals)
-    n = len(s)
-    if not n:
-        return 0.0
-    return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2.0
-
+from types import SimpleNamespace
+import json
 
 def compress_series(manager, series_name,
                     target_points=DEFAULT_TARGET_POINTS,
@@ -328,16 +261,3 @@ def compress_series(manager, series_name,
             'note': 'bins never cross spans; uncertainty widened to '
                     'the bin spread; the record row is the audit '
                     'trail'}
-
-
-def compression_suggestion(point_count, series_name):
-    """The evidence-bearing suggestion the series detail carries for
-    oversized series — never auto-applied."""
-    if point_count <= MIN_POINTS_TO_COMPRESS:
-        return None
-    return {'knob': f'POST /api/climate/compress/{series_name}',
-            'evidence': f'{point_count} stored points; the page '
-                        f'needs the flow of time, not every sample '
-                        f'(local storage frugality)',
-            'action': f'bin-mean toward ~{DEFAULT_TARGET_POINTS} '
-                      f'points with the method recorded'}

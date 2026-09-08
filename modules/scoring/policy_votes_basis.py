@@ -20,65 +20,18 @@ set; existing votes are skipped, never clobbered, unless overwrite.
   - scoring.custom.politician_scoring / scoring.scoring_api
 @see /OVERLAP_MAP.md
 """
+# sap-2c INDEX (design §7): the classes live one-per-file under objects/policy_votes/;
+# this file re-exports them (imports keep working) and holds what they share.
+# The original imports stay: names this file imported were re-exported implicitly.
 
 import json
-
 from objectTreeDecorators import treeObject, treeObjectInit
 from scoring.scoring_basis import ScoreSubject
 
-VOTE_KINDS = ('yea', 'nay', 'abstain')
+from scoring.objects.policy_votes._shared import SEED_COHORT_GROUPS, SEED_POLICY_VOTES, SEED_POLITICIAN_SUBJECTS, VOTE_KINDS, _names, _rows, _slug  # noqa: F401
+from scoring.objects.policy_votes.PolicyVote import PolicyVote  # noqa: F401
 
-
-class PolicyVote(treeObject):
-    """One recorded vote: politician × policy."""
-
-    @treeObjectInit
-    def __init__(
-        self,
-        # unique key ('vote-rivera-fair-wage-act').
-        name: str = '',
-        # ScoreSubject names (kind 'politician' / kind 'policy').
-        politician_name: str = '',
-        policy_name: str = '',
-        # VOTE_KINDS entry.
-        vote: str = 'abstain',
-        # ISO date — politician scores are time-scoped through this
-        # (scr-4 frames).
-        vote_date: str = '',
-        chamber: str = '',
-        session: str = '',
-        source: str = '',
-        provenance_id: str = '',
-        # Contributor who ingested/recorded this vote.
-        contributed_by: str = '',
-        notes: str = '',
-        manager=None,
-    ):
-        self.name = name
-        self.politician_name = politician_name
-        self.policy_name = policy_name
-        self.vote = vote
-        self.vote_date = vote_date
-        self.chamber = chamber
-        self.session = session
-        self.source = source
-        self.provenance_id = provenance_id
-        self.contributed_by = contributed_by
-        self.notes = notes
-
-
-def _rows(manager, class_name):
-    table = (manager.objectTables or {}).get(class_name, {})
-    return list(table.values()) if isinstance(table, dict) else list(table)
-
-
-def _names(manager, class_name):
-    return {getattr(r, 'name', '') for r in _rows(manager, class_name)}
-
-
-def _slug(text):
-    return str(text).strip().lower().replace(' ', '-')
-
+from scoring.scoring_basis import ScoreSubject
 
 def ingest_votes_from_class(manager, payload):
     """ANY object class (usually one the api-profiler created from a
@@ -217,67 +170,3 @@ def ingest_votes_from_class(manager, payload):
             'createdPoliticians': sorted(missing_pols),
             'createdPolicies': sorted(missing_policies),
             'overwrite': overwrite}
-
-
-SEED_POLICY_VOTES = [
-    {
-        'name': 'vote-pol-rivera@policy-fair-wage-act',
-        'politician_name': 'pol-rivera',
-        'policy_name': 'policy-fair-wage-act',
-        'vote': 'yea', 'vote_date': '2024-04-15',
-        'chamber': 'assembly',
-        'provenance_id': 'scr-6 demo roll call',
-    },
-    {
-        'name': 'vote-pol-rivera@policy-labor-standards-2020',
-        'politician_name': 'pol-rivera',
-        'policy_name': 'policy-labor-standards-2020',
-        'vote': 'yea', 'vote_date': '2020-06-15',
-        'chamber': 'assembly',
-        'provenance_id': 'scr-6 demo roll call',
-    },
-    {
-        'name': 'vote-pol-stone@policy-fair-wage-act',
-        'politician_name': 'pol-stone',
-        'policy_name': 'policy-fair-wage-act',
-        'vote': 'nay', 'vote_date': '2024-04-15',
-        'chamber': 'assembly',
-        'provenance_id': 'scr-6 demo roll call',
-    },
-    {
-        'name': 'vote-pol-stone@policy-labor-standards-2020',
-        'politician_name': 'pol-stone',
-        'policy_name': 'policy-labor-standards-2020',
-        'vote': 'abstain', 'vote_date': '2020-06-15',
-        'chamber': 'assembly',
-        'provenance_id': 'scr-6 demo roll call — abstention is a '
-                         'participation gap, surfaced not scored',
-    },
-]
-
-SEED_POLITICIAN_SUBJECTS = [
-    {
-        'name': 'pol-rivera', 'display_name': 'Rep. Rivera (demo)',
-        'kind': 'politician',
-        'description': 'Demo politician — voted yea on both labor '
-                       'policies.',
-    },
-    {
-        'name': 'pol-stone', 'display_name': 'Rep. Stone (demo)',
-        'kind': 'politician',
-        'description': 'Demo politician — nay on the Fair Wage Act, '
-                       'abstained on Labor Standards.',
-    },
-]
-
-SEED_COHORT_GROUPS = [
-    {
-        'name': 'demo-assembly-labor-committee',
-        'display_name': 'Assembly Labor Committee (demo)',
-        'group_type': 'political',
-        'member_subject_names_json': json.dumps(
-            ['pol-rivera', 'pol-stone']),
-        'description': 'Demo politician cohort — the split votes '
-                       'exercise the divisive cohort read.',
-    },
-]

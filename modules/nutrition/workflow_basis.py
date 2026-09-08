@@ -23,13 +23,12 @@ import X` keeps working, and KEEPS the owned / stated rows:
 @see AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md §nmp-10
 @see AI-Notes/plans/MEAL_OPTIONS_MODULE_PLAN.md §mo-1
 """
+# sap-2c INDEX (design §7): the classes live one-per-file under objects/workflow/;
+# this file re-exports them (imports keep working) and holds what they share.
+# The original imports stay: names this file imported were re-exported implicitly.
 
 from objectTreeDecorators import treeObject, treeObjectInit
-# hh-1: the skill vocabulary + the labeled level priors (refined per
-# person from observed durations) live in the household layer now;
-# re-exported here so existing importers keep working.
 from household.household_basis import SKILL_FACTORS, SKILL_LEVELS  # noqa: F401
-# mo-1: the cooking vocabulary — re-exported (names unchanged).
 from mealoptions.workflow_basis import (  # noqa: F401
     FIDELITY, PROVENANCES, KitchenToolDefinition,
     CookingTaskDefinition, StepMethod, StorageActionDefinition,
@@ -37,54 +36,6 @@ from mealoptions.workflow_basis import (  # noqa: F401
     SEED_STEP_METHODS, SEED_STORAGE_ACTIONS,
 )
 
-
-class KitchenTool(treeObject):
-    """One inventory row: does THIS household own the tool?"""
-
-    @treeObjectInit
-    def __init__(self, name: str = '', household_name: str = '',
-                 tool_name: str = '', owned: bool = True,
-                 is_prior: bool = False, provenance_id: str = '',
-                 notes: str = '', manager=None):
-        self.name = name
-        self.household_name = household_name
-        self.tool_name = tool_name
-        self.owned = owned
-        self.is_prior = is_prior
-        self.provenance_id = provenance_id
-        self.notes = notes
-
-
-class MethodPreference(treeObject):
-    """A stated pin — preference beats time-optimality."""
-
-    @treeObjectInit
-    def __init__(self, name: str = '', person_name: str = '',
-                 household_name: str = '', task_kind: str = '',
-                 method_name: str = '',
-                 is_prior: bool = False, provenance_id: str = '',
-                 notes: str = '', manager=None):
-        self.name = name
-        self.person_name = person_name
-        self.household_name = household_name
-        self.task_kind = task_kind
-        self.method_name = method_name
-        self.is_prior = is_prior
-        self.provenance_id = provenance_id
-        self.notes = notes
-
-
-class ToolAdvisorDismissal(treeObject):
-    """A remembered 'stop suggesting this tool' (never a nag)."""
-
-    @treeObjectInit
-    def __init__(self, name: str = '', household_name: str = '',
-                 tool_name: str = '',
-                 is_prior: bool = False, provenance_id: str = '',
-                 notes: str = '', manager=None):
-        self.name = name
-        self.household_name = household_name
-        self.tool_name = tool_name
-        self.is_prior = is_prior
-        self.provenance_id = provenance_id
-        self.notes = notes
+from nutrition.objects.workflow.KitchenTool import KitchenTool  # noqa: F401
+from nutrition.objects.workflow.MethodPreference import MethodPreference  # noqa: F401
+from nutrition.objects.workflow.ToolAdvisorDismissal import ToolAdvisorDismissal  # noqa: F401

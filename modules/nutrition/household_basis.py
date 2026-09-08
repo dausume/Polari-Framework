@@ -12,29 +12,10 @@ demand the hydroponic fulfillment sim (nut-5) is solved against.
   - nutrition.custom.household_analysis
 @see /HOUSEHOLD_NUTRITION_PLAN.md §nut-4
 """
+# sap-2c INDEX (design §7): the classes live one-per-file under objects/household/;
+# this file re-exports them (imports keep working) and holds what they share.
+# The original imports stay: names this file imported were re-exported implicitly.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-
-class HouseholdProfile(treeObject):
-    """A household — a named set of member PersonProfiles."""
-
-    @treeObjectInit
-    def __init__(
-        self,
-        # kebab-case unique key ('smith-household').
-        name: str = '',
-        display_name: str = '',
-        description: str = '',
-        # JSON list of PersonProfile names.
-        member_names_json: str = '[]',
-        provenance_id: str = '',
-        notes: str = '',
-        manager=None,
-    ):
-        self.name = name
-        self.display_name = display_name
-        self.description = description
-        self.member_names_json = member_names_json
-        self.provenance_id = provenance_id
-        self.notes = notes
+from nutrition.objects.household.HouseholdProfile import HouseholdProfile  # noqa: F401

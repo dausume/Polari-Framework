@@ -20,60 +20,12 @@ module is enabled (POLARI_TEST_BUILD / explicit POLARI_MODULES entry
 has no tables, no CRUDE surface, no /api/accountability route; that
 absence is itself asserted by testing.custom.absence_probe.
 """
+# sap-2c INDEX (design §7): the classes live one-per-file under objects/capability/;
+# this file re-exports them (imports keep working) and holds what they share.
+# The original imports stay: names this file imported were re-exported implicitly.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-CHECK_CATEGORIES = (
-    'substrate', 'transport', 'format', 'twin', 'nocode', 'engine',
-    'module',
-)
-CHECK_KINDS = ('in-process', 'live', 'compose')
-CHECK_STATUSES = ('pass', 'fail', 'skip-honest', 'never-run')
-CRITICALITIES = ('blocking', 'informational')
-
-
-class CapabilityCheck(treeObject):
-    """One named check on the capability matrix."""
-
-    @treeObjectInit
-    def __init__(self, name: str = '', category: str = 'module',
-                 kind: str = 'in-process',
-                 criticality: str = 'informational',
-                 runner_ref: str = '', description: str = '',
-                 last_status: str = 'never-run',
-                 last_evidence: str = '', last_run_at: str = '',
-                 last_duration_ms: int = 0, manager=None):
-        self.name = name
-        self.category = category
-        self.kind = kind
-        self.criticality = criticality
-        self.runner_ref = runner_ref
-        self.description = description
-        self.last_status = last_status
-        self.last_evidence = last_evidence
-        self.last_run_at = last_run_at
-        self.last_duration_ms = last_duration_ms
-
-
-class CheckRun(treeObject):
-    """One execution of the matrix (or a category/name slice).
-    results_json rows carry the same fields the YAML report projects
-    — the report is a projection of this object, never a second
-    bookkeeping system."""
-
-    @treeObjectInit
-    def __init__(self, name: str = '', started_at: str = '',
-                 finished_at: str = '', build_json: str = '{}',
-                 environment_json: str = '{}', totals_json: str = '{}',
-                 blocking_green: bool = False,
-                 results_json: str = '[]', report_path: str = '',
-                 manager=None):
-        self.name = name
-        self.started_at = started_at
-        self.finished_at = finished_at
-        self.build_json = build_json
-        self.environment_json = environment_json
-        self.totals_json = totals_json
-        self.blocking_green = blocking_green
-        self.results_json = results_json
-        self.report_path = report_path
+from testing.objects.capability._shared import CHECK_CATEGORIES, CHECK_KINDS, CHECK_STATUSES, CRITICALITIES  # noqa: F401
+from testing.objects.capability.CapabilityCheck import CapabilityCheck  # noqa: F401
+from testing.objects.capability.CheckRun import CheckRun  # noqa: F401

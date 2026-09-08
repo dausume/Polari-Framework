@@ -29,92 +29,12 @@ value classifies into the FIRST band whose max it does not exceed):
   - scoring.custom.group_aggregation
 @see /OVERLAP_MAP.md
 """
+# sap-2c INDEX (design §7): the classes live one-per-file under objects/agreement_policy/;
+# this file re-exports them (imports keep working) and holds what they share.
+# The original imports stay: names this file imported were re-exported implicitly.
 
 import json
-
 from objectTreeDecorators import treeObject, treeObjectInit
 
-
-class AgreementPolicy(treeObject):
-    """One configurable set of agreement-classification bands."""
-
-    @treeObjectInit
-    def __init__(
-        self,
-        name: str = '',
-        display_name: str = '',
-        description: str = '',
-        direction_bands_json: str = '[]',
-        weight_bands_json: str = '[]',
-        similarity_bands_json: str = '[]',
-        notes: str = '',
-        manager=None,
-    ):
-        self.name = name
-        self.display_name = display_name
-        self.description = description
-        self.direction_bands_json = direction_bands_json
-        self.weight_bands_json = weight_bands_json
-        self.similarity_bands_json = similarity_bands_json
-        self.notes = notes
-
-
-def classify_max(value, bands, fallback='unclassified'):
-    """First band whose 'max' the value does not exceed."""
-    for band in bands:
-        if value <= band.get('max', 1.0) + 1e-9:
-            return band.get('label', fallback)
-    return bands[-1].get('label', fallback) if bands else fallback
-
-
-def classify_min(value, bands, fallback='unclassified'):
-    """First band whose 'min' the value meets (bands ordered
-    strongest-first)."""
-    for band in bands:
-        if value >= band.get('min', 0.0) - 1e-9:
-            return band.get('label', fallback)
-    return bands[-1].get('label', fallback) if bands else fallback
-
-
-def policy_bands(policy_row):
-    """The three parsed band sets off a policy row."""
-    def loads(attr):
-        try:
-            return json.loads(getattr(policy_row, attr, '') or '[]')
-        except Exception:
-            return []
-    return {
-        'direction': loads('direction_bands_json'),
-        'weight': loads('weight_bands_json'),
-        'similarity': loads('similarity_bands_json'),
-    }
-
-
-#: Dustin's bands (2026-07-08), seeded editable.
-SEED_AGREEMENT_POLICIES = [{
-    'name': 'default-agreement',
-    'display_name': 'Default agreement bands',
-    'description': 'Dustin 2026-07-08: 50/50 divisive; 50-65 slight '
-                   'majority; 65-85 large majority; 85-99 '
-                   'near-consensus; above = genuine consensus. Weight '
-                   'and similarity bands are first-cut defaults — '
-                   'edit this row to recalibrate every aggregate.',
-    'direction_bands_json': json.dumps([
-        {'label': 'divisive', 'max': 0.5},
-        {'label': 'slight-majority', 'max': 0.65},
-        {'label': 'large-majority', 'max': 0.85},
-        {'label': 'near-consensus', 'max': 0.99},
-        {'label': 'consensus', 'max': 1.0},
-    ]),
-    'weight_bands_json': json.dumps([
-        {'label': 'aligned-weighting', 'max': 0.15},
-        {'label': 'varied-weighting', 'max': 0.4},
-        {'label': 'contested-weighting', 'max': 10.0},
-    ]),
-    'similarity_bands_json': json.dumps([
-        {'label': 'shared-definition', 'min': 0.9},
-        {'label': 'broadly-aligned', 'min': 0.7},
-        {'label': 'partially-aligned', 'min': 0.4},
-        {'label': 'divergent', 'min': -1.0},
-    ]),
-}]
+from scoring.objects.agreement_policy._shared import SEED_AGREEMENT_POLICIES, classify_max, classify_min, policy_bands  # noqa: F401
+from scoring.objects.agreement_policy.AgreementPolicy import AgreementPolicy  # noqa: F401

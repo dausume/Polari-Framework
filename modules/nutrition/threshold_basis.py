@@ -22,112 +22,12 @@ nmp-1 — the threshold layer's objects:
   - nutrition.custom.threshold_analysis
 @see AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md §nmp-1
 """
+# sap-2c INDEX (design §7): the classes live one-per-file under objects/threshold/;
+# this file re-exports them (imports keep working) and holds what they share.
+# The original imports stay: names this file imported were re-exported implicitly.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-THRESHOLD_PERIODS = ('meal', 'day', 'week', 'month')
-
-
-class EatingPatternDefinition(treeObject):
-    """One eating pattern and its per-slot calorie fractions."""
-
-    @treeObjectInit
-    def __init__(
-        self,
-        # matches PersonProfile.eating_pattern ('3-meal').
-        name: str = '',
-        display_name: str = '',
-        # JSON list of {"slot": name, "fraction": 0-1} — fractions
-        # sum to 1; slots come from the decision-5 vocabulary
-        # (breakfast/lunch/dinner/brunch/linner/snack).
-        slot_fractions_json: str = '[]',
-        # convention priors, not literature findings — say so.
-        is_prior: bool = True,
-        source: str = 'convention prior (Q5, Dustin-proposed splits)',
-        provenance_id: str = '',
-        notes: str = '',
-        manager=None,
-    ):
-        self.name = name
-        self.display_name = display_name
-        self.slot_fractions_json = slot_fractions_json
-        self.is_prior = is_prior
-        self.source = source
-        self.provenance_id = provenance_id
-        self.notes = notes
-
-
-class PersonThreshold(treeObject):
-    """One human-overridden threshold for (person, nutrient, period).
-
-    Absent row = the derived value applies (threshold_analysis shows
-    its derivation). A row here WINS over the derivation and is never
-    touched by seeds (is_prior=False by construction — it exists
-    because a human set it)."""
-
-    @treeObjectInit
-    def __init__(
-        self,
-        # unique key ('alex-fiber-day').
-        name: str = '',
-        person_name: str = '',
-        nutrient_name: str = '',
-        # THRESHOLD_PERIODS entry.
-        period: str = 'day',
-        # the override values; 0 = keep the derived value for that
-        # side (min/target/max are independently overridable).
-        min_amount: float = 0.0,
-        target_amount: float = 0.0,
-        max_amount: float = 0.0,
-        unit: str = '',
-        # why the human set it — their words, kept with the number.
-        reason: str = '',
-        is_prior: bool = False,
-        provenance_id: str = '',
-        notes: str = '',
-        manager=None,
-    ):
-        self.name = name
-        self.person_name = person_name
-        self.nutrient_name = nutrient_name
-        self.period = period
-        self.min_amount = min_amount
-        self.target_amount = target_amount
-        self.max_amount = max_amount
-        self.unit = unit
-        self.reason = reason
-        self.is_prior = is_prior
-        self.provenance_id = provenance_id
-        self.notes = notes
-
-
-# ── seeds ─────────────────────────────────────────────────
-# Q5's proposed splits, seeded as tunable convention priors.
-SEED_EATING_PATTERNS = [
-    {'name': '2-meal', 'display_name': '2 meals a day',
-     'slot_fractions_json':
-         '[{"slot": "brunch", "fraction": 0.45},'
-         ' {"slot": "dinner", "fraction": 0.55}]',
-     'is_prior': True, 'provenance_id': 'nmp-1',
-     'notes': 'convention prior — meal-distribution literature is '
-              'thin; tune freely'},
-    {'name': '3-meal', 'display_name': '3 meals a day',
-     'slot_fractions_json':
-         '[{"slot": "breakfast", "fraction": 0.25},'
-         ' {"slot": "lunch", "fraction": 0.35},'
-         ' {"slot": "dinner", "fraction": 0.40}]',
-     'is_prior': True, 'provenance_id': 'nmp-1',
-     'notes': 'convention prior — meal-distribution literature is '
-              'thin; tune freely'},
-    {'name': '3-small-2-snacks',
-     'display_name': '3 small meals + 2 snacks',
-     'slot_fractions_json':
-         '[{"slot": "breakfast", "fraction": 0.25},'
-         ' {"slot": "lunch", "fraction": 0.25},'
-         ' {"slot": "dinner", "fraction": 0.30},'
-         ' {"slot": "snack", "fraction": 0.10},'
-         ' {"slot": "snack-2", "fraction": 0.10}]',
-     'is_prior': True, 'provenance_id': 'nmp-1',
-     'notes': 'convention prior — meal-distribution literature is '
-              'thin; tune freely'},
-]
+from nutrition.objects.threshold._shared import SEED_EATING_PATTERNS, THRESHOLD_PERIODS  # noqa: F401
+from nutrition.objects.threshold.EatingPatternDefinition import EatingPatternDefinition  # noqa: F401
+from nutrition.objects.threshold.PersonThreshold import PersonThreshold  # noqa: F401

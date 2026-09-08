@@ -36,69 +36,11 @@ so a shape flows through the no-code matrix-equation editor
   - SimSpace3D / Mesh3DDefinition rendering (sample_surface output)
 @see /MATH_SHAPES_PLAN.md
 """
+# sap-2c INDEX (design §7): the classes live one-per-file under objects/shape/;
+# this file re-exports them (imports keep working) and holds what they share.
+# The original imports stay: names this file imported were re-exported implicitly.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-#: The three shape families shape-1 defines.
-SHAPE_FAMILIES = ('quadric', 'primitive', 'csg')
-
-#: Analytic primitive kinds — each has a closed-form volume/area/inside.
-PRIMITIVE_KINDS = ('box', 'sphere', 'cylinder', 'cone', 'frustum',
-                   'ellipsoid', 'annular_sector', 'arc_faced_bar')
-
-#: Boolean operations for a csg-family shape.
-CSG_OPS = ('union', 'difference', 'intersection')
-
-
-class MathShapeDefinition(treeObject):
-    """A shape defined by mathematics — quadric matrix, analytic
-    primitive, or boolean CSG of other shapes."""
-
-    @treeObjectInit
-    def __init__(
-        self,
-        # unique key ('unit-sphere', 'pot-with-holes').
-        name: str = '',
-        display_name: str = '',
-        # SHAPE_FAMILIES entry.
-        family: str = 'primitive',
-
-        # --- family=quadric ---
-        # 16 numbers, row-major, symmetric 4x4 Q. Surface: pᵀQp = 0
-        # for p=[x y z 1]; solid interior: pᵀQp < 0.
-        quadric_matrix_json: str = '',
-
-        # --- family=primitive ---
-        # PRIMITIVE_KINDS entry.
-        primitive_kind: str = '',
-
-        # --- family=csg ---
-        # {"op": "difference", "shapes": ["frustum-pot", "hole-a", ...]}.
-        # First shape is the base; the rest are subtracted/unioned/
-        # intersected with it in order.
-        csg_json: str = '',
-
-        # The named tunable knobs (radius/height/count/center/axis/...).
-        # For primitives this holds the geometry; for all families it is
-        # the shape-2 modification seam (knobs-and-suggestions).
-        parameters_json: str = '{}',
-
-        # Axis-aligned bounding box used to grid-sample volume for
-        # unbounded quadrics + CSG: [[xmin,xmax],[ymin,ymax],[zmin,zmax]]
-        # (cm). Primitives derive their own bounds analytically.
-        bounds_json: str = '',
-
-        notes: str = '',
-        provenance_id: str = '',
-        manager=None,
-    ):
-        self.name = name
-        self.display_name = display_name
-        self.family = family
-        self.quadric_matrix_json = quadric_matrix_json
-        self.primitive_kind = primitive_kind
-        self.csg_json = csg_json
-        self.parameters_json = parameters_json
-        self.bounds_json = bounds_json
-        self.notes = notes
-        self.provenance_id = provenance_id
+from mathshapes.objects.shape._shared import CSG_OPS, PRIMITIVE_KINDS, SHAPE_FAMILIES  # noqa: F401
+from mathshapes.objects.shape.MathShapeDefinition import MathShapeDefinition  # noqa: F401

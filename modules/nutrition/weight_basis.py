@@ -18,54 +18,11 @@ says so).
   - nutrition.custom.weight_trajectory
 @see AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md §nmp-6
 """
+# sap-2c INDEX (design §7): the classes live one-per-file under objects/weight/;
+# this file re-exports them (imports keep working) and holds what they share.
+# The original imports stay: names this file imported were re-exported implicitly.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-
-class WeightObservation(treeObject):
-    """One measured weight (a fact, never a projection)."""
-
-    @treeObjectInit
-    def __init__(
-        self,
-        # unique key ('alex-2026-08-20').
-        name: str = '',
-        person_name: str = '',
-        # ISO date of the measurement.
-        date: str = '',
-        # days since the projection start (drift math uses this when
-        # set; 0 = align by date order).
-        day_index: int = 0,
-        weight_kg: float = 0.0,
-        # measurement context knob ('morning-fasted' etc. — scale
-        # noise is real; context travels with the number).
-        context: str = '',
-        is_prior: bool = False,
-        provenance_id: str = '',
-        notes: str = '',
-        manager=None,
-    ):
-        self.name = name
-        self.person_name = person_name
-        self.date = date
-        self.day_index = day_index
-        self.weight_kg = weight_kg
-        self.context = context
-        self.is_prior = is_prior
-        self.provenance_id = provenance_id
-        self.notes = notes
-
-
-#: mpa-5: demo observations so the trends chart renders before real
-#: measurements land (is_prior=True marks them as replaceable demo
-#: rows — a real scale beats these).
-SEED_WEIGHT_OBSERVATIONS = [
-    {'name': f'demo-alex-{d}', 'person_name': 'demo-alex',
-     'date': d, 'day_index': i, 'weight_kg': w,
-     'context': 'morning', 'is_prior': True,
-     'provenance_id': 'mpa-5',
-     'notes': 'demo observation — replace with real measurements'}
-    for i, (d, w) in enumerate((
-        ('2026-08-25', 80.4), ('2026-08-28', 80.1),
-        ('2026-08-31', 79.8), ('2026-09-01', 79.9)))
-]
+from nutrition.objects.weight._shared import SEED_WEIGHT_OBSERVATIONS  # noqa: F401
+from nutrition.objects.weight.WeightObservation import WeightObservation  # noqa: F401

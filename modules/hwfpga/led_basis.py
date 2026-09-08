@@ -17,34 +17,11 @@ no redeploy, the same firmware serves both.
   - polariServer (registration + seed)
   - the renode-rig bridge (msg_type 3) + renode_twin firmware
 """
+# sap-2c INDEX (design §7): the classes live one-per-file under objects/led/;
+# this file re-exports them (imports keep working) and holds what they share.
+# The original imports stay: names this file imported were re-exported implicitly.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-
-class LedMatrix4x4State(treeObject):
-    """State of one small LED grid. pixels bit(row*width+col) lights
-    the LED at (row, col); low width*height bits are meaningful."""
-
-    @treeObjectInit
-    def __init__(
-        self,
-        name: str = '',
-        # Bitmask of lit LEDs (bit 0 = top-left, row-major).
-        pixels: int = 0,
-        # THE PROFILE KNOB: 'fpga' | 'mcu' (see module docstring).
-        driver: str = 'mcu',
-        width: int = 4,
-        height: int = 4,
-        manager=None,
-    ):
-        self.name = name
-        self.pixels = pixels
-        self.driver = driver
-        self.width = width
-        self.height = height
-
-
-SEED_LED_MATRICES = [
-    {'name': 'renode-led-grid', 'pixels': 0, 'driver': 'mcu',
-     'width': 4, 'height': 4},
-]
+from hwfpga.objects.led._shared import SEED_LED_MATRICES  # noqa: F401
+from hwfpga.objects.led.LedMatrix4x4State import LedMatrix4x4State  # noqa: F401

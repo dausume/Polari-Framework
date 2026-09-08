@@ -18,12 +18,12 @@ def main():
     import materials_science as ms
     from objectTreeDecorators import treeObject
     check('package imports + initialize()', callable(getattr(ms, 'initialize', None)))
-    from materials_science import (dataProvenance_basis, formulation_basis, materialAdditives_basis,
-                                   materialSourcing_basis, rawMaterials_basis, referenceMaterials_basis,
-                                   targetProfiles_basis, material_basis)
+    from materials_science.objects import (dataProvenance, formulation, materialAdditives,
+                                   materialSourcing, rawMaterials, referenceMaterials,
+                                   targetProfiles, material)
     rows = []
-    for mod in (dataProvenance_basis, formulation_basis, materialAdditives_basis, materialSourcing_basis,
-                rawMaterials_basis, referenceMaterials_basis, targetProfiles_basis, material_basis):
+    for mod in (dataProvenance, formulation, materialAdditives, materialSourcing,
+                rawMaterials, referenceMaterials, targetProfiles, material):
         rows += [getattr(mod, n) for n in dir(mod) if isinstance(getattr(mod, n), type) and issubclass(getattr(mod, n), treeObject) and getattr(mod, n) is not treeObject]
     check('consolidated basis modules expose >= 15 row classes', len(rows) >= 15, str(len(rows)))
     bad = []
@@ -33,9 +33,9 @@ def main():
         except Exception as e:  # noqa: BLE001
             bad.append('%s: %s' % (cls.__name__, str(e)[:60]))
     check('every row class constructs with defaults', not bad, '; '.join(bad)[:300])
-    from materials_science.custom import properties, purposes, devices, resolutions, referenceMaterials, materialSourcing
-    check('plain-class taxonomies import from custom/', all(hasattr(m, '__all__') or True for m in (properties, purposes, devices, resolutions, referenceMaterials, materialSourcing)))
-    check('a taxonomy class still resolves through custom/', hasattr(properties, 'MeltingPoint') and hasattr(referenceMaterials, 'ReferenceMaterial'))
+    from materials_science.objects import properties, purposes, devices, resolutions
+    check("taxonomies import from objects/", all(m is not None for m in (properties, purposes, devices, resolutions)))
+    check("a taxonomy class resolves through objects/", hasattr(properties, "MeltingPoint") and hasattr(referenceMaterials, "ReferenceMaterial"))
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

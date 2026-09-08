@@ -21,57 +21,11 @@ to keycloak login accounts"):
   - nutrition.custom.tracking_analysis (resolve_me), mealplanning_api
 @see AI-Notes/plans/MEAL_PLANNING_APP_PLAN.md §mpa-4
 """
+# sap-2c INDEX (design §7): the classes live one-per-file under objects/account/;
+# this file re-exports them (imports keep working) and holds what they share.
+# The original imports stay: names this file imported were re-exported implicitly.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-_PROV = 'mpa-4 (MEAL_PLANNING_APP_PLAN.md)'
-
-
-class UserAccountLink(treeObject):
-    """One Keycloak account → one PersonProfile."""
-
-    @treeObjectInit
-    def __init__(
-        self,
-        # unique key ('link-<username>').
-        name: str = '',
-        # Keycloak subject (the stable id — matching precedence:
-        # sub, then username, then email).
-        keycloak_sub: str = '',
-        keycloak_username: str = '',
-        keycloak_email: str = '',
-        # the PersonProfile this login IS here.
-        person_name: str = '',
-        # optional HouseholdProfile for pantry/plan scoping.
-        household_name: str = '',
-        # ISO date the link was made.
-        linked_date: str = '',
-        is_prior: bool = False,
-        provenance_id: str = '',
-        notes: str = '',
-        manager=None,
-    ):
-        self.name = name
-        self.keycloak_sub = keycloak_sub
-        self.keycloak_username = keycloak_username
-        self.keycloak_email = keycloak_email
-        self.person_name = person_name
-        self.household_name = household_name
-        self.linked_date = linked_date
-        self.is_prior = is_prior
-        self.provenance_id = provenance_id
-        self.notes = notes
-
-
-#: Demo link so the /me surface renders end-to-end before real
-#: accounts are linked (demo-alex is the nut-3 seeded person).
-SEED_USER_ACCOUNT_LINKS = [
-    {'name': 'link-demo-alex', 'keycloak_sub': '',
-     'keycloak_username': 'demo-alex',
-     'keycloak_email': 'demo-alex@example.invalid',
-     'person_name': 'demo-alex', 'household_name': 'demo-household',
-     'linked_date': '2026-09-01', 'is_prior': True,
-     'provenance_id': _PROV,
-     'notes': 'demo row — link real accounts via CRUDE '
-              '(UserAccountLink) or the profile page'},
-]
+from nutrition.objects.account._shared import SEED_USER_ACCOUNT_LINKS, _PROV  # noqa: F401
+from nutrition.objects.account.UserAccountLink import UserAccountLink  # noqa: F401

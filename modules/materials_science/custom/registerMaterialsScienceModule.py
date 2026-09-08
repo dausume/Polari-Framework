@@ -36,14 +36,14 @@ def register_materials_science_defaults(manager=None):
         dict: A dictionary of registered class names to class objects
     """
     # Import core classes
-    from materials_science.material_basis import Material
-    from materials_science.materialProperty_basis import MaterialProperty
-    from materials_science.materialResolution_basis import MaterialResolution
-    from materials_science.materialPurpose_basis import MaterialPurpose
-    from materials_science.materialRelatedDevice_basis import MaterialRelatedDevice
+    from materials_science.objects.material import Material
+    from materials_science.objects.materialProperty import MaterialProperty
+    from materials_science.objects.materialResolution import MaterialResolution
+    from materials_science.objects.materialPurpose import MaterialPurpose
+    from materials_science.objects.materialRelatedDevice import MaterialRelatedDevice
 
     # Import properties
-    from materials_science.custom.properties import (
+    from materials_science.objects.properties import (
         PropertyCategory,
         RheologicalProperty, MechanicalProperty, SurfaceProperty, ThermalProperty,
         Viscosity, KrebsViscosity, StormerViscosity,
@@ -62,7 +62,7 @@ def register_materials_science_defaults(manager=None):
     )
 
     # Import resolutions
-    from materials_science.custom.resolutions import (
+    from materials_science.objects.resolutions import (
         ResolutionCategory,
         ExperimentalResolution, ContinuumResolution,
         MesoscaleResolution, AtomisticResolution, QuantumResolution,
@@ -75,7 +75,7 @@ def register_materials_science_defaults(manager=None):
     )
 
     # Import purposes
-    from materials_science.custom.purposes import (
+    from materials_science.objects.purposes import (
         PurposeCategory,
         CNCMachinable, ThreeDimensionalPrintable,
         MoldFabricationPurpose,
@@ -86,7 +86,7 @@ def register_materials_science_defaults(manager=None):
     )
 
     # Import devices
-    from materials_science.custom.devices import (
+    from materials_science.objects.devices import (
         DeviceCategory,
         ThreeDimensionalPrintingDevice, FDMPrinter, SLAPrinter, SLSPrinter,
         CNCMill, ThreeAxisMill, FiveAxisMill,
@@ -96,19 +96,19 @@ def register_materials_science_defaults(manager=None):
     )
 
     # Import reference materials
-    from materials_science.custom.referenceMaterials import (
+    from materials_science.objects.referenceMaterials import (
         ReferenceMaterial, PropertyValueSource,
         PrintableReferenceMaterial,
         PLA, ABS, PETG, Nylon, TPU, PHA
     )
 
     # Import raw materials
-    from materials_science.rawMaterials_basis import (
+    from materials_science.objects.rawMaterials import (
         RawMaterial
     )
 
     # Import material sourcing
-    from materials_science.custom.materialSourcing import (
+    from materials_science.objects.materialSourcing import (
         MaterialSourcing,
         NaturalSourcing,
         OpenSourceLocalSourcing,
@@ -116,13 +116,13 @@ def register_materials_science_defaults(manager=None):
     )
 
     # Import data provenance
-    from materials_science.dataProvenance_basis import (
+    from materials_science.objects.dataProvenance import (
         DataProvenance,
         DataSource
     )
 
     # Import material additives
-    from materials_science.materialAdditives_basis import (
+    from materials_science.objects.materialAdditives import (
         MaterialAdditive,
         PropertyEffect,
         AdditiveCompatibility,
@@ -130,13 +130,13 @@ def register_materials_science_defaults(manager=None):
     )
 
     # Import target profiles
-    from materials_science.targetProfiles_basis import (
+    from materials_science.objects.targetProfiles import (
         TargetMaterialProfile,
         PropertyTarget
     )
 
     # Import formulation
-    from materials_science.formulation_basis import (
+    from materials_science.objects.formulation import (
         Formulation,
         FormulationComponent,
         FormulationIntent

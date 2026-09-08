@@ -36,7 +36,7 @@ import sys
 
 SCHEMA = 'polari-app/1'
 MANIFEST_NAME = 'polari-app.json'
-CONCEPTS = ('basis', 'api', 'endpoints', 'seed', 'page', 'catalog',
+CONCEPTS = ('objects', 'basis', 'api', 'endpoints', 'seed', 'page', 'catalog',
             'remote', 'selftests', 'custom', 'other')
 #: app.kind (his rule 2026-09-08): a hardware KVM app is a KIND beside the
 #: others — library (objects only), polari-app (pages/API inside a Polari
@@ -196,23 +196,38 @@ def classify(pkg, d):
         if concept is None:
             concept = 'other'
         files[concept].append(stem)
-    custom = os.path.join(d, 'custom')
-    if os.path.isdir(custom):
-        for dirpath, dirnames, filenames in os.walk(custom):
-            dirnames[:] = sorted(x for x in dirnames if x != '__pycache__')
-            for name in sorted(filenames):
-                if name.endswith('.py') and name != '__init__.py':
-                    rel = os.path.relpath(os.path.join(dirpath, name[:-3]), d)
-                    facts[rel] = _scan_file(os.path.join(dirpath, name))
-                    files['custom'].append(rel)
+    for concept in ('objects', 'custom'):   # design §7: objects/ = one class per file (any depth); custom/ = the rest
+        sub = os.path.join(d, concept)
+        if os.path.isdir(sub):
+            for dirpath, dirnames, filenames in os.walk(sub):
+                dirnames[:] = sorted(x for x in dirnames if x != '__pycache__')
+                for name in sorted(filenames):
+                    if name.endswith('.py') and name != '__init__.py':
+                        rel = os.path.relpath(os.path.join(dirpath, name[:-3]), d)
+                        facts[rel] = _scan_file(os.path.join(dirpath, name))
+                        files[concept].append(rel)
     return files, facts
+
+
+def multi_class_files(files, facts):
+    """objects/ files holding more than one class (a strongly connected
+    group the splitter kept together) and basis files still holding
+    classes — reported as information, never a gate."""
+    out = []
+    for f in files.get('objects', []):
+        if len(facts[f]['classes']) > 1 and not f.endswith('_shared'):
+            out.append('%s (%d classes together)' % (f, len(facts[f]['classes'])))
+    for f in files.get('basis', []):
+        if facts[f]['classes']:
+            out.append('%s.py still defines %d class(es) (not split)' % (f, len(facts[f]['classes'])))
+    return out
 
 
 def stray_subdirs(d):
     """Top-level subdirectories that are not custom/ or initialData/ —
     the standard folds those under custom/ (his ruling 2026-09-08)."""
     return sorted(x for x in os.listdir(d) if os.path.isdir(os.path.join(d, x))
-                  and x not in ('custom', 'initialData', '__pycache__'))
+                  and x not in ('objects', 'custom', 'initialData', '__pycache__'))
 
 
 # ---------------------------------------------------------- generate
@@ -367,7 +382,10 @@ def conform(pkg, tables=None, registry=None):
     if not m.get('selftests'):
         findings.append('no <topic>_selftest.py (the standard requires one)')
     for sub in stray_subdirs(d):
-        findings.append('subdirectory %s/ is not custom/ or initialData/ (fold it under custom/)' % sub)
+        findings.append('subdirectory %s/ is not objects/, custom/ or initialData/' % sub)
+    info = multi_class_files(files, facts)
+    if info:
+        findings.append('info: ' + '; '.join(info)[:200])
     if not os.path.isfile(os.path.join(d, 'README.md')):
         findings.append('no README.md (the standard asks for one)')
     return {'package': pkg, 'id': m.get('id'), 'kind': m['app']['kind'],

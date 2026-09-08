@@ -1,0 +1,285 @@
+"""@module sifet.objects.si._shared — what the si row classes share (constants, seeds, helpers); split from si_basis.py (sap-2c)."""
+
+SEED_SI_DIELECTRICS = [
+    {'name': 'thermal-sio2-2nm', 'material': 'SiO2',
+     'precursor': 'thermal-oxidation', 'solvent': 'none',
+     'hydrolysis_ratio': 0.0, 'anneal_c': 900.0, 'anneal_min': 0.0,
+     'thickness_nm': 2.0, 'k_rel': 3.9, 'breakdown_mv_per_cm': 10.0,
+     'leakage_prior_a_per_cm2': 1e-2,
+     'density_fraction_of_thermal': 1.0, 'confidence': 'high',
+     'citation': '[SZE07]',
+     'notes': 'REFERENCE dielectric: 2 nm thermal SiO2 (k 3.9, Ebd '
+              '~10 MV/cm). Direct-tunnelling leakage at 2 nm is '
+              'large (~1e-2 A/cm^2 prior) and NOT modeled — refused.'},
+    {'name': 'solgel-sio2-teos-4nm', 'material': 'SiO2',
+     'precursor': 'TEOS', 'solvent': 'ethanol', 'hydrolysis_ratio': 4.0,
+     'anneal_c': 500.0, 'anneal_min': 60.0,
+     'thickness_nm': 4.0, 'k_rel': 3.8, 'breakdown_mv_per_cm': 6.0,
+     'leakage_prior_a_per_cm2': 1e-7,
+     'density_fraction_of_thermal': 0.9, 'confidence': 'low',
+     'citation': '[BS90] chemistry; [SG-SIO2] priors',
+     'notes': 'Sol-gel SiO2 from TEOS (hydrolysis r = 4, 500 C/60 '
+              'min anneal): ~90 % of thermal density, k ~3.8, Ebd '
+              '~6 MV/cm PRIOR. Exists to compare against thermal '
+              'SiO2 at the thicker film a spin-on process gives.'},
+    {'name': 'solgel-hfo2-4nm', 'material': 'HfO2',
+     'precursor': 'Hf-alkoxide', 'solvent': '2-methoxyethanol',
+     'hydrolysis_ratio': 2.0, 'anneal_c': 400.0, 'anneal_min': 60.0,
+     'thickness_nm': 4.0, 'k_rel': 18.0, 'breakdown_mv_per_cm': 4.0,
+     'leakage_prior_a_per_cm2': 1e-6,
+     'density_fraction_of_thermal': 0.85, 'confidence': 'low',
+     'citation': '[BS90] chemistry; [SG-HFO2] priors',
+     'notes': 'Sol-gel HfO2 (Hf-alkoxide, 400 C anneal): k 16-20 '
+              '(18 used), EOT = 3.9/18 x 4 nm = 0.87 nm, leakage '
+              '~1e-6 A/cm^2 and Ebd ~4 MV/cm PRIORS from the open '
+              'TFT literature (citation to be verified). Exists to '
+              'compare a high-k spin-on film against thermal SiO2: '
+              'higher Cinv, lower Vt roll-off, at a leakage the '
+              'model does not represent.'},
+    # ---- ladder (2026-08-30): FreePDK45-class nominal stack ----------
+    {'name': 'freepdk45-highk-nominal', 'material': 'HfO2',
+     'precursor': 'reference — PDK nominal', 'solvent': 'none',
+     'hydrolysis_ratio': 0.0, 'anneal_c': 0.0, 'anneal_min': 0.0,
+     'thickness_nm': 5.77, 'k_rel': 18.0, 'breakdown_mv_per_cm': 4.0,
+     'leakage_prior_a_per_cm2': 1e-3,
+     'density_fraction_of_thermal': 1.0, 'confidence': 'medium',
+     'citation': '[FREEPDK45] / [PTM] 45 nm HP card: toxe 1.25 nm',
+     'notes': 'REFERENCE dielectric for the FreePDK45-class device: '
+              'the PTM 45 nm HP card (which FreePDK45 uses) states '
+              'toxe = 1.25 nm (electrical EOT, NMOS; 1.30 PMOS) and '
+              'toxp = 1.0 nm physical, header "Metal Gate / High-K". '
+              'Represented as HfO2 k 18 x 5.77 nm so EOT = 3.9/18 x '
+              '5.77 = 1.25 nm — the k / physical thickness split is '
+              'OUR choice (only EOT is documented); leakage / Ebd are '
+              'priors and never enter Id. Process "reference — PDK '
+              'nominal": no sol-gel step.'},
+]
+SEED_SI_PROCESSES = [
+    {'name': 'spin-3000-1layer', 'deposition': 'spin',
+     'spin_rpm': 3000.0, 'layers': 1,
+     'cure_profile_json': '{"steps": [{"c": 120, "min": 10, '
+                          '"why": "solvent bake"}, {"c": 400, '
+                          '"min": 60, "why": "densify"}]}',
+     'notes': 'Single spin coat + two-step cure ([BS90] Ch.13 film '
+              'drying/densification).'},
+    {'name': 'thermal-oxidation', 'deposition': 'spin',
+     'spin_rpm': 0.0, 'layers': 0, 'cure_profile_json': '{}',
+     'notes': 'Placeholder process row for the thermal-oxide '
+              'reference (no sol-gel step).'},
+]
+SEED_SI_DOPINGS = [
+    {'name': 'si-channel-p-1e17', 'dopant_type': 'p', 'species': 'B',
+     'concentration_cm3': 1e17, 'method': 'implant',
+     'activation_fraction': 1.0, 'junction_depth_nm': 0.0,
+     'notes': 'NMOS body/channel: boron 1e17 cm^-3 (phi_F ~ 0.42 V, '
+              'x_dmax ~ 104 nm at 300 K).'},
+    {'name': 'si-channel-n-1e17', 'dopant_type': 'n', 'species': 'P',
+     'concentration_cm3': 1e17, 'method': 'implant',
+     'activation_fraction': 1.0, 'junction_depth_nm': 0.0,
+     'notes': 'PMOS n-well/channel: phosphorus 1e17 cm^-3.'},
+    {'name': 'si-sd-n-plus-1e20', 'dopant_type': 'n', 'species': 'As',
+     'concentration_cm3': 1e20, 'method': 'implant',
+     'activation_fraction': 0.8, 'junction_depth_nm': 30.0,
+     'notes': 'NMOS source/drain: As 1e20 (80 % active). Enters '
+              'only the Rc prior today.'},
+    {'name': 'si-sd-p-plus-1e20', 'dopant_type': 'p', 'species': 'B',
+     'concentration_cm3': 1e20, 'method': 'implant',
+     'activation_fraction': 0.8, 'junction_depth_nm': 30.0,
+     'notes': 'PMOS source/drain: B 1e20 (80 % active).'},
+    # ---- ladder (2026-08-30): FreePDK45-class channel doping ---------
+    {'name': 'si-channel-p-3.24e18-ptm45', 'dopant_type': 'p',
+     'species': 'B', 'concentration_cm3': 3.24e18, 'method': 'implant',
+     'activation_fraction': 1.0, 'junction_depth_nm': 0.0,
+     'notes': 'FreePDK45-class NMOS channel: ndep = 3.24e18 cm^-3 from '
+              'the PTM 45 nm HP NMOS card ([PTM] via FreePDK45). A '
+              'BSIM4 "ndep" is a uniform-channel equivalent, not a '
+              'measured halo profile — stated.'},
+    {'name': 'si-channel-n-2.44e18-ptm45', 'dopant_type': 'n',
+     'species': 'P', 'concentration_cm3': 2.44e18, 'method': 'implant',
+     'activation_fraction': 1.0, 'junction_depth_nm': 0.0,
+     'notes': 'FreePDK45-class PMOS n-well/channel: ndep = 2.44e18 '
+              'cm^-3 from the PTM 45 nm HP PMOS card.'},
+]
+SEED_SI_SHAPES = [
+    {'name': 'planar-90nm-class', 'kind': 'planar-bulk',
+     'channel_width_nm': 1000.0, 'fin_height_nm': 0.0,
+     'fin_width_nm': 0.0, 'n_fins': 1, 'gate_all_around': False,
+     'scale_length_formula': 'lambda = sqrt((eps_si/eps_ox) t_ox '
+                             'x_dmax)  [TN09] Sec.3.2.1',
+     'notes': 'Planar bulk, W = 1 um (so Id reads as A per um).'},
+    {'name': 'finfet-class', 'kind': 'finfet',
+     'channel_width_nm': 0.0, 'fin_height_nm': 40.0,
+     'fin_width_nm': 10.0, 'n_fins': 1, 'gate_all_around': False,
+     'scale_length_formula': 'lambda = sqrt((eps_si/(2 eps_ox)) t_si '
+                             't_ox (1 + eps_ox t_si/(4 eps_si t_ox)))'
+                             '  [SUZ93]',
+     'notes': 'Tri-gate fin H 40 / W 10 nm, one fin: W_eff = 90 nm. '
+              'Body fully depleted at 1e17 (x_dmax >> W/2).'},
+    # ---- ladder (2026-08-30): FreePDK45-class planar shape -----------
+    {'name': 'planar-45nm-class', 'kind': 'planar-bulk',
+     'channel_width_nm': 1000.0, 'fin_height_nm': 0.0,
+     'fin_width_nm': 0.0, 'n_fins': 1, 'gate_all_around': False,
+     'scale_length_formula': 'lambda = sqrt((eps_si/eps_ox) t_ox '
+                             'x_dmax)  [TN09] Sec.3.2.1',
+     'notes': 'Planar bulk, W = 1 um, for the FreePDK45-class device: '
+              'FreePDK45 draws 50 nm poly (POLY.1) and "assumes the '
+              'actual gate length is 45nm" ([FREEPDK45] docs v1.4); '
+              'the device row carries Lg 45 nm.'},
+]
+SEED_SI_DEVICES = [
+    {'name': 'si-nmos-planar-90', 'polarity': 'n',
+     'shape': 'planar-90nm-class', 'channel_doping': 'si-channel-p-1e17',
+     'sd_doping': 'si-sd-n-plus-1e20', 'dielectric': 'thermal-sio2-2nm',
+     'process': 'thermal-oxidation', 'lg_nm': 90.0, 'w_nm': 1000.0,
+     'temperature_k': 300.0, 'vfb_v': -0.6,
+     'vfb_source': 'PRIOR: near-midgap metal gate phi_m ~ 4.4 eV on '
+                   'p-Si 1e17 (phi_s = chi + Eg/2 + phi_F ~ 5.03 eV)',
+     'rc_ohm_um': 200.0, 'vdd_v': 1.0,
+     'notes': 'THE silicon reference: planar bulk NMOS, Lg 90 nm, '
+              '2 nm thermal SiO2. Exists to compare against the CNT '
+              'S1 device on every fv/fi surface and as the thermal-'
+              'oxide baseline for the sol-gel variants. Derive before '
+              'use: unproven → scores 0 until derived.'},
+    {'name': 'si-pmos-planar-90', 'polarity': 'p',
+     'shape': 'planar-90nm-class', 'channel_doping': 'si-channel-n-1e17',
+     'sd_doping': 'si-sd-p-plus-1e20', 'dielectric': 'thermal-sio2-2nm',
+     'process': 'thermal-oxidation', 'lg_nm': 90.0, 'w_nm': 1000.0,
+     'temperature_k': 300.0, 'vfb_v': 0.6,
+     'vfb_source': 'PRIOR: near-midgap metal gate phi_m ~ 4.8 eV on '
+                   'n-Si 1e17 (phi_s ~ 4.19 eV)',
+     'rc_ohm_um': 300.0, 'vdd_v': 1.0,
+     'notes': 'Complementary partner of si-nmos-planar-90: same '
+              'stack, n-well, Vt NEGATIVE, hole mobility ~1/2.5 of '
+              'electrons — exists to show why the p device needs '
+              'W_p/W_n ~ mu_n/mu_p for drive match (fp-3 pairs, '
+              'si-planar-90-pair). Derive before use: unproven → '
+              'scores 0 until derived.'},
+    {'name': 'si-nmos-planar-solgel-hfo2', 'polarity': 'n',
+     'shape': 'planar-90nm-class', 'channel_doping': 'si-channel-p-1e17',
+     'sd_doping': 'si-sd-n-plus-1e20', 'dielectric': 'solgel-hfo2-4nm',
+     'process': 'spin-3000-1layer', 'lg_nm': 90.0, 'w_nm': 1000.0,
+     'temperature_k': 300.0, 'vfb_v': -0.6,
+     'vfb_source': 'PRIOR: same gate metal as si-nmos-planar-90 '
+                   '(HfO2 dipole / fixed-charge Vfb shift NOT modeled)',
+     'rc_ohm_um': 200.0, 'vdd_v': 1.0,
+     'notes': 'si-nmos-planar-90 with the 4 nm sol-gel HfO2 film: '
+              'exists to compare EOT 0.87 nm high-k vs 2 nm SiO2 — '
+              'higher Cinv (drive), smaller scale length (less Vt '
+              'roll-off / DIBL) — with the sol-gel leakage prior '
+              'stated, not simulated. Derive before use: unproven → '
+              'scores 0 until derived.'},
+    {'name': 'si-nmos-finfet-solgel-hfo2', 'polarity': 'n',
+     'shape': 'finfet-class', 'channel_doping': 'si-channel-p-1e17',
+     'sd_doping': 'si-sd-n-plus-1e20', 'dielectric': 'solgel-hfo2-4nm',
+     'process': 'spin-3000-1layer', 'lg_nm': 20.0, 'w_nm': 90.0,
+     'temperature_k': 300.0, 'vfb_v': -0.6,
+     'vfb_source': 'PRIOR: as si-nmos-planar-90',
+     'rc_ohm_um': 200.0, 'vdd_v': 0.8,
+     'notes': 'FinFET-class NMOS, Lg 20 nm, one fin (W_eff 90 nm) '
+              'with sol-gel HfO2 (conformality of a spin-on film on '
+              'a fin is a stated PRIOR gap). Exists to compare the '
+              'fully-depleted body (n_ss -> 1, tiny DIBL) against '
+              'the planar 90 nm class. Derive before use: unproven '
+              '→ scores 0 until derived.'},
+    # ---- FET-SET flush (2026-08-27): every silicon FET gets its
+    # complementary partner where one exists + the TEOS sol-gel
+    # SiO2 planar device so the dielectric ladder (thermal SiO2 →
+    # sol-gel SiO2 → sol-gel HfO2) is complete on the same NMOS.
+    {'name': 'si-pmos-finfet-solgel-hfo2', 'polarity': 'p',
+     'shape': 'finfet-class', 'channel_doping': 'si-channel-n-1e17',
+     'sd_doping': 'si-sd-p-plus-1e20', 'dielectric': 'solgel-hfo2-4nm',
+     'process': 'spin-3000-1layer', 'lg_nm': 20.0, 'w_nm': 90.0,
+     'temperature_k': 300.0, 'vfb_v': 0.6,
+     'vfb_source': 'PRIOR: as si-pmos-planar-90 (n-well, phi_m ~ 4.8 '
+                   'eV; HfO2 dipole shift NOT modeled)',
+     'rc_ohm_um': 300.0, 'vdd_v': 0.8,
+     'notes': 'Complementary partner of si-nmos-finfet-solgel-hfo2 '
+              '(pair si-finfet-hfo2-pair): same fin, n-well body, '
+              'hole mobility. Exists to show that a FinFET pair '
+              'matches drive by FIN COUNT (W is quantized: one fin '
+              'each here, so the p side is weaker by ~mu_p/mu_n) '
+              'and to give the fully-depleted p device its own Vt. '
+              'Derive before use: unproven → scores 0 until derived.'},
+    {'name': 'si-nmos-planar-solgel-sio2', 'polarity': 'n',
+     'shape': 'planar-90nm-class', 'channel_doping': 'si-channel-p-1e17',
+     'sd_doping': 'si-sd-n-plus-1e20',
+     'dielectric': 'solgel-sio2-teos-4nm',
+     'process': 'spin-3000-1layer', 'lg_nm': 90.0, 'w_nm': 1000.0,
+     'temperature_k': 300.0, 'vfb_v': -0.6,
+     'vfb_source': 'PRIOR: same gate metal as si-nmos-planar-90 '
+                   '(sol-gel SiO2 fixed charge NOT modeled)',
+     'rc_ohm_um': 200.0, 'vdd_v': 1.0,
+     'notes': 'si-nmos-planar-90 with the 4 nm TEOS sol-gel SiO2 film '
+              '(k 3.8, 90 % of thermal density): exists to compare '
+              'the CHEAP spin-on oxide against 2 nm thermal SiO2 at '
+              'equal chemistry — lower Cinv (twice the EOT), larger '
+              'scale length (more Vt roll-off / DIBL) — the honest '
+              'cost of a thicker low-k film, with the leakage prior '
+              'stated, not simulated. Derive before use: unproven → '
+              'scores 0 until derived.'},
+    {'name': 'si-pmos-planar-solgel-hfo2', 'polarity': 'p',
+     'shape': 'planar-90nm-class', 'channel_doping': 'si-channel-n-1e17',
+     'sd_doping': 'si-sd-p-plus-1e20', 'dielectric': 'solgel-hfo2-4nm',
+     'process': 'spin-3000-1layer', 'lg_nm': 90.0, 'w_nm': 1000.0,
+     'temperature_k': 300.0, 'vfb_v': 0.6,
+     'vfb_source': 'PRIOR: as si-pmos-planar-90 (HfO2 dipole / '
+                   'fixed-charge Vfb shift NOT modeled)',
+     'rc_ohm_um': 300.0, 'vdd_v': 1.0,
+     'notes': 'Complementary partner of si-nmos-planar-solgel-hfo2 '
+              '(no pair declared yet — declare a ComplementaryPair '
+              'row to check it): the PMOS on the sol-gel HfO2 stack. '
+              'Exists to compare the high-k p device against the '
+              'thermal-oxide si-pmos-planar-90 (higher Cinv lifts the '
+              'weaker hole drive) and to complete the sol-gel planar '
+              'pair. Derive before use: unproven → scores 0 until '
+              'derived.'},
+    # ---- ladder S1 (2026-08-30): FreePDK45-class pair -----------------
+    {'name': 'si-nmos-freepdk45-class', 'polarity': 'n',
+     'shape': 'planar-45nm-class',
+     'channel_doping': 'si-channel-p-3.24e18-ptm45',
+     'sd_doping': 'si-sd-n-plus-1e20',
+     'dielectric': 'freepdk45-highk-nominal',
+     'process': 'thermal-oxidation', 'lg_nm': 45.0, 'w_nm': 1000.0,
+     'temperature_k': 300.0, 'vfb_v': -0.93,
+     'vfb_source': 'PRIOR chosen so the derived Vt lands at the PTM 45 '
+                   'nm HP NMOS vth0 = 0.469 V (band-edge-like metal '
+                   'gate phi_m ~ 4.2 eV on p-Si 3.24e18, phi_s ~ 5.12 '
+                   'eV) — a stated calibration, not a measurement',
+     'rc_ohm_um': 155.0, 'vdd_v': 1.0,
+     'notes': 'S1 LADDER RUNG (freepdk45): our VS-parameterised '
+              'reconstruction CALIBRATED against the FreePDK45 '
+              'published numbers (VTG NMOS Ion 975.5 uA/um, Ioff 10 '
+              'nA/um at 1.0 V; Lg 45 nm; EOT 1.25 nm; ndep 3.24e18) — '
+              'NOT the FreePDK45 BSIM4 card. Exists to compare the '
+              'open 45 nm rung against our 90-class reference (Lg, '
+              'EOT, doping all documented) on every fv/fi surface. Rc '
+              'prior = PTM rdsw 155 ohm-um. The gap to the anchors is '
+              'reported by '
+              'si_ladder.compare_to_anchors, never fitted silently. '
+              'Derive before use: unproven → scores 0 until derived.'},
+    {'name': 'si-pmos-freepdk45-class', 'polarity': 'p',
+     'shape': 'planar-45nm-class',
+     'channel_doping': 'si-channel-n-2.44e18-ptm45',
+     'sd_doping': 'si-sd-p-plus-1e20',
+     'dielectric': 'freepdk45-highk-nominal',
+     'process': 'thermal-oxidation', 'lg_nm': 45.0, 'w_nm': 1000.0,
+     'temperature_k': 300.0, 'vfb_v': 0.93,
+     'vfb_source': 'PRIOR chosen so |Vt| lands near the PTM 45 nm HP '
+                   'PMOS vth0 = -0.492 V (n-well 2.44e18; HfO2 dipole '
+                   'shift NOT modeled) — a stated calibration',
+     'rc_ohm_um': 155.0, 'vdd_v': 1.0,
+     'notes': 'Complementary partner of si-nmos-freepdk45-class: our '
+              'VS-parameterised reconstruction CALIBRATED against the '
+              'FreePDK45 published numbers (VTG PMOS Ion 650.3 uA/um, '
+              'Ioff 10 nA/um at 1.0 V) — NOT the FreePDK45 BSIM4 card. '
+              'Exists to complete the freepdk45-class pair so the cell '
+              'layer can characterize INV/NAND/DFF on the S1 rung. '
+              'Derive before use: unproven → scores 0 until derived.'},
+]
+SEED_TABLES = (
+    ('SolGelDielectric', SEED_SI_DIELECTRICS),
+    ('SolGelProcess', SEED_SI_PROCESSES),
+    ('SiliconDopingProfile', SEED_SI_DOPINGS),
+    ('SiliconFETShape', SEED_SI_SHAPES),
+    ('SiliconMOSFET', SEED_SI_DEVICES),
+)

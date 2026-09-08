@@ -227,6 +227,13 @@ def main(argv):
         print({'files': len(files_map), 'dirs': len(dirs_map), 'rewrittenFiles': _rewrite(files_map, dirs_map),
                'fromImportsFixed': fix_from_imports(files_map), 'fileRelativeFixed': fix_file_relative_paths(files_map)})
         return 0
+    if verb in ('split-objects', 'split-objects-dry'):
+        reps = split_objects(pkgs, dry=(verb == 'split-objects-dry'))
+        split = [r for r in reps if 'skipped' not in r]; skipped = [r for r in reps if 'skipped' in r]
+        for r in skipped:
+            print('KEEP %s — %s' % (os.path.relpath(r['file'], FW), r['skipped']))
+        print('%d basis file(s) → %d class files; %d kept whole' % (len(split), sum(r['files'] for r in split), len(skipped)))
+        return 0
     if verb == 'fold-subpackages':
         for pkg in (pkgs or []):
             print(pkg, fold_subpackages(pkg))
@@ -348,6 +355,192 @@ def fold_subpackages(pkg, keep=()):
         paths = {old.replace('.', '/'): new.replace('.', '/') for old, new in moved.items()}
         _rewrite({}, paths)
     return moved
+
+
+# ---- sap-2c (his correction 2026-09-08, design §7): one class per file
+# under objects/, the basis file becomes an INDEX. Mechanical + safe: a
+# file whose module-level helpers reference its classes is left whole.
+def _names_in(node):
+    """Bare names read anywhere in the node (attributes are NOT names —
+    `row.name` must never look like a reference to a helper `name`)."""
+    return {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}
+
+
+def _bound_names(node):
+    """Names a MODULE-LEVEL node binds directly (its own targets/defs/
+    imports), not what its body binds internally."""
+    out = set()
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return {node.name}
+    if isinstance(node, (ast.Import, ast.ImportFrom)):
+        return {(a.asname or a.name).split('.')[0] for a in node.names}
+    if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        for t in targets:
+            for n in ast.walk(t):
+                if isinstance(n, ast.Name):
+                    out.add(n.id)
+        return out
+    # if/try/with/for blocks: whatever they bind at module scope — never
+    # descend into comprehensions, lambdas or nested defs (their targets
+    # are NOT module-level names; a comprehension's `s` bit us once).
+    def walk(n):
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            out.add(n.name); return
+        if isinstance(n, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp, ast.Lambda)):
+            return
+        if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Store):
+            out.add(n.id)
+        elif isinstance(n, ast.alias):
+            out.add((n.asname or n.name).split('.')[0])
+        for child in ast.iter_child_nodes(n):
+            walk(child)
+    walk(node)
+    return out
+
+
+def _src(lines, node):
+    start = node.lineno - 1
+    if getattr(node, 'decorator_list', None):
+        start = min(d.lineno for d in node.decorator_list) - 1
+    return '\n'.join(lines[start:node.end_lineno])
+
+
+def split_objects_file(pkg, path, dry=False):
+    """Split modules/<pkg>/<stem>_basis.py into objects/<stem>/<Class>.py
+    (+ _shared.py) and rewrite the basis file as the index. Returns a
+    report dict; 'skipped' names the reason when the file stays whole."""
+    src = open(path, encoding='utf-8').read()
+    lines = src.split('\n')
+    tree = ast.parse(src)
+    stem = os.path.basename(path)[:-3]
+    group = stem[:-len('_basis')] if stem.endswith('_basis') else stem
+    classes = [n for n in tree.body if isinstance(n, ast.ClassDef)]
+    if not classes:
+        return {'file': path, 'skipped': 'no classes (already an index or a seed-only file)'}
+    imports = [n for n in tree.body if isinstance(n, (ast.Import, ast.ImportFrom))]
+    docstring = tree.body[0] if tree.body and isinstance(tree.body[0], ast.Expr) and isinstance(tree.body[0].value, ast.Constant) and isinstance(tree.body[0].value.value, str) else None
+    others = [n for n in tree.body if n not in classes and n not in imports and n is not docstring]
+    cnames = {c.name for c in classes}
+    # Partition the non-class module-level code: anything that references a
+    # class, or (transitively) anything bound by such code, is AFTER (it
+    # stays in the index below the re-exports); the rest is SHARED (goes
+    # to objects/<group>/_shared.py, which the class files import).
+    after, shared = [], list(others)
+    after_bound = set()
+    changed = True
+    while changed:
+        changed = False
+        for n in list(shared):
+            if _names_in(n) & (cnames | after_bound):
+                shared.remove(n); after.append(n); after_bound |= _bound_names(n); changed = True
+    after.sort(key=lambda n: n.lineno)
+    # a class that uses AFTER-bound names would need the index at import time → keep the file whole
+    for c in classes:
+        if _names_in(c) & after_bound:
+            return {'file': path, 'skipped': 'a module-level helper both uses and is used by the classes (%s)' % ', '.join(sorted(_names_in(c) & after_bound))[:80]}
+    # shared code must not depend on AFTER either (it runs before the classes exist)
+    shared_bound_all = set().union(*[_bound_names(n) for n in shared]) if shared else set()
+    if len(classes) == 1 and not shared and not after:
+        pass  # a single-class file still moves: the human shape is one class per file under objects/
+    # strongly connected groups of classes (mutual references stay together)
+    refs = {c.name: (_names_in(c) & cnames) - {c.name} for c in classes}
+    index_of, low, stack, on, sccs, counter = {}, {}, [], set(), [], [0]
+    def strong(v):
+        index_of[v] = low[v] = counter[0]; counter[0] += 1; stack.append(v); on.add(v)
+        for w in refs[v]:
+            if w not in index_of:
+                strong(w); low[v] = min(low[v], low[w])
+            elif w in on:
+                low[v] = min(low[v], index_of[w])
+        if low[v] == index_of[v]:
+            comp = []
+            while True:
+                w = stack.pop(); on.discard(w); comp.append(w)
+                if w == v: break
+            sccs.append(comp)
+    for c in classes:
+        if c.name not in index_of:
+            strong(c.name)
+    order = {c.name: i for i, c in enumerate(classes)}
+    groups = [sorted(comp, key=lambda n: order[n]) for comp in sccs]
+    groups.sort(key=lambda g: order[g[0]])
+    if dry:
+        return {'file': path, 'classes': len(classes), 'files': len(groups), 'shared': len(shared), 'after': len(after)}
+    objdir = os.path.join(os.path.dirname(path), 'objects', group)
+    os.makedirs(objdir, exist_ok=True)
+    import_bound = {}
+    for imp in imports:
+        for name in _bound_names(imp):
+            import_bound[name] = _src(lines, imp)
+    def imports_for(nodes):
+        used = set().union(*[_names_in(n) for n in nodes]) if nodes else set()
+        seen, out = set(), []
+        for name in sorted(used):
+            s = import_bound.get(name)
+            if s and s not in seen:
+                seen.add(s); out.append(s)
+        return out
+    shared_bound = set().union(*[_bound_names(n) for n in shared]) if shared else set()
+    written = []
+    # _shared.py
+    if shared:
+        body = ['"""@module %s.objects.%s._shared — what the %s row classes share (constants, seeds, helpers); split from %s.py (sap-2c)."""' % (pkg, group, group, stem)]
+        body += imports_for(shared) + [''] + [_src(lines, n) for n in shared]
+        open(os.path.join(objdir, '_shared.py'), 'w', encoding='utf-8').write('\n'.join(body) + '\n')
+        written.append('_shared')
+    by_name = {c.name: c for c in classes}
+    group_of = {n: g for g in groups for n in g}
+    for g in groups:
+        nodes = [by_name[n] for n in g]
+        used = set().union(*[_names_in(n) for n in nodes])
+        body = ['"""', '@module %s.objects.%s.%s' % (pkg, group, g[0]), '', 'Row class%s %s of the %s module — one class per file (design §7), split' % ('es' if len(g) > 1 else '', ', '.join(g), pkg),
+                'from %s.py (sap-2c). The class docstring below is the explanation.' % stem, '"""']
+        body += imports_for(nodes)
+        sh = sorted(used & shared_bound)
+        if sh:
+            body.append('from %s.objects.%s._shared import %s' % (pkg, group, ', '.join(sh)))
+        for other in sorted((used & cnames) - set(g), key=lambda n: order[n]):
+            body.append('from %s.objects.%s.%s import %s' % (pkg, group, group_of[other][0], other))
+        body.append('')
+        body += [_src(lines, n) + '\n' for n in nodes]
+        open(os.path.join(objdir, g[0] + '.py'), 'w', encoding='utf-8').write('\n'.join(body))
+        written.append(g[0])
+    # objects/<group>/__init__.py — re-exports + the taxonomy note
+    init = ['"""', '@module %s.objects.%s' % (pkg, group), '', 'The %s rows of %s, one class per file: %s.' % (group, pkg, ', '.join(cnames_sorted := sorted(cnames, key=lambda n: order[n]))), '"""']
+    for g in groups:
+        init.append('from %s.objects.%s.%s import %s  # noqa: F401' % (pkg, group, g[0], ', '.join(g)))
+    open(os.path.join(objdir, '__init__.py'), 'w', encoding='utf-8').write('\n'.join(init) + '\n')
+    parent_init = os.path.join(os.path.dirname(path), 'objects', '__init__.py')
+    if not os.path.exists(parent_init):
+        open(parent_init, 'w', encoding='utf-8').write('"""@module %s.objects — row classes, one class per file, grouped by their former basis file (design §7)."""\n' % pkg)
+    # the index
+    idx = []
+    if docstring:
+        idx.append(_src(lines, docstring))
+    idx += ['# sap-2c INDEX (design §7): the classes live one-per-file under objects/%s/;' % group,
+            '# this file re-exports them (imports keep working) and holds what they share.',
+            '# The original imports stay: names this file imported were re-exported implicitly.', '']
+    idx += [_src(lines, imp) for imp in imports] + ['']
+    if shared:
+        idx.append('from %s.objects.%s._shared import %s  # noqa: F401' % (pkg, group, ', '.join(sorted(shared_bound))))
+    for g in groups:
+        idx.append('from %s.objects.%s.%s import %s  # noqa: F401' % (pkg, group, g[0], ', '.join(g)))
+    if after:
+        idx += [''] + imports_for(after) + [''] + [_src(lines, n) for n in after]
+    open(path, 'w', encoding='utf-8').write('\n'.join(idx) + '\n')
+    subprocess.run(['git', '-C', FW, 'add', objdir, path], check=True)
+    return {'file': path, 'classes': len(classes), 'files': len(groups), 'shared': len(shared), 'after': len(after), 'written': written}
+
+
+def split_objects(pkgs=None, dry=False):
+    reports = []
+    for pkg in (pkgs or M.all_packages()):
+        d = M.module_dir(pkg)
+        for name in sorted(os.listdir(d)):
+            if name.endswith('_basis.py'):
+                reports.append(split_objects_file(pkg, os.path.join(d, name), dry=dry))
+    return reports
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
