@@ -10,7 +10,7 @@
    "food_item_name": "",
    "name": "almonds-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "nut-seed"
   },
   {
@@ -21,7 +21,7 @@
    "food_item_name": "",
    "name": "apple-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "fruit"
   },
   {
@@ -32,7 +32,7 @@
    "food_item_name": "",
    "name": "avocado-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "fruit"
   },
   {
@@ -43,7 +43,7 @@
    "food_item_name": "",
    "name": "banana-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "fruit"
   },
   {
@@ -54,7 +54,7 @@
    "food_item_name": "",
    "name": "beef-chuck-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "meat-fish-egg"
   },
   {
@@ -65,7 +65,7 @@
    "food_item_name": "",
    "name": "bell-pepper-red-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "vegetable"
   },
   {
@@ -76,7 +76,7 @@
    "food_item_name": "",
    "name": "black-beans-dry",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "legume"
   },
   {
@@ -87,7 +87,7 @@
    "food_item_name": "",
    "name": "blueberries-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "fruit"
   },
   {
@@ -98,7 +98,7 @@
    "food_item_name": "",
    "name": "broccoli-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "vegetable"
   },
   {
@@ -109,7 +109,7 @@
    "food_item_name": "",
    "name": "butter-unsalted",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "dairy"
   },
   {
@@ -120,7 +120,7 @@
    "food_item_name": "",
    "name": "carrot-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "vegetable"
   },
   {
@@ -131,7 +131,7 @@
    "food_item_name": "",
    "name": "celery-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "vegetable"
   },
   {
@@ -142,7 +142,7 @@
    "food_item_name": "",
    "name": "cheese-cheddar",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "dairy"
   },
   {
@@ -153,7 +153,7 @@
    "food_item_name": "",
    "name": "chicken-breast-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "meat-fish-egg"
   },
   {
@@ -164,7 +164,7 @@
    "food_item_name": "",
    "name": "chickpeas-dry",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "legume"
   },
   {
@@ -175,7 +175,7 @@
    "food_item_name": "",
    "name": "cod-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "meat-fish-egg"
   },
   {
@@ -186,7 +186,7 @@
    "food_item_name": "",
    "name": "cucumber-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "vegetable"
   },
   {
@@ -197,7 +197,7 @@
    "food_item_name": "",
    "name": "egg-whole-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "meat-fish-egg"
   },
   {
@@ -208,7 +208,7 @@
    "food_item_name": "",
    "name": "flour-all-purpose",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "grain"
   },
   {
@@ -219,7 +219,7 @@
    "food_item_name": "",
    "name": "flour-whole-wheat",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "grain"
   },
   {
@@ -230,7 +230,7 @@
    "food_item_name": "",
    "name": "garlic-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "flavor-base"
   },
   {
@@ -241,7 +241,7 @@
    "food_item_name": "",
    "name": "ground-beef-90-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "meat-fish-egg"
   },
   {
@@ -252,7 +252,7 @@
    "food_item_name": "",
    "name": "kale-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "vegetable"
   },
   {
@@ -263,7 +263,7 @@
    "food_item_name": "",
    "name": "lentils-dry",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "legume"
   },
   {
@@ -274,7 +274,7 @@
    "food_item_name": "",
    "name": "lettuce-romaine-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "vegetable"
   },
   {
@@ -285,7 +285,7 @@
    "food_item_name": "",
    "name": "milk-whole",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "dairy"
   },
   {
@@ -296,7 +296,7 @@
    "food_item_name": "",
    "name": "mushroom-white-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "vegetable"
   },
   {
@@ -307,7 +307,7 @@
    "food_item_name": "",
    "name": "oats-rolled",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "grain"
   },
   {
@@ -318,7 +318,7 @@
    "food_item_name": "",
    "name": "olive-oil",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "oil-fat"
   },
   {
@@ -329,7 +329,7 @@
    "food_item_name": "",
    "name": "onion-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "flavor-base"
   },
   {
@@ -340,7 +340,7 @@
    "food_item_name": "",
    "name": "orange-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "fruit"
   },
   {
@@ -351,7 +351,7 @@
    "food_item_name": "",
    "name": "pasta-dry",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "grain"
   },
   {
@@ -362,7 +362,7 @@
    "food_item_name": "",
    "name": "pork-loin-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "meat-fish-egg"
   },
   {
@@ -373,7 +373,7 @@
    "food_item_name": "",
    "name": "potato-russet-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "vegetable"
   },
   {
@@ -384,7 +384,7 @@
    "food_item_name": "",
    "name": "quinoa-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "grain"
   },
   {
@@ -395,7 +395,7 @@
    "food_item_name": "",
    "name": "rice-brown-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "grain"
   },
   {
@@ -406,7 +406,7 @@
    "food_item_name": "",
    "name": "rice-white-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "grain"
   },
   {
@@ -417,7 +417,7 @@
    "food_item_name": "",
    "name": "salmon-atlantic-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "meat-fish-egg"
   },
   {
@@ -428,7 +428,7 @@
    "food_item_name": "",
    "name": "salt-iodized",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "pantry-staple"
   },
   {
@@ -439,7 +439,7 @@
    "food_item_name": "",
    "name": "spinach-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "vegetable"
   },
   {
@@ -450,7 +450,7 @@
    "food_item_name": "",
    "name": "strawberries-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "fruit"
   },
   {
@@ -461,7 +461,7 @@
    "food_item_name": "",
    "name": "sugar-white",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "pantry-staple"
   },
   {
@@ -472,7 +472,7 @@
    "food_item_name": "",
    "name": "sweet-potato-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "vegetable"
   },
   {
@@ -483,7 +483,7 @@
    "food_item_name": "",
    "name": "tilapia-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "meat-fish-egg"
   },
   {
@@ -494,7 +494,7 @@
    "food_item_name": "",
    "name": "tofu-firm",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "legume"
   },
   {
@@ -505,7 +505,7 @@
    "food_item_name": "",
    "name": "tomato-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "vegetable"
   },
   {
@@ -516,7 +516,7 @@
    "food_item_name": "",
    "name": "turkey-ground-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "meat-fish-egg"
   },
   {
@@ -527,7 +527,7 @@
    "food_item_name": "",
    "name": "walnuts-raw",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "nut-seed"
   },
   {
@@ -538,10 +538,10 @@
    "food_item_name": "",
    "name": "yogurt-plain-whole",
    "notes": "",
-   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/vendor/README.md",
+   "provenance_id": "fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity set = the vendored FDC subset, nutrition/custom/vendor/README.md",
    "roster_category": "dairy"
   }
  ],
  "schema": "module-initial-data/1",
- "source": "generated by foodstate.custom.export_initial_data from the in-code seed builders (the single source of truth) — regenerate via python3 -m foodstate.custom.export_initial_data; drift fails selftest_initial_data; identity resolved FROM the sha-pinned FDC vendor subset (nutrition/vendor, CC0)"
+ "source": "generated by foodstate.custom.export_initial_data from the in-code seed builders (the single source of truth) — regenerate via python3 -m foodstate.custom.export_initial_data; drift fails selftest_initial_data; identity resolved FROM the sha-pinned FDC vendor subset (nutrition/custom/vendor, CC0)"
 }

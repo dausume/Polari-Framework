@@ -43,7 +43,7 @@ def register_materials_science_defaults(manager=None):
     from materials_science.materialRelatedDevice_basis import MaterialRelatedDevice
 
     # Import properties
-    from materials_science.properties import (
+    from materials_science.custom.properties import (
         PropertyCategory,
         RheologicalProperty, MechanicalProperty, SurfaceProperty, ThermalProperty,
         Viscosity, KrebsViscosity, StormerViscosity,
@@ -62,7 +62,7 @@ def register_materials_science_defaults(manager=None):
     )
 
     # Import resolutions
-    from materials_science.resolutions import (
+    from materials_science.custom.resolutions import (
         ResolutionCategory,
         ExperimentalResolution, ContinuumResolution,
         MesoscaleResolution, AtomisticResolution, QuantumResolution,
@@ -75,7 +75,7 @@ def register_materials_science_defaults(manager=None):
     )
 
     # Import purposes
-    from materials_science.purposes import (
+    from materials_science.custom.purposes import (
         PurposeCategory,
         CNCMachinable, ThreeDimensionalPrintable,
         MoldFabricationPurpose,
@@ -86,7 +86,7 @@ def register_materials_science_defaults(manager=None):
     )
 
     # Import devices
-    from materials_science.devices import (
+    from materials_science.custom.devices import (
         DeviceCategory,
         ThreeDimensionalPrintingDevice, FDMPrinter, SLAPrinter, SLSPrinter,
         CNCMill, ThreeAxisMill, FiveAxisMill,
@@ -96,19 +96,19 @@ def register_materials_science_defaults(manager=None):
     )
 
     # Import reference materials
-    from materials_science.referenceMaterials import (
+    from materials_science.custom.referenceMaterials import (
         ReferenceMaterial, PropertyValueSource,
         PrintableReferenceMaterial,
         PLA, ABS, PETG, Nylon, TPU, PHA
     )
 
     # Import raw materials
-    from materials_science.rawMaterials import (
+    from materials_science.rawMaterials_basis import (
         RawMaterial
     )
 
     # Import material sourcing
-    from materials_science.materialSourcing import (
+    from materials_science.custom.materialSourcing import (
         MaterialSourcing,
         NaturalSourcing,
         OpenSourceLocalSourcing,
@@ -116,13 +116,13 @@ def register_materials_science_defaults(manager=None):
     )
 
     # Import data provenance
-    from materials_science.dataProvenance import (
+    from materials_science.dataProvenance_basis import (
         DataProvenance,
         DataSource
     )
 
     # Import material additives
-    from materials_science.materialAdditives import (
+    from materials_science.materialAdditives_basis import (
         MaterialAdditive,
         PropertyEffect,
         AdditiveCompatibility,
@@ -130,13 +130,13 @@ def register_materials_science_defaults(manager=None):
     )
 
     # Import target profiles
-    from materials_science.targetProfiles import (
+    from materials_science.targetProfiles_basis import (
         TargetMaterialProfile,
         PropertyTarget
     )
 
     # Import formulation
-    from materials_science.formulation import (
+    from materials_science.formulation_basis import (
         Formulation,
         FormulationComponent,
         FormulationIntent

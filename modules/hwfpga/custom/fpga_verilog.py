@@ -25,7 +25,7 @@ real multiplexer whose select bits are a Polari knob.
 @consumers
   - hwfpga.fpga_api (download endpoints)
   - hwfpga.fpga_selftest
-  - grpcbridge/renode_twin/fpga (build script fetches these)
+  - grpcbridge/custom/renode_twin/fpga (build script fetches these)
 """
 
 

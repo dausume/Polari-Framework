@@ -8,7 +8,7 @@ object (no bespoke write path to drift). Each artifact endpoint
 serves ONE generated file so consumers fetch only what they need.
 
 @consumers
-  - grpcbridge/renode_twin/fpga build script (fetches artifacts)
+  - grpcbridge/custom/renode_twin/fpga build script (fetches artifacts)
   - hwfpga.fpga_selftest (function-level via fpga_verilog)
 """
 

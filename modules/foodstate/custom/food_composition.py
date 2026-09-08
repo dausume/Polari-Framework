@@ -3,7 +3,7 @@
 
 fsp-1 — composition CLAIMS on the canonical states, built from the
 vendored FDC subset (CC0, sha-pinned, values verbatim — see
-modules/nutrition/vendor/README.md). Every value lands as a pspp
+modules/nutrition/custom/vendor/README.md). Every value lands as a pspp
 PropertyClaim on '<slug>#as-defined' with evidence_method
 'literature' and a provenance string carrying the FDC id, dataset,
 nutrient number and the vendor sha — never a bare number

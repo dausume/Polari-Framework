@@ -198,12 +198,21 @@ def classify(pkg, d):
         files[concept].append(stem)
     custom = os.path.join(d, 'custom')
     if os.path.isdir(custom):
-        for name in sorted(os.listdir(custom)):
-            if name.endswith('.py') and name != '__init__.py':
-                stem = 'custom/' + name[:-3]
-                facts[stem] = _scan_file(os.path.join(custom, name))
-                files['custom'].append(stem)
+        for dirpath, dirnames, filenames in os.walk(custom):
+            dirnames[:] = sorted(x for x in dirnames if x != '__pycache__')
+            for name in sorted(filenames):
+                if name.endswith('.py') and name != '__init__.py':
+                    rel = os.path.relpath(os.path.join(dirpath, name[:-3]), d)
+                    facts[rel] = _scan_file(os.path.join(dirpath, name))
+                    files['custom'].append(rel)
     return files, facts
+
+
+def stray_subdirs(d):
+    """Top-level subdirectories that are not custom/ or initialData/ —
+    the standard folds those under custom/ (his ruling 2026-09-08)."""
+    return sorted(x for x in os.listdir(d) if os.path.isdir(os.path.join(d, x))
+                  and x not in ('custom', 'initialData', '__pycache__'))
 
 
 # ---------------------------------------------------------- generate
@@ -356,7 +365,9 @@ def conform(pkg, tables=None, registry=None):
     if fresh and sorted(fresh['requires']['modules']) != sorted(m.get('requires', {}).get('modules', [])):
         findings.append('requires.modules drift vs registry/FEATURE_REQUIRES')
     if not m.get('selftests'):
-        findings.append('no selftest_*.py (the standard requires one)')
+        findings.append('no <topic>_selftest.py (the standard requires one)')
+    for sub in stray_subdirs(d):
+        findings.append('subdirectory %s/ is not custom/ or initialData/ (fold it under custom/)' % sub)
     if not os.path.isfile(os.path.join(d, 'README.md')):
         findings.append('no README.md (the standard asks for one)')
     return {'package': pkg, 'id': m.get('id'), 'kind': m['app']['kind'],

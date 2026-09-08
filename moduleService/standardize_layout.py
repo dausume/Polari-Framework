@@ -227,6 +227,10 @@ def main(argv):
         print({'files': len(files_map), 'dirs': len(dirs_map), 'rewrittenFiles': _rewrite(files_map, dirs_map),
                'fromImportsFixed': fix_from_imports(files_map), 'fileRelativeFixed': fix_file_relative_paths(files_map)})
         return 0
+    if verb == 'fold-subpackages':
+        for pkg in (pkgs or []):
+            print(pkg, fold_subpackages(pkg))
+        return 0
     if verb == 'import-all':
         r = import_all(pkgs)
         bad = {k: v for k, v in r.items() if v}
@@ -237,9 +241,6 @@ def main(argv):
     print(__doc__)
     return 2
 
-
-if __name__ == '__main__':
-    sys.exit(main(sys.argv[1:]))
 
 
 # ---- sap-2 follow-up: `from <pkg> import <moved module>` (module-as-name
@@ -317,3 +318,36 @@ def fix_file_relative_paths(files_map):
             open(path, 'w', encoding='utf-8').write(out)
             touched += 1
     return touched
+
+
+# ---- sap-2b (his ruling 2026-09-08): stray subpackages fold under custom/
+STANDARD_SUBDIRS = {'custom', 'initialData', '__pycache__'}
+
+
+def fold_subpackages(pkg, keep=()):
+    """git mv every non-standard top-level subdirectory of modules/<pkg>
+    into modules/<pkg>/custom/<sub>/ and rewrite dotted + path references
+    (`pkg.sub…` → `pkg.custom.sub…`). Returns the map used."""
+    d = os.path.join(FW, 'modules', pkg)
+    moved = {}
+    for entry in sorted(os.listdir(d)):
+        p = os.path.join(d, entry)
+        if not os.path.isdir(p) or entry in STANDARD_SUBDIRS or entry in keep:
+            continue
+        custom = os.path.join(d, 'custom')
+        os.makedirs(custom, exist_ok=True)
+        init = os.path.join(custom, '__init__.py')
+        if not os.path.exists(init):
+            open(init, 'w').write('"""@module %s.custom — custom code that fits no concept file."""\n' % pkg)
+            subprocess.run(['git', '-C', FW, 'add', init], check=True)
+        subprocess.run(['git', '-C', FW, 'mv', p, os.path.join(custom, entry)], check=True)
+        moved[pkg + '.' + entry] = pkg + '.custom.' + entry
+    if moved:
+        # dotted + path forms; the dirs map also covers `pkg/sub/…` paths
+        touched = _rewrite(moved, {})
+        paths = {old.replace('.', '/'): new.replace('.', '/') for old, new in moved.items()}
+        _rewrite({}, paths)
+    return moved
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))

@@ -8,7 +8,7 @@ One FoodMaterial identity row per base ingredient; nmp decision 8
 roster the meal-planning vocabulary.
 
 v1 roster = the 49 foods of the vendored, sha-pinned FDC subset
-(`modules/nutrition/vendor/fdc_foundation_subset.csv`, CC0,
+(`modules/nutrition/custom/vendor/fdc_foundation_subset.csv`, CC0,
 retrieved 2026-08-20) — every identity resolves to a pinned fdc_id
 from the vendor file itself, never from memory (derive-or-cite).
 Extending the roster = add a slug + category here AND a vendored
@@ -28,7 +28,7 @@ claims land on the canonical subject '<name>#as-defined'
 from objectTreeDecorators import treeObject, treeObjectInit
 
 _PROV = ('fsp-1 roster (FOOD_STATE_PSPP_PLAN.md §4 fsp-1); identity '
-         'set = the vendored FDC subset, nutrition/vendor/README.md')
+         'set = the vendored FDC subset, nutrition/custom/vendor/README.md')
 
 ROSTER_CATEGORIES = (
     'grain', 'legume', 'vegetable', 'fruit', 'meat-fish-egg',

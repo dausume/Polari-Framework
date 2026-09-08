@@ -17,7 +17,7 @@ nanopb-style bound that keeps this embeddable on the SAMD21 tier.
 
 @consumers
   - grpcbridge.contract_api (GET /api/grpc/exposures/{class}/c-header)
-  - grpcbridge/renode_twin firmware (hwsim-1)
+  - grpcbridge/custom/renode_twin firmware (hwsim-1)
   - grpcbridge.c_twin_selftest
 """
 

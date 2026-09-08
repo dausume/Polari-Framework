@@ -4,7 +4,7 @@
 @tags @xc:bindings
 
 nmp-0 — loaders for the vendored license-clean datasets in
-nutrition/vendor/ (see vendor/README.md for source, license, sha256
+nutrition/custom/vendor/ (see vendor/README.md for source, license, sha256
 and retrieval date of every file). Pure stdlib csv, lazy + cached:
 nothing is parsed until a consumer asks, and the big tables never
 become DB rows wholesale — phases materialize only what they
@@ -21,7 +21,7 @@ nmp-5).
 import csv
 import os
 
-_VENDOR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+_VENDOR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                        'vendor')
 _cache = {}
 

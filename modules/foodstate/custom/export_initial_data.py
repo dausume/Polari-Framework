@@ -61,7 +61,7 @@ def build_payloads():
             'schema': SCHEMA, 'class': 'FoodMaterial',
             'source': _SOURCE + '; identity resolved FROM the '
                       'sha-pinned FDC vendor subset '
-                      '(nutrition/vendor, CC0)',
+                      '(nutrition/custom/vendor, CC0)',
             'count': len(materials), 'rows': materials,
         },
         'PropertyClaim.json': {
