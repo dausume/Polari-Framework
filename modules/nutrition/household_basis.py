@@ -9,7 +9,7 @@ demand the hydroponic fulfillment sim (nut-5) is solved against.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.household_analysis
+  - nutrition.custom.household_analysis
 @see /HOUSEHOLD_NUTRITION_PLAN.md §nut-4
 """
 

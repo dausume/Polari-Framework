@@ -14,15 +14,15 @@ edits them; acts (e.g. 'synthesize') arrive with their S-phases.
 
 @consumers
   - polariServer (route registration, gated on feature presence)
-  - microchip.selftest_microchip (function level)
+  - microchip.microchip_selftest (function level)
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from microchip.chip_families import (
+from microchip.chip_families_basis import (
     families_report, family_report,
 )
-from microchip.chip_traverse import (
+from microchip.custom.chip_traverse import (
     design_tree, levels_report, traverse,
 )
 

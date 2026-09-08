@@ -26,7 +26,7 @@ Idempotent-by-name, like every Polari seed.
 
 @consumers
   - polariServer seed_pairs (wired by the main session, not here)
-  - scoring.selftest_dmv_col
+  - scoring.dmv_col_selftest
 @see /OVERLAP_MAP.md
 """
 

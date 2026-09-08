@@ -44,12 +44,12 @@ persisted there, it never edits pot fields itself.
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from mathshapes.shape_analysis import (
+from mathshapes.custom.shape_analysis import (
     evaluate_point, quadric_classify, sample_surface, shape_properties,
 )
-from mathshapes.shape_modify import modify_parameter, pot_shape_from_definition
-from mathshapes.soil_modify import soil_shape_from_definition
-from mathshapes.pot_scene import (
+from mathshapes.custom.shape_modify import modify_parameter, pot_shape_from_definition
+from mathshapes.custom.soil_modify import soil_shape_from_definition
+from mathshapes.custom.pot_scene import (
     ensure_pot_plant_viz_scene, ensure_pot_viz_scene,
     ensure_pot_water_viz_scene,
 )
@@ -103,14 +103,14 @@ class MathShapesAPI(treeObject):
                           'shapes': catalogue}
 
     def on_get_equations(self, request, response, name):
-        from mathshapes.shape_equations import shape_equation_rows
+        from mathshapes.custom.shape_equations import shape_equation_rows
         out = shape_equation_rows(self.manager, name)
         if not out.get('ok'):
             response.status = '400 Bad Request'
         response.media = out
 
     def on_get_equation_parity(self, request, response, name):
-        from mathshapes.shape_equations import equation_parity
+        from mathshapes.custom.shape_equations import equation_parity
         try:
             n = int(request.params.get('n', 24))
         except (TypeError, ValueError):

@@ -25,7 +25,7 @@ are SUBTRACTED from the mold body (channels in a negative) and
 UNIONED onto the master (attached sprues on a positive); cast-3's
 derived parity decides which artifact gets printed.
 
-@consumers polariServer.defClassList, casting.sprue_geometry
+@consumers polariServer.defClassList, casting.custom.sprue_geometry
 @see /WAX_MOLD_NESTING_PLAN.md (PHASE cast-4)
 """
 

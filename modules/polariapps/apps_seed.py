@@ -22,7 +22,7 @@ into the seeded tech trees instead of a route.
 @consumers
   - polariServer seed loop (legacy insert pass + the arch-1 upsert
     path, so changed seed fields REACH live prior rows)
-  - polariapps.selftest_apps
+  - polariapps.apps_selftest
 """
 
 import json as _json

@@ -17,7 +17,7 @@ import os
 import time
 import types
 
-from bizops.bizops_planner import order_plan
+from bizops.custom.bizops_planner import order_plan
 from bizops.bizops_seed import (
     SEED_BUSINESS_PROFILES, SEED_BUSINESS_STAGES,
     SEED_PROCESS_WORKFLOWS,

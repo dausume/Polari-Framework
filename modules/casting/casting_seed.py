@@ -6,7 +6,7 @@
 cast-1 seeds — two demonstration molds over existing mathshapes seed
 shapes (a quadric part and a primitive part, so both scale paths are
 exercised live), plus the casting module's PolariModule identity row.
-Seeding converges through composition.seed_upsert (the ten-strikes
+Seeding converges through composition.custom.seed_upsert (the ten-strikes
 defense: adding a field later reaches live rows), then DERIVES each
 mold's geometry — derivation is part of seeding because the derived
 rows are not data anyone types in.
@@ -199,16 +199,16 @@ def seed_casting(manager):
     from casting.chain_seed import (
         SEED_CASTING_STAGES, SEED_NESTING_CHAINS,
     )
-    from casting.coatings import (
+    from casting.coatings_basis import (
         MoldCoatingDefinition, SEED_MOLD_COATINGS,
     )
-    from casting.interventions import (
+    from casting.interventions_basis import (
         FillInterventionDefinition, SEED_FILL_INTERVENTIONS,
     )
-    from casting.mold_geometry import derive_mold
+    from casting.custom.mold_geometry import derive_mold
     from casting.sprue_basis import SprueStrategyDefinition
-    from casting.sprue_geometry import apply_sprue_strategy
-    from composition.seed_upsert import upsert_seed_pairs
+    from casting.custom.sprue_geometry import apply_sprue_strategy
+    from composition.custom.seed_upsert import upsert_seed_pairs
 
     upsert = upsert_seed_pairs(manager, [
         ('MasterFeedstockDefinition', MasterFeedstockDefinition,
@@ -248,7 +248,7 @@ def seed_casting(manager):
     # derivations, because nobody types voxels in.
     fill = {'ok': False}
     if sprue.get('ok'):
-        from casting.fill_sim import compute_fill_rows, persist_fill_rows
+        from casting.fill_sim_basis import compute_fill_rows, persist_fill_rows
         from casting.sim_seed import FILL_RUN, FILL_RUN_STEPS
         rows = compute_fill_rows(manager, 'demo-sphere-mold',
                                  FILL_RUN,

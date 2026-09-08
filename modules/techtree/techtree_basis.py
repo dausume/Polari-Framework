@@ -18,7 +18,7 @@ A complete baseline tree = the Open Source Economic Baseline (OSEB)
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - techtree.techtree_analysis / techtree.techtree_api
+  - techtree.custom.techtree_analysis / techtree.techtree_api
   - polari-platform-angular tech-tree render mode (tt-4)
 """
 

@@ -41,7 +41,7 @@ CORE_PACKAGES = frozenset({
 # test objects load ONLY in test builds). They register only when
 # POLARI_MODULES names them explicitly or POLARI_TEST_BUILD is set —
 # a normal build's clean absence is itself a pinned behavior
-# (testing.absence_probe asserts it).
+# (testing.custom.absence_probe asserts it).
 OPT_IN_PACKAGES = frozenset({'testing'})
 
 

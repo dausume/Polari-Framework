@@ -15,7 +15,7 @@ mpa-4 — what was actually EATEN, over time:
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.tracking_analysis, mealplanning_api
+  - nutrition.custom.tracking_analysis, mealplanning_api
 @see AI-Notes/plans/MEAL_PLANNING_APP_PLAN.md §mpa-4
 """
 
@@ -91,7 +91,7 @@ class DailyIntakeMetric(treeObject):
         # or the day has no sugars data ('' — then sugars_g 0.0 is an
         # absence, not a zero). Added 2026-09-03 with a default — an
         # existing DB needs the field-addition path in
-        # composition.seed_upsert (schema change, see the seed gotcha).
+        # composition.custom.seed_upsert (schema change, see the seed gotcha).
         sugars_g: float = 0.0,
         sugars_basis: str = '',
         # spike metrics: the day's MAX per-meal values.

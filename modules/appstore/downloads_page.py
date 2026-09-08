@@ -32,7 +32,7 @@ Security: filenames are served ONLY from the staged dir, only
 
 @consumers
   - polariServer (route registration via the appstore gate)
-  - appstore.selftest_downloads
+  - appstore.downloads_selftest
 """
 
 import datetime
@@ -42,7 +42,7 @@ import re
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from appstore.downloads_shared import (
+from appstore.custom.downloads_shared import (
     EXPLAIN_DEB, EXPLAIN_DISK, EXPLAIN_INTERNET,
     EXPLAIN_PREPPED_VS_DEMAND, explainer_block, human_size,
     prepped_provenance, wrap_page)

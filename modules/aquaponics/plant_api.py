@@ -21,7 +21,7 @@ Plants + parts are edited via CRUDE (object-coherence).
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from aquaponics.plant_analysis import (
+from aquaponics.custom.plant_analysis import (
     plant_gas_nutrient_budget, plant_lifetime_capture,
 )
 

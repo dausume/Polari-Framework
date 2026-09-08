@@ -30,8 +30,8 @@ is the difference between a spliced record and a smooth lie. The
 800 kyr CO2 curve is ice cores until ~1958 and Mauna Loa after;
 that seam is DATA, not a footnote, and the renderer draws it.
 
-@consumers climate.series_ingest, climate.co2_trend,
-climate.co2_indoor, climate.climate_views, climate.climate_api,
+@consumers climate.custom.series_ingest, climate.custom.co2_trend,
+climate.co2_indoor_seed, climate.climate_views_seed, climate.climate_api,
 polariServer (registration + seed)
 """
 

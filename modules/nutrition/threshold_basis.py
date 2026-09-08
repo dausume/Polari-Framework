@@ -19,7 +19,7 @@ nmp-1 — the threshold layer's objects:
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.threshold_analysis
+  - nutrition.custom.threshold_analysis
 @see AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md §nmp-1
 """
 

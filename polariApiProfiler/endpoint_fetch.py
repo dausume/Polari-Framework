@@ -32,7 +32,7 @@ problem three layers up.
 Bytes, never str: decoding a payload to find out what it is
 corrupts the binary formats this exists to fetch.
 
-@consumers climate.series_ingest, climate.xpt_reader,
+@consumers climate.custom.series_ingest, climate.custom.xpt_reader,
 polariApiProfiler.apiProfilerAPI
 """
 

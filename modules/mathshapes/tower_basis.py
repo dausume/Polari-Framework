@@ -16,7 +16,7 @@ growth inside. One treeObject (auto-CRUDE + persisted).
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - mathshapes.tower_analysis / tower_api
+  - mathshapes.custom.tower_analysis / tower_api
 @see /MATH_SHAPES_PLAN.md (PHASE shape-2 / shape-4)
 """
 

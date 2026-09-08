@@ -4,7 +4,7 @@
 @tags @xc:bindings
 
 HTTP surface for the SIMPLIFIED/AGGREGATE growth model (renamed +
-rebuilt 2026-07-15 — see aquaponics/plant_growth_simplified.py's own
+rebuilt 2026-07-15 — see aquaponics/custom/plant_growth_simplified.py's own
 module docstring for the full "one real model + a distilled aggregate
 wrapper" design):
 
@@ -18,7 +18,7 @@ wrapper" design):
   GET  /api/aquaponics/plants/{name}/interactions?days=..
         the volume-based interaction estimate at the end of a nominal
         (unconstrained) grow run — an ABSTRACT prior, not the real
-        computed transport (see aquaponics.plant_growth_normalized.
+        computed transport (see aquaponics.plant_growth_normalized_basis.
         transport_factor for that).
 
 Growth-rate CONSTANTS are edited through standard CRUDE on
@@ -33,7 +33,7 @@ via the detailed model now instead of duplicating its own lookup.
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from aquaponics.plant_growth_simplified import grow
+from aquaponics.custom.plant_growth_simplified import grow
 
 
 class AquaponicsPlantGrowthSimplifiedAPI(treeObject):

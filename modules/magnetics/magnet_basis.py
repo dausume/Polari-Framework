@@ -20,7 +20,7 @@ Honesty spine:
 - Property VALUES carry per-value provenance
   ('measured'|'vendor'|'literature-est'|'theoretical').
 
-@consumers polariServer seed_pairs, magnetics.magnet_analysis,
+@consumers polariServer seed_pairs, magnetics.custom.magnet_analysis,
 magnetics.magnet_api
 """
 

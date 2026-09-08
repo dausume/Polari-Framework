@@ -4,7 +4,7 @@ Every file here is versioned, cited, license-verified data adopted
 per AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md §nmp-0. Values
 are VERBATIM from the sources; only container formats changed
 (caret-delimited text / xlsx / HTML tables → CSV). Loaders:
-`nutrition/vendor_data.py`. Retrieved **2026-08-20**.
+`nutrition/custom/vendor_data.py`. Retrieved **2026-08-20**.
 
 CSV (not JSON) is deliberate: the repo `.gitignore` blanket-ignores
 `*.json` — a JSON data file here would silently vanish from git.
@@ -72,7 +72,7 @@ values citable as facts).
 
 Related transcriptions that live as Python seeds (no machine format
 exists upstream to vendor): `nutrition/dri_seed.py` (NASEM DRI/UL),
-`nutrition/dga_limits.py` (DGA 2020-2025 + AMDR).
+`nutrition/custom/dga_limits.py` (DGA 2020-2025 + AMDR).
 
 Fork-pins created for the adopted libraries (2026-08-20, licenses
 verified via the GitHub license API): dausume/wger (AGPL-3.0),

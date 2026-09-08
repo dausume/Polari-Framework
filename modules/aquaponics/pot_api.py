@@ -27,7 +27,7 @@ PotHole rows (object-coherence).
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from aquaponics.pot_geometry import generate_holes, validate_pot
+from aquaponics.custom.pot_geometry import generate_holes, validate_pot
 
 
 class AquaponicsPotAPI(treeObject):

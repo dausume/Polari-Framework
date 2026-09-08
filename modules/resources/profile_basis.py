@@ -16,8 +16,8 @@ with numbers, honest absence otherwise.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - resources.profile_analysis / resources.profile_api
-  - resources.admission_advisor (res-4)
+  - resources.custom.profile_analysis / resources.profile_api
+  - resources.custom.admission_advisor (res-4)
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit

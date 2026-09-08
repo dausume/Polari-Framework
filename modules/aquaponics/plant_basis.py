@@ -28,7 +28,7 @@ The capture + budget MATH lives in plant_analysis.py.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - aquaponics.plant_analysis / aquaponics.plant_api
+  - aquaponics.custom.plant_analysis / aquaponics.plant_api
 @see /AQUAPONICS_MODULE_PLAN.md
 """
 

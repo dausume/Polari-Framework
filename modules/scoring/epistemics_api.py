@@ -95,11 +95,11 @@ class EpistemicsAPI(treeObject):
                 suffix='retrievals_sourcing')
 
     # ------------------------------------------------------------ #
-    # Term proofs (scoring/term_proofs.py)
+    # Term proofs (scoring/term_proofs_basis.py)
     # ------------------------------------------------------------ #
 
     def on_get_proofs(self, request, response):
-        from scoring.term_proofs import _rows
+        from scoring.term_proofs_basis import _rows
         proofs = [{
             'name': getattr(row, 'name', ''),
             'status': getattr(row, 'status', ''),
@@ -117,14 +117,14 @@ class EpistemicsAPI(treeObject):
         response.media = {'ok': True, 'proofs': proofs}
 
     def on_get_proof(self, request, response, name):
-        from scoring.term_proofs import proof_reading
+        from scoring.term_proofs_basis import proof_reading
         result = proof_reading(self.manager, name)
         if not result.get('ok'):
             response.status = '404 Not Found'
         response.media = result
 
     def on_get_manipulation_patterns(self, request, response):
-        from scoring.term_proofs import _rows
+        from scoring.term_proofs_basis import _rows
         patterns = [{
             'name': getattr(row, 'name', ''),
             'displayName': getattr(row, 'display_name', ''),
@@ -139,18 +139,18 @@ class EpistemicsAPI(treeObject):
         response.media = {'ok': True, 'patterns': patterns}
 
     # ------------------------------------------------------------ #
-    # Term competition (scoring/term_competition.py)
+    # Term competition (scoring/term_competition_basis.py)
     # ------------------------------------------------------------ #
 
     def on_get_term_competition(self, request, response, concept):
-        from scoring.term_competition import term_competition_report
+        from scoring.term_competition_basis import term_competition_report
         result = term_competition_report(self.manager, concept)
         if not result.get('ok'):
             response.status = '404 Not Found'
         response.media = result
 
     def on_get_term_proposals(self, request, response, concept):
-        from scoring.term_competition import proposals_for
+        from scoring.term_competition_basis import proposals_for
         proposals = [{
             'name': getattr(row, 'name', ''),
             'proposedTermName':
@@ -166,7 +166,7 @@ class EpistemicsAPI(treeObject):
                           'proposals': proposals}
 
     def on_get_term_scope(self, request, response, concept):
-        from scoring.term_competition import scope_tally
+        from scoring.term_competition_basis import scope_tally
         term = request.get_param('term')
         if not term:
             response.status = '400 Bad Request'
@@ -176,18 +176,18 @@ class EpistemicsAPI(treeObject):
         response.media = scope_tally(self.manager, concept, term)
 
     def on_get_term_relations(self, request, response, name):
-        from scoring.term_competition import relations_for
+        from scoring.term_competition_basis import relations_for
         response.media = {'ok': True, 'term': name,
                           'relations': relations_for(self.manager,
                                                      name)}
 
     # ------------------------------------------------------------ #
-    # Credibility (scoring/credibility_bases.py +
-    # scoring/assertion_credibility.py)
+    # Credibility (scoring/credibility_bases_basis.py +
+    # scoring/assertion_credibility_basis.py)
     # ------------------------------------------------------------ #
 
     def on_get_assertion_credibility(self, request, response, name):
-        from scoring.assertion_credibility import (
+        from scoring.assertion_credibility_basis import (
             assertion_credibility_reading,
         )
         result = assertion_credibility_reading(self.manager, name)
@@ -196,7 +196,7 @@ class EpistemicsAPI(treeObject):
         response.media = result
 
     def on_get_assertion_by_basis(self, request, response, name):
-        from scoring.credibility_bases import (
+        from scoring.credibility_bases_basis import (
             assertion_reading_by_basis,
         )
         result = assertion_reading_by_basis(self.manager, name)
@@ -205,14 +205,14 @@ class EpistemicsAPI(treeObject):
         response.media = result
 
     def on_get_proof_by_basis(self, request, response, name):
-        from scoring.credibility_bases import proof_reading_by_basis
+        from scoring.credibility_bases_basis import proof_reading_by_basis
         result = proof_reading_by_basis(self.manager, name)
         if not result.get('ok'):
             response.status = '404 Not Found'
         response.media = result
 
     def on_get_assertion_prioritized(self, request, response, name):
-        from scoring.credibility_bases import (
+        from scoring.credibility_bases_basis import (
             prioritized_assertion_stances,
         )
         result = prioritized_assertion_stances(
@@ -223,7 +223,7 @@ class EpistemicsAPI(treeObject):
         response.media = result
 
     def on_get_contributor_standing(self, request, response, name):
-        from scoring.credibility_bases import contributor_standing
+        from scoring.credibility_bases_basis import contributor_standing
         result = contributor_standing(
             self.manager, name,
             domain=request.get_param('domain') or '')
@@ -232,17 +232,17 @@ class EpistemicsAPI(treeObject):
         response.media = result
 
     def on_get_relevance(self, request, response):
-        from scoring.credibility_bases import qualification_relevance
+        from scoring.credibility_bases_basis import qualification_relevance
         response.media = qualification_relevance(
             self.manager, request.get_param('context_name') or '')
 
     # ------------------------------------------------------------ #
-    # Policy drafts + intent (scoring/policy_drafts.py,
-    # scoring/policy_intent.py)
+    # Policy drafts + intent (scoring/policy_drafts_basis.py,
+    # scoring/policy_intent_basis.py)
     # ------------------------------------------------------------ #
 
     def on_get_drafts(self, request, response):
-        from scoring.term_proofs import _rows
+        from scoring.term_proofs_basis import _rows
         drafts = [{
             'name': getattr(row, 'name', ''),
             'displayName': getattr(row, 'display_name', ''),
@@ -260,14 +260,14 @@ class EpistemicsAPI(treeObject):
         response.media = {'ok': True, 'drafts': drafts}
 
     def on_get_draft_carryover(self, request, response, name):
-        from scoring.policy_drafts import draft_score_carryover
+        from scoring.policy_drafts_basis import draft_score_carryover
         result = draft_score_carryover(self.manager, name)
         if not result.get('ok'):
             response.status = '404 Not Found'
         response.media = result
 
     def on_get_policy_intent(self, request, response, name):
-        from scoring.policy_intent import (
+        from scoring.policy_intent_basis import (
             current_intent, intent_chain, intent_suggestions,
         )
         current = current_intent(self.manager, name)
@@ -292,11 +292,11 @@ class EpistemicsAPI(treeObject):
         response.media = result
 
     # ------------------------------------------------------------ #
-    # Venue patterns (scoring/venue_patterns.py)
+    # Venue patterns (scoring/venue_patterns_basis.py)
     # ------------------------------------------------------------ #
 
     def on_get_venue_patterns(self, request, response):
-        from scoring.term_proofs import _rows
+        from scoring.term_proofs_basis import _rows
         patterns = [{
             'name': getattr(row, 'name', ''),
             'displayName': getattr(row, 'display_name', ''),
@@ -309,7 +309,7 @@ class EpistemicsAPI(treeObject):
         response.media = {'ok': True, 'patterns': patterns}
 
     def on_get_venue_detect(self, request, response):
-        from scoring.venue_patterns import detect_patterns
+        from scoring.venue_patterns_basis import detect_patterns
         issue_name = request.get_param('issue_name')
         if not issue_name:
             response.status = '400 Bad Request'
@@ -323,11 +323,11 @@ class EpistemicsAPI(treeObject):
         response.media = result
 
     # ------------------------------------------------------------ #
-    # Legislation (scoring/legislation.py)
+    # Legislation (scoring/legislation_basis.py)
     # ------------------------------------------------------------ #
 
     def on_get_legislation(self, request, response):
-        from scoring.term_proofs import _rows
+        from scoring.term_proofs_basis import _rows
         records = [{
             'name': getattr(row, 'name', ''),
             'billId': getattr(row, 'bill_id', ''),
@@ -347,14 +347,14 @@ class EpistemicsAPI(treeObject):
 
     def on_get_legislation_contributions(self, request, response,
                                          name):
-        from scoring.legislation import contributions_for
+        from scoring.legislation_basis import contributions_for
         result = contributions_for(self.manager, name)
         if not result.get('ok'):
             response.status = '404 Not Found'
         response.media = result
 
     def on_get_legislation_burial(self, request, response, name):
-        from scoring.legislation import detect_burial_patterns
+        from scoring.legislation_basis import detect_burial_patterns
         kwargs = {}
         last_minute_days = request.get_param('last_minute_days')
         if last_minute_days is not None:
@@ -384,18 +384,18 @@ class EpistemicsAPI(treeObject):
 
     def on_get_legislator_voting_record(self, request, response,
                                         name):
-        from scoring.legislation import legislator_voting_record
+        from scoring.legislation_basis import legislator_voting_record
         result = legislator_voting_record(self.manager, name)
         if not result.get('ok'):
             response.status = '404 Not Found'
         response.media = result
 
     # ------------------------------------------------------------ #
-    # Data gathering (scoring/data_gathering.py)
+    # Data gathering (scoring/data_gathering_basis.py)
     # ------------------------------------------------------------ #
 
     def on_get_gathering_credibility(self, request, response, name):
-        from scoring.data_gathering import (
+        from scoring.data_gathering_basis import (
             gathering_credibility_profile,
         )
         result = gathering_credibility_profile(self.manager, name)
@@ -404,7 +404,7 @@ class EpistemicsAPI(treeObject):
         response.media = result
 
     def on_get_gathering_compare(self, request, response):
-        from scoring.data_gathering import (
+        from scoring.data_gathering_basis import (
             compare_gathering_solutions,
         )
         term_names = [t for t in (request.get_param('a'),
@@ -417,30 +417,30 @@ class EpistemicsAPI(treeObject):
         response.media = result
 
     # ------------------------------------------------------------ #
-    # Sources + trust (dmvdata/gov_sources.py,
-    # dmvdata/cross_validation.py)
+    # Sources + trust (dmvdata/gov_sources_basis.py,
+    # dmvdata/cross_validation_basis.py)
     # ------------------------------------------------------------ #
 
     def on_get_sources_glossary(self, request, response):
-        from dmvdata.gov_sources import source_glossary
+        from dmvdata.gov_sources_basis import source_glossary
         response.media = {'ok': True,
                           'glossary': source_glossary(self.manager)}
 
     def on_get_source_report(self, request, response, name):
-        from dmvdata.gov_sources import source_report
+        from dmvdata.gov_sources_basis import source_report
         result = source_report(self.manager, name)
         if not result.get('ok'):
             response.status = '404 Not Found'
         response.media = result
 
     def on_get_source_retrievals(self, request, response, name):
-        from dmvdata.gov_sources import retrievals_for
+        from dmvdata.gov_sources_basis import retrievals_for
         response.media = {'ok': True, 'source': name,
                           'retrievals': retrievals_for(self.manager,
                                                        name)}
 
     def on_get_provider_reliability(self, request, response):
-        from dmvdata.cross_validation import provider_reliability
+        from dmvdata.cross_validation_basis import provider_reliability
         group_name = request.get_param('group_name')
         if not group_name:
             response.status = '400 Bad Request'
@@ -454,7 +454,7 @@ class EpistemicsAPI(treeObject):
         response.media = result
 
     def on_get_retrievals_sourcing(self, request, response):
-        from dmvdata.cross_validation import sourcing_credibility
+        from dmvdata.cross_validation_basis import sourcing_credibility
         name = request.get_param('name')
         if not name:
             response.status = '400 Bad Request'

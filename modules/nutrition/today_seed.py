@@ -127,13 +127,13 @@ SEED_TODAY_PAGE_DISPLAYS = [
 
 SEED_TODAY_ANALYSES = [
     {'name': 'today-person-day', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.today_analysis:person_day',
+     'callable_ref': 'nutrition.custom.today_analysis:person_day',
      'description': 'One person\'s day: CalendarEvent lines in time order (safety notes '
                     'from hazard tags), next up, done/planned counts, the ledger so far.',
      'params_json': json.dumps({'person': 'PersonProfile.name', 'day': 'ISO date (default today)'}),
      'enabled': True, 'is_prior': True, 'provenance_id': _PROV},
     {'name': 'today-mark-done', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.today_analysis:mark_done_proposal',
+     'callable_ref': 'nutrition.custom.today_analysis:mark_done_proposal',
      'description': 'Mark an event done: status → done, ONE WorkLedger row (planned minutes '
                     'labelled unless actual minutes given), a DurationObservation only with '
                     'actual minutes; deduped by ledger-<event>.',

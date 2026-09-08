@@ -43,49 +43,49 @@ import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from pspp.cure_checkpoints import (
+from pspp.custom.cure_checkpoints import (
     apply_cure_checkpoint, plan_cure_checkpoint,
 )
-from pspp.experiment_guidance import experiment_guide
-from pspp.network_stepping import (
+from pspp.custom.experiment_guidance import experiment_guide
+from pspp.custom.network_stepping import (
     reachable_frameworks, solution_inventory,
 )
-from pspp.pspp_views import (
+from pspp.custom.pspp_views import (
     dataset_catalog, dataset_curve, grade_payload, network_graph,
     state_dag,
 )
-from pspp.progress_engine import cure_progress
-from pspp.structure_groups import most_likely_groups, stepped_groups
-from pspp.structure_sampling import build_geopolymer_sample
-from pspp.structure_scene import (
+from pspp.custom.progress_engine import cure_progress
+from pspp.custom.structure_groups import most_likely_groups, stepped_groups
+from pspp.custom.structure_sampling import build_geopolymer_sample
+from pspp.custom.structure_scene import (
     geopolymer_materials, scene_definition, scene_name,
 )
-from pspp.structure_validation import simulated_halo
-from pspp.solgel_structure import (
+from pspp.custom.structure_validation import simulated_halo
+from pspp.custom.solgel_structure import (
     solgel_route_demo, solgel_stepped_groups,
 )
-from pspp.solgel_sourcing import (
+from pspp.solgel_sourcing_basis import (
     COMMUNITY_ROUTES, SEED_PRECURSOR_SOURCES, route_accessibility,
     route_report, substitution_map,
 )
-from pspp.sintering_engine import (
+from pspp.custom.sintering_engine import (
     grain_size, relative_density, sinter_stages, work_of_sintering,
 )
-from pspp.geopolymer_ceramic_transition import transition_stages
-from pspp.characterization import (
+from pspp.custom.geopolymer_ceramic_transition import transition_stages
+from pspp.characterization_seed import (
     characterization_methods, simulated_ftir,
 )
-from pspp.research_tools import SEED_RESEARCH_TOOLS, research_tools
-from pspp.sintering_structure import plan_sinter_structure
-from pspp.glass_refinement import (
+from pspp.research_tools_basis import SEED_RESEARCH_TOOLS, research_tools
+from pspp.custom.sintering_structure import plan_sinter_structure
+from pspp.custom.glass_refinement import (
     GLASS_THRESHOLD_WINDOWS, process_map, refinement_report,
 )
-from pspp.viscous_sintering import viscous_fire
-from pspp.ceramics_samples import (
+from pspp.custom.viscous_sintering import viscous_fire
+from pspp.ceramics_samples_basis import (
     SEED_CERAMIC_SAMPLES, samples_meeting_temp, temperature_ladder,
     validate_samples,
 )
-from pspp.ceramics_ladder import (
+from pspp.ceramics_ladder_basis import (
     SEED_LADDER_RUNGS, ladder_path, validate_ladder,
 )
 
@@ -197,7 +197,7 @@ class PsppAPI(treeObject):
         the porosity/stage at one temperature."""
         temp = request.get_param_as_float('temperature')
         if temp is not None:
-            from pspp.geopolymer_ceramic_transition import porosity_at
+            from pspp.custom.geopolymer_ceramic_transition import porosity_at
             response.media = porosity_at(temp)
             return
         response.media = transition_stages()
@@ -248,13 +248,13 @@ class PsppAPI(treeObject):
         """Resolve a master-curve DigitizedDataset by name from live
         rows -> the dataset_dict shape the engine reads; None if
         absent."""
-        from pspp.digitized_datasets import dataset_index
+        from pspp.digitized_datasets_basis import dataset_index
         return dataset_index(self.manager).get(name) if name else None
 
     def on_get_sinter_curves(self, request, response):
         """List the DigitizedDataset rows shaped as ρ(log10 Θ) master
         curves, with their readiness (provisional ones refuse)."""
-        from pspp.digitized_datasets import dataset_index
+        from pspp.digitized_datasets_basis import dataset_index
         curves = []
         for name, ds in dataset_index(self.manager).items():
             indep = ds.get('independentVariables') or []
@@ -311,7 +311,7 @@ class PsppAPI(treeObject):
     def _glass_points(self):
         """Live soda-lime viscosity points when the dataset row has
         been edited; None falls back to the module seeds."""
-        from pspp.digitized_datasets import dataset_index
+        from pspp.digitized_datasets_basis import dataset_index
         ds = dataset_index(self.manager).get(
             'soda-lime-viscosity-reference-points')
         pts = (ds or {}).get('points') or []
@@ -337,7 +337,7 @@ class PsppAPI(treeObject):
         windows = self._glass_windows()
         temp = request.get_param_as_float('temperature')
         if temp is not None:
-            from pspp.glass_refinement import fit_vft
+            from pspp.custom.glass_refinement import fit_vft
             response.media = process_map(
                 temp, vft=fit_vft(points), windows=windows)
             return
@@ -490,30 +490,30 @@ class PsppAPI(treeObject):
         response.media = payload
 
     def on_get_benchmarks(self, request, response):
-        from pspp.benchmark_cases import benchmark_catalog
+        from pspp.benchmark_cases_basis import benchmark_catalog
         response.media = benchmark_catalog(self.manager)
 
     def on_get_overlay(self, request, response, name):
-        from pspp.benchmark_cases import benchmark_overlay_by_name
+        from pspp.benchmark_cases_basis import benchmark_overlay_by_name
         payload = benchmark_overlay_by_name(self.manager, name)
         if not payload.get('ok'):
             response.status = '404 Not Found'
         response.media = payload
 
     def on_get_wax_states(self, request, response):
-        from pspp.wax_states import wax_state_map
+        from pspp.custom.wax_states import wax_state_map
         payload = wax_state_map(self.manager)
         if not payload.get('ok'):
             response.status = '422 Unprocessable Entity'
         response.media = payload
 
     def _live(self, table, seeds):
-        from pspp.pspp_views import _seed_or_rows
+        from pspp.custom.pspp_views import _seed_or_rows
         return _seed_or_rows(self.manager, table, seeds)
 
     def on_get_pathways(self, request, response):
-        from pspp.reaction_network import SEED_REACTION_RULES
-        from pspp.threshold_windows import SEED_THRESHOLD_WINDOWS
+        from pspp.reaction_network_basis import SEED_REACTION_RULES
+        from pspp.threshold_windows_basis import SEED_THRESHOLD_WINDOWS
         cation = request.get_param('cation') or ''
         try:
             mr = float(request.get_param('mr') or '')
@@ -523,7 +523,7 @@ class PsppAPI(treeObject):
                               'refusal': 'mr must be a number',
                               'suggestion': '?cation=Na&mr=1.0'}
             return
-        from pspp.pspp_views import _datasets
+        from pspp.custom.pspp_views import _datasets
         inventory = solution_inventory(cation, mr,
                                        datasets=_datasets(self.manager))
         if not inventory.get('ok'):

@@ -34,15 +34,15 @@ Two classes:
     'point' (a grow light — a fixed position, rays radiate outward),
     a broadband intensity magnitude, and a spectrum reference.
 
-The actual field/incidence MATH (aquaponics/light_field.py) reuses
-electrodevice/photo_derive.py's proven numeric blackbody-photon-
+The actual field/incidence MATH (aquaponics/custom/light_field.py) reuses
+electrodevice/custom/photo_derive.py's proven numeric blackbody-photon-
 integration TECHNIQUE (E^2/(exp(E/kT)-1)-style quadrature), adapted
 from eV/bandgap-threshold framing to nm/PAR-band framing — real
 photon counting, not an approximate W/m^2->umol/J fudge constant.
 
 @consumers
-  - aquaponics.light_field (the field/incidence engine)
-  - aquaponics.plant_stress (the 'light' stress type's optional
+  - aquaponics.custom.light_field (the field/incidence engine)
+  - aquaponics.plant_stress_basis (the 'light' stress type's optional
     computed-value override, when a PotSystemDefinition.
     light_source_name is bound)
   - polariServer.defClassList (auto-CRUDE + persistence)

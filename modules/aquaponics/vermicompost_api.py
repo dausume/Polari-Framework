@@ -29,7 +29,7 @@ Bins / profiles / loops are edited through standard CRUDE
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from aquaponics.vermicompost_analysis import (
+from aquaponics.custom.vermicompost_analysis import (
     compare_modes, enriched_water_profile, simulate_enrichment,
     steady_release,
 )

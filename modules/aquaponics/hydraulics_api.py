@@ -30,7 +30,7 @@ HTTP surface for aqp-3 pot hydraulics:
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from aquaponics.hydraulics import (
+from aquaponics.custom.hydraulics import (
     build_darcy_payload, run_hydraulics, water_slice_mesh,
 )
 

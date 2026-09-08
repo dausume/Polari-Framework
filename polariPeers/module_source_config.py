@@ -61,9 +61,9 @@ class ModuleSourceConfig(treeObject):
 #: Seed: the one module project that already lives in-tree, so the
 #: config surface starts honest instead of empty.
 SEED_MODULE_SOURCE_CONFIGS = [{
-    'name': 'polariMaterialsScienceModule',
+    'name': 'materials_science',
     'source_kind': 'file',
-    'locator': 'modules/polariMaterialsScienceModule',
+    'locator': 'modules/materials_science',
     'status': 'fetched',
     'notes': 'ships in-tree today; listed so the modules-as-projects '
              'surface reflects reality. Its extraction into its own '

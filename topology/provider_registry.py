@@ -150,7 +150,7 @@ def resolve_provider(module_name, probe=_probe):
     # first (single-threaded module -> smallest adequate provider).
     # Honest no-op when profiles/specs are absent.
     try:
-        from resources.admission_advisor import rank_candidates_by_fit
+        from resources.custom.admission_advisor import rank_candidates_by_fit
         candidates = rank_candidates_by_fit(
             manager, module_name, candidates)
     except Exception:

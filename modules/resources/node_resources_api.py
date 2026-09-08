@@ -13,14 +13,14 @@ and the knob to fix it.
 @consumers
   - polariServer (instantiated next to TopologyAPI)
   - polari-platform-angular /topology page
-  - resources.selftest_node_resources (handler-level, fake manager)
+  - resources.node_resources_selftest (handler-level, fake manager)
 """
 
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from resources.node_resources import (
+from resources.custom.node_resources import (
     fetch_remote_specs, ingest_node_specs, inventory,
     machine_resources_dict, refresh_local_machine,
 )

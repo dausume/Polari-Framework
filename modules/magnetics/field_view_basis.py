@@ -23,7 +23,7 @@ paths — 1D-per-path, no off-path field claimed) | fem-2d (REFUSED
 in v1: field-map export from the fem engine is the named
 follow-up).
 
-@consumers magnetics.field_views, magnetics.magnet_api,
+@consumers magnetics.custom.field_views, magnetics.magnet_api,
 polariServer (registration + seed)
 """
 

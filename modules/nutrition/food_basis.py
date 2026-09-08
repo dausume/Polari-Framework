@@ -23,7 +23,7 @@ GROWN in the pot system yields a computable meal-nutrient harvest.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.harvest_analysis, nutrition.food_seed
+  - nutrition.custom.harvest_analysis, nutrition.food_seed
 @see /HOUSEHOLD_NUTRITION_PLAN.md §nut-2 + Appendix A
 """
 

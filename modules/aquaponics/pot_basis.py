@@ -27,7 +27,7 @@ pot_materials_seed.py.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - aquaponics.pot_geometry / aquaponics.pot_api
+  - aquaponics.custom.pot_geometry / aquaponics.pot_api
 @see /AQUAPONICS_MODULE_PLAN.md
 """
 
@@ -55,7 +55,7 @@ IDEAL_SIDE_SEPARATION_DEG = 180.0
 
 #: Physical floors (Dustin 2026-07-13) — below these the shell/bore
 #: isn't a buildable wall/hole, just a mathematical degenerate. The
-#: math-shape derivation (mathshapes.shape_modify) CLAMPS to these so a
+#: math-shape derivation (mathshapes.custom.shape_modify) CLAMPS to these so a
 #: too-thin pot still renders (rather than a negative/zero-radius
 #: crash); validate_pot below still flags the clamp as a finding so it
 #: is never silent.
@@ -65,7 +65,7 @@ MIN_HOLE_DIAMETER_MM = 1.0
 
 #: Physical CEILING (2026-07-13, adversarial-review finding): a wall
 #: thicker than this fraction of the pot's own (smaller) outer radius
-#: has effectively eaten the whole interior — mathshapes.shape_modify
+#: has effectively eaten the whole interior — mathshapes.custom.shape_modify
 #: still derives *something* (clamped via the hole-length cap so a
 #: bore can never punch through to the far side), but a pot this
 #: degenerate isn't a buildable vessel. Flagged, not blocked — same
@@ -105,7 +105,7 @@ class PotDefinition(treeObject):
         # top of the base slab) — an explicit knob, never a hidden
         # fraction (aquaponics-pot-shape phase 4). Clamped to the
         # usable interior height (height_mm - base_thickness_mm) by
-        # mathshapes.soil_modify.soil_shape_from_definition if it
+        # mathshapes.custom.soil_modify.soil_shape_from_definition if it
         # would otherwise poke above the rim.
         soil_fill_height_mm: float = 180.0,
         # Per-layer transparency toggles (aquaponics-pot-shape phase 5)

@@ -13,7 +13,7 @@ schema-stabilization snapshot (see polariDataTyping.schema_stability)
 — an OOPS that destabilizes the schema marks the exposure 'stale'.
 
 @consumers
-  - grpcbridge.proto_gen (the generator engine)
+  - grpcbridge.custom.proto_gen (the generator engine)
   - grpcbridge.contract_api (the knob surface)
   - polariDataTyping.schema_stability.record_deviation (stale hook)
 """

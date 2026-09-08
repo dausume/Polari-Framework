@@ -22,7 +22,7 @@ reference carries its source + prior flag).
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.person_analysis (reads references), nutrition.nutrient_seed
+  - nutrition.custom.person_analysis (reads references), nutrition.nutrient_seed
 @see /HOUSEHOLD_NUTRITION_PLAN.md §nut-1
 """
 

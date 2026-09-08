@@ -4,7 +4,7 @@
 @tags @xc:bindings
 
 HTTP surface for plant-growth-sim phase 8 (2026-07-15) — the direct-
-light field engine (aquaponics/light_field.py). Read-only diagnostics;
+light field engine (aquaponics/custom/light_field.py). Read-only diagnostics;
 the actual growth-rate effect happens automatically inside
 advance_growth() when a planting's bound PotSystemDefinition names a
 light_source_name — these endpoints are for INSPECTING that
@@ -27,7 +27,7 @@ computation, not triggering it.
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from aquaponics.light_field import _named, per_part_absorption, spectrum_ppfd
+from aquaponics.custom.light_field import _named, per_part_absorption, spectrum_ppfd
 
 
 def _not_found_or_bad(result):

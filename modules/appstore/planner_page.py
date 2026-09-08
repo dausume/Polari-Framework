@@ -32,15 +32,15 @@ Budgets below stay conservative multiples of the measured 9.
 
 @consumers
   - polariServer (route registration via the appstore gate)
-  - appstore.selftest_planner
+  - appstore.planner_selftest
 """
 
 import html
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from appstore import app_deb_builder as builder
-from appstore.downloads_shared import explainer_block, wrap_page
+from appstore.custom import app_deb_builder as builder
+from appstore.custom.downloads_shared import explainer_block, wrap_page
 
 #: Performance classes the wizard offers — 'in what way' matters
 #: because the bottleneck decides the honest budget.

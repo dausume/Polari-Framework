@@ -35,7 +35,7 @@ SEED_SCORE_TERMS = [
         'display_name': 'Material Cost per kg',
         'description': 'Cited-price material cost of a product '
                        'formula (USD per kg of product) — computed '
-                       'by supplychain.formula_analysis from '
+                       'by supplychain.custom.formula_analysis from '
                        'PriceCitation rows, cascaded through '
                        'self-made intermediaries. Cheaper is '
                        'better: the affordability term for formula '
@@ -52,7 +52,7 @@ SEED_SCORE_TERMS = [
             ['affordability', 'materials', 'sourcing',
              'open-source-economics']),
         'provenance_id': 'src-2 formula costing '
-                         '(supplychain.formula_analysis.COST_TERM)',
+                         '(supplychain.custom.formula_analysis.COST_TERM)',
     },
     {
         'name': 'union-participation',

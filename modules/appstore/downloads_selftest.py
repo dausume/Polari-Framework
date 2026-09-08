@@ -1,0 +1,162 @@
+"""
+Selftest for the public downloads page (dl-1 + dl-3).
+
+Run from polari-framework/:
+  PYTHONPATH=.:modules python3 -m appstore.downloads_selftest
+
+Function-level (no server): staging discovery + install ordering,
+version parsing, the rendered page's user-facing promises, the
+empty state, the traversal/absent refusals, and the dl-3 split —
+no combined deb staged = the dl-1b single-list page; combined deb
+staged = Option A hero + Option B demotion; transparency
+explainers + per-item provenance on every variant.
+"""
+
+import os
+import sys
+import tempfile
+
+from appstore import downloads_page as dl
+
+_results = []
+
+
+def check(label, cond, extra=''):
+    _results.append((label, bool(cond)))
+    print(f'{"PASS" if cond else "FAIL"}: {label}'
+          + (f' — {extra}' if extra and not cond else ''))
+
+
+def main():
+    with tempfile.TemporaryDirectory() as staged:
+        os.environ['POLARI_DOWNLOADS_DIR'] = staged
+
+        check('empty staging renders the HONEST empty page (never '
+              'a 404 wall)',
+              'No installers are staged'
+              in dl.render_page(dl.staged_debs()))
+
+        # stage a bundle out of order + a decoy non-deb
+        for name in ('polari-shell-core_0.1.32_amd64.deb',
+                     'isle-app-store_0.1.32_all.deb',
+                     'isle-mesh-cli_0.1.126_all.deb',
+                     'polari-isle_0.1.0_all.deb'):
+            with open(os.path.join(staged, name), 'wb') as fh:
+                fh.write(b'deb-bytes-' + name.encode())
+        with open(os.path.join(staged, 'notes.txt'), 'w') as fh:
+            fh.write('not a deb')
+
+        debs = dl.staged_debs()
+        check('staging discovery: four debs found, decoy ignored, '
+              'INSTALL ORDER enforced (cli -> shell-core -> store '
+              '-> meta) regardless of listing order',
+              [d['name'] for d in debs] == dl.INSTALL_ORDER)
+        check('version parsing from filenames (the only version '
+              'source — no invented numbers)',
+              debs[0]['version'] == '0.1.126'
+              and debs[1]['version'] == '0.1.32'
+              and debs[3]['arch'] == 'all')
+
+        page = dl.render_page(debs, 'Polari Demo')
+        check('the page makes the normal-user promises: version '
+              'headline, ordered click instructions, no-terminal '
+              'flow, archive-viewer fallback tip, offline surface '
+              'linked (dl-5 — that page owns the honesty about '
+              'whether media sets exist)',
+              'Current version' in page and '0.1.32' in page
+              and 'order matters' in page
+              and 'Software Install' in page
+              and 'no terminal' in page.lower()
+              and 'href="/downloads/offline"' in page
+              and 'href="/downloads/apps"' in page)
+        check('every staged deb is a download link on the page',
+              all(f'href="/downloads/{d["file"]}"' in page
+                  for d in debs))
+        check('NO combined deb staged = the dl-1b single-list '
+              'layout (numbered steps, no Option A/B) — the '
+              'fallback never advertises a file that is not there',
+              '<span class="step-no">1</span>' in page
+              and 'Option A' not in page
+              and 'polari-complete' not in page)
+        check('transparency explainers render on the piecewise '
+              'page: what a deb is, install order, pre-prepped vs '
+              'on-demand, internet fetches, disk locations '
+              '— native <details>, zero JS',
+              'What is a .deb file?' in page
+              and 'install order matter' in page
+              and 'generated on demand' in page.lower()
+              and 'official repositories' in page
+              and '/var/lib/polari' in page
+              and '<details class="explain">' in page
+              and '<script' not in page)
+        check('per-item provenance: every pre-prepped deb says '
+              'when it was built and that it downloads instantly',
+              page.count('class="prov prov-prepped"') == len(debs)
+              and debs[0]['built'] in page
+              and 'Downloads instantly' in page)
+
+        # --- dl-3: stage the TRUE MERGED deb -> Option A/B ---
+        with open(os.path.join(
+                staged, 'polari-complete_0.1.32_amd64.deb'),
+                'wb') as fh:
+            fh.write(b'deb-bytes-combined' * 4096)
+
+        debs = dl.staged_debs()
+        combined_page = dl.render_page(debs, 'Polari Demo')
+        steps_page = dl.render_page(debs, 'Polari Demo',
+                                    mode='steps')
+        check('combined deb staged: default tab = the one-file '
+              'install — Option A hero card, pre-prepped, its own '
+              'download link, and the tab toggle to the stepped '
+              'install',
+              'Option A' in combined_page
+              and 'One file installs everything' in combined_page
+              and 'hero-card' in combined_page
+              and ('href="/downloads/polari-complete_0.1.32_'
+                   'amd64.deb"') in combined_page
+              and 'href="/downloads?mode=steps"' in combined_page
+              and 'tab-on' in combined_page)
+        check('the stepped tab carries the piecewise install: all '
+              'four member debs + the order instructions; the '
+              'one-file hero stays off this tab',
+              'Piece by piece' in steps_page
+              and all(f'href="/downloads/{d["file"]}"'
+                      in steps_page
+                      for d in debs
+                      if d['name'] != 'polari-complete')
+              and 'order matters' in steps_page
+              and 'class="dl-card hero-card"' not in steps_page)
+        check('the stepped tab says A and B cannot be combined '
+              '(the Conflicts relationship, in user words)',
+              'can\'t be installed' in steps_page)
+        check('headline version still reads from the store deb',
+              '<strong>0.1.32</strong>' in combined_page)
+        check('provenance renders per tab: 1 pre-prepped item on '
+              'the one-file tab, 4 on the stepped tab',
+              combined_page.count('class="prov prov-prepped"')
+              == 1
+              and steps_page.count('class="prov prov-prepped"')
+              == 4)
+        check('transparency explainers on both tabs',
+              'What is a .deb file?' in combined_page
+              and 'What is a .deb file?' in steps_page)
+
+        check('download resolution serves ONLY staged debs — '
+              'traversal, absent files, and non-debs all refuse',
+              dl.resolve_download(
+                  'isle-mesh-cli_0.1.126_all.deb') is not None
+              and dl.resolve_download(
+                  'polari-complete_0.1.32_amd64.deb') is not None
+              and dl.resolve_download('../etc/passwd') is None
+              and dl.resolve_download('notes.txt') is None
+              and dl.resolve_download(
+                  'ghost_1.0_all.deb') is None
+              and dl.resolve_download('') is None)
+
+    passed = sum(1 for _, ok in _results if ok)
+    print(f'\n{passed}/{len(_results)} checks passed')
+    return 0 if passed == len(_results) else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

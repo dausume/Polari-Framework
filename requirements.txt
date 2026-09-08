@@ -19,7 +19,7 @@ tippecanoe
 minio==7.2.15
 urllib3==2.7.0
 websockets>=13.0,<14.0
-# gRPC serving layer (grpcbridge/grpc_server.py, GRPC_BRIDGE_PLAN.md
+# gRPC serving layer (grpcbridge/custom/grpc_server.py, GRPC_BRIDGE_PLAN.md
 # grpc-2): musllinux wheels ride the Alpine image directly — verified
 # grpcio 1.74.0 cp312 musllinux_1_1_x86_64 exists (no Debian worker
 # fallback needed). Reflection exposes enabled contracts to clients.

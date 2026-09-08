@@ -24,8 +24,8 @@ Two seeded designs:
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence + seeds)
-  - microchip.chip_traverse (the traversal engine)
-  - microchip.selftest_microchip
+  - microchip.custom.chip_traverse (the traversal engine)
+  - microchip.microchip_selftest
 """
 
 import json

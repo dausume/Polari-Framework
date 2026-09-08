@@ -184,7 +184,7 @@ from topology.topology_seed import (
 # Resource profiles (res-2): each module/engine's floor, scalability,
 # character, and storage-tier recommendation — the admission basis.
 from resources.profile_basis import ModuleResourceProfile
-from xr.xr_settings import (
+from xr.xr_settings_basis import (
     XrGlobalSettings, XrTypeDefault, XrInterfaceVariant,
     SEED_XR_GLOBAL_SETTINGS, SEED_XR_TYPE_DEFAULTS,
 )
@@ -3078,24 +3078,24 @@ class polariServer(treeObject):
                 only_classes is None
                 or 'ClockScaleDefinition' in only_classes):
             try:
-                from motors.clock_assembly import (
+                from motors.clock_assembly_seed import (
                     seed_clock_assembly,
                 )
-                from motors.clock_scene import seed_clock_scene
-                from motors.clock_views import seed_clock_views
-                from motors.m1_positioning import seed_m1_axis
-                from motors.m1_scene import seed_m1_scene
-                from motors.m1_views import seed_m1_views
-                from motors.motor_shapes import seed_v2_shapes
-                from motors.m1_product import seed_m1_product
-                from motors.m2_lift import seed_m2_hoist
-                from motors.m2_scene import seed_m2_scene
-                from motors.m2_views import seed_m2_views
-                from motors.m2_product import seed_m2_product
-                from motors.product_routes import (
+                from motors.clock_scene_basis import seed_clock_scene
+                from motors.clock_views_basis import seed_clock_views
+                from motors.m1_positioning_basis import seed_m1_axis
+                from motors.m1_scene_seed import seed_m1_scene
+                from motors.m1_views_seed import seed_m1_views
+                from motors.motor_shapes_seed import seed_v2_shapes
+                from motors.m1_product_seed import seed_m1_product
+                from motors.m2_lift_basis import seed_m2_hoist
+                from motors.m2_scene_seed import seed_m2_scene
+                from motors.m2_views_seed import seed_m2_views
+                from motors.m2_product_seed import seed_m2_product
+                from motors.product_routes_seed import (
                     seed_product_routes,
                 )
-                from motors.scale_goals import seed_scale_goals
+                from motors.scale_goals_basis import seed_scale_goals
                 for r in (seed_scale_goals(self.manager)
                           + seed_clock_views(self.manager)
                           + seed_m1_views(self.manager)
@@ -3125,7 +3125,7 @@ class polariServer(treeObject):
                 only_classes is None
                 or 'MathShapeDefinition' in only_classes)):
             try:
-                from mathshapes.shape_equations import (
+                from mathshapes.custom.shape_equations import (
                     seed_shape_equations,
                 )
                 # Converge the M1 shape rows BEFORE emitting their
@@ -3139,7 +3139,7 @@ class polariServer(treeObject):
                 # legacy seed pairs above; the documented gotcha,
                 # hit again). Alias the one new import.
                 try:
-                    from composition.seed_upsert import (
+                    from composition.custom.seed_upsert import (
                         upsert_seed_pairs as _upsert_pre,
                     )
                     _upsert_pre(self.manager, [
@@ -3199,7 +3199,7 @@ class polariServer(treeObject):
                 only_classes is None
                 or 'DisplayDefinition' in only_classes)):
             try:
-                from motors.motors_pages import seed_motors_pages
+                from motors.motors_page import seed_motors_pages
                 for r in seed_motors_pages(self.manager):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[MotorsPagesSeed] {r["class"]}: '
@@ -3249,7 +3249,7 @@ class polariServer(treeObject):
                 only_classes is None
                 or 'MathShapeDefinition' in only_classes)):
             try:
-                from motors.m1_relations import seed_m1_relations
+                from motors.m1_relations_seed import seed_m1_relations
                 for r in seed_m1_relations(self.manager):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[M1RelationSeed] {r["class"]}: '
@@ -3266,10 +3266,10 @@ class polariServer(treeObject):
                 only_classes is None
                 or 'CompositionNode' in only_classes)):
             try:
-                from motors.m1_composition import (
+                from motors.m1_composition_seed import (
                     seed_m1_composition,
                 )
-                from motors.m2_composition import (
+                from motors.m2_composition_seed import (
                     seed_m2_composition,
                 )
                 for r in (seed_m1_composition(self.manager)
@@ -3285,32 +3285,32 @@ class polariServer(treeObject):
         # co2-A: Climate Change & Atmosphere. Sources and series
         # first (the endpoints and the intent to measure), then
         # the thresholds/rooms/eras the study reads. OBSERVATIONS
-        # ARE NOT SEEDED — climate.series_ingest writes those, and
+        # ARE NOT SEEDED — climate.custom.series_ingest writes those, and
         # only from a fetch that passed its content check.
         if _feature_available('climate') and (
                 only_classes is None
                 or 'AtmosphericSeriesDefinition' in only_classes):
             try:
-                from climate.climate_sources import (
+                from climate.climate_sources_seed import (
                     seed_climate_sources,
                 )
-                from climate.climate_series import (
+                from climate.climate_series_seed import (
                     seed_climate_series,
                 )
-                from climate.co2_thresholds import (
+                from climate.co2_thresholds_seed import (
                     seed_co2_thresholds,
                 )
-                from climate.co2_indoor import seed_indoor_spaces
-                from climate.climate_history import seed_human_eras
-                from climate.climate_pages import seed_climate_pages
-                from climate.climate_app import seed_climate_app
-                from climate.sim_binding import (
+                from climate.co2_indoor_seed import seed_indoor_spaces
+                from climate.climate_history_seed import seed_human_eras
+                from climate.climate_page import seed_climate_pages
+                from climate.climate_app_seed import seed_climate_app
+                from climate.sim_binding_basis import (
                     seed_atmosphere_bindings,
                 )
-                from climate.carbon_sinks import seed_carbon_sinks
-                from climate.co2_symptoms import seed_co2_symptoms
-                from climate.co2_settings import seed_co2_settings
-                from climate.climate_citations import (
+                from climate.carbon_sinks_seed import seed_carbon_sinks
+                from climate.co2_symptoms_seed import seed_co2_symptoms
+                from climate.co2_settings_seed import seed_co2_settings
+                from climate.climate_citations_seed import (
                     seed_climate_citations,
                 )
                 for r in (seed_climate_sources(self.manager)
@@ -3340,7 +3340,7 @@ class polariServer(treeObject):
                 only_classes is None
                 or 'GearDefinition' in only_classes)):
             try:
-                from gears.gear_scene import seed_gear_scene
+                from gears.gear_scene_seed import seed_gear_scene
                 for r in seed_gear_scene(self.manager):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[GearSceneSeed] {r["class"]}: '
@@ -3363,7 +3363,7 @@ class polariServer(treeObject):
                 # MODULE-LEVEL imports — re-importing them here would
                 # make the names function-local and break the legacy
                 # seed list above (UnboundLocalError at boot).
-                from composition.seed_upsert import upsert_seed_pairs
+                from composition.custom.seed_upsert import upsert_seed_pairs
                 for r in upsert_seed_pairs(
                         self.manager,
                         [('PolariAppDefinition', PolariAppDefinition,
@@ -3384,7 +3384,7 @@ class polariServer(treeObject):
         # live tables through the upsert path, so a fresh clone boots with
         # the data code cannot regenerate (e.g. cntfet's characterized
         # libraries); customized rows (is_prior False) are never clobbered.
-        # composition.seed_upsert is a plain helper on the modules path —
+        # composition.custom.seed_upsert is a plain helper on the modules path —
         # NOT gated on the composition module being enabled (prf-a runs
         # without it; gating here silently skipped every module's data).
         if True:
@@ -3421,7 +3421,7 @@ class polariServer(treeObject):
                 only_classes is None
                 or 'PolariAppDefinition' in only_classes)):
             try:
-                from computers.computers_app import (
+                from computers.computers_app_seed import (
                     seed_computers_app,
                 )
                 for r in seed_computers_app(self.manager):
@@ -3437,7 +3437,7 @@ class polariServer(treeObject):
                 only_classes is None
                 or 'PolariAppDefinition' in only_classes)):
             try:
-                from cntfet.cnt_app import seed_chip_app
+                from cntfet.cnt_app_seed import seed_chip_app
                 for r in seed_chip_app(self.manager):
                     if r.get('inserted') or r.get('updated'):
                         print(f'[ChipAppSeed] {r["class"]}: '
@@ -3458,7 +3458,7 @@ class polariServer(treeObject):
                 or 'RemoteHostingOption' in only_classes
                 or 'ForkPin' in only_classes)):
             try:
-                from composition.seed_upsert import upsert_seed_pairs
+                from composition.custom.seed_upsert import upsert_seed_pairs
                 for r in upsert_seed_pairs(
                         self.manager,
                         [('AppShellDefinition', AppShellDefinition,
@@ -3496,7 +3496,7 @@ class polariServer(treeObject):
                 or 'NutrientReference' in only_classes
                 or 'FoodItem' in only_classes)):
             try:
-                from composition.seed_upsert import upsert_seed_pairs
+                from composition.custom.seed_upsert import upsert_seed_pairs
                 for r in upsert_seed_pairs(
                         self.manager,
                         [('DietaryNutrient', DietaryNutrient,
@@ -3572,7 +3572,7 @@ class polariServer(treeObject):
                 or 'DeviceModel' in only_classes
                 or 'KitProfile' in only_classes)):
             try:
-                from composition.seed_upsert import upsert_seed_pairs
+                from composition.custom.seed_upsert import upsert_seed_pairs
                 for r in upsert_seed_pairs(
                         self.manager,
                         [('ReticulumInterface', ReticulumInterface,
@@ -3619,7 +3619,7 @@ class polariServer(treeObject):
                 and 'PolariNodeMachine' not in only_classes:
             return
         try:
-            from resources.node_resources import (
+            from resources.custom.node_resources import (
                 fetch_remote_specs, refresh_local_machine,
             )
             report = refresh_local_machine(self.manager)
@@ -3643,7 +3643,7 @@ class polariServer(treeObject):
         # res-2: fill est_row_bytes on seeded data profiles from the
         # storage predictor (declared seeds carry 0 = not yet derived).
         try:
-            from resources.profile_analysis import (
+            from resources.custom.profile_analysis import (
                 classify_module, estimate_module_row_bytes,
             )
             for row in list((self.manager.objectTables.get(

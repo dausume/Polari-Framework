@@ -188,7 +188,7 @@ class CollabAPI(treeObject):
         against this rather than a hand-copied mirror — a VR shell
         that updates on its own schedule reads the same catalog a
         browser does, so there is nothing to drift."""
-        from collab.realtime_schemas import catalog_document
+        from collab.custom.realtime_schemas import catalog_document
         response.media = dict(catalog_document(), ok=True)
 
     def on_get_for_surface(self, request, response):

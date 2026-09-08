@@ -27,7 +27,7 @@ Tanks / species / systems are edited through CRUDE (object-coherence).
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from tanks.tank_analysis import (
+from tanks.custom.tank_analysis import (
     harvest_yield, nutrient_balance, regulate_suggestions,
 )
 

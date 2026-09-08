@@ -29,9 +29,9 @@ ComputerPartDefinition stays the catalog row; what is new here is
 
 @consumers
   - computers.computers_api (/api/computers)
-  - computers.computers_gates / computers_fit (row reads)
+  - computers.custom.computers_gates / computers_fit (row reads)
   - polariServer defClassList (tables + CRUDE)
-  - computers.selftest_computers
+  - computers.computers_selftest
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit

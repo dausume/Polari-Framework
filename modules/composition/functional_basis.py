@@ -17,15 +17,15 @@ a property of the functional slot in a design, not of the casting —
 so it lives on the functional row, never on the node.
 
 @consumers polariServer seed passes, composition.composition_seed,
-composition.selftest_composition
+composition.composition_selftest
 """
 
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from composition.data_refs import resolve_named, rows
-from composition.fill_models import FILL_CLASSES, fill_for_class
+from composition.custom.data_refs import resolve_named, rows
+from composition.custom.fill_models import FILL_CLASSES, fill_for_class
 from composition.node_basis import derive_level
 
 
@@ -41,7 +41,7 @@ class FunctionalPartDefinition(treeObject):
         self.display_name = display_name
         #: What it is FOR, in a sentence a builder can act on.
         self.purpose = purpose
-        #: composition.part_roles role names ALLOCATED to this slot
+        #: composition.custom.part_roles role names ALLOCATED to this slot
         #: — requirements-side, screened by role_viability.
         self.allocated_role_refs_json = allocated_role_refs_json
         #: PartArchetypeDefinition (arch-5) this slot instantiates.

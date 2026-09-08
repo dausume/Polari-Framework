@@ -110,7 +110,7 @@ class polariCRUDE(treeObject):
 
     def _notify_ws_subscribers(self, operation, instanceIds=None):
         """Publish change notifications after a CRUDE mutation via the
-        transport MUX (grpcbridge.transport_mux): STOMP by default —
+        transport MUX (grpcbridge.custom.transport_mux): STOMP by default —
         byte-identical topics + payloads to the historical direct
         path — and/or gRPC Watch/Commands streams when the class's
         GrpcExposure transport_preference knob says so.
@@ -118,7 +118,7 @@ class polariCRUDE(treeObject):
         Never raises — failures are logged but do not break CRUDE operations.
         """
         try:
-            from grpcbridge.transport_mux import publish_crude_change
+            from grpcbridge.custom.transport_mux import publish_crude_change
             publish_crude_change(self.manager, self.apiObject,
                                  operation, instanceIds or [])
         except Exception as e:

@@ -9,7 +9,7 @@ thin-film SOLAR STACK from common/community materials, its layers as
 rows with structured property records and honest gaps.
 
 @consumers
-  - electrodevice.photo_derive (tuning + stack optimization)
+  - electrodevice.custom.photo_derive (tuning + stack optimization)
   - electrodevice.device_api (knob surface)
   - polariServer (registration + seed)
 """

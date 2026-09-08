@@ -24,7 +24,7 @@ Stages link by (chain_ref, sequence) exactly like composition's
 RoutingOperation rides RoutingDefinition — same spine idiom, no
 parallel chain model.
 
-@consumers polariServer.defClassList, casting.chain_analysis,
+@consumers polariServer.defClassList, casting.custom.chain_analysis,
 casting.chain_seed
 @see /WAX_MOLD_NESTING_PLAN.md (PHASE cast-3)
 """
@@ -36,7 +36,7 @@ from objectTreeDecorators import treeObject, treeObjectInit
 #: and does NOT flip parity.
 STAGE_KINDS = ('cast', 'conversion')
 #: How the cast material enters. slip-cast into geopolymer is
-#: REFUSED by the gate (supplychain.mold_analysis: no proven
+#: REFUSED by the gate (supplychain.custom.mold_analysis: no proven
 #: capillarity) — declared here so the refusal can name it.
 FILL_METHODS = ('gravity-pour', 'inject', 'press', 'in-place')
 

@@ -14,7 +14,7 @@ Thin Falcon shell — logic lives in parts_basis / parts_assembly.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from computerparts.parts_assembly import assembly_check
+from computerparts.custom.parts_assembly import assembly_check
 from computerparts.parts_basis import build_report
 
 

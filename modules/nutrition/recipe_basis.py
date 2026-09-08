@@ -10,7 +10,7 @@ RE-EXPORTS them so every `from nutrition.recipe_basis import X`
 keeps working. The nutrition ROLLUP (recipe_analysis) stays here.
 
 @consumers
-  - nutrition.recipe_analysis, nmp-4 meal templates, the selftests
+  - nutrition.custom.recipe_analysis, nmp-4 meal templates, the selftests
 @see AI-Notes/plans/MEAL_OPTIONS_MODULE_PLAN.md §mo-1
 """
 

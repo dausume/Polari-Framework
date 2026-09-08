@@ -49,7 +49,7 @@ as ALGORITHM REFERENCES or as bought hardware we never make (a
 worm, a bearing). `approximation_valid` on the source row carries
 that distinction as data.
 
-@consumers meshassets.mesh_fit, meshassets.mesh_asset_api,
+@consumers meshassets.custom.mesh_fit, meshassets.mesh_asset_api,
            plant_morphology (organ candidates), gears (references)
 """
 

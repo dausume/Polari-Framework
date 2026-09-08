@@ -32,7 +32,7 @@ so a shape flows through the no-code matrix-equation editor
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - mathshapes.shape_analysis (evaluate/measure/classify/sample)
+  - mathshapes.custom.shape_analysis (evaluate/measure/classify/sample)
   - SimSpace3D / Mesh3DDefinition rendering (sample_surface output)
 @see /MATH_SHAPES_PLAN.md
 """

@@ -16,7 +16,7 @@ which is also the DO RTX-4000-Ada-droplet class:
   - build-5060ti-16gb: all-new entry tier (16 GB VRAM)
   - build-used-4090:  the fast 24 GB tier
 
-Seeded through composition.seed_upsert (is_prior discipline).
+Seeded through composition.custom.seed_upsert (is_prior discipline).
 """
 
 _AS_OF = '2026-08-16'
@@ -404,7 +404,7 @@ SEED_COMPUTER_BUILDS = [
 
 
 def seed_computerparts(manager):
-    """Upsert parts-then-builds through composition.seed_upsert
+    """Upsert parts-then-builds through composition.custom.seed_upsert
     (builds reference parts by name; prices/dates CHANGE, so the
     seed must converge live prior rows — never insert-by-name).
     Composition absent -> loud no-op, honest empty report."""
@@ -412,9 +412,9 @@ def seed_computerparts(manager):
         ComputerBuildDefinition, ComputerPartDefinition,
     )
     try:
-        from composition.seed_upsert import upsert_seed_pairs
+        from composition.custom.seed_upsert import upsert_seed_pairs
     except ImportError as exc:
-        print(f'[ComputerPartsSeed] composition.seed_upsert '
+        print(f'[ComputerPartsSeed] composition.custom.seed_upsert '
               f'unavailable ({exc}) — computerparts seeds NOT '
               f'applied', flush=True)
         return []

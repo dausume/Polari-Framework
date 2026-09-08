@@ -34,7 +34,7 @@ in msci-engines/engines_service.py (DarcyHeadFieldResource) — keep
 them in sync.
 
 Units discipline: everything entering this module is SI (metres,
-m/s); callers convert from mm geometry ONCE (aquaponics/hydraulics.py
+m/s); callers convert from mm geometry ONCE (aquaponics/custom/hydraulics.py
 does) and every result carries its units in the key names.
 """
 

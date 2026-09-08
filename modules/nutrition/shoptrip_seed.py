@@ -74,7 +74,7 @@ SEED_SHOPTRIP_GRAPHS = []
 
 SEED_SHOPTRIP_ANALYSES = [
     {'name': 'mealplan-shoptrip-checklist', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.shoptrip_analysis:trip_checklist',
+     'callable_ref': 'nutrition.custom.shoptrip_analysis:trip_checklist',
      'description': 'The purchase event\'s lines (or the weekly proposal) as a checklist '
                     'in the store\'s aisle order: est. cost from best $/kg (age shown), '
                     'bought where a put-away lot exists; unknown aisles named, last.',
@@ -83,7 +83,7 @@ SEED_SHOPTRIP_ANALYSES = [
                                 'bought_window_days': 6}),
      'enabled': True, 'is_prior': True, 'provenance_id': _PROV},
     {'name': 'mealplan-shoptrip-record', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.shoptrip_analysis:record_purchase_proposal',
+     'callable_ref': 'nutrition.custom.shoptrip_analysis:record_purchase_proposal',
      'description': 'The "Bought it" form → one PriceObservation proposal (never overwriting '
                     'a same-named one) + one PantryItem put-away lot proposal.',
      'params_json': json.dumps({'food': 'FoodItem.name', 'location': 'SourceLocation.name',

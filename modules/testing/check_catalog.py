@@ -13,7 +13,7 @@ list that drifts:
                      (skip-honest when none is reachable).
   gate:normal-build-absence
                      the pinned assert that a NORMAL build carries
-                     zero test machinery (testing.absence_probe).
+                     zero test machinery (testing.custom.absence_probe).
 
 Categories follow the plan's spine: substrate | transport | format |
 twin | nocode | engine | module. Criticality: substrate/transport/
@@ -73,7 +73,7 @@ CATEGORY_OVERRIDES = {
     'selftest:testing.stomp': 'transport',
     # ncg-2: the judicial client is the standing litmus that the
     # no-code generalization seam still serves its first domain.
-    'selftest:scoring.court_case': 'nocode',
+    'selftest:scoring.court_case_basis': 'nocode',
     # ncg-7: the levels must keep splitting across small nodes.
     'selftest:testing.ncg_split': 'nocode',
     # ncg-7: the levels as PolariModule objects (export -> store ->
@@ -102,7 +102,7 @@ CRITICALITY_OVERRIDES = {
     # what every domain compiler (judicial, circuits) builds through
     # — it gates like the engine gates it wraps.
     'selftest:polariNoCode.graph_builder': 'blocking',
-    'selftest:scoring.court_case': 'blocking',
+    'selftest:scoring.court_case_basis': 'blocking',
     'selftest:testing.nocode_matrix': 'blocking',
     # ncg-3: the digital-logic client of the seam — python reference
     # + verilated bench agreement + real iCE40 synthesis (tool legs
@@ -115,7 +115,7 @@ CRITICALITY_OVERRIDES = {
     # conducting the proven current (real ngspice leg).
     'selftest:electrodevice.breadboard': 'blocking',
     # ncg-6: the cross-level bridge + the authorable test packs.
-    'selftest:electrodevice.level_bridge': 'blocking',
+    'selftest:electrodevice.level_bridge_basis': 'blocking',
     'selftest:polariNoCode.nocode_tests': 'blocking',
     'selftest:testing.ncg_split': 'blocking',
     'selftest:polariPeers.ncg_modules': 'blocking',
@@ -128,38 +128,38 @@ CRITICALITY_OVERRIDES = {
     'selftest:dmvdata.dmv_sources': 'blocking',
     # GovSource registry: acronym glossary, key requirements,
     # retrieval attribution, term origins (Dustin 2026-07-16).
-    'selftest:dmvdata.gov_sources': 'blocking',
+    'selftest:dmvdata.gov_sources_basis': 'blocking',
     # Cross-validation: independent re-pull confirmations raise
     # sourcing credibility; provider groups scored on reliability.
-    'selftest:dmvdata.cross_validation': 'blocking',
+    'selftest:dmvdata.cross_validation_basis': 'blocking',
     # Legal source types: nonprofit/company/political-group/
     # individual siblings of GovSource, one cross-type machinery.
-    'selftest:dmvdata.legal_sources': 'blocking',
+    'selftest:dmvdata.legal_sources_basis': 'blocking',
     # Policy drafts scoreable through their lifecycle + the venue-
     # mismatch pattern analysis (policy-via-budget-rider,
     # suppression-by-defunding) — findings land as scr-6 assertions.
-    'selftest:scoring.policy_drafts': 'blocking',
-    'selftest:scoring.venue_patterns': 'blocking',
+    'selftest:scoring.policy_drafts_basis': 'blocking',
+    'selftest:scoring.venue_patterns_basis': 'blocking',
     # Legislation tracking: drafting/vote rosters/provision
     # contributors + burial patterns; Congress.gov + VA LIS
     # registered, MD manual-entry by necessity (no official API).
-    'selftest:scoring.legislation': 'blocking',
+    'selftest:scoring.legislation_basis': 'blocking',
     # Assertion credibility votes (group + individual units),
     # drafter-set PolicyIntent, org data-gathering solutions on the
     # graph seam, and the Term Competition system (scope eligibility
     # + legitimacy elections — the PSC termcompetition draft, built).
-    'selftest:scoring.assertion_credibility': 'blocking',
-    'selftest:scoring.policy_intent': 'blocking',
-    'selftest:scoring.data_gathering': 'blocking',
-    'selftest:scoring.term_competition': 'blocking',
+    'selftest:scoring.assertion_credibility_basis': 'blocking',
+    'selftest:scoring.policy_intent_basis': 'blocking',
+    'selftest:scoring.data_gathering_basis': 'blocking',
+    'selftest:scoring.term_competition_basis': 'blocking',
     # Democratic term proofs: rebuttable, re-runnable demonstrations
     # with validity + comprehension votes and the manipulation
     # catalog (neutral computable exposure checks).
-    'selftest:scoring.term_proofs': 'blocking',
+    'selftest:scoring.term_proofs_basis': 'blocking',
     # Credibility bases: professional/impact/methodological standing
     # per domain, affiliations disclosed inline, kinds never
     # collapsed into one number.
-    'selftest:scoring.credibility_bases': 'blocking',
+    'selftest:scoring.credibility_bases_basis': 'blocking',
     'nocode:variant-sweep': 'blocking',
     'nocode:ts-parity': 'blocking',
     # Known matcher drift (prf-test-suites 2026-07-11) — visible
@@ -231,10 +231,11 @@ def _selftest_entries():
                     os.path.join(pkg_dir, '__init__.py'))):
             continue
         for fname in sorted(os.listdir(pkg_dir)):
-            if not (fname.startswith('selftest_')
+            if not ((fname.startswith('selftest_') or fname.endswith('_selftest.py'))
                     and fname.endswith('.py')):
                 continue
-            topic = fname[len('selftest_'):-len('.py')]
+            topic = (fname[len('selftest_'):-len('.py')] if fname.startswith('selftest_')
+                     else fname[:-len('_selftest.py')])  # sap-2: <topic>_selftest.py is the standard
             module = f'{pkg}.selftest_{topic}'
             entries.append(_entry(
                 name=f'selftest:{pkg}.{topic}',
@@ -248,7 +249,7 @@ def _selftest_entries():
 def _substrate_entries():
     """acct-1: live databases + cache. runner_ref is
     'module:function' for runner_kind 'callable'."""
-    prefix = 'testing.substrate_checks:'
+    prefix = 'testing.custom.substrate_checks:'
     rows = [
         ('substrate:mariadb-reachability', 'live',
          'check_mariadb_reachability',
@@ -284,7 +285,7 @@ def _substrate_entries():
 
 def _transport_entries():
     """acct-2: live sidecar probes + the grpc-3 placeholders."""
-    prefix = 'testing.transport_checks:'
+    prefix = 'testing.custom.transport_checks:'
     rows = [
         ('transport:stomp-live-connect', 'live',
          'check_stomp_live_connect',
@@ -315,8 +316,8 @@ def _nocode_entries():
     and the TS-side parity leg. Import kept local — the enumeration
     touches polariNoCode, and the catalog module itself must stay
     import-light."""
-    from testing.nocode_checks import variant_class_names
-    prefix = 'testing.nocode_checks:'
+    from testing.custom.nocode_checks import variant_class_names
+    prefix = 'testing.custom.nocode_checks:'
     entries = [
         _entry(name=f'nocode:variant-{cls}', category='nocode',
                kind='in-process', runner_kind='callable',
@@ -348,7 +349,7 @@ def _twin_entries():
     return [_entry(
         name='twin:rehearsal', category='twin', kind='compose',
         runner_kind='callable',
-        runner_ref='testing.twin_checks:check_twin_rehearsal',
+        runner_ref='testing.custom.twin_checks:check_twin_rehearsal',
         description='Throwaway core+m+n containers: module-gating '
                     'separation, directory routing (addressable '
                     'tie-break), rung-4 traversal, un-leased write '
@@ -378,7 +379,7 @@ def catalog_checks():
     entries.append(_entry(
         name='gate:normal-build-absence', category='module',
         kind='in-process', runner_kind='absence',
-        runner_ref='python3 -m testing.absence_probe',
+        runner_ref='python3 -m testing.custom.absence_probe',
         description='Pinned: a NORMAL build (no POLARI_TEST_BUILD, '
                     'testing absent from POLARI_MODULES) registers '
                     'zero test machinery — no classes, tables, '

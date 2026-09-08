@@ -17,7 +17,7 @@ Method used for each (and the one to repeat):
 Asset ROWS are pointers plus a measured bounding box. We do not
 vendor third-party geometry into this repo.
 
-@consumers polariServer (seed_pairs), meshassets.selftest_meshassets
+@consumers polariServer (seed_pairs), meshassets.meshassets_selftest
 """
 
 import json

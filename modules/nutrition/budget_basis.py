@@ -15,7 +15,7 @@ mpb-3 — the budget envelope as data (MEAL_PLANNING_APP_PLAN §3b):
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.budget_analysis, mealplanning_api
+  - nutrition.custom.budget_analysis, mealplanning_api
 @see AI-Notes/plans/MEAL_PLANNING_APP_PLAN.md §3b mpb-3
 """
 

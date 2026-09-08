@@ -18,7 +18,7 @@ to keycloak login accounts"):
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.tracking_analysis (resolve_me), mealplanning_api
+  - nutrition.custom.tracking_analysis (resolve_me), mealplanning_api
 @see AI-Notes/plans/MEAL_PLANNING_APP_PLAN.md §mpa-4
 """
 

@@ -29,7 +29,7 @@ Strains / reactors are edited through CRUDE (object-coherence).
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from microalgae.reactor_analysis import (
+from microalgae.custom.reactor_analysis import (
     decarbonization_yield, recommend_reactor_for,
     sustainability_assessment,
 )
@@ -118,7 +118,7 @@ class MicroalgaeReactorAPI(treeObject):
         response.media = {'ok': True, 'loops': out, 'count': len(out)}
 
     def on_get_loopbalance(self, request, response, name):
-        from microalgae.integrated_analysis import chained_balance
+        from microalgae.custom.integrated_analysis import chained_balance
         result = chained_balance(self.manager, name)
         if not result.get('ok'):
             response.status = '404 Not Found'

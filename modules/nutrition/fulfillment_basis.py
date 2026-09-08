@@ -15,7 +15,7 @@ fermentation) per the honest-absence rule.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.fulfillment_analysis
+  - nutrition.custom.fulfillment_analysis
 @see AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md §nmp-7;
      /HOUSEHOLD_NUTRITION_PLAN.md §nut-5
 """

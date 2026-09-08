@@ -21,7 +21,7 @@ Definitions are edited via standard CRUDE (object-coherence).
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from aquaponics.media_analysis import (
+from aquaponics.custom.media_analysis import (
     analyze_nutrient_profile, soil_water_capacity, water_summary,
 )
 

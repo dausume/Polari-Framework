@@ -21,13 +21,13 @@ FEATURE_IMPORT_BLOCKS = (
             'ContextualizedValue', 'ScoreContext', 'ScoreSubject',
             'ScoreTerm',
         )),
-        ('scoring.score_concept', (
+        ('scoring.score_concept_basis', (
             'ScoreConcept',
         )),
-        ('scoring.score_group', (
+        ('scoring.score_group_basis', (
             'ScoreGroup',
         )),
-        ('scoring.agreement_policy', (
+        ('scoring.agreement_policy_basis', (
             'AgreementPolicy', 'SEED_AGREEMENT_POLICIES',
         )),
         ('scoring.scoring_seed', (
@@ -35,24 +35,24 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_SCORE_CONTEXTS', 'SEED_SCORE_GROUPS',
             'SEED_SCORE_SUBJECTS', 'SEED_SCORE_TERMS',
         )),
-        ('scoring.assertions', (
+        ('scoring.assertions_basis', (
             'AssertionValidityVote', 'ScoreAssertion',
         )),
-        ('scoring.contributors', (
+        ('scoring.contributors_basis', (
             'Contributor', 'SEED_CONTRIBUTORS',
         )),
-        ('scoring.evidence', (
+        ('scoring.evidence_basis', (
             'EvidencePolicy', 'MediaEvidence', 'SEED_EVIDENCE_POLICIES',
         )),
         ('scoring.assertion_seed', (
             'SEED_MEDIA_EVIDENCE', 'SEED_POLICY_SUBJECTS',
             'SEED_SCORE_ASSERTIONS', 'SEED_VALIDITY_VOTES',
         )),
-        ('scoring.policy_votes', (
+        ('scoring.policy_votes_basis', (
             'PolicyVote', 'SEED_COHORT_GROUPS', 'SEED_POLICY_VOTES',
             'SEED_POLITICIAN_SUBJECTS',
         )),
-        ('scoring.worldview_elections', (
+        ('scoring.worldview_elections_basis', (
             'SEED_ASSEMBLY_GROUPS', 'SEED_WORLDVIEW_BALLOTS',
             'SEED_WORLDVIEW_ELECTIONS', 'WorldviewBallot',
             'WorldviewElection',
@@ -63,19 +63,19 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_HOUSING_SCORE_CONCEPTS', 'SEED_HOUSING_SCORE_GROUPS',
             'SEED_HOUSING_SCORE_TERMS',
         )),
-        ('scoring.group_display_vote', (
+        ('scoring.group_display_vote_basis', (
             'GroupDisplayBallot', 'GroupDisplayVote',
             'SEED_GROUP_DISPLAY_BALLOTS', 'SEED_GROUP_DISPLAY_VOTES',
             'SEED_GROUP_DISPLAYS',
         )),
-        ('scoring.logic_fork_vote', (
+        ('scoring.logic_fork_vote_basis', (
             'DecisionProcedureEdge', 'LogicForkBallot',
             'LogicForkCriterion', 'LogicForkVote',
             'SEED_DECISION_PROCEDURE_EDGES', 'SEED_LOGIC_FORK_BALLOTS',
             'SEED_LOGIC_FORK_CONTRIBUTORS', 'SEED_LOGIC_FORK_CRITERIA',
             'SEED_LOGIC_FORK_VOTES',
         )),
-        ('scoring.system_choice_implications', (
+        ('scoring.system_choice_implications_basis', (
             'SEED_IMPLICATION_ASSERTIONS',
             'SEED_IMPLICATION_CONTEXTUALIZED_VALUES',
             'SEED_IMPLICATION_SCORE_TERMS', 'SEED_IMPLICATION_SUBJECTS',
@@ -85,49 +85,49 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_INTERPRETATION_SCORE_GROUPS',
             'SEED_SYSTEM_CHOICES_IN_FORCE', 'SystemChoiceInForce',
         )),
-        ('scoring.policy_drafts', (
+        ('scoring.policy_drafts_basis', (
             'PolicyDraft',
         )),
-        ('scoring.venue_patterns', (
+        ('scoring.venue_patterns_basis', (
             'SEED_VENUE_PATTERNS', 'VenueActionRecord',
             'VenueMismatchPattern',
         )),
-        ('scoring.data_gathering', (
+        ('scoring.data_gathering_basis', (
             'DataGatheringSolution', 'StepCredibilityAssertion',
         )),
-        ('scoring.assertion_credibility', (
+        ('scoring.assertion_credibility_basis', (
             'AssertionCredibilityVote',
         )),
-        ('scoring.policy_intent', (
+        ('scoring.policy_intent_basis', (
             'PolicyIntent',
         )),
-        ('scoring.term_competition', (
+        ('scoring.term_competition_basis', (
             'TermProposal', 'TermRelationAssertion', 'TermScopeVote',
         )),
-        ('scoring.credibility_bases', (
+        ('scoring.credibility_bases_basis', (
             'ClaimAttestation', 'CredibilityClaim',
             'QualificationRelevanceVote', 'StanceBasis',
         )),
-        ('scoring.term_proofs', (
+        ('scoring.term_proofs_basis', (
             'DataManipulationPattern', 'ProofRebuttal', 'ProofVote',
             'SEED_MANIPULATION_PATTERNS', 'TermProof',
         )),
-        ('scoring.legislation', (
+        ('scoring.legislation_basis', (
             'LegislationProvision', 'LegislationRecord',
             'LegislativeVoteEvent',
         )),
     )),
     ('dmvdata', (
-        ('dmvdata.legis_sources', (
+        ('dmvdata.legis_sources_seed', (
             'SEED_LEGIS_DOMAINS', 'SEED_LEGIS_ENDPOINTS',
             'SEED_LEGIS_GOV_SOURCES',
         )),
     )),
     ('scoring', (
-        ('scoring.court_case', (
+        ('scoring.court_case_basis', (
             'CourtCase',
         )),
-        ('scoring.group_authority', (
+        ('scoring.group_authority_basis', (
             'GroupAuthorityGrant', 'GroupInstanceBinding',
             'InstanceAuthorityGrant', 'TermAvailabilitySignal',
         )),
@@ -168,14 +168,14 @@ FEATURE_IMPORT_BLOCKS = (
         ('dmvdata.source_seed', (
             'SEED_API_DOMAINS', 'SEED_API_ENDPOINTS',
         )),
-        ('dmvdata.gov_sources', (
+        ('dmvdata.gov_sources_basis', (
             'GovSource', 'SEED_GOV_SOURCES', 'SourceRetrieval',
         )),
-        ('dmvdata.cross_validation', (
+        ('dmvdata.cross_validation_basis', (
             'RetrievalConfirmation', 'SEED_PROVIDER_CONCEPT',
             'SEED_PROVIDER_TERMS',
         )),
-        ('dmvdata.legal_sources', (
+        ('dmvdata.legal_sources_basis', (
             'AcademicSource', 'CompanySource', 'IndividualSource',
             'JournalisticSource', 'NonProfitSource',
             'PoliticalGroupSource', 'SEED_COMPANY_SOURCES',
@@ -184,19 +184,19 @@ FEATURE_IMPORT_BLOCKS = (
         )),
     )),
     ('electrodevice', (
-        ('electrodevice.level_bridge', (
+        ('electrodevice.level_bridge_basis', (
             'PinBindingDefinition', 'SEED_PIN_BINDINGS',
         )),
     )),
     ('scoring', (
-        ('scoring.media_accuracy', (
+        ('scoring.media_accuracy_basis', (
             'AccuracyPolicy', 'FactualClaim', 'SEED_ACCURACY_POLICIES',
             'SEED_FACTUAL_CLAIMS', 'SEED_MEDIA_OUTLETS',
         )),
-        ('scoring.group_bias', (
+        ('scoring.group_bias_basis', (
             'BiasPolicy', 'SEED_BIAS_POLICIES',
         )),
-        ('scoring.survival_costs', (
+        ('scoring.survival_costs_basis', (
             'CostCategory', 'SEED_COST_CATEGORIES', 'SEED_COST_TERMS',
             'SEED_SURVIVAL_PROFILES', 'SurvivalCostProfile',
         )),
@@ -219,7 +219,7 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_DEVICE_MATERIALS', 'SEED_FEEDSTOCKS', 'SEED_ASSEMBLIES',
             'SEED_CONDITIONS', 'SEED_WAXPRINT_MODULES',
         )),
-        ('waxprint.sim_state', (
+        ('waxprint.sim_state_basis', (
             'WaxPrintSimState',
         )),
         ('waxprint', (
@@ -230,37 +230,37 @@ FEATURE_IMPORT_BLOCKS = (
         )),
     )),
     ('pspp', (
-        ('pspp.evidence_methods', (
+        ('pspp.evidence_methods_basis', (
             'EvidenceMethod', 'SEED_EVIDENCE_METHODS',
         )),
-        ('pspp.claims', (
+        ('pspp.claims_basis', (
             'PropertyClaim', 'StructureClaim', 'ValidationClaim',
         )),
-        ('pspp.digitized_datasets', (
+        ('pspp.digitized_datasets_basis', (
             'DigitizedDataset',
         )),
         ('pspp.datasets_seed', (
             'SEED_DIGITIZED_DATASETS',
         )),
-        ('pspp.material_states', (
+        ('pspp.material_states_basis', (
             'MaterialState', 'ProcessingStage', 'SEED_PROCESSING_STAGES',
         )),
-        ('pspp.pages_seed', (
+        ('pspp.pspp_page', (
             'SEED_PSPP_PAGE_DISPLAYS',
         )),
-        ('pspp.material_structure', (
+        ('pspp.material_structure_basis', (
             'ScaleStructureDefinition',
         )),
-        ('pspp.reaction_windows', (
+        ('pspp.reaction_windows_basis', (
             'ReactionWindow', 'SEED_REACTION_WINDOWS',
         )),
-        ('pspp.threshold_windows', (
+        ('pspp.threshold_windows_basis', (
             'ThresholdReactionWindow', 'SEED_THRESHOLD_WINDOWS',
         )),
-        ('pspp.benchmark_cases', (
+        ('pspp.benchmark_cases_basis', (
             'BenchmarkCase', 'SEED_BENCHMARK_CASES',
         )),
-        ('pspp.material_processes', (
+        ('pspp.material_processes_basis', (
             'MaterialProcessDefinition', 'MaterialProcessExecution',
             'SEED_PROCESS_DEFINITIONS',
         )),
@@ -268,61 +268,61 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_CMC_PROCESS_DEFINITIONS', 'SEED_CMC_PROCESSING_STAGES',
             'SEED_CMC_PROPERTY_MEANINGS',
         )),
-        ('pspp.exposure_scenarios', (
+        ('pspp.exposure_scenarios_basis', (
             'ExposureScenario', 'SEED_EXPOSURE_SCENARIOS',
         )),
-        ('pspp.performance_scenarios', (
+        ('pspp.performance_scenarios_basis', (
             'MaterialPerformanceScenario',
         )),
-        ('pspp.scale_transfers', (
+        ('pspp.scale_transfers_basis', (
             'ScaleTransferDefinition', 'SEED_SCALE_TRANSFERS',
         )),
-        ('pspp.reaction_network', (
+        ('pspp.reaction_network_basis', (
             'ChemicalSpecies', 'ReactionRule', 'SEED_CHEMICAL_SPECIES',
             'SEED_REACTION_RULES',
         )),
-        ('pspp.solgel_network', (
+        ('pspp.custom.solgel_network', (
             'SOLGEL_CHEMICAL_SPECIES', 'SOLGEL_REACTION_RULES',
             'SOLGEL_THRESHOLD_WINDOWS',
         )),
-        ('pspp.solgel_process', (
+        ('pspp.custom.solgel_process', (
             'SOLGEL_DIGITIZED_DATASETS', 'SOLGEL_PROCESSING_STAGES',
         )),
-        ('pspp.solgel_sourcing', (
+        ('pspp.solgel_sourcing_basis', (
             'PrecursorSource', 'SEED_PRECURSOR_SOURCES',
         )),
         ('pspp.sintering_seed', (
             'SEED_SINTERING_DATASETS',
         )),
-        ('pspp.ceramics_samples', (
+        ('pspp.ceramics_samples_basis', (
             'CeramicSample', 'SEED_CERAMIC_SAMPLES',
             'SEED_CERAMICS_DATASETS',
         )),
-        ('pspp.ceramics_ladder', (
+        ('pspp.ceramics_ladder_basis', (
             'LadderRung', 'SEED_LADDER_RUNGS',
         )),
-        ('pspp.research_tools', (
+        ('pspp.research_tools_basis', (
             'ResearchTool', 'SEED_RESEARCH_TOOLS',
         )),
-        ('pspp.characterization', (
+        ('pspp.characterization_seed', (
             'SEED_CHARACTERIZATION_DATASETS',
         )),
-        ('pspp.glass_refinement', (
+        ('pspp.custom.glass_refinement', (
             'GLASS_DIGITIZED_DATASETS', 'GLASS_THRESHOLD_WINDOWS',
         )),
     )),
     ('foodstate', (
-        ('foodstate.food_contracts', (
+        ('foodstate.food_contracts_basis', (
             'FoodDomainContract', 'SEED_FOOD_DOMAIN_CONTRACTS',
         )),
         ('foodstate.food_pspp_seed', (
             'SEED_FOOD_EVIDENCE_METHODS', 'SEED_FOOD_PROCESSES',
             'SEED_FOOD_STAGES',
         )),
-        ('foodstate.food_materials', (
+        ('foodstate.food_materials_basis', (
             'FoodMaterial', 'build_food_material_seeds',
         )),
-        ('foodstate.food_composition', (
+        ('foodstate.custom.food_composition', (
             'build_composition_claim_seeds', 'vendor_food_index',
         )),
         ('foodstate.food_ph_seed', (
@@ -337,7 +337,7 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_POT_MATERIALS', 'SEED_POT_PROPERTY_MEANINGS',
             'SEED_POT_SCALE_DEFINITIONS',
         )),
-        ('aquaponics.growth_media', (
+        ('aquaponics.growth_media_basis', (
             'NutrientProfile', 'NutrientSpecies', 'SoilDefinition',
             'WaterDefinition',
         )),
@@ -357,7 +357,7 @@ FEATURE_IMPORT_BLOCKS = (
         ('aquaponics.atmosphere_seed', (
             'SEED_ATMOSPHERES',
         )),
-        ('aquaponics.pot_system', (
+        ('aquaponics.pot_system_basis', (
             'PotSystemDefinition',
         )),
         ('aquaponics.pot_system_seed', (
@@ -365,7 +365,7 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_AQP_SCORE_SUBJECTS', 'SEED_AQP_SCORE_TERMS',
             'SEED_POT_SYSTEMS',
         )),
-        ('aquaponics.vermicompost', (
+        ('aquaponics.vermicompost_basis', (
             'CompostBinDefinition', 'CompostLoopDefinition',
             'VermicompostProfile',
         )),
@@ -452,7 +452,7 @@ FEATURE_IMPORT_BLOCKS = (
         ('nutrition.logistics_basis', (
             'LOGISTICS_CLASSES', 'LOGISTICS_SEED_PAIRS',
         )),
-        ('nutrition.logistics_analysis', (
+        ('nutrition.custom.logistics_analysis', (
             'MEAL_STEP_BUILDERS',
         )),
         ('nutrition.shoptrip_basis', (
@@ -492,13 +492,13 @@ FEATURE_IMPORT_BLOCKS = (
         )),
     )),
     ('aquaponics', (
-        ('aquaponics.plant_growth_normalized', (
+        ('aquaponics.plant_growth_normalized_basis', (
             'PotPlanting',
         )),
         ('aquaponics.plant_growth_normalized_seed', (
             'SEED_POT_PLANTINGS',
         )),
-        ('aquaponics.plant_stress', (
+        ('aquaponics.plant_stress_basis', (
             'StressResponseCurve',
         )),
         ('aquaponics.plant_stress_seed', (
@@ -510,7 +510,7 @@ FEATURE_IMPORT_BLOCKS = (
         ('aquaponics.light_seed', (
             'SEED_LIGHT_SOURCES', 'SEED_LIGHT_SPECTRA',
         )),
-        ('aquaponics.water_batch', (
+        ('aquaponics.water_batch_basis', (
             'WaterBatchSchedule',
         )),
         ('aquaponics.water_batch_seed', (
@@ -608,10 +608,10 @@ FEATURE_IMPORT_BLOCKS = (
         ('composition.component_basis', (
             'PartComponentDefinition',
         )),
-        ('composition.design_matrix', (
+        ('composition.design_matrix_basis', (
             'DesignMatrixDefinition',
         )),
-        ('composition.failure_modes', (
+        ('composition.failure_modes_basis', (
             'FailureModeDefinition',
         )),
         ('composition.functional_basis', (
@@ -657,7 +657,7 @@ FEATURE_IMPORT_BLOCKS = (
             'MotorDesignDefinition', 'MotorVerificationRun',
             'SEED_MOTOR_DESIGNS',
         )),
-        ('motors.motor_shapes', (
+        ('motors.motor_shapes_seed', (
             'SEED_LAVET_PART_SHAPES', 'SEED_LAVET_SIM_SPACES',
             'SEED_LAVET_V2_PART_SHAPES', 'SEED_LAVET_V2_SIM_SPACES',
             'SEED_M1_PART_SHAPES', 'SEED_M1_SIM_SPACES',
@@ -666,29 +666,29 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_MOTOR_MATERIALS_3D', 'SEED_MOTOR_PART_SHAPES',
             'SEED_MOTOR_SIM_SPACES',
         )),
-        ('motors.motor_parts', (
+        ('motors.motor_parts_basis', (
             'MotorPartDefinition', 'SEED_MOTOR_PARTS',
         )),
-        ('motors.physics_equations', (
+        ('motors.physics_equations_seed', (
             'SEED_EQUATION_ROWS',
         )),
-        ('motors.motor_drive', (
+        ('motors.motor_drive_basis', (
             'MotorControllerProfile', 'PhaseBindingDefinition',
             'SEED_CONTROLLER_PROFILES', 'SEED_PHASE_BINDINGS',
         )),
-        ('motors.scale_goals', (
+        ('motors.scale_goals_basis', (
             'ClockScaleDefinition', 'MotorGoalSpec',
         )),
-        ('motors.clock_views', (
+        ('motors.clock_views_basis', (
             'ClockViewDefinition',
         )),
-        ('motors.clock_scene', (
+        ('motors.clock_scene_basis', (
             'ClockSceneLayerDefinition',
         )),
-        ('motors.m1_positioning', (
+        ('motors.m1_positioning_basis', (
             'PrinterAxisRequirement',
         )),
-        ('motors.m2_lift', (
+        ('motors.m2_lift_basis', (
             'CrucibleHoistRequirement',
         )),
     )),
@@ -722,22 +722,22 @@ FEATURE_IMPORT_BLOCKS = (
             'SymptomOnsetClaim', 'PopulationBiomarkerSeries',
             'SourceCoverageSpan',
         )),
-        ('climate.co2_thresholds', (
+        ('climate.co2_thresholds_seed', (
             'SEED_CO2_THRESHOLDS',
         )),
-        ('climate.co2_indoor', (
+        ('climate.co2_indoor_seed', (
             'SEED_INDOOR_SPACES',
         )),
-        ('climate.climate_history', (
+        ('climate.climate_history_seed', (
             'SEED_HUMAN_ERAS',
         )),
-        ('climate.climate_series', (
+        ('climate.climate_series_seed', (
             'SEED_CLIMATE_SERIES',
         )),
-        ('climate.sim_binding', (
+        ('climate.sim_binding_basis', (
             'AtmosphereSeriesBinding', 'SEED_ATMOSPHERE_BINDINGS',
         )),
-        ('climate.climate_compress', (
+        ('climate.climate_compress_basis', (
             'SeriesCompressionRecord',
         )),
     )),
@@ -768,19 +768,19 @@ FEATURE_IMPORT_BLOCKS = (
             'CastingMaterialThermalProfile', 'MasterFeedstockDefinition',
             'MoldDefinition',
         )),
-        ('casting.fill_sim', (
+        ('casting.fill_sim_basis', (
             'MoldFillSimState',
         )),
-        ('casting.interventions', (
+        ('casting.interventions_basis', (
             'FillInterventionDefinition',
         )),
-        ('casting.demold', (
+        ('casting.demold_basis', (
             'DemoldPlanDefinition',
         )),
-        ('casting.coatings', (
+        ('casting.coatings_basis', (
             'CastingRunRecord', 'MoldCoatingDefinition',
         )),
-        ('casting.nesting_wizard', (
+        ('casting.nesting_wizard_basis', (
             'NestingPlanDefinition',
         )),
         ('casting.sim_seed', (
@@ -820,7 +820,7 @@ FEATURE_IMPORT_BLOCKS = (
         ('polariapps.apps_seed', (
             'SEED_POLARI_APPS',
         )),
-        ('polariapps.apps_permissions', (
+        ('polariapps.apps_permissions_basis', (
             'AppPermissionProfile', 'SEED_PERMISSION_PROFILES',
         )),
     )),
@@ -835,13 +835,13 @@ FEATURE_IMPORT_BLOCKS = (
         ('appstore.appstore_page', (
             'SEED_APPSTORE_PAGE_DISPLAYS',
         )),
-        ('appstore.appstore_ai', (
+        ('appstore.appstore_ai_basis', (
             'AiToolDefinition',
         )),
-        ('appstore.appstore_hosting', (
+        ('appstore.appstore_hosting_basis', (
             'RemoteHostingOption', 'SEED_REMOTE_HOSTING',
         )),
-        ('appstore.appstore_forks', (
+        ('appstore.appstore_forks_basis', (
             'ForkPin', 'SEED_FORK_PINS',
         )),
     )),
@@ -863,7 +863,7 @@ FEATURE_IMPORT_BLOCKS = (
             'TechDependencyEdge', 'TechNode', 'TechSegment',
             'TechSegmentAssignment', 'TechTreeDefinition',
         )),
-        ('techtree.techtree_content', (
+        ('techtree.techtree_content_basis', (
             'BusinessModelDefinition', 'BusinessOutcome',
             'PolicyDefinition', 'RealArtifact',
         )),
@@ -908,10 +908,10 @@ FEATURE_IMPORT_BLOCKS = (
             'CircuitRunResult', 'ElectronicDeviceDefinition',
             'SpiceModelCard', 'SEED_DEVICES',
         )),
-        ('electrodevice.semiconductor', (
+        ('electrodevice.semiconductor_basis', (
             'SemiconductorProfile', 'SEED_SEMICONDUCTOR_PROFILES',
         )),
-        ('electrodevice.device_validator', (
+        ('electrodevice.device_validator_basis', (
             'DeviceValidationReport',
         )),
         ('electrodevice.photo_basis', (
@@ -930,13 +930,13 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_CNT_MATERIALS', 'SEED_CNT_PARASITICS',
             'SEED_CNT_TRANSPORT', 'SEED_GATE_STACKS',
         )),
-        ('cntfet.cnt_calibration', (
+        ('cntfet.cnt_calibration_seed', (
             'SEED_CALIBRATION_ANCHORS',
         )),
-        ('cntfet.cnt_reference_papers', (
+        ('cntfet.cnt_reference_papers_seed', (
             'SEED_REFERENCE_ANCHORS',
         )),
-        ('cntfet.cnt_pages_seed', (
+        ('cntfet.cnt_page', (
             'SEED_CNTFET_PAGE_DISPLAYS',
         )),
         ('cntfet.cnt_process_basis', (
@@ -948,75 +948,75 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_LITHOGRAPHY_PROCESSES', 'SEED_PLACEMENT_PROCESSES',
             'SEED_PURIFICATION_PROCESSES',
         )),
-        ('cntfet.cnt_characterization', (
+        ('cntfet.cnt_characterization_basis', (
             'CellCharacterizationRun',
         )),
-        ('cntfet.cnt_cell_library', (
+        ('cntfet.cnt_cell_library_basis', (
             'CNTCellDefinition', 'SEED_CNT_CELLS',
         )),
-        ('cntfet.cnt_figures', (
+        ('cntfet.cnt_figures_seed', (
             'SEED_CNTFET_FIGURE_GRAPHS',
         )),
-        ('cntfet.cnt_device_viz', (
+        ('cntfet.cnt_device_viz_seed', (
             'SEED_CNT_DEVICE_GRAPHS',
         )),
-        ('cntfet.cnt_states', (
+        ('cntfet.cnt_states_basis', (
             'FETOperatingState', 'SEED_FET_STATES',
         )),
-        ('cntfet.cnt_scoring', (
+        ('cntfet.cnt_scoring_seed', (
             'SEED_FET_SCORE_CONCEPTS', 'SEED_FET_SCORE_TERMS',
             'seed_subjects_and_values as _fet_score_subjects',
         )),
-        ('cntfet.cnt_cell_scoring', (
+        ('cntfet.cnt_cell_scoring_seed', (
             'SEED_CELL_SCORE_CONCEPTS', 'SEED_CELL_SCORE_TERMS',
             'seed_cell_subjects as _cell_score_subjects',
         )),
-        ('cntfet.cnt_compare', (
+        ('cntfet.custom.cnt_compare', (
             'score_pages as _cnt_score_pages',
         )),
-        ('cntfet.cnt_cell_pages', (
+        ('cntfet.cnt_cell_page', (
             'CellFETConfiguration', 'SEED_CELL_PAGES', 'seed_cell_configs',
         )),
-        ('cntfet.cnt_block_pages', (
+        ('cntfet.cnt_block_page', (
             'BlockFETConfiguration', 'SEED_BLOCK_PAGES',
             'seed_block_configs',
         )),
     )),
     ('cntfet', (
-        ('cntfet.cnt_regimes', (
+        ('cntfet.cnt_regimes_basis', (
             'FETRegime', 'SEED_FET_REGIMES',
         )),
     )),
     ('cntfet', (
-        ('cntfet.cnt_characteristics', (
+        ('cntfet.cnt_characteristics_basis', (
             'FETCharacteristic', 'SEED_FET_CHARACTERISTICS',
         )),
     )),
     ('cntfet', (
-        ('cntfet.cnt_transport', (
+        ('cntfet.cnt_transport_basis', (
             'ScatteringMechanism', 'TransportRegime',
             'SEED_SCATTERING_MECHANISMS', 'SEED_TRANSPORT_REGIMES',
         )),
     )),
     ('cntfet', (
-        ('cntfet.cnt_fields', (
+        ('cntfet.cnt_fields_basis', (
             'FETFieldBand', 'FETFieldSample', 'SEED_FET_FIELD_BANDS',
             'SEED_FET_FIELD_MATERIALS_3D',
         )),
     )),
     ('cntfet', (
-        ('cntfet.cnt_scene', (
+        ('cntfet.cnt_scene_seed', (
             'SEED_CNT_DEVICE_SCENES', 'SEED_FET_FIELD_BINDINGS',
         )),
     )),
     ('cntfet', (
-        ('cntfet.cnt_device_viz', (
+        ('cntfet.cnt_device_viz_seed', (
             'extra_graph_seeds as _cnt_fv_graphs',
             'SEED_CNT_DEVICE_GRAPHS',
         )),
     )),
     ('cntfet', (
-        ('cntfet.cnt_taxonomy', (
+        ('cntfet.cnt_taxonomy_basis', (
             'ComplementaryPair', 'FETOptimizationClass', 'FETShapeType',
             'SEED_COMPLEMENTARY_PAIRS', 'SEED_FET_OPTIMIZATION_CLASSES',
             'SEED_FET_SHAPE_TYPES', 'SEED_SIGNAL_SCORE_CONCEPTS',
@@ -1024,34 +1024,34 @@ FEATURE_IMPORT_BLOCKS = (
         )),
     )),
     ('cntfet', (
-        ('cntfet.cnt_power', (
+        ('cntfet.cnt_power_basis', (
             'PowerBudget', 'SEED_POWER_BUDGETS', 'SEED_POWER_SCORE_TERMS',
         )),
     )),
     ('cntfet', (
-        ('cntfet.cnt_targets', (
+        ('cntfet.cnt_targets_basis', (
             'DesignTarget', 'FETTargetMapping', 'SEED_DESIGN_TARGETS',
             'SEED_FET_TARGET_MAPPINGS', 'SEED_TARGET_POWER_BUDGETS',
         )),
     )),
     ('cntfet', (
-        ('cntfet.cnt_ip', (
+        ('cntfet.cnt_ip_basis', (
             'SEED_TECHNOLOGY_IP', 'TechnologyIPRecord',
         )),
     )),
     ('cntfet', (
-        ('cntfet.cnt_evidence', (
+        ('cntfet.cnt_evidence_basis', (
             'EvidenceItem', 'SEED_EVIDENCE',
         )),
     )),
     ('cntfet', (
-        ('cntfet.cnt_open_library', (
+        ('cntfet.cnt_open_library_page', (
             'OpenCellLibrary', 'SEED_OPEN_LIBRARIES',
             'SEED_OPEN_LIBRARY_PAGES',
         )),
     )),
     ('cntfet', (
-        ('cntfet.cnt_blocks', (
+        ('cntfet.cnt_blocks_page', (
             'FunctionalBlock', 'SEED_FUNCTIONAL_BLOCKS',
             'SEED_BLOCK_PAGES',
         )),
@@ -1061,10 +1061,10 @@ FEATURE_IMPORT_BLOCKS = (
             'DesignLevelDefinition', 'MicrochipDesignNode',
             'SEED_DESIGN_LEVELS', 'SEED_DESIGN_NODES',
         )),
-        ('microchip.chip_pages_seed', (
+        ('microchip.chip_page', (
             'SEED_MICROCHIP_PAGE_DISPLAYS',
         )),
-        ('microchip.chip_families', (
+        ('microchip.chip_families_basis', (
             'DeviceFamilyDefinition', 'SEED_DEVICE_FAMILIES',
         )),
     )),
@@ -1081,15 +1081,15 @@ FEATURE_IMPORT_BLOCKS = (
             'ComputerAssemblyDefinition', 'ComputerPartClassDefinition',
             'ComputerProfileDefinition',
         )),
-        ('computers.computers_pages_seed', (
+        ('computers.computers_page', (
             'SEED_COMPUTERS_PAGE_DISPLAYS',
         )),
-        ('computers.computers_ports', (
+        ('computers.computers_ports_basis', (
             'InterconnectDefinition',
         )),
     )),
     ('aquaponics', (
-        ('aquaponics.aquaponics_pages_seed', (
+        ('aquaponics.aquaponics_page', (
             'SEED_AQUAPONICS_PAGE_DISPLAYS',
         )),
     )),

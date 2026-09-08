@@ -17,7 +17,7 @@ islemesh mock discipline: real pushes never set it).
 @consumers
   - vpn.vpn_api (ingest + read + proposals)
   - polariServer defClassList (tables + CRUDE)
-  - vpn.selftest_vpn
+  - vpn.vpn_selftest
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit

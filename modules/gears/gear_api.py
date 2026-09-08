@@ -9,7 +9,7 @@ geometry gate visible), the train catalog, and the abstract solve.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from gears.gear_kinematics import (
+from gears.custom.gear_kinematics import (
     solve_train, train_catalog, type_catalog,
 )
 
@@ -55,7 +55,7 @@ class GearsAPI(treeObject):
         response.media = out
 
     def on_get_planetary(self, request, response):
-        from gears.planetary import (
+        from gears.custom.planetary import (
             motion_works_ratio, planetary_ratio,
         )
         def i(k, d):
@@ -75,7 +75,7 @@ class GearsAPI(treeObject):
         response.media = out
 
     def on_get_clock_face(self, request, response, train_name):
-        from gears.planetary import clock_face_sizing
+        from gears.custom.planetary import clock_face_sizing
         cb = request.params.get('counterbalanced', '').lower() \
             == 'true'
         out = clock_face_sizing(self.manager, train_name,
@@ -88,7 +88,7 @@ class GearsAPI(treeObject):
         # Imported here, not at module import: the splice reaches
         # into motors, and gears must stay usable with motors off
         # (the refusal inside says so by name).
-        from gears.gear_motor import motor_driven_train
+        from gears.custom.gear_motor import motor_driven_train
 
         def _num(param):
             raw = request.params.get(param)

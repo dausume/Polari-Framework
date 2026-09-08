@@ -18,7 +18,7 @@ Confidence grades, honestly ranked:
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.tolerance_analysis, nmp-4 plan rollups
+  - nutrition.custom.tolerance_analysis, nmp-4 plan rollups
 @see AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md §nmp-2
 """
 

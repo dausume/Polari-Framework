@@ -23,7 +23,7 @@ Both are knobs with defaults; nothing here is a measurement.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.shoptrip_analysis, shoptrip_api, shoptrip_seed
+  - nutrition.custom.shoptrip_analysis, shoptrip_api, shoptrip_seed
 @see AI-Notes/designs/HOUSEHOLD_APP_PAGES.md §3.3
 """
 

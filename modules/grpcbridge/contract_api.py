@@ -7,19 +7,19 @@ suggestions); the only writes are the explicit knob acts
 (enable | disable | regenerate) — nothing auto-enables, and enabling
 a non-stabilized class is refused naming the stabilization gate.
 
-Thin falcon shell — all logic lives in grpcbridge.proto_gen so the
+Thin falcon shell — all logic lives in grpcbridge.custom.proto_gen so the
 selftest exercises it directly.
 
 @consumers
   - polariServer (instantiated next to the other APIs)
-  - grpcbridge.selftest_contracts (function-level)
+  - grpcbridge.contracts_selftest (function-level)
 """
 
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from grpcbridge.proto_gen import (
+from grpcbridge.custom.proto_gen import (
     exposure_action, exposure_catalogue, exposure_summary,
     get_exposure, get_versions,
 )
@@ -121,7 +121,7 @@ class GrpcContractsAPI(treeObject):
             msg_type = int(request.params.get('msg_type', '1'))
         except (TypeError, ValueError):
             msg_type = 1
-        from grpcbridge.c_twin import render_c_header
+        from grpcbridge.custom.c_twin import render_c_header
         response.content_type = 'text/plain; charset=utf-8'
         response.text = render_c_header(
             class_name, field_map, msg_type, version=wanted,

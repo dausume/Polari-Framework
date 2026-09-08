@@ -209,7 +209,7 @@ def record_deviation(manager, class_name, field='', expected_type='',
     # A deviation invalidates the trusted snapshot any gRPC contract
     # was generated from (grpc-1). Failure-isolated like every hook.
     try:
-        from grpcbridge.proto_gen import mark_exposures_stale
+        from grpcbridge.custom.proto_gen import mark_exposures_stale
         mark_exposures_stale(
             manager, class_name,
             f'schema deviation on field "{field or "?"}" '

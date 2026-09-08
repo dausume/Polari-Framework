@@ -34,7 +34,7 @@ scoring_engine.py.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - scoring.scoring_engine / scoring.scoring_api
+  - scoring.custom.scoring_engine / scoring.scoring_api
 @see /OVERLAP_MAP.md
 """
 
@@ -202,7 +202,7 @@ class ContextualizedValue(treeObject):
         normalization_json: str = '',
         source: str = '',
         provenance_id: str = '',
-        # Contributor row (scoring.contributors) that supplied this
+        # Contributor row (scoring.contributors_basis) that supplied this
         # value — individuals and orgs are TRACKABLE for research
         # contributions (or pseudonymous by their contributor row's
         # own knob); '' = unattributed, honestly.

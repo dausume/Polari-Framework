@@ -18,11 +18,11 @@ transforms arrive with nmp-3 (retention x yield).
 
 @consumers
   - polariServer seed pairs (foods before contents)
-  - nutrition.selftest_data
+  - nutrition.data_selftest
 @see AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md §nmp-0
 """
 
-from nutrition.vendor_data import fdc_subset
+from nutrition.custom.vendor_data import fdc_subset
 
 # nmp-2 (decision 9): published GI means from Atkinson,
 # Foster-Powell & Brand-Miller 2008 (Diabetes Care) international

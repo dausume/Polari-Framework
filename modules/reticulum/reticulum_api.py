@@ -292,7 +292,7 @@ class ReticulumAPI(treeObject):
         """ret-1b: the .arch topology view — isles as blocks, radios
         and apps inside, measured paths between, demand vs capacity
         with an honest verdict (plan §5m)."""
-        from reticulum.arch_topology import assemble_arch_topology
+        from reticulum.custom.arch_topology import assemble_arch_topology
         instance = getattr(self.polServer, 'serverName', '') \
             or 'this-isle'
         tables = {
@@ -510,7 +510,7 @@ class ReticulumAPI(treeObject):
         # ---- ret-1f (§5q): placement + population sections ---------
         placement = body.get('placement')
         if placement:
-            from reticulum import meshsim_placement as mp
+            from reticulum.custom import meshsim_placement as mp
             pmode = placement.get('mode', 'cheapest-coverage')
             polygon = placement.get('polygon')
             if not polygon:
@@ -591,7 +591,7 @@ class ReticulumAPI(treeObject):
             # the placement branch's import, and a function-local
             # name used before ITS import is an UnboundLocalError:
             # the AppsNavSeed lesson.)
-            from reticulum import meshsim_placement as mp
+            from reticulum.custom import meshsim_placement as mp
             profiles = {}
             for row in self._rows('KitProfile'):
                 try:
@@ -602,7 +602,7 @@ class ReticulumAPI(treeObject):
             result['population'] = mp.population_cohorts_report(
                 population['cohorts'], profiles=profiles)
         elif population:
-            from reticulum import meshsim_placement as mp
+            from reticulum.custom import meshsim_placement as mp
             result['population'] = mp.population_mix_report(
                 population.get('mix') or {},
                 int(population.get('n') or 0))

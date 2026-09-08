@@ -42,7 +42,7 @@ edition is carried per row.
 
 @consumers
   - nutrition.nutrient_seed (re-export), polariServer seed pairs
-  - nutrition.person_analysis (band matcher skips life_stage rows)
+  - nutrition.custom.person_analysis (band matcher skips life_stage rows)
 @see AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md §nmp-0
 """
 

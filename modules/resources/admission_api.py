@@ -9,14 +9,14 @@ knobs — the API never moves anything (knobs-and-suggestions).
 @consumers
   - polariServer (instantiated next to ResourceProfilesAPI)
   - polari-platform-angular Topology tab ("what if I add …")
-  - resources.selftest_admission (handler-level, fake manager)
+  - resources.admission_selftest (handler-level, fake manager)
 """
 
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from resources.admission_advisor import (
+from resources.custom.admission_advisor import (
     assess_module_admission, assess_set_feasibility,
     efficiency_suggestions,
 )

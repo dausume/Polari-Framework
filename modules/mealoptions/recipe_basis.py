@@ -6,7 +6,7 @@
 nmp-3 — recipes as data (moved here in mo-1, names unchanged):
 Recipe (serves N), IngredientLine (a FoodItem, an amount, its
 cooking transform), CookingStep (ordered instructions with a method
-+ duration). The nutrition ROLLUP (nutrition.recipe_analysis) is the
++ duration). The nutrition ROLLUP (nutrition.custom.recipe_analysis) is the
 build-ourselves engine: per-ingredient FDC per-100g x amount x YIELD
 factor x per-nutrient RETENTION factor, summed to per-serving
 RecipeNutrition with raw-vs-cooked provenance labels.
@@ -18,7 +18,7 @@ import lands later (the dausume fork-pin already exists).
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.recipe_analysis, nmp-4 meal templates
+  - nutrition.custom.recipe_analysis, nmp-4 meal templates
 @see AI-Notes/plans/MEAL_OPTIONS_MODULE_PLAN.md §mo-1
 """
 

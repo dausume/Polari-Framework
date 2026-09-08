@@ -20,7 +20,7 @@ Three treeObjects (auto-CRUDE + persisted — object-coherence):
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - supplychain.chain_analysis
+  - supplychain.custom.chain_analysis
 @see nutrition/ aquaponics/ tanks/ microalgae/ biomining/ waxsupply/
 """
 

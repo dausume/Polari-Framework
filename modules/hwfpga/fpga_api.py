@@ -9,12 +9,12 @@ serves ONE generated file so consumers fetch only what they need.
 
 @consumers
   - grpcbridge/renode_twin/fpga build script (fetches artifacts)
-  - hwfpga.selftest_fpga (function-level via fpga_verilog)
+  - hwfpga.fpga_selftest (function-level via fpga_verilog)
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from hwfpga.fpga_verilog import (
+from hwfpga.custom.fpga_verilog import (
     get_map, map_registers, render_c_defines, render_core,
     render_sim_main, render_sim_top, render_testbench,
 )

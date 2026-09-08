@@ -28,7 +28,7 @@ Three treeObjects (auto-CRUDE + persisted — object-coherence):
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - tanks.tank_analysis (nutrient balance, harvest yield, regulation)
+  - tanks.custom.tank_analysis (nutrient balance, harvest yield, regulation)
 @see /SALTWATER_FOOD_FOREST_SPEC.md, /HOUSEHOLD_NUTRITION_PLAN.md
 """
 

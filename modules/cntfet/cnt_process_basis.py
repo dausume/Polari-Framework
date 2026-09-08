@@ -22,8 +22,8 @@ line cannot fabricate a 15 nm aligned device).
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence + seeds)
-  - cntfet.cnt_montecarlo (the sampling engine)
-  - cntfet.selftest_cntfet
+  - cntfet.custom.cnt_montecarlo (the sampling engine)
+  - cntfet.cntfet_selftest
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit

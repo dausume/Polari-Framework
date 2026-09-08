@@ -43,18 +43,18 @@ is the derived-view layer, not a second write path.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from nutrition.acidity_analysis import template_acidity
-from nutrition.market_analysis import (
+from nutrition.custom.acidity_analysis import template_acidity
+from nutrition.custom.market_analysis import (
     advice as price_advice_report, export_price_references,
     price_references, price_report, purchased_item_report,
 )
-from nutrition.meal_analysis import _named
-from nutrition.pantry_analysis import (
+from nutrition.custom.meal_analysis import _named
+from nutrition.custom.pantry_analysis import (
     availability_suggestions, pantry_stock, plan_cost,
     plan_vs_pantry, shopping_list,
 )
-from nutrition.person_analysis import _rows
-from nutrition.tracking_analysis import (
+from nutrition.custom.person_analysis import _rows
+from nutrition.custom.tracking_analysis import (
     intake_day, resolve_me, tracking_series,
 )
 
@@ -368,13 +368,13 @@ class MealPlanningAPI(treeObject):
 
     # ── mpb-1: exclusions ────────────────────────────────
     def on_get_exclusions(self, request, response, person):
-        from nutrition.exclusion_analysis import person_exclusions
+        from nutrition.custom.exclusion_analysis import person_exclusions
         hard, soft = person_exclusions(self.manager, person)
         response.media = {'ok': True, 'person': person,
                           'hard': hard, 'soft': soft}
 
     def on_get_exclusion_screen(self, request, response, name):
-        from nutrition.exclusion_analysis import screen_plan
+        from nutrition.custom.exclusion_analysis import screen_plan
         plan = self._plan(name, response)
         if plan is not None:
             response.media = screen_plan(
@@ -382,7 +382,7 @@ class MealPlanningAPI(treeObject):
                 request.params.get('person') or None)
 
     def on_get_exclusion_swaps(self, request, response, name):
-        from nutrition.exclusion_analysis import (
+        from nutrition.custom.exclusion_analysis import (
             exclusion_safe_swaps,
         )
         plan = self._plan(name, response)
@@ -393,7 +393,7 @@ class MealPlanningAPI(treeObject):
 
     # ── mpb-2: stated-condition steering ─────────────────
     def on_get_plan_conditions(self, request, response, name):
-        from nutrition.condition_analysis import (
+        from nutrition.custom.condition_analysis import (
             plan_condition_report,
         )
         plan = self._plan(name, response)
@@ -403,7 +403,7 @@ class MealPlanningAPI(treeObject):
                 request.params.get('person') or None)
 
     def on_get_template_conditions(self, request, response, name):
-        from nutrition.condition_analysis import (
+        from nutrition.custom.condition_analysis import (
             meal_condition_report,
         )
         person = request.params.get('person', '')
@@ -421,7 +421,7 @@ class MealPlanningAPI(treeObject):
 
     # ── mpb-3: budget ────────────────────────────────────
     def on_get_nutrient_value(self, request, response):
-        from nutrition.budget_analysis import nutrient_value_report
+        from nutrition.custom.budget_analysis import nutrient_value_report
         nutrient = request.params.get('nutrient', '')
         if not nutrient:
             response.media = {'ok': False,
@@ -431,7 +431,7 @@ class MealPlanningAPI(treeObject):
                                                nutrient)
 
     def on_get_closers(self, request, response):
-        from nutrition.budget_analysis import cheapest_closers
+        from nutrition.custom.budget_analysis import cheapest_closers
         try:
             gap = float(request.params.get('gap', '0'))
         except ValueError:
@@ -440,14 +440,14 @@ class MealPlanningAPI(treeObject):
             self.manager, request.params.get('nutrient', ''), gap)
 
     def on_get_plan_budget(self, request, response, name):
-        from nutrition.budget_analysis import plan_budget_report
+        from nutrition.custom.budget_analysis import plan_budget_report
         plan = self._plan(name, response)
         if plan is not None:
             response.media = plan_budget_report(self.manager, plan)
 
     # ── mpb-6: coverage steering ─────────────────────────
     def on_get_coverage(self, request, response, person):
-        from nutrition.coverage_analysis import coverage_steering
+        from nutrition.custom.coverage_analysis import coverage_steering
         try:
             days = int(request.params.get('days', '7'))
         except ValueError:
@@ -458,7 +458,7 @@ class MealPlanningAPI(treeObject):
 
     # ── mpb-4: waste ledger ──────────────────────────────
     def on_get_waste(self, request, response, household):
-        from nutrition.waste_analysis import waste_report
+        from nutrition.custom.waste_analysis import waste_report
         response.media = waste_report(self.manager, household)
 
     # ── mpb-7: trajectory fed by the plan's calories ─────
@@ -467,8 +467,8 @@ class MealPlanningAPI(treeObject):
         the named plan's ACTUAL day-average calories instead of a
         hand-typed number — the drift suggestion (a knob nudge,
         never a silent recalibration) comes with it."""
-        from nutrition.meal_analysis import plan_rollup
-        from nutrition.weight_trajectory import (
+        from nutrition.custom.meal_analysis import plan_rollup
+        from nutrition.custom.weight_trajectory import (
             observed_vs_projected,
         )
         profile = _named(self.manager, 'PersonProfile', person)
@@ -521,11 +521,11 @@ class MealPlanningAPI(treeObject):
 
     # ── mpb-8: ratings ───────────────────────────────────
     def on_get_ratings(self, request, response, person):
-        from nutrition.rating_analysis import rating_summary
+        from nutrition.custom.rating_analysis import rating_summary
         response.media = rating_summary(self.manager, person)
 
     def on_get_templates_ranked(self, request, response, person):
-        from nutrition.rating_analysis import rank_templates
+        from nutrition.custom.rating_analysis import rank_templates
         names = sorted(
             getattr(t, 'name', '') for t in
             _rows(self.manager, 'MealTemplate'))
@@ -533,13 +533,13 @@ class MealPlanningAPI(treeObject):
 
     # ── mpb-9: quick-add preview (read-only proposal) ────
     def on_get_quick_add(self, request, response):
-        from nutrition.quick_add import parse_quick_add
+        from nutrition.custom.quick_add import parse_quick_add
         response.media = parse_quick_add(
             self.manager, request.params.get('q', ''))
 
     def on_get_state_chain(self, request, response, name):
         try:
-            from foodstate.food_transforms import (
+            from foodstate.custom.food_transforms import (
                 template_state_chain,
             )
         except ImportError as exc:
@@ -552,13 +552,13 @@ class MealPlanningAPI(treeObject):
 
     # ---- cal-4: purchase / bulk / coordination proposals ----------
     def on_get_purchase_proposal(self, request, response, name):
-        from nutrition.purchase_analysis import weekly_purchase_proposal
+        from nutrition.custom.purchase_analysis import weekly_purchase_proposal
         response.media = weekly_purchase_proposal(
             self.manager, name, request.params.get('household') or '',
             request.params.get('purchase_date') or None)
 
     def on_get_bulk_proposal(self, request, response):
-        from nutrition.purchase_analysis import bulk_purchase_proposal
+        from nutrition.custom.purchase_analysis import bulk_purchase_proposal
         try:
             cadence = int(request.params.get('cadence') or 3)
         except ValueError:
@@ -568,7 +568,7 @@ class MealPlanningAPI(treeObject):
             cadence, request.params.get('purchase_date') or None)
 
     def on_get_coordination(self, request, response, name):
-        from nutrition.purchase_analysis import coordinate_week
+        from nutrition.custom.purchase_analysis import coordinate_week
         response.media = coordinate_week(
             self.manager, name, request.params.get('household') or '',
             request.params.get('week_start') or None)
@@ -578,34 +578,34 @@ class MealPlanningAPI(treeObject):
         # (was a second on_get_availability that SHADOWED the plan one —
         # /plans/{name}/availability 500'd with "unexpected keyword
         # argument 'name'"; caught by the 2026-09-05 page sweep.)
-        from nutrition.logistics_analysis import availability_windows
+        from nutrition.custom.logistics_analysis import availability_windows
         response.media = availability_windows(
             self.manager, person, request.params.get('from') or None,
             request.params.get('to') or None)
 
     def on_get_timing_check(self, request, response, name):
-        from nutrition.logistics_analysis import meal_timing_check
+        from nutrition.custom.logistics_analysis import meal_timing_check
         response.media = meal_timing_check(
             self.manager, name, request.params.get('week_start') or None)
 
     def on_get_prep_profile(self, request, response, name):
-        from nutrition.logistics_analysis import prep_time_profile
+        from nutrition.custom.logistics_analysis import prep_time_profile
         response.media = prep_time_profile(
             self.manager, name, request.params.get('person') or 'demo-alex')
 
     def on_get_portability(self, request, response, name):
-        from nutrition.logistics_analysis import portability_plan
+        from nutrition.custom.logistics_analysis import portability_plan
         response.media = portability_plan(
             self.manager, name, request.params.get('week_start') or None)
 
     def on_get_dish_plan(self, request, response, name):
-        from nutrition.logistics_analysis import dish_plan
+        from nutrition.custom.logistics_analysis import dish_plan
         response.media = dish_plan(
             self.manager, name, request.params.get('week_start') or None)
 
     def on_get_work_allocation(self, request, response, name):
-        from nutrition.logistics_analysis import assign_work
-        from nutrition.purchase_analysis import coordinate_week
+        from nutrition.custom.logistics_analysis import assign_work
+        from nutrition.custom.purchase_analysis import coordinate_week
         co = coordinate_week(self.manager, name, request.params.get('household') or '',
                              request.params.get('week_start') or None)
         if not co.get('ok'):
@@ -614,23 +614,23 @@ class MealPlanningAPI(treeObject):
         response.media = assign_work(self.manager, co['proposals'], co['household'])
 
     def on_get_fairness(self, request, response, household):
-        from nutrition.logistics_analysis import fairness_readout
+        from nutrition.custom.logistics_analysis import fairness_readout
         response.media = fairness_readout(
             self.manager, household, request.params.get('from') or None,
             request.params.get('to') or None)
 
     def on_get_speed_refinement(self, request, response):
-        from nutrition.logistics_analysis import refine_speed_factors
+        from nutrition.custom.logistics_analysis import refine_speed_factors
         response.media = refine_speed_factors(
             self.manager, request.params.get('person') or None)
 
     # ---- mpc: plan the week ---------------------------------------
     def on_get_week_coverage(self, request, response, name):
-        from nutrition.planning_analysis import week_coverage
+        from nutrition.custom.planning_analysis import week_coverage
         response.media = week_coverage(self.manager, name)
 
     def on_get_apply_meal(self, request, response, name):
-        from nutrition.planning_analysis import apply_meal_proposal
+        from nutrition.custom.planning_analysis import apply_meal_proposal
         p = request.params
         try:
             scale = float(p.get('scale') or 0)
@@ -641,7 +641,7 @@ class MealPlanningAPI(treeObject):
             p.get('slots') or 'all', p.get('days') or 'all', p.get('person') or '', scale)
 
     def on_get_portion_fit(self, request, response, name):
-        from nutrition.planning_analysis import portion_fit
+        from nutrition.custom.planning_analysis import portion_fit
         p = request.params
         persons = [x for x in (p.get('persons') or '').split(',') if x]
         # KNOB: ?objective=calories|nutrients (default calories);
@@ -653,12 +653,12 @@ class MealPlanningAPI(treeObject):
             objective=p.get('objective') or 'calories', weights=p.get('weights') or None)
 
     def on_get_expected_slots(self, request, response, person):
-        from nutrition.planning_analysis import expected_slots
+        from nutrition.custom.planning_analysis import expected_slots
         response.media = {'ok': True, 'schema': 'expected-slots/1',
                           **expected_slots(self.manager, person)}
 
     def on_get_periods(self, request, response, person):
-        from nutrition.tracking_periods import period_summary
+        from nutrition.custom.tracking_periods import period_summary
         response.media = period_summary(
             self.manager, person, request.params.get('kind') or 'week',
             request.params.get('from') or None, request.params.get('to') or None,

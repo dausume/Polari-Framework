@@ -14,7 +14,7 @@ launcher .deb). One kind → one install-plan builder.
 @consumers
   - islemesh.islemesh_api (/api/islemesh/catalog*)
   - polari-cli / isle store (reads the plan, runs it on the host)
-  - islemesh.selftest_islemesh
+  - islemesh.islemesh_selftest
 """
 
 #: Seed listings — the apps the arc has actually stood up, so the

@@ -8,7 +8,7 @@ evaluation (the teaching trace), and the generated artifacts through
 the registered compiler seam.
 
 @consumers
-  - hwdigital.selftest_logic (function-level)
+  - hwdigital.logic_selftest (function-level)
   - the frontend logic-diagram editor (later, with Dustin)
 """
 
@@ -16,7 +16,7 @@ import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from hwdigital.logic_sim import (LogicSimulator, design_specs,
+from hwdigital.custom.logic_sim import (LogicSimulator, design_specs,
                                  is_clocked)
 
 
@@ -150,5 +150,5 @@ class LogicDesignAPI(treeObject):
         if row is not None:
             return row
         from types import SimpleNamespace
-        from hwdigital.logic_compile import SEED_HWDIGITAL_COMPILER
+        from hwdigital.logic_compile_seed import SEED_HWDIGITAL_COMPILER
         return SimpleNamespace(**SEED_HWDIGITAL_COMPILER)

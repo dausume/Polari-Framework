@@ -626,7 +626,7 @@ def graph_payload(manager, topology_name):
     # absent profiles simply omit the block, never guessed).
     allocations = {}
     try:
-        from resources.admission_advisor import node_allocation
+        from resources.custom.admission_advisor import node_allocation
         allocations = {name: view.get('allocation', {})
                        for name, view in node_allocation(
                            manager, topology_name).items()}
@@ -840,7 +840,7 @@ def suggest_reallocations(manager, topology_name):
     # single-threaded module holding a big node while a scaling
     # module sits cramped. Lazy import; absent profiles → no rows.
     try:
-        from resources.admission_advisor import efficiency_suggestions
+        from resources.custom.admission_advisor import efficiency_suggestions
         rows.extend(efficiency_suggestions(manager, topology_name))
     except Exception:
         pass

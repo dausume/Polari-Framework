@@ -12,14 +12,14 @@ transit this surface.
 @consumers
   - polariServer via module_endpoints.construct_appstore_endpoints
   - polari-platform-angular (ai-2 store section detail pane)
-  - appstore.selftest_appstore (function-level)
+  - appstore.appstore_selftest (function-level)
 """
 
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from appstore.appstore_ai import AI_LINKAGES, host_check, tool_report
+from appstore.appstore_ai_basis import AI_LINKAGES, host_check, tool_report
 
 
 def _reasoning_status():
@@ -122,7 +122,7 @@ class AiToolsAPI(treeObject):
         ai-8: PLUS the buy-vs-rent advisory when the computerparts
         module is enabled (row reads + its own pure fns, gated on
         module_enabled — ImportError is NOT an absence check)."""
-        from appstore.appstore_hosting import (
+        from appstore.appstore_hosting_basis import (
             hosting_options_payload)
         rows = list((getattr(self.manager, 'objectTables', None)
                      or {}).get('RemoteHostingOption', {}).values())
@@ -160,13 +160,13 @@ class AiToolsAPI(treeObject):
                             'enabled on this instance — bring it '
                             'online for the buy-vs-rent advisory'}
         try:
-            from computerparts.parts_assembly import assembly_check
+            from computerparts.custom.parts_assembly import assembly_check
             from computerparts.parts_basis import (
                 break_even_months, build_report)
         except ImportError:
             return {'available': False,
                     'note': 'computerparts code not present'}
-        from appstore.appstore_hosting import option_fit
+        from appstore.appstore_hosting_basis import option_fit
         tables = getattr(self.manager, 'objectTables', None) or {}
         parts_by_name = {
             getattr(p, 'name', ''): p
@@ -222,7 +222,7 @@ class AiToolsAPI(treeObject):
     def on_get_fork_pins(self, request, response):
         """ai-9: every upstream this project pins as a fork (and
         the honestly not-pinned gaps), dated by verification."""
-        from appstore.appstore_forks import fork_pins_payload
+        from appstore.appstore_forks_basis import fork_pins_payload
         rows = list((getattr(self.manager, 'objectTables', None)
                      or {}).get('ForkPin', {}).values())
         response.media = fork_pins_payload(rows)
@@ -265,7 +265,7 @@ class AiToolsAPI(treeObject):
         # (cheap, keeps the verdict from riding stale numbers),
         # then read every machine. resources may be absent — say so.
         try:
-            from resources.node_resources import (
+            from resources.custom.node_resources import (
                 inventory, refresh_local_machine)
             try:
                 refresh_local_machine(self.manager)

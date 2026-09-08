@@ -8,14 +8,14 @@ manage live connections — explicitly, never at boot.
 
 @consumers
   - polariServer (route registration, gated on feature presence)
-  - mqttbridge.selftest_mqttbridge (function level)
+  - mqttbridge.mqttbridge_selftest (function level)
 """
 
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from mqttbridge.mqtt_bridge import (
+from mqttbridge.custom.mqtt_bridge import (
     WORKERS, BridgeWorker, paho_available,
 )
 

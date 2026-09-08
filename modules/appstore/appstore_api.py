@@ -14,7 +14,7 @@ appstore_payloads / shell_project / appstore_minio.
 @consumers
   - polariServer (instantiated next to AppsAPI)
   - polari-app-shell (the native client)
-  - appstore.selftest_appstore (function-level)
+  - appstore.appstore_selftest (function-level)
 """
 
 import json
@@ -27,17 +27,17 @@ from appstore.appstore_basis import (
     PLATFORM_KEYS, SHELL_SCOPES, ShellArtifact, ShellEnrollment,
     ShellInstallation,
 )
-from appstore.appstore_minio import (
+from appstore.custom.appstore_minio import (
     ARTIFACT_BUCKET, object_exists, presigned_get, presigned_put,
     store_status,
 )
-from appstore.appstore_payloads import (
+from appstore.custom.appstore_payloads import (
     deep_link, identity_payload, registration_document,
 )
-from appstore.appstore_tokens import (
+from appstore.custom.appstore_tokens import (
     expiry_iso, judge, mint, now_iso, split_wire,
 )
-from appstore.shell_project import build_download, stamp_generation
+from appstore.custom.shell_project import build_download, stamp_generation
 
 #: Author-editable AppShellDefinition fields (the _APP_FIELDS idiom).
 _SHELL_FIELDS = ('title', 'description', 'scope', 'app_name',
@@ -676,7 +676,7 @@ class AppStoreAPI(treeObject):
         key = getattr(artifact, 'object_key', '')
         bucket = getattr(artifact, 'bucket', '') or ARTIFACT_BUCKET
         if request.params.get('direct', '') == '1':
-            from appstore.appstore_minio import get_bytes
+            from appstore.custom.appstore_minio import get_bytes
             fetched = get_bytes(self.manager, key, bucket)
             if not fetched.get('ok'):
                 return self._refuse(response,

@@ -16,7 +16,7 @@ human's pol command (knobs-and-suggestions).
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - polariapps.apps_analysis / polariapps.apps_api
+  - polariapps.custom.apps_analysis / polariapps.apps_api
   - polari-cli scripts/apps.sh · polari-platform-angular /apps page
 """
 
@@ -59,7 +59,7 @@ class PolariAppDefinition(treeObject):
         engine_page: str = '',
         # nav-1: seeds are priors, people's edits are not — flip to
         # False on a customized row and the upsert seed pass will
-        # never touch it again (composition.seed_upsert contract).
+        # never touch it again (composition.custom.seed_upsert contract).
         is_prior: bool = True,
         notes: str = '',
         manager=None,

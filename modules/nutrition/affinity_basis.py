@@ -12,7 +12,7 @@ keeps working. The composer (affinity_composer) stays here — it
 reads the person's stated context.
 
 @consumers
-  - nutrition.affinity_composer, the selftests
+  - nutrition.custom.affinity_composer, the selftests
 @see AI-Notes/plans/MEAL_OPTIONS_MODULE_PLAN.md §mo-1
 """
 

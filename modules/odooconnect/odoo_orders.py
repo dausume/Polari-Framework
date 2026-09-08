@@ -28,7 +28,7 @@ same-provenance re-runs skip, foreign-provenance rows are conflict
 reports never touched.
 
 @consumers odooconnect.odoo_api (/api/odoo/pull-orders),
-           bizops.bizops_planner (reads the ProductOrder table)
+           bizops.custom.bizops_planner (reads the ProductOrder table)
 """
 
 import json

@@ -25,7 +25,7 @@ Agents / products / systems are edited through CRUDE (object-coherence).
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from biomining.biomining_analysis import (
+from biomining.custom.biomining_analysis import (
     extraction_yield, recovery_transfer, refinement_pathway,
 )
 

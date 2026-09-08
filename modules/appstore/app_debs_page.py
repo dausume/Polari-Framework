@@ -26,7 +26,7 @@ Zero JS, server-rendered, logged-out friendly — same shell as
 
 @consumers
   - polariServer (route registration via the appstore gate)
-  - appstore.selftest_app_debs
+  - appstore.app_debs_selftest
 """
 
 import html
@@ -35,9 +35,9 @@ import time
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from appstore import app_deb_builder as builder
-from appstore import module_requirements as modreqs
-from appstore.downloads_shared import (
+from appstore.custom import app_deb_builder as builder
+from appstore.custom import module_requirements as modreqs
+from appstore.custom.downloads_shared import (
     EXPLAIN_DEB, EXPLAIN_DISK, EXPLAIN_PREPPED_VS_DEMAND,
     explainer_block, human_size, on_demand_provenance, wrap_page)
 

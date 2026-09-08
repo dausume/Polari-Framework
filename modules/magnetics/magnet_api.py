@@ -11,7 +11,7 @@ laddered best-per-realization answer.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from magnetics.magnet_analysis import (
+from magnetics.custom.magnet_analysis import (
     composite_predict, gates_for, laddered_answer, viability_matrix,
     _named, _rows,
 )
@@ -102,7 +102,7 @@ class MagneticsAPI(treeObject):
                               'refusal': f'no MagneticMaterialOption '
                                          f'named "{option_name}"'}
             return
-        from magnetics.magnet_analysis import role_viability
+        from magnetics.custom.magnet_analysis import role_viability
         verdicts = [role_viability(self.manager, opt, role)
                     for role in _rows(self.manager,
                                       'MaterialUseRole')]
@@ -167,11 +167,11 @@ class MagneticsAPI(treeObject):
         response.media = out
 
     def on_get_promotion(self, request, response):
-        from magnetics.realization_promotion import promotion_report
+        from magnetics.custom.realization_promotion import promotion_report
         response.media = promotion_report(self.manager)
 
     def on_get_promotion_one(self, request, response, option_name):
-        from magnetics.realization_promotion import promotion_report
+        from magnetics.custom.realization_promotion import promotion_report
         out = promotion_report(self.manager,
                                option_name=option_name)
         if not out.get('ok'):
@@ -194,14 +194,14 @@ class MagneticsAPI(treeObject):
                           'count': len(rows)}
 
     def on_get_solve(self, request, response, circuit_name):
-        from magnetics.magnetic_netlist import run_analyses
+        from magnetics.magnetic_netlist_seed import run_analyses
         out = run_analyses(self.manager, circuit_name)
         if not out.get('ok'):
             response.status = '404 Not Found'
         response.media = out
 
     def on_get_parity(self, request, response, circuit_name):
-        from magnetics.magnetic_netlist import parity_run
+        from magnetics.magnetic_netlist_seed import parity_run
         out = parity_run(self.manager, circuit_name)
         if not out.get('ok'):
             response.status = '409 Conflict'
@@ -225,7 +225,7 @@ class MagneticsAPI(treeObject):
                           'count': len(rows)}
 
     def on_get_layout_network(self, request, response, layout_name):
-        from magnetics.magnet_layout import solve_layout
+        from magnetics.custom.magnet_layout import solve_layout
         try:
             out = solve_layout(self.manager, layout_name)
         except ValueError as exc:
@@ -235,7 +235,7 @@ class MagneticsAPI(treeObject):
         response.media = out
 
     def on_get_layout_cost(self, request, response, layout_name):
-        from magnetics.magnet_layout import layout_cost
+        from magnetics.custom.magnet_layout import layout_cost
         out = layout_cost(self.manager, layout_name,
                           policy_name=request.params.get('policy',
                                                          ''))
@@ -244,7 +244,7 @@ class MagneticsAPI(treeObject):
         response.media = out
 
     def on_get_layout_dryfit(self, request, response, layout_name):
-        from magnetics.magnet_layout import dry_fit_report
+        from magnetics.custom.magnet_layout import dry_fit_report
         try:
             out = dry_fit_report(self.manager, layout_name)
         except ValueError as exc:
@@ -273,7 +273,7 @@ class MagneticsAPI(treeObject):
                           'groups': groups}
 
     def on_get_fieldview(self, request, response, view_name):
-        from magnetics.field_views import view_payload
+        from magnetics.custom.field_views import view_payload
         out = view_payload(self.manager, view_name)
         if not out.get('ok'):
             response.status = '404 Not Found'
@@ -281,7 +281,7 @@ class MagneticsAPI(treeObject):
 
     def on_get_fieldview_group(self, request, response,
                                group_name):
-        from magnetics.field_views import group_payload
+        from magnetics.custom.field_views import group_payload
         out = group_payload(self.manager, group_name)
         if not out.get('ok'):
             response.status = '404 Not Found'

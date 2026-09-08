@@ -19,7 +19,7 @@ nmp-10's concern — v1 reports age, not verdicts (named gap).
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.pantry_analysis, mealplanning_api
+  - nutrition.custom.pantry_analysis, mealplanning_api
 @see AI-Notes/plans/MEAL_PLANNING_APP_PLAN.md §mpa-3
 """
 

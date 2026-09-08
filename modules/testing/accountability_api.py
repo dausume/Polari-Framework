@@ -14,7 +14,7 @@ answerable):
 
 TEST-BUILD ONLY: instantiated in polariServer.__init__ behind
 module_enabled('testing') — a normal build never registers these
-routes (testing.absence_probe pins that).
+routes (testing.custom.absence_probe pins that).
 """
 
 import json
@@ -22,7 +22,7 @@ import json
 import falcon
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from testing.matrix_runner import (
+from testing.custom.matrix_runner import (
     run_matrix, select_checks, sync_capability_checks,
 )
 

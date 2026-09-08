@@ -7,7 +7,7 @@ solution Y", with every firing a TriggerFiring ROW.
 Sources → entry points:
   object    dispatch_object_change(manager, class, op, ids)
             — called from the CRUDE lifecycle hook
-              (grpcbridge.transport_mux.publish_crude_change) and
+              (grpcbridge.custom.transport_mux.publish_crude_change) and
               from the GenerateEvent/ModifyEvent nodes' own writes
   event     dispatch_trace_events(manager, trace, params)
             — called by SolutionExecutionEngine.execute() after a

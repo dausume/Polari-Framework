@@ -20,7 +20,7 @@ per food is the only way more of these appear (D4).
 
 @consumers
   - polariServer (PropertyClaim seed concat)
-  - foodstate.food_chemistry (ingredient_acidity), selftests
+  - foodstate.custom.food_chemistry (ingredient_acidity), selftests
 """
 
 import json

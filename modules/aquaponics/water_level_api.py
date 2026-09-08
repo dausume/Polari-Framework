@@ -25,7 +25,7 @@ water"), not triggering anything.
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from aquaponics.water_level import water_level_trajectory
+from aquaponics.custom.water_level import water_level_trajectory
 
 
 def _not_found_or_bad(result):

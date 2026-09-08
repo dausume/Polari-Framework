@@ -7,7 +7,7 @@ nmp-4 — meals as data (decisions 1/2/4/5), the shareable half (mo-1):
 
   MealTemplate         ONE meal as a template: a set of base recipes
                        plus allowed variations. HARD-bounded at
-                       authoring: the gate (nutrition.meal_analysis.
+                       authoring: the gate (nutrition.custom.meal_analysis.
                        validate_template) computes EVERY variation's
                        rollup and REFUSES the template if any
                        nutrient spikes past the average-person
@@ -26,7 +26,7 @@ calendar mapping is presentation, not data.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.meal_analysis (via nutrition.meal_basis re-export)
+  - nutrition.custom.meal_analysis (via nutrition.meal_basis re-export)
 @see AI-Notes/plans/MEAL_OPTIONS_MODULE_PLAN.md §mo-1
 """
 

@@ -5,10 +5,10 @@ arch-5: PART ARCHETYPES — the machine-elements schema (practice map
 §3: every Shigley chapter is one of these). An archetype joins the
 two halves that already existed separately:
 
-  role_refs       the MATERIAL-facing half (composition.part_roles
+  role_refs       the MATERIAL-facing half (composition.custom.part_roles
                   — predicates, graded thresholds, evidence demands)
   equation_refs   the BEHAVIOUR-facing half (EquationDefinition
-                  rows via motors.physics_equations — DATA
+                  rows via motors.physics_equations_seed — DATA
                   references, reachable by name without importing)
 
 plus its parameter set, its characteristic failure modes, its
@@ -16,16 +16,16 @@ selection procedure as ordered data, and its DESIGN MATRIX (which
 knobs move which outcomes, and in what order to tune).
 
 @consumers polariServer seed passes, composition.composition_seed,
-composition.selftest_composition
+composition.composition_selftest
 """
 
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from composition.data_refs import named, resolve_named
-from composition.design_matrix import matrix_report
-from composition.part_roles import ROLE_REQUIREMENTS
+from composition.custom.data_refs import named, resolve_named
+from composition.design_matrix_basis import matrix_report
+from composition.custom.part_roles import ROLE_REQUIREMENTS
 
 #: Which level of the hierarchy each equation speaks to — the
 #: handover §2 levelling, carried per reference.
@@ -53,7 +53,7 @@ class PartArchetypeDefinition(treeObject):
         self.equation_refs_json = equation_refs_json
         #: FailureModeDefinition names this archetype is prone to.
         self.failure_mode_refs_json = failure_mode_refs_json
-        #: composition.part_roles names — material half.
+        #: composition.custom.part_roles names — material half.
         self.role_refs_json = role_refs_json
         #: Ordered checks as data: [{'step', 'what', 'refuses_on'}].
         self.selection_procedure_json = selection_procedure_json

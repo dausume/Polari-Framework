@@ -19,7 +19,7 @@ material. Own module + own data (framework-core only).
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - waxsupply.wax_analysis; supplychain (wax as a material output)
+  - waxsupply.custom.wax_analysis; supplychain (wax as a material output)
 @see materialsScience/ wax materials (beeswax, carnauba-wax, ...)
 """
 

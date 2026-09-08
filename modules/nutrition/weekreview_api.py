@@ -23,7 +23,7 @@ N5 — the weekly review's read surface (pure data, nothing written):
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from nutrition.weekreview_analysis import (
+from nutrition.custom.weekreview_analysis import (
     SECTIONS, next_week_proposals, week_review, weekly_review_event_proposal,
 )
 

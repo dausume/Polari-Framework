@@ -104,7 +104,7 @@ SEED_SIMULATION_DEFINITIONS.append({
                    'grid: feed at sprue mouths, level-by-level '
                    'flood, air-escape bookkeeping (trapped pockets, '
                    'unfed chambers, counterflow), fill time vs pot '
-                   'life. Driven by the casting.fill_sim engine.',
+                   'life. Driven by the casting.fill_sim_basis engine.',
     'intent': 'feasibility',
     'participating_sim_state_classes_json': json.dumps([_CLS]),
     'time_step_seconds': 1.0,

@@ -37,7 +37,7 @@ from materialsScience.formulation_math import (
 
 _LEGACY_DATA_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    'modules', 'polariMaterialsScienceModule', 'initialData')
+    'modules', 'materials_science', 'initialData')
 
 
 def load_legacy_seed_data(dataDir=None):

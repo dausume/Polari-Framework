@@ -6,7 +6,7 @@
 The MaterialsScienceMaterial BASIS — one identity per material, with
 per-scale definitions as explicit, piecemeal-first rows.
 
-The legacy module (modules/polariMaterialsScienceModule/) grew THREE
+The legacy module (modules/materials_science/) grew THREE
 unlinked material roots: Material (property/resolution/purpose trees),
 RawMaterial (the seeded formulation world) and ReferenceMaterial
 (literature values). MaterialsScienceMaterial does not replace them —
@@ -195,7 +195,7 @@ class MaterialScaleDefinition(treeObject):
         # ('<material>#<state>'). '' = the canonical as-defined state —
         # which is every pre-pspp row, so legacy rows resolve through
         # canonical with no backfill (invariant I1; the one reader is
-        # pspp.state_resolution.scale_definitions_for_state).
+        # pspp.custom.state_resolution.scale_definitions_for_state).
         state_key: str = '',
         provenance_id: str = '',
         notes: str = '',

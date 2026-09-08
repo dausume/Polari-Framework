@@ -3,7 +3,7 @@
 @module scoring.authority_api
 @tags @xc:bindings @xc:accessControl
 
-HTTP surface for scoring.group_authority. Self-registering treeObject
+HTTP surface for scoring.group_authority_basis. Self-registering treeObject
 (ScoringAPI pattern). Identity: every handler prefers the
 Keycloak-verified principal placed on request.context by
 AuthContextMiddleware; payload-supplied subjects are accepted as
@@ -98,7 +98,7 @@ class AuthorityAPI(treeObject):
             return None
 
     def on_post_group_grant(self, request, response):
-        from scoring.group_authority import grant_group_authority
+        from scoring.group_authority_basis import grant_group_authority
         payload = self._payload(request, response)
         if payload is None:
             return
@@ -119,7 +119,7 @@ class AuthorityAPI(treeObject):
         response.media = result
 
     def on_post_group_revoke(self, request, response):
-        from scoring.group_authority import revoke_group_authority
+        from scoring.group_authority_basis import revoke_group_authority
         payload = self._payload(request, response)
         if payload is None:
             return
@@ -133,7 +133,7 @@ class AuthorityAPI(treeObject):
         response.media = result
 
     def on_post_instance_grant(self, request, response):
-        from scoring.group_authority import grant_instance_authority
+        from scoring.group_authority_basis import grant_instance_authority
         payload = self._payload(request, response)
         if payload is None:
             return
@@ -155,7 +155,7 @@ class AuthorityAPI(treeObject):
         response.media = result
 
     def on_post_instance_revoke(self, request, response):
-        from scoring.group_authority import revoke_instance_authority
+        from scoring.group_authority_basis import revoke_instance_authority
         payload = self._payload(request, response)
         if payload is None:
             return
@@ -169,7 +169,7 @@ class AuthorityAPI(treeObject):
         response.media = result
 
     def on_get_report(self, request, response):
-        from scoring.group_authority import authority_report
+        from scoring.group_authority_basis import authority_report
         response.media = authority_report(
             self.manager,
             group_name=request.get_param('group') or '',
@@ -177,7 +177,7 @@ class AuthorityAPI(treeObject):
             subject=request.get_param('subject') or '')
 
     def on_get_check(self, request, response):
-        from scoring.group_authority import authority_check
+        from scoring.group_authority_basis import authority_check
         principal = _principal(request)
         subject = ((principal or {}).get('subject')
                    or request.get_param('subject') or '')
@@ -196,7 +196,7 @@ class AuthorityAPI(treeObject):
         response.media = result
 
     def on_post_binding_propose(self, request, response):
-        from scoring.group_authority import propose_binding
+        from scoring.group_authority_basis import propose_binding
         payload = self._payload(request, response)
         if payload is None:
             return
@@ -217,7 +217,7 @@ class AuthorityAPI(treeObject):
 
     def on_post_binding_confirm_remote(self, request, response,
                                        name):
-        from scoring.group_authority import confirm_binding_remote
+        from scoring.group_authority_basis import confirm_binding_remote
         payload = self._payload(request, response)
         if payload is None:
             return
@@ -232,7 +232,7 @@ class AuthorityAPI(treeObject):
         response.media = result
 
     def on_post_binding_revoke(self, request, response, name):
-        from scoring.group_authority import revoke_binding
+        from scoring.group_authority_basis import revoke_binding
         payload = self._payload(request, response)
         if payload is None:
             return
@@ -245,14 +245,14 @@ class AuthorityAPI(treeObject):
         response.media = result
 
     def on_get_term_signals(self, request, response):
-        from scoring.group_authority import list_signals
+        from scoring.group_authority_basis import list_signals
         response.media = list_signals(
             self.manager,
             group_name=request.get_param('group') or '',
             status=request.get_param('status') or '')
 
     def on_post_term_signals(self, request, response):
-        from scoring.group_authority import (
+        from scoring.group_authority_basis import (
             submit_term_availability_signal,
         )
         payload = self._payload(request, response)
@@ -276,7 +276,7 @@ class AuthorityAPI(treeObject):
         response.media = result
 
     def on_get_term_signal(self, request, response, name):
-        from scoring.group_authority import signal_report
+        from scoring.group_authority_basis import signal_report
         report = signal_report(self.manager, name)
         if not report.get('ok'):
             response.status = '404 Not Found'

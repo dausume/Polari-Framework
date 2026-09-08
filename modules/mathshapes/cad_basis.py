@@ -11,7 +11,7 @@ Polari knobs). Sits alongside the MathShapeDefinition(family=
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - mathshapes.cad_import / mathshapes.cad_api
+  - mathshapes.custom.cad_import / mathshapes.cad_api
 @see /MATH_SHAPES_PLAN.md (PHASE shape-3)
 """
 

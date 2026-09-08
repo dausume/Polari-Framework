@@ -19,7 +19,7 @@ cal-4 — the meal-planning app's EVENT LAYER as data:
                      yearly (the 1st), coordination when a plan or an
                      entry changes and every Sunday for the week ahead
 
-Seeded through composition.seed_upsert from seed_mealplan_pages
+Seeded through composition.custom.seed_upsert from seed_mealplan_pages
 (converges on edit). After the upsert the coordination trigger is
 fired ONCE for the demo plan when no generated events exist yet, so
 a fresh node shows the week — recorded as a manual firing like any
@@ -31,7 +31,7 @@ other, dedupeBy keeps it idempotent.
 import json
 
 from polariNoCode import graph_builder as gb
-from nutrition.purchase_analysis import SLOT_TIMES
+from nutrition.custom.purchase_analysis import SLOT_TIMES
 
 HOUSEHOLD = 'demo-household'
 PERSON = 'demo-alex'
@@ -115,21 +115,21 @@ SEED_MEALPLAN_CALENDARS = [
 
 SEED_MEALPLAN_ANALYSES = [
     {'name': 'mealplan-weekly-purchase', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.purchase_analysis:weekly_purchase_proposal',
+     'callable_ref': 'nutrition.custom.purchase_analysis:weekly_purchase_proposal',
      'description': 'The week\'s priced shopping gap minus bulk-covered staples → '
                     'one purchase event proposal.',
      'params_json': json.dumps({'plan': 'MealPlanDefinition.name', 'household': '',
                                 'purchase_date': 'ISO date (default plan start)'}),
      'enabled': True, 'is_prior': True, 'provenance_id': 'cal-4'},
     {'name': 'mealplan-bulk-purchase', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.purchase_analysis:bulk_purchase_proposal',
+     'callable_ref': 'nutrition.custom.purchase_analysis:bulk_purchase_proposal',
      'description': 'Staples on one cadence: demand over the period vs stock, bulk '
                     'vs retail $/kg → one bulk-purchase event proposal.',
      'params_json': json.dumps({'household': '', 'cadence_months': '1|3|6|12',
                                 'purchase_date': 'ISO date'}),
      'enabled': True, 'is_prior': True, 'provenance_id': 'cal-4'},
     {'name': 'mealplan-coordinate-week', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.purchase_analysis:coordinate_week',
+     'callable_ref': 'nutrition.custom.purchase_analysis:coordinate_week',
      'description': 'purchase → pre-prep → meals (+ eating) → meal-prep (per person, '
                     'safety-bounded) + packing + dishes + the work allocation for a '
                     'plan week; every rule named.',
@@ -139,19 +139,19 @@ SEED_MEALPLAN_ANALYSES = [
      'enabled': True, 'is_prior': True, 'provenance_id': 'cal-4'},
     # mpc: plan the week (coverage, portions, apply a meal).
     {'name': 'mealplan-week-coverage', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.planning_analysis:week_coverage',
+     'callable_ref': 'nutrition.custom.planning_analysis:week_coverage',
      'description': 'Person × day × slot grid for a plan — planned / missing, named.',
      'params_json': json.dumps({'plan': 'MealPlanDefinition.name'}),
      'enabled': True, 'is_prior': True, 'provenance_id': 'mpc'},
     {'name': 'mealplan-apply-meal', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.planning_analysis:apply_meal_proposal',
+     'callable_ref': 'nutrition.custom.planning_analysis:apply_meal_proposal',
      'description': 'A meal → MealEntry proposals for slots × days with per-person portions.',
      'params_json': json.dumps({'plan': 'MealPlanDefinition.name', 'template': 'MealTemplate.name',
                                 'variation': '', 'slots': 'csv|all', 'days': 'csv|all',
                                 'person': '', 'scale': '0 = fit portions'}),
      'enabled': True, 'is_prior': True, 'provenance_id': 'mpc'},
     {'name': 'mealplan-portion-fit', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.planning_analysis:portion_fit',
+     'callable_ref': 'nutrition.custom.planning_analysis:portion_fit',
      'description': 'Per-person portion scales for one meal in one slot; the compromise stated. '
                     'objective=calories (default) or nutrients (weighted fit; sodium = ceiling).',
      'params_json': json.dumps({'template': 'MealTemplate.name', 'variation': '', 'slot': '',
@@ -161,29 +161,29 @@ SEED_MEALPLAN_ANALYSES = [
      'enabled': True, 'is_prior': True, 'provenance_id': 'mpc'},
     # mpt: per-person tracking over time + the "log it" forms.
     {'name': 'mealplan-periods', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.tracking_periods:period_summary',
+     'callable_ref': 'nutrition.custom.tracking_periods:period_summary',
      'description': 'Week / month means per logged day vs the person\'s own lines; consistency.',
      'params_json': json.dumps({'person': 'PersonProfile.name', 'kind': 'week|month'}),
      'enabled': True, 'is_prior': True, 'provenance_id': 'mpt'},
     {'name': 'mealplan-intake-proposal', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.tracking_periods:intake_proposal',
+     'callable_ref': 'nutrition.custom.tracking_periods:intake_proposal',
      'description': 'The "log what I ate" form → one validated IntakeRecord row.',
      'params_json': json.dumps({'person': '', 'date_iso': '', 'slot': '', 'template': '',
                                 'variation': '', 'scale': 1.0, 'time_hhmm': ''}),
      'enabled': True, 'is_prior': True, 'provenance_id': 'mpt'},
     {'name': 'mealplan-weight-proposal', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.tracking_periods:weight_proposal',
+     'callable_ref': 'nutrition.custom.tracking_periods:weight_proposal',
      'description': 'The "log my weight" form → one validated WeightObservation row.',
      'params_json': json.dumps({'person': '', 'date_iso': '', 'weight_kg': 0.0, 'context': ''}),
      'enabled': True, 'is_prior': True, 'provenance_id': 'mpt'},
     # mlg-1..4: the logistics analyses, callable from no-code. hh-1:
-    # the household-generic ones resolve to household.household_analysis
+    # the household-generic ones resolve to household.custom.household_analysis
     # (the upsert rewrites the live rows' callable_ref; names unchanged).
     *[{'name': f'mealplan-{n}', 'domain': 'nutrition',
-       'callable_ref': (f'household.household_analysis:{fn}'
+       'callable_ref': (f'household.custom.household_analysis:{fn}'
                         if fn in ('availability_windows', 'assign_work',
                                   'fairness_readout', 'refine_speed_factors')
-                        else f'nutrition.logistics_analysis:{fn}'), 'description': d,
+                        else f'nutrition.custom.logistics_analysis:{fn}'), 'description': d,
        'params_json': json.dumps(p), 'enabled': True, 'is_prior': True,
        'provenance_id': 'mlg-1'} for n, fn, d, p in (
         ('availability', 'availability_windows', 'A person\'s busy blocks + free windows from their PersonSchedule rows.',
@@ -406,7 +406,7 @@ SEED_MEALPLAN_TRIGGERS = [
 def seed_mealplan_calendar(manager):
     """Upsert the event layer, then fire the coordination once for
     the demo plan if nothing has been generated yet."""
-    from composition.seed_upsert import upsert_seed_pairs
+    from composition.custom.seed_upsert import upsert_seed_pairs
     from polariApiServer.eventDefinition import EventDefinition
     from polariApiServer.calendarDefinition import CalendarDefinition
     from polariApiServer.solutionDefinition import SolutionDefinition

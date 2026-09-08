@@ -27,7 +27,7 @@ always win (PersonThreshold overrides carry them).
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.condition_analysis, mealplanning_api
+  - nutrition.custom.condition_analysis, mealplanning_api
 @see AI-Notes/plans/MEAL_PLANNING_APP_PLAN.md §3b mpb-2
 """
 

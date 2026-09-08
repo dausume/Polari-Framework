@@ -21,4 +21,4 @@ seconds); `cnt-engines/vendor` (binaries — `fetch-vendor.sh`).
 
 Refresh only when a library or derivation actually changed (each refresh
 is ~0.8 MB of git history): `polari-cli/shells/snapshot-cntfet-data.sh`.
-Check: `cd modules && PYTHONPATH=..:../polariApiServer python3 -m cntfet.selftest_snapshot`
+Check: `cd modules && PYTHONPATH=..:../polariApiServer python3 -m cntfet.snapshot_selftest`

@@ -10,7 +10,7 @@ report may never quietly pick the flattering end, and the worm row
 design is sane. Every type also states how it would be MADE in our
 stack: a gear we cannot mold, print or cut is a simulation toy.
 
-@consumers polariServer (seed_pairs), gears.selftest_gears
+@consumers polariServer (seed_pairs), gears.gears_selftest
 """
 
 PROV = 'gr-1'

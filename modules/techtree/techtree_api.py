@@ -18,7 +18,7 @@ import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from techtree.techtree_analysis import (
+from techtree.custom.techtree_analysis import (
     active_tree_name, baseline_report, sync_edges, tree_completion,
     tree_payload, validate_tree,
 )
@@ -26,7 +26,7 @@ from techtree.techtree_basis import (
     TechDependencyEdge, TechNode, TechSegment, TechSegmentAssignment,
     TechTreeDefinition,
 )
-from techtree.techtree_content import (
+from techtree.techtree_content_basis import (
     BusinessModelDefinition, BusinessOutcome, PolicyDefinition,
     RealArtifact,
 )
@@ -267,5 +267,5 @@ class TechTreeAPI(treeObject):
                      self._POLICY_FIELDS)
 
     def on_get_wire_strain(self, request, response):
-        from techtree.wire_ladder import drawing_strain
+        from techtree.custom.wire_ladder import drawing_strain
         response.media = drawing_strain()

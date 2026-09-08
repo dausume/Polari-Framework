@@ -22,7 +22,7 @@ Honesty pinned here so it travels on every payload:
 - backlash is a first-class column — cast (T0) parts have a lot of
   it, and a reduction train ACCUMULATES it.
 
-@consumers gears.gear_kinematics, gears.gear_api, polariServer
+@consumers gears.custom.gear_kinematics, gears.gear_api, polariServer
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit

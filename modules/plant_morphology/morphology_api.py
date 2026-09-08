@@ -22,7 +22,7 @@ Organ/root models are edited through CRUDE (object-coherence).
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from plant_morphology.morphology_analysis import (
+from plant_morphology.custom.morphology_analysis import (
     confinement_assessment, organ_geometry, root_spread,
 )
 

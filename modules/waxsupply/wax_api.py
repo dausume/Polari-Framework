@@ -19,7 +19,7 @@ Sources are edited through CRUDE (object-coherence).
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from waxsupply.wax_analysis import (
+from waxsupply.custom.wax_analysis import (
     hydroponic_wax_sources, wax_catalog, wax_for_use, wax_yield,
 )
 

@@ -58,7 +58,7 @@ SEED_GRAPH_COMPILERS = [
     {
         'name': 'judicial-fork',
         'domain': 'judicial',
-        'compiler_ref': 'scoring.court_case:compile_fork_graph',
+        'compiler_ref': 'scoring.court_case_basis:compile_fork_graph',
         'description': 'One decision-procedure fork + its resolved '
                        'criterion + its edge-declared outcomes -> '
                        'one small executable SolutionDefinition '
@@ -68,7 +68,7 @@ SEED_GRAPH_COMPILERS = [
     {
         'name': 'hwdigital-logic',
         'domain': 'hwdigital',
-        'compiler_ref': 'hwdigital.logic_compile:compile_logic_design',
+        'compiler_ref': 'hwdigital.logic_compile_seed:compile_logic_design',
         'description': 'LogicBlockNode diagram rows -> synthesizable '
                        'Verilog + self-checking bench (python '
                        'reference evaluator supplies expected '
@@ -78,7 +78,7 @@ SEED_GRAPH_COMPILERS = [
     {
         'name': 'circuit-netlist',
         'domain': 'circuit',
-        'compiler_ref': 'electrodevice.circuit_netlist'
+        'compiler_ref': 'electrodevice.circuit_netlist_seed'
                         ':compile_circuit',
         'description': 'Circuit rows (components wired by net) -> a '
                        'runnable SPICE netlist; device components '
@@ -89,7 +89,7 @@ SEED_GRAPH_COMPILERS = [
     {
         'name': 'data-gathering',
         'domain': 'scoring',
-        'compiler_ref': 'scoring.data_gathering'
+        'compiler_ref': 'scoring.data_gathering_basis'
                         ':compile_gathering_solution',
         'description': "An organization's data-gathering procedure "
                        '(collection/submission/validation/'
@@ -101,7 +101,7 @@ SEED_GRAPH_COMPILERS = [
     {
         'name': 'breadboard-netlist',
         'domain': 'circuit',
-        'compiler_ref': 'electrodevice.breadboard_netlist'
+        'compiler_ref': 'electrodevice.breadboard_netlist_seed'
                         ':compile_breadboard',
         'description': 'ComponentPlacement + BoardJumper rows -> a '
                        'runnable SPICE netlist; tie-point '
@@ -113,7 +113,7 @@ SEED_GRAPH_COMPILERS = [
     {
         'name': 'magnetic-netlist',
         'domain': 'magnetics',
-        'compiler_ref': 'magnetics.magnetic_netlist'
+        'compiler_ref': 'magnetics.magnetic_netlist_seed'
                         ':compile_magnetic',
         'description': 'MagneticElementDefinition/FluxNodeDefinition'
                        ' rows -> a solved reluctance network '

@@ -30,7 +30,7 @@ SEED_POT_SYSTEMS = [
         'plant_name': 'sweet-basil',
         'atmosphere_name': 'ventilated-grow-tent',
         # plant-growth-sim phase 8 (2026-07-15) — binds the REAL
-        # computed light-field path (aquaponics.light_field) alongside
+        # computed light-field path (aquaponics.custom.light_field) alongside
         # the static atmosphere_name.light_ppfd_umol_m2_s field the
         # 'light' stress curve already used; see aquaponics.light_seed
         # for the source's own docstring on why its intensity_w_m2

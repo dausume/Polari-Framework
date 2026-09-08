@@ -24,14 +24,14 @@ members with NO interface rows is 'I do not know' — stated, with the
 member pairs that need rows.
 
 @consumers polariServer seed passes, composition.composition_seed,
-composition.selftest_composition
+composition.composition_selftest
 """
 
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from composition.data_refs import resolve_named, rows
+from composition.custom.data_refs import resolve_named, rows
 
 #: Levels a node can DECLARE ('' = no declaration). 'subassembly'
 #: is positional: an assembly that is itself a member of another

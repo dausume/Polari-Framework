@@ -169,36 +169,36 @@ objects).
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from scoring.abstraction import suggest_scores_for_assertion
-from scoring.assertions import tally_validity, transition_assertion
-from scoring.contributors import contributor_record
-from scoring.data_ingestion import ingest_from_class, ingest_records
-from scoring.group_aggregation import (
+from scoring.custom.abstraction import suggest_scores_for_assertion
+from scoring.assertions_basis import tally_validity, transition_assertion
+from scoring.contributors_basis import contributor_record
+from scoring.custom.data_ingestion import ingest_from_class, ingest_records
+from scoring.custom.group_aggregation import (
     aggregate_group, all_groups_consensus, compare_groups,
 )
-from scoring.group_bias import group_bias_report
-from scoring.media_accuracy import check_claim, outlet_accuracy
-from scoring.policy_scoring import score_policy
-from scoring.policy_votes import ingest_votes_from_class
-from scoring.politician_scoring import cohort_report, politician_score
-from scoring.scoring_engine import score_concept
-from scoring.specificity import (
+from scoring.group_bias_basis import group_bias_report
+from scoring.media_accuracy_basis import check_claim, outlet_accuracy
+from scoring.custom.policy_scoring import score_policy
+from scoring.policy_votes_basis import ingest_votes_from_class
+from scoring.custom.politician_scoring import cohort_report, politician_score
+from scoring.custom.scoring_engine import score_concept
+from scoring.custom.specificity import (
     check_concept_specificity, suggest_critical_contexts,
 )
-from scoring.survival_costs import (
+from scoring.survival_costs_basis import (
     submit_survival_profile, survival_report, survival_walkthrough,
 )
-from scoring.group_display_vote import (
+from scoring.group_display_vote_basis import (
     apply_display_vote, tally_display_vote,
 )
-from scoring.logic_fork_vote import (
+from scoring.logic_fork_vote_basis import (
     apply_logic_fork_vote, resolved_procedure_summary,
     tally_logic_fork_vote,
 )
-from scoring.system_choice_implications import (
+from scoring.system_choice_implications_basis import (
     compare_outcomes_by_system_choice,
 )
-from scoring.worldview_elections import apply_election, tally_election
+from scoring.worldview_elections_basis import apply_election, tally_election
 
 
 class ScoringAPI(treeObject):
@@ -742,7 +742,7 @@ class ScoringAPI(treeObject):
     # --- ncg-2: court cases on the compiled-fork-graph seam ---
 
     def on_post_court_case_create(self, request, response):
-        from scoring.court_case import create_court_case
+        from scoring.court_case_basis import create_court_case
         try:
             payload = json.load(request.bounded_stream)
         except Exception as e:
@@ -765,7 +765,7 @@ class ScoringAPI(treeObject):
         response.media = result
 
     def on_post_court_case_advance(self, request, response, name):
-        from scoring.court_case import advance_case
+        from scoring.court_case_basis import advance_case
         try:
             payload = json.load(request.bounded_stream)
         except Exception as e:
@@ -781,7 +781,7 @@ class ScoringAPI(treeObject):
         response.media = result
 
     def on_get_court_case(self, request, response, name):
-        from scoring.court_case import case_report
+        from scoring.court_case_basis import case_report
         report = case_report(self.manager, name)
         if not report.get('ok'):
             response.status = '404 Not Found'

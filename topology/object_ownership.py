@@ -19,7 +19,7 @@ The chain, every link of which already existed separately:
 
     object class
       -> OWNING MODULE      the module whose source defines the
-                            treeObject (resources.profile_analysis
+                            treeObject (resources.custom.profile_analysis
                             .scan_module_source)
       -> RESPONSIBLE PRF    the instance(s) that module is assigned to
                             (ModuleAssignment, state='enabled')
@@ -72,7 +72,7 @@ def class_owners(root: str = None) -> Dict[str, Any]:
     code the way a hand-maintained registry would.
     """
     import os
-    from resources.profile_analysis import scan_module_source
+    from resources.custom.profile_analysis import scan_module_source
 
     base = root or '/app'
     modules_dir = os.path.join(base, 'modules')

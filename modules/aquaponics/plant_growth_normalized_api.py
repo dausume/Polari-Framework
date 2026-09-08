@@ -28,7 +28,7 @@ new business logic here.
         the animation-bones vector graph (plant_skeleton.
         generate_skeleton) — ready to feed a future pot-plant
         SimSpace geometry, same "live-computed" pattern as
-        aquaponics.hydraulics.water_slice_mesh. Query:
+        aquaponics.custom.hydraulics.water_slice_mesh. Query:
         ?maxGenerations=<n>&maxBones=<n>
   GET  /api/aquaponics/plantings/{name}/stress
         phase 7 — every part's per-stress-type breakdown (Liebig's-
@@ -54,14 +54,14 @@ new business logic here.
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from aquaponics.plant_growth_normalized import (
+from aquaponics.plant_growth_normalized_basis import (
     _named, advance_growth, constrained_limits, current_canopy_profile,
     current_root_profile, free_soil_constants, overall_normalized_growth,
 )
-from aquaponics.plant_skeleton import (
+from aquaponics.custom.plant_skeleton import (
     DEFAULT_MAX_BONES, DEFAULT_MAX_GENERATIONS, generate_skeleton,
 )
-from aquaponics.plant_stress import (
+from aquaponics.plant_stress_basis import (
     combined_stress_factor, part_stress_factors, sweep_curve,
 )
 

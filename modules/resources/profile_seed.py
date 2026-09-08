@@ -10,7 +10,7 @@ where we have it (image sizes are the real `docker image ls` sizes
 
 @consumers
   - polariServer seed_pairs (idempotent-by-name)
-  - resources.selftest_profiles
+  - resources.profiles_selftest
 """
 
 SEED_MODULE_RESOURCE_PROFILES = [

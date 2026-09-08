@@ -16,8 +16,8 @@ on the row. Object coherence: the device, its SPICE card, and every
 circuit run are rows in the tree, configurable AT the row.
 
 @consumers
-  - electrodevice.device_derive (derivation + card rendering)
-  - electrodevice.spice_run (ngspice circuit tests)
+  - electrodevice.custom.device_derive (derivation + card rendering)
+  - electrodevice.custom.spice_run (ngspice circuit tests)
   - electrodevice.device_api (the knob surface)
   - polariServer (registration + seed)
 """

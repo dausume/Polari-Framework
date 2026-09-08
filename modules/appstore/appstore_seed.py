@@ -8,7 +8,7 @@ for every other PolariAppDefinition row — un-shelled apps list with
 installable=False + the affordance to publish one, so seeding a
 shell per app would be duplicate state, not coverage.
 
-Seeded through composition.seed_upsert (is_prior discipline): rows a
+Seeded through composition.custom.seed_upsert (is_prior discipline): rows a
 person edits (is_prior=False) are never touched again.
 
 ai-0 adds SEED_AI_TOOLS: the four tools Dustin named, with honest

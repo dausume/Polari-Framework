@@ -14,7 +14,7 @@ The gas-exchange + VPD MATH lives in atmosphere_analysis.py.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - aquaponics.atmosphere_analysis / aquaponics.atmosphere_api
+  - aquaponics.custom.atmosphere_analysis / aquaponics.atmosphere_api
 @see /AQUAPONICS_MODULE_PLAN.md
 """
 

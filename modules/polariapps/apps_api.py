@@ -21,10 +21,10 @@ from datetime import datetime, timezone
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from polariapps.apps_analysis import (
+from polariapps.custom.apps_analysis import (
     app_plan, apply_app, export_app, validate_app_document,
 )
-from polariapps.apps_nav import app_nav_report, apps_nav
+from polariapps.custom.apps_nav import app_nav_report, apps_nav
 from polariapps.apps_basis import (
     AppDeploymentPlan, PolariAppDefinition,
 )
@@ -141,7 +141,7 @@ class AppsAPI(treeObject):
         with which verbs, plus the enforcement MODE so the shell can
         act honestly (auto-route only when the system is on)."""
         from accessControl.app_permissions_gate import gate_mode
-        from polariapps.apps_permissions import resolve_grants
+        from polariapps.apps_permissions_basis import resolve_grants
         ctx = getattr(request, 'context', None)
         user_info = getattr(ctx, 'user_info', None)
         grants = resolve_grants(self.manager, user_info)
@@ -152,7 +152,7 @@ class AppsAPI(treeObject):
     def on_get_permissions_profiles(self, request, response):
         """The profile rows (no secrets live here — grants are
         group NAMES; membership stays in Keycloak)."""
-        from polariapps.apps_permissions import (
+        from polariapps.apps_permissions_basis import (
             classes_for_app)
         rows = []
         for row in self._table('AppPermissionProfile').values():

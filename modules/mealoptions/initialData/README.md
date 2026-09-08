@@ -15,9 +15,9 @@ What may live here vs. what never does (plan §1, in two lines):
 |---|---|
 | MealTemplate, VariationDefinition, Recipe, IngredientLine, CookingStep, DishBase, IngredientRole, FoodRole, IngredientAffinity, KitchenToolDefinition, CookingTaskDefinition, StepMethod, StorageActionDefinition, CookingWorkflow, MealSituation, BulkStaple (location pointers blank), PriceReference (food × month × source type × chain × coarse region; purchaser, place, day stripped) | MealPlanDefinition, MealEntry, Person*, Household*, PantryItem, SourceLocation, PriceObservation, everything under household/ |
 
-`mealoptions/export_hook.py` enforces the line on every export
-(`strip_fields` + `filter_row`); `mealoptions.selftest_privacy` proves
+`mealoptions/custom/export_hook.py` enforces the line on every export
+(`strip_fields` + `filter_row`); `mealoptions.privacy_selftest` proves
 no stripped field name can appear in a written file. Check:
-`cd modules && PYTHONPATH=..:../polariApiServer python3 -m mealoptions.selftest_privacy`.
+`cd modules && PYTHONPATH=..:../polariApiServer python3 -m mealoptions.privacy_selftest`.
 Publish carries these files: `pol modules publish mealoptions`
 (or `polari-cli/shells/push-all-dev.sh`).

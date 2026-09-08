@@ -20,8 +20,10 @@ Routes:
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from waxprint import (melt_analysis, bead_analysis, movement_analysis,
-                      print_optimizer)
+from waxprint.custom import melt_analysis
+from waxprint.custom import bead_analysis
+from waxprint.custom import movement_analysis
+from waxprint.custom import print_optimizer
 
 _INTERNAL_ATTRS = {
     'manager', 'id', 'branch', 'inTree', 'objectTyping', 'objectRefs',
@@ -96,7 +98,7 @@ class WaxPrintAPI(treeObject):
         command's inputs, outputs, and whether it's computable, plus the
         scalar OVERRIDE inputs every physics command accepts. Lets an
         author discover what is manipulable from a solution graph."""
-        from waxprint.commands import COMMAND_SPECS, OVERRIDE_INPUTS
+        from waxprint.custom.commands import COMMAND_SPECS, OVERRIDE_INPUTS
         response.media = {
             'ok': True, 'operation': 'WaxPrintOperation',
             'override_inputs': OVERRIDE_INPUTS, 'commands': COMMAND_SPECS}

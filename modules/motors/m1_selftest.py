@@ -1,0 +1,949 @@
+"""
+@module motors.m1_selftest
+
+M1 selftests (m1-1 solver, m1-2 views).
+
+m1-1: the step-angle arithmetic pinned BOTH ways
+(360/(phases*poles) and the slot/pole difference formula), the
+no-load 12-step revolution, the HAND-CHECKED first-step angle,
+reversal, load lag (equilibrium settles short of aligned),
+overload missing steps with the position error telescoping to the
+sum of named shortfalls, refusals (wrong topology, unknown
+slot/pole counts, zero-load bisect), and the current bisect
+landing near the hand value I_rated*sqrt(load/peak).
+
+Run from polari-framework/: python3 -m motors.m1_selftest
+"""
+
+import json
+import math
+import types
+
+from magnetics.magnet_seed import (
+    SEED_MATERIAL_OPTIONS, SEED_USE_ROLES,
+)
+from motors.motor_basis import SEED_MOTOR_DESIGNS
+from motors.custom.m1_sequencing import (
+    PHASES, POLES, SLOTS, STEP_DEG, holding_torque,
+    m1_minimum_drive_current, pull_in_load_limit, sequence_sim,
+)
+from motors.custom.m1_sequencing import _geometry, _m1_design, _settle
+from motors.m1_relations_seed import arc_rule_report, overlap_model_gap
+from motors.motor_shapes_seed import SEED_M1_PART_SHAPES
+
+PASS = '\033[92mPASS\033[0m'
+FAIL = '\033[91mFAIL\033[0m'
+_results = []
+
+
+def check(label, cond, extra=''):
+    _results.append(bool(cond))
+    print(f'{PASS if cond else FAIL}: {label}'
+          + (f'  [{extra}]' if extra and not cond else ''))
+
+
+def _mgr():
+    m = types.SimpleNamespace()
+
+    def table(seed):
+        return {s['name']: types.SimpleNamespace(**s) for s in seed}
+    m.objectTables = {
+        'MagneticMaterialOption': table(SEED_MATERIAL_OPTIONS),
+        'MotorDesignDefinition': table(SEED_MOTOR_DESIGNS),
+    }
+    return m
+
+
+mgr = _mgr()
+M1 = 'reluctance-6s4p-m1'
+_TOOTH_P = json.loads(
+    [s for s in SEED_M1_PART_SHAPES
+     if s['name'] == 'motor-m1-stator-tooth'][0]['parameters_json'])
+_M1PARAMS = json.loads(
+    [d for d in SEED_MOTOR_DESIGNS if d['name'] == M1][0]
+    ['params_json'])
+
+print('== suite: m1-1 step arithmetic ==')
+check('30 deg/step from 360/(phases*poles)',
+      abs(STEP_DEG - 360.0 / (PHASES * POLES)) < 1e-12
+      and abs(STEP_DEG - 30.0) < 1e-12)
+check('the slot/pole difference formula agrees: '
+      '360*(1/poles - 1/slots) is the SAME 30',
+      abs(360.0 * (1.0 / POLES - 1.0 / SLOTS) - STEP_DEG) < 1e-12)
+
+print('== suite: cons-3 the exact arc overlap (adopted) ==')
+_rule = arc_rule_report(mgr, M1)
+check('the SRM ARC RULES all hold on the seeded shapes — and the '
+      'binding one is beta_s >= the step angle (this is the rule '
+      'the adoption caught false at 27.55 deg: widened to 32)',
+      _rule.get('ok') and _rule['allHold']
+      and _rule['toothArcDeg'] >= _rule['stepAngleDeg'],
+      json.dumps(_rule.get('checks'))[:300])
+check('the tooth arc comes OUT of the tooth shape row (width / '
+      'r_face), not a restated number',
+      abs(_rule['toothArcDeg']
+          - math.degrees(2.0 * math.asin(
+              _TOOTH_P['width'] / 2.0 / _TOOTH_P['r_face'])))
+      < 1e-3)
+_gapr = overlap_model_gap(mgr, M1)
+check('ADOPTION GUARD: the solver\'s own overlap and the exact '
+      'arc overlap are the SAME curve (deviation ~0) — what used '
+      'to be a named gap is now a regression guard',
+      _gapr.get('ok') and _gapr['adopted']
+      and _gapr['worstDeviation'] < 1e-9,
+      json.dumps(_gapr)[:200])
+check('and the RETIRED first-harmonic stand-in is still visible '
+      'in the report, deviating by a stated amount',
+      _gapr.get('ok') and _gapr['retiredModelDeviation'] > 0.05
+      and 'retiredFirstHarmonic' in _gapr['samples'][0])
+check('two-modules-agree: the tooth arc face area IS the design '
+      'row\'s tooth_area_m2 (one geometry, two statements)',
+      abs(math.radians(_rule['toothArcDeg'])
+          * _TOOTH_P['r_face'] * _TOOTH_P['height']
+          - _M1PARAMS['tooth_area_m2'] * 1e6) < 0.05,
+      f"arc={math.radians(_rule['toothArcDeg']) * 84.42:.3f}")
+
+print('== suite: m1-1 no-load sequencing ==')
+seq = sequence_sim(mgr, M1, steps=12)
+_HALF_BAND = seq['alignmentBand']['halfBandDeg']
+check('12 commanded steps all land (no load, rated current)',
+      seq.get('ok') and seq['stepsTaken'] == 12
+      and seq['stepsMissed'] == 0, json.dumps(seq)[:200])
+check('THE REST BAND is beta_r - beta_s straight out of the two '
+      'shape rows — a flat, zero-torque alignment, so rest is a '
+      'band and not a point',
+      abs(seq['alignmentBand']['bandDeg']
+          - (_rule['poleArcDeg'] - _rule['toothArcDeg'])) < 1e-9
+      and seq['alignmentBand']['reversalBacklashDeg']
+      == seq['alignmentBand']['bandDeg'])
+check('one full revolution: actual rotation is 360 deg less the '
+      'one-time band offset (the walk rests at the edge it '
+      'arrives at), never more',
+      seq.get('ok')
+      and 0.0 <= (360.0 - seq['positionComparison']
+                  ['actualRotationDeg']) <= _HALF_BAND)
+check('HAND CHECK: latch holds phase-0 aligned (0 deg), first '
+      'step settles a band half-width short of 30 deg',
+      seq.get('ok')
+      and abs(seq['history'][0]['thetaDeg']) < 0.6
+      and abs(seq['history'][1]['thetaDeg']
+              - (30.0 - _HALF_BAND)) <= 0.3)
+check('and every step AFTER the first advances EXACTLY 30 deg — '
+      'the band offsets position once, it does not accumulate',
+      seq.get('ok')
+      and all(abs(h['advancedDeg'] - 30.0) < 1e-9
+              for h in seq['history'][2:]))
+check('the payload states its honesty: named gaps + speed '
+      'assumption + no-unpowered-detent fact',
+      seq.get('ok') and len(seq['namedGaps']) == 3
+      and 'ASSUMED' in seq['speedAssumption']['note']
+      and 'holds NOTHING' in seq['noUnpoweredDetent'])
+
+rev = sequence_sim(mgr, M1, steps=12, direction=-1)
+check('reversed phase order walks -30 deg/step to -360 (mirror '
+      'image, band offset included)',
+      rev.get('ok') and rev['stepsTaken'] == 12
+      and 0.0 <= (360.0 - rev['positionComparison']
+                  ['actualRotationDeg']) <= _HALF_BAND
+      and abs(rev['history'][1]['thetaDeg']
+              - (360.0 - 30.0 + _HALF_BAND)) <= 0.3)
+_geo = _geometry(mgr, _m1_design(mgr, M1))
+_from_below = _settle(_geo, 1, 20.0)
+_from_above = _settle(_geo, 1, 40.0)
+check('BACKLASH, DIRECTLY: settling into the SAME phase-1 '
+      'alignment from below and from above rests a full band '
+      'apart — the lost motion a reversal costs, from geometry '
+      'and nothing else',
+      abs((_from_above - _from_below)
+          - seq['alignmentBand']['bandDeg']) <= 2 * 0.25,
+      f'below={_from_below} above={_from_above}')
+
+print('== suite: m1-1 holding torque + load behavior ==')
+hold = holding_torque(mgr, M1)
+peak = hold.get('peakTorqueNm', 0.0)
+check('holding torque exists and is honestly FEEBLE at mu~2 '
+      '(between 1e-6 and 1e-3 Nm)',
+      hold.get('ok') and 1e-6 < peak < 1e-3,
+      f'peak={peak}')
+hold2 = holding_torque(mgr, M1, amps=1.0)
+check('torque scales as current squared (2x amps -> ~4x torque)',
+      hold2.get('ok')
+      and abs(hold2['peakTorqueNm'] / peak - 4.0) < 0.2)
+
+_pil = pull_in_load_limit(mgr, M1)
+check('PULL-IN sits well below holding torque — and cons-3 made '
+      'the split WIDER (0.17x, was 0.32x under the smooth '
+      'stand-in): peak torque lives at the dead-zone edge, but '
+      'the rotor has to finish near alignment where the exact '
+      'profile has flattened out',
+      _pil.get('ok') and 0.10 < _pil['ratioToHolding'] < 0.25,
+      f"ratio={_pil.get('ratioToHolding')}")
+lag = sequence_sim(mgr, M1, steps=12,
+                   load_torque_nm=0.99 * _pil['pullInLimitNm'])
+check('a load just inside the pull-in limit: all 12 steps still '
+      'land',
+      lag.get('ok') and lag['stepsMissed'] == 0,
+      json.dumps(lag.get('history', [])[:3]))
+check('but the rotor settles SHORT of the band (load-angle lag '
+      '— it hangs on the flank where torque balances the load, '
+      'instead of coasting into the flat)',
+      lag.get('ok')
+      and 14.0 < lag['history'][1]['thetaDeg']
+      < seq['history'][1]['thetaDeg'] - 1.0,
+      f"theta1={lag.get('history', [{}, {}])[1].get('thetaDeg')}")
+
+over = sequence_sim(mgr, M1, steps=6,
+                    load_torque_nm=3.0 * peak)
+check('overload: steps are MISSED and say so',
+      over.get('ok') and over['stepsMissed'] > 0)
+check('the position error telescopes to the sum of the named '
+      'per-step shortfalls (two paths, one number)',
+      over.get('ok')
+      and abs(over['positionComparison']['positionErrorDeg']
+              - sum(h['shortfallDeg']
+                    for h in over['history'][1:])) < 0.5)
+
+print('== suite: m1-1 refusals ==')
+ref = sequence_sim(mgr, 'clock-lavet-m0')
+check('a Lavet design is refused (the sequencing sim is the M1 '
+      'rung)', not ref.get('ok')
+      and 'radial-reluctance' in ref.get('refusal', ''))
+mgr.objectTables['MotorDesignDefinition']['reluctance-8s6p-x'] = \
+    types.SimpleNamespace(
+        name='reluctance-8s6p-x', topology='radial-reluctance',
+        params_json=json.dumps({
+            'stator_material': 'opt-geopolymer-ferrite',
+            'rotor_material': 'opt-geopolymer-ferrite',
+            'slots': 8, 'poles': 6, 'gap_base_m': 6e-4,
+            'tooth_area_m2': 4e-5, 'coil_turns': 300,
+            'coil_amps': 0.5, 'saliency_ratio': 3.0}),
+        drive_json='{}')
+ref2 = sequence_sim(mgr, 'reluctance-8s6p-x')
+check('unknown slot/pole counts get a refusal naming the '
+      'alignment map, not a guess',
+      not ref2.get('ok')
+      and 'alignment map' in ref2.get('refusal', ''))
+
+print('== suite: m1-1 minimum drive current ==')
+zero = m1_minimum_drive_current(mgr, M1)
+check('zero load is a REFUSAL, not a zero-amp answer (no detent, '
+      'no friction — nothing to bisect against)',
+      not zero.get('ok')
+      and 'no detent' in zero.get('refusal', ''))
+load = 0.5 * _pil['pullInLimitNm']
+mdc = m1_minimum_drive_current(mgr, M1, load_torque_nm=load)
+pull_out = 0.5 * math.sqrt(load / peak)
+check('bisect solves a threshold below the stated 0.5 A',
+      mdc.get('ok') and 0.0 < mdc['thresholdAmps'] < 0.5,
+      json.dumps(mdc)[:200])
+check('PULL-IN GOVERNS: the threshold sits ABOVE the naive '
+      'peak-torque (pull-out) bound I_rated*sqrt(load/peak) — '
+      'the lagged start sits deep in the next phase\'s weak-'
+      'torque zone, so the weakest point of the TRAVEL decides',
+      mdc.get('ok') and mdc['thresholdAmps'] > pull_out * 1.2,
+      f'pull_out={pull_out:.4g} got={mdc.get("thresholdAmps")}')
+th = mdc.get('thresholdAmps') or 0.5
+above = sequence_sim(mgr, M1, steps=12, load_torque_nm=load,
+                     amps=th * 1.02)
+below = sequence_sim(mgr, M1, steps=12, load_torque_nm=load,
+                     amps=th * 0.95)
+check('the threshold is REAL: 2% above it every step lands, '
+      '5% below it steps miss',
+      above.get('ok') and above['stepsMissed'] == 0
+      and below.get('ok') and below['stepsMissed'] > 0)
+check('margin applied and honesty stated',
+      mdc.get('ok')
+      and abs(mdc['designedAmps']
+              - mdc['thresholdAmps'] * mdc['marginFactor'])
+      < 1e-6
+      and 'not a measurement' in mdc['honesty'])
+
+print('== suite: m1-2 views as rows ==')
+from motors.clock_views_basis import (        # noqa: E402
+    DISCIPLINES, SECTION_SOURCES, view_payload,
+)
+from motors.m1_views_seed import (           # noqa: E402
+    M1_DESIGN, M1_SECTION_SOURCES, SEED_M1_VIEWS,
+    m1_phase_electrics,
+)
+from motors.motor_drive_basis import (        # noqa: E402
+    SEED_CONTROLLER_PROFILES, SEED_PHASE_BINDINGS,
+)
+from motors.motor_parts_basis import SEED_MOTOR_PARTS  # noqa: E402
+
+
+def _table(seed):
+    return {s['name']: types.SimpleNamespace(**s) for s in seed}
+
+
+from motors.m1_positioning_basis import (     # noqa: E402
+    SEED_AXIS_REQUIREMENTS,
+)
+
+vm = _mgr()
+vm.objectTables['ClockViewDefinition'] = _table(SEED_M1_VIEWS)
+vm.objectTables['MotorControllerProfile'] = _table(
+    SEED_CONTROLLER_PROFILES)
+vm.objectTables['PhaseBindingDefinition'] = _table(
+    SEED_PHASE_BINDINGS)
+vm.objectTables['MotorPartDefinition'] = _table(SEED_MOTOR_PARTS)
+vm.objectTables['PrinterAxisRequirement'] = _table(
+    SEED_AXIS_REQUIREMENTS)
+vm.objectTables['MaterialUseRole'] = _table(SEED_USE_ROLES)
+vm.objectTypingDict = {k: object() for k in vm.objectTables}
+
+check('six M1 views seeded, disciplines all legal, M1 names',
+      len(SEED_M1_VIEWS) == 6
+      and all(v['name'].startswith('view-m1-')
+              for v in SEED_M1_VIEWS)
+      and {v['discipline'] for v in SEED_M1_VIEWS}
+      <= set(DISCIPLINES))
+check('every M1 section source resolves in the ONE dispatch '
+      'table (registration at import, proven)',
+      all(s['source'] in SECTION_SOURCES
+          for v in SEED_M1_VIEWS
+          for s in json.loads(v['sections_json']))
+      and set(M1_SECTION_SOURCES) <= set(SECTION_SOURCES))
+check('nav-4 idiom: every section LEADS, and every section pins '
+      'design=reluctance-6s4p-m1 (no M0 leak through the caller '
+      'default)',
+      all(s.get('lead')
+          and s.get('args', {}).get('design') == M1_DESIGN
+          for v in SEED_M1_VIEWS
+          for s in json.loads(v['sections_json'])))
+
+seqv = view_payload(vm, 'view-m1-sequencing')
+_by = {s['section']: s for s in seqv.get('sections', [])}
+check('sequencing view assembles: solver, holding torque and '
+      'drive card ANSWER from the fixture',
+      seqv.get('ok')
+      and _by['sequence'].get('payload', {}).get('stepsTaken')
+      == 12
+      and _by['holding-torque'].get('payload', {})
+      .get('peakTorqueNm', 0) > 0
+      and _by['drive-profile'].get('payload', {}).get('ok'))
+check('min-current section ANSWERS at the motor shaft: the axis '
+      'demand through the m1-6 reduction, its basis stating that '
+      'the bare axis load refuses by design (the m1-5 verdict)',
+      'min-current' not in seqv.get('refusedSections', [])
+      and _by['min-current'].get('payload', {}).get('ok')
+      and 'reduction' in _by['min-current']['payload']
+      .get('loadBasis', ''))
+
+pe = m1_phase_electrics(vm)
+check('phase electrics: six coils -> three phases, R_phase = '
+      '2 x R_coil, phases predicted identical',
+      pe.get('ok') and pe['phaseCount'] == 3
+      and all(abs(p['rPhaseOhm']
+                  - 2.0 * pe['perCoil']['resistanceOhm']) < 1e-9
+              for p in pe['phases'])
+      and pe['imbalance']['predicted'] == 0.0)
+check('per-phase L is a NAMED GAP whose knob is the m1-7 bench',
+      pe.get('ok')
+      and all(p['lPhaseH'] is None for p in pe['phases'])
+      and 'm1-7' in str(pe['inductanceGap']['suggestion']))
+
+posv = view_payload(vm, 'view-m1-positioning')
+_pby = {s['section']: s for s in posv.get('sections', [])}
+check('positioning view: axis requirements, the PROOF and the '
+      'solver all ANSWER from the fixture (m1-5 wired in)',
+      posv.get('ok') and not posv.get('refusedSections')
+      and _pby['positioning-proof'].get('payload', {})
+      .get('unloadedControl', {}).get('exact')
+      and _pby['sequence-under-load'].get('payload', {})
+      .get('ok'))
+
+_assembled = [view_payload(vm, v['name']) for v in SEED_M1_VIEWS]
+check('all six M1 views assemble; every refused section stays '
+      'NAMED with its refusal text',
+      all(a.get('ok') for a in _assembled)
+      and all(s.get('refusal')
+              for a in _assembled for s in a['sections']
+              if not s.get('payload')))
+
+print('== suite: m1-3 scene layers ==')
+from motors.clock_scene_basis import (        # noqa: E402
+    LAYER_KINDS, clock_scene_payload,
+)
+from motors.m1_scene_seed import (           # noqa: E402
+    M1_ALL_LAYERS, M1_BASE, M1_PART_BODIES, M1_PHASE_COILS,
+    M1_VIEW_SCENES, SEED_M1_SCENE_LAYERS,
+)
+from motors.motor_shapes_seed import (       # noqa: E402
+    SEED_M1_SIM_SPACES,
+)
+
+_m1_space = next(s for s in SEED_M1_SIM_SPACES
+                 if s['name'] == M1_BASE)
+_scene_ids = {b['id'] for b in
+              json.loads(_m1_space['definition'])['freestanding']}
+
+check('TWO-MODULES-AGREE: the part→body map covers exactly the '
+      'M1 part rows (motor_parts) — no orphan, no gap',
+      set(M1_PART_BODIES)
+      == {p['name'] for p in SEED_MOTOR_PARTS
+          if p.get('design_ref') == M1_DESIGN})
+check('TWO-MODULES-AGREE: every mapped body id exists in the '
+      'motor-m1-viz sim space, and the map covers ALL 19 bodies',
+      set(b for bodies in M1_PART_BODIES.values()
+          for b in bodies) == _scene_ids
+      and len(_scene_ids) == 19)
+check('TWO-MODULES-AGREE: the phase→coil map pairs opposite '
+      'coils exactly as m1_phase_electrics pairs teeth (k, k+3)',
+      set(b for pair in M1_PHASE_COILS.values() for b in pair)
+      == set(M1_PART_BODIES['m1-coils'])
+      and all(len(pair) == 2
+              for pair in M1_PHASE_COILS.values())
+      and sorted(M1_PHASE_COILS) == ['0', '1', '2'])
+check('phase-replay is a REGISTERED kind (the constructor will '
+      'not silently downgrade it)',
+      'phase-replay' in LAYER_KINDS
+      and all(l['kind'] in LAYER_KINDS
+              for l in SEED_M1_SCENE_LAYERS))
+check('every M1 layer PINS its design in params — an M0 caller '
+      'default can never color M1 bodies from the wrong bill',
+      all(json.loads(l['params_json']).get('design') == M1_DESIGN
+          for l in SEED_M1_SCENE_LAYERS))
+check('every M1 view declares its scene: base motor-m1-viz, all '
+      'M1 layers listed, non-empty defaultOn',
+      set(M1_VIEW_SCENES) == {v['name'] for v in SEED_M1_VIEWS}
+      and all(v['scene_json'] for v in SEED_M1_VIEWS)
+      and all(json.loads(v['scene_json'])['base'] == M1_BASE
+              and json.loads(v['scene_json'])['layers']
+              == M1_ALL_LAYERS
+              and json.loads(v['scene_json'])['defaultOn']
+              for v in SEED_M1_VIEWS))
+
+vm.objectTables['ClockSceneLayerDefinition'] = _table(
+    SEED_M1_SCENE_LAYERS)
+vm.objectTypingDict = {k: object() for k in vm.objectTables}
+_sc = clock_scene_payload(vm, 'view-m1-sequencing')
+_lay = {l['name']: l for l in _sc.get('layers', [])}
+check('scene payload assembles: base motor-m1-viz, the sequence '
+      'replay layer answers with the phase→coil geometry and is '
+      'defaultOn for the sequencing view',
+      _sc.get('ok') and _sc['baseScene'] == M1_BASE
+      and _lay['layer-m1-sequence-replay'].get('ok')
+      and _lay['layer-m1-sequence-replay']['geometry']
+      ['phaseCoils'] == M1_PHASE_COILS
+      and _lay['layer-m1-sequence-replay']['defaultOn'])
+check('material coloring answers from part rows alone: every '
+      'M1 body colored, no magnet in the legend (the point of '
+      'the rung, visible)',
+      _lay['layer-m1-material-coloring'].get('ok')
+      and set(_lay['layer-m1-material-coloring']['bodies'])
+      == _scene_ids
+      and not any('ndfeb' in e['label'].lower()
+                  or 'srfe' in e['label'].lower()
+                  for e in _lay['layer-m1-material-coloring']
+                  ['legend']))
+check('a layer the fixture cannot feed refuses WITH its reason, '
+      'never a blank canvas',
+      all(l.get('refusal')
+          for l in _sc.get('layers', []) if not l.get('ok')))
+
+print('== suite: m1-4 composition splice ==')
+from composition.composition_seed import (   # noqa: E402
+    SEED_FAILURE_MODES, SEED_PART_COMPONENTS,
+)
+from motors.custom.composition_splice import (      # noqa: E402
+    composition_view, interface_specs, promotion_candidates,
+)
+from motors.m1_composition_seed import (          # noqa: E402
+    M1_INTERFACES, SEED_M1_COMPOSITION_NODES,
+    SEED_M1_CONSTRUCTION_VARIANTS, SEED_M1_INTERFACES,
+    SEED_M1_PART_COMPONENTS, SEED_M1_ROUTING_OPS,
+    m1_construction_fork,
+)
+from motors.m1_scene_seed import SEED_M1_SCENE_LAYERS as _L4  # noqa: E402
+
+_fused = {s['name'] for s in M1_INTERFACES
+          if not s['designed_separable']}
+_gaps = [s for s in M1_INTERFACES
+         if s['retention_scheme'] == 'none']
+
+check('six M1 joints stated; members all real M1 part rows '
+      '(two-modules-agree with motor_parts)',
+      len(M1_INTERFACES) == 6
+      and {m for s in M1_INTERFACES
+           for m in (s['member_a'], s['member_b'])}
+      <= {p['name'] for p in SEED_MOTOR_PARTS
+          if p.get('design_ref') == M1_DESIGN})
+check('the TWO designed non-contact gaps: zero DOF removed, '
+      'retention none, and the working gap is one of them',
+      len(_gaps) == 2
+      and all(s['dof_removed'] == [] for s in _gaps)
+      and {s['name'] for s in _gaps}
+      == {'ifm1-working-gap', 'ifm1-coil-clearance'})
+check('every M1 interface is THEORETICAL — made-and-measured '
+      'does not leak onto an unbuilt machine',
+      all(s.get('realization_level') == 'theoretical'
+          and s.get('qualifying_act')
+          for s in M1_INTERFACES))
+
+cvw = composition_view(vm, M1_DESIGN)
+check('the movement derives part-with-separable-sub-parts and '
+      'MATCHES its declaration: mold-fused castings bound, '
+      'shaft/coils/gaps separable',
+      cvw.get('ok')
+      and cvw['level']['derived']
+      == 'part-with-separable-sub-parts'
+      and cvw['level']['ok']
+      and cvw['level']['declared'] == cvw['level']['derived']
+      and set(cvw['level']['boundSet']) == _fused
+      and len(cvw['level']['separableSet']) == 4)
+check('parity holds: every M1 part exposed with its own material '
+      'and shape refs (wrap, not port)',
+      cvw['parity']['allMaterialsMatch']
+      and cvw['parity']['allShapesMatch']
+      and cvw['parity']['partCount'] == 6)
+m0w = composition_view(vm, 'clock-lavet-m0')
+check('M0 REGRESSION: still derives assembly (all five joints '
+      'separable) with the made-and-measured default intact',
+      m0w.get('ok') and m0w['level']['derived'] == 'assembly')
+
+pc = promotion_candidates(vm, M1_DESIGN)
+check('promotion: the winding→tooth joint is THE candidate; the '
+      'mold-fused boundaries are listed as ALREADY promoted, '
+      'not re-asked',
+      pc.get('ok') and pc['promotable'] == ['ifm1-winding-tooth']
+      and {a['interface'] for a in pc['alreadyPromoted']}
+      == _fused)
+check('both gaps are REFUSED candidates because their members '
+      'move — the gate working',
+      all(any('move relative' in b for b in c['blockers'])
+          for c in pc['candidates']
+          if c['interface'] in {'ifm1-working-gap',
+                                'ifm1-coil-clearance'}))
+
+_pc_all = {s['name']: types.SimpleNamespace(**s)
+           for s in SEED_PART_COMPONENTS + SEED_M1_PART_COMPONENTS}
+vm.objectTables['PartComponentDefinition'] = _pc_all
+vm.objectTables['CompositionNode'] = _table(
+    SEED_M1_COMPOSITION_NODES)
+vm.objectTables['InterfaceDefinition'] = _table(SEED_M1_INTERFACES)
+vm.objectTables['ConstructionVariantDefinition'] = _table(
+    SEED_M1_CONSTRUCTION_VARIANTS)
+vm.objectTables['FailureModeDefinition'] = _table(
+    SEED_FAILURE_MODES)
+vm.objectTypingDict = {k: object() for k in vm.objectTables}
+
+fork = m1_construction_fork(vm)
+_lv = {v['variant']: v['level'] for v in fork.get('variants', [])}
+check('the FORK: both constructions of ONE functional part, '
+      'levels DERIVED live — bobbin=assembly, promoted=part, '
+      'both matching their declarations',
+      fork.get('ok')
+      and _lv['cv-m1-tooth-bobbin']['derived'] == 'assembly'
+      and _lv['cv-m1-tooth-promoted']['derived'] == 'part'
+      and all(l.get('ok') and l['declared'] == l['derived']
+              for l in _lv.values())
+      and 'SIX coils' in fork['batchFact'])
+_cure = next(o for o in SEED_M1_ROUTING_OPS
+             if o['name'] == 'op-m1tp-cure')
+check('the PROMOTE op is consistent: consumes exactly the bobbin '
+      'joints, fuses exactly the promoted one (two modules, one '
+      'fact)',
+      _cure['kind'] == 'promote'
+      and set(json.loads(_cure['consumes_interface_refs_json']))
+      == {i['name'] for i in SEED_M1_INTERFACES
+          if i['node_ref'] == 'm1-tooth-bobbin'}
+      and json.loads(_cure['fused_interface_refs_json'])
+      == [i['name'] for i in SEED_M1_INTERFACES
+          if i['node_ref'] == 'm1-tooth-promoted'])
+
+vm.objectTables['ClockSceneLayerDefinition'] = _table(_L4)
+vm.objectTypingDict = {k: object() for k in vm.objectTables}
+_mech = clock_scene_payload(vm, 'view-m1-mechanical')
+_mk = next(l for l in _mech['layers']
+           if l['name'] == 'layer-m1-interface-markers')
+check('the markers layer shows all SIX M1 joints on the M1 '
+      'scene (interface set follows the layer\'s pinned design)',
+      _mk.get('ok') and len(_mk['markers']) == 6
+      and _mk['defaultOn'])
+
+print('== suite: m1-5 the positioning proof ==')
+from motors.m1_positioning_basis import (     # noqa: E402
+    STEPS_PER_REV, axis_report, positioning_proof,
+)
+
+check('every axis requirement is a NAMED prior: basis stated, '
+      'and the measurement that retires it stated',
+      all(s.get('basis') and s.get('replaces_with')
+          for s in SEED_AXIS_REQUIREMENTS))
+axis = axis_report(vm)
+check('steps/mm DERIVES: 12 steps/rev (m1-1 arithmetic) through '
+      'the M8x1.25 row -> 9.6 steps/mm, 0.104 mm/step, inside '
+      'the 0.2 mm tolerance',
+      axis.get('ok') and STEPS_PER_REV == 12
+      and abs(axis['stepsPerMm'] - 9.6) < 0.01
+      and abs(axis['mmPerStep'] - 1.25 / 12.0) < 1e-5
+      and 'suffices' in axis['resolutionVerdict'])
+check('THE DUTY VERDICT: today\'s mu~2 machine CANNOT hold the '
+      'axis — not-capable, with the shortfall quantified',
+      axis.get('ok') and axis['dutyVerdict'] == 'not-capable'
+      and axis['shortfall'] and axis['shortfall'] > 10)
+_knobs = {k['knob']: k for k in axis.get('knobs', [])}
+_bio = next((k for n, k in _knobs.items() if 'bio-steel' in n),
+            None)
+_gear = next((k for n, k in _knobs.items() if 'gear' in n), None)
+check('the knobs are QUANTIFIED live: bio-steel gain solved by '
+      'the same engine via material override; gear ratio derived '
+      'from the shortfall',
+      _bio is not None and _bio['gain'] > 5
+      and _gear is not None
+      and _gear['requiredRatio'] >= axis['shortfall'])
+
+proof = positioning_proof(vm, commanded_steps=24)
+check('UNLOADED CONTROL is EXACT in the sense the geometry '
+      'allows: zero missed steps and the whole error lies INSIDE '
+      'the rest band (a claim, not a tolerance)',
+      proof.get('ok')
+      and proof['unloadedControl']['exact']
+      and proof['unloadedControl']['stepsMissed'] == 0
+      and proof['unloadedControl']['errorBeyondBandMm'] <= 0.0,
+      json.dumps(proof.get('unloadedControl'))[:300])
+check('and it DOES NOT ACCUMULATE: twice the commanded steps, '
+      'the same error — a one-time home offset, not drift',
+      proof['unloadedControl']['accumulates'] is False
+      and proof['unloadedControl']['atDoubleTheSteps']['steps']
+      == 2 * proof['unloadedControl']['steps'])
+check('BACKLASH IN MM: the axis inherits beta_r - beta_s as lost '
+      'motion on reversal, quantified against the tolerance row '
+      '(a positioning term that owes nothing to a gear)',
+      proof['restBand']['reversalBacklashMm'] > 0.0
+      and abs(proof['restBand']['reversalBacklashMm']
+              - proof['restBand']['bandDeg'] * 1.25 / 360.0)
+      < 1e-4
+      and isinstance(proof['restBand']['insideTolerance'], bool))
+check('the axis duty case today LOSES POSITION and says so; the '
+      'mm ledger balances by two paths and slips are NAMED',
+      proof['axisDuty']['verdict'] == 'loses-position'
+      and proof['axisDuty']['stepsMissed'] > 0
+      and proof['axisDuty']['crossCheck']['consistent']
+      and len(proof['axisDuty']['slippedSteps']) > 0)
+check('the proof carries the duty verdict and its knobs — the '
+      'answer to "which knob moves it" rides the payload',
+      proof['dutyVerdict'] == 'not-capable'
+      and len(proof['knobs']) >= 2)
+
+_peak = holding_torque(vm, M1)['peakTorqueNm']
+ok_load = positioning_proof(
+    vm, commanded_steps=24,
+    load_torque_nm=0.5 * pull_in_load_limit(vm, M1)['pullInLimitNm'])
+check('under a load the machine CAN step under, the proof lands: '
+      'zero misses, sub-0.01 mm error (the load pulls latch and '
+      'steps to the SAME point on the flank, so even the band '
+      'offset cancels)',
+      ok_load.get('ok')
+      and ok_load['axisDuty']['stepsMissed'] == 0
+      and abs(ok_load['axisDuty']['positionErrorMm']) < 0.01)
+
+_bare = _mgr()
+_bare.objectTypingDict = {k: object() for k in _bare.objectTables}
+check('without the requirement rows the report REFUSES naming '
+      'seed_m1_axis — never a default axis',
+      not axis_report(_bare).get('ok')
+      and 'seed_m1_axis' in axis_report(_bare).get('refusal', ''))
+
+print('== suite: m1-6 the axis-drive product ==')
+import math                              # noqa: E402
+from motors.m1_product_seed import (          # noqa: E402
+    GEAR_RATIO, SEED_M1_FORMULA, SEED_M1_QA, SEED_M1_WORKFLOWS,
+    UNITS_PER_PRINTER, m1_product_routes, stator_fork,
+)
+from motors.product_routes_seed import product_routes  # noqa: E402
+
+prod = product_routes(vm, M1_DESIGN)
+check('the M0 route surface dispatches the M1 design to the '
+      'axis-drive product (one endpoint, both rungs)',
+      prod.get('ok') and prod.get('product') == 'm1-axis-drive'
+      and prod['unitsPerPrinter'] == UNITS_PER_PRINTER == 4)
+check('GUARD (wire-ladder lesson): the seeded gear ratio still '
+      'covers the LIVE shortfall x1.5 — a moved requirement row '
+      'fails here instead of shipping stale',
+      prod['drivetrain']['gearRatio'] == GEAR_RATIO
+      and prod['drivetrain']['live'].get('requiredNow')
+      is not None
+      and GEAR_RATIO == prod['drivetrain']['live']['requiredNow'],
+      f"seeded={GEAR_RATIO} "
+      f"live={prod['drivetrain']['live'].get('requiredNow')}")
+
+fork = stator_fork(vm)
+_opts = {o['option']: o for o in fork.get('options', [])}
+check('the STATOR FORK: three options, each holding torque '
+      'solved LIVE — and none of them is a magnet',
+      fork.get('ok') and len(_opts) == 3
+      and all('holdingTorqueNm' in o or 'gap' in o
+              for o in fork['options'])
+      and 'magnet' not in json.dumps(fork['options']).lower())
+check('the fork is honest about TODAY: cast geopolymer does not '
+      'cover the axis bare (the reduction exists for it), and '
+      'each stronger option carries a number, not an adjective',
+      _opts['cast-geopolymer'].get('bareMotorCoversAxis') is False
+      and _opts['cast-geopolymer'].get('reductionStillNeeded')
+      and _opts['galvanized-bio-steel'].get('holdingTorqueNm', 0)
+      > _opts['cast-geopolymer'].get('holdingTorqueNm', 0))
+
+_routes = {r['route']: r for r in prod['routes']}
+check('both routes answer; the pure-local route has NO magnet '
+      'blocker (the rung\'s point, visible) and shares the W2 '
+      'wire rung with M0',
+      set(_routes) == {'pure-local', 'commercial'}
+      and not any('magnet' in b.lower()
+                  for b in _routes['pure-local']['blockers'])
+      and any('W2' in b for b in _routes['pure-local']['blockers']))
+check('the commercial irony is kept (the $10 NEMA17), judged as '
+      'a local-capability product',
+      'NEMA17' in _routes['commercial'].get('irony', ''))
+check('every make-input names its workflow, and the named '
+      'workflows are all seeded rows (two modules, one fact)',
+      all(i.get('workflow') in
+          {w['name'] for w in SEED_M1_WORKFLOWS} | {
+              'clock-wire-draw-workflow'}
+          for r in prod['routes'] for i in r['inputs']
+          if i.get('source') == 'make'))
+check('the formula DERIVES its copper (63 m of 26 AWG stated as '
+      'the winding math\'s number) and carries no magnet line; '
+      'QA gates: positioning per unit + six-R imbalance seam',
+      any('63 m' in c['note'] for c in json.loads(
+          SEED_M1_FORMULA[0]['components_json']))
+      and not any('magnet' in c['role']
+                  or 'srfe' in c['item_ref'].lower()
+                  for c in json.loads(
+                      SEED_M1_FORMULA[0]['components_json']))
+      and {q['name'] for q in SEED_M1_QA}
+      == {'qa-positioning-100-steps', 'qa-phase-resistance-six'}
+      and prod['qaGate'] == 'qa-positioning-100-steps')
+from motors.custom.part_roles import screen_candidates  # noqa: E402
+_scr = screen_candidates(vm, 'm1-stator-teeth')
+check('the stator role screen ANSWERS (live-caught: M1 parts had '
+      'no role rows) and bio-steel is among its viable options — '
+      'the fork\'s evidence surface works',
+      _scr.get('ok') and _scr['viableCount'] >= 3
+      and 'opt-galvanized-bio-steel' in _scr['viable'])
+from motors.m1_product_seed import seed_m1_product as _smp  # noqa: E402
+_smp_report = _smp(_mgr())
+check('the M1 SHAPE rows ride the upsert path (ten-strikes, '
+      'eleventh catch: legacy insert-only seeding kept the box '
+      'tooth alive after the mq-2 reshape)',
+      any(r['class'] == 'MathShapeDefinition'
+          for r in _smp_report))
+check('the sell loop is the SAME loop as the clock (one loop, '
+      'two products) and the sourcing section rides the '
+      'materials view',
+      prod['sellLoop'] == 'clock-sell-iterate-workflow'
+      and any(s['source'] == 'sourcing-routes'
+              for v in SEED_M1_VIEWS
+              if v['name'] == 'view-m1-materials-sourcing'
+              for s in json.loads(v['sections_json'])))
+
+print('== suite: m1-7 the M1 bench sheet ==')
+from motors.custom.bench_campaign import (      # noqa: E402
+    bench_campaign, m1_bench_campaign,
+)
+
+bench = bench_campaign(vm, M1_DESIGN)
+check('the bench surface dispatches the M1 design to its own '
+      'sheet: six measurements, in order, each with instrument '
+      '+ adjudicates + record-back seam + acceptance',
+      bench.get('ok') and bench['campaign'] == 'm1-bench'
+      and bench['order'] == [
+          'phase-resistance-six', 'phase-inductance-six',
+          'holding-torque-rated', 'step-angle-revolution',
+          'reversal-backlash-band', 'thermal-rise-duty']
+      and all(e.get('instrument') and e.get('adjudicates')
+              and e.get('recordVia') and e.get('acceptance')
+              for e in bench['measurements']))
+_bm = {e['measurement']: e for e in bench['measurements']}
+check('six-R prediction: identical phases (spread 0 predicted) '
+      'and the prediction IS m1_phase_electrics\' number (one '
+      'engine, no copies)',
+      _bm['phase-resistance-six'].get('predictedSpread') == 0.0
+      and abs(_bm['phase-resistance-six']['predictedPhaseOhm']
+              - pe['phases'][0]['rPhaseOhm']) < 1e-9)
+check('the six-L entry feeds the SAME mag-23 adjudication and '
+      'refuses honestly if the solver cannot answer at mu~2',
+      'mag-23' in json.dumps(_bm['phase-inductance-six'])
+      and ('predictedL' in _bm['phase-inductance-six']
+           or 'refusal' in _bm['phase-inductance-six']))
+check('holding-torque prediction equals the live m1-1 number '
+      '(the one the m1-5 verdict divides by)',
+      abs(_bm['holding-torque-rated'].get('predictedNm', 0)
+          - holding_torque(vm, M1)['peakTorqueNm']) < 1e-12)
+check('step-angle entry predicts exactly 30 deg/step and a '
+      'revolution one band half-width short of 360 — the '
+      'positioning proof\'s physical half, slips named in the '
+      'acceptance',
+      _bm['step-angle-revolution'].get('predictedStepDeg') == 30.0
+      and 0.0 <= (360.0 - _bm['step-angle-revolution']
+                  .get('predictedFullRevDeg', 0)) <= _HALF_BAND
+      and 'slip' in _bm['step-angle-revolution']['adjudicates']
+      .lower())
+check('and the REST BAND is its own bench entry: a geometry-only '
+      'prediction (beta_r - beta_s, no material property in it) '
+      'that a printed protractor can falsify',
+      _bm['reversal-backlash-band'].get('predictedBandDeg')
+      == seq['alignmentBand']['bandDeg']
+      and 'falsifiable' in _bm['reversal-backlash-band'][
+          'adjudicates'].lower()
+      and 'no material property' in json.dumps(
+          _bm['reversal-backlash-band']))
+check('thermal entry: dissipation SOLVED (I^2R, one phase on), '
+      'rise honestly UNMODELED — a named prior, not an estimate',
+      _bm['thermal-rise-duty'].get('predictedDissipationW', 0)
+      > 0.1
+      and _bm['thermal-rise-duty'].get('predictedRiseK') is None
+      and 'UNMODELED' in _bm['thermal-rise-duty']['basis'])
+check('the bench section rides the sequencing view',
+      any(s['source'] == 'bench-campaign'
+          for v in SEED_M1_VIEWS
+          if v['name'] == 'view-m1-sequencing'
+          for s in json.loads(v['sections_json'])))
+
+print('== suite: mq-3 correlations between part equations ==')
+from mathshapes.custom.shape_equations import (   # noqa: E402
+    shape_equation_rows,
+)
+from motors.motor_shapes_seed import (          # noqa: E402
+    SEED_M1_PART_SHAPES,
+)
+from motors.m1_relations_seed import (          # noqa: E402
+    SEED_M1_RELATIONS, derived_marker_positions,
+    overlap_model_gap, relation_report,
+)
+from motors.m1_composition_seed import (        # noqa: E402
+    M1_INTERFACES as _RELIF,
+)
+
+_shape_defaults = {'family': 'primitive', 'primitive_kind': '',
+                   'parameters_json': '{}',
+                   'quadric_matrix_json': '', 'csg_json': '',
+                   'bounds_json': ''}
+vm.objectTables['MathShapeDefinition'] = {
+    s['name']: types.SimpleNamespace(**{**_shape_defaults, **s})
+    for s in SEED_M1_PART_SHAPES}
+_mrows, _erows = {}, {}
+for s in SEED_M1_PART_SHAPES:
+    out = shape_equation_rows(vm, s['name'])
+    if out.get('ok'):
+        _mrows.update({r['name']: types.SimpleNamespace(**r)
+                       for r in out['matrixRows']})
+        _erows.update({r['name']: types.SimpleNamespace(**r)
+                       for r in out['equationRows']})
+_erows.update({r['name']: types.SimpleNamespace(**r)
+               for r in SEED_M1_RELATIONS})
+vm.objectTables['MatrixDefinition'] = _mrows
+vm.objectTables['MatrixEquationDefinition'] = _erows
+vm.objectTypingDict = {k: object() for k in vm.objectTables}
+
+try:
+    import numpy as _np                     # noqa: F401
+    _HAVE_NP = True
+except ImportError:
+    _HAVE_NP = False
+
+if _HAVE_NP:
+    rel = relation_report(vm)
+    _byrel = {r['relation']: r for r in rel.get('relations', [])}
+    check('THE AIR GAP falls out of two parts\' MATRICES through '
+          'the no-code executor and equals the design row\'s '
+          'gap_base_m — the correlation Dustin asked for, live',
+          rel.get('ok') and rel['allConsistent']
+          and abs(_byrel['m1-rel-working-gap']['valueMm'] - 0.6)
+          < 1e-9,
+          json.dumps(rel)[:300])
+    check('the mold-fused tooth-yoke boundary is EXACTLY zero and '
+          'the coil clearance is positive (1.1 mm) — interfaces '
+          'as algebra',
+          abs(_byrel['m1-rel-tooth-yoke-merge']['valueMm'])
+          < 1e-9
+          and abs(_byrel['m1-rel-coil-clearance']['valueMm']
+                  - 1.1) < 1e-9)
+else:
+    check('relation executor leg SKIPPED — numpy not here '
+          '(runs in-container)', True)
+
+og = overlap_model_gap(vm)
+check('the overlap report ADOPTED (cons-3): the solver rides the '
+      'exact trapezoidal arc overlap (deviation ~0), the arcs '
+      'come from the shape rows (tooth 32.02, pole 36), and the '
+      'retired first harmonic keeps its stated deviation',
+      og.get('ok')
+      and abs(og['toothArcDeg']
+              - math.degrees(2.0 * math.asin(
+                  _TOOTH_P['width'] / 2.0 / _TOOTH_P['r_face'])))
+      < 1e-3
+      and og['poleArcDeg'] == 36.0
+      and og['worstDeviation'] < 1e-9
+      and 0.01 < og['retiredModelDeviation'] < 0.5
+      and 'ADOPTED' in og['namedGap'])
+
+_pos = derived_marker_positions()
+check('marker positions DERIVE from the shape rows and cover '
+      'exactly the six m1-4 interfaces (two modules, one fact) — '
+      'the working-gap marker sits mid-gap at r=12.3',
+      set(_pos) == {s['name'] for s in _RELIF}
+      and abs(_pos['ifm1-working-gap'][0] - 12.3) < 1e-9
+      and all(len(v) == 3 for v in _pos.values()))
+check('the scene markers layer carries the DERIVED positions '
+      '(no seeded guesses left)',
+      sorted(m['interface'] for m in json.loads(
+          next(l for l in _L4
+               if l['name'] == 'layer-m1-interface-markers')
+          ['params_json'])['markers'])
+      == sorted(_pos)
+      and next(m for m in json.loads(
+          next(l for l in _L4
+               if l['name'] == 'layer-m1-interface-markers')
+          ['params_json'])['markers']
+          if m['interface'] == 'ifm1-working-gap')['position']
+      == _pos['ifm1-working-gap'])
+
+print('== suite: mq-4 the engine-number audit ==')
+from motors.custom.materials_audit import (       # noqa: E402
+    NAMED_PRIORS, materials_audit,
+)
+
+aud = materials_audit(vm)
+check('the audit answers CLEAN on the fixture: every engine '
+      'number traced (material-row / design-row / '
+      'requirement-row / named-prior), zero holes',
+      aud.get('ok') and aud['allTraced']
+      and all(aud['counts'][s] > 0 for s in aud['counts']),
+      json.dumps(aud.get('holes'))[:200])
+_mu = next(e for e in aud['entries']
+           if e['source'] == 'material-row'
+           and e['slot'] == 'stator_material')
+check('the stator mu carries ITS OWN provenance from the '
+      'material row — the msci FEM homogenization, not an '
+      'anonymous constant',
+      _mu['ok'] and _mu['value'] > 1.0
+      and 'FEM homogenization' in _mu['note'])
+check('every named in-code prior states what RETIRES it, and '
+      'the 0.03 m core path names its shape-equation derivation',
+      all(p.get('retirement') for p in NAMED_PRIORS)
+      and any('shape' in p['retirement']
+              and p['symbol'] == 'core_path_m'
+              for p in NAMED_PRIORS))
+check('every axis requirement prior appears with its retiring '
+      'measurement (the m1-5 rows ride the audit)',
+      sum(1 for e in aud['entries']
+          if e['source'] == 'requirement-row' and e['ok']) == 4)
+_hole_mgr = _mgr()
+_hole_mgr.objectTables['MotorDesignDefinition'] = {
+    M1_DESIGN: types.SimpleNamespace(
+        name=M1_DESIGN, topology='radial-reluctance',
+        params_json=json.dumps({'stator_material': 'opt-nonsense',
+                                'rotor_material': 'opt-nonsense',
+                                'slots': 6, 'poles': 4}))}
+_hole_mgr.objectTypingDict = {
+    k: object() for k in _hole_mgr.objectTables}
+_bad = materials_audit(_hole_mgr)
+check('a missing property is a HOLE said out loud, never a pass',
+      _bad.get('ok') and not _bad['allTraced']
+      and len(_bad['holes']) >= 2)
+
+failed = _results.count(False)
+print(f'\n{len(_results) - failed}/{len(_results)} checks passed')
+raise SystemExit(1 if failed else 0)

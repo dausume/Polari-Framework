@@ -26,14 +26,14 @@ human-made, the engine audits and reports (knobs-and-suggestions —
 mag-12's suggestion-over-evidence discipline).
 
 @consumers polariServer seed passes, composition.composition_seed,
-composition.selftest_composition
+composition.composition_selftest
 """
 
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from composition.data_refs import named, resolve_named, rows
+from composition.custom.data_refs import named, resolve_named, rows
 from composition.node_basis import owned_interfaces
 
 OPERATION_KINDS = ('shape', 'join', 'condition-change', 'promote')

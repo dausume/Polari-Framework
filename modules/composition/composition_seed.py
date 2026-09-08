@@ -14,17 +14,17 @@ Material refs point at LIVE MagneticMaterialOption catalog names
 (data references, §3.2). All seeding goes through seed_upsert — the
 arch-1 path — so a changed seed field reaches live rows.
 
-@consumers polariServer seed passes, composition.selftest_composition
+@consumers polariServer seed passes, composition.composition_selftest
 """
 
 import json
 
 from composition.component_basis import PartComponentDefinition
-from composition.failure_modes import (
+from composition.failure_modes_basis import (
     FailureModeDefinition, SEED_FAILURE_MODES,
 )
 from composition.archetype_basis import PartArchetypeDefinition
-from composition.design_matrix import DesignMatrixDefinition
+from composition.design_matrix_basis import DesignMatrixDefinition
 from composition.functional_basis import (
     ConstructionVariantDefinition, FunctionalPartDefinition,
 )
@@ -33,7 +33,7 @@ from composition.node_basis import CompositionNode
 from composition.routing_basis import (
     RoutingDefinition, RoutingOperation,
 )
-from composition.seed_upsert import upsert_seed_pairs
+from composition.custom.seed_upsert import upsert_seed_pairs
 
 PROV = 'arch-2'
 

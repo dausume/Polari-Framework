@@ -17,7 +17,7 @@ HTTP surface for atmospheric conditions + gas exchange (aqp-5):
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from aquaponics.atmosphere_analysis import (
+from aquaponics.custom.atmosphere_analysis import (
     atmosphere_state, environment_gas_exchange,
 )
 

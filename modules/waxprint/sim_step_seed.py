@@ -23,7 +23,7 @@ appends the solution + wiring rows to the shared framework seed lists.
 
 @consumers
   - polariServer (imported via sim_seed) — seeds the step solution
-  - waxprint.selftest_sim_step (executes the graph through the engine)
+  - waxprint.sim_step_selftest (executes the graph through the engine)
 """
 
 import json

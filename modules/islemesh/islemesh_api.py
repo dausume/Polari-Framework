@@ -22,7 +22,7 @@ Thin Falcon shell — parsing lives in islemesh_parse.
 @consumers
   - polariServer (instantiated next to the topology endpoints)
   - polari-cli scripts/isle.sh (`pol isle sync` / `pol isle mock`)
-  - islemesh.selftest_islemesh (function-level)
+  - islemesh.islemesh_selftest (function-level)
 """
 
 import hashlib
@@ -37,16 +37,16 @@ from islemesh.islemesh_basis import (
     IsleIngestReceipt, IsleProtocolPermit, IsleUplink,
     MeshAppRealization,
 )
-from islemesh.islemesh_engines import bind_engine
+from islemesh.custom.islemesh_engines import bind_engine
 from islemesh.islemesh_catalog import (
     ai_tool_install_plan, ai_tool_options, install_plan,
     instances_of, option_install_plan, polari_app_options,
     resolve_app_placement)
-from islemesh.islemesh_coherence import assess_topology
-from islemesh.islemesh_constants import (
+from islemesh.custom.islemesh_coherence import assess_topology
+from islemesh.custom.islemesh_constants import (
     AGENT_MODES, CONNECTIVITY_MODES, MOCK_BANNER, UPLINK_KINDS,
 )
-from islemesh.islemesh_parse import parse_fragments, parse_registry
+from islemesh.custom.islemesh_parse import parse_fragments, parse_registry
 
 #: Classes whose rows are per-device replaceable by ingest kind.
 _REGISTRY_CLASSES = ('IsleApp', 'IsleAppService')
@@ -410,7 +410,7 @@ class IsleMeshAPI(treeObject):
         banner lights up. Re-posting is idempotent (replace
         semantics). Real syncs for a device replace its mock rows —
         mock never shadows reality."""
-        from islemesh.islemesh_mock import (
+        from islemesh.custom.islemesh_mock import (
             mock_ingests, mock_realizations,
         )
 

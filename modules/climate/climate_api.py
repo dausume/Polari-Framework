@@ -16,7 +16,7 @@ import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from composition.data_refs import rows
+from composition.custom.data_refs import rows
 
 
 def _float(request, key):
@@ -110,8 +110,8 @@ class ClimateAPI(treeObject):
                                    'those')}
 
     def on_get_series_detail(self, request, response, series_name):
-        from climate.climate_compress import compression_suggestion
-        from climate.series_ingest import series_points, series_status
+        from climate.climate_compress_basis import compression_suggestion
+        from climate.custom.series_ingest import series_points, series_status
         status = series_status(self.manager, series_name)
         points = series_points(self.manager, series_name)
         if not status.get('ok') and not points:
@@ -141,7 +141,7 @@ class ClimateAPI(treeObject):
         """Bin-mean an oversized series toward a target point count;
         the SeriesCompressionRecord row is the audit trail. POST
         because it rewrites rows (recoverably — re-ingest)."""
-        from climate.climate_compress import compress_series
+        from climate.climate_compress_basis import compress_series
         params = request.params or {}
         try:
             target = int(params.get('target', 250))
@@ -158,7 +158,7 @@ class ClimateAPI(treeObject):
         """One cited/derived tag, clickable (Dustin 2026-08-05):
         resolve the source_ref to its registry row, formatted line,
         and retrieval trail — the data origin, not a vague badge."""
-        from climate.climate_citations import resolve_citation
+        from climate.climate_citations_seed import resolve_citation
         result = resolve_citation(self.manager, source_ref)
         if not result.get('ok'):
             response.status = '404 Not Found'
@@ -179,10 +179,10 @@ class ClimateAPI(treeObject):
     def on_post_ingest(self, request, response, series_name):
         """Fetch a series for real. POST because it reaches the
         network and writes rows."""
-        from climate.climate_series import (
+        from climate.climate_series_seed import (
             SERIES_PARSERS, SERIES_SPANS,
         )
-        from climate.series_ingest import ingest_series
+        from climate.custom.series_ingest import ingest_series
         parser = SERIES_PARSERS.get(series_name)
         if parser is None:
             response.status = '404 Not Found'
@@ -212,8 +212,8 @@ class ClimateAPI(treeObject):
         response.media = result
 
     def on_get_trend(self, request, response, series_name):
-        from climate.co2_crossing import build_fits, _fit_summary
-        from climate.series_ingest import series_points, series_status
+        from climate.custom.co2_crossing import build_fits, _fit_summary
+        from climate.custom.series_ingest import series_points, series_status
         status = series_status(self.manager, series_name)
         if not status.get('ok'):
             response.status = '409 Conflict'
@@ -231,11 +231,11 @@ class ClimateAPI(treeObject):
     # ---- the study -------------------------------------------
 
     def on_get_thresholds(self, request, response):
-        from climate.co2_thresholds import thresholds_report
+        from climate.co2_thresholds_seed import thresholds_report
         response.media = thresholds_report(self.manager)
 
     def on_get_spaces(self, request, response):
-        from climate.co2_indoor import space_offset
+        from climate.co2_indoor_seed import space_offset
         outdoor = _float(request, 'outdoor_ppm')
         if outdoor is None:
             outdoor = _present_outdoor(self.manager)
@@ -261,10 +261,10 @@ class ClimateAPI(treeObject):
                           'spaces': out, 'count': len(out)}
 
     def on_get_crossings(self, request, response):
-        from climate.co2_crossing import (
+        from climate.custom.co2_crossing import (
             coupled_crossings, monotonicity_check, outdoor_crossings,
         )
-        from climate.series_ingest import series_points
+        from climate.custom.series_ingest import series_points
         series_name = (request.params.get('series')
                        or 'co2-mauna-loa-annual')
         points = series_points(self.manager, series_name)
@@ -284,7 +284,7 @@ class ClimateAPI(treeObject):
         }
 
     def on_get_physiology(self, request, response):
-        from climate.co2_physiology import (
+        from climate.custom.co2_physiology import (
             elimination_gradient, headline, partial_pressure,
         )
         ppm = _float(request, 'ppm')
@@ -299,7 +299,7 @@ class ClimateAPI(treeObject):
         }
 
     def on_get_history(self, request, response):
-        from climate.climate_history import (
+        from climate.climate_history_seed import (
             COGNITION_QUESTION, era_co2_summary,
             outside_experienced_range,
         )
@@ -313,8 +313,8 @@ class ClimateAPI(treeObject):
         }
 
     def on_get_sources(self, request, response):
-        from climate.climate_history import coverage_citations
-        from climate.climate_sources import source_catalog
+        from climate.climate_history_seed import coverage_citations
+        from climate.climate_sources_seed import source_catalog
         series_name = request.params.get('series') or ''
         payload = source_catalog(self.manager)
         if series_name:
@@ -327,7 +327,7 @@ class ClimateAPI(treeObject):
     def on_post_ingest_budget(self, request, response):
         """Fetch the Global Carbon Budget workbook and store each
         column as its own observation series."""
-        from climate.carbon_sinks import ingest_carbon_budget
+        from climate.carbon_sinks_seed import ingest_carbon_budget
         result = ingest_carbon_budget(
             self.manager,
             retrieved_by=(request.params.get('retrieved_by') or ''))
@@ -339,7 +339,7 @@ class ClimateAPI(treeObject):
         """Every number the page shows, classified by WHERE IT
         CAME FROM - so a simulation output can never be rendered
         as though it were a citation."""
-        from climate.climate_claims import page_claims
+        from climate.custom.climate_claims import page_claims
         response.media = page_claims(
             self.manager,
             background_ppm=_float(request, 'background_ppm'))
@@ -347,7 +347,7 @@ class ClimateAPI(treeObject):
     def on_get_biochemistry(self, request, response):
         """co2-CHEM: within-person NHANES chemistry - bicarbonate
         against calcium and measured blood pressure."""
-        from climate.climate_views import view_payload
+        from climate.climate_views_seed import view_payload
         payload = view_payload(self.manager, 'view-co2-health')
         section = next(
             (s for s in (payload.get('sections') or [])
@@ -365,7 +365,7 @@ class ClimateAPI(treeObject):
     def on_get_scenarios(self, request, response):
         """co2-SC: historical / modern / future against one
         threshold ladder."""
-        from climate.co2_scenarios import scenario_thresholds
+        from climate.custom.co2_scenarios import scenario_thresholds
         background = _float(request, 'background_ppm')
         if background is None:
             background = _present_outdoor(self.manager)
@@ -386,14 +386,14 @@ class ClimateAPI(treeObject):
         """Every threshold with its source RESOLVED across all
         registries - government, nonprofit, academic and
         credentialed press."""
-        from climate.climate_citations import threshold_citations
+        from climate.climate_citations_seed import threshold_citations
         response.media = threshold_citations(self.manager)
 
     def on_get_settings(self, request, response):
         """co2-E: the 2x2 — urban/non-urban outdoor, every room on
         ITS OWN local outdoor, and the measured levels that check
         the modelled ones. ?band=low|typical|high."""
-        from climate.co2_settings import (
+        from climate.co2_settings_seed import (
             all_space_levels, era_comparison,
             era_exposure_comparison, setting_ladder,
         )
@@ -423,7 +423,7 @@ class ClimateAPI(treeObject):
         """co2-S: the cited symptom ladder, from a headache to the
         levels that kill. ?max_ppm= clips it; ?indoor_ppm= reports
         which claims a given room has reached."""
-        from climate.co2_symptoms import (
+        from climate.co2_symptoms_seed import (
             ladder_for_space, symptom_ladder,
         )
         indoor = _float(request, 'indoor_ppm')
@@ -442,12 +442,12 @@ class ClimateAPI(treeObject):
         and THE SOURCE/SINK DIFFERENTIAL per year - including when
         the two were last in balance, which only the ice cores can
         answer."""
-        from climate.carbon_sinks import (
+        from climate.carbon_sinks_seed import (
             balance_history, budget_closure, budget_records_from_rows,
             rate_comparison, sink_ranking, sink_trend_report,
             source_sink_differential,
         )
-        from climate.series_ingest import series_points
+        from climate.custom.series_ingest import series_points
         loaded = budget_records_from_rows(self.manager)
         if not loaded.get('ok'):
             response.status = '409 Conflict'
@@ -482,7 +482,7 @@ class ClimateAPI(treeObject):
     def on_post_biomarker_ingest(self, request, response):
         """Fetch NHANES serum bicarbonate per cycle (Dustin: 1999
         through 2012 at least). POST — reaches the network."""
-        from climate.biomarker_ingest import ingest_all_cycles
+        from climate.biomarker_ingest_seed import ingest_all_cycles
         params = request.params or {}
         raw = (params.get('cycles') or '').strip()
         cycles = [c.strip() for c in raw.split(',') if c.strip()] \
@@ -495,7 +495,7 @@ class ClimateAPI(treeObject):
     def on_get_biomarker_series(self, request, response):
         """The bicarbonate series as points, ready to plot AND to
         export (fmt=csv|markdown carries the provenance)."""
-        from climate.biomarker_ingest import BICARB_SERIES
+        from climate.biomarker_ingest_seed import BICARB_SERIES
         rows_out = []
         for row in rows(self.manager, 'BiomarkerCycleObservation'):
             if getattr(row, 'series_ref', '') != BICARB_SERIES:
@@ -572,7 +572,7 @@ class ClimateAPI(treeObject):
 
     def on_get_biomarker(self, request, response):
         """co2-B: the bicarbonate/stress question, answered."""
-        from climate.biomarker_link import biomarker_question
+        from climate.custom.biomarker_link import biomarker_question
         bic, dep, mid = {}, {}, {}
         for row in rows(self.manager, 'BiomarkerCycleObservation'):
             cycle = getattr(row, 'cycle', '')
@@ -606,25 +606,25 @@ class ClimateAPI(treeObject):
 
     def on_get_bindings(self, request, response):
         """co2-9: what simulation input is bound to what series."""
-        from climate.sim_binding import binding_report
+        from climate.sim_binding_basis import binding_report
         response.media = binding_report(self.manager)
 
     def on_post_bindings(self, request, response):
         """Apply the bindings. POST because it writes into another
         module's simulation inputs."""
-        from climate.sim_binding import apply_all
+        from climate.sim_binding_basis import apply_all
         dry = bool(request.params.get('dry_run'))
         response.media = apply_all(self.manager, dry_run=dry)
 
     def on_get_view(self, request, response, view_name):
-        from climate.climate_views import view_payload
+        from climate.climate_views_seed import view_payload
         payload = view_payload(self.manager, view_name)
         if not payload.get('ok'):
             response.status = '404 Not Found'
         response.media = payload
 
     def on_get_graph(self, request, response, graph_name):
-        from climate.climate_pages import graph_data
+        from climate.climate_page import graph_data
         payload = graph_data(self.manager, graph_name)
         if not payload.get('ok'):
             response.status = '404 Not Found'
@@ -633,7 +633,7 @@ class ClimateAPI(treeObject):
     # ---- export ----------------------------------------------
 
     def on_get_export_series(self, request, response, series_name):
-        from climate.climate_export import export_series
+        from climate.custom.climate_export import export_series
         fmt = request.params.get('format') or 'markdown'
         result = export_series(
             self.manager, series_name, fmt=fmt,
@@ -643,7 +643,7 @@ class ClimateAPI(treeObject):
                         download=request.params.get('download'))
 
     def on_get_export_view(self, request, response, view_name):
-        from climate.climate_export import export_view_markdown
+        from climate.custom.climate_export import export_view_markdown
         result = export_view_markdown(self.manager, view_name)
         _respond_export(response, result,
                         download=request.params.get('download'))
@@ -679,6 +679,6 @@ def _present_outdoor(manager):
     """Today's outdoor level from the ingested record - never a
     constant. Returns None when nothing has been ingested, and the
     callers turn that into a refusal."""
-    from climate.series_ingest import series_points
+    from climate.custom.series_ingest import series_points
     points = series_points(manager, 'co2-mauna-loa-annual')
     return points[-1]['value'] if points else None

@@ -24,11 +24,11 @@ import json
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from computers.computers_basis import field_of
-from computers.computers_fit import fit_matrix, fit_profile
-from computers.computers_gates import (
+from computers.custom.computers_fit import fit_matrix, fit_profile
+from computers.custom.computers_gates import (
     assembly_gate_report, composition_view,
 )
-from computers.computers_ports import (
+from computers.computers_ports_basis import (
     interconnect_matrix, port_budget_gates,
 )
 
@@ -180,7 +180,7 @@ class ComputersAPI(treeObject):
                               'error': f'no build named '
                                        f'"{build_name}"'}
             return
-        from computers.computers_gates import _parts_of
+        from computers.custom.computers_gates import _parts_of
         parts_by_name = self._parts_by_name()
         parts = _parts_of(build, parts_by_name)
         response.media = {

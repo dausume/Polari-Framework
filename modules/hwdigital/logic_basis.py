@@ -19,9 +19,9 @@ Semantics the generators and the python evaluator (logic_sim) share:
     enable.
 
 @consumers
-  - hwdigital.logic_sim (the reference evaluator / teaching trace)
-  - hwdigital.logic_verilog (Verilog + bench + iCE40 generation)
-  - hwdigital.logic_compile (the registered graph compiler)
+  - hwdigital.custom.logic_sim (the reference evaluator / teaching trace)
+  - hwdigital.custom.logic_verilog (Verilog + bench + iCE40 generation)
+  - hwdigital.logic_compile_seed (the registered graph compiler)
   - hwdigital.logic_api (the knob surface)
   - polariServer (registration + seed)
 """

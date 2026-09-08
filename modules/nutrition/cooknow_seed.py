@@ -25,7 +25,7 @@ field, default 'chicken-bowl-dinner', names it).
                              suggestion; PersonSkill is a knob)
 
 @consumers polariApiServer.mealplan_pages_seed (the orchestrator's
-  upsert), nutrition.selftest_cooknow
+  upsert), nutrition.cooknow_selftest
 """
 
 import json
@@ -137,7 +137,7 @@ SEED_COOKNOW_PAGE_DISPLAYS = [
 
 SEED_COOKNOW_ANALYSES = [
     {'name': 'cooknow-sheet', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.cooknow_analysis:cook_sheet',
+     'callable_ref': 'nutrition.custom.cooknow_analysis:cook_sheet',
      'description': 'The recipe at prep time for one person: steps with their minutes '
                     '(basis labelled), unattended windows + dish suggestion, safety '
                     'lines, ingredients per step, totals, ready-by.',
@@ -145,7 +145,7 @@ SEED_COOKNOW_ANALYSES = [
                                 'variation': '', 'event': 'CalendarEvent.name (optional)'}),
      'enabled': True, 'is_prior': True, 'provenance_id': 'cooknow'},
     {'name': 'cooknow-step-done', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.cooknow_analysis:step_done_proposal',
+     'callable_ref': 'nutrition.custom.cooknow_analysis:step_done_proposal',
      'description': '"Done" → one DurationObservation proposal (dedupe person-template-step-date) '
                     '+ the speed-factor suggestion with it counted (never applied).',
      'params_json': json.dumps({'template': 'MealTemplate.name', 'step_order': 'int',

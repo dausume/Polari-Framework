@@ -14,7 +14,7 @@ subckt card, provenance attached) or an explicit value with the row
 as its honest record. Net '0' is SPICE ground by convention.
 
 @consumers
-  - electrodevice.circuit_netlist (the generator/runner)
+  - electrodevice.circuit_netlist_seed (the generator/runner)
   - electrodevice.circuit_api (the knob surface)
   - polariServer (registration + seed)
 """

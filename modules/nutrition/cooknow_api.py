@@ -4,7 +4,7 @@
 N4 — the Cook-now page's routes (HOUSEHOLD_APP_PAGES.md §3.4):
 
   GET  /api/mealplanning/cooknow/{person}?template=&variation=&event=
-       the cook sheet (nutrition.cooknow_analysis.cook_sheet)
+       the cook sheet (nutrition.custom.cooknow_analysis.cook_sheet)
   POST /api/mealplanning/cooknow/{person}/step-done
        {template, step, minutes, date?, variation?, dry?}
        → the DurationObservation proposal; WRITTEN through the event
@@ -37,14 +37,14 @@ class CookNowAPI(treeObject):
                 print(f'[CookNowAPI] route registration failed: {e}', flush=True)
 
     def on_get_sheet(self, request, response, person):
-        from nutrition.cooknow_analysis import cook_sheet
+        from nutrition.custom.cooknow_analysis import cook_sheet
         p = request.params
         response.media = cook_sheet(
             self.manager, p.get('template') or 'chicken-bowl-dinner', person,
             p.get('variation') or '', p.get('event') or None)
 
     def on_post_step_done(self, request, response, person):
-        from nutrition.cooknow_analysis import step_done_proposal
+        from nutrition.custom.cooknow_analysis import step_done_proposal
         body = request.get_media() if hasattr(request, 'get_media') else (request.media or {})
         body = body or {}
         proposal = step_done_proposal(

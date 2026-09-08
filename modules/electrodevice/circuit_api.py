@@ -8,7 +8,7 @@ catalogue, the generated netlist (through the registered compiler
 seam), and a live ngspice run.
 
 @consumers
-  - electrodevice.selftest_circuit_rows (function-level)
+  - electrodevice.circuit_rows_selftest (function-level)
   - the frontend circuit-diagram editor (later, with Dustin)
 """
 
@@ -16,7 +16,7 @@ import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from electrodevice.circuit_netlist import run_circuit
+from electrodevice.circuit_netlist_seed import run_circuit
 
 
 def _loads_or_note(raw, default):
@@ -111,7 +111,7 @@ class CircuitRowsAPI(treeObject):
     def on_get_netlist(self, request, response, name):
         from types import SimpleNamespace
         from polariNoCode.graph_compilers import compile_with
-        from electrodevice.circuit_netlist import (
+        from electrodevice.circuit_netlist_seed import (
             SEED_CIRCUIT_COMPILER)
         tables = getattr(self.manager, 'objectTables', None) or {}
         row = next((r for r in (tables.get('GraphCompilerDefinition')
@@ -151,7 +151,7 @@ class BreadboardAPI(treeObject):
                 suffix='drive')
 
     def on_post_run(self, request, response):
-        from electrodevice.breadboard_netlist import run_breadboards
+        from electrodevice.breadboard_netlist_seed import run_breadboards
         try:
             payload = json.load(request.bounded_stream)
         except Exception as e:
@@ -175,7 +175,7 @@ class BreadboardAPI(treeObject):
     def on_post_drive(self, request, response, name):
         """ncg-6: evaluate a logic design and drive its bound
         circuit sources — the cross-level act."""
-        from electrodevice.level_bridge import (
+        from electrodevice.level_bridge_basis import (
             drive_boards_from_design)
         try:
             payload = json.load(request.bounded_stream)

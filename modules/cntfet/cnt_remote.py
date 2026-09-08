@@ -27,11 +27,11 @@ Wire protocol = cnt_engines_service.py (JSON): /osdi/compile,
 /ngspice/run, /sta/run, /kwant/run, /capability.
 
 @consumers
-  - cntfet.cnt_osdi (find_openvaf / find_ngspice / compile_osdi /
+  - cntfet.custom.cnt_osdi (find_openvaf / find_ngspice / compile_osdi /
     run_ngspice)
-  - cntfet.cnt_characterization (find_sta / run_sta)
-  - cntfet.cnt_kwant (find_kwant_python / _run_worker)
-  - cntfet.cnt_capability (placement)
+  - cntfet.cnt_characterization_basis (find_sta / run_sta)
+  - cntfet.custom.cnt_kwant (find_kwant_python / _run_worker)
+  - cntfet.custom.cnt_capability (placement)
 """
 
 import json
@@ -149,9 +149,9 @@ def remote_post(path, payload, timeout=600):
 
 def placement():
     """dist-4: WHERE each engine would run right now, as data."""
-    from cntfet.cnt_osdi import find_ngspice, find_openvaf
-    from cntfet.cnt_characterization import find_sta
-    from cntfet.cnt_kwant import find_kwant_python
+    from cntfet.custom.cnt_osdi import find_ngspice, find_openvaf
+    from cntfet.cnt_characterization_basis import find_sta
+    from cntfet.custom.cnt_kwant import find_kwant_python
     out = {}
     for engine, finder in (('openvaf', find_openvaf),
                            ('ngspice', find_ngspice),

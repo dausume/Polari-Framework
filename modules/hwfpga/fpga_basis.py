@@ -13,7 +13,7 @@ all GENERATED from these rows — editing a row (a knob today, a
 no-code state later) reprograms the component at every layer.
 
 @consumers
-  - hwfpga.fpga_verilog (the generators)
+  - hwfpga.custom.fpga_verilog (the generators)
   - hwfpga.fpga_api (the knob surface)
   - polariServer (registration + seed)
 """

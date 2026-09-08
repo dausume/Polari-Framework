@@ -29,8 +29,8 @@ capability refusal; the module's rows and selftests never need it.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence + seeds)
-  - mqttbridge.mqtt_bridge (the worker), mqtt_api (knob surface)
-  - mqttbridge.selftest_mqttbridge
+  - mqttbridge.custom.mqtt_bridge (the worker), mqtt_api (knob surface)
+  - mqttbridge.mqttbridge_selftest
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit

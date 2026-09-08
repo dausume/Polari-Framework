@@ -27,8 +27,8 @@ resolution, not triggering it.
 from datetime import datetime, timezone
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from aquaponics.nutrient_uptake import _named, nutrient_availability_factor
-from aquaponics.water_batch import active_batch
+from aquaponics.custom.nutrient_uptake import _named, nutrient_availability_factor
+from aquaponics.water_batch_basis import active_batch
 
 
 def _not_found_or_bad(result):

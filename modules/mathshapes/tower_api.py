@@ -22,8 +22,8 @@ Towers are edited through CRUDE (object-coherence).
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from mathshapes.tower_analysis import tower_geometry
-from mathshapes.growth_prediction import tower_growth_forecast
+from mathshapes.custom.tower_analysis import tower_geometry
+from mathshapes.custom.growth_prediction import tower_growth_forecast
 
 
 class AquaponicTowerAPI(treeObject):

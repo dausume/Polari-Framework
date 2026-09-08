@@ -18,7 +18,7 @@ acidity reports.
 
 @consumers
   - polariServer (PropertyClaim seed concat)
-  - nutrition.acidity_analysis (meal acid share)
+  - nutrition.custom.acidity_analysis (meal acid share)
   - foodstate.selftest_food_ph
 @see AI-Notes/plans/MEAL_PLANNING_APP_PLAN.md §mpa-1
 """

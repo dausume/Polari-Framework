@@ -19,13 +19,13 @@ of Physical Activities, pacompendium.com — values unaltered.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.activity_analysis
+  - nutrition.custom.activity_analysis
 @see AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md §nmp-5
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from nutrition.vendor_data import compendium_mets
+from nutrition.custom.vendor_data import compendium_mets
 
 INTENSITY_BANDS = ('light', 'moderate', 'vigorous')
 COMPENDIUM_ATTRIBUTION = ('Herrmann SD et al., 2024 Adult Compendium '

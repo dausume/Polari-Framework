@@ -10,17 +10,17 @@ suggestions, and scenario price-drift findings (src-1).
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from supplychain.mold_analysis import (
+from supplychain.custom.mold_analysis import (
     mold_fleet_report, mold_strategy_compare,
 )
-from supplychain.reclaim_analysis import (
+from supplychain.custom.reclaim_analysis import (
     reclaim_cycle_curve, reclaim_pool_report, reclaim_steady_state,
 )
-from supplychain.formula_analysis import (
+from supplychain.custom.formula_analysis import (
     cascaded_cost, cheapest_blend, formula_cost, formulas_catalog,
     product_cost_comparison, requirement_coverage,
 )
-from supplychain.sourcing_analysis import (
+from supplychain.custom.sourcing_analysis import (
     _named, preferred_source, price_compare, scenario_price_drift,
     source_catalog,
 )

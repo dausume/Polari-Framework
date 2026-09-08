@@ -18,7 +18,7 @@ tomato-sauce-state example from the ratified direction).
 @consumers
   - polariServer (seed pairs: ProcessingStage / MaterialProcess-
     Definition / EvidenceMethod concat these onto the pspp seeds)
-  - foodstate.selftest_foodstate
+  - foodstate.foodstate_selftest
 """
 
 import json

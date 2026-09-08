@@ -1,7 +1,7 @@
 """
 sep-7: the CRUDE-layer permission gate (separation plan decision 10
 made enforceable). Core-resident so polariCRUDE can import it
-unconditionally; the MODEL lives in polariapps.apps_permissions and
+unconditionally; the MODEL lives in polariapps.apps_permissions_basis and
 is imported lazily — an instance without the polariapps module (or
 without profile rows) degrades to today's behavior, stated.
 
@@ -50,7 +50,7 @@ def crude_permission_gate(manager, request, response, verb,
                                     'no-profile-table')
             return True
         try:
-            from polariapps.apps_permissions import (
+            from polariapps.apps_permissions_basis import (
                 permission_verdict)
         except ImportError:
             if mode == 'advisory':

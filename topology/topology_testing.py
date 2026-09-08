@@ -46,7 +46,7 @@ class TopologyTestRun(treeObject):
         # Top-level module directory ('aquaponics').
         module_name: str = '',
         # Python module path of the suite
-        # ('aquaponics.selftest_pot').
+        # ('aquaponics.pot_selftest').
         suite: str = '',
         # TEST_STATUSES entry.
         status: str = 'error',

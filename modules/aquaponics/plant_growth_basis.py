@@ -11,10 +11,10 @@ row per part carries how that part grows and its volume->mass density
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - aquaponics.plant_growth_normalized.free_soil_constants (2026-07-15
+  - aquaponics.plant_growth_normalized_basis.free_soil_constants (2026-07-15
     — the PRIMARY reader now; the detailed model's own per-part rate
     source, see that module's docstring)
-  - aquaponics.plant_growth_simplified (reads the SAME constants
+  - aquaponics.custom.plant_growth_simplified (reads the SAME constants
     indirectly, via free_soil_constants — no longer has its own
     separate PlantGrowthModel lookup)
 @see /AQUAPONICS_PHASE2_PLAN.md §aqp-8, /AQUAPONICS_POT_SHAPE_PLAN.md phase 9

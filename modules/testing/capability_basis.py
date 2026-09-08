@@ -18,7 +18,7 @@ TEST-BUILD ONLY: these classes register only when the `testing`
 module is enabled (POLARI_TEST_BUILD / explicit POLARI_MODULES entry
 — see polariApiServer.module_gating OPT_IN_PACKAGES). A normal build
 has no tables, no CRUDE surface, no /api/accountability route; that
-absence is itself asserted by testing.absence_probe.
+absence is itself asserted by testing.custom.absence_probe.
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit

@@ -27,7 +27,7 @@ Two treeObjects (auto-CRUDE + persisted — object-coherence):
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - microalgae.reactor_analysis (growth, sustainability, decarbonization)
+  - microalgae.custom.reactor_analysis (growth, sustainability, decarbonization)
 @see /SALTWATER_FOOD_FOREST_SPEC.md (biochar passthrough), tanks/
 """
 

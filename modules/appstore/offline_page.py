@@ -32,7 +32,7 @@ the page says how verification stands rather than pretending.
 
 @consumers
   - polariServer (route registration via the appstore gate)
-  - appstore.selftest_offline
+  - appstore.offline_selftest
 """
 
 import html
@@ -41,7 +41,7 @@ import os
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from appstore.downloads_shared import (
+from appstore.custom.downloads_shared import (
     explainer_block, human_size, wrap_page)
 
 EXPLAIN_OFFLINE = (

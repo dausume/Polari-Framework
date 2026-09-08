@@ -15,7 +15,7 @@ behind it would buy (e.g. a hydroponics farm supplies wax-source
 biomass and wants geopolymer self-watering pots + shelves) — the
 mutual-supply loops the OSEB thesis is about.
 
-@consumers polariServer seed_pairs, supplychain.sourcing_analysis
+@consumers polariServer seed_pairs, supplychain.custom.sourcing_analysis
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit

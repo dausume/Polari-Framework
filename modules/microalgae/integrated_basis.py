@@ -23,7 +23,7 @@ reactors' biochar draw caps guarantee they can never over-pull the base.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - microalgae.integrated_analysis (chained_balance)
+  - microalgae.custom.integrated_analysis (chained_balance)
 @see /SALTWATER_FOOD_FOREST_SPEC.md, tanks/, [[microalgae-reactors]]
 """
 

@@ -32,31 +32,31 @@ NutrientReference / PersonProfile / HouseholdProfile rows
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from nutrition.person_analysis import (
+from nutrition.custom.person_analysis import (
     bmr, calorie_target, nutrient_needs, tdee,
 )
-from nutrition.household_analysis import household_needs
-from nutrition.threshold_analysis import (
+from nutrition.custom.household_analysis import household_needs
+from nutrition.custom.threshold_analysis import (
     calorie_envelope, obesity_classification, person_thresholds,
 )
-from nutrition.tolerance_analysis import (
+from nutrition.custom.tolerance_analysis import (
     evaluate_tolerances, meal_glycemic_load,
 )
-from nutrition.recipe_analysis import (
+from nutrition.custom.recipe_analysis import (
     recipe_nutrition, retention_candidates,
 )
-from nutrition.meal_analysis import (
+from nutrition.custom.meal_analysis import (
     plan_rollup, template_rollup, validate_template,
 )
-from nutrition.activity_analysis import (
+from nutrition.custom.activity_analysis import (
     day_timeline, fasted_exercise_facts, weekly_summary,
 )
-from nutrition.weight_trajectory import observed_vs_projected
-from nutrition.fulfillment_analysis import coverage, suggest_plantings
-from nutrition.workflow_analysis import (
+from nutrition.custom.weight_trajectory import observed_vs_projected
+from nutrition.custom.fulfillment_analysis import coverage, suggest_plantings
+from nutrition.custom.workflow_analysis import (
     derive_week_plan, resolve_method, tool_advisor,
 )
-from nutrition.affinity_composer import compose, counterbalance
+from nutrition.custom.affinity_composer import compose, counterbalance
 
 
 class NutritionAPI(treeObject):
@@ -382,7 +382,7 @@ class NutritionAPI(treeObject):
         if person is None:
             return
         params = request.params or {}
-        from nutrition.threshold_analysis import calorie_envelope
+        from nutrition.custom.threshold_analysis import calorie_envelope
         try:
             intake = float(params.get('daily_kcal', 0) or 0)
         except ValueError:
@@ -400,7 +400,7 @@ class NutritionAPI(treeObject):
                                        intake, horizon)
         if result.get('ok') and str(
                 params.get('naive', '')).lower() in ('1', 'true'):
-            from nutrition.weight_trajectory import project_weight
+            from nutrition.custom.weight_trajectory import project_weight
             naive = project_weight(person, intake, horizon,
                                    include_naive=True)
             result['naive3500Kg'] = naive.get('naive3500Kg')

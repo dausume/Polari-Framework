@@ -8,7 +8,7 @@ drives everything over the wire from OUTSIDE the containers, so its
 fixtures (which boot with POLARI_TEST_BUILD=true — they ARE test
 builds) expose this thin adapter over the same
 simulationLocks.lease functions the gate calls. A normal build
-never registers this route (testing.absence_probe pins that).
+never registers this route (testing.custom.absence_probe pins that).
 
   POST /api/testing/lease  {action: acquire|release, runId, token?}
 """

@@ -2,7 +2,7 @@
 @module vpn.vpn_seed
 
 The no-code half of the propose forms: one AnalysisDefinition
-(`vpn-proposal` -> vpn.vpn_proposals:propose) and one
+(`vpn-proposal` -> vpn.custom.vpn_proposals:propose) and one
 SolutionDefinition per proposal kind (`vpn-propose-<kind>`), each
 FormSubscription -> AnalysisCall (pick proposals) -> AnalysisCall
 (pick message) -> GenerateEvent VpnProposal (dedupe by name) ->
@@ -19,7 +19,7 @@ import json
 
 from polariNoCode import graph_builder as gb
 
-_CALLABLE = 'vpn.vpn_proposals:propose'
+_CALLABLE = 'vpn.custom.vpn_proposals:propose'
 
 #: Form field -> analysis param, per kind (the form's extraVariables
 #: are the solution context; every param rides gb.var_src).
@@ -108,7 +108,7 @@ def seed_vpn_nocode(manager):
              ('SolutionDefinition', SolutionDefinition, SEED_VPN_SOLUTIONS),
              ('DisplayDefinition', DisplayDefinition, SEED_VPN_PAGE_DISPLAYS)]
     try:
-        from composition.seed_upsert import upsert_seed_pairs
+        from composition.custom.seed_upsert import upsert_seed_pairs
     except ImportError:
         upsert_seed_pairs = None
     if upsert_seed_pairs is not None:

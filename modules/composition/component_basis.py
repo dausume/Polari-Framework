@@ -35,7 +35,7 @@ class PartComponentDefinition(treeObject):
         self.name = name
         self.display_name = display_name
         #: Material row by NAME (data reference, resolved via
-        #: composition.data_refs — never an import).
+        #: composition.custom.data_refs — never an import).
         self.material_ref = material_ref
         #: Temper/condition key; '' = unstated (screens unassessed).
         self.material_condition = material_condition

@@ -24,7 +24,7 @@ references carry only the type + region and say so
 the instance.
 
 SEED_PRICE_REFERENCES is EMPTY by design: references come from
-`nutrition.market_analysis.export_price_references` (aggregation of
+`nutrition.custom.market_analysis.export_price_references` (aggregation of
 live observations) and, from mo-3 on, the module's initialData —
 never from hand-written seeds.
 """

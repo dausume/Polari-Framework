@@ -10,7 +10,7 @@ organ.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from meshassets.mesh_fit import (
+from meshassets.custom.mesh_fit import (
     candidates_for_organ, citation_manifest, citation_record,
     fit_asset_to_organ, source_catalog,
 )

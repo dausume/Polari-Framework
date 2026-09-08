@@ -20,7 +20,7 @@ into a large MOCK NETWORK banner (islemesh_constants.MOCK_BANNER).
 @consumers
   - islemesh.islemesh_api (ingest + read surface)
   - polariServer defClassList (tables + CRUDE)
-  - islemesh.selftest_islemesh
+  - islemesh.islemesh_selftest
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit

@@ -133,7 +133,7 @@ def _round_trip():
           and report['created'].get('LogicBlockNode') == 3
           and not report['errors'])
 
-    from hwdigital.logic_sim import LogicSimulator, design_specs
+    from hwdigital.custom.logic_sim import LogicSimulator, design_specs
     specs = design_specs(target, 'demo-counter2')
     sim = LogicSimulator(specs)
     sim.set_inputs(**{'cnt2-en': 1})

@@ -10,7 +10,7 @@ knobs (knobs-and-suggestions — never hidden, honest defaults). The math
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.person_analysis, nutrition.household_analysis
+  - nutrition.custom.person_analysis, nutrition.custom.household_analysis
 @see /HOUSEHOLD_NUTRITION_PLAN.md §nut-3
 """
 

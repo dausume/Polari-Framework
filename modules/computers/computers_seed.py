@@ -4,7 +4,7 @@
 cmp-c seed rows: the component taxonomy (one row per part kind),
 the v1 profile set (Dustin's decision 2: the four planned + the
 dl-6 low-power member node), and assemblies wrapping the ai-8
-example builds. Seeded through composition.seed_upsert — floors
+example builds. Seeded through composition.custom.seed_upsert — floors
 and taxonomy vocabularies WILL evolve, so the seed must converge
 live prior rows (never insert-by-name).
 
@@ -393,14 +393,14 @@ def seed_computers(manager):
         ComputerAssemblyDefinition, ComputerPartClassDefinition,
         ComputerProfileDefinition,
     )
-    from computers.computers_ports import (
+    from computers.computers_ports_basis import (
         InterconnectDefinition, SEED_INTERCONNECTS,
         SEED_PORT_EXAMPLE_PARTS, SEED_PORT_PART_CLASSES,
     )
     try:
-        from composition.seed_upsert import upsert_seed_pairs
+        from composition.custom.seed_upsert import upsert_seed_pairs
     except ImportError as exc:
-        print(f'[ComputersSeed] composition.seed_upsert '
+        print(f'[ComputersSeed] composition.custom.seed_upsert '
               f'unavailable ({exc}) — computers seeds NOT '
               f'applied', flush=True)
         return []

@@ -18,7 +18,7 @@ people can build", end goal = the dual-stator axial-flux machine).
   wall-clock progression; missed steps over hours ARE the quality
   metric. Measured runs are what earn made-and-measured.
 
-@consumers motors.motor_designer, motors.motor_api, polariServer
+@consumers motors.custom.motor_designer, motors.motor_api, polariServer
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit

@@ -2,7 +2,7 @@
 Module Scaffold Generator
 
 Generates a complete Polari module package on disk from a definition dict.
-Produces files following the exact patterns used by polariMaterialsScienceModule.
+Produces files following the exact patterns used by materials_science.
 """
 
 import os

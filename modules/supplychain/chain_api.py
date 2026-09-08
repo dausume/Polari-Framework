@@ -19,7 +19,7 @@ Nodes / flows / chains are edited through CRUDE (object-coherence).
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from supplychain.chain_analysis import (
+from supplychain.custom.chain_analysis import (
     carbon_balance, chain_inventory, dependency_check,
 )
 

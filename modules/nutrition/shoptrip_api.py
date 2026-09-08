@@ -23,7 +23,7 @@ import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from nutrition.shoptrip_analysis import (
+from nutrition.custom.shoptrip_analysis import (
     record_purchase_proposal, trip_checklist,
 )
 

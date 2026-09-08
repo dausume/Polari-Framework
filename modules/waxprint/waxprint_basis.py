@@ -33,7 +33,7 @@ until Dustin's rig pins it (knobs-and-suggestions).
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence) + seed_pairs
-  - waxprint.melt_analysis / bead_analysis / print_optimizer
+  - waxprint.custom.melt_analysis / bead_analysis / print_optimizer
   - waxprint.waxprint_api
 @see /MVW_PRINT_SIM_PLAN.md, /WAX_PRINT_VOXEL_PLAN.md
 """

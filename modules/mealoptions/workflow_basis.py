@@ -33,7 +33,7 @@ StepMethod's skill_floor is a plain string naming one of its levels.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.workflow_analysis (via nutrition.workflow_basis)
+  - nutrition.custom.workflow_analysis (via nutrition.workflow_basis)
 @see AI-Notes/plans/MEAL_OPTIONS_MODULE_PLAN.md §mo-1
 """
 

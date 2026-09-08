@@ -20,7 +20,7 @@ calendar mapping is presentation, not data.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.meal_analysis
+  - nutrition.custom.meal_analysis
 @see AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md §nmp-4
 @see AI-Notes/plans/MEAL_OPTIONS_MODULE_PLAN.md §mo-1
 """

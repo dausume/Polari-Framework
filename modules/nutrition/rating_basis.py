@@ -15,7 +15,7 @@ deletes anything (tastes change; the history stays).
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.rating_analysis, mealplanning_api
+  - nutrition.custom.rating_analysis, mealplanning_api
 @see AI-Notes/plans/MEAL_PLANNING_APP_PLAN.md §3b mpb-8
 """
 

@@ -15,11 +15,11 @@ import json
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from composition.archetype_basis import archetype_report
-from composition.data_refs import rows
-from composition.design_matrix import matrix_report
+from composition.custom.data_refs import rows
+from composition.design_matrix_basis import matrix_report
 from composition.functional_basis import variant_report
 from composition.node_basis import composition_report, derive_level
-from composition.realization import node_realization
+from composition.custom.realization import node_realization
 from composition.routing_basis import (
     audit_promotion, routing_report, variant_step_counts,
 )

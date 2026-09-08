@@ -10,7 +10,7 @@ authConfig as 'env:<VAR>' (a pointer, never a literal key — repos
 are PUBLIC).
 
 @consumers
-  - dmvdata.census_pull (the first end-to-end slice)
+  - dmvdata.custom.census_pull (the first end-to-end slice)
   - polariServer (registration + seed, wired by the main session)
 """
 

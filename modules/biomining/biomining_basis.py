@@ -28,7 +28,7 @@ Three treeObjects (auto-CRUDE + persisted — object-coherence):
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - biomining.biomining_analysis
+  - biomining.custom.biomining_analysis
 @see materialsScience/ (ferrite + CNT targets), tanks/, microalgae/
 """
 

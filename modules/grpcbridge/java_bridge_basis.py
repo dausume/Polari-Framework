@@ -14,7 +14,7 @@ exposed class must hold a CURRENT gRPC contract (grpc-1), which in
 turn only exists for a STABILIZED schema.
 
 @consumers
-  - grpcbridge.java_bridge (the generator)
+  - grpcbridge.custom.java_bridge (the generator)
   - grpcbridge.java_bridge_api (the knob surface)
 """
 

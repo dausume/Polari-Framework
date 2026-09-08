@@ -23,9 +23,9 @@ derives.
 
 import json
 
-from casting.coatings import chain_full_report
-from casting.nesting_wizard import plan_nesting
-from casting.wax_feasibility import _rows
+from casting.coatings_basis import chain_full_report
+from casting.nesting_wizard_basis import plan_nesting
+from casting.custom.wax_feasibility import _rows
 from objectTreeDecorators import treeObject, treeObjectInit
 
 
@@ -65,7 +65,7 @@ class CastingAPI(treeObject):
                                        'CastingMaterialThermal'
                                        'Profile')),
                 'galvanized': sorted(
-                    __import__('casting.nesting_wizard',
+                    __import__('casting.nesting_wizard_basis',
                                fromlist=['GALVANIZE_TARGETS']
                                ).GALVANIZE_TARGETS)},
             'feedstocks': sorted(getattr(r, 'name', '') for r in

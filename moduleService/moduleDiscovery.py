@@ -27,7 +27,7 @@ def _snake_to_pascal(name):
 def module_dir_to_id(dir_name):
     """Convert a module directory name to its module ID.
 
-    E.g. 'polariMaterialsScienceModule' -> 'materials_science'
+    E.g. 'materials_science' -> 'materials_science'
     """
     # Strip 'polari' prefix and 'Module' suffix
     inner = dir_name
@@ -41,8 +41,10 @@ def module_dir_to_id(dir_name):
 def module_id_to_package(module_id):
     """Convert a module ID to its Python package name.
 
-    E.g. 'materials_science' -> 'polariMaterialsScienceModule'
+    E.g. 'materials_science' -> 'materials_science'
     """
+    if os.path.isdir(os.path.join(_get_modules_dir(), module_id)):
+        return module_id  # sap-2: the package IS the id
     return 'polari' + _snake_to_pascal(module_id) + 'Module'
 
 
@@ -70,12 +72,12 @@ def discover_available_modules(framework_root=None):
     Returns a dict of module_id -> module info:
         {
             'materials_science': {
-                'package_name': 'polariMaterialsScienceModule',
+                'package_name': 'materials_science',
                 'display_name': 'Materials Science',
                 'description': '...',
                 'available': True,  # importable
                 'user_created': False,
-                'dir_path': '/path/to/polariMaterialsScienceModule'
+                'dir_path': '/path/to/materials_science'
             },
             ...
         }
@@ -95,13 +97,21 @@ def discover_available_modules(framework_root=None):
         # Must be a directory matching polari*Module pattern
         if not os.path.isdir(dir_path):
             continue
-        if not entry.startswith('polari') or not entry.endswith('Module'):
+        legacy_pattern = entry.startswith('polari') and entry.endswith('Module')
+        has_meta = os.path.isfile(os.path.join(dir_path, '_module_metadata.json'))
+        try:
+            has_init = 'def initialize(' in open(os.path.join(dir_path, '__init__.py'), encoding='utf-8').read()
+        except OSError:
+            has_init = False
+        # sap-2 (2026-09-08): dynamic modules are named by registry id now;
+        # a dir counts when it carries _module_metadata.json or initialize().
+        if not (legacy_pattern or has_meta or has_init):
             continue
         # Must have an __init__.py
         if not os.path.isfile(os.path.join(dir_path, '__init__.py')):
             continue
 
-        module_id = module_dir_to_id(entry)
+        module_id = module_dir_to_id(entry) if legacy_pattern else entry
         package_name = entry
 
         # Check if importable and has initialize()

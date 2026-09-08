@@ -6,13 +6,13 @@
 Demo light spectrum + source rows (plant-growth-sim phase 8,
 2026-07-15) — one 'blackbody' spectrum at the sun's 5778K photosphere
 temperature (the standard "sunlight at Earth's surface" reference,
-matching electrodevice/photo_derive.py's own choice of the same
+matching electrodevice/custom/photo_derive.py's own choice of the same
 constant), bound as a 'point' grow-light source overhead demo-herb-pot
 (these are indoor tent/chamber systems — aquaponics.atmosphere_seed's
 'ventilated-grow-tent'/'sealed-chamber' — so a grow light is the
 physically appropriate source, not direct outdoor sun).
 intensity_w_m2 is not a round guess: 207.71 W/m^2 was solved from the
-REAL aquaponics.light_field.spectrum_ppfd() computation to land at
+REAL aquaponics.custom.light_field.spectrum_ppfd() computation to land at
 ~350 PPFD — matching the healthy system's existing static
 AtmosphereDefinition.light_ppfd_umol_m2_s (aqp-5's own
 'ventilated-grow-tent' row) so the two independent light-modeling
@@ -32,7 +32,7 @@ SEED_LIGHT_SPECTRA = [
         'description': "The standard reference model for sunlight at "
                        "Earth's surface — a 5778K blackbody spectrum "
                        '(the sun\'s photosphere temperature), same '
-                       'constant electrodevice/photo_derive.py uses '
+                       'constant electrodevice/custom/photo_derive.py uses '
                        'for its own solar-cell calculations.',
         'kind': 'blackbody',
         'wavelength_nm': 550.0,

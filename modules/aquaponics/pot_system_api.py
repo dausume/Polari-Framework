@@ -22,7 +22,7 @@ context-scoring engine:
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from aquaponics.pot_system import system_impact, system_survival
+from aquaponics.pot_system_basis import system_impact, system_survival
 
 
 class AquaponicsSystemAPI(treeObject):

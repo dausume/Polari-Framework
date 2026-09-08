@@ -25,7 +25,7 @@ safety; the report says so.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.exclusion_analysis, mealplanning_api
+  - nutrition.custom.exclusion_analysis, mealplanning_api
 @see AI-Notes/plans/MEAL_PLANNING_APP_PLAN.md §3b mpb-1
 """
 

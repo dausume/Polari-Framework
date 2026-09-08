@@ -8,9 +8,9 @@ machinery each domain already trusts:
   'solution'      a stored SolutionDefinition executed by the REAL
                   SolutionExecutionEngine (via graph_builder.execute)
   'circuit'       a CircuitDefinition row-set run through ngspice
-                  (electrodevice.circuit_netlist.run_circuit)
+                  (electrodevice.circuit_netlist_seed.run_circuit)
   'logic-design'  a LogicBlockDesign evaluated by the python
-                  reference evaluator (hwdigital.logic_sim)
+                  reference evaluator (hwdigital.custom.logic_sim)
 
 A NoCodeTestCase is a row (arrange = input_bindings_json, act = the
 subject's own runner, assert = expected_json); a NoCodeTestPack is a
@@ -183,7 +183,7 @@ def _run_solution_case(manager, case, bindings, expected):
 
 
 def _run_circuit_case(manager, case, expected):
-    from electrodevice.circuit_netlist import run_circuit
+    from electrodevice.circuit_netlist_seed import run_circuit
     result = run_circuit(manager, case.subject_ref)
     if not result.get('ok'):
         error = result.get('error', '')
@@ -214,7 +214,7 @@ def _run_circuit_case(manager, case, expected):
 
 
 def _run_logic_case(manager, case, bindings, expected):
-    from hwdigital.logic_sim import LogicSimulator, design_specs
+    from hwdigital.custom.logic_sim import LogicSimulator, design_specs
     specs = design_specs(manager, case.subject_ref)
     sim = LogicSimulator(specs)
     if bindings:

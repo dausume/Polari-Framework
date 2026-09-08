@@ -20,7 +20,7 @@ The reluctance network GENERATES from these rows (magnet_layout) —
 mag-3 hand-authored circuits stay possible, the matrix is the
 primary authoring surface.
 
-@consumers magnetics.magnet_layout, magnetics.magnet_api,
+@consumers magnetics.custom.magnet_layout, magnetics.magnet_api,
 polariServer (registration + seed)
 """
 

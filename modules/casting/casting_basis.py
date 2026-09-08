@@ -11,7 +11,7 @@ One treeObject (auto-CRUDE + persisted — object-coherence):
   MoldDefinition   names a part shape and the declared allowances; the
                    mold geometry itself (stock block, shrink-scaled
                    part, mold body = stock DIFFERENCE part) is DERIVED
-                   by casting.mold_geometry.derive_mold as mathshapes
+                   by casting.custom.mold_geometry.derive_mold as mathshapes
                    rows. The inversion is algebra the existing CSG
                    executor already evaluates: body field =
                    max(F_stock, −F_part). Hand-editing a derived row is
@@ -28,7 +28,7 @@ cast-3; sprues in cast-4.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - casting.mold_geometry (derivation), casting.casting_seed
+  - casting.custom.mold_geometry (derivation), casting.casting_seed
 @see /WAX_MOLD_NESTING_PLAN.md (PHASE cast-1)
 """
 

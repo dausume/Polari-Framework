@@ -8,21 +8,21 @@ generated twin source).
 
 @consumers
   - polariServer (route registration, gated on feature presence)
-  - cntfet.selftest_cntfet (function level)
+  - cntfet.cntfet_selftest (function level)
 """
 
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from cntfet.cnt_calibration import (
+from cntfet.cnt_calibration_seed import (
     calibrate_device, seed_anchor_rows,
 )
-from cntfet.cnt_capability import capability
-from cntfet.cnt_fet_summary import fet_alias
-from cntfet.cnt_derive import derive_device, get_row, run_iv
-from cntfet.cnt_validate import validate
-from cntfet.cnt_verilog_a import generate_va
+from cntfet.custom.cnt_capability import capability
+from cntfet.custom.cnt_fet_summary import fet_alias
+from cntfet.custom.cnt_derive import derive_device, get_row, run_iv
+from cntfet.custom.cnt_validate import validate
+from cntfet.cnt_verilog_a_endpoints import generate_va
 
 
 class CNTFETAPI(treeObject):
@@ -203,15 +203,15 @@ class CNTFETAPI(treeObject):
         response.media = capability()
 
     def on_get_cell_library(self, request, response):
-        from cntfet.cnt_cell_library import library_report
+        from cntfet.cnt_cell_library_basis import library_report
         response.media = library_report()
 
     def on_get_figures(self, request, response):
-        from cntfet.cnt_figures import figures_index
+        from cntfet.cnt_figures_seed import figures_index
         response.media = figures_index()
 
     def on_get_figure(self, request, response, figure_id):
-        from cntfet.cnt_figures import build_figure
+        from cntfet.cnt_figures_seed import build_figure
         report = build_figure(figure_id, manager=self.manager)
         if not report.get('ok'):
             # a REFUSAL (no row-backed run yet) is 422, never 503 — the
@@ -222,7 +222,7 @@ class CNTFETAPI(treeObject):
         response.media = report
 
     def on_get_figure_points(self, request, response, figure_id):
-        from cntfet.cnt_figures import figure_points
+        from cntfet.cnt_figures_seed import figure_points
         report = figure_points(figure_id, manager=self.manager)
         if not report.get('ok'):
             # a REFUSAL (no row-backed run yet) is 422, never 503 — the
@@ -233,7 +233,7 @@ class CNTFETAPI(treeObject):
         response.media = report
 
     def on_get_citations(self, request, response):
-        from cntfet.cnt_citations import citations_report
+        from cntfet.custom.cnt_citations import citations_report
         response.media = citations_report(self.manager)
 
     def on_get_devices(self, request, response):
@@ -268,7 +268,7 @@ class CNTFETAPI(treeObject):
 
     def on_get_cell_summary(self, request, response, cell):
         """cell arc: the GENERAL cell + its configuration index."""
-        from cntfet.cnt_cell_pages import cell_summary
+        from cntfet.cnt_cell_page import cell_summary
         report = cell_summary(self.manager, cell)
         if not report.get('ok'):
             response.status = '404 Not Found'
@@ -278,18 +278,18 @@ class CNTFETAPI(treeObject):
                                    device):
         """cell arc: this cell ON this FET (the configuration
         object's numbers, or the fill affordance)."""
-        from cntfet.cnt_cell_pages import cell_config_summary
+        from cntfet.cnt_cell_page import cell_config_summary
         report = cell_config_summary(self.manager, cell, device)
         if not report.get('ok'):
             response.status = '404 Not Found'
         response.media = report
 
     def on_get_cells_catalogue(self, request, response):
-        from cntfet.cnt_cell_pages import cells_catalogue
+        from cntfet.cnt_cell_page import cells_catalogue
         response.media = cells_catalogue(self.manager)
 
     def on_get_fblock_summary(self, request, response, key):
-        from cntfet.cnt_block_pages import block_summary
+        from cntfet.cnt_block_page import block_summary
         report = block_summary(self.manager, key)
         if not report.get('ok'):
             response.status = '404 Not Found'
@@ -298,7 +298,7 @@ class CNTFETAPI(treeObject):
     def on_get_fblock_config_summary(self, request, response, key,
                                      device):
         """?timing=0 skips the OpenSTA pass (fast index views)."""
-        from cntfet.cnt_block_pages import block_config_summary
+        from cntfet.cnt_block_page import block_config_summary
         report = block_config_summary(
             self.manager, key, device,
             with_timing=request.get_param('timing') != '0')
@@ -312,7 +312,7 @@ class CNTFETAPI(treeObject):
         idempotently and returns its name + stats. ?dim=3d|2d,
         ?lod=real|blackbox (cell default real, block blackbox —
         the performance choice is the caller's knob)."""
-        from cntfet.cnt_level_scenes import generate_scene
+        from cntfet.custom.cnt_level_scenes import generate_scene
         report = generate_scene(
             self.manager, level, key, device,
             dim=request.get_param('dim') or '3d',
@@ -322,19 +322,19 @@ class CNTFETAPI(treeObject):
         response.media = report
 
     def on_get_fblocks_catalogue(self, request, response):
-        from cntfet.cnt_block_pages import blocks_catalogue
+        from cntfet.cnt_block_page import blocks_catalogue
         response.media = blocks_catalogue(self.manager)
 
     def on_get_cells_advance(self, request, response):
         """The first-step ladder report (dry run of the sweep)."""
-        from cntfet.cnt_cell_advance import advance_report
+        from cntfet.custom.cnt_cell_advance import advance_report
         response.media = advance_report(self.manager)
 
     def on_post_cells_advance(self, request, response):
         """{"device": name} — take ONE device to the first step
         (coarse library + sequential; long call, the sweep script
         loops devices)."""
-        from cntfet.cnt_cell_advance import advance_device
+        from cntfet.custom.cnt_cell_advance import advance_device
         try:
             raw = request.bounded_stream.read()
             payload = json.loads(raw) if raw else {}
@@ -355,13 +355,13 @@ class CNTFETAPI(treeObject):
     def on_get_fet_devices(self, request, response):
         """fg-2: the generic FET catalogue (CNT + Si), each row with
         its /display/fet?object= pages and /api/fet summary path."""
-        from cntfet.cnt_fet_summary import fet_catalogue
+        from cntfet.custom.cnt_fet_summary import fet_catalogue
         response.media = fet_catalogue(self.manager)
 
     def on_get_device_points(self, request, response, name):
         """?curve= ?vd= ?samples= (fi-3 MC count behind score-terms /
         transfer-envelope; 0 = nominal only) ?seed="""
-        from cntfet.cnt_device_viz import (
+        from cntfet.cnt_device_viz_seed import (
             DEFAULT_MC_SAMPLES, device_curve_points,
         )
         try:
@@ -386,7 +386,7 @@ class CNTFETAPI(treeObject):
         in one stable fet-summary/1 payload; a section that cannot
         answer carries its refusal inline (never a 500, the key set
         never changes)."""
-        from cntfet.cnt_fet_summary import fet_summary
+        from cntfet.custom.cnt_fet_summary import fet_summary
         report = fet_summary(self.manager, name)
         if not report.get('ok'):
             response.status = '404 Not Found'
@@ -398,7 +398,7 @@ class CNTFETAPI(treeObject):
         case + score quantiles; ?vt_definition=model|constant-current
         ?off_decades= ?vov_decades= ?g_on_target_over_g0= are the
         scoring knobs (echoed)."""
-        from cntfet.cnt_scoring import score_device
+        from cntfet.cnt_scoring_seed import score_device
         knobs = {}
         try:
             for key in ('off_decades', 'vov_decades',
@@ -423,7 +423,7 @@ class CNTFETAPI(treeObject):
             response.media = report
             return
         if samples > 0:
-            from cntfet.cnt_device_viz import _montecarlo
+            from cntfet.cnt_device_viz_seed import _montecarlo
             device = (get_row(self.manager, 'AlignedCNTFETDevice', name)
                       or get_row(self.manager, 'SiliconMOSFET', name))
             mc = _montecarlo(self.manager, device,
@@ -436,7 +436,7 @@ class CNTFETAPI(treeObject):
         response.media = report
 
     def on_get_device_compare(self, request, response, name):
-        from cntfet.cnt_compare import compare_devices
+        from cntfet.custom.cnt_compare import compare_devices
         report = compare_devices(self.manager, name)
         if not report.get('ok'):
             response.status = '404 Not Found'
@@ -457,7 +457,7 @@ class CNTFETAPI(treeObject):
         return out
 
     def _modelled(self, response, name):
-        from cntfet.cnt_device_viz import device_model
+        from cntfet.cnt_device_viz_seed import device_model
         id_fn, p, device, refusal = device_model(self.manager, name)
         if refusal is not None:
             response.status = '422 Unprocessable Entity'
@@ -467,7 +467,7 @@ class CNTFETAPI(treeObject):
 
     def on_get_device_regimes(self, request, response, name):
         """fv-1: ?vg= ?vd= (point) + the map summary + exponent."""
-        from cntfet.cnt_regimes import device_regimes_report
+        from cntfet.cnt_regimes_basis import device_regimes_report
         m = self._modelled(response, name)
         if m is None:
             return
@@ -480,14 +480,14 @@ class CNTFETAPI(treeObject):
 
     def on_get_device_transport(self, request, response, name):
         """fv-2: ?vg= ?vd= ?t= (hours) ?horizon= (hours)."""
-        from cntfet.cnt_transport import transport_report
+        from cntfet.cnt_transport_basis import transport_report
         m = self._modelled(response, name)
         if m is None:
             return
         q = self._floats(request, response, ('vg', 'vd', 't', 'horizon'))
         if q is None:
             return
-        from cntfet.cnt_device_viz import device_vdd
+        from cntfet.cnt_device_viz_seed import device_vdd
         vdd = device_vdd(m[2])   # device-relative: Vg = Vd = its OWN Vdd
         kwargs = {'vgs': q.get('vg', vdd), 'vds': q.get('vd', vdd),
                   't_hours': q.get('t', 0.0)}
@@ -504,7 +504,7 @@ class CNTFETAPI(treeObject):
                 for r in (tables.get('SimSpaceDefinition') or {}).values()}
 
     def on_get_device_characteristics(self, request, response, name):
-        from cntfet.cnt_characteristics import characteristics_index
+        from cntfet.cnt_characteristics_basis import characteristics_index
         if (get_row(self.manager, 'AlignedCNTFETDevice', name) is None
                 and get_row(self.manager, 'SiliconMOSFET', name) is None):
             return self._refuse(response, f'no device "{name}"',
@@ -513,7 +513,7 @@ class CNTFETAPI(treeObject):
 
     def on_get_device_characteristic(self, request, response, name,
                                      key):
-        from cntfet.cnt_characteristics import characteristic_detail
+        from cntfet.cnt_characteristics_basis import characteristic_detail
         if (get_row(self.manager, 'AlignedCNTFETDevice', name) is None
                 and get_row(self.manager, 'SiliconMOSFET', name) is None):
             return self._refuse(response, f'no device "{name}"',
@@ -527,8 +527,8 @@ class CNTFETAPI(treeObject):
     def on_get_device_fields(self, request, response, name):
         """fv-4: ?field=material|potential|electron-density|n-doping|
         p-doping ?vg= ?vd= — the 1-D profile (F1 sketch, labelled)."""
-        from cntfet.cnt_device_viz import device_vdd
-        from cntfet.cnt_fields import field_profile
+        from cntfet.cnt_device_viz_seed import device_vdd
+        from cntfet.cnt_fields_basis import field_profile
         device = (get_row(self.manager, 'AlignedCNTFETDevice', name)
                   or get_row(self.manager, 'SiliconMOSFET', name))
         if device is None:
@@ -547,7 +547,7 @@ class CNTFETAPI(treeObject):
 
     def on_get_device_links(self, request, response, name):
         """fp-6 weave: pages + partners + cells for one FET."""
-        from cntfet.cnt_links import device_links
+        from cntfet.custom.cnt_links import device_links
         device = (get_row(self.manager, 'AlignedCNTFETDevice', name)
                   or get_row(self.manager, 'SiliconMOSFET', name))
         if device is None:
@@ -558,7 +558,7 @@ class CNTFETAPI(treeObject):
     def on_get_device_power(self, request, response, name):
         """fp-1: static / leakage / dynamic power + budget checks.
         ?vdd= ?activity= ?f="""
-        from cntfet.cnt_power import budget_report
+        from cntfet.cnt_power_basis import budget_report
         m = self._modelled(response, name)
         if m is None:
             return
@@ -574,7 +574,7 @@ class CNTFETAPI(treeObject):
 
     def on_get_device_cell_power(self, request, response, name):
         """fp-1: every characterized cell's leakage states + dynamic."""
-        from cntfet.cnt_power import library_power
+        from cntfet.cnt_power_basis import library_power
         m = self._modelled(response, name)
         if m is None:
             return
@@ -586,7 +586,7 @@ class CNTFETAPI(treeObject):
     def on_get_device_taxonomy(self, request, response, name):
         """fp-3: shape, optimization class (switching vs signal),
         complementary partner + conditions, regions summary."""
-        from cntfet.cnt_taxonomy import device_taxonomy_report
+        from cntfet.cnt_taxonomy_basis import device_taxonomy_report
         if (get_row(self.manager, 'AlignedCNTFETDevice', name) is None
                 and get_row(self.manager, 'SiliconMOSFET', name) is None):
             return self._refuse(response, f'no device "{name}"',
@@ -598,7 +598,7 @@ class CNTFETAPI(treeObject):
 
     def on_get_device_signal_score(self, request, response, name):
         """fp-3: the analog / signal-optimized score concept."""
-        from cntfet.cnt_taxonomy import score_signal
+        from cntfet.cnt_taxonomy_basis import score_signal
         if (get_row(self.manager, 'AlignedCNTFETDevice', name) is None
                 and get_row(self.manager, 'SiliconMOSFET', name) is None):
             return self._refuse(response, f'no device "{name}"',
@@ -611,7 +611,7 @@ class CNTFETAPI(treeObject):
     def on_get_cell_logic(self, request, response, cell):
         """fp-5: boolean AST, gate DAG, truth table, transistor
         netlist with placement, switch-level proof, state space."""
-        from cntfet.cnt_logic import cell_logic_report
+        from cntfet.custom.cnt_logic import cell_logic_report
         try:
             drive = int(request.get_param('drive') or 1)
         except ValueError:
@@ -622,7 +622,7 @@ class CNTFETAPI(treeObject):
         response.media = report
 
     def on_get_device_ip(self, request, response, name):
-        from cntfet.cnt_ip import device_ip_report
+        from cntfet.cnt_ip_basis import device_ip_report
         if (get_row(self.manager, 'AlignedCNTFETDevice', name) is None
                 and get_row(self.manager, 'SiliconMOSFET', name) is None):
             return self._refuse(response, f'no device "{name}"',
@@ -630,7 +630,7 @@ class CNTFETAPI(treeObject):
         response.media = device_ip_report(self.manager, name)
 
     def on_get_device_proof(self, request, response, name):
-        from cntfet.cnt_evidence import freedom_proof
+        from cntfet.cnt_evidence_basis import freedom_proof
         if (get_row(self.manager, 'AlignedCNTFETDevice', name) is None
                 and get_row(self.manager, 'SiliconMOSFET', name) is None):
             return self._refuse(response, f'no device "{name}"',
@@ -638,44 +638,44 @@ class CNTFETAPI(treeObject):
         response.media = freedom_proof(self.manager, 'device', name)
 
     def on_get_cell_proof(self, request, response, cell):
-        from cntfet.cnt_evidence import freedom_proof
+        from cntfet.cnt_evidence_basis import freedom_proof
         report = freedom_proof(self.manager, 'cell', cell)
         if not report.get('ok', True):
             response.status = '404 Not Found'
         response.media = report
 
     def on_get_library_proof(self, request, response):
-        from cntfet.cnt_evidence import library_proof
+        from cntfet.cnt_evidence_basis import library_proof
         response.media = library_proof(self.manager)
 
     def on_get_evidence_index(self, request, response):
-        from cntfet.cnt_evidence import evidence_index
+        from cntfet.cnt_evidence_basis import evidence_index
         response.media = evidence_index(
             self.manager, kind=request.get_param('kind'),
             subject=request.get_param('subject'))
 
     def on_get_evidence_detail(self, request, response, item):
-        from cntfet.cnt_evidence import evidence_detail
+        from cntfet.cnt_evidence_basis import evidence_detail
         report = evidence_detail(self.manager, item)
         if not report.get('ok', True):
             response.status = '404 Not Found'
         response.media = report
 
     def on_get_library_ip(self, request, response):
-        from cntfet.cnt_ip import library_ip_report
+        from cntfet.cnt_ip_basis import library_ip_report
         response.media = library_ip_report(self.manager)
 
     def on_get_blocks(self, request, response):
         """?device= (default cnt-aligned-s1) — every block's proof /
         timing / power / provenance on that device."""
-        from cntfet.cnt_blocks import library_blocks_report
+        from cntfet.cnt_blocks_page import library_blocks_report
         response.media = library_blocks_report(
             self.manager, request.get_param('device') or 'cnt-aligned-s1')
 
     def on_get_block(self, request, response, key):
         """?device= ?timing=1 — OpenSTA runs only when asked (a GET
         must not launch a docker run by default)."""
-        from cntfet.cnt_blocks import block_report
+        from cntfet.cnt_blocks_page import block_report
         report = block_report(self.manager,
                               request.get_param('device') or 'cnt-aligned-s1',
                               key,
@@ -687,14 +687,14 @@ class CNTFETAPI(treeObject):
     def on_get_block_logic(self, request, response, key):
         """the cell-logic-diagram payload for a block (state space,
         gate DAG over cell instances)."""
-        from cntfet.cnt_blocks import block_logic
+        from cntfet.cnt_blocks_page import block_logic
         report = block_logic(key)
         if not report.get('ok', True):
             response.status = '404 Not Found'
         response.media = report
 
     def on_get_block_power(self, request, response, key):
-        from cntfet.cnt_blocks import block_power
+        from cntfet.cnt_blocks_page import block_power
         q = self._floats(request, response, ('activity', 'f'))
         if q is None:
             return
@@ -707,7 +707,7 @@ class CNTFETAPI(treeObject):
         response.media = report
 
     def on_get_block_proof(self, request, response, key):
-        from cntfet.cnt_blocks import block_proof
+        from cntfet.cnt_blocks_page import block_proof
         report = block_proof(self.manager,
                              request.get_param('device') or 'cnt-aligned-s1',
                              key)
@@ -716,18 +716,18 @@ class CNTFETAPI(treeObject):
         response.media = report
 
     def on_get_open_libraries(self, request, response):
-        from cntfet.cnt_open_library import open_library_index
+        from cntfet.cnt_open_library_page import open_library_index
         response.media = open_library_index(self.manager)
 
     def on_get_open_library(self, request, response, lib):
-        from cntfet.cnt_open_library import open_library_report
+        from cntfet.cnt_open_library_page import open_library_report
         report = open_library_report(self.manager, lib)
         if not report.get('ok', True):
             response.status = '404 Not Found'
         response.media = report
 
     def on_get_open_library_liberty(self, request, response, lib):
-        from cntfet.cnt_open_library import open_liberty_text
+        from cntfet.cnt_open_library_page import open_liberty_text
         report = open_liberty_text(self.manager, lib)
         if not report.get('ok', True) or not report.get('text'):
             response.status = '422 Unprocessable Entity'
@@ -739,7 +739,7 @@ class CNTFETAPI(treeObject):
     def on_post_open_library(self, request, response, lib):
         """{action: refresh | characterize {drives, cells, force} |
         export {outdir, force} | ladder-update {apply}}"""
-        from cntfet.cnt_open_library import (
+        from cntfet.cnt_open_library_page import (
             characterize_open_library, export_open_library,
             ladder_cell_rung_update, refresh_open_library,
         )
@@ -776,11 +776,11 @@ class CNTFETAPI(treeObject):
                                    'export | ladder-update')
 
     def on_get_cells_coverage(self, request, response):
-        from cntfet.cnt_cell_coverage import cells_coverage
+        from cntfet.custom.cnt_cell_coverage import cells_coverage
         response.media = cells_coverage(self.manager)
 
     def on_get_device_cell_coverage(self, request, response, name):
-        from cntfet.cnt_cell_coverage import device_cell_coverage
+        from cntfet.custom.cnt_cell_coverage import device_cell_coverage
         if (get_row(self.manager, 'AlignedCNTFETDevice', name) is None
                 and get_row(self.manager, 'SiliconMOSFET', name) is None):
             return self._refuse(response, f'no device "{name}"',
@@ -788,13 +788,13 @@ class CNTFETAPI(treeObject):
         response.media = device_cell_coverage(self.manager, name)
 
     def on_get_cells_logic(self, request, response):
-        from cntfet.cnt_logic import library_logic_report
+        from cntfet.custom.cnt_logic import library_logic_report
         response.media = library_logic_report()
 
     # ── sifet (fp-2 / fp-4) ────────────────────────────────────────
 
     def on_get_si_capability(self, request, response):
-        from sifet.si_device import capability as si_capability
+        from sifet.custom.si_device import capability as si_capability
         response.media = si_capability()
 
     def on_get_si_devices(self, request, response):
@@ -816,7 +816,7 @@ class CNTFETAPI(treeObject):
 
     def on_post_si_device(self, request, response, name):
         """{action: derive}"""
-        from sifet.si_device import derive_si_device, get_row as si_row
+        from sifet.custom.si_device import derive_si_device, get_row as si_row
         device = si_row(self.manager, 'SiliconMOSFET', name)
         if device is None:
             return self._refuse(response, f'no SiliconMOSFET "{name}"',
@@ -830,7 +830,7 @@ class CNTFETAPI(treeObject):
         if action == 'apply-anchor-knob':
             # fg-4: the explicit act that applies the vfb_v anchor
             # suggestion to the row (provenance in vfb_source).
-            from sifet.si_ladder import apply_anchor_knob
+            from sifet.si_ladder_basis import apply_anchor_knob
             report = apply_anchor_knob(self.manager, name)
             if not report.get('ok'):
                 response.status = '422 Unprocessable Entity'
@@ -845,12 +845,12 @@ class CNTFETAPI(treeObject):
         """The open-silicon ladder: rungs with TWO independent axes
         (rights_class / fabrication_evidence), frontier /
         predictive_frontier / manufacturable_frontier."""
-        from sifet.si_ladder import ladder_report
+        from sifet.si_ladder_basis import ladder_report
         response.media = ladder_report(self.manager)
 
     def on_get_si_ladder_points(self, request, response):
         """?curve=ion-vs-node — the named-graph-panel feed."""
-        from sifet.si_ladder import ladder_ion_rows
+        from sifet.si_ladder_basis import ladder_ion_rows
         curve = request.get_param('curve') or 'ion-vs-node'
         if curve != 'ion-vs-node':
             return self._refuse(response, f'unknown ladder curve {curve!r}'
@@ -861,19 +861,19 @@ class CNTFETAPI(treeObject):
 
     def on_get_si_device_anchors(self, request, response, name):
         """Our reconstruction vs the documented anchors of its rung."""
-        from sifet.si_ladder import compare_to_anchors
+        from sifet.si_ladder_basis import compare_to_anchors
         report = compare_to_anchors(self.manager, name)
         if not report.get('ok', True):
             response.status = '422 Unprocessable Entity'
         response.media = report
 
     def on_get_si_refinement(self, request, response):
-        from sifet.si_refinement import refinement_report
+        from sifet.si_refinement_basis import refinement_report
         response.media = refinement_report(self.manager)
 
     def on_get_si_refinement_route(self, request, response, route):
         """?feed=<json ppm map> ?passes= ?fs_cut="""
-        from sifet.si_refinement import route_simulation
+        from sifet.si_refinement_basis import route_simulation
         q = self._floats(request, response, ('passes', 'fs_cut'))
         if q is None:
             return
@@ -887,7 +887,7 @@ class CNTFETAPI(treeObject):
 
     def on_get_si_refinement_points(self, request, response, route):
         """?curve=impurity-ladder|scheil — the named-graph-panel feed."""
-        from sifet.si_pages_seed import refinement_points
+        from sifet.si_page import refinement_points
         report = refinement_points(
             self.manager, route,
             curve=request.get_param('curve') or 'impurity-ladder',
@@ -899,7 +899,7 @@ class CNTFETAPI(treeObject):
     def on_get_device_fo4(self, request, response, name):
         """?fo4_per_cycle=12,15,20,30 (configurable logic depth
         bands; default FO4_KNOBS) ?fanout=4"""
-        from cntfet.cnt_fo4 import fo4_report
+        from cntfet.custom.cnt_fo4 import fo4_report
         knobs = {}
         raw = request.get_param('fo4_per_cycle')
         if raw:
@@ -925,7 +925,7 @@ class CNTFETAPI(treeObject):
     def on_get_device_parts2d(self, request, response, name):
         """fg-3: ?field=potential|electron-density|n-doping|p-doping|
         material ?vg= ?vd= (defaults: the device's OWN Vdd)."""
-        from cntfet.cnt_parts_svg import parts2d_report
+        from cntfet.custom.cnt_parts_svg import parts2d_report
         q = self._floats(request, response, ('vg', 'vd'))
         if q is None:
             return
@@ -940,7 +940,7 @@ class CNTFETAPI(treeObject):
         response.media = report
 
     def on_get_device_parts(self, request, response, name):
-        from cntfet.cnt_parts import device_parts
+        from cntfet.custom.cnt_parts import device_parts
         device = (get_row(self.manager, 'AlignedCNTFETDevice', name)
                   or get_row(self.manager, 'SiliconMOSFET', name))
         if device is None:
@@ -949,7 +949,7 @@ class CNTFETAPI(treeObject):
         response.media = device_parts(self.manager, device)
 
     def on_get_device_cell_scores(self, request, response, name):
-        from cntfet.cnt_cell_scoring import score_cells
+        from cntfet.cnt_cell_scoring_seed import score_cells
         report = score_cells(self.manager, name)
         if not report.get('ok'):
             response.status = '422 Unprocessable Entity'
@@ -957,7 +957,7 @@ class CNTFETAPI(treeObject):
 
     def on_get_device_characterization(self, request, response,
                                        name):
-        from cntfet.cnt_device_viz import device_characterization
+        from cntfet.cnt_device_viz_seed import device_characterization
         report = device_characterization(self.manager, name)
         if not report.get('ok'):
             response.status = '422 Unprocessable Entity'
@@ -967,8 +967,8 @@ class CNTFETAPI(treeObject):
         """?vd= (default 0.6) ?vg= (optional point) ?direction=
         rising|falling ?vov_decades= ?vdsat_criterion=model|textbook
         — knobs echoed in the payload."""
-        from cntfet.cnt_device_viz import device_model
-        from cntfet.cnt_states import device_states_report
+        from cntfet.cnt_device_viz_seed import device_model
+        from cntfet.cnt_states_basis import device_states_report
         id_fn, p, device, refusal = device_model(self.manager, name)
         if refusal is not None:
             response.status = '422 Unprocessable Entity'
@@ -1030,7 +1030,7 @@ class CNTFETAPI(treeObject):
         if action == 'sample-fields':
             # fv-4: generate the FETFieldSample rows the 3-D scene
             # binds (one band-coloured cell per x per Vg per field).
-            from cntfet.cnt_fields import sample_fields
+            from cntfet.cnt_fields_basis import sample_fields
             try:
                 raw_vd = payload.get('vd')
                 vd = None if raw_vd in (None, '') else float(raw_vd)
@@ -1069,7 +1069,7 @@ class CNTFETAPI(treeObject):
             response.media = validate(self.manager, device)
             return
         if action == 'f3-oracle':
-            from cntfet.cnt_kwant import f3_oracle
+            from cntfet.custom.cnt_kwant import f3_oracle
             report = f3_oracle(
                 self.manager, device,
                 bias_points=payload.get('biasPoints'),
@@ -1083,7 +1083,7 @@ class CNTFETAPI(treeObject):
             response.media = report
             return
         if action == 'characterize-cells':
-            from cntfet.cnt_cell_library import characterize_cells
+            from cntfet.cnt_cell_library_basis import characterize_cells
             report = characterize_cells(
                 self.manager, device,
                 cells=payload.get('cells'),
@@ -1100,7 +1100,7 @@ class CNTFETAPI(treeObject):
         if action == 'characterize-latch':
             # cells-2: the transparent D latch (setup/hold on the
             # closing edge, D→Q) via the own-loop bisection.
-            from cntfet.cnt_sequential import characterize_latch
+            from cntfet.custom.cnt_sequential import characterize_latch
             report = characterize_latch(
                 self.manager, device,
                 vdd=float(payload.get('vdd', getattr(device, 'vdd_v', None) or 0.6)),
@@ -1112,7 +1112,7 @@ class CNTFETAPI(treeObject):
             response.media = report
             return
         if action == 'characterize-sequential':
-            from cntfet.cnt_sequential import characterize_sequential
+            from cntfet.custom.cnt_sequential import characterize_sequential
             report = characterize_sequential(
                 self.manager, device,
                 vdd=float(payload.get('vdd', getattr(device, 'vdd_v', None) or 0.6)),
@@ -1125,7 +1125,7 @@ class CNTFETAPI(treeObject):
             response.media = report
             return
         if action == 'd11-crosscheck':
-            from cntfet.cnt_cell_library import d11_crosscheck
+            from cntfet.cnt_cell_library_basis import d11_crosscheck
             report = d11_crosscheck(
                 self.manager, device,
                 vdd=float(payload.get('vdd', 0.6)))
@@ -1136,7 +1136,7 @@ class CNTFETAPI(treeObject):
             response.media = report
             return
         if action == 'characterize':
-            from cntfet.cnt_characterization import (
+            from cntfet.cnt_characterization_basis import (
                 characterize_inverter,
             )
             report = characterize_inverter(
@@ -1149,7 +1149,7 @@ class CNTFETAPI(treeObject):
             response.media = report
             return
         if action == 'cells':
-            from cntfet.cnt_cells import run_cell_battery
+            from cntfet.custom.cnt_cells import run_cell_battery
             report = run_cell_battery(
                 self.manager, device,
                 vdd=float(payload.get('vdd', 0.6)))
@@ -1160,7 +1160,7 @@ class CNTFETAPI(treeObject):
             response.media = report
             return
         if action == 'ring-oscillator':
-            from cntfet.cnt_ring_oscillator import (
+            from cntfet.custom.cnt_ring_oscillator import (
                 run_ring_oscillator,
             )
             report = run_ring_oscillator(
@@ -1174,7 +1174,7 @@ class CNTFETAPI(treeObject):
             response.media = report
             return
         if action == 'inverter':
-            from cntfet.cnt_inverter import run_inverter_vtc
+            from cntfet.custom.cnt_inverter import run_inverter_vtc
             report = run_inverter_vtc(
                 self.manager, device,
                 vdd=float(payload.get('vdd', 0.6)))
@@ -1185,7 +1185,7 @@ class CNTFETAPI(treeObject):
             response.media = report
             return
         if action == 'montecarlo':
-            from cntfet.cnt_montecarlo import monte_carlo
+            from cntfet.custom.cnt_montecarlo import monte_carlo
             report = monte_carlo(
                 self.manager, device,
                 sample_count=int(payload.get('samples', 200)),
@@ -1198,7 +1198,7 @@ class CNTFETAPI(treeObject):
             response.media = report
             return
         if action == 'triangle':
-            from cntfet.cnt_triangle import validation_triangle
+            from cntfet.custom.cnt_triangle import validation_triangle
             report = validation_triangle(
                 self.manager, device,
                 vg_list=payload.get('vg'),
@@ -1225,9 +1225,9 @@ class CNTFETAPI(treeObject):
     def _equivalence(self, device):
         """Build the {Lg, d, T, Rc} variant spread around the
         device and run the D3 regression; persist the verdict."""
-        from cntfet.cnt_derive import resolve_components
-        from cntfet.cnt_osdi import equivalence_regression
-        from cntfet.cnt_vs_model import build_vs_params
+        from cntfet.custom.cnt_derive import resolve_components
+        from cntfet.custom.cnt_osdi import equivalence_regression
+        from cntfet.custom.cnt_vs_model import build_vs_params
         if not getattr(device, 'derived_at', ''):
             return {'ok': False, 'error': 'device never derived — '
                     'POST {"action": "derive"} first'}
@@ -1240,7 +1240,7 @@ class CNTFETAPI(treeObject):
         transport = rows['transport']
 
         def params(lg_nm=None, d_nm=None, t_k=None, rc=None):
-            from cntfet.cnt_bandstructure import eg_ev
+            from cntfet.custom.cnt_bandstructure import eg_ev
             d_use = d_nm if d_nm is not None else mat.diameter_nm
             return build_vs_params(
                 {'diameter_nm': d_use, 'eg_ev': eg_ev(d_use)},

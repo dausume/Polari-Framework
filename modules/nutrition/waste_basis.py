@@ -15,7 +15,7 @@ own facts:
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.waste_analysis, mealplanning_api
+  - nutrition.custom.waste_analysis, mealplanning_api
 @see AI-Notes/plans/MEAL_PLANNING_APP_PLAN.md §3b mpb-4
 """
 

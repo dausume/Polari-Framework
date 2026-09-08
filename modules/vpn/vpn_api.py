@@ -44,7 +44,7 @@ A gateway-kind `app.kind` upserts the device's IsleEngine row
   - polariServer (instantiated next to IsleMeshAPI when vpn is available)
   - polari-cli scripts/vpn.sh (`pol vpn`)
   - Isle-Mesh polari-isle/push-to-polari.sh (the isle's push, I-4)
-  - vpn.selftest_vpn (function-level, fake manager)
+  - vpn.vpn_selftest (function-level, fake manager)
 """
 
 import hashlib
@@ -55,22 +55,22 @@ from datetime import datetime, timezone
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from islemesh.islemesh_basis import IsleDevice, IsleEngine, IsleIngestReceipt
-from islemesh.islemesh_constants import MOCK_BANNER
+from islemesh.custom.islemesh_constants import MOCK_BANNER
 
 from vpn.vpn_basis import (
     VPN_MIRROR_CLASSES, AppVpnExposure, VpnAccessRule, VpnFederationLink,
     VpnNetwork, VpnPeer, VpnProposal,
 )
-from vpn.vpn_constants import (
+from vpn.custom.vpn_constants import (
     GATEWAY_ENGINE, KIND_INFO, KINDS, LADDER, PROPOSAL_STATUSES,
     PROVIDER_ENGINES, PROVIDER_TITLES, SCHEMA_VERSION, is_gateway_kind,
     label_for_kind, provider_for_kind,
 )
-from vpn.vpn_engine import (
+from vpn.custom.vpn_engine import (
     forbidden_key_paths, private_key_lines, render_access_rules,
     render_for,
 )
-from vpn.vpn_proposals import mirror_view, propose
+from vpn.custom.vpn_proposals import mirror_view, propose
 
 
 def _now_iso():
@@ -123,7 +123,7 @@ class VpnAPI(treeObject):
         per instance would stack up (61 listeners = 61 tear-downs per
         revoke on the first live run)."""
         from polariPeers import agreements_api
-        from vpn.vpn_trust import on_agreement_event
+        from vpn.custom.vpn_trust import on_agreement_event
         if on_agreement_event not in agreements_api.AGREEMENT_LISTENERS:
             agreements_api.AGREEMENT_LISTENERS.append(on_agreement_event)
         return on_agreement_event
@@ -134,7 +134,7 @@ class VpnAPI(treeObject):
         payload, err = self._payload(request)
         if err:
             return self._refuse(response, err)
-        from vpn.vpn_trust import file_join_request
+        from vpn.custom.vpn_trust import file_join_request
         result, status = file_join_request(self.manager, payload,
                                            save=self._save)
         response.status = status
@@ -144,7 +144,7 @@ class VpnAPI(treeObject):
     def on_get_agreements(self, request, response):
         """PeerAgreement rows the bridge owns (requested_role vpn-*),
         each with the proposals that hang off it."""
-        from vpn.vpn_trust import proposals_of_agreement
+        from vpn.custom.vpn_trust import proposals_of_agreement
         params = self._params(request)
         out = []
         for a in self._table('PeerAgreement').values():
@@ -813,6 +813,6 @@ class VpnAPI(treeObject):
 
     def on_post_demo(self, request, response):
         """Run the two-isle acceptance flow in-process (mock-flagged).
-        See vpn.vpn_demo.run_demo."""
-        from vpn.vpn_demo import run_demo
+        See vpn.custom.vpn_demo.run_demo."""
+        from vpn.custom.vpn_demo import run_demo
         response.media = run_demo(self)

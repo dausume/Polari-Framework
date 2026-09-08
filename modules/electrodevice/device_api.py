@@ -8,21 +8,21 @@ explicit: derive (run the material sim, stamp parameters), card
 evaluates what the FPGA is actually commanding right now).
 
 @consumers
-  - electrodevice.selftest_electrodevice (function level)
+  - electrodevice.electrodevice_selftest (function level)
 """
 
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from electrodevice.device_derive import (
+from electrodevice.custom.device_derive import (
     derive_device, get_device, make_card_row,
 )
-from electrodevice.device_validator import validate
-from electrodevice.semiconductor import (
+from electrodevice.device_validator_basis import validate
+from electrodevice.semiconductor_basis import (
     derive_semiconductor, get_profile,
 )
-from electrodevice.spice_run import (
+from electrodevice.custom.spice_run import (
     capability, run_led_grid, run_led_switch,
 )
 
@@ -141,7 +141,7 @@ class ElectroDeviceAPI(treeObject):
             response.media = report
             return
         if action == 'switching-analysis':
-            from electrodevice.switching import run_switching_analysis
+            from electrodevice.custom.switching import run_switching_analysis
             report = run_switching_analysis(
                 self.manager, device,
                 rdrv_ohm=float(payload.get('rdrvOhm', 33.0)),
@@ -228,7 +228,7 @@ class ElectroDeviceAPI(treeObject):
             payload = json.loads(raw) if raw else {}
         except Exception as e:
             return self._refuse(response, f'bad JSON payload: {e}')
-        from electrodevice.photo_derive import (get_absorber,
+        from electrodevice.custom.photo_derive import (get_absorber,
                                                 tune_absorber)
         absorber = get_absorber(self.manager, name)
         if absorber is None:
@@ -252,7 +252,7 @@ class ElectroDeviceAPI(treeObject):
             payload = json.loads(raw) if raw else {}
         except Exception as e:
             return self._refuse(response, f'bad JSON payload: {e}')
-        from electrodevice.photo_derive import (get_stack,
+        from electrodevice.custom.photo_derive import (get_stack,
                                                 optimize_stack)
         stack = get_stack(self.manager, name)
         if stack is None:
@@ -271,7 +271,7 @@ class ElectroDeviceAPI(treeObject):
         if device is None:
             return self._refuse(response, f'no device "{name}"',
                                 '404 Not Found')
-        from electrodevice.device_derive import render_card
+        from electrodevice.custom.device_derive import render_card
         text = render_card(device)
         if text is None:
             return self._refuse(

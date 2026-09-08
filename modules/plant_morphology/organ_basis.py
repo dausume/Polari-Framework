@@ -25,7 +25,7 @@ Two treeObjects (auto-CRUDE + persisted — object-coherence):
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - plant_morphology.morphology_analysis (geometry, root spread,
+  - plant_morphology.custom.morphology_analysis (geometry, root spread,
     confinement), SimSpace3D stand-in rendering later
 @see /HOUSEHOLD_NUTRITION_PLAN.md, /AQUAPONICS_MODULE_PLAN.md
 """

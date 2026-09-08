@@ -9,20 +9,20 @@ the order planner (biz-1).
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from bizops.bizops_flows import (
+from bizops.custom.bizops_flows import (
     business_flow_report, local_economy_report,
 )
-from bizops.bizops_deals import (
+from bizops.custom.bizops_deals import (
     deal_price_window, deal_pricing_catalog,
 )
-from bizops.bizops_compliance import (
+from bizops.custom.bizops_compliance import (
     qa_report, sellability_report,
 )
-from bizops.bizops_guide import (
+from bizops.custom.bizops_guide import (
     partnership_report, partnership_suggestions,
     startup_walkthrough,
 )
-from bizops.bizops_planner import (
+from bizops.custom.bizops_planner import (
     lead_time_quote, order_plan, prestage_plan, product_readiness,
 )
 

@@ -9,12 +9,12 @@ API never mutates.
 
 @consumers
   - polariServer (instantiated next to ResourceProfilesAPI)
-  - xr.selftest_xr (handler-level, fake manager)
+  - xr.xr_selftest (handler-level, fake manager)
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from xr.xr_resolution import resolve_for_space
+from xr.custom.xr_resolution import resolve_for_space
 
 
 class XrAPI(treeObject):

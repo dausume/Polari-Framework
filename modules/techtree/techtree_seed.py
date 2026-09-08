@@ -35,7 +35,7 @@ no-op once gone) and remaps stale PolariModule.tech_node_ref hints.
 
 @consumers
   - polariServer seed loop (idempotent-by-name) + boot retirement
-  - techtree.selftest_techtree (seed-coherence suite)
+  - techtree.techtree_selftest (seed-coherence suite)
 """
 
 import json as _json
@@ -144,7 +144,7 @@ SEED_TECH_TREE_DEFINITIONS = [
                     'detector and a DVD-grating spectrometer up to an '
                     'open-source FTIR. Backs goal accountability — you '
                     'cannot claim a result you cannot measure. See '
-                    'pspp.research_tools + pspp.characterization.',
+                    'pspp.research_tools_basis + pspp.characterization_seed.',
      'is_active': False, 'is_baseline': True, 'notes': ''},
     {'name': TREE_MANUFACTURING,
      'title': 'Manufacturing Tools',
@@ -156,7 +156,7 @@ SEED_TECH_TREE_DEFINITIONS = [
                     'furnace escalation ladder (a geopolymer oven '
                     'bootstrapped up to a steelmaking-capable furnace, '
                     'each rung built from the last one\'s output). '
-                    'Backed by pspp.ceramics_ladder + the sintering '
+                    'Backed by pspp.ceramics_ladder_basis + the sintering '
                     'engine. See MTT2_SOLGEL_SINTERING_PLAN.md.',
      'is_active': False, 'is_baseline': True, 'notes': ''},
     {'name': TREE_MOTORS,
@@ -1017,7 +1017,7 @@ SEED_OSEB_POLARI_MODULES += [
 
 # ---------------------------------------------------------------------
 # mtt-2 Manufacturing Tools — the THERMAL strain: the furnace
-# escalation ladder (pspp.ceramics_ladder). Dependency edges ARE the
+# escalation ladder (pspp.ceramics_ladder_basis). Dependency edges ARE the
 # bootstrapping (each furnace built from the last one's output);
 # cross-refs point at the ceramic linings + the materials each rung
 # unlocks. Data deps carry the sintering + carbonation data gaps.

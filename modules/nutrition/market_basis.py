@@ -23,7 +23,7 @@ and weight approximately for things that are purchased"):
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.market_analysis, pantry_analysis, mealplanning_api
+  - nutrition.custom.market_analysis, pantry_analysis, mealplanning_api
 @see AI-Notes/plans/MEAL_PLANNING_APP_PLAN.md §mpa-2
 """
 
@@ -55,7 +55,7 @@ class SourceLocation(treeObject):
 
     Schema-addition gotcha: live rows created before mo-2 lack both new
     fields (they read as the defaults 'other' / '' until written).
-    The demo rows converge through composition.seed_upsert on boot
+    The demo rows converge through composition.custom.seed_upsert on boot
     (is_prior=True rows are diffed field-by-field); a household's OWN
     rows (is_prior=False) are never touched by seeds — type them from
     the Food Supply page (Places table → ownership_kind, chain_name)

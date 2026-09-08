@@ -15,7 +15,7 @@ says so).
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.weight_trajectory
+  - nutrition.custom.weight_trajectory
 @see AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md §nmp-6
 """
 

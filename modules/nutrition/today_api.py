@@ -18,7 +18,7 @@ N2 — the TODAY page's routes:
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from nutrition.today_analysis import mark_done_proposal, person_day
+from nutrition.custom.today_analysis import mark_done_proposal, person_day
 
 SOLUTION_NAME = 'today-mark-done-form'
 

@@ -158,7 +158,7 @@ if(__name__=='__main__'):
     grpc_enabled = config.get_bool('grpc.enabled', True)
     grpc_port = config.get_int('grpc.port', 3002)
     if grpc_enabled:
-        from grpcbridge.grpc_server import (PolariGrpcServer,
+        from grpcbridge.custom.grpc_server import (PolariGrpcServer,
                                             set_grpc_server)
         grpc_server = PolariGrpcServer(localHostedManagerServer,
                                        port=grpc_port)

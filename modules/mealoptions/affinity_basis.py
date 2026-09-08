@@ -27,7 +27,7 @@ untouched. All extendable per household (decision 13 spirit).
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.affinity_composer
+  - nutrition.custom.affinity_composer
 @see AI-Notes/plans/MEAL_OPTIONS_MODULE_PLAN.md §mo-1
 """
 

@@ -14,7 +14,7 @@ Sol-gel dielectric numbers are PRIORS from the open literature
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence + seeds)
     — to be wired by the integrator
-  - sifet.si_device, sifet.selftest_sifet
+  - sifet.custom.si_device, sifet.sifet_selftest
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit

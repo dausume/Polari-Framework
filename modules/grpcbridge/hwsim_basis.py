@@ -13,7 +13,7 @@ proven Commands loop).
 
 @consumers
   - polariServer (registration + seed)
-  - grpcbridge.c_twin (generated <class>_packets.h for firmware)
+  - grpcbridge.custom.c_twin (generated <class>_packets.h for firmware)
   - the sim-rig / renode-rig Polari Hardware Bridges
 """
 

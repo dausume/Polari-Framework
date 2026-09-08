@@ -17,7 +17,8 @@ Routes:
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from waxprint import sim_runner, sim_evaluation
+from waxprint.custom import sim_runner
+from waxprint.custom import sim_evaluation
 
 
 def _run_rows(manager, run_name):

@@ -15,7 +15,7 @@ Element materials REFERENCE the Section-A catalog
 never copied numbers; a missing row refuses by name.
 
 @consumers
-  - magnetics.magnetic_netlist (the generator/solver)
+  - magnetics.magnetic_netlist_seed (the generator/solver)
   - magnetics.magnet_api (the knob surface)
   - polariServer (registration + seed)
 """

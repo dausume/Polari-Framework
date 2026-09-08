@@ -9,14 +9,14 @@ never auto-applied placement.
 
 @consumers
   - polariServer (instantiated next to NodeResourcesAPI)
-  - resources.selftest_profiles (handler-level, fake manager)
+  - resources.profiles_selftest (handler-level, fake manager)
 """
 
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from resources.profile_analysis import (
+from resources.custom.profile_analysis import (
     classify_module, declared_profile, find_profile,
     import_engine_profile, profile_dict, recommend_backend,
 )
@@ -125,7 +125,7 @@ class ResourceProfilesAPI(treeObject):
         subject = (payload or {}).get('subject', '')
         if not subject:
             return self._refuse(response, 'payload needs {subject}')
-        from resources.profile_measure import measure_subject
+        from resources.custom.profile_measure import measure_subject
         report = measure_subject(
             self.manager, subject, url=(payload or {}).get('url', ''))
         if not report.get('ok'):

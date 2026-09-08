@@ -26,11 +26,11 @@ from moduleService.module_loading import feature_downloaded, missing_message
 for _m in ('electrodevice', 'hwdigital'):
     if not feature_downloaded(_m):
         raise SystemExit(missing_message(_m))
-from electrodevice import device_derive as dd
+from electrodevice.custom import device_derive as dd
 from electrodevice.circuit_basis import (SEED_CIRCUIT_COMPONENTS,
                                          SEED_CIRCUIT_NETS,
                                          SEED_CIRCUITS)
-from electrodevice.spice_run import ngspice_bin
+from electrodevice.custom.spice_run import ngspice_bin
 from hwdigital.logic_basis import SEED_LOGIC_DESIGNS, SEED_LOGIC_NODES
 from polariNoCode.nocode_tests import (SEED_TEST_CASES,
                                        SEED_TEST_PACKS, run_case,

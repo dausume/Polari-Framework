@@ -19,8 +19,8 @@ refuses honestly when one is absent.
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence + seeds)
-  - cntfet.cnt_derive (derivation), cnt_api (knob surface)
-  - cntfet.selftest_cntfet
+  - cntfet.custom.cnt_derive (derivation), cnt_api (knob surface)
+  - cntfet.cntfet_selftest
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit
@@ -279,7 +279,7 @@ class AlignedCNTFETDevice(treeObject):
         objectRef bindings with path 'figures_of_merit.<key>'
         (cnt_scoring seeds); an underived device answers with a
         named refusal, not zeros."""
-        from cntfet.cnt_scoring import figures_of_merit
+        from cntfet.cnt_scoring_seed import figures_of_merit
         return figures_of_merit(getattr(self, 'manager', None),
                                 self.name)
 

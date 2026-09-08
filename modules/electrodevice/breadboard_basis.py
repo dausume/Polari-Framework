@@ -20,7 +20,7 @@ IS a voltage source placement ('vsource'); ncg-6 binds those sources
 to a LogicBlockDesign's evaluated outputs.
 
 @consumers
-  - electrodevice.breadboard_netlist (connectivity compiler)
+  - electrodevice.breadboard_netlist_seed (connectivity compiler)
   - polariServer (registration + seed)
 """
 

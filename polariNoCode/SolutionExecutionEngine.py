@@ -2037,7 +2037,7 @@ class SolutionExecutionEngine:
                     'configured.')
             else:
                 try:
-                    from waxprint.commands import run_command
+                    from waxprint.custom.commands import run_command
                     report = run_command(self.manager, command, inputs)
                 except Exception as e:
                     report = {'ok': False, 'error': str(e)}

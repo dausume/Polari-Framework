@@ -19,7 +19,7 @@ import X` keeps working, and KEEPS the owned / stated rows:
 
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence)
-  - nutrition.workflow_analysis
+  - nutrition.custom.workflow_analysis
 @see AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md §nmp-10
 @see AI-Notes/plans/MEAL_OPTIONS_MODULE_PLAN.md §mo-1
 """

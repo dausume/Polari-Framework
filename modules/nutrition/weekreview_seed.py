@@ -28,7 +28,7 @@ Wired by the orchestrator into mealplan_pages_seed / calendar_seed
 (the upsert + repoint pass) — this module only DEFINES.
 
 @consumers polariApiServer.mealplan_pages_seed (after wiring),
-  nutrition.selftest_weekreview
+  nutrition.weekreview_selftest
 @see AI-Notes/designs/HOUSEHOLD_APP_PAGES.md §3.6
 """
 
@@ -129,21 +129,21 @@ SEED_WEEKREVIEW_PAGE_DISPLAYS = [
 
 SEED_WEEKREVIEW_ANALYSES = [
     {'name': 'mealplan-week-review', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.weekreview_analysis:week_review',
+     'callable_ref': 'nutrition.custom.weekreview_analysis:week_review',
      'description': 'The Sunday review: planned vs eaten, "consistently" readings, cost vs '
                     'budget, waste, fairness, next week\'s proposals — flat, every prior named.',
      'params_json': json.dumps({'plan': 'MealPlanDefinition.name', 'household': '',
                                 'week_start': 'ISO date (blank = the plan\'s days)'}),
      'enabled': True, 'is_prior': True, 'provenance_id': PROVENANCE},
     {'name': 'mealplan-next-week-proposals', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.weekreview_analysis:next_week_proposals',
+     'callable_ref': 'nutrition.custom.weekreview_analysis:next_week_proposals',
      'description': 'Next week\'s CalendarEvent proposals: the weekly purchase, bulk buys whose '
                     '1st falls in the week, the next Sunday review.',
      'params_json': json.dumps({'plan': 'MealPlanDefinition.name', 'household': '',
                                 'week_start': 'ISO date (blank = the plan\'s days)'}),
      'enabled': True, 'is_prior': True, 'provenance_id': PROVENANCE},
     {'name': 'mealplan-week-review-event', 'domain': 'nutrition',
-     'callable_ref': 'nutrition.weekreview_analysis:weekly_review_event_proposal',
+     'callable_ref': 'nutrition.custom.weekreview_analysis:weekly_review_event_proposal',
      'description': 'One review CalendarEvent proposal (Sunday 18:00 prior) carrying the '
                     'headline as payload — what the Sunday trigger generates.',
      'params_json': json.dumps({'plan': 'MealPlanDefinition.name', 'household': '',

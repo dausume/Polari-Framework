@@ -13,10 +13,10 @@ Pure data + one pure function. Never seeded is_mock.
 @consumers
   - polariServer (seeded next to islemesh's SEED_CATALOG)
   - islemesh.islemesh_catalog.install_plan (kind 'isle-vpn')
-  - vpn.selftest_vpn
+  - vpn.vpn_selftest
 """
 
-from vpn.vpn_constants import (
+from vpn.custom.vpn_constants import (
     APP_FAMILY, GATEWAY_ENGINE, KIND_INFO, KINDS, PROVIDER_TITLES,
 )
 

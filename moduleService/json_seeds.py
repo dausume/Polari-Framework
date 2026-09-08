@@ -12,12 +12,12 @@ Every module package may carry `initialData/<ClassName>.json`:
      "source": "<where it was exported from>", "count": N,
      "rows": [ {constructor kwargs, name required}, ... ]}
 
-Plain JSON, small (the rule in cntfet.cnt_snapshot: only what code
+Plain JSON, small (the rule in cntfet.custom.cnt_snapshot: only what code
 cannot regenerate; never binaries / vendored inputs). The SAME files
 are:
   - loaded at boot for every admitted module (polariServer pass) and by
     `POST /modules/seed {"moduleId"}` (the module's `seedData.py`
-    delegates here), through composition.seed_upsert — a customized row
+    delegates here), through composition.custom.seed_upsert — a customized row
     (is_prior False) is never clobbered; missing rows insert; prior
     rows converge field-by-field;
   - SERVED by `GET /modules/{module_id}/initial-data` so another
@@ -98,7 +98,7 @@ def list_files(package):
 
 def read_file(path):
     """A payload in the convention, or a LEGACY bare list (pre-convention
-    files such as polariMaterialsScienceModule/initialData/*.json, named
+    files such as materials_science/initialData/*.json, named
     by collection not class) marked `legacy: True` with class None — kept
     loadable-by-listing, skipped loudly by seed_pairs until renamed to
     <ClassName>.json with the schema header."""
@@ -204,7 +204,7 @@ def apply(package, manager, payloads=None, tag='JsonSeeds'):
     """Upsert the package's initialData into the live tables. Returns
     {'reports': [...], 'skipped': [...], 'created': {cls: [names]}} —
     `created` is the seedData.seed_initial_data contract."""
-    from composition.seed_upsert import upsert_seed_pairs
+    from composition.custom.seed_upsert import upsert_seed_pairs
     pairs, skipped = seed_pairs(package, manager, payloads)
     reports = upsert_seed_pairs(manager, pairs, tag=tag) if pairs else []
     created = {r['class']: list(r.get('inserted', [])) for r in reports

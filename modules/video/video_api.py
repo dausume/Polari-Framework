@@ -39,7 +39,7 @@ deliberate tradeoff for a content-hub use case, not a private-video store.
 
 @consumers
   - PRF video-player Angular component (video.service.ts)
-@see video.video_basis, video.video_conversion, objectStorageAPI.py
+@see video.video_basis, video.custom.video_conversion, objectStorageAPI.py
 """
 
 import os
@@ -50,7 +50,7 @@ import threading
 import falcon
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from video.video_conversion import (
+from video.custom.video_conversion import (
     ffmpeg_available, probe_video, convert_to_webm, convert_to_mp4,
     extract_poster, convert_to_hls,
 )

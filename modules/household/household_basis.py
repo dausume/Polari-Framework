@@ -24,7 +24,7 @@ here now (nutrition.workflow_basis re-exports them).
 @consumers
   - polariServer.defClassList (auto-CRUDE + persistence, gated on
     _feature_available('household'))
-  - household.household_analysis
+  - household.custom.household_analysis
   - nutrition.logistics_basis (re-export), nutrition.workflow_basis
 """
 

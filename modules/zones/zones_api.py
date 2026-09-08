@@ -58,7 +58,7 @@ class ZonesAPI(treeObject):
             return None
 
     def on_post_capture(self, request, response):
-        from scoring.worldview_elections import _by_name
+        from scoring.worldview_elections_basis import _by_name
         from zones.zone_basis import (CAPTURE_MODES, POINT_KINDS,
                                       SiteDefinition, ZONE_ROLES,
                                       ZoneDefinition, ZonePoint)
@@ -145,7 +145,7 @@ class ZonesAPI(treeObject):
                 confidence=p.get('confidence', 'tracked'),
                 notes=p.get('notes', ''), manager=self.manager)
             self._save(row)
-        from zones.zone_geometry import estimate_zone
+        from zones.custom.zone_geometry import estimate_zone
         response.media = {'ok': True, 'zone': name,
                           'pointCount': len(points),
                           'siteCreated': site_created,
@@ -166,7 +166,7 @@ class ZonesAPI(treeObject):
             pass  # in-memory managers (selftests) have no db
 
     def on_get_estimate(self, request, response, name):
-        from zones.zone_geometry import estimate_zone
+        from zones.custom.zone_geometry import estimate_zone
         try:
             default_height = float(
                 request.get_param('default_height_m') or 0)
@@ -179,14 +179,14 @@ class ZonesAPI(treeObject):
         response.media = report
 
     def on_get_distances(self, request, response, name):
-        from zones.zone_geometry import point_distances
+        from zones.custom.zone_geometry import point_distances
         report = point_distances(self.manager, name)
         if not report.get('ok'):
             response.status = '404 Not Found'
         response.media = report
 
     def on_post_pack(self, request, response, name):
-        from zones.zone_packing import DEFAULT_CUBE_M, pack_zone
+        from zones.custom.zone_packing import DEFAULT_CUBE_M, pack_zone
         payload = self._payload(request, response)
         if payload is None:
             return
@@ -202,7 +202,7 @@ class ZonesAPI(treeObject):
         response.media = result
 
     def on_post_calibrate(self, request, response, name):
-        from zones.zone_geometry import calibrate_zone
+        from zones.custom.zone_geometry import calibrate_zone
         payload = self._payload(request, response)
         if payload is None:
             return
@@ -213,14 +213,14 @@ class ZonesAPI(treeObject):
         response.media = result
 
     def on_get_constraints(self, request, response, name):
-        from zones.zone_sim_bridge import zone_constraints
+        from zones.custom.zone_sim_bridge import zone_constraints
         report = zone_constraints(self.manager, name)
         if not report.get('ok'):
             response.status = '404 Not Found'
         response.media = report
 
     def on_post_to_simulation(self, request, response, name):
-        from zones.zone_sim_bridge import zone_to_simulation
+        from zones.custom.zone_sim_bridge import zone_to_simulation
         payload = self._payload(request, response)
         if payload is None:
             return
@@ -234,7 +234,7 @@ class ZonesAPI(treeObject):
         response.media = result
 
     def on_get_room_summary(self, request, response, name):
-        from zones.zone_packing import DEFAULT_CUBE_M, room_summary
+        from zones.custom.zone_packing import DEFAULT_CUBE_M, room_summary
         try:
             cube = float(request.get_param('cube_size_m')
                          or DEFAULT_CUBE_M)
@@ -246,7 +246,7 @@ class ZonesAPI(treeObject):
         response.media = report
 
     def on_get_site_summary(self, request, response, name):
-        from zones.zone_packing import DEFAULT_CUBE_M, site_summary
+        from zones.custom.zone_packing import DEFAULT_CUBE_M, site_summary
         try:
             cube = float(request.get_param('cube_size_m')
                          or DEFAULT_CUBE_M)

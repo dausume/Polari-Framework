@@ -19,7 +19,7 @@ the modules stay uncoupled.
   - computerparts.parts_api (/api/computerparts)
   - appstore.appstore_ai_api (row reads for buy-vs-rent)
   - polariServer defClassList (tables + CRUDE)
-  - computerparts.selftest_computerparts
+  - computerparts.computerparts_selftest
 """
 
 import json

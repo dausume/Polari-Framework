@@ -7,22 +7,22 @@ writes are the explicit acts: create a definition, generate (stamps
 the manifest), and the tar.gz download (rebuilt deterministically
 from the same contract rows — never stored).
 
-Thin falcon shell — logic lives in grpcbridge.java_bridge.
+Thin falcon shell — logic lives in grpcbridge.custom.java_bridge.
 
 @consumers
   - polariServer (instantiated next to the other APIs)
-  - grpcbridge.selftest_javabridge (function-level)
+  - grpcbridge.javabridge_selftest (function-level)
 """
 
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from grpcbridge.java_bridge import (
+from grpcbridge.custom.java_bridge import (
     bridge_classes, class_readiness, generate_project, get_bridge,
     stamp_generation, tarball,
 )
-from grpcbridge.proto_gen import _rows
+from grpcbridge.custom.proto_gen import _rows
 
 
 class HardwareBridgeAPI(treeObject):

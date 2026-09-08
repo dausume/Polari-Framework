@@ -31,7 +31,7 @@ services:
     # without this the host is left with root-owned test-results/ that later
     # breaks native builds with "Permission denied". Export UID/GID or it
     # falls back to 1000:1000. Exit code of run_matrix is preserved.
-    command: sh -c 'trap "chown -R ${UID:-1000}:${GID:-1000} /app/test-results" EXIT; python3 -m testing.run_matrix'
+    command: sh -c 'trap "chown -R ${UID:-1000}:${GID:-1000} /app/test-results" EXIT; python3 -m testing.custom.run_matrix'
     # Optional: Mount volume for test results or coverage reports
     volumes:
       - ./test-results:/app/test-results:rw

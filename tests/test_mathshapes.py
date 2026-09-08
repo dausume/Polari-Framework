@@ -19,13 +19,15 @@ import math
 import unittest
 from types import SimpleNamespace
 
-from mathshapes.shape_analysis import (
+from mathshapes.custom.shape_analysis import (
     classify_quadric_matrix, evaluate_point, sample_surface, shape_properties,
 )
-from mathshapes.shape_geometry import primitive_properties
+from mathshapes.custom.shape_geometry import primitive_properties
 from mathshapes.shape_seed import SEED_MATH_SHAPES
 from mathshapes.tower_seed import SEED_TOWERS
-from mathshapes import shape_modify, tower_analysis, growth_prediction
+from mathshapes.custom import shape_modify
+from mathshapes.custom import tower_analysis
+from mathshapes.custom import growth_prediction
 
 
 def _table(seed_list):

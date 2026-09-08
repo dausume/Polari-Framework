@@ -25,7 +25,7 @@ what renders is real physics, not placeholder geometry.
 import json
 from types import SimpleNamespace
 
-from waxprint import sim_runner
+from waxprint.custom import sim_runner
 from waxprint.waxprint_seed import (
     SEED_DEVICE_MATERIALS, SEED_FEEDSTOCKS, SEED_ASSEMBLIES, SEED_CONDITIONS)
 

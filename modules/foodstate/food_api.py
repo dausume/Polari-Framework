@@ -18,15 +18,15 @@ rows say so themselves.
 
 @consumers
   - polariServer (route registration, gated on feature presence)
-  - foodstate.selftest_foodstate (function level)
+  - foodstate.foodstate_selftest (function level)
 """
 
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from foodstate.food_composition import ingredient_report
-from foodstate.food_contracts import contracts_report
+from foodstate.custom.food_composition import ingredient_report
+from foodstate.food_contracts_basis import contracts_report
 
 
 def vocabulary_report(manager):
@@ -124,11 +124,11 @@ class FoodStateAPI(treeObject):
         response.media = report
 
     def on_get_speciation(self, request, response):
-        from foodstate.food_chemistry import speciation
+        from foodstate.custom.food_chemistry import speciation
         response.media = speciation(
             request.params.get('acid', ''),
             request.params.get('ph', ''))
 
     def on_get_acidity(self, request, response, slug):
-        from foodstate.food_chemistry import ingredient_acidity
+        from foodstate.custom.food_chemistry import ingredient_acidity
         response.media = ingredient_acidity(self.manager, slug)

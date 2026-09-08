@@ -23,7 +23,7 @@ One treeObject (auto-CRUDE + persisted — object-coherence):
 @consumers
   - polariApiServer.polariServer.defClassList (auto-CRUDE + persistence)
   - video.video_api (presigned URLs, conversion trigger)
-  - video.video_conversion (ffmpeg wrapper)
+  - video.custom.video_conversion (ffmpeg wrapper)
 @see objectStorageAPI.py, polariDBmanagement/managedObjectStore.py
 """
 

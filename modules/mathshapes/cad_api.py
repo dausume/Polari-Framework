@@ -21,7 +21,7 @@ HTTP surface for CAD import/export (shape-3):
 import base64
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from mathshapes import cad_import
+from mathshapes.custom import cad_import
 
 
 class CadImportAPI(treeObject):

@@ -26,7 +26,7 @@ Foods are edited through CRUDE on FoodItem / NutrientContent rows.
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
-from nutrition.harvest_analysis import (
+from nutrition.custom.harvest_analysis import (
     food_catalog, harvest_nutrients,
 )
 
@@ -71,7 +71,7 @@ class NutritionFoodAPI(treeObject):
         plant = body.get('plant')
         if plant:
             try:
-                from aquaponics.plant_growth_simplified import grow
+                from aquaponics.custom.plant_growth_simplified import grow
                 grow_result = grow(
                     self.manager, plant,
                     days=float(body.get('days', 60.0) or 60.0),
