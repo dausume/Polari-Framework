@@ -1152,4 +1152,30 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_VPN_PAGE_DISPLAYS',
         )),
     )),
+    ('hardwareapps', (
+        ('hardwareapps.hardwareapps_basis', (
+            'HardwareAppDefinition', 'HardwareAppState', 'HARDWAREAPPS_SEED_PAIRS',
+        )),
+        ('hardwareapps.hardwareapps_page', (
+            'SEED_HARDWAREAPPS_PAGE_DISPLAYS',
+        )),
+    )),
+    ('isle_relay', (
+        ('isle_relay.isle_relay_basis', (
+            'RelayNodeDefinition', 'RelayNodeState', 'ISLE_RELAY_SEED_PAIRS',
+            'SEED_RELAY_HARDWARE_APPS', 'SEED_RELAY_CATALOG',
+        )),
+        ('isle_relay.isle_relay_page', (
+            'SEED_ISLE_RELAY_PAGE_DISPLAYS',
+        )),
+    )),
+    ('isle_guestnet', (
+        ('isle_guestnet.isle_guestnet_basis', (
+            'GuestNetworkDefinition', 'GuestNetworkExposure', 'GuestNetworkState', 'ISLE_GUESTNET_SEED_PAIRS',
+            'SEED_GUESTNET_HARDWARE_APPS', 'SEED_GUESTNET_CATALOG',
+        )),
+        ('isle_guestnet.isle_guestnet_page', (
+            'SEED_ISLE_GUESTNET_PAGE_DISPLAYS',
+        )),
+    )),
 )

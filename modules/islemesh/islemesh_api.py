@@ -522,6 +522,8 @@ class IsleMeshAPI(treeObject):
             'port': getattr(row, 'port', 0),
             'domain': getattr(row, 'domain', ''),
             'provides_engine': getattr(row, 'provides_engine', ''),
+            'requires_tier': getattr(row, 'requires_tier', ''),  # hw-app-1: hardware kinds need the hardware tier
+            'extends': getattr(row, 'extends', ''),
             'category': getattr(row, 'category', ''),
             'source': getattr(row, 'source', ''),
             'published': getattr(row, 'published', True),

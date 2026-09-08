@@ -404,6 +404,28 @@ def install_plan(entry):
                     'note': 'isle-vpn listings need the vpn module '
                             '(pol modules get vpn)'}
         return vpn_install_plan(entry)
+    if kind == 'hardware-app':
+        # hw-app-1: a KVM guest. The isle renders nothing itself — it asks
+        # Polari for the domain XML + UCI profile rendered from the rows
+        # (/api/hardwareapps/render/<name>) and drives libvirt through
+        # `isle vm` (the router's own machinery, generalised — isle-core's
+        # half; NOTES-FROM-POL-CORE.md 2026-09-08). Refused without the
+        # hardware tier (libvirt/KVM on this device).
+        return {'ok': True, 'requires_tier': 'hardware', 'steps': [
+            'isle vm define %s --from-polari' % name,
+            'isle vm start %s' % name,
+            'isle vm status %s' % name,
+        ], 'note': 'hardware-app: a KVM guest rendered from Polari rows; needs agent.tier=hardware '
+                   '(libvirt/KVM on this device) and the guest image %s' % (entry.get('vm_image_ref') or '(unset)')}
+    if kind == 'hardware-extension-app':
+        host = entry.get('extends', '')
+        if not host:
+            return {'ok': False, 'steps': [], 'note': 'hardware-extension-app %r names no hardware app to extend' % name}
+        return {'ok': True, 'requires_tier': 'hardware', 'steps': [
+            'isle vm status %s' % host,
+            'isle vm extend %s --with %s' % (host, name),
+        ], 'note': 'hardware-extension-app: functionality pushed INTO the running hardware app %r '
+                   '(its guest must be up); refused when the host app is not installed' % host}
     if kind == 'polari-module':
         # a polari module installed into the local instance via the
         # module .deb (mac-8) or, until the deb repo lands, the

@@ -38,6 +38,7 @@ FEATURE_MODULES = frozenset({
     'appstore', 'aquaponics', 'biomining', 'bizops', 'climate',
     'cntfet', 'collab', 'computerparts', 'computers', 'dmvdata',
     'electrodevice', 'gears', 'grpcbridge', 'household', 'hwdigital',
+    'hardwareapps', 'isle_guestnet', 'isle_relay',
     'hwfpga', 'islemesh', 'magnetics', 'mathshapes', 'mealoptions', 'meshassets',
     'microalgae', 'microchip', 'motors', 'mqttbridge', 'nutrition', 'odooconnect',
     'plant_morphology', 'polariapps', 'reticulum', 'scoring', 'supplychain',
@@ -88,6 +89,9 @@ FEATURE_REQUIRES = {
     # (IsleEngine / IsleIngestReceipt / IsleDevice rows, the
     # netledger's free_port, the catalog + engine idioms).
     'vpn': ('islemesh',),
+    'hardwareapps': ('islemesh',),
+    'isle_relay': ('hardwareapps', 'islemesh'),
+    'isle_guestnet': ('hardwareapps', 'islemesh'),
 }
 
 # Modules that MOVE into modules/ (mp-4) but stay required for boot

@@ -52,6 +52,17 @@ class IsleCatalogEntry(treeObject):
         source: str = 'official',
         is_mock: bool = False,
         notes: str = '',
+        # hw-app-1: the VM fields a hardware-app / hardware-extension-app entry carries
+        # (empty for every other kind). The domain XML + UCI are RENDERED from
+        # the hardwareapps module's rows; these point at what to render.
+        requires_tier: str = '',
+        guest_kind: str = '',
+        vm_image_ref: str = '',
+        image_sha256_raw: str = '',
+        memory_mb: int = 0,
+        vcpus: int = 0,
+        passthrough_json: str = '[]',
+        extends: str = '',
         manager=None,
     ):
         self.name = name
@@ -69,3 +80,11 @@ class IsleCatalogEntry(treeObject):
         self.source = source
         self.is_mock = is_mock
         self.notes = notes
+        self.requires_tier = requires_tier
+        self.guest_kind = guest_kind
+        self.vm_image_ref = vm_image_ref
+        self.image_sha256_raw = image_sha256_raw
+        self.memory_mb = memory_mb
+        self.vcpus = vcpus
+        self.passthrough_json = passthrough_json
+        self.extends = extends

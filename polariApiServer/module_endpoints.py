@@ -440,7 +440,28 @@ def construct_vpn_endpoints(polServer):
     vpnEndpoint = VpnAPI(polServer=polServer, manager=manager)
 
 
+def construct_hardwareapps_endpoints(polServer):
+    manager = polServer.manager
+    from hardwareapps.hardwareapps_api import HardwareAppsAPI
+    hardwareAppsEndpoint = HardwareAppsAPI(polServer=polServer, manager=manager)
+
+
+def construct_isle_relay_endpoints(polServer):
+    manager = polServer.manager
+    from isle_relay.isle_relay_api import IsleRelayAPI
+    isleRelayEndpoint = IsleRelayAPI(polServer=polServer, manager=manager)
+
+
+def construct_isle_guestnet_endpoints(polServer):
+    manager = polServer.manager
+    from isle_guestnet.isle_guestnet_api import IsleGuestnetAPI
+    isleGuestnetEndpoint = IsleGuestnetAPI(polServer=polServer, manager=manager)
+
+
 MODULE_ENDPOINT_CONSTRUCTORS = {
+    'hardwareapps': construct_hardwareapps_endpoints,
+    'isle_relay': construct_isle_relay_endpoints,
+    'isle_guestnet': construct_isle_guestnet_endpoints,
     'pspp': construct_pspp_endpoints,
     'scoring': construct_scoring_endpoints,
     'zones': construct_zones_endpoints,

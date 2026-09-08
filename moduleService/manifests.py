@@ -42,7 +42,10 @@ CONCEPTS = ('objects', 'basis', 'api', 'endpoints', 'seed', 'page', 'catalog',
 #: others — library (objects only), polari-app (pages/API inside a Polari
 #: instance), isle-app (a container app deployed on the isle), hardware-app
 #: (a QEMU/KVM guest owning hardware; POLARI_TREE_PLAN / STANDARD_POLARI_APP §3).
-APP_KINDS = ('library', 'polari-app', 'isle-app', 'hardware-app')
+APP_KINDS = ('library', 'polari-app', 'isle-app', 'hardware-app', 'hardware-extension-app')
+#: hardware-app = a KVM guest the isle runs (the router is one, woven into the isle and left as is);
+#: hardware-extension-app = adds functionality to a hardware app it EXTENDS (`app.extends` names it) —
+#: reticulum is the first (his ruling 2026-09-08).
 POSTFIXES = {'_basis': 'basis', '_api': 'api', '_endpoints': 'endpoints', '_seed': 'seed',
              '_page': 'page', '_catalog': 'catalog', '_remote': 'remote', '_selftest': 'selftests'}
 AGENT_TIERS = ('reach', 'member', 'hardware', 'core')
@@ -282,6 +285,7 @@ def generate(pkg, tables=None, registry=None):
         'app': {
             'kind': app_kind,
             'family': '',
+            'extends': '',
             'catalogKinds': sorted(catalog_kinds),
             'agentTier': 'member',
         },
@@ -304,7 +308,21 @@ def generate(pkg, tables=None, registry=None):
         'legacyDynamicModule': os.path.isfile(os.path.join(d, '_module_metadata.json'))
                                or 'def initialize(' in init_src,
     }
-    return manifest, None
+    return _preserve_hand_set(pkg, manifest), None
+
+
+def _preserve_hand_set(pkg, manifest):
+    """generate is a REFRESH: a hand-set app block (kind/family/extends/
+    agentTier), title, description and version survive regeneration."""
+    old = load(pkg)
+    if old:
+        for k in ('title', 'description', 'version', 'repo'):
+            if old.get(k):
+                manifest[k] = old[k]
+        app = dict(manifest['app'])
+        app.update({k: v for k, v in (old.get('app') or {}).items() if k in ('kind', 'family', 'extends', 'agentTier')})
+        manifest['app'] = app
+    return manifest
 
 
 def write(pkg, manifest):
@@ -332,6 +350,10 @@ def validate(manifest):
         problems.append('app.kind must be one of %s' % (APP_KINDS,))
     if app.get('agentTier') not in AGENT_TIERS:
         problems.append('app.agentTier must be one of %s' % (AGENT_TIERS,))
+    if app.get('kind') == 'hardware-extension-app' and not app.get('extends'):
+        problems.append('a hardware-extension-app must name the hardware app it extends (app.extends)')
+    if app.get('kind') in ('hardware-app', 'hardware-extension-app') and app.get('agentTier') != 'hardware':
+        problems.append('hardware kinds need app.agentTier = hardware')
     pkg = manifest.get('package', '')
     for path, _symbols in manifest.get('imports', []):
         if path.split('.')[0] != pkg:

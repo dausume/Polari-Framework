@@ -48,6 +48,15 @@ ORCHESTRATORS = ('compose', 'swarm')
 #: .isle website, or a KVM (USB/USB-C hardware passthrough).
 REALIZATION_KINDS = ('local-stub', 'shell', 'website', 'kvm')
 
+#: Catalog kinds a store entry may carry (hw-app-1, 2026-09-08): the two
+#: hardware kinds join the open enum — hardware-app = a KVM guest the isle
+#: defines/starts (relay, guest network …; the router is one but stays woven
+#: into the isle), hardware-extension-app = functionality pushed INTO a
+#: hardware app it extends (reticulum on the relay).
+CATALOG_KINDS = ('mesh-app', 'polari-app', 'polari-instance', 'polari-module', 'isle-vpn',
+                 'hardware-app', 'hardware-extension-app')
+HARDWARE_KINDS = ('hardware-app', 'hardware-extension-app')
+
 #: Package kinds the universal .deb story ships (mac-8).
 PACKAGE_KINDS = ('', 'app-deb', 'polari-node-deb', 'module-deb')
 

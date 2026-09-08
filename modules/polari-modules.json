@@ -187,6 +187,17 @@
       "wave": 5,
       "description": "gRPC contracts from stabilized schemas, Java hardware bridges, hw sim rigs."
     },
+    "hardwareapps": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/hardwareapps",
+      "repo": "",
+      "requires": [
+        "islemesh"
+      ],
+      "wave": 8,
+      "description": "Hardware apps as rows: KVM guests the isle defines (relay, guest network, \u2026) and extension apps pushed into them; pure renderers for the libvirt domain XML (the router template generalised) and OpenWrt UCI profiles (hw-app-1, 2026-09-08)."
+    },
     "household": {
       "kind": "official",
       "downloaded": true,
@@ -211,6 +222,30 @@
       "repo": "https://github.com/dausume/polari-module-hwfpga.git",
       "wave": 3,
       "description": "FPGA register maps as data; Verilog/C/testbench artifacts from rows."
+    },
+    "isle_guestnet": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/isle_guestnet",
+      "repo": "",
+      "requires": [
+        "hardwareapps",
+        "islemesh"
+      ],
+      "wave": 8,
+      "description": "isle-guestnet: an OpenWrt guest (hardware app) serving guest-only WiFi, isolated from the isle; exposures as rows."
+    },
+    "isle_relay": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/isle_relay",
+      "repo": "",
+      "requires": [
+        "hardwareapps",
+        "islemesh"
+      ],
+      "wave": 8,
+      "description": "isle-relay: a second OpenWrt guest (hardware app) serving a relay segment that extends the isle; the body for the Reticulum extension app (WiFi over Reticulum)."
     },
     "islemesh": {
       "kind": "official",
@@ -372,7 +407,9 @@
       "path": "modules/reticulum",
       "repo": "",
       "wave": 9,
-      "requires": [],
+      "requires": [
+        "islemesh"
+      ],
       "description": "Reticulum mesh transport (ret-1, RETICULUM_TRANSPORT_PLAN): identities/destinations/interfaces/bindings as rows, per-PATH link measurements, ledgered airtime budgets, .arch archipelago with GRADED trust, parent+child state replication, operator-licence assertions + device links. RNS stack lives ONLY in the pol-reticulum sidecar, pinned rns==0.9.4+lxmf==0.6.3 (RETICULUM_LICENCE_GATE.md \u2014 pins are licence pins). THE LINE (ret-8): nothing arriving over Reticulum mutates Polari state. Third module born manifest-first on dyn-1.",
       "notes": ""
     },
