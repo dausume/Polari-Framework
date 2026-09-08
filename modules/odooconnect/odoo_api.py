@@ -11,13 +11,13 @@ caller's confirm string into the same guards.
 
 from objectTreeDecorators import treeObject, treeObjectInit
 
-from odooconnect.odoo_analysis import odoo_configs, odoo_status
-from odooconnect.odoo_scenario_engine import (
+from odooconnect.custom.odoo_analysis import odoo_configs, odoo_status
+from odooconnect.custom.odoo_scenario_engine import (
     scenario_archive_status, scenario_create_status, scenario_harvest,
     scenario_plan, scenario_run, scenario_seed, scenarios_catalog,
 )
-from odooconnect.odoo_orders import pull_orders
-from odooconnect.odoo_sync import (
+from odooconnect.custom.odoo_orders import pull_orders
+from odooconnect.custom.odoo_sync import (
     _named_row, bindings_catalog, pull, push, receipts_catalog,
 )
 

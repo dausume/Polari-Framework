@@ -1,5 +1,5 @@
 """
-@module odooconnect.odoo_orders
+@module odooconnect.custom.odoo_orders
 
 od-4b: the ORDER REGISTRAR feed — Odoo sale.order (+ lines) pulled
 into bizops ProductOrder rows so the order planner runs on the real
@@ -35,8 +35,8 @@ import json
 import math
 import time
 
-from odooconnect.odoo_client import OdooHandle
-from odooconnect.odoo_sync import (
+from odooconnect.custom.odoo_client import OdooHandle
+from odooconnect.custom.odoo_sync import (
     _class_for, _config_for, _direction_guard, _named_row,
     _row_prefix, _write_receipt,
 )

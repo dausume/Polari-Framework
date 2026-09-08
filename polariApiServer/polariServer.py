@@ -1173,7 +1173,10 @@ class polariServer(treeObject):
             WriteJournalEntry,
             # acct-0 accountability spine (TEST BUILDS ONLY — the
             # module gate below drops these on normal builds).
-            CapabilityCheck, CheckRun]
+            CapabilityCheck, CheckRun,
+            # tcov-1: test coverage by app (TEST BUILDS ONLY, same gate)
+            StandardComputerBudget, AppHierarchyNode, ModuleCoverage,
+            AppBenchmark, TestCoveragePlan]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
         # CRUDE endpoints, and boot restore all key off the typing
@@ -2075,6 +2078,7 @@ class polariServer(treeObject):
              + (SEED_APPSTORE_PAGE_DISPLAYS or [])
              + (SEED_ISLEMESH_PAGE_DISPLAYS or [])
              + (SEED_VPN_PAGE_DISPLAYS or [])
+             + (SEED_TESTING_COVERAGE_PAGE_DISPLAYS or [])
              + (SEED_CNTFET_PAGE_DISPLAYS or [])
              # fi-4: per-FET competitive scoring pages.
              + (SEED_CNT_SCORE_PAGES or [])
@@ -2956,6 +2960,9 @@ class polariServer(treeObject):
             # are never seeded: runs are observed state.
             ('CapabilityCheck', CapabilityCheck,
              SEED_CAPABILITY_CHECKS),
+            # tcov-1: the standard-computer budget (D1 placeholders)
+            ('StandardComputerBudget', StandardComputerBudget,
+             SEED_STANDARD_COMPUTER_BUDGETS),
         ]
         # Old demo-3d description (used as the "untouched" signature). If
         # the existing demo-3d row still has this verbatim, we treat it

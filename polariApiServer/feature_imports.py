@@ -745,10 +745,10 @@ FEATURE_IMPORT_BLOCKS = (
         ('odooconnect.odoo_basis', (
             'OdooInstanceConfig',
         )),
-        ('odooconnect.odoo_bindings', (
+        ('odooconnect.odoo_bindings_basis', (
             'OdooModelBinding', 'OdooSyncReceipt', 'SEED_ODOO_BINDINGS',
         )),
-        ('odooconnect.odoo_scenarios', (
+        ('odooconnect.odoo_scenarios_basis', (
             'BusinessScenarioDefinition', 'SEED_BUSINESS_SCENARIOS',
         )),
         ('odooconnect.odoo_seed', (
@@ -880,6 +880,13 @@ FEATURE_IMPORT_BLOCKS = (
         )),
         ('testing.testing_seed', (
             'SEED_CAPABILITY_CHECKS',
+        )),
+        ('testing.coverage_basis', (
+            'StandardComputerBudget', 'AppHierarchyNode', 'ModuleCoverage',
+            'AppBenchmark', 'TestCoveragePlan', 'SEED_STANDARD_COMPUTER_BUDGETS',
+        )),
+        ('testing.coverage_page', (
+            'SEED_TESTING_COVERAGE_PAGE_DISPLAYS',
         )),
     )),
     ('grpcbridge', (

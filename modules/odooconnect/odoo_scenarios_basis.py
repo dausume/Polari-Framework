@@ -1,5 +1,5 @@
 """
-@module odooconnect.odoo_scenarios
+@module odooconnect.odoo_scenarios_basis
 
 BusinessScenarioDefinition — business simulations as DATA (od-5).
 The guiding idea (Dustin 2026-07-28): businesses that do "whatever
@@ -16,7 +16,7 @@ mode=simulation — the engine refuses operations configs outright —
 and runs in its own THROWAWAY database (scenario_db), so even the
 sim database never accumulates scenario junk.
 
-@consumers polariServer seed_pairs, odooconnect.odoo_scenario_engine
+@consumers polariServer seed_pairs, odooconnect.custom.odoo_scenario_engine
 """
 
 import json

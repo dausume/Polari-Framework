@@ -1,23 +1,23 @@
 """
-@module odooconnect.selftest_odoo_sync
+@module odooconnect.odoo_sync_selftest
 
 od-4 selftests: pull idempotency + provenance, conflict honesty, push
 idempotency via x_polari_ref (including the ensure-field path — the
 stub starts WITHOUT the field), direction guards, gated ops pushes,
 receipts. All against the shared stub server; no live Odoo.
 
-Run from polari-framework/: python3 -m odooconnect.selftest_odoo_sync
+Run from polari-framework/: python3 -m odooconnect.odoo_sync_selftest
 """
 
 import json
 import os
 import types
 
-from odooconnect.odoo_client import ops_confirm_phrase
-from odooconnect.odoo_sync import (
+from odooconnect.custom.odoo_client import ops_confirm_phrase
+from odooconnect.custom.odoo_sync import (
     bindings_catalog, pull, push, receipts_catalog,
 )
-from odooconnect.stub_odoo import STATE, start_stub
+from odooconnect.custom.stub_odoo import STATE, start_stub
 
 PASS = '\033[92mPASS\033[0m'
 FAIL = '\033[91mFAIL\033[0m'

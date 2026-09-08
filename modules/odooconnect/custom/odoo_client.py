@@ -1,5 +1,5 @@
 """
-@module odooconnect.odoo_client
+@module odooconnect.custom.odoo_client
 
 Stdlib JSON-RPC client for Odoo (/jsonrpc; no third-party dependency)
 with the honest-refusal shape {ok: False, refusal, suggestion} on every

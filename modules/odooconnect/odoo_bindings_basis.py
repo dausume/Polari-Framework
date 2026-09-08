@@ -1,5 +1,5 @@
 """
-@module odooconnect.odoo_bindings
+@module odooconnect.odoo_bindings_basis
 
 OdooModelBinding — bindings are DATA (ODOO_INTEGRATION_PLAN.md od-4):
 one row maps an Odoo model to a Polari class with a field map; new
@@ -8,7 +8,7 @@ custom `x_polari_ref` field on the Odoo side (created on demand by the
 sync engine on push-enabled instances) holding the Polari row name —
 the idempotency key that makes pushes safe to re-run.
 
-@consumers polariServer defClassList + seed_pairs, odooconnect.odoo_sync
+@consumers polariServer defClassList + seed_pairs, odooconnect.custom.odoo_sync
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit

@@ -1,15 +1,15 @@
 """
-@module odooconnect.odoo_analysis
+@module odooconnect.custom.odoo_analysis
 
 Duck-typed status/catalog over OdooInstanceConfig rows — stdlib only,
 takes any manager exposing .objectTables (selftests pass a
 SimpleNamespace). Probing goes through an injectable handle factory so
 selftests point it at a stub server.
 
-@consumers odooconnect.odoo_api, odooconnect.selftest_odoo
+@consumers odooconnect.odoo_api, odooconnect.odoo_selftest
 """
 
-from odooconnect.odoo_client import OdooHandle
+from odooconnect.custom.odoo_client import OdooHandle
 
 
 def _rows(manager, class_name):

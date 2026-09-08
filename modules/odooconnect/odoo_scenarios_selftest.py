@@ -1,5 +1,5 @@
 """
-@module odooconnect.selftest_odoo_scenarios
+@module odooconnect.odoo_scenarios_selftest
 
 od-5 selftests: the sim-only guard, plan-first shape, create/archive
 honest suggestions, seed-spec coherence, and harvest math + economy-
@@ -7,18 +7,18 @@ tree rows over a canned handle. The FULL driver (purchase -> receive
 -> manufacture -> sell) is proven live against a real throwaway DB —
 faking Odoo's mrp/stock logic here would test the fake, not the code.
 
-Run from polari-framework/: python3 -m odooconnect.selftest_odoo_scenarios
+Run from polari-framework/: python3 -m odooconnect.odoo_scenarios_selftest
 """
 
 import json
 import types
 
-from odooconnect.odoo_scenario_engine import (
+from odooconnect.custom.odoo_scenario_engine import (
     derive_scenario_config, scenario_archive_status,
     scenario_create_status, scenario_harvest, scenario_plan,
     scenarios_catalog,
 )
-from odooconnect.odoo_scenarios import SEED_BUSINESS_SCENARIOS
+from odooconnect.odoo_scenarios_basis import SEED_BUSINESS_SCENARIOS
 
 PASS = '\033[92mPASS\033[0m'
 FAIL = '\033[91mFAIL\033[0m'

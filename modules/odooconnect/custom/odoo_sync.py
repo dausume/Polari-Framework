@@ -1,5 +1,5 @@
 """
-@module odooconnect.odoo_sync
+@module odooconnect.custom.odoo_sync
 
 Sync engine v1 (od-4): pull FREELY, push GATED. Every run returns a
 receipt dict and (when the class is in the tree) writes an
@@ -25,7 +25,7 @@ bindings can name ANY tree class — a class that is not in the tree
 import json
 import time
 
-from odooconnect.odoo_client import OdooHandle
+from odooconnect.custom.odoo_client import OdooHandle
 
 PULL_PAGE_SIZE = 200
 PULL_MAX_PAGES = 50

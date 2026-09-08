@@ -10,7 +10,7 @@ names the environment variable that holds the RPC password/api-key.
 
 @consumers
   - polariServer defClassList + seed_pairs (SEED_ODOO_INSTANCES)
-  - odooconnect.odoo_client (handles), odooconnect.odoo_analysis
+  - odooconnect.custom.odoo_client (handles), odooconnect.custom.odoo_analysis
 """
 
 from objectTreeDecorators import treeObject, treeObjectInit

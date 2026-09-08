@@ -275,6 +275,9 @@ def construct_testing_endpoints(polServer):
         polServer=polServer, manager=manager)
     # acct-3: the twin rehearsal's out-of-process lease
     # handle (production keeps NO HTTP lease surface).
+    # tcov-1: test coverage by app (hierarchy, budget, benchmarks, plan)
+    from testing.coverage_api import CoverageAPI
+    coverageEndpoint = CoverageAPI(polServer=polServer, manager=manager)
     from testing.twin_lease_api import TwinLeaseAPI
     twinLeaseEndpoint = TwinLeaseAPI(
         polServer=polServer, manager=manager)

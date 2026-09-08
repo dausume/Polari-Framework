@@ -1,5 +1,5 @@
 """
-@module odooconnect.selftest_odoo_orders
+@module odooconnect.odoo_orders_selftest
 
 od-4b selftests: sale.order line explosion into ProductOrder rows
 against the stub — product mapping ladder (x_polari_ref >
@@ -10,7 +10,7 @@ conflicts, receipts — and the SPLICE: the bizops order planner
 answering over the pulled book.
 
 Run from polari-framework/:
-    python3 -m odooconnect.selftest_odoo_orders
+    python3 -m odooconnect.odoo_orders_selftest
 """
 
 import os
@@ -22,8 +22,8 @@ from bizops.bizops_seed import (
     SEED_BUSINESS_PROFILES, SEED_BUSINESS_STAGES,
     SEED_PROCESS_WORKFLOWS,
 )
-from odooconnect.odoo_orders import _due_days, pull_orders
-from odooconnect.stub_odoo import STATE, start_stub
+from odooconnect.custom.odoo_orders import _due_days, pull_orders
+from odooconnect.custom.stub_odoo import STATE, start_stub
 from supplychain.sourcing_seed import (
     SEED_PRICE_CITATIONS, SEED_PRODUCT_FORMULAS,
     SEED_PRODUCT_REQUIREMENTS, SEED_SUPPLY_SOURCES,

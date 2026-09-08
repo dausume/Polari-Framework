@@ -1,12 +1,12 @@
 """
-@module odooconnect.selftest_odoo
+@module odooconnect.odoo_selftest
 
 od-3 selftests against a STUB JSON-RPC server (stdlib http.server on an
 ephemeral port — no live Odoo anywhere near CI): auth, search_read
 paging, refusal shapes, the write guards (read_only / push_enabled /
 operations typed-confirm), and sim/ops handle separation.
 
-Run from polari-framework/: python3 -m odooconnect.selftest_odoo
+Run from polari-framework/: python3 -m odooconnect.odoo_selftest
 (with modules/ on the import path, as the pol modules runner does).
 """
 
@@ -14,12 +14,12 @@ import json
 import os
 import types
 
-from odooconnect.odoo_analysis import odoo_status
-from odooconnect.odoo_client import (
+from odooconnect.custom.odoo_analysis import odoo_status
+from odooconnect.custom.odoo_client import (
     OdooHandle, jsonrpc, ops_confirm_phrase,
 )
 from odooconnect.odoo_seed import SEED_ODOO_INSTANCES
-from odooconnect.stub_odoo import start_stub
+from odooconnect.custom.stub_odoo import start_stub
 
 PASS = '\033[92mPASS\033[0m'
 FAIL = '\033[91mFAIL\033[0m'

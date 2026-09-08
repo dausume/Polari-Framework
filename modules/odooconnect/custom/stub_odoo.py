@@ -1,5 +1,5 @@
 """
-@module odooconnect.stub_odoo
+@module odooconnect.custom.stub_odoo
 
 TEST-ONLY in-process stub of Odoo's /jsonrpc endpoint (stdlib
 http.server, ephemeral port) — the CI stand-in the od-3/od-4 selftests
@@ -15,7 +15,7 @@ Behavior implemented (just enough, honestly refusing the rest):
   ir.model:         search [['model','=',m]]
   ir.model.fields:  create (adds the field to product.template)
 
-@consumers odooconnect.selftest_odoo, odooconnect.selftest_odoo_sync
+@consumers odooconnect.odoo_selftest, odooconnect.odoo_sync_selftest
 """
 
 import json

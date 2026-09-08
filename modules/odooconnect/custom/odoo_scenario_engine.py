@@ -1,5 +1,5 @@
 """
-@module odooconnect.odoo_scenario_engine
+@module odooconnect.custom.odoo_scenario_engine
 
 Scenario lifecycle (od-5): plan -> create -> seed -> run -> harvest ->
 archive. THE guard: the base config must be mode=simulation — an
@@ -20,8 +20,8 @@ import json
 import time
 import types
 
-from odooconnect.odoo_client import OdooHandle
-from odooconnect.odoo_sync import (
+from odooconnect.custom.odoo_client import OdooHandle
+from odooconnect.custom.odoo_sync import (
     _class_for, _ensure_external_ref_field, _named_row, _refuse,
     _write_receipt,
 )
