@@ -1206,7 +1206,7 @@ FEATURE_IMPORT_BLOCKS = (
     ('printing_suite', (
         ('printing_suite.printing_suite_basis', (
             'MaterialLot', 'PrintProfile', 'SliceJob', 'GcodeArtifact', 'PrintJob', 'PrintOutcome',
-            'PRINTING_SUITE_SEED_PAIRS', 'SEED_PRINTING_SUITES', 'SEED_PRINTING_PARTS', 'SEED_PRINTING_CONTRACTS',
+            'ProductionRun', 'RunStepRecord', 'PRINTING_SUITE_SEED_PAIRS', 'SEED_PRINTING_SUITES', 'SEED_PRINTING_PARTS', 'SEED_PRINTING_CONTRACTS',
         )),
         ('printing_suite.printing_suite_page', (
             'SEED_PRINTING_SUITE_PAGE_DISPLAYS',
@@ -1218,6 +1218,14 @@ FEATURE_IMPORT_BLOCKS = (
         )),
         ('kirimoto.kirimoto_page', (
             'SEED_KIRIMOTO_PAGE_DISPLAYS',
+        )),
+    )),
+    ('printcam', (
+        ('printcam.printcam_basis', (
+            'CameraDefinition', 'TimelapseRecord', 'PRINTCAM_SEED_PAIRS', 'SEED_PRINTCAM_HARDWARE_APPS', 'SEED_PRINTCAM_CATALOG',
+        )),
+        ('printcam.printcam_page', (
+            'SEED_PRINTCAM_PAGE_DISPLAYS',
         )),
     )),
 )

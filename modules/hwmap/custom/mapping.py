@@ -52,7 +52,7 @@ def port_role(driver, usb_class='', vendor_id='', product_id=''):
         return 'storage'
     if d == 'usbhid' or 'Human Interface' in (usb_class or ''):
         return 'hid'
-    if d in ('uvcvideo',):
+    if d in ('uvcvideo',) or 'Video' in (usb_class or ''):
         return 'camera'
     if d in ('snd-usb-audio',):
         return 'audio'

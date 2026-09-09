@@ -11,6 +11,8 @@ from printing_suite.objects.printing.SliceJob import SliceJob, SLICE_STATES, SHA
 from printing_suite.objects.printing.GcodeArtifact import GcodeArtifact  # noqa: F401
 from printing_suite.objects.printing.PrintJob import PrintJob, PRINT_STATES  # noqa: F401
 from printing_suite.objects.printing.PrintOutcome import PrintOutcome, OUTCOME_VERDICTS  # noqa: F401
+from printing_suite.objects.printing.ProductionRun import ProductionRun, RUN_STEPS, RUN_STATES  # noqa: F401
+from printing_suite.objects.printing.RunStepRecord import RunStepRecord  # noqa: F401
 
 SUITE = 'printing-production'
 
@@ -72,5 +74,6 @@ SEED_PRINT_PROFILES = [{'name': 'pla-generic@voron-2.4-350', 'material': 'PLA (g
 
 PRINTING_SUITE_SEED_PAIRS = [('MaterialLot', MaterialLot, []), ('PrintProfile', PrintProfile, SEED_PRINT_PROFILES),
                              ('SliceJob', SliceJob, []), ('GcodeArtifact', GcodeArtifact, []), ('PrintJob', PrintJob, []),
-                             ('PrintOutcome', PrintOutcome, [])]
+                             ('PrintOutcome', PrintOutcome, []),
+                             ('ProductionRun', ProductionRun, []), ('RunStepRecord', RunStepRecord, [])]
 PRINTING_SUITE_CLASSES = [cls for _, cls, _ in PRINTING_SUITE_SEED_PAIRS]

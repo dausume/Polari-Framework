@@ -13,3 +13,5 @@ from printing_suite.objects.printing.SliceJob import SliceJob  # noqa: F401
 from printing_suite.objects.printing.GcodeArtifact import GcodeArtifact  # noqa: F401
 from printing_suite.objects.printing.PrintJob import PrintJob  # noqa: F401
 from printing_suite.objects.printing.PrintOutcome import PrintOutcome  # noqa: F401
+from printing_suite.objects.printing.ProductionRun import ProductionRun  # noqa: F401
+from printing_suite.objects.printing.RunStepRecord import RunStepRecord  # noqa: F401

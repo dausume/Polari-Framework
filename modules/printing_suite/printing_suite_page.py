@@ -14,5 +14,7 @@ SEED_PRINTING_SUITE_PAGE_DISPLAYS = [
            _row(2, [_table('ps-slice', 0, 4, 'Slice jobs', 'SliceJob', columns='name,shape_class,shape,profile,slicer,state'),
                     _table('ps-gcode', 1, 4, 'Gcode artifacts', 'GcodeArtifact', columns='name,slice_job,sha256,bytes,estimated_seconds'),
                     _table('ps-jobs', 2, 4, 'Print jobs', 'PrintJob', columns='name,artifact,printer,state,progress_pct')]),
-           _row(3, [_table('ps-outcomes', 0, 12, 'Outcomes (measured)', 'PrintOutcome', columns='name,print_job,verdict,actual_seconds,actual_material_g,defects_json,measured_by,method,feeds_back_to')])]),
+           _row(3, [_table('ps-runs', 0, 6, 'Production runs (CAD → material → mold → slice → print → measure)', 'ProductionRun', columns='name,cad_object,target_material,mold_feedstock,printer,step,state,last_error'),
+                    _table('ps-steps', 1, 6, 'Cached step records', 'RunStepRecord', columns='run,step,attempt,ok,result_class,result_ref,sha256,bytes,error,valid')]),
+           _row(4, [_table('ps-outcomes', 0, 12, 'Outcomes (measured)', 'PrintOutcome', columns='name,print_job,verdict,actual_seconds,actual_material_g,defects_json,measured_by,method,feeds_back_to')])]),
 ]

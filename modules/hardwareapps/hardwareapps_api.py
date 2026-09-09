@@ -77,7 +77,10 @@ class HardwareAppsAPI(treeObject):
         from hardwareapps.custom.domain_xml import render_domain
         from hardwareapps.custom.uci_profiles import render_uci
         pt, missing = self._passthrough(defn)
-        xml, refusals = render_domain(defn, pt)
+        if getattr(defn, 'kind', '') == 'hardware-extension-app':
+            xml, refusals = '', []   # an extension has no guest of its own: only its provisioner renders (into the host guest)
+        else:
+            xml, refusals = render_domain(defn, pt)
         uci, uci_refusals = render_uci(defn) if getattr(defn, 'uci_profile', '') else ('', [])
         prov, prov_refusals = self._provision(defn)
         owned = [p['description'] for p in pt if p.get('owner') and p['owner'] not in ('', 'host', defn.name)]

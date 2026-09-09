@@ -1188,7 +1188,10 @@ class polariServer(treeObject):
             SuiteAppDefinition, SuitePart, SuiteContract, SuitePlacement,
             # sa-2: the printing suite's contract rows; the Kiri:Moto isle-app rows
             MaterialLot, PrintProfile, SliceJob, GcodeArtifact, PrintJob, PrintOutcome,
-            SlicerInstance, SlicerProfile]
+            ProductionRun, RunStepRecord,
+            SlicerInstance, SlicerProfile,
+            # printcam: the camera extension of the Voron guest
+            CameraDefinition, TimelapseRecord]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
         # CRUDE endpoints, and boot restore all key off the typing
@@ -2099,6 +2102,7 @@ class polariServer(treeObject):
              + (SEED_SUITEAPPS_PAGE_DISPLAYS or [])
              + (SEED_PRINTING_SUITE_PAGE_DISPLAYS or [])
              + (SEED_KIRIMOTO_PAGE_DISPLAYS or [])
+             + (SEED_PRINTCAM_PAGE_DISPLAYS or [])
              + (SEED_CNTFET_PAGE_DISPLAYS or [])
              # fi-4: per-FET competitive scoring pages.
              + (SEED_CNT_SCORE_PAGES or [])
@@ -2607,7 +2611,7 @@ class polariServer(treeObject):
              (SEED_VPN_CATALOG or [])
              # hw-app-1: the relay + guest-network guests as store rows (kind hardware-app)
              + (SEED_RELAY_CATALOG or []) + (SEED_GUESTNET_CATALOG or [])
-             + (SEED_VORON_CATALOG or []) + (SEED_KIRIMOTO_CATALOG or [])),
+             + (SEED_VORON_CATALOG or []) + (SEED_KIRIMOTO_CATALOG or []) + (SEED_PRINTCAM_CATALOG or [])),
             *(VPN_SEED_PAIRS or []),
             # mqtt-1: brokers before the bindings that name them.
             ('MqttBrokerDefinition', MqttBrokerDefinition,
@@ -2989,10 +2993,10 @@ class polariServer(treeObject):
             # hw-app-1: the guests as HardwareAppDefinition rows (seeded by their modules)
             ('HardwareAppDefinition', HardwareAppDefinition,
              (SEED_RELAY_HARDWARE_APPS or []) + (SEED_GUESTNET_HARDWARE_APPS or [])
-             + (SEED_VORON_HARDWARE_APPS or [])),
+             + (SEED_VORON_HARDWARE_APPS or []) + (SEED_PRINTCAM_HARDWARE_APPS or [])),
         ] + list(ISLE_RELAY_SEED_PAIRS or []) + list(ISLE_GUESTNET_SEED_PAIRS or []) \
           + list(HWMAP_SEED_PAIRS or []) + list(VORON_SEED_PAIRS or []) + list(SUITEAPPS_SEED_PAIRS or []) \
-          + list(PRINTING_SUITE_SEED_PAIRS or []) + list(KIRIMOTO_SEED_PAIRS or []) \
+          + list(PRINTING_SUITE_SEED_PAIRS or []) + list(KIRIMOTO_SEED_PAIRS or []) + list(PRINTCAM_SEED_PAIRS or []) \
           + ([('SuiteAppDefinition', SuiteAppDefinition, SEED_PRINTING_SUITES or []),
               ('SuitePart', SuitePart, SEED_PRINTING_PARTS or []),
               ('SuiteContract', SuiteContract, SEED_PRINTING_CONTRACTS or [])] if SuiteAppDefinition else [])

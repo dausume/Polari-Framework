@@ -17,7 +17,7 @@ def main():
                                                      PRINTING_SUITE_CLASSES, PrintProfile, SliceJob, GcodeArtifact, PrintJob, PrintOutcome, MaterialLot)
     from suiteapps.objects.suiteapps.SuitePart import PART_KINDS, PLACEMENTS, ROLES
     from moduleService import manifests as M
-    check('six contract classes', len(PRINTING_SUITE_CLASSES) == 6)
+    check('six contract classes + the run and its step cache', len(PRINTING_SUITE_CLASSES) == 8)
     check('one suite, eight parts, eleven contracts', len(SEED_PRINTING_SUITES) == 1 and len(SEED_PRINTING_PARTS) == 8 and len(SEED_PRINTING_CONTRACTS) == 11)
     check('every part has a legal kind/placement/role', all(p['kind'] in PART_KINDS and p['placement'] in PLACEMENTS and p['role'] in ROLES for p in SEED_PRINTING_PARTS))
     manifests = M.all_manifests()

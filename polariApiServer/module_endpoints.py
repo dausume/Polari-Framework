@@ -488,7 +488,14 @@ def construct_kirimoto_endpoints(polServer):
     kirimotoEndpoint = KirimotoAPI(polServer=polServer, manager=manager)
 
 
+def construct_printcam_endpoints(polServer):
+    manager = polServer.manager
+    from printcam.printcam_api import PrintcamAPI
+    printcamEndpoint = PrintcamAPI(polServer=polServer, manager=manager)
+
+
 MODULE_ENDPOINT_CONSTRUCTORS = {
+    'printcam': construct_printcam_endpoints,
     'printing_suite': construct_printing_suite_endpoints,
     'kirimoto': construct_kirimoto_endpoints,
     'suiteapps': construct_suiteapps_endpoints,

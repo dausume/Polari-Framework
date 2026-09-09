@@ -392,6 +392,19 @@
       "wave": 6,
       "description": "Polari-Apps: module configurations per use-case, plan-first + exportable."
     },
+    "printcam": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/printcam",
+      "repo": "",
+      "requires": [
+        "hardwareapps",
+        "voron",
+        "islemesh"
+      ],
+      "wave": 8,
+      "description": "Print camera: a hardware-extension-app of the Voron guest \u2014 USB camera passthrough, ustreamer, Moonraker webcam + timelapse (D7, 2026-09-09)."
+    },
     "printing_suite": {
       "kind": "official",
       "downloaded": true,
