@@ -50,13 +50,13 @@ def main():
     check('unknown model + bed dim <= 0 refuse by name', len(ref) == 2 and 'unknown model' in ref[0] and 'bed dimensions' in ref[1], str(ref))
 
     guest = dict(SEED_VORON_HARDWARE_APPS[0], printer=printer, boards=boards)
-    check('all three upstream pins are still <PIN ME> (fill them before a release)', provision._pins_missing() == ['KLIPPER commit', 'MOONRAKER commit', 'MAINSAIL release'])
+    check('all three upstream pins are filled from PRINTER_STACK_GATE.md (2026-09-08)', provision._pins_missing() == [])
     script, ref = render_provision(guest)
-    check('provision refuses by name while pins are <PIN ME>', not script and ref and '<PIN ME>' in ref[0] and 'allow_unpinned' in ref[0], str(ref))
+    check('pinned provision renders without allow_unpinned', bool(script) and not ref, str(ref))
     script, ref = render_provision(dict(guest, allow_unpinned=True))
     check('provision renders with allow_unpinned (klipper.service, moonraker.conf, mainsail, sim host-MCU build, macros)',
           not ref and all(k in script for k in ('klipper.service', 'moonraker.conf', 'mainsail', 'klipper-mcu.service', 'CONFIG_MACH_LINUX=y',
-                                                 'macros-voron-standard.cfg', 'PRINT_START', 'QUAD_GANTRY_LEVEL', 'kinematics: none', 'allow_unpinned'))
+                                                 'macros-voron-standard.cfg', 'PRINT_START', 'QUAD_GANTRY_LEVEL', 'kinematics: none'))
           and 'update_manager' in script and '#!/bin/sh' == script.split('\n')[0], str(ref))
     script, ref = render_provision(dict(guest, printer=real, boards=measured, allow_unpinned=True))
     check('real-mode provision skips the host-MCU build', not ref and 'klipper-mcu.service' not in script and 'real mode: no host-MCU build' in script, str(ref))

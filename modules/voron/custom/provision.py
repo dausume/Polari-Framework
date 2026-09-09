@@ -26,9 +26,9 @@ nothing fetches after install.
 from voron.custom.printer_cfg import render_printer_cfg, PRINTER_DATA, MACROS_FILE, HOST_MCU_SERIAL
 
 UNPINNED = '<PIN ME>'
-KLIPPER = {'repo': 'https://github.com/Klipper3d/klipper', 'commit': UNPINNED, 'licence': 'GPL-3.0'}
-MOONRAKER = {'repo': 'https://github.com/Arksine/moonraker', 'commit': UNPINNED, 'licence': 'GPL-3.0'}
-MAINSAIL = {'release': 'https://github.com/mainsail-crew/mainsail/releases/download/%s/mainsail.zip' % UNPINNED, 'licence': 'GPL-3.0'}
+KLIPPER = {'repo': 'https://github.com/Klipper3d/klipper', 'commit': '8c29c0a8e205d897f765ce867b983e009cbe32a1', 'licence': 'GPL-3.0'}   # dated master 2026-09-08 (PRINTER_STACK_GATE.md)
+MOONRAKER = {'repo': 'https://github.com/Arksine/moonraker', 'commit': '985c1d0bbeb90bc057d34a232c9dc3b05e0c6c8d', 'licence': 'GPL-3.0'}   # v0.11.0
+MAINSAIL = {'release': 'https://github.com/mainsail-crew/mainsail/releases/download/v2.19.0/mainsail.zip', 'licence': 'GPL-3.0'}   # v2.19.0 = 5fb9e77f
 
 APT_PACKAGES = ('git python3-venv virtualenv python3-dev libffi-dev build-essential libncurses-dev libusb-dev avrdude gcc-avr '
                 'binutils-avr avr-libc stm32flash libnewlib-arm-none-eabi gcc-arm-none-eabi binutils-arm-none-eabi libusb-1.0-0 '

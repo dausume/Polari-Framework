@@ -38,7 +38,7 @@ FEATURE_MODULES = frozenset({
     'appstore', 'aquaponics', 'biomining', 'bizops', 'climate',
     'cntfet', 'collab', 'computerparts', 'computers', 'dmvdata',
     'electrodevice', 'gears', 'grpcbridge', 'household', 'hwdigital',
-    'hardwareapps', 'hwmap', 'isle_guestnet', 'isle_relay', 'suiteapps', 'voron',
+    'hardwareapps', 'hwmap', 'isle_guestnet', 'isle_relay', 'kirimoto', 'printing_suite', 'suiteapps', 'voron',
     'hwfpga', 'islemesh', 'magnetics', 'mathshapes', 'mealoptions', 'meshassets',
     'microalgae', 'microchip', 'motors', 'mqttbridge', 'nutrition', 'odooconnect',
     'plant_morphology', 'polariapps', 'reticulum', 'scoring', 'supplychain',
@@ -95,6 +95,8 @@ FEATURE_REQUIRES = {
     'hwmap': ('hardwareapps', 'islemesh'),
     'voron': ('hardwareapps', 'islemesh'),
     'suiteapps': ('islemesh',),
+    'printing_suite': ('suiteapps', 'hardwareapps', 'islemesh'),
+    'kirimoto': ('islemesh',),
 }
 
 # Modules that MOVE into modules/ (mp-4) but stay required for boot

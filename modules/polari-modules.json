@@ -256,6 +256,17 @@
       "requires": [],
       "description": "isle-mesh convergence (mac-1): the polari-side acceptor for isle-mesh data \u2014 devices/uplinks/mesh-apps/protocol-permits ingested from the isle agent's registry.json + nginx fragments (isle stays authoritative over networking); mock ingests carry mock_network=true, surfaced as a banner. Feeds /display/isle-mesh and the mac-10 console."
     },
+    "kirimoto": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/kirimoto",
+      "repo": "",
+      "requires": [
+        "islemesh"
+      ],
+      "wave": 8,
+      "description": "Kiri:Moto browser slicer as an isle container app (kirimoto.isle) built from a pinned MIT commit; slicer instance + device profile rows."
+    },
     "magnetics": {
       "kind": "official",
       "downloaded": true,
@@ -380,6 +391,19 @@
       "repo": "https://github.com/dausume/polari-module-polariapps.git",
       "wave": 6,
       "description": "Polari-Apps: module configurations per use-case, plan-first + exportable."
+    },
+    "printing_suite": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/printing_suite",
+      "repo": "",
+      "requires": [
+        "suiteapps",
+        "hardwareapps",
+        "islemesh"
+      ],
+      "wave": 8,
+      "description": "The 3D printing PRODUCTION suite app: design (CAD \u2192 shape) \u2192 material/mold \u2192 slice (Kiri:Moto) \u2192 print (Voron guest) \u2192 measured outcome; owns the contract rows MaterialLot, PrintProfile, SliceJob, GcodeArtifact, PrintJob, PrintOutcome (sa-2, 2026-09-08)."
     },
     "pspp": {
       "kind": "official",

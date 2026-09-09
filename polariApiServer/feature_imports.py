@@ -1203,4 +1203,21 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_SUITEAPPS_PAGE_DISPLAYS',
         )),
     )),
+    ('printing_suite', (
+        ('printing_suite.printing_suite_basis', (
+            'MaterialLot', 'PrintProfile', 'SliceJob', 'GcodeArtifact', 'PrintJob', 'PrintOutcome',
+            'PRINTING_SUITE_SEED_PAIRS', 'SEED_PRINTING_SUITES', 'SEED_PRINTING_PARTS', 'SEED_PRINTING_CONTRACTS',
+        )),
+        ('printing_suite.printing_suite_page', (
+            'SEED_PRINTING_SUITE_PAGE_DISPLAYS',
+        )),
+    )),
+    ('kirimoto', (
+        ('kirimoto.kirimoto_basis', (
+            'SlicerInstance', 'SlicerProfile', 'KIRIMOTO_SEED_PAIRS', 'SEED_KIRIMOTO_CATALOG',
+        )),
+        ('kirimoto.kirimoto_page', (
+            'SEED_KIRIMOTO_PAGE_DISPLAYS',
+        )),
+    )),
 )

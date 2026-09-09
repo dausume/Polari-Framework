@@ -476,7 +476,21 @@ def construct_suiteapps_endpoints(polServer):
     suiteAppsEndpoint = SuiteAppsAPI(polServer=polServer, manager=manager)
 
 
+def construct_printing_suite_endpoints(polServer):
+    manager = polServer.manager
+    from printing_suite.printing_suite_api import PrintingSuiteAPI
+    printingSuiteEndpoint = PrintingSuiteAPI(polServer=polServer, manager=manager)
+
+
+def construct_kirimoto_endpoints(polServer):
+    manager = polServer.manager
+    from kirimoto.kirimoto_api import KirimotoAPI
+    kirimotoEndpoint = KirimotoAPI(polServer=polServer, manager=manager)
+
+
 MODULE_ENDPOINT_CONSTRUCTORS = {
+    'printing_suite': construct_printing_suite_endpoints,
+    'kirimoto': construct_kirimoto_endpoints,
     'suiteapps': construct_suiteapps_endpoints,
     'hwmap': construct_hwmap_endpoints,
     'voron': construct_voron_endpoints,

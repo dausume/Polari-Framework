@@ -16,17 +16,34 @@ The rules: snapshot → ports, slots, and a PassthroughCandidate per port —
 """
 import json
 
-HOST_CRITICAL_PCI = {'0100', '0101', '0106', '0300', '0302', '0380', '0c03', '0601', '0604', '0500', '0580'}
-#   SCSI/IDE/SATA, VGA/3D/display, USB controller, ISA/PCI bridge, memory
+HOST_CRITICAL_PCI = {'0100', '0101', '0106', '0300', '0302', '0380', '0c03', '0600', '0601', '0604', '0500', '0580',
+                     '0780', '0c05', '0880', '0805', '0c80', '1180'}
+#   SCSI/IDE/SATA, VGA/3D/display, USB controller, host/ISA/PCI bridge, memory, MEI comm, SMBus,
+#   system peripheral, SD host, serial bus, signal processing (thermal) — the chipset the host runs on
+
+#: what a PCI function IS, by class code — a need can ask for a pci wifi card the same way as a usb one
+PCI_ROLES = {'0200': 'ethernet', '0280': 'wifi', '0300': 'gpu', '0302': 'gpu', '0403': 'audio', '0c03': 'usb-controller',
+             '0106': 'sata', '0108': 'nvme', '0700': 'serial', '0c80': 'serial-bus', '0d11': 'bluetooth'}
+
+#: USB WiFi adapters by vendor (the isle's udev rules use the same list) — a role when the driver name is
+#: missing (hub-nested devices lsusb -t cannot pair) or vendor-specific
+WIFI_USB_VENDORS = ('0cf3', '0bda', '148f', '2357', '0e8d', '7392', '2001', '0846', '13b1')
+WIFI_USB_NOT = {'0bda:0129', '0bda:0138', '0bda:0158'}   # Realtek card readers share the vendor id
 
 
 WIFI_DRIVERS = ('mt76', 'rtl8', 'rtw', 'ath9k', 'ath10k', 'ath11k', 'r8188', 'r8192', 'brcmfmac', 'mt7601', 'rt2800', 'iwl')
 SERIAL_DRIVERS = ('cp210x', 'ftdi_sio', 'ch341', 'cdc_acm', 'pl2303', 'usbserial')
 
 
-def port_role(driver, usb_class=''):
-    """The human role of a port from its driver/class — what a need matches on."""
+def port_role(driver, usb_class='', vendor_id='', product_id=''):
+    """The human role of a port from its driver/class (and, when the driver is
+    unknown, its vendor id) — what a need matches on."""
     d = (driver or '').lower()
+    vp = '%s:%s' % (vendor_id, product_id)
+    if not d and vendor_id in WIFI_USB_VENDORS and vp not in WIFI_USB_NOT:
+        return 'wifi'
+    if d == 'btusb' or (usb_class == 'Wireless' and d in ('', 'btusb')):
+        return 'bluetooth'   # the Atheros/Realtek combo chips show their BT function on USB — not a WiFi adapter
     if d.startswith(WIFI_DRIVERS):
         return 'wifi'
     if d.startswith(SERIAL_DRIVERS):
@@ -44,7 +61,7 @@ def port_role(driver, usb_class=''):
 
 def _usb_port(d, dev, owned, slot_lookup):
     pid = '%s:%s@%s' % (d['vendor_id'], d['product_id'], d.get('path', ''))
-    role = port_role(d.get('driver'), d.get('class'))
+    role = port_role(d.get('driver'), d.get('class'), d.get('vendor_id', ''), d.get('product_id', ''))
     kind = 'serial' if role == 'serial' else 'usb'
     return {'name': '%s:%s:%s' % (dev, kind, pid), 'device_name': dev, 'kind': kind, 'port_id': pid,
             'vendor_id': d['vendor_id'], 'product_id': d['product_id'], 'description': d.get('description', ''),
@@ -84,7 +101,8 @@ def build(snapshot, owners=None, needs=None):
             slots.append({'name': '%s:pci-bridge:%s' % (dev, p['address']), 'device_name': dev, 'kind': 'pci-bridge', 'slot_id': p['address'],
                           'driver': p.get('driver', ''), 'ports_total': 0, 'ports_used': 0, 'speed_mbps': 0, 'parent': '', 'pci_address': p['address'], 'observed_at': at})
             continue
-        ports.append({'name': '%s:pci:%s' % (dev, p['address']), 'device_name': dev, 'kind': 'pci', 'port_id': p['address'], 'role': 'pci-' + p['class_code'],
+        ports.append({'name': '%s:pci:%s' % (dev, p['address']), 'device_name': dev, 'kind': 'pci', 'port_id': p['address'],
+                      'role': PCI_ROLES.get(p['class_code'], 'pci-' + p['class_code']),
                       'vendor_id': p['vendor_id'], 'product_id': p['product_id'], 'description': p.get('description', ''), 'driver': p.get('driver', ''),
                       'pci_address': p['address'], 'pci_class': p['class_code'], 'iommu_group': p.get('iommu_group', -1),
                       'owner': owned.get(p['address'], 'host'), 'observed_at': at})
