@@ -14,7 +14,7 @@ KIRIMOTO_IMAGE = 'polari/kirimoto:%s' % (KIRIMOTO_UPSTREAM['commit'][:10] if KIR
 SEED_KIRIMOTO_CATALOG = [{
     'name': 'kirimoto', 'title': 'Kiri:Moto slicer', 'kind': 'mesh-app', 'category': 'printing',
     'description': 'Browser-based slicer (FDM/CNC/laser) as an isle container app at kirimoto.isle; slices the printing suite\'s SliceJobs and sends gcode to the Voron guest\'s Moonraker.',
-    'source_ref': KIRIMOTO_IMAGE, 'service': 'kirimoto', 'port': 8080, 'domain': 'kirimoto.isle', 'published': KIRIMOTO_UPSTREAM['commit'] != '<PIN ME>',
+    'source_ref': KIRIMOTO_IMAGE, 'service': 'kirimoto', 'port': 8080,   # gs-app-server serves /kiri on 8080 'domain': 'kirimoto.isle', 'published': KIRIMOTO_UPSTREAM['commit'] != '<PIN ME>',
     'notes': 'unpublished until the upstream commit is pinned (licence gate)' if KIRIMOTO_UPSTREAM['commit'] == '<PIN ME>' else ''}]
 
 SEED_SLICER_INSTANCES = [{'name': 'kirimoto', 'domain': 'kirimoto.isle', 'upstream_commit': KIRIMOTO_UPSTREAM['commit'], 'moonraker_targets_json': '["voron-2.4-350"]',
