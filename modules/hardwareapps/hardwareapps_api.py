@@ -45,20 +45,45 @@ class HardwareAppsAPI(treeObject):
                 missing.append(n)
         return out, missing
 
+    def _provision(self, defn):
+        """Non-OpenWrt guests render a shell provisioner through the dotted
+        'module.path:function' the row names; the function receives the
+        row as a dict plus whatever the owning module adds (the voron
+        module passes its printer + boards). Absent = no script."""
+        dotted = getattr(defn, 'provisioner', '') or ''
+        if not dotted:
+            return '', []
+        try:
+            import importlib
+            mod, fn = dotted.split(':')
+            render = getattr(importlib.import_module(mod), fn)
+        except Exception as e:  # noqa: BLE001
+            return '', ['provisioner %r not importable: %s' % (dotted, str(e)[:80])]
+        payload = {k: getattr(defn, k) for k in vars(defn) if not k.startswith('_')}
+        extra = getattr(self, 'provision_context', None)
+        if callable(extra):
+            payload.update(extra(defn) or {})
+        try:
+            return render(payload)
+        except Exception as e:  # noqa: BLE001
+            return '', ['provisioner raised: %s' % str(e)[:120]]
+
     def _render(self, defn):
         from hardwareapps.custom.domain_xml import render_domain
         from hardwareapps.custom.uci_profiles import render_uci
         pt, missing = self._passthrough(defn)
         xml, refusals = render_domain(defn, pt)
         uci, uci_refusals = render_uci(defn) if getattr(defn, 'uci_profile', '') else ('', [])
+        prov, prov_refusals = self._provision(defn)
         owned = [p['description'] for p in pt if p.get('owner') and p['owner'] not in ('', 'host', defn.name)]
         if owned:
             refusals.append('passthrough device(s) owned by another VM: %s (passthrough is exclusive)' % ', '.join(owned))
         if missing:
             refusals.append('passthrough name(s) not a DeviceLink row nor a host NIC: %s' % ', '.join(missing))
         return {'name': defn.name, 'kind': defn.kind, 'role': defn.role, 'extends': defn.extends,
-                'domainXml': xml, 'uciScript': uci, 'passthrough': pt,
-                'refusals': refusals + uci_refusals, 'ok': not (refusals or uci_refusals),
+                'domainXml': xml, 'uciScript': uci, 'provisionScript': prov, 'passthrough': pt,
+                'needs': json.loads(getattr(defn, 'hardware_needs_json', '[]') or '[]'),
+                'refusals': refusals + uci_refusals + prov_refusals, 'ok': not (refusals or uci_refusals or prov_refusals),
                 'requiresTier': defn.requires_tier, 'image': {'ref': defn.vm_image_ref, 'sha256Raw': defn.image_sha256_raw}}
 
     def on_get_list(self, request, response):

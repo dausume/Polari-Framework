@@ -20,7 +20,7 @@ SEED_RELAY_HARDWARE_APPS = [{
     'image_sha256_raw': '',   # pinned at deploy time from router-image.manifest (empty = render refuses, on purpose)
     'memory_mb': 512, 'vcpus': 2, 'bridges_json': '["br-mgmt", "isle-br-0"]', 'passthrough_json': '[]',
     'uci_profile': 'relay', 'uci_params_json': json.dumps(RelayNodeDefinition(**SEED_RELAY_NODES[0]).uci_params()),
-    'requires_tier': 'hardware', 'notes': 'set passthrough_json to the WiFi DeviceLink name and image_sha256_raw before isle vm define'}]
+    'requires_tier': 'hardware', 'hardware_needs_json': '[{"kind": "usb", "role": "wifi"}]', 'notes': 'set passthrough_json to the WiFi DeviceLink name and image_sha256_raw before isle vm define'}]
 
 #: the store row (IsleCatalogEntry) — install plan = isle vm define/start
 SEED_RELAY_CATALOG = [{

@@ -458,7 +458,21 @@ def construct_isle_guestnet_endpoints(polServer):
     isleGuestnetEndpoint = IsleGuestnetAPI(polServer=polServer, manager=manager)
 
 
+def construct_hwmap_endpoints(polServer):
+    manager = polServer.manager
+    from hwmap.hwmap_api import HwmapAPI
+    hwmapEndpoint = HwmapAPI(polServer=polServer, manager=manager)
+
+
+def construct_voron_endpoints(polServer):
+    manager = polServer.manager
+    from voron.voron_api import VoronAPI
+    voronEndpoint = VoronAPI(polServer=polServer, manager=manager)
+
+
 MODULE_ENDPOINT_CONSTRUCTORS = {
+    'hwmap': construct_hwmap_endpoints,
+    'voron': construct_voron_endpoints,
     'hardwareapps': construct_hardwareapps_endpoints,
     'isle_relay': construct_isle_relay_endpoints,
     'isle_guestnet': construct_isle_guestnet_endpoints,

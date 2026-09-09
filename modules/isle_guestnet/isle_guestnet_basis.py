@@ -20,7 +20,7 @@ SEED_GUESTNET_HARDWARE_APPS = [{
     'guest_kind': 'openwrt', 'vm_image_ref': 'openwrt-isle-router.qcow2', 'image_sha256_raw': '',
     'memory_mb': 384, 'vcpus': 1, 'bridges_json': '["br-mgmt", "isle-br-0"]', 'passthrough_json': '[]',
     'uci_profile': 'guestnet', 'uci_params_json': json.dumps(GuestNetworkDefinition(**SEED_GUEST_NETWORKS[0]).uci_params()),
-    'requires_tier': 'hardware', 'notes': 'set passthrough_json to the WiFi DeviceLink name and image_sha256_raw before isle vm define'}]
+    'requires_tier': 'hardware', 'hardware_needs_json': '[{"kind": "usb", "role": "wifi"}]', 'notes': 'set passthrough_json to the WiFi DeviceLink name and image_sha256_raw before isle vm define'}]
 
 SEED_GUESTNET_CATALOG = [{
     'name': 'isle-guestnet', 'title': 'Isle guest network', 'kind': 'hardware-app', 'category': 'hardware',

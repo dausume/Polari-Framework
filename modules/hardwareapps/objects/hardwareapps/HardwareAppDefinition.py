@@ -24,7 +24,10 @@ class HardwareAppDefinition(treeObject):
     host-passthrough CPU, eight spare PCIe ports, virtio disk, the bridges
     listed here, then one hostdev/macvtap per passthrough); the guest's
     OpenWrt configuration is rendered by `hardwareapps.custom.uci_profiles`
-    from `uci_params_json`. Images are pinned by RAW sha like the router's
+    from `uci_params_json`; a Debian/Alpine guest names a `provisioner`
+    (module.path:function) that renders its shell provisioner instead.
+    `hardware_needs_json` states what the app needs from the device so the
+    hardware map (hwmap) can answer which ports satisfy it. Images are pinned by RAW sha like the router's
     (`image_sha256_raw`); never a booted image.
     """
 
@@ -40,7 +43,13 @@ class HardwareAppDefinition(treeObject):
                  # the UCI profile name + its parameters (uci_profiles.PROFILES)
                  uci_profile: str = '', uci_params_json: str = '{}',
                  requires_tier: str = 'hardware', autostart: bool = True,
-                 pinned_device: str = '', is_prior: bool = True, notes: str = ''):
+                 pinned_device: str = '',
+                 # what hardware the app NEEDS, as port matchers the hardware map answers
+                 # (hwmap.custom.mapping): e.g. [{"kind": "usb", "role": "wifi"}], [{"kind": "serial"}]
+                 hardware_needs_json: str = '[]',
+                 # non-OpenWrt guests: a dotted 'module.path:function' rendering the provisioner script
+                 provisioner: str = '',
+                 is_prior: bool = True, notes: str = ''):
         self.name = name
         self.title = title
         self.kind = kind
@@ -58,5 +67,7 @@ class HardwareAppDefinition(treeObject):
         self.requires_tier = requires_tier
         self.autostart = autostart
         self.pinned_device = pinned_device
+        self.hardware_needs_json = hardware_needs_json
+        self.provisioner = provisioner
         self.is_prior = is_prior
         self.notes = notes

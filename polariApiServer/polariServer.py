@@ -1180,7 +1180,10 @@ class polariServer(treeObject):
             # hw-app-1: hardware apps (KVM guests) + the relay / guest-network guests
             HardwareAppDefinition, HardwareAppState,
             RelayNodeDefinition, RelayNodeState,
-            GuestNetworkDefinition, GuestNetworkExposure, GuestNetworkState]
+            GuestNetworkDefinition, GuestNetworkExposure, GuestNetworkState,
+            # hwm-1: the hardware map; voron: the printer as a hardware app
+            HardwareMapSnapshot, HardwarePort, HardwareSlot, PassthroughCandidate,
+            PrinterDefinition, PrinterBoard, PrinterState]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
         # CRUDE endpoints, and boot restore all key off the typing
@@ -2086,6 +2089,8 @@ class polariServer(treeObject):
              + (SEED_HARDWAREAPPS_PAGE_DISPLAYS or [])
              + (SEED_ISLE_RELAY_PAGE_DISPLAYS or [])
              + (SEED_ISLE_GUESTNET_PAGE_DISPLAYS or [])
+             + (SEED_HWMAP_PAGE_DISPLAYS or [])
+             + (SEED_VORON_PAGE_DISPLAYS or [])
              + (SEED_CNTFET_PAGE_DISPLAYS or [])
              # fi-4: per-FET competitive scoring pages.
              + (SEED_CNT_SCORE_PAGES or [])
@@ -2593,7 +2598,8 @@ class polariServer(treeObject):
             ('IsleCatalogEntry', IsleCatalogEntry,
              (SEED_VPN_CATALOG or [])
              # hw-app-1: the relay + guest-network guests as store rows (kind hardware-app)
-             + (SEED_RELAY_CATALOG or []) + (SEED_GUESTNET_CATALOG or [])),
+             + (SEED_RELAY_CATALOG or []) + (SEED_GUESTNET_CATALOG or [])
+             + (SEED_VORON_CATALOG or [])),
             *(VPN_SEED_PAIRS or []),
             # mqtt-1: brokers before the bindings that name them.
             ('MqttBrokerDefinition', MqttBrokerDefinition,
@@ -2974,8 +2980,10 @@ class polariServer(treeObject):
              SEED_STANDARD_COMPUTER_BUDGETS),
             # hw-app-1: the guests as HardwareAppDefinition rows (seeded by their modules)
             ('HardwareAppDefinition', HardwareAppDefinition,
-             (SEED_RELAY_HARDWARE_APPS or []) + (SEED_GUESTNET_HARDWARE_APPS or [])),
-        ] + list(ISLE_RELAY_SEED_PAIRS or []) + list(ISLE_GUESTNET_SEED_PAIRS or [])
+             (SEED_RELAY_HARDWARE_APPS or []) + (SEED_GUESTNET_HARDWARE_APPS or [])
+             + (SEED_VORON_HARDWARE_APPS or [])),
+        ] + list(ISLE_RELAY_SEED_PAIRS or []) + list(ISLE_GUESTNET_SEED_PAIRS or []) \
+          + list(HWMAP_SEED_PAIRS or []) + list(VORON_SEED_PAIRS or [])
         # Old demo-3d description (used as the "untouched" signature). If
         # the existing demo-3d row still has this verbatim, we treat it
         # as un-customized and overwrite to the new showcase layout.

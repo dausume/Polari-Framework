@@ -1178,4 +1178,21 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_ISLE_GUESTNET_PAGE_DISPLAYS',
         )),
     )),
+    ('hwmap', (
+        ('hwmap.hwmap_basis', (
+            'HardwareMapSnapshot', 'HardwarePort', 'HardwareSlot', 'PassthroughCandidate', 'HWMAP_SEED_PAIRS',
+        )),
+        ('hwmap.hwmap_page', (
+            'SEED_HWMAP_PAGE_DISPLAYS',
+        )),
+    )),
+    ('voron', (
+        ('voron.voron_basis', (
+            'PrinterDefinition', 'PrinterBoard', 'PrinterState', 'VORON_SEED_PAIRS',
+            'SEED_VORON_HARDWARE_APPS', 'SEED_VORON_CATALOG',
+        )),
+        ('voron.voron_page', (
+            'SEED_VORON_PAGE_DISPLAYS',
+        )),
+    )),
 )
