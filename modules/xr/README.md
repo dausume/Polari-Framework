@@ -25,3 +25,5 @@ PYTHONPATH=.:modules python3 -m xr.xr_selftest   # on the host, from polari-fram
 ```
 
 Conformance: `pol modules conform xr`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

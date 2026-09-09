@@ -33,3 +33,5 @@ PYTHONPATH=.:modules python3 -m nutrition.acidity_selftest   # on the host, from
 ```
 
 Conformance: `pol modules conform nutrition`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

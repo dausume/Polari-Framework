@@ -26,3 +26,5 @@ PYTHONPATH=.:modules python3 -m biomining.biomining_selftest   # on the host, fr
 ```
 
 Conformance: `pol modules conform biomining`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

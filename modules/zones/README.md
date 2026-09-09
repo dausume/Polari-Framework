@@ -25,3 +25,5 @@ PYTHONPATH=.:modules python3 -m zones.zones_selftest   # on the host, from polar
 ```
 
 Conformance: `pol modules conform zones`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

@@ -30,3 +30,5 @@ PYTHONPATH=.:modules python3 -m hardwareapps.hardwareapps_selftest   # on the ho
 ```
 
 Conformance: `pol modules conform hardwareapps`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

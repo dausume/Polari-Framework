@@ -24,3 +24,5 @@ PYTHONPATH=.:modules python3 -m household.household_selftest   # on the host, fr
 ```
 
 Conformance: `pol modules conform household`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

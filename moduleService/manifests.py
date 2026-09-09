@@ -433,19 +433,21 @@ def render_readme(m):
         lines += ['**Catalog kinds this module adds:** ' + ', '.join(m['app']['catalogKinds']), '']
     if m.get('classes'):
         lines += ['## Objects', '', ', '.join('`%s`' % c for c in m['classes']), '']
-    lines += ['## Layout (the Standardized Polari App, postfix names)', '']
-    for concept in ('basis', 'api', 'endpoints', 'seed', 'page', 'catalog', 'remote', 'custom', 'selftests', 'other'):
+    lines += ['## Layout (the Standardized Polari App — see modules/README.md for what each entry means)', '']
+    for concept in ('objects', 'basis', 'api', 'endpoints', 'seed', 'page', 'catalog', 'remote', 'custom', 'selftests', 'other'):
         if files.get(concept):
-            lines.append('- **%s** — %s' % (concept, ', '.join('`%s.py`' % f for f in files[concept])))
+            shown = files[concept] if len(files[concept]) <= 12 else files[concept][:12] + ['… (%d more)' % (len(files[concept]) - 12)]
+            lines.append('- **%s** — %s' % (concept, ', '.join('`%s.py`' % f if not f.startswith('…') else f for f in shown)))
     if m.get('initialData'):
         lines.append('- **initialData/** — module-initial-data/1 rows (non-regenerable data only)')
-    lines += ['', '`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.', '']
+    lines += ['', '`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.', '']
     if m.get('pages'):
         lines += ['## Pages', ''] + ['- `%s`' % p for p in m['pages']] + ['']
     lines += ['## Selftest', '', '```', 'pol modules selftest %s        # in the running backend' % m['id'],
               'PYTHONPATH=.:modules python3 -m %s.%s   # on the host, from polari-framework/' % (
                   m.get('package', m['id']), (m.get('selftests') or ['<none yet>'])[0]),
-              '```', '', 'Conformance: `pol modules conform %s`' % m['id'], '']
+              '```', '', 'Conformance: `pol modules conform %s`' % m['id'], '',
+              '<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->', '']
     return '\n'.join(lines)
 
 
@@ -481,14 +483,20 @@ def main(argv):
         return 0
     if verb == 'readme':
         n = 0
-        for p in pkgs:
+        refresh = '--refresh' in args
+        for p in [x for x in pkgs if x != '--refresh']:
             m = load(p)
             d = module_dir(p)
-            if not m or os.path.isfile(os.path.join(d, 'README.md')):
+            if not m:
                 continue
-            open(os.path.join(d, 'README.md'), 'w', encoding='utf-8').write(render_readme(m))
+            path = os.path.join(d, 'README.md')
+            if os.path.isfile(path):
+                generated = 'generated from polari-app.json' in open(path, encoding='utf-8').read()
+                if not (refresh and generated):
+                    continue   # hand-written (no marker) or not refreshing: untouched
+            open(path, 'w', encoding='utf-8').write(render_readme(m))
             n += 1
-        print('%d README.md written (existing ones untouched)' % n)
+        print('%d README.md written (hand-written ones untouched; --refresh rewrites generated ones)' % n)
         return 0
     if verb == 'conform':
         bad = 0

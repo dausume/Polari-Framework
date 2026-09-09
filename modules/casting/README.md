@@ -30,3 +30,5 @@ PYTHONPATH=.:modules python3 -m casting.casting_selftest   # on the host, from p
 ```
 
 Conformance: `pol modules conform casting`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

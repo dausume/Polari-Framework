@@ -26,3 +26,5 @@ PYTHONPATH=.:modules python3 -m mealoptions.mealoptions_selftest   # on the host
 ```
 
 Conformance: `pol modules conform mealoptions`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

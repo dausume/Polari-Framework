@@ -34,3 +34,5 @@ PYTHONPATH=.:modules python3 -m vpn.vpn_selftest   # on the host, from polari-fr
 ```
 
 Conformance: `pol modules conform vpn`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

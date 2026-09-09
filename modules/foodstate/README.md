@@ -27,3 +27,5 @@ PYTHONPATH=.:modules python3 -m foodstate.food_chemistry_selftest   # on the hos
 ```
 
 Conformance: `pol modules conform foodstate`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

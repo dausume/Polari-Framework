@@ -25,3 +25,5 @@ PYTHONPATH=.:modules python3 -m materials_science.<none yet>   # on the host, fr
 ```
 
 Conformance: `pol modules conform materials_science`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

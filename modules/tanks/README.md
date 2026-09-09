@@ -26,3 +26,5 @@ PYTHONPATH=.:modules python3 -m tanks.tank_selftest   # on the host, from polari
 ```
 
 Conformance: `pol modules conform tanks`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

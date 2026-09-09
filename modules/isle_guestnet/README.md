@@ -29,3 +29,5 @@ PYTHONPATH=.:modules python3 -m isle_guestnet.isle_guestnet_selftest   # on the 
 ```
 
 Conformance: `pol modules conform isle_guestnet`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

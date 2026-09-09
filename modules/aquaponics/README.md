@@ -31,3 +31,5 @@ PYTHONPATH=.:modules python3 -m aquaponics.aquaponics_pages_selftest   # on the 
 ```
 
 Conformance: `pol modules conform aquaponics`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

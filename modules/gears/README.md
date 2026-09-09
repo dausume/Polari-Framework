@@ -26,3 +26,5 @@ PYTHONPATH=.:modules python3 -m gears.gears_selftest   # on the host, from polar
 ```
 
 Conformance: `pol modules conform gears`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

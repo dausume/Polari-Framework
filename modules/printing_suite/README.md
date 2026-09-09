@@ -29,3 +29,5 @@ PYTHONPATH=.:modules python3 -m printing_suite.printing_suite_selftest   # on th
 ```
 
 Conformance: `pol modules conform printing_suite`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

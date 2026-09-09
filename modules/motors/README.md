@@ -31,3 +31,5 @@ PYTHONPATH=.:modules python3 -m motors.m1_selftest   # on the host, from polari-
 ```
 
 Conformance: `pol modules conform motors`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

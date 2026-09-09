@@ -26,3 +26,5 @@ PYTHONPATH=.:modules python3 -m techtree.techtree_selftest   # on the host, from
 ```
 
 Conformance: `pol modules conform techtree`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

@@ -29,3 +29,5 @@ PYTHONPATH=.:modules python3 -m isle_relay.isle_relay_selftest   # on the host, 
 ```
 
 Conformance: `pol modules conform isle_relay`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

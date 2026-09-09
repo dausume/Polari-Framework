@@ -27,3 +27,5 @@ PYTHONPATH=.:modules python3 -m testing.formats_selftest   # on the host, from p
 ```
 
 Conformance: `pol modules conform testing`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

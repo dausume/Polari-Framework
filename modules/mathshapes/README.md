@@ -27,3 +27,5 @@ PYTHONPATH=.:modules python3 -m mathshapes.pot_transparency_selftest   # on the 
 ```
 
 Conformance: `pol modules conform mathshapes`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

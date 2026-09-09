@@ -25,3 +25,5 @@ PYTHONPATH=.:modules python3 -m agro_forestry.<none yet>   # on the host, from p
 ```
 
 Conformance: `pol modules conform agro_forestry`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

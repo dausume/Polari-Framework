@@ -26,3 +26,5 @@ PYTHONPATH=.:modules python3 -m waxsupply.wax_selftest   # on the host, from pol
 ```
 
 Conformance: `pol modules conform waxsupply`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

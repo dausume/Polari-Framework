@@ -25,3 +25,5 @@ PYTHONPATH=.:modules python3 -m video.video_selftest   # on the host, from polar
 ```
 
 Conformance: `pol modules conform video`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

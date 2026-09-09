@@ -31,3 +31,5 @@ PYTHONPATH=.:modules python3 -m computers.computers_selftest   # on the host, fr
 ```
 
 Conformance: `pol modules conform computers`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

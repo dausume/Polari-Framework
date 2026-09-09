@@ -30,3 +30,5 @@ PYTHONPATH=.:modules python3 -m hwmap.hwmap_selftest   # on the host, from polar
 ```
 
 Conformance: `pol modules conform hwmap`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

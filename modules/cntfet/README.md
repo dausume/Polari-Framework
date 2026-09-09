@@ -38,3 +38,5 @@ PYTHONPATH=.:modules python3 -m cntfet.block_pages_selftest   # on the host, fro
 ```
 
 Conformance: `pol modules conform cntfet`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

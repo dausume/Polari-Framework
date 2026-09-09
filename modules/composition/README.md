@@ -26,3 +26,5 @@ PYTHONPATH=.:modules python3 -m composition.composition_selftest   # on the host
 ```
 
 Conformance: `pol modules conform composition`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

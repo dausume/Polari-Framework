@@ -32,3 +32,5 @@ PYTHONPATH=.:modules python3 -m sifet.ladder_selftest   # on the host, from pola
 ```
 
 Conformance: `pol modules conform sifet`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

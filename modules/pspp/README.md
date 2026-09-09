@@ -31,3 +31,5 @@ PYTHONPATH=.:modules python3 -m pspp.benchmark_cases_selftest   # on the host, f
 ```
 
 Conformance: `pol modules conform pspp`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->

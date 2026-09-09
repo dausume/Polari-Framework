@@ -30,3 +30,5 @@ PYTHONPATH=.:modules python3 -m kirimoto.kirimoto_selftest   # on the host, from
 ```
 
 Conformance: `pol modules conform kirimoto`
+
+<!-- generated from polari-app.json by `pol modules manifests readme`; edit freely — the generator never overwrites a README without this marker -->
