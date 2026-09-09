@@ -5,7 +5,7 @@ The Standardized Polari App scaffold for HUMANS (design §7, sap-2c):
 one class per file under objects/, taxonomy folders, an index per
 concept, a manifest, a README and a passing selftest from minute one.
 
-    python3 -m moduleService.scaffold new <id> [--title T] [--kind library|polari-app|isle-app|hardware-app] [--description D]
+    python3 -m moduleService.scaffold new <id> [--title T] [--kind library|polari-app|isle-app|hardware-app] [--description D] [--root DIR]
     python3 -m moduleService.scaffold add-object <module> <ClassName> [--under <taxonomy/path>] [--base <BaseClass>] [--fields "a:str,b:float=0.0"]
 
 `new` writes modules/<id>/ with __init__.py, polari-app.json, README.md,
@@ -69,8 +69,8 @@ def _ensure_pkg_init(path, doc):
         open(os.path.join(path, '__init__.py'), 'w').write('"""%s"""\n' % doc)
 
 
-def add_object(pkg, cls, under='', base='treeObject', fields='', docstring=None):
-    d = M.module_dir(pkg)
+def add_object(pkg, cls, under='', base='treeObject', fields='', docstring=None, module_dir=None):
+    d = module_dir or M.module_dir(pkg)
     if not d:
         raise SystemExit('no module %r (pol modules manifests list)' % pkg)
     group = (under or pkg).strip('/')
@@ -104,20 +104,27 @@ def add_object(pkg, cls, under='', base='treeObject', fields='', docstring=None)
     return path
 
 
-def new_module(mid, title='', kind='polari-app', description=''):
-    d = os.path.join(MODULES, mid)
+def new_module(mid, title='', kind='polari-app', description='', root=None):
+    """root: where to write (default modules/); a standalone project passes its own dir's parent (pol project init)."""
+    d = os.path.join(root or MODULES, mid)
     if os.path.exists(d):
         raise SystemExit('%s exists' % d)
     os.makedirs(os.path.join(d, 'custom'))
     title = title or ' '.join(w.capitalize() for w in mid.split('_'))
-    cls = ''.join(w.capitalize() for w in mid.split('_')) + 'Record'
+    camel = ''.join(w.capitalize() for w in mid.split('_'))
+    cls = camel + 'Record'
     open(os.path.join(d, '__init__.py'), 'w').write('"""\n@module %s\n\n%s — %s\n"""\nfrom %s.%s_basis import *  # noqa: F401,F403\n' % (mid, title, description or 'what this module is for.', mid, mid))
     open(os.path.join(d, 'custom', '__init__.py'), 'w').write('"""@module %s.custom — code that fits no concept file."""\n' % mid)
-    add_object(mid, cls, fields='value:float=0.0,unit:str')
-    open(os.path.join(d, mid + '_seed.py'), 'w').write('"""\n@module %s.%s_seed\n\nSeed rows (upserted by name — never insert-by-name).\n"""\n\nSEED_%s = [\n    {\'name\': \'example-%s\', \'value\': 1.0, \'unit\': \'x\'},\n]\n' % (mid, mid, mid.upper(), mid))
+    add_object(mid, cls, fields='value:float=0.0,unit:str', module_dir=d)
+    open(os.path.join(d, mid + '_seed.py'), 'w').write('"""\n@module %s.%s_seed\n\nSeed rows (upserted by name — never insert-by-name). %s_SEED_PAIRS is what admission applies (manifest `seedPairs`).\n"""\nfrom %s.%s_basis import %s\n\nSEED_%s = [\n    {\'name\': \'example-%s\', \'value\': 1.0, \'unit\': \'x\'},\n]\n\n%s_SEED_PAIRS = [(\'%s\', %s, SEED_%s)]\n' % (mid, mid, mid.upper(), mid, mid, cls, mid.upper(), mid, mid.upper(), cls, cls, mid.upper()))
+    open(os.path.join(d, mid + '_endpoints.py'), 'w').write('"""\n@module %s.%s_endpoints\n\nconstruct_%s_endpoints(polServer) — the endpoint constructor (manifest `endpoints`); admission calls it once.\n"""\nfrom %s.%s_api import %sAPI\n\n\ndef construct_%s_endpoints(polServer):\n    return %sAPI(polServer=polServer, manager=polServer.manager)\n' % (mid, mid, mid, mid, mid, camel, mid, camel))
     open(os.path.join(d, mid + '_page.py'), 'w').write('"""\n@module %s.%s_page\n\n/display/%s — configured tables only (no raw JSON on screens).\n"""\nfrom polariApiServer.module_pages_seed import _page, _row, _table\n\nSEED_%s_PAGE_DISPLAYS = [\n    _page(\'%s\', \'%s\', \'%s\', \'%s\', [\n        _row(0, [_table(\'%s-rows\', 0, 12, \'%s rows\', \'%s\', columns=\'name,value,unit\')]),\n    ]),\n]\n' % (mid, mid, mid.replace('_', '-'), mid.upper(), mid.replace('_', '-'), mid.replace('_', '-'), title, cls, mid, title, cls))
     open(os.path.join(d, mid + '_api.py'), 'w').write('"""\n@module %s.%s_api\n\n/api/%s/summary — one GET; add routes in __init__.\n"""\nfrom objectTreeDecorators import treeObject, treeObjectInit\n\n\nclass %sAPI(treeObject):\n    @treeObjectInit\n    def __init__(self, polServer=None, manager=None):\n        self.polServer = polServer\n        self.manager = manager\n        if polServer is not None and getattr(polServer, \'falconServer\', None) is not None:\n            polServer.falconServer.add_route(\'/api/%s/summary\', self, suffix=\'summary\')\n\n    def _rows(self, class_name):\n        return list(((self.manager.objectTables or {}).get(class_name, {}) or {}).values())\n\n    def on_get_summary(self, request, response):\n        response.media = {\'ok\': True, \'rows\': len(self._rows(\'%s\'))}\n' % (mid, mid, mid.replace('_', '-'), ''.join(w.capitalize() for w in mid.split('_')), mid.replace('_', '-'), cls))
     open(os.path.join(d, mid + '_selftest.py'), 'w').write('"""%s_selftest — the module constructs, its seed is well-formed, its page has no raw JSON."""\nimport sys\n\npassed = total = 0\n\n\ndef check(label, cond, extra=\'\'):\n    global passed, total\n    total += 1\n    passed += bool(cond)\n    print(\'  [%%s] %%s %%s\' %% (\'PASS\' if cond else \'FAIL\', label, extra if not cond else \'\'))\n\n\ndef main():\n    from %s.%s_basis import %s\n    from %s.%s_seed import SEED_%s\n    from %s.%s_page import SEED_%s_PAGE_DISPLAYS\n    check(\'row class constructs\', %s(name=\'x\').name == \'x\')\n    check(\'seed rows carry names\', all(r.get(\'name\') for r in SEED_%s))\n    check(\'page has no api-json-panel\', \'api-json-panel\' not in SEED_%s_PAGE_DISPLAYS[0][\'definition\'])\n    print(\'\\n%%d/%%d checks passed\' %% (passed, total))\n    return 0 if passed == total else 1\n\n\nif __name__ == \'__main__\':\n    sys.exit(main())\n' % (mid, mid, mid, cls, mid, mid, mid.upper(), mid, mid, mid.upper(), cls, mid.upper(), mid.upper()))
+    if root and root != MODULES:
+        # a standalone project outside modules/: the generator needs the package importable
+        sys.path.insert(0, root)
+        M._MODULES_EXTRA = root
     manifest, err = M.generate(mid)
     if manifest:
         manifest['title'] = title
@@ -143,7 +150,7 @@ def main(argv):
         else:
             pos.append(args[i]); i += 1
     if verb == 'new':
-        print('scaffolded', new_module(pos[0], opts.get('title', ''), opts.get('kind', 'polari-app'), opts.get('description', '')))
+        print('scaffolded', new_module(pos[0], opts.get('title', ''), opts.get('kind', 'polari-app'), opts.get('description', ''), opts.get('root')))
         return 0
     if verb == 'add-object':
         print('wrote', add_object(pos[0], pos[1], opts.get('under', ''), opts.get('base', 'treeObject'), opts.get('fields', '')))

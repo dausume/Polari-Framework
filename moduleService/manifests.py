@@ -59,8 +59,11 @@ _MODULES = os.path.join(_FW, 'modules')
 
 # ---------------------------------------------------------------- paths
 
+_MODULES_EXTRA = ''   # a standalone project root (pol project) — searched first
+
+
 def module_dir(pkg):
-    for root in (_MODULES, _FW):
+    for root in ((_MODULES_EXTRA,) if _MODULES_EXTRA else ()) + (_MODULES, _FW):
         d = os.path.join(root, pkg)
         if os.path.isfile(os.path.join(d, '__init__.py')):
             return d
@@ -229,11 +232,16 @@ def multi_class_files(files, facts):
     return out
 
 
+_WORKSPACE_DIRS = ('objects', 'custom', 'initialData', '__pycache__', 'dist', 'node_modules')
+
+
 def stray_subdirs(d):
     """Top-level subdirectories that are not custom/ or initialData/ —
     the standard folds those under custom/ (his ruling 2026-09-08)."""
+    # dot-dirs (.git/.vscode/.polari/.pytest_cache) and dist/ are the
+    # standalone-project workspace (pol project), not module content.
     return sorted(x for x in os.listdir(d) if os.path.isdir(os.path.join(d, x))
-                  and x not in ('objects', 'custom', 'initialData', '__pycache__'))
+                  and not x.startswith('.') and x not in _WORKSPACE_DIRS)
 
 
 # ---------------------------------------------------------- generate

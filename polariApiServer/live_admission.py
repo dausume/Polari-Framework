@@ -456,6 +456,31 @@ def _admit_locked(manager, module):
                     'note': 'fetch + admit in one step is dyn-4 '
                             '(POST /api/module-projects/fetch, then '
                             'admit after a restart for now)'}}
+    # sap-3 slice: a module the core tables do not thread (a `pol
+    # project` module mounted/fetched onto this instance) admits from
+    # its polari-app.json — files imported, endpoints registered,
+    # seeds resolved; broken code is a refusal, never a silent skip.
+    manifest_prep = None
+    if module not in MISSING_FEATURE_MODULES:
+        from polariApiServer import manifest_admission
+        if not manifest_admission.table_declared(module):
+            manifest = manifest_admission.load_manifest(module)
+            if manifest is None:
+                return {'ok': False, 'module': module,
+                        'refusal': f"'{module}' has code here but neither "
+                                   'a core-table declaration nor a '
+                                   'polari-app.json to admit from.',
+                        'suggestion': {'action': 'pol modules manifests '
+                                                 'generate ' + module}}
+            try:
+                manifest_prep = manifest_admission.prepare(
+                    polServer, module, manifest)
+            except Exception as exc:
+                return {'ok': False, 'module': module,
+                        'refusal': f"'{module}' polari-app.json does not "
+                                   f'admit: {type(exc).__name__}: {exc}',
+                        'suggestion': {'action': 'pol project lint / test '
+                                                 'the module, then admit'}}
     unstubbed = None
     if module in MISSING_FEATURE_MODULES:
         # dyn-4: code arrived AFTER boot — its symbols are stubs and
@@ -539,6 +564,11 @@ def _admit_locked(manager, module):
 
         # ---- tables + restore + seeds (boot's own step) --------
         seeded = worker._admit(module)
+        if manifest_prep is not None:
+            from polariApiServer import manifest_admission
+            manifest_prep['seeds'] = manifest_admission.apply_seeds(
+                manager, module)
+            seeded += manifest_prep['seeds']['created']
 
         # ---- routes: CRUDE + custom endpoints ------------------
         routes_added = []
@@ -575,6 +605,7 @@ def _admit_locked(manager, module):
                 'seededOrRestoredRows': seeded,
                 'crudeRoutes': routes_added,
                 'customEndpointsConstructed': constructed,
+                'manifestAdmission': manifest_prep,
                 'envUpdatedProcessLocal': env_updated,
                 'tookSeconds': round(time.time() - started, 3),
                 'note': 'POLARI_MODULES is a derived cache — the '

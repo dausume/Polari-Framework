@@ -129,3 +129,53 @@ dev-tools plan (`AI-Notes/plans/POLARI_DEV_TOOLS_PLAN.md`).
 4. `pol modules conform <id>` clean; selftest prints `X/Y checks passed`.
 5. If the module is an isle-app / hardware-app: seed its store row (+ the guest row for hardware) and declare `hardware_needs_json`.
 6. Register it (registry row + the core tables — until they are generated from manifests, `conform` names what is missing).
+
+## 9. Working on ONE module or app as its own project (`pol project`)
+
+A Polari Developer does not need the suite checkout. A module is its own
+repository, opened alone in VS Code / VSCodium; every tool runs inside the
+Polari backend image with the project directory mounted as
+`modules/<id>`, and deploys talk to an instance's API.
+
+```
+pol project init <id> [--kind polari-app|library|isle-app|hardware-app]   scaffold + .vscode + .polari/project.json + git init
+pol project lint            the standard's conformance report
+pol project test            run the project's *_selftest.py in the image
+pol project up | down | logs | status     a LOCAL lean Polari (http://127.0.0.1:3300) with the module mounted
+pol project deploy          local: admit the mounted module; remote (--api URL): fetch-admit from the project's git remote
+pol project update          the same, said plainly (re-fetch + re-admit)
+pol project build [--offline]   the module deb into ./dist
+pol project remove [--api URL]  put-away on the instance
+pol project open            codium/code .
+```
+`.polari/project.json` holds the id, the image (`prf-backend:staging` today,
+the GHCR tag once published) and the default instance; `POLARI_API` /
+`POLARI_IMAGE` override. The `.vscode/` files name the Open VSX extension
+ids (Python, Pyright, Ruff, YAML, Mermaid) and tasks that call these verbs,
+so the loop is the same in VS Code, VSCodium and code-server. Deploying to
+a remote instance requires the project pushed to its git remote (the
+instance fetches it); the local instance mounts it directly.
+
+**How a standalone module comes online (manifest admission, sap-3 first
+slice).** The instance's core tables (`feature_imports.py`,
+`module_endpoints.py`, the seed-pairs literal and the page concat in
+`polariServer.py`) do not know a project module. `POST /modules/<id>/admit`
+therefore reads the module's `polari-app.json`
+(`polariApiServer/manifest_admission.py`): every file under `files.*` is
+imported and the treeObject classes the module defines become its tables
+(`*API` classes are never tabled); `endpoints`
+(`<pkg>.<pkg>_endpoints:construct_<pkg>_endpoints`) is registered and
+called once; `seedPairs` (`<pkg>.<pkg>_seed:<PKG>_SEED_PAIRS`, a list of
+`(class_name, cls, rows)`) and `pages` are upserted by name once the tables
+exist. Broken code is a refusal naming the exception, never a silent skip.
+So a project module needs those two conventions the scaffold writes for it:
+a `<pkg>_endpoints.py` with one `construct_<pkg>_endpoints(polServer)` and a
+`<PKG>_SEED_PAIRS` list in `<pkg>_seed.py`. Modules the tables DO declare
+never enter this path.
+
+`pol project build` writes the deb to `dist/pool/` (the builder's pool,
+pointed at `./dist`), registering the module as kind `self` in a writable
+copy of the image's registry (`dist/.registry.json`); the image itself is
+never written. Set `POLARI_TOOLS_DIR=<a polari-framework checkout>` to run
+the tools (moduleService + polariApiServer) from the host instead of the
+image — for people developing the tools themselves.
