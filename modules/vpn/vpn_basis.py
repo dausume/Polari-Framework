@@ -32,7 +32,8 @@ from vpn.objects.vpn.VpnAccessRule import VpnAccessRule  # noqa: F401
 from vpn.objects.vpn.VpnFederationLink import VpnFederationLink  # noqa: F401
 from vpn.objects.vpn.AppVpnExposure import AppVpnExposure  # noqa: F401
 from vpn.objects.vpn.VpnProposal import VpnProposal  # noqa: F401
+from vpn.objects.vpn.VpnPlacement import VpnPlacement  # noqa: F401
 
 
-VPN_CLASSES = [VpnNetwork, VpnPeer, VpnAccessRule, VpnFederationLink,
+VPN_CLASSES = [VpnPlacement, VpnNetwork, VpnPeer, VpnAccessRule, VpnFederationLink,
                AppVpnExposure, VpnProposal]

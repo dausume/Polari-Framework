@@ -217,6 +217,20 @@ if(__name__=='__main__'):
         print("[LazyBoot] admission worker started — "
               "GET /api/health + /api/modules/status track the "
               "bring-up.")
+    else:
+        # reg-1: a monolithic boot is complete here (tables, seeds, pages
+        # all in) — verify every declared module against the live server
+        # and mirror the records; the lazy path does this at BOOT COMPLETE.
+        reg = getattr(localHostedManagerServer.polServer, 'moduleRegistrar', None)
+        if reg is not None:
+            try:
+                reg.verify_all()
+                reg.mirror_all()
+                snap = reg.snapshot()
+                print(f"[Registrar] {snap['counts']} — unhealthy: {snap['unhealthy'] or 'none'}",
+                      flush=True)
+            except Exception as exc:
+                print(f'[Registrar] monolithic settle failed: {exc}', flush=True)
 
     if ssl_available:
         # Start HTTPS server in a separate thread

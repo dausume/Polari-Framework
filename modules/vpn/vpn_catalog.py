@@ -19,6 +19,9 @@ Pure data + one pure function. Never seeded is_mock.
 from vpn.custom.vpn_constants import (
     APP_FAMILY, GATEWAY_ENGINE, KIND_INFO, KINDS, PROVIDER_TITLES,
 )
+from vpn.custom.vpn_placement import (
+    PLACEMENT_INFO, ROUTER_GUEST, _GUEST, install_plan as placement_plan,
+)
 
 
 def _entry(kind):
@@ -39,6 +42,15 @@ def _entry(kind):
         'category': 'network / %s' % PROVIDER_TITLES[info['provider']],
         'source': 'official',
         'published': True,
+        # vpn-4: WHERE it runs (the store shows kvm / openwrt-extension /
+        # container next to every kind) + the guest fields for kvm kinds
+        'placement': PLACEMENT_INFO[kind]['placement'],
+        'requires_tier': PLACEMENT_INFO[kind]['requires_tier'],
+        'extends': PLACEMENT_INFO[kind]['extends'],
+        'guest_kind': _GUEST.get(kind, {}).get('guest_kind', ''),
+        'vm_image_ref': _GUEST.get(kind, {}).get('vm_image_ref', ''),
+        'memory_mb': _GUEST.get(kind, {}).get('memory_mb', 0),
+        'vcpus': _GUEST.get(kind, {}).get('vcpus', 0),
     }
 
 
@@ -55,10 +67,14 @@ def vpn_install_plan(entry):
         return {'ok': False, 'steps': [],
                 'note': 'unknown isle-vpn kind %r' % kind}
     info = KIND_INFO[kind]
-    steps = ['isle vpn install %s' % kind]
-    note = ('installs %s (%s) on THIS isle; configured from the isle '
+    place = PLACEMENT_INFO[kind]['placement']
+    steps = placement_plan(kind)
+    where = {'kvm': 'as its OWN GUEST (isle vm define/start — sees traffic, own hardware only)',
+             'openwrt-extension': 'as an EXTENSION of the router guest %s (it carries the isle\'s subnet/VLAN)' % ROUTER_GUEST,
+             'container': 'as a CONTAINER on this device'}[place]
+    note = ('installs %s (%s) %s; configured from the isle '
             'side only — Polari proposes, `isle vpn apply` applies'
-            % (info['title'], info['label'] or 'endpoint'))
+            % (info['title'], info['label'] or 'endpoint', where))
     if info['gateway']:
         note += '; makes the .vpn exposure rung available here'
-    return {'ok': True, 'steps': steps, 'note': note}
+    return {'ok': True, 'steps': steps, 'note': note, 'placement': place}

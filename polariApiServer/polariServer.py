@@ -1341,8 +1341,8 @@ class polariServer(treeObject):
                 present = [m for m in FEATURE_MODULES if feature_available(m)]
                 reg.declare_all(present,
                                 disabled=[m for m in FEATURE_MODULES if m not in present])
-                reg.verify_all()
-                reg.mirror_all()
+                # verification waits for the end of boot (tables + seeds +
+                # pages exist only then): initLocalhostPolariServer settles.
             except Exception as exc:
                 print(f'[Registrar] monolithic settle failed: {exc}', flush=True)
 
@@ -2115,6 +2115,8 @@ class polariServer(treeObject):
              + (SEED_APPSTORE_PAGE_DISPLAYS or [])
              + (SEED_ISLEMESH_PAGE_DISPLAYS or [])
              + (SEED_VPN_PAGE_DISPLAYS or [])
+             # vpn-4: /display/topology-archipelago + /display/topology-mesh
+             + (SEED_RETICULUM_PAGE_DISPLAYS or [])
              + (SEED_TESTING_COVERAGE_PAGE_DISPLAYS or [])
              + (SEED_HARDWAREAPPS_PAGE_DISPLAYS or [])
              + (SEED_ISLE_RELAY_PAGE_DISPLAYS or [])
@@ -3017,7 +3019,9 @@ class polariServer(treeObject):
             # hw-app-1: the guests as HardwareAppDefinition rows (seeded by their modules)
             ('HardwareAppDefinition', HardwareAppDefinition,
              (SEED_RELAY_HARDWARE_APPS or []) + (SEED_GUESTNET_HARDWARE_APPS or [])
-             + (SEED_VORON_HARDWARE_APPS or []) + (SEED_PRINTCAM_HARDWARE_APPS or [])),
+             + (SEED_VORON_HARDWARE_APPS or []) + (SEED_PRINTCAM_HARDWARE_APPS or [])
+             # vpn-4: the VPN guests (own guest) + router extensions
+             + (SEED_VPN_HARDWARE_APPS or [])),
         ] + list(ISLE_RELAY_SEED_PAIRS or []) + list(ISLE_GUESTNET_SEED_PAIRS or []) \
           + list(HWMAP_SEED_PAIRS or []) + list(VORON_SEED_PAIRS or []) + list(SUITEAPPS_SEED_PAIRS or []) \
           + list(PRINTING_SUITE_SEED_PAIRS or []) + list(KIRIMOTO_SEED_PAIRS or []) + list(PRINTCAM_SEED_PAIRS or []) \

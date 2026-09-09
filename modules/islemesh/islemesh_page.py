@@ -88,3 +88,45 @@ SEED_ISLEMESH_PAGE_DISPLAYS = [
             ]),
         ]),
 ]
+
+
+# vpn-4: the isle-level topology display (his ask 2026-09-09: dedicated
+# displays per level; archipelago + mesh live in reticulum_page).
+SEED_ISLEMESH_PAGE_DISPLAYS += [
+    _page(
+        'topology-isle', 'topology-isle',
+        'Isle topology (.isle): your own LAN behind the router — devices, '
+        'uplinks, the router and its guests (hardware apps), the VPN '
+        'networks and peers that extend the isle, and where each VPN '
+        'kind runs here (kvm / openwrt-extension / container).',
+        'IsleDevice',
+        [
+            _row(0, [
+                _sapi('topology-isle-summary', 0, 12,
+                      'This level — definition and the VPN kinds usable here with their role',
+                      '/api/vpn/topology/isle', pick='level,rung,definition,placements'),
+            ], min_height=240),
+            _row(1, [
+                _table('topology-isle-devices', 0, 6, 'Devices', 'IsleDevice',
+                       columns='name,isle_name,machine_name,agent_mode,hosts_router,'
+                               'router_running,connectivity_mode,last_seen'),
+                _table('topology-isle-uplinks', 1, 6, 'Uplinks', 'IsleUplink',
+                       columns='name,kind,interface,link_up,latency_ms,jitter_ms,loss_pct,measured_at'),
+            ]),
+            _row(2, [
+                _table('topology-isle-guests', 0, 6, 'Router guests and extensions (hardware apps)',
+                       'HardwareAppDefinition',
+                       columns='name,kind,role,extends,guest_kind,requires_tier,uci_profile,memory_mb,vcpus'),
+                _table('topology-isle-guest-state', 1, 6, 'Guest state (as the isle reports it)',
+                       'HardwareAppState',
+                       columns='name,app,device_name,vm_state,ip,uptime_s,probe_ok,observed_at'),
+            ]),
+            _row(3, [
+                _table('topology-isle-vpn', 0, 6, 'VPN networks on this isle (mirror)', 'VpnNetwork',
+                       columns='network_name,device_name,provider,kind,label,mode,cidr,peer_count,status'),
+                _table('topology-isle-placements', 1, 6,
+                       'VPN placements and their isle role', 'VpnPlacement',
+                       columns='kind,title,placement,extends,requires_tier,sees_traffic,blind,level_isle'),
+            ]),
+        ]),
+]

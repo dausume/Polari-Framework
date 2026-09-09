@@ -294,10 +294,11 @@ check('ten catalog entries, kind isle-vpn, gateway ones provide '
       == set(GATEWAY_KINDS))
 check('catalog never seeded is_mock',
       all(not e.get('is_mock') for e in SEED_VPN_CATALOG))
-plan = vpn_install_plan(SEED_VPN_CATALOG[1])
-check('install plan = isle vpn install <kind>, names the authority rule',
-      plan['ok'] and plan['steps'] == ['isle vpn install vpn-link-gateway']
-      and 'isle vpn apply' in plan['note'])
+plan = vpn_install_plan(SEED_VPN_CATALOG[0])   # vpn-link-node: a container
+check('install plan branches by placement (vpn-4) and names the authority rule',
+      plan['ok'] and plan['steps'][0].startswith('isle vpn install') and 'isle side only' in plan['note']
+      and plan['placement'] == 'container'
+      and vpn_install_plan(next(e for e in SEED_VPN_CATALOG if e['name'] == 'vpn-link-hub'))['steps'][0].startswith('isle vm define'))
 page = SEED_VPN_PAGE_DISPLAYS[0]
 defn = json.loads(page['definition'])
 kinds_used = {}
@@ -325,9 +326,10 @@ check('one analysis (vpn-proposal) + six solutions, all FormSubscription '
                json.loads(x['definition'])['stateInstances']]
               == ['Start', 'Validate', 'Message', 'Write', 'Refresh']
               for x in SEED_VPN_SOLUTIONS))
-check('seed pairs cover every class, no seeds (mirror + inbox only)',
-      [p[1] for p in VPN_SEED_PAIRS] == VPN_CLASSES
-      and all(p[2] == [] for p in VPN_SEED_PAIRS))
+check('seed pairs cover every class; only VpnPlacement carries seeds (mirror + inbox rows never do)',
+      [c for _, c, _ in VPN_SEED_PAIRS] == VPN_CLASSES
+      and all(not rows for n, _, rows in VPN_SEED_PAIRS if n != 'VpnPlacement')
+      and len(dict(VPN_SEED_PAIRS)['VpnPlacement'] if False else next(r for n, _, r in VPN_SEED_PAIRS if n == 'VpnPlacement')) == 10)
 check('no class declares a private/preshared key field',
       all(f not in ('private_key', 'preshared_key')
           for cls in VPN_CLASSES
@@ -435,6 +437,49 @@ check('a non-vpn agreement is ignored by the bridge',
                                              agreement_id='x'),
                          'approved') == {'handled': False})
 AGREEMENT_LISTENERS.remove(listener)
+
+# ---- vpn-4: placements + levels + guests ---------------------------
+from vpn.custom.vpn_placement import (
+    LEVELS, PLACEMENTS, PLACEMENT_INFO, SEED_VPN_HARDWARE_APPS, SEED_VPN_PLACEMENTS,
+    install_plan, kinds_at, topology,
+)
+from vpn.custom.vpn_uci import render_vpn_uci
+from vpn.custom.vpn_provision import render_provision
+check('every kind has a placement', all(k in PLACEMENT_INFO for k in KINDS) and len(SEED_VPN_PLACEMENTS) == len(KINDS))
+check('placements are kvm / openwrt-extension / container only',
+      all(PLACEMENT_INFO[k]['placement'] in PLACEMENTS for k in KINDS))
+check('every kind that sees traffic runs as its own guest (kvm)',
+      all(PLACEMENT_INFO[k]['placement'] == 'kvm' for k in KINDS
+          if KIND_INFO[k]['label'] == 'Sees traffic' and not KIND_INFO[k]['l2']))
+check('the kinds that carry the isle subnet/VLAN are router extensions',
+      all(PLACEMENT_INFO[k]['placement'] == 'openwrt-extension' for k in ('vpn-link-gateway', 'vpn-bridge-span')))
+check('the blind relay is a container (safe on a rented box)', PLACEMENT_INFO['vpn-link-relay']['placement'] == 'container')
+check('every level has at least one usable kind', all(kinds_at(lvl) for lvl in LEVELS))
+check('the mesh level never gets a membership authority',
+      not any(KIND_INFO[k]['authority'] and not KIND_INFO[k]['exit'] and KIND_INFO[k]['provider'] == 'link'
+              for k, _ in kinds_at('mesh')))
+check('kvm kinds have a HardwareAppDefinition row; extensions extend the router',
+      {r['name'] for r in SEED_VPN_HARDWARE_APPS if r['kind'] == 'hardware-app'} == {k for k in KINDS if PLACEMENT_INFO[k]['placement'] == 'kvm'}
+      and all(r['extends'] == 'isle-router' for r in SEED_VPN_HARDWARE_APPS if r['kind'] == 'hardware-extension-app'))
+check('install plans branch by placement',
+      install_plan('vpn-link-hub')[0].startswith('isle vm define') and install_plan('vpn-link-gateway')[1].startswith('isle vm extend')
+      and install_plan('vpn-link-node') == ['isle vpn install vpn-link-node'])
+check('archipelago topology carries the floor', topology('archipelago')['floor']['max_rtt_ms'] == 150 and topology('nope') is None)
+hub = next(r for r in SEED_VPN_HARDWARE_APPS if r['name'] == 'vpn-link-hub')
+script, ref = render_vpn_uci(hub)
+check('vpn-hub uci renders, keys made on the guest, never rendered', not ref and 'wg genkey' in script and 'private_key="$(cat' in script)
+ex = next(r for r in SEED_VPN_HARDWARE_APPS if r['name'] == 'vpn-link-exit')
+script, ref = render_vpn_uci(ex)
+check('vpn-exit renders with masquerade OFF by default', not ref and "wan.masq='0'" in script)
+srv = next(r for r in SEED_VPN_HARDWARE_APPS if r['name'] == 'vpn-bridge-server')
+script, ref = render_provision(srv)
+check('bridge server provisioner: CA on the guest, management local only',
+      not ref and 'build-ca' in script and 'management 127.0.0.1 7505' in script and 'redirect-gateway' not in script)
+bad = dict(srv, uci_params_json='{"cidr": "nope"}')
+check('provisioner refuses a bad cidr', render_provision(bad)[1])
+check('store rows carry placement + guest fields',
+      all(e.get('placement') in PLACEMENTS for e in SEED_VPN_CATALOG)
+      and next(e for e in SEED_VPN_CATALOG if e['name'] == 'vpn-link-hub')['guest_kind'] == 'openwrt')
 
 passed, total = sum(results), len(results)
 print(f'\n{passed}/{total} checks passed')

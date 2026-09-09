@@ -7,7 +7,9 @@ from objectTreeDecorators import treeObject, treeObjectInit
 
 HARDWARE_APP_KINDS = ('hardware-app', 'hardware-extension-app')
 GUEST_KINDS = ('openwrt', 'debian', 'alpine')
-ROLES = ('router', 'relay', 'guestnet', 'lab', 'sdr-rx', 'radio', 'custom')
+ROLES = ('router', 'relay', 'guestnet', 'lab', 'sdr-rx', 'radio', 'custom',
+         # vpn-4: the VPN guests (own guest = sees traffic) and router extensions
+         'vpn-hub', 'vpn-exit', 'vpn-server', 'vpn-gateway', 'vpn-span')
 
 
 class HardwareAppDefinition(treeObject):

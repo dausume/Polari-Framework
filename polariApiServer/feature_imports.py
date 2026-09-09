@@ -1123,6 +1123,9 @@ FEATURE_IMPORT_BLOCKS = (
         ('reticulum.arch_basis', (
             'ArchipelagoNode', 'ArchipelagoTrust',
         )),
+        ('reticulum.reticulum_page', (
+            'SEED_RETICULUM_PAGE_DISPLAYS',
+        )),
         ('reticulum.replication_basis', (
             'WatchedObject', 'ObjectStateVersion', 'StateConflict',
         )),
@@ -1149,7 +1152,7 @@ FEATURE_IMPORT_BLOCKS = (
     ('vpn', (
         ('vpn', (
             'VPN_CLASSES', 'VPN_SEED_PAIRS', 'SEED_VPN_CATALOG',
-            'SEED_VPN_PAGE_DISPLAYS',
+            'SEED_VPN_PAGE_DISPLAYS', 'SEED_VPN_HARDWARE_APPS',
         )),
     )),
     ('hardwareapps', (

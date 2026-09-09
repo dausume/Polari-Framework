@@ -48,6 +48,7 @@ A gateway-kind `app.kind` upserts the device's IsleEngine row
 """
 
 import hashlib
+import falcon
 import json
 
 from datetime import datetime, timezone
@@ -95,6 +96,8 @@ class VpnAPI(treeObject):
             add = polServer.falconServer.add_route
             add('/api/vpn', self, suffix='summary')
             add('/api/vpn/kinds', self, suffix='kinds')
+            add('/api/vpn/placements', self, suffix='placements')
+            add('/api/vpn/topology/{level}', self, suffix='topology')
             add('/api/vpn/networks', self, suffix='networks')
             add('/api/vpn/peers', self, suffix='peers')
             add('/api/vpn/rules', self, suffix='rules')
@@ -523,6 +526,53 @@ class VpnAPI(treeObject):
         return response.media
 
     # ---- read -------------------------------------------------------
+
+    def on_get_placements(self, request, response):
+        """vpn-4: where each kind runs + its role per level (pure data)."""
+        from vpn.custom.vpn_placement import (
+            LEVELS, PLACEMENTS, SEED_VPN_PLACEMENTS,
+        )
+        response.media = {
+            'ok': True, 'placements': PLACEMENTS, 'levels': LEVELS,
+            'rules': {
+                'kvm': 'every kind that SEES TRAFFIC and holds authority (hub, server, exit): its own guest',
+                'openwrt-extension': "every kind that carries THE ISLE'S subnet or VLAN (gateway, span): on the router guest",
+                'container': 'endpoints, clients, peers and the blind relay: an isle-app container on any member device'},
+            'kinds': SEED_VPN_PLACEMENTS}
+
+    def on_get_topology(self, request, response, level):
+        """vpn-4: one level's topology summary — definition, floor, the
+        kinds usable there with their role, and the LIVE rows that cross
+        the level on this instance (counts, never raw dumps)."""
+        from vpn.custom.vpn_placement import topology
+        summary = topology(level)
+        if summary is None:
+            response.status = falcon.HTTP_404
+            response.media = {'ok': False, 'error': 'level must be isle, archipelago or mesh'}
+            return
+        live = {}
+        if level == 'isle':
+            live = {'networks': len(self._table('VpnNetwork')),
+                    'devices': len({getattr(r, 'device_name', '') for r in self._table('VpnNetwork').values()}),
+                    'peers': len(self._table('VpnPeer')),
+                    'exposures': len(self._table('AppVpnExposure')),
+                    'guests': len([r for r in self._table('HardwareAppDefinition').values()
+                                   if str(getattr(r, 'role', '')).startswith('vpn-')])}
+        elif level == 'archipelago':
+            links = list(self._table('VpnFederationLink').values())
+            live = {'federation_links': len(links),
+                    'active_links': len([r for r in links if getattr(r, 'status', '') == 'active']),
+                    'blind_links': len([r for r in links if getattr(r, 'relay_kind', '') == 'blind']),
+                    'routing_links': len([r for r in links if getattr(r, 'relay_kind', '') == 'routing']),
+                    'archipelago_nodes': len(self._table('ArchipelagoNode')),
+                    'link_measurements': len(self._table('LinkMeasurement'))}
+        else:
+            live = {'mesh_relays': len(self._table('MeshAppRelay')),
+                    'consumers': len(self._table('MeshConsumer')),
+                    'bindings': len(self._table('TransportBinding')),
+                    'relay_bodies': len([r for r in self._table('VpnNetwork').values()
+                                         if getattr(r, 'kind', '') in ('vpn-link-relay', 'vpn-link-exit', 'vpn-bridge-exit', 'vpn-bridge-server')])}
+        response.media = {'ok': True, **summary, 'live': live}
 
     def on_get_kinds(self, request, response):
         kinds = []

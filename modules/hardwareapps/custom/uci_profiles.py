@@ -30,6 +30,13 @@ def _params(defn):
 def render_uci(defn):
     """Returns (script, refusals)."""
     profile = defn.get('uci_profile', '') if isinstance(defn, dict) else getattr(defn, 'uci_profile', '')
+    if profile.startswith('vpn-'):
+        # vpn-4: the VPN guests/extensions render their own UCI (vpn module)
+        try:
+            from vpn.custom.vpn_uci import render_vpn_uci
+        except ImportError:
+            return '', ['uci_profile %r needs the vpn module on this instance' % profile]
+        return render_vpn_uci(defn)
     p = _params(defn)
     refusals = []
     if profile not in PROFILES:

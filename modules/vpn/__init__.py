@@ -18,7 +18,10 @@ and engine idioms). Imports nothing from any other feature module.
 
 from vpn.vpn_basis import (  # noqa: F401
     VPN_CLASSES, VPN_MIRROR_CLASSES, AppVpnExposure, VpnAccessRule,
-    VpnFederationLink, VpnNetwork, VpnPeer, VpnProposal,
+    VpnFederationLink, VpnNetwork, VpnPeer, VpnPlacement, VpnProposal,
+)
+from vpn.custom.vpn_placement import (  # noqa: F401
+    SEED_VPN_HARDWARE_APPS, SEED_VPN_PLACEMENTS,
 )
 from vpn.vpn_catalog import SEED_VPN_CATALOG, vpn_install_plan  # noqa: F401
 from vpn.vpn_page import SEED_VPN_PAGE_DISPLAYS  # noqa: F401
@@ -26,6 +29,9 @@ from vpn.vpn_page import SEED_VPN_PAGE_DISPLAYS  # noqa: F401
 #: (class name, class, seeds) — mirror + inbox rows carry no seeds:
 #: every row comes from an isle's push or an operator's proposal.
 VPN_SEED_PAIRS = [
+    # vpn-4: where each kind runs (kvm / openwrt-extension / container) and
+    # its role at each level — pure data, seeded.
+    ('VpnPlacement', VpnPlacement, SEED_VPN_PLACEMENTS),
     ('VpnNetwork', VpnNetwork, []),
     ('VpnPeer', VpnPeer, []),
     ('VpnAccessRule', VpnAccessRule, []),
