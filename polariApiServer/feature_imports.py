@@ -1195,4 +1195,12 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_VORON_PAGE_DISPLAYS',
         )),
     )),
+    ('suiteapps', (
+        ('suiteapps.suiteapps_basis', (
+            'SuiteAppDefinition', 'SuitePart', 'SuiteContract', 'SuitePlacement', 'SUITEAPPS_SEED_PAIRS',
+        )),
+        ('suiteapps.suiteapps_page', (
+            'SEED_SUITEAPPS_PAGE_DISPLAYS',
+        )),
+    )),
 )

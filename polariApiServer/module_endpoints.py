@@ -470,7 +470,14 @@ def construct_voron_endpoints(polServer):
     voronEndpoint = VoronAPI(polServer=polServer, manager=manager)
 
 
+def construct_suiteapps_endpoints(polServer):
+    manager = polServer.manager
+    from suiteapps.suiteapps_api import SuiteAppsAPI
+    suiteAppsEndpoint = SuiteAppsAPI(polServer=polServer, manager=manager)
+
+
 MODULE_ENDPOINT_CONSTRUCTORS = {
+    'suiteapps': construct_suiteapps_endpoints,
     'hwmap': construct_hwmap_endpoints,
     'voron': construct_voron_endpoints,
     'hardwareapps': construct_hardwareapps_endpoints,

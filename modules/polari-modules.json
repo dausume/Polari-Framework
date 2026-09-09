@@ -432,6 +432,17 @@
       ],
       "description": "Silicon MOSFETs (planar / FinFET) on thermal and SOL-GEL dielectrics sharing the cntfet VS device contract (states, regimes, scoring, validity, cross-technology ranking), complementary pairs, and silicon refinement routes (MG -> UMG -> SoG -> EG; PV open, EG novel)."
     },
+    "suiteapps": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/suiteapps",
+      "repo": "",
+      "requires": [
+        "islemesh"
+      ],
+      "wave": 8,
+      "description": "Suite apps: purpose-oriented compositions of apps of every kind (Polari modules, isle containers, hardware KVM guests, extension apps) with the object contracts between parts and a placement plan across devices (sa-1, 2026-09-08)."
+    },
     "supplychain": {
       "kind": "official",
       "downloaded": true,

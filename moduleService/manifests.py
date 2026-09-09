@@ -42,7 +42,10 @@ CONCEPTS = ('objects', 'basis', 'api', 'endpoints', 'seed', 'page', 'catalog',
 #: others — library (objects only), polari-app (pages/API inside a Polari
 #: instance), isle-app (a container app deployed on the isle), hardware-app
 #: (a QEMU/KVM guest owning hardware; POLARI_TREE_PLAN / STANDARD_POLARI_APP §3).
-APP_KINDS = ('library', 'polari-app', 'isle-app', 'hardware-app', 'hardware-extension-app')
+APP_KINDS = ('library', 'polari-app', 'isle-app', 'hardware-app', 'hardware-extension-app', 'suite-app')
+#: suite-app (Dustin 2026-09-08, "overarching purpose oriented apps … an amalgam of apps … foundationally
+#: too big for one computer"): a purpose-oriented COMPOSITION of apps of any kind, placed across devices
+#: by the coverage planner's budget + nodes, with the object contracts its parts pass through Polari.
 #: hardware-app = a KVM guest the isle runs (the router is one, woven into the isle and left as is);
 #: hardware-extension-app = adds functionality to a hardware app it EXTENDS (`app.extends` names it) —
 #: reticulum is the first (his ruling 2026-09-08).

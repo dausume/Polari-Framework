@@ -187,3 +187,20 @@ def render_provision(defn):
           'systemctl restart %sklipper.service moonraker.service nginx' % ('klipper-mcu.service ' if mode == 'sim' else ''),
           'echo "voron guest provisioned: mode %s — Mainsail on http://$(hostname -I | cut -d\' \' -f1)/ (Moonraker :7125)"' % mode, '']
     return '\n'.join(s), []
+
+
+def provision_context(manager, payload):
+    """Called by hardwareapps' render for a guest whose `provisioner` is this
+    module: the PrinterDefinition whose hardware_app is this guest, and its
+    boards, as dicts — so the provisioner renders the real printer.cfg."""
+    tables = getattr(manager, 'objectTables', None) or {}
+    def rows(cls):
+        return list((tables.get(cls, {}) or {}).values())
+    def as_dict(r):
+        return {k: getattr(r, k) for k in vars(r) if not k.startswith('_') and k != 'manager'}
+    printers = [p for p in rows('PrinterDefinition') if getattr(p, 'hardware_app', '') == payload.get('name')]
+    if not printers:
+        return {}
+    printer = printers[0]
+    boards = [as_dict(b) for b in rows('PrinterBoard') if getattr(b, 'printer', '') == printer.name]
+    return {'printer': as_dict(printer), 'boards': boards}

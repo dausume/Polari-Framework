@@ -59,10 +59,15 @@ class HardwareAppsAPI(treeObject):
             render = getattr(importlib.import_module(mod), fn)
         except Exception as e:  # noqa: BLE001
             return '', ['provisioner %r not importable: %s' % (dotted, str(e)[:80])]
-        payload = {k: getattr(defn, k) for k in vars(defn) if not k.startswith('_')}
-        extra = getattr(self, 'provision_context', None)
-        if callable(extra):
-            payload.update(extra(defn) or {})
+        payload = {k: getattr(defn, k) for k in vars(defn) if not k.startswith('_') and k != 'manager'}
+        # the provisioner's module may add context from rows (the voron module
+        # adds its printer + boards): `provision_context(manager, payload)`
+        ctx = getattr(importlib.import_module(mod), 'provision_context', None)
+        if callable(ctx):
+            try:
+                payload.update(ctx(self.manager, payload) or {})
+            except Exception as e:  # noqa: BLE001
+                return '', ['provision_context raised: %s' % str(e)[:120]]
         try:
             return render(payload)
         except Exception as e:  # noqa: BLE001

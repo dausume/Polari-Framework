@@ -38,7 +38,7 @@ SEED_VORON_HARDWARE_APPS = [{
     'role': 'custom', 'guest_kind': 'debian', 'vm_image_ref': VORON_GUEST_IMAGE,
     'image_sha256_raw': '',   # pinned at deploy time from the image's RAW sha (empty = domain render refuses, on purpose)
     'memory_mb': 2048, 'vcpus': 2, 'bridges_json': '["isle-br-0"]', 'passthrough_json': '[]',
-    'uci_profile': '', 'uci_params_json': '{}', 'requires_tier': 'hardware',
+    'uci_profile': '', 'uci_params_json': '{}', 'requires_tier': 'hardware', 'hardware_needs_json': '[{\"kind\": \"serial\"}]',
     # dotted path the hardwareapps API imports lazily to render the guest's provisioner
     'provisioner': 'voron.custom.provision:render_provision',
     'notes': 'mode real: set passthrough_json to the DeviceLink names of the printer boards (USB) and image_sha256_raw '
