@@ -407,6 +407,12 @@ def _put_away_locked(manager, module):
         os.environ['POLARI_MODULES'] = ','.join(active)
 
     registry.put_away(module)
+
+    reg = getattr(polServer, 'moduleRegistrar', None)
+
+    if reg is not None:
+
+        reg.put_away(module)
     worker = AdmissionWorker(manager)
     registry.mark(module, 'disabled',
                   error=f'put away — POST /modules/{module}/admit '
@@ -476,6 +482,9 @@ def _admit_locked(manager, module):
                 manifest_prep = manifest_admission.prepare(
                     polServer, module, manifest)
             except Exception as exc:
+                reg = getattr(polServer, 'moduleRegistrar', None)
+                if reg is not None:
+                    reg.invalid(module, f'{type(exc).__name__}: {exc}')
                 return {'ok': False, 'module': module,
                         'refusal': f"'{module}' polari-app.json does not "
                                    f'admit: {type(exc).__name__}: {exc}',

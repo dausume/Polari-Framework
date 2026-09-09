@@ -30,6 +30,10 @@ import os
 # module → [(class_name, cls, rows)] resolved by prepare(), applied by
 # apply_seeds() once the tables exist.
 MANIFEST_SEEDS = {}
+# modules THIS path admitted: their endpoint constructor now sits in
+# MODULE_ENDPOINT_CONSTRUCTORS, which must not make them look
+# table-declared on a re-admit (put-away → admit again re-seeds).
+MANIFEST_MODULES = set()
 
 
 def manifest_path(module):
@@ -54,6 +58,8 @@ def table_declared(module):
     dyn-1..4 path owns it and the manifest is documentation only)."""
     from polariApiServer.feature_imports import FEATURE_IMPORT_BLOCKS
     from polariApiServer.module_endpoints import MODULE_ENDPOINT_CONSTRUCTORS
+    if module in MANIFEST_MODULES:
+        return False
     if module in MODULE_ENDPOINT_CONSTRUCTORS:
         return True
     return any(entry == module for entry, _ in FEATURE_IMPORT_BLOCKS)
@@ -106,6 +112,10 @@ def prepare(polServer, module, manifest):
         seeds.append(('DisplayDefinition', server_mod.DisplayDefinition,
                       list(_resolve(ref) or [])))
     MANIFEST_SEEDS[module] = seeds
+    MANIFEST_MODULES.add(module)
+    reg = getattr(polServer, 'moduleRegistrar', None)
+    if reg is not None:
+        reg.declare(module, manifest=manifest, source='manifest')
     return {'source': 'polari-app.json',
             'classes': sorted(c.__name__ for c in added),
             'endpoints': endpoints or None,
@@ -132,7 +142,11 @@ def apply_seeds(manager, module):
                 continue
             row = by_name.get(name)
             if row is None:
-                cls(**seed, manager=manager)
+                made = cls(**seed, manager=manager)
+                try:   # durable at once — a put-away drops the in-memory row
+                    manager.db.saveInstanceInDB(made)
+                except Exception:
+                    pass
                 created += 1
                 continue
             changed = False

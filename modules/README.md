@@ -179,3 +179,43 @@ copy of the image's registry (`dist/.registry.json`); the image itself is
 never written. Set `POLARI_TOOLS_DIR=<a polari-framework checkout>` to run
 the tools (moduleService + polariApiServer) from the host instead of the
 image — for people developing the tools themselves.
+
+## 10. The registrar — one record per module, one health check
+
+Every loading path (lazy boot worker, live admission, manifest admission,
+put-away) updates the **module registrar**
+(`moduleService/module_registrar.py`) as a module moves
+
+```
+declared → loading → verified: online | degraded
+                     failed | blocked | invalid        disabled | put-away
+```
+
+What a module MUST bring online is read from its declaration, never
+from what a loader claims: the `polari-app.json` gives the classes,
+the endpoints constructor, the routes its api/endpoints files pass to
+`add_route`, the seed pairs, the pages and the selftests (a module
+without a manifest falls back to the core tables; core packages are
+declared from their registered classes). `verify()` then checks each
+piece against the LIVE server — class typed, CRUDE route in the router,
+constructor ran, declared routes in the router, seed rows and pages
+present by name. All structural pieces live = `online`; anything
+missing = `degraded` with the missing names in the record; an exception
+while loading = `failed`; a declaration that does not hold (unreadable
+manifest, unresolvable endpoint reference) = `invalid`. Selftests are
+informational: `POST /api/modules/health/<m>/confirm {piece: "selftest",
+ok, detail}` records a result on the same record.
+
+Read it:
+
+```
+GET  /api/modules/health[?brief=1]      ok + counts by state + every module's record
+GET  /api/modules/health/<module>       expected / confirmed / missing per piece
+POST /api/modules/health/<module>/verify   re-check now
+pol modules health [--api URL] [<module>] [--verify]
+/display/module-health                   the page (ModuleRegistration rows + summary)
+```
+
+`ok` is false while any module is degraded, failed, blocked or invalid.
+The record is mirrored to a `ModuleRegistration` row per module per
+instance, so the state survives a restart and is a table like any other.

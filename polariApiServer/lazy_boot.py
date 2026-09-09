@@ -458,6 +458,12 @@ class AdmissionWorker:
         self.registry.mark(module, status, **extra)
         row = self.registry.status_of(module)
         _stomp_publish(module, row)
+        registrar = getattr(self.polServer, 'moduleRegistrar', None)
+        if registrar is not None:
+            try:
+                registrar.on_transition(module, status, row)
+            except Exception as exc:
+                print(f'[Registrar] {module} {status}: {exc}', flush=True)
         if status in ('online', 'failed'):
             self._upsert_polari_module(module, row)
             self._write_boot_record(module, row)
@@ -481,6 +487,9 @@ class AdmissionWorker:
         feature_mods = self.feature_modules_present()
         requires = load_module_requires()
         registry.plan(sorted(feature_mods), requires)
+        registrar = getattr(polServer, 'moduleRegistrar', None)
+        if registrar is not None:
+            registrar.declare_all(feature_mods)   # + core packages (one view)
         # Track what is NOT enabled too — known modules gated off or
         # absent on this instance show as 'disabled', so the topology
         # view can display the full enabled/disabled split honestly.
@@ -492,6 +501,8 @@ class AdmissionWorker:
                               error='not enabled on this instance '
                                     '(POLARI_MODULES gate or not '
                                     'downloaded)')
+                if registrar is not None:
+                    registrar.disabled(m, 'not enabled on this instance')
         except Exception:
             pass
 
@@ -593,6 +604,11 @@ class AdmissionWorker:
         except Exception as exc:
             print(f'[ModuleProjects] auto-fetch skipped: {exc}',
                   flush=True)
+        if registrar is not None:
+            # every module re-checked against the live server once all
+            # routes/seeds are in, then mirrored to ModuleRegistration rows
+            registrar.verify_all()
+            registrar.mirror_all()
         snap = registry.snapshot()
         print(f"[LazyBoot] BOOT COMPLETE: {snap['onlineCount']}/"
               f"{snap['moduleCount']} modules online, core in "

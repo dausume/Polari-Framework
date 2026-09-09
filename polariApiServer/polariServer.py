@@ -341,6 +341,8 @@ from simulations.step_cost_profile import StepCostProfile
 from polariPeers.peer_node import PeerNode
 from polariPeers.polari_module import PolariModule
 from moduleService.module_boot_records import ModuleBootRecord
+# reg-1: the module registrar's durable record (one per module per instance).
+from moduleService.module_registrar import ModuleRegistration
 from polariPeers.module_source_config import (
     ModuleSourceConfig, SEED_MODULE_SOURCE_CONFIGS,
 )
@@ -468,6 +470,13 @@ class polariServer(treeObject):
         # /api/quiesce* (gm-2): the stateful-move write gate.
         HealthEndpoint(self)
         ModulesStatusEndpoint(self)
+        # reg-1: the module registrar — declared → loading → verified
+        # (online/degraded) / failed / invalid, checked against the LIVE
+        # server; /api/modules/health is the unified read.
+        from moduleService.module_registrar import ModuleRegistrar
+        from polariApiServer.module_health import ModuleHealthEndpoint
+        self.moduleRegistrar = ModuleRegistrar(self)
+        ModuleHealthEndpoint(self)
         QuiesceEndpoint(self, self.quiesceState)
         self.active = False
         # STOMP WebSocket server reference (set after startup in initLocalhostPolariServer)
@@ -1162,6 +1171,7 @@ class polariServer(treeObject):
             # mlb-2: per-boot module timing history (durable — later
             # boots derive expected-online ETAs from these rows).
             ModuleBootRecord,
+            ModuleRegistration,
             PendulumBobSimState, PendulumStringSimState,
             NewtonianPendulumBobSimState, NewtonianPendulumRodSimState,
             WindFieldGridState, MaterialCondensationState,
@@ -1323,6 +1333,18 @@ class polariServer(treeObject):
         from polariApiServer.lazy_boot import lazy_boot_enabled
         if not lazy_boot_enabled():
             self.initializeDynamicModules()
+            # reg-1: a monolithic boot has no per-module transitions —
+            # declare everything present and verify it against the live server.
+            try:
+                from moduleService.module_loading import FEATURE_MODULES, feature_available
+                reg = self.moduleRegistrar
+                present = [m for m in FEATURE_MODULES if feature_available(m)]
+                reg.declare_all(present,
+                                disabled=[m for m in FEATURE_MODULES if m not in present])
+                reg.verify_all()
+                reg.mirror_all()
+            except Exception as exc:
+                print(f'[Registrar] monolithic settle failed: {exc}', flush=True)
 
     def initializeDynamicModules(self):
         """Discover + initialize the dynamic (modules/-registry)

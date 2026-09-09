@@ -515,3 +515,16 @@ SEED_MODULE_PAGE_DISPLAYS = [
             ]),
         ]),
 ]
+
+
+# reg-1: the module registrar's page — every module's state, what is
+# missing, the unified health summary. Configured tables/panels only.
+SEED_MODULE_PAGE_DISPLAYS += [
+    _page('module-health', 'module-health',
+          'Module health — the registrar: declared → loading → verified (online/degraded) / failed / invalid / put-away',
+          'ModuleRegistration', [
+              _row(0, [_sapi('module-health-summary', 0, 12, 'Health summary', '/api/modules/health', pick='ok,counts,unhealthy')], min_height=160),
+              _row(1, [_table('module-health-rows', 0, 12, 'Modules on this instance', 'ModuleRegistration',
+                              columns='module_name,state,source,app_kind,phase,error,selftest_status,verified_at')]),
+          ]),
+]

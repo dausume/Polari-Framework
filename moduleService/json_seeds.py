@@ -164,11 +164,15 @@ def _class_lookup(manager, class_name, package):
     if not d:
         return None
     for fname in sorted(os.listdir(d)):
-        if not fname.endswith('.py') or fname.startswith('selftest'):
+        # selftests are programs (they may SystemExit at import) — never
+        # scanned; and a broken module file must not take the server
+        # down (2026-09-09: foodstate's selftest raised SystemExit here).
+        if (not fname.endswith('.py') or fname.startswith('selftest')
+                or fname.endswith('_selftest.py')):
             continue
         try:
             mod = importlib.import_module(f'{package}.{fname[:-3]}')
-        except Exception:  # noqa: BLE001
+        except BaseException:  # noqa: BLE001
             continue
         c = getattr(mod, class_name, None)
         if inspect.isclass(c):

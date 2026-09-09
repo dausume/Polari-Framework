@@ -14,6 +14,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #from polariAI.definePolari import *
 #from polariFrontendManagement.managedApp import *
+import os
 from polariApiServer.remoteEvents import *
 from objectTreeDecorators import *
 from  polariDataTyping.polyTypedVars import *
@@ -406,6 +407,9 @@ class polyTypedObject(treeObject):
             except Exception as e:
                 print(f"[polyTypedObject] initializeVarsFromSignature: "
                       f"failed for {self.className}.{param_name}: {e}")
+                if os.environ.get('POLARI_TYPING_TRACE'):
+                    import traceback
+                    traceback.print_exc()
 
         # Also populate the variable name list for downstream consumers
         if not self.variableNameList:
