@@ -8,8 +8,9 @@ Food as PSPP state evolution (fsp arc): food stages/processes/evidence methods a
 
 `FoodDomainContract`, `FoodMaterial`, `FoodStateAPI`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/food_contracts/FoodDomainContract.py`, `objects/food_contracts/_shared.py`, `objects/food_materials/FoodMaterial.py`, `objects/food_materials/_shared.py`
 - **basis** — `food_contracts_basis.py`, `food_materials_basis.py`
 - **api** — `food_api.py`
 - **seed** — `food_acid_seed.py`, `food_ph_seed.py`, `food_pspp_seed.py`
@@ -17,7 +18,7 @@ Food as PSPP state evolution (fsp arc): food stages/processes/evidence methods a
 - **selftests** — `food_chemistry_selftest.py`, `food_materials_selftest.py`, `food_transforms_selftest.py`, `foodstate_selftest.py`, `initial_data_selftest.py`
 - **initialData/** — module-initial-data/1 rows (non-regenerable data only)
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 

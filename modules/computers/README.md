@@ -8,8 +8,9 @@ Computer assembly + use-case profiles as their own app (cmp-c): component taxono
 
 `ComputerAssemblyDefinition`, `ComputerPartClassDefinition`, `ComputerProfileDefinition`, `ComputersAPI`, `InterconnectDefinition`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/computers/ComputerAssemblyDefinition.py`, `objects/computers/ComputerPartClassDefinition.py`, `objects/computers/ComputerProfileDefinition.py`, `objects/computers/_shared.py`, `objects/computers_ports/InterconnectDefinition.py`, `objects/computers_ports/_shared.py`
 - **basis** — `computers_basis.py`, `computers_ports_basis.py`
 - **api** — `computers_api.py`
 - **seed** — `computers_app_seed.py`, `computers_seed.py`
@@ -17,7 +18,7 @@ Computer assembly + use-case profiles as their own app (cmp-c): component taxono
 - **custom** — `custom/computers_fit.py`, `custom/computers_gates.py`
 - **selftests** — `computers_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Pages
 

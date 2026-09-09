@@ -458,7 +458,10 @@ def main(argv):
         print(__doc__)
         return 0
     verb, args = argv[0], argv[1:]
-    pkgs = all_packages() if (not args or args == ['--all']) else args
+    flags = [a for a in args if a.startswith('--') and a != '--all']
+    names = [a for a in args if not a.startswith('--')]
+    pkgs = all_packages() if (not names) else names
+    args = names + flags
     if verb == 'list':
         for p in pkgs:
             m = load(p)

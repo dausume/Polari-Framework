@@ -6,22 +6,24 @@ Legacy registry module (optional, toggleable).
 
 ## Objects
 
-`Material`, `MaterialProperty`, `MaterialPurpose`, `MaterialRelatedDevice`, `MaterialResolution`
+`AdditiveCompatibility`, `Compatibilizer`, `DataProvenance`, `DataSource`, `Formulation`, `FormulationComponent`, `FormulationIntent`, `Material`, `MaterialAdditive`, `MaterialProperty`, `MaterialPurpose`, `MaterialRelatedDevice`, `MaterialResolution`, `MaterialSourcing`, `PropertyEffect`, `PropertyTarget`, `PropertyValueSource`, `RawMaterial`, `ReferenceMaterial`, `TargetMaterialProfile`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
-- **basis** — `materialProperty_basis.py`, `materialPurpose_basis.py`, `materialRelatedDevice_basis.py`, `materialResolution_basis.py`, `material_basis.py`
+- **objects** — `objects/material.py`, `objects/materialProperty.py`, `objects/materialPurpose.py`, `objects/materialRelatedDevice.py`, `objects/materialResolution.py`, `objects/dataProvenance/dataProvenance.py`, `objects/dataProvenance/dataSource.py`, `objects/devices/deviceCategory.py`, `objects/devices/cncLathes/cncLathe.py`, `objects/devices/cncMills/cncMill.py`, `objects/devices/cncMills/fiveAxisMill.py`, `objects/devices/cncMills/threeAxisMill.py`, … (104 more)
+- **basis** — `materials_science_basis.py`
 - **seed** — `materials_science_data_seed.py`
 - **custom** — `custom/registerMaterialsScienceModule.py`
+- **selftests** — `materials_science_selftest.py`
 - **initialData/** — module-initial-data/1 rows (non-regenerable data only)
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 
 ```
 pol modules selftest materials_science        # in the running backend
-PYTHONPATH=.:modules python3 -m materials_science.<none yet>   # on the host, from polari-framework/
+PYTHONPATH=.:modules python3 -m materials_science.materials_science_selftest   # on the host, from polari-framework/
 ```
 
 Conformance: `pol modules conform materials_science`

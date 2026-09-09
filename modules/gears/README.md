@@ -8,15 +8,16 @@ Gear trains as data (GEARS_PLAN.md): the gear-type taxonomy with ratio laws + li
 
 `GearDefinition`, `GearMeshDefinition`, `GearTrainDefinition`, `GearTypeDefinition`, `GearVerificationRun`, `GearsAPI`, `ShaftNodeDefinition`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/gear/GearDefinition.py`, `objects/gear/GearMeshDefinition.py`, `objects/gear/GearTrainDefinition.py`, `objects/gear/GearTypeDefinition.py`, `objects/gear/GearVerificationRun.py`, `objects/gear/ShaftNodeDefinition.py`, `objects/gear/_shared.py`
 - **basis** — `gear_basis.py`
 - **api** — `gear_api.py`
 - **seed** — `gear_scene_seed.py`, `gear_seed.py`
 - **custom** — `custom/gear_kinematics.py`, `custom/gear_motor.py`, `custom/planetary.py`
 - **selftests** — `gears_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 

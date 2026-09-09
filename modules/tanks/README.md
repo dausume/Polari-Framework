@@ -8,15 +8,16 @@ Freshwater/saltwater tank ecosystems — the alternate nutrient source.
 
 `AquacultureSpecies`, `TankDefinition`, `TankSubstrateDefinition`, `TankSystemAPI`, `TankSystemDefinition`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/tank/AquacultureSpecies.py`, `objects/tank/TankDefinition.py`, `objects/tank/TankSubstrateDefinition.py`, `objects/tank/TankSystemDefinition.py`, `objects/tank/_shared.py`
 - **basis** — `tank_basis.py`
 - **api** — `tank_api.py`
 - **seed** — `tank_seed.py`
 - **custom** — `custom/tank_analysis.py`
 - **selftests** — `tank_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 

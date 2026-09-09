@@ -8,8 +8,9 @@ Silicon MOSFETs (planar / FinFET) on thermal and SOL-GEL dielectrics sharing the
 
 `RefinementRoute`, `RefinementStep`, `SiliconDopingProfile`, `SiliconFETShape`, `SiliconGrade`, `SiliconMOSFET`, `SiliconProcessNode`, `SolGelDielectric`, `SolGelProcess`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/si/SiliconDopingProfile.py`, `objects/si/SiliconFETShape.py`, `objects/si/SiliconMOSFET.py`, `objects/si/SolGelDielectric.py`, `objects/si/SolGelProcess.py`, `objects/si/_shared.py`, `objects/si_ladder/SiliconProcessNode.py`, `objects/si_ladder/_shared.py`, `objects/si_refinement/RefinementRoute.py`, `objects/si_refinement/RefinementStep.py`, `objects/si_refinement/SiliconGrade.py`, `objects/si_refinement/_shared.py`
 - **basis** — `si_basis.py`, `si_ladder_basis.py`, `si_refinement_basis.py`
 - **seed** — `sifet_data_seed.py`
 - **page** — `si_page.py`
@@ -17,7 +18,7 @@ Silicon MOSFETs (planar / FinFET) on thermal and SOL-GEL dielectrics sharing the
 - **selftests** — `ladder_selftest.py`, `refinement_selftest.py`, `si_fields_selftest.py`, `si_scene_selftest.py`, `si_sequential_selftest.py`, `si_transport_selftest.py`, `sifet_pages_selftest.py`, `sifet_selftest.py`
 - **initialData/** — module-initial-data/1 rows (non-regenerable data only)
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Pages
 

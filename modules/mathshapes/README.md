@@ -8,16 +8,17 @@ Math-defined shapes (quadric/primitive/CSG), aquaponic towers, CAD import.
 
 `AquaponicTowerAPI`, `AquaponicTowerDefinition`, `CadImportAPI`, `ImportedCadObject`, `MathShapeDefinition`, `MathShapesAPI`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/cad/ImportedCadObject.py`, `objects/shape/MathShapeDefinition.py`, `objects/shape/_shared.py`, `objects/tower/AquaponicTowerDefinition.py`
 - **basis** — `cad_basis.py`, `shape_basis.py`, `tower_basis.py`
 - **api** — `cad_api.py`, `shape_api.py`, `tower_api.py`
 - **seed** — `shape_seed.py`, `tower_seed.py`
 - **remote** — `cad_remote.py`
-- **custom** — `custom/cad_import.py`, `custom/cad_minio.py`, `custom/gear_geometry.py`, `custom/growth_prediction.py`, `custom/pot_scene.py`, `custom/shape_analysis.py`, `custom/shape_equations.py`, `custom/shape_geometry.py`, `custom/shape_modify.py`, `custom/soil_modify.py`, `custom/spool_geometry.py`, `custom/tower_analysis.py`, `custom/winding_geometry.py`
+- **custom** — `custom/cad_import.py`, `custom/cad_minio.py`, `custom/gear_geometry.py`, `custom/growth_prediction.py`, `custom/pot_scene.py`, `custom/shape_analysis.py`, `custom/shape_equations.py`, `custom/shape_geometry.py`, `custom/shape_modify.py`, `custom/soil_modify.py`, `custom/spool_geometry.py`, `custom/tower_analysis.py`, … (1 more)
 - **selftests** — `pot_transparency_selftest.py`, `shape2_selftest.py`, `shape3_selftest.py`, `shape4_selftest.py`, `shape_equations_selftest.py`, `shapes_selftest.py`, `soil_selftest.py`, `winding_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 

@@ -8,14 +8,15 @@ AR-captured 3D zones: planar/hull models, rooms vs selections, cube packing.
 
 `SiteDefinition`, `ZoneDefinition`, `ZoneEstimateRecord`, `ZonePoint`, `ZonesAPI`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/zone/SiteDefinition.py`, `objects/zone/ZoneDefinition.py`, `objects/zone/ZoneEstimateRecord.py`, `objects/zone/ZonePoint.py`, `objects/zone/_shared.py`
 - **basis** — `zone_basis.py`
 - **api** — `zones_api.py`
 - **custom** — `custom/zone_geometry.py`, `custom/zone_packing.py`, `custom/zone_sim_bridge.py`
 - **selftests** — `zones_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 

@@ -8,15 +8,16 @@ Microchip design-level ladder (device -> cell -> block -> core -> chip) + traver
 
 `DesignLevelDefinition`, `DeviceFamilyDefinition`, `MicrochipAPI`, `MicrochipDesignNode`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/chip/DesignLevelDefinition.py`, `objects/chip/MicrochipDesignNode.py`, `objects/chip/_shared.py`, `objects/chip_families/DeviceFamilyDefinition.py`, `objects/chip_families/_shared.py`
 - **basis** — `chip_basis.py`, `chip_families_basis.py`
 - **api** — `chip_api.py`
 - **page** — `chip_page.py`
 - **custom** — `custom/chip_traverse.py`
 - **selftests** — `families_selftest.py`, `microchip_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Pages
 

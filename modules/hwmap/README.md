@@ -8,15 +8,16 @@ Hardware map: an on-device scanner (usb, pci + IOMMU groups, serial by-id, nics,
 
 `HardwareMapSnapshot`, `HardwarePort`, `HardwareSlot`, `HwmapAPI`, `PassthroughCandidate`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/hwmap/HardwareMapSnapshot.py`, `objects/hwmap/HardwarePort.py`, `objects/hwmap/HardwareSlot.py`, `objects/hwmap/PassthroughCandidate.py`
 - **basis** — `hwmap_basis.py`
 - **api** — `hwmap_api.py`
 - **page** — `hwmap_page.py`
 - **custom** — `custom/mapping.py`, `custom/scanner.py`
 - **selftests** — `hwmap_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Pages
 

@@ -8,14 +8,15 @@ isle-guestnet: an OpenWrt guest (hardware app) serving guest-only WiFi, isolated
 
 `GuestNetworkDefinition`, `GuestNetworkExposure`, `GuestNetworkState`, `IsleGuestnetAPI`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/guestnet/GuestNetworkDefinition.py`, `objects/guestnet/GuestNetworkExposure.py`, `objects/guestnet/GuestNetworkState.py`
 - **basis** — `isle_guestnet_basis.py`
 - **api** — `isle_guestnet_api.py`
 - **page** — `isle_guestnet_page.py`
 - **selftests** — `isle_guestnet_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Pages
 

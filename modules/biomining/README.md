@@ -8,15 +8,16 @@ Bacteria/algae extraction -> product variants.
 
 `BioextractionAgent`, `BiomineAPI`, `BiomineSystemDefinition`, `BiomineralProduct`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/biomining/BioextractionAgent.py`, `objects/biomining/BiomineSystemDefinition.py`, `objects/biomining/BiomineralProduct.py`, `objects/biomining/_shared.py`
 - **basis** — `biomining_basis.py`
 - **api** — `biomining_api.py`
 - **seed** — `alloy_seed.py`, `biomining_seed.py`, `optical_seed.py`
 - **custom** — `custom/biomining_analysis.py`
 - **selftests** — `biomining_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 

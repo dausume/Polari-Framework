@@ -8,15 +8,16 @@
 
 `OrganModel`, `PlantMorphologyAPI`, `RootSystemModel`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/organ/OrganModel.py`, `objects/organ/RootSystemModel.py`, `objects/organ/_shared.py`
 - **basis** — `organ_basis.py`
 - **api** — `morphology_api.py`
 - **seed** — `morphology_seed.py`
 - **custom** — `custom/morphology_analysis.py`
 - **selftests** — `morphology_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 

@@ -8,15 +8,16 @@ Business operations: setup/upgrade flows, local-economy track, order planner wit
 
 `BizOpsAPI`, `BusinessProfile`, `BusinessRiskNote`, `BusinessStageDefinition`, `BusinessUpgradeStep`, `ComplianceRecord`, `ComplianceRequirement`, `LocalEconomyMilestone`, `MarketSessionRecord`, `PartnershipAgreement`, `ProcessWorkflowDefinition`, `ProductOrder`, `ProductionRunRecord`, `QualityCheckDefinition`, `QualityCheckRecord`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/bizops/BusinessProfile.py`, `objects/bizops/BusinessRiskNote.py`, `objects/bizops/BusinessStageDefinition.py`, `objects/bizops/BusinessUpgradeStep.py`, `objects/bizops/ComplianceRecord.py`, `objects/bizops/ComplianceRequirement.py`, `objects/bizops/LocalEconomyMilestone.py`, `objects/bizops/MarketSessionRecord.py`, `objects/bizops/PartnershipAgreement.py`, `objects/bizops/ProcessWorkflowDefinition.py`, `objects/bizops/ProductOrder.py`, `objects/bizops/ProductionRunRecord.py`, … (3 more)
 - **basis** — `bizops_basis.py`
 - **api** — `bizops_api.py`
 - **seed** — `bizops_seed.py`
 - **custom** — `custom/bizops_compliance.py`, `custom/bizops_deals.py`, `custom/bizops_flows.py`, `custom/bizops_guide.py`, `custom/bizops_planner.py`
 - **selftests** — `bizops_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 

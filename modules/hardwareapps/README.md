@@ -8,15 +8,16 @@ Hardware apps as rows: KVM guests the isle defines (relay, guest network, …) a
 
 `HardwareAppDefinition`, `HardwareAppState`, `HardwareAppsAPI`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/hardwareapps/HardwareAppDefinition.py`, `objects/hardwareapps/HardwareAppState.py`
 - **basis** — `hardwareapps_basis.py`
 - **api** — `hardwareapps_api.py`
 - **page** — `hardwareapps_page.py`
 - **custom** — `custom/domain_xml.py`, `custom/uci_profiles.py`
 - **selftests** — `hardwareapps_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Pages
 

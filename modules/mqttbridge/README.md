@@ -8,14 +8,15 @@ MQTT bridge: brokers + topic->object bindings as rows, explicit connect, ingest 
 
 `MqttBridgeAPI`, `MqttBrokerDefinition`, `MqttMessageRecord`, `MqttTopicBinding`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/mqtt/MqttBrokerDefinition.py`, `objects/mqtt/MqttMessageRecord.py`, `objects/mqtt/MqttTopicBinding.py`, `objects/mqtt/_shared.py`
 - **basis** — `mqtt_basis.py`
 - **api** — `mqtt_api.py`
 - **custom** — `custom/mqtt_bridge.py`
 - **selftests** — `mqttbridge_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 

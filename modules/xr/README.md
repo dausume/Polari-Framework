@@ -8,14 +8,15 @@ XR settings cascade + interface variants. Moves in wave 4; core still imports it
 
 `XrAPI`, `XrGlobalSettings`, `XrInterfaceVariant`, `XrTypeDefault`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/xr_settings/XrGlobalSettings.py`, `objects/xr_settings/XrInterfaceVariant.py`, `objects/xr_settings/XrTypeDefault.py`, `objects/xr_settings/_shared.py`
 - **basis** — `xr_settings_basis.py`
 - **api** — `xr_api.py`
 - **custom** — `custom/xr_resolution.py`
 - **selftests** — `xr_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 

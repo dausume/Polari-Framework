@@ -8,15 +8,16 @@
 
 `KirimotoAPI`, `SlicerInstance`, `SlicerProfile`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/kirimoto/SlicerInstance.py`, `objects/kirimoto/SlicerProfile.py`
 - **basis** — `kirimoto_basis.py`
 - **api** — `kirimoto_api.py`
 - **page** — `kirimoto_page.py`
 - **custom** — `custom/build_image.py`
 - **selftests** — `kirimoto_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Pages
 

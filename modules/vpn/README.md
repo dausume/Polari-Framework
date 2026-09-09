@@ -10,8 +10,9 @@ Isle VPN (vpn-1): the isle-vpn app family (Isle Link = WireGuard-based, Isle Bri
 
 `AppVpnExposure`, `VpnAPI`, `VpnAccessRule`, `VpnFederationLink`, `VpnNetwork`, `VpnPeer`, `VpnProposal`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/vpn/AppVpnExposure.py`, `objects/vpn/VpnAccessRule.py`, `objects/vpn/VpnFederationLink.py`, `objects/vpn/VpnNetwork.py`, `objects/vpn/VpnPeer.py`, `objects/vpn/VpnProposal.py`, `objects/vpn/_shared.py`
 - **basis** — `vpn_basis.py`
 - **api** — `vpn_api.py`
 - **seed** — `vpn_seed.py`
@@ -20,7 +21,7 @@ Isle VPN (vpn-1): the isle-vpn app family (Isle Link = WireGuard-based, Isle Bri
 - **custom** — `custom/vpn_constants.py`, `custom/vpn_demo.py`, `custom/vpn_engine.py`, `custom/vpn_proposals.py`, `custom/vpn_trust.py`
 - **selftests** — `vpn_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Pages
 

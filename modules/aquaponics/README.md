@@ -8,16 +8,17 @@ Self-watering pots, FEM hydraulics, vermicompost, per-part plant growth.
 
 `AquaponicsAtmosphereAPI`, `AquaponicsCompostAPI`, `AquaponicsHydraulicsAPI`, `AquaponicsLightFieldAPI`, `AquaponicsMediaAPI`, `AquaponicsPlantAPI`, `AquaponicsPlantGrowthNormalizedAPI`, `AquaponicsPlantGrowthSimplifiedAPI`, `AquaponicsPotAPI`, `AquaponicsSystemAPI`, `AquaponicsWaterBatchAPI`, `AquaponicsWaterLevelAPI`, `AtmosphereDefinition`, `CompostBinDefinition`, `CompostLoopDefinition`, `LightSourceDefinition`, `LightSpectrumDefinition`, `NutrientProfile`, `NutrientSpecies`, `PlantDefinition`, `PlantGrowthModel`, `PlantPart`, `PotDefinition`, `PotHole`, `PotPlanting`, `PotSystemDefinition`, `SoilDefinition`, `StressResponseCurve`, `VermicompostProfile`, `WaterBatchSchedule`, `WaterDefinition`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/atmosphere/AtmosphereDefinition.py`, `objects/growth_media/NutrientProfile.py`, `objects/growth_media/NutrientSpecies.py`, `objects/growth_media/SoilDefinition.py`, `objects/growth_media/WaterDefinition.py`, `objects/growth_media/_shared.py`, `objects/light/LightSourceDefinition.py`, `objects/light/LightSpectrumDefinition.py`, `objects/light/_shared.py`, `objects/plant/PlantDefinition.py`, `objects/plant/PlantPart.py`, `objects/plant/_shared.py`, … (16 more)
 - **basis** — `atmosphere_basis.py`, `growth_media_basis.py`, `light_basis.py`, `plant_basis.py`, `plant_growth_basis.py`, `plant_growth_normalized_basis.py`, `plant_stress_basis.py`, `pot_basis.py`, `pot_system_basis.py`, `vermicompost_basis.py`, `water_batch_basis.py`
 - **api** — `atmosphere_api.py`, `hydraulics_api.py`, `light_field_api.py`, `media_api.py`, `plant_api.py`, `plant_growth_normalized_api.py`, `plant_growth_simplified_api.py`, `pot_api.py`, `pot_system_api.py`, `vermicompost_api.py`, `water_batch_api.py`, `water_level_api.py`
 - **seed** — `atmosphere_seed.py`, `light_seed.py`, `media_seed.py`, `plant_growth_normalized_seed.py`, `plant_growth_seed.py`, `plant_seed.py`, `plant_stress_seed.py`, `pot_materials_seed.py`, `pot_seed.py`, `pot_system_seed.py`, `vermicompost_seed.py`, `water_batch_seed.py`
 - **page** — `aquaponics_page.py`
 - **custom** — `custom/atmosphere_analysis.py`, `custom/hydraulics.py`, `custom/light_field.py`, `custom/media_analysis.py`, `custom/nutrient_uptake.py`, `custom/plant_analysis.py`, `custom/plant_growth_simplified.py`, `custom/plant_skeleton.py`, `custom/pot_geometry.py`, `custom/vermicompost_analysis.py`, `custom/water_level.py`
-- **selftests** — `aquaponics_pages_selftest.py`, `atmosphere_selftest.py`, `growth_media_selftest.py`, `hydraulics_selftest.py`, `light_field_selftest.py`, `plant_growth_normalized_selftest.py`, `plant_growth_simplified_selftest.py`, `plant_selftest.py`, `plant_species_comparison_selftest.py`, `plant_stress_selftest.py`, `plant_transport_selftest.py`, `pot_selftest.py`, `system_selftest.py`, `vermicompost_selftest.py`, `water_batch_selftest.py`, `water_level_selftest.py`
+- **selftests** — `aquaponics_pages_selftest.py`, `atmosphere_selftest.py`, `growth_media_selftest.py`, `hydraulics_selftest.py`, `light_field_selftest.py`, `plant_growth_normalized_selftest.py`, `plant_growth_simplified_selftest.py`, `plant_selftest.py`, `plant_species_comparison_selftest.py`, `plant_stress_selftest.py`, `plant_transport_selftest.py`, `pot_selftest.py`, … (4 more)
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Pages
 

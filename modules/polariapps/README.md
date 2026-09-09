@@ -8,15 +8,16 @@ Polari-Apps: module configurations per use-case, plan-first + exportable.
 
 `AppDeploymentPlan`, `AppPermissionProfile`, `AppsAPI`, `PolariAppDefinition`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/apps/AppDeploymentPlan.py`, `objects/apps/PolariAppDefinition.py`, `objects/apps/_shared.py`, `objects/apps_permissions/AppPermissionProfile.py`, `objects/apps_permissions/_shared.py`
 - **basis** — `apps_basis.py`, `apps_permissions_basis.py`
 - **api** — `apps_api.py`
 - **seed** — `apps_seed.py`
 - **custom** — `custom/apps_analysis.py`, `custom/apps_nav.py`
 - **selftests** — `apps_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 

@@ -8,15 +8,16 @@ Computer parts + builds as tracked data (ai-8): dated part prices, derived build
 
 `ComputerBuildDefinition`, `ComputerPartDefinition`, `ComputerPartsAPI`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/parts/ComputerBuildDefinition.py`, `objects/parts/ComputerPartDefinition.py`, `objects/parts/_shared.py`
 - **basis** — `parts_basis.py`
 - **api** — `parts_api.py`
 - **seed** — `parts_seed.py`
 - **custom** — `custom/parts_assembly.py`
 - **selftests** — `computerparts_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 

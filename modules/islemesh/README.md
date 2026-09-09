@@ -10,8 +10,9 @@ isle-mesh convergence (mac-1): the polari-side acceptor for isle-mesh data — d
 
 `IsleApp`, `IsleAppService`, `IsleCatalogEntry`, `IsleDevice`, `IsleEngine`, `IsleIngestReceipt`, `IsleMeshAPI`, `IsleProtocolPermit`, `IsleUplink`, `MeshAppRealization`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/islemesh/IsleApp.py`, `objects/islemesh/IsleAppService.py`, `objects/islemesh/IsleCatalogEntry.py`, `objects/islemesh/IsleDevice.py`, `objects/islemesh/IsleEngine.py`, `objects/islemesh/IsleIngestReceipt.py`, `objects/islemesh/IsleProtocolPermit.py`, `objects/islemesh/IsleUplink.py`, `objects/islemesh/MeshAppRealization.py`
 - **basis** — `islemesh_basis.py`
 - **api** — `islemesh_api.py`
 - **page** — `islemesh_page.py`
@@ -19,7 +20,7 @@ isle-mesh convergence (mac-1): the polari-side acceptor for isle-mesh data — d
 - **custom** — `custom/islemesh_coherence.py`, `custom/islemesh_constants.py`, `custom/islemesh_engines.py`, `custom/islemesh_mock.py`, `custom/islemesh_netledger.py`, `custom/islemesh_parse.py`
 - **selftests** — `islemesh_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Pages
 

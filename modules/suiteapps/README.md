@@ -8,15 +8,17 @@ Suite apps: purpose-oriented compositions of apps of every kind (Polari modules,
 
 `SuiteAppDefinition`, `SuiteAppsAPI`, `SuiteContract`, `SuitePart`, `SuitePlacement`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/suiteapps/SuiteAppDefinition.py`, `objects/suiteapps/SuiteContract.py`, `objects/suiteapps/SuitePart.py`, `objects/suiteapps/SuitePlacement.py`
 - **basis** — `suiteapps_basis.py`
 - **api** — `suiteapps_api.py`
+- **seed** — `suiteapps_seed.py`
 - **page** — `suiteapps_page.py`
 - **custom** — `custom/placement.py`
 - **selftests** — `suiteapps_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Pages
 

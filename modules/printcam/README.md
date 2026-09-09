@@ -8,15 +8,16 @@ Print camera: a hardware-extension-app of the Voron guest — USB camera passthr
 
 `CameraDefinition`, `PrintcamAPI`, `TimelapseRecord`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/printcam/CameraDefinition.py`, `objects/printcam/TimelapseRecord.py`
 - **basis** — `printcam_basis.py`
 - **api** — `printcam_api.py`
 - **page** — `printcam_page.py`
 - **custom** — `custom/provision.py`
 - **selftests** — `printcam_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Pages
 

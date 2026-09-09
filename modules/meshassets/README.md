@@ -8,15 +8,16 @@ License-GATED external mesh catalog: verified open-source 3D assets as pointers 
 
 `MeshAssetReference`, `MeshAssetSource`, `MeshAssetsAPI`, `OrganMeshChoice`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/mesh_asset/MeshAssetReference.py`, `objects/mesh_asset/MeshAssetSource.py`, `objects/mesh_asset/OrganMeshChoice.py`, `objects/mesh_asset/_shared.py`
 - **basis** — `mesh_asset_basis.py`
 - **api** — `mesh_asset_api.py`
 - **seed** — `mesh_asset_seed.py`
 - **custom** — `custom/mesh_fit.py`
 - **selftests** — `meshassets_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 

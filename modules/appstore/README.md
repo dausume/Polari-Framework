@@ -8,8 +8,9 @@ Polari App Store (appstore-1): installable native shells over the polariapps con
 
 `AiToolDefinition`, `AiToolsAPI`, `AppDebsPage`, `AppEdgeBehavior`, `AppShellDefinition`, `AppStoreAPI`, `DownloadsPage`, `ForkPin`, `OfflinePage`, `PlannerPage`, `RemoteHostingOption`, `ShellArtifact`, `ShellEnrollment`, `ShellInstallation`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/appstore/AppEdgeBehavior.py`, `objects/appstore/AppShellDefinition.py`, `objects/appstore/ShellArtifact.py`, `objects/appstore/ShellEnrollment.py`, `objects/appstore/ShellInstallation.py`, `objects/appstore/_shared.py`, `objects/appstore_ai/AiToolDefinition.py`, `objects/appstore_ai/_shared.py`, `objects/appstore_forks/ForkPin.py`, `objects/appstore_forks/_shared.py`, `objects/appstore_hosting/RemoteHostingOption.py`, `objects/appstore_hosting/_shared.py`
 - **basis** — `appstore_ai_basis.py`, `appstore_basis.py`, `appstore_forks_basis.py`, `appstore_hosting_basis.py`
 - **api** — `appstore_ai_api.py`, `appstore_api.py`, `preview_server_api.py`
 - **seed** — `appstore_seed.py`
@@ -17,7 +18,7 @@ Polari App Store (appstore-1): installable native shells over the polariapps con
 - **custom** — `custom/app_deb_builder.py`, `custom/appstore_minio.py`, `custom/appstore_payloads.py`, `custom/appstore_tokens.py`, `custom/downloads_shared.py`, `custom/module_requirements.py`, `custom/offline_chunker.py`, `custom/shell_project.py`
 - **selftests** — `app_debs_selftest.py`, `appstore_selftest.py`, `downloads_selftest.py`, `module_requirements_selftest.py`, `offline_chunker_selftest.py`, `offline_selftest.py`, `planner_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Pages
 

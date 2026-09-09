@@ -8,14 +8,15 @@ isle-relay: a second OpenWrt guest (hardware app) serving a relay segment that e
 
 `IsleRelayAPI`, `RelayNodeDefinition`, `RelayNodeState`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/relay/RelayNodeDefinition.py`, `objects/relay/RelayNodeState.py`
 - **basis** — `isle_relay_basis.py`
 - **api** — `isle_relay_api.py`
 - **page** — `isle_relay_page.py`
 - **selftests** — `isle_relay_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Pages
 

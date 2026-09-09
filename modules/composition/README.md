@@ -8,15 +8,16 @@ Part composition (PART_ARCHETYPES_PLAN.md): components/interfaces with DERIVED l
 
 `CompositionAPI`, `CompositionNode`, `ConstructionVariantDefinition`, `DesignMatrixDefinition`, `FailureModeDefinition`, `FunctionalPartDefinition`, `InterfaceDefinition`, `PartArchetypeDefinition`, `PartComponentDefinition`, `RoutingDefinition`, `RoutingOperation`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/archetype/PartArchetypeDefinition.py`, `objects/archetype/_shared.py`, `objects/component/PartComponentDefinition.py`, `objects/design_matrix/DesignMatrixDefinition.py`, `objects/design_matrix/_shared.py`, `objects/failure_modes/FailureModeDefinition.py`, `objects/failure_modes/_shared.py`, `objects/functional/ConstructionVariantDefinition.py`, `objects/functional/FunctionalPartDefinition.py`, `objects/functional/_shared.py`, `objects/interface/InterfaceDefinition.py`, `objects/interface/_shared.py`, … (5 more)
 - **basis** — `archetype_basis.py`, `component_basis.py`, `design_matrix_basis.py`, `failure_modes_basis.py`, `functional_basis.py`, `interface_basis.py`, `node_basis.py`, `routing_basis.py`
 - **api** — `composition_api.py`
 - **seed** — `composition_seed.py`
 - **custom** — `custom/data_refs.py`, `custom/fill_models.py`, `custom/part_roles.py`, `custom/realization.py`, `custom/seed_upsert.py`
 - **selftests** — `composition_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 

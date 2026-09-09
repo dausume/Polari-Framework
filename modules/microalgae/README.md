@@ -8,15 +8,16 @@ Photobioreactor decarbonization route.
 
 `AlgaeReactorDefinition`, `AlgaeStrain`, `IntegratedLoopDefinition`, `MicroalgaeReactorAPI`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/integrated/IntegratedLoopDefinition.py`, `objects/integrated/_shared.py`, `objects/reactor/AlgaeReactorDefinition.py`, `objects/reactor/AlgaeStrain.py`, `objects/reactor/_shared.py`
 - **basis** — `integrated_basis.py`, `reactor_basis.py`
 - **api** — `reactor_api.py`
 - **seed** — `integrated_seed.py`, `reactor_seed.py`
 - **custom** — `custom/integrated_analysis.py`, `custom/reactor_analysis.py`
 - **selftests** — `integrated_selftest.py`, `reactor_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 

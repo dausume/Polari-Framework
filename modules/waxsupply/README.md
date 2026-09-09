@@ -8,15 +8,16 @@ Bio wax sources for molds and electronic masks.
 
 `WaxSourceDefinition`, `WaxSupplyAPI`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/wax/WaxSourceDefinition.py`, `objects/wax/_shared.py`
 - **basis** — `wax_basis.py`
 - **api** — `wax_api.py`
 - **seed** — `wax_seed.py`
 - **custom** — `custom/wax_analysis.py`
 - **selftests** — `wax_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 

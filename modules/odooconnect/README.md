@@ -8,21 +8,22 @@ Odoo ERP connector: JSON-RPC client with sim/ops write guards, instance configs,
 
 `BusinessScenarioDefinition`, `OdooConnectAPI`, `OdooInstanceConfig`, `OdooModelBinding`, `OdooSyncReceipt`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
-- **basis** — `odoo_basis.py`
+- **objects** — `objects/odoo/OdooInstanceConfig.py`, `objects/odoo/_shared.py`, `objects/odoo_bindings/OdooModelBinding.py`, `objects/odoo_bindings/OdooSyncReceipt.py`, `objects/odoo_bindings/_shared.py`, `objects/odoo_scenarios/BusinessScenarioDefinition.py`, `objects/odoo_scenarios/_shared.py`
+- **basis** — `odoo_basis.py`, `odoo_bindings_basis.py`, `odoo_scenarios_basis.py`
 - **api** — `odoo_api.py`
 - **seed** — `odoo_seed.py`
-- **selftests** — `selftest_odoo.py`, `selftest_odoo_orders.py`, `selftest_odoo_scenarios.py`, `selftest_odoo_sync.py`
-- **other** — `odoo_analysis.py`, `odoo_bindings.py`, `odoo_client.py`, `odoo_orders.py`, `odoo_scenario_engine.py`, `odoo_scenarios.py`, `odoo_sync.py`, `stub_odoo.py`
+- **custom** — `custom/odoo_analysis.py`, `custom/odoo_client.py`, `custom/odoo_orders.py`, `custom/odoo_scenario_engine.py`, `custom/odoo_sync.py`, `custom/stub_odoo.py`
+- **selftests** — `odoo_orders_selftest.py`, `odoo_scenarios_selftest.py`, `odoo_selftest.py`, `odoo_sync_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 
 ```
 pol modules selftest odooconnect        # in the running backend
-PYTHONPATH=.:modules python3 -m odooconnect.odoo_selftest   # on the host, from polari-framework/
+PYTHONPATH=.:modules python3 -m odooconnect.odoo_orders_selftest   # on the host, from polari-framework/
 ```
 
 Conformance: `pol modules conform odooconnect`

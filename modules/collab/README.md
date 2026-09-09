@@ -8,15 +8,16 @@ Collaboration sessions (mtg-2, LIVEKIT_COLLABORATION_PLAN v2): one session objec
 
 `AvatarDefinition`, `CollabAPI`, `CollaborationSession`, `MeetingRecord`
 
-## Layout (the Standardized Polari App, postfix names)
+## Layout (the Standardized Polari App — see modules/README.md for what each entry means)
 
+- **objects** — `objects/avatar/AvatarDefinition.py`, `objects/avatar/_shared.py`, `objects/collab/CollaborationSession.py`, `objects/collab/MeetingRecord.py`, `objects/collab/_shared.py`
 - **basis** — `avatar_basis.py`, `collab_basis.py`
 - **api** — `collab_api.py`
 - **remote** — `livekit_remote.py`
 - **custom** — `custom/realtime_schemas.py`
 - **selftests** — `collab_selftest.py`
 
-`polari-app.json` is the manifest the core reads; `custom/` holds code that fits no concept file.
+`polari-app.json` is the manifest the core reads; `objects/` holds one class per file; `custom/` holds code that fits no concept file.
 
 ## Selftest
 
