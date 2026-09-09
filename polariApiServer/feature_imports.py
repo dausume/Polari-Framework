@@ -1197,7 +1197,7 @@ FEATURE_IMPORT_BLOCKS = (
     )),
     ('suiteapps', (
         ('suiteapps.suiteapps_basis', (
-            'SuiteAppDefinition', 'SuitePart', 'SuiteContract', 'SuitePlacement', 'SUITEAPPS_SEED_PAIRS',
+            'SuiteAppDefinition', 'SuitePart', 'SuiteContract', 'SuitePlacement', 'SUITEAPPS_SEED_PAIRS', 'SEED_SUITE_CATALOG',
         )),
         ('suiteapps.suiteapps_page', (
             'SEED_SUITEAPPS_PAGE_DISPLAYS',

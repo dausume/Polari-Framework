@@ -117,3 +117,42 @@ SEED_SUITE_CONTRACTS = [
     _contract('ai-assistant', 'tool', 'AiToolDefinition', 'appstore', 'tools', 'localai', 'which tool a model may call, with its knob'),
     _contract('ai-assistant', 'app', 'PolariAppDefinition', 'polariapps', 'apps', 'tools', 'the assistant\'s app rows (pages, nav)'),
 ]
+
+
+def _store(name, title, image, port, domain, description, category, provides_engine='', service='', published=True, notes='', kind='mesh-app'):
+    return {'name': name, 'title': title, 'kind': kind, 'category': category, 'description': description,
+            'source_ref': image, 'service': service or name, 'port': port, 'domain': domain, 'provides_engine': provides_engine,
+            'published': published, 'notes': notes}
+
+
+#: store rows for the container parts of the prior suites (his go 2026-09-09) — images/ports from the compose roles they came from;
+#: `isle app deploy <name> --image <ref> --service <svc> --port <p> --domain <d> [--engine <kind>]` is the plan for each
+SEED_SUITE_CATALOG = [
+    _store('pol-reticulum', 'Reticulum sidecar', 'pol-reticulum:staging', 4285, 'reticulum.isle',
+           'The pinned MIT Reticulum stack (dausume forks) as a sidecar: TCP bearer 4242, /status 4285, LXMF messaging. The archipelago suite\'s transport.',
+           'network', provides_engine='reticulum.mesh', notes='compose role reticulum (docker-compose.reticulum.yml); bearer port 4242 must also be published'),
+    _store('msci-engines', 'Materials-science engines', 'prf-msci-engines:staging', 9500, 'msci.isle',
+           'The materials-science compute worker (DFT/percolation/SPICE ladder) the materials modules resolve through their *_remote ladders.',
+           'engines', provides_engine='msci', notes='compose role msci-engines; SPICE stays on isle-core (his rule 2026-08-31)'),
+    _store('cad-engines', 'CAD engines', 'prf-cad-engines:staging', 9600, 'cad.isle',
+           'The CAD import/export worker (STEP/STL) mathshapes resolves through cad_remote.', 'engines', provides_engine='cad', notes='compose role cad-engines'),
+    _store('cnt-engines', 'CNT FET engines', 'prf-cnt-engines:staging', 9700, 'cnt.isle',
+           'The CNT/FET simulation worker the cntfet + sifet modules call.', 'engines', provides_engine='cnt', notes='compose role cnt-engines'),
+    _store('dask', 'Dask distributed compute', 'prf-backend:staging', 8786, 'dask.isle',
+           'A dask scheduler + workers on the backend image (twins, cross-instance sims).', 'engines', provides_engine='dask', service='dask-scheduler',
+           notes='compose role dask (scheduler + two workers) — a multi-service compose, deploy with --compose polari-rf-node/docker-compose.dask.yml'),
+    _store('pol-livekit', 'LiveKit media server', 'livekit/livekit-server:v1.9.12', 7880, 'meet.isle',
+           'The meetings media server (signalling 7880, ICE-TCP 7881); TLS at the proxy; the collab module\'s engine.', 'collaboration', provides_engine='livekit',
+           notes='compose role livekit; lan_ip() for its advertised address (hostname -I lists docker bridges first)'),
+    _store('pol-odoo', 'Odoo (business ops)', 'pol-odoo:staging', 8069, 'odoo.isle',
+           'Odoo + its Postgres (pol-odoo-postgres) — the business backbone on econ-core; odooconnect binds it into Polari.', 'business', provides_engine='business-ops',
+           notes='compose profile odoo in the suite compose (pol odoo up); two services — deploy with --compose'),
+    _store('localai', 'LocalAI (self-hosted models)', 'ghcr.io/dausume/localai:<PIN ME>', 8080, 'ai.isle',
+           'The MIT LocalAI fork as an OpenAI-compatible engine for the assistant (reasoning/voice/embeddings), offline once models are cached.', 'ai',
+           provides_engine='reasoning', published=False, notes='unpublished until the dausume/LocalAI image is pinned (LocalAI gate: MIT)'),
+    _store('political-scorecard-frontend', 'Democratic Scorecard (web)', 'psc-frontend:latest', 4200, 'scorecard.isle',
+           'The scorecard\'s Angular frontend (political-scorecard-node).', 'policy', notes='built by political-scorecard-node/docker-compose.yml; multi-service — deploy with --compose'),
+    _store('political-scorecard-backend', 'Democratic Scorecard (API)', 'psc-backend:latest', 8080, 'api.scorecard.isle',
+           'The scorecard\'s Java/Spring backend with its MariaDB, KeyDB, Keycloak and proxy; a client of Polari scoring via the psc-a instance.', 'policy',
+           notes='published on the host as 8580:8080 in the project compose; deploy with --compose'),
+]

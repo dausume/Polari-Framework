@@ -49,6 +49,18 @@ def main():
     check('every contract names a class its owning module really has', not bad, str(bad))
     check('same-as parts follow a part in the same suite', all(any(q['name'] == p['same_as'] for q in SEED_SUITE_PARTS) for p in SEED_SUITE_PARTS if p['placement'] == 'same-as'))
     check('node parts name a node', all(p['node'] for p in SEED_SUITE_PARTS if p['placement'] == 'node'))
+    from suiteapps.suiteapps_seed import SEED_SUITE_CATALOG
+    from islemesh.islemesh_catalog import install_plan
+    store = {e['name'] for e in SEED_SUITE_CATALOG}
+    from voron.voron_basis import SEED_VORON_CATALOG
+    from kirimoto.kirimoto_basis import SEED_KIRIMOTO_CATALOG
+    from isle_relay.isle_relay_basis import SEED_RELAY_CATALOG
+    store |= {e['name'] for e in SEED_VORON_CATALOG + SEED_KIRIMOTO_CATALOG + SEED_RELAY_CATALOG}
+    missing = [p['app'] for p in SEED_SUITE_PARTS if p['kind'] in ('isle-app', 'hardware-app') and p['app'] not in store]
+    check('every container/hardware part of the prior suites has a store row', not missing, str(missing))
+    plans = [install_plan(e) for e in SEED_SUITE_CATALOG]
+    check('every store row yields an isle app deploy plan with image + port + domain', all(pl['ok'] and any('isle app deploy' in st for st in pl['steps']) for pl in plans))
+    check('unpinned images are unpublished (localai)', not next(e for e in SEED_SUITE_CATALOG if e['name'] == 'localai')['published'])
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

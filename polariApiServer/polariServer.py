@@ -2611,7 +2611,9 @@ class polariServer(treeObject):
              (SEED_VPN_CATALOG or [])
              # hw-app-1: the relay + guest-network guests as store rows (kind hardware-app)
              + (SEED_RELAY_CATALOG or []) + (SEED_GUESTNET_CATALOG or [])
-             + (SEED_VORON_CATALOG or []) + (SEED_KIRIMOTO_CATALOG or []) + (SEED_PRINTCAM_CATALOG or [])),
+             + (SEED_VORON_CATALOG or []) + (SEED_KIRIMOTO_CATALOG or []) + (SEED_PRINTCAM_CATALOG or [])
+             # sa-3: the prior suites' container parts as store rows
+             + (SEED_SUITE_CATALOG or [])),
             *(VPN_SEED_PAIRS or []),
             # mqtt-1: brokers before the bindings that name them.
             ('MqttBrokerDefinition', MqttBrokerDefinition,
