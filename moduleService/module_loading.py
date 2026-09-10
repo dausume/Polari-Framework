@@ -42,7 +42,7 @@ FEATURE_MODULES = frozenset({
     'hwfpga', 'islemesh', 'magnetics', 'mathshapes', 'mealoptions', 'meshassets',
     'microalgae', 'microchip', 'motors', 'mqttbridge', 'nutrition', 'odooconnect',
     'plant_morphology', 'polariapps', 'reticulum', 'scoring', 'supplychain',
-    'tanks', 'techtree', 'testing', 'vpn', 'waxprint', 'waxsupply',
+    'tanks', 'techtree', 'terms', 'testing', 'vpn', 'waxprint', 'waxsupply',
     'zones',
 })
 

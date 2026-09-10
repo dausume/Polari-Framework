@@ -579,6 +579,14 @@
         "scoring"
       ],
       "description": "AR-captured 3D zones: planar/hull models, rooms vs selections, cube packing."
+    },
+    "terms": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/terms",
+      "repo": "",
+      "requires": [],
+      "description": "Terms of service: versioned documents (global or per app) and the append-only acceptance ledger"
     }
   }
 }

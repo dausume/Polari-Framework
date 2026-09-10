@@ -1223,6 +1223,17 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_KIRIMOTO_PAGE_DISPLAYS',
         )),
     )),
+    ('terms', (
+        ('terms.terms_basis', (
+            'TermsDocument', 'TermsAcceptance', 'TERMS_CLASSES',
+        )),
+        ('terms.terms_seed', (
+            'TERMS_SEED_PAIRS',
+        )),
+        ('terms.terms_page', (
+            'SEED_TERMS_PAGE_DISPLAYS',
+        )),
+    )),
     ('printcam', (
         ('printcam.printcam_basis', (
             'CameraDefinition', 'TimelapseRecord', 'PRINTCAM_SEED_PAIRS', 'SEED_PRINTCAM_HARDWARE_APPS', 'SEED_PRINTCAM_CATALOG',
