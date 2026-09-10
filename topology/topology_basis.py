@@ -73,6 +73,9 @@ class PolariNodeMachine(treeObject):
         roles_json: str = '[]',
         # SWARM_ROLES entry: docker-swarm membership of this machine.
         swarm_role: str = 'none',
+        # dt-1: the device tier this machine qualifies for / is assigned
+        # (reach | member | hardware | core) — set by `pol deploy tier`.
+        tier: str = 'member',
         # Where the public repo lives on the target.
         repo_dir: str = '~/polari-suite',
         # Where this row came from ('nodes.yml', 'manual', 'observed').
@@ -97,6 +100,7 @@ class PolariNodeMachine(treeObject):
         self.system_info_url = system_info_url
         self.roles_json = roles_json
         self.swarm_role = swarm_role
+        self.tier = tier
         self.repo_dir = repo_dir
         self.source = source
         self.notes = notes

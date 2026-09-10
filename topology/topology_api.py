@@ -762,7 +762,7 @@ class TopologyAPI(treeObject):
                        'swarm_role', 'repo_dir', 'source', 'notes',
                        # res-1 knob: where the node's /system-info
                        # answers (observed fields are NOT upsertable
-                       # here — they come from the observe paths).
+                       # here — they come from the observe paths 'tier',).
                        'system_info_url')
     _INSTANCE_FIELDS = ('kind', 'service_kinds_json', 'replicas',
                         'env_tier', 'machine_name',
