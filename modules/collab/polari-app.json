@@ -1,0 +1,93 @@
+{
+ "schema": "polari-app/1",
+ "id": "collab",
+ "package": "collab",
+ "title": "Collab",
+ "description": "Collaboration sessions (mtg-2, LIVEKIT_COLLABORATION_PLAN v2): one session object, many client surfaces (browser meeting, sim-side voice, VR). CollaborationSession + MeetingRecord rows; KC-verified callers mint short-lived LiveKit JWTs (pure-stdlib HS256 — no SDK); capability/join-info with the *_remote refusal ladder. THE LINE: nothing arriving over LiveKit mutates Polari state. Second module born manifest-first on dyn-1.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 8,
+ "repo": "",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/avatar/AvatarDefinition",
+   "objects/avatar/_shared",
+   "objects/collab/CollaborationSession",
+   "objects/collab/MeetingRecord",
+   "objects/collab/_shared"
+  ],
+  "basis": [
+   "avatar_basis",
+   "collab_basis"
+  ],
+  "api": [
+   "collab_api"
+  ],
+  "remote": [
+   "livekit_remote"
+  ],
+  "selftests": [
+   "collab_selftest"
+  ],
+  "custom": [
+   "custom/realtime_schemas"
+  ]
+ },
+ "classes": [
+  "AvatarDefinition",
+  "CollabAPI",
+  "CollaborationSession",
+  "MeetingRecord"
+ ],
+ "imports": [
+  [
+   "collab.collab_basis",
+   [
+    "CollaborationSession",
+    "MeetingRecord"
+   ]
+  ],
+  [
+   "collab.avatar_basis",
+   [
+    "AvatarDefinition",
+    "SEED_AVATARS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_collab_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "collab_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

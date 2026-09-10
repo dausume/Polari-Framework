@@ -1,0 +1,92 @@
+{
+ "schema": "polari-app/1",
+ "id": "zones",
+ "package": "zones",
+ "title": "Zones",
+ "description": "AR-captured 3D zones: planar/hull models, rooms vs selections, cube packing.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 4,
+ "repo": "https://github.com/dausume/polari-module-zones.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "scoring"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/zone/SiteDefinition",
+   "objects/zone/ZoneDefinition",
+   "objects/zone/ZoneEstimateRecord",
+   "objects/zone/ZonePoint",
+   "objects/zone/_shared"
+  ],
+  "basis": [
+   "zone_basis"
+  ],
+  "api": [
+   "zones_api"
+  ],
+  "selftests": [
+   "zones_selftest"
+  ],
+  "custom": [
+   "custom/zone_geometry",
+   "custom/zone_packing",
+   "custom/zone_sim_bridge"
+  ]
+ },
+ "classes": [
+  "SiteDefinition",
+  "ZoneDefinition",
+  "ZoneEstimateRecord",
+  "ZonePoint",
+  "ZonesAPI"
+ ],
+ "imports": [
+  [
+   "zones.zone_basis",
+   [
+    "SEED_SITES",
+    "SEED_ZONE_POINTS",
+    "SEED_ZONES",
+    "SiteDefinition",
+    "ZoneDefinition",
+    "ZoneEstimateRecord",
+    "ZonePoint"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_zones_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "zones_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

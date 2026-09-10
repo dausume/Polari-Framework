@@ -1,0 +1,100 @@
+{
+ "schema": "polari-app/1",
+ "id": "voron",
+ "package": "voron",
+ "title": "Voron",
+ "description": "Voron 3D printer as a hardware app: Klipper + Moonraker + Mainsail in a Debian KVM guest with the printer boards passed through (mode real) or Klipper's linux host MCU with no printer (mode sim — no motion physics).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 8,
+ "repo": "",
+ "app": {
+  "kind": "hardware-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "hardware"
+ },
+ "requires": {
+  "modules": [
+   "hardwareapps",
+   "islemesh"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/voron/PrinterBoard",
+   "objects/voron/PrinterDefinition",
+   "objects/voron/PrinterState"
+  ],
+  "basis": [
+   "voron_basis"
+  ],
+  "api": [
+   "voron_api"
+  ],
+  "page": [
+   "voron_page"
+  ],
+  "selftests": [
+   "voron_selftest"
+  ],
+  "custom": [
+   "custom/board_pins",
+   "custom/printer_cfg",
+   "custom/provision"
+  ]
+ },
+ "classes": [
+  "PrinterBoard",
+  "PrinterDefinition",
+  "PrinterState",
+  "VoronAPI"
+ ],
+ "imports": [
+  [
+   "voron.voron_basis",
+   [
+    "PrinterDefinition",
+    "PrinterBoard",
+    "PrinterState",
+    "VORON_SEED_PAIRS",
+    "SEED_VORON_HARDWARE_APPS",
+    "SEED_VORON_CATALOG"
+   ]
+  ],
+  [
+   "voron.voron_page",
+   [
+    "SEED_VORON_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_voron_endpoints",
+ "seedPairs": "voron.voron_basis:VORON_SEED_PAIRS",
+ "pages": [
+  "voron.voron_page:SEED_VORON_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "voron_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

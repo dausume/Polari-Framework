@@ -43,6 +43,34 @@ CONCEPTS = ('objects', 'basis', 'api', 'endpoints', 'seed', 'page', 'catalog',
 #: instance), isle-app (a container app deployed on the isle), hardware-app
 #: (a QEMU/KVM guest owning hardware; POLARI_TREE_PLAN / STANDARD_POLARI_APP §3).
 APP_KINDS = ('library', 'polari-app', 'isle-app', 'hardware-app', 'hardware-extension-app', 'suite-app')
+
+# sec-3: the security stanza vocabulary (mirrors os-security/render.py; conform refuses anything else)
+SECURITY_PROFILES = ('web-app', 'worker', 'gateway', 'vpn-gateway', 'hardware-extension')
+SECURITY_NETWORKS = ('isle', 'internet', 'none')
+SECURITY_CAPS = ('NET_ADMIN', 'NET_BIND_SERVICE', 'CHOWN', 'SETUID', 'SETGID', 'DAC_READ_SEARCH')
+SECURITY_DEFAULT = {'profile': 'web-app', 'writable': ['/data'], 'network': ['isle'], 'capabilities': [], 'devices': [], 'ports': []}
+
+
+def security_findings(sec):
+    """Conform findings for a manifest's security stanza ([] = fine)."""
+    out = []
+    if not isinstance(sec, dict):
+        return ['security stanza missing (pol modules manifests generate adds the deny-all default)']
+    if sec.get('profile') not in SECURITY_PROFILES:
+        out.append('security.profile %r not in %s' % (sec.get('profile'), SECURITY_PROFILES))
+    for n in sec.get('network') or []:
+        if n not in SECURITY_NETWORKS:
+            out.append('security.network %r not in %s' % (n, SECURITY_NETWORKS))
+    for c in sec.get('capabilities') or []:
+        if c not in SECURITY_CAPS:
+            out.append('security.capabilities %r not in the allow-list %s' % (c, SECURITY_CAPS))
+    for w in sec.get('writable') or []:
+        if not str(w).startswith('/') or w in ('/', '/etc', '/usr', '/bin', '/sbin', '/lib', '/boot', '/root', '/home', '/proc', '/sys', '/dev'):
+            out.append('security.writable %r refused (absolute path inside the app tree only)' % w)
+    if (sec.get('devices') or []) and sec.get('profile') != 'hardware-extension':
+        out.append('security.devices only for profile hardware-extension')
+    return out
+
 #: suite-app (Dustin 2026-09-08, "overarching purpose oriented apps … an amalgam of apps … foundationally
 #: too big for one computer"): a purpose-oriented COMPOSITION of apps of any kind, placed across devices
 #: by the coverage planner's budget + nodes, with the object contracts its parts pass through Polari.
@@ -314,6 +342,8 @@ def generate(pkg, tables=None, registry=None):
         'derivedSeeds': mid in tables['derived'],
         'initialData': os.path.isdir(os.path.join(d, 'initialData')),
         'selftests': files['selftests'],
+        # sec-3: what the app may touch (os-security renders AppArmor/seccomp from it); deny-all default
+        'security': dict(SECURITY_DEFAULT),
         'featureModule': mid in tables['feature_modules'],
         'coreRequired': mid in tables['core_required'] or bool(entry.get('required_by_core')),
         'legacyDynamicModule': os.path.isfile(os.path.join(d, '_module_metadata.json'))
@@ -327,6 +357,9 @@ def _preserve_hand_set(pkg, manifest):
     agentTier), title, description and version survive regeneration."""
     old = load(pkg)
     if old:
+        # sec-3: a hand-tuned security stanza survives regeneration (the default is deny-all)
+        if isinstance(old.get('security'), dict):
+            manifest['security'] = old['security']
         for k in ('title', 'description', 'version', 'repo'):
             if old.get(k):
                 manifest[k] = old[k]
@@ -412,6 +445,7 @@ def conform(pkg, tables=None, registry=None):
             findings.append('%s drift vs the core tables' % key)
     if fresh and sorted(fresh['requires']['modules']) != sorted(m.get('requires', {}).get('modules', [])):
         findings.append('requires.modules drift vs registry/FEATURE_REQUIRES')
+    findings.extend(security_findings(m.get('security')))
     if not m.get('selftests'):
         findings.append('no <topic>_selftest.py (the standard requires one)')
     for sub in stray_subdirs(d):

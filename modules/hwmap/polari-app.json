@@ -1,0 +1,100 @@
+{
+ "schema": "polari-app/1",
+ "id": "hwmap",
+ "package": "hwmap",
+ "title": "Hwmap",
+ "description": "Hardware map: an on-device scanner (usb, pci + IOMMU groups, serial by-id, nics, kvm/libvirt facts) pushes a snapshot; Polari keeps ports and slots as rows and answers what can be mapped to a potential KVM (usb hostdev, pci vfio, nic macvtap) with reasons, and which hardware apps each port satisfies (hwm-1, 2026-09-08).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": null,
+ "repo": "",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "hardwareapps",
+   "islemesh"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/hwmap/HardwareMapSnapshot",
+   "objects/hwmap/HardwarePort",
+   "objects/hwmap/HardwareSlot",
+   "objects/hwmap/PassthroughCandidate"
+  ],
+  "basis": [
+   "hwmap_basis"
+  ],
+  "api": [
+   "hwmap_api"
+  ],
+  "page": [
+   "hwmap_page"
+  ],
+  "selftests": [
+   "hwmap_selftest"
+  ],
+  "custom": [
+   "custom/mapping",
+   "custom/scanner"
+  ]
+ },
+ "classes": [
+  "HardwareMapSnapshot",
+  "HardwarePort",
+  "HardwareSlot",
+  "HwmapAPI",
+  "PassthroughCandidate"
+ ],
+ "imports": [
+  [
+   "hwmap.hwmap_basis",
+   [
+    "HardwareMapSnapshot",
+    "HardwarePort",
+    "HardwareSlot",
+    "PassthroughCandidate",
+    "HWMAP_SEED_PAIRS"
+   ]
+  ],
+  [
+   "hwmap.hwmap_page",
+   [
+    "SEED_HWMAP_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_hwmap_endpoints",
+ "seedPairs": "hwmap.hwmap_basis:HWMAP_SEED_PAIRS",
+ "pages": [
+  "hwmap.hwmap_page:SEED_HWMAP_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "hwmap_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

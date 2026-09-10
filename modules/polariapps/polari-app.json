@@ -1,0 +1,100 @@
+{
+ "schema": "polari-app/1",
+ "id": "polariapps",
+ "package": "polariapps",
+ "title": "Polariapps",
+ "description": "Polari-Apps: module configurations per use-case, plan-first + exportable.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 6,
+ "repo": "https://github.com/dausume/polari-module-polariapps.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/apps/AppDeploymentPlan",
+   "objects/apps/PolariAppDefinition",
+   "objects/apps/_shared",
+   "objects/apps_permissions/AppPermissionProfile",
+   "objects/apps_permissions/_shared"
+  ],
+  "basis": [
+   "apps_basis",
+   "apps_permissions_basis"
+  ],
+  "api": [
+   "apps_api"
+  ],
+  "seed": [
+   "apps_seed"
+  ],
+  "selftests": [
+   "apps_selftest"
+  ],
+  "custom": [
+   "custom/apps_analysis",
+   "custom/apps_nav"
+  ]
+ },
+ "classes": [
+  "AppDeploymentPlan",
+  "AppPermissionProfile",
+  "AppsAPI",
+  "PolariAppDefinition"
+ ],
+ "imports": [
+  [
+   "polariapps.apps_basis",
+   [
+    "AppDeploymentPlan",
+    "PolariAppDefinition"
+   ]
+  ],
+  [
+   "polariapps.apps_seed",
+   [
+    "SEED_POLARI_APPS"
+   ]
+  ],
+  [
+   "polariapps.apps_permissions_basis",
+   [
+    "AppPermissionProfile",
+    "SEED_PERMISSION_PROFILES"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_polariapps_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "apps_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

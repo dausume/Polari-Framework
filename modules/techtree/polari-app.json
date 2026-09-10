@@ -1,0 +1,123 @@
+{
+ "schema": "polari-app/1",
+ "id": "techtree",
+ "package": "techtree",
+ "title": "Techtree",
+ "description": "Tech trees with theory/real/business/politics segments; OSEB baseline rollup.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 6,
+ "repo": "https://github.com/dausume/polari-module-techtree.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/techtree/TechDependencyEdge",
+   "objects/techtree/TechNode",
+   "objects/techtree/TechSegment",
+   "objects/techtree/TechSegmentAssignment",
+   "objects/techtree/TechTreeDefinition",
+   "objects/techtree/_shared",
+   "objects/techtree_content/BusinessModelDefinition",
+   "objects/techtree_content/BusinessOutcome",
+   "objects/techtree_content/PolicyDefinition",
+   "objects/techtree_content/RealArtifact",
+   "objects/techtree_content/_shared"
+  ],
+  "basis": [
+   "techtree_basis",
+   "techtree_content_basis"
+  ],
+  "api": [
+   "techtree_api"
+  ],
+  "seed": [
+   "techtree_seed"
+  ],
+  "selftests": [
+   "techtree_selftest"
+  ],
+  "custom": [
+   "custom/techtree_analysis",
+   "custom/wire_ladder"
+  ]
+ },
+ "classes": [
+  "BusinessModelDefinition",
+  "BusinessOutcome",
+  "PolicyDefinition",
+  "RealArtifact",
+  "TechDependencyEdge",
+  "TechNode",
+  "TechSegment",
+  "TechSegmentAssignment",
+  "TechTreeAPI",
+  "TechTreeDefinition"
+ ],
+ "imports": [
+  [
+   "techtree.techtree_basis",
+   [
+    "TechDependencyEdge",
+    "TechNode",
+    "TechSegment",
+    "TechSegmentAssignment",
+    "TechTreeDefinition"
+   ]
+  ],
+  [
+   "techtree.techtree_content_basis",
+   [
+    "BusinessModelDefinition",
+    "BusinessOutcome",
+    "PolicyDefinition",
+    "RealArtifact"
+   ]
+  ],
+  [
+   "techtree.techtree_seed",
+   [
+    "SEED_BUSINESS_MODELS",
+    "SEED_OSEB_POLARI_MODULES",
+    "SEED_POLICY_DEFINITIONS",
+    "SEED_REAL_ARTIFACTS",
+    "SEED_TECH_NODES",
+    "SEED_TECH_SEGMENT_ASSIGNMENTS",
+    "SEED_TECH_TREE_DEFINITIONS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_techtree_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "techtree_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

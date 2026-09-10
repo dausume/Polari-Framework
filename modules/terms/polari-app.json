@@ -1,0 +1,97 @@
+{
+ "schema": "polari-app/1",
+ "id": "terms",
+ "package": "terms",
+ "title": "Terms",
+ "description": "Terms of service: versioned documents (global or per app) and the append-only acceptance ledger",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": null,
+ "repo": "",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/terms/TermsAcceptance",
+   "objects/terms/TermsDocument",
+   "objects/terms/_shared"
+  ],
+  "basis": [
+   "terms_basis"
+  ],
+  "api": [
+   "terms_api"
+  ],
+  "seed": [
+   "terms_seed"
+  ],
+  "page": [
+   "terms_page"
+  ],
+  "selftests": [
+   "terms_selftest"
+  ]
+ },
+ "classes": [
+  "TermsAPI",
+  "TermsAcceptance",
+  "TermsDocument"
+ ],
+ "imports": [
+  [
+   "terms.terms_basis",
+   [
+    "TermsDocument",
+    "TermsAcceptance",
+    "TERMS_CLASSES"
+   ]
+  ],
+  [
+   "terms.terms_seed",
+   [
+    "TERMS_SEED_PAIRS"
+   ]
+  ],
+  [
+   "terms.terms_page",
+   [
+    "SEED_TERMS_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_terms_endpoints",
+ "seedPairs": "terms.terms_seed:TERMS_SEED_PAIRS",
+ "pages": [
+  "terms.terms_page:SEED_TERMS_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "terms_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

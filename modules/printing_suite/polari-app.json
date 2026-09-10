@@ -1,0 +1,118 @@
+{
+ "schema": "polari-app/1",
+ "id": "printing_suite",
+ "package": "printing_suite",
+ "title": "Printing Suite",
+ "description": "@module printing_suite",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 8,
+ "repo": "",
+ "app": {
+  "kind": "suite-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "hardwareapps",
+   "islemesh",
+   "suiteapps"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/printing/GcodeArtifact",
+   "objects/printing/MaterialLot",
+   "objects/printing/PrintJob",
+   "objects/printing/PrintOutcome",
+   "objects/printing/PrintProfile",
+   "objects/printing/ProductionRun",
+   "objects/printing/RunStepRecord",
+   "objects/printing/SliceJob"
+  ],
+  "basis": [
+   "printing_suite_basis"
+  ],
+  "api": [
+   "printing_suite_api"
+  ],
+  "page": [
+   "printing_suite_page"
+  ],
+  "selftests": [
+   "pipeline_selftest",
+   "printing_suite_selftest"
+  ],
+  "custom": [
+   "custom/adapters",
+   "custom/pipeline"
+  ]
+ },
+ "classes": [
+  "GcodeArtifact",
+  "MaterialLot",
+  "PrintJob",
+  "PrintOutcome",
+  "PrintProfile",
+  "PrintingSuiteAPI",
+  "ProductionRun",
+  "RunStepRecord",
+  "SliceJob"
+ ],
+ "imports": [
+  [
+   "printing_suite.printing_suite_basis",
+   [
+    "MaterialLot",
+    "PrintProfile",
+    "SliceJob",
+    "GcodeArtifact",
+    "PrintJob",
+    "PrintOutcome",
+    "ProductionRun",
+    "RunStepRecord",
+    "PRINTING_SUITE_SEED_PAIRS",
+    "SEED_PRINTING_SUITES",
+    "SEED_PRINTING_PARTS",
+    "SEED_PRINTING_CONTRACTS"
+   ]
+  ],
+  [
+   "printing_suite.printing_suite_page",
+   [
+    "SEED_PRINTING_SUITE_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_printing_suite_endpoints",
+ "seedPairs": "printing_suite.printing_suite_basis:PRINTING_SUITE_SEED_PAIRS",
+ "pages": [
+  "printing_suite.printing_suite_page:SEED_PRINTING_SUITE_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "pipeline_selftest",
+  "printing_suite_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

@@ -1,0 +1,76 @@
+{
+ "schema": "polari-app/1",
+ "id": "video",
+ "package": "video",
+ "title": "Video",
+ "description": "Video assets: upload, conversion (webm/mp4/poster/HLS) and adaptive delivery rows — a Polari feature module that was never registered until sap-1 (2026-09-08).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 7,
+ "repo": "",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/video/VideoAsset",
+   "objects/video/_shared"
+  ],
+  "basis": [
+   "video_basis"
+  ],
+  "api": [
+   "video_api"
+  ],
+  "selftests": [
+   "video_selftest"
+  ],
+  "custom": [
+   "custom/video_conversion"
+  ]
+ },
+ "classes": [
+  "VideoAPI",
+  "VideoAsset"
+ ],
+ "imports": [
+  [
+   "video.video_basis",
+   [
+    "VideoAsset"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_video_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "video_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": false,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

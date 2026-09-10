@@ -1,0 +1,120 @@
+{
+ "schema": "polari-app/1",
+ "id": "grpcbridge",
+ "package": "grpcbridge",
+ "title": "Grpcbridge",
+ "description": "gRPC contracts from stabilized schemas, Java hardware bridges, hw sim rigs.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 5,
+ "repo": "https://github.com/dausume/polari-module-grpcbridge.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": [
+   {
+    "name": "grpcio",
+    "kind": "python",
+    "probe": "grpc",
+    "note": "gRPC runtime"
+   }
+  ]
+ },
+ "files": {
+  "objects": [
+   "objects/contract/GrpcExposure",
+   "objects/contract/ProtoContractVersion",
+   "objects/hwsim/SimRigState",
+   "objects/hwsim/_shared",
+   "objects/java_bridge/HardwareBridgeDefinition"
+  ],
+  "basis": [
+   "contract_basis",
+   "hwsim_basis",
+   "java_bridge_basis"
+  ],
+  "api": [
+   "contract_api",
+   "java_bridge_api"
+  ],
+  "selftests": [
+   "c_twin_selftest",
+   "contracts_selftest",
+   "javabridge_selftest",
+   "serving_selftest"
+  ],
+  "custom": [
+   "custom/c_twin",
+   "custom/descriptor_build",
+   "custom/grpc_server",
+   "custom/java_bridge",
+   "custom/java_bridge_codegen",
+   "custom/java_bridge_templates",
+   "custom/proto_gen",
+   "custom/transport_mux"
+  ]
+ },
+ "classes": [
+  "GrpcContractsAPI",
+  "GrpcExposure",
+  "HardwareBridgeAPI",
+  "HardwareBridgeDefinition",
+  "ProtoContractVersion",
+  "SimRigState"
+ ],
+ "imports": [
+  [
+   "grpcbridge.contract_basis",
+   [
+    "GrpcExposure",
+    "ProtoContractVersion"
+   ]
+  ],
+  [
+   "grpcbridge.java_bridge_basis",
+   [
+    "HardwareBridgeDefinition"
+   ]
+  ],
+  [
+   "grpcbridge.hwsim_basis",
+   [
+    "SimRigState",
+    "SEED_SIM_RIGS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_grpcbridge_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "c_twin_selftest",
+  "contracts_selftest",
+  "javabridge_selftest",
+  "serving_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

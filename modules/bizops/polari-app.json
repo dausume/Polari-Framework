@@ -1,0 +1,138 @@
+{
+ "schema": "polari-app/1",
+ "id": "bizops",
+ "package": "bizops",
+ "title": "Bizops",
+ "description": "Business operations: setup/upgrade flows, local-economy track, order planner with mold-ladder reuse.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 3,
+ "repo": "https://github.com/dausume/polari-module-bizops.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "supplychain"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/bizops/BusinessProfile",
+   "objects/bizops/BusinessRiskNote",
+   "objects/bizops/BusinessStageDefinition",
+   "objects/bizops/BusinessUpgradeStep",
+   "objects/bizops/ComplianceRecord",
+   "objects/bizops/ComplianceRequirement",
+   "objects/bizops/LocalEconomyMilestone",
+   "objects/bizops/MarketSessionRecord",
+   "objects/bizops/PartnershipAgreement",
+   "objects/bizops/ProcessWorkflowDefinition",
+   "objects/bizops/ProductOrder",
+   "objects/bizops/ProductionRunRecord",
+   "objects/bizops/QualityCheckDefinition",
+   "objects/bizops/QualityCheckRecord",
+   "objects/bizops/_shared"
+  ],
+  "basis": [
+   "bizops_basis"
+  ],
+  "api": [
+   "bizops_api"
+  ],
+  "seed": [
+   "bizops_seed"
+  ],
+  "selftests": [
+   "bizops_selftest"
+  ],
+  "custom": [
+   "custom/bizops_compliance",
+   "custom/bizops_deals",
+   "custom/bizops_flows",
+   "custom/bizops_guide",
+   "custom/bizops_planner"
+  ]
+ },
+ "classes": [
+  "BizOpsAPI",
+  "BusinessProfile",
+  "BusinessRiskNote",
+  "BusinessStageDefinition",
+  "BusinessUpgradeStep",
+  "ComplianceRecord",
+  "ComplianceRequirement",
+  "LocalEconomyMilestone",
+  "MarketSessionRecord",
+  "PartnershipAgreement",
+  "ProcessWorkflowDefinition",
+  "ProductOrder",
+  "ProductionRunRecord",
+  "QualityCheckDefinition",
+  "QualityCheckRecord"
+ ],
+ "imports": [
+  [
+   "bizops.bizops_basis",
+   [
+    "BusinessStageDefinition",
+    "BusinessUpgradeStep",
+    "BusinessProfile",
+    "LocalEconomyMilestone",
+    "ProcessWorkflowDefinition",
+    "ProductOrder",
+    "MarketSessionRecord",
+    "ProductionRunRecord",
+    "PartnershipAgreement",
+    "BusinessRiskNote",
+    "ComplianceRequirement",
+    "ComplianceRecord",
+    "QualityCheckDefinition",
+    "QualityCheckRecord"
+   ]
+  ],
+  [
+   "bizops.bizops_seed",
+   [
+    "SEED_BUSINESS_STAGES",
+    "SEED_BUSINESS_UPGRADES",
+    "SEED_BUSINESS_PROFILES",
+    "SEED_ECONOMY_MILESTONES",
+    "SEED_PROCESS_WORKFLOWS",
+    "SEED_RISK_NOTES",
+    "SEED_PARTNERSHIPS",
+    "SEED_COMPLIANCE_REQUIREMENTS",
+    "SEED_QUALITY_CHECKS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_bizops_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "bizops_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

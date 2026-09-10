@@ -1,0 +1,85 @@
+{
+ "schema": "polari-app/1",
+ "id": "waxsupply",
+ "package": "waxsupply",
+ "title": "Waxsupply",
+ "description": "Bio wax sources for molds and electronic masks.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 2,
+ "repo": "https://github.com/dausume/polari-module-waxsupply.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/wax/WaxSourceDefinition",
+   "objects/wax/_shared"
+  ],
+  "basis": [
+   "wax_basis"
+  ],
+  "api": [
+   "wax_api"
+  ],
+  "seed": [
+   "wax_seed"
+  ],
+  "selftests": [
+   "wax_selftest"
+  ],
+  "custom": [
+   "custom/wax_analysis"
+  ]
+ },
+ "classes": [
+  "WaxSourceDefinition",
+  "WaxSupplyAPI"
+ ],
+ "imports": [
+  [
+   "waxsupply.wax_basis",
+   [
+    "WaxSourceDefinition"
+   ]
+  ],
+  [
+   "waxsupply.wax_seed",
+   [
+    "SEED_WAX_SOURCES"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_waxsupply_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "wax_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

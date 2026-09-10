@@ -1,0 +1,230 @@
+{
+ "schema": "polari-app/1",
+ "id": "motors",
+ "package": "motors",
+ "title": "Motors",
+ "description": "Electric motors Section C: the M0-M3 ladder of buildable samples (Lavet clock stepper -> reluctance -> ferrite-PM -> dual-stator axial flux), clock control-case sim, torque curves, torque_parity (MAGNETIC_MATERIALS_PLAN.md).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 4,
+ "repo": "https://github.com/dausume/polari-module-motors.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "composition",
+   "magnetics"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/clock_scene/ClockSceneLayerDefinition",
+   "objects/clock_scene/_shared",
+   "objects/clock_views/ClockViewDefinition",
+   "objects/clock_views/_shared",
+   "objects/m1_positioning/PrinterAxisRequirement",
+   "objects/m1_positioning/_shared",
+   "objects/m2_lift/CrucibleHoistRequirement",
+   "objects/m2_lift/_shared",
+   "objects/motor/MotorDesignDefinition",
+   "objects/motor/MotorVerificationRun",
+   "objects/motor/_shared",
+   "objects/motor_drive/MotorControllerProfile",
+   "objects/motor_drive/PhaseBindingDefinition",
+   "objects/motor_drive/_shared",
+   "objects/motor_parts/MotorPartDefinition",
+   "objects/motor_parts/_shared",
+   "objects/scale_goals/ClockScaleDefinition",
+   "objects/scale_goals/MotorGoalSpec",
+   "objects/scale_goals/_shared"
+  ],
+  "basis": [
+   "clock_scene_basis",
+   "clock_views_basis",
+   "m1_positioning_basis",
+   "m2_lift_basis",
+   "motor_basis",
+   "motor_drive_basis",
+   "motor_parts_basis",
+   "scale_goals_basis"
+  ],
+  "api": [
+   "motor_api"
+  ],
+  "seed": [
+   "clock_assembly_seed",
+   "m1_composition_seed",
+   "m1_product_seed",
+   "m1_relations_seed",
+   "m1_scene_seed",
+   "m1_views_seed",
+   "m2_composition_seed",
+   "m2_product_seed",
+   "m2_scene_seed",
+   "m2_views_seed",
+   "motor_shapes_seed",
+   "physics_equations_seed",
+   "product_routes_seed"
+  ],
+  "page": [
+   "motors_page"
+  ],
+  "selftests": [
+   "m1_selftest",
+   "m2_selftest",
+   "motors_selftest"
+  ],
+  "custom": [
+   "custom/bench_campaign",
+   "custom/clock_product",
+   "custom/composition_splice",
+   "custom/contact_wear",
+   "custom/distributed_traction",
+   "custom/inductance",
+   "custom/lifecycle_cost",
+   "custom/local_route",
+   "custom/m1_sequencing",
+   "custom/m2_rotation",
+   "custom/materials_audit",
+   "custom/motor_designer",
+   "custom/motor_fatigue",
+   "custom/motor_materials",
+   "custom/motor_stress",
+   "custom/motor_verify",
+   "custom/motor_winding",
+   "custom/part_roles",
+   "custom/simple_first",
+   "custom/stator_construction",
+   "custom/wire_insulation"
+  ]
+ },
+ "classes": [
+  "ClockScaleDefinition",
+  "ClockSceneLayerDefinition",
+  "ClockViewDefinition",
+  "CrucibleHoistRequirement",
+  "MotorControllerProfile",
+  "MotorDesignDefinition",
+  "MotorGoalSpec",
+  "MotorPartDefinition",
+  "MotorVerificationRun",
+  "MotorsAPI",
+  "PhaseBindingDefinition",
+  "PrinterAxisRequirement"
+ ],
+ "imports": [
+  [
+   "motors.motor_basis",
+   [
+    "MotorDesignDefinition",
+    "MotorVerificationRun",
+    "SEED_MOTOR_DESIGNS"
+   ]
+  ],
+  [
+   "motors.motor_shapes_seed",
+   [
+    "SEED_LAVET_PART_SHAPES",
+    "SEED_LAVET_SIM_SPACES",
+    "SEED_LAVET_V2_PART_SHAPES",
+    "SEED_LAVET_V2_SIM_SPACES",
+    "SEED_M1_PART_SHAPES",
+    "SEED_M1_SIM_SPACES",
+    "SEED_M2_PART_SHAPES",
+    "SEED_M2_SIM_SPACES",
+    "SEED_M3_PART_SHAPES",
+    "SEED_M3_SIM_SPACES",
+    "SEED_MOTOR_MATERIALS_3D",
+    "SEED_MOTOR_PART_SHAPES",
+    "SEED_MOTOR_SIM_SPACES"
+   ]
+  ],
+  [
+   "motors.motor_parts_basis",
+   [
+    "MotorPartDefinition",
+    "SEED_MOTOR_PARTS"
+   ]
+  ],
+  [
+   "motors.physics_equations_seed",
+   [
+    "SEED_EQUATION_ROWS"
+   ]
+  ],
+  [
+   "motors.motor_drive_basis",
+   [
+    "MotorControllerProfile",
+    "PhaseBindingDefinition",
+    "SEED_CONTROLLER_PROFILES",
+    "SEED_PHASE_BINDINGS"
+   ]
+  ],
+  [
+   "motors.scale_goals_basis",
+   [
+    "ClockScaleDefinition",
+    "MotorGoalSpec"
+   ]
+  ],
+  [
+   "motors.clock_views_basis",
+   [
+    "ClockViewDefinition"
+   ]
+  ],
+  [
+   "motors.clock_scene_basis",
+   [
+    "ClockSceneLayerDefinition"
+   ]
+  ],
+  [
+   "motors.m1_positioning_basis",
+   [
+    "PrinterAxisRequirement"
+   ]
+  ],
+  [
+   "motors.m2_lift_basis",
+   [
+    "CrucibleHoistRequirement"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_motors_endpoints",
+ "seedPairs": null,
+ "pages": [
+  "motors.motors_page:SEED_MOTOR_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "m1_selftest",
+  "m2_selftest",
+  "motors_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

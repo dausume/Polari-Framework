@@ -1,0 +1,200 @@
+{
+ "schema": "polari-app/1",
+ "id": "climate",
+ "package": "climate",
+ "title": "Climate",
+ "description": "Climate Change & Atmosphere: CO2 series as objects (ice-core + instrumental spans), velocity/acceleration fits, graded health thresholds, the coupled indoor/outdoor crossing projection, XPORT ingest for NHANES biomarkers, and the human-history record.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 0,
+ "repo": "https://github.com/dausume/polari-module-climate.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "aquaponics",
+   "dmvdata"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/climate/AmbientSettingProfile",
+   "objects/climate/AtmosphericObservation",
+   "objects/climate/AtmosphericSeriesDefinition",
+   "objects/climate/AtmosphericTrendFit",
+   "objects/climate/BiomarkerCycleObservation",
+   "objects/climate/CO2HealthThreshold",
+   "objects/climate/CarbonSinkSeries",
+   "objects/climate/ExposureProjection",
+   "objects/climate/HealthSymptomDefinition",
+   "objects/climate/HumanEraDefinition",
+   "objects/climate/IndoorSpaceProfile",
+   "objects/climate/ObservedLevelReference",
+   "objects/climate/PopulationBiomarkerSeries",
+   "objects/climate/SourceCoverageSpan",
+   "objects/climate/SymptomOnsetClaim",
+   "objects/climate/_shared",
+   "objects/climate_compress/SeriesCompressionRecord",
+   "objects/climate_compress/_shared",
+   "objects/sim_binding/AtmosphereSeriesBinding",
+   "objects/sim_binding/_shared"
+  ],
+  "basis": [
+   "climate_basis",
+   "climate_compress_basis",
+   "sim_binding_basis"
+  ],
+  "api": [
+   "climate_api"
+  ],
+  "seed": [
+   "biomarker_ingest_seed",
+   "carbon_sinks_seed",
+   "climate_app_seed",
+   "climate_citations_seed",
+   "climate_history_seed",
+   "climate_series_seed",
+   "climate_sources_seed",
+   "climate_views_seed",
+   "co2_indoor_seed",
+   "co2_settings_seed",
+   "co2_symptoms_seed",
+   "co2_thresholds_seed"
+  ],
+  "page": [
+   "climate_page"
+  ],
+  "selftests": [
+   "climate_selftest",
+   "compress_selftest"
+  ],
+  "custom": [
+   "custom/biomarker_link",
+   "custom/climate_claims",
+   "custom/climate_export",
+   "custom/co2_biochemistry",
+   "custom/co2_combustion",
+   "custom/co2_crossing",
+   "custom/co2_disorders",
+   "custom/co2_physiology",
+   "custom/co2_scenarios",
+   "custom/co2_trend",
+   "custom/series_ingest",
+   "custom/series_parsers",
+   "custom/xlsx_reader",
+   "custom/xpt_reader"
+  ]
+ },
+ "classes": [
+  "AmbientSettingProfile",
+  "AtmosphereSeriesBinding",
+  "AtmosphericObservation",
+  "AtmosphericSeriesDefinition",
+  "AtmosphericTrendFit",
+  "BiomarkerCycleObservation",
+  "CO2HealthThreshold",
+  "CarbonSinkSeries",
+  "ClimateAPI",
+  "ExposureProjection",
+  "HealthSymptomDefinition",
+  "HumanEraDefinition",
+  "IndoorSpaceProfile",
+  "ObservedLevelReference",
+  "PopulationBiomarkerSeries",
+  "SeriesCompressionRecord",
+  "SourceCoverageSpan",
+  "SymptomOnsetClaim"
+ ],
+ "imports": [
+  [
+   "climate.climate_basis",
+   [
+    "AtmosphericObservation",
+    "AtmosphericSeriesDefinition",
+    "AmbientSettingProfile",
+    "AtmosphericTrendFit",
+    "BiomarkerCycleObservation",
+    "CO2HealthThreshold",
+    "CarbonSinkSeries",
+    "ExposureProjection",
+    "HealthSymptomDefinition",
+    "HumanEraDefinition",
+    "IndoorSpaceProfile",
+    "ObservedLevelReference",
+    "SymptomOnsetClaim",
+    "PopulationBiomarkerSeries",
+    "SourceCoverageSpan"
+   ]
+  ],
+  [
+   "climate.co2_thresholds_seed",
+   [
+    "SEED_CO2_THRESHOLDS"
+   ]
+  ],
+  [
+   "climate.co2_indoor_seed",
+   [
+    "SEED_INDOOR_SPACES"
+   ]
+  ],
+  [
+   "climate.climate_history_seed",
+   [
+    "SEED_HUMAN_ERAS"
+   ]
+  ],
+  [
+   "climate.climate_series_seed",
+   [
+    "SEED_CLIMATE_SERIES"
+   ]
+  ],
+  [
+   "climate.sim_binding_basis",
+   [
+    "AtmosphereSeriesBinding",
+    "SEED_ATMOSPHERE_BINDINGS"
+   ]
+  ],
+  [
+   "climate.climate_compress_basis",
+   [
+    "SeriesCompressionRecord"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_climate_endpoints",
+ "seedPairs": null,
+ "pages": [
+  "climate.climate_page:SEED_CLIMATE_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "climate_selftest",
+  "compress_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

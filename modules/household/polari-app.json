@@ -1,0 +1,97 @@
+{
+ "schema": "polari-app/1",
+ "id": "household",
+ "package": "household",
+ "title": "Household",
+ "description": "Household layer: people's schedules and sleep, members and work shares, skills and safety, dish strategies, the allocation and fairness",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 1,
+ "repo": "",
+ "app": {
+  "kind": "library",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/household/DishStrategy",
+   "objects/household/DurationObservation",
+   "objects/household/HouseholdDishPolicy",
+   "objects/household/HouseholdMember",
+   "objects/household/MethodSkillRequirement",
+   "objects/household/PersonSchedule",
+   "objects/household/PersonSkill",
+   "objects/household/SafetyRule",
+   "objects/household/SkillDefinition",
+   "objects/household/SleepPreference",
+   "objects/household/WorkDistributionPolicy",
+   "objects/household/WorkLedger",
+   "objects/household/WorkloadType",
+   "objects/household/_shared"
+  ],
+  "basis": [
+   "household_basis"
+  ],
+  "selftests": [
+   "household_selftest"
+  ],
+  "custom": [
+   "custom/household_analysis"
+  ]
+ },
+ "classes": [
+  "DishStrategy",
+  "DurationObservation",
+  "HouseholdDishPolicy",
+  "HouseholdMember",
+  "MethodSkillRequirement",
+  "PersonSchedule",
+  "PersonSkill",
+  "SafetyRule",
+  "SkillDefinition",
+  "SleepPreference",
+  "WorkDistributionPolicy",
+  "WorkLedger",
+  "WorkloadType"
+ ],
+ "imports": [
+  [
+   "household.household_basis",
+   [
+    "HOUSEHOLD_CLASSES",
+    "HOUSEHOLD_SEED_PAIRS"
+   ]
+  ]
+ ],
+ "endpoints": null,
+ "seedPairs": "household.household_basis:HOUSEHOLD_SEED_PAIRS",
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "household_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

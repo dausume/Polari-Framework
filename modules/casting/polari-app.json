@@ -1,0 +1,194 @@
+{
+ "schema": "polari-app/1",
+ "id": "casting",
+ "package": "casting",
+ "title": "Casting",
+ "description": "Mold nesting: derived negatives, casting chains with derived parity/thermal gates, sprues, fill/demold sims, the nesting wizard. Requires the shape algebra (mathshapes), seed_upsert (composition), the bead model + mold lifecycle (waxprint), wax rankings (waxsupply), and the exotherm/ceramics data (pspp) — admission must order them first (caught live 2026-08-05).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 6,
+ "repo": "https://github.com/dausume/polari-module-casting.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "composition",
+   "mathshapes",
+   "pspp",
+   "waxprint",
+   "waxsupply"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/casting/CastingMaterialThermalProfile",
+   "objects/casting/MasterFeedstockDefinition",
+   "objects/casting/MoldDefinition",
+   "objects/casting/_shared",
+   "objects/chain/CastingStageDefinition",
+   "objects/chain/MoldNestingChain",
+   "objects/chain/_shared",
+   "objects/coatings/CastingRunRecord",
+   "objects/coatings/MoldCoatingDefinition",
+   "objects/coatings/_shared",
+   "objects/demold/DemoldPlanDefinition",
+   "objects/demold/_shared",
+   "objects/fill_sim/MoldFillSimState",
+   "objects/fill_sim/_shared",
+   "objects/interventions/FillInterventionDefinition",
+   "objects/interventions/_shared",
+   "objects/nesting_wizard/NestingPlanDefinition",
+   "objects/nesting_wizard/_shared",
+   "objects/sprue/SprueSetInstance",
+   "objects/sprue/SprueStrategyDefinition",
+   "objects/sprue/_shared"
+  ],
+  "basis": [
+   "casting_basis",
+   "chain_basis",
+   "coatings_basis",
+   "demold_basis",
+   "fill_sim_basis",
+   "interventions_basis",
+   "nesting_wizard_basis",
+   "sprue_basis"
+  ],
+  "api": [
+   "casting_api"
+  ],
+  "seed": [
+   "casting_seed",
+   "chain_seed",
+   "sim_seed"
+  ],
+  "selftests": [
+   "casting_selftest"
+  ],
+  "custom": [
+   "custom/chain_analysis",
+   "custom/mesh_voxelize",
+   "custom/mold_geometry",
+   "custom/pour_loading",
+   "custom/simulation_gaps",
+   "custom/sprue_geometry",
+   "custom/voxel_grid",
+   "custom/wax_feasibility"
+  ]
+ },
+ "classes": [
+  "CastingAPI",
+  "CastingMaterialThermalProfile",
+  "CastingRunRecord",
+  "CastingStageDefinition",
+  "DemoldPlanDefinition",
+  "FillInterventionDefinition",
+  "MasterFeedstockDefinition",
+  "MoldCoatingDefinition",
+  "MoldDefinition",
+  "MoldFillSimState",
+  "MoldNestingChain",
+  "NestingPlanDefinition",
+  "SprueSetInstance",
+  "SprueStrategyDefinition"
+ ],
+ "imports": [
+  [
+   "casting.casting_basis",
+   [
+    "CastingMaterialThermalProfile",
+    "MasterFeedstockDefinition",
+    "MoldDefinition"
+   ]
+  ],
+  [
+   "casting.fill_sim_basis",
+   [
+    "MoldFillSimState"
+   ]
+  ],
+  [
+   "casting.interventions_basis",
+   [
+    "FillInterventionDefinition"
+   ]
+  ],
+  [
+   "casting.demold_basis",
+   [
+    "DemoldPlanDefinition"
+   ]
+  ],
+  [
+   "casting.coatings_basis",
+   [
+    "CastingRunRecord",
+    "MoldCoatingDefinition"
+   ]
+  ],
+  [
+   "casting.nesting_wizard_basis",
+   [
+    "NestingPlanDefinition"
+   ]
+  ],
+  [
+   "casting.sim_seed",
+   [
+    "SEED_CASTING_PAGE_DISPLAYS"
+   ]
+  ],
+  [
+   "casting.chain_basis",
+   [
+    "CastingStageDefinition",
+    "MoldNestingChain"
+   ]
+  ],
+  [
+   "casting.sprue_basis",
+   [
+    "SprueSetInstance",
+    "SprueStrategyDefinition"
+   ]
+  ],
+  [
+   "casting.casting_seed",
+   [
+    "SEED_CASTING_MODULES",
+    "seed_casting"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_casting_endpoints",
+ "seedPairs": null,
+ "pages": [
+  "casting.sim_seed:SEED_CASTING_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "casting_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": false,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

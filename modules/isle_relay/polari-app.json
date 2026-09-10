@@ -1,0 +1,92 @@
+{
+ "schema": "polari-app/1",
+ "id": "isle_relay",
+ "package": "isle_relay",
+ "title": "Isle Relay",
+ "description": "isle-relay: a second OpenWrt guest (hardware app) serving a relay segment that extends the isle; the body for the Reticulum extension app (WiFi over Reticulum).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 8,
+ "repo": "",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "hardwareapps",
+   "islemesh"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/relay/RelayNodeDefinition",
+   "objects/relay/RelayNodeState"
+  ],
+  "basis": [
+   "isle_relay_basis"
+  ],
+  "api": [
+   "isle_relay_api"
+  ],
+  "page": [
+   "isle_relay_page"
+  ],
+  "selftests": [
+   "isle_relay_selftest"
+  ]
+ },
+ "classes": [
+  "IsleRelayAPI",
+  "RelayNodeDefinition",
+  "RelayNodeState"
+ ],
+ "imports": [
+  [
+   "isle_relay.isle_relay_basis",
+   [
+    "RelayNodeDefinition",
+    "RelayNodeState",
+    "ISLE_RELAY_SEED_PAIRS",
+    "SEED_RELAY_HARDWARE_APPS",
+    "SEED_RELAY_CATALOG"
+   ]
+  ],
+  [
+   "isle_relay.isle_relay_page",
+   [
+    "SEED_ISLE_RELAY_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_isle_relay_endpoints",
+ "seedPairs": "isle_relay.isle_relay_basis:ISLE_RELAY_SEED_PAIRS",
+ "pages": [
+  "isle_relay.isle_relay_page:SEED_ISLE_RELAY_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "isle_relay_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

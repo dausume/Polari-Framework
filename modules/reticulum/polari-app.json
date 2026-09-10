@@ -1,0 +1,221 @@
+{
+ "schema": "polari-app/1",
+ "id": "reticulum",
+ "package": "reticulum",
+ "title": "Reticulum",
+ "description": "Reticulum mesh transport (ret-1, RETICULUM_TRANSPORT_PLAN): identities/destinations/interfaces/bindings as rows, per-PATH link measurements, ledgered airtime budgets, .arch archipelago with GRADED trust, parent+child state replication, operator-licence assertions + device links. RNS stack lives ONLY in the pol-reticulum sidecar, pinned rns==0.9.4+lxmf==0.6.3 (RETICULUM_LICENCE_GATE.md — pins are licence pins). THE LINE (ret-8): nothing arriving over Reticulum mutates Polari state. Third module born manifest-first on dyn-1.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 9,
+ "repo": "",
+ "app": {
+  "kind": "hardware-extension-app",
+  "family": "",
+  "extends": "isle-relay",
+  "catalogKinds": [],
+  "agentTier": "hardware"
+ },
+ "requires": {
+  "modules": [
+   "islemesh"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/arch/ArchipelagoNode",
+   "objects/arch/ArchipelagoTrust",
+   "objects/arch/_shared",
+   "objects/datarule/AppDataRule",
+   "objects/datarule/QuarantinedSubmission",
+   "objects/datarule/_shared",
+   "objects/device_catalog/DeviceModel",
+   "objects/device_catalog/_shared",
+   "objects/discovery/PeerSighting",
+   "objects/discovery/_shared",
+   "objects/meshapp/AppArchExposure",
+   "objects/meshapp/KitProfile",
+   "objects/meshapp/MeshAppRelay",
+   "objects/meshapp/MeshConsumer",
+   "objects/meshapp/_shared",
+   "objects/meshsim/MeshSimNode",
+   "objects/meshsim/MeshSimResult",
+   "objects/meshsim/MeshSimScenario",
+   "objects/meshsim/_shared",
+   "objects/operator/DeviceLink",
+   "objects/operator/OperatorLicense",
+   "objects/operator/_shared",
+   "objects/replication/ObjectStateVersion",
+   "objects/replication/StateConflict",
+   "objects/replication/WatchedObject",
+   "objects/replication/_shared",
+   "objects/reticulum/AirtimeBudget",
+   "objects/reticulum/LinkMeasurement",
+   "objects/reticulum/ReticulumDestination",
+   "objects/reticulum/ReticulumIdentity",
+   "objects/reticulum/ReticulumInterface",
+   "objects/reticulum/TransportBinding",
+   "objects/reticulum/_shared"
+  ],
+  "basis": [
+   "arch_basis",
+   "datarule_basis",
+   "device_catalog_basis",
+   "discovery_basis",
+   "meshapp_basis",
+   "meshsim_basis",
+   "operator_basis",
+   "replication_basis",
+   "reticulum_basis"
+  ],
+  "api": [
+   "reticulum_api"
+  ],
+  "page": [
+   "reticulum_page"
+  ],
+  "remote": [
+   "rns_remote"
+  ],
+  "selftests": [
+   "reticulum_selftest"
+  ],
+  "custom": [
+   "custom/arch_topology",
+   "custom/meshsim_placement"
+  ]
+ },
+ "classes": [
+  "AirtimeBudget",
+  "AppArchExposure",
+  "AppDataRule",
+  "ArchipelagoNode",
+  "ArchipelagoTrust",
+  "DeviceLink",
+  "DeviceModel",
+  "KitProfile",
+  "LinkMeasurement",
+  "MeshAppRelay",
+  "MeshConsumer",
+  "MeshSimNode",
+  "MeshSimResult",
+  "MeshSimScenario",
+  "ObjectStateVersion",
+  "OperatorLicense",
+  "PeerSighting",
+  "QuarantinedSubmission",
+  "ReticulumAPI",
+  "ReticulumDestination",
+  "ReticulumIdentity",
+  "ReticulumInterface",
+  "StateConflict",
+  "TransportBinding",
+  "WatchedObject"
+ ],
+ "imports": [
+  [
+   "reticulum.reticulum_basis",
+   [
+    "ReticulumIdentity",
+    "ReticulumDestination",
+    "ReticulumInterface",
+    "TransportBinding",
+    "LinkMeasurement",
+    "AirtimeBudget",
+    "SEED_RNS_INTERFACES"
+   ]
+  ],
+  [
+   "reticulum.arch_basis",
+   [
+    "ArchipelagoNode",
+    "ArchipelagoTrust"
+   ]
+  ],
+  [
+   "reticulum.reticulum_page",
+   [
+    "SEED_RETICULUM_PAGE_DISPLAYS"
+   ]
+  ],
+  [
+   "reticulum.replication_basis",
+   [
+    "WatchedObject",
+    "ObjectStateVersion",
+    "StateConflict"
+   ]
+  ],
+  [
+   "reticulum.operator_basis",
+   [
+    "OperatorLicense",
+    "DeviceLink"
+   ]
+  ],
+  [
+   "reticulum.device_catalog_basis",
+   [
+    "DeviceModel",
+    "SEED_DEVICE_MODELS"
+   ]
+  ],
+  [
+   "reticulum.meshapp_basis",
+   [
+    "AppArchExposure",
+    "MeshAppRelay",
+    "MeshConsumer",
+    "KitProfile",
+    "SEED_KIT_PROFILES"
+   ]
+  ],
+  [
+   "reticulum.datarule_basis",
+   [
+    "AppDataRule",
+    "QuarantinedSubmission"
+   ]
+  ],
+  [
+   "reticulum.discovery_basis",
+   [
+    "PeerSighting"
+   ]
+  ],
+  [
+   "reticulum.meshsim_basis",
+   [
+    "MeshSimScenario",
+    "MeshSimNode",
+    "MeshSimResult"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_reticulum_endpoints",
+ "seedPairs": null,
+ "pages": [
+  "reticulum.reticulum_page:SEED_RETICULUM_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "reticulum_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

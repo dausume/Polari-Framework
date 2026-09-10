@@ -1,0 +1,91 @@
+{
+ "schema": "polari-app/1",
+ "id": "computerparts",
+ "package": "computerparts",
+ "title": "Computerparts",
+ "description": "Computer parts + builds as tracked data (ai-8): dated part prices, derived build cost, assembly-feasibility checks over declared specs; feeds the appstore buy-vs-rent advisory (row reads). Seeding imports composition.custom.seed_upsert (guarded) — prices converge on live rows.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 3,
+ "repo": "https://github.com/dausume/polari-module-computerparts.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "composition"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/parts/ComputerBuildDefinition",
+   "objects/parts/ComputerPartDefinition",
+   "objects/parts/_shared"
+  ],
+  "basis": [
+   "parts_basis"
+  ],
+  "api": [
+   "parts_api"
+  ],
+  "seed": [
+   "parts_seed"
+  ],
+  "selftests": [
+   "computerparts_selftest"
+  ],
+  "custom": [
+   "custom/parts_assembly"
+  ]
+ },
+ "classes": [
+  "ComputerBuildDefinition",
+  "ComputerPartDefinition",
+  "ComputerPartsAPI"
+ ],
+ "imports": [
+  [
+   "computerparts.parts_basis",
+   [
+    "ComputerBuildDefinition",
+    "ComputerPartDefinition"
+   ]
+  ],
+  [
+   "computerparts.parts_seed",
+   [
+    "SEED_COMPUTER_BUILDS",
+    "SEED_COMPUTER_PARTS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_computerparts_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "computerparts_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

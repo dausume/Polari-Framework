@@ -8,6 +8,10 @@
 !modules/polari-modules.json
 # module data convention: committed initial data (plain JSON, small)
 !modules/*/initialData/*.json
+# the app manifest IS source (sap: one polari-app.json replaces the hand-
+# threaded core tables; carries the hand-tuned security stanza) — a fresh
+# clone without it cannot admit the module or run `pol project`.
+!modules/*/polari-app.json
 *.pyc
 *.db
 */falcon

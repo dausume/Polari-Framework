@@ -1,0 +1,137 @@
+{
+ "schema": "polari-app/1",
+ "id": "islemesh",
+ "package": "islemesh",
+ "title": "Islemesh",
+ "description": "isle-mesh convergence (mac-1): the polari-side acceptor for isle-mesh data — devices/uplinks/mesh-apps/protocol-permits ingested from the isle agent's registry.json + nginx fragments (isle stays authoritative over networking); mock ingests carry mock_network=true, surfaced as a banner. Feeds /display/isle-mesh and the mac-10 console.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 7,
+ "repo": "https://github.com/dausume/polari-module-islemesh.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [
+   "ai-tool",
+   "mesh-app",
+   "polari-app",
+   "polari-app-option",
+   "polari-instance"
+  ],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": [
+   {
+    "name": "docker",
+    "kind": "system",
+    "probe": "docker",
+    "note": "container runtime for mesh apps"
+   }
+  ]
+ },
+ "files": {
+  "objects": [
+   "objects/islemesh/IsleApp",
+   "objects/islemesh/IsleAppService",
+   "objects/islemesh/IsleCatalogEntry",
+   "objects/islemesh/IsleDevice",
+   "objects/islemesh/IsleEngine",
+   "objects/islemesh/IsleIngestReceipt",
+   "objects/islemesh/IsleProtocolPermit",
+   "objects/islemesh/IsleUplink",
+   "objects/islemesh/MeshAppRealization"
+  ],
+  "basis": [
+   "islemesh_basis"
+  ],
+  "api": [
+   "islemesh_api"
+  ],
+  "page": [
+   "islemesh_page"
+  ],
+  "catalog": [
+   "islemesh_catalog"
+  ],
+  "selftests": [
+   "islemesh_selftest"
+  ],
+  "custom": [
+   "custom/islemesh_coherence",
+   "custom/islemesh_constants",
+   "custom/islemesh_engines",
+   "custom/islemesh_mock",
+   "custom/islemesh_netledger",
+   "custom/islemesh_parse"
+  ]
+ },
+ "classes": [
+  "IsleApp",
+  "IsleAppService",
+  "IsleCatalogEntry",
+  "IsleDevice",
+  "IsleEngine",
+  "IsleIngestReceipt",
+  "IsleMeshAPI",
+  "IsleProtocolPermit",
+  "IsleUplink",
+  "MeshAppRealization"
+ ],
+ "imports": [
+  [
+   "islemesh.islemesh_basis",
+   [
+    "IsleApp",
+    "IsleAppService",
+    "IsleCatalogEntry",
+    "IsleDevice",
+    "IsleEngine",
+    "IsleIngestReceipt",
+    "IsleProtocolPermit",
+    "IsleUplink",
+    "MeshAppRealization"
+   ]
+  ],
+  [
+   "islemesh.islemesh_catalog",
+   [
+    "SEED_CATALOG"
+   ]
+  ],
+  [
+   "islemesh.islemesh_page",
+   [
+    "SEED_ISLEMESH_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_islemesh_endpoints",
+ "seedPairs": null,
+ "pages": [
+  "islemesh.islemesh_page:SEED_ISLEMESH_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "islemesh_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

@@ -219,3 +219,27 @@ pol modules health [--api URL] [<module>] [--verify]
 `ok` is false while any module is degraded, failed, blocked or invalid.
 The record is mirrored to a `ModuleRegistration` row per module per
 instance, so the state survives a restart and is a table like any other.
+
+## 11. The security stanza — what the app may touch
+
+Every `polari-app.json` carries a `security` stanza (the scaffold and
+`manifests generate` add the deny-all default; a hand-tuned stanza survives
+regeneration). `os-security/render.py` turns it into the app's AppArmor
+profile, seccomp allow-list and the compose/stack security fragment
+(`security_opt`, `cap_drop: [ALL]` + declared `cap_add`, `read_only`,
+`tmpfs`) — see `os-security/README.md` and ISLE_HARDENING_PLAN.md.
+
+```json
+"security": {
+  "profile": "web-app",        // web-app | worker | gateway | vpn-gateway | hardware-extension
+  "writable": ["/data"],       // the ONLY writable paths; everything else is read-only
+  "network": ["isle"],         // isle | internet | none
+  "capabilities": [],          // allow-list only: NET_ADMIN NET_BIND_SERVICE CHOWN SETUID SETGID DAC_READ_SEARCH
+  "devices": [],               // /dev paths, only for hardware-extension (hardware lives in a guest)
+  "ports": [3000]              // listening ports inside the container
+}
+```
+
+`pol modules conform` refuses values outside those lists. Declare the least:
+an app that needs nothing special keeps the default and still runs; an app
+that declares `NET_ADMIN` gets it and nothing more.

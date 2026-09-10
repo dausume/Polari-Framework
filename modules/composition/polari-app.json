@@ -1,0 +1,161 @@
+{
+ "schema": "polari-app/1",
+ "id": "composition",
+ "package": "composition",
+ "title": "Composition",
+ "description": "Part composition (PART_ARCHETYPES_PLAN.md): components/interfaces with DERIVED levels by separability, promotion as a recorded operation, EBOM/MBOM split, archetypes + design matrices, and the generic role engine (extracted from motors). Material/equation refs are DATA references, never imports.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 2,
+ "repo": "https://github.com/dausume/polari-module-composition.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "mathshapes",
+   "techtree"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/archetype/PartArchetypeDefinition",
+   "objects/archetype/_shared",
+   "objects/component/PartComponentDefinition",
+   "objects/design_matrix/DesignMatrixDefinition",
+   "objects/design_matrix/_shared",
+   "objects/failure_modes/FailureModeDefinition",
+   "objects/failure_modes/_shared",
+   "objects/functional/ConstructionVariantDefinition",
+   "objects/functional/FunctionalPartDefinition",
+   "objects/functional/_shared",
+   "objects/interface/InterfaceDefinition",
+   "objects/interface/_shared",
+   "objects/node/CompositionNode",
+   "objects/node/_shared",
+   "objects/routing/RoutingDefinition",
+   "objects/routing/RoutingOperation",
+   "objects/routing/_shared"
+  ],
+  "basis": [
+   "archetype_basis",
+   "component_basis",
+   "design_matrix_basis",
+   "failure_modes_basis",
+   "functional_basis",
+   "interface_basis",
+   "node_basis",
+   "routing_basis"
+  ],
+  "api": [
+   "composition_api"
+  ],
+  "seed": [
+   "composition_seed"
+  ],
+  "selftests": [
+   "composition_selftest"
+  ],
+  "custom": [
+   "custom/data_refs",
+   "custom/fill_models",
+   "custom/part_roles",
+   "custom/realization",
+   "custom/seed_upsert"
+  ]
+ },
+ "classes": [
+  "CompositionAPI",
+  "CompositionNode",
+  "ConstructionVariantDefinition",
+  "DesignMatrixDefinition",
+  "FailureModeDefinition",
+  "FunctionalPartDefinition",
+  "InterfaceDefinition",
+  "PartArchetypeDefinition",
+  "PartComponentDefinition",
+  "RoutingDefinition",
+  "RoutingOperation"
+ ],
+ "imports": [
+  [
+   "composition.archetype_basis",
+   [
+    "PartArchetypeDefinition"
+   ]
+  ],
+  [
+   "composition.component_basis",
+   [
+    "PartComponentDefinition"
+   ]
+  ],
+  [
+   "composition.design_matrix_basis",
+   [
+    "DesignMatrixDefinition"
+   ]
+  ],
+  [
+   "composition.failure_modes_basis",
+   [
+    "FailureModeDefinition"
+   ]
+  ],
+  [
+   "composition.functional_basis",
+   [
+    "ConstructionVariantDefinition",
+    "FunctionalPartDefinition"
+   ]
+  ],
+  [
+   "composition.interface_basis",
+   [
+    "InterfaceDefinition"
+   ]
+  ],
+  [
+   "composition.node_basis",
+   [
+    "CompositionNode"
+   ]
+  ],
+  [
+   "composition.routing_basis",
+   [
+    "RoutingDefinition",
+    "RoutingOperation"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_composition_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "composition_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": false,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

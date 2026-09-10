@@ -1,0 +1,109 @@
+{
+ "schema": "polari-app/1",
+ "id": "microalgae",
+ "package": "microalgae",
+ "title": "Microalgae",
+ "description": "Photobioreactor decarbonization route.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 0,
+ "repo": "https://github.com/dausume/polari-module-microalgae.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/integrated/IntegratedLoopDefinition",
+   "objects/integrated/_shared",
+   "objects/reactor/AlgaeReactorDefinition",
+   "objects/reactor/AlgaeStrain",
+   "objects/reactor/_shared"
+  ],
+  "basis": [
+   "integrated_basis",
+   "reactor_basis"
+  ],
+  "api": [
+   "reactor_api"
+  ],
+  "seed": [
+   "integrated_seed",
+   "reactor_seed"
+  ],
+  "selftests": [
+   "integrated_selftest",
+   "reactor_selftest"
+  ],
+  "custom": [
+   "custom/integrated_analysis",
+   "custom/reactor_analysis"
+  ]
+ },
+ "classes": [
+  "AlgaeReactorDefinition",
+  "AlgaeStrain",
+  "IntegratedLoopDefinition",
+  "MicroalgaeReactorAPI"
+ ],
+ "imports": [
+  [
+   "microalgae.reactor_basis",
+   [
+    "AlgaeStrain",
+    "AlgaeReactorDefinition"
+   ]
+  ],
+  [
+   "microalgae.reactor_seed",
+   [
+    "SEED_ALGAE_REACTORS",
+    "SEED_ALGAE_STRAINS"
+   ]
+  ],
+  [
+   "microalgae.integrated_basis",
+   [
+    "IntegratedLoopDefinition"
+   ]
+  ],
+  [
+   "microalgae.integrated_seed",
+   [
+    "SEED_INTEGRATED_LOOPS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_microalgae_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "integrated_selftest",
+  "reactor_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

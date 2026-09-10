@@ -1,0 +1,73 @@
+{
+ "schema": "polari-app/1",
+ "id": "agro_forestry",
+ "package": "agro_forestry",
+ "title": "Agro Forestry",
+ "description": "Legacy registry module (user-created example).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": null,
+ "repo": "https://github.com/dausume/polari-module-agro_forestry.git",
+ "app": {
+  "kind": "library",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/gardenBoundary/GardenBoundary",
+   "objects/gardenBoundaryPost/GardenBoundaryPost",
+   "objects/plant/Plant"
+  ],
+  "basis": [
+   "gardenBoundaryPost_basis",
+   "gardenBoundary_basis",
+   "plant_basis"
+  ],
+  "seed": [
+   "agro_forestry_data_seed"
+  ],
+  "selftests": [
+   "agro_forestry_selftest"
+  ],
+  "custom": [
+   "custom/registerAgroForestryModule"
+  ]
+ },
+ "classes": [
+  "GardenBoundary",
+  "GardenBoundaryPost",
+  "Plant"
+ ],
+ "imports": [],
+ "endpoints": null,
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": true,
+ "selftests": [
+  "agro_forestry_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": false,
+ "coreRequired": false,
+ "legacyDynamicModule": true
+}

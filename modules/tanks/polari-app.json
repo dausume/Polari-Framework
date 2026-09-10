@@ -1,0 +1,97 @@
+{
+ "schema": "polari-app/1",
+ "id": "tanks",
+ "package": "tanks",
+ "title": "Tanks",
+ "description": "Freshwater/saltwater tank ecosystems — the alternate nutrient source.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 1,
+ "repo": "https://github.com/dausume/polari-module-tanks.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/tank/AquacultureSpecies",
+   "objects/tank/TankDefinition",
+   "objects/tank/TankSubstrateDefinition",
+   "objects/tank/TankSystemDefinition",
+   "objects/tank/_shared"
+  ],
+  "basis": [
+   "tank_basis"
+  ],
+  "api": [
+   "tank_api"
+  ],
+  "seed": [
+   "tank_seed"
+  ],
+  "selftests": [
+   "tank_selftest"
+  ],
+  "custom": [
+   "custom/tank_analysis"
+  ]
+ },
+ "classes": [
+  "AquacultureSpecies",
+  "TankDefinition",
+  "TankSubstrateDefinition",
+  "TankSystemAPI",
+  "TankSystemDefinition"
+ ],
+ "imports": [
+  [
+   "tanks.tank_basis",
+   [
+    "AquacultureSpecies",
+    "TankDefinition",
+    "TankSubstrateDefinition",
+    "TankSystemDefinition"
+   ]
+  ],
+  [
+   "tanks.tank_seed",
+   [
+    "SEED_AQUACULTURE_SPECIES",
+    "SEED_TANK_SUBSTRATES",
+    "SEED_TANK_SYSTEMS",
+    "SEED_TANKS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_tanks_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "tank_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

@@ -1,0 +1,146 @@
+{
+ "schema": "polari-app/1",
+ "id": "mathshapes",
+ "package": "mathshapes",
+ "title": "Mathshapes",
+ "description": "Math-defined shapes (quadric/primitive/CSG), aquaponic towers, CAD import.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 3,
+ "repo": "https://github.com/dausume/polari-module-mathshapes.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "aquaponics",
+   "plant_morphology"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/cad/ImportedCadObject",
+   "objects/shape/MathShapeDefinition",
+   "objects/shape/_shared",
+   "objects/tower/AquaponicTowerDefinition"
+  ],
+  "basis": [
+   "cad_basis",
+   "shape_basis",
+   "tower_basis"
+  ],
+  "api": [
+   "cad_api",
+   "shape_api",
+   "tower_api"
+  ],
+  "seed": [
+   "shape_seed",
+   "tower_seed"
+  ],
+  "remote": [
+   "cad_remote"
+  ],
+  "selftests": [
+   "pot_transparency_selftest",
+   "shape2_selftest",
+   "shape3_selftest",
+   "shape4_selftest",
+   "shape_equations_selftest",
+   "shapes_selftest",
+   "soil_selftest",
+   "winding_selftest"
+  ],
+  "custom": [
+   "custom/cad_import",
+   "custom/cad_minio",
+   "custom/gear_geometry",
+   "custom/growth_prediction",
+   "custom/pot_scene",
+   "custom/shape_analysis",
+   "custom/shape_equations",
+   "custom/shape_geometry",
+   "custom/shape_modify",
+   "custom/soil_modify",
+   "custom/spool_geometry",
+   "custom/tower_analysis",
+   "custom/winding_geometry"
+  ]
+ },
+ "classes": [
+  "AquaponicTowerAPI",
+  "AquaponicTowerDefinition",
+  "CadImportAPI",
+  "ImportedCadObject",
+  "MathShapeDefinition",
+  "MathShapesAPI"
+ ],
+ "imports": [
+  [
+   "mathshapes.shape_basis",
+   [
+    "MathShapeDefinition"
+   ]
+  ],
+  [
+   "mathshapes.shape_seed",
+   [
+    "SEED_MATH_SHAPES"
+   ]
+  ],
+  [
+   "mathshapes.tower_basis",
+   [
+    "AquaponicTowerDefinition"
+   ]
+  ],
+  [
+   "mathshapes.tower_seed",
+   [
+    "SEED_TOWERS"
+   ]
+  ],
+  [
+   "mathshapes.cad_basis",
+   [
+    "ImportedCadObject"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_mathshapes_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "pot_transparency_selftest",
+  "shape2_selftest",
+  "shape3_selftest",
+  "shape4_selftest",
+  "shape_equations_selftest",
+  "shapes_selftest",
+  "soil_selftest",
+  "winding_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

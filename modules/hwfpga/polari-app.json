@@ -1,0 +1,103 @@
+{
+ "schema": "polari-app/1",
+ "id": "hwfpga",
+ "package": "hwfpga",
+ "title": "Hwfpga",
+ "description": "FPGA register maps as data; Verilog/C/testbench artifacts from rows.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 3,
+ "repo": "https://github.com/dausume/polari-module-hwfpga.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": [
+   {
+    "name": "verilator",
+    "kind": "system",
+    "probe": "verilator",
+    "note": "HDL simulation"
+   }
+  ]
+ },
+ "files": {
+  "objects": [
+   "objects/fpga/FpgaRegisterState",
+   "objects/fpga/RegisterDefinition",
+   "objects/fpga/RegisterMapDefinition",
+   "objects/fpga/_shared",
+   "objects/led/LedMatrix4x4State",
+   "objects/led/_shared"
+  ],
+  "basis": [
+   "fpga_basis",
+   "led_basis"
+  ],
+  "api": [
+   "fpga_api"
+  ],
+  "selftests": [
+   "fpga_selftest"
+  ],
+  "custom": [
+   "custom/fpga_verilog"
+  ]
+ },
+ "classes": [
+  "FpgaRegisterMapAPI",
+  "FpgaRegisterState",
+  "LedMatrix4x4State",
+  "RegisterDefinition",
+  "RegisterMapDefinition"
+ ],
+ "imports": [
+  [
+   "hwfpga.fpga_basis",
+   [
+    "FpgaRegisterState",
+    "RegisterDefinition",
+    "RegisterMapDefinition",
+    "SEED_FPGA_STATES",
+    "SEED_REGISTER_MAPS",
+    "SEED_REGISTERS"
+   ]
+  ],
+  [
+   "hwfpga.led_basis",
+   [
+    "LedMatrix4x4State",
+    "SEED_LED_MATRICES"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_hwfpga_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "fpga_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

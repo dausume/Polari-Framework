@@ -1,0 +1,111 @@
+{
+ "schema": "polari-app/1",
+ "id": "biomining",
+ "package": "biomining",
+ "title": "Biomining",
+ "description": "Bacteria/algae extraction -> product variants.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 0,
+ "repo": "https://github.com/dausume/polari-module-biomining.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/biomining/BioextractionAgent",
+   "objects/biomining/BiomineSystemDefinition",
+   "objects/biomining/BiomineralProduct",
+   "objects/biomining/_shared"
+  ],
+  "basis": [
+   "biomining_basis"
+  ],
+  "api": [
+   "biomining_api"
+  ],
+  "seed": [
+   "alloy_seed",
+   "biomining_seed",
+   "optical_seed"
+  ],
+  "selftests": [
+   "biomining_selftest"
+  ],
+  "custom": [
+   "custom/biomining_analysis"
+  ]
+ },
+ "classes": [
+  "BioextractionAgent",
+  "BiomineAPI",
+  "BiomineSystemDefinition",
+  "BiomineralProduct"
+ ],
+ "imports": [
+  [
+   "biomining.biomining_basis",
+   [
+    "BioextractionAgent",
+    "BiomineralProduct",
+    "BiomineSystemDefinition"
+   ]
+  ],
+  [
+   "biomining.biomining_seed",
+   [
+    "SEED_BIOEXTRACTION_AGENTS",
+    "SEED_BIOMINERAL_PRODUCTS",
+    "SEED_BIOMINE_SYSTEMS"
+   ]
+  ],
+  [
+   "biomining.optical_seed",
+   [
+    "SEED_OPTICAL_AGENTS",
+    "SEED_OPTICAL_BIOMINE_SYSTEMS",
+    "SEED_OPTICAL_PRODUCTS"
+   ]
+  ],
+  [
+   "biomining.alloy_seed",
+   [
+    "SEED_ALLOY_AGENTS",
+    "SEED_ALLOY_BIOMINE_SYSTEMS",
+    "SEED_ALLOY_PRODUCTS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_biomining_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "biomining_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

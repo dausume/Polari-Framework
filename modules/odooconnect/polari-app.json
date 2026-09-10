@@ -1,0 +1,121 @@
+{
+ "schema": "polari-app/1",
+ "id": "odooconnect",
+ "package": "odooconnect",
+ "title": "Odooconnect",
+ "description": "Odoo ERP connector: JSON-RPC client with sim/ops write guards, instance configs, /api/odoo status.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 2,
+ "repo": "https://github.com/dausume/polari-module-odooconnect.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/odoo/OdooInstanceConfig",
+   "objects/odoo/_shared",
+   "objects/odoo_bindings/OdooModelBinding",
+   "objects/odoo_bindings/OdooSyncReceipt",
+   "objects/odoo_bindings/_shared",
+   "objects/odoo_scenarios/BusinessScenarioDefinition",
+   "objects/odoo_scenarios/_shared"
+  ],
+  "basis": [
+   "odoo_basis",
+   "odoo_bindings_basis",
+   "odoo_scenarios_basis"
+  ],
+  "api": [
+   "odoo_api"
+  ],
+  "seed": [
+   "odoo_seed"
+  ],
+  "selftests": [
+   "odoo_orders_selftest",
+   "odoo_scenarios_selftest",
+   "odoo_selftest",
+   "odoo_sync_selftest"
+  ],
+  "custom": [
+   "custom/odoo_analysis",
+   "custom/odoo_client",
+   "custom/odoo_orders",
+   "custom/odoo_scenario_engine",
+   "custom/odoo_sync",
+   "custom/stub_odoo"
+  ]
+ },
+ "classes": [
+  "BusinessScenarioDefinition",
+  "OdooConnectAPI",
+  "OdooInstanceConfig",
+  "OdooModelBinding",
+  "OdooSyncReceipt"
+ ],
+ "imports": [
+  [
+   "odooconnect.odoo_basis",
+   [
+    "OdooInstanceConfig"
+   ]
+  ],
+  [
+   "odooconnect.odoo_bindings_basis",
+   [
+    "OdooModelBinding",
+    "OdooSyncReceipt",
+    "SEED_ODOO_BINDINGS"
+   ]
+  ],
+  [
+   "odooconnect.odoo_scenarios_basis",
+   [
+    "BusinessScenarioDefinition",
+    "SEED_BUSINESS_SCENARIOS"
+   ]
+  ],
+  [
+   "odooconnect.odoo_seed",
+   [
+    "SEED_ODOO_INSTANCES"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_odooconnect_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "odoo_orders_selftest",
+  "odoo_scenarios_selftest",
+  "odoo_selftest",
+  "odoo_sync_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

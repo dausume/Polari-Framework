@@ -1,0 +1,111 @@
+{
+ "schema": "polari-app/1",
+ "id": "computers",
+ "package": "computers",
+ "title": "Computers",
+ "description": "Computer assembly + use-case profiles as their own app (cmp-c): component taxonomy rows (declared specs + honest gaps), DFA-style assembly gates over the computerparts catalog, profiles as data with ai-6-shaped evidence-bearing fits (db-binding declare-only v1). Separable from the microchip ladder (chip-4 seam deferred).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 3,
+ "repo": "https://github.com/dausume/polari-module-computers.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "composition",
+   "computerparts"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/computers/ComputerAssemblyDefinition",
+   "objects/computers/ComputerPartClassDefinition",
+   "objects/computers/ComputerProfileDefinition",
+   "objects/computers/_shared",
+   "objects/computers_ports/InterconnectDefinition",
+   "objects/computers_ports/_shared"
+  ],
+  "basis": [
+   "computers_basis",
+   "computers_ports_basis"
+  ],
+  "api": [
+   "computers_api"
+  ],
+  "seed": [
+   "computers_app_seed",
+   "computers_seed"
+  ],
+  "page": [
+   "computers_page"
+  ],
+  "selftests": [
+   "computers_selftest"
+  ],
+  "custom": [
+   "custom/computers_fit",
+   "custom/computers_gates"
+  ]
+ },
+ "classes": [
+  "ComputerAssemblyDefinition",
+  "ComputerPartClassDefinition",
+  "ComputerProfileDefinition",
+  "ComputersAPI",
+  "InterconnectDefinition"
+ ],
+ "imports": [
+  [
+   "computers.computers_basis",
+   [
+    "ComputerAssemblyDefinition",
+    "ComputerPartClassDefinition",
+    "ComputerProfileDefinition"
+   ]
+  ],
+  [
+   "computers.computers_page",
+   [
+    "SEED_COMPUTERS_PAGE_DISPLAYS"
+   ]
+  ],
+  [
+   "computers.computers_ports_basis",
+   [
+    "InterconnectDefinition"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_computers_endpoints",
+ "seedPairs": null,
+ "pages": [
+  "computers.computers_page:SEED_COMPUTERS_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "computers_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

@@ -1,0 +1,115 @@
+{
+ "schema": "polari-app/1",
+ "id": "sifet",
+ "package": "sifet",
+ "title": "Sifet",
+ "description": "Silicon MOSFETs (planar / FinFET) on thermal and SOL-GEL dielectrics sharing the cntfet VS device contract (states, regimes, scoring, validity, cross-technology ranking), complementary pairs, and silicon refinement routes (MG -> UMG -> SoG -> EG; PV open, EG novel).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 3,
+ "repo": "https://github.com/dausume/polari-module-sifet.git",
+ "app": {
+  "kind": "library",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "cntfet"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/si/SiliconDopingProfile",
+   "objects/si/SiliconFETShape",
+   "objects/si/SiliconMOSFET",
+   "objects/si/SolGelDielectric",
+   "objects/si/SolGelProcess",
+   "objects/si/_shared",
+   "objects/si_ladder/SiliconProcessNode",
+   "objects/si_ladder/_shared",
+   "objects/si_refinement/RefinementRoute",
+   "objects/si_refinement/RefinementStep",
+   "objects/si_refinement/SiliconGrade",
+   "objects/si_refinement/_shared"
+  ],
+  "basis": [
+   "si_basis",
+   "si_ladder_basis",
+   "si_refinement_basis"
+  ],
+  "seed": [
+   "sifet_data_seed"
+  ],
+  "page": [
+   "si_page"
+  ],
+  "selftests": [
+   "ladder_selftest",
+   "refinement_selftest",
+   "si_fields_selftest",
+   "si_scene_selftest",
+   "si_sequential_selftest",
+   "si_transport_selftest",
+   "sifet_pages_selftest",
+   "sifet_selftest"
+  ],
+  "custom": [
+   "custom/si_device",
+   "custom/si_fields",
+   "custom/si_model",
+   "custom/si_montecarlo",
+   "custom/si_scene",
+   "custom/si_transport"
+  ]
+ },
+ "classes": [
+  "RefinementRoute",
+  "RefinementStep",
+  "SiliconDopingProfile",
+  "SiliconFETShape",
+  "SiliconGrade",
+  "SiliconMOSFET",
+  "SiliconProcessNode",
+  "SolGelDielectric",
+  "SolGelProcess"
+ ],
+ "imports": [],
+ "endpoints": null,
+ "seedPairs": null,
+ "pages": [
+  "sifet.si_page:SEED_SI_PAGE_DISPLAYS",
+  "sifet.si_page:SEED_SI_SCORE_PAGES"
+ ],
+ "derivedSeeds": true,
+ "initialData": true,
+ "selftests": [
+  "ladder_selftest",
+  "refinement_selftest",
+  "si_fields_selftest",
+  "si_scene_selftest",
+  "si_sequential_selftest",
+  "si_transport_selftest",
+  "sifet_pages_selftest",
+  "sifet_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": false,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

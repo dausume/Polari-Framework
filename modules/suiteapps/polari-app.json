@@ -1,0 +1,102 @@
+{
+ "schema": "polari-app/1",
+ "id": "suiteapps",
+ "package": "suiteapps",
+ "title": "Suiteapps",
+ "description": "Suite apps: purpose-oriented compositions of apps of every kind (Polari modules, isle containers, hardware KVM guests, extension apps) with the object contracts between parts and a placement plan across devices (sa-1, 2026-09-08).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 8,
+ "repo": "",
+ "app": {
+  "kind": "library",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "islemesh"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/suiteapps/SuiteAppDefinition",
+   "objects/suiteapps/SuiteContract",
+   "objects/suiteapps/SuitePart",
+   "objects/suiteapps/SuitePlacement"
+  ],
+  "basis": [
+   "suiteapps_basis"
+  ],
+  "api": [
+   "suiteapps_api"
+  ],
+  "seed": [
+   "suiteapps_seed"
+  ],
+  "page": [
+   "suiteapps_page"
+  ],
+  "selftests": [
+   "suiteapps_selftest"
+  ],
+  "custom": [
+   "custom/placement"
+  ]
+ },
+ "classes": [
+  "SuiteAppDefinition",
+  "SuiteAppsAPI",
+  "SuiteContract",
+  "SuitePart",
+  "SuitePlacement"
+ ],
+ "imports": [
+  [
+   "suiteapps.suiteapps_basis",
+   [
+    "SuiteAppDefinition",
+    "SuitePart",
+    "SuiteContract",
+    "SuitePlacement",
+    "SUITEAPPS_SEED_PAIRS",
+    "SEED_SUITE_CATALOG"
+   ]
+  ],
+  [
+   "suiteapps.suiteapps_page",
+   [
+    "SEED_SUITEAPPS_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_suiteapps_endpoints",
+ "seedPairs": "suiteapps.suiteapps_basis:SUITEAPPS_SEED_PAIRS",
+ "pages": [
+  "suiteapps.suiteapps_page:SEED_SUITEAPPS_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "suiteapps_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

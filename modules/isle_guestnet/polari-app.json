@@ -1,0 +1,95 @@
+{
+ "schema": "polari-app/1",
+ "id": "isle_guestnet",
+ "package": "isle_guestnet",
+ "title": "Isle Guestnet",
+ "description": "isle-guestnet: an OpenWrt guest (hardware app) serving guest-only WiFi, isolated from the isle; exposures as rows.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 8,
+ "repo": "",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "hardwareapps",
+   "islemesh"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/guestnet/GuestNetworkDefinition",
+   "objects/guestnet/GuestNetworkExposure",
+   "objects/guestnet/GuestNetworkState"
+  ],
+  "basis": [
+   "isle_guestnet_basis"
+  ],
+  "api": [
+   "isle_guestnet_api"
+  ],
+  "page": [
+   "isle_guestnet_page"
+  ],
+  "selftests": [
+   "isle_guestnet_selftest"
+  ]
+ },
+ "classes": [
+  "GuestNetworkDefinition",
+  "GuestNetworkExposure",
+  "GuestNetworkState",
+  "IsleGuestnetAPI"
+ ],
+ "imports": [
+  [
+   "isle_guestnet.isle_guestnet_basis",
+   [
+    "GuestNetworkDefinition",
+    "GuestNetworkExposure",
+    "GuestNetworkState",
+    "ISLE_GUESTNET_SEED_PAIRS",
+    "SEED_GUESTNET_HARDWARE_APPS",
+    "SEED_GUESTNET_CATALOG"
+   ]
+  ],
+  [
+   "isle_guestnet.isle_guestnet_page",
+   [
+    "SEED_ISLE_GUESTNET_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_isle_guestnet_endpoints",
+ "seedPairs": "isle_guestnet.isle_guestnet_basis:ISLE_GUESTNET_SEED_PAIRS",
+ "pages": [
+  "isle_guestnet.isle_guestnet_page:SEED_ISLE_GUESTNET_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "isle_guestnet_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

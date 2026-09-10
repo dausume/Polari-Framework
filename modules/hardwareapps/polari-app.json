@@ -1,0 +1,93 @@
+{
+ "schema": "polari-app/1",
+ "id": "hardwareapps",
+ "package": "hardwareapps",
+ "title": "Hardwareapps",
+ "description": "Hardware apps as rows: KVM guests the isle defines (relay, guest network, …) and extension apps pushed into them; pure renderers for the libvirt domain XML (the router template generalised) and OpenWrt UCI profiles (hw-app-1, 2026-09-08).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 8,
+ "repo": "",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "islemesh"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/hardwareapps/HardwareAppDefinition",
+   "objects/hardwareapps/HardwareAppState"
+  ],
+  "basis": [
+   "hardwareapps_basis"
+  ],
+  "api": [
+   "hardwareapps_api"
+  ],
+  "page": [
+   "hardwareapps_page"
+  ],
+  "selftests": [
+   "hardwareapps_selftest"
+  ],
+  "custom": [
+   "custom/domain_xml",
+   "custom/uci_profiles"
+  ]
+ },
+ "classes": [
+  "HardwareAppDefinition",
+  "HardwareAppState",
+  "HardwareAppsAPI"
+ ],
+ "imports": [
+  [
+   "hardwareapps.hardwareapps_basis",
+   [
+    "HardwareAppDefinition",
+    "HardwareAppState",
+    "HARDWAREAPPS_SEED_PAIRS"
+   ]
+  ],
+  [
+   "hardwareapps.hardwareapps_page",
+   [
+    "SEED_HARDWAREAPPS_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_hardwareapps_endpoints",
+ "seedPairs": "hardwareapps.hardwareapps_basis:HARDWAREAPPS_SEED_PAIRS",
+ "pages": [
+  "hardwareapps.hardwareapps_page:SEED_HARDWAREAPPS_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "hardwareapps_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

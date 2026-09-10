@@ -1,0 +1,94 @@
+{
+ "schema": "polari-app/1",
+ "id": "meshassets",
+ "package": "meshassets",
+ "title": "Meshassets",
+ "description": "License-GATED external mesh catalog: verified open-source 3D assets as pointers (never vendored bytes), graded by what the licence actually permits (simulate vs redistribute), plus the fit engine that scales a borrowed mesh onto our vector organ definitions and MEASURES the compromise (shape fidelity). Gears are flagged approximation-invalid: an approximate gear does not mesh.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 4,
+ "repo": "https://github.com/dausume/polari-module-meshassets.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "plant_morphology"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/mesh_asset/MeshAssetReference",
+   "objects/mesh_asset/MeshAssetSource",
+   "objects/mesh_asset/OrganMeshChoice",
+   "objects/mesh_asset/_shared"
+  ],
+  "basis": [
+   "mesh_asset_basis"
+  ],
+  "api": [
+   "mesh_asset_api"
+  ],
+  "seed": [
+   "mesh_asset_seed"
+  ],
+  "selftests": [
+   "meshassets_selftest"
+  ],
+  "custom": [
+   "custom/mesh_fit"
+  ]
+ },
+ "classes": [
+  "MeshAssetReference",
+  "MeshAssetSource",
+  "MeshAssetsAPI",
+  "OrganMeshChoice"
+ ],
+ "imports": [
+  [
+   "meshassets.mesh_asset_basis",
+   [
+    "MeshAssetReference",
+    "MeshAssetSource",
+    "OrganMeshChoice"
+   ]
+  ],
+  [
+   "meshassets.mesh_asset_seed",
+   [
+    "SEED_MESH_ASSETS",
+    "SEED_MESH_SOURCES"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_meshassets_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "meshassets_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

@@ -1,0 +1,109 @@
+{
+ "schema": "polari-app/1",
+ "id": "gears",
+ "package": "gears",
+ "title": "Gears",
+ "description": "Gear trains as data (GEARS_PLAN.md): the gear-type taxonomy with ratio laws + literature efficiency bands + how each type would be MADE in our stack, and the abstract kinematic solve over a shaft-node/mesh-edge graph (speeds with direction, torque after the efficiency chain, power conservation, accumulated backlash). Motor splice = gr-5.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 4,
+ "repo": "https://github.com/dausume/polari-module-gears.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "mathshapes"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/gear/GearDefinition",
+   "objects/gear/GearMeshDefinition",
+   "objects/gear/GearTrainDefinition",
+   "objects/gear/GearTypeDefinition",
+   "objects/gear/GearVerificationRun",
+   "objects/gear/ShaftNodeDefinition",
+   "objects/gear/_shared"
+  ],
+  "basis": [
+   "gear_basis"
+  ],
+  "api": [
+   "gear_api"
+  ],
+  "seed": [
+   "gear_scene_seed",
+   "gear_seed"
+  ],
+  "selftests": [
+   "gears_selftest"
+  ],
+  "custom": [
+   "custom/gear_kinematics",
+   "custom/gear_motor",
+   "custom/planetary"
+  ]
+ },
+ "classes": [
+  "GearDefinition",
+  "GearMeshDefinition",
+  "GearTrainDefinition",
+  "GearTypeDefinition",
+  "GearVerificationRun",
+  "GearsAPI",
+  "ShaftNodeDefinition"
+ ],
+ "imports": [
+  [
+   "gears.gear_basis",
+   [
+    "GearDefinition",
+    "GearMeshDefinition",
+    "GearTrainDefinition",
+    "GearTypeDefinition",
+    "GearVerificationRun",
+    "ShaftNodeDefinition"
+   ]
+  ],
+  [
+   "gears.gear_seed",
+   [
+    "SEED_GEAR_MESHES",
+    "SEED_GEAR_TRAINS",
+    "SEED_GEAR_TYPES",
+    "SEED_GEARS",
+    "SEED_SHAFT_NODES"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_gears_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "gears_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

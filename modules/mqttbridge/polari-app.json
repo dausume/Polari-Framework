@@ -1,0 +1,84 @@
+{
+ "schema": "polari-app/1",
+ "id": "mqttbridge",
+ "package": "mqttbridge",
+ "title": "Mqttbridge",
+ "description": "MQTT bridge: brokers + topic->object bindings as rows, explicit connect, ingest with refusal ledger; publish knob OFF at mqtt-1. paho-mqtt==2.1.0 (EDL-1.0 edge).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 3,
+ "repo": "",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/mqtt/MqttBrokerDefinition",
+   "objects/mqtt/MqttMessageRecord",
+   "objects/mqtt/MqttTopicBinding",
+   "objects/mqtt/_shared"
+  ],
+  "basis": [
+   "mqtt_basis"
+  ],
+  "api": [
+   "mqtt_api"
+  ],
+  "selftests": [
+   "mqttbridge_selftest"
+  ],
+  "custom": [
+   "custom/mqtt_bridge"
+  ]
+ },
+ "classes": [
+  "MqttBridgeAPI",
+  "MqttBrokerDefinition",
+  "MqttMessageRecord",
+  "MqttTopicBinding"
+ ],
+ "imports": [
+  [
+   "mqttbridge.mqtt_basis",
+   [
+    "MqttBrokerDefinition",
+    "MqttMessageRecord",
+    "MqttTopicBinding",
+    "SEED_MQTT_BINDINGS",
+    "SEED_MQTT_BROKERS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_mqttbridge_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "mqttbridge_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

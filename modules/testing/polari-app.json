@@ -1,0 +1,165 @@
+{
+ "schema": "polari-app/1",
+ "id": "testing",
+ "package": "testing",
+ "title": "Testing",
+ "description": "Accountability spine (opt-in: registers only on test builds / explicit POLARI_MODULES).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 6,
+ "repo": "https://github.com/dausume/polari-module-testing.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/capability/CapabilityCheck",
+   "objects/capability/CheckRun",
+   "objects/capability/_shared",
+   "objects/coverage/AppBenchmark",
+   "objects/coverage/AppHierarchyNode",
+   "objects/coverage/ModuleCoverage",
+   "objects/coverage/StandardComputerBudget",
+   "objects/coverage/TestCoveragePlan",
+   "objects/coverage/_shared",
+   "objects/parity_probe/Acct1ParityProbe",
+   "objects/parity_probe/_shared"
+  ],
+  "basis": [
+   "capability_basis",
+   "coverage_basis",
+   "parity_probe_basis"
+  ],
+  "api": [
+   "accountability_api",
+   "coverage_api",
+   "twin_lease_api"
+  ],
+  "seed": [
+   "testing_seed"
+  ],
+  "page": [
+   "coverage_page"
+  ],
+  "catalog": [
+   "check_catalog"
+  ],
+  "selftests": [
+   "coverage_selftest",
+   "formats_selftest",
+   "ncg_split_selftest",
+   "nocode_matrix_selftest",
+   "stomp_selftest",
+   "substrate_selftest",
+   "testing_selftest",
+   "transports_selftest",
+   "twin_selftest"
+  ],
+  "custom": [
+   "custom/absence_probe",
+   "custom/app_benchmark",
+   "custom/app_hierarchy",
+   "custom/check_runners",
+   "custom/matrix_runner",
+   "custom/ncg_split_probe",
+   "custom/nocode_checks",
+   "custom/report_yaml",
+   "custom/run_matrix",
+   "custom/substrate_checks",
+   "custom/substrate_env",
+   "custom/transport_checks",
+   "custom/twin_checks",
+   "custom/twin_fixtures",
+   "custom/twin_http",
+   "custom/twin_rehearsal"
+  ]
+ },
+ "classes": [
+  "AccountabilityAPI",
+  "Acct1ParityProbe",
+  "Acct2FormatProbe",
+  "AppBenchmark",
+  "AppHierarchyNode",
+  "CapabilityCheck",
+  "CheckRun",
+  "CoverageAPI",
+  "ModuleCoverage",
+  "StandardComputerBudget",
+  "TestCoveragePlan",
+  "TwinLeaseAPI"
+ ],
+ "imports": [
+  [
+   "testing.capability_basis",
+   [
+    "CapabilityCheck",
+    "CheckRun"
+   ]
+  ],
+  [
+   "testing.testing_seed",
+   [
+    "SEED_CAPABILITY_CHECKS"
+   ]
+  ],
+  [
+   "testing.coverage_basis",
+   [
+    "StandardComputerBudget",
+    "AppHierarchyNode",
+    "ModuleCoverage",
+    "AppBenchmark",
+    "TestCoveragePlan",
+    "SEED_STANDARD_COMPUTER_BUDGETS"
+   ]
+  ],
+  [
+   "testing.coverage_page",
+   [
+    "SEED_TESTING_COVERAGE_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_testing_endpoints",
+ "seedPairs": null,
+ "pages": [
+  "testing.coverage_page:SEED_TESTING_COVERAGE_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "coverage_selftest",
+  "formats_selftest",
+  "ncg_split_selftest",
+  "nocode_matrix_selftest",
+  "stomp_selftest",
+  "substrate_selftest",
+  "testing_selftest",
+  "transports_selftest",
+  "twin_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

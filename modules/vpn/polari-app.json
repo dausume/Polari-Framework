@@ -1,0 +1,121 @@
+{
+ "schema": "polari-app/1",
+ "id": "vpn",
+ "package": "vpn",
+ "title": "Vpn",
+ "description": "Isle VPN (vpn-1): the isle-vpn app family (Isle Link = WireGuard-based, Isle Bridge = OpenVPN-based, ten kinds, Blind / Sees-traffic on every row) — Polari MIRRORS each isle's VPN app state (networks, peers with public keys only, access rules, federation links, .vpn exposures; POST /api/islemesh/ingest/vpn) and PROPOSES changes an operator applies on the isle (VpnProposal inbox; D9 authority is isle-side). Engine renders Link confs / nftables text; Bridge refuses until step-ca. Feeds /display/vpn and the .vpn column of /display/isle-mesh.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 7,
+ "repo": "",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [
+   "isle-vpn"
+  ],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "islemesh"
+  ],
+  "libraries": [],
+  "engines": [
+   {
+    "name": "cryptography",
+    "kind": "python",
+    "probe": "cryptography",
+    "note": "X25519 keygen fallback (device-side keys preferred)"
+   }
+  ]
+ },
+ "files": {
+  "objects": [
+   "objects/vpn/AppVpnExposure",
+   "objects/vpn/VpnAccessRule",
+   "objects/vpn/VpnFederationLink",
+   "objects/vpn/VpnNetwork",
+   "objects/vpn/VpnPeer",
+   "objects/vpn/VpnPlacement",
+   "objects/vpn/VpnProposal",
+   "objects/vpn/_shared"
+  ],
+  "basis": [
+   "vpn_basis"
+  ],
+  "api": [
+   "vpn_api"
+  ],
+  "seed": [
+   "vpn_seed"
+  ],
+  "page": [
+   "vpn_page"
+  ],
+  "catalog": [
+   "vpn_catalog"
+  ],
+  "selftests": [
+   "vpn_selftest"
+  ],
+  "custom": [
+   "custom/vpn_constants",
+   "custom/vpn_demo",
+   "custom/vpn_engine",
+   "custom/vpn_placement",
+   "custom/vpn_proposals",
+   "custom/vpn_provision",
+   "custom/vpn_trust",
+   "custom/vpn_uci"
+  ]
+ },
+ "classes": [
+  "AppVpnExposure",
+  "VpnAPI",
+  "VpnAccessRule",
+  "VpnFederationLink",
+  "VpnNetwork",
+  "VpnPeer",
+  "VpnPlacement",
+  "VpnProposal"
+ ],
+ "imports": [
+  [
+   "vpn",
+   [
+    "VPN_CLASSES",
+    "VPN_SEED_PAIRS",
+    "SEED_VPN_CATALOG",
+    "SEED_VPN_PAGE_DISPLAYS",
+    "SEED_VPN_HARDWARE_APPS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_vpn_endpoints",
+ "seedPairs": "vpn:VPN_SEED_PAIRS",
+ "pages": [
+  "vpn.vpn_page:SEED_VPN_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "vpn_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

@@ -1,0 +1,167 @@
+{
+ "schema": "polari-app/1",
+ "id": "magnetics",
+ "package": "magnetics",
+ "title": "Magnetics",
+ "description": "Magnetic materials Section A: option catalog with realization ladder, functional role taxonomy (derived viability), theoretical powder designer (MAGNETIC_MATERIALS_PLAN.md).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 3,
+ "repo": "https://github.com/dausume/polari-module-magnetics.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "materialsScience",
+   "supplychain"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/field_view/FieldThresholdBand",
+   "objects/field_view/FieldViewDefinition",
+   "objects/field_view/FieldViewGroup",
+   "objects/field_view/_shared",
+   "objects/magnet/MagneticMaterialOption",
+   "objects/magnet/MagneticPowderDefinition",
+   "objects/magnet/MaterialUseRole",
+   "objects/magnet/_shared",
+   "objects/magnet_block/BlockLayoutDefinition",
+   "objects/magnet_block/BlockPlacement",
+   "objects/magnet_block/BlockSizeVariant",
+   "objects/magnet_block/JointMortarAssignment",
+   "objects/magnet_block/_shared",
+   "objects/magnet_circuit/FluxNodeDefinition",
+   "objects/magnet_circuit/MagneticCircuitDefinition",
+   "objects/magnet_circuit/MagneticElementDefinition",
+   "objects/magnet_circuit/_shared"
+  ],
+  "basis": [
+   "field_view_basis",
+   "magnet_basis",
+   "magnet_block_basis",
+   "magnet_circuit_basis"
+  ],
+  "api": [
+   "magnet_api"
+  ],
+  "seed": [
+   "magnet_seed",
+   "magnetic_netlist_seed"
+  ],
+  "selftests": [
+   "field_views_selftest",
+   "magnet_layout_selftest",
+   "magnetic_circuits_selftest",
+   "magnetics_selftest"
+  ],
+  "custom": [
+   "custom/field_views",
+   "custom/magnet_analysis",
+   "custom/magnet_layout",
+   "custom/realization_promotion"
+  ]
+ },
+ "classes": [
+  "BlockLayoutDefinition",
+  "BlockPlacement",
+  "BlockSizeVariant",
+  "FieldThresholdBand",
+  "FieldViewDefinition",
+  "FieldViewGroup",
+  "FluxNodeDefinition",
+  "JointMortarAssignment",
+  "MagneticCircuitDefinition",
+  "MagneticElementDefinition",
+  "MagneticMaterialOption",
+  "MagneticPowderDefinition",
+  "MagneticsAPI",
+  "MaterialUseRole"
+ ],
+ "imports": [
+  [
+   "magnetics.magnet_basis",
+   [
+    "MagneticMaterialOption",
+    "MagneticPowderDefinition",
+    "MaterialUseRole"
+   ]
+  ],
+  [
+   "magnetics.magnet_seed",
+   [
+    "SEED_MAGNETIC_POWDERS",
+    "SEED_MATERIAL_OPTIONS",
+    "SEED_USE_ROLES"
+   ]
+  ],
+  [
+   "magnetics.magnet_circuit_basis",
+   [
+    "FluxNodeDefinition",
+    "MagneticCircuitDefinition",
+    "MagneticElementDefinition",
+    "SEED_FLUX_NODES",
+    "SEED_MAGNETIC_CIRCUITS",
+    "SEED_MAGNETIC_ELEMENTS"
+   ]
+  ],
+  [
+   "magnetics.magnet_block_basis",
+   [
+    "BlockLayoutDefinition",
+    "BlockPlacement",
+    "BlockSizeVariant",
+    "JointMortarAssignment",
+    "SEED_BLOCK_LAYOUTS",
+    "SEED_BLOCK_PLACEMENTS",
+    "SEED_BLOCK_VARIANTS",
+    "SEED_JOINT_MORTARS"
+   ]
+  ],
+  [
+   "magnetics.field_view_basis",
+   [
+    "FieldThresholdBand",
+    "FieldViewDefinition",
+    "FieldViewGroup",
+    "SEED_FIELD_BANDS",
+    "SEED_FIELD_GROUPS",
+    "SEED_FIELD_VIEWS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_magnetics_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "field_views_selftest",
+  "magnet_layout_selftest",
+  "magnetic_circuits_selftest",
+  "magnetics_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

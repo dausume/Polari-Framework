@@ -1,0 +1,89 @@
+{
+ "schema": "polari-app/1",
+ "id": "plant_morphology",
+ "package": "plant_morphology",
+ "title": "Plant Morphology",
+ "description": "3D organ + root stand-in models, confinement/dwarfing assessment.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 1,
+ "repo": "https://github.com/dausume/polari-module-plant_morphology.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/organ/OrganModel",
+   "objects/organ/RootSystemModel",
+   "objects/organ/_shared"
+  ],
+  "basis": [
+   "organ_basis"
+  ],
+  "api": [
+   "morphology_api"
+  ],
+  "seed": [
+   "morphology_seed"
+  ],
+  "selftests": [
+   "morphology_selftest"
+  ],
+  "custom": [
+   "custom/morphology_analysis"
+  ]
+ },
+ "classes": [
+  "OrganModel",
+  "PlantMorphologyAPI",
+  "RootSystemModel"
+ ],
+ "imports": [
+  [
+   "plant_morphology.organ_basis",
+   [
+    "OrganModel",
+    "RootSystemModel"
+   ]
+  ],
+  [
+   "plant_morphology.morphology_seed",
+   [
+    "SEED_ORGAN_MODELS",
+    "SEED_ROOT_MODELS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_plant_morphology_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "morphology_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

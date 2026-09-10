@@ -1,0 +1,144 @@
+{
+ "schema": "polari-app/1",
+ "id": "dmvdata",
+ "package": "dmvdata",
+ "title": "Dmvdata",
+ "description": "DMV cost-of-living source catalogs, gov/legal sources, cross-validation.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 2,
+ "repo": "https://github.com/dausume/polari-module-dmvdata.git",
+ "app": {
+  "kind": "library",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "scoring"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/cross_validation/RetrievalConfirmation",
+   "objects/cross_validation/_shared",
+   "objects/gov_sources/GovSource",
+   "objects/gov_sources/SourceRetrieval",
+   "objects/gov_sources/_shared",
+   "objects/legal_sources/AcademicSource",
+   "objects/legal_sources/CompanySource",
+   "objects/legal_sources/IndividualSource",
+   "objects/legal_sources/JournalisticSource",
+   "objects/legal_sources/NonProfitSource",
+   "objects/legal_sources/PoliticalGroupSource",
+   "objects/legal_sources/_shared"
+  ],
+  "basis": [
+   "cross_validation_basis",
+   "gov_sources_basis",
+   "legal_sources_basis"
+  ],
+  "seed": [
+   "legis_sources_seed",
+   "source_seed"
+  ],
+  "selftests": [
+   "cross_validation_selftest",
+   "dmv_sources_selftest",
+   "gov_sources_selftest",
+   "legal_sources_selftest"
+  ],
+  "custom": [
+   "custom/census_pull"
+  ]
+ },
+ "classes": [
+  "AcademicSource",
+  "CompanySource",
+  "GovSource",
+  "IndividualSource",
+  "JournalisticSource",
+  "NonProfitSource",
+  "PoliticalGroupSource",
+  "RetrievalConfirmation",
+  "SourceRetrieval"
+ ],
+ "imports": [
+  [
+   "dmvdata.legis_sources_seed",
+   [
+    "SEED_LEGIS_DOMAINS",
+    "SEED_LEGIS_ENDPOINTS",
+    "SEED_LEGIS_GOV_SOURCES"
+   ]
+  ],
+  [
+   "dmvdata.source_seed",
+   [
+    "SEED_API_DOMAINS",
+    "SEED_API_ENDPOINTS"
+   ]
+  ],
+  [
+   "dmvdata.gov_sources_basis",
+   [
+    "GovSource",
+    "SEED_GOV_SOURCES",
+    "SourceRetrieval"
+   ]
+  ],
+  [
+   "dmvdata.cross_validation_basis",
+   [
+    "RetrievalConfirmation",
+    "SEED_PROVIDER_CONCEPT",
+    "SEED_PROVIDER_TERMS"
+   ]
+  ],
+  [
+   "dmvdata.legal_sources_basis",
+   [
+    "AcademicSource",
+    "CompanySource",
+    "IndividualSource",
+    "JournalisticSource",
+    "NonProfitSource",
+    "PoliticalGroupSource",
+    "SEED_COMPANY_SOURCES",
+    "SEED_INDIVIDUAL_SOURCES",
+    "SEED_NONPROFIT_SOURCES",
+    "SEED_POLITICAL_SOURCES"
+   ]
+  ]
+ ],
+ "endpoints": null,
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "cross_validation_selftest",
+  "dmv_sources_selftest",
+  "gov_sources_selftest",
+  "legal_sources_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

@@ -1,0 +1,134 @@
+{
+ "schema": "polari-app/1",
+ "id": "foodstate",
+ "package": "foodstate",
+ "title": "Foodstate",
+ "description": "Food as PSPP state evolution (fsp arc): food stages/processes/evidence methods as pspp rows + property-domain contracts; transform engines arrive fsp-2 (FOOD_STATE_PSPP_PLAN.md).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 0,
+ "repo": "https://github.com/dausume/polari-module-foodstate.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "nutrition",
+   "pspp"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/food_contracts/FoodDomainContract",
+   "objects/food_contracts/_shared",
+   "objects/food_materials/FoodMaterial",
+   "objects/food_materials/_shared"
+  ],
+  "basis": [
+   "food_contracts_basis",
+   "food_materials_basis"
+  ],
+  "api": [
+   "food_api"
+  ],
+  "seed": [
+   "food_acid_seed",
+   "food_ph_seed",
+   "food_pspp_seed"
+  ],
+  "selftests": [
+   "food_chemistry_selftest",
+   "food_materials_selftest",
+   "food_transforms_selftest",
+   "foodstate_selftest",
+   "initial_data_selftest"
+  ],
+  "custom": [
+   "custom/export_initial_data",
+   "custom/food_chemistry",
+   "custom/food_composition",
+   "custom/food_transforms"
+  ]
+ },
+ "classes": [
+  "FoodDomainContract",
+  "FoodMaterial",
+  "FoodStateAPI"
+ ],
+ "imports": [
+  [
+   "foodstate.food_contracts_basis",
+   [
+    "FoodDomainContract",
+    "SEED_FOOD_DOMAIN_CONTRACTS"
+   ]
+  ],
+  [
+   "foodstate.food_pspp_seed",
+   [
+    "SEED_FOOD_EVIDENCE_METHODS",
+    "SEED_FOOD_PROCESSES",
+    "SEED_FOOD_STAGES"
+   ]
+  ],
+  [
+   "foodstate.food_materials_basis",
+   [
+    "FoodMaterial",
+    "build_food_material_seeds"
+   ]
+  ],
+  [
+   "foodstate.custom.food_composition",
+   [
+    "build_composition_claim_seeds",
+    "vendor_food_index"
+   ]
+  ],
+  [
+   "foodstate.food_ph_seed",
+   [
+    "SEED_FOOD_PH_CLAIMS"
+   ]
+  ],
+  [
+   "foodstate.food_acid_seed",
+   [
+    "SEED_FOOD_ACID_CLAIMS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_foodstate_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": true,
+ "initialData": true,
+ "selftests": [
+  "food_chemistry_selftest",
+  "food_materials_selftest",
+  "food_transforms_selftest",
+  "foodstate_selftest",
+  "initial_data_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": false,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

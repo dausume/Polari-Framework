@@ -1,0 +1,422 @@
+{
+ "schema": "polari-app/1",
+ "id": "pspp",
+ "package": "pspp",
+ "title": "Pspp",
+ "description": "PSPP foundation: evidence methods, claims-not-values, digitized book datasets + interpolation (PSPP_MATERIALS_PLAN.md).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 0,
+ "repo": "https://github.com/dausume/polari-module-pspp.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "materialsScience"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/benchmark_cases/BenchmarkCase",
+   "objects/benchmark_cases/_shared",
+   "objects/ceramics_ladder/LadderRung",
+   "objects/ceramics_ladder/_shared",
+   "objects/ceramics_samples/CeramicSample",
+   "objects/ceramics_samples/_shared",
+   "objects/claims/PropertyClaim",
+   "objects/claims/StructureClaim",
+   "objects/claims/ValidationClaim",
+   "objects/claims/_shared",
+   "objects/digitized_datasets/DigitizedDataset",
+   "objects/digitized_datasets/_shared",
+   "objects/evidence_methods/EvidenceMethod",
+   "objects/evidence_methods/_shared",
+   "objects/exposure_scenarios/ExposureScenario",
+   "objects/exposure_scenarios/_shared",
+   "objects/material_processes/MaterialProcessDefinition",
+   "objects/material_processes/MaterialProcessExecution",
+   "objects/material_processes/_shared",
+   "objects/material_states/MaterialState",
+   "objects/material_states/ProcessingStage",
+   "objects/material_states/_shared",
+   "objects/material_structure/ScaleStructureDefinition",
+   "objects/material_structure/_shared",
+   "objects/performance_scenarios/MaterialPerformanceScenario",
+   "objects/performance_scenarios/_shared",
+   "objects/reaction_network/ChemicalSpecies",
+   "objects/reaction_network/ReactionRule",
+   "objects/reaction_network/_shared",
+   "objects/reaction_windows/ReactionWindow",
+   "objects/reaction_windows/_shared",
+   "objects/research_tools/ResearchTool",
+   "objects/research_tools/_shared",
+   "objects/scale_transfers/ScaleTransferDefinition",
+   "objects/scale_transfers/_shared",
+   "objects/solgel_sourcing/PrecursorSource",
+   "objects/solgel_sourcing/_shared",
+   "objects/threshold_windows/ThresholdReactionWindow",
+   "objects/threshold_windows/_shared"
+  ],
+  "basis": [
+   "benchmark_cases_basis",
+   "ceramics_ladder_basis",
+   "ceramics_samples_basis",
+   "claims_basis",
+   "digitized_datasets_basis",
+   "evidence_methods_basis",
+   "exposure_scenarios_basis",
+   "material_processes_basis",
+   "material_states_basis",
+   "material_structure_basis",
+   "performance_scenarios_basis",
+   "reaction_network_basis",
+   "reaction_windows_basis",
+   "research_tools_basis",
+   "scale_transfers_basis",
+   "solgel_sourcing_basis",
+   "threshold_windows_basis"
+  ],
+  "api": [
+   "pspp_api"
+  ],
+  "seed": [
+   "characterization_seed",
+   "cmc_library_seed",
+   "datasets_seed",
+   "sintering_seed"
+  ],
+  "page": [
+   "pspp_page"
+  ],
+  "selftests": [
+   "benchmark_cases_selftest",
+   "ceramics_ladder_selftest",
+   "ceramics_samples_selftest",
+   "characterization_selftest",
+   "cmc_library_selftest",
+   "composition_math_selftest",
+   "cure_checkpoints_selftest",
+   "digitized_datasets_selftest",
+   "evidence_claims_selftest",
+   "experiment_guidance_selftest",
+   "geopolymer_ceramic_transition_selftest",
+   "glass_refinement_selftest",
+   "material_processes_selftest",
+   "material_states_selftest",
+   "material_structure_selftest",
+   "network_stepping_selftest",
+   "performance_scenarios_selftest",
+   "pspp_views_selftest",
+   "q_distribution_selftest",
+   "reaction_network_selftest",
+   "reaction_windows_selftest",
+   "research_tools_selftest",
+   "scale_transfers_selftest",
+   "sintering_engine_selftest",
+   "sintering_structure_selftest",
+   "solgel_network_selftest",
+   "solgel_process_selftest",
+   "solgel_sourcing_selftest",
+   "solgel_structure_selftest",
+   "structure_groups_selftest",
+   "structure_sampling_selftest",
+   "structure_validation_selftest",
+   "threshold_windows_selftest",
+   "viscous_sintering_selftest",
+   "wax_states_selftest"
+  ],
+  "custom": [
+   "custom/composition_math",
+   "custom/cure_checkpoints",
+   "custom/dataset_interpolation",
+   "custom/experiment_guidance",
+   "custom/geopolymer_ceramic_transition",
+   "custom/glass_refinement",
+   "custom/network_stepping",
+   "custom/progress_engine",
+   "custom/pspp_views",
+   "custom/q_distribution",
+   "custom/sintering_engine",
+   "custom/sintering_structure",
+   "custom/solgel_network",
+   "custom/solgel_process",
+   "custom/solgel_structure",
+   "custom/state_resolution",
+   "custom/structure_groups",
+   "custom/structure_sampling",
+   "custom/structure_scene",
+   "custom/structure_validation",
+   "custom/viscous_sintering",
+   "custom/wax_states"
+  ]
+ },
+ "classes": [
+  "BenchmarkCase",
+  "CeramicSample",
+  "ChemicalSpecies",
+  "DigitizedDataset",
+  "EvidenceMethod",
+  "ExposureScenario",
+  "LadderRung",
+  "MaterialPerformanceScenario",
+  "MaterialProcessDefinition",
+  "MaterialProcessExecution",
+  "MaterialState",
+  "PrecursorSource",
+  "ProcessingStage",
+  "PropertyClaim",
+  "PsppAPI",
+  "ReactionRule",
+  "ReactionWindow",
+  "ResearchTool",
+  "ScaleStructureDefinition",
+  "ScaleTransferDefinition",
+  "StructureClaim",
+  "ThresholdReactionWindow",
+  "ValidationClaim"
+ ],
+ "imports": [
+  [
+   "pspp.evidence_methods_basis",
+   [
+    "EvidenceMethod",
+    "SEED_EVIDENCE_METHODS"
+   ]
+  ],
+  [
+   "pspp.claims_basis",
+   [
+    "PropertyClaim",
+    "StructureClaim",
+    "ValidationClaim"
+   ]
+  ],
+  [
+   "pspp.digitized_datasets_basis",
+   [
+    "DigitizedDataset"
+   ]
+  ],
+  [
+   "pspp.datasets_seed",
+   [
+    "SEED_DIGITIZED_DATASETS"
+   ]
+  ],
+  [
+   "pspp.material_states_basis",
+   [
+    "MaterialState",
+    "ProcessingStage",
+    "SEED_PROCESSING_STAGES"
+   ]
+  ],
+  [
+   "pspp.pspp_page",
+   [
+    "SEED_PSPP_PAGE_DISPLAYS"
+   ]
+  ],
+  [
+   "pspp.material_structure_basis",
+   [
+    "ScaleStructureDefinition"
+   ]
+  ],
+  [
+   "pspp.reaction_windows_basis",
+   [
+    "ReactionWindow",
+    "SEED_REACTION_WINDOWS"
+   ]
+  ],
+  [
+   "pspp.threshold_windows_basis",
+   [
+    "ThresholdReactionWindow",
+    "SEED_THRESHOLD_WINDOWS"
+   ]
+  ],
+  [
+   "pspp.benchmark_cases_basis",
+   [
+    "BenchmarkCase",
+    "SEED_BENCHMARK_CASES"
+   ]
+  ],
+  [
+   "pspp.material_processes_basis",
+   [
+    "MaterialProcessDefinition",
+    "MaterialProcessExecution",
+    "SEED_PROCESS_DEFINITIONS"
+   ]
+  ],
+  [
+   "pspp.cmc_library_seed",
+   [
+    "SEED_CMC_PROCESS_DEFINITIONS",
+    "SEED_CMC_PROCESSING_STAGES",
+    "SEED_CMC_PROPERTY_MEANINGS"
+   ]
+  ],
+  [
+   "pspp.exposure_scenarios_basis",
+   [
+    "ExposureScenario",
+    "SEED_EXPOSURE_SCENARIOS"
+   ]
+  ],
+  [
+   "pspp.performance_scenarios_basis",
+   [
+    "MaterialPerformanceScenario"
+   ]
+  ],
+  [
+   "pspp.scale_transfers_basis",
+   [
+    "ScaleTransferDefinition",
+    "SEED_SCALE_TRANSFERS"
+   ]
+  ],
+  [
+   "pspp.reaction_network_basis",
+   [
+    "ChemicalSpecies",
+    "ReactionRule",
+    "SEED_CHEMICAL_SPECIES",
+    "SEED_REACTION_RULES"
+   ]
+  ],
+  [
+   "pspp.custom.solgel_network",
+   [
+    "SOLGEL_CHEMICAL_SPECIES",
+    "SOLGEL_REACTION_RULES",
+    "SOLGEL_THRESHOLD_WINDOWS"
+   ]
+  ],
+  [
+   "pspp.custom.solgel_process",
+   [
+    "SOLGEL_DIGITIZED_DATASETS",
+    "SOLGEL_PROCESSING_STAGES"
+   ]
+  ],
+  [
+   "pspp.solgel_sourcing_basis",
+   [
+    "PrecursorSource",
+    "SEED_PRECURSOR_SOURCES"
+   ]
+  ],
+  [
+   "pspp.sintering_seed",
+   [
+    "SEED_SINTERING_DATASETS"
+   ]
+  ],
+  [
+   "pspp.ceramics_samples_basis",
+   [
+    "CeramicSample",
+    "SEED_CERAMIC_SAMPLES",
+    "SEED_CERAMICS_DATASETS"
+   ]
+  ],
+  [
+   "pspp.ceramics_ladder_basis",
+   [
+    "LadderRung",
+    "SEED_LADDER_RUNGS"
+   ]
+  ],
+  [
+   "pspp.research_tools_basis",
+   [
+    "ResearchTool",
+    "SEED_RESEARCH_TOOLS"
+   ]
+  ],
+  [
+   "pspp.characterization_seed",
+   [
+    "SEED_CHARACTERIZATION_DATASETS"
+   ]
+  ],
+  [
+   "pspp.custom.glass_refinement",
+   [
+    "GLASS_DIGITIZED_DATASETS",
+    "GLASS_THRESHOLD_WINDOWS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_pspp_endpoints",
+ "seedPairs": null,
+ "pages": [
+  "pspp.pspp_page:SEED_PSPP_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "benchmark_cases_selftest",
+  "ceramics_ladder_selftest",
+  "ceramics_samples_selftest",
+  "characterization_selftest",
+  "cmc_library_selftest",
+  "composition_math_selftest",
+  "cure_checkpoints_selftest",
+  "digitized_datasets_selftest",
+  "evidence_claims_selftest",
+  "experiment_guidance_selftest",
+  "geopolymer_ceramic_transition_selftest",
+  "glass_refinement_selftest",
+  "material_processes_selftest",
+  "material_states_selftest",
+  "material_structure_selftest",
+  "network_stepping_selftest",
+  "performance_scenarios_selftest",
+  "pspp_views_selftest",
+  "q_distribution_selftest",
+  "reaction_network_selftest",
+  "reaction_windows_selftest",
+  "research_tools_selftest",
+  "scale_transfers_selftest",
+  "sintering_engine_selftest",
+  "sintering_structure_selftest",
+  "solgel_network_selftest",
+  "solgel_process_selftest",
+  "solgel_sourcing_selftest",
+  "solgel_structure_selftest",
+  "structure_groups_selftest",
+  "structure_sampling_selftest",
+  "structure_validation_selftest",
+  "threshold_windows_selftest",
+  "viscous_sintering_selftest",
+  "wax_states_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": false,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

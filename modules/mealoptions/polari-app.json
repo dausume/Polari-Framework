@@ -1,0 +1,125 @@
+{
+ "schema": "polari-app/1",
+ "id": "mealoptions",
+ "package": "mealoptions",
+ "title": "Mealoptions",
+ "description": "Meal options: templates, variations, recipes, steps, ingredient affinities, cooking methods, tool and task vocabularies, meal situations, bulk staples — the shareable meal data; no person or place data",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 1,
+ "repo": "",
+ "app": {
+  "kind": "library",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/affinity/DishBase",
+   "objects/affinity/FoodRole",
+   "objects/affinity/IngredientAffinity",
+   "objects/affinity/IngredientRole",
+   "objects/affinity/_shared",
+   "objects/meal/MealTemplate",
+   "objects/meal/VariationDefinition",
+   "objects/meal/_shared",
+   "objects/price_reference/PriceReference",
+   "objects/price_reference/_shared",
+   "objects/recipe/CookingStep",
+   "objects/recipe/IngredientLine",
+   "objects/recipe/Recipe",
+   "objects/recipe/_shared",
+   "objects/situation/MealSituation",
+   "objects/situation/_shared",
+   "objects/staple/BulkStaple",
+   "objects/staple/_shared",
+   "objects/workflow/CookingTaskDefinition",
+   "objects/workflow/CookingWorkflow",
+   "objects/workflow/KitchenToolDefinition",
+   "objects/workflow/StepMethod",
+   "objects/workflow/StorageActionDefinition",
+   "objects/workflow/_shared"
+  ],
+  "basis": [
+   "affinity_basis",
+   "meal_basis",
+   "price_reference_basis",
+   "recipe_basis",
+   "situation_basis",
+   "staple_basis",
+   "workflow_basis"
+  ],
+  "seed": [
+   "mealoptions_data_seed"
+  ],
+  "selftests": [
+   "mealoptions_selftest",
+   "price_reference_selftest",
+   "privacy_selftest"
+  ],
+  "custom": [
+   "custom/export_hook",
+   "custom/price_reference_analysis"
+  ]
+ },
+ "classes": [
+  "BulkStaple",
+  "CookingStep",
+  "CookingTaskDefinition",
+  "CookingWorkflow",
+  "DishBase",
+  "FoodRole",
+  "IngredientAffinity",
+  "IngredientLine",
+  "IngredientRole",
+  "KitchenToolDefinition",
+  "MealSituation",
+  "MealTemplate",
+  "PriceReference",
+  "Recipe",
+  "StepMethod",
+  "StorageActionDefinition",
+  "VariationDefinition"
+ ],
+ "imports": [
+  [
+   "mealoptions",
+   [
+    "MEALOPTIONS_CLASSES",
+    "MEALOPTIONS_SEED_PAIRS"
+   ]
+  ]
+ ],
+ "endpoints": null,
+ "seedPairs": "mealoptions:MEALOPTIONS_SEED_PAIRS",
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": true,
+ "selftests": [
+  "mealoptions_selftest",
+  "price_reference_selftest",
+  "privacy_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

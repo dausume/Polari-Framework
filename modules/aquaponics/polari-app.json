@@ -1,0 +1,378 @@
+{
+ "schema": "polari-app/1",
+ "id": "aquaponics",
+ "package": "aquaponics",
+ "title": "Aquaponics",
+ "description": "Self-watering pots, FEM hydraulics, vermicompost, per-part plant growth.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 5,
+ "repo": "https://github.com/dausume/polari-module-aquaponics.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "plant_morphology",
+   "scoring"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/atmosphere/AtmosphereDefinition",
+   "objects/growth_media/NutrientProfile",
+   "objects/growth_media/NutrientSpecies",
+   "objects/growth_media/SoilDefinition",
+   "objects/growth_media/WaterDefinition",
+   "objects/growth_media/_shared",
+   "objects/light/LightSourceDefinition",
+   "objects/light/LightSpectrumDefinition",
+   "objects/light/_shared",
+   "objects/plant/PlantDefinition",
+   "objects/plant/PlantPart",
+   "objects/plant/_shared",
+   "objects/plant_growth/PlantGrowthModel",
+   "objects/plant_growth_normalized/PotPlanting",
+   "objects/plant_growth_normalized/_shared",
+   "objects/plant_stress/StressResponseCurve",
+   "objects/plant_stress/_shared",
+   "objects/pot/PotDefinition",
+   "objects/pot/PotHole",
+   "objects/pot/_shared",
+   "objects/pot_system/PotSystemDefinition",
+   "objects/pot_system/_shared",
+   "objects/vermicompost/CompostBinDefinition",
+   "objects/vermicompost/CompostLoopDefinition",
+   "objects/vermicompost/VermicompostProfile",
+   "objects/vermicompost/_shared",
+   "objects/water_batch/WaterBatchSchedule",
+   "objects/water_batch/_shared"
+  ],
+  "basis": [
+   "atmosphere_basis",
+   "growth_media_basis",
+   "light_basis",
+   "plant_basis",
+   "plant_growth_basis",
+   "plant_growth_normalized_basis",
+   "plant_stress_basis",
+   "pot_basis",
+   "pot_system_basis",
+   "vermicompost_basis",
+   "water_batch_basis"
+  ],
+  "api": [
+   "atmosphere_api",
+   "hydraulics_api",
+   "light_field_api",
+   "media_api",
+   "plant_api",
+   "plant_growth_normalized_api",
+   "plant_growth_simplified_api",
+   "pot_api",
+   "pot_system_api",
+   "vermicompost_api",
+   "water_batch_api",
+   "water_level_api"
+  ],
+  "seed": [
+   "atmosphere_seed",
+   "light_seed",
+   "media_seed",
+   "plant_growth_normalized_seed",
+   "plant_growth_seed",
+   "plant_seed",
+   "plant_stress_seed",
+   "pot_materials_seed",
+   "pot_seed",
+   "pot_system_seed",
+   "vermicompost_seed",
+   "water_batch_seed"
+  ],
+  "page": [
+   "aquaponics_page"
+  ],
+  "selftests": [
+   "aquaponics_pages_selftest",
+   "atmosphere_selftest",
+   "growth_media_selftest",
+   "hydraulics_selftest",
+   "light_field_selftest",
+   "plant_growth_normalized_selftest",
+   "plant_growth_simplified_selftest",
+   "plant_selftest",
+   "plant_species_comparison_selftest",
+   "plant_stress_selftest",
+   "plant_transport_selftest",
+   "pot_selftest",
+   "system_selftest",
+   "vermicompost_selftest",
+   "water_batch_selftest",
+   "water_level_selftest"
+  ],
+  "custom": [
+   "custom/atmosphere_analysis",
+   "custom/hydraulics",
+   "custom/light_field",
+   "custom/media_analysis",
+   "custom/nutrient_uptake",
+   "custom/plant_analysis",
+   "custom/plant_growth_simplified",
+   "custom/plant_skeleton",
+   "custom/pot_geometry",
+   "custom/vermicompost_analysis",
+   "custom/water_level"
+  ]
+ },
+ "classes": [
+  "AquaponicsAtmosphereAPI",
+  "AquaponicsCompostAPI",
+  "AquaponicsHydraulicsAPI",
+  "AquaponicsLightFieldAPI",
+  "AquaponicsMediaAPI",
+  "AquaponicsPlantAPI",
+  "AquaponicsPlantGrowthNormalizedAPI",
+  "AquaponicsPlantGrowthSimplifiedAPI",
+  "AquaponicsPotAPI",
+  "AquaponicsSystemAPI",
+  "AquaponicsWaterBatchAPI",
+  "AquaponicsWaterLevelAPI",
+  "AtmosphereDefinition",
+  "CompostBinDefinition",
+  "CompostLoopDefinition",
+  "LightSourceDefinition",
+  "LightSpectrumDefinition",
+  "NutrientProfile",
+  "NutrientSpecies",
+  "PlantDefinition",
+  "PlantGrowthModel",
+  "PlantPart",
+  "PotDefinition",
+  "PotHole",
+  "PotPlanting",
+  "PotSystemDefinition",
+  "SoilDefinition",
+  "StressResponseCurve",
+  "VermicompostProfile",
+  "WaterBatchSchedule",
+  "WaterDefinition"
+ ],
+ "imports": [
+  [
+   "aquaponics.pot_basis",
+   [
+    "PotDefinition",
+    "PotHole"
+   ]
+  ],
+  [
+   "aquaponics.pot_seed",
+   [
+    "SEED_POTS",
+    "SEED_POT_HOLES"
+   ]
+  ],
+  [
+   "aquaponics.pot_materials_seed",
+   [
+    "SEED_POT_MATERIALS",
+    "SEED_POT_PROPERTY_MEANINGS",
+    "SEED_POT_SCALE_DEFINITIONS"
+   ]
+  ],
+  [
+   "aquaponics.growth_media_basis",
+   [
+    "NutrientProfile",
+    "NutrientSpecies",
+    "SoilDefinition",
+    "WaterDefinition"
+   ]
+  ],
+  [
+   "aquaponics.media_seed",
+   [
+    "SEED_NUTRIENT_PROFILES",
+    "SEED_NUTRIENT_SPECIES",
+    "SEED_SOILS",
+    "SEED_WATERS"
+   ]
+  ],
+  [
+   "aquaponics.plant_basis",
+   [
+    "PlantDefinition",
+    "PlantPart"
+   ]
+  ],
+  [
+   "aquaponics.plant_seed",
+   [
+    "SEED_PLANTS",
+    "SEED_PLANT_PARTS"
+   ]
+  ],
+  [
+   "aquaponics.atmosphere_basis",
+   [
+    "AtmosphereDefinition"
+   ]
+  ],
+  [
+   "aquaponics.atmosphere_seed",
+   [
+    "SEED_ATMOSPHERES"
+   ]
+  ],
+  [
+   "aquaponics.pot_system_basis",
+   [
+    "PotSystemDefinition"
+   ]
+  ],
+  [
+   "aquaponics.pot_system_seed",
+   [
+    "SEED_AQP_CONTEXTUALIZED_VALUES",
+    "SEED_AQP_SCORE_CONCEPTS",
+    "SEED_AQP_SCORE_SUBJECTS",
+    "SEED_AQP_SCORE_TERMS",
+    "SEED_POT_SYSTEMS"
+   ]
+  ],
+  [
+   "aquaponics.vermicompost_basis",
+   [
+    "CompostBinDefinition",
+    "CompostLoopDefinition",
+    "VermicompostProfile"
+   ]
+  ],
+  [
+   "aquaponics.vermicompost_seed",
+   [
+    "SEED_COMPOST_BINS",
+    "SEED_COMPOST_LOOPS",
+    "SEED_ENRICH_CONTEXTUALIZED_VALUES",
+    "SEED_ENRICH_SCORE_CONCEPTS",
+    "SEED_ENRICH_SCORE_SUBJECTS",
+    "SEED_ENRICH_SCORE_TERMS",
+    "SEED_VERMICOMPOST_PROFILES"
+   ]
+  ],
+  [
+   "aquaponics.plant_growth_basis",
+   [
+    "PlantGrowthModel"
+   ]
+  ],
+  [
+   "aquaponics.plant_growth_seed",
+   [
+    "SEED_PLANT_GROWTH_MODELS"
+   ]
+  ],
+  [
+   "aquaponics.plant_growth_normalized_basis",
+   [
+    "PotPlanting"
+   ]
+  ],
+  [
+   "aquaponics.plant_growth_normalized_seed",
+   [
+    "SEED_POT_PLANTINGS"
+   ]
+  ],
+  [
+   "aquaponics.plant_stress_basis",
+   [
+    "StressResponseCurve"
+   ]
+  ],
+  [
+   "aquaponics.plant_stress_seed",
+   [
+    "SEED_STRESS_CURVES"
+   ]
+  ],
+  [
+   "aquaponics.light_basis",
+   [
+    "LightSourceDefinition",
+    "LightSpectrumDefinition"
+   ]
+  ],
+  [
+   "aquaponics.light_seed",
+   [
+    "SEED_LIGHT_SOURCES",
+    "SEED_LIGHT_SPECTRA"
+   ]
+  ],
+  [
+   "aquaponics.water_batch_basis",
+   [
+    "WaterBatchSchedule"
+   ]
+  ],
+  [
+   "aquaponics.water_batch_seed",
+   [
+    "SEED_WATER_BATCH_SCHEDULES"
+   ]
+  ],
+  [
+   "aquaponics.aquaponics_page",
+   [
+    "SEED_AQUAPONICS_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_aquaponics_endpoints",
+ "seedPairs": null,
+ "pages": [
+  "aquaponics.aquaponics_page:SEED_AQUAPONICS_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "aquaponics_pages_selftest",
+  "atmosphere_selftest",
+  "growth_media_selftest",
+  "hydraulics_selftest",
+  "light_field_selftest",
+  "plant_growth_normalized_selftest",
+  "plant_growth_simplified_selftest",
+  "plant_selftest",
+  "plant_species_comparison_selftest",
+  "plant_stress_selftest",
+  "plant_transport_selftest",
+  "pot_selftest",
+  "system_selftest",
+  "vermicompost_selftest",
+  "water_batch_selftest",
+  "water_level_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

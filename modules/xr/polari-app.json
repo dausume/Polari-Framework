@@ -1,0 +1,73 @@
+{
+ "schema": "polari-app/1",
+ "id": "xr",
+ "package": "xr",
+ "title": "Xr",
+ "description": "XR settings cascade + interface variants. Moves in wave 4; core still imports it statically (drop refuses).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 4,
+ "repo": "https://github.com/dausume/polari-module-xr.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/xr_settings/XrGlobalSettings",
+   "objects/xr_settings/XrInterfaceVariant",
+   "objects/xr_settings/XrTypeDefault",
+   "objects/xr_settings/_shared"
+  ],
+  "basis": [
+   "xr_settings_basis"
+  ],
+  "api": [
+   "xr_api"
+  ],
+  "selftests": [
+   "xr_selftest"
+  ],
+  "custom": [
+   "custom/xr_resolution"
+  ]
+ },
+ "classes": [
+  "XrAPI",
+  "XrGlobalSettings",
+  "XrInterfaceVariant",
+  "XrTypeDefault"
+ ],
+ "imports": [],
+ "endpoints": null,
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "xr_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": false,
+ "coreRequired": true,
+ "legacyDynamicModule": false
+}

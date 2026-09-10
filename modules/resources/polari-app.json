@@ -1,0 +1,84 @@
+{
+ "schema": "polari-app/1",
+ "id": "resources",
+ "package": "resources",
+ "title": "Resources",
+ "description": "Node resource inventory, module profiles, admission advisor. Moves in wave 5; core still imports it statically (drop refuses).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 5,
+ "repo": "https://github.com/dausume/polari-module-resources.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/profile/ModuleResourceProfile"
+  ],
+  "basis": [
+   "profile_basis"
+  ],
+  "api": [
+   "admission_api",
+   "node_resources_api",
+   "profile_api"
+  ],
+  "seed": [
+   "profile_seed"
+  ],
+  "selftests": [
+   "admission_selftest",
+   "measure_selftest",
+   "node_resources_selftest",
+   "profiles_selftest"
+  ],
+  "custom": [
+   "custom/admission_advisor",
+   "custom/node_resources",
+   "custom/profile_analysis",
+   "custom/profile_measure"
+  ]
+ },
+ "classes": [
+  "AdmissionAPI",
+  "ModuleResourceProfile",
+  "NodeResourcesAPI",
+  "ResourceProfilesAPI"
+ ],
+ "imports": [],
+ "endpoints": null,
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "admission_selftest",
+  "measure_selftest",
+  "node_resources_selftest",
+  "profiles_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": false,
+ "coreRequired": true,
+ "legacyDynamicModule": false
+}

@@ -1,0 +1,93 @@
+{
+ "schema": "polari-app/1",
+ "id": "kirimoto",
+ "package": "kirimoto",
+ "title": "Kirimoto",
+ "description": "@module kirimoto",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 8,
+ "repo": "",
+ "app": {
+  "kind": "isle-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "islemesh"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/kirimoto/SlicerInstance",
+   "objects/kirimoto/SlicerProfile"
+  ],
+  "basis": [
+   "kirimoto_basis"
+  ],
+  "api": [
+   "kirimoto_api"
+  ],
+  "page": [
+   "kirimoto_page"
+  ],
+  "selftests": [
+   "kirimoto_selftest"
+  ],
+  "custom": [
+   "custom/build_image"
+  ]
+ },
+ "classes": [
+  "KirimotoAPI",
+  "SlicerInstance",
+  "SlicerProfile"
+ ],
+ "imports": [
+  [
+   "kirimoto.kirimoto_basis",
+   [
+    "SlicerInstance",
+    "SlicerProfile",
+    "KIRIMOTO_SEED_PAIRS",
+    "SEED_KIRIMOTO_CATALOG"
+   ]
+  ],
+  [
+   "kirimoto.kirimoto_page",
+   [
+    "SEED_KIRIMOTO_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_kirimoto_endpoints",
+ "seedPairs": "kirimoto.kirimoto_basis:KIRIMOTO_SEED_PAIRS",
+ "pages": [
+  "kirimoto.kirimoto_page:SEED_KIRIMOTO_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "kirimoto_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

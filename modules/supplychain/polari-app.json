@@ -1,0 +1,143 @@
+{
+ "schema": "polari-app/1",
+ "id": "supplychain",
+ "package": "supplychain",
+ "title": "Supplychain",
+ "description": "Unifying bio supply-chain ledger — materials + food + carbon accounting.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 2,
+ "repo": "https://github.com/dausume/polari-module-supplychain.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/chain/SupplyChainDefinition",
+   "objects/chain/SupplyFlow",
+   "objects/chain/SupplyNode",
+   "objects/chain/_shared",
+   "objects/sourcing/PriceCitation",
+   "objects/sourcing/ProductFormula",
+   "objects/sourcing/ProductInputRequirement",
+   "objects/sourcing/SourcePreferencePolicy",
+   "objects/sourcing/SupplySourceProfile",
+   "objects/sourcing/_shared"
+  ],
+  "basis": [
+   "chain_basis",
+   "sourcing_basis"
+  ],
+  "api": [
+   "chain_api",
+   "sourcing_api"
+  ],
+  "seed": [
+   "chain_seed",
+   "magnetic_sourcing_seed",
+   "sourcing_seed"
+  ],
+  "selftests": [
+   "chain_selftest",
+   "formulas_selftest",
+   "magnetic_sourcing_selftest",
+   "molds_selftest",
+   "reclaim_selftest",
+   "sourcing_selftest"
+  ],
+  "custom": [
+   "custom/chain_analysis",
+   "custom/formula_analysis",
+   "custom/mold_analysis",
+   "custom/reclaim_analysis",
+   "custom/sourcing_analysis"
+  ]
+ },
+ "classes": [
+  "PriceCitation",
+  "ProductFormula",
+  "ProductInputRequirement",
+  "SourcePreferencePolicy",
+  "SourcingAPI",
+  "SupplyChainAPI",
+  "SupplyChainDefinition",
+  "SupplyFlow",
+  "SupplyNode",
+  "SupplySourceProfile"
+ ],
+ "imports": [
+  [
+   "supplychain.chain_basis",
+   [
+    "SupplyChainDefinition",
+    "SupplyFlow",
+    "SupplyNode"
+   ]
+  ],
+  [
+   "supplychain.chain_seed",
+   [
+    "SEED_SUPPLY_CHAINS",
+    "SEED_SUPPLY_FLOWS",
+    "SEED_SUPPLY_NODES"
+   ]
+  ],
+  [
+   "supplychain.sourcing_basis",
+   [
+    "PriceCitation",
+    "ProductFormula",
+    "ProductInputRequirement",
+    "SourcePreferencePolicy",
+    "SupplySourceProfile"
+   ]
+  ],
+  [
+   "supplychain.sourcing_seed",
+   [
+    "SEED_PRICE_CITATIONS",
+    "SEED_PRODUCT_FORMULAS",
+    "SEED_PRODUCT_REQUIREMENTS",
+    "SEED_SOURCE_POLICIES",
+    "SEED_SUPPLY_SOURCES"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_supplychain_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "chain_selftest",
+  "formulas_selftest",
+  "magnetic_sourcing_selftest",
+  "molds_selftest",
+  "reclaim_selftest",
+  "sourcing_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

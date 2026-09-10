@@ -1,0 +1,96 @@
+{
+ "schema": "polari-app/1",
+ "id": "printcam",
+ "package": "printcam",
+ "title": "Printcam",
+ "description": "Print camera: a hardware-extension-app of the Voron guest — USB camera passthrough, ustreamer, Moonraker webcam + timelapse (D7, 2026-09-09).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 8,
+ "repo": "",
+ "app": {
+  "kind": "hardware-extension-app",
+  "family": "",
+  "extends": "voron-printer",
+  "catalogKinds": [],
+  "agentTier": "hardware"
+ },
+ "requires": {
+  "modules": [
+   "hardwareapps",
+   "islemesh",
+   "voron"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/printcam/CameraDefinition",
+   "objects/printcam/TimelapseRecord"
+  ],
+  "basis": [
+   "printcam_basis"
+  ],
+  "api": [
+   "printcam_api"
+  ],
+  "page": [
+   "printcam_page"
+  ],
+  "selftests": [
+   "printcam_selftest"
+  ],
+  "custom": [
+   "custom/provision"
+  ]
+ },
+ "classes": [
+  "CameraDefinition",
+  "PrintcamAPI",
+  "TimelapseRecord"
+ ],
+ "imports": [
+  [
+   "printcam.printcam_basis",
+   [
+    "CameraDefinition",
+    "TimelapseRecord",
+    "PRINTCAM_SEED_PAIRS",
+    "SEED_PRINTCAM_HARDWARE_APPS",
+    "SEED_PRINTCAM_CATALOG"
+   ]
+  ],
+  [
+   "printcam.printcam_page",
+   [
+    "SEED_PRINTCAM_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_printcam_endpoints",
+ "seedPairs": "printcam.printcam_basis:PRINTCAM_SEED_PAIRS",
+ "pages": [
+  "printcam.printcam_page:SEED_PRINTCAM_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "printcam_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

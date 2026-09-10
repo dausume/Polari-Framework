@@ -1,0 +1,154 @@
+{
+ "schema": "polari-app/1",
+ "id": "waxprint",
+ "package": "waxprint",
+ "title": "Waxprint",
+ "description": "Pellet-fed auger-screw wax printer: melt/bead-voxel/movement sim + optimizer.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 6,
+ "repo": "https://github.com/dausume/polari-module-waxprint.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/sim_state/WaxPrintSimState",
+   "objects/waxprint/DeviceMaterialDefinition",
+   "objects/waxprint/MoldLifecycleRecord",
+   "objects/waxprint/PrintConditionDefinition",
+   "objects/waxprint/PrinterAssemblyDefinition",
+   "objects/waxprint/WaxFeedstockDefinition",
+   "objects/waxprint/WaxReclaimBatch",
+   "objects/waxprint/_shared"
+  ],
+  "basis": [
+   "sim_state_basis",
+   "waxprint_basis"
+  ],
+  "api": [
+   "sim_api",
+   "waxprint_api"
+  ],
+  "seed": [
+   "sim_seed",
+   "sim_step_seed",
+   "waxprint_seed"
+  ],
+  "selftests": [
+   "auger_melt_selftest",
+   "bead_voxel_selftest",
+   "movement_selftest",
+   "optimizer_selftest",
+   "sim_selftest",
+   "sim_step_selftest",
+   "wax_print_op_selftest"
+  ],
+  "custom": [
+   "custom/auger_melt",
+   "custom/bead_analysis",
+   "custom/bead_cooling",
+   "custom/commands",
+   "custom/melt_analysis",
+   "custom/movement_analysis",
+   "custom/movement_patterns",
+   "custom/print_optimizer",
+   "custom/sim_evaluation",
+   "custom/sim_runner",
+   "custom/voxel_resolution"
+  ]
+ },
+ "classes": [
+  "DeviceMaterialDefinition",
+  "MoldLifecycleRecord",
+  "PrintConditionDefinition",
+  "PrinterAssemblyDefinition",
+  "WaxFeedstockDefinition",
+  "WaxPrintAPI",
+  "WaxPrintSimAPI",
+  "WaxPrintSimState",
+  "WaxReclaimBatch"
+ ],
+ "imports": [
+  [
+   "waxprint.waxprint_basis",
+   [
+    "DeviceMaterialDefinition",
+    "PrinterAssemblyDefinition",
+    "WaxFeedstockDefinition",
+    "PrintConditionDefinition",
+    "WaxReclaimBatch",
+    "MoldLifecycleRecord"
+   ]
+  ],
+  [
+   "waxprint.waxprint_seed",
+   [
+    "SEED_DEVICE_MATERIALS",
+    "SEED_FEEDSTOCKS",
+    "SEED_ASSEMBLIES",
+    "SEED_CONDITIONS",
+    "SEED_WAXPRINT_MODULES"
+   ]
+  ],
+  [
+   "waxprint.sim_state_basis",
+   [
+    "WaxPrintSimState"
+   ]
+  ],
+  [
+   "waxprint",
+   [
+    "sim_seed"
+   ]
+  ],
+  [
+   "waxprint.sim_seed",
+   [
+    "SEED_WAXPRINT_STATE_ROWS",
+    "SEED_WAXPRINT_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_waxprint_endpoints",
+ "seedPairs": null,
+ "pages": [
+  "waxprint.sim_seed:SEED_WAXPRINT_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "auger_melt_selftest",
+  "bead_voxel_selftest",
+  "movement_selftest",
+  "optimizer_selftest",
+  "sim_selftest",
+  "sim_step_selftest",
+  "wax_print_op_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

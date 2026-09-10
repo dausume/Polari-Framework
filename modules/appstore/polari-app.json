@@ -1,0 +1,174 @@
+{
+ "schema": "polari-app/1",
+ "id": "appstore",
+ "package": "appstore",
+ "title": "Appstore",
+ "description": "Polari App Store (appstore-1): installable native shells over the polariapps content layer — catalog/identity, one-time enrollment tokens (hashed at rest), overlaid Gradle source archives + prebuilt binaries from MinIO.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 7,
+ "repo": "https://github.com/dausume/polari-module-appstore.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "polariapps"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/appstore/AppEdgeBehavior",
+   "objects/appstore/AppShellDefinition",
+   "objects/appstore/ShellArtifact",
+   "objects/appstore/ShellEnrollment",
+   "objects/appstore/ShellInstallation",
+   "objects/appstore/_shared",
+   "objects/appstore_ai/AiToolDefinition",
+   "objects/appstore_ai/_shared",
+   "objects/appstore_forks/ForkPin",
+   "objects/appstore_forks/_shared",
+   "objects/appstore_hosting/RemoteHostingOption",
+   "objects/appstore_hosting/_shared"
+  ],
+  "basis": [
+   "appstore_ai_basis",
+   "appstore_basis",
+   "appstore_forks_basis",
+   "appstore_hosting_basis"
+  ],
+  "api": [
+   "appstore_ai_api",
+   "appstore_api",
+   "preview_server_api"
+  ],
+  "seed": [
+   "appstore_seed"
+  ],
+  "page": [
+   "app_debs_page",
+   "appstore_page",
+   "downloads_page",
+   "offline_page",
+   "planner_page"
+  ],
+  "selftests": [
+   "app_debs_selftest",
+   "appstore_selftest",
+   "downloads_selftest",
+   "module_requirements_selftest",
+   "offline_chunker_selftest",
+   "offline_selftest",
+   "planner_selftest"
+  ],
+  "custom": [
+   "custom/app_deb_builder",
+   "custom/appstore_minio",
+   "custom/appstore_payloads",
+   "custom/appstore_tokens",
+   "custom/downloads_shared",
+   "custom/module_requirements",
+   "custom/offline_chunker",
+   "custom/shell_project"
+  ]
+ },
+ "classes": [
+  "AiToolDefinition",
+  "AiToolsAPI",
+  "AppDebsPage",
+  "AppEdgeBehavior",
+  "AppShellDefinition",
+  "AppStoreAPI",
+  "DownloadsPage",
+  "ForkPin",
+  "OfflinePage",
+  "PlannerPage",
+  "RemoteHostingOption",
+  "ShellArtifact",
+  "ShellEnrollment",
+  "ShellInstallation"
+ ],
+ "imports": [
+  [
+   "appstore.appstore_basis",
+   [
+    "AppShellDefinition",
+    "ShellArtifact",
+    "ShellEnrollment",
+    "ShellInstallation",
+    "AppEdgeBehavior"
+   ]
+  ],
+  [
+   "appstore.appstore_seed",
+   [
+    "SEED_APP_SHELLS",
+    "SEED_AI_TOOLS",
+    "SEED_EDGE_BEHAVIORS"
+   ]
+  ],
+  [
+   "appstore.appstore_page",
+   [
+    "SEED_APPSTORE_PAGE_DISPLAYS"
+   ]
+  ],
+  [
+   "appstore.appstore_ai_basis",
+   [
+    "AiToolDefinition"
+   ]
+  ],
+  [
+   "appstore.appstore_hosting_basis",
+   [
+    "RemoteHostingOption",
+    "SEED_REMOTE_HOSTING"
+   ]
+  ],
+  [
+   "appstore.appstore_forks_basis",
+   [
+    "ForkPin",
+    "SEED_FORK_PINS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_appstore_endpoints",
+ "seedPairs": null,
+ "pages": [
+  "appstore.appstore_page:SEED_APPSTORE_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "app_debs_selftest",
+  "appstore_selftest",
+  "downloads_selftest",
+  "module_requirements_selftest",
+  "offline_chunker_selftest",
+  "offline_selftest",
+  "planner_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

@@ -1,0 +1,502 @@
+{
+ "schema": "polari-app/1",
+ "id": "cntfet",
+ "package": "cntfet",
+ "title": "Cntfet",
+ "description": "Aligned-CNT FET S1: decomposed one-tube device, clean-room VS-CNFET-derived compact model (first open CNFET compact model) + ToB F2 reference + Verilog-A/OSDI twin. Compute (OpenVAF/ngspice/OpenSTA/kwant) delegates to the cnt-engines worker (dist-1): CNTFET_ENGINES_URL knob, else topology provider cntfet.engines, else local ~/tools.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 3,
+ "repo": "https://github.com/dausume/polari-module-cntfet.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "electrodevice"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/cnt/AlignedCNTFETDevice",
+   "objects/cnt/AlignedCNTFETGeometry",
+   "objects/cnt/CNTCalibrationAnchor",
+   "objects/cnt/CNTContact",
+   "objects/cnt/CNTFETParameterRow",
+   "objects/cnt/CNTFETSimResult",
+   "objects/cnt/CNTMaterialState",
+   "objects/cnt/CNTParasitics",
+   "objects/cnt/CNTTransportModel",
+   "objects/cnt/GateStack",
+   "objects/cnt/_shared",
+   "objects/cnt_cell_library/CNTCellDefinition",
+   "objects/cnt_cell_library/_shared",
+   "objects/cnt_characteristics/FETCharacteristic",
+   "objects/cnt_characteristics/_shared",
+   "objects/cnt_characterization/CellCharacterizationRun",
+   "objects/cnt_characterization/_shared",
+   "objects/cnt_evidence/EvidenceItem",
+   "objects/cnt_evidence/_shared",
+   "objects/cnt_fields/FETFieldBand",
+   "objects/cnt_fields/FETFieldSample",
+   "objects/cnt_fields/_shared",
+   "objects/cnt_ip/TechnologyIPRecord",
+   "objects/cnt_ip/_shared",
+   "objects/cnt_power/PowerBudget",
+   "objects/cnt_power/_shared",
+   "objects/cnt_process/CNTAlignmentProcess",
+   "objects/cnt_process/CNTFETMonteCarloRun",
+   "objects/cnt_process/CNTPlacementProcess",
+   "objects/cnt_process/CNTPurificationProcess",
+   "objects/cnt_process/ContactFormationProcess",
+   "objects/cnt_process/GateStackProcess",
+   "objects/cnt_process/LithographyProcess",
+   "objects/cnt_process/_shared",
+   "objects/cnt_regimes/FETRegime",
+   "objects/cnt_regimes/_shared",
+   "objects/cnt_states/FETOperatingState",
+   "objects/cnt_states/_shared",
+   "objects/cnt_targets/DesignTarget",
+   "objects/cnt_targets/FETTargetMapping",
+   "objects/cnt_targets/_shared",
+   "objects/cnt_taxonomy/ComplementaryPair",
+   "objects/cnt_taxonomy/FETOptimizationClass",
+   "objects/cnt_taxonomy/FETShapeType",
+   "objects/cnt_taxonomy/_shared",
+   "objects/cnt_transport/ScatteringMechanism",
+   "objects/cnt_transport/TransportRegime",
+   "objects/cnt_transport/_shared"
+  ],
+  "basis": [
+   "cnt_basis",
+   "cnt_cell_library_basis",
+   "cnt_characteristics_basis",
+   "cnt_characterization_basis",
+   "cnt_evidence_basis",
+   "cnt_fields_basis",
+   "cnt_ip_basis",
+   "cnt_power_basis",
+   "cnt_process_basis",
+   "cnt_regimes_basis",
+   "cnt_states_basis",
+   "cnt_targets_basis",
+   "cnt_taxonomy_basis",
+   "cnt_transport_basis"
+  ],
+  "api": [
+   "cnt_api"
+  ],
+  "endpoints": [
+   "cnt_verilog_a_endpoints"
+  ],
+  "seed": [
+   "cnt_app_seed",
+   "cnt_calibration_seed",
+   "cnt_cell_scoring_seed",
+   "cnt_device_viz_seed",
+   "cnt_figures_seed",
+   "cnt_reference_papers_seed",
+   "cnt_scene_seed",
+   "cnt_scoring_seed",
+   "cntfet_data_seed"
+  ],
+  "page": [
+   "cnt_block_page",
+   "cnt_blocks_page",
+   "cnt_cell_page",
+   "cnt_open_library_page",
+   "cnt_page"
+  ],
+  "remote": [
+   "cnt_remote"
+  ],
+  "selftests": [
+   "block_pages_selftest",
+   "blocks_selftest",
+   "cell_advance_selftest",
+   "cell_pages_selftest",
+   "cells2_selftest",
+   "cntfet_selftest",
+   "evidence_selftest",
+   "fields_selftest",
+   "ip_selftest",
+   "level_scenes_selftest",
+   "logic_selftest",
+   "more_cells_selftest",
+   "open_library_selftest",
+   "parts2d_selftest",
+   "power_selftest",
+   "regimes_selftest",
+   "snapshot_selftest",
+   "summary_selftest",
+   "taxonomy_selftest",
+   "transport_selftest"
+  ],
+  "custom": [
+   "custom/cnt_bandstructure",
+   "custom/cnt_capability",
+   "custom/cnt_cell_advance",
+   "custom/cnt_cell_coverage",
+   "custom/cnt_cells",
+   "custom/cnt_charge",
+   "custom/cnt_citations",
+   "custom/cnt_compare",
+   "custom/cnt_constants",
+   "custom/cnt_derive",
+   "custom/cnt_digitized_fc10",
+   "custom/cnt_extrinsics",
+   "custom/cnt_fet_summary",
+   "custom/cnt_fo4",
+   "custom/cnt_inverter",
+   "custom/cnt_kwant",
+   "custom/cnt_level_scenes",
+   "custom/cnt_links",
+   "custom/cnt_logic",
+   "custom/cnt_metrics",
+   "custom/cnt_montecarlo",
+   "custom/cnt_osdi",
+   "custom/cnt_parts",
+   "custom/cnt_parts_svg",
+   "custom/cnt_ring_oscillator",
+   "custom/cnt_sequential",
+   "custom/cnt_snapshot",
+   "custom/cnt_tob",
+   "custom/cnt_triangle",
+   "custom/cnt_validate",
+   "custom/cnt_vs_model",
+   "custom/kwant_worker"
+  ]
+ },
+ "classes": [
+  "AlignedCNTFETDevice",
+  "AlignedCNTFETGeometry",
+  "BlockFETConfiguration",
+  "CNTAlignmentProcess",
+  "CNTCalibrationAnchor",
+  "CNTCellDefinition",
+  "CNTContact",
+  "CNTFETAPI",
+  "CNTFETMonteCarloRun",
+  "CNTFETParameterRow",
+  "CNTFETSimResult",
+  "CNTMaterialState",
+  "CNTParasitics",
+  "CNTPlacementProcess",
+  "CNTPurificationProcess",
+  "CNTTransportModel",
+  "CellCharacterizationRun",
+  "CellFETConfiguration",
+  "ComplementaryPair",
+  "ContactFormationProcess",
+  "DesignTarget",
+  "EvidenceItem",
+  "FETCharacteristic",
+  "FETFieldBand",
+  "FETFieldSample",
+  "FETOperatingState",
+  "FETOptimizationClass",
+  "FETRegime",
+  "FETShapeType",
+  "FETTargetMapping",
+  "FunctionalBlock",
+  "GateStack",
+  "GateStackProcess",
+  "LithographyProcess",
+  "OpenCellLibrary",
+  "PowerBudget",
+  "ScatteringMechanism",
+  "TechnologyIPRecord",
+  "TransportRegime"
+ ],
+ "imports": [
+  [
+   "cntfet.cnt_basis",
+   [
+    "AlignedCNTFETDevice",
+    "AlignedCNTFETGeometry",
+    "CNTCalibrationAnchor",
+    "CNTContact",
+    "CNTFETParameterRow",
+    "CNTFETSimResult",
+    "CNTMaterialState",
+    "CNTParasitics",
+    "CNTTransportModel",
+    "GateStack",
+    "SEED_CNT_CONTACTS",
+    "SEED_CNT_DEVICES",
+    "SEED_CNT_GEOMETRIES",
+    "SEED_CNT_MATERIALS",
+    "SEED_CNT_PARASITICS",
+    "SEED_CNT_TRANSPORT",
+    "SEED_GATE_STACKS"
+   ]
+  ],
+  [
+   "cntfet.cnt_calibration_seed",
+   [
+    "SEED_CALIBRATION_ANCHORS"
+   ]
+  ],
+  [
+   "cntfet.cnt_reference_papers_seed",
+   [
+    "SEED_REFERENCE_ANCHORS"
+   ]
+  ],
+  [
+   "cntfet.cnt_page",
+   [
+    "SEED_CNTFET_PAGE_DISPLAYS"
+   ]
+  ],
+  [
+   "cntfet.cnt_process_basis",
+   [
+    "CNTAlignmentProcess",
+    "CNTFETMonteCarloRun",
+    "CNTPlacementProcess",
+    "CNTPurificationProcess",
+    "ContactFormationProcess",
+    "GateStackProcess",
+    "LithographyProcess",
+    "SEED_ALIGNMENT_PROCESSES",
+    "SEED_CONTACT_PROCESSES",
+    "SEED_GATESTACK_PROCESSES",
+    "SEED_LITHOGRAPHY_PROCESSES",
+    "SEED_PLACEMENT_PROCESSES",
+    "SEED_PURIFICATION_PROCESSES"
+   ]
+  ],
+  [
+   "cntfet.cnt_characterization_basis",
+   [
+    "CellCharacterizationRun"
+   ]
+  ],
+  [
+   "cntfet.cnt_cell_library_basis",
+   [
+    "CNTCellDefinition",
+    "SEED_CNT_CELLS"
+   ]
+  ],
+  [
+   "cntfet.cnt_figures_seed",
+   [
+    "SEED_CNTFET_FIGURE_GRAPHS"
+   ]
+  ],
+  [
+   "cntfet.cnt_device_viz_seed",
+   [
+    "SEED_CNT_DEVICE_GRAPHS"
+   ]
+  ],
+  [
+   "cntfet.cnt_states_basis",
+   [
+    "FETOperatingState",
+    "SEED_FET_STATES"
+   ]
+  ],
+  [
+   "cntfet.cnt_scoring_seed",
+   [
+    "SEED_FET_SCORE_CONCEPTS",
+    "SEED_FET_SCORE_TERMS",
+    "seed_subjects_and_values as _fet_score_subjects"
+   ]
+  ],
+  [
+   "cntfet.cnt_cell_scoring_seed",
+   [
+    "SEED_CELL_SCORE_CONCEPTS",
+    "SEED_CELL_SCORE_TERMS",
+    "seed_cell_subjects as _cell_score_subjects"
+   ]
+  ],
+  [
+   "cntfet.custom.cnt_compare",
+   [
+    "score_pages as _cnt_score_pages"
+   ]
+  ],
+  [
+   "cntfet.cnt_cell_page",
+   [
+    "CellFETConfiguration",
+    "SEED_CELL_PAGES",
+    "seed_cell_configs"
+   ]
+  ],
+  [
+   "cntfet.cnt_block_page",
+   [
+    "BlockFETConfiguration",
+    "SEED_BLOCK_PAGES",
+    "seed_block_configs"
+   ]
+  ],
+  [
+   "cntfet.cnt_regimes_basis",
+   [
+    "FETRegime",
+    "SEED_FET_REGIMES"
+   ]
+  ],
+  [
+   "cntfet.cnt_characteristics_basis",
+   [
+    "FETCharacteristic",
+    "SEED_FET_CHARACTERISTICS"
+   ]
+  ],
+  [
+   "cntfet.cnt_transport_basis",
+   [
+    "ScatteringMechanism",
+    "TransportRegime",
+    "SEED_SCATTERING_MECHANISMS",
+    "SEED_TRANSPORT_REGIMES"
+   ]
+  ],
+  [
+   "cntfet.cnt_fields_basis",
+   [
+    "FETFieldBand",
+    "FETFieldSample",
+    "SEED_FET_FIELD_BANDS",
+    "SEED_FET_FIELD_MATERIALS_3D"
+   ]
+  ],
+  [
+   "cntfet.cnt_scene_seed",
+   [
+    "SEED_CNT_DEVICE_SCENES",
+    "SEED_FET_FIELD_BINDINGS"
+   ]
+  ],
+  [
+   "cntfet.cnt_device_viz_seed",
+   [
+    "extra_graph_seeds as _cnt_fv_graphs",
+    "SEED_CNT_DEVICE_GRAPHS"
+   ]
+  ],
+  [
+   "cntfet.cnt_taxonomy_basis",
+   [
+    "ComplementaryPair",
+    "FETOptimizationClass",
+    "FETShapeType",
+    "SEED_COMPLEMENTARY_PAIRS",
+    "SEED_FET_OPTIMIZATION_CLASSES",
+    "SEED_FET_SHAPE_TYPES",
+    "SEED_SIGNAL_SCORE_CONCEPTS",
+    "SEED_SIGNAL_SCORE_TERMS"
+   ]
+  ],
+  [
+   "cntfet.cnt_power_basis",
+   [
+    "PowerBudget",
+    "SEED_POWER_BUDGETS",
+    "SEED_POWER_SCORE_TERMS"
+   ]
+  ],
+  [
+   "cntfet.cnt_targets_basis",
+   [
+    "DesignTarget",
+    "FETTargetMapping",
+    "SEED_DESIGN_TARGETS",
+    "SEED_FET_TARGET_MAPPINGS",
+    "SEED_TARGET_POWER_BUDGETS"
+   ]
+  ],
+  [
+   "cntfet.cnt_ip_basis",
+   [
+    "SEED_TECHNOLOGY_IP",
+    "TechnologyIPRecord"
+   ]
+  ],
+  [
+   "cntfet.cnt_evidence_basis",
+   [
+    "EvidenceItem",
+    "SEED_EVIDENCE"
+   ]
+  ],
+  [
+   "cntfet.cnt_open_library_page",
+   [
+    "OpenCellLibrary",
+    "SEED_OPEN_LIBRARIES",
+    "SEED_OPEN_LIBRARY_PAGES"
+   ]
+  ],
+  [
+   "cntfet.cnt_blocks_page",
+   [
+    "FunctionalBlock",
+    "SEED_FUNCTIONAL_BLOCKS",
+    "SEED_BLOCK_PAGES"
+   ]
+  ]
+ ],
+ "endpoints": "cntfet.cnt_verilog_a_endpoints:construct_gate_check",
+ "seedPairs": null,
+ "pages": [
+  "cntfet.cnt_block_page:SEED_BLOCK_PAGES",
+  "cntfet.cnt_blocks_page:SEED_BLOCK_PAGES",
+  "cntfet.cnt_cell_page:SEED_CELL_PAGES",
+  "cntfet.cnt_open_library_page:SEED_OPEN_LIBRARY_PAGES",
+  "cntfet.cnt_page:SEED_CNTFET_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": true,
+ "initialData": true,
+ "selftests": [
+  "block_pages_selftest",
+  "blocks_selftest",
+  "cell_advance_selftest",
+  "cell_pages_selftest",
+  "cells2_selftest",
+  "cntfet_selftest",
+  "evidence_selftest",
+  "fields_selftest",
+  "ip_selftest",
+  "level_scenes_selftest",
+  "logic_selftest",
+  "more_cells_selftest",
+  "open_library_selftest",
+  "parts2d_selftest",
+  "power_selftest",
+  "regimes_selftest",
+  "snapshot_selftest",
+  "summary_selftest",
+  "taxonomy_selftest",
+  "transport_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

@@ -1,0 +1,190 @@
+{
+ "schema": "polari-app/1",
+ "id": "electrodevice",
+ "package": "electrodevice",
+ "title": "Electrodevice",
+ "description": "Material-derived electronic devices, SPICE cards, circuits/breadboards as rows.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 3,
+ "repo": "https://github.com/dausume/polari-module-electrodevice.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [
+   "hwdigital"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/breadboard/BoardJumper",
+   "objects/breadboard/BreadboardDefinition",
+   "objects/breadboard/ComponentPlacement",
+   "objects/breadboard/_shared",
+   "objects/circuit/CircuitComponentDefinition",
+   "objects/circuit/CircuitDefinition",
+   "objects/circuit/CircuitNetDefinition",
+   "objects/circuit/_shared",
+   "objects/device/CircuitRunResult",
+   "objects/device/ElectronicDeviceDefinition",
+   "objects/device/SpiceModelCard",
+   "objects/device/_shared",
+   "objects/device_validator/DeviceValidationReport",
+   "objects/device_validator/_shared",
+   "objects/level_bridge/PinBindingDefinition",
+   "objects/level_bridge/_shared",
+   "objects/photo/PhotoAbsorberDefinition",
+   "objects/photo/SolarLayerDefinition",
+   "objects/photo/SolarStackDefinition",
+   "objects/photo/_shared",
+   "objects/semiconductor/SemiconductorProfile",
+   "objects/semiconductor/_shared"
+  ],
+  "basis": [
+   "breadboard_basis",
+   "circuit_basis",
+   "device_basis",
+   "device_validator_basis",
+   "level_bridge_basis",
+   "photo_basis",
+   "semiconductor_basis"
+  ],
+  "api": [
+   "circuit_api",
+   "device_api"
+  ],
+  "seed": [
+   "breadboard_netlist_seed",
+   "circuit_netlist_seed"
+  ],
+  "selftests": [
+   "breadboard_selftest",
+   "circuit_rows_selftest",
+   "electrodevice_selftest",
+   "level_bridge_selftest"
+  ],
+  "custom": [
+   "custom/device_derive",
+   "custom/photo_derive",
+   "custom/spice_run",
+   "custom/switching"
+  ]
+ },
+ "classes": [
+  "BoardJumper",
+  "BreadboardAPI",
+  "BreadboardDefinition",
+  "CircuitComponentDefinition",
+  "CircuitDefinition",
+  "CircuitNetDefinition",
+  "CircuitRowsAPI",
+  "CircuitRunResult",
+  "ComponentPlacement",
+  "DeviceValidationReport",
+  "ElectroDeviceAPI",
+  "ElectronicDeviceDefinition",
+  "PhotoAbsorberDefinition",
+  "PinBindingDefinition",
+  "SemiconductorProfile",
+  "SolarLayerDefinition",
+  "SolarStackDefinition",
+  "SpiceModelCard"
+ ],
+ "imports": [
+  [
+   "electrodevice.circuit_basis",
+   [
+    "CircuitComponentDefinition",
+    "CircuitDefinition",
+    "CircuitNetDefinition",
+    "SEED_CIRCUIT_COMPONENTS",
+    "SEED_CIRCUIT_NETS",
+    "SEED_CIRCUITS"
+   ]
+  ],
+  [
+   "electrodevice.breadboard_basis",
+   [
+    "BoardJumper",
+    "BreadboardDefinition",
+    "ComponentPlacement",
+    "SEED_BREADBOARDS",
+    "SEED_JUMPERS",
+    "SEED_PLACEMENTS"
+   ]
+  ],
+  [
+   "electrodevice.level_bridge_basis",
+   [
+    "PinBindingDefinition",
+    "SEED_PIN_BINDINGS"
+   ]
+  ],
+  [
+   "electrodevice.device_basis",
+   [
+    "CircuitRunResult",
+    "ElectronicDeviceDefinition",
+    "SpiceModelCard",
+    "SEED_DEVICES"
+   ]
+  ],
+  [
+   "electrodevice.semiconductor_basis",
+   [
+    "SemiconductorProfile",
+    "SEED_SEMICONDUCTOR_PROFILES"
+   ]
+  ],
+  [
+   "electrodevice.device_validator_basis",
+   [
+    "DeviceValidationReport"
+   ]
+  ],
+  [
+   "electrodevice.photo_basis",
+   [
+    "PhotoAbsorberDefinition",
+    "SolarLayerDefinition",
+    "SolarStackDefinition",
+    "SEED_PHOTO_ABSORBERS",
+    "SEED_SOLAR_LAYERS",
+    "SEED_SOLAR_STACKS"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_electrodevice_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "breadboard_selftest",
+  "circuit_rows_selftest",
+  "electrodevice_selftest",
+  "level_bridge_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

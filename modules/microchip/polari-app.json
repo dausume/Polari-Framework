@@ -1,0 +1,105 @@
+{
+ "schema": "polari-app/1",
+ "id": "microchip",
+ "package": "microchip",
+ "title": "Microchip",
+ "description": "Microchip design-level ladder (device -> cell -> block -> core -> chip) + traversal interface. Separable from the device modules: reads cntfet/electrodevice rows softly, imports no device code; absent modules degrade honestly.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 3,
+ "repo": "https://github.com/dausume/polari-module-microchip.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/chip/DesignLevelDefinition",
+   "objects/chip/MicrochipDesignNode",
+   "objects/chip/_shared",
+   "objects/chip_families/DeviceFamilyDefinition",
+   "objects/chip_families/_shared"
+  ],
+  "basis": [
+   "chip_basis",
+   "chip_families_basis"
+  ],
+  "api": [
+   "chip_api"
+  ],
+  "page": [
+   "chip_page"
+  ],
+  "selftests": [
+   "families_selftest",
+   "microchip_selftest"
+  ],
+  "custom": [
+   "custom/chip_traverse"
+  ]
+ },
+ "classes": [
+  "DesignLevelDefinition",
+  "DeviceFamilyDefinition",
+  "MicrochipAPI",
+  "MicrochipDesignNode"
+ ],
+ "imports": [
+  [
+   "microchip.chip_basis",
+   [
+    "DesignLevelDefinition",
+    "MicrochipDesignNode",
+    "SEED_DESIGN_LEVELS",
+    "SEED_DESIGN_NODES"
+   ]
+  ],
+  [
+   "microchip.chip_page",
+   [
+    "SEED_MICROCHIP_PAGE_DISPLAYS"
+   ]
+  ],
+  [
+   "microchip.chip_families_basis",
+   [
+    "DeviceFamilyDefinition",
+    "SEED_DEVICE_FAMILIES"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_microchip_endpoints",
+ "seedPairs": null,
+ "pages": [
+  "microchip.chip_page:SEED_MICROCHIP_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "families_selftest",
+  "microchip_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

@@ -1,0 +1,98 @@
+{
+ "schema": "polari-app/1",
+ "id": "hwdigital",
+ "package": "hwdigital",
+ "title": "Hwdigital",
+ "description": "Logic diagrams as rows -> generated artifacts (iCE40 bitstreams).",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 3,
+ "repo": "https://github.com/dausume/polari-module-hwdigital.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": [
+   {
+    "name": "verilator",
+    "kind": "system",
+    "probe": "verilator",
+    "note": "HDL simulation"
+   },
+   {
+    "name": "ngspice",
+    "kind": "system",
+    "probe": "ngspice",
+    "note": "analog/SPICE simulation"
+   }
+  ]
+ },
+ "files": {
+  "objects": [
+   "objects/logic/LogicBlockDesign",
+   "objects/logic/LogicBlockNode",
+   "objects/logic/_shared"
+  ],
+  "basis": [
+   "logic_basis"
+  ],
+  "api": [
+   "logic_api"
+  ],
+  "seed": [
+   "logic_compile_seed"
+  ],
+  "selftests": [
+   "logic_selftest"
+  ],
+  "custom": [
+   "custom/logic_sim",
+   "custom/logic_verilog"
+  ]
+ },
+ "classes": [
+  "LogicBlockDesign",
+  "LogicBlockNode",
+  "LogicDesignAPI"
+ ],
+ "imports": [
+  [
+   "hwdigital.logic_basis",
+   [
+    "LogicBlockDesign",
+    "LogicBlockNode",
+    "SEED_LOGIC_DESIGNS",
+    "SEED_LOGIC_NODES"
+   ]
+  ]
+ ],
+ "endpoints": "polariApiServer.module_endpoints:construct_hwdigital_endpoints",
+ "seedPairs": null,
+ "pages": [],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "logic_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": true,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}
