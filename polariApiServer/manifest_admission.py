@@ -85,6 +85,7 @@ def prepare(polServer, module, manifest):
     the caller turns that into a refusal (never a silent skip)."""
     import polariApiServer.polariServer as server_mod
     from objectTreeDecorators import treeObject
+    from moduleService.module_registrar import is_endpoint_class
     from polariApiServer.lazy_boot import top_module
     from polariApiServer.module_endpoints import MODULE_ENDPOINT_CONSTRUCTORS
     classes = []
@@ -93,7 +94,7 @@ def prepare(polServer, module, manifest):
         for value in list(vars(m).values()):
             if (isinstance(value, type) and issubclass(value, treeObject)
                     and top_module(value) == module
-                    and not value.__name__.endswith('API')
+                    and not is_endpoint_class(value.__name__)
                     and value not in classes):
                 classes.append(value)
     declared = set(manifest.get('classes') or [])

@@ -46,7 +46,24 @@ STATES = ('declared', 'disabled', 'loading', 'online', 'degraded',
 # informational — reported, never a reason to call a module degraded.
 STRUCTURAL = ('classes', 'crude', 'endpoints', 'routes', 'seeds', 'pages')
 PIECES = STRUCTURAL + ('selftest',)
-_ROUTE_RE = re.compile(r"""add_route\(\s*['"](/[^'"]*)['"]""")
+# treeObject subclasses a module's endpoint constructor INSTANTIATES rather
+# than tables: API resources and server-rendered page classes. Named by
+# suffix (the standard's postfix rule) — never expected as tables.
+ENDPOINT_SUFFIXES = ('API', 'Page', 'Endpoint', 'Server')
+
+
+def is_endpoint_class(name):
+    return any(name.endswith(s) for s in ENDPOINT_SUFFIXES)
+
+
+def norm_route(path):
+    """falcon stores templates without a trailing slash; compare alike."""
+    p = (path or '').rstrip('/')
+    return p or '/'
+# the first argument of add_route as one or more ADJACENT string literals
+# (Python joins '/a/' 'b' at compile time — the source may split a long route)
+_ROUTE_RE = re.compile(r"""add_route\(\s*((?:['"][^'"]*['"]\s*)+)""")
+_LIT_RE = re.compile(r"""['"]([^'"]*)['"]""")
 
 
 class ModuleRegistration(treeObject):
@@ -102,8 +119,9 @@ def _routes_in_sources(module_dir, stems):
         if not os.path.isfile(path):
             continue
         with open(path, encoding='utf-8') as fh:
-            for uri in _ROUTE_RE.findall(fh.read()):
-                if uri not in found:
+            for group in _ROUTE_RE.findall(fh.read()):
+                uri = ''.join(_LIT_RE.findall(group))
+                if uri.startswith('/') and uri not in found:
                     found.append(uri)
     return found
 
@@ -112,7 +130,7 @@ def expected_from_manifest(module, manifest, module_dir):
     """{piece: {...}} — what the manifest says must be live."""
     files = manifest.get('files') or {}
     classes = [c for c in (manifest.get('classes') or [])
-               if not c.endswith('API')]
+               if not is_endpoint_class(c)]
     expected = {
         'classes': {'names': classes},
         'crude': {'names': classes},
@@ -311,7 +329,7 @@ class ModuleRegistrar:
                 walk(child)
         for root in getattr(app._router, '_roots', []) or []:
             walk(root)
-        return out
+        return {norm_route(t) for t in out}
 
     def verify(self, module):
         """Recompute confirmed/missing per expected piece from the live
@@ -338,7 +356,7 @@ class ModuleRegistrar:
             gone = [n for n in names if n not in live]
             if gone:
                 missing['classes'] = gone
-            crude_live = [n for n in names if '/' + n in templates]
+            crude_live = [n for n in names if norm_route('/' + n) in templates]
             confirmed['crude'] = {'count': len(crude_live), 'of': len(names)}
             gone = [n for n in names if n not in crude_live]
             if gone:
@@ -352,7 +370,7 @@ class ModuleRegistrar:
 
         paths = (expected.get('routes') or {}).get('paths') or []
         if paths:
-            live = [p for p in paths if p in templates]
+            live = [p for p in paths if norm_route(p) in templates]
             confirmed['routes'] = {'count': len(live), 'of': len(paths)}
             gone = [p for p in paths if p not in live]
             if gone:
