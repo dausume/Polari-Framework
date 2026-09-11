@@ -93,7 +93,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/collab",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-collab.git",
       "wave": 8,
       "requires": [],
       "description": "Collaboration sessions (mtg-2, LIVEKIT_COLLABORATION_PLAN v2): one session object, many client surfaces (browser meeting, sim-side voice, VR). CollaborationSession + MeetingRecord rows; KC-verified callers mint short-lived LiveKit JWTs (pure-stdlib HS256 \u2014 no SDK); capability/join-info with the *_remote refusal ladder. THE LINE: nothing arriving over LiveKit mutates Polari state. Second module born manifest-first on dyn-1.",
@@ -191,7 +191,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/hardwareapps",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-hardwareapps.git",
       "requires": [
         "islemesh"
       ],
@@ -202,7 +202,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/household",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-household.git",
       "wave": 1,
       "requires": [],
       "description": "Household layer: people's schedules and sleep, members and work shares, skills and safety, dish strategies, the allocation and fairness"
@@ -227,7 +227,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/isle_guestnet",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-isle_guestnet.git",
       "requires": [
         "hardwareapps",
         "islemesh"
@@ -239,7 +239,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/isle_relay",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-isle_relay.git",
       "requires": [
         "hardwareapps",
         "islemesh"
@@ -260,7 +260,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/kirimoto",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-kirimoto.git",
       "requires": [
         "islemesh"
       ],
@@ -302,7 +302,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/mealoptions",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-mealoptions.git",
       "wave": 1,
       "requires": [],
       "description": "Meal options: templates, variations, recipes, steps, ingredient affinities, cooking methods, tool and task vocabularies, meal situations, bulk staples \u2014 the shareable meal data; no person or place data"
@@ -351,7 +351,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/mqttbridge",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-mqttbridge.git",
       "wave": 3,
       "requires": [],
       "description": "MQTT bridge: brokers + topic->object bindings as rows, explicit connect, ingest with refusal ledger; publish knob OFF at mqtt-1. paho-mqtt==2.1.0 (EDL-1.0 edge)."
@@ -396,7 +396,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/printcam",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-printcam.git",
       "requires": [
         "hardwareapps",
         "voron",
@@ -409,7 +409,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/printing_suite",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-printing_suite.git",
       "requires": [
         "suiteapps",
         "hardwareapps",
@@ -442,7 +442,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/reticulum",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-reticulum.git",
       "wave": 9,
       "requires": [
         "islemesh"
@@ -473,7 +473,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/suiteapps",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-suiteapps.git",
       "requires": [
         "islemesh"
       ],
@@ -516,7 +516,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/video",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-video.git",
       "requires": [],
       "wave": 7,
       "description": "Video assets: upload, conversion (webm/mp4/poster/HLS) and adaptive delivery rows \u2014 a Polari feature module that was never registered until sap-1 (2026-09-08)."
@@ -525,7 +525,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/voron",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-voron.git",
       "requires": [
         "hardwareapps",
         "islemesh"
@@ -537,7 +537,7 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/vpn",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-vpn.git",
       "wave": 7,
       "requires": [
         "islemesh"
@@ -584,9 +584,16 @@
       "kind": "official",
       "downloaded": true,
       "path": "modules/terms",
-      "repo": "",
+      "repo": "https://github.com/dausume/polari-module-terms.git",
       "requires": [],
       "description": "Terms of service: versioned documents (global or per app) and the append-only acceptance ledger"
+    },
+    "hwmap": {
+      "kind": "official",
+      "path": "modules/hwmap",
+      "description": "Hardware map: an on-device scanner (usb, pci + IOMMU groups, serial by-id, nics, kvm/libvirt facts) pushes a snapshot; Polari keeps ports and slots as rows and answers what can be mapped to a potential KVM (usb hostdev, pci vfio, nic macvtap) with reasons, and which hardware apps each port satisfies (hwm-1, 2026-09-08).",
+      "repo": "https://github.com/dausume/polari-module-hwmap.git",
+      "downloaded": true
     }
   }
 }
