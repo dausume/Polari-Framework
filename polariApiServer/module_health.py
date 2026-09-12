@@ -39,7 +39,8 @@ class ModuleHealthEndpoint:
             return
         snap = reg.snapshot()
         if request.get_param_as_bool('brief'):
-            snap['modules'] = {m: {'state': r['state'], 'error': r['error']}
+            snap['modules'] = {m: {'state': r['state'], 'error': r['error'],
+                                   'hardware': r.get('hardware') or {}}
                                for m, r in snap['modules'].items()}
         response.media = snap
 

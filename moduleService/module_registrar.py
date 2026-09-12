@@ -180,6 +180,8 @@ class ModuleRegistrar:
                 'phaseStartedAt': None, 'verifiedAt': None,
                 'expected': {}, 'confirmed': {}, 'missing': {},
                 'error': '', 'selftest': {'status': 'not-run', 'detail': ''},
+                # hardware reach on THIS deployment (moduleService/hardware_reach.py): a notice, never a refusal
+                'hardware': {'hardware': False, 'route': '', 'reach': 'none', 'notice': ''},
                 'history': []}
 
     def _row(self, module):
@@ -238,6 +240,11 @@ class ModuleRegistrar:
             if manifest:
                 row['appKind'] = (manifest.get('app') or {}).get('kind', '')
                 row['version'] = manifest.get('version', '')
+                try:
+                    from moduleService.hardware_reach import hardware_summary
+                    row['hardware'] = hardware_summary(manifest)
+                except Exception as exc:   # never let the notice break registration
+                    row['hardware'] = {'hardware': False, 'route': '', 'reach': 'none', 'notice': '', 'error': str(exc)}
             keep = row['state'] in ('online', 'degraded', 'loading', 'put-away', 'disabled')
         if err:
             return self._set(module, 'invalid', error=err)

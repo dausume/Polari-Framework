@@ -108,6 +108,16 @@ class ModulesAPI(treeObject):
                 install_deps=bool(body.get('installDeps')))
             response.media = {'success': bool(result.get('ok')),
                               **result}
+            # hardware kinds are admitted anywhere (useful for development) but the user is told when only the
+            # Polari side can work here (moduleService/hardware_reach.py) — a notice, never a refusal
+            try:
+                reg = getattr(self.polServer, 'moduleRegistrar', None)
+                row = reg.get(module_id) if reg else None
+                if row and (row.get('hardware') or {}).get('notice'):
+                    response.media['hardware'] = row['hardware']
+                    response.media['notice'] = row['hardware']['notice']
+            except Exception:
+                pass
             response.status = (falcon.HTTP_200 if result.get('ok')
                                else falcon.HTTP_409)
         except Exception as err:

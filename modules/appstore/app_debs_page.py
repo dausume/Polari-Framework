@@ -132,10 +132,31 @@ def _requirements_lines(module, payload_bytes):
     return line, reqs
 
 
+def _hardware_notice(module):
+    """His rule 2026-09-12: a hardware app's Polari side may be installed here
+    (useful for development) but the user must be told when the hardware half
+    cannot work on this deployment (moduleService/hardware_reach.py)."""
+    try:
+        import json
+        import os
+        from moduleService.manifests import manifest_path
+        from moduleService.hardware_reach import hardware_notice
+        p = manifest_path(module)
+        if p and os.path.isfile(p):
+            return hardware_notice(json.load(open(p, encoding='utf-8')))
+    except Exception:
+        pass
+    return ''
+
+
 def _module_card(module, entry, analysis, flavor='online'):
     description = entry.get('description', '')
     blurb = (f'<p class="blurb">{html.escape(description)}</p>'
              if description else '')
+    notice = _hardware_notice(module)
+    if notice:
+        blurb += (f'<span class="prov prov-demand">Hardware app &mdash; '
+                  f'{html.escape(notice)}</span>')
     refusal = analysis['refusals'].get(module)
     if not entry.get('downloaded') or refusal:
         reason = refusal or ('registered but its code is not '
