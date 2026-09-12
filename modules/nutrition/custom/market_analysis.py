@@ -273,7 +273,7 @@ def price_references(manager, food_name=None):
 def export_price_references(manager, today=None):
     """Live PriceObservation rows → PriceReference rows (mealoptions),
     upserted so a re-export converges. Returns the counts + rows."""
-    from composition.custom.seed_upsert import upsert_seed_pairs
+    from moduleService.seed_upsert import upsert_seed_pairs
     norm = normalized_prices(manager, None, today)
     entries = norm['prices']
     undated = [e['observation'] for e in entries

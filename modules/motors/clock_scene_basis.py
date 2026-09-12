@@ -43,12 +43,12 @@ seed_clock_views)
 import json
 from objectTreeDecorators import treeObject, treeObjectInit
 from composition.custom.data_refs import resolve_named, rows
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 from motors.objects.clock_scene._shared import ALL_LAYERS, GEAR_TRAIN_SCENE, LAYER_KINDS, PALETTE, PROV, SEED_CLOCK_SCENE_LAYERS, V2_BASE, V2_PART_BODIES, VIEW_SCENES, _j, _markers, _mass_coloring, _material_coloring, _ramp, _shape_swap, _stress_coloring, _vector_field, clock_scene_payload, layer_payload, mass_bodies, scene_json_for_view  # noqa: F401
 from motors.objects.clock_scene.ClockSceneLayerDefinition import ClockSceneLayerDefinition  # noqa: F401
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 def seed_clock_scene(manager):
     """Layer rows via the upsert path (converge live rows)."""

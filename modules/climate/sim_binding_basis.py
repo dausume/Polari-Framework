@@ -43,12 +43,12 @@ polariServer
 import datetime
 from objectTreeDecorators import treeObject, treeObjectInit
 from composition.custom.data_refs import rows
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 from climate.objects.sim_binding._shared import BINDING_MODES, PROV, SEED_ATMOSPHERE_BINDINGS, _named, _now, apply_all, apply_binding, binding_report, resolve_value  # noqa: F401
 from climate.objects.sim_binding.AtmosphereSeriesBinding import AtmosphereSeriesBinding  # noqa: F401
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 def seed_atmosphere_bindings(manager):
     return upsert_seed_pairs(manager, [

@@ -264,7 +264,7 @@ def _persist(manager, person, kind, periods):
     if getattr(manager, 'objectTypingDict', None) is None:
         return False, 'duck-typed manager — cache skipped (reported)'
     try:
-        from composition.custom.seed_upsert import upsert_seed_pairs
+        from moduleService.seed_upsert import upsert_seed_pairs
         from nutrition.intake_basis import PeriodIntakeMetric
         rows = [{'name': f'{person}-{kind}-{p["periodStart"]}', 'person_name': person,
                  'period_kind': kind, 'series_key': f'{person}:{kind}',

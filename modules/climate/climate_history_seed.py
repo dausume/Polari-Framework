@@ -751,7 +751,7 @@ def coverage_citations(manager, series_name, from_year=None,
 def seed_human_eras(manager):
     """The eras, upserted so a changed range converges instead of
     inserting a duplicate."""
-    from composition.custom.seed_upsert import upsert_seed_pairs
+    from moduleService.seed_upsert import upsert_seed_pairs
     from climate.climate_basis import HumanEraDefinition
     return upsert_seed_pairs(manager, [
         ('HumanEraDefinition', HumanEraDefinition,

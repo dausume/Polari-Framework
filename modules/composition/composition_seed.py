@@ -33,7 +33,7 @@ from composition.node_basis import CompositionNode
 from composition.routing_basis import (
     RoutingDefinition, RoutingOperation,
 )
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 PROV = 'arch-2'
 

@@ -30,7 +30,7 @@ the differences M1 itself brings:
 import json
 import math
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 M1_DESIGN = 'reluctance-6s4p-m1'
 PRODUCT = 'm1-axis-drive'

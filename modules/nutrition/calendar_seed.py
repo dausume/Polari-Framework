@@ -19,7 +19,7 @@ cal-4 — the meal-planning app's EVENT LAYER as data:
                      yearly (the 1st), coordination when a plan or an
                      entry changes and every Sunday for the week ahead
 
-Seeded through composition.custom.seed_upsert from seed_mealplan_pages
+Seeded through moduleService.seed_upsert from seed_mealplan_pages
 (converges on edit). After the upsert the coordination trigger is
 fired ONCE for the demo plan when no generated events exist yet, so
 a fresh node shows the week — recorded as a manual firing like any
@@ -406,7 +406,7 @@ SEED_MEALPLAN_TRIGGERS = [
 def seed_mealplan_calendar(manager):
     """Upsert the event layer, then fire the coordination once for
     the demo plan if nothing has been generated yet."""
-    from composition.custom.seed_upsert import upsert_seed_pairs
+    from moduleService.seed_upsert import upsert_seed_pairs
     from polariApiServer.eventDefinition import EventDefinition
     from polariApiServer.calendarDefinition import CalendarDefinition
     from polariApiServer.solutionDefinition import SolutionDefinition

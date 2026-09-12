@@ -28,6 +28,17 @@ def _framework_root():
 
 
 def _modules_dir():
+    """Where fetched modules land. POLARI_FETCHED_MODULES_DIR (the image sets /app/data/modules — on the data
+    volume, so a fetched module survives a restart and the image tree stays as shipped) when it exists or can be
+    created and is writable; else the in-tree modules/ (a checkout). Both are import roots (PYTHONPATH)."""
+    fetched = os.environ.get('POLARI_FETCHED_MODULES_DIR', '')
+    if fetched:
+        try:
+            os.makedirs(fetched, exist_ok=True)
+            if os.access(fetched, os.W_OK):
+                return fetched
+        except OSError:
+            pass
     return os.path.join(_framework_root(), MODULES_DIR_NAME)
 
 

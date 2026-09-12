@@ -36,7 +36,7 @@ climate.climate_api, polariServer
 
 import json
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 PROV = 'co2-C'
 

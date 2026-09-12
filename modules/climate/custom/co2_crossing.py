@@ -266,7 +266,7 @@ def store_projections(manager, table, series_ref='',
     the next ingest's answers can be compared against these and
     the page can show its own answers moving."""
     from climate.climate_basis import ExposureProjection
-    from composition.custom.seed_upsert import upsert_seed_pairs
+    from moduleService.seed_upsert import upsert_seed_pairs
     seeds = []
     for entry in table.get('rows', []) or table.get('crossings', []):
         if entry.get('skipped'):

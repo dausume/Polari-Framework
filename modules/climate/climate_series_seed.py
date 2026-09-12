@@ -20,7 +20,7 @@ its guard tests on.
 climate.climate_views_seed, polariServer
 """
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 PROV = 'co2-A'
 

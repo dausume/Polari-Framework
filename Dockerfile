@@ -89,7 +89,7 @@ WORKDIR /app
 # ffmpeg: video module (modules/video/) WebM/MP4/HLS conversion —
 # same capability-honest pattern (video_conversion.py checks
 # shutil.which('ffmpeg') and reports missing rather than crashing).
-RUN apk add --no-cache freetype sqlite-libs libstdc++ ngspice ffmpeg
+RUN apk add --no-cache freetype sqlite-libs libstdc++ ngspice ffmpeg git   # git: an instance fetches optional modules from their repositories (fetch-admit)
 
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
@@ -110,14 +110,23 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # mp-1: modules/ is a second import root — relocated feature modules
 # keep their import names in EVERY python process (server, selftest
 # subprocesses, docker exec), not just where sitecustomize loads.
-ENV PYTHONPATH=/app/modules
+# fetched (optional) modules live on the data volume so they survive a restart; the image tree stays read-only-ish
+ENV PYTHONPATH=/app/data/modules:/app/modules
+ENV POLARI_FETCHED_MODULES_DIR=/app/data/modules
 
 # Copy application code LAST (this layer invalidates most often)
 # This ensures dependency layers are cached and reused
 COPY . /app
+# Image variants (his rule 2026-09-12): `core` carries only the core-tier modules — what makes Polari a networking
+# and app system; optional modules are fetched from their polari-module-* repositories on admission (the register
+# stays, so the instance knows where). `all` (default) carries every official module.
+ARG POLARI_MODULE_SET=all
+ENV POLARI_MODULE_SET=${POLARI_MODULE_SET}
+RUN if [ "$POLARI_MODULE_SET" = core ]; then python3 -c "import json,shutil,os; reg=json.load(open('/app/modules/polari-modules.json'))['modules']; gone=[m for m,e in reg.items() if e.get('tier','optional')!='core' and os.path.isdir('/app/modules/'+m)]; [shutil.rmtree('/app/modules/'+m) for m in gone]; print('core image: removed %d optional module(s), kept %d core' % (len(gone), sum(1 for e in reg.values() if e.get('tier')=='core')))"; fi
+LABEL org.opencontainers.image.variant=${POLARI_MODULE_SET}
 
 # Ensure data directory exists for SQLite database (volume mount point)
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data/modules && chmod -R a+rwX /app/data /app/modules   # any runtime uid may fetch modules and write data
 
 # Expose HTTP and HTTPS ports
 # HTTP: 3000 (default), HTTPS: 2096 (Cloudflare-compatible)

@@ -35,7 +35,7 @@ polariServer seed pass (seed_m2_composition)
 
 import json
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 M2_DESIGN = 'ferrite-pm-m2'
 M1_DESIGN = 'reluctance-6s4p-m1'

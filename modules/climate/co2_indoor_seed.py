@@ -36,7 +36,7 @@ steady_state_ppm), polariServer (seed pass)
 """
 
 from aquaponics.custom.atmosphere_analysis import CO2_MG_PER_M3_PER_PPM
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 from climate.climate_basis import IndoorSpaceProfile
 
 #: CO2 gas density, ~1.80 g/L at 25 C and 101 kPa. NOT the same

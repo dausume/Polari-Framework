@@ -45,7 +45,7 @@ polariServer seed pass (seed_m1_axis)
 import math
 from objectTreeDecorators import treeObject, treeObjectInit
 from composition.custom.data_refs import rows
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 from motors.custom.m1_sequencing import (
     STEP_DEG, holding_torque, pull_in_load_limit, sequence_sim,
 )
@@ -53,7 +53,7 @@ from motors.custom.m1_sequencing import (
 from motors.objects.m1_positioning._shared import M1_DESIGN, PROV, SEED_AXIS_REQUIREMENTS, STEPS_PER_REV, _req, axis_report, positioning_proof  # noqa: F401
 from motors.objects.m1_positioning.PrinterAxisRequirement import PrinterAxisRequirement  # noqa: F401
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 def seed_m1_axis(manager):
     return upsert_seed_pairs(manager, [

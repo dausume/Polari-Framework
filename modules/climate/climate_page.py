@@ -420,7 +420,7 @@ SEED_CLIMATE_ERA_DISPLAYS = [{
 def seed_climate_pages(manager):
     """The graphs and the page, upserted so an edited config
     converges instead of inserting a duplicate."""
-    from composition.custom.seed_upsert import upsert_seed_pairs
+    from moduleService.seed_upsert import upsert_seed_pairs
     from polariApiServer.graphDefinition import GraphDefinition
     from polariApiServer.displayDefinition import DisplayDefinition
     return upsert_seed_pairs(manager, [

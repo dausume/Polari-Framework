@@ -8,7 +8,7 @@ fake-manager style: python3 -m composition.composition_selftest
 
 import types
 
-from composition.custom.seed_upsert import (
+from moduleService.seed_upsert import (
     diff_fields, upsert_seed_rows, upsert_seed_pairs,
 )
 

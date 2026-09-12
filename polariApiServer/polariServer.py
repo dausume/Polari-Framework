@@ -3214,7 +3214,7 @@ class polariServer(treeObject):
                 # legacy seed pairs above; the documented gotcha,
                 # hit again). Alias the one new import.
                 try:
-                    from composition.custom.seed_upsert import (
+                    from moduleService.seed_upsert import (
                         upsert_seed_pairs as _upsert_pre,
                     )
                     _upsert_pre(self.manager, [
@@ -3438,7 +3438,7 @@ class polariServer(treeObject):
                 # MODULE-LEVEL imports — re-importing them here would
                 # make the names function-local and break the legacy
                 # seed list above (UnboundLocalError at boot).
-                from composition.custom.seed_upsert import upsert_seed_pairs
+                from moduleService.seed_upsert import upsert_seed_pairs
                 for r in upsert_seed_pairs(
                         self.manager,
                         [('PolariAppDefinition', PolariAppDefinition,
@@ -3459,7 +3459,7 @@ class polariServer(treeObject):
         # live tables through the upsert path, so a fresh clone boots with
         # the data code cannot regenerate (e.g. cntfet's characterized
         # libraries); customized rows (is_prior False) are never clobbered.
-        # composition.custom.seed_upsert is a plain helper on the modules path —
+        # moduleService.seed_upsert is a plain helper on the modules path —
         # NOT gated on the composition module being enabled (prf-a runs
         # without it; gating here silently skipped every module's data).
         if True:
@@ -3533,7 +3533,7 @@ class polariServer(treeObject):
                 or 'RemoteHostingOption' in only_classes
                 or 'ForkPin' in only_classes)):
             try:
-                from composition.custom.seed_upsert import upsert_seed_pairs
+                from moduleService.seed_upsert import upsert_seed_pairs
                 for r in upsert_seed_pairs(
                         self.manager,
                         [('AppShellDefinition', AppShellDefinition,
@@ -3571,7 +3571,7 @@ class polariServer(treeObject):
                 or 'NutrientReference' in only_classes
                 or 'FoodItem' in only_classes)):
             try:
-                from composition.custom.seed_upsert import upsert_seed_pairs
+                from moduleService.seed_upsert import upsert_seed_pairs
                 for r in upsert_seed_pairs(
                         self.manager,
                         [('DietaryNutrient', DietaryNutrient,
@@ -3647,7 +3647,7 @@ class polariServer(treeObject):
                 or 'DeviceModel' in only_classes
                 or 'KitProfile' in only_classes)):
             try:
-                from composition.custom.seed_upsert import upsert_seed_pairs
+                from moduleService.seed_upsert import upsert_seed_pairs
                 for r in upsert_seed_pairs(
                         self.manager,
                         [('ReticulumInterface', ReticulumInterface,

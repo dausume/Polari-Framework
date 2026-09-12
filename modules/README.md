@@ -243,3 +243,7 @@ profile, seccomp allow-list and the compose/stack security fragment
 `pol modules conform` refuses values outside those lists. Declare the least:
 an app that needs nothing special keeps the default and still runs; an app
 that declares `NET_ADMIN` gets it and nothing more.
+
+## 12. Tiers and image variants (2026-09-12)
+
+Every module in the register carries a `tier`: **core** — what makes Polari a networking and app system (polariapps, appstore, islemesh, terms, vpn, isle_relay, isle_guestnet, reticulum, mqttbridge, hardwareapps, suiteapps, hwmap, testing, and resources/xr which the core requires) — or **optional** (the sciences, household and meals, scoring, video, …), which only some users need. A core module may never require an optional one (`pol modules deps` checks). The backend image is built in two variants from the same Dockerfile (`--build-arg POLARI_MODULE_SET=core|all`): the **core** image carries only core modules plus the register, so an optional module is fetched from its `polari-module-*` repository on admission (`POST /modules/<m>/fetch-admit`, dependencies first); the **all-official** image carries every official module. Release tags: `polari-vYYYY.MM.DD-core`, `polari-vYYYY.MM.DD-all` (the plain tag is the all variant). Every other image of a release carries both suffixes with identical content so a stack pulls one tag.

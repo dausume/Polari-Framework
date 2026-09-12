@@ -36,13 +36,13 @@ polariServer seed passes (seed_clock_views — upsert path)
 import json
 from objectTreeDecorators import treeObject, treeObjectInit
 from composition.custom.data_refs import resolve_named, rows
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 from motors.clock_scene_basis import scene_json_for_view  # noqa: E402
 
 from motors.objects.clock_views._shared import DISCIPLINES, PROV, SECTION_RENDERERS, SECTION_SOURCES, SEED_CLOCK_VIEWS, _derived_links, _failure_conditions, _j, _src_design, _src_part, _stress_tensor_gap, _view_seed, component_view, view_payload  # noqa: F401
 from motors.objects.clock_views.ClockViewDefinition import ClockViewDefinition  # noqa: F401
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 def seed_clock_views(manager):
     return upsert_seed_pairs(manager, [

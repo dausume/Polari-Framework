@@ -40,7 +40,7 @@ magnitude. Every row here is `surface-in-situ` and says so.
 climate.climate_views_seed, climate.climate_api, polariServer
 """
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 PROV = 'co2-E'
 

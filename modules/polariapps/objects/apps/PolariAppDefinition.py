@@ -40,7 +40,7 @@ class PolariAppDefinition(treeObject):
         engine_page: str = '',
         # nav-1: seeds are priors, people's edits are not — flip to
         # False on a customized row and the upsert seed pass will
-        # never touch it again (composition.custom.seed_upsert contract).
+        # never touch it again (moduleService.seed_upsert contract).
         is_prior: bool = True,
         notes: str = '',
         manager=None,

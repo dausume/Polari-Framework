@@ -27,7 +27,7 @@ the fetch path refuses on content, never on status alone.
 
 import json
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 PROV = 'co2-0'
 VERIFIED = '2026-08-02'

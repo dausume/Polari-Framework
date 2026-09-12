@@ -7,7 +7,8 @@
       "downloaded": true,
       "path": "modules/agro_forestry",
       "repo": "https://github.com/dausume/polari-module-agro_forestry.git",
-      "description": "Legacy registry module (user-created example)."
+      "description": "Legacy registry module (user-created example).",
+      "tier": "optional"
     },
     "appstore": {
       "kind": "official",
@@ -18,7 +19,8 @@
       "requires": [
         "polariapps"
       ],
-      "description": "Polari App Store (appstore-1): installable native shells over the polariapps content layer \u2014 catalog/identity, one-time enrollment tokens (hashed at rest), overlaid Gradle source archives + prebuilt binaries from MinIO."
+      "description": "Polari App Store (appstore-1): installable native shells over the polariapps content layer \u2014 catalog/identity, one-time enrollment tokens (hashed at rest), overlaid Gradle source archives + prebuilt binaries from MinIO.",
+      "tier": "core"
     },
     "aquaponics": {
       "kind": "official",
@@ -30,7 +32,8 @@
         "plant_morphology",
         "scoring"
       ],
-      "description": "Self-watering pots, FEM hydraulics, vermicompost, per-part plant growth."
+      "description": "Self-watering pots, FEM hydraulics, vermicompost, per-part plant growth.",
+      "tier": "optional"
     },
     "biomining": {
       "kind": "official",
@@ -38,7 +41,8 @@
       "path": "modules/biomining",
       "repo": "https://github.com/dausume/polari-module-biomining.git",
       "wave": 0,
-      "description": "Bacteria/algae extraction -> product variants."
+      "description": "Bacteria/algae extraction -> product variants.",
+      "tier": "optional"
     },
     "bizops": {
       "kind": "official",
@@ -49,7 +53,8 @@
         "supplychain"
       ],
       "wave": 3,
-      "description": "Business operations: setup/upgrade flows, local-economy track, order planner with mold-ladder reuse."
+      "description": "Business operations: setup/upgrade flows, local-economy track, order planner with mold-ladder reuse.",
+      "tier": "optional"
     },
     "casting": {
       "kind": "official",
@@ -64,7 +69,8 @@
         "pspp"
       ],
       "description": "Mold nesting: derived negatives, casting chains with derived parity/thermal gates, sprues, fill/demold sims, the nesting wizard. Requires the shape algebra (mathshapes), seed_upsert (composition), the bead model + mold lifecycle (waxprint), wax rankings (waxsupply), and the exotherm/ceramics data (pspp) \u2014 admission must order them first (caught live 2026-08-05).",
-      "repo": "https://github.com/dausume/polari-module-casting.git"
+      "repo": "https://github.com/dausume/polari-module-casting.git",
+      "tier": "optional"
     },
     "climate": {
       "kind": "official",
@@ -76,7 +82,8 @@
         "dmvdata"
       ],
       "wave": 0,
-      "description": "Climate Change & Atmosphere: CO2 series as objects (ice-core + instrumental spans), velocity/acceleration fits, graded health thresholds, the coupled indoor/outdoor crossing projection, XPORT ingest for NHANES biomarkers, and the human-history record."
+      "description": "Climate Change & Atmosphere: CO2 series as objects (ice-core + instrumental spans), velocity/acceleration fits, graded health thresholds, the coupled indoor/outdoor crossing projection, XPORT ingest for NHANES biomarkers, and the human-history record.",
+      "tier": "optional"
     },
     "cntfet": {
       "kind": "official",
@@ -87,7 +94,8 @@
       "requires": [
         "electrodevice"
       ],
-      "description": "Aligned-CNT FET S1: decomposed one-tube device, clean-room VS-CNFET-derived compact model (first open CNFET compact model) + ToB F2 reference + Verilog-A/OSDI twin. Compute (OpenVAF/ngspice/OpenSTA/kwant) delegates to the cnt-engines worker (dist-1): CNTFET_ENGINES_URL knob, else topology provider cntfet.engines, else local ~/tools."
+      "description": "Aligned-CNT FET S1: decomposed one-tube device, clean-room VS-CNFET-derived compact model (first open CNFET compact model) + ToB F2 reference + Verilog-A/OSDI twin. Compute (OpenVAF/ngspice/OpenSTA/kwant) delegates to the cnt-engines worker (dist-1): CNTFET_ENGINES_URL knob, else topology provider cntfet.engines, else local ~/tools.",
+      "tier": "optional"
     },
     "collab": {
       "kind": "official",
@@ -97,7 +105,8 @@
       "wave": 8,
       "requires": [],
       "description": "Collaboration sessions (mtg-2, LIVEKIT_COLLABORATION_PLAN v2): one session object, many client surfaces (browser meeting, sim-side voice, VR). CollaborationSession + MeetingRecord rows; KC-verified callers mint short-lived LiveKit JWTs (pure-stdlib HS256 \u2014 no SDK); capability/join-info with the *_remote refusal ladder. THE LINE: nothing arriving over LiveKit mutates Polari state. Second module born manifest-first on dyn-1.",
-      "notes": ""
+      "notes": "",
+      "tier": "optional"
     },
     "composition": {
       "kind": "official",
@@ -109,7 +118,8 @@
         "techtree"
       ],
       "wave": 2,
-      "description": "Part composition (PART_ARCHETYPES_PLAN.md): components/interfaces with DERIVED levels by separability, promotion as a recorded operation, EBOM/MBOM split, archetypes + design matrices, and the generic role engine (extracted from motors). Material/equation refs are DATA references, never imports."
+      "description": "Part composition (PART_ARCHETYPES_PLAN.md): components/interfaces with DERIVED levels by separability, promotion as a recorded operation, EBOM/MBOM split, archetypes + design matrices, and the generic role engine (extracted from motors). Material/equation refs are DATA references, never imports.",
+      "tier": "optional"
     },
     "computerparts": {
       "kind": "official",
@@ -120,7 +130,8 @@
       "requires": [
         "composition"
       ],
-      "description": "Computer parts + builds as tracked data (ai-8): dated part prices, derived build cost, assembly-feasibility checks over declared specs; feeds the appstore buy-vs-rent advisory (row reads). Seeding imports composition.custom.seed_upsert (guarded) \u2014 prices converge on live rows."
+      "description": "Computer parts + builds as tracked data (ai-8): dated part prices, derived build cost, assembly-feasibility checks over declared specs; feeds the appstore buy-vs-rent advisory (row reads). Seeding imports composition.custom.seed_upsert (guarded) \u2014 prices converge on live rows.",
+      "tier": "optional"
     },
     "computers": {
       "kind": "official",
@@ -132,7 +143,8 @@
         "computerparts",
         "composition"
       ],
-      "description": "Computer assembly + use-case profiles as their own app (cmp-c): component taxonomy rows (declared specs + honest gaps), DFA-style assembly gates over the computerparts catalog, profiles as data with ai-6-shaped evidence-bearing fits (db-binding declare-only v1). Separable from the microchip ladder (chip-4 seam deferred)."
+      "description": "Computer assembly + use-case profiles as their own app (cmp-c): component taxonomy rows (declared specs + honest gaps), DFA-style assembly gates over the computerparts catalog, profiles as data with ai-6-shaped evidence-bearing fits (db-binding declare-only v1). Separable from the microchip ladder (chip-4 seam deferred).",
+      "tier": "optional"
     },
     "dmvdata": {
       "kind": "official",
@@ -143,7 +155,8 @@
       "requires": [
         "scoring"
       ],
-      "description": "DMV cost-of-living source catalogs, gov/legal sources, cross-validation."
+      "description": "DMV cost-of-living source catalogs, gov/legal sources, cross-validation.",
+      "tier": "optional"
     },
     "electrodevice": {
       "kind": "official",
@@ -154,7 +167,8 @@
       "requires": [
         "hwdigital"
       ],
-      "description": "Material-derived electronic devices, SPICE cards, circuits/breadboards as rows."
+      "description": "Material-derived electronic devices, SPICE cards, circuits/breadboards as rows.",
+      "tier": "optional"
     },
     "foodstate": {
       "kind": "official",
@@ -166,7 +180,8 @@
         "pspp",
         "nutrition"
       ],
-      "description": "Food as PSPP state evolution (fsp arc): food stages/processes/evidence methods as pspp rows + property-domain contracts; transform engines arrive fsp-2 (FOOD_STATE_PSPP_PLAN.md)."
+      "description": "Food as PSPP state evolution (fsp arc): food stages/processes/evidence methods as pspp rows + property-domain contracts; transform engines arrive fsp-2 (FOOD_STATE_PSPP_PLAN.md).",
+      "tier": "optional"
     },
     "gears": {
       "kind": "official",
@@ -177,7 +192,8 @@
         "mathshapes"
       ],
       "wave": 4,
-      "description": "Gear trains as data (GEARS_PLAN.md): the gear-type taxonomy with ratio laws + literature efficiency bands + how each type would be MADE in our stack, and the abstract kinematic solve over a shaft-node/mesh-edge graph (speeds with direction, torque after the efficiency chain, power conservation, accumulated backlash). Motor splice = gr-5."
+      "description": "Gear trains as data (GEARS_PLAN.md): the gear-type taxonomy with ratio laws + literature efficiency bands + how each type would be MADE in our stack, and the abstract kinematic solve over a shaft-node/mesh-edge graph (speeds with direction, torque after the efficiency chain, power conservation, accumulated backlash). Motor splice = gr-5.",
+      "tier": "optional"
     },
     "grpcbridge": {
       "kind": "official",
@@ -185,7 +201,8 @@
       "path": "modules/grpcbridge",
       "repo": "https://github.com/dausume/polari-module-grpcbridge.git",
       "wave": 5,
-      "description": "gRPC contracts from stabilized schemas, Java hardware bridges, hw sim rigs."
+      "description": "gRPC contracts from stabilized schemas, Java hardware bridges, hw sim rigs.",
+      "tier": "optional"
     },
     "hardwareapps": {
       "kind": "official",
@@ -196,7 +213,8 @@
         "islemesh"
       ],
       "wave": 8,
-      "description": "Hardware apps as rows: KVM guests the isle defines (relay, guest network, \u2026) and extension apps pushed into them; pure renderers for the libvirt domain XML (the router template generalised) and OpenWrt UCI profiles (hw-app-1, 2026-09-08)."
+      "description": "Hardware apps as rows: KVM guests the isle defines (relay, guest network, \u2026) and extension apps pushed into them; pure renderers for the libvirt domain XML (the router template generalised) and OpenWrt UCI profiles (hw-app-1, 2026-09-08).",
+      "tier": "core"
     },
     "household": {
       "kind": "official",
@@ -205,7 +223,8 @@
       "repo": "https://github.com/dausume/polari-module-household.git",
       "wave": 1,
       "requires": [],
-      "description": "Household layer: people's schedules and sleep, members and work shares, skills and safety, dish strategies, the allocation and fairness"
+      "description": "Household layer: people's schedules and sleep, members and work shares, skills and safety, dish strategies, the allocation and fairness",
+      "tier": "optional"
     },
     "hwdigital": {
       "kind": "official",
@@ -213,7 +232,8 @@
       "path": "modules/hwdigital",
       "repo": "https://github.com/dausume/polari-module-hwdigital.git",
       "wave": 3,
-      "description": "Logic diagrams as rows -> generated artifacts (iCE40 bitstreams)."
+      "description": "Logic diagrams as rows -> generated artifacts (iCE40 bitstreams).",
+      "tier": "optional"
     },
     "hwfpga": {
       "kind": "official",
@@ -221,7 +241,8 @@
       "path": "modules/hwfpga",
       "repo": "https://github.com/dausume/polari-module-hwfpga.git",
       "wave": 3,
-      "description": "FPGA register maps as data; Verilog/C/testbench artifacts from rows."
+      "description": "FPGA register maps as data; Verilog/C/testbench artifacts from rows.",
+      "tier": "optional"
     },
     "isle_guestnet": {
       "kind": "official",
@@ -233,7 +254,8 @@
         "islemesh"
       ],
       "wave": 8,
-      "description": "isle-guestnet: an OpenWrt guest (hardware app) serving guest-only WiFi, isolated from the isle; exposures as rows."
+      "description": "isle-guestnet: an OpenWrt guest (hardware app) serving guest-only WiFi, isolated from the isle; exposures as rows.",
+      "tier": "core"
     },
     "isle_relay": {
       "kind": "official",
@@ -245,7 +267,8 @@
         "islemesh"
       ],
       "wave": 8,
-      "description": "isle-relay: a second OpenWrt guest (hardware app) serving a relay segment that extends the isle; the body for the Reticulum extension app (WiFi over Reticulum)."
+      "description": "isle-relay: a second OpenWrt guest (hardware app) serving a relay segment that extends the isle; the body for the Reticulum extension app (WiFi over Reticulum).",
+      "tier": "core"
     },
     "islemesh": {
       "kind": "official",
@@ -254,7 +277,8 @@
       "repo": "https://github.com/dausume/polari-module-islemesh.git",
       "wave": 7,
       "requires": [],
-      "description": "isle-mesh convergence (mac-1): the polari-side acceptor for isle-mesh data \u2014 devices/uplinks/mesh-apps/protocol-permits ingested from the isle agent's registry.json + nginx fragments (isle stays authoritative over networking); mock ingests carry mock_network=true, surfaced as a banner. Feeds /display/isle-mesh and the mac-10 console."
+      "description": "isle-mesh convergence (mac-1): the polari-side acceptor for isle-mesh data \u2014 devices/uplinks/mesh-apps/protocol-permits ingested from the isle agent's registry.json + nginx fragments (isle stays authoritative over networking); mock ingests carry mock_network=true, surfaced as a banner. Feeds /display/isle-mesh and the mac-10 console.",
+      "tier": "core"
     },
     "kirimoto": {
       "kind": "official",
@@ -265,7 +289,8 @@
         "islemesh"
       ],
       "wave": 8,
-      "description": "Kiri:Moto browser slicer as an isle container app (kirimoto.isle) built from a pinned MIT commit; slicer instance + device profile rows."
+      "description": "Kiri:Moto browser slicer as an isle container app (kirimoto.isle) built from a pinned MIT commit; slicer instance + device profile rows.",
+      "tier": "optional"
     },
     "magnetics": {
       "kind": "official",
@@ -277,14 +302,16 @@
         "materialsScience"
       ],
       "wave": 3,
-      "description": "Magnetic materials Section A: option catalog with realization ladder, functional role taxonomy (derived viability), theoretical powder designer (MAGNETIC_MATERIALS_PLAN.md)."
+      "description": "Magnetic materials Section A: option catalog with realization ladder, functional role taxonomy (derived viability), theoretical powder designer (MAGNETIC_MATERIALS_PLAN.md).",
+      "tier": "optional"
     },
     "materials_science": {
       "kind": "official",
       "downloaded": true,
       "path": "modules/materials_science",
       "repo": "https://github.com/dausume/polari-module-materials_science.git",
-      "description": "Legacy registry module (optional, toggleable)."
+      "description": "Legacy registry module (optional, toggleable).",
+      "tier": "optional"
     },
     "mathshapes": {
       "kind": "official",
@@ -296,7 +323,8 @@
         "aquaponics",
         "plant_morphology"
       ],
-      "description": "Math-defined shapes (quadric/primitive/CSG), aquaponic towers, CAD import."
+      "description": "Math-defined shapes (quadric/primitive/CSG), aquaponic towers, CAD import.",
+      "tier": "optional"
     },
     "mealoptions": {
       "kind": "official",
@@ -305,7 +333,8 @@
       "repo": "https://github.com/dausume/polari-module-mealoptions.git",
       "wave": 1,
       "requires": [],
-      "description": "Meal options: templates, variations, recipes, steps, ingredient affinities, cooking methods, tool and task vocabularies, meal situations, bulk staples \u2014 the shareable meal data; no person or place data"
+      "description": "Meal options: templates, variations, recipes, steps, ingredient affinities, cooking methods, tool and task vocabularies, meal situations, bulk staples \u2014 the shareable meal data; no person or place data",
+      "tier": "optional"
     },
     "meshassets": {
       "kind": "official",
@@ -316,7 +345,8 @@
         "plant_morphology"
       ],
       "wave": 4,
-      "description": "License-GATED external mesh catalog: verified open-source 3D assets as pointers (never vendored bytes), graded by what the licence actually permits (simulate vs redistribute), plus the fit engine that scales a borrowed mesh onto our vector organ definitions and MEASURES the compromise (shape fidelity). Gears are flagged approximation-invalid: an approximate gear does not mesh."
+      "description": "License-GATED external mesh catalog: verified open-source 3D assets as pointers (never vendored bytes), graded by what the licence actually permits (simulate vs redistribute), plus the fit engine that scales a borrowed mesh onto our vector organ definitions and MEASURES the compromise (shape fidelity). Gears are flagged approximation-invalid: an approximate gear does not mesh.",
+      "tier": "optional"
     },
     "microalgae": {
       "kind": "official",
@@ -324,7 +354,8 @@
       "path": "modules/microalgae",
       "repo": "https://github.com/dausume/polari-module-microalgae.git",
       "wave": 0,
-      "description": "Photobioreactor decarbonization route."
+      "description": "Photobioreactor decarbonization route.",
+      "tier": "optional"
     },
     "microchip": {
       "kind": "official",
@@ -333,7 +364,8 @@
       "repo": "https://github.com/dausume/polari-module-microchip.git",
       "wave": 3,
       "requires": [],
-      "description": "Microchip design-level ladder (device -> cell -> block -> core -> chip) + traversal interface. Separable from the device modules: reads cntfet/electrodevice rows softly, imports no device code; absent modules degrade honestly."
+      "description": "Microchip design-level ladder (device -> cell -> block -> core -> chip) + traversal interface. Separable from the device modules: reads cntfet/electrodevice rows softly, imports no device code; absent modules degrade honestly.",
+      "tier": "optional"
     },
     "motors": {
       "kind": "official",
@@ -345,7 +377,8 @@
         "composition"
       ],
       "wave": 4,
-      "description": "Electric motors Section C: the M0-M3 ladder of buildable samples (Lavet clock stepper -> reluctance -> ferrite-PM -> dual-stator axial flux), clock control-case sim, torque curves, torque_parity (MAGNETIC_MATERIALS_PLAN.md)."
+      "description": "Electric motors Section C: the M0-M3 ladder of buildable samples (Lavet clock stepper -> reluctance -> ferrite-PM -> dual-stator axial flux), clock control-case sim, torque curves, torque_parity (MAGNETIC_MATERIALS_PLAN.md).",
+      "tier": "optional"
     },
     "mqttbridge": {
       "kind": "official",
@@ -354,7 +387,8 @@
       "repo": "https://github.com/dausume/polari-module-mqttbridge.git",
       "wave": 3,
       "requires": [],
-      "description": "MQTT bridge: brokers + topic->object bindings as rows, explicit connect, ingest with refusal ledger; publish knob OFF at mqtt-1. paho-mqtt==2.1.0 (EDL-1.0 edge)."
+      "description": "MQTT bridge: brokers + topic->object bindings as rows, explicit connect, ingest with refusal ledger; publish knob OFF at mqtt-1. paho-mqtt==2.1.0 (EDL-1.0 edge).",
+      "tier": "core"
     },
     "nutrition": {
       "kind": "official",
@@ -366,7 +400,8 @@
         "household",
         "mealoptions"
       ],
-      "description": "Dietary nutrients, person/household profiling, harvest -> meal-nutrient yield."
+      "description": "Dietary nutrients, person/household profiling, harvest -> meal-nutrient yield.",
+      "tier": "optional"
     },
     "odooconnect": {
       "kind": "official",
@@ -374,7 +409,8 @@
       "path": "modules/odooconnect",
       "repo": "https://github.com/dausume/polari-module-odooconnect.git",
       "wave": 2,
-      "description": "Odoo ERP connector: JSON-RPC client with sim/ops write guards, instance configs, /api/odoo status."
+      "description": "Odoo ERP connector: JSON-RPC client with sim/ops write guards, instance configs, /api/odoo status.",
+      "tier": "optional"
     },
     "plant_morphology": {
       "kind": "official",
@@ -382,7 +418,8 @@
       "path": "modules/plant_morphology",
       "repo": "https://github.com/dausume/polari-module-plant_morphology.git",
       "wave": 1,
-      "description": "3D organ + root stand-in models, confinement/dwarfing assessment."
+      "description": "3D organ + root stand-in models, confinement/dwarfing assessment.",
+      "tier": "optional"
     },
     "polariapps": {
       "kind": "official",
@@ -390,7 +427,8 @@
       "path": "modules/polariapps",
       "repo": "https://github.com/dausume/polari-module-polariapps.git",
       "wave": 6,
-      "description": "Polari-Apps: module configurations per use-case, plan-first + exportable."
+      "description": "Polari-Apps: module configurations per use-case, plan-first + exportable.",
+      "tier": "core"
     },
     "printcam": {
       "kind": "official",
@@ -403,7 +441,8 @@
         "islemesh"
       ],
       "wave": 8,
-      "description": "Print camera: a hardware-extension-app of the Voron guest \u2014 USB camera passthrough, ustreamer, Moonraker webcam + timelapse (D7, 2026-09-09)."
+      "description": "Print camera: a hardware-extension-app of the Voron guest \u2014 USB camera passthrough, ustreamer, Moonraker webcam + timelapse (D7, 2026-09-09).",
+      "tier": "optional"
     },
     "printing_suite": {
       "kind": "official",
@@ -416,7 +455,8 @@
         "islemesh"
       ],
       "wave": 8,
-      "description": "The 3D printing PRODUCTION suite app: design (CAD \u2192 shape) \u2192 material/mold \u2192 slice (Kiri:Moto) \u2192 print (Voron guest) \u2192 measured outcome; owns the contract rows MaterialLot, PrintProfile, SliceJob, GcodeArtifact, PrintJob, PrintOutcome (sa-2, 2026-09-08)."
+      "description": "The 3D printing PRODUCTION suite app: design (CAD \u2192 shape) \u2192 material/mold \u2192 slice (Kiri:Moto) \u2192 print (Voron guest) \u2192 measured outcome; owns the contract rows MaterialLot, PrintProfile, SliceJob, GcodeArtifact, PrintJob, PrintOutcome (sa-2, 2026-09-08).",
+      "tier": "optional"
     },
     "pspp": {
       "kind": "official",
@@ -427,7 +467,8 @@
       "requires": [
         "materialsScience"
       ],
-      "description": "PSPP foundation: evidence methods, claims-not-values, digitized book datasets + interpolation (PSPP_MATERIALS_PLAN.md)."
+      "description": "PSPP foundation: evidence methods, claims-not-values, digitized book datasets + interpolation (PSPP_MATERIALS_PLAN.md).",
+      "tier": "optional"
     },
     "resources": {
       "kind": "official",
@@ -436,7 +477,8 @@
       "repo": "https://github.com/dausume/polari-module-resources.git",
       "wave": 5,
       "required_by_core": true,
-      "description": "Node resource inventory, module profiles, admission advisor. Moves in wave 5; core still imports it statically (drop refuses)."
+      "description": "Node resource inventory, module profiles, admission advisor. Moves in wave 5; core still imports it statically (drop refuses).",
+      "tier": "core"
     },
     "reticulum": {
       "kind": "official",
@@ -448,7 +490,8 @@
         "islemesh"
       ],
       "description": "Reticulum mesh transport (ret-1, RETICULUM_TRANSPORT_PLAN): identities/destinations/interfaces/bindings as rows, per-PATH link measurements, ledgered airtime budgets, .arch archipelago with GRADED trust, parent+child state replication, operator-licence assertions + device links. RNS stack lives ONLY in the pol-reticulum sidecar, pinned rns==0.9.4+lxmf==0.6.3 (RETICULUM_LICENCE_GATE.md \u2014 pins are licence pins). THE LINE (ret-8): nothing arriving over Reticulum mutates Polari state. Third module born manifest-first on dyn-1.",
-      "notes": ""
+      "notes": "",
+      "tier": "core"
     },
     "scoring": {
       "kind": "official",
@@ -456,7 +499,8 @@
       "path": "modules/scoring",
       "repo": "https://github.com/dausume/polari-module-scoring.git",
       "wave": 6,
-      "description": "Context-based scoring engine + epistemics stack (terms, proofs, credibility, authority)."
+      "description": "Context-based scoring engine + epistemics stack (terms, proofs, credibility, authority).",
+      "tier": "optional"
     },
     "sifet": {
       "kind": "official",
@@ -467,7 +511,8 @@
       "requires": [
         "cntfet"
       ],
-      "description": "Silicon MOSFETs (planar / FinFET) on thermal and SOL-GEL dielectrics sharing the cntfet VS device contract (states, regimes, scoring, validity, cross-technology ranking), complementary pairs, and silicon refinement routes (MG -> UMG -> SoG -> EG; PV open, EG novel)."
+      "description": "Silicon MOSFETs (planar / FinFET) on thermal and SOL-GEL dielectrics sharing the cntfet VS device contract (states, regimes, scoring, validity, cross-technology ranking), complementary pairs, and silicon refinement routes (MG -> UMG -> SoG -> EG; PV open, EG novel).",
+      "tier": "optional"
     },
     "suiteapps": {
       "kind": "official",
@@ -478,7 +523,8 @@
         "islemesh"
       ],
       "wave": 8,
-      "description": "Suite apps: purpose-oriented compositions of apps of every kind (Polari modules, isle containers, hardware KVM guests, extension apps) with the object contracts between parts and a placement plan across devices (sa-1, 2026-09-08)."
+      "description": "Suite apps: purpose-oriented compositions of apps of every kind (Polari modules, isle containers, hardware KVM guests, extension apps) with the object contracts between parts and a placement plan across devices (sa-1, 2026-09-08).",
+      "tier": "core"
     },
     "supplychain": {
       "kind": "official",
@@ -486,7 +532,8 @@
       "path": "modules/supplychain",
       "repo": "https://github.com/dausume/polari-module-supplychain.git",
       "wave": 2,
-      "description": "Unifying bio supply-chain ledger \u2014 materials + food + carbon accounting."
+      "description": "Unifying bio supply-chain ledger \u2014 materials + food + carbon accounting.",
+      "tier": "optional"
     },
     "tanks": {
       "kind": "official",
@@ -494,7 +541,8 @@
       "path": "modules/tanks",
       "repo": "https://github.com/dausume/polari-module-tanks.git",
       "wave": 1,
-      "description": "Freshwater/saltwater tank ecosystems \u2014 the alternate nutrient source."
+      "description": "Freshwater/saltwater tank ecosystems \u2014 the alternate nutrient source.",
+      "tier": "optional"
     },
     "techtree": {
       "kind": "official",
@@ -502,7 +550,8 @@
       "path": "modules/techtree",
       "repo": "https://github.com/dausume/polari-module-techtree.git",
       "wave": 6,
-      "description": "Tech trees with theory/real/business/politics segments; OSEB baseline rollup."
+      "description": "Tech trees with theory/real/business/politics segments; OSEB baseline rollup.",
+      "tier": "optional"
     },
     "testing": {
       "kind": "official",
@@ -510,7 +559,8 @@
       "path": "modules/testing",
       "repo": "https://github.com/dausume/polari-module-testing.git",
       "wave": 6,
-      "description": "Accountability spine (opt-in: registers only on test builds / explicit POLARI_MODULES)."
+      "description": "Accountability spine (opt-in: registers only on test builds / explicit POLARI_MODULES).",
+      "tier": "core"
     },
     "video": {
       "kind": "official",
@@ -519,7 +569,8 @@
       "repo": "https://github.com/dausume/polari-module-video.git",
       "requires": [],
       "wave": 7,
-      "description": "Video assets: upload, conversion (webm/mp4/poster/HLS) and adaptive delivery rows \u2014 a Polari feature module that was never registered until sap-1 (2026-09-08)."
+      "description": "Video assets: upload, conversion (webm/mp4/poster/HLS) and adaptive delivery rows \u2014 a Polari feature module that was never registered until sap-1 (2026-09-08).",
+      "tier": "optional"
     },
     "voron": {
       "kind": "official",
@@ -531,7 +582,8 @@
         "islemesh"
       ],
       "wave": 8,
-      "description": "Voron 3D printer as a hardware app: Klipper + Moonraker + Mainsail in a Debian KVM guest with the printer boards passed through (mode real) or Klipper's linux host MCU with no printer (mode sim \u2014 no motion physics)."
+      "description": "Voron 3D printer as a hardware app: Klipper + Moonraker + Mainsail in a Debian KVM guest with the printer boards passed through (mode real) or Klipper's linux host MCU with no printer (mode sim \u2014 no motion physics).",
+      "tier": "optional"
     },
     "vpn": {
       "kind": "official",
@@ -542,7 +594,8 @@
       "requires": [
         "islemesh"
       ],
-      "description": "Isle VPN (vpn-1): the isle-vpn app family (Isle Link = WireGuard-based, Isle Bridge = OpenVPN-based, ten kinds, Blind / Sees-traffic on every row) \u2014 Polari MIRRORS each isle's VPN app state (networks, peers with public keys only, access rules, federation links, .vpn exposures; POST /api/islemesh/ingest/vpn) and PROPOSES changes an operator applies on the isle (VpnProposal inbox; D9 authority is isle-side). Engine renders Link confs / nftables text; Bridge refuses until step-ca. Feeds /display/vpn and the .vpn column of /display/isle-mesh."
+      "description": "Isle VPN (vpn-1): the isle-vpn app family (Isle Link = WireGuard-based, Isle Bridge = OpenVPN-based, ten kinds, Blind / Sees-traffic on every row) \u2014 Polari MIRRORS each isle's VPN app state (networks, peers with public keys only, access rules, federation links, .vpn exposures; POST /api/islemesh/ingest/vpn) and PROPOSES changes an operator applies on the isle (VpnProposal inbox; D9 authority is isle-side). Engine renders Link confs / nftables text; Bridge refuses until step-ca. Feeds /display/vpn and the .vpn column of /display/isle-mesh.",
+      "tier": "core"
     },
     "waxprint": {
       "kind": "official",
@@ -550,7 +603,8 @@
       "path": "modules/waxprint",
       "repo": "https://github.com/dausume/polari-module-waxprint.git",
       "wave": 6,
-      "description": "Pellet-fed auger-screw wax printer: melt/bead-voxel/movement sim + optimizer."
+      "description": "Pellet-fed auger-screw wax printer: melt/bead-voxel/movement sim + optimizer.",
+      "tier": "optional"
     },
     "waxsupply": {
       "kind": "official",
@@ -558,7 +612,8 @@
       "path": "modules/waxsupply",
       "repo": "https://github.com/dausume/polari-module-waxsupply.git",
       "wave": 2,
-      "description": "Bio wax sources for molds and electronic masks."
+      "description": "Bio wax sources for molds and electronic masks.",
+      "tier": "optional"
     },
     "xr": {
       "kind": "official",
@@ -567,7 +622,8 @@
       "repo": "https://github.com/dausume/polari-module-xr.git",
       "wave": 4,
       "required_by_core": true,
-      "description": "XR settings cascade + interface variants. Moves in wave 4; core still imports it statically (drop refuses)."
+      "description": "XR settings cascade + interface variants. Moves in wave 4; core still imports it statically (drop refuses).",
+      "tier": "core"
     },
     "zones": {
       "kind": "official",
@@ -578,7 +634,8 @@
       "requires": [
         "scoring"
       ],
-      "description": "AR-captured 3D zones: planar/hull models, rooms vs selections, cube packing."
+      "description": "AR-captured 3D zones: planar/hull models, rooms vs selections, cube packing.",
+      "tier": "optional"
     },
     "terms": {
       "kind": "official",
@@ -586,14 +643,16 @@
       "path": "modules/terms",
       "repo": "https://github.com/dausume/polari-module-terms.git",
       "requires": [],
-      "description": "Terms of service: versioned documents (global or per app) and the append-only acceptance ledger"
+      "description": "Terms of service: versioned documents (global or per app) and the append-only acceptance ledger",
+      "tier": "core"
     },
     "hwmap": {
       "kind": "official",
       "path": "modules/hwmap",
       "description": "Hardware map: an on-device scanner (usb, pci + IOMMU groups, serial by-id, nics, kvm/libvirt facts) pushes a snapshot; Polari keeps ports and slots as rows and answers what can be mapped to a potential KVM (usb hostdev, pci vfio, nic macvtap) with reasons, and which hardware apps each port satisfies (hwm-1, 2026-09-08).",
       "repo": "https://github.com/dausume/polari-module-hwmap.git",
-      "downloaded": true
+      "downloaded": true,
+      "tier": "core"
     }
   }
 }

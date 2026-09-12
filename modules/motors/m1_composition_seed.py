@@ -36,7 +36,7 @@ motors.m1_views_seed (m1-construction-fork section), motors.clock_scene_basis
 
 import json
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 M1_DESIGN = 'reluctance-6s4p-m1'
 PROV = 'm1-4'

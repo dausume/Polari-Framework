@@ -29,7 +29,7 @@ class DailyIntakeMetric(treeObject):
         # or the day has no sugars data ('' — then sugars_g 0.0 is an
         # absence, not a zero). Added 2026-09-03 with a default — an
         # existing DB needs the field-addition path in
-        # composition.custom.seed_upsert (schema change, see the seed gotcha).
+        # moduleService.seed_upsert (schema change, see the seed gotcha).
         sugars_g: float = 0.0,
         sugars_basis: str = '',
         # spike metrics: the day's MAX per-meal values.

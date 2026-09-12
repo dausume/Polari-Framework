@@ -227,7 +227,7 @@ def _mean_uncertainty(points):
 
 
 def _upsert(manager, class_name, cls, seeds):
-    from composition.custom.seed_upsert import upsert_seed_pairs
+    from moduleService.seed_upsert import upsert_seed_pairs
     return upsert_seed_pairs(manager, [(class_name, cls, seeds)],
                              tag='ClimateIngest')
 

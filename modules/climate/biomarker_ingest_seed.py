@@ -90,7 +90,7 @@ def _named(manager, class_name, name):
 
 def seed_biomarker_series(manager):
     from climate.climate_basis import PopulationBiomarkerSeries
-    from composition.custom.seed_upsert import upsert_seed_pairs
+    from moduleService.seed_upsert import upsert_seed_pairs
     return upsert_seed_pairs(
         manager,
         [('PopulationBiomarkerSeries', PopulationBiomarkerSeries,

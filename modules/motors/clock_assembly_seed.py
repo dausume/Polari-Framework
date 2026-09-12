@@ -38,7 +38,7 @@ motors.motors_selftest, polariServer seed pass (upsert)
 
 import math
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 PROV = 'as-1'
 ASSEMBLY_DESIGN = 'clock-assembly-m0'

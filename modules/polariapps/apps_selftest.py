@@ -166,11 +166,11 @@ if __name__ == '__main__':
     # composition upsert path DELIVERS them (the ten-strikes gotcha)
     # while honoring is_prior=False as a human's row.
     try:
-        from composition.custom.seed_upsert import upsert_seed_pairs
+        from moduleService.seed_upsert import upsert_seed_pairs
     except ImportError:
         upsert_seed_pairs = None
     if upsert_seed_pairs is None:
-        check('composition.custom.seed_upsert importable for the nav-1 '
+        check('moduleService.seed_upsert importable for the nav-1 '
               'seed pass', False)
     else:
         # Use-case rows are STALE (predate the nav fields, like the

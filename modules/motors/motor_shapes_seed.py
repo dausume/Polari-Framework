@@ -696,7 +696,7 @@ def seed_v2_shapes(manager):
     csg change (air-gap slot) and any tuning of the winding row
     must REACH live rows, not strike the seed-field gotcha an
     11th time."""
-    from composition.custom.seed_upsert import upsert_seed_pairs
+    from moduleService.seed_upsert import upsert_seed_pairs
     from mathshapes.shape_basis import MathShapeDefinition
     return upsert_seed_pairs(
         manager,

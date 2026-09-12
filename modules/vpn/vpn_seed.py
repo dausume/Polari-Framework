@@ -108,7 +108,7 @@ def seed_vpn_nocode(manager):
              ('SolutionDefinition', SolutionDefinition, SEED_VPN_SOLUTIONS),
              ('DisplayDefinition', DisplayDefinition, SEED_VPN_PAGE_DISPLAYS)]
     try:
-        from composition.custom.seed_upsert import upsert_seed_pairs
+        from moduleService.seed_upsert import upsert_seed_pairs
     except ImportError:
         upsert_seed_pairs = None
     if upsert_seed_pairs is not None:

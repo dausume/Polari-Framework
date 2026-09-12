@@ -38,7 +38,7 @@ informative.
 climate.climate_selftest, polariServer
 """
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 PROV = 'co2-S'
 

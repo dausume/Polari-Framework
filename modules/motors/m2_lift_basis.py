@@ -41,7 +41,7 @@ motors.m2_views_seed (sections), polariServer seed pass (seed_m2_hoist)
 import math
 from objectTreeDecorators import treeObject, treeObjectInit
 from composition.custom.data_refs import rows
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 from motors.custom.m2_rotation import (
     NO_COGGING_FACT, pull_out_load_limit, rotation_sim,
 )
@@ -49,7 +49,7 @@ from motors.custom.m2_rotation import (
 from motors.objects.m2_lift._shared import G, LIFT_MARGIN, M2_DESIGN, PROV, SEED_HOIST_REQUIREMENTS, _req, hoist_report, lift_proof  # noqa: F401
 from motors.objects.m2_lift.CrucibleHoistRequirement import CrucibleHoistRequirement  # noqa: F401
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 def seed_m2_hoist(manager):
     return upsert_seed_pairs(manager, [

@@ -36,7 +36,7 @@ from objectTreeDecorators import treeObject, treeObjectInit
 from composition.custom.data_refs import resolve_named, rows
 from composition.design_matrix_basis import matrix_report
 from composition.custom.part_roles import role_viability
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 from motors.physics_equations_seed import evaluate_named
 from motors.custom.simple_first import AWG_MM, ENAMEL_MM, RHO_CU, rung_for
 
@@ -44,7 +44,7 @@ from motors.objects.scale_goals._shared import G, HOURS_PER_YEAR, MATERIAL_POLIC
 from motors.objects.scale_goals.ClockScaleDefinition import ClockScaleDefinition  # noqa: F401
 from motors.objects.scale_goals.MotorGoalSpec import MotorGoalSpec  # noqa: F401
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 def seed_scale_goals(manager):
     """Through the arch-1 upsert path — changed priors reach live

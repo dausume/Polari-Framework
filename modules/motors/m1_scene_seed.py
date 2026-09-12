@@ -29,7 +29,7 @@ clock_scene_payload, polariServer seed pass (seed_m1_scene)
 
 import json
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 from motors.clock_scene_basis import ClockSceneLayerDefinition
 

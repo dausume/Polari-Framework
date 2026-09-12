@@ -25,7 +25,7 @@ polari, do not create new custom code"):
                     Display row (or route the pages by ?object= — the
                     display page substitutes `{object}`).
 
-Seeded through composition.custom.seed_upsert (CONVERGES on edit — no more
+Seeded through moduleService.seed_upsert (CONVERGES on edit — no more
 INSERT-BY-NAME backfills) and the embed ids are re-pointed at THIS
 node's TableDefinition ids after the upsert — the motors_pages
 pattern, verbatim. See seed_mealplan_pages().
@@ -1464,7 +1464,7 @@ def seed_mealplan_pages(manager):
     """Upsert the meal-planning classes' display configuration —
     converges on edit (no INSERT-BY-NAME backfill), then re-points
     the embeds at this node's ids."""
-    from composition.custom.seed_upsert import upsert_seed_pairs
+    from moduleService.seed_upsert import upsert_seed_pairs
     from polariApiServer.tableDefinition import TableDefinition
     from polariApiServer.graphDefinition import GraphDefinition
     from polariApiServer.displayDefinition import DisplayDefinition

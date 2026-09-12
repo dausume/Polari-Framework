@@ -30,7 +30,7 @@ motors.m1_selftest, polariServer seed pass (seed_m1_views)
 
 import json
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 from motors.clock_views_basis import (
     ClockViewDefinition, SECTION_SOURCES,

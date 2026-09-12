@@ -483,7 +483,7 @@ def seed_motors_pages(manager):
     duplicating — the same contract every other module's page seed
     uses.
     """
-    from composition.custom.seed_upsert import upsert_seed_pairs
+    from moduleService.seed_upsert import upsert_seed_pairs
     from polariApiServer.tableDefinition import TableDefinition
     from polariApiServer.graphDefinition import GraphDefinition
     from polariApiServer.displayDefinition import DisplayDefinition

@@ -157,13 +157,18 @@ if(__name__=='__main__'):
     # Serves ONLY classes with an enabled+current GrpcExposure row.
     grpc_enabled = config.get_bool('grpc.enabled', True)
     grpc_port = config.get_int('grpc.port', 3002)
-    if grpc_enabled:
+    try:
         from grpcbridge.custom.grpc_server import (PolariGrpcServer,
                                             set_grpc_server)
+    except ImportError:
+        PolariGrpcServer = None   # the core image carries no grpcbridge (optional module) — the sidecar is simply off
+    if grpc_enabled and PolariGrpcServer is not None:
         grpc_server = PolariGrpcServer(localHostedManagerServer,
                                        port=grpc_port)
         grpc_server.start()
         set_grpc_server(grpc_server)
+    elif grpc_enabled:
+        print("[gRPC] grpcbridge module not present (core image) — gRPC sidecar off; admit grpcbridge to enable it")
     else:
         print("[gRPC] Server disabled by configuration")
 

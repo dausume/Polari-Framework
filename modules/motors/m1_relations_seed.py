@@ -434,7 +434,7 @@ def seed_m1_relations(manager):
         return [{'class': 'MatrixEquationDefinition',
                  'inserted': [], 'updated': [],
                  'errors': ['matrices module not importable']}]
-    from composition.custom.seed_upsert import upsert_seed_pairs
+    from moduleService.seed_upsert import upsert_seed_pairs
     return upsert_seed_pairs(manager, [
         ('MatrixEquationDefinition', MatrixEquationDefinition,
          SEED_M1_RELATIONS),

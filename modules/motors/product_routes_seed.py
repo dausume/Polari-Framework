@@ -39,7 +39,7 @@ polariServer seed pass (upsert, with ClockAssemblySeed)
 
 import json
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 PROV = 'mp0'
 M0B = 'clock-lavet-m0b'

@@ -34,7 +34,7 @@ climate.co2_projection, climate.co2_indoor_seed, polariServer (seed pass)
 """
 
 from composition.custom.data_refs import rows
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 from climate.climate_basis import CO2HealthThreshold, EVIDENCE_GRADES
 
 #: Shared by the two chamber-study rows — one study, one citation.

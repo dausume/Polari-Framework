@@ -25,7 +25,7 @@ machinery, so each is a row, not a code change.
 
 import json as _json
 
-from composition.custom.seed_upsert import upsert_seed_pairs
+from moduleService.seed_upsert import upsert_seed_pairs
 
 PROV = 'chip-nav'
 

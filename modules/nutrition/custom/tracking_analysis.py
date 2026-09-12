@@ -248,7 +248,7 @@ def tracking_series(manager, person_name, start_date=None,
                           'the live server')
         else:
             try:
-                from composition.custom.seed_upsert import upsert_seed_pairs
+                from moduleService.seed_upsert import upsert_seed_pairs
                 from nutrition.intake_basis import DailyIntakeMetric
                 upsert_seed_pairs(
                     manager,

@@ -21,7 +21,7 @@ implemented rungs:
 Everything here is PURE COMPUTE over manager tables and returns seed
 rows (MaterialState / MaterialProcessExecution / PropertyClaim on
 pspp's own classes — zero schema changes); `apply_transform`
-persists via composition.custom.seed_upsert (derive-on-demand + cached, D5
+persists via moduleService.seed_upsert (derive-on-demand + cached, D5
 — never a boot-seeded state explosion).
 
 @consumers
@@ -525,7 +525,7 @@ def apply_transform(manager, derived):
         return {'ok': False, 'error': 'refusing to persist a '
                                       'non-ok derivation'}
     try:
-        from composition.custom.seed_upsert import upsert_seed_pairs
+        from moduleService.seed_upsert import upsert_seed_pairs
         from pspp.material_states_basis import MaterialState
         from pspp.material_processes_basis import MaterialProcessExecution
         from pspp.claims_basis import PropertyClaim

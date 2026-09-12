@@ -6,7 +6,7 @@
 cast-1 seeds — two demonstration molds over existing mathshapes seed
 shapes (a quadric part and a primitive part, so both scale paths are
 exercised live), plus the casting module's PolariModule identity row.
-Seeding converges through composition.custom.seed_upsert (the ten-strikes
+Seeding converges through moduleService.seed_upsert (the ten-strikes
 defense: adding a field later reaches live rows), then DERIVES each
 mold's geometry — derivation is part of seeding because the derived
 rows are not data anyone types in.
@@ -208,7 +208,7 @@ def seed_casting(manager):
     from casting.custom.mold_geometry import derive_mold
     from casting.sprue_basis import SprueStrategyDefinition
     from casting.custom.sprue_geometry import apply_sprue_strategy
-    from composition.custom.seed_upsert import upsert_seed_pairs
+    from moduleService.seed_upsert import upsert_seed_pairs
 
     upsert = upsert_seed_pairs(manager, [
         ('MasterFeedstockDefinition', MasterFeedstockDefinition,

@@ -119,8 +119,12 @@ def module_code_dir(name, root=None):
     (framework root for not-yet-moved modules, modules/ for moved
     ones) — or None when the code is not locally present."""
     root = root or _framework_root()
-    for candidate in (os.path.join(root, 'modules', name),
-                      os.path.join(root, name)):
+    fetched = os.environ.get('POLARI_FETCHED_MODULES_DIR', '')   # modules fetched at runtime (data volume; core image)
+    candidates = ([os.path.join(fetched, name)] if fetched else []) + [os.path.join(root, 'modules', name), os.path.join(root, name)]
+    for candidate in candidates:
+        if os.path.isdir(candidate) and os.path.isfile(os.path.join(candidate, '__init__.py')):
+            return candidate
+    for candidate in candidates:   # a package without __init__ still counts as present
         if os.path.isdir(candidate):
             return candidate
     return None

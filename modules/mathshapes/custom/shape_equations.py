@@ -460,7 +460,7 @@ def seed_shape_equations(manager, shape_names=None):
                  'inserted': [], 'updated': [],
                  'errors': ['matrices module not importable — '
                             'shape equations need it enabled']}]
-    from composition.custom.seed_upsert import upsert_seed_pairs
+    from moduleService.seed_upsert import upsert_seed_pairs
     table = (getattr(manager, 'objectTables', None)
              or {}).get('MathShapeDefinition', {})
     names = shape_names or sorted(
