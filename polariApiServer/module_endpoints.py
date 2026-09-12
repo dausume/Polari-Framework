@@ -500,9 +500,16 @@ def construct_printcam_endpoints(polServer):
     printcamEndpoint = PrintcamAPI(polServer=polServer, manager=manager)
 
 
+def construct_security_endpoints(polServer):
+    # sec-i-0/1: the taxonomy + the three security topology views and their simulations
+    from security.security_endpoints import construct_security_endpoints as build
+    return build(polServer)
+
+
 MODULE_ENDPOINT_CONSTRUCTORS = {
     'printcam': construct_printcam_endpoints,
     'terms': construct_terms_endpoints,
+    'security': construct_security_endpoints,
     'printing_suite': construct_printing_suite_endpoints,
     'kirimoto': construct_kirimoto_endpoints,
     'suiteapps': construct_suiteapps_endpoints,

@@ -1,0 +1,90 @@
+{
+ "schema": "polari-app/1",
+ "id": "security",
+ "package": "security",
+ "title": "Security",
+ "description": "The App / Network / OS security taxonomy, the controls as rows, and three security topology views with reach simulations",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": null,
+ "repo": "",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "member"
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/security/SecurityDomain",
+   "objects/security/SecurityArea",
+   "objects/security/SecurityScenario",
+   "objects/security/SecurityControl",
+   "objects/security/SecurityTopologyNode",
+   "objects/security/SecurityTopologyEdge"
+  ],
+  "basis": [
+   "security_basis"
+  ],
+  "api": [
+   "security_api"
+  ],
+  "endpoints": [
+   "security_endpoints"
+  ],
+  "seed": [
+   "security_seed"
+  ],
+  "page": [
+   "security_page"
+  ],
+  "selftests": [
+   "security_selftest"
+  ],
+  "custom": [
+   "custom/security_facts",
+   "custom/security_topology"
+  ]
+ },
+ "classes": [
+  "SecurityAPI",
+  "SecurityDomain",
+  "SecurityArea",
+  "SecurityScenario",
+  "SecurityControl",
+  "SecurityTopologyNode",
+  "SecurityTopologyEdge"
+ ],
+ "imports": [],
+ "endpoints": "security.security_endpoints:construct_security_endpoints",
+ "seedPairs": "security.security_seed:SECURITY_SEED_PAIRS",
+ "pages": [
+  "security.security_page:SEED_SECURITY_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "security_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": false,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

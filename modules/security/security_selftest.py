@@ -1,0 +1,61 @@
+"""security_selftest — the module constructs, the three views build for every scenario, the simulation and
+the comparison answer, the seed is well-formed, the pages have no raw JSON, and the facts hold:
+stock docker blocks module loading / mount / ptrace / userns; stock docker ALLOWS writing the image, raw
+sockets and chroot (Polari's rings remove them); a guest cannot escape; the lean profile's API is open."""
+import sys
+
+passed = total = 0
+
+
+def check(label, cond, extra=''):
+    global passed, total
+    total += 1
+    passed += bool(cond)
+    print('  [%s] %s %s' % ('PASS' if cond else 'FAIL', label, extra if not cond else ''))
+
+
+def main():
+    from security.security_basis import SECURITY_CLASSES, SecurityTopologyEdge
+    from security.security_seed import SECURITY_SEED_PAIRS, SEED_SECURITY_EDGES
+    from security.security_page import SEED_SECURITY_PAGE_DISPLAYS
+    from security.custom.security_topology import MODES, VIEWS, build, compare, simulate
+    from security.custom.security_facts import SYSTEMS, scenario_names
+    check('six row classes', len(SECURITY_CLASSES) == 6)
+    check('row class constructs', SecurityTopologyEdge(name='x').name == 'x')
+    n = 0
+    for scn in scenario_names():
+        for v in VIEWS:
+            for m in MODES:
+                g = build(v, scn, m); n += 1
+                assert g['edges'] and g['nodes'], (v, scn, m)
+    check('every view × scenario × mode builds', n == len(scenario_names()) * 3 * 4, str(n))
+    stock = {(e['means'], e['verdict']) for e in build('os', 'swarm-lean', 'stock')['edges'] if e['source'] == 'prf-backend'}
+    check('stock docker blocks: module load, mount, ptrace, userns', all((m, 'blocked') in stock for m in ('load a kernel module', 'mount a filesystem / pivot_root', "ptrace another container's process", 'new user namespace (unshare -r), keyctl, bpf')))
+    check('stock docker ALLOWS: image write, raw socket, chroot', all((m, 'allowed') in stock for m in ('write into /usr, /etc, /bin of its own image', 'open a raw socket (sniff / forge packets)', 'chroot')))
+    enf = {(e['means'], e['verdict']) for e in build('os', 'swarm-lean', 'enforce')['edges'] if e['source'] == 'prf-backend'}
+    check('enforce removes them', all((m, 'blocked') in enf for m in ('write into /usr, /etc, /bin of its own image', 'open a raw socket (sniff / forge packets)', 'chroot')))
+    comp = {(e['means'], e['verdict']) for e in build('os', 'isle', 'today')['edges'] if e['source'] == 'prf-isle-backend'}
+    check('today on the isle LOGS the image write (the union profile is loaded there)', ('write into /usr, /etc, /bin of its own image', 'logged') in comp)
+    todl = {(e['means'], e['verdict']) for e in build('os', 'swarm-lean', 'today')['edges'] if e['source'] == 'prf-backend'}
+    check('today on the swarm the image write is still ALLOWED (nothing loaded there)', ('write into /usr, /etc, /bin of its own image', 'allowed') in todl)
+    check('the host-bind read is DAC\'s, not AppArmor\'s', any(e['means'].startswith("read the host's") and e['decided_by'] in ('mount-policy', 'userns') for e in build('os', 'isle', 'enforce')['edges']))
+    g = build('os', 'isle', 'today')
+    check('a guest cannot escape (qemu layers)', any(e['source'] == 'a guest' and e['means'] == 'escape the hypervisor' and e['verdict'] == 'blocked' for e in g['edges']))
+    check('swarm folds modules into the backend', any(e['source'] == 'a module' and e['target'] == 'prf-backend' for e in build('os', 'swarm-lean')['edges']))
+    lean = simulate('app', 'swarm-lean', 'visitor'); full = simulate('app', 'swarm-full', 'visitor')
+    check('lean: the API is open to a visitor; full: refused without a token', 'api' in lean['reach']['allowed'] and 'api' in full['reach']['blocked'])
+    check('simulate names an unknown actor honestly', simulate('os', 'dev', 'nobody')['ok'] is False)
+    c = compare('network')
+    check('compare has a column per scenario', all(scn in c['rows'][0] for scn in scenario_names()))
+    row = [x for x in compare('os')['rows'] if x['means'].startswith('write into') and x['source'] == 'the Polari backend'][0]
+    check('compare lines the backend up across routes', all(row[s] != '—' for s in ('isle', 'swarm-lean', 'swarm-full')), str(row))
+    check('every system has a provenance', all(s['provenance'] in ('stock', 'qemu', 'polari') for s in SYSTEMS.values()))
+    check('seed pairs: 6, all rows named', len(SECURITY_SEED_PAIRS) == 6 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
+    check('edge rows unique by name', len({r['name'] for r in SEED_SECURITY_EDGES}) == len(SEED_SECURITY_EDGES), str(len(SEED_SECURITY_EDGES)))
+    check('four pages, none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 4 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
+    print('\n%d/%d checks passed' % (passed, total))
+    return 0 if passed == total else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

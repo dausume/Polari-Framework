@@ -1203,7 +1203,9 @@ class polariServer(treeObject):
             # printcam: the camera extension of the Voron guest
             CameraDefinition, TimelapseRecord,
             # terms: versioned terms documents + the acceptance ledger
-            TermsDocument, TermsAcceptance]
+            TermsDocument, TermsAcceptance,
+            # security (sec-i-0/1): the taxonomy, the systems per scenario, the three topology views
+            SecurityDomain, SecurityArea, SecurityScenario, SecurityControl, SecurityTopologyNode, SecurityTopologyEdge]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
         # CRUDE endpoints, and boot restore all key off the typing
@@ -2130,6 +2132,7 @@ class polariServer(treeObject):
              + (SEED_KIRIMOTO_PAGE_DISPLAYS or [])
              + (SEED_PRINTCAM_PAGE_DISPLAYS or [])
              + (SEED_TERMS_PAGE_DISPLAYS or [])
+             + (SEED_SECURITY_PAGE_DISPLAYS or [])
              + (SEED_CNTFET_PAGE_DISPLAYS or [])
              # fi-4: per-FET competitive scoring pages.
              + (SEED_CNT_SCORE_PAGES or [])
@@ -3028,7 +3031,7 @@ class polariServer(treeObject):
         ] + list(ISLE_RELAY_SEED_PAIRS or []) + list(ISLE_GUESTNET_SEED_PAIRS or []) \
           + list(HWMAP_SEED_PAIRS or []) + list(VORON_SEED_PAIRS or []) + list(SUITEAPPS_SEED_PAIRS or []) \
           + list(PRINTING_SUITE_SEED_PAIRS or []) + list(KIRIMOTO_SEED_PAIRS or []) + list(PRINTCAM_SEED_PAIRS or []) \
-          + list(TERMS_SEED_PAIRS or []) \
+          + list(TERMS_SEED_PAIRS or []) + list(SECURITY_SEED_PAIRS or []) \
           + ([('SuiteAppDefinition', SuiteAppDefinition, SEED_PRINTING_SUITES or []),
               ('SuitePart', SuitePart, SEED_PRINTING_PARTS or []),
               ('SuiteContract', SuiteContract, SEED_PRINTING_CONTRACTS or [])] if SuiteAppDefinition else [])

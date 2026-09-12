@@ -1234,6 +1234,19 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_TERMS_PAGE_DISPLAYS',
         )),
     )),
+    ('security', (
+        # sec-i-0/1: the taxonomy, the systems per scenario with provenance, the three security topology views
+        ('security.security_basis', (
+            'SecurityDomain', 'SecurityArea', 'SecurityScenario', 'SecurityControl',
+            'SecurityTopologyNode', 'SecurityTopologyEdge', 'SECURITY_CLASSES',
+        )),
+        ('security.security_seed', (
+            'SECURITY_SEED_PAIRS',
+        )),
+        ('security.security_page', (
+            'SEED_SECURITY_PAGE_DISPLAYS',
+        )),
+    )),
     ('printcam', (
         ('printcam.printcam_basis', (
             'CameraDefinition', 'TimelapseRecord', 'PRINTCAM_SEED_PAIRS', 'SEED_PRINTCAM_HARDWARE_APPS', 'SEED_PRINTCAM_CATALOG',
