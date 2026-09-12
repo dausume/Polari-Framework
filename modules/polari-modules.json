@@ -202,7 +202,7 @@
       "repo": "https://github.com/dausume/polari-module-grpcbridge.git",
       "wave": 5,
       "description": "gRPC contracts from stabilized schemas, Java hardware bridges, hw sim rigs.",
-      "tier": "optional"
+      "tier": "core"
     },
     "hardwareapps": {
       "kind": "official",
