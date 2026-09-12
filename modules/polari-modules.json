@@ -500,7 +500,7 @@
       "repo": "https://github.com/dausume/polari-module-scoring.git",
       "wave": 6,
       "description": "Context-based scoring engine + epistemics stack (terms, proofs, credibility, authority).",
-      "tier": "optional"
+      "tier": "core"
     },
     "sifet": {
       "kind": "official",
