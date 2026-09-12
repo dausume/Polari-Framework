@@ -169,9 +169,11 @@ def analyze(root=None):
             payloads.pop(other, None)
             continue
         seen_debnames[debname] = module
-        module_dir = os.path.join(froot,
-                                  entry.get('path',
-                                            f'modules/{module}'))
+        # the module's code: in the tree (the register's path) or fetched onto the data volume at runtime
+        # (POLARI_FETCHED_MODULES_DIR) — the shared resolver knows both roots
+        from moduleService.module_loading import module_code_dir
+        module_dir = module_code_dir(module, froot) or os.path.join(
+            froot, entry.get('path', f'modules/{module}'))
         if not os.path.isdir(module_dir):
             refusals[module] = ('registered but its code is not '
                                 'downloaded on this instance')

@@ -35,6 +35,14 @@ def registry_path(root=None):
                         'polari-modules.json')
 
 
+def _code_present(root, name, module_path=None):
+    """The module's code is on this instance: at the register's path in the tree, or fetched at runtime onto
+    POLARI_FETCHED_MODULES_DIR (the data volume — the core image's optional modules land there)."""
+    fetched = os.environ.get('POLARI_FETCHED_MODULES_DIR', '')
+    candidates = ([os.path.join(fetched, name)] if fetched else []) + [os.path.join(root, module_path or f'modules/{name}')]
+    return any(os.path.isdir(c) for c in candidates)
+
+
 def load_registry(root=None):
     """The registry document, downloaded flags freshly re-derived
     from the filesystem. Missing/corrupt file → honest empty doc."""
@@ -52,8 +60,7 @@ def load_registry(root=None):
         if not isinstance(entry, dict):
             continue
         module_path = entry.get('path', f'modules/{name}')
-        entry['downloaded'] = os.path.isdir(
-            os.path.join(root, module_path))
+        entry['downloaded'] = _code_present(root, name, module_path)
     return doc
 
 
@@ -81,8 +88,7 @@ def register_module(name, kind, description='', path='', repo='',
         'repo': repo or entry.get('repo', ''),
         'description': description or entry.get('description', ''),
     })
-    entry['downloaded'] = os.path.isdir(os.path.join(
-        root or _framework_root(), entry['path']))
+    entry['downloaded'] = _code_present(root or _framework_root(), name, entry['path'])
     doc['modules'][name] = entry
     save_registry(doc, root)
     return {'ok': True, 'name': name, 'entry': entry}
