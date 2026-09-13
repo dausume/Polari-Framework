@@ -22,13 +22,29 @@
  },
  "files": {
   "objects": [
+   "objects/security/AppSecurityRecord",
+   "objects/security/AuthzRule",
+   "objects/security/BrowserPolicy",
+   "objects/security/ContentPolicy",
+   "objects/security/ContentPolicyViolation",
+   "objects/security/DacPolicy",
+   "objects/security/FirewallRuleSet",
+   "objects/security/HardwareTrial",
+   "objects/security/MacProfile",
+   "objects/security/PermissionGroup",
+   "objects/security/ProxyConfig",
+   "objects/security/ProxySnippet",
    "objects/security/SecurityArea",
+   "objects/security/SecurityAuditRun",
    "objects/security/SecurityControl",
    "objects/security/SecurityDomain",
+   "objects/security/SecurityProposal",
    "objects/security/SecurityScenario",
    "objects/security/SecurityThreat",
    "objects/security/SecurityTopologyEdge",
-   "objects/security/SecurityTopologyNode"
+   "objects/security/SecurityTopologyNode",
+   "objects/security/ServiceIdentity",
+   "objects/security/TrustChannel"
   ],
   "basis": [
    "security_basis"
@@ -49,20 +65,42 @@
    "security_selftest"
   ],
   "custom": [
+   "custom/security_app_rows",
+   "custom/security_audit_feed",
    "custom/security_facts",
+   "custom/security_ledger",
+   "custom/security_network_rows",
+   "custom/security_os_rows",
+   "custom/security_proposals",
    "custom/security_threats",
    "custom/security_topology"
   ]
  },
  "classes": [
+  "AppSecurityRecord",
+  "AuthzRule",
+  "BrowserPolicy",
+  "ContentPolicy",
+  "ContentPolicyViolation",
+  "DacPolicy",
+  "FirewallRuleSet",
+  "HardwareTrial",
+  "MacProfile",
+  "PermissionGroup",
+  "ProxyConfig",
+  "ProxySnippet",
   "SecurityAPI",
   "SecurityArea",
+  "SecurityAuditRun",
   "SecurityControl",
   "SecurityDomain",
+  "SecurityProposal",
   "SecurityScenario",
   "SecurityThreat",
   "SecurityTopologyEdge",
-  "SecurityTopologyNode"
+  "SecurityTopologyNode",
+  "ServiceIdentity",
+  "TrustChannel"
  ],
  "imports": [
   [
@@ -75,6 +113,22 @@
     "SecurityTopologyNode",
     "SecurityTopologyEdge",
     "SecurityThreat",
+    "SecurityProposal",
+    "MacProfile",
+    "DacPolicy",
+    "PermissionGroup",
+    "HardwareTrial",
+    "ProxyConfig",
+    "ProxySnippet",
+    "ServiceIdentity",
+    "FirewallRuleSet",
+    "TrustChannel",
+    "AuthzRule",
+    "ContentPolicy",
+    "ContentPolicyViolation",
+    "BrowserPolicy",
+    "AppSecurityRecord",
+    "SecurityAuditRun",
     "SECURITY_CLASSES"
    ]
   ],

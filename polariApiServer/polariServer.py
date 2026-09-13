@@ -1205,7 +1205,9 @@ class polariServer(treeObject):
             # terms: versioned terms documents + the acceptance ledger
             TermsDocument, TermsAcceptance,
             # security (sec-i-0/1): the taxonomy, the systems per scenario, the three topology views
-            SecurityDomain, SecurityArea, SecurityScenario, SecurityControl, SecurityTopologyNode, SecurityTopologyEdge, SecurityThreat]
+            SecurityDomain, SecurityArea, SecurityScenario, SecurityControl, SecurityTopologyNode, SecurityTopologyEdge, SecurityThreat, SecurityProposal,
+            MacProfile, DacPolicy, PermissionGroup, HardwareTrial, ProxyConfig, ProxySnippet, ServiceIdentity, FirewallRuleSet,
+            TrustChannel, AuthzRule, ContentPolicy, ContentPolicyViolation, BrowserPolicy, AppSecurityRecord, SecurityAuditRun]
         # modsplit-1: each instance registers ONLY its assigned
         # modules' classes (POLARI_MODULES env; unset = all). Seeds,
         # CRUDE endpoints, and boot restore all key off the typing

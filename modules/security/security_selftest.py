@@ -20,7 +20,7 @@ def main():
     from security.security_page import SEED_SECURITY_PAGE_DISPLAYS
     from security.custom.security_topology import MODES, VIEWS, build, compare, simulate
     from security.custom.security_facts import SYSTEMS, scenario_names
-    check('seven row classes', len(SECURITY_CLASSES) == 7)
+    check('twenty-three row classes', len(SECURITY_CLASSES) == 23, str(len(SECURITY_CLASSES)))
     check('row class constructs', SecurityTopologyEdge(name='x').name == 'x')
     n = 0
     for scn in scenario_names():
@@ -50,9 +50,9 @@ def main():
     row = [x for x in compare('os')['rows'] if x['means'].startswith('write into') and x['source'] == 'the Polari backend'][0]
     check('compare lines the backend up across routes', all(row[s] != '—' for s in ('isle', 'swarm-lean', 'swarm-full')), str(row))
     check('every system has a provenance', all(s['provenance'] in ('stock', 'qemu', 'polari') for s in SYSTEMS.values()))
-    check('seed pairs: 7, all rows named', len(SECURITY_SEED_PAIRS) == 7 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
+    check('seed pairs: 23, all rows named', len(SECURITY_SEED_PAIRS) == 23 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
     check('edge rows unique by name', len({r['name'] for r in SEED_SECURITY_EDGES}) == len(SEED_SECURITY_EDGES), str(len(SEED_SECURITY_EDGES)))
-    check('five pages, none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 5 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
+    check('seven pages, none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 7 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
     from security.custom.security_threats import threats, threat_rows
     th = {t['name']: t for t in threats('swarm-lean', 'stock')['threats']}
     check('stock: the image backdoor, raw sniff AND the socket (if mounted) get THROUGH — docker alone stops none', th['image-backdoor']['verdict'] == 'allowed' and th['raw-sniff']['verdict'] == 'allowed' and th['docker-socket']['verdict'] == 'allowed')
@@ -75,6 +75,22 @@ def main():
     check('enforce on a headless profile: encryption stays OFF (never on headless) → the drive is still readable', phs['pull the drive and read it in another machine']['verdict'] == 'allowed')
     tt = {t['name']: t for t in threats('isle', 'today')['threats']}
     check('the two physical threats exist with counterexamples', 'stolen-drive' in tt and 'tampered-boot' in tt and tt['stolen-drive']['counter']['path'][-1]['node'] == 'the disk')
+    from security.security_seed import SEED_SECURITY_LEDGER, SEED_SECURITY_TRUST_CHANNELS, SEED_SECURITY_MAC_PROFILES, SEED_SECURITY_SERVICE_IDENTITIES
+    check('ledger: one row per app per scenario; nothing blocked at conform', len(SEED_SECURITY_LEDGER) > 200 and not any(r['blocking'] == 'stanza_conforms' for r in SEED_SECURITY_LEDGER))
+    check('ledger: the isle backend is blocked at mac_enforced (loaded in complain today)', next(r for r in SEED_SECURITY_LEDGER if r['name'] == 'isle:prf-isle-backend')['blocking'] == 'mac_enforced')
+    check('trust channels: public Keycloak clients are asymmetric, the confidential one symmetric, no symmetric USER channel', any(c['name'].endswith('polari-frontend') and c['key_kind'] == 'asymmetric' for c in SEED_SECURITY_TRUST_CHANNELS) and any(c['name'].endswith('polari-backend') and c['key_kind'] == 'symmetric' for c in SEED_SECURITY_TRUST_CHANNELS) and not any(c['finding'] for c in SEED_SECURITY_TRUST_CHANNELS))
+    check('mac profiles: the isle union is complain today, the swarm union only rendered', {(r['scenario'], r['mode']) for r in SEED_SECURITY_MAC_PROFILES if r['app'] == 'docker-default'} == {('isle', 'complain'), ('swarm-lean', 'rendered'), ('swarm-full', 'rendered')})
+    check('service identities: expired internal certs are reported as such (days_left < 0)', any(r['issued'] and r['days_left'] < 0 for r in SEED_SECURITY_SERVICE_IDENTITIES))
+    from security.custom.security_proposals import propose_from_groups
+    pr = propose_from_groups('gears', {'profile': 'web-app', 'writable': ['/data'], 'network': ['isle'], 'capabilities': []}, [
+        {'class': 'file', 'object': '/app/data/gears/out.csv', 'mask': 'wc', 'count': 3}, {'class': 'file', 'object': '/usr/local/lib/python3.12/__pycache__/x.pyc', 'mask': 'w', 'count': 30},
+        {'class': 'file', 'object': '/etc/hosts', 'mask': 'w', 'count': 1}, {'class': 'cap', 'object': 'capability chown', 'mask': ''}, {'class': 'cap', 'object': 'capability sys_admin', 'mask': ''},
+        {'class': 'seccomp', 'object': 'syscall open', 'mask': ''}, {'class': 'mount', 'object': 'mount /mnt/ tmpfs', 'mask': ''}])
+    check('proposal: writable /app/data + CHOWN + open proposed; pycache ignored; /etc write, sys_admin and mount NOT expressible',
+          pr['add_writable'] == ['/app/data'] and pr['add_capabilities'] == ['CHOWN'] and pr['add_syscalls'] == ['open'] and pr['pycache_writes_ignored'] == 30 and len(pr['not_expressible']) == 3)
+    from security.custom.security_audit_feed import applied_from_controls, physical_from_controls
+    ctl = [{'ring': 'mac', 'control': 'per-app-profiles', 'status': 'pass'}, {'ring': 'mac', 'control': 'profiles-enforcing', 'status': 'fail'}, {'ring': 'network', 'control': 'ufw', 'status': 'pass'}, {'ring': 'physical', 'control': 'secure-boot', 'status': 'fail'}]
+    check('audit feed: profiles loaded + not enforcing → apparmor complain; ufw pass → live; secure boot fail → off', applied_from_controls(ctl) == {'polari-apparmor': 'complain', 'ufw': 'live'} and physical_from_controls(ctl) == {'secure_boot': False})
     check('threat rows seed for every scenario', len([r for n in scenario_names() for r in threat_rows(n)]) >= 40)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1

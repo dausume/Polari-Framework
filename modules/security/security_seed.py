@@ -7,8 +7,14 @@ from security_facts + security_topology, never hand-typed. SECURITY_SEED_PAIRS i
 """
 import json
 
-from security.security_basis import (SecurityArea, SecurityControl, SecurityDomain, SecurityScenario,
-                                     SecurityThreat, SecurityTopologyEdge, SecurityTopologyNode)
+from security.security_basis import (AppSecurityRecord, AuthzRule, BrowserPolicy, ContentPolicy, ContentPolicyViolation, DacPolicy,
+                                     FirewallRuleSet, HardwareTrial, MacProfile, PermissionGroup, ProxyConfig, ProxySnippet,
+                                     SecurityArea, SecurityAuditRun, SecurityControl, SecurityDomain, SecurityProposal, SecurityScenario,
+                                     SecurityThreat, SecurityTopologyEdge, SecurityTopologyNode, ServiceIdentity, TrustChannel)
+from security.custom.security_os_rows import dac_policy_rows, mac_profile_rows, permission_group_rows
+from security.custom.security_network_rows import firewall_rule_rows, proxy_config_rows, proxy_snippet_rows, service_identity_rows
+from security.custom.security_app_rows import authz_rule_rows, browser_policy_rows, trust_channel_rows
+from security.custom.security_ledger import app_security_records
 from security.custom.security_facts import APPLIED_TODAY, SYSTEMS, load_scenario, scenario_names
 from security.custom.security_topology import VIEWS, build
 from security.custom.security_threats import threat_rows
@@ -95,6 +101,17 @@ SEED_SECURITY_SCENARIOS = _scenario_rows()
 SEED_SECURITY_CONTROLS = _control_rows()
 SEED_SECURITY_NODES, SEED_SECURITY_EDGES = _view_rows()
 SEED_SECURITY_THREATS = [r for n in scenario_names() for r in threat_rows(n, 'today')]
+SEED_SECURITY_MAC_PROFILES = mac_profile_rows(APPLIED_TODAY)
+SEED_SECURITY_DAC_POLICIES = dac_policy_rows()
+SEED_SECURITY_PERMISSION_GROUPS = permission_group_rows()
+SEED_SECURITY_PROXY_CONFIGS = proxy_config_rows()
+SEED_SECURITY_PROXY_SNIPPETS = proxy_snippet_rows()
+SEED_SECURITY_SERVICE_IDENTITIES = service_identity_rows()
+SEED_SECURITY_FIREWALL_RULES = firewall_rule_rows(APPLIED_TODAY)
+SEED_SECURITY_TRUST_CHANNELS = trust_channel_rows()
+SEED_SECURITY_AUTHZ_RULES = authz_rule_rows()
+SEED_SECURITY_BROWSER_POLICIES = browser_policy_rows()
+SEED_SECURITY_LEDGER = app_security_records(APPLIED_TODAY, channels=SEED_SECURITY_TRUST_CHANNELS)
 
 SECURITY_SEED_PAIRS = [
     ('SecurityDomain', SecurityDomain, SEED_SECURITY_DOMAINS),
@@ -104,6 +121,23 @@ SECURITY_SEED_PAIRS = [
     ('SecurityTopologyNode', SecurityTopologyNode, SEED_SECURITY_NODES),
     ('SecurityTopologyEdge', SecurityTopologyEdge, SEED_SECURITY_EDGES),
     ('SecurityThreat', SecurityThreat, SEED_SECURITY_THREATS),
+    # the domains' rows (derived from the tree; the live columns fill from audit runs / the manager at refresh)
+    ('MacProfile', MacProfile, SEED_SECURITY_MAC_PROFILES),
+    ('DacPolicy', DacPolicy, SEED_SECURITY_DAC_POLICIES),
+    ('PermissionGroup', PermissionGroup, SEED_SECURITY_PERMISSION_GROUPS),
+    ('HardwareTrial', HardwareTrial, []),
+    ('ProxyConfig', ProxyConfig, SEED_SECURITY_PROXY_CONFIGS),
+    ('ProxySnippet', ProxySnippet, SEED_SECURITY_PROXY_SNIPPETS),
+    ('ServiceIdentity', ServiceIdentity, SEED_SECURITY_SERVICE_IDENTITIES),
+    ('FirewallRuleSet', FirewallRuleSet, SEED_SECURITY_FIREWALL_RULES),
+    ('TrustChannel', TrustChannel, SEED_SECURITY_TRUST_CHANNELS),
+    ('AuthzRule', AuthzRule, SEED_SECURITY_AUTHZ_RULES),
+    ('ContentPolicy', ContentPolicy, []),
+    ('ContentPolicyViolation', ContentPolicyViolation, []),
+    ('BrowserPolicy', BrowserPolicy, SEED_SECURITY_BROWSER_POLICIES),
+    ('AppSecurityRecord', AppSecurityRecord, SEED_SECURITY_LEDGER),
+    ('SecurityAuditRun', SecurityAuditRun, []),
+    ('SecurityProposal', SecurityProposal, []),
 ]
 
 if __name__ == '__main__':
