@@ -10,7 +10,7 @@ import json
 from security.security_basis import (AppSecurityRecord, AuthzRule, BrowserPolicy, ContentPolicy, ContentPolicyViolation, DacPolicy,
                                      FirewallRuleSet, HardwareTrial, MacProfile, PermissionGroup, ProxyConfig, ProxySnippet,
                                      SecurityArea, SecurityAuditRun, SecurityControl, SecurityDomain, SecurityProposal, SecurityScenario,
-                                     SecurityThreat, SecurityTopologyEdge, SecurityTopologyNode, ServiceIdentity, TrustChannel)
+                                     SecurityThreat, SecurityTopologyEdge, SecurityTopologyNode, ServiceIdentity, SshCapability, DeviceInventory, TrustChannel)
 from security.custom.security_os_rows import dac_policy_rows, mac_profile_rows, permission_group_rows
 from security.custom.security_network_rows import firewall_rule_rows, proxy_config_rows, proxy_snippet_rows, service_identity_rows
 from security.custom.security_app_rows import authz_rule_rows, browser_policy_rows, trust_channel_rows
@@ -138,6 +138,8 @@ SECURITY_SEED_PAIRS = [
     ('AppSecurityRecord', AppSecurityRecord, SEED_SECURITY_LEDGER),
     ('SecurityAuditRun', SecurityAuditRun, []),
     ('SecurityProposal', SecurityProposal, []),
+    ('SshCapability', SshCapability, []),
+    ('DeviceInventory', DeviceInventory, []),
 ]
 
 if __name__ == '__main__':

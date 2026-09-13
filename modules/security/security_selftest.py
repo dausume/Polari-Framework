@@ -20,7 +20,7 @@ def main():
     from security.security_page import SEED_SECURITY_PAGE_DISPLAYS
     from security.custom.security_topology import MODES, VIEWS, build, compare, simulate
     from security.custom.security_facts import SYSTEMS, scenario_names
-    check('twenty-three row classes', len(SECURITY_CLASSES) == 23, str(len(SECURITY_CLASSES)))
+    check('twenty-five row classes', len(SECURITY_CLASSES) == 25, str(len(SECURITY_CLASSES)))
     check('row class constructs', SecurityTopologyEdge(name='x').name == 'x')
     n = 0
     for scn in scenario_names():
@@ -50,7 +50,7 @@ def main():
     row = [x for x in compare('os')['rows'] if x['means'].startswith('write into') and x['source'] == 'the Polari backend'][0]
     check('compare lines the backend up across routes', all(row[s] != '—' for s in ('isle', 'swarm-lean', 'swarm-full')), str(row))
     check('every system has a provenance', all(s['provenance'] in ('stock', 'qemu', 'polari') for s in SYSTEMS.values()))
-    check('seed pairs: 23, all rows named', len(SECURITY_SEED_PAIRS) == 23 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
+    check('seed pairs: 25, all rows named', len(SECURITY_SEED_PAIRS) == 25 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
     check('edge rows unique by name', len({r['name'] for r in SEED_SECURITY_EDGES}) == len(SEED_SECURITY_EDGES), str(len(SEED_SECURITY_EDGES)))
     check('seven pages, none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 7 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
     from security.custom.security_threats import threats, threat_rows
@@ -97,6 +97,15 @@ def main():
     codes = [n['code'] for n in nt]
     check('notices: expired → error with the renew action; expiring → warning; auto-renew absent → info; internal expired → warning; unreachable host → info',
           codes == ['cert-expired', 'cert-expiring', 'auto-renew-absent', 'internal-cert-expired', 'host-unreachable'] and nt[0]['level'] == 'error' and 'pol cert renew' in nt[0]['action'])
+    from security.custom.security_ssh import ssh_row_from_inventory, inventory_row, ssh_summary
+    inv = {'os': 'Ubuntu', 'kernel': 'k', 'docker': {'version': '29', 'swarm': 'active/false', 'containers': [{'name': 'isle-vlan-agent'}], 'stacks': [], 'images': [], 'volumes': 1}, 'debs': ['polari-complete|0.1.33|ok'], 'checkouts': ['/x|dev|1G'], 'units': ['isle-host-agent.service|active|running'], 'guests': ['openwrt-isle-router'], 'etc_isle_mesh': True, 'apparmor_polari': 66,
+           'ssh': {'listen': ['0.0.0.0:22'], 'password_auth': 'yes', 'pubkey_auth': 'yes', 'permit_root': 'without-password', 'kbd_interactive': 'no', 'authorized_keys': [{'user': 'u', 'type': 'ssh-ed25519', 'comment_kind': 'user@host'}], 'private_keys_present': ['u|id_ed25519'], 'ssh_config_hosts': ['u|lightweight'], 'fail2ban': 'inactive', 'recent_failed_logins_24h': 0}}
+    r = ssh_row_from_inventory('isle-core', inv); ir = inventory_row('isle-core', inv)
+    check('ssh: passwords + root login → exposed, with the vectors named; role isle-core; formats deb + containers + guests', r['verdict'] == 'exposed' and 'passwords accepted' in r['vector'] and 'root may log in' in r['vector'] and r['role'] == 'isle-core' and 'deb' in ir['formats'] and 'KVM guests' in ir['formats'])
+    inv2 = dict(inv, ssh=dict(inv['ssh'], listen=[])); check('ssh: no sshd → closed', ssh_row_from_inventory('pol-core', inv2)['verdict'] == 'closed')
+    inv3 = dict(inv, ssh=dict(inv['ssh'], password_auth='no', permit_root='no')); check('ssh: keys only + no root → keys-only', ssh_row_from_inventory('x', inv3)['verdict'] == 'keys-only')
+    check('ssh summary reads', ssh_summary([r, ssh_row_from_inventory('pol-core', inv2)])['exposed'] == ['isle-core'])
+    check('the password-guess threat exists on the isle with its counterexample', 'ssh-password-guess' in {t['name'] for t in threats('isle', 'today')['threats']})
     check('threat rows seed for every scenario', len([r for n in scenario_names() for r in threat_rows(n)]) >= 40)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1

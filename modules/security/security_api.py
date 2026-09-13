@@ -6,6 +6,8 @@
 /api/security/topology   ?view=os|network|app [&scenario=…] [&mode=stock|today|complain|enforce] — one view, one scenario
 /api/security/simulate   ?view=… &actor=… [&scenario=…] [&mode=…] — everything one actor can reach, hop by hop
 /api/security/compare    ?view=… [&mode=…] — the same view across every scenario, verdict per scenario
+/api/security/ssh        ssh capabilities across Polari devices (exposed / keys-only / closed, who reaches whom) — the isle topology shows it
+/api/security/inventory  GET each device's installed footprint (deb / images / stacks / checkouts / guests / units); POST inventory.sh JSON
 /api/security/notices    what a user should be told now: expired / expiring certificates (live TLS probe of this instance's hosts),
                          auto-renew absent (from the last audit run); the frontends' system-notice bar polls it
 /api/security/ledger     [?scenario=…] — AppSecurityRecord per app: steps complete / total, the blocking step (the per-app ledger)
@@ -27,6 +29,7 @@ from security.custom.security_ledger import app_security_records, ledger_summary
 from security.custom.security_audit_feed import applied_for, run_row_from_audit, verdicts_for, latest_runs
 from security.custom.security_proposals import propose_from_groups, proposal_row
 from security.custom.security_notices import notices
+from security.custom.security_ssh import inventory_row, ssh_row_from_inventory, ssh_rows, ssh_summary
 
 
 def default_scenario():
@@ -56,7 +59,9 @@ class SecurityAPI(treeObject):
             add('/api/security/compare', self, suffix='compare')
             add('/api/security/threats', self, suffix='threats')
             add('/api/security/ledger', self, suffix='ledger')
-            add('/api/security/notices', self, suffix='notices')   # what a user should be told: expired/expiring certs, auto-renew absent
+            add('/api/security/notices', self, suffix='notices')
+            add('/api/security/ssh', self, suffix='ssh')              # ssh capabilities across devices (the isle topology shows it)
+            add('/api/security/inventory', self, suffix='inventory')  # GET the devices' installed footprint; POST an inventory.sh payload   # what a user should be told: expired/expiring certs, auto-renew absent
             add('/api/security/audit', self, suffix='audit')          # POST an audit.sh --json payload; GET the latest runs
             add('/api/security/propose', self, suffix='propose')      # POST {app, stanza, groups} → a proposal row
 
@@ -126,6 +131,31 @@ class SecurityAPI(treeObject):
                 return obj
             except Exception:
                 return None
+
+    def on_get_ssh(self, request, response):
+        rows = ssh_rows(self.manager) if self.manager is not None else []
+        response.media = {'ok': True, **ssh_summary(rows), 'devices_detail': rows,
+                          'how': 'pol deploy inventory <node> --post <core url> refreshes a device; the audit\'s ssh ring scores it'}
+
+    def on_get_inventory(self, request, response):
+        tables = getattr(self.manager, 'objectTables', None) or {}
+        rows = [{k: getattr(r, k, '') for k in ('device', 'role', 'os_release', 'kernel', 'docker_version', 'swarm', 'kvm', 'formats', 'debs', 'containers', 'stacks', 'checkouts', 'guests', 'rings_present', 'observed_at')}
+                for r in (tables.get('DeviceInventory') or {}).values()]
+        response.media = {'ok': True, 'devices': rows, 'how': 'pol deploy inventory <node> --post <core url>'}
+
+    def on_post_inventory(self, request, response):
+        try:
+            body = request.media or {}
+        except Exception:
+            body = {}
+        inv = body.get('inventory') or body
+        device = body.get('device') or request.params.get('device') or ''
+        if not device or 'ssh' not in inv:
+            return self._bad(response, 'body: {device: <role name>, inventory: <os-security/inventory.sh JSON>}')
+        from security.security_basis import DeviceInventory, SshCapability
+        r1 = inventory_row(device, inv); r2 = ssh_row_from_inventory(device, inv)
+        o1 = self._upsert('DeviceInventory', DeviceInventory, r1); o2 = self._upsert('SshCapability', SshCapability, r2)
+        response.media = {'ok': True, 'stored': bool(o1 and o2), 'device': device, 'role': r1['role'], 'formats': r1['formats'], 'ssh': {'verdict': r2['verdict'], 'vector': r2['vector']}}
 
     def on_get_notices(self, request, response):
         response.media = notices(self.manager, do_probe=not request.get_param_as_bool('no_probe'))

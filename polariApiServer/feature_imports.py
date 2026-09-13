@@ -1240,7 +1240,7 @@ FEATURE_IMPORT_BLOCKS = (
             'SecurityDomain', 'SecurityArea', 'SecurityScenario', 'SecurityControl',
             'SecurityTopologyNode', 'SecurityTopologyEdge', 'SecurityThreat', 'SecurityProposal',
             'MacProfile', 'DacPolicy', 'PermissionGroup', 'HardwareTrial', 'ProxyConfig', 'ProxySnippet', 'ServiceIdentity', 'FirewallRuleSet',
-            'TrustChannel', 'AuthzRule', 'ContentPolicy', 'ContentPolicyViolation', 'BrowserPolicy', 'AppSecurityRecord', 'SecurityAuditRun', 'SECURITY_CLASSES',
+            'TrustChannel', 'AuthzRule', 'ContentPolicy', 'ContentPolicyViolation', 'BrowserPolicy', 'AppSecurityRecord', 'SecurityAuditRun', 'SshCapability', 'DeviceInventory', 'SECURITY_CLASSES',
         )),
         ('security.security_seed', (
             'SECURITY_SEED_PAIRS',

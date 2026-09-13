@@ -237,6 +237,8 @@ def network_view(sc, mode, applied):
     else:
         edge('internet', edge_name, 'HTTPS 443 (and 80 for ACME + redirect)', [ufw(True, '80/443 to anyone'), _step('proxy-tls', 'allowed', 'TLS 1.2+, hardened headers, rate limits; Let\'s Encrypt when public')], 'the edge; live on the server route')
     edge('internet', 'sshd', 'ssh', [_step('ssh-keys', 'allowed', 'key login; sshd on all interfaces'), ufw(False, 'only from the admin/isle LAN under the rendered rules')], 'today reachable from anywhere a route exists (finding); the firewall ring closes it')
+    edge('internet', 'sshd', 'guess a password over ssh', [_step('ssh-keys', 'allowed' if (sc.get('ssh') or {}).get('password_auth', True) else 'blocked', 'PasswordAuthentication yes on the isle core (inventory 2026-09-13); keys-only closes this' if (sc.get('ssh') or {}).get('password_auth', True) else 'keys only'), ufw(False, 'and only from the admin LAN')],
+         'passwords are the guessable vector: PasswordAuthentication no + keys only is the fix; fail2ban / ufw limit slows the guessing meanwhile')
     edge('internet', 'swarm-ports', 'swarm management / gossip / VXLAN', [ufw(False, 'peers only under the rendered rules')], 'today open on pol-core (finding); the firewall ring closes it to peers' if route == 'swarm' else 'not a swarm node role here')
     edge('internet', 'docker-api', 'docker TCP API', [_step('docker-bridge', 'blocked', 'no TCP socket; unix socket only (audit pass)')], 'not exposed')
     if route != 'isle':

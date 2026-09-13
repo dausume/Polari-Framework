@@ -108,7 +108,7 @@ FIXED['swarm-full'] = FIXED['swarm-lean'] + [
 ]
 
 SCENARIOS = {
-    'isle':       {'route': 'isle', 'physical': {'secure_boot': True, 'disk_encryption': False, 'headless': False}, 'title': 'An isle (the app route: debs, KVM guests, hardware)', 'rings': 'surface,dac,mac,network,host',
+    'isle':       {'route': 'isle', 'ssh': {'password_auth': True, 'permit_root': 'without-password'}, 'physical': {'secure_boot': True, 'disk_encryption': False, 'headless': False}, 'title': 'An isle (the app route: debs, KVM guests, hardware)', 'rings': 'surface,dac,mac,network,host',
                    'mac_attach': 'security_opt', 'apps_run': 'containers', 'guests': True, 'hardware': True, 'auth': 'isle-groups',
                    'description': 'Every app is its own plain container started by the agent; hardware apps run in KVM guests under sVirt with VFIO passthrough of what the hardware map assigns; ingress only through the agent by .isle name.'},
     'swarm-lean': {'route': 'swarm', 'physical': {'secure_boot': True, 'disk_encryption': False, 'headless': True}, 'title': 'The lean server (swarm, no logins)', 'rings': 'dac,mac,network,host',

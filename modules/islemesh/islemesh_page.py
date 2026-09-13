@@ -128,5 +128,16 @@ SEED_ISLEMESH_PAGE_DISPLAYS += [
                        'VPN placements and their isle role', 'VpnPlacement',
                        columns='kind,title,placement,extends,requires_tier,sees_traffic,blind,level_isle'),
             ]),
+            # his ask 2026-09-13: the ssh surface accounted for on the isle topology — which devices accept ssh,
+            # how (keys only or passwords), root or not, who reaches whom (security module; empty until
+            # `pol deploy inventory <node> --post` has run for the devices)
+            _row(4, [
+                _sapi('topology-isle-ssh-summary', 0, 4,
+                      'SSH across the isle\'s devices — exposed / keys-only / closed, and who reaches whom',
+                      '/api/security/ssh', pick='reading,exposed,keys_only,closed,reach_edges'),
+                _sapi('topology-isle-ssh-devices', 1, 8,
+                      'Per device: listens, passwords or keys, root login, keys by type, brute-force guard, the vector',
+                      '/api/security/ssh', pick='devices_detail'),
+            ], min_height=240),
         ]),
 ]

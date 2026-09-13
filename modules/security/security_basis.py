@@ -12,6 +12,8 @@ from security.objects.security.SecurityTopologyNode import SecurityTopologyNode 
 from security.objects.security.SecurityTopologyEdge import SecurityTopologyEdge  # noqa: F401
 from security.objects.security.SecurityThreat import SecurityThreat  # noqa: F401
 from security.objects.security.SecurityProposal import SecurityProposal  # noqa: F401
+from security.objects.security.SshCapability import SshCapability  # noqa: F401
+from security.objects.security.DeviceInventory import DeviceInventory  # noqa: F401
 from security.objects.security.MacProfile import MacProfile  # noqa: F401
 from security.objects.security.DacPolicy import DacPolicy  # noqa: F401
 from security.objects.security.PermissionGroup import PermissionGroup  # noqa: F401
@@ -29,5 +31,5 @@ from security.objects.security.AppSecurityRecord import AppSecurityRecord  # noq
 from security.objects.security.SecurityAuditRun import SecurityAuditRun  # noqa: F401
 
 SECURITY_CLASSES = [SecurityDomain, SecurityArea, SecurityScenario, SecurityControl,
-                    SecurityTopologyNode, SecurityTopologyEdge, SecurityThreat, SecurityProposal,
+                    SecurityTopologyNode, SecurityTopologyEdge, SecurityThreat, SecurityProposal, SshCapability, DeviceInventory,
                     MacProfile, DacPolicy, PermissionGroup, HardwareTrial, ProxyConfig, ProxySnippet, ServiceIdentity, FirewallRuleSet, TrustChannel, AuthzRule, ContentPolicy, ContentPolicyViolation, BrowserPolicy, AppSecurityRecord, SecurityAuditRun]

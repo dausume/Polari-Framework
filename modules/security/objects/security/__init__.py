@@ -24,3 +24,5 @@ from security.objects.security.BrowserPolicy import BrowserPolicy  # noqa: F401
 from security.objects.security.AppSecurityRecord import AppSecurityRecord  # noqa: F401
 from security.objects.security.SecurityAuditRun import SecurityAuditRun  # noqa: F401
 from security.objects.security.SecurityProposal import SecurityProposal  # noqa: F401
+from security.objects.security.SshCapability import SshCapability  # noqa: F401
+from security.objects.security.DeviceInventory import DeviceInventory  # noqa: F401

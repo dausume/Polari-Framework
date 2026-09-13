@@ -28,6 +28,7 @@
    "objects/security/ContentPolicy",
    "objects/security/ContentPolicyViolation",
    "objects/security/DacPolicy",
+   "objects/security/DeviceInventory",
    "objects/security/FirewallRuleSet",
    "objects/security/HardwareTrial",
    "objects/security/MacProfile",
@@ -44,6 +45,7 @@
    "objects/security/SecurityTopologyEdge",
    "objects/security/SecurityTopologyNode",
    "objects/security/ServiceIdentity",
+   "objects/security/SshCapability",
    "objects/security/TrustChannel"
   ],
   "basis": [
@@ -70,8 +72,10 @@
    "custom/security_facts",
    "custom/security_ledger",
    "custom/security_network_rows",
+   "custom/security_notices",
    "custom/security_os_rows",
    "custom/security_proposals",
+   "custom/security_ssh",
    "custom/security_threats",
    "custom/security_topology"
   ]
@@ -83,6 +87,7 @@
   "ContentPolicy",
   "ContentPolicyViolation",
   "DacPolicy",
+  "DeviceInventory",
   "FirewallRuleSet",
   "HardwareTrial",
   "MacProfile",
@@ -100,6 +105,7 @@
   "SecurityTopologyEdge",
   "SecurityTopologyNode",
   "ServiceIdentity",
+  "SshCapability",
   "TrustChannel"
  ],
  "imports": [
@@ -129,6 +135,8 @@
     "BrowserPolicy",
     "AppSecurityRecord",
     "SecurityAuditRun",
+    "SshCapability",
+    "DeviceInventory",
     "SECURITY_CLASSES"
    ]
   ],
