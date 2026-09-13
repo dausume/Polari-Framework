@@ -6,6 +6,8 @@
 /api/security/topology   ?view=os|network|app [&scenario=…] [&mode=stock|today|complain|enforce] — one view, one scenario
 /api/security/simulate   ?view=… &actor=… [&scenario=…] [&mode=…] — everything one actor can reach, hop by hop
 /api/security/compare    ?view=… [&mode=…] — the same view across every scenario, verdict per scenario
+/api/security/notices    what a user should be told now: expired / expiring certificates (live TLS probe of this instance's hosts),
+                         auto-renew absent (from the last audit run); the frontends' system-notice bar polls it
 /api/security/ledger     [?scenario=…] — AppSecurityRecord per app: steps complete / total, the blocking step (the per-app ledger)
 /api/security/audit      GET the latest posted audit runs + what 'today' reads from them; POST an audit.sh --json payload
 /api/security/propose    POST {app, groups} (allowed.py --json groups) → a SecurityProposal: the stanza change the harvest asks for
@@ -24,6 +26,7 @@ from security.custom.security_threats import threats
 from security.custom.security_ledger import app_security_records, ledger_summary
 from security.custom.security_audit_feed import applied_for, run_row_from_audit, verdicts_for, latest_runs
 from security.custom.security_proposals import propose_from_groups, proposal_row
+from security.custom.security_notices import notices
 
 
 def default_scenario():
@@ -53,6 +56,7 @@ class SecurityAPI(treeObject):
             add('/api/security/compare', self, suffix='compare')
             add('/api/security/threats', self, suffix='threats')
             add('/api/security/ledger', self, suffix='ledger')
+            add('/api/security/notices', self, suffix='notices')   # what a user should be told: expired/expiring certs, auto-renew absent
             add('/api/security/audit', self, suffix='audit')          # POST an audit.sh --json payload; GET the latest runs
             add('/api/security/propose', self, suffix='propose')      # POST {app, stanza, groups} → a proposal row
 
@@ -122,6 +126,9 @@ class SecurityAPI(treeObject):
                 return obj
             except Exception:
                 return None
+
+    def on_get_notices(self, request, response):
+        response.media = notices(self.manager, do_probe=not request.get_param_as_bool('no_probe'))
 
     def on_get_ledger(self, request, response):
         applied = applied_for(self.manager); verdicts = verdicts_for(self.manager)

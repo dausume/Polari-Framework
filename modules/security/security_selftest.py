@@ -91,6 +91,12 @@ def main():
     from security.custom.security_audit_feed import applied_from_controls, physical_from_controls
     ctl = [{'ring': 'mac', 'control': 'per-app-profiles', 'status': 'pass'}, {'ring': 'mac', 'control': 'profiles-enforcing', 'status': 'fail'}, {'ring': 'network', 'control': 'ufw', 'status': 'pass'}, {'ring': 'physical', 'control': 'secure-boot', 'status': 'fail'}]
     check('audit feed: profiles loaded + not enforcing → apparmor complain; ufw pass → live; secure boot fail → off', applied_from_controls(ctl) == {'polari-apparmor': 'complain', 'ufw': 'live'} and physical_from_controls(ctl) == {'secure_boot': False})
+    from security.custom.security_notices import notices_from
+    nt = notices_from(probes=[{'host': 'prf.example', 'days_left': -3, 'not_after': '2026-09-10', 'issuer': 'x'}, {'host': 'api.prf.example', 'days_left': 9, 'not_after': '', 'issuer': ''}],
+                      audit_controls=[{'control': 'auto-renew', 'status': 'fail'}], identities=[{'service': 'pol-kc', 'issued': True, 'days_left': -25, 'manifest': 'ca/cert-manifest.conf'}], hosts=['prf.example', 'api.prf.example', 'hub.example'])
+    codes = [n['code'] for n in nt]
+    check('notices: expired → error with the renew action; expiring → warning; auto-renew absent → info; internal expired → warning; unreachable host → info',
+          codes == ['cert-expired', 'cert-expiring', 'auto-renew-absent', 'internal-cert-expired', 'host-unreachable'] and nt[0]['level'] == 'error' and 'pol cert renew' in nt[0]['action'])
     check('threat rows seed for every scenario', len([r for n in scenario_names() for r in threat_rows(n)]) >= 40)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
