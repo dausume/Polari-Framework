@@ -72,6 +72,10 @@ SYSTEMS = {
                        'note': 'two narrow groups: remote setup over ssh; the store\'s doors — installed by pol deploy grant; today on no machine'},
     'polkit':         {'title': 'polkit / pkexec', 'provenance': 'stock', 'domain': 'app', 'area': 'authorization',
                        'note': 'the desktop consent dialog the manager app uses for trust and hardware trials'},
+    'secure-boot':    {'title': 'Secure Boot (the firmware runs only a signed boot chain)', 'provenance': 'stock', 'domain': 'os', 'area': 'boot',
+                       'note': 'Ubuntu\'s shim + kernel are signed with the key every PC trusts; a tampered boot loader or kernel on the disk does not start. ON by default; turned off only deliberately at ISO build with a written reason (POLARI_ISO_PLAN D6). Protects the boot path only.'},
+    'disk-encryption': {'title': 'disk encryption at rest (LUKS)', 'provenance': 'polari', 'domain': 'os', 'area': 'at-rest',
+                        'note': 'the disk is unreadable without the passphrase typed at start-up — the one protection against someone who takes the drive or the machine. An OPTION, off by default; never on headless (ISO plan D8).'},
     'ssh-keys':       {'title': 'ssh public-key login', 'provenance': 'stock', 'domain': 'app', 'area': 'authentication',
                        'note': 'passwordless between the home machines; sshd listens on all interfaces (finding)'},
 }
@@ -104,16 +108,16 @@ FIXED['swarm-full'] = FIXED['swarm-lean'] + [
 ]
 
 SCENARIOS = {
-    'isle':       {'route': 'isle', 'title': 'An isle (the app route: debs, KVM guests, hardware)', 'rings': 'surface,dac,mac,network,host',
+    'isle':       {'route': 'isle', 'physical': {'secure_boot': True, 'disk_encryption': False, 'headless': False}, 'title': 'An isle (the app route: debs, KVM guests, hardware)', 'rings': 'surface,dac,mac,network,host',
                    'mac_attach': 'security_opt', 'apps_run': 'containers', 'guests': True, 'hardware': True, 'auth': 'isle-groups',
                    'description': 'Every app is its own plain container started by the agent; hardware apps run in KVM guests under sVirt with VFIO passthrough of what the hardware map assigns; ingress only through the agent by .isle name.'},
-    'swarm-lean': {'route': 'swarm', 'title': 'The lean server (swarm, no logins)', 'rings': 'dac,mac,network,host',
+    'swarm-lean': {'route': 'swarm', 'physical': {'secure_boot': True, 'disk_encryption': False, 'headless': True}, 'title': 'The lean server (swarm, no logins)', 'rings': 'dac,mac,network,host',
                    'mac_attach': 'docker-default', 'apps_run': 'in-core', 'guests': False, 'hardware': False, 'auth': 'none',
                    'description': 'Four services; modules run inside the backend; no per-service profile (the node-wide union instead); no guests, no devices; the API has no logins (D2).'},
-    'swarm-full': {'route': 'swarm', 'title': 'The full server (swarm, Keycloak logins)', 'rings': 'dac,mac,network,host',
+    'swarm-full': {'route': 'swarm', 'physical': {'secure_boot': True, 'disk_encryption': False, 'headless': True}, 'title': 'The full server (swarm, Keycloak logins)', 'rings': 'dac,mac,network,host',
                    'mac_attach': 'docker-default', 'apps_run': 'in-core', 'guests': False, 'hardware': False, 'auth': 'keycloak',
                    'description': 'Ten services incl. Keycloak, MariaDB, MinIO, the scorecard; same swarm limits; users log in and the API checks tokens.'},
-    'dev':        {'route': 'dev', 'title': "A developer's machine", 'rings': 'mac,host',
+    'dev':        {'route': 'dev', 'physical': {'secure_boot': True, 'disk_encryption': False, 'headless': False}, 'title': "A developer's machine", 'rings': 'mac,host',
                    'mac_attach': 'security_opt', 'apps_run': 'containers', 'guests': False, 'hardware': False, 'auth': 'none',
                    'description': 'Compose on a laptop; profiles render in complain; nothing enforced that would get in the way; the audit still reports.'},
 }

@@ -65,6 +65,16 @@ def main():
     check('swarm: the device counterexample has NO legitimate path', te['unassigned-device']['counter']['verdict'] == 'blocked')
     check('lean: the anonymous API threat is ALLOWED and says so; full: blocked by keycloak', th['anonymous-api']['verdict'] == 'allowed' and {t['name']: t for t in threats('swarm-full', 'today')['threats']}['anonymous-api']['blocked_by'] == 'keycloak')
     check('the animation path stops at the block', all(t['path'][t['stops_at']]['decision'] == 'blocked' for t in te.values() if t['stops_at'] is not None))
+    ph = {e['means']: e for e in build('os', 'isle', 'today')['edges'] if e['source'] == 'physical access'}
+    check('physical access: with encryption off the drive is readable; Secure Boot stops a tampered kernel but not a live USB',
+          ph['pull the drive and read it in another machine']['verdict'] == 'allowed' and ph['replace the boot loader or kernel on the disk with a tampered one']['decided_by'] == 'secure-boot'
+          and ph['boot a live USB and read the files']['verdict'] == 'allowed')
+    phe = {e['means']: e for e in build('os', 'isle', 'enforce')['edges'] if e['source'] == 'physical access'}
+    check('enforce on a desktop profile: encryption on → the drive and the live USB are blocked', phe['pull the drive and read it in another machine']['decided_by'] == 'disk-encryption')
+    phs = {e['means']: e for e in build('os', 'swarm-lean', 'enforce')['edges'] if e['source'] == 'physical access'}
+    check('enforce on a headless profile: encryption stays OFF (never on headless) → the drive is still readable', phs['pull the drive and read it in another machine']['verdict'] == 'allowed')
+    tt = {t['name']: t for t in threats('isle', 'today')['threats']}
+    check('the two physical threats exist with counterexamples', 'stolen-drive' in tt and 'tampered-boot' in tt and tt['stolen-drive']['counter']['path'][-1]['node'] == 'the disk')
     check('threat rows seed for every scenario', len([r for n in scenario_names() for r in threat_rows(n)]) >= 40)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1

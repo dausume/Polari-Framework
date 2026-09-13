@@ -170,6 +170,30 @@ def os_view(sc, mode, applied):
     if sc['apps_run'] == 'in-core':
         edges.append({'source': 'a module', 'target': 'prf-backend', 'means': 'runs inside', 'chain': [_step('polari-apparmor', 'allowed', 'the module\'s stanza folds into the backend\'s profile')],
                       'verdict': 'allowed', 'decided_by': 'polari-apparmor', 'provenance': 'polari', 'why': 'on the swarm a module IS the backend process: whatever the backend may touch, the module may'})
+    # someone with the machine in their hands (his ask 2026-09-13): a thief, a repair shop, a curious visitor —
+    # the one actor no container ring touches; Secure Boot and disk encryption exist for them
+    phys = sc.get('physical') or {}
+    sb_on = bool(phys.get('secure_boot', True)); enc_on = bool(phys.get('disk_encryption', False)) or (mode == 'enforce' and not phys.get('headless'))
+    nodes.append({'node': 'physical access', 'kind': 'actor', 'layer': 0, 'title': 'someone with the machine in their hands',
+                  'description': 'a thief, a repair shop, anyone who can boot it or pull the drive; no container ring applies to them'})
+    nodes.append({'node': 'the disk', 'kind': 'target', 'layer': 2, 'title': "the disk's contents (data at rest)", 'description': ''})
+    for s_ in ('secure-boot', 'disk-encryption'):
+        nodes.append({'node': s_, 'kind': 'boundary', 'layer': 1, 'title': SYSTEMS[s_]['title'], 'description': SYSTEMS[s_]['note'], 'system': s_})
+    for target, means, chain, why in (
+        ('the disk', 'pull the drive and read it in another machine', [
+            _step('disk-encryption', 'blocked' if enc_on else 'allowed', 'LUKS: unreadable without the passphrase' if enc_on else 'not enabled on this profile: every file is readable')],
+         'the ONLY thing that protects data on a drive that leaves the machine; it is a build-time option (headless boxes cannot have it — nobody types the passphrase)'),
+        ('the disk', 'boot a live USB and read the files', [
+            _step('secure-boot', 'allowed', 'a signed live USB boots fine — Secure Boot is not what stops this'),
+            _step('disk-encryption', 'blocked' if enc_on else 'allowed', 'the encrypted disk is unreadable from the USB too' if enc_on else 'every file readable')],
+         'Secure Boot does not protect the data; only encryption does'),
+        ('kernel', 'replace the boot loader or kernel on the disk with a tampered one', [
+            _step('secure-boot', 'blocked' if sb_on else 'allowed', 'the firmware refuses an unsigned boot chain' if sb_on else 'turned off for this profile (a written reason exists): a tampered kernel would start'),
+            _step('disk-encryption', 'blocked' if enc_on else 'allowed', 'the disk cannot be modified without the passphrase either' if enc_on else '')],
+         'the boot path is Secure Boot\'s job; encryption guards it a second time'),
+    ):
+        v, by, prov = _verdict(chain)
+        edges.append({'source': 'physical access', 'target': target, 'means': means, 'chain': chain, 'verdict': v, 'decided_by': by, 'provenance': prov, 'why': why})
     if sc.get('guests'):
         for target, means, chain, why in (
             ('kernel', 'escape the hypervisor', [_step('hypervisor', 'blocked', 'a guest kernel is not the host kernel'), _step('qemu-user', 'blocked', 'qemu runs unprivileged'), _step('svirt', 'blocked', 'libvirt-<uuid> profile per guest — libvirt\'s default on Ubuntu, enforcing on the isle')], 'three qemu/libvirt layers; Polari only requires sVirt to be on'),

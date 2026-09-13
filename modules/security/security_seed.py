@@ -35,6 +35,8 @@ SEED_SECURITY_AREAS = [
     {'name': 'dac', 'domain': 'os', 'title': 'DAC', 'generated': True, 'docs_page': 'os-security', 'description': 'uid/gid, capabilities, read-only root, user-namespace remap, what is mounted, device allow-lists, groups.'},
     {'name': 'mac', 'domain': 'os', 'title': 'MAC', 'generated': True, 'docs_page': 'os-security', 'description': 'AppArmor (docker-default, per app, the node-wide union), seccomp, sVirt, docker\'s masked paths.'},
     {'name': 'hardware', 'domain': 'os', 'title': 'Hardware', 'generated': False, 'docs_page': 'os-security', 'description': 'VFIO passthrough from the hardware map; hardware trials (sec-i-5).'},
+    {'name': 'boot', 'domain': 'os', 'title': 'Boot', 'generated': False, 'docs_page': 'os-security', 'description': 'Secure Boot: the firmware runs only a signed boot chain (Ubuntu\'s shim + kernel); off only deliberately at ISO build with a written reason.'},
+    {'name': 'at-rest', 'domain': 'os', 'title': 'At rest', 'generated': False, 'docs_page': 'os-security', 'description': 'Disk encryption (LUKS): the one protection against someone who takes the drive or the machine; an option, off by default, never on headless.'},
     {'name': 'groups', 'domain': 'os', 'title': 'Groups', 'generated': True, 'docs_page': 'os-security', 'description': 'polari-remote, polari-app and the hardware groups.'},
 ]
 
