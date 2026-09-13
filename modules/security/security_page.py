@@ -38,7 +38,27 @@ def _view_page(view, title, question, actor):
     ])
 
 
+def _panel(item_id, index, segments, title, name, inputs):
+    return {'id': item_id, 'index': index, 'type': 'component', 'rowSegmentsUsed': segments, 'gridColumnStart': None,
+            'title': title, 'visible': True, 'collapsed': False, 'cssClass': '',
+            'componentProps': {'componentName': name, 'inputs': inputs}, 'item': None, 'nestedRows': []}
+
+
 SEED_SECURITY_PAGE_DISPLAYS = [
+    _page('security-threats', 'security-threats', 'Security threats — each threat played through the topology until a policy blocks it, and the counterexample that gets in legitimately', 'SecurityThreat', [
+        _row(0, [
+            _panel('security-threat-sim', 0, 12, 'Threat simulation — watch a threat cross the boundaries (red) and the legitimate path beside it (green); switch the mode to see stock docker, today, a warn-only apply, or every ring enforced',
+                   'security-threat-sim', {'path': '/api/security/threats', 'scenario': '', 'mode': 'today'}),
+        ], min_height=520),
+        _row(1, [
+            _sapi('security-threats-list', 0, 12, 'Every threat on this deployment: verdict, the policy that blocked it, the counterexample',
+                  '/api/security/threats', pick='threats', hide='path,counter'),
+        ], min_height=260),
+        _row(2, [
+            _table('security-threat-rows', 0, 12, 'Threat rows (every scenario, as applied today)', 'SecurityThreat',
+                   columns='scenario,view,title,verdict,blocked_by,counter_group,counter_means,counter_verdict'),
+        ]),
+    ]),
     _page('security', 'security', 'Security — the three domains, the scenario in force, and every protecting system with its provenance', 'SecurityControl', [
         _row(0, [
             _sapi('security-overview', 0, 6, 'This deployment: scenario, the three views, how to read provenance', '/api/security', hide='systems'),

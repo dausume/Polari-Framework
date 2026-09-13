@@ -22,12 +22,13 @@
  },
  "files": {
   "objects": [
-   "objects/security/SecurityDomain",
    "objects/security/SecurityArea",
-   "objects/security/SecurityScenario",
    "objects/security/SecurityControl",
-   "objects/security/SecurityTopologyNode",
-   "objects/security/SecurityTopologyEdge"
+   "objects/security/SecurityDomain",
+   "objects/security/SecurityScenario",
+   "objects/security/SecurityThreat",
+   "objects/security/SecurityTopologyEdge",
+   "objects/security/SecurityTopologyNode"
   ],
   "basis": [
    "security_basis"
@@ -49,19 +50,47 @@
   ],
   "custom": [
    "custom/security_facts",
+   "custom/security_threats",
    "custom/security_topology"
   ]
  },
  "classes": [
   "SecurityAPI",
-  "SecurityDomain",
   "SecurityArea",
-  "SecurityScenario",
   "SecurityControl",
-  "SecurityTopologyNode",
-  "SecurityTopologyEdge"
+  "SecurityDomain",
+  "SecurityScenario",
+  "SecurityThreat",
+  "SecurityTopologyEdge",
+  "SecurityTopologyNode"
  ],
- "imports": [],
+ "imports": [
+  [
+   "security.security_basis",
+   [
+    "SecurityDomain",
+    "SecurityArea",
+    "SecurityScenario",
+    "SecurityControl",
+    "SecurityTopologyNode",
+    "SecurityTopologyEdge",
+    "SecurityThreat",
+    "SECURITY_CLASSES"
+   ]
+  ],
+  [
+   "security.security_seed",
+   [
+    "SECURITY_SEED_PAIRS"
+   ]
+  ],
+  [
+   "security.security_page",
+   [
+    "SEED_SECURITY_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
  "endpoints": "security.security_endpoints:construct_security_endpoints",
  "seedPairs": "security.security_seed:SECURITY_SEED_PAIRS",
  "pages": [

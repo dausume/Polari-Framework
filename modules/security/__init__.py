@@ -8,6 +8,6 @@ protected, how, via what system, and who gets access through what means — one 
 Requires nothing from other feature modules; reads os-security/scenarios when the suite tree is beside the
 checkout, else its embedded mirror.
 """
-from security.security_basis import SECURITY_CLASSES, SecurityArea, SecurityControl, SecurityDomain, SecurityScenario, SecurityTopologyEdge, SecurityTopologyNode  # noqa: F401
+from security.security_basis import SECURITY_CLASSES, SecurityArea, SecurityControl, SecurityDomain, SecurityScenario, SecurityThreat, SecurityTopologyEdge, SecurityTopologyNode  # noqa: F401
 from security.security_seed import SECURITY_SEED_PAIRS  # noqa: F401
 from security.security_page import SEED_SECURITY_PAGE_DISPLAYS  # noqa: F401

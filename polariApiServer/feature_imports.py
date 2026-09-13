@@ -1238,7 +1238,7 @@ FEATURE_IMPORT_BLOCKS = (
         # sec-i-0/1: the taxonomy, the systems per scenario with provenance, the three security topology views
         ('security.security_basis', (
             'SecurityDomain', 'SecurityArea', 'SecurityScenario', 'SecurityControl',
-            'SecurityTopologyNode', 'SecurityTopologyEdge', 'SECURITY_CLASSES',
+            'SecurityTopologyNode', 'SecurityTopologyEdge', 'SecurityThreat', 'SECURITY_CLASSES',
         )),
         ('security.security_seed', (
             'SECURITY_SEED_PAIRS',

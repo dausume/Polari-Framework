@@ -20,7 +20,7 @@ def main():
     from security.security_page import SEED_SECURITY_PAGE_DISPLAYS
     from security.custom.security_topology import MODES, VIEWS, build, compare, simulate
     from security.custom.security_facts import SYSTEMS, scenario_names
-    check('six row classes', len(SECURITY_CLASSES) == 6)
+    check('seven row classes', len(SECURITY_CLASSES) == 7)
     check('row class constructs', SecurityTopologyEdge(name='x').name == 'x')
     n = 0
     for scn in scenario_names():
@@ -50,9 +50,22 @@ def main():
     row = [x for x in compare('os')['rows'] if x['means'].startswith('write into') and x['source'] == 'the Polari backend'][0]
     check('compare lines the backend up across routes', all(row[s] != '—' for s in ('isle', 'swarm-lean', 'swarm-full')), str(row))
     check('every system has a provenance', all(s['provenance'] in ('stock', 'qemu', 'polari') for s in SYSTEMS.values()))
-    check('seed pairs: 6, all rows named', len(SECURITY_SEED_PAIRS) == 6 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
+    check('seed pairs: 7, all rows named', len(SECURITY_SEED_PAIRS) == 7 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
     check('edge rows unique by name', len({r['name'] for r in SEED_SECURITY_EDGES}) == len(SEED_SECURITY_EDGES), str(len(SEED_SECURITY_EDGES)))
-    check('four pages, none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 4 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
+    check('five pages, none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 5 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
+    from security.custom.security_threats import threats, threat_rows
+    th = {t['name']: t for t in threats('swarm-lean', 'stock')['threats']}
+    check('stock: the image backdoor, raw sniff AND the socket (if mounted) get THROUGH — docker alone stops none', th['image-backdoor']['verdict'] == 'allowed' and th['raw-sniff']['verdict'] == 'allowed' and th['docker-socket']['verdict'] == 'allowed')
+    check('today: the socket threat is blocked by the mount policy', {t['name']: t for t in threats('swarm-lean', 'today')['threats']}['docker-socket']['blocked_by'] == 'mount-policy')
+    te = {t['name']: t for t in threats('swarm-lean', 'enforce')['threats']}
+    check('enforce: both blocked, with the blocking policy named', te['image-backdoor']['verdict'] == 'blocked' and te['image-backdoor']['blocked_by'] and te['raw-sniff']['verdict'] == 'blocked')
+    check('every threat carries a counterexample path that reaches the target', all(t['counter']['path'][-1]['node'] == t['counter']['target'] for t in te.values()))
+    ti = {t['name']: t for t in threats('isle', 'today')['threats']}
+    check('isle: guest escape and the unassigned device are present; the device counterexample is open on the isle', 'guest-escape' in ti and ti['unassigned-device']['counter']['verdict'] == 'allowed')
+    check('swarm: the device counterexample has NO legitimate path', te['unassigned-device']['counter']['verdict'] == 'blocked')
+    check('lean: the anonymous API threat is ALLOWED and says so; full: blocked by keycloak', th['anonymous-api']['verdict'] == 'allowed' and {t['name']: t for t in threats('swarm-full', 'today')['threats']}['anonymous-api']['blocked_by'] == 'keycloak')
+    check('the animation path stops at the block', all(t['path'][t['stops_at']]['decision'] == 'blocked' for t in te.values() if t['stops_at'] is not None))
+    check('threat rows seed for every scenario', len([r for n in scenario_names() for r in threat_rows(n)]) >= 40)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

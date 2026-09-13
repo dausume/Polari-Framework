@@ -8,9 +8,10 @@ from security_facts + security_topology, never hand-typed. SECURITY_SEED_PAIRS i
 import json
 
 from security.security_basis import (SecurityArea, SecurityControl, SecurityDomain, SecurityScenario,
-                                     SecurityTopologyEdge, SecurityTopologyNode)
+                                     SecurityThreat, SecurityTopologyEdge, SecurityTopologyNode)
 from security.custom.security_facts import APPLIED_TODAY, SYSTEMS, load_scenario, scenario_names
 from security.custom.security_topology import VIEWS, build
+from security.custom.security_threats import threat_rows
 
 SEED_SECURITY_DOMAINS = [
     {'name': 'app', 'title': 'App', 'order': 1, 'view_route': '/display/security-app',
@@ -91,6 +92,7 @@ def _view_rows():
 SEED_SECURITY_SCENARIOS = _scenario_rows()
 SEED_SECURITY_CONTROLS = _control_rows()
 SEED_SECURITY_NODES, SEED_SECURITY_EDGES = _view_rows()
+SEED_SECURITY_THREATS = [r for n in scenario_names() for r in threat_rows(n, 'today')]
 
 SECURITY_SEED_PAIRS = [
     ('SecurityDomain', SecurityDomain, SEED_SECURITY_DOMAINS),
@@ -99,6 +101,7 @@ SECURITY_SEED_PAIRS = [
     ('SecurityControl', SecurityControl, SEED_SECURITY_CONTROLS),
     ('SecurityTopologyNode', SecurityTopologyNode, SEED_SECURITY_NODES),
     ('SecurityTopologyEdge', SecurityTopologyEdge, SEED_SECURITY_EDGES),
+    ('SecurityThreat', SecurityThreat, SEED_SECURITY_THREATS),
 ]
 
 if __name__ == '__main__':

@@ -6,6 +6,8 @@
 /api/security/topology   ?view=os|network|app [&scenario=…] [&mode=stock|today|complain|enforce] — one view, one scenario
 /api/security/simulate   ?view=… &actor=… [&scenario=…] [&mode=…] — everything one actor can reach, hop by hop
 /api/security/compare    ?view=… [&mode=…] — the same view across every scenario, verdict per scenario
+/api/security/threats    [?scenario=…] [&mode=…] — the threat simulations: each threat's path through the systems, the policy that
+                         blocked it, and the counterexample (the actor/group/permission that legitimately reaches the same target)
 The scenario defaults to the one this deployment is (POLARI_DEPLOY_ROUTE: isle → isle, swarm → lean/full by
 profile, else dev). Pure reads over security_topology; nothing here changes the machine.
 """
@@ -15,6 +17,7 @@ from objectTreeDecorators import treeObject, treeObjectInit
 
 from security.custom.security_facts import SYSTEMS, load_scenario, scenario_names
 from security.custom.security_topology import MODES, VIEWS, build, compare, simulate
+from security.custom.security_threats import threats
 
 
 def default_scenario():
@@ -42,6 +45,7 @@ class SecurityAPI(treeObject):
             add('/api/security/topology', self, suffix='topology')
             add('/api/security/simulate', self, suffix='simulate')
             add('/api/security/compare', self, suffix='compare')
+            add('/api/security/threats', self, suffix='threats')
 
     def _rows(self, class_name):
         return list(((getattr(self.manager, 'objectTables', None) or {}).get(class_name, {}) or {}).values())
@@ -88,6 +92,13 @@ class SecurityAPI(treeObject):
         actor = request.params.get('actor') or ('prf-backend' if view != 'app' else 'visitor')
         try:
             response.media = simulate(view, scn, actor, mode)
+        except ValueError as exc:
+            self._bad(response, str(exc))
+
+    def on_get_threats(self, request, response):
+        scn = request.params.get('scenario') or default_scenario(); mode = request.params.get('mode', 'today')
+        try:
+            response.media = {'ok': True, **threats(scn, mode)}
         except ValueError as exc:
             self._bad(response, str(exc))
 
