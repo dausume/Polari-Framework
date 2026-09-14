@@ -5,7 +5,7 @@ falcon==4.2.0
 # PyJWT (not the `jwt` package) — needed for PyJWKClient + RS256 JWKS-based
 # verification of Keycloak access tokens. The [crypto] extra pulls in the
 # cryptography backend PyJWT uses for RS256.
-PyJWT[crypto]==2.10.1
+PyJWT[crypto]>=2.13.0   # Dependabot 2026-09-14: six advisories below 2.13.0 (JWK-as-HMAC, crit headers, DoS)
 psutil==5.9.8
 pycparser==2.21
 PyYAML==6.0.2
