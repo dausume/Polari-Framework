@@ -310,11 +310,16 @@ def _install_module_deps(module):
         from moduleService.module_loading import module_code_dir
         plan = plan_install([module]) if plan_install.__code__ \
             .co_argcount == 1 else plan_install(module_code_dir(module))
-        report = install_packages(plan) if plan else {'installed': []}
-        return {'ok': True, 'plan': plan, 'report': report,
-                'note': 'installed into the RUNNING container only '
-                        '— persist accepted packages in '
-                        'requirements.txt'}
+        # an OFFLINE app deb stages its pip libraries under <module>/wheels/: install from there, never the
+        # internet, skipping what is already present (his rule 2026-09-13)
+        import os as _os
+        wheels = _os.path.join(module_code_dir(module) or '', 'wheels')
+        offline = _os.path.isdir(wheels) and any(f.endswith('.whl') for f in _os.listdir(wheels))
+        report = (install_packages(plan, find_links=wheels) if offline else install_packages(plan)) if plan else {'installed': [], 'offline': offline}
+        return {'ok': True, 'plan': plan, 'report': report, 'offline': offline,
+                'wheels': wheels if offline else '',
+                'note': ('installed from the staged wheels (offline, presence-checked)' if offline else
+                         'installed into the RUNNING container only — persist accepted packages in requirements.txt')}
     except Exception as exc:
         return {'ok': False,
                 'reason': f'{type(exc).__name__}: {exc}',

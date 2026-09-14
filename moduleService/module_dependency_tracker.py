@@ -371,21 +371,30 @@ def plan_install(manager=None) -> Dict[str, Any]:
 
 
 def install_packages(packages: List[str],
-                     timeout: int = 600) -> Dict[str, Any]:
+                     timeout: int = 600, find_links: str = None) -> Dict[str, Any]:
     """Execute ONE pip install for the confirmed package set. Honest
-    report; never raises."""
+    report; never raises. `find_links` = a directory of wheels (an OFFLINE app
+    deb's wheels/): then pip runs with --no-index and never reaches the internet,
+    and what is already present is skipped (pip's own 'Requirement already
+    satisfied') — his rule 2026-09-13: carry the dependencies, install only what
+    the target lacks."""
     if not packages:
         return {'ok': True, 'installed': [],
                 'note': 'nothing to install'}
-    cmd = [sys.executable, '-m', 'pip', 'install'] + list(packages)
+    cmd = [sys.executable, '-m', 'pip', 'install'] + (
+        ['--no-index', '--find-links', find_links] if find_links else []) + list(packages)
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True,
                               timeout=timeout)
     except Exception as e:
         return {'ok': False, 'error': str(e), 'command': cmd}
+    present = [ln.split('Requirement already satisfied: ', 1)[1].split(' ')[0]
+               for ln in (proc.stdout or '').splitlines() if 'Requirement already satisfied: ' in ln]
     report = {
         'ok': proc.returncode == 0,
         'command': cmd,
+        'offline': bool(find_links),
+        'skippedPresent': present,
         'stdoutTail': (proc.stdout or '')[-2000:],
         'stderrTail': (proc.stderr or '')[-2000:],
         'resolved': {p: _installed_version(p) for p in packages},

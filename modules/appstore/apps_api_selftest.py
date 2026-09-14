@@ -44,7 +44,17 @@ def main():
     check('status: not generated yet before any request', on['state'] == 'not-generated')
     r = S(); api.on_get_download(R(flavor='online'), r, mod); check('download before request → 409 with the request URL', r.status.startswith('409') and 'request' in r.media['refusal'])
     d = flavor_differences({'libraries': [{'bytes': 1}], 'librariesBytes': 5 << 20, 'librariesUnmeasured': 0, 'engines': [{'name': 'ngspice', 'kind': 'system'}]}, 'offline')
-    check('offline differences name the system engines as NOT inside', d['not_inside'] == ['ngspice'] and d['needs_internet_at_setup'] is True)
+    check('offline differences: ngspice is already inside the runtime image, so no internet is needed at setup', d['not_inside'] == ['ngspice'] and d['engines']['in_runtime_image'] == ['ngspice'] and d['needs_internet_at_setup'] is False)
+    d2 = flavor_differences({'libraries': [], 'librariesBytes': 0, 'librariesUnmeasured': 0, 'engines': [{'name': 'verilator', 'kind': 'system'}, {'name': 'docker', 'kind': 'system'}]}, 'offline')
+    check('offline differences: host-level engines named, unavailable ones named as a gap', d2['engines']['host_level'] == ['docker'] and d2['engines']['not_available_anywhere_yet'] == ['verilator'] and d2['needs_internet_at_setup'] is True)
+    # the presence-checked offline install: pip with --no-index against a wheel dir; an already-present package is skipped, never fetched
+    from moduleService.module_dependency_tracker import install_packages
+    import subprocess, sys as _sys
+    wheel_dir = tempfile.mkdtemp(prefix='wheels-')
+    rep = install_packages(['pip'], find_links=wheel_dir)
+    check('offline install: --no-index + find-links, an already-present package is skipped (no internet)', rep.get('offline') is True and 'pip' in rep.get('skippedPresent', []) and rep.get('ok') is True, str({k: rep.get(k) for k in ('ok', 'skippedPresent', 'error')}))
+    rep2 = install_packages(['this-package-does-not-exist-polari'], find_links=wheel_dir)
+    check('offline install: a package not carried and not present is an honest failure, not a download', rep2.get('ok') is False and '--no-index' in rep2['command'])
     r = S(); api.on_post_request(R(flavor='online'), r, mod)
     check('request → 202 accepted with the URLs', r.status.startswith('202') and r.media.get('accepted') and r.media['download_url'].endswith('flavor=online'))
     for _ in range(120):

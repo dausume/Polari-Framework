@@ -14,9 +14,10 @@ The app-deb API (his ask 2026-09-13): an AI or a script asks for apps directly, 
                                                generates, 404/409 with a sentence otherwise
   GET  /api/downloads                          the pre-prepped platform installers with their URLs
 Online vs offline is a first-class difference everywhere: ONLINE = the small deb, libraries fetched from the
-internet at setup (listed with measured sizes); OFFLINE = the wheels ride inside (bigger, slower to generate),
-system engines named as NOT inside (they come from the distro / the offline media — carrying them is the
-next piece). Every JSON reply says which. The HTML page (/downloads/apps) is a client of the same builder.
+internet at setup (listed with measured sizes); OFFLINE = the wheels ride inside (bigger, slower to generate)
+and are installed at admission with --no-index, skipping what is already present; system engines are named by
+where they really live (inside the Polari runtime image, host-level with the platform installer / offline
+media, or a named gap). Every JSON reply says which. The HTML page (/downloads/apps) is a client of the same builder.
 """
 import hashlib
 import os
@@ -91,6 +92,12 @@ def space(needed_bytes):
             'note': '' if free > needed else f'not enough space to generate: {free // (1 << 20)} MB free, about {needed // (1 << 20)} MB needed'}
 
 
+# where a SYSTEM engine really lives: Polari runs in its backend image, which bakes these in (Dockerfile apk);
+# host-level ones come with the platform installer / the offline media; anything else is a named gap
+ENGINES_IN_RUNTIME_IMAGE = ('ngspice', 'ffmpeg')
+ENGINES_HOST_LEVEL = ('docker', 'libvirt', 'wireguard-tools', 'qemu')
+
+
 def flavor_differences(reqs, flavor):
     libs = reqs.get('libraries') or []
     engines = reqs.get('engines') or []
@@ -98,13 +105,20 @@ def flavor_differences(reqs, flavor):
     unmeasured = reqs.get('librariesUnmeasured') or 0
     sys_engines = [e.get('name') for e in engines if e.get('kind') == 'system']
     py_engines = [e.get('name') for e in engines if e.get('kind') == 'python']
+    in_image = [e for e in sys_engines if e in ENGINES_IN_RUNTIME_IMAGE]
+    host_level = [e for e in sys_engines if e in ENGINES_HOST_LEVEL]
+    gap = [e for e in sys_engines if e not in ENGINES_IN_RUNTIME_IMAGE and e not in ENGINES_HOST_LEVEL]
+    engines_note = {'in_runtime_image': in_image, 'host_level': host_level, 'not_available_anywhere_yet': gap}
     if flavor == 'online':
         return {'carries': 'the app only', 'fetched_at_setup': f"{len(libs)} pip libraries (~{lib_mb} MB measured{', ' + str(unmeasured) + ' unmeasured' if unmeasured else ''})" + (f" + python engines {py_engines}" if py_engines else ''),
-                'not_inside': sys_engines, 'needs_internet_at_setup': True,
+                'not_inside': sys_engines, 'engines': engines_note, 'needs_internet_at_setup': True,
                 'reading': 'small download; the machine needs the internet when the app is set up'}
     return {'carries': f"the app + {len(libs)} pip libraries as wheels (~{lib_mb} MB)" + (f" + python engines {py_engines}" if py_engines else ''),
-            'fetched_at_setup': 'nothing from pip', 'not_inside': sys_engines, 'needs_internet_at_setup': bool(sys_engines),
-            'reading': ('no internet needed at setup' if not sys_engines else f"system engines {sys_engines} are NOT inside yet: they come from the distro or the offline media (carrying them is the next piece)")}
+            'fetched_at_setup': 'nothing from pip — installed from the carried wheels, skipping what is already present',
+            'not_inside': sys_engines, 'engines': engines_note, 'needs_internet_at_setup': bool(host_level or gap),
+            'reading': ('no internet needed at setup' + (f"; system engines {in_image} are already inside the Polari runtime image" if in_image else '')
+                        + (f"; host-level engines {host_level} come with the platform installer / the offline media" if host_level else '')
+                        + (f"; engines {gap} are NOT available anywhere yet (a gap, named)" if gap else ''))}
 
 
 def status_of(module, flavor, registry=None):
