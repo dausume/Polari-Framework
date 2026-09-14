@@ -44,6 +44,7 @@
    "appstore_hosting_basis"
   ],
   "api": [
+   "apps_api",
    "appstore_ai_api",
    "appstore_api",
    "preview_server_api"
@@ -60,6 +61,7 @@
   ],
   "selftests": [
    "app_debs_selftest",
+   "apps_api_selftest",
    "appstore_selftest",
    "downloads_selftest",
    "module_requirements_selftest",
@@ -85,6 +87,7 @@
   "AppEdgeBehavior",
   "AppShellDefinition",
   "AppStoreAPI",
+  "AppsAPI",
   "DownloadsPage",
   "ForkPin",
   "OfflinePage",
@@ -149,6 +152,7 @@
  "initialData": false,
  "selftests": [
   "app_debs_selftest",
+  "apps_api_selftest",
   "appstore_selftest",
   "downloads_selftest",
   "module_requirements_selftest",

@@ -314,6 +314,9 @@ def construct_appstore_endpoints(polServer):
     from appstore.planner_page import PlannerPage
     plannerEndpoint = PlannerPage(
         polServer=polServer, manager=manager)
+    # the app-deb API (2026-09-13): status / request / download per module and flavour, the catalogue, /api/downloads
+    from appstore.apps_api import AppsAPI
+    appsApiEndpoint = AppsAPI(polServer=polServer, manager=manager)
 
 
 def construct_computerparts_endpoints(polServer):
