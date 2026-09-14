@@ -360,8 +360,14 @@ def _usb_stick_section():
             '<pre>pol apps usb write /media/$USER/&lt;stick&gt; --apps all        # or --apps gears,terms; --platform yes\n'
             'pol apps usb list                                        # Polari finds a prepared stick\n'
             'pol apps usb install                                     # or open the Isle App Store: "From a USB stick"</pre>'
+            '<p><strong>Plug it in and it asks.</strong> The stick offers <em>Install</em>, <em>Not now</em> or <em>Wipe the '
+            'stick</em>; after an install is confirmed finished (every package present) it can wipe itself back to an empty '
+            'drive, keep itself, or ask — your choice when writing it (<code>--after-install ask|wipe|keep</code>). On a computer '
+            'that already has Polari, Polari watches for the stick. On one that does not, the desktop itself offers to run it '
+            'when the stick is ext4 (<code>pol apps usb prepare /dev/sdX --fs ext4</code>); a FAT stick cannot start anything by '
+            'itself, so open it and run <code>polari-apps/on-insert.sh</code>.</p>'
             '<p class="note">Writing a stick never formats it; the files go under <code>polari-apps/</code> next to '
-            'whatever is on the drive.</p></section>')
+            'whatever is on the drive. A wipe only ever touches a removable drive, names it first, and needs a second yes.</p></section>')
 
 
 def _apps_and_media(flavor, title):
