@@ -82,8 +82,11 @@ def expected_bytes(module, entry, flavor, reqs=None):
 
 
 def space(needed_bytes):
+    probe = builder.pool_dir()
+    while probe and not os.path.isdir(probe):   # the pool may not exist yet: measure the nearest existing ancestor
+        probe = os.path.dirname(probe.rstrip('/'))
     try:
-        usage = shutil.disk_usage(builder.pool_dir() if os.path.isdir(builder.pool_dir()) else builder.work_dir())
+        usage = shutil.disk_usage(probe or '/')
         free = usage.free
     except Exception:
         return {'free_bytes': None, 'needed_bytes': needed_bytes, 'ok': True, 'note': 'disk usage unreadable'}
