@@ -98,6 +98,40 @@ def notices_from(probes=None, audit_controls=None, identities=None, hosts=None):
     return out
 
 
+DEV_MODE_TEXT = ('Connecting to systems that are not your own is EXTREMELY DANGEROUS in dev mode: the relaxed security '
+                 '(root over ssh, profiles in complain, open debug ports) travels with every connection you make. Keep a '
+                 'dev-mode Polari on your own isle, and never point it at a system you do not own.')
+
+
+def posture_notices(manager=None, env=None):
+    """His rulings 2026-09-14: a DEV-MODE install of Polari differs from a PRODUCTION one, and dev mode carries a
+    standing warning. Two sources: this instance's own install mode (POLARI_POSTURE=dev), and the devices that posted
+    an inventory (assurance dev = warn with the expiry; unsecured = error with the reasons)."""
+    env = os.environ if env is None else env
+    out = []
+    if (env.get('POLARI_POSTURE') or '').lower() == 'dev':
+        out.append({'level': 'warning', 'code': 'dev-mode', 'host': '', 'days_left': None, 'until': env.get('POLARI_POSTURE_UNTIL', ''),
+                    'title': 'DEV MODE — this Polari is a development install' + (f" (until {env['POLARI_POSTURE_UNTIL']})" if env.get('POLARI_POSTURE_UNTIL') else ''),
+                    'text': DEV_MODE_TEXT, 'action': 'For a production install: pol deploy harden --posture production (or reinstall in production mode)'})
+    tables = getattr(manager, 'objectTables', None) or {}
+    dev = []; unsecured = []
+    for r in (tables.get('SshCapability') or {}).values():
+        a = getattr(r, 'assurance', '')
+        if a == 'dev':
+            dev.append(f"{getattr(r, 'device', '')}" + (f" (until {getattr(r, 'posture_until', '')})" if getattr(r, 'posture_until', '') else ''))
+        elif a == 'unsecured':
+            unsecured.append(f"{getattr(r, 'device', '')}: {getattr(r, 'assurance_reasons', '')}")
+    if dev:
+        out.append({'level': 'warning', 'code': 'dev-posture-devices', 'host': ', '.join(dev), 'days_left': None,
+                    'title': f"Dev posture declared on {len(dev)} device(s): {', '.join(dev)}", 'text': DEV_MODE_TEXT,
+                    'action': 'pol deploy harden <node> --posture production when the testing is done; the posture also reverts at its expiry'})
+    if unsecured:
+        out.append({'level': 'error', 'code': 'ssh-unsecured', 'host': ', '.join(u.split(':')[0] for u in unsecured), 'days_left': None,
+                    'title': f"{len(unsecured)} device(s) are UNSECURED over ssh — neither secure nor a declared dev posture",
+                    'text': ' | '.join(unsecured)[:600], 'action': 'Fix (keys only, PermitRootLogin no, AllowGroups, scoped sudo) or declare dev posture: pol deploy harden <node> --posture dev --for 8h'})
+    return out
+
+
 def notices(manager=None, do_probe=True):
     hosts = public_hosts()
     probes = [probe_host(h) for h in hosts] if do_probe else []
@@ -115,7 +149,7 @@ def notices(manager=None, do_probe=True):
         identities = service_identity_rows()
     except Exception:
         pass
-    items = notices_from(probes, controls, identities, hosts)
+    items = posture_notices(manager) + notices_from(probes, controls, identities, hosts)
     worst = 'error' if any(n['level'] == 'error' for n in items) else ('warning' if any(n['level'] == 'warning' for n in items) else ('info' if items else 'ok'))
     return {'ok': True, 'checked_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'hosts': hosts, 'probes': [p for p in probes if p],
             'level': worst, 'notices': items, 'auto_renew': 'pol cert auto-renew install|status|remove — a weekly cron running ca/renew.sh (Let\'s Encrypt and internal certs)'}

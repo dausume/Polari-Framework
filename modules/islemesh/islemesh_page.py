@@ -139,5 +139,15 @@ SEED_ISLEMESH_PAGE_DISPLAYS += [
                       'Per device: listens, passwords or keys, root login, keys by type, brute-force guard, the vector',
                       '/api/security/ssh', pick='devices_detail'),
             ], min_height=240),
+            # his ask 2026-09-14: ssh AND the permission levels behind it, so each device is assured SECURE or declared
+            # DEV (with its expiry) — anything else is UNSECURED and says why
+            _row(5, [
+                _sapi('topology-isle-ssh-assurance', 0, 4,
+                      'Assurance per device: secure / dev (declared, until) / unsecured — with the reasons',
+                      '/api/security/ssh', pick='assurance'),
+                _sapi('topology-isle-ssh-levels', 1, 8,
+                      'Permission levels over ssh: each person or group, allowed in or not, and its level (root / blanket sudo / scoped sudo / shell)',
+                      '/api/security/ssh', pick='levels_detail'),
+            ], min_height=240),
         ]),
 ]

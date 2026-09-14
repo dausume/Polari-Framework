@@ -134,8 +134,11 @@ class SecurityAPI(treeObject):
 
     def on_get_ssh(self, request, response):
         rows = ssh_rows(self.manager) if self.manager is not None else []
-        response.media = {'ok': True, **ssh_summary(rows), 'devices_detail': rows,
-                          'how': 'pol deploy inventory <node> --post <core url> refreshes a device; the audit\'s ssh ring scores it'}
+        from security.custom.security_ssh import level_rows, assurance_summary
+        response.media = {'ok': True, **ssh_summary(rows), 'devices_detail': rows, 'assurance': assurance_summary(rows),
+                          'levels_detail': level_rows(self.manager) if self.manager is not None else [],
+                          'how': 'pol deploy inventory <node> --post <core url> refreshes a device; the audit\'s ssh ring scores it; '
+                                 'assurance = secure | dev (declared, until) | unsecured — a device is assured only as one of the first two'}
 
     def on_get_inventory(self, request, response):
         tables = getattr(self.manager, 'objectTables', None) or {}
@@ -152,10 +155,15 @@ class SecurityAPI(treeObject):
         device = body.get('device') or request.params.get('device') or ''
         if not device or 'ssh' not in inv:
             return self._bad(response, 'body: {device: <role name>, inventory: <os-security/inventory.sh JSON>}')
-        from security.security_basis import DeviceInventory, SshCapability
+        from security.security_basis import DeviceInventory, SshCapability, SshPermissionLevel
+        from security.custom.security_ssh import permission_levels
         r1 = inventory_row(device, inv); r2 = ssh_row_from_inventory(device, inv)
         o1 = self._upsert('DeviceInventory', DeviceInventory, r1); o2 = self._upsert('SshCapability', SshCapability, r2)
-        response.media = {'ok': True, 'stored': bool(o1 and o2), 'device': device, 'role': r1['role'], 'formats': r1['formats'], 'ssh': {'verdict': r2['verdict'], 'vector': r2['vector']}}
+        lv = permission_levels(device, inv)
+        stored_levels = sum(1 for row in lv if self._upsert('SshPermissionLevel', SshPermissionLevel, row))
+        response.media = {'ok': True, 'stored': bool(o1 and o2), 'device': device, 'role': r1['role'], 'formats': r1['formats'],
+                          'ssh': {'verdict': r2['verdict'], 'vector': r2['vector'], 'assurance': r2['assurance'], 'reasons': r2['assurance_reasons'],
+                                  'posture': r2['posture'], 'posture_until': r2['posture_until'], 'levels': r2['levels'], 'level_rows': stored_levels}}
 
     def on_get_notices(self, request, response):
         response.media = notices(self.manager, do_probe=not request.get_param_as_bool('no_probe'))

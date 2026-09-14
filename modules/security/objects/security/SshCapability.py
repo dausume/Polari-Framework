@@ -19,7 +19,8 @@ class SshCapability(treeObject):
                  password_auth: str = 'unknown', pubkey_auth: str = 'unknown', permit_root: str = 'unknown', kbd_interactive: str = 'unknown',
                  authorized_keys: int = 0, key_types: str = '', key_users: str = '', weak_keys: int = 0, private_keys: str = '',
                  reaches: str = '', brute_force_guard: str = 'none', failed_logins_24h: int = 0, ufw: str = '', verdict: str = 'unknown',
-                 vector: str = '', observed_at: str = ''):
+                 vector: str = '', allow_groups: str = '', posture: str = 'none', posture_until: str = '', assurance: str = 'unknown',
+                 assurance_reasons: str = '', levels: str = '', observed_at: str = ''):
         self.name = name
         self.device = device
         self.role = role
@@ -40,4 +41,10 @@ class SshCapability(treeObject):
         self.ufw = ufw
         self.verdict = verdict
         self.vector = vector
+        self.allow_groups = allow_groups
+        self.posture = posture
+        self.posture_until = posture_until
+        self.assurance = assurance
+        self.assurance_reasons = assurance_reasons
+        self.levels = levels
         self.observed_at = observed_at

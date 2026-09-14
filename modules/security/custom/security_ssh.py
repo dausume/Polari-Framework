@@ -8,7 +8,133 @@ ring — never typed. The isle topology page shows the SshCapability rows so the
 picture: which devices accept ssh, how (keys only or passwords), root or not, and who can reach whom.
 """
 import json
+import re
 import time
+
+_SUDO_RE = re.compile(r'^(%?)([\w.@+-]+)\s+\S+\s*=\s*(\([^)]*\))?\s*(.*)$')
+LEVEL_ORDER = {'root': 4, 'blanket-sudo': 3, 'scoped-sudo': 2, 'shell': 1, 'none': 0}
+
+
+def sudo_grants(lines):
+    """sudoers lines → {principal: {'kind': user|group, 'commands': str, 'blanket': bool}} (tags stripped, never a secret)."""
+    grants = {}
+    for line in lines or []:
+        m = _SUDO_RE.match(line.strip())
+        if not m:
+            continue
+        pct, who, _runas, cmds = m.groups()
+        cmds = re.sub(r'\b(NOPASSWD|PASSWD|NOEXEC|SETENV|LOG_INPUT|LOG_OUTPUT):\s*', '', cmds or '').strip()
+        g = grants.setdefault(who, {'kind': 'group' if pct else 'user', 'commands': '', 'blanket': False})
+        g['commands'] = (g['commands'] + '; ' + cmds).strip('; ') if g['commands'] else cmds
+        g['blanket'] = g['blanket'] or cmds == 'ALL'
+    return grants
+
+
+def posture_state(inv, now=None):
+    """(posture, until, relaxations, expired) from /etc/polari/posture.json as the device reported it."""
+    p = (inv.get('ssh') or {}).get('posture') or inv.get('posture') or {}
+    if not isinstance(p, dict) or p.get('posture') != 'dev':
+        return 'secure', '', [], False
+    until = p.get('until') or ''
+    expired = False
+    if until:
+        try:
+            expired = time.strptime(until[:19], '%Y-%m-%dT%H:%M:%S') < time.gmtime(now)
+        except ValueError:
+            expired = False
+    return 'dev', until, list(p.get('relaxations') or []), expired
+
+
+def permission_levels(device, inv, observed_at=''):
+    """One row per principal: may it log in over ssh, and at what level once in."""
+    s = inv.get('ssh') or {}
+    allow = (s.get('allow_groups') or '').split()
+    groups = {}
+    for line in s.get('groups') or []:
+        name, _, members = line.partition('|')
+        groups[name] = [m for m in members.split(',') if m]
+    grants = sudo_grants(s.get('sudoers') or [])
+    keyed = {}
+    for k in s.get('authorized_keys') or []:
+        keyed[k.get('user', '')] = keyed.get(k.get('user', ''), 0) + 1
+    posture, until, _rlx, expired = posture_state(inv)
+    active_dev = posture == 'dev' and not expired
+    ts = observed_at or time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    rows = {}
+
+    def user_level(u):
+        if u == 'root':
+            return 'root', 'root account'
+        g = grants.get(u)
+        if g and g['blanket']:
+            return 'blanket-sudo', 'sudoers: ALL'
+        if g:
+            return 'scoped-sudo', 'sudoers: ' + g['commands'][:80]
+        for gname, members in groups.items():
+            gg = grants.get(gname)
+            if u in members and gg:
+                return ('blanket-sudo' if gg['blanket'] else 'scoped-sudo'), f'member of {gname}'
+        return 'shell', 'a shell, no sudo'
+
+    def allowed(u):
+        if u == 'root':
+            return s.get('permit_root', 'unknown') not in ('no', 'unknown', '')
+        if allow:
+            return any(u in groups.get(g, []) for g in allow)
+        return u in keyed
+    for u in sorted(set(keyed) | {m for g in groups.values() for m in g} | {w for w, g in grants.items() if g['kind'] == 'user'}):
+        if not u:
+            continue
+        lvl, via = user_level(u)
+        rows[f'{device}:{u}'] = {'name': f'{device}:{u}', 'device': device, 'principal': u, 'kind': 'user', 'allowed_over_ssh': bool(allowed(u)),
+                                 'level': lvl, 'via': via + (f'; {keyed[u]} key(s)' if u in keyed else '; no authorized key'),
+                                 'commands': (grants.get(u) or {}).get('commands', ''), 'members': '',
+                                 'posture': 'dev' if active_dev and lvl in ('root', 'blanket-sudo') else 'secure', 'expires': until if active_dev else '', 'observed_at': ts}
+    for gname, members in sorted(groups.items()):
+        g = grants.get(gname)
+        lvl = 'blanket-sudo' if (g and g['blanket']) else ('scoped-sudo' if g else 'shell')
+        rows[f'{device}:%{gname}'] = {'name': f'{device}:%{gname}', 'device': device, 'principal': '%' + gname, 'kind': 'group',
+                                      'allowed_over_ssh': (gname in allow) if allow else bool(members), 'level': lvl,
+                                      'via': ('AllowGroups' if gname in allow else 'not in AllowGroups' if allow else 'no AllowGroups (any keyed member)'),
+                                      'commands': (g or {}).get('commands', ''), 'members': ', '.join(members),
+                                      'posture': 'dev' if active_dev and lvl == 'blanket-sudo' else 'secure', 'expires': until if active_dev else '', 'observed_at': ts}
+    return list(rows.values())
+
+
+def ssh_assurance(inv, levels=None):
+    """secure | dev (until) | unsecured | closed | unknown, with the reasons. Secure = keys only, no root, AllowGroups
+    names who may log in, nobody beyond root/admin/sudo holds a blanket ALL. Dev = a declared, unexpired dev posture
+    covering exactly what breaks 'secure' — and even dev never accepts passwords (the invariant). Anything else is
+    unsecured, and says why."""
+    s = inv.get('ssh') or {}
+    if not s.get('listen'):
+        return 'closed', 'no sshd listens', 'secure', ''
+    pa = s.get('password_auth') or 'unknown'; pr = s.get('permit_root') or 'unknown'; ki = s.get('kbd_interactive') or 'unknown'
+    if pa == 'unknown':
+        return 'unknown', 'auth methods unreadable without root', 'secure', ''
+    posture, until, relaxations, expired = posture_state(inv)
+    invariant_breaks = []
+    if pa == 'yes' or ki == 'yes':
+        invariant_breaks.append('passwords accepted (no posture allows that)')
+    if pr == 'yes':
+        invariant_breaks.append('root with a password (no posture allows that)')
+    breaks = []
+    if pr not in ('no', 'yes'):
+        breaks.append(f'root may log in with a key ({pr})')
+    if not (s.get('allow_groups') or '').strip():
+        breaks.append('no AllowGroups: any account with a key may log in')
+    blanket = [w for w, g in sudo_grants(s.get('sudoers') or []).items() if g['blanket'] and w not in ('root', 'admin', 'sudo')]
+    if blanket:
+        breaks.append('blanket sudo for ' + ', '.join(blanket))
+    if invariant_breaks:
+        return 'unsecured', '; '.join(invariant_breaks + breaks), posture, until
+    if not breaks:
+        return 'secure', 'keys only, no root, AllowGroups set, sudo scoped', posture, until
+    if posture == 'dev' and not expired:
+        return 'dev', f"dev posture until {until or 'unset'}: " + '; '.join(breaks), posture, until
+    if posture == 'dev' and expired:
+        return 'unsecured', f'dev posture EXPIRED at {until}: ' + '; '.join(breaks), posture, until
+    return 'unsecured', '; '.join(breaks) + ' — declare a dev posture or fix', posture, until
 
 
 def _role_of(inv):
@@ -51,7 +177,11 @@ def ssh_row_from_inventory(device, inv, observed_at=''):
         if pa == 'unknown':
             vectors.append('auth methods unreadable without root')
         verdict = 'exposed' if (pa == 'yes' or ki == 'yes' or pr not in ('no', 'unknown')) else ('keys-only' if pa == 'no' else 'unknown')
+    assurance, reasons, posture, until = ssh_assurance(inv)
+    lv = permission_levels(device, inv, observed_at)
+    levels = ', '.join(f"{r['principal']}={r['level']}" for r in lv if r['allowed_over_ssh'])
     return {'name': device, 'device': device, 'role': _role_of(inv), 'listens': listens, 'listen_addresses': ', '.join(s.get('listen') or []),
+            'allow_groups': s.get('allow_groups') or '', 'posture': posture, 'posture_until': until, 'assurance': assurance, 'assurance_reasons': reasons, 'levels': levels,
             'password_auth': pa, 'pubkey_auth': s.get('pubkey_auth') or 'unknown', 'permit_root': pr, 'kbd_interactive': ki,
             'authorized_keys': len(keys), 'key_types': ', '.join(t for t in types if t), 'key_users': ', '.join(u for u in users if u), 'weak_keys': weak,
             'private_keys': ', '.join(s.get('private_keys_present') or []), 'reaches': reaches, 'brute_force_guard': s.get('fail2ban') or 'none',
@@ -95,8 +225,25 @@ def inventory_row(device, inv, observed_at=''):
 
 def ssh_rows(manager):
     tables = getattr(manager, 'objectTables', None) or {}
-    return [{k: getattr(r, k, '') for k in ('device', 'role', 'listens', 'listen_addresses', 'password_auth', 'permit_root', 'authorized_keys', 'key_types', 'key_users', 'reaches', 'brute_force_guard', 'failed_logins_24h', 'verdict', 'vector', 'observed_at')}
+    return [{k: getattr(r, k, '') for k in ('device', 'role', 'listens', 'listen_addresses', 'password_auth', 'permit_root', 'authorized_keys', 'key_types', 'key_users', 'reaches', 'brute_force_guard', 'failed_logins_24h', 'verdict', 'vector', 'assurance', 'assurance_reasons', 'posture', 'posture_until', 'allow_groups', 'levels', 'observed_at')}
             for r in (tables.get('SshCapability') or {}).values()]
+
+
+def level_rows(manager):
+    tables = getattr(manager, 'objectTables', None) or {}
+    return [{k: getattr(r, k, '') for k in ('device', 'principal', 'kind', 'allowed_over_ssh', 'level', 'via', 'commands', 'members', 'posture', 'expires', 'observed_at')}
+            for r in (tables.get('SshPermissionLevel') or {}).values()]
+
+
+def assurance_summary(rows):
+    by = {}
+    for r in rows:
+        by.setdefault(r.get('assurance') or 'unknown', []).append(r['device'] + (f" (until {r['posture_until']})" if r.get('assurance') == 'dev' and r.get('posture_until') else ''))
+    n = len(rows)
+    return {'secure': by.get('secure', []) + by.get('closed', []), 'dev': by.get('dev', []), 'unsecured': by.get('unsecured', []), 'unknown': by.get('unknown', []),
+            'assured': not by.get('unsecured') and not by.get('unknown') and n > 0,
+            'reading': (f"{n} device(s): {len(by.get('secure', []) + by.get('closed', []))} secure, {len(by.get('dev', []))} in a declared dev posture, "
+                        f"{len(by.get('unsecured', []))} UNSECURED, {len(by.get('unknown', []))} unknown" if n else 'no device has posted an inventory yet')}
 
 
 def ssh_summary(rows):

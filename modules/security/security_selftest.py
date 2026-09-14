@@ -20,7 +20,7 @@ def main():
     from security.security_page import SEED_SECURITY_PAGE_DISPLAYS
     from security.custom.security_topology import MODES, VIEWS, build, compare, simulate
     from security.custom.security_facts import SYSTEMS, scenario_names
-    check('twenty-five row classes', len(SECURITY_CLASSES) == 25, str(len(SECURITY_CLASSES)))
+    check('twenty-six row classes', len(SECURITY_CLASSES) == 26, str(len(SECURITY_CLASSES)))
     check('row class constructs', SecurityTopologyEdge(name='x').name == 'x')
     n = 0
     for scn in scenario_names():
@@ -50,7 +50,7 @@ def main():
     row = [x for x in compare('os')['rows'] if x['means'].startswith('write into') and x['source'] == 'the Polari backend'][0]
     check('compare lines the backend up across routes', all(row[s] != '—' for s in ('isle', 'swarm-lean', 'swarm-full')), str(row))
     check('every system has a provenance', all(s['provenance'] in ('stock', 'qemu', 'polari') for s in SYSTEMS.values()))
-    check('seed pairs: 25, all rows named', len(SECURITY_SEED_PAIRS) == 25 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
+    check('seed pairs: 26, all rows named', len(SECURITY_SEED_PAIRS) == 26 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
     check('edge rows unique by name', len({r['name'] for r in SEED_SECURITY_EDGES}) == len(SEED_SECURITY_EDGES), str(len(SEED_SECURITY_EDGES)))
     check('seven pages, none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 7 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
     from security.custom.security_threats import threats, threat_rows
@@ -105,6 +105,38 @@ def main():
     inv2 = dict(inv, ssh=dict(inv['ssh'], listen=[])); check('ssh: no sshd → closed', ssh_row_from_inventory('pol-core', inv2)['verdict'] == 'closed')
     inv3 = dict(inv, ssh=dict(inv['ssh'], password_auth='no', permit_root='no')); check('ssh: keys only + no root → keys-only', ssh_row_from_inventory('x', inv3)['verdict'] == 'keys-only')
     check('ssh summary reads', ssh_summary([r, ssh_row_from_inventory('pol-core', inv2)])['exposed'] == ['isle-core'])
+    # his ask 2026-09-14: permission levels + assurance (secure | dev until | unsecured)
+    from security.custom.security_ssh import permission_levels, ssh_assurance, assurance_summary
+    inv_u = dict(inv, ssh=dict(inv['ssh'], password_auth='no', permit_root='without-password', allow_groups='', groups=['sudo|u', 'polari-ops|dev1'],
+                               sudoers=['root ALL=(ALL:ALL) ALL', '%sudo ALL=(ALL:ALL) ALL', 'u ALL=(ALL) NOPASSWD: ALL', '%polari-ops ALL=(root) /usr/bin/pol, /usr/bin/systemctl']))
+    a = ssh_assurance(inv_u)
+    check('assurance: root with key + no AllowGroups + blanket sudo, no posture → UNSECURED with the three reasons', a[0] == 'unsecured' and 'root may log in' in a[1] and 'AllowGroups' in a[1] and 'blanket sudo for u' in a[1], a)
+    lv = {r['principal']: r for r in permission_levels('n', inv_u)}
+    check('levels: u = blanket-sudo (sudoers ALL), %polari-ops = scoped-sudo with its command list, dev1 scoped via the group, root allowed in',
+          lv['u']['level'] == 'blanket-sudo' and lv['%polari-ops']['level'] == 'scoped-sudo' and '/usr/bin/pol' in lv['%polari-ops']['commands'] and lv['dev1']['level'] == 'scoped-sudo' and lv['root']['allowed_over_ssh'] is True, {k: (v['level'], v['allowed_over_ssh']) for k, v in lv.items()})
+    inv_d = dict(inv_u, ssh=dict(inv_u['ssh'], posture={'posture': 'dev', 'until': '2999-01-01T00:00:00Z', 'relaxations': ['ssh.root-key-from-isle']}))
+    a2 = ssh_assurance(inv_d)
+    check('assurance: the same device under a declared, unexpired dev posture → DEV with the expiry', a2[0] == 'dev' and '2999' in a2[1], a2)
+    inv_x = dict(inv_u, ssh=dict(inv_u['ssh'], posture={'posture': 'dev', 'until': '2020-01-01T00:00:00Z'}))
+    check('assurance: an EXPIRED dev posture → UNSECURED', ssh_assurance(inv_x)[0] == 'unsecured' and 'EXPIRED' in ssh_assurance(inv_x)[1])
+    inv_p = dict(inv_d, ssh=dict(inv_d['ssh'], password_auth='yes'))
+    check('invariant: passwords accepted is UNSECURED even in dev posture', ssh_assurance(inv_p)[0] == 'unsecured')
+    inv_s = dict(inv_u, ssh=dict(inv_u['ssh'], permit_root='no', allow_groups='polari-ops', sudoers=['root ALL=(ALL:ALL) ALL', '%sudo ALL=(ALL:ALL) ALL', '%polari-ops ALL=(root) /usr/bin/pol']))
+    check('assurance: keys only + no root + AllowGroups + scoped sudo → SECURE; a keyed user outside AllowGroups is not allowed in', ssh_assurance(inv_s)[0] == 'secure' and {r['principal']: r['allowed_over_ssh'] for r in permission_levels('n', inv_s)}['u'] is False)
+    rows = [ssh_row_from_inventory('a', inv_s), ssh_row_from_inventory('b', inv_d), ssh_row_from_inventory('c', inv_u)]
+    summ = assurance_summary(rows)
+    check('assurance summary: 1 secure, 1 dev (until), 1 unsecured → not assured', summ['secure'] == ['a'] and summ['dev'] and summ['dev'][0].startswith('b (until') and summ['unsecured'] == ['c'] and summ['assured'] is False, summ)
+    check('assurance summary: secure + dev only → assured', assurance_summary(rows[:2])['assured'] is True)
+    from security.custom.security_notices import posture_notices
+    class _M:
+        pass
+    class _R:
+        def __init__(self, **kw): self.__dict__.update(kw)
+    m = _M(); m.objectTables = {'SshCapability': {'b': _R(device='b', assurance='dev', posture_until='2999-01-01T00:00:00Z', assurance_reasons=''), 'c': _R(device='c', assurance='unsecured', posture_until='', assurance_reasons='passwords accepted')}}
+    pn = posture_notices(m, env={'POLARI_POSTURE': 'dev'})
+    check('dev-mode notices: the install-level DEV MODE warning names the danger of connecting to systems that are not your own; dev devices warn; unsecured devices error',
+          [n['code'] for n in pn] == ['dev-mode', 'dev-posture-devices', 'ssh-unsecured'] and 'not your own' in pn[0]['text'] and 'EXTREMELY DANGEROUS' in pn[0]['text'] and pn[2]['level'] == 'error' and 'passwords accepted' in pn[2]['text'], [n['code'] for n in pn])
+    check('production install, every device secure → no posture notice', posture_notices(_M(), env={}) == [])
     check('the password-guess threat exists on the isle with its counterexample', 'ssh-password-guess' in {t['name'] for t in threats('isle', 'today')['threats']})
     check('threat rows seed for every scenario', len([r for n in scenario_names() for r in threat_rows(n)]) >= 40)
     print('\n%d/%d checks passed' % (passed, total))

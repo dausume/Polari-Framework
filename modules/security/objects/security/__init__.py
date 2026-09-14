@@ -26,3 +26,4 @@ from security.objects.security.SecurityAuditRun import SecurityAuditRun  # noqa:
 from security.objects.security.SecurityProposal import SecurityProposal  # noqa: F401
 from security.objects.security.SshCapability import SshCapability  # noqa: F401
 from security.objects.security.DeviceInventory import DeviceInventory  # noqa: F401
+from security.objects.security.SshPermissionLevel import SshPermissionLevel  # noqa: F401
