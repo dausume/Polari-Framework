@@ -247,7 +247,8 @@ def render_apps_section(flavor='online', root=None, heading='Add individual apps
     cards = ''.join(_module_card(module, entry, analysis, flavor)
                     for module, entry in sorted(modules.items()))
     note = ('Offline debs carry each app\'s pip libraries inside — bigger and slower to generate, for machines '
-            'with no internet. System engines still come from the distro or the offline media.'
+            'with no internet; at setup they install from what they carry, skipping anything already present. '
+            'Engines such as the circuit simulator are already inside the Polari runtime; each card names any that are not.'
             if flavor == 'offline' else
             'Online debs are small — each app\'s libraries are fetched from the internet when it is set up, '
             'exactly as listed on its card.')

@@ -216,7 +216,7 @@ def _render_two_option(title, headline, combined, pieces,
     tab = lambda m, label: (            # noqa: E731
         f'<a class="tab{" tab-on" if mode == m else ""}" '
         f'href="/downloads?mode={m}">{label}</a>')
-    tabs = ('<nav class="tabs">'
+    tabs = ('<nav class="tabs tabs-inner" aria-label="Installer form">'
             + tab('one', 'One-file install')
             + tab('steps', 'Stepped polari + isle install')
             + '</nav>')
@@ -338,14 +338,15 @@ def _render_piecewise_only(title, headline, pieces):
 
 
 def _flavor_tabs(flavor):
-    tab = lambda f, label: (            # noqa: E731
-        f'<a class="tab{" tab-on" if flavor == f else ""}" href="/downloads?flavor={f}">{label}</a>')
-    return ('<nav class="tabs tabs-top">' + tab('online', 'Online') + tab('offline', 'Offline') + '</nav>'
-            + ('<p class="option-note"><strong>Offline</strong>: for a computer that will have no internet — '
-               'the installer and each app carry what they need inside; the media set below is for the whole '
-               'install from disks or sticks.</p>' if flavor == 'offline' else
-               '<p class="option-note"><strong>Online</strong>: small downloads — your computer fetches the rest '
-               'from the internet during the install.</p>'))
+    """The one choice a person makes first, big and self-describing (his ask 2026-09-13: obvious to normal
+    users): Online or Offline, each tab saying in plain words who it is for."""
+    tab = lambda f, label, why: (       # noqa: E731
+        f'<a class="tab{" tab-on" if flavor == f else ""}" href="/downloads?flavor={f}" '
+        f'aria-current="{"page" if flavor == f else "false"}">{label}<small>{why}</small></a>')
+    return ('<nav class="tabs tabs-top" aria-label="Online or offline install">'
+            + tab('online', '🌐 Online install', 'For a computer with internet. Small downloads — it fetches the rest while installing.')
+            + tab('offline', '💾 Offline install', 'For a computer with NO internet. Everything travels inside the files you download here.')
+            + '</nav>')
 
 
 def _apps_and_media(flavor, title):

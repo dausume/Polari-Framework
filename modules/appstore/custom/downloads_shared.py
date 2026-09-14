@@ -170,6 +170,14 @@ def wrap_page(title, body, page_label='Downloads', head_extra=''):
  a.dl:hover,button.dl:hover{{filter:brightness(1.08)}}
  label.pick{{display:block;margin:.3rem 0}}
  .tabs{{display:flex;gap:.4rem;margin:0 0 .6rem}}
+ .tabs-top{{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin:1rem 0 1.2rem}}
+ .tabs-top .tab{{display:block;padding:.9rem 1.1rem;border-radius:12px;border:2px solid var(--line);
+   font-size:1.15rem;line-height:1.25;text-align:left}}
+ .tabs-top .tab small{{display:block;font-weight:400;font-size:.85rem;margin-top:.25rem;opacity:.85}}
+ .tabs-top .tab-on{{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}}
+ .tabs-top .tab:not(.tab-on):hover{{border-color:var(--accent)}}
+ .tabs-inner .tab{{font-size:.85rem;padding:.25rem .8rem}}
+ @media (max-width:560px){{.tabs-top{{grid-template-columns:1fr}}}}
  .tab{{padding:.35rem 1rem;border-radius:999px;
    border:1px solid var(--line);color:var(--ink);
    text-decoration:none;font-weight:600}}

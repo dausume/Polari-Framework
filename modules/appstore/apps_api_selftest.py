@@ -24,7 +24,7 @@ class R:
 
 class S:
     def __init__(self):
-        self.media = None; self.status = '200 OK'; self.data = None; self.content_type = ''; self.downloadable_as = ''; self.headers = {}
+        self.media = None; self.status = '200 OK'; self.data = None; self.stream = None; self.content_type = ''; self.downloadable_as = ''; self.headers = {}
     def set_header(self, k, v):
         self.headers[k] = v
 
@@ -64,7 +64,8 @@ def main():
         time.sleep(1)
     check('generation finished (ready) in the temp pool', st['state'] == 'ready' and st['bytes'] > 0 and len(st['sha256']) == 64, str(st.get('state')) + ' ' + str(st.get('refusal', '')))
     r = S(); api.on_get_download(R(flavor='online'), r, mod)
-    check('download streams the deb with its sha256 header', r.data is not None and len(r.data) == st['bytes'] and r.headers.get('X-Polari-Sha256') == st['sha256'] and r.content_type.startswith('application/vnd.debian'))
+    body = r.stream.read() if getattr(r, 'stream', None) else r.data; r.stream.close() if getattr(r, 'stream', None) else None
+    check('download streams the deb with its sha256 header (a stream, never read into memory)', body is not None and len(body) == st['bytes'] and r.headers.get('X-Polari-Sha256') == st['sha256'] and r.content_type.startswith('application/vnd.debian') and r.headers.get('Content-Length') == str(st['bytes']))
     r = S(); api.on_post_request(R(flavor='online'), r, mod); check('request again when ready → 200 already available', r.status.startswith('200') and 'already available' in r.media['reading'])
     r = S(); api.on_get_downloads(R(), r); check('/api/downloads answers (installers list, may be empty here)', r.media.get('ok') is True and 'installers' in r.media)
     print('\n%d/%d checks passed' % (passed, total))

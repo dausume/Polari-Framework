@@ -256,8 +256,9 @@ class AppsAPI(treeObject):
             response.content_type = 'application/vnd.debian.binary-package'
             response.downloadable_as = pool['file']
             response.set_header('X-Polari-Sha256', _sha256(path))
-            with open(path, 'rb') as fh:
-                response.data = fh.read()
+            response.set_header('Content-Length', str(pool['bytes']))
+            # STREAM the file (a swarm backend has ~1.2 GB: an offline deb must never be read into memory)
+            response.stream = open(path, 'rb')
             return
         st = status_of(module, flavor)
         if st.get('state') == 'generating':
