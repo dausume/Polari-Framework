@@ -28,6 +28,7 @@ from objectTreeDecorators import treeObject, treeObjectInit
 
 from appstore.custom import app_deb_builder as builder
 from appstore.custom import module_requirements as modreqs
+from moduleService.tier_reach import tiers_for, access_form, tier_notice
 
 FLAVORS = ('online', 'offline')
 SPACE_MARGIN_BYTES = 200 * 1024 * 1024   # keep this much free after a generation
@@ -134,7 +135,7 @@ def status_of(module, flavor, registry=None):
     need, need_basis = expected_bytes(module, entry, flavor, reqs)
     pool = builder.pool_file_for(module, flavor)
     job = builder.generation_job(module, flavor)
-    out = {'ok': True, 'module': module, 'flavor': flavor, 'downloaded': bool(entry.get('downloaded')), 'kind': entry.get('kind', ''), 'tier': entry.get('tier', ''),
+    out = {'ok': True, 'module': module, 'flavor': flavor, 'downloaded': bool(entry.get('downloaded')), 'kind': entry.get('kind', ''), 'tier': entry.get('tier', ''), 'hosts_on': tiers_for(entry.get('kind', '')), 'access_form': access_form(module), 'notice_on_access': tier_notice(entry.get('kind', ''), 'access'),
            'repo': entry.get('repo', ''), 'description': entry.get('description', ''),
            'estimate_seconds': builder.estimate_seconds(module, flavor=flavor), 'expected_bytes': need, 'expected_basis': need_basis,
            'space': space(need), 'differences': flavor_differences(reqs, flavor), 'requirements': {'libraries': len(reqs.get('libraries') or []), 'librariesBytes': reqs.get('librariesBytes', 0), 'engines': reqs.get('engines') or []},
@@ -210,7 +211,7 @@ class AppsAPI(treeObject):
         builder.purge_expired()
         items = []
         for module, entry in sorted(registry.items()):
-            row = {'module': module, 'kind': entry.get('kind', ''), 'tier': entry.get('tier', ''), 'downloaded': bool(entry.get('downloaded')), 'repo': entry.get('repo', ''),
+            row = {'module': module, 'kind': entry.get('kind', ''), 'tier': entry.get('tier', ''), 'hosts_on': tiers_for(entry.get('kind', '')), 'access_form': access_form(module), 'notice_on_access': tier_notice(entry.get('kind', ''), 'access'), 'downloaded': bool(entry.get('downloaded')), 'repo': entry.get('repo', ''),
                    'description': (entry.get('description') or '')[:200], 'flavors': {}}
             for f in FLAVORS:
                 pool = builder.pool_file_for(module, f); job = builder.generation_job(module, f)

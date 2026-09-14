@@ -24,6 +24,7 @@ file is the contract.
 | `polari-app` | pages + API inside a Polari instance (the common kind) | a Polari instance | `gears`, `nutrition`, `hwmap` |
 | `isle-app` | a CONTAINER app deployed behind the isle agent (compose/image at `<name>.isle`), with its rows in a module | an isle member | `kirimoto` (the slicer), the engine workers |
 | `hardware-app` | a QEMU/KVM GUEST the isle defines and starts, owning real hardware through passthrough; rows render its libvirt domain + guest configuration | the **hardware tier** (a device with cpu-virt + /dev/kvm + libvirt) | `isle_relay`, `isle_guestnet`, `voron` |
+| `access-app` | an app SHELL: a launcher (.desktop + icon + polari-shell.json) that opens an app hosted elsewhere on the isle; hosts nothing. Every app has one (built by `polari-app-shell/shells/build-launcher-deb.sh`); it is the ONLY kind an **Access-only** member installs (his ruling 2026-09-14: tiers access / host / hardware — `moduleService/tier_reach.py`) | any member, even Access only | the launcher of `gears` |
 | `hardware-extension-app` | functionality pushed INTO a running hardware app it `extends`; it has no guest of its own | the host guest running | `reticulum` (extends `isle-relay`), `printcam` (extends `voron-printer`) |
 | `suite-app` | the composition kind (§1) | its parts' needs, resolved by placement | `printing_suite` |
 

@@ -42,7 +42,7 @@ CONCEPTS = ('objects', 'basis', 'api', 'endpoints', 'seed', 'page', 'catalog',
 #: others — library (objects only), polari-app (pages/API inside a Polari
 #: instance), isle-app (a container app deployed on the isle), hardware-app
 #: (a QEMU/KVM guest owning hardware; POLARI_TREE_PLAN / STANDARD_POLARI_APP §3).
-APP_KINDS = ('library', 'polari-app', 'isle-app', 'hardware-app', 'hardware-extension-app', 'suite-app')
+APP_KINDS = ('library', 'polari-app', 'isle-app', 'hardware-app', 'hardware-extension-app', 'suite-app', 'access-app')
 
 # sec-3: the security stanza vocabulary (mirrors os-security/render.py; conform refuses anything else)
 SECURITY_PROFILES = ('web-app', 'worker', 'gateway', 'vpn-gateway', 'hardware-extension')

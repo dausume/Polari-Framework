@@ -157,6 +157,14 @@ def _module_card(module, entry, analysis, flavor='online'):
     if notice:
         blurb += (f'<span class="prov prov-demand">Hardware app &mdash; '
                   f'{html.escape(notice)}</span>')
+    # his ruling 2026-09-14: an ACCESS-ONLY member installs shells only — this deb is for host/hardware members
+    try:
+        from moduleService.tier_reach import tiers_for
+        hosts_on = tiers_for(entry.get('kind', ''))
+        blurb += (f'<span class="prov">Runs on: {html.escape(" / ".join(hosts_on))} members. On an Access-only computer '
+                  'install the app\'s shell instead (it opens the app the isle hosts).</span>')
+    except Exception:   # noqa: BLE001 — the card must render without the tier table
+        pass
     refusal = analysis['refusals'].get(module)
     fetch_note = ''
     if not entry.get('downloaded') and not refusal and entry.get('repo'):
