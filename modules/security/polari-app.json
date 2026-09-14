@@ -46,6 +46,7 @@
    "objects/security/SecurityTopologyNode",
    "objects/security/ServiceIdentity",
    "objects/security/SshCapability",
+   "objects/security/SshPermissionLevel",
    "objects/security/TrustChannel"
   ],
   "basis": [
@@ -106,6 +107,7 @@
   "SecurityTopologyNode",
   "ServiceIdentity",
   "SshCapability",
+  "SshPermissionLevel",
   "TrustChannel"
  ],
  "imports": [
@@ -137,6 +139,7 @@
     "SecurityAuditRun",
     "SshCapability",
     "DeviceInventory",
+    "SshPermissionLevel",
     "SECURITY_CLASSES"
    ]
   ],

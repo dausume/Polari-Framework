@@ -170,6 +170,12 @@ def wrap_page(title, body, page_label='Downloads', head_extra=''):
  a.dl:hover,button.dl:hover{{filter:brightness(1.08)}}
  label.pick{{display:block;margin:.3rem 0}}
  .tabs{{display:flex;gap:.4rem;margin:0 0 .6rem}}
+ .dl-card-forms{{align-items:flex-start}} .dl-card-forms .dl-info{{width:100%}}
+ .forms{{display:flex;gap:.8rem;flex-wrap:wrap;margin-top:.6rem}}
+ .form{{flex:1 1 240px;border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem;display:flex;flex-direction:column;gap:.35rem}}
+ .form .dl{{align-self:flex-start;margin-top:.2rem}} .form-head{{font-weight:600}} .form-access{{background:rgba(127,127,127,.06)}}
+ .dl-name small{{font-weight:400;opacity:.7;margin-left:.4rem}}
+ li.expansions{{list-style:none;margin:0 0 1rem 1.6rem}} li.expansions summary{{cursor:pointer;font-weight:600;padding:.4rem 0}}
  .tabs-top{{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin:1rem 0 1.2rem}}
  .tabs-top .tab{{display:block;padding:.9rem 1.1rem;border-radius:12px;border:2px solid var(--line);
    font-size:1.15rem;line-height:1.25;text-align:left}}

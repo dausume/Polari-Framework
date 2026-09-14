@@ -261,7 +261,7 @@ def _tar_gz(entries):
             info.mode = 0o777
             tar.addfile(info)
         else:
-            info.mode = 0o644
+            info.mode = 0o755 if kind == 'exec' else 0o644
             info.size = len(payload)
             tar.addfile(info, io.BytesIO(payload))
     tar.close()
@@ -272,11 +272,16 @@ def _tar_gz(entries):
     return buffer.getvalue()
 
 
-def _write_deb(path, control_fields, data_entries):
+def _write_deb(path, control_fields, data_entries, scripts=None):
+    """scripts = {'preinst': text, 'postinst': text, ...} — maintainer scripts (mode 0755) in the control tar;
+    the install-time refusals (his rulings 2026-09-14) and the access apps' first-run binding live there."""
     control = ''.join(f'{k}: {v}\n' for k, v in control_fields
                       if v).encode()
-    control_tar = _tar_gz([('./', 'dir', None),
-                           ('./control', 'file', control)])
+    members = [('./', 'dir', None), ('./control', 'file', control)]
+    for name, text in sorted((scripts or {}).items()):
+        if text:
+            members.append((f'./{name}', 'exec', text.encode()))
+    control_tar = _tar_gz(members)
     data_tar = _tar_gz(data_entries)
     with open(path, 'wb') as fh:
         fh.write(b'!<arch>\n')
@@ -360,7 +365,7 @@ def _fetch_wheels(libraries, dest):
 
 
 def generate(module, root=None, analysis=None, flavor='online',
-             progress=None):
+             progress=None, form='install'):
     """Generate module's deb (+ any shared debs it depends on) into
     the pool. flavor='online' (default): the small deb — libraries
     + engines install DYNAMICALLY after download, and the manifest
@@ -388,6 +393,10 @@ def generate(module, root=None, analysis=None, flavor='online',
                 'refusal': f'unknown flavor "{flavor}" — online '
                            '(deps install after download) or '
                            'offline (deps ride inside)'}
+    if form not in ('install', 'access'):
+        return {'ok': False, 'refusal': f'unknown form "{form}" — install (the app itself) or access (its shell)'}
+    if form == 'access':
+        return generate_access(module, root, flavor, progress, started)
     t0 = time.time()
     analysis = analysis or analyze(root)
     if module in analysis['refusals']:
@@ -522,6 +531,9 @@ def generate(module, root=None, analysis=None, flavor='online',
                             f'Polari module {module}')
     progress('assembling the deb')
     online_name = deb_package_name(module)
+    # his rulings 2026-09-14: hardware apps / expansions refuse at preinst (lightweight isle, missing base)
+    from appstore.custom.app_forms import manifest_app, preinst_for
+    scripts = {'preinst': preinst_for(module, manifest_app(module, root, entry))}
     size_bytes = _write_deb(path, [
         ('Package', debname),
         ('Version', version),
@@ -536,7 +548,7 @@ def generate(module, root=None, analysis=None, flavor='online',
         ('Section', 'misc'),
         ('Priority', 'optional'),
         ('Description', f'Polari app — {description}'),
-    ], entries)
+    ], entries, scripts)
     step('assemble deb', t0)
 
     seconds = round(time.time() - started, 3)
@@ -549,6 +561,50 @@ def generate(module, root=None, analysis=None, flavor='online',
             'version': version, 'bytes': size_bytes,
             'seconds': seconds, 'cached': False,
             'sharedFiles': shared_files}
+
+
+def staged_shell_core_deb():
+    """The polari-shell-core deb staged with the platform installers (POLARI_DOWNLOADS_DIR), or None — the
+    offline access flavour carries it so a computer with no internet still gets the shell runtime."""
+    try:
+        from appstore.downloads_page import downloads_dir
+        d = downloads_dir()
+        for entry in sorted(os.listdir(d)):
+            if entry.startswith('polari-shell-core_') and entry.endswith('.deb'):
+                return os.path.join(d, entry)
+    except Exception:
+        pass
+    return None
+
+
+def generate_access(module, root=None, flavor='online', progress=None, started=None):
+    """The ACCESS form (his rulings 2026-09-14): the app's shell — a launcher that finds and opens the app the isle
+    hosts. Exists for every app kind, online and offline (offline carries the shell runtime deb when staged)."""
+    from appstore.custom.app_forms import access_deb_name, access_entries, manifest_app
+    started = started or time.time(); steps = []; progress = progress or (lambda name: None)
+    entry = registry_modules(root).get(module)
+    if entry is None:
+        return {'ok': False, 'refusal': f'"{module}" is not in the module registry'}
+    debname = access_deb_name(module, flavor)
+    if not debname:
+        return {'ok': False, 'refusal': f'"{module}" cannot map to a Debian package name'}
+    app = manifest_app(module, root, entry)
+    shell = staged_shell_core_deb() if flavor == 'offline' else None
+    t0 = time.time(); progress('assembling the access deb (the shell)')
+    control, entries, scripts, carried = access_entries(module, app, flavor, shell)
+    content_hash = hashlib.sha256((json.dumps([list(c) for c in control]) + ''.join(e[0] for e in entries) + (os.path.basename(shell) if shell else '')).encode()).hexdigest()
+    version = f'{BASE_VERSION}+g{content_hash[:10]}'
+    filename = f'{debname}_{version}_all.deb'
+    pool = pool_dir(); os.makedirs(pool, exist_ok=True); path = os.path.join(pool, filename)
+    if os.path.isfile(path):
+        return {'ok': True, 'file': filename, 'path': path, 'version': version, 'bytes': os.path.getsize(path), 'seconds': round(time.time() - started, 3), 'cached': True, 'sharedFiles': [], 'form': 'access'}
+    control.insert(1, ('Version', version))
+    size_bytes = _write_deb(path, control, entries, scripts)
+    steps.append({'step': 'assemble access deb' + (' (carries polari-shell-core)' if carried else ''), 'seconds': round(time.time() - t0, 3)})
+    seconds = round(time.time() - started, 3)
+    _append_record({'module': module, 'flavor': flavor, 'form': 'access', 'contentHash': content_hash, 'bytes': size_bytes, 'seconds': seconds, 'steps': steps, 'generatedAt': int(started)})
+    return {'ok': True, 'file': filename, 'path': path, 'version': version, 'bytes': size_bytes, 'seconds': seconds, 'cached': False, 'sharedFiles': [], 'form': 'access',
+            'carries_shell_runtime': bool(carried), 'shell_runtime_note': '' if (flavor == 'online' or carried) else 'the core staged no polari-shell-core deb — the offline access deb carries only the launcher'}
 
 
 # --- the DebGenerationRecord ledger ---------------------------------
@@ -599,12 +655,16 @@ def download_estimate_seconds(size_bytes, recent=10):
                  1)
 
 
-def pool_file_for(module, flavor='online'):
-    """The unexpired pool deb for module+flavor, or None —
+def pool_file_for(module, flavor='online', form='install'):
+    """The unexpired pool deb for module+flavor(+form), or None —
     {'file', 'bytes', 'ageSeconds'}. Drives the button honesty:
     an already-generated app offers Download, not Generate."""
-    debname = deb_package_name(module) + (
-        '-offline' if flavor == 'offline' else '')
+    if form == 'access':
+        from appstore.custom.app_forms import access_deb_name
+        debname = access_deb_name(module, flavor)
+    else:
+        debname = deb_package_name(module) + (
+            '-offline' if flavor == 'offline' else '')
     try:
         for entry in sorted(os.listdir(pool_dir())):
             if entry.startswith(debname + '_'):
@@ -618,14 +678,15 @@ def pool_file_for(module, flavor='online'):
     return None
 
 
-def estimate_seconds(module, recent=10, flavor='online'):
+def estimate_seconds(module, recent=10, flavor='online', form='install'):
     """Median of the module's recent generation times for ONE
     flavor (offline runs fetch wheels — a different animal), or
     None — the page renders None as the honest 'never generated
     yet'. Legacy rows without a flavor count as online."""
     times = [row['seconds'] for row in generation_records(module)
              if isinstance(row.get('seconds'), (int, float))
-             and row.get('flavor', 'online') == flavor]
+             and row.get('flavor', 'online') == flavor
+             and row.get('form', 'install') == form]
     return (round(statistics.median(times[-recent:]), 1)
             if times else None)
 
@@ -636,15 +697,15 @@ def estimate_seconds(module, recent=10, flavor='online'):
 _jobs = {}
 
 
-def generation_job(module, flavor):
-    return _jobs.get(f'{module}:{flavor}')
+def generation_job(module, flavor, form='install'):
+    return _jobs.get(f'{module}:{flavor}' + (':access' if form == 'access' else ''))
 
 
-def start_generation(module, flavor='online', root=None):
+def start_generation(module, flavor='online', root=None, form='install'):
     """Idempotent kick-off: a running job is returned as-is; a
     finished one whose pool file the TTL already purged restarts.
     The job dict is live — 'step' updates as generation moves."""
-    key = f'{module}:{flavor}'
+    key = f'{module}:{flavor}' + (':access' if form == 'access' else '')
     job = _jobs.get(key)
     if job:
         if job['state'] == 'running':
@@ -652,7 +713,7 @@ def start_generation(module, flavor='online', root=None):
         if (job['state'] == 'done'
                 and os.path.isfile(job['result']['path'])):
             return job
-    job = {'module': module, 'flavor': flavor, 'state': 'running',
+    job = {'module': module, 'flavor': flavor, 'form': form, 'state': 'running',
            'step': 'starting', 'startedAt': time.time(),
            'result': None}
     _jobs[key] = job
@@ -660,7 +721,7 @@ def start_generation(module, flavor='online', root=None):
     def run():
         try:
             result = generate(
-                module, root=root, flavor=flavor,
+                module, root=root, flavor=flavor, form=form,
                 progress=lambda name: job.__setitem__('step',
                                                       name))
             job['result'] = result

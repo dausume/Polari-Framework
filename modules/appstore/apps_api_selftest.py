@@ -68,6 +68,45 @@ def main():
     check('download streams the deb with its sha256 header (a stream, never read into memory)', body is not None and len(body) == st['bytes'] and r.headers.get('X-Polari-Sha256') == st['sha256'] and r.content_type.startswith('application/vnd.debian') and r.headers.get('Content-Length') == str(st['bytes']))
     r = S(); api.on_post_request(R(flavor='online'), r, mod); check('request again when ready → 200 already available', r.status.startswith('200') and 'already available' in r.media['reading'])
     r = S(); api.on_get_downloads(R(), r); check('/api/downloads answers (installers list, may be empty here)', r.media.get('ok') is True and 'installers' in r.media)
+    # his rulings 2026-09-14: the ACCESS form of every app (online + offline), side by side with the install form
+    from appstore.custom import app_forms
+    r = S(); api.on_get_status(R(flavor='online', form='access'), r, mod); sa = r.media
+    check('status form=access: the shell package, group, app kind, no fetch needed', sa['form'] == 'access' and sa['package'] == f"polari-access-{mod.replace('_', '-')}" and sa['group'] in ('software', 'hardware', 'expansion') and sa['app_kind'])
+    r = S(); api.on_post_request(R(flavor='online', form='access'), r, mod)
+    check('request form=access → 202/200 without touching module code', r.status[:3] in ('202', '200') and r.media.get('accepted') or 'already available' in str(r.media.get('reading', '')))
+    for _ in range(60):
+        st = status_of(mod, 'online', form='access')
+        if st['state'] in ('ready', 'refused'):
+            break
+        time.sleep(1)
+    check('access deb generated (small: a launcher, no wheels)', st['state'] == 'ready' and 0 < st['bytes'] < 200_000, st)
+    r = S(); api.on_get_download(R(flavor='online', form='access'), r, mod)
+    body = r.stream.read() if getattr(r, 'stream', None) else r.data
+    r.stream.close() if getattr(r, 'stream', None) else None
+    check('download form=access streams the access deb', body and len(body) == st['bytes'] and r.downloadable_as.startswith('polari-access-'))
+    import tarfile, io, gzip
+    def deb_members(blob):
+        # ar: skip the 8-byte magic, walk members; return {name: bytes}
+        out = {}; i = 8
+        while i + 60 <= len(blob):
+            name = blob[i:i+16].decode().strip(); size = int(blob[i+48:i+58].decode().strip()); out[name] = blob[i+60:i+60+size]; i += 60 + size + (size % 2)
+        return out
+    def tar_names(tgz):
+        return {m.name: m for m in tarfile.open(fileobj=io.BytesIO(gzip.decompress(tgz)), mode='r:').getmembers()}
+    mem = deb_members(body); data = tar_names(mem['data.tar.gz']); ctrl = tar_names(mem['control.tar.gz'])
+    check('the access deb carries the .desktop, open.sh (executable) and access.json; Depends on polari-shell-core (online)',
+          any(n.endswith('.desktop') for n in data) and any(n.endswith('/open.sh') and (m.mode & 0o111) for n, m in data.items()) and any(n.endswith('access.json') for n in data)
+          and b'polari-shell-core' in mem['control.tar.gz'] or b'polari-shell-core' in gzip.decompress(mem['control.tar.gz']), list(data)[:6])
+    r = S(); api.on_get_access_one(R(), r, mod); check('/api/access/{module} answers where the app is reached (url + candidates)', r.media.get('ok') and r.media['url'].startswith('https://') and r.media['candidates'])
+    r = S(); api.on_get_access(R(), r); check('/api/access lists every app with an address', r.media.get('ok') and r.media['count'] >= 50)
+    # the install-form refusals ride in the deb as a preinst (a hardware expansion here: reticulum extends isle-relay)
+    hw = app_forms.manifest_app('reticulum'); pre = app_forms.preinst_for('reticulum', hw)
+    check('preinst for an expansion: refuses without its base and on a lightweight isle, in his words', hw['kind'] == 'hardware-extension-app' and 'expands isle-relay' in pre and app_forms.LIGHTWEIGHT_ISLE_REFUSAL in pre and 'dpkg -s polari-app-isle-relay' in pre)
+    check('preinst for a hardware app names the lightweight-isle and hardware-tier refusals; a software app carries none',
+          app_forms.LIGHTWEIGHT_ISLE_REFUSAL in app_forms.preinst_for('x', {'kind': 'hardware-app'}) and app_forms.NOT_HARDWARE_TIER_REFUSAL in app_forms.preinst_for('x', {'kind': 'hardware-app'}) and app_forms.preinst_for('gears', app_forms.manifest_app('gears')) == '')
+    g = app_forms.grouped({'reticulum': {}, 'isle_relay': {}, 'gears': {}})
+    check('grouping: software / hardware / expansions nest under their base (isle_relay is still a polari-app in its manifest → reticulum is an orphan here)',
+          any(m == 'gears' for m, _, _ in g['software']) and (('isle_relay' in g['expansions'] and g['expansions']['isle_relay'][0][0] == 'reticulum') or (g['orphans'] and g['orphans'][0][0] == 'reticulum')), {k: (v if k != 'expansions' else list(v)) for k, v in g.items()})
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

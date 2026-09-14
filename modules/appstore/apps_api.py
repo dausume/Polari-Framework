@@ -29,6 +29,7 @@ from objectTreeDecorators import treeObject, treeObjectInit
 from appstore.custom import app_deb_builder as builder
 from appstore.custom import module_requirements as modreqs
 from moduleService.tier_reach import tiers_for, access_form, tier_notice
+from appstore.custom.app_forms import manifest_app, group_of, access_deb_name, access_url_candidates, HARDWARE_KINDS, EXPANSION_KINDS
 
 FLAVORS = ('online', 'offline')
 SPACE_MARGIN_BYTES = 200 * 1024 * 1024   # keep this much free after a generation
@@ -38,6 +39,14 @@ _sha_cache = {}
 def _flavor(request):
     f = request.params.get('flavor', 'online')
     return f if f in FLAVORS else 'online'
+
+
+FORMS = ('install', 'access')
+
+
+def _form(request):
+    f = request.params.get('form', 'install')
+    return f if f in FORMS else 'install'
 
 
 def _sha256(path):
@@ -125,7 +134,7 @@ def flavor_differences(reqs, flavor):
                         + (f"; engines {gap} are NOT available anywhere yet (a gap, named)" if gap else ''))}
 
 
-def status_of(module, flavor, registry=None):
+def status_of(module, flavor, registry=None, form='install'):
     registry = registry or builder.registry_modules()
     entry = registry.get(module)
     if entry is None:
@@ -133,11 +142,14 @@ def status_of(module, flavor, registry=None):
     builder.purge_expired()
     reqs = modreqs.module_requirements(module) if entry.get('downloaded') else {'libraries': [], 'librariesBytes': 0, 'librariesUnmeasured': 0, 'engines': modreqs.module_engines(module)}
     need, need_basis = expected_bytes(module, entry, flavor, reqs)
-    pool = builder.pool_file_for(module, flavor)
-    job = builder.generation_job(module, flavor)
-    out = {'ok': True, 'module': module, 'flavor': flavor, 'downloaded': bool(entry.get('downloaded')), 'kind': entry.get('kind', ''), 'tier': entry.get('tier', ''), 'hosts_on': tiers_for(entry.get('kind', '')), 'access_form': access_form(module), 'notice_on_access': tier_notice(entry.get('kind', ''), 'access'),
+    pool = builder.pool_file_for(module, flavor, form)
+    job = builder.generation_job(module, flavor, form)
+    app = manifest_app(module, entry=entry)
+    out = {'ok': True, 'module': module, 'flavor': flavor, 'form': form, 'app_kind': app['kind'], 'title': app['title'], 'extends': app['extends'], 'group': group_of(app),
+           'package': (access_deb_name(module, flavor) if form == 'access' else builder.deb_package_name(module) + ('-offline' if flavor == 'offline' else '')),
+           'refuses_at_install': ('a hardware app refuses on a lightweight (docker-swarm) isle or a non-hardware member' if app['kind'] in HARDWARE_KINDS else (f"refuses without {app['extends']} installed" if app['kind'] in EXPANSION_KINDS else '')) if form == 'install' else '', 'downloaded': bool(entry.get('downloaded')), 'kind': entry.get('kind', ''), 'tier': entry.get('tier', ''), 'hosts_on': tiers_for(entry.get('kind', '')), 'access_form': access_form(module), 'notice_on_access': tier_notice(entry.get('kind', ''), 'access'),
            'repo': entry.get('repo', ''), 'description': entry.get('description', ''),
-           'estimate_seconds': builder.estimate_seconds(module, flavor=flavor), 'expected_bytes': need, 'expected_basis': need_basis,
+           'estimate_seconds': builder.estimate_seconds(module, flavor=flavor, form=form), 'expected_bytes': need if form == 'install' else (1 << 20), 'expected_basis': need_basis,
            'space': space(need), 'differences': flavor_differences(reqs, flavor), 'requirements': {'libraries': len(reqs.get('libraries') or []), 'librariesBytes': reqs.get('librariesBytes', 0), 'engines': reqs.get('engines') or []},
            'status_url': f'/api/apps/{module}/status?flavor={flavor}', 'request_url': f'/api/apps/{module}/request?flavor={flavor}', 'download_url': f'/api/apps/{module}/download?flavor={flavor}'}
     try:
@@ -200,6 +212,8 @@ class AppsAPI(treeObject):
             add('/api/apps/{module}/request', self, suffix='request')
             add('/api/apps/{module}/download', self, suffix='download')
             add('/api/downloads', self, suffix='downloads')
+            add('/api/access', self, suffix='access')
+            add('/api/access/{module}', self, suffix='access_one')
 
     @staticmethod
     def _json(response, body, status='200 OK'):
@@ -213,7 +227,15 @@ class AppsAPI(treeObject):
         for module, entry in sorted(registry.items()):
             row = {'module': module, 'kind': entry.get('kind', ''), 'tier': entry.get('tier', ''), 'hosts_on': tiers_for(entry.get('kind', '')), 'access_form': access_form(module), 'notice_on_access': tier_notice(entry.get('kind', ''), 'access'), 'downloaded': bool(entry.get('downloaded')), 'repo': entry.get('repo', ''),
                    'description': (entry.get('description') or '')[:200], 'flavors': {}}
+            app = manifest_app(module, entry=entry)
+            row.update({'app_kind': app['kind'], 'title': app['title'], 'extends': app['extends'], 'group': group_of(app), 'access_urls': access_url_candidates(module, app)})
             for f in FLAVORS:
+                arow = {}
+                for fm in FORMS:
+                    ap = builder.pool_file_for(module, f, fm); aj = builder.generation_job(module, f, fm)
+                    arow[fm] = {'state': 'ready' if ap else ('generating' if aj and aj['state'] == 'running' else 'not-generated'), 'bytes': ap['bytes'] if ap else None,
+                                'download_url': f'/api/apps/{module}/download?flavor={f}&form={fm}', 'request_url': f'/api/apps/{module}/request?flavor={f}&form={fm}'}
+                row.setdefault('forms', {})[f] = arow
                 pool = builder.pool_file_for(module, f); job = builder.generation_job(module, f)
                 row['flavors'][f] = {'state': 'ready' if pool else ('generating' if job and job['state'] == 'running' else 'not-generated'),
                                      'bytes': pool['bytes'] if pool else None, 'estimate_seconds': builder.estimate_seconds(module, flavor=f),
@@ -225,18 +247,23 @@ class AppsAPI(treeObject):
                               'apps': items})
 
     def on_get_status(self, request, response, module):
-        st = status_of(module, _flavor(request))
+        st = status_of(module, _flavor(request), form=_form(request))
         self._json(response, st, '200 OK' if st.get('ok') else '404 Not Found')
 
     def on_post_request(self, request, response, module):
-        flavor = _flavor(request)
+        flavor = _flavor(request); form = _form(request)
         registry = builder.registry_modules()
         entry = registry.get(module)
         if entry is None:
             return self._json(response, {'ok': False, 'module': module, 'refusal': f'"{module}" is not in the module registry'}, '404 Not Found')
-        pool = builder.pool_file_for(module, flavor)
+        pool = builder.pool_file_for(module, flavor, form)
         if pool:
-            return self._json(response, {**status_of(module, flavor, registry), 'reading': 'already available — GET the download URL'})
+            return self._json(response, {**status_of(module, flavor, registry, form), 'reading': 'already available — GET the download URL'})
+        if form == 'access':
+            # the shell needs no module code: no fetch, no wheels, no space question beyond a megabyte
+            job = builder.start_generation(module, flavor, form='access')
+            st = status_of(module, flavor, registry, 'access'); st.update({'job_state': job['state'], 'accepted': True})
+            return self._json(response, st, '202 Accepted' if st.get('state') != 'ready' else '200 OK')
         fetched = ensure_code(self.manager, module, entry)
         if not fetched.get('ok'):
             return self._json(response, {'ok': False, 'module': module, 'flavor': flavor, 'state': 'refused', **fetched}, '409 Conflict')
@@ -252,9 +279,9 @@ class AppsAPI(treeObject):
         self._json(response, st, '202 Accepted' if st.get('state') != 'ready' else '200 OK')
 
     def on_get_download(self, request, response, module):
-        flavor = _flavor(request)
+        flavor = _flavor(request); form = _form(request)
         builder.purge_expired()
-        pool = builder.pool_file_for(module, flavor)
+        pool = builder.pool_file_for(module, flavor, form)
         if pool:
             path = os.path.join(builder.pool_dir(), pool['file'])
             response.content_type = 'application/vnd.debian.binary-package'
@@ -264,12 +291,31 @@ class AppsAPI(treeObject):
             # STREAM the file (a swarm backend has ~1.2 GB: an offline deb must never be read into memory)
             response.stream = open(path, 'rb')
             return
-        st = status_of(module, flavor)
+        st = status_of(module, flavor, form=form)
         if st.get('state') == 'generating':
             return self._json(response, st, '202 Accepted')
         if not st.get('ok'):
             return self._json(response, st, '404 Not Found')
         self._json(response, {**st, 'refusal': f'not available yet — POST {st["request_url"]} first'}, '409 Conflict')
+
+    def _access_answer(self, module, entry):
+        """Where THIS core hosts the app (an access app asks here first): the first candidate that is known to be
+        served by this instance, else the best guess with every candidate listed."""
+        app = manifest_app(module, entry=entry)
+        cands = access_url_candidates(module, app)
+        return {'module': module, 'title': app['title'], 'kind': app['kind'], 'url': cands[0], 'candidates': cands, 'hosted_here': bool(entry.get('downloaded')),
+                'note': 'the access app probes url first, then the candidates, then asks the person to pick from the isle\'s .isle addresses'}
+
+    def on_get_access(self, request, response):
+        registry = builder.registry_modules()
+        apps = [self._access_answer(m, e) for m, e in sorted(registry.items())]
+        self._json(response, {'ok': True, 'count': len(apps), 'apps': apps, 'how': 'GET /api/access/{module}; the access deb: POST /api/apps/{module}/request?form=access'})
+
+    def on_get_access_one(self, request, response, module):
+        entry = builder.registry_modules().get(module)
+        if entry is None:
+            return self._json(response, {'ok': False, 'module': module, 'refusal': f'"{module}" is not in the module registry'}, '404 Not Found')
+        self._json(response, {'ok': True, **self._access_answer(module, entry)})
 
     def on_get_downloads(self, request, response):
         try:

@@ -71,6 +71,7 @@
   ],
   "custom": [
    "custom/app_deb_builder",
+   "custom/app_forms",
    "custom/appstore_minio",
    "custom/appstore_payloads",
    "custom/appstore_tokens",

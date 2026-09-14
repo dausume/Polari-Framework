@@ -149,125 +149,131 @@ def _hardware_notice(module):
     return ''
 
 
-def _module_card(module, entry, analysis, flavor='online'):
-    description = entry.get('description', '')
-    blurb = (f'<p class="blurb">{html.escape(description)}</p>'
-             if description else '')
+def _form_block(module, flavor, form):
+    """One of the two forms of an app, as its own column on the card (his ruling 2026-09-14: the access-only deb
+    side by side with the actual install deb): the state + the one button."""
+    ready = builder.pool_file_for(module, flavor, form)
+    job = builder.generation_job(module, flavor, form)
+    if ready:
+        dl_est = builder.download_estimate_seconds(ready['bytes'])
+        dl_text = (('download usually &lt;1 s' if dl_est < 1 else f'download usually ~{dl_est:g} s')
+                   if dl_est is not None else 'no download timing data yet — the first one measures it')
+        state = (f'<span class="prov prov-prepped">READY — generated {ready["ageSeconds"] // 60} min ago, held for the '
+                 f'retry window · {human_size(ready["bytes"])} · {html.escape(dl_text)}</span>')
+        button = f'<a class="dl" href="/downloads/apps/file/{html.escape(ready["file"])}" download>Download</a>'
+    elif job and job['state'] == 'running':
+        state = f'<span class="prov prov-demand">GENERATING NOW — {html.escape(job["step"])}</span>'
+        button = f'<a class="dl" href="/downloads/apps/status/{html.escape(module)}?flavor={flavor}&amp;form={form}">View progress</a>'
+    else:
+        est = builder.estimate_seconds(module, flavor=flavor, form=form)
+        state = on_demand_provenance(f'usually ~{est:g} s to generate' if est is not None else 'never generated yet — the first one measures it')
+        button = f'<a class="dl" href="/downloads/apps/status/{html.escape(module)}?flavor={flavor}&amp;form={form}">Generate &amp; download</a>'
+    if form == 'access':
+        head = '<span class="form-head">Access only — the shell</span><span class="dl-meta">Opens the app hosted on your isle; installs nothing else. For any member, even Access only.'
+        head += (' Offline: carries the shell runtime when the core staged it.' if flavor == 'offline' else '') + '</span>'
+    else:
+        head = '<span class="form-head">Install — runs here</span><span class="dl-meta">The app itself, for host / hardware members.</span>'
+    return f'<div class="form form-{form}">{head}{state}{button}</div>'
+
+
+def _module_card(module, entry, analysis, flavor='online', app=None):
+    from appstore.custom.app_forms import manifest_app, HARDWARE_KINDS, EXPANSION_KINDS
+    app = app or manifest_app(module, entry=entry)
+    title = app.get('title') or module
+    description = app.get('description') or entry.get('description', '')
+    blurb = (f'<p class="blurb">{html.escape(description)}</p>' if description else '')
+    kind = app.get('kind', 'polari-app')
+    if kind in EXPANSION_KINDS:
+        blurb += (f'<span class="prov prov-demand">Expansion of {html.escape(app.get("extends") or "?")} — its install refuses '
+                  f'unless {html.escape(app.get("extends") or "the hardware app")} is installed first.</span>')
+    elif kind in HARDWARE_KINDS:
+        blurb += ('<span class="prov prov-demand">Hardware app — its install refuses before installing anything on a lightweight '
+                  '(docker-swarm) isle or a member without the hardware tier, and says why.</span>')
     notice = _hardware_notice(module)
     if notice:
-        blurb += (f'<span class="prov prov-demand">Hardware app &mdash; '
-                  f'{html.escape(notice)}</span>')
-    # his ruling 2026-09-14: an ACCESS-ONLY member installs shells only — this deb is for host/hardware members
-    try:
-        from moduleService.tier_reach import tiers_for
-        hosts_on = tiers_for(entry.get('kind', ''))
-        blurb += (f'<span class="prov">Runs on: {html.escape(" / ".join(hosts_on))} members. On an Access-only computer '
-                  'install the app\'s shell instead (it opens the app the isle hosts).</span>')
-    except Exception:   # noqa: BLE001 — the card must render without the tier table
-        pass
+        blurb += f'<span class="prov prov-demand">{html.escape(notice)}</span>'
     refusal = analysis['refusals'].get(module)
     fetch_note = ''
     if not entry.get('downloaded') and not refusal and entry.get('repo'):
-        # his ruling 2026-09-13: every official app is a download option on production —
-        # the code is fetched from its repository at build time (the status route does it)
-        fetch_note = ('<span class="prov prov-demand">Fetched first: this app\'s code is not on '
-                      'this instance yet; clicking pulls it from its repository, then packages it.</span>')
+        fetch_note = ('<span class="prov prov-demand">Fetched first: this app\'s code is not on this instance yet; the install '
+                      'form pulls it from its repository, then packages it (the access form needs no code).</span>')
     if (not entry.get('downloaded') and not entry.get('repo')) or refusal:
-        reason = refusal or ('registered but its code is not '
-                             'downloaded on this instance and no repository is recorded')
+        reason = refusal or 'registered but its code is not downloaded on this instance and no repository is recorded'
         return f'''
-<li class="dl-card">
+<li class="dl-card dl-card-forms">
   <span class="dl-info">
-    <span class="dl-name">{html.escape(module)}</span>
+    <span class="dl-name">{html.escape(title)} <code>{html.escape(module)}</code> <small>{html.escape(kind)}</small></span>
     {blurb}
-    <span class="prov prov-demand">Not available here —
-      {html.escape(reason)}.</span>
+    <span class="prov prov-demand">Not available here (the install form) — {html.escape(reason)}.</span>
+    <div class="forms">{_form_block(module, flavor, 'access')}</div>
   </span>
 </li>'''
     shared_links = ''
     shared_names = analysis['sharedByModule'].get(module, [])
     if shared_names:
-        links = ', '.join(
-            f'<a href="/downloads/apps/shared/{html.escape(name)}">'
-            f'{html.escape(name)}</a>' for name in shared_names)
-        shared_links = (f'<span class="dl-meta">Install first '
-                        f'(shared payload): {links}</span>')
-    payload_bytes = sum(
-        size for _, _, size, _
-        in analysis['payloads'].get(module, []))
+        links = ', '.join(f'<a href="/downloads/apps/shared/{html.escape(name)}">{html.escape(name)}</a>' for name in shared_names)
+        shared_links = f'<span class="dl-meta">Install first (shared payload): {links}</span>'
+    payload_bytes = sum(size for _, _, size, _ in analysis['payloads'].get(module, []))
     req_lines, _ = _requirements_lines(module, payload_bytes)
-    mode_note = ('<span class="dl-meta">this flavor carries the '
-                 'pip libraries inside the deb</span>'
-                 if flavor == 'offline' else '')
-    ready = builder.pool_file_for(module, flavor)
-    job = builder.generation_job(module, flavor)
-    if ready:
-        dl_est = builder.download_estimate_seconds(ready['bytes'])
-        dl_text = (('download usually &lt;1 s' if dl_est < 1 else
-                    f'download usually ~{dl_est:g} s')
-                   if dl_est is not None else
-                   'no download timing data yet — the first one '
-                   'measures it')
-        state = (f'<span class="prov prov-prepped">READY — '
-                 f'generated {ready["ageSeconds"] // 60} min ago, '
-                 f'held for the retry window · '
-                 f'{human_size(ready["bytes"])} · '
-                 f'{html.escape(dl_text)}</span>')
-        button = (f'<a class="dl" href="/downloads/apps/file/'
-                  f'{html.escape(ready["file"])}" download>'
-                  'Download</a>')
-    elif job and job['state'] == 'running':
-        state = (f'<span class="prov prov-demand">GENERATING NOW '
-                 f'— {html.escape(job["step"])}</span>')
-        button = (f'<a class="dl" href="/downloads/apps/status/'
-                  f'{html.escape(module)}?flavor={flavor}">'
-                  'View progress</a>')
-    else:
-        state = on_demand_provenance(_estimate_text(module,
-                                                    flavor))
-        button = (f'<a class="dl" href="/downloads/apps/status/'
-                  f'{html.escape(module)}?flavor={flavor}">'
-                  'Generate &amp; download</a>')
+    mode_note = ('<span class="dl-meta">the offline install form carries the pip libraries inside the deb</span>' if flavor == 'offline' else '')
     return f'''
-<li class="dl-card">
+<li class="dl-card dl-card-forms">
   <span class="dl-info">
-    <span class="dl-name">{html.escape(module)}</span>
+    <span class="dl-name">{html.escape(title)} <code>{html.escape(module)}</code> <small>{html.escape(kind)}</small></span>
     {blurb}
     {req_lines}
-    <span class="dl-meta">steps on download:
-      {GENERATION_STEPS}</span>
+    <span class="dl-meta">steps on download: {GENERATION_STEPS}</span>
     {shared_links}{mode_note}{fetch_note}
-    {state}
+    <div class="forms">{_form_block(module, flavor, 'install')}{_form_block(module, flavor, 'access')}</div>
   </span>
-  {button}
 </li>'''
 
 
 def render_apps_section(flavor='online', root=None, heading='Add individual apps'):
-    """The app cards for one flavour, without the page chrome — the main /downloads page embeds
-    this under its top-level Online / Offline tab (his ruling 2026-09-13)."""
+    """The app cards for one flavour, without the page chrome — the main /downloads page embeds this under its
+    top-level Online / Offline tab. His rulings 2026-09-14: every app in BOTH forms side by side (install / access
+    only), grouped Software apps / Hardware apps, each hardware app's EXPANSIONS as a subsection under it."""
+    from appstore.custom.app_forms import grouped
     flavor = flavor if flavor in ('online', 'offline') else 'online'
     modules = builder.registry_modules(root)
     if not modules:
         return ('<section class="step"><h2>' + html.escape(heading) + '</h2><p>No modules are registered on '
                 'this instance yet, so there is nothing to generate.</p></section>')
     analysis = builder.analyze(root)
-    cards = ''.join(_module_card(module, entry, analysis, flavor)
-                    for module, entry in sorted(modules.items()))
+    g = grouped(modules, root)
+    software = ''.join(_module_card(m, e, analysis, flavor, a) for m, e, a in g['software'])
+    hardware = ''
+    for m, e, a in g['hardware']:
+        hardware += _module_card(m, e, analysis, flavor, a)
+        exps = g['expansions'].get(m, [])
+        if exps:
+            hardware += (f'<li class="expansions"><details><summary>Expansions of {html.escape(a.get("title") or m)} ({len(exps)})</summary>'
+                         '<ol class="dl-list">' + ''.join(_module_card(xm, xe, analysis, flavor, xa) for xm, xe, xa in exps) + '</ol></details></li>')
+    orphans = ''.join(_module_card(m, e, analysis, flavor, a) for m, e, a in g['orphans'])
     note = ('Offline debs carry each app\'s pip libraries inside — bigger and slower to generate, for machines '
             'with no internet; at setup they install from what they carry, skipping anything already present. '
             'Engines such as the circuit simulator are already inside the Polari runtime; each card names any that are not.'
             if flavor == 'offline' else
             'Online debs are small — each app\'s libraries are fetched from the internet when it is set up, '
             'exactly as listed on its card.')
-    return f'''
+    forms_note = ('Every app comes in two forms, side by side: <strong>Install</strong> (the app itself, for a host or hardware '
+                  'member) and <strong>Access only</strong> (its shell — a launcher that finds and opens the app your isle hosts; '
+                  'for any member). Access-only apps exist online and offline, for software and hardware apps alike.')
+    out = f'''
 <section class="step">
 <h2>{html.escape(heading)}</h2>
-<p class="option-note">{note} Every official app is offered: one whose code is not on this instance yet is
-   fetched from its repository when you click. Scripts and AIs use the same door: <code>/api/apps</code>.</p>
-<ol class="dl-list">{cards}
-</ol>
-</section>'''
+<p class="option-note">{note} {forms_note} Every official app is offered: one whose code is not on this instance yet is
+   fetched from its repository when you click. Scripts and AIs use the same door: <code>/api/apps</code> (and <code>/api/access</code>).</p>
+<h3>Software apps ({len(g['software'])})</h3>
+<ol class="dl-list">{software}
+</ol>'''
+    if g['hardware'] or g['orphans']:
+        out += (f'<h3>Hardware apps ({len(g["hardware"])})</h3><p class="option-note">A hardware app is a KVM guest that owns real '
+                'devices; it needs a full isle and the hardware tier. Its expansions sit under it.</p>'
+                f'<ol class="dl-list">{hardware}</ol>')
+        if orphans:
+            out += f'<h3>Expansions whose hardware app is not registered here ({len(g["orphans"])})</h3><ol class="dl-list">{orphans}</ol>'
+    return out + '</section>'
 
 
 def render_page(instance_title='Polari', root=None,
@@ -409,12 +415,14 @@ class AppDebsPage(treeObject):
         flavor = request.params.get('flavor', 'online')
         flavor = flavor if flavor in ('online', 'offline') \
             else 'online'
+        form = request.params.get('form', 'install')
+        form = form if form in ('install', 'access') else 'install'
         registry = builder.registry_modules()
         if module not in registry:
             _refuse(response,
                     f'"{module}" is not in the module registry')
             return
-        if not registry[module].get('downloaded'):
+        if not registry[module].get('downloaded') and form == 'install':
             # fetch the code from its repository first (the API's ensure_code; needs the manager)
             try:
                 from appstore.apps_api import ensure_code
@@ -424,8 +432,8 @@ class AppDebsPage(treeObject):
             if not fetched.get('ok'):
                 _refuse(response, f'{module}: {fetched.get("refusal", "could not fetch its code")}', '409 Conflict')
                 return
-        job = builder.start_generation(module, flavor)
-        title = html.escape(module)
+        job = builder.start_generation(module, flavor, form=form)
+        title = html.escape(module) + (' (access only — the shell)' if form == 'access' else '')
         back = ('<p class="note"><a href="/downloads/apps?flavor='
                 f'{flavor}">&larr; Back to Apps</a></p>')
         head = ''
