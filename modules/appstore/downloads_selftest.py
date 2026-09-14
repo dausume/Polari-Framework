@@ -137,6 +137,11 @@ def main():
               == 1
               and steps_page.count('class="prov prov-prepped"')
               == 4)
+        offline_page = dl.render_page(debs, "Polari Demo", flavor='offline')
+        online_page = dl.render_page(debs, "Polari Demo", flavor='online')
+        check('top-level Online / Offline tabs on /downloads itself; every app under both; the media set under Offline (his ruling 2026-09-13)',
+              'href="/downloads?flavor=offline"' in online_page and 'tabs-top' in online_page and 'Add individual apps' in online_page
+              and 'tabs-top' in offline_page and 'Add individual apps' in offline_page and 'media set' in offline_page)
         check('transparency explainers on both tabs',
               'What is a .deb file?' in combined_page
               and 'What is a .deb file?' in steps_page)

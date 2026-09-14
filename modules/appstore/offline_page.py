@@ -160,6 +160,37 @@ def _chunk_section(index, chunk):
 </section>'''
 
 
+def render_media_section(instance_title='Polari'):
+    """The no-internet media set as a page SECTION (no chrome, no back link): what is staged, or the honest
+    'not built yet'. The main /downloads page embeds it under its Offline tab; /downloads/offline wraps it."""
+    title = html.escape(instance_title)
+    manifest, refusal = load_manifest()
+    if refusal:
+        return (f'<section class="step"><h2>Offline install media</h2><p>{html.escape(refusal)}.</p>'
+                '<p class="note">If you run this deployment: re-run the offline pool build so '
+                '<code>chunks.json</code> is complete.</p></section>')
+    if manifest is None:
+        return f'''
+<section class="step">
+<h2>Install {title} with no internet — the media set</h2>
+<p class="lede">Not built yet — honestly. Here is what this will offer once it is: everything the normal install
+   fetches from the internet, prepared as a set of files sized to DVDs or USB sticks (several — the payload is
+   bigger than one). You download each disk's file list on a connected computer, write the files to the media,
+   and install on the offline machine from those.</p>
+</section>'''
+    target = manifest.get('target', ''); built = manifest.get('builtAt', ''); media = manifest.get('media', '')
+    facts = ' &middot; '.join(html.escape(x) for x in (target, f'built {built}' if built else '', media) if x)
+    chunks = ''.join(_chunk_section(i, chunk) for i, chunk in enumerate(manifest['chunks'], start=1))
+    return f'''
+<section class="step">
+<h2>Install {title} with no internet — the media set</h2>
+<p class="version">{facts}</p>
+<p class="lede">Download each disk's files on a connected computer, write each numbered set to its own disk or
+   USB stick, and label them — the offline installer asks for them in order.</p>
+</section>
+{chunks}'''
+
+
 def render_page(instance_title='Polari'):
     title = html.escape(instance_title)
     manifest, refusal = load_manifest()

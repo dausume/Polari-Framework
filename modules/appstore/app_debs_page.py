@@ -158,9 +158,15 @@ def _module_card(module, entry, analysis, flavor='online'):
         blurb += (f'<span class="prov prov-demand">Hardware app &mdash; '
                   f'{html.escape(notice)}</span>')
     refusal = analysis['refusals'].get(module)
-    if not entry.get('downloaded') or refusal:
+    fetch_note = ''
+    if not entry.get('downloaded') and not refusal and entry.get('repo'):
+        # his ruling 2026-09-13: every official app is a download option on production —
+        # the code is fetched from its repository at build time (the status route does it)
+        fetch_note = ('<span class="prov prov-demand">Fetched first: this app\'s code is not on '
+                      'this instance yet; clicking pulls it from its repository, then packages it.</span>')
+    if (not entry.get('downloaded') and not entry.get('repo')) or refusal:
         reason = refusal or ('registered but its code is not '
-                             'downloaded on this instance')
+                             'downloaded on this instance and no repository is recorded')
         return f'''
 <li class="dl-card">
   <span class="dl-info">
@@ -222,11 +228,37 @@ def _module_card(module, entry, analysis, flavor='online'):
     {req_lines}
     <span class="dl-meta">steps on download:
       {GENERATION_STEPS}</span>
-    {shared_links}{mode_note}
+    {shared_links}{mode_note}{fetch_note}
     {state}
   </span>
   {button}
 </li>'''
+
+
+def render_apps_section(flavor='online', root=None, heading='Add individual apps'):
+    """The app cards for one flavour, without the page chrome — the main /downloads page embeds
+    this under its top-level Online / Offline tab (his ruling 2026-09-13)."""
+    flavor = flavor if flavor in ('online', 'offline') else 'online'
+    modules = builder.registry_modules(root)
+    if not modules:
+        return ('<section class="step"><h2>' + html.escape(heading) + '</h2><p>No modules are registered on '
+                'this instance yet, so there is nothing to generate.</p></section>')
+    analysis = builder.analyze(root)
+    cards = ''.join(_module_card(module, entry, analysis, flavor)
+                    for module, entry in sorted(modules.items()))
+    note = ('Offline debs carry each app\'s pip libraries inside — bigger and slower to generate, for machines '
+            'with no internet. System engines still come from the distro or the offline media.'
+            if flavor == 'offline' else
+            'Online debs are small — each app\'s libraries are fetched from the internet when it is set up, '
+            'exactly as listed on its card.')
+    return f'''
+<section class="step">
+<h2>{html.escape(heading)}</h2>
+<p class="option-note">{note} Every official app is offered: one whose code is not on this instance yet is
+   fetched from its repository when you click. Scripts and AIs use the same door: <code>/api/apps</code>.</p>
+<ol class="dl-list">{cards}
+</ol>
+</section>'''
 
 
 def render_page(instance_title='Polari', root=None,
@@ -368,10 +400,21 @@ class AppDebsPage(treeObject):
         flavor = request.params.get('flavor', 'online')
         flavor = flavor if flavor in ('online', 'offline') \
             else 'online'
-        if module not in builder.registry_modules():
+        registry = builder.registry_modules()
+        if module not in registry:
             _refuse(response,
                     f'"{module}" is not in the module registry')
             return
+        if not registry[module].get('downloaded'):
+            # fetch the code from its repository first (the API's ensure_code; needs the manager)
+            try:
+                from appstore.apps_api import ensure_code
+                fetched = ensure_code(getattr(self.polServer, 'manager', None), module, registry[module])
+            except Exception as exc:   # noqa: BLE001
+                fetched = {'ok': False, 'refusal': f'fetch failed: {exc}'}
+            if not fetched.get('ok'):
+                _refuse(response, f'{module}: {fetched.get("refusal", "could not fetch its code")}', '409 Conflict')
+                return
         job = builder.start_generation(module, flavor)
         title = html.escape(module)
         back = ('<p class="note"><a href="/downloads/apps?flavor='

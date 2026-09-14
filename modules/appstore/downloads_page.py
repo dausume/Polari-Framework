@@ -337,20 +337,55 @@ def _render_piecewise_only(title, headline, pieces):
     return wrap_page(title, body)
 
 
-def render_page(debs, instance_title='Polari', mode='one'):
+def _flavor_tabs(flavor):
+    tab = lambda f, label: (            # noqa: E731
+        f'<a class="tab{" tab-on" if flavor == f else ""}" href="/downloads?flavor={f}">{label}</a>')
+    return ('<nav class="tabs tabs-top">' + tab('online', 'Online') + tab('offline', 'Offline') + '</nav>'
+            + ('<p class="option-note"><strong>Offline</strong>: for a computer that will have no internet — '
+               'the installer and each app carry what they need inside; the media set below is for the whole '
+               'install from disks or sticks.</p>' if flavor == 'offline' else
+               '<p class="option-note"><strong>Online</strong>: small downloads — your computer fetches the rest '
+               'from the internet during the install.</p>'))
+
+
+def _apps_and_media(flavor, title):
+    """His ruling 2026-09-13: every official app is a download option under BOTH tabs, and the offline media
+    set sits under Offline — not links at the bottom."""
+    parts = []
+    try:
+        from appstore.app_debs_page import render_apps_section
+        parts.append(render_apps_section(flavor))
+    except Exception as exc:   # noqa: BLE001 — the page must still render its installers
+        parts.append(f'<section class="step"><h2>Add individual apps</h2><p>The app list could not be '
+                     f'rendered here ({html.escape(str(exc))}); see <a href="/downloads/apps?flavor={flavor}">'
+                     '/downloads/apps</a>.</p></section>')
+    if flavor == 'offline':
+        try:
+            from appstore.offline_page import render_media_section
+            parts.append(render_media_section(title))
+        except Exception as exc:   # noqa: BLE001
+            parts.append(f'<section class="step"><h2>Offline install media</h2><p>Unavailable: '
+                         f'{html.escape(str(exc))}.</p></section>')
+    return ''.join(parts)
+
+
+def render_page(debs, instance_title='Polari', mode='one', flavor='online'):
     """The full HTML document. Version headline = the store deb's
     (the user-facing app), falling back to the combined deb, then
     the first staged."""
     title = html.escape(instance_title)
+    flavor = flavor if flavor in ('online', 'offline') else 'online'
     if not debs:
-        body = ('<header class="hero"><h1>Downloads</h1></header>'
-                '<div class="card"><p>No installers are staged on '
-                'this instance yet.</p>'
+        # no platform installer staged — the apps (and the offline media set) are still offered under the tabs
+        body = ('<header class="hero"><h1>Downloads</h1></header>' + _flavor_tabs(flavor)
+                + '<section class="step"><h2>The installer</h2>'
+                '<p>No installers are staged on this instance yet.</p>'
                 '<p class="note">If you run this deployment: build '
                 'the bundle (<code>./build-polari-isle-deb.sh</code>) '
                 'and stage <code>.generated/debs/</code> into the '
                 'downloads directory '
-                '(<code>POLARI_DOWNLOADS_DIR</code>).</p></div>')
+                '(<code>POLARI_DOWNLOADS_DIR</code>).</p></section>'
+                + _apps_and_media(flavor, title) + _footer_notes())
         return wrap_page(title, body)
     combined = next((d for d in debs if d['name'] == COMBINED_NAME),
                     None)
@@ -358,10 +393,33 @@ def render_page(debs, instance_title='Polari', mode='one'):
     headline = next((d for d in debs
                      if d['name'] == 'isle-app-store'),
                     combined or debs[0])
+    flavor = flavor if flavor in ('online', 'offline') else 'online'
+    if flavor == 'offline':
+        # the offline installer deb when staged (polari-complete-offline), else the online one with the note
+        offline_deb = next((d for d in debs if d['name'] == COMBINED_NAME + '-offline'), None)
+        installer = (_card(offline_deb, '') if offline_deb else
+                     '<p class="option-note">No offline installer is staged on this instance yet; the online '
+                     'installer above still works on a connected computer.</p>')
+        body = f'''
+<header class="hero">
+<h1>Install {title} on your computer</h1>
+<p class="version">Current version <strong>{html.escape(headline["version"])}</strong></p>
+</header>
+{_flavor_tabs('offline')}
+<section class="step"><h2>The installer</h2><ol class="dl-list">{installer}</ol></section>
+{_apps_and_media('offline', title)}
+{_first_start()}
+{_explainers(two_option=bool(combined))}
+{_footer_notes()}
+'''
+        return wrap_page(title, body)
     if combined:
-        return _render_two_option(title, headline, combined,
-                                  pieces, mode)
-    return _render_piecewise_only(title, headline, pieces)
+        page = _render_two_option(title, headline, combined, pieces, mode)
+    else:
+        page = _render_piecewise_only(title, headline, pieces)
+    # the top-level tabs above the installer, the apps under it (online flavour)
+    return page.replace('</header>', '</header>' + _flavor_tabs('online'), 1).replace(
+        _first_start(), _apps_and_media('online', title) + _first_start(), 1)
 
 
 class DownloadsPage(treeObject):
@@ -380,7 +438,8 @@ class DownloadsPage(treeObject):
         response.content_type = 'text/html; charset=utf-8'
         response.text = render_page(
             staged_debs(),
-            mode=request.params.get('mode', 'one'))
+            mode=request.params.get('mode', 'one'),
+            flavor=request.params.get('flavor', 'online'))
 
     def on_get_file(self, request, response, filename):
         path = resolve_download(filename)
