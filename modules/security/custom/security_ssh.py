@@ -258,3 +258,26 @@ def ssh_summary(rows):
                 edges.append({'from': r['device'], 'to': t, 'means': 'ssh key (client config)'})
     return {'devices': len(rows), 'exposed': exposed, 'keys_only': keys_only, 'closed': closed, 'reach_edges': edges,
             'reading': f"{len(rows)} device(s): {len(exposed)} accept passwords or root login, {len(keys_only)} keys-only, {len(closed)} closed"}
+
+
+TRACKED_GROUPS = ('sudo', 'admin', 'wheel', 'docker', 'libvirt', 'kvm', 'dialout', 'plugdev')
+
+
+def permission_group_updates(device, inv):
+    """The tie between what a device REPORTS (its /etc/group) and the PermissionGroup rows the security module
+    designs (polari-* sudoers groups, docker/libvirt/kvm …): {group: {'members': 'device: a, b', 'installed': ...}}
+    — merged per device into the row by the API, so a group's members are visible across the isle."""
+    s = inv.get('ssh') or {}
+    out = {}
+    for line in s.get('groups') or []:
+        name, _, members = line.partition('|')
+        if name.startswith('polari-') or name in TRACKED_GROUPS:
+            out[name] = {'members': f"{device}: {', '.join(m for m in members.split(',') if m) or '(nobody)'}", 'installed': 'yes'}
+    return out
+
+
+def merge_members(existing, device, entry):
+    """'a: x, y; b: z' merged with this device's entry — one segment per device, this device's replaced."""
+    segs = [seg.strip() for seg in (existing or '').split(';') if seg.strip() and not seg.strip().startswith(device + ':')]
+    segs.append(entry)
+    return '; '.join(segs)

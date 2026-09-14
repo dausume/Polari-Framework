@@ -161,9 +161,21 @@ class SecurityAPI(treeObject):
         o1 = self._upsert('DeviceInventory', DeviceInventory, r1); o2 = self._upsert('SshCapability', SshCapability, r2)
         lv = permission_levels(device, inv)
         stored_levels = sum(1 for row in lv if self._upsert('SshPermissionLevel', SshPermissionLevel, row))
+        # the PermissionGroup rows (designed groups) learn their observed members per device
+        from security.custom.security_ssh import permission_group_updates, merge_members
+        from security.security_basis import PermissionGroup
+        tables = getattr(self.manager, 'objectTables', None) or {}
+        groups_touched = 0
+        for gname, upd in permission_group_updates(device, inv).items():
+            existing = next((r for r in (tables.get('PermissionGroup') or {}).values() if getattr(r, 'name', '') == gname), None)
+            if existing is not None:
+                existing.members = merge_members(getattr(existing, 'members', ''), device, upd['members']); existing.installed = 'yes'; groups_touched += 1
+            elif gname.startswith('polari-'):
+                if self._upsert('PermissionGroup', PermissionGroup, {'name': gname, 'purpose': 'observed on a device (not yet designed here)', 'verbs': '', 'sudoers_file': '', 'granted_by': 'observed', 'members': upd['members'], 'apps_needing': '', 'installed': 'yes'}):
+                    groups_touched += 1
         response.media = {'ok': True, 'stored': bool(o1 and o2), 'device': device, 'role': r1['role'], 'formats': r1['formats'],
                           'ssh': {'verdict': r2['verdict'], 'vector': r2['vector'], 'assurance': r2['assurance'], 'reasons': r2['assurance_reasons'],
-                                  'posture': r2['posture'], 'posture_until': r2['posture_until'], 'levels': r2['levels'], 'level_rows': stored_levels}}
+                                  'posture': r2['posture'], 'posture_until': r2['posture_until'], 'levels': r2['levels'], 'level_rows': stored_levels, 'groups_touched': groups_touched}}
 
     def on_get_notices(self, request, response):
         response.media = notices(self.manager, do_probe=not request.get_param_as_bool('no_probe'))

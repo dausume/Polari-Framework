@@ -137,6 +137,10 @@ def main():
     check('dev-mode notices: the install-level DEV MODE warning names the danger of connecting to systems that are not your own; dev devices warn; unsecured devices error',
           [n['code'] for n in pn] == ['dev-mode', 'dev-posture-devices', 'ssh-unsecured'] and 'not your own' in pn[0]['text'] and 'EXTREMELY DANGEROUS' in pn[0]['text'] and pn[2]['level'] == 'error' and 'passwords accepted' in pn[2]['text'], [n['code'] for n in pn])
     check('production install, every device secure → no posture notice', posture_notices(_M(), env={}) == [])
+    from security.custom.security_ssh import permission_group_updates, merge_members
+    pg = permission_group_updates('n', inv_u)
+    check('permission groups: observed sudo + polari-ops members tied per device', pg['sudo']['members'] == 'n: u' and pg['polari-ops']['members'] == 'n: dev1')
+    check('members merge per device (this device replaced, others kept)', merge_members('a: x; n: old', 'n', 'n: u') == 'a: x; n: u')
     check('the password-guess threat exists on the isle with its counterexample', 'ssh-password-guess' in {t['name'] for t in threats('isle', 'today')['threats']})
     check('threat rows seed for every scenario', len([r for n in scenario_names() for r in threat_rows(n)]) >= 40)
     print('\n%d/%d checks passed' % (passed, total))
