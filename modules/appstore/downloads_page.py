@@ -349,6 +349,21 @@ def _flavor_tabs(flavor):
             + '</nav>')
 
 
+def _usb_stick_section():
+    """His rulings 2026-09-13: a prepared USB stick is the ADVISED path for app installs; a stick is always
+    the offline flavour; Polari looks for it. One stick = the platform as an app + any number of apps, each
+    installed only if the computer lacks it (dpkg skips present packages; pip skips present libraries)."""
+    return ('<section class="step" id="usb"><h2>The advised path: a Polari USB stick</h2>'
+            '<p>Put the platform and the apps you want on one USB stick and carry it to the computer. Nothing on '
+            'the stick needs internet, one stick installs any number of apps at once, and every install checks '
+            'what is already present first — the platform, each app and each library go on only once.</p>'
+            '<pre>pol apps usb write /media/$USER/&lt;stick&gt; --apps all        # or --apps gears,terms; --platform yes\n'
+            'pol apps usb list                                        # Polari finds a prepared stick\n'
+            'pol apps usb install                                     # or open the Isle App Store: "From a USB stick"</pre>'
+            '<p class="note">Writing a stick never formats it; the files go under <code>polari-apps/</code> next to '
+            'whatever is on the drive.</p></section>')
+
+
 def _apps_and_media(flavor, title):
     """His ruling 2026-09-13: every official app is a download option under BOTH tabs, and the offline media
     set sits under Offline — not links at the bottom."""
@@ -361,6 +376,7 @@ def _apps_and_media(flavor, title):
                      f'rendered here ({html.escape(str(exc))}); see <a href="/downloads/apps?flavor={flavor}">'
                      '/downloads/apps</a>.</p></section>')
     if flavor == 'offline':
+        parts.insert(0, _usb_stick_section())
         try:
             from appstore.offline_page import render_media_section
             parts.append(render_media_section(title))
