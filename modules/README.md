@@ -28,6 +28,8 @@ file is the contract.
 | `hardware-extension-app` | functionality pushed INTO a running hardware app it `extends`; it has no guest of its own | the host guest running | `reticulum` (extends `isle-relay`), `printcam` (extends `voron-printer`) |
 | `suite-app` | the composition kind (§1) | its parts' needs, resolved by placement | `printing_suite` |
 
+**2a. Categories (for people, `app.category` / `app.subcategories` / `app.tags`).** ONE primary category — `polari` (normal web apps), `network` (links, mesh, isle guests, bridges), `hardware` (KVM guests + expansions) — and any number of sub-categories from `moduleService/app_taxonomy.py` (a sub-category of another category cross-lists the app there). Category says what an app is FOR; `app.kind` says how it RUNS — never mix the two. `manifests conform` checks the vocabulary; `/downloads/apps` groups, searches and sorts by it.
+
 **2b. Store-row kinds** (`IsleCatalogEntry.kind`, what `isle store` installs): `mesh-app` (a container app), `polari-app` (a launcher for a Polari page/app), `polari-instance` (another Polari), `polari-module` (a module deb), `isle-vpn` (the VPN app family), `hardware-app`, `hardware-extension-app`. A module of kind `isle-app` or `hardware-app` seeds its own store row (`SEED_<X>_CATALOG` in its basis index).
 
 **2c. Agent tiers** (`app.agentTier`): `reach` (any device that can see the isle), `member` (runs the isle agent — the default), `hardware` (member + libvirt/KVM; hardware kinds require it), `core` (the isle core itself).
