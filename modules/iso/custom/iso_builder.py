@@ -425,3 +425,7 @@ def start_build(build, base_file, platform_debs=(), app_debs=(), ssh_keys=(), co
 
 def build_job(build):
     return _jobs.get('build:' + build_id(build))
+
+
+def build_job_by_id(bid):
+    return _jobs.get('build:' + str(bid))

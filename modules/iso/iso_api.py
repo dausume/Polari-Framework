@@ -127,13 +127,21 @@ class IsoAPI(treeObject):
         out = []
         for r in self._rows('IsoBuild'):
             d = {k: getattr(r, k, '') for k in ('name', 'base', 'role', 'shape', 'encryption', 'secure_boot', 'posture', 'look', 'hostname', 'target_hash', 'apps', 'offline', 'state', 'step', 'refusal', 'warnings', 'file', 'sha256', 'bytes', 'seconds', 'requested_at', 'built_at')}
-            job = iso_builder.build_job(d)
+            job = iso_builder.build_job_by_id(d['name'])   # the row's name IS the build id (re-hashing the row would miss: defaults differ)
             if job:
                 d['state'] = job['state'] if job['state'] != 'done' else 'ready'; d['step'] = job['step']
                 if job['result'] and job['result'].get('ok'):
                     d.update({'file': job['result']['file'], 'sha256': job['result']['sha256'], 'bytes': job['result']['bytes']})
                 elif job['result']:
                     d['refusal'] = job['result'].get('refusal', '')
+            if not d.get('file') and not (job and job['state'] == 'running'):
+                # after a restart the job table is empty but the image may still be in the pool: recognise it by its id
+                hit = glob.glob(os.path.join(iso_builder.pool_dir(), f"*-{d['name']}.iso"))
+                if hit:
+                    path = hit[0]; d.update({'file': os.path.basename(path), 'bytes': os.path.getsize(path), 'sha256': d.get('sha256') or iso_builder._sha256(path), 'state': 'ready', 'step': 'cached'})
+            if d.get('file') and d.get('state') == 'ready':
+                for k in ('file', 'sha256', 'bytes', 'state'):   # persist onto the row so the next read is free
+                    setattr(r, k, d[k])
             if d.get('file'):
                 d['hold'] = iso_builder.pool_entry(d['file']); d['download_url'] = f"/api/iso/builds/{d['name']}/download"
             out.append(d)
