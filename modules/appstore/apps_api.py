@@ -254,7 +254,15 @@ class AppsAPI(treeObject):
             row = {'module': module, 'kind': entry.get('kind', ''), 'tier': entry.get('tier', ''), 'hosts_on': tiers_for(entry.get('kind', '')), 'access_form': access_form(module), 'notice_on_access': tier_notice(entry.get('kind', ''), 'access'), 'downloaded': bool(entry.get('downloaded')), 'repo': entry.get('repo', ''),
                    'description': (entry.get('description') or '')[:200], 'flavors': {}}
             app = manifest_app(module, entry=entry)
-            row.update({'app_kind': app['kind'], 'title': app['title'], 'extends': app['extends'], 'group': group_of(app), 'access_urls': access_url_candidates(module, app)})
+            row.update({'app_kind': app['kind'], 'title': app['title'], 'extends': app['extends'], 'group': group_of(app), 'access_urls': access_url_candidates(module, app),
+                        'category': app['category'], 'subcategories': app['subcategories'], 'secondary_categories': app.get('secondary', []), 'tags': app['tags'], 'runs_on': tiers_for(app['kind'])})
+            # his rulings 2026-09-14: search by name or properties, inside a category or across all; filters — the same door for AIs
+            from moduleService.app_taxonomy import matches
+            q = request.params.get('q', '') or ''; cat = request.params.get('category', '') or ''; sub = request.params.get('subcategory', '') or ''
+            kind = request.params.get('kind', '') or ''; tier = request.params.get('tier', '') or ''
+            if (cat and cat != app['category'] and cat not in app.get('secondary', [])) or (sub and sub not in app['subcategories']) \
+                    or (kind and kind != app['kind']) or (tier and tier not in tiers_for(app['kind'])) or not matches(q, module, app, app):
+                continue
             for f in FLAVORS:
                 arow = {}
                 for fm in FORMS:
