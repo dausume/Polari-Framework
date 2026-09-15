@@ -90,6 +90,9 @@ def render(build, ssh_keys=(), core_key='', polari_debs=(), apps=()):
         'identity': {'hostname': hostname, 'username': user, 'password': build.get('password_hash') or '!'},   # '!' = no password login; ssh keys only (D11)
         'ssh': {'install-server': True, 'allow-pw': False, 'authorized-keys': keys},
         'storage': storage,
+        # offline first (ISO plan §1): when no mirror answers, install from the ISO's own pool instead of aborting;
+        # a full Polari pool (our packages' apt closure on the ISO) is the next slice
+        'apt': {'fallback': 'offline-install', 'preserve_sources_list': False},
         'packages': packages,
         'updates': 'security',
         'early-commands': early,

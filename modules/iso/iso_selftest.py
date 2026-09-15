@@ -69,6 +69,7 @@ def main():
     check('warnings: encryption (second password), Secure Boot off, dev posture — no refusal', not ref2 and len(warns2) == 3 and any('second password' in w for w in warns2) and any('EXTREMELY DANGEROUS' in w for w in warns2))
     ai = iso_autoinstall.render(b2, ssh_keys=['ssh-ed25519 AAAA owner'], core_key='ssh-ed25519 BBBB core')['autoinstall']
     check('D11: ssh from the first boot, keys only (no password login), owner + core keys placed', ai['ssh']['install-server'] and ai['ssh']['allow-pw'] is False and len(ai['ssh']['authorized-keys']) == 2 and ai['identity']['password'] == '!')
+    check('offline first: the installer falls back to the ISO pool when no mirror answers, never aborts', ai['apt']['fallback'] == 'offline-install')
     check('desktop shape → the KDE task; core → the KVM packages; encryption → an LVM layout with a passphrase', 'kubuntu-desktop' in ai['packages'] and 'libvirt-daemon-system' in ai['packages'] and ai['storage']['layout'].get('password'))
     check('late commands install the platform OFFLINE from the ISO, write the posture and the plan, enable first boot',
           any('/cdrom/polari' in c for c in ai['late-commands']) and any('polari-complete' in c and 'apt-get install' in c for c in ai['late-commands']) and any('posture.json' in c and '"dev"' in c for c in ai['late-commands']) and any('plan.json' in c for c in ai['late-commands']) and any('polari-first-boot.service' in c for c in ai['late-commands']))
