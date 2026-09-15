@@ -25,7 +25,8 @@ class DeviceProbe(treeObject):
                  tpm: str = '', disk_encryption: str = '', raid_mode: str = '', gpu: str = '', wifi: str = '', nics: int = 0, device_ids: str = '',
                  apple_silicon: bool = False, verdict: str = 'unchecked', verdict_text: str = '', base_checked: str = '', drivers_in_kernel: int = 0,
                  drivers_firmware: int = 0, drivers_third_party: int = 0, drivers_missing: int = 0, traps: str = '', suggested_role: str = '',
-                 suggested_reason: str = '', probed_at: str = '', raw_json: str = ''):
+                 suggested_reason: str = '', probed_at: str = '', raw_json: str = '', joined_at: str = '', joined_hostname: str = '', joined_addresses: str = '',
+                 joined_role: str = '', joined_shape: str = '', detected: str = '', ssh_user: str = ''):
         self.name = name
         self.hw_hash = hw_hash
         self.label = label
@@ -59,3 +60,10 @@ class DeviceProbe(treeObject):
         self.suggested_reason = suggested_reason
         self.probed_at = probed_at
         self.raw_json = raw_json
+        self.joined_at = joined_at
+        self.joined_hostname = joined_hostname
+        self.joined_addresses = joined_addresses
+        self.joined_role = joined_role
+        self.joined_shape = joined_shape
+        self.detected = detected
+        self.ssh_user = ssh_user

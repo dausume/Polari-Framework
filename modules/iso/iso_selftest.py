@@ -74,7 +74,11 @@ def main():
           any('/cdrom/polari' in c for c in ai['late-commands']) and any('polari-complete' in c and 'apt-get install' in c for c in ai['late-commands']) and any('posture.json' in c and '"dev"' in c for c in ai['late-commands']) and any('plan.json' in c for c in ai['late-commands']) and any('polari-first-boot.service' in c for c in ai['late-commands']))
     ai3 = iso_autoinstall.render({'role': 'member', 'shape': 'detect', 'encryption': True})['autoinstall']
     check('D8 at deploy: shape detect + encryption → an early command refuses on a machine without a display', any('REFUSED' in c and 'display' in c for c in ai3['early-commands']))
+    check('the core key rides on every image (D11 + the scaffolding): it is among the authorized keys', 'ssh-ed25519 BBBB core' in ai['ssh']['authorized-keys'])
+    ai4 = iso_autoinstall.render({'role': 'member', 'shape': 'headless', 'report_to': 'https://core.example', 'target_hash': 'h1'})['autoinstall']
+    check('the plan the machine keeps carries where to report and its own hash', any('report_to' in c and 'core.example' in c and '"h1"' in c for c in ai4['late-commands']))
     fb = iso_autoinstall.first_boot_script()
+    check('first boot reports back to the core (/api/iso/joined) with hash, hostname, addresses, detections', '/api/iso/joined' in fb and 'report_to' in fb and 'detected.json' in fb)
     check('first boot: detects display/kvm/iommu/nics/tpm, becomes the core or joins with the fingerprint, admits the carried apps, disables itself',
           'detected.json' in fb and 'core-install' in fb and 'isle-bootstrap.sh' in fb and '--fingerprint' in fb and 'install-apps.sh' in fb and 'systemctl disable polari-first-boot' in fb)
     # ---- the probe kit
@@ -109,6 +113,8 @@ def main():
     s = S(); api.on_get_preview(R(role='member', shape='headless', encryption='1'), s); check('preview: the headless-encryption refusal comes back as 409', s.status.startswith('409') and 'refused' in s.media['refusal'])
     s = S(); api.on_get_preview(R(role='core', shape='desktop'), s); check('preview: a valid choice set renders the autoinstall', s.media['ok'] and s.media['autoinstall']['autoinstall']['version'] == 1)
     s = S(); api.on_post_build(R(media={'role': 'member'}), s); check('build without a cached base → 409 naming the fetch', s.status.startswith('409') and 'not cached' in s.media['refusal'])
+    s = S(); api.on_post_joined(R(media={'hw_hash': 'h9', 'hostname': 'polari-x', 'addresses': ['10.0.0.9'], 'role': 'member', 'shape': 'headless', 'detected': {'kvm': 1}}), s); check('/api/iso/joined answers with the ssh line (no manager: nothing stored, still answered)', s.media['ok'] and s.media['ssh'] == 'ssh polari@10.0.0.9')
+    s = S(); api.on_get_core_key(R(), s); check('/api/iso/core-key says honestly whether the core has a key', 'placed_on_every_image' in s.media)
     s = S(); api.on_post_build(R(media={'role': 'x'}), s); check('build with a bad role → 400', s.status.startswith('400'))
     page = __import__('iso.iso_api', fromlist=['render_page']).render_page(api)
     check('the human page: three steps, the probe kit link, the build form, the bases, no raw JSON', '1 · Probe' in page and '2 · Choose' in page and '3 · Install' in page and '/api/iso/probe-kit' in page and 'name="join_fingerprint"' in page and 'Ubuntu 26.04' in page)

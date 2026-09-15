@@ -68,7 +68,7 @@ def render(build, ssh_keys=(), core_key='', polari_debs=(), apps=()):
         # posture (his ruling: dev vs production is an install-level mode)
         f'curtin in-target --target=/target -- sh -c "mkdir -p /etc/polari && printf \'%s\' \'{json.dumps({"posture": build.get("posture") or "production", "until": "", "relaxations": [], "applied_by": "iso-build"})}\' > /etc/polari/posture.json"',
         # what this machine IS (the plan lands with the machine; first boot reads it)
-        f'curtin in-target --target=/target -- sh -c "printf \'%s\' \'{json.dumps({"role": role, "shape": shape, "join_core": build.get("join_core") or "", "join_fingerprint": build.get("join_fingerprint") or "", "join_tier": build.get("join_tier") or ("hardware" if role == "hardware" else "member" if role == "member" else "access" if role == "access" else ""), "look": build.get("look") or "plasma-default", "apps": list(apps)})}\' > /etc/polari/plan.json"',
+        f'curtin in-target --target=/target -- sh -c "printf \'%s\' \'{json.dumps({"role": role, "shape": shape, "join_core": build.get("join_core") or "", "join_fingerprint": build.get("join_fingerprint") or "", "join_tier": build.get("join_tier") or ("hardware" if role == "hardware" else "member" if role == "member" else "access" if role == "access" else ""), "look": build.get("look") or "plasma-default", "apps": list(apps), "report_to": build.get("report_to") or "", "target_hash": build.get("target_hash") or ""})}\' > /etc/polari/plan.json"',
         # first boot: detect (display, kvm, nics, tpm), then become the core or join, then admit the apps carried
         'cp /cdrom/polari/first-boot.sh /target/usr/local/lib/polari/first-boot.sh || (mkdir -p /target/usr/local/lib/polari && cp /cdrom/polari/first-boot.sh /target/usr/local/lib/polari/first-boot.sh)',
         'curtin in-target --target=/target -- chmod 755 /usr/local/lib/polari/first-boot.sh',
@@ -138,6 +138,21 @@ case "$ROLE" in
 esac
 # ---- the apps the ISO carried (offline, presence-checked)
 if [ -f /var/lib/polari-iso/polari/apps/install-apps.sh ]; then bash /var/lib/polari-iso/polari/apps/install-apps.sh --no-platform || true; fi
+# ---- report back to the core that built this image (his ask 2026-09-15: ssh scaffolding from the core outward)
+REPORT=$(field report_to); HASH=$(field target_hash)
+if [ -n "$REPORT" ]; then
+    ADDRS=$(ip -4 -o addr show scope global | awk '{print $4}' | cut -d/ -f1 | tr '\n' ',' | sed 's/,$//')
+    python3 - "$REPORT" "$HASH" "$ROLE" "$SHAPE" "$ADDRS" <<'PY' || echo "report to the core failed (it will be retried by the next boot of the unit if re-enabled)"
+import json, socket, ssl, sys, urllib.request
+report, h, role, shape, addrs = sys.argv[1:6]
+body = json.dumps({'hw_hash': h, 'hostname': socket.gethostname(), 'addresses': [a for a in addrs.split(',') if a], 'role': role, 'shape': shape, 'ssh_user': 'polari',
+                   'detected': json.load(open('/etc/polari/detected.json'))}).encode()
+req = urllib.request.Request(report.rstrip('/') + '/api/iso/joined', data=body, headers={'Content-Type': 'application/json'}, method='POST')
+ctx = ssl._create_unverified_context()   # the core may be self-signed at home; the fingerprint trust is the isle's, not TLS's
+with urllib.request.urlopen(req, timeout=20, context=ctx) as r:
+    print('reported to the core:', r.read()[:200].decode())
+PY
+fi
 systemctl disable polari-first-boot.service 2>/dev/null || true
 echo "first boot done: role=$ROLE shape=$SHAPE display=$DISPLAY_OK kvm=$KVM_OK iommu=$IOMMU nics=$NICS tpm=$TPM"
 '''

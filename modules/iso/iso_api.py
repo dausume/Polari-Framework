@@ -39,6 +39,20 @@ def _platform_debs():
         return []
 
 
+def core_public_key():
+    """The core's outward ssh key (his ask 2026-09-15: manipulate every device from the core). Read from
+    POLARI_CORE_SSH_PUBKEY (the text) or POLARI_CORE_SSH_PUBKEY_FILE (default /app/data/keys/core.pub) — placed
+    by `pol iso keys init`; '' when the core has none yet."""
+    txt = os.environ.get('POLARI_CORE_SSH_PUBKEY', '').strip()
+    if txt:
+        return txt
+    path = os.environ.get('POLARI_CORE_SSH_PUBKEY_FILE', '/app/data/keys/core.pub')
+    try:
+        return open(path).read().strip()
+    except OSError:
+        return ''
+
+
 def _app_debs(names):
     try:
         from appstore.custom import app_deb_builder as builder
@@ -84,6 +98,8 @@ class IsoAPI(treeObject):
             add('/api/iso/builds/{build_id}/status', self, suffix='build_status')
             add('/api/iso/builds/{build_id}/download', self, suffix='build_download')
             add('/api/iso/autoinstall/preview', self, suffix='preview')
+            add('/api/iso/joined', self, suffix='joined')
+            add('/api/iso/core-key', self, suffix='core_key')
 
     # ---- helpers ------------------------------------------------------------------------------------------------
     def _rows(self, cls):
@@ -211,7 +227,7 @@ class IsoAPI(treeObject):
         self._json(response, {'ok': True, 'name': name, 'state': job['state'], 'step': job['step'], 'progress': job.get('progress', 0)}, '202 Accepted')
 
     def _choices(self, body):
-        b = {k: body.get(k) for k in ('base', 'role', 'shape', 'encryption', 'secure_boot', 'posture', 'look', 'hostname', 'username', 'ssh_keys', 'join_core', 'join_fingerprint', 'join_tier', 'target_hash', 'apps', 'offline', 'password_hash', 'encryption_passphrase')}
+        b = {k: body.get(k) for k in ('base', 'role', 'shape', 'encryption', 'secure_boot', 'posture', 'look', 'hostname', 'username', 'ssh_keys', 'join_core', 'join_fingerprint', 'join_tier', 'target_hash', 'apps', 'offline', 'password_hash', 'encryption_passphrase', 'report_to')}
         b['base'] = b.get('base') or (self._default_base() or {}).get('name', ''); b['role'] = b.get('role') or 'member'; b['shape'] = b.get('shape') or 'detect'
         b['encryption'] = bool(b.get('encryption')); b['secure_boot'] = b.get('secure_boot') or 'on'; b['posture'] = b.get('posture') or 'production'; b['look'] = b.get('look') or 'plasma-default'
         b['offline'] = True if b.get('offline') is None else bool(b['offline'])
@@ -238,6 +254,8 @@ class IsoAPI(treeObject):
         b, probs = self._choices(body)
         if probs:
             return self._json(response, {'ok': False, 'refusal': '; '.join(probs)}, '400 Bad Request')
+        # where first boot reports back (his ask: the core sees every device it built): this core's own address unless told
+        b['report_to'] = b.get('report_to') or os.environ.get('POLARI_PUBLIC_API', '') or (f"{request.scheme}://{request.host}" if getattr(request, 'host', '') else '')
         refusal, warnings = iso_autoinstall.validate(b)
         if refusal:
             return self._json(response, {'ok': False, 'refusal': refusal, 'warnings': warnings}, '409 Conflict')
@@ -245,12 +263,39 @@ class IsoAPI(treeObject):
         if not base or not base.get('cached'):
             return self._json(response, {'ok': False, 'refusal': f"base {b['base']} is not cached on this instance — POST /api/iso/bases/{b['base']}/fetch first (a 2–3 GB download)", 'base': base}, '409 Conflict')
         bid = iso_builder.build_id(b)
-        row = {**{k: v for k, v in b.items() if k not in ('password_hash', 'encryption_passphrase')}, 'name': bid, 'state': 'requested', 'warnings': ' | '.join(warnings), 'requested_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+        row = {**{k: v for k, v in b.items() if k not in ('password_hash', 'encryption_passphrase', 'report_to')}, 'name': bid, 'state': 'requested', 'warnings': ' | '.join(warnings), 'requested_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
                'ssh_keys': b.get('ssh_keys') or '', 'apps': b.get('apps') or ''}
         self._upsert('IsoBuild', IsoBuild, row); self._persist()
         keys = [k for k in (b.get('ssh_keys') or '').splitlines() if k.strip()]
-        job = iso_builder.start_build(b, iso_builder.base_path(base['file']), _platform_debs(), _app_debs(b.get('apps')), keys)
+        job = iso_builder.start_build(b, iso_builder.base_path(base['file']), _platform_debs(), _app_debs(b.get('apps')), keys, core_public_key())
         self._json(response, {'ok': True, 'build': bid, 'state': job['state'], 'step': job['step'], 'warnings': warnings, 'status_url': f'/api/iso/builds/{bid}/status', 'download_url': f'/api/iso/builds/{bid}/download'}, '202 Accepted')
+
+    def on_get_core_key(self, request, response):
+        k = core_public_key()
+        self._json(response, {'ok': bool(k), 'core_public_key': k, 'placed_on_every_image': bool(k),
+                              'how': 'pol iso keys init generates the pair on the core (untracked) and stages the public half for the instance'})
+
+    def on_post_joined(self, request, response):
+        """First boot on an installed machine reports back: {hw_hash, hostname, addresses, role, shape, detected}.
+        The DeviceProbe row (or a new one) turns 'joined'; the core keeps what it needs to ssh in."""
+        try:
+            body = request.media or {}
+        except Exception:
+            body = {}
+        h = body.get('hw_hash') or ''; host = body.get('hostname') or ''
+        if not (h or host):
+            return self._json(response, {'ok': False, 'refusal': 'body: {hw_hash, hostname, addresses: [...], role, shape, detected: {...}}'}, '400 Bad Request')
+        row = next((r for r in self._rows('DeviceProbe') if getattr(r, 'hw_hash', '') == h), None) if h else None
+        addrs = [a for a in (body.get('addresses') or []) if a]
+        fields = {'joined_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'joined_hostname': host, 'joined_addresses': ', '.join(addrs), 'joined_role': body.get('role') or '',
+                  'joined_shape': body.get('shape') or '', 'detected': json.dumps(body.get('detected') or {})[:2000], 'ssh_user': body.get('ssh_user') or 'polari'}
+        if row is None:
+            row = self._upsert('DeviceProbe', DeviceProbe, {'name': 'probe:' + (h or host), 'hw_hash': h or host, 'label': host, 'verdict': 'installed', 'verdict_text': 'reported by first boot (no probe before the install)'})
+        if row is not None:
+            for k, v in fields.items():
+                setattr(row, k, v)
+            self._persist()
+        self._json(response, {'ok': True, 'device': h or host, 'ssh': f"ssh {fields['ssh_user']}@{addrs[0] if addrs else host}", 'recorded': list(fields)})
 
     def on_get_builds(self, request, response):
         self._json(response, {'ok': True, 'count': len(self._rows('IsoBuild')), 'builds': self._build_rows(), 'pool': iso_builder.pool_status()})
