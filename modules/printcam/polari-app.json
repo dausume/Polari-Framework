@@ -13,7 +13,15 @@
     "family": "",
     "extends": "voron",
     "catalogKinds": [],
-    "agentTier": "hardware"
+    "agentTier": "hardware",
+    "category": "hardware",
+    "subcategories": [
+      "fabrication"
+    ],
+    "tags": [
+      "camera",
+      "printer"
+    ]
   },
   "requires": {
     "modules": [

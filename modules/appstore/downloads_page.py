@@ -370,17 +370,33 @@ def _usb_stick_section():
             'whatever is on the drive. A wipe only ever touches a removable drive, names it first, and needs a second yes.</p></section>')
 
 
+def _apps_summary(flavor):
+    """His ruling 2026-09-14: installing Polari and installing apps are SEPARATE pages. Here only a signpost: the
+    three categories with counts, and a search box that lands on the apps catalogue."""
+    try:
+        from appstore.custom.app_forms import manifest_app
+        from appstore.custom import app_deb_builder as builder
+        from moduleService.app_taxonomy import CATEGORIES
+        counts = {}
+        for m, e in builder.registry_modules().items():
+            c = manifest_app(m, entry=e)['category']; counts[c] = counts.get(c, 0) + 1
+        cats = ''.join(f'<a class="tab" href="/downloads/apps?flavor={flavor}&amp;category={c}">{html.escape(v["title"])} <small>{counts.get(c, 0)}</small></a>'
+                       for c, v in CATEGORIES.items())
+    except Exception as exc:   # noqa: BLE001 — the installer page must still render
+        cats = f'<span class="note">apps unavailable here: {html.escape(str(exc))}</span>'
+    return (f'<section class="step" id="apps"><h2>Add apps</h2>'
+            '<p>Apps are installed separately, after Polari. Every app comes as <strong>Install</strong> (the app itself) or '
+            '<strong>Access only</strong> (its shell), online or offline.</p>'
+            f'<nav class="tabs tabs-cat">{cats}</nav>'
+            f'<form class="finder" method="get" action="/downloads/apps"><input type="hidden" name="flavor" value="{flavor}"><input type="hidden" name="scope" value="all">'
+            '<input type="search" name="q" placeholder="Search all apps by name or property" aria-label="Search apps"><button type="submit">Find</button></form>'
+            f'<p class="note"><a href="/downloads/apps?flavor={flavor}">Browse all apps &rarr;</a></p></section>')
+
+
 def _apps_and_media(flavor, title):
     """His ruling 2026-09-13: every official app is a download option under BOTH tabs, and the offline media
     set sits under Offline — not links at the bottom."""
-    parts = []
-    try:
-        from appstore.app_debs_page import render_apps_section
-        parts.append(render_apps_section(flavor))
-    except Exception as exc:   # noqa: BLE001 — the page must still render its installers
-        parts.append(f'<section class="step"><h2>Add individual apps</h2><p>The app list could not be '
-                     f'rendered here ({html.escape(str(exc))}); see <a href="/downloads/apps?flavor={flavor}">'
-                     '/downloads/apps</a>.</p></section>')
+    parts = [_apps_summary(flavor)]
     if flavor == 'offline':
         parts.insert(0, _usb_stick_section())
         try:

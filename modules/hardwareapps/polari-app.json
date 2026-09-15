@@ -13,7 +13,16 @@
     "family": "",
     "extends": "",
     "catalogKinds": [],
-    "agentTier": "member"
+    "agentTier": "member",
+    "category": "polari",
+    "subcategories": [
+      "platform-operations",
+      "network-devices"
+    ],
+    "tags": [
+      "hardware apps",
+      "kvm"
+    ]
   },
   "requires": {
     "modules": [

@@ -13,7 +13,17 @@
     "family": "",
     "extends": "",
     "catalogKinds": [],
-    "agentTier": "hardware"
+    "agentTier": "hardware",
+    "category": "network",
+    "subcategories": [
+      "isle-guests",
+      "network-devices"
+    ],
+    "tags": [
+      "openwrt",
+      "relay",
+      "wifi"
+    ]
   },
   "requires": {
     "modules": [

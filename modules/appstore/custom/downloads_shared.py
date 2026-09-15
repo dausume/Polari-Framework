@@ -170,6 +170,14 @@ def wrap_page(title, body, page_label='Downloads', head_extra=''):
  a.dl:hover,button.dl:hover{{filter:brightness(1.08)}}
  label.pick{{display:block;margin:.3rem 0}}
  .tabs{{display:flex;gap:.4rem;margin:0 0 .6rem}}
+ .tabs-cat{{display:flex;flex-wrap:wrap;gap:.5rem;margin:.6rem 0}} .tabs-cat .tab small{{opacity:.7;margin-left:.3rem}}
+ .finder{{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:.6rem 0 .9rem}} .finder input[type=search]{{flex:1 1 260px;padding:.5rem .7rem;border:1px solid var(--line);border-radius:8px;font:inherit}}
+ .finder select{{padding:.35rem .5rem;font:inherit;border-radius:6px;border:1px solid var(--line)}} .finder button{{padding:.45rem .9rem;font:inherit;border-radius:8px;border:1px solid var(--line);cursor:pointer}}
+ .finder .scope label{{margin-right:.6rem}} .chips{{display:flex;flex-wrap:wrap;gap:.4rem;margin:.2rem 0 .8rem}}
+ .chip{{padding:.2rem .6rem;border:1px solid var(--line);border-radius:999px;font-size:.88rem;text-decoration:none}} .chip-on{{background:var(--line)}}
+ details.group{{border:1px solid var(--line);border-radius:10px;padding:.2rem .8rem;margin:.5rem 0}} details.group summary{{cursor:pointer;font-weight:600;padding:.5rem 0}}
+ details.group summary small{{font-weight:400;opacity:.7;margin-left:.4rem}} details.group summary .blurb{{display:block;font-weight:400;font-size:.9rem;opacity:.8}}
+ .crumbs{{opacity:.8}}
  .dl-card-forms{{align-items:flex-start}} .dl-card-forms .dl-info{{width:100%}}
  .forms{{display:flex;gap:.8rem;flex-wrap:wrap;margin-top:.6rem}}
  .form{{flex:1 1 240px;border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem;display:flex;flex-direction:column;gap:.35rem}}

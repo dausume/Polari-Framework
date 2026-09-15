@@ -267,7 +267,17 @@ class AppsAPI(treeObject):
                                      'bytes': pool['bytes'] if pool else None, 'estimate_seconds': builder.estimate_seconds(module, flavor=f),
                                      'status_url': f'/api/apps/{module}/status?flavor={f}', 'request_url': f'/api/apps/{module}/request?flavor={f}', 'download_url': f'/api/apps/{module}/download?flavor={f}'}
             items.append(row)
+        sort = request.params.get('sort', 'name')
+        if sort == 'requests':
+            items.sort(key=lambda i: -sum((builder.pool_entry(builder.pool_file_for(i['module'], f, fm)['file']).get('requests', 0) if builder.pool_file_for(i['module'], f, fm) else 0) for f in FLAVORS for fm in FORMS))
+        elif sort == 'size':
+            items.sort(key=lambda i: -(i['flavors'].get('online', {}).get('bytes') or 0))
+        elif sort == 'recent':
+            items.sort(key=lambda i: (builder.pool_file_for(i['module'], 'online') or {'ageSeconds': 10 ** 9})['ageSeconds'])
+        from moduleService.app_taxonomy import CATEGORIES, SUBCATEGORIES
         self._json(response, {'ok': True, 'count': len(items), 'downloaded': sum(1 for i in items if i['downloaded']), 'space': space(0),
+                              'taxonomy': {'categories': {k: v['title'] for k, v in CATEGORIES.items()}, 'subcategories': {k: {'category': v[0], 'title': v[1]} for k, v in SUBCATEGORIES.items()}},
+                              'query': {'q': request.params.get('q', ''), 'category': request.params.get('category', ''), 'subcategory': request.params.get('subcategory', ''), 'kind': request.params.get('kind', ''), 'tier': request.params.get('tier', ''), 'sort': sort},
                               'flavors': {'online': 'the small deb; libraries fetched from the internet at setup', 'offline': 'wheels inside; system engines not inside yet'},
                               'how': 'GET /api/apps/{module}/status?flavor=online|offline · POST /api/apps/{module}/request?flavor=… · GET /api/apps/{module}/download?flavor=…',
                               'apps': items})

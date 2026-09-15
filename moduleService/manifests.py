@@ -364,7 +364,7 @@ def _preserve_hand_set(pkg, manifest):
             if old.get(k):
                 manifest[k] = old[k]
         app = dict(manifest['app'])
-        app.update({k: v for k, v in (old.get('app') or {}).items() if k in ('kind', 'family', 'extends', 'agentTier')})
+        app.update({k: v for k, v in (old.get('app') or {}).items() if k in ('kind', 'family', 'extends', 'agentTier', 'category', 'subcategories', 'tags')})
         manifest['app'] = app
     return manifest
 
@@ -394,6 +394,8 @@ def validate(manifest):
         problems.append('app.kind must be one of %s' % (APP_KINDS,))
     if app.get('agentTier') not in AGENT_TIERS:
         problems.append('app.agentTier must be one of %s' % (AGENT_TIERS,))
+    from moduleService.app_taxonomy import problems as _tax_problems
+    problems.extend(_tax_problems(app))
     if app.get('kind') == 'hardware-extension-app' and not app.get('extends'):
         problems.append('a hardware-extension-app must name the hardware app it extends (app.extends)')
     if app.get('kind') in ('hardware-app', 'hardware-extension-app') and app.get('agentTier') != 'hardware':

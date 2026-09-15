@@ -49,15 +49,19 @@ def manifest_app(module, root=None, entry=None):
     entry's `kind` is 'official'/'external', not the app kind. Absent manifest → a plain polari-app."""
     root = root or _framework_root()
     rel = (entry or {}).get('path') or f'modules/{module}'
-    out = {'module': module, 'kind': 'polari-app', 'title': module, 'extends': '', 'agentTier': 'member', 'description': (entry or {}).get('description', '')}
+    out = {'module': module, 'kind': 'polari-app', 'title': module, 'extends': '', 'agentTier': 'member', 'description': (entry or {}).get('description', ''),
+           'category': '', 'subcategories': [], 'tags': []}
     try:
         with open(os.path.join(root, rel, 'polari-app.json'), encoding='utf-8') as fh:
             m = json.load(fh)
         app = m.get('app') or {}
         out.update({'kind': app.get('kind') or 'polari-app', 'title': m.get('title') or module, 'extends': app.get('extends') or '',
-                    'agentTier': app.get('agentTier') or 'member', 'description': m.get('description') or out['description']})
+                    'agentTier': app.get('agentTier') or 'member', 'description': m.get('description') or out['description'],
+                    'category': app.get('category') or '', 'subcategories': list(app.get('subcategories') or []), 'tags': list(app.get('tags') or [])})
     except Exception:
         pass
+    from moduleService.app_taxonomy import classify
+    out.update(classify(module, out))   # category / subcategories / tags / secondary — the manifest's, else the defaults
     return out
 
 

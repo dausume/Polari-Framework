@@ -36,6 +36,7 @@ import time
 from objectTreeDecorators import treeObject, treeObjectInit
 
 from appstore.custom import app_deb_builder as builder
+from appstore.custom.app_forms import manifest_app
 from appstore.custom import module_requirements as modreqs
 from appstore.custom.downloads_shared import (
     EXPLAIN_DEB, EXPLAIN_DISK, EXPLAIN_PREPPED_VS_DEMAND,
@@ -178,13 +179,19 @@ def _form_block(module, flavor, form):
     return f'<div class="form form-{form}">{head}{state}{button}</div>'
 
 
-def _module_card(module, entry, analysis, flavor='online', app=None):
+def _module_card(module, entry, analysis, flavor='online', app=None, show_category=False):
     from appstore.custom.app_forms import manifest_app, HARDWARE_KINDS, EXPANSION_KINDS
     app = app or manifest_app(module, entry=entry)
     title = app.get('title') or module
     description = app.get('description') or entry.get('description', '')
     blurb = (f'<p class="blurb">{html.escape(description)}</p>' if description else '')
     kind = app.get('kind', 'polari-app')
+    if show_category or app.get('subcategories'):
+        from moduleService.app_taxonomy import CATEGORIES, SUBCATEGORIES
+        crumbs = ([html.escape(CATEGORIES[app['category']]['title'])] if show_category and app.get('category') in CATEGORIES else []) \
+            + [html.escape(SUBCATEGORIES[sc][1]) for sc in app.get('subcategories', []) if sc in SUBCATEGORIES]
+        tags = ', '.join(html.escape(t) for t in app.get('tags', [])[:5])
+        blurb += '<span class="dl-meta crumbs">' + ' · '.join(crumbs) + ((' — ' + tags) if tags else '') + '</span>'
     if kind in EXPANSION_KINDS:
         blurb += (f'<span class="prov prov-demand">Expansion of {html.escape(app.get("extends") or "?")} — its install refuses '
                   f'unless {html.escape(app.get("extends") or "the hardware app")} is installed first.</span>')
@@ -278,77 +285,144 @@ def render_apps_section(flavor='online', root=None, heading='Add individual apps
     return out + '</section>'
 
 
-def render_page(instance_title='Polari', root=None,
-                flavor='online'):
+def _pool_requests(module):
+    n = 0
+    for f in ('online', 'offline'):
+        for fm in ('install', 'access'):
+            pf = builder.pool_file_for(module, f, fm)
+            if pf:
+                n += builder.pool_entry(pf['file']).get('requests', 0)
+    return n
+
+
+def catalogue(root=None, q='', scope='category', category='', subcategory='', kind='', tier='', sort='name'):
+    """The apps a page shows (his rulings 2026-09-14): one primary category per app, N sub-categories (cross-listed
+    where a sub-category belongs to another category), search by name or properties either inside the category or
+    across all, sort by name / size / most requested / recently generated, filters by kind and tier.
+    Returns (rows, groups): rows = [(module, entry, app)] after search/filters; groups = {subcategory: [rows]}."""
+    from moduleService.app_taxonomy import matches, SUBCATEGORIES
+    from moduleService.tier_reach import tiers_for
+    modules = builder.registry_modules(root)
+    rows = []
+    for m, e in sorted(modules.items()):
+        a = manifest_app(m, root, e)
+        in_cat = (not category) or a['category'] == category or category in a.get('secondary', [])
+        if scope != 'all' and not in_cat:
+            continue
+        if subcategory and subcategory not in a['subcategories']:
+            continue
+        if kind and a['kind'] != kind:
+            continue
+        if tier and tier not in tiers_for(a['kind']):
+            continue
+        if not matches(q, m, a, a):
+            continue
+        rows.append((m, e, a))
+    if sort == 'requests':
+        rows.sort(key=lambda r: -_pool_requests(r[0]))
+    elif sort == 'size':
+        payloads = builder.analyze(root)['payloads']
+        rows.sort(key=lambda r: -sum(size for _, _, size, _ in payloads.get(r[0], [])))
+    elif sort == 'recent':
+        rows.sort(key=lambda r: (builder.pool_file_for(r[0], 'online') or {'ageSeconds': 10 ** 9})['ageSeconds'])
+    groups = {}
+    for m, e, a in rows:
+        subs = [sc for sc in a['subcategories'] if (not category) or SUBCATEGORIES[sc][0] == category] or ['other']
+        for sc in subs:
+            groups.setdefault(sc, []).append((m, e, a))
+    return rows, groups
+
+
+def _controls(flavor, q, scope, category, subcategory, kind, tier, sort, counts):
+    from moduleService.app_taxonomy import CATEGORIES, SUBCATEGORIES
+    from moduleService.tier_reach import TIERS
+    esc = html.escape
+    tabs = '<a class="tab%s" href="/downloads/apps?flavor=%s">All apps <small>%d</small></a>' % (' tab-on' if not category else '', flavor, sum(counts.values()))
+    for c, v in CATEGORIES.items():
+        tabs += '<a class="tab%s" href="/downloads/apps?flavor=%s&amp;category=%s">%s <small>%d</small></a>' % (' tab-on' if category == c else '', flavor, c, esc(v['title']), counts.get(c, 0))
+    hidden = ''.join('<input type="hidden" name="%s" value="%s">' % (k, esc(v)) for k, v in (('flavor', flavor), ('category', category)) if v)
+    scope_ui = ''
+    if category:
+        scope_ui = ('<label><input type="radio" name="scope" value="category"%s> in %s</label>' % (' checked' if scope != 'all' else '', esc(CATEGORIES[category]['title']))
+                    + '<label><input type="radio" name="scope" value="all"%s> all apps</label>' % (' checked' if scope == 'all' else ''))
+    sorts = ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if sort == k else '', v)
+                    for k, v in (('name', 'name'), ('requests', 'most requested'), ('size', 'largest first'), ('recent', 'recently generated')))
+    kinds = ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if kind == k else '', k or 'any kind')
+                    for k in ('', 'polari-app', 'isle-app', 'hardware-app', 'hardware-extension-app', 'library', 'suite-app'))
+    tiers = ''.join('<option value="%s"%s>%s</option>' % (t, ' selected' if tier == t else '', t or 'any member') for t in ('',) + tuple(TIERS))
+    subs = ''
+    if category:
+        chips = ''.join('<a class="chip%s" href="/downloads/apps?flavor=%s&amp;category=%s&amp;subcategory=%s%s">%s</a>'
+                        % (' chip-on' if subcategory == sc else '', flavor, category, sc, ('&amp;q=' + esc(q)) if q else '', esc(v[1]))
+                        for sc, v in SUBCATEGORIES.items() if v[0] == category)
+        if subcategory:
+            chips += '<a class="chip" href="/downloads/apps?flavor=%s&amp;category=%s">clear</a>' % (flavor, category)
+        subs = '<div class="chips">' + chips + '</div>'
+    return ('<nav class="tabs tabs-cat" aria-label="Categories">' + tabs + '</nav>'
+            '<form class="finder" method="get" action="/downloads/apps">' + hidden
+            + '<input type="search" name="q" value="%s" placeholder="Search by name or property: gears, wifi, kvm, nutrition…" aria-label="Search apps">' % esc(q)
+            + '<span class="scope">' + scope_ui + '</span>'
+            + '<label>sort <select name="sort">' + sorts + '</select></label>'
+            + '<label>kind <select name="kind">' + kinds + '</select></label>'
+            + '<label>runs on <select name="tier">' + tiers + '</select></label>'
+            + '<button type="submit">Find</button></form>' + subs)
+
+
+def render_page(instance_title='Polari', root=None, flavor='online', q='', scope='category', category='', subcategory='', kind='', tier='', sort='name'):
+    """/downloads/apps — the APPS catalogue (his rulings 2026-09-14): separate from installing Polari; category tabs,
+    sub-category groups collapsed with counts, search all or inside the category, sort, filters; every app in both forms."""
+    from moduleService.app_taxonomy import CATEGORIES, SUBCATEGORIES
+    esc = html.escape
     flavor = flavor if flavor in ('online', 'offline') else 'online'
-    title = html.escape(instance_title)
+    title = esc(instance_title)
     modules = builder.registry_modules(root)
     if not modules:
-        body = ('<header class="hero"><h1>Apps</h1></header>'
-                '<div class="card"><p>No modules are registered on '
-                'this instance yet, so there is nothing to '
-                'generate.</p>'
-                '<p class="note"><a href="/downloads">&larr; Back '
-                'to Downloads</a></p></div>')
+        body = ('<header class="hero"><h1>Apps</h1></header><div class="card"><p>No modules are registered on this instance yet, so there is '
+                'nothing to generate.</p><p class="note"><a href="/downloads">&larr; Back to Downloads</a></p></div>')
         return wrap_page(title, body, 'Apps')
     analysis = builder.analyze(root)
-    cards = ''.join(
-        _module_card(module, entry, analysis, flavor)
-        for module, entry in sorted(modules.items()))
-    tab = lambda f, label: (            # noqa: E731
-        f'<a class="tab{" tab-on" if flavor == f else ""}" '
-        f'href="/downloads/apps?flavor={f}">{label}</a>')
-    tabs = ('<nav class="tabs">'
-            + tab('online', 'Online installs')
-            + tab('offline', 'Offline installs')
-            + '</nav>'
-            + ('<p class="option-note">Offline debs carry each '
-               'app\'s pip libraries inside — bigger and slower '
-               'to generate, for machines with no internet. '
-               'System engines still come from the distro or the '
-               'offline media.</p>'
-               if flavor == 'offline' else
-               '<p class="option-note">Online debs are small — '
-               'each app\'s libraries are fetched from the '
-               'internet when it is set up, exactly as listed on '
-               'its card.</p>'))
-    body = f'''
-<header class="hero">
-<h1>Add individual apps to {title}</h1>
-<p class="lede">Every module this instance knows is available as
-   its own installable file — packaged fresh when you ask for it.
-   Nothing sits pre-built on the server: your click starts the
-   build, the file streams to you, and the server's copy is
-   kept at least three slow-connection downloads long; after that it is evicted only when room is needed, and freed after a day untouched. A re-request or a download refreshes the hold.</p>
-</header>
-
-<section class="step">
-<h2>Apps</h2>
-{tabs}
-<ol class="dl-list">{cards}
-</ol>
-</section>
-
-<section class="step">
-<h2>Installing</h2>
-<ol class="howto">
-<li>Click <strong>Download</strong> — your browser waits briefly
-    while the file is packaged (each card says how long that
-    usually takes), then saves it.</li>
-<li>If the card lists a shared-payload file, download and
-    install that one first.</li>
-<li>Double-click the downloaded file and choose
-    <strong>Install</strong>. The app stages onto your computer;
-    the card explainers below say how it becomes live.</li>
-</ol>
-</section>
-{explainer_block([EXPLAIN_DEB, EXPLAIN_FLAVORS, EXPLAIN_WAIT,
-                  EXPLAIN_PREPPED_VS_DEMAND, EXPLAIN_SHARED,
-                  EXPLAIN_ADMIT, EXPLAIN_DISK])}
-<p class="note"><a href="/downloads">&larr; Back to Downloads</a>
-   — the one-file installer there is pre-prepped and downloads
-   instantly.</p>
-'''
+    counts = {}
+    for m, e in modules.items():
+        c = manifest_app(m, root, e)['category']
+        counts[c] = counts.get(c, 0) + 1
+    rows, groups = catalogue(root, q, scope, category, subcategory, kind, tier, sort)
+    searching = bool(q or subcategory or kind or tier)
+    cat_link = ('&amp;category=' + category) if category else ''
+    flavor_tabs = ('<nav class="tabs" aria-label="Online or offline">'
+                   + ''.join('<a class="tab%s" href="/downloads/apps?flavor=%s%s">%s</a>' % (' tab-on' if flavor == f else '', f, cat_link, lbl)
+                             for f, lbl in (('online', '🌐 Online'), ('offline', '💾 Offline')))
+                   + '</nav>')
+    if searching:
+        where = 'across all categories' if (scope == 'all' or not category) else 'in ' + esc(CATEGORIES[category]['title'])
+        if rows:
+            cards = ''.join(_module_card(m, e, analysis, flavor, a, show_category=True) for m, e, a in rows)
+            listing = ('<p class="option-note">%d app(s) match%s %s.</p><ol class="dl-list">%s</ol>'
+                       % (len(rows), (' “%s”' % esc(q)) if q else '', where, cards))
+        else:
+            listing = '<p class="option-note">Nothing matches %s. Try fewer words, or search all apps.</p>' % where
+    else:
+        listing = ''
+        order = [sc for sc in SUBCATEGORIES if sc in groups] + (['other'] if 'other' in groups else [])
+        for sc in order:
+            items = groups[sc]
+            sc_title, sc_blurb = (SUBCATEGORIES[sc][1], SUBCATEGORIES[sc][2]) if sc in SUBCATEGORIES else ('Other', '')
+            cards = ''.join(_module_card(m, e, analysis, flavor, a, show_category=not category) for m, e, a in items)
+            is_open = ' open' if (len(items) <= 4 or len(order) == 1) else ''
+            listing += ('<details class="group"%s><summary>%s <small>%d</small><span class="blurb">%s</span></summary><ol class="dl-list">%s</ol></details>'
+                        % (is_open, esc(sc_title), len(items), esc(sc_blurb), cards))
+    head_title = 'Apps' if not category else CATEGORIES[category]['title']
+    lede = (CATEGORIES[category]['blurb'] if category else
+            'Every app comes in two forms: <strong>Install</strong> (the app itself, for a host or hardware member) and '
+            '<strong>Access only</strong> (its shell, for any member). Pick a category, or search everything.')
+    body = ('<header class="hero"><h1>%s</h1><p class="lede">%s</p></header>' % (head_title, lede)
+            + '<section class="step">' + flavor_tabs + _controls(flavor, q, scope, category, subcategory, kind, tier, sort, counts) + listing + '</section>'
+            + '<section class="step"><h2>Installing</h2><ol class="howto">'
+              '<li>Click <strong>Generate &amp; download</strong> (or <strong>Download</strong> when it is already made) on the form you want; the card says how long it usually takes.</li>'
+              '<li>If the card lists a shared-payload file, install that one first.</li>'
+              '<li>Double-click the downloaded file and choose <strong>Install</strong>. An Install form stages the app for the isle to admit; an Access form is a launcher that finds and opens the app your isle hosts.</li>'
+              '</ol></section>'
+            + explainer_block([EXPLAIN_DEB, EXPLAIN_FLAVORS, EXPLAIN_WAIT, EXPLAIN_PREPPED_VS_DEMAND, EXPLAIN_SHARED, EXPLAIN_ADMIT, EXPLAIN_DISK])
+            + '<p class="note"><a href="/downloads">&larr; Install Polari itself</a>: the platform installers, online and offline, and the USB stick.</p>')
     return wrap_page(title, body, 'Apps')
 
 
@@ -390,8 +464,9 @@ class AppDebsPage(treeObject):
     def on_get_page(self, request, response):
         builder.purge_expired()
         response.content_type = 'text/html; charset=utf-8'
-        response.text = render_page(
-            flavor=request.params.get('flavor', 'online'))
+        g = request.params.get
+        response.text = render_page(flavor=g('flavor', 'online'), q=g('q', '') or '', scope=g('scope', 'category') or 'category', category=g('category', '') or '',
+                                    subcategory=g('subcategory', '') or '', kind=g('kind', '') or '', tier=g('tier', '') or '', sort=g('sort', 'name') or 'name')
 
     def _generate_and_stream(self, response, module, flavor):
         builder.purge_expired()
