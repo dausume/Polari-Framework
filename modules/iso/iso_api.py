@@ -262,7 +262,7 @@ class IsoAPI(treeObject):
         base = next((x for x in self._bases() if x['name'] == b['base']), None)
         if not base or not base.get('cached'):
             return self._json(response, {'ok': False, 'refusal': f"base {b['base']} is not cached on this instance — POST /api/iso/bases/{b['base']}/fetch first (a 2–3 GB download)", 'base': base}, '409 Conflict')
-        bid = iso_builder.build_id(b)
+        bid = iso_builder.build_id(b, core_public_key())   # the core key is part of the identity: a new key means a new image
         row = {**{k: v for k, v in b.items() if k not in ('password_hash', 'encryption_passphrase', 'report_to')}, 'name': bid, 'state': 'requested', 'warnings': ' | '.join(warnings), 'requested_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
                'ssh_keys': b.get('ssh_keys') or '', 'apps': b.get('apps') or ''}
         self._upsert('IsoBuild', IsoBuild, row); self._persist()

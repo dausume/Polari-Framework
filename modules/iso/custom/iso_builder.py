@@ -324,12 +324,12 @@ def _sha256(path):
 BUILDER_VERSION = 2   # bumps when the overlay changes so an old pool image is not handed out for new code
 
 
-def build_id(build):
-    return hashlib.sha256(json.dumps({'builder': BUILDER_VERSION} | {k: build.get(k) for k in ('base', 'role', 'shape', 'encryption', 'secure_boot', 'posture', 'look', 'hostname', 'username', 'ssh_keys', 'join_core', 'join_fingerprint', 'join_tier', 'target_hash', 'apps', 'offline')}, sort_keys=True).encode()).hexdigest()[:12]
+def build_id(build, core_key=''):
+    return hashlib.sha256(json.dumps({'builder': BUILDER_VERSION, 'core_key': hashlib.sha256((core_key or '').encode()).hexdigest()[:12]} | {k: build.get(k) for k in ('base', 'role', 'shape', 'encryption', 'secure_boot', 'posture', 'look', 'hostname', 'username', 'ssh_keys', 'join_core', 'join_fingerprint', 'join_tier', 'target_hash', 'apps', 'offline')}, sort_keys=True).encode()).hexdigest()[:12]
 
 
-def iso_filename(build):
-    return f"polari-{build.get('role', 'member')}-{build.get('shape', 'detect')}-{build.get('base', 'ubuntu')}-{build_id(build)}.iso"
+def iso_filename(build, core_key=''):
+    return f"polari-{build.get('role', 'member')}-{build.get('shape', 'detect')}-{build.get('base', 'ubuntu')}-{build_id(build, core_key)}.iso"
 
 
 def tools():
@@ -394,11 +394,11 @@ def assemble(base_iso, overlay, out_path, label='POLARI'):
 
 def start_build(build, base_file, platform_debs=(), app_debs=(), ssh_keys=(), core_key='', progress=None):
     """Background build into the pool; the job dict is live (step, state, result)."""
-    key = 'build:' + build_id(build)
+    key = 'build:' + build_id(build, core_key)
     job = _jobs.get(key)
     if job and job['state'] == 'running':
         return job
-    filename = iso_filename(build); out = os.path.join(pool_dir(), filename)
+    filename = iso_filename(build, core_key); out = os.path.join(pool_dir(), filename)
     if os.path.isfile(out):
         note_request(filename, os.path.getsize(out))
         job = {'state': 'done', 'step': 'cached', 'startedAt': time.time(), 'result': {'ok': True, 'file': filename, 'path': out, 'bytes': os.path.getsize(out), 'sha256': _sha256(out), 'cached': True}}
@@ -417,7 +417,7 @@ def start_build(build, base_file, platform_debs=(), app_debs=(), ssh_keys=(), co
                 job.update({'state': 'refused', 'result': {'ok': False, 'refusal': room['note'], 'blocked_by': room['blocked_by']}}); return
             os.makedirs(pool_dir(), exist_ok=True)
             job['step'] = 'laying the overlay (autoinstall, debs, first boot)'
-            overlay = os.path.join(work_dir(), 'work', build_id(build)); shutil.rmtree(overlay, ignore_errors=True)
+            overlay = os.path.join(work_dir(), 'work', build_id(build, core_key)); shutil.rmtree(overlay, ignore_errors=True)
             lay_tree(build, base_file, overlay, platform_debs, app_debs, ssh_keys, core_key)
             job['step'] = 'assembling the ISO'
             res = assemble(base_file, overlay, out)
