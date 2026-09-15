@@ -138,7 +138,30 @@ def _sha256_file(path):
     return digest.hexdigest()
 
 
-def analyze(root=None):
+_ANALYZE_CACHE = {}
+ANALYZE_TTL = 300   # the page must not re-hash every module's payload on every request (59 modules ≈ 25–70 s)
+
+
+def analyze_cache_clear():
+    _ANALYZE_CACHE.clear()
+
+
+def analyze(root=None, fresh=False):
+    """Memoised for ANALYZE_TTL seconds per root (the pages call it on every request); `fresh=True` re-walks."""
+    froot = root or module_registry._framework_root()
+    try:   # the registry file changing (a fetch, an admit, a test's rewrite) invalidates at once; otherwise the TTL
+        st = os.stat(module_registry.registry_path(froot)); fp = (st.st_mtime_ns, st.st_size)
+    except Exception:
+        fp = None
+    hit = _ANALYZE_CACHE.get(froot)
+    if hit and not fresh and hit[2] == fp and time.time() - hit[0] < ANALYZE_TTL:
+        return hit[1]
+    result = _analyze(froot)
+    _ANALYZE_CACHE[froot] = (time.time(), result, fp)
+    return result
+
+
+def _analyze(root=None):
     """One pass over the full registry: per-module payloads, the
     shared groups, and every named refusal.
 

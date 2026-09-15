@@ -28,6 +28,7 @@ declared", which is an honest gap, not a claim of zero.
 """
 
 import os
+import time
 import re
 import shutil
 from importlib import metadata as importlib_metadata
@@ -192,7 +193,22 @@ def module_engines(module):
     return engines
 
 
-def module_requirements(module, root=None):
+_REQ_CACHE = {}
+REQ_TTL = 300
+
+
+def module_requirements(module, root=None, fresh=False):
+    """Memoised per module for REQ_TTL seconds (measuring libraries is the slow part; the pages ask for every module)."""
+    key = (module, root)
+    hit = _REQ_CACHE.get(key)
+    if hit and not fresh and time.time() - hit[0] < REQ_TTL:
+        return hit[1]
+    result = _module_requirements(module, root)
+    _REQ_CACHE[key] = (time.time(), result)
+    return result
+
+
+def _module_requirements(module, root=None):
     """The full accounting one module's downloads need to be
     honest about: pip libraries (measured), polari module
     requires, engines (probed), and totals with an explicit
