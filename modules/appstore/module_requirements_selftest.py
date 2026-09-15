@@ -179,7 +179,7 @@ def main():
           and 'READY — ' in page
           and f'status/alpha?flavor=online">Generate' not in page)
     check('a never-generated app offers Generate & download',
-          'status/beta?flavor=online">'
+          'status/beta?flavor=online&amp;form=install">'
           'Generate &amp; download' in page)
 
     passed = sum(1 for _, ok in _results if ok)

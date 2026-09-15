@@ -36,6 +36,14 @@ from importlib import metadata as importlib_metadata
 #: a requirement's name ends at the first extra/version/marker char
 _REQ_NAME_RE = re.compile(r'[\s\[<>=!~;(]')
 
+#: import name → distribution name, for libraries NOT installed on the scanning instance (packages_distributions()
+#: only knows what is installed); the well-known mismatches
+IMPORT_TO_DIST = {'paho': 'paho-mqtt', 'yaml': 'PyYAML', 'cv2': 'opencv-python-headless', 'PIL': 'Pillow', 'sklearn': 'scikit-learn',
+                  'serial': 'pyserial', 'usb': 'pyusb', 'dateutil': 'python-dateutil', 'bs4': 'beautifulsoup4', 'jwt': 'PyJWT',
+                  'grpc': 'grpcio', 'Crypto': 'pycryptodome', 'RNS': 'rns', 'LXMF': 'lxmf', 'skimage': 'scikit-image', 'lxml': 'lxml',
+                  'docker': 'docker', 'libvirt': 'libvirt-python', 'gi': 'PyGObject', 'dbus': 'dbus-python', 'zmq': 'pyzmq',
+                  'websocket': 'websocket-client', 'jose': 'python-jose', 'nacl': 'PyNaCl', 'OpenSSL': 'pyOpenSSL', 'Xlib': 'python-xlib'}
+
 from moduleService import module_registry
 from moduleService.moduleDiscovery import scan_python_imports
 
@@ -159,7 +167,9 @@ def module_scan(module, root=None):
     for name in imports:
         if name in polari_names:
             continue
-        for dist in pkg_to_dist.get(name, [name]):
+        if os.path.exists(os.path.join(froot, name)) or os.path.exists(os.path.join(froot, name + '.py')):
+            continue   # a framework-internal package (polariApiServer, moduleService, simulationlocks, …) — never pip
+        for dist in pkg_to_dist.get(name, [IMPORT_TO_DIST.get(name, name)]):
             roots.add(dist)
     return _measure(roots), sorted(polari_requires)
 

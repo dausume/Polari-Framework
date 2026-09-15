@@ -287,44 +287,51 @@ def scan_python_imports(dir_path):
         if f.endswith('.py'):
             same_module_names.add(f[:-3])
 
-    import_re = re.compile(r'^\s*import\s+(\S+)')
-    from_re = re.compile(r'^\s*from\s+(\S+)\s+import')
-
     external_packages = set()
+
+    def top_names(filepath):
+        """Real import statements only (ast) — never text inside docstrings, comments or strings; a file that does
+        not parse falls back to the two line patterns, with trailing commas stripped."""
+        try:
+            with open(filepath, 'r', errors='ignore') as f:
+                src = f.read()
+        except OSError:
+            return []
+        names = []
+        try:
+            import ast
+            tree = ast.parse(src)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    names += [a.name.split('.')[0] for a in node.names]
+                elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+                    names.append(node.module.split('.')[0])
+            return names
+        except SyntaxError:
+            import_re = re.compile(r'^\s*import\s+([A-Za-z_][\w.]*)')
+            from_re = re.compile(r'^\s*from\s+([A-Za-z_][\w.]*)\s+import\b')
+            for line in src.splitlines():
+                m = import_re.match(line) or from_re.match(line)
+                if m:
+                    names.append(m.group(1).split('.')[0])
+            return names
 
     for root, _dirs, files in os.walk(dir_path):
         for fname in files:
             if not fname.endswith('.py'):
                 continue
-            filepath = os.path.join(root, fname)
-            try:
-                with open(filepath, 'r', errors='ignore') as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line or line.startswith('#'):
-                            continue
-
-                        match = import_re.match(line) or from_re.match(line)
-                        if not match:
-                            continue
-
-                        # Get the top-level package name
-                        raw = match.group(1)
-                        top_level = raw.split('.')[0]
-
-                        # Filter
-                        if top_level in stdlib:
-                            continue
-                        if top_level in same_module_names:
-                            continue
-                        if any(top_level.startswith(p) for p in _FRAMEWORK_PREFIXES):
-                            continue
-                        if top_level.startswith('_'):
-                            continue
-
-                        external_packages.add(top_level)
-            except Exception:
-                continue
+            for top_level in top_names(os.path.join(root, fname)):
+                if not top_level.isidentifier():
+                    continue
+                if top_level in stdlib:
+                    continue
+                if top_level in same_module_names:
+                    continue
+                if any(top_level.startswith(p) for p in _FRAMEWORK_PREFIXES):
+                    continue
+                if top_level.startswith('_'):
+                    continue
+                external_packages.add(top_level)
 
     return sorted(external_packages)
 
