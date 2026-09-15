@@ -72,12 +72,21 @@ def main():
     check('offline first: the installer falls back to the ISO pool when no mirror answers, never aborts', ai['apt']['fallback'] == 'offline-install')
     check('desktop shape → the KDE task; core → the KVM packages; encryption → an LVM layout with a passphrase', 'kubuntu-desktop' in ai['packages'] and 'libvirt-daemon-system' in ai['packages'] and ai['storage']['layout'].get('password'))
     check('late commands install the platform OFFLINE from the ISO, write the posture and the plan, enable first boot',
-          any('/cdrom/polari' in c for c in ai['late-commands']) and any('polari-complete' in c and 'apt-get install' in c for c in ai['late-commands']) and any('posture.json' in c and '"dev"' in c for c in ai['late-commands']) and any('plan.json' in c for c in ai['late-commands']) and any('polari-first-boot.service' in c for c in ai['late-commands']))
+          any('/cdrom/polari' in c for c in ai['late-commands']) and any('polari-complete' in c and 'apt-get install' in c for c in ai['late-commands']) and any('posture.json' in c for c in ai['late-commands']) and any('plan.json' in c for c in ai['late-commands']) and any('polari-first-boot.service' in c for c in ai['late-commands']))
+    files = dict(f for f in (iso_autoinstall.file_from_command(c) for c in ai['late-commands']) if f)
+    check('the posture and the plan land byte-exact as JSON (the first VM install lost every quote to nested sh -c quoting)',
+          json.loads(files['/etc/polari/posture.json'])['posture'] == 'dev' and json.loads(files['/etc/polari/plan.json'])['role'] == 'core'
+          and not any('sh -c "' in c and '"' in c.split('sh -c "', 1)[1].rstrip('"') for c in ai['late-commands']))
+    check('keys-only install: the user gets passwordless sudo (a key-only user with no password could never administer otherwise)',
+          'polari ALL=(ALL) NOPASSWD:ALL' in files.get('/etc/sudoers.d/90-polari-iso', '') and any('chmod 440' in c for c in ai['late-commands']))
+    ai_pw = iso_autoinstall.render({'role': 'member', 'shape': 'headless', 'password_hash': '$6$x'})['autoinstall']
+    check('with a password set, sudo stays password-gated (no drop-in)', not any('sudoers.d' in c for c in ai_pw['late-commands']))
     ai3 = iso_autoinstall.render({'role': 'member', 'shape': 'detect', 'encryption': True})['autoinstall']
     check('D8 at deploy: shape detect + encryption → an early command refuses on a machine without a display', any('REFUSED' in c and 'display' in c for c in ai3['early-commands']))
     check('the core key rides on every image (D11 + the scaffolding): it is among the authorized keys', 'ssh-ed25519 BBBB core' in ai['ssh']['authorized-keys'])
     ai4 = iso_autoinstall.render({'role': 'member', 'shape': 'headless', 'report_to': 'https://core.example', 'target_hash': 'h1'})['autoinstall']
-    check('the plan the machine keeps carries where to report and its own hash', any('report_to' in c and 'core.example' in c and '"h1"' in c for c in ai4['late-commands']))
+    plan4 = json.loads(dict(f for f in (iso_autoinstall.file_from_command(c) for c in ai4['late-commands']) if f)['/etc/polari/plan.json'])
+    check('the plan the machine keeps carries where to report and its own hash', plan4['report_to'] == 'https://core.example' and plan4['target_hash'] == 'h1')
     fb = iso_autoinstall.first_boot_script()
     check('first boot reports back to the core (/api/iso/joined) with hash, hostname, addresses, detections', '/api/iso/joined' in fb and 'report_to' in fb and 'detected.json' in fb)
     check('first boot: detects display/kvm/iommu/nics/tpm, becomes the core or joins with the fingerprint, admits the carried apps, disables itself',

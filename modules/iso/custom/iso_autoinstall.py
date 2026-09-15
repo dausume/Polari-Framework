@@ -11,6 +11,7 @@ the first boot with the owner's and the core's keys (D11); the desktop task when
 @consumers
   - iso.custom.iso_builder (writes it into the image), iso.iso_api (preview), iso.iso_selftest
 """
+import base64
 import json
 
 ENCRYPTION_WARNING = ('Disk encryption puts a second password on the machine: it must be typed at every boot before anything '
@@ -46,6 +47,24 @@ def validate(build):
     return '', warnings
 
 
+def write_file(path, content, mode=''):
+    """A late command that lands `content` at `path` on the installed system, byte-exact. The content travels base64 so no
+    quoting layer (subiquity's sh -c, curtin in-target, JSON's own quotes) can touch it — the first VM install (2026-09-15)
+    lost every double quote of plan.json to a nested sh -c \"...\" and first boot could not read its plan."""
+    b64 = base64.b64encode(content.encode()).decode()
+    cmd = f"mkdir -p /target{path.rsplit('/', 1)[0]} && echo {b64} | base64 -d > /target{path}"
+    return cmd + (f" && chmod {mode} /target{path}" if mode else '')
+
+
+def file_from_command(cmd):
+    """The (path, content) a write_file command lands, for tests and previews; None for other commands."""
+    if '| base64 -d > /target' not in cmd:
+        return None
+    b64 = cmd.split('echo ', 1)[1].split(' |', 1)[0]
+    path = cmd.split('base64 -d > /target', 1)[1].split(' &&', 1)[0]
+    return path, base64.b64decode(b64).decode()
+
+
 def render(build, ssh_keys=(), core_key='', polari_debs=(), apps=()):
     """The autoinstall YAML (as a dict; the builder dumps it) for one IsoBuild-shaped dict."""
     role = build.get('role') or 'member'; shape = build.get('shape') or 'detect'
@@ -66,15 +85,21 @@ def render(build, ssh_keys=(), core_key='', polari_debs=(), apps=()):
         'cp -r /cdrom/polari /target/var/lib/polari-iso/',
         'curtin in-target --target=/target -- sh -c "cd /var/lib/polari-iso/polari/debs && apt-get install -y ./polari-complete_*.deb || dpkg -i ./polari-complete_*.deb || true"',
         # posture (his ruling: dev vs production is an install-level mode)
-        f'curtin in-target --target=/target -- sh -c "mkdir -p /etc/polari && printf \'%s\' \'{json.dumps({"posture": build.get("posture") or "production", "until": "", "relaxations": [], "applied_by": "iso-build"})}\' > /etc/polari/posture.json"',
+        write_file('/etc/polari/posture.json', json.dumps({'posture': build.get('posture') or 'production', 'until': '', 'relaxations': [], 'applied_by': 'iso-build'})),
         # what this machine IS (the plan lands with the machine; first boot reads it)
-        f'curtin in-target --target=/target -- sh -c "printf \'%s\' \'{json.dumps({"role": role, "shape": shape, "join_core": build.get("join_core") or "", "join_fingerprint": build.get("join_fingerprint") or "", "join_tier": build.get("join_tier") or ("hardware" if role == "hardware" else "member" if role == "member" else "access" if role == "access" else ""), "look": build.get("look") or "plasma-default", "apps": list(apps), "report_to": build.get("report_to") or "", "target_hash": build.get("target_hash") or ""})}\' > /etc/polari/plan.json"',
+        write_file('/etc/polari/plan.json', json.dumps({'role': role, 'shape': shape, 'join_core': build.get('join_core') or '', 'join_fingerprint': build.get('join_fingerprint') or '',
+                                                        'join_tier': build.get('join_tier') or ('hardware' if role == 'hardware' else 'member' if role == 'member' else 'access' if role == 'access' else ''),
+                                                        'look': build.get('look') or 'plasma-default', 'apps': list(apps), 'report_to': build.get('report_to') or '', 'target_hash': build.get('target_hash') or ''})),
         # first boot: detect (display, kvm, nics, tpm), then become the core or join, then admit the apps carried
         'cp /cdrom/polari/first-boot.sh /target/usr/local/lib/polari/first-boot.sh || (mkdir -p /target/usr/local/lib/polari && cp /cdrom/polari/first-boot.sh /target/usr/local/lib/polari/first-boot.sh)',
         'curtin in-target --target=/target -- chmod 755 /usr/local/lib/polari/first-boot.sh',
         'cp /cdrom/polari/polari-first-boot.service /target/etc/systemd/system/polari-first-boot.service',
         'curtin in-target --target=/target -- systemctl enable polari-first-boot.service',
     ]
+    if not build.get('password_hash'):
+        # keys only (D11) means the user HAS no password — without this drop-in nobody could ever administer the machine
+        # (sudo would ask for a password that does not exist; proven on the first VM install 2026-09-15). The key is the credential.
+        late.append(write_file('/etc/sudoers.d/90-polari-iso', f'# polari iso: keys-only install, the ssh key is the credential\n{user} ALL=(ALL) NOPASSWD:ALL\n', mode='440'))
     if shape == 'headless':
         late.append('curtin in-target --target=/target -- systemctl set-default multi-user.target')
         late.append('curtin in-target --target=/target -- sh -c "systemctl disable sddm 2>/dev/null || true"')

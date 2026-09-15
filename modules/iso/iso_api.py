@@ -256,7 +256,11 @@ class IsoAPI(treeObject):
             return self._json(response, {'ok': False, 'refusal': '; '.join(probs)}, '400 Bad Request')
         # where first boot reports back (his ask: the core sees every device it built): this core's own address unless told
         # behind the proxy the backend sees http; the person and the machine reach us over https — take the forwarded scheme
-        scheme = (getattr(request, 'forwarded_scheme', None) or getattr(request, 'scheme', None) or 'https')
+        # (the first VM install reported to http:// — the proxy had not set X-Forwarded-Proto and falcon's scheme is what the
+        #  backend socket saw; a POST to http gets redirected and lost. Everything but a loopback core is served over https.)
+        host = getattr(request, 'host', '') or ''
+        scheme = request.get_header('X-Forwarded-Proto') if hasattr(request, 'get_header') else None
+        scheme = scheme or ('http' if host.split(':')[0] in ('127.0.0.1', 'localhost', '::1') else 'https')
         b['report_to'] = b.get('report_to') or os.environ.get('POLARI_PUBLIC_API', '') or (f"{scheme}://{request.host}" if getattr(request, 'host', '') else '')
         refusal, warnings = iso_autoinstall.validate(b)
         if refusal:
