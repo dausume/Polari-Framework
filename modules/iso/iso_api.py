@@ -255,7 +255,9 @@ class IsoAPI(treeObject):
         if probs:
             return self._json(response, {'ok': False, 'refusal': '; '.join(probs)}, '400 Bad Request')
         # where first boot reports back (his ask: the core sees every device it built): this core's own address unless told
-        b['report_to'] = b.get('report_to') or os.environ.get('POLARI_PUBLIC_API', '') or (f"{request.scheme}://{request.host}" if getattr(request, 'host', '') else '')
+        # behind the proxy the backend sees http; the person and the machine reach us over https — take the forwarded scheme
+        scheme = (getattr(request, 'forwarded_scheme', None) or getattr(request, 'scheme', None) or 'https')
+        b['report_to'] = b.get('report_to') or os.environ.get('POLARI_PUBLIC_API', '') or (f"{scheme}://{request.host}" if getattr(request, 'host', '') else '')
         refusal, warnings = iso_autoinstall.validate(b)
         if refusal:
             return self._json(response, {'ok': False, 'refusal': refusal, 'warnings': warnings}, '409 Conflict')
