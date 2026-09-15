@@ -91,6 +91,7 @@ def main():
     r = iso_builder.make_room(10 ** 15); check('make_room refuses while the hold runs, naming the earliest hold', r['ok'] is False and r['blocked_by'] and 'inside its minimum hold' in r['note'])
     check('pool status carries used/max/free and the knobs', 'max_bytes' in iso_builder.pool_status() and iso_builder.pool_status()['files'] == 1)
     check('tools are reported honestly (present or None)', set(iso_builder.tools()) == {'xorriso', 'genisoimage', 'isohybrid'})
+    check('the kernel table is derived from .modinfo alias strings (what depmod reads), pci/usb only', iso_builder.module_aliases(b'x\x00alias=pci:v00008086d00001533sv*sd*bc*sc*i*\x00alias=of:N*T*C\x00alias=usb:v0BDAp8153d*\x00') == ['pci:v00008086d00001533sv*sd*bc*sc*i*', 'usb:v0BDAp8153d*'])
     # ---- the API with doubles
     from iso.iso_api import IsoAPI
     api = IsoAPI(polServer=None, manager=None)
