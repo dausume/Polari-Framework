@@ -23,7 +23,8 @@ DEV_WARNING = ('DEV MODE: any connection to systems that are not your own is EXT
                'with every connection. Keep this machine on your own isle.')
 
 DESKTOP_PACKAGES = ['kubuntu-desktop', 'plasma-workspace', 'sddm', 'konsole', 'dolphin', 'plasma-discover']
-BASE_PACKAGES = ['openssh-server', 'curl', 'jq', 'python3', 'zenity', 'policykit-1', 'ca-certificates']
+BASE_PACKAGES = ['openssh-server', 'curl', 'jq', 'python3', 'ca-certificates']
+DESKTOP_EXTRA_PACKAGES = ['zenity', 'policykit-1']   # the store's dialogs and pkexec: only where a desktop can exist
 HARDWARE_PACKAGES = ['qemu-kvm', 'libvirt-daemon-system', 'virtinst', 'bridge-utils', 'ovmf']
 
 
@@ -53,7 +54,7 @@ def render(build, ssh_keys=(), core_key='', polari_debs=(), apps=()):
     keys = [k for k in list(ssh_keys) + ([core_key] if core_key else []) if k]
     packages = list(BASE_PACKAGES)
     if shape in ('desktop', 'detect'):
-        packages += DESKTOP_PACKAGES      # the pool carries the union (§1b); detect installs only what the device needs
+        packages += DESKTOP_EXTRA_PACKAGES + DESKTOP_PACKAGES      # the pool carries the union (§1b); detect installs only what the device needs
     if role in ('core', 'hardware') or shape == 'detect':
         packages += HARDWARE_PACKAGES
     storage = {'layout': {'name': 'lvm'}}
