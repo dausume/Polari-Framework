@@ -94,18 +94,38 @@ def load_alias_table(path):
     return rows
 
 
+_VD_RE = re.compile(r'^(pci|usb):v([0-9A-Fa-f*]+?)(?=d|p)[dp]([0-9A-Fa-f*]+?)(?=[a-z]|$|\*)')
+
+
+def _vendor_device(modalias):
+    """('pci', vendor, device) from a modalias or pattern — '*' when the pattern leaves it open."""
+    m = re.match(r'^(pci):v([0-9A-Fa-f]{8}|\*)d([0-9A-Fa-f]{8}|\*)', modalias) or re.match(r'^(usb):v([0-9A-Fa-f]{4}|\*)p([0-9A-Fa-f]{4}|\*)', modalias)
+    return (m.group(1), m.group(2).upper(), m.group(3).upper()) if m else None
+
+
+def is_full_modalias(dev_id):
+    return bool(re.match(r'^pci:v[0-9A-Fa-f]{8}d[0-9A-Fa-f]{8}sv', dev_id) or re.match(r'^usb:v[0-9A-Fa-f]{4}p[0-9A-Fa-f]{4}d', dev_id))
+
+
 def match_id(dev_id, alias_rows):
-    """The kernel modules that claim this id (glob match of the full modalias; the report's id is the vendor:device
-    prefix, so everything after it is wildcarded)."""
-    probe = dev_id + '*'
-    hits = []
+    """The kernel modules that claim this id. A FULL modalias (what the Linux probe reports) matches a driver's pattern
+    exactly as the kernel does (glob). A PARTIAL id (vendor:device only — Windows and macOS reports) matches only
+    patterns whose vendor and device are LITERAL and equal; class-only patterns (ahci, snd_hda_intel …) say nothing
+    about a device whose class we do not know, so they never claim it."""
+    hits = set()
+    if is_full_modalias(dev_id):
+        for pattern, module in alias_rows:
+            if fnmatch.fnmatchcase(dev_id, pattern):
+                hits.add(module)
+        return sorted(hits)
+    ours = _vendor_device(dev_id)
+    if not ours:
+        return []
     for pattern, module in alias_rows:
-        # the kernel matches the DEVICE's full modalias against the driver's pattern; we only know the prefix, so a
-        # pattern matches when its literal prefix agrees with ours (compare up to the first wildcard of either)
-        cut = min(len(probe) - 1, (pattern.find('*') if '*' in pattern else len(pattern)))
-        if fnmatch.fnmatchcase(probe[:cut] + '*', pattern[:cut] + '*') and probe[:cut] == pattern[:cut]:
-            hits.append(module)
-    return sorted(set(hits))
+        theirs = _vendor_device(pattern)
+        if theirs and theirs[0] == ours[0] and theirs[1] == ours[1] and theirs[2] == ours[2] and '*' not in (theirs[1] + theirs[2]):
+            hits.add(module)
+    return sorted(hits)
 
 
 def verdict(report, alias_rows=None, base_name='', firmware_files=None):

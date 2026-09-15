@@ -103,6 +103,15 @@ class IsoAPI(treeObject):
         except Exception:
             return None
 
+    def _persist(self):
+        """Rows posted from a stick must survive a restart: persist the tree off the request thread (the periodic
+        persist may not run before a redeploy — seen 2026-09-15: a probe row vanished)."""
+        m = self.manager
+        if m is None or not hasattr(m, 'persistTree'):
+            return
+        import threading
+        threading.Thread(target=lambda: (lambda: m.persistTree())() if True else None, daemon=True).start()
+
     @staticmethod
     def _json(response, body, status='200 OK'):
         response.status = status; response.media = body
@@ -173,7 +182,7 @@ class IsoAPI(treeObject):
         row.update({'name': 'probe:' + row['hw_hash'], 'verdict': v['verdict'], 'verdict_text': v['text'], 'base_checked': base_name, 'traps': '; '.join(t['text'] for t in v['traps']),
                     'drivers_in_kernel': v['counts'].get('in_kernel', 0), 'drivers_firmware': v['counts'].get('firmware', 0), 'drivers_third_party': v['counts'].get('third_party', 0), 'drivers_missing': v['counts'].get('missing', 0),
                     'suggested_role': role if not v['apple_silicon'] else '', 'suggested_reason': why if not v['apple_silicon'] else 'not installable'})
-        obj = self._upsert('DeviceProbe', DeviceProbe, row)
+        obj = self._upsert('DeviceProbe', DeviceProbe, row); self._persist()
         self._json(response, {'ok': True, 'stored': obj is not None, 'hw_hash': row['hw_hash'], 'verdict': v, 'suggested_role': row['suggested_role'], 'suggested_reason': row['suggested_reason'],
                               'next': f"choose: POST /api/iso/build with target_hash={row['hw_hash']} and the role" if not v['apple_silicon'] else ''})
 
@@ -238,7 +247,7 @@ class IsoAPI(treeObject):
         bid = iso_builder.build_id(b)
         row = {**{k: v for k, v in b.items() if k not in ('password_hash', 'encryption_passphrase')}, 'name': bid, 'state': 'requested', 'warnings': ' | '.join(warnings), 'requested_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
                'ssh_keys': b.get('ssh_keys') or '', 'apps': b.get('apps') or ''}
-        self._upsert('IsoBuild', IsoBuild, row)
+        self._upsert('IsoBuild', IsoBuild, row); self._persist()
         keys = [k for k in (b.get('ssh_keys') or '').splitlines() if k.strip()]
         job = iso_builder.start_build(b, iso_builder.base_path(base['file']), _platform_debs(), _app_debs(b.get('apps')), keys)
         self._json(response, {'ok': True, 'build': bid, 'state': job['state'], 'step': job['step'], 'warnings': warnings, 'status_url': f'/api/iso/builds/{bid}/status', 'download_url': f'/api/iso/builds/{bid}/download'}, '202 Accepted')

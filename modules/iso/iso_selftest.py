@@ -47,6 +47,10 @@ def main():
     st = {p['id']: p['status'] for p in v['per_id']}
     check('derived: the NIC and USB adapter are in-kernel, NVIDIA is third-party, an unknown PCI id has no driver', st['pci:v00008086d00001533'] == 'in-kernel' and st['usb:v0BDAp8153'] == 'in-kernel' and st['pci:v000010DEd00002484'] == 'third-party' and st['pci:v00001234d00005678'] == 'no-driver', st)
     check('verdict: compatible with notes; the traps name RAID mode, BitLocker and Secure Boot + NVIDIA', v['verdict'] == 'compatible-with-notes' and {t['id'] for t in v['traps']} >= {'raid-mode', 'disk-encrypted', 'secure-boot-nvidia'}, v['traps'])
+    full = 'pci:v00008086d00008C02sv0000103Csd000018E7bc01sc06i01'
+    check('matcher: a FULL modalias matches exactly as the kernel does (a class-only pattern claims the SATA controller, not the NIC); a PARTIAL id matches literal vendor/device only, never class-only patterns',
+          iso_compat.match_id(full, alias + [('pci:v*d*sv*sd*bc01sc06i01*', 'ahci')]) == ['ahci'] and iso_compat.match_id('pci:v00008086d00008C02', alias + [('pci:v*d*sv*sd*bc01sc06i01*', 'ahci')]) == []
+          and iso_compat.match_id('pci:v00008086d00001533', alias) == ['igb'])
     check('no kernel table cached → unchecked, honestly, traps still listed', iso_compat.verdict(report, [], 'x')['verdict'] == 'unchecked' and iso_compat.verdict(report, [], 'x')['traps'])
     apple = iso_compat.verdict({'manufacturer': 'Apple', 'arch': 'arm64', 'apple_silicon': True, 'cpu': 'Apple M2'}, alias, 'x')
     check('Apple silicon: not compatible, the blunt message verbatim, no motives, no "only"', apple['verdict'] == 'not-compatible' and apple['text'] == iso_compat.APPLE_SILICON_MESSAGE and 'purposefully' not in apple['text'] and 'the only chips' not in apple['text'])
