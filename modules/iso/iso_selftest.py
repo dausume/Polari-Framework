@@ -51,6 +51,8 @@ def main():
     check('matcher: a FULL modalias matches exactly as the kernel does (a class-only pattern claims the SATA controller, not the NIC); a PARTIAL id matches literal vendor/device only, never class-only patterns',
           iso_compat.match_id(full, alias + [('pci:v*d*sv*sd*bc01sc06i01*', 'ahci')]) == ['ahci'] and iso_compat.match_id('pci:v00008086d00008C02', alias + [('pci:v*d*sv*sd*bc01sc06i01*', 'ahci')]) == []
           and iso_compat.match_id('pci:v00008086d00001533', alias) == ['igb'])
+    hub = iso_compat.verdict({'device_ids': ['usb:v1D6Bp0002d0608dc09dsc00dp01ic09isc00ip00in00', 'pci:v00008086d00000C00sv0000103Csd000018E7bc06sc00i00']}, alias, 'x')
+    check('bridges and hubs the kernel drives itself read as built-in, never as no driver', hub['counts']['builtin'] == 2 and hub['verdict'] == 'compatible' and 'handled by the kernel itself' in hub['text'], hub)
     check('no kernel table cached → unchecked, honestly, traps still listed', iso_compat.verdict(report, [], 'x')['verdict'] == 'unchecked' and iso_compat.verdict(report, [], 'x')['traps'])
     apple = iso_compat.verdict({'manufacturer': 'Apple', 'arch': 'arm64', 'apple_silicon': True, 'cpu': 'Apple M2'}, alias, 'x')
     check('Apple silicon: not compatible, the blunt message verbatim, no motives, no "only"', apple['verdict'] == 'not-compatible' and apple['text'] == iso_compat.APPLE_SILICON_MESSAGE and 'purposefully' not in apple['text'] and 'the only chips' not in apple['text'])

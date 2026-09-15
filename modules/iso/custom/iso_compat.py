@@ -128,6 +128,18 @@ def match_id(dev_id, alias_rows):
     return sorted(hits)
 
 
+def kernel_core_handles(dev_id):
+    """Devices the kernel core drives without a module: PCI host/PCI-to-PCI bridges and root ports (class 06),
+    USB hubs (class 09) — they never appear in modules.alias and must not read as 'no driver'."""
+    m = re.search(r'bc(06)sc', dev_id)
+    if dev_id.startswith('pci:') and m:
+        return True
+    m = re.search(r'dc(09)dsc', dev_id)
+    if dev_id.startswith('usb:') and m:
+        return True
+    return False
+
+
 def verdict(report, alias_rows=None, base_name='', firmware_files=None):
     """{verdict, text, per_id: [...], counts, traps, apple_silicon} — compatible / compatible-with-notes /
     not-compatible / unchecked (no kernel table cached yet)."""
@@ -138,10 +150,12 @@ def verdict(report, alias_rows=None, base_name='', firmware_files=None):
     if not alias_rows:
         return {'verdict': 'unchecked', 'text': f'Hardware recorded ({len(ids)} device ids). The kernel table for {base_name or "the base"} is not cached on this instance yet, so the driver check waits; the traps below apply regardless.',
                 'per_id': [{'id': i, 'status': 'unchecked', 'modules': []} for i in ids], 'counts': {}, 'traps': [{'id': t, 'text': x} for t, x in traps], 'apple_silicon': False, 'base': base_name}
-    per = []; counts = {'in_kernel': 0, 'firmware': 0, 'third_party': 0, 'missing': 0}
+    per = []; counts = {'in_kernel': 0, 'firmware': 0, 'third_party': 0, 'missing': 0, 'builtin': 0}
     for i in ids:
         mods = match_id(i, alias_rows)
         tp = next((v for k, v in THIRD_PARTY.items() if fnmatch.fnmatchcase(i, k)), None)
+        if not mods and kernel_core_handles(i):
+            counts['builtin'] += 1; per.append({'id': i, 'status': 'built-in', 'modules': [], 'note': 'a bridge or hub the kernel itself drives'}); continue
         if mods:
             status = 'in-kernel'; counts['in_kernel'] += 1
             if firmware_files and any(m in f for m in mods for f in firmware_files):
@@ -167,7 +181,8 @@ def verdict(report, alias_rows=None, base_name='', firmware_files=None):
         text = 'Ubuntu will run on this computer. ' + '; '.join(bits) + '.'
     else:
         v = 'compatible'
-        text = f'Ubuntu will run on this computer: every device has a driver in the kernel ({counts["in_kernel"]} checked).'
+        text = (f'Ubuntu will run on this computer: every device has a driver in the kernel ({counts["in_kernel"]} with a module'
+                + (f', {counts["builtin"]} handled by the kernel itself' if counts['builtin'] else '') + ').')
     return {'verdict': v, 'text': text, 'per_id': per, 'counts': counts, 'traps': [{'id': t, 'text': x} for t, x in traps], 'apple_silicon': False, 'base': base_name}
 
 

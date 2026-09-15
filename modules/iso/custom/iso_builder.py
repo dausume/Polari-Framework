@@ -273,6 +273,13 @@ def fetch_kernel_table(release, base_name):
         n_mod = 0; lines = []
         with tarfile.open(fileobj=io.BytesIO(blob), mode=mode) as t:
             for m in t.getmembers():
+                if m.isfile() and m.name.endswith('/modules.builtin.modinfo'):
+                    # the built-in modules' modinfo ('xhci_hcd.alias=pci:...'): the kernel's own drivers
+                    for line in t.extractfile(m).read().split(b'\x00'):
+                        mm = re.match(rb'([\w-]+)\.alias=((pci|usb):[^\x00]+)$', line)
+                        if mm:
+                            lines.append(f"alias {mm.group(2).decode('ascii', 'ignore')} {mm.group(1).decode().replace('-', '_')}")
+                    continue
                 if not m.isfile() or not re.search(r'\.ko(\.zst|\.xz|\.gz)?$', m.name):
                     continue
                 raw = t.extractfile(m).read()
