@@ -1249,6 +1249,12 @@ FEATURE_IMPORT_BLOCKS = (
             'SEED_SECURITY_PAGE_DISPLAYS',
         )),
     )),
+    ('iso', (
+        # iso-1: probe → choose → install (the ISO arc)
+        ('iso.iso_basis', ('IsoBase', 'DeviceProbe', 'IsoBuild', 'ISO_CLASSES')),
+        ('iso.iso_seed', ('ISO_SEED_PAIRS',)),
+        ('iso.iso_page', ('SEED_ISO_PAGE_DISPLAYS',)),
+    )),
     ('printcam', (
         ('printcam.printcam_basis', (
             'CameraDefinition', 'TimelapseRecord', 'PRINTCAM_SEED_PAIRS', 'SEED_PRINTCAM_HARDWARE_APPS', 'SEED_PRINTCAM_CATALOG',

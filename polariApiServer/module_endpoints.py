@@ -509,7 +509,14 @@ def construct_security_endpoints(polServer):
     return build(polServer)
 
 
+def construct_iso_endpoints(polServer):
+    # iso-1: /downloads/iso + /api/iso (probe → choose → install)
+    from iso.iso_endpoints import construct_iso_endpoints as build
+    return build(polServer)
+
+
 MODULE_ENDPOINT_CONSTRUCTORS = {
+    'iso': construct_iso_endpoints,
     'printcam': construct_printcam_endpoints,
     'terms': construct_terms_endpoints,
     'security': construct_security_endpoints,
