@@ -107,6 +107,24 @@ def main():
     g = app_forms.grouped({'reticulum': {}, 'isle_relay': {}, 'gears': {}})
     check('grouping: software / hardware / expansions nest under their base (isle_relay is still a polari-app in its manifest → reticulum is an orphan here)',
           any(m == 'gears' for m, _, _ in g['software']) and (('isle_relay' in g['expansions'] and g['expansions']['isle_relay'][0][0] == 'reticulum') or (g['orphans'] and g['orphans'][0][0] == 'reticulum')), {k: (v if k != 'expansions' else list(v)) for k, v in g.items()})
+    # his policy 2026-09-14: the pool remembers requests/downloads, holds 3× a slow download, evicts only for room after the hold, idle-purges after a day
+    import os as _os
+    from appstore.custom import app_deb_builder as builder
+    pool = builder.pool_dir(); files = sorted(f for f in _os.listdir(pool) if f.endswith('.deb'))
+    e = builder.pool_entry(files[0])
+    check('the pool ledger knows the generated deb: requested_at, requests ≥ 1, a hold ≥ the 10-minute floor', e.get('requested_at') and e.get('requests', 0) >= 1 and e.get('hold_remaining_seconds', 0) >= 590, e)
+    check('the hold scales with size: 55 MB over a slow connection ≈ 3 × 220 s', builder.hold_seconds(55 * 1024 * 1024) >= 600 and builder.hold_seconds(55 * 1024 * 1024) == max(600, int(3 * 55 * 1024 * 1024 / builder.slow_bps())))
+    before = e['requests']; builder.note_request(files[0], e.get('bytes')); check('a re-request refreshes the hold and counts', builder.pool_entry(files[0])['requests'] == before + 1)
+    builder.inflight_begin(files[0]); r = builder.make_room(10 ** 12); builder.inflight_end(files[0])
+    check('make_room never evicts a deb in flight or inside its hold — refuses with the earliest hold named', r['ok'] is False and r['blocked_by'] and 'inside its minimum hold' in r['note'], r)
+    L = builder._ledger(); L[files[0]]['hold_until'] = time.time() - 1; L[files[0]]['last_access'] = time.time() - 5
+    r2 = builder.make_room(builder.pool_max_bytes())   # needs the whole cap → must evict the now-evictable deb
+    check('after the hold, room is made by evicting least-recently-accessed first', files[0] in r2['evicted'] and not _os.path.exists(_os.path.join(pool, files[0])), r2)
+    _os.makedirs(pool, exist_ok=True); open(_os.path.join(pool, 'polari-app-idle_0.1.0_all.deb'), 'wb').write(b'x' * 100)
+    builder._ledger()['polari-app-idle_0.1.0_all.deb'] = {'last_access': time.time() - builder.IDLE_SECONDS - 10, 'hold_until': time.time() + 10 ** 6, 'requests': 1, 'downloads': 0}
+    removed = builder.purge_expired()
+    check('the idle purge frees a deb untouched for a day even inside a long hold; holds alone never delete', 'polari-app-idle_0.1.0_all.deb' in removed)
+    st = builder.pool_status(); check('pool status: used/max/free, the slow-connection speed and the policy knobs', st['max_bytes'] > 0 and 'slow_bps' in st and st['hold_multiplier'] == 3 and st['idle_seconds'] == 86400)
     print('\n%d/%d checks passed' % (passed, total))
     return 0 if passed == total else 1
 

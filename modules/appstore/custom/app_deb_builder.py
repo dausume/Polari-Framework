@@ -52,6 +52,7 @@ import gzip
 import hashlib
 import io
 import json
+import shutil
 import os
 import re
 import statistics
@@ -94,10 +95,12 @@ def ledger_path():
 
 
 def ttl_seconds():
+    """Only the delete-after-delivery switch survives from the old TTL: POLARI_APP_DEB_TTL=0 removes a deb right after
+    it is handed over; anything else means the pool policy (holds, room, idle) governs — no TTL deletion."""
     try:
-        return int(os.environ.get('POLARI_APP_DEB_TTL', '3600'))
+        return int(os.environ.get('POLARI_APP_DEB_TTL', '1'))
     except ValueError:
-        return 3600
+        return 1
 
 
 def deb_package_name(module):
@@ -444,7 +447,7 @@ def generate(module, root=None, analysis=None, flavor='online',
         wheel_dir = os.path.join(work_dir(), 'wheels', module)
         fresh = (os.path.isdir(wheel_dir) and os.listdir(wheel_dir)
                  and time.time() - os.path.getmtime(wheel_dir)
-                 < ttl_seconds())
+                 < IDLE_SECONDS)
         try:
             names = (sorted(os.listdir(wheel_dir)) if fresh
                      else _fetch_wheels(requirements['libraries'],
@@ -473,7 +476,8 @@ def generate(module, root=None, analysis=None, flavor='online',
         build_shared_deb(name, analysis['shared'][name], pool)
         for name in shared_names]
     if os.path.isfile(path):
-        # cache hit inside the TTL window — same content, same file
+        # cache hit — same content, same file; the re-request refreshes its hold
+        note_request(filename, os.path.getsize(path), f'{module}|install|{flavor}')
         return {'ok': True, 'file': filename, 'path': path,
                 'version': version, 'bytes': os.path.getsize(path),
                 'seconds': round(time.time() - started, 3),
@@ -575,6 +579,7 @@ def generate(module, root=None, analysis=None, flavor='online',
     step('assemble deb', t0)
 
     seconds = round(time.time() - started, 3)
+    note_request(filename, size_bytes, f'{module}|install|{flavor}')
     _append_record({'module': module, 'flavor': flavor,
                     'contentHash': content_hash,
                     'bytes': size_bytes, 'seconds': seconds,
@@ -620,11 +625,13 @@ def generate_access(module, root=None, flavor='online', progress=None, started=N
     filename = f'{debname}_{version}_all.deb'
     pool = pool_dir(); os.makedirs(pool, exist_ok=True); path = os.path.join(pool, filename)
     if os.path.isfile(path):
+        note_request(filename, os.path.getsize(path), f'{module}|access|{flavor}')
         return {'ok': True, 'file': filename, 'path': path, 'version': version, 'bytes': os.path.getsize(path), 'seconds': round(time.time() - started, 3), 'cached': True, 'sharedFiles': [], 'form': 'access'}
     control.insert(1, ('Version', version))
     size_bytes = _write_deb(path, control, entries, scripts)
     steps.append({'step': 'assemble access deb' + (' (carries polari-shell-core)' if carried else ''), 'seconds': round(time.time() - t0, 3)})
     seconds = round(time.time() - started, 3)
+    note_request(filename, size_bytes, f'{module}|access|{flavor}')
     _append_record({'module': module, 'flavor': flavor, 'form': 'access', 'contentHash': content_hash, 'bytes': size_bytes, 'seconds': seconds, 'steps': steps, 'generatedAt': int(started)})
     return {'ok': True, 'file': filename, 'path': path, 'version': version, 'bytes': size_bytes, 'seconds': seconds, 'cached': False, 'sharedFiles': [], 'form': 'access',
             'carries_shell_runtime': bool(carried), 'shell_runtime_note': '' if (flavor == 'online' or carried) else 'the core staged no polari-shell-core deb — the offline access deb carries only the launcher'}
@@ -758,24 +765,193 @@ def start_generation(module, flavor='online', root=None, form='install'):
     return job
 
 
-# --- pool lifecycle -------------------------------------------------
+# --- pool lifecycle (his policy 2026-09-14) --------------------------------------------------------------------
+# Every deb in the pool remembers WHEN it was requested (a re-request refreshes), how often, and when it was last
+# downloaded. Its MINIMUM HOLD is three times the predicted download time over a slow connection (from the size:
+# the slower of a knob and the slow quartile of measured downloads), floored at HOLD_FLOOR. After the hold a deb may
+# be EVICTED only when room is needed for another requested deb (least recently used first, never one being
+# downloaded). The pool is CAPPED (POLARI_APP_POOL_MAX_BYTES, also bounded by free disk minus the margin). A deb
+# nobody touched for IDLE_SECONDS goes regardless, so a quiet day frees the space.
+
+HOLD_MULTIPLIER = 3
+HOLD_FLOOR = 600            # s — a 40 KB deb still gets ten minutes
+IDLE_SECONDS = 86400        # a day untouched → freed
+SPACE_MARGIN = 200 * 1024 * 1024
+_POOL_LEDGER = {}
+_INFLIGHT = {}              # filename → open download streams (never evicted)
+
+
+def pool_ledger_path():
+    return os.path.join(work_dir(), 'pool-ledger.json')
+
+
+def _ledger():
+    if not _POOL_LEDGER:
+        try:
+            with open(pool_ledger_path(), encoding='utf-8') as fh:
+                _POOL_LEDGER.update(json.load(fh))
+        except (OSError, ValueError):
+            pass
+    return _POOL_LEDGER
+
+
+def _save_ledger():
+    os.makedirs(work_dir(), exist_ok=True)
+    tmp = pool_ledger_path() + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as fh:
+        json.dump(_POOL_LEDGER, fh, indent=1)
+    os.replace(tmp, pool_ledger_path())
+
+
+def pool_max_bytes():
+    """The cap: the knob (default 2 GiB), never more than free disk minus the margin (measured at the pool)."""
+    try:
+        cap = int(os.environ.get('POLARI_APP_POOL_MAX_BYTES', str(2 * 1024 ** 3)))
+    except ValueError:
+        cap = 2 * 1024 ** 3
+    probe = pool_dir()
+    while probe and not os.path.isdir(probe):
+        probe = os.path.dirname(probe.rstrip('/'))
+    try:
+        free = shutil.disk_usage(probe or '/').free
+        return max(0, min(cap, pool_used_bytes() + free - SPACE_MARGIN))
+    except Exception:
+        return cap
+
+
+def slow_bps():
+    """Bytes per second of a somewhat slow connection: the slower of the knob (default 250 KB/s ≈ 2 Mbit/s) and the
+    slow quartile of measured downloads — never a LAN speed masquerading as the internet."""
+    try:
+        knob = int(os.environ.get('POLARI_SLOW_DOWNLOAD_BPS', '250000'))
+    except ValueError:
+        knob = 250000
+    rates = sorted(row['bytes'] / row['seconds'] for row in generation_records()
+                   if row.get('kind') == 'download' and row.get('seconds') and row.get('bytes'))
+    if len(rates) >= 4:
+        return max(1, min(knob, int(rates[len(rates) // 4])))
+    return knob
+
+
+def hold_seconds(size_bytes):
+    return max(HOLD_FLOOR, int(HOLD_MULTIPLIER * (size_bytes or 0) / slow_bps()))
+
+
+def pool_used_bytes():
+    try:
+        return sum(os.path.getsize(os.path.join(pool_dir(), f)) for f in os.listdir(pool_dir()) if os.path.isfile(os.path.join(pool_dir(), f)))
+    except FileNotFoundError:
+        return 0
+
+
+def note_request(filename, size_bytes=None, key=''):
+    """A request (or re-request) refreshes the clock and the hold."""
+    now = time.time(); L = _ledger()
+    row = L.setdefault(filename, {'first_requested_at': now, 'requests': 0, 'downloads': 0, 'key': key})
+    row.update({'requested_at': now, 'last_access': now, 'requests': row.get('requests', 0) + 1, 'key': key or row.get('key', '')})
+    if size_bytes:
+        row['bytes'] = size_bytes
+    row['hold_until'] = now + hold_seconds(row.get('bytes', size_bytes or 0))
+    _save_ledger()
+    return row
+
+
+def note_download(filename, seconds=None, size_bytes=None):
+    """A completed download counts as access (refreshes the hold too) and is a throughput measurement."""
+    now = time.time(); L = _ledger()
+    row = L.setdefault(filename, {'first_requested_at': now, 'requests': 0, 'downloads': 0})
+    row.update({'last_access': now, 'last_download_at': now, 'downloads': row.get('downloads', 0) + 1})
+    if size_bytes:
+        row['bytes'] = size_bytes
+    row['hold_until'] = max(row.get('hold_until', 0), now + hold_seconds(row.get('bytes', size_bytes or 0)))
+    _save_ledger()
+    if seconds and size_bytes:
+        record_download(filename, size_bytes, seconds)
+    return row
+
+
+def inflight_begin(filename):
+    _INFLIGHT[filename] = _INFLIGHT.get(filename, 0) + 1
+
+
+def inflight_end(filename):
+    _INFLIGHT[filename] = max(0, _INFLIGHT.get(filename, 0) - 1)
+
+
+def pool_entry(filename):
+    """What the pool knows about one deb (for the page and the API)."""
+    row = dict(_ledger().get(filename) or {})
+    now = time.time()
+    row['hold_remaining_seconds'] = max(0, int(row.get('hold_until', 0) - now))
+    row['in_flight'] = _INFLIGHT.get(filename, 0)
+    row['evictable'] = row['hold_remaining_seconds'] == 0 and not row['in_flight']
+    return row
+
+
+def pool_status():
+    used = pool_used_bytes(); cap = pool_max_bytes()
+    return {'used_bytes': used, 'max_bytes': cap, 'free_bytes': max(0, cap - used), 'files': len([f for f in _pool_files()]),
+            'slow_bps': slow_bps(), 'hold_multiplier': HOLD_MULTIPLIER, 'hold_floor_seconds': HOLD_FLOOR, 'idle_seconds': IDLE_SECONDS}
+
+
+def _pool_files():
+    try:
+        return [f for f in os.listdir(pool_dir()) if os.path.isfile(os.path.join(pool_dir(), f))]
+    except FileNotFoundError:
+        return []
+
+
+def _remove(filename):
+    try:
+        os.remove(os.path.join(pool_dir(), filename))
+    except OSError:
+        pass
+    _ledger().pop(filename, None)
+
+
+def make_room(needed_bytes, now=None):
+    """Room for a requested deb: evict (least recently accessed first) only debs past their hold and not being
+    downloaded, until it fits. {'ok', 'evicted': [...], 'blocked_by': [...], 'note'}."""
+    now = now or time.time(); L = _ledger()
+    cap = pool_max_bytes(); used = pool_used_bytes(); evicted = []
+    if used + needed_bytes <= cap:
+        return {'ok': True, 'evicted': [], 'blocked_by': [], 'note': ''}
+    candidates = sorted(_pool_files(), key=lambda f: L.get(f, {}).get('last_access', 0))
+    blocked = []
+    for f in candidates:
+        if used + needed_bytes <= cap:
+            break
+        row = L.get(f, {})
+        if _INFLIGHT.get(f) or row.get('hold_until', 0) > now:
+            blocked.append({'file': f, 'hold_remaining_seconds': max(0, int(row.get('hold_until', 0) - now)), 'in_flight': _INFLIGHT.get(f, 0)}); continue
+        size = os.path.getsize(os.path.join(pool_dir(), f)); _remove(f); evicted.append(f); used -= size
+    if evicted:
+        _save_ledger()
+    ok = used + needed_bytes <= cap
+    soonest = min((b['hold_remaining_seconds'] for b in blocked), default=0)
+    note = '' if ok else (f'the deb pool is full ({used // (1 << 20)} MB of {cap // (1 << 20)} MB) and every deb in it is inside its minimum hold'
+                          + (f' — the earliest hold ends in {soonest // 60} min' if blocked else '') + '; try again then, or raise POLARI_APP_POOL_MAX_BYTES')
+    return {'ok': ok, 'evicted': evicted, 'blocked_by': blocked[:10], 'note': note}
+
 
 def purge_expired(ttl=None):
-    """Delete pool debs older than the TTL; returns names removed.
-    Runs opportunistically on every page/download request — no
-    background thread to die quietly."""
-    ttl = ttl_seconds() if ttl is None else ttl
-    removed = []
-    now = time.time()
-    try:
-        for entry in os.listdir(pool_dir()):
-            path = os.path.join(pool_dir(), entry)
-            if (os.path.isfile(path)
-                    and now - os.path.getmtime(path) > ttl):
-                os.remove(path)
-                removed.append(entry)
-    except FileNotFoundError:
-        pass
+    """The idle purge: a deb nobody requested or downloaded for IDLE_SECONDS is removed whether or not the pool is
+    full (a file the ledger never saw is judged by its mtime). Holds never delete on their own — eviction is
+    make_room's job. Returns the names removed. Runs on every page/API request — no background thread to die quietly."""
+    idle = IDLE_SECONDS if ttl is None else ttl
+    removed = []; now = time.time(); L = _ledger()
+    for f in _pool_files():
+        if _INFLIGHT.get(f):
+            continue
+        mtime = os.path.getmtime(os.path.join(pool_dir(), f))
+        # an explicit ttl judges by the file's age (the old TTL semantics, used by tests and operators); the policy judges by access
+        last = mtime if ttl is not None else (L.get(f, {}).get('last_access') or mtime)
+        if now - last > idle:
+            _remove(f); removed.append(f)
+    for f in [k for k in L if k not in set(_pool_files())]:   # ledger rows for files that are gone
+        L.pop(f, None)
+    if removed:
+        _save_ledger()
     return removed
 
 

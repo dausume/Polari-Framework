@@ -49,7 +49,7 @@ EXPLAIN_WAIT = (
     'Why is there a short wait after I click?',
     'These debs are not kept on the server — each one is packaged '
     'fresh at the moment you ask (' + GENERATION_STEPS + '), then '
-    'removed again after a short retry window. The wait shown on '
+    'kept at least three slow-connection downloads long, then only evicted when room is needed, and freed after a day untouched. The wait shown on '
     'each card is the median of that app\'s recorded generation '
     'times — measured, never invented.')
 
@@ -158,8 +158,10 @@ def _form_block(module, flavor, form):
         dl_est = builder.download_estimate_seconds(ready['bytes'])
         dl_text = (('download usually &lt;1 s' if dl_est < 1 else f'download usually ~{dl_est:g} s')
                    if dl_est is not None else 'no download timing data yet — the first one measures it')
-        state = (f'<span class="prov prov-prepped">READY — generated {ready["ageSeconds"] // 60} min ago, held for the '
-                 f'retry window · {human_size(ready["bytes"])} · {html.escape(dl_text)}</span>')
+        hold = builder.pool_entry(ready['file'])
+        held = (f'held at least {hold["hold_remaining_seconds"] // 60} more min' if hold.get('hold_remaining_seconds') else 'past its hold — kept while there is room')
+        state = (f'<span class="prov prov-prepped">READY — generated {ready["ageSeconds"] // 60} min ago, {held} '
+                 f'(requested {hold.get("requests", 1)}×, downloaded {hold.get("downloads", 0)}×) · {human_size(ready["bytes"])} · {html.escape(dl_text)}</span>')
         button = f'<a class="dl" href="/downloads/apps/file/{html.escape(ready["file"])}" download>Download</a>'
     elif job and job['state'] == 'running':
         state = f'<span class="prov prov-demand">GENERATING NOW — {html.escape(job["step"])}</span>'
@@ -317,7 +319,7 @@ def render_page(instance_title='Polari', root=None,
    its own installable file — packaged fresh when you ask for it.
    Nothing sits pre-built on the server: your click starts the
    build, the file streams to you, and the server's copy is
-   removed again after a short retry window.</p>
+   kept at least three slow-connection downloads long; after that it is evicted only when room is needed, and freed after a day untouched. A re-request or a download refreshes the hold.</p>
 </header>
 
 <section class="step">
@@ -538,6 +540,7 @@ class _TimedStream:
         self._size = size
         self._started = time.time()
         self._closed = False
+        builder.inflight_begin(filename)   # never evicted while a download is in flight
 
     def read(self, n=-1):
         return self._fh.read(n)
@@ -546,7 +549,6 @@ class _TimedStream:
         if not self._closed:
             self._closed = True
             elapsed = time.time() - self._started
-            if elapsed > 0:
-                builder.record_download(self._filename,
-                                        self._size, elapsed)
+            builder.inflight_end(self._filename)
+            builder.note_download(self._filename, max(0.001, elapsed), self._size)   # counts, refreshes the hold, measures
         self._fh.close()

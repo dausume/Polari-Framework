@@ -144,6 +144,18 @@ def _measure(names):
     return sorted(out, key=lambda l: l['name'].lower())
 
 
+_PKG_TO_DIST = {}
+
+
+def _pkg_to_dist():
+    """importlib.metadata.packages_distributions() stats every installed file (~0.7 s per call in the image) — once
+    per process, refreshed every 10 minutes (an admit installing wheels changes it)."""
+    now = time.time()
+    if not _PKG_TO_DIST or now - _PKG_TO_DIST.get('_at', 0) > 600:
+        _PKG_TO_DIST.clear(); _PKG_TO_DIST.update(importlib_metadata.packages_distributions()); _PKG_TO_DIST['_at'] = now
+    return _PKG_TO_DIST
+
+
 def module_scan(module, root=None):
     """(pip_libraries, polari_requires) — the module's scanned
     imports split into real third-party distributions vs OTHER
@@ -162,7 +174,7 @@ def module_scan(module, root=None):
     polari_requires = {name for name in imports
                        if name in polari_names and name != module}
     polari_requires.update(entry.get('requires', []))
-    pkg_to_dist = importlib_metadata.packages_distributions()
+    pkg_to_dist = _pkg_to_dist()
     roots = set()
     for name in imports:
         if name in polari_names:

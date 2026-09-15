@@ -281,11 +281,10 @@ def main():
 
         old = os.path.join(builder.pool_dir(), result['file'])
         os.utime(old, (time.time() - 7200, time.time() - 7200))
-        removed = builder.purge_expired()
-        check('TTL purge removes expired pool debs '
-              '(opportunistic, no background thread)',
-              result['file'] in removed
-              and not os.path.exists(old))
+        kept = builder.purge_expired()          # the policy: holds never delete; two hours old is not idle (a day)
+        removed = builder.purge_expired(ttl=3600)   # an explicit ttl judges by file age (operators, tests)
+        check('the pool policy keeps a 2-hour-old deb (idle = a day; holds never delete); an explicit ttl still purges by age',
+              os.path.basename(old) not in kept and os.path.basename(old) in removed and not os.path.exists(old))
 
         check('pool serving refuses traversal / absent / non-deb '
               'names identically',

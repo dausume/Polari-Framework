@@ -145,12 +145,13 @@ def status_of(module, flavor, registry=None, form='install'):
     pool = builder.pool_file_for(module, flavor, form)
     job = builder.generation_job(module, flavor, form)
     app = manifest_app(module, entry=entry)
+    hold = builder.pool_entry(pool['file']) if pool else {}
     out = {'ok': True, 'module': module, 'flavor': flavor, 'form': form, 'app_kind': app['kind'], 'title': app['title'], 'extends': app['extends'], 'group': group_of(app),
            'package': (access_deb_name(module, flavor) if form == 'access' else builder.deb_package_name(module) + ('-offline' if flavor == 'offline' else '')),
            'refuses_at_install': ('a hardware app refuses on a lightweight (docker-swarm) isle or a non-hardware member' if app['kind'] in HARDWARE_KINDS else (f"refuses without {app['extends']} installed" if app['kind'] in EXPANSION_KINDS else '')) if form == 'install' else '', 'downloaded': bool(entry.get('downloaded')), 'kind': entry.get('kind', ''), 'tier': entry.get('tier', ''), 'hosts_on': tiers_for(entry.get('kind', '')), 'access_form': access_form(module), 'notice_on_access': tier_notice(entry.get('kind', ''), 'access'),
            'repo': entry.get('repo', ''), 'description': entry.get('description', ''),
            'estimate_seconds': builder.estimate_seconds(module, flavor=flavor, form=form), 'expected_bytes': need if form == 'install' else (1 << 20), 'expected_basis': need_basis,
-           'space': space(need), 'differences': flavor_differences(reqs, flavor), 'requirements': {'libraries': len(reqs.get('libraries') or []), 'librariesBytes': reqs.get('librariesBytes', 0), 'engines': reqs.get('engines') or []},
+           'space': space(need), 'pool': builder.pool_status(), 'differences': flavor_differences(reqs, flavor), 'requirements': {'libraries': len(reqs.get('libraries') or []), 'librariesBytes': reqs.get('librariesBytes', 0), 'engines': reqs.get('engines') or []},
            'status_url': f'/api/apps/{module}/status?flavor={flavor}', 'request_url': f'/api/apps/{module}/request?flavor={flavor}', 'download_url': f'/api/apps/{module}/download?flavor={flavor}'}
     try:
         from moduleService.hardware_reach import hardware_summary
@@ -166,7 +167,9 @@ def status_of(module, flavor, registry=None, form='install'):
     if pool:
         path = os.path.join(builder.pool_dir(), pool['file'])
         out.update({'state': 'ready', 'file': pool['file'], 'bytes': pool['bytes'], 'sha256': _sha256(path), 'age_seconds': pool['ageSeconds'],
-                    'expires_in_seconds': max(0, builder.ttl_seconds() - pool['ageSeconds']) if builder.ttl_seconds() > 0 else None,
+                    'requested_at': hold.get('requested_at'), 'requests': hold.get('requests', 0), 'downloads': hold.get('downloads', 0), 'last_download_at': hold.get('last_download_at'),
+                    'hold_until': hold.get('hold_until'), 'hold_remaining_seconds': hold.get('hold_remaining_seconds', 0), 'evictable': hold.get('evictable', False),
+                    'retention': 'held at least until the hold ends (3× a slow download of its size); after that only evicted when room is needed; freed after a day untouched; a re-request or download refreshes the hold',
                     'reading': f"{module} ({flavor}) is ready: GET {out['download_url']}"})
     elif job and job['state'] == 'running':
         out.update({'state': 'generating', 'step': job.get('step'), 'elapsed_seconds': int(time.time() - job['startedAt']), 'reading': f"generating ({job.get('step')}) — poll {out['status_url']}"})
@@ -198,6 +201,29 @@ def ensure_code(manager, module, entry):
         return {'ok': True, 'fetched': True, 'action': fetched.get('action'), 'path': fetched.get('path')}
     except Exception as exc:
         return {'ok': False, 'refusal': f'fetch failed: {type(exc).__name__}: {exc}'}
+
+
+class _TrackedStream:
+    """A file stream the pool knows about: marks the deb in flight until closed, then records the download."""
+    def __init__(self, path, filename, size):
+        self._f = open(path, 'rb'); self._name = filename; self._size = size; self._t0 = time.time(); self._done = False
+        builder.inflight_begin(filename)
+
+    def read(self, n=-1):
+        return self._f.read(n)
+
+    def __iter__(self):
+        return iter(lambda: self._f.read(1 << 20), b'')
+
+    def close(self):
+        if self._done:
+            return
+        self._done = True
+        try:
+            self._f.close()
+        finally:
+            builder.inflight_end(self._name)
+            builder.note_download(self._name, max(0.001, time.time() - self._t0), self._size)
 
 
 class AppsAPI(treeObject):
@@ -260,7 +286,11 @@ class AppsAPI(treeObject):
         if pool:
             return self._json(response, {**status_of(module, flavor, registry, form), 'reading': 'already available — GET the download URL'})
         if form == 'access':
-            # the shell needs no module code: no fetch, no wheels, no space question beyond a megabyte
+            # the shell needs no module code: no fetch, no wheels; room for it (offline carries the 55 MB runtime)
+            need_a = (60 << 20) if flavor == 'offline' else (1 << 20)
+            room = builder.make_room(need_a)
+            if not room['ok']:
+                return self._json(response, {'ok': False, 'module': module, 'flavor': flavor, 'form': 'access', 'state': 'refused', 'refusal': room['note'], 'blocked_by': room['blocked_by'], 'pool': builder.pool_status()}, '507 Insufficient Storage')
             job = builder.start_generation(module, flavor, form='access')
             st = status_of(module, flavor, registry, 'access'); st.update({'job_state': job['state'], 'accepted': True})
             return self._json(response, st, '202 Accepted' if st.get('state') != 'ready' else '200 OK')
@@ -273,6 +303,9 @@ class AppsAPI(treeObject):
         sp = space(need)
         if not sp['ok']:
             return self._json(response, {'ok': False, 'module': module, 'flavor': flavor, 'state': 'refused', 'refusal': sp['note'], 'space': sp, 'expected_bytes': need, 'expected_basis': basis}, '507 Insufficient Storage')
+        room = builder.make_room(need)
+        if not room['ok']:
+            return self._json(response, {'ok': False, 'module': module, 'flavor': flavor, 'state': 'refused', 'refusal': room['note'], 'blocked_by': room['blocked_by'], 'pool': builder.pool_status(), 'expected_bytes': need}, '507 Insufficient Storage')
         job = builder.start_generation(module, flavor)
         st = status_of(module, flavor, registry)
         st.update({'fetched': fetched.get('fetched', False), 'job_state': job['state'], 'accepted': True})
@@ -288,8 +321,9 @@ class AppsAPI(treeObject):
             response.downloadable_as = pool['file']
             response.set_header('X-Polari-Sha256', _sha256(path))
             response.set_header('Content-Length', str(pool['bytes']))
-            # STREAM the file (a swarm backend has ~1.2 GB: an offline deb must never be read into memory)
-            response.stream = open(path, 'rb')
+            # STREAM the file (a swarm backend has ~1.2 GB: an offline deb must never be read into memory);
+            # tracked: in flight (never evicted meanwhile), timed (the slow-connection estimate), counted (refreshes the hold)
+            response.stream = _TrackedStream(path, pool['file'], pool['bytes'])
             return
         st = status_of(module, flavor, form=form)
         if st.get('state') == 'generating':
