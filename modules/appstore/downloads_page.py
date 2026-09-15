@@ -384,7 +384,10 @@ def _apps_summary(flavor):
                        for c, v in CATEGORIES.items())
     except Exception as exc:   # noqa: BLE001 — the installer page must still render
         cats = f'<span class="note">apps unavailable here: {html.escape(str(exc))}</span>'
-    return (f'<section class="step" id="apps"><h2>Add apps</h2>'
+    new_pc = ('<section class="step" id="new-computer"><h2>A brand-new computer?</h2>'
+              '<p>Get Ubuntu and Polari onto it together: probe it from a USB stick, choose what it becomes, and install from the same stick — unattended.</p>'
+              '<p><a class="dl" href="/downloads/iso">Get Polari and Ubuntu onto a new computer &rarr;</a></p></section>')
+    return (new_pc + f'<section class="step" id="apps"><h2>Add apps</h2>'
             '<p>Apps are installed separately, after Polari. Every app comes as <strong>Install</strong> (the app itself) or '
             '<strong>Access only</strong> (its shell), online or offline.</p>'
             f'<nav class="tabs tabs-cat">{cats}</nav>'

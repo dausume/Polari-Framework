@@ -1,0 +1,100 @@
+{
+ "schema": "polari-app/1",
+ "id": "iso",
+ "package": "iso",
+ "title": "Polari ISO",
+ "description": "Get Polari and Ubuntu onto a new computer: probe a device from a USB stick, derive Ubuntu compatibility, plan its role, build an unattended installer ISO with Polari inside, install from the same Ventoy stick.",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": 4,
+ "repo": "https://github.com/dausume/polari-module-iso.git",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "core",
+  "category": "polari",
+  "subcategories": [
+   "platform-operations"
+  ],
+  "tags": [
+   "iso",
+   "ubuntu",
+   "installer",
+   "probe",
+   "ventoy",
+   "new computer"
+  ]
+ },
+ "requires": {
+  "modules": [
+   "appstore"
+  ],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/iso/DeviceProbe",
+   "objects/iso/IsoBase",
+   "objects/iso/IsoBuild"
+  ],
+  "basis": [
+   "iso_basis"
+  ],
+  "api": [
+   "iso_api"
+  ],
+  "endpoints": [
+   "iso_endpoints"
+  ],
+  "seed": [
+   "iso_seed"
+  ],
+  "page": [
+   "iso_page"
+  ],
+  "selftests": [
+   "iso_selftest"
+  ],
+  "custom": [
+   "custom/iso_autoinstall",
+   "custom/iso_builder",
+   "custom/iso_compat",
+   "custom/iso_probe_kit"
+  ]
+ },
+ "classes": [
+  "DeviceProbe",
+  "IsoAPI",
+  "IsoBase",
+  "IsoBuild"
+ ],
+ "imports": [],
+ "endpoints": "iso.iso_endpoints:construct_iso_endpoints",
+ "seedPairs": "iso.iso_seed:ISO_SEED_PAIRS",
+ "pages": [
+  "iso.iso_page:SEED_ISO_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "iso_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
+  ],
+  "network": [
+   "isle"
+  ],
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": false,
+ "coreRequired": false,
+ "legacyDynamicModule": false
+}

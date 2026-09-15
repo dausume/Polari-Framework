@@ -244,6 +244,14 @@
       "description": "FPGA register maps as data; Verilog/C/testbench artifacts from rows.",
       "tier": "optional"
     },
+    "hwmap": {
+      "kind": "official",
+      "path": "modules/hwmap",
+      "description": "Hardware map: an on-device scanner (usb, pci + IOMMU groups, serial by-id, nics, kvm/libvirt facts) pushes a snapshot; Polari keeps ports and slots as rows and answers what can be mapped to a potential KVM (usb hostdev, pci vfio, nic macvtap) with reasons, and which hardware apps each port satisfies (hwm-1, 2026-09-08).",
+      "repo": "https://github.com/dausume/polari-module-hwmap.git",
+      "downloaded": true,
+      "tier": "core"
+    },
     "isle_guestnet": {
       "kind": "official",
       "downloaded": true,
@@ -279,6 +287,18 @@
       "requires": [],
       "description": "isle-mesh convergence (mac-1): the polari-side acceptor for isle-mesh data \u2014 devices/uplinks/mesh-apps/protocol-permits ingested from the isle agent's registry.json + nginx fragments (isle stays authoritative over networking); mock ingests carry mock_network=true, surfaced as a banner. Feeds /display/isle-mesh and the mac-10 console.",
       "tier": "core"
+    },
+    "iso": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/iso",
+      "repo": "https://github.com/dausume/polari-module-iso.git",
+      "requires": [
+        "appstore"
+      ],
+      "wave": 4,
+      "tier": "floor",
+      "description": "Get Polari and Ubuntu onto a new computer: probe a device from a USB stick, derive Ubuntu compatibility, plan its role, build an unattended installer ISO with Polari inside, install from the same Ventoy stick."
     },
     "kirimoto": {
       "kind": "official",
@@ -553,6 +573,15 @@
       "description": "Tech trees with theory/real/business/politics segments; OSEB baseline rollup.",
       "tier": "optional"
     },
+    "terms": {
+      "kind": "official",
+      "downloaded": true,
+      "path": "modules/terms",
+      "repo": "https://github.com/dausume/polari-module-terms.git",
+      "requires": [],
+      "description": "Terms of service: versioned documents (global or per app) and the append-only acceptance ledger",
+      "tier": "core"
+    },
     "testing": {
       "kind": "official",
       "downloaded": true,
@@ -636,23 +665,6 @@
       ],
       "description": "AR-captured 3D zones: planar/hull models, rooms vs selections, cube packing.",
       "tier": "optional"
-    },
-    "terms": {
-      "kind": "official",
-      "downloaded": true,
-      "path": "modules/terms",
-      "repo": "https://github.com/dausume/polari-module-terms.git",
-      "requires": [],
-      "description": "Terms of service: versioned documents (global or per app) and the append-only acceptance ledger",
-      "tier": "core"
-    },
-    "hwmap": {
-      "kind": "official",
-      "path": "modules/hwmap",
-      "description": "Hardware map: an on-device scanner (usb, pci + IOMMU groups, serial by-id, nics, kvm/libvirt facts) pushes a snapshot; Polari keeps ports and slots as rows and answers what can be mapped to a potential KVM (usb hostdev, pci vfio, nic macvtap) with reasons, and which hardware apps each port satisfies (hwm-1, 2026-09-08).",
-      "repo": "https://github.com/dausume/polari-module-hwmap.git",
-      "downloaded": true,
-      "tier": "core"
     }
   }
 }

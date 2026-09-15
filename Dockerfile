@@ -89,7 +89,7 @@ WORKDIR /app
 # ffmpeg: video module (modules/video/) WebM/MP4/HLS conversion —
 # same capability-honest pattern (video_conversion.py checks
 # shutil.which('ffmpeg') and reports missing rather than crashing).
-RUN apk add --no-cache freetype sqlite-libs libstdc++ ngspice ffmpeg git   # git: an instance fetches optional modules from their repositories (fetch-admit)
+RUN apk add --no-cache freetype sqlite-libs libstdc++ ngspice ffmpeg git xorriso   # xorriso: the ISO arc assembles installer images; git: an instance fetches optional modules from their repositories (fetch-admit)
 
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
