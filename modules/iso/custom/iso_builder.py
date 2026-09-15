@@ -314,8 +314,11 @@ def _sha256(path):
 
 # --- builds -----------------------------------------------------------------------------------------------------
 
+BUILDER_VERSION = 2   # bumps when the overlay changes so an old pool image is not handed out for new code
+
+
 def build_id(build):
-    return hashlib.sha256(json.dumps({k: build.get(k) for k in ('base', 'role', 'shape', 'encryption', 'secure_boot', 'posture', 'look', 'hostname', 'username', 'ssh_keys', 'join_core', 'join_fingerprint', 'join_tier', 'target_hash', 'apps', 'offline')}, sort_keys=True).encode()).hexdigest()[:12]
+    return hashlib.sha256(json.dumps({'builder': BUILDER_VERSION} | {k: build.get(k) for k in ('base', 'role', 'shape', 'encryption', 'secure_boot', 'posture', 'look', 'hostname', 'username', 'ssh_keys', 'join_core', 'join_fingerprint', 'join_tier', 'target_hash', 'apps', 'offline')}, sort_keys=True).encode()).hexdigest()[:12]
 
 
 def iso_filename(build):
@@ -347,10 +350,10 @@ def lay_tree(build, base_file, dest, platform_debs=(), app_debs=(), ssh_keys=(),
         if os.path.isfile(p):
             shutil.copy2(p, os.path.join(dest, 'polari', 'apps', os.path.basename(p)))
     if build.get('target_hash'):
-        json.dump({k: build.get(k) for k in ('role', 'shape', 'join_core', 'join_fingerprint', 'join_tier', 'look', 'posture')}, open(os.path.join(dest, 'polari', 'plans', f"{build['target_hash']}.json"), 'w'), indent=1)
+        json.dump({k: (build.get(k) or '') for k in ('role', 'shape', 'join_core', 'join_fingerprint', 'join_tier', 'look', 'posture')}, open(os.path.join(dest, 'polari', 'plans', f"{build['target_hash']}.json"), 'w'), indent=1)
     # GRUB: boot straight into the unattended install (D4: no question on the machine)
     grub = ('set timeout=3\nmenuentry "Install Ubuntu + Polari (unattended)" {\n    set gfxpayload=keep\n'
-            '    linux /casper/vmlinuz autoinstall ds=nocloud\\;s=/cdrom/nocloud/ ---\n    initrd /casper/initrd\n}\n')
+            '    linux /casper/vmlinuz autoinstall ds=nocloud\\;s=/cdrom/nocloud/ console=ttyS0,115200 console=tty0 ---\n    initrd /casper/initrd\n}\n')
     os.makedirs(os.path.join(dest, 'boot', 'grub'), exist_ok=True); open(os.path.join(dest, 'boot', 'grub', 'grub.cfg'), 'w').write(grub)
     return dest
 
