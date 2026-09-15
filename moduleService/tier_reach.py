@@ -19,38 +19,71 @@ refusal: the isle CLI on the device is where an install is refused for the tier.
   - moduleService.selftest_tier_reach
 """
 
-TIERS = ('access', 'host', 'hardware')
+TIERS = ('access', 'member', 'hardware', 'core')
+TIER_ALIASES = {'host': 'member', 'light': 'access', 'vlan': 'core', 'remote': 'member'}
 TIER_WORDS = {
     'access': 'Access only — uses the isle\'s apps through shells; hosts nothing, nothing keeps running (lightest)',
-    'host': 'Host — also runs Polari apps and containers for the isle; an agent and Docker stay running (heavier)',
-    'hardware': 'Hardware — also lets hardware apps use this machine\'s devices (KVM/passthrough); libvirt + the agent; must stay on (heaviest)',
+    'member': 'Isle member — also runs Polari apps and containers for the isle; an agent and Docker stay running',
+    'hardware': 'Hardware member — also lets hardware apps use this machine\'s devices (KVM/passthrough); libvirt + the agent; must stay on',
+    'core': 'Isle core — hosts everything, including the apps that exist only on the core (the store, security, the isle itself)',
 }
 
 #: the LOWEST tier that can run each app kind; `access-app` runs everywhere (it hosts nothing)
 MIN_TIER = {
     'access-app': 'access',
-    'library': 'host',
-    'polari-app': 'host',
-    'isle-app': 'host',
-    'suite-app': 'host',
+    'library': 'member',
+    'polari-app': 'member',
+    'isle-app': 'member',
+    'suite-app': 'member',
     'hardware-app': 'hardware',
     'hardware-extension-app': 'hardware',
 }
 
 
-def tiers_for(kind):
-    """The member tiers that can HOST an app of this kind (an unknown kind is treated as a hosted polari-app)."""
-    lowest = MIN_TIER.get(kind or 'polari-app', 'host')
+def norm_tier(tier):
+    return TIER_ALIASES.get(tier or '', tier or '')
+
+
+def install_allowed(app, tier):
+    """His rules 2026-09-14 for the INSTALL form on a member of `tier`: access → never (only shells); member (a normal
+    isle member) → non-hardware, non-core-exclusive apps; hardware → everything except core-exclusive apps; core →
+    everything. A core-exclusive app declares agentTier = core in its manifest."""
+    tier = norm_tier(tier)
+    kind = (app or {}).get('kind', 'polari-app')
+    core_only = (app or {}).get('agentTier') == 'core'
+    if tier == 'access':
+        return False
+    if tier == 'core' or not tier:
+        return True
+    if core_only:
+        return False
+    if tier == 'hardware':
+        return True
+    return kind not in ('hardware-app', 'hardware-extension-app')   # member
+
+
+def access_allowed(app, tier):
+    """The ACCESS form (a shell) is for every member of every tier — remote-controlling a hardware app from a normal
+    member is exactly the point."""
+    return True
+
+
+def tiers_for(kind, app=None):
+    """The member tiers that can HOST an app of this kind (an unknown kind is treated as a hosted polari-app); a
+    core-exclusive app (agentTier core) is hosted by the core only."""
+    if (app or {}).get('agentTier') == 'core':
+        return ['core']
+    lowest = MIN_TIER.get(kind or 'polari-app', 'member')
     return [t for t in TIERS if TIERS.index(t) >= TIERS.index(lowest)]
 
 
 def runs_on(kind, tier):
-    return (tier or 'host') in tiers_for(kind)
+    return norm_tier(tier or 'member') in tiers_for(kind)
 
 
 def tier_notice(kind, tier):
     """'' when this kind runs on the tier; otherwise one plain sentence (a notice, never a refusal)."""
-    tier = tier or 'host'
+    tier = norm_tier(tier or 'member')
     if tier not in TIERS:
         return f"unknown tier '{tier}' — the isle CLI reports one of {', '.join(TIERS)}"
     if runs_on(kind, tier):
@@ -59,8 +92,10 @@ def tier_notice(kind, tier):
         return ('this device is ACCESS ONLY: it installs app shells (launchers) and uses the apps the isle hosts, but hosts '
                 f"nothing itself. Install the app's shell here; the app ({kind or 'polari-app'}) runs on a host"
                 f"{' or hardware' if MIN_TIER.get(kind) == 'hardware' else ''} member.")
-    return (f"a {kind} needs the HARDWARE tier (KVM/passthrough); this device is a {tier} member — its Polari side can be "
-            'staged here, but the hardware half cannot run on this machine.')
+    if MIN_TIER.get(kind) == 'hardware':
+        return (f"a {kind} needs the HARDWARE tier (KVM/passthrough); this device is a {tier} member — its Polari side can be "
+                'staged here, but the hardware half cannot run on this machine.')
+    return f'this app exists only on the isle core; a {tier} member reaches it through its shell (the access form).'
 
 
 def access_form(module, title=''):

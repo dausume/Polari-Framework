@@ -13,7 +13,7 @@
     "family": "",
     "extends": "",
     "catalogKinds": [],
-    "agentTier": "member",
+    "agentTier": "core",
     "category": "polari",
     "subcategories": [
       "platform-operations"

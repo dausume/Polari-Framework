@@ -28,7 +28,7 @@ from objectTreeDecorators import treeObject, treeObjectInit
 
 from appstore.custom import app_deb_builder as builder
 from appstore.custom import module_requirements as modreqs
-from moduleService.tier_reach import tiers_for, access_form, tier_notice
+from moduleService.tier_reach import tiers_for, access_form, tier_notice, install_allowed
 from appstore.custom.app_forms import manifest_app, group_of, access_deb_name, access_url_candidates, HARDWARE_KINDS, EXPANSION_KINDS
 
 FLAVORS = ('online', 'offline')
@@ -255,13 +255,14 @@ class AppsAPI(treeObject):
                    'description': (entry.get('description') or '')[:200], 'flavors': {}}
             app = manifest_app(module, entry=entry)
             row.update({'app_kind': app['kind'], 'title': app['title'], 'extends': app['extends'], 'group': group_of(app), 'access_urls': access_url_candidates(module, app),
-                        'category': app['category'], 'subcategories': app['subcategories'], 'secondary_categories': app.get('secondary', []), 'tags': app['tags'], 'runs_on': tiers_for(app['kind'])})
+                        'category': app['category'], 'subcategories': app['subcategories'], 'secondary_categories': app.get('secondary', []), 'tags': app['tags'], 'runs_on': tiers_for(app['kind'], app),
+                        'core_exclusive': app.get('agentTier') == 'core', 'forms_on_tier': ({'install': install_allowed(app, request.params.get('tier')), 'access': True} if request.params.get('tier') else None)})
             # his rulings 2026-09-14: search by name or properties, inside a category or across all; filters — the same door for AIs
             from moduleService.app_taxonomy import matches
             q = request.params.get('q', '') or ''; cat = request.params.get('category', '') or ''; sub = request.params.get('subcategory', '') or ''
             kind = request.params.get('kind', '') or ''; tier = request.params.get('tier', '') or ''
             if (cat and cat != app['category'] and cat not in app.get('secondary', [])) or (sub and sub not in app['subcategories']) \
-                    or (kind and kind != app['kind']) or (tier and tier not in tiers_for(app['kind'])) or not matches(q, module, app, app):
+                    or (kind and kind != app['kind']) or not matches(q, module, app, app):
                 continue
             for f in FLAVORS:
                 arow = {}

@@ -170,6 +170,8 @@ def wrap_page(title, body, page_label='Downloads', head_extra=''):
  a.dl:hover,button.dl:hover{{filter:brightness(1.08)}}
  label.pick{{display:block;margin:.3rem 0}}
  .tabs{{display:flex;gap:.4rem;margin:0 0 .6rem}}
+ a{{color:var(--accent)}} .chip,.tab{{color:var(--ink)}} .form-off{{opacity:.75}}
+ .finder input[type=search],.finder select,.finder button{{background:var(--card);color:var(--ink)}}
  .tabs-cat{{display:flex;flex-wrap:wrap;gap:.5rem;margin:.6rem 0}} .tabs-cat .tab small{{opacity:.7;margin-left:.3rem}}
  .finder{{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin:.6rem 0 .9rem}} .finder input[type=search]{{flex:1 1 260px;padding:.5rem .7rem;border:1px solid var(--line);border-radius:8px;font:inherit}}
  .finder select{{padding:.35rem .5rem;font:inherit;border-radius:6px;border:1px solid var(--line)}} .finder button{{padding:.45rem .9rem;font:inherit;border-radius:8px;border:1px solid var(--line);cursor:pointer}}

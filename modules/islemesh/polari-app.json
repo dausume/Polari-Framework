@@ -19,7 +19,7 @@
       "polari-app-option",
       "polari-instance"
     ],
-    "agentTier": "member",
+    "agentTier": "core",
     "category": "polari",
     "subcategories": [
       "platform-operations",

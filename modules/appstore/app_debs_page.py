@@ -179,7 +179,22 @@ def _form_block(module, flavor, form):
     return f'<div class="form form-{form}">{head}{state}{button}</div>'
 
 
-def _module_card(module, entry, analysis, flavor='online', app=None, show_category=False):
+def _forms_for(module, flavor, app, tier):
+    """His rules 2026-09-14 per chosen member tier: access → only the access form; a normal isle member → install forms
+    of non-hardware, non-core apps (hardware apps still reachable through their access form: remote control);
+    hardware member → everything except core-exclusive apps; isle core → everything. No tier → both forms."""
+    from moduleService.tier_reach import install_allowed, norm_tier, tier_notice
+    if not tier:
+        return _form_block(module, flavor, 'install') + _form_block(module, flavor, 'access')
+    t = norm_tier(tier)
+    if install_allowed(app, t):
+        return _form_block(module, flavor, 'install') + _form_block(module, flavor, 'access')
+    why = tier_notice(app.get('kind', ''), t) if t != 'access' else 'an access-only member installs shells only'
+    return (f'<div class="form form-install form-off"><span class="form-head">Install — not on this member</span>'
+            f'<span class="dl-meta">{html.escape(why)}</span></div>' + _form_block(module, flavor, 'access'))
+
+
+def _module_card(module, entry, analysis, flavor='online', app=None, show_category=False, tier=''):
     from appstore.custom.app_forms import manifest_app, HARDWARE_KINDS, EXPANSION_KINDS
     app = app or manifest_app(module, entry=entry)
     title = app.get('title') or module
@@ -233,7 +248,7 @@ def _module_card(module, entry, analysis, flavor='online', app=None, show_catego
     {req_lines}
     <span class="dl-meta">steps on download: {GENERATION_STEPS}</span>
     {shared_links}{mode_note}{fetch_note}
-    <div class="forms">{_form_block(module, flavor, 'install')}{_form_block(module, flavor, 'access')}</div>
+    <div class="forms">{_forms_for(module, flavor, app, tier)}</div>
   </span>
 </li>'''
 
@@ -313,8 +328,6 @@ def catalogue(root=None, q='', scope='category', category='', subcategory='', ki
             continue
         if kind and a['kind'] != kind:
             continue
-        if tier and tier not in tiers_for(a['kind']):
-            continue
         if not matches(q, m, a, a):
             continue
         rows.append((m, e, a))
@@ -341,15 +354,13 @@ def _controls(flavor, q, scope, category, subcategory, kind, tier, sort, counts)
     for c, v in CATEGORIES.items():
         tabs += '<a class="tab%s" href="/downloads/apps?flavor=%s&amp;category=%s">%s <small>%d</small></a>' % (' tab-on' if category == c else '', flavor, c, esc(v['title']), counts.get(c, 0))
     hidden = ''.join('<input type="hidden" name="%s" value="%s">' % (k, esc(v)) for k, v in (('flavor', flavor), ('category', category)) if v)
-    scope_ui = ''
-    if category:
-        scope_ui = ('<label><input type="radio" name="scope" value="category"%s> in %s</label>' % (' checked' if scope != 'all' else '', esc(CATEGORIES[category]['title']))
-                    + '<label><input type="radio" name="scope" value="all"%s> all apps</label>' % (' checked' if scope == 'all' else ''))
+    scope_ui = ('<small>searching %s</small>' % (esc(CATEGORIES[category]['title']) if category else 'all apps'))
     sorts = ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if sort == k else '', v)
                     for k, v in (('name', 'name'), ('requests', 'most requested'), ('size', 'largest first'), ('recent', 'recently generated')))
     kinds = ''.join('<option value="%s"%s>%s</option>' % (k, ' selected' if kind == k else '', k or 'any kind')
                     for k in ('', 'polari-app', 'isle-app', 'hardware-app', 'hardware-extension-app', 'library', 'suite-app'))
-    tiers = ''.join('<option value="%s"%s>%s</option>' % (t, ' selected' if tier == t else '', t or 'any member') for t in ('',) + tuple(TIERS))
+    tier_words = {'': 'any member', 'access': 'access only', 'member': 'isle member', 'hardware': 'hardware member', 'core': 'isle core'}
+    tiers = ''.join('<option value="%s"%s>%s</option>' % (t, ' selected' if tier == t else '', tier_words[t]) for t in ('',) + tuple(TIERS))
     subs = ''
     if category:
         chips = ''.join('<a class="chip%s" href="/downloads/apps?flavor=%s&amp;category=%s&amp;subcategory=%s%s">%s</a>'
@@ -393,9 +404,9 @@ def render_page(instance_title='Polari', root=None, flavor='online', q='', scope
                              for f, lbl in (('online', '🌐 Online'), ('offline', '💾 Offline')))
                    + '</nav>')
     if searching:
-        where = 'across all categories' if (scope == 'all' or not category) else 'in ' + esc(CATEGORIES[category]['title'])
+        where = 'across all apps' if not category else 'in ' + esc(CATEGORIES[category]['title'])
         if rows:
-            cards = ''.join(_module_card(m, e, analysis, flavor, a, show_category=True) for m, e, a in rows)
+            cards = ''.join(_module_card(m, e, analysis, flavor, a, show_category=True, tier=tier) for m, e, a in rows)
             listing = ('<p class="option-note">%d app(s) match%s %s.</p><ol class="dl-list">%s</ol>'
                        % (len(rows), (' “%s”' % esc(q)) if q else '', where, cards))
         else:
@@ -406,7 +417,7 @@ def render_page(instance_title='Polari', root=None, flavor='online', q='', scope
         for sc in order:
             items = groups[sc]
             sc_title, sc_blurb = (SUBCATEGORIES[sc][1], SUBCATEGORIES[sc][2]) if sc in SUBCATEGORIES else ('Other', '')
-            cards = ''.join(_module_card(m, e, analysis, flavor, a, show_category=not category) for m, e, a in items)
+            cards = ''.join(_module_card(m, e, analysis, flavor, a, show_category=not category, tier=tier) for m, e, a in items)
             is_open = ' open' if (len(items) <= 4 or len(order) == 1) else ''
             listing += ('<details class="group"%s><summary>%s <small>%d</small><span class="blurb">%s</span></summary><ol class="dl-list">%s</ol></details>'
                         % (is_open, esc(sc_title), len(items), esc(sc_blurb), cards))
