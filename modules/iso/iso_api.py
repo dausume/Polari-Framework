@@ -30,6 +30,13 @@ from iso.iso_basis import DeviceProbe, IsoBase, IsoBuild, LOOKS, POSTURES, ROLES
 from iso.iso_seed import SEED_ISO_BASES
 
 
+def _flag(v):
+    """A yes/no choice as it arrives from JSON (bool) or a query string ('false', '0', 'off' are NO — bool('False') is not)."""
+    if isinstance(v, str):
+        return v.strip().lower() not in ('', '0', 'false', 'no', 'off', 'none')
+    return bool(v)
+
+
 def _platform_debs():
     """The platform installer(s) staged for /downloads — the ISO carries them (offline first)."""
     try:
@@ -97,6 +104,7 @@ class IsoAPI(treeObject):
             add('/api/iso/builds', self, suffix='builds')
             add('/api/iso/builds/{build_id}/status', self, suffix='build_status')
             add('/api/iso/builds/{build_id}/download', self, suffix='build_download')
+            add('/api/iso/builds/{build_id}', self, suffix='build')
             add('/api/iso/autoinstall/preview', self, suffix='preview')
             add('/api/iso/joined', self, suffix='joined')
             add('/api/iso/core-key', self, suffix='core_key')
@@ -229,8 +237,8 @@ class IsoAPI(treeObject):
     def _choices(self, body):
         b = {k: body.get(k) for k in ('base', 'role', 'shape', 'encryption', 'secure_boot', 'posture', 'look', 'hostname', 'username', 'ssh_keys', 'join_core', 'join_fingerprint', 'join_tier', 'target_hash', 'apps', 'offline', 'password_hash', 'encryption_passphrase', 'report_to')}
         b['base'] = b.get('base') or (self._default_base() or {}).get('name', ''); b['role'] = b.get('role') or 'member'; b['shape'] = b.get('shape') or 'detect'
-        b['encryption'] = bool(b.get('encryption')); b['secure_boot'] = b.get('secure_boot') or 'on'; b['posture'] = b.get('posture') or 'production'; b['look'] = b.get('look') or 'plasma-default'
-        b['offline'] = True if b.get('offline') is None else bool(b['offline'])
+        b['encryption'] = _flag(b.get('encryption')); b['secure_boot'] = b.get('secure_boot') or 'on'; b['posture'] = b.get('posture') or 'production'; b['look'] = b.get('look') or 'plasma-default'
+        b['offline'] = True if b.get('offline') is None else _flag(b['offline'])
         probs = []
         if b['role'] not in ROLES: probs.append(f'role must be one of {ROLES}')
         if b['shape'] not in SHAPES: probs.append(f'shape must be one of {SHAPES}')
@@ -311,6 +319,23 @@ class IsoAPI(treeObject):
         if d is None:
             return self._json(response, {'ok': False, 'refusal': f'no build {build_id}'}, '404 Not Found')
         self._json(response, {'ok': True, **d, 'download_url': f'/api/iso/builds/{build_id}/download' if d.get('file') else ''})
+
+    def on_delete_build(self, request, response, build_id):
+        """The core's owner drops an image from the pool (`pol iso forget`): the file and its ledger entry go, the row stays
+        as 'forgotten' (what was built is still on record). The hold protects the public from each other, not the owner
+        from the pool being full of the owner's own test images."""
+        row = next((r for r in self._rows('IsoBuild') if getattr(r, 'name', '') == build_id), None)
+        if row is None:
+            return self._json(response, {'ok': False, 'refusal': f'no build {build_id}'}, '404 Not Found')
+        if getattr(row, 'state', '') == 'running':
+            return self._json(response, {'ok': False, 'refusal': f'build {build_id} is still running; wait for it to finish'}, '409 Conflict')
+        gone = iso_builder.forget(getattr(row, 'file', ''))
+        try:
+            row.state = 'forgotten'; row.step = 'the image was dropped from the pool on request'
+            self._persist()
+        except Exception:
+            pass
+        self._json(response, {'ok': True, 'build': build_id, 'removed_file': gone, 'pool': iso_builder.pool_status()})
 
     def on_get_build_download(self, request, response, build_id):
         d = next((d for d in self._build_rows() if d['name'] == build_id), None)

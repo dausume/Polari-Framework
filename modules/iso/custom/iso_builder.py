@@ -144,6 +144,18 @@ def make_room(needed):
             'note': '' if ok else f'the ISO pool is full ({used >> 20} MB of {cap >> 20} MB) and every image in it is inside its minimum hold' + (f' — the earliest hold ends in {soonest // 60} min' if blocked else '') + '; try again then, or raise POLARI_ISO_POOL_MAX_BYTES'}
 
 
+def forget(filename):
+    """Drop one image from the pool on the owner's request (hold or not). The filename removed, or '' when nothing was there."""
+    if not filename or '/' in filename or not filename.endswith('.iso'):
+        return ''
+    path = os.path.join(pool_dir(), filename); gone = ''
+    if os.path.isfile(path):
+        os.remove(path); gone = filename
+    if _ledger().pop(filename, None) is not None or gone:
+        _save()
+    return gone
+
+
 def purge_idle():
     L = _ledger(); now = time.time(); removed = []
     for f in _files():

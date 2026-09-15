@@ -126,6 +126,11 @@ def main():
     s = S(); api.on_post_joined(R(media={'hw_hash': 'h9', 'hostname': 'polari-x', 'addresses': ['10.0.0.9'], 'role': 'member', 'shape': 'headless', 'detected': {'kvm': 1}}), s); check('/api/iso/joined answers with the ssh line (no manager: nothing stored, still answered)', s.media['ok'] and s.media['ssh'] == 'ssh polari@10.0.0.9')
     s = S(); api.on_get_core_key(R(), s); check('/api/iso/core-key says honestly whether the core has a key', 'placed_on_every_image' in s.media)
     s = S(); api.on_post_build(R(media={'role': 'x'}), s); check('build with a bad role → 400', s.status.startswith('400'))
+    from iso.iso_api import _flag
+    check('a query-string "False" is NO (the CLI preview of a headless build was refused for encryption it never chose)',
+          _flag('False') is False and _flag('0') is False and _flag('off') is False and _flag('true') is True and _flag(True) is True and _flag(None) is False)
+    s = S(); api.on_delete_build(R(), s, 'nope'); check('forgetting a build that does not exist → 404', s.status.startswith('404'))
+    check('forget() refuses anything that is not a pool image name', iso_builder.forget('') == '' and iso_builder.forget('../x.iso') == '' and iso_builder.forget('notes.txt') == '')
     page = __import__('iso.iso_api', fromlist=['render_page']).render_page(api)
     check('the human page: three steps, the probe kit link, the build form, the bases, no raw JSON', '1 · Probe' in page and '2 · Choose' in page and '3 · Install' in page and '/api/iso/probe-kit' in page and 'name="join_fingerprint"' in page and 'Ubuntu 26.04' in page)
     print('\n%d/%d checks passed' % (passed, total))
