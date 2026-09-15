@@ -20,7 +20,7 @@ def main():
     from security.security_page import SEED_SECURITY_PAGE_DISPLAYS
     from security.custom.security_topology import MODES, VIEWS, build, compare, simulate
     from security.custom.security_facts import SYSTEMS, scenario_names
-    check('twenty-six row classes', len(SECURITY_CLASSES) == 26, str(len(SECURITY_CLASSES)))
+    check('twenty-seven row classes', len(SECURITY_CLASSES) == 27, str(len(SECURITY_CLASSES)))
     check('row class constructs', SecurityTopologyEdge(name='x').name == 'x')
     n = 0
     for scn in scenario_names():
@@ -50,9 +50,9 @@ def main():
     row = [x for x in compare('os')['rows'] if x['means'].startswith('write into') and x['source'] == 'the Polari backend'][0]
     check('compare lines the backend up across routes', all(row[s] != '—' for s in ('isle', 'swarm-lean', 'swarm-full')), str(row))
     check('every system has a provenance', all(s['provenance'] in ('stock', 'qemu', 'polari') for s in SYSTEMS.values()))
-    check('seed pairs: 26, all rows named', len(SECURITY_SEED_PAIRS) == 26 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
+    check('seed pairs: 27, all rows named', len(SECURITY_SEED_PAIRS) == 27 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
     check('edge rows unique by name', len({r['name'] for r in SEED_SECURITY_EDGES}) == len(SEED_SECURITY_EDGES), str(len(SEED_SECURITY_EDGES)))
-    check('seven pages, none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 7 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
+    check('eight pages, none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 8 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
     from security.custom.security_threats import threats, threat_rows
     th = {t['name']: t for t in threats('swarm-lean', 'stock')['threats']}
     check('stock: the image backdoor, raw sniff AND the socket (if mounted) get THROUGH — docker alone stops none', th['image-backdoor']['verdict'] == 'allowed' and th['raw-sniff']['verdict'] == 'allowed' and th['docker-socket']['verdict'] == 'allowed')
@@ -137,6 +137,72 @@ def main():
     check('dev-mode notices: the install-level DEV MODE warning names the danger of connecting to systems that are not your own; dev devices warn; unsecured devices error',
           [n['code'] for n in pn] == ['dev-mode', 'dev-posture-devices', 'ssh-unsecured'] and 'not your own' in pn[0]['text'] and 'EXTREMELY DANGEROUS' in pn[0]['text'] and pn[2]['level'] == 'error' and 'passwords accepted' in pn[2]['text'], [n['code'] for n in pn])
     check('production install, every device secure → no posture notice', posture_notices(_M(), env={}) == [])
+    # ---- ISLE_HARDENING_PLAN §17: OBSERVE MODE — one switch (posture), one ledger (SecurityEvent), one contract
+    import os
+    import tempfile
+    from moduleService import posture as P
+    from security.custom import security_observe as O
+    with tempfile.TemporaryDirectory() as td:
+        pf = os.path.join(td, 'posture.json')
+        check('posture: nothing says dev → production (source default)', P.state(env={}, path=pf) == {'posture': 'production', 'until': '', 'source': 'default', 'expired': False, 'relaxations': [], 'applied_by': ''})
+        check('posture: POLARI_POSTURE=dev wins (source env)', P.state(env={'POLARI_POSTURE': 'dev', 'POLARI_POSTURE_UNTIL': ''}, path=pf)['posture'] == 'dev' and P.is_dev(env={'POLARI_POSTURE': 'dev'}, path=pf))
+        open(pf, 'w').write('{"posture": "dev", "until": "2999-01-01T00:00:00Z", "relaxations": ["ssh.root-key-from-isle"], "applied_by": "posture.sh"}')
+        st = P.state(env={}, path=pf)
+        check('posture: the machine\'s posture.json (mounted read-only) says dev with an expiry → dev, its relaxations read', st['posture'] == 'dev' and st['source'] == 'file' and st['relaxations'] == ['ssh.root-key-from-isle'])
+        open(pf, 'w').write('{"posture": "dev", "until": "2020-01-01T00:00:00Z"}')
+        st = P.state(env={}, path=pf)
+        check('posture: an EXPIRED dev posture is production again (the revert timer\'s promise, kept here too)', st['posture'] == 'production' and st['expired'] is True)
+    m2 = _M(); m2.objectTables = {'SecurityEvent': {}}
+    m2.persistTree = lambda: None
+    dev = {'POLARI_POSTURE': 'dev'}; prod = {}
+    check('decide: an allowed act is allowed, nothing recorded', O.decide(m2, 'authz', 'update Person', 'Person', denied=False, env=dev) == (True, 'allowed') and O.events(m2) == [])
+    ok, out = O.decide(m2, 'authz', 'update Person', 'Person', denied=True, reason='no verb grant', actor='dev1', env=dev, source='test')
+    check('decide: DEV posture + an observable control → the act PROCEEDS as "observed" and a SecurityEvent counts it', ok is True and out == 'observed' and len(O.events(m2)) == 1 and O.events(m2)[0]['count'] == 1 and O.events(m2)[0]['would_deny'] is True)
+    O.decide(m2, 'authz', 'update Person', 'Person', denied=True, reason='no verb grant', env=dev)
+    check('the same decision again counts on the same row (control|action|target)', len(O.events(m2)) == 1 and O.events(m2)[0]['count'] == 2)
+    check('decide: PRODUCTION posture → denied (the caller refuses as before), recorded as denied', O.decide(m2, 'authz', 'delete Person', 'Person', denied=True, env=prod)[1] == 'denied')
+    check('decide: an INVARIANT (§16) refuses even in dev; an unknown control is treated as an invariant',
+          O.decide(m2, 'ssh-password', 'password login', 'sshd', denied=True, env=dev) == (False, 'denied') and O.decide(m2, 'made-up', 'x', 'y', denied=True, env=dev) == (False, 'denied'))
+    check('the contract: authz, peer admission, certificates, trust channels, content, browser, tier, posture relaxations OBSERVE; the six invariants + dev-variant-on-production + headless encryption REFUSE',
+          set(O.OBSERVED_CONTROLS) >= {'authz', 'peer-admission', 'certificate', 'trust-channel', 'content', 'browser', 'tier', 'posture-relaxation'}
+          and set(O.INVARIANT_CONTROLS) >= {'ssh-password', 'upstream-interface', 'production-route', 'dev-variant-on-production', 'iso-headless-encryption'} and not set(O.OBSERVED_CONTROLS) & set(O.INVARIANT_CONTROLS))
+    s = O.summary(m2, env=dev)
+    check('summary: observe on, the observed actions counted per control, the contract stated', s['observe'] is True and s['observed_actions'] == 2 and s['per_control'] == {'authz': 2} and s['contract']['observed'])
+    on = O.observe_notice(m2, env=dev)
+    check('the notice bar item (dev only): OBSERVE MODE with the count of what production would deny; absent in production',
+          len(on) == 1 and on[0]['code'] == 'observe-mode' and on[0]['level'] == 'warning' and '2 action(s)' in on[0]['title'] and O.observe_notice(m2, env=prod) == [])
+    from security.security_api import SecurityAPI
+    class _Req:
+        params = {}
+    class _Res:
+        media = None; status = '200 OK'
+    api = SecurityAPI(polServer=None, manager=None); api.manager = m2; r = _Res(); api.on_get_events(_Req(), r)
+    check('/api/security/events answers with the summary, the events and the how', r.media['ok'] and r.media['summary']['observed_events'] == 1 and len(r.media['events']) >= 2 and 'observe' in r.media['how'],
+          (r.media or {}).get('summary'))
+    from accessControl.app_permissions_gate import crude_permission_gate
+    import types as _types
+    class _Hdr:
+        def __init__(self): self.h = {}; self.status = ''; self.media = None
+        def set_header(self, k, v): self.h[k] = v
+    class _ReqU:
+        context = _types.SimpleNamespace(user_info={'preferred_username': 'dev1'})
+    import sys as _sys, types as _t
+    fake = _t.ModuleType('polariapps.apps_permissions_basis'); fake.permission_verdict = lambda *a, **k: {'allowed': False, 'reason': 'no grant'}
+    pkg = _t.ModuleType('polariapps'); pkg.apps_permissions_basis = fake
+    saved = {k: _sys.modules.get(k) for k in ('polariapps', 'polariapps.apps_permissions_basis')}
+    _sys.modules['polariapps'] = pkg; _sys.modules['polariapps.apps_permissions_basis'] = fake
+    m3 = _M(); m3.objectTables = {'AppPermissionProfile': {}, 'SecurityEvent': {}}; m3.persistTree = lambda: None
+    old_env = dict(os.environ); os.environ['POLARI_APP_PERMISSIONS'] = 'enforce'; os.environ['POLARI_POSTURE'] = 'dev'
+    try:
+        h = _Hdr(); g1 = crude_permission_gate(m3, _ReqU(), h, 'update', 'Person')
+        os.environ['POLARI_POSTURE'] = 'production'; h2 = _Hdr(); g2 = crude_permission_gate(m3, _ReqU(), h2, 'update', 'Person')
+    finally:
+        os.environ.clear(); os.environ.update(old_env)
+        for k, v in saved.items():
+            if v is None: _sys.modules.pop(k, None)
+            else: _sys.modules[k] = v
+    check('the CRUDE permission gate in ENFORCE: a dev build lets the refused act through with an "observed" header + a SecurityEvent; production still 403s',
+          g1 is True and 'observed Person:update' in h.h.get('X-Polari-Permission-Advisory', '') and len(O.events(m3)) == 1 and O.events(m3)[0]['actor'] == 'dev1' and g2 is False and h2.status == '403 Forbidden')
     from security.custom.security_ssh import permission_group_updates, merge_members
     pg = permission_group_updates('n', inv_u)
     check('permission groups: observed sudo + polari-ops members tied per device', pg['sudo']['members'] == 'n: u' and pg['polari-ops']['members'] == 'n: dev1')

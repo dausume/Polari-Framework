@@ -48,7 +48,10 @@ APP_KINDS = ('library', 'polari-app', 'isle-app', 'hardware-app', 'hardware-exte
 SECURITY_PROFILES = ('web-app', 'worker', 'gateway', 'vpn-gateway', 'hardware-extension')
 SECURITY_NETWORKS = ('isle', 'internet', 'none')
 SECURITY_CAPS = ('NET_ADMIN', 'NET_BIND_SERVICE', 'CHOWN', 'SETUID', 'SETGID', 'DAC_READ_SEARCH')
-SECURITY_DEFAULT = {'profile': 'web-app', 'writable': ['/data'], 'network': ['isle'], 'capabilities': [], 'devices': [], 'ports': []}
+SECURITY_DEFAULT = {'profile': 'web-app', 'writable': ['/data'], 'network': ['isle'], 'capabilities': [], 'devices': [], 'ports': [],
+                    # ISLE_HARDENING_PLAN §17: the controls the app's DEV VARIANT relaxes to observe (warn, never deny) on a dev-posture instance
+                    'devVariant': ['authz', 'content', 'trust-channel', 'certificate', 'peer-admission']}
+DEV_VARIANT_CONTROLS = ('authz', 'content', 'browser', 'trust-channel', 'certificate', 'peer-admission', 'posture-relaxation', 'tier')
 
 
 def security_findings(sec):
@@ -69,6 +72,14 @@ def security_findings(sec):
             out.append('security.writable %r refused (absolute path inside the app tree only)' % w)
     if (sec.get('devices') or []) and sec.get('profile') != 'hardware-extension':
         out.append('security.devices only for profile hardware-extension')
+    dv = sec.get('devVariant')
+    if dv is not None:
+        if not isinstance(dv, list):
+            out.append('security.devVariant must be a list of controls the dev variant relaxes')
+        else:
+            for c in dv:
+                if c not in DEV_VARIANT_CONTROLS:
+                    out.append('security.devVariant %r not in %s' % (c, DEV_VARIANT_CONTROLS))
     return out
 
 #: suite-app (Dustin 2026-09-08, "overarching purpose oriented apps … an amalgam of apps … foundationally

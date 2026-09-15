@@ -419,8 +419,8 @@ def generate(module, root=None, analysis=None, flavor='online',
                 'refusal': f'unknown flavor "{flavor}" — online '
                            '(deps install after download) or '
                            'offline (deps ride inside)'}
-    if form not in ('install', 'access'):
-        return {'ok': False, 'refusal': f'unknown form "{form}" — install (the app itself) or access (its shell)'}
+    if form not in ('install', 'access', 'dev'):
+        return {'ok': False, 'refusal': f'unknown form "{form}" — install (the app itself), access (its shell) or dev (the app with security observing; dev-posture machines only)'}
     if form == 'access':
         return generate_access(module, root, flavor, progress, started)
     t0 = time.time()
@@ -461,12 +461,17 @@ def generate(module, root=None, analysis=None, flavor='online',
              + (' (cached)' if fresh else ''), t0)
 
     content_hash = hashlib.sha256(
-        (_content_hash(files, shared_targets) + flavor
+        (_content_hash(files, shared_targets) + flavor + ('' if form == 'install' else form)
          + ''.join(f'{n}:{s}' for n, _, s in wheels)).encode()
     ).hexdigest()
 
-    debname = deb_package_name(module) + (
-        '-offline' if flavor == 'offline' else '')
+    if form == 'dev':
+        # ISLE_HARDENING_PLAN §17: the DEV VARIANT — the same payload under polari-dev-<m>, refusing outside dev posture
+        from appstore.custom.app_forms import dev_deb_name
+        debname = dev_deb_name(module, flavor)
+    else:
+        debname = deb_package_name(module) + (
+            '-offline' if flavor == 'offline' else '')
     version = f'{BASE_VERSION}+g{content_hash[:10]}'
     filename = f'{debname}_{version}_all.deb'
     pool = pool_dir()
@@ -477,7 +482,7 @@ def generate(module, root=None, analysis=None, flavor='online',
         for name in shared_names]
     if os.path.isfile(path):
         # cache hit — same content, same file; the re-request refreshes its hold
-        note_request(filename, os.path.getsize(path), f'{module}|install|{flavor}')
+        note_request(filename, os.path.getsize(path), f'{module}|{form}|{flavor}')
         return {'ok': True, 'file': filename, 'path': path,
                 'version': version, 'bytes': os.path.getsize(path),
                 'seconds': round(time.time() - started, 3),
@@ -559,14 +564,22 @@ def generate(module, root=None, analysis=None, flavor='online',
     progress('assembling the deb')
     online_name = deb_package_name(module)
     # his rulings 2026-09-14: hardware apps / expansions refuse at preinst (lightweight isle, missing base)
-    from appstore.custom.app_forms import manifest_app, preinst_for
-    scripts = {'preinst': preinst_for(module, manifest_app(module, root, entry))}
+    from appstore.custom.app_forms import manifest_app, preinst_for, dev_preinst, dev_postinst, dev_postrm
+    app_meta = manifest_app(module, root, entry)
+    if form == 'dev':
+        # the dev variant can never coexist with the production install of the same app (and vice versa)
+        scripts = {'preinst': dev_preinst(module, app_meta), 'postinst': dev_postinst(module, app_meta), 'postrm': dev_postrm(module)}
+        provides, conflicts, replaces = online_name, f'{online_name}, {online_name}-offline', f'{online_name}, {online_name}-offline'
+    else:
+        scripts = {'preinst': preinst_for(module, app_meta)}
+        provides = conflicts = replaces = (online_name if flavor == 'offline' else '')
     size_bytes = _write_deb(path, [
         ('Package', debname),
         ('Version', version),
-        ('Provides', online_name if flavor == 'offline' else ''),
-        ('Conflicts', online_name if flavor == 'offline' else ''),
-        ('Replaces', online_name if flavor == 'offline' else ''),
+        ('Provides', provides),
+        ('Conflicts', conflicts),
+        ('Replaces', replaces),
+        ('Polari-Variant', 'dev' if form == 'dev' else ''),
         ('Architecture', 'all'),
         ('Maintainer', 'Polari Suite <downloads@polari>'),
         ('Installed-Size',
@@ -574,13 +587,13 @@ def generate(module, root=None, analysis=None, flavor='online',
         ('Depends', depends),
         ('Section', 'misc'),
         ('Priority', 'optional'),
-        ('Description', f'Polari app — {description}'),
+        ('Description', (f'Polari app DEV VARIANT (security observes; dev-posture machines only) — {description}' if form == 'dev' else f'Polari app — {description}')),
     ], entries, scripts)
     step('assemble deb', t0)
 
     seconds = round(time.time() - started, 3)
-    note_request(filename, size_bytes, f'{module}|install|{flavor}')
-    _append_record({'module': module, 'flavor': flavor,
+    note_request(filename, size_bytes, f'{module}|{form}|{flavor}')
+    _append_record({'module': module, 'flavor': flavor, 'form': form,
                     'contentHash': content_hash,
                     'bytes': size_bytes, 'seconds': seconds,
                     'steps': steps,
@@ -692,6 +705,9 @@ def pool_file_for(module, flavor='online', form='install'):
     if form == 'access':
         from appstore.custom.app_forms import access_deb_name
         debname = access_deb_name(module, flavor)
+    elif form == 'dev':
+        from appstore.custom.app_forms import dev_deb_name
+        debname = dev_deb_name(module, flavor)
     else:
         debname = deb_package_name(module) + (
             '-offline' if flavor == 'offline' else '')
@@ -727,15 +743,19 @@ def estimate_seconds(module, recent=10, flavor='online', form='install'):
 _jobs = {}
 
 
+def _job_key(module, flavor, form='install'):
+    return f'{module}:{flavor}' + ('' if form == 'install' else f':{form}')
+
+
 def generation_job(module, flavor, form='install'):
-    return _jobs.get(f'{module}:{flavor}' + (':access' if form == 'access' else ''))
+    return _jobs.get(_job_key(module, flavor, form))
 
 
 def start_generation(module, flavor='online', root=None, form='install'):
     """Idempotent kick-off: a running job is returned as-is; a
     finished one whose pool file the TTL already purged restarts.
     The job dict is live — 'step' updates as generation moves."""
-    key = f'{module}:{flavor}' + (':access' if form == 'access' else '')
+    key = _job_key(module, flavor, form)
     job = _jobs.get(key)
     if job:
         if job['state'] == 'running':

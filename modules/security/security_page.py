@@ -101,6 +101,12 @@ SEED_SECURITY_PAGE_DISPLAYS = [
         _row(0, [_table('security-firewall-sets', 0, 12, 'Rule sets', 'FirewallRuleSet', columns='scenario,chain,rule_count,applied,sources_resolved,artifact')]),
         _row(1, [_sapi('security-firewall-net', 0, 12, 'The network view for this deployment', '/api/security/topology?view=network', pick='summary')], min_height=260),
     ]),
+    _page('security-events', 'security-events', 'Security events — observe mode: what production would have denied, counted (dev posture only; empty in production)', 'SecurityEvent', [
+        _row(0, [_sapi('security-observe-summary', 0, 12, 'This instance: posture, whether security observes or enforces, how many actions ran that production would deny, the contract (what warns vs what still refuses)',
+                       '/api/security/events', pick='summary')], min_height=220),
+        _row(1, [_table('security-events-table', 0, 12, 'SecurityEvent — one row per decision (control | action | target): outcome, reason, how many times, first/last seen', 'SecurityEvent',
+                        columns='control,action,target,actor,app,outcome,reason,count,first_seen,last_seen,source')]),
+    ]),
     _view_page('os', 'OS', 'what can a process touch on the machine, and which system stops it', 'prf-backend'),
     _view_page('network', 'Network', 'how do bytes get in, between and out', 'internet'),
     _view_page('app', 'App', 'who gets access to what, through which means', 'visitor'),

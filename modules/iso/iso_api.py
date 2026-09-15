@@ -153,7 +153,7 @@ class IsoAPI(treeObject):
         return (iso_compat.load_alias_table(b['kernel_table']) if b and b.get('kernel_table') else []), (b['name'] if b else '')
 
     def _probe_rows(self):
-        return [{k: getattr(r, k, '') for k in ('hw_hash', 'label', 'os_name', 'os_version', 'cpu', 'arch', 'memory_gb', 'free_gb', 'firmware', 'secure_boot', 'tpm', 'disk_encryption', 'raid_mode', 'gpu', 'wifi', 'nics', 'virtualization', 'apple_silicon', 'verdict', 'verdict_text', 'base_checked', 'drivers_in_kernel', 'drivers_firmware', 'drivers_third_party', 'drivers_missing', 'traps', 'suggested_role', 'suggested_reason', 'probed_at')}
+        return [{k: getattr(r, k, '') for k in ('hw_hash', 'label', 'os_name', 'os_version', 'cpu', 'arch', 'memory_gb', 'free_gb', 'firmware', 'secure_boot', 'tpm', 'disk_encryption', 'raid_mode', 'gpu', 'wifi', 'nics', 'virtualization', 'apple_silicon', 'verdict', 'verdict_text', 'base_checked', 'drivers_in_kernel', 'drivers_firmware', 'drivers_third_party', 'drivers_missing', 'traps', 'suggested_role', 'suggested_reason', 'probed_at', 'joined_at', 'joined_hostname', 'joined_addresses', 'joined_role', 'joined_shape', 'ssh_user')}
                 for r in self._rows('DeviceProbe')]
 
     def _build_rows(self):

@@ -68,6 +68,23 @@ def crude_permission_gate(manager, request, response, verb,
                 ADVISORY_HEADER,
                 f'would-deny {class_name}:{verb}')
             return True
+        # enforce — unless this instance is a DEV BUILD (ISLE_HARDENING_PLAN §17): then
+        # the act RUNS, the would-deny is recorded as a SecurityEvent and the notice bar
+        # counts it. The decision is the security module's; the gate only asks.
+        try:
+            from security.custom.security_observe import decide
+            who = ''
+            if isinstance(user_info, dict):
+                who = user_info.get('preferred_username') or user_info.get('sub') or ''
+            proceed, outcome = decide(manager, 'authz', f'{verb} {class_name}', class_name,
+                                      denied=True, reason=str(verdict.get('reason') or verdict.get('why') or 'permission refused')[:300],
+                                      actor=who, source='crude permission gate')
+        except Exception:
+            proceed, outcome = False, 'denied'
+        if proceed:
+            response.set_header(ADVISORY_HEADER,
+                                f'observed {class_name}:{verb} (dev build: production would deny)')
+            return True
         response.status = '403 Forbidden'
         response.media = {'ok': False,
                           'error': 'permission refused',

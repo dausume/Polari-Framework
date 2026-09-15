@@ -29,7 +29,7 @@ from objectTreeDecorators import treeObject, treeObjectInit
 from appstore.custom import app_deb_builder as builder
 from appstore.custom import module_requirements as modreqs
 from moduleService.tier_reach import tiers_for, access_form, tier_notice, install_allowed
-from appstore.custom.app_forms import manifest_app, group_of, access_deb_name, access_url_candidates, HARDWARE_KINDS, EXPANSION_KINDS
+from appstore.custom.app_forms import manifest_app, group_of, access_deb_name, access_url_candidates, dev_deb_name, DEV_STANDING_WARNING, HARDWARE_KINDS, EXPANSION_KINDS
 
 FLAVORS = ('online', 'offline')
 SPACE_MARGIN_BYTES = 200 * 1024 * 1024   # keep this much free after a generation
@@ -41,7 +41,7 @@ def _flavor(request):
     return f if f in FLAVORS else 'online'
 
 
-FORMS = ('install', 'access')
+FORMS = ('install', 'access', 'dev')
 
 
 def _form(request):
@@ -147,7 +147,8 @@ def status_of(module, flavor, registry=None, form='install'):
     app = manifest_app(module, entry=entry)
     hold = builder.pool_entry(pool['file']) if pool else {}
     out = {'ok': True, 'module': module, 'flavor': flavor, 'form': form, 'app_kind': app['kind'], 'title': app['title'], 'extends': app['extends'], 'group': group_of(app),
-           'package': (access_deb_name(module, flavor) if form == 'access' else builder.deb_package_name(module) + ('-offline' if flavor == 'offline' else '')),
+           'package': (access_deb_name(module, flavor) if form == 'access' else (dev_deb_name(module, flavor) if form == 'dev' else builder.deb_package_name(module) + ('-offline' if flavor == 'offline' else ''))),
+           'dev_variant': ({'relaxes': app.get('devVariant', []), 'refuses_unless': 'the machine is in dev posture (never on a production route)', 'warning': DEV_STANDING_WARNING} if form == 'dev' else None),
            'refuses_at_install': ('a hardware app refuses on a lightweight (docker-swarm) isle or a non-hardware member' if app['kind'] in HARDWARE_KINDS else (f"refuses without {app['extends']} installed" if app['kind'] in EXPANSION_KINDS else '')) if form == 'install' else '', 'downloaded': bool(entry.get('downloaded')), 'kind': entry.get('kind', ''), 'tier': entry.get('tier', ''), 'hosts_on': tiers_for(entry.get('kind', '')), 'access_form': access_form(module), 'notice_on_access': tier_notice(entry.get('kind', ''), 'access'),
            'repo': entry.get('repo', ''), 'description': entry.get('description', ''),
            'estimate_seconds': builder.estimate_seconds(module, flavor=flavor, form=form), 'expected_bytes': need if form == 'install' else (1 << 20), 'expected_basis': need_basis,
@@ -250,13 +251,20 @@ class AppsAPI(treeObject):
         registry = builder.registry_modules()
         builder.purge_expired()
         items = []
+        try:
+            from moduleService.posture import state as _posture_state
+            _pst = _posture_state(); _instance_dev = _pst['posture'] == 'dev'
+        except Exception:
+            _pst = {'posture': 'production', 'until': '', 'source': 'default'}; _instance_dev = False
         for module, entry in sorted(registry.items()):
             row = {'module': module, 'kind': entry.get('kind', ''), 'tier': entry.get('tier', ''), 'hosts_on': tiers_for(entry.get('kind', '')), 'access_form': access_form(module), 'notice_on_access': tier_notice(entry.get('kind', ''), 'access'), 'downloaded': bool(entry.get('downloaded')), 'repo': entry.get('repo', ''),
                    'description': (entry.get('description') or '')[:200], 'flavors': {}}
             app = manifest_app(module, entry=entry)
             row.update({'app_kind': app['kind'], 'title': app['title'], 'extends': app['extends'], 'group': group_of(app), 'access_urls': access_url_candidates(module, app),
                         'category': app['category'], 'subcategories': app['subcategories'], 'secondary_categories': app.get('secondary', []), 'tags': app['tags'], 'runs_on': tiers_for(app['kind'], app),
-                        'core_exclusive': app.get('agentTier') == 'core', 'forms_on_tier': ({'install': install_allowed(app, request.params.get('tier')), 'access': True} if request.params.get('tier') else None)})
+                        'core_exclusive': app.get('agentTier') == 'core', 'forms_on_tier': ({'install': install_allowed(app, request.params.get('tier')), 'access': True, 'dev': install_allowed(app, request.params.get('tier')) and _instance_dev} if request.params.get('tier') else None),
+                        # ISLE_HARDENING_PLAN §17: the dev variant — which controls it relaxes; offered only on a dev-posture instance
+                        'dev_variant': {'relaxes': app.get('devVariant', []), 'offered_here': _instance_dev, 'package': dev_deb_name(module)}})
             # his rulings 2026-09-14: search by name or properties, inside a category or across all; filters — the same door for AIs
             from moduleService.app_taxonomy import matches
             q = request.params.get('q', '') or ''; cat = request.params.get('category', '') or ''; sub = request.params.get('subcategory', '') or ''
@@ -288,6 +296,8 @@ class AppsAPI(treeObject):
                               'taxonomy': {'categories': {k: v['title'] for k, v in CATEGORIES.items()}, 'subcategories': {k: {'category': v[0], 'title': v[1]} for k, v in SUBCATEGORIES.items()}},
                               'query': {'q': request.params.get('q', ''), 'category': request.params.get('category', ''), 'subcategory': request.params.get('subcategory', ''), 'kind': request.params.get('kind', ''), 'tier': request.params.get('tier', ''), 'sort': sort},
                               'flavors': {'online': 'the small deb; libraries fetched from the internet at setup', 'offline': 'wheels inside; system engines not inside yet'},
+                              'forms': {'install': 'the app itself', 'access': 'its shell (opens the app hosted on the isle)', 'dev': 'the DEV VARIANT — same app, security observes (warns, never denies); installs only on a dev-posture machine'},
+                              'posture': {'instance': _pst['posture'], 'until': _pst.get('until', ''), 'source': _pst.get('source', ''), 'dev_variants_offered': _instance_dev},
                               'how': 'GET /api/apps/{module}/status?flavor=online|offline · POST /api/apps/{module}/request?flavor=… · GET /api/apps/{module}/download?flavor=…',
                               'apps': items})
 
@@ -325,8 +335,8 @@ class AppsAPI(treeObject):
         room = builder.make_room(need)
         if not room['ok']:
             return self._json(response, {'ok': False, 'module': module, 'flavor': flavor, 'state': 'refused', 'refusal': room['note'], 'blocked_by': room['blocked_by'], 'pool': builder.pool_status(), 'expected_bytes': need}, '507 Insufficient Storage')
-        job = builder.start_generation(module, flavor)
-        st = status_of(module, flavor, registry)
+        job = builder.start_generation(module, flavor, form=form)
+        st = status_of(module, flavor, registry, form)
         st.update({'fetched': fetched.get('fetched', False), 'job_state': job['state'], 'accepted': True})
         self._json(response, st, '202 Accepted' if st.get('state') != 'ready' else '200 OK')
 

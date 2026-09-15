@@ -23,8 +23,18 @@ import json
 import os
 import re
 
-FORMS = ('install', 'access')
+FORMS = ('install', 'access', 'dev')
 SOFTWARE_KINDS = ('library', 'polari-app', 'isle-app', 'suite-app', 'access-app', '')
+
+#: ISLE_HARDENING_PLAN §17 — the DEV VARIANT of an app: the same code, installable only on a dev-posture instance,
+#: where security OBSERVES (evaluates, warns, never denies) for the controls the manifest lists under security.devVariant
+DEV_VARIANT_DEFAULT = ['authz', 'content', 'trust-channel', 'certificate', 'peer-admission']
+DEV_VARIANT_CONTROLS = ('authz', 'content', 'browser', 'trust-channel', 'certificate', 'peer-admission', 'posture-relaxation', 'tier')
+DEV_NOT_DEV_POSTURE_REFUSAL = ('this is the DEV variant of {module}: it installs only on a machine in dev posture — declare one first '
+                               '(pol deploy posture <node> dev, or an ISO built with posture dev); production gets the normal install')
+DEV_PRODUCTION_ROUTE_REFUSAL = 'this machine is on a production route (/etc/polari/production-route): a dev variant never installs here'
+DEV_STANDING_WARNING = ('DEV VARIANT: security on this app WARNS and never blocks. Connecting it to systems that are not your own is '
+                        'EXTREMELY DANGEROUS — keep it on your own isle. What production would deny is counted at /api/security/events.')
 HARDWARE_KINDS = ('hardware-app',)
 EXPANSION_KINDS = ('hardware-extension-app',)
 
@@ -50,14 +60,17 @@ def manifest_app(module, root=None, entry=None):
     root = root or _framework_root()
     rel = (entry or {}).get('path') or f'modules/{module}'
     out = {'module': module, 'kind': 'polari-app', 'title': module, 'extends': '', 'agentTier': 'member', 'description': (entry or {}).get('description', ''),
-           'category': '', 'subcategories': [], 'tags': []}
+           'category': '', 'subcategories': [], 'tags': [], 'devVariant': list(DEV_VARIANT_DEFAULT)}
     try:
         with open(os.path.join(root, rel, 'polari-app.json'), encoding='utf-8') as fh:
             m = json.load(fh)
         app = m.get('app') or {}
+        sec = m.get('security') or {}
+        dv = sec.get('devVariant')
         out.update({'kind': app.get('kind') or 'polari-app', 'title': m.get('title') or module, 'extends': app.get('extends') or '',
                     'agentTier': app.get('agentTier') or 'member', 'description': m.get('description') or out['description'],
-                    'category': app.get('category') or '', 'subcategories': list(app.get('subcategories') or []), 'tags': list(app.get('tags') or [])})
+                    'category': app.get('category') or '', 'subcategories': list(app.get('subcategories') or []), 'tags': list(app.get('tags') or []),
+                    'devVariant': [c for c in dv if c in DEV_VARIANT_CONTROLS] if isinstance(dv, list) else list(DEV_VARIANT_DEFAULT)})
     except Exception:
         pass
     from moduleService.app_taxonomy import classify
@@ -115,6 +128,54 @@ def preinst_for(module, app):
                   f'if swarm_only || ! full_isle; then echo "REFUSED: {LIGHTWEIGHT_ISLE_REFUSAL}" >&2; exit 1; fi']
     lines.append('exit 0')
     return '\n'.join(lines) + '\n'
+
+
+# --- the dev form (§17: the same app, security observing) -------------------------------------------------------
+
+def dev_deb_name(module, flavor='online'):
+    return f"polari-dev-{module.replace('_', '-')}" + ('-offline' if flavor == 'offline' else '')
+
+
+def dev_posture_shell():
+    """Shell lines that set DEV_POSTURE=1 when this machine is in an unexpired dev posture (POLARI_POSTURE=dev, or
+    /etc/polari/posture.json says dev and its `until` has not passed)."""
+    return ['DEV_POSTURE=0', '[ "${POLARI_POSTURE:-}" = dev ] && DEV_POSTURE=1',
+            'if [ "$DEV_POSTURE" = 0 ] && [ -f /etc/polari/posture.json ] && command -v python3 >/dev/null 2>&1; then',
+            '  python3 - <<\'PY\' && DEV_POSTURE=1',
+            'import json, sys, time',
+            'p = json.load(open("/etc/polari/posture.json")); u = p.get("until") or ""',
+            'ok = p.get("posture") == "dev" and (not u or time.strptime(u[:19], "%Y-%m-%dT%H:%M:%S") >= time.gmtime())',
+            'sys.exit(0 if ok else 1)',
+            'PY',
+            'fi']
+
+
+def dev_preinst(module, app):
+    """The dev variant's preinst: REFUSED on a production route, REFUSED unless the machine is in dev posture; then
+    the hardware/expansion refusals the install form has (a dev variant of a hardware app still needs the hardware);
+    then the standing warning. Nothing is installed when it exits non-zero."""
+    lines = ['#!/bin/sh', '# Polari DEV VARIANT — ISLE_HARDENING_PLAN §17 (his rulings 2026-09-15): installs only on a dev-posture machine, never on a production route',
+             'set -e',
+             f'if [ -f /etc/polari/production-route ]; then echo "REFUSED: {DEV_PRODUCTION_ROUTE_REFUSAL}" >&2; exit 1; fi'] + dev_posture_shell() + [
+             f'if [ "$DEV_POSTURE" != 1 ]; then echo "REFUSED: {DEV_NOT_DEV_POSTURE_REFUSAL.format(module=module)}" >&2; exit 1; fi']
+    hw = preinst_for(module, app)
+    if hw:
+        lines += [ln for ln in hw.splitlines() if ln not in ('#!/bin/sh', 'set -e', 'exit 0') and not ln.startswith('# Polari install-time refusals')]
+    lines += [f'echo "{DEV_STANDING_WARNING}" >&2', 'exit 0']
+    return '\n'.join(lines) + '\n'
+
+
+def dev_postinst(module, app):
+    """Record the installed dev variant on the machine (/etc/polari/dev-variants/<module>.json: which controls it relaxes)
+    and print the standing warning again where the person will see it."""
+    rec = json.dumps({'module': module, 'variant': 'dev', 'relaxes': list(app.get('devVariant') or DEV_VARIANT_DEFAULT), 'warning': DEV_STANDING_WARNING})
+    return '\n'.join(['#!/bin/sh', 'set -e', 'mkdir -p /etc/polari/dev-variants',
+                      f"printf '%s' '{rec.replace(chr(39), chr(39) + chr(92) + chr(39) + chr(39))}' > /etc/polari/dev-variants/{module}.json",
+                      f'echo "{DEV_STANDING_WARNING}" >&2', 'exit 0']) + '\n'
+
+
+def dev_postrm(module):
+    return '\n'.join(['#!/bin/sh', f'rm -f /etc/polari/dev-variants/{module}.json', 'exit 0']) + '\n'
 
 
 # --- the access form (the shell) ------------------------------------------------------------------------------

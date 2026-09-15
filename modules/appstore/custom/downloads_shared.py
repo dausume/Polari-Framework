@@ -184,6 +184,7 @@ def wrap_page(title, body, page_label='Downloads', head_extra=''):
  .forms{{display:flex;gap:.8rem;flex-wrap:wrap;margin-top:.6rem}}
  .form{{flex:1 1 240px;border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem;display:flex;flex-direction:column;gap:.35rem}}
  .form .dl{{align-self:flex-start;margin-top:.2rem}} .form-head{{font-weight:600}} .form-access{{background:rgba(127,127,127,.06)}}
+ .form-dev{{background:rgba(255,160,0,.08);border:1px dashed rgba(255,160,0,.6)}} .badge-dev{{display:inline-block;padding:0 .4em;border-radius:.3em;background:#c77700;color:#fff;font-size:.75em;letter-spacing:.05em;margin-right:.3em}}
  .dl-name small{{font-weight:400;opacity:.7;margin-left:.4rem}}
  li.expansions{{list-style:none;margin:0 0 1rem 1.6rem}} li.expansions summary{{cursor:pointer;font-weight:600;padding:.4rem 0}}
  .tabs-top{{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin:1rem 0 1.2rem}}

@@ -1,192 +1,196 @@
 {
-  "schema": "polari-app/1",
-  "id": "security",
-  "package": "security",
-  "title": "Security",
-  "description": "The App / Network / OS security taxonomy, the controls as rows, and three security topology views with reach simulations",
-  "version": "0.1.0",
-  "kind": "official",
-  "wave": null,
-  "repo": "",
-  "app": {
-    "kind": "polari-app",
-    "family": "",
-    "extends": "",
-    "catalogKinds": [],
-    "agentTier": "core",
-    "category": "polari",
-    "subcategories": [
-      "platform-operations"
-    ],
-    "tags": [
-      "security",
-      "audit"
-    ]
-  },
-  "requires": {
-    "modules": [],
-    "libraries": [],
-    "engines": []
-  },
-  "files": {
-    "objects": [
-      "objects/security/AppSecurityRecord",
-      "objects/security/AuthzRule",
-      "objects/security/BrowserPolicy",
-      "objects/security/ContentPolicy",
-      "objects/security/ContentPolicyViolation",
-      "objects/security/DacPolicy",
-      "objects/security/DeviceInventory",
-      "objects/security/FirewallRuleSet",
-      "objects/security/HardwareTrial",
-      "objects/security/MacProfile",
-      "objects/security/PermissionGroup",
-      "objects/security/ProxyConfig",
-      "objects/security/ProxySnippet",
-      "objects/security/SecurityArea",
-      "objects/security/SecurityAuditRun",
-      "objects/security/SecurityControl",
-      "objects/security/SecurityDomain",
-      "objects/security/SecurityProposal",
-      "objects/security/SecurityScenario",
-      "objects/security/SecurityThreat",
-      "objects/security/SecurityTopologyEdge",
-      "objects/security/SecurityTopologyNode",
-      "objects/security/ServiceIdentity",
-      "objects/security/SshCapability",
-      "objects/security/SshPermissionLevel",
-      "objects/security/TrustChannel"
-    ],
-    "basis": [
-      "security_basis"
-    ],
-    "api": [
-      "security_api"
-    ],
-    "endpoints": [
-      "security_endpoints"
-    ],
-    "seed": [
-      "security_seed"
-    ],
-    "page": [
-      "security_page"
-    ],
-    "selftests": [
-      "security_selftest"
-    ],
-    "custom": [
-      "custom/security_app_rows",
-      "custom/security_audit_feed",
-      "custom/security_facts",
-      "custom/security_ledger",
-      "custom/security_network_rows",
-      "custom/security_notices",
-      "custom/security_os_rows",
-      "custom/security_proposals",
-      "custom/security_ssh",
-      "custom/security_threats",
-      "custom/security_topology"
-    ]
-  },
-  "classes": [
-    "AppSecurityRecord",
-    "AuthzRule",
-    "BrowserPolicy",
-    "ContentPolicy",
-    "ContentPolicyViolation",
-    "DacPolicy",
-    "DeviceInventory",
-    "FirewallRuleSet",
-    "HardwareTrial",
+ "schema": "polari-app/1",
+ "id": "security",
+ "package": "security",
+ "title": "Security",
+ "description": "The App / Network / OS security taxonomy, the controls as rows, and three security topology views with reach simulations",
+ "version": "0.1.0",
+ "kind": "official",
+ "wave": null,
+ "repo": "",
+ "app": {
+  "kind": "polari-app",
+  "family": "",
+  "extends": "",
+  "catalogKinds": [],
+  "agentTier": "core",
+  "category": "polari",
+  "subcategories": [
+   "platform-operations"
+  ],
+  "tags": [
+   "security",
+   "audit"
+  ]
+ },
+ "requires": {
+  "modules": [],
+  "libraries": [],
+  "engines": []
+ },
+ "files": {
+  "objects": [
+   "objects/security/AppSecurityRecord",
+   "objects/security/AuthzRule",
+   "objects/security/BrowserPolicy",
+   "objects/security/ContentPolicy",
+   "objects/security/ContentPolicyViolation",
+   "objects/security/DacPolicy",
+   "objects/security/DeviceInventory",
+   "objects/security/FirewallRuleSet",
+   "objects/security/HardwareTrial",
+   "objects/security/MacProfile",
+   "objects/security/PermissionGroup",
+   "objects/security/ProxyConfig",
+   "objects/security/ProxySnippet",
+   "objects/security/SecurityArea",
+   "objects/security/SecurityAuditRun",
+   "objects/security/SecurityControl",
+   "objects/security/SecurityDomain",
+   "objects/security/SecurityEvent",
+   "objects/security/SecurityProposal",
+   "objects/security/SecurityScenario",
+   "objects/security/SecurityThreat",
+   "objects/security/SecurityTopologyEdge",
+   "objects/security/SecurityTopologyNode",
+   "objects/security/ServiceIdentity",
+   "objects/security/SshCapability",
+   "objects/security/SshPermissionLevel",
+   "objects/security/TrustChannel"
+  ],
+  "basis": [
+   "security_basis"
+  ],
+  "api": [
+   "security_api"
+  ],
+  "endpoints": [
+   "security_endpoints"
+  ],
+  "seed": [
+   "security_seed"
+  ],
+  "page": [
+   "security_page"
+  ],
+  "selftests": [
+   "security_selftest"
+  ],
+  "custom": [
+   "custom/security_app_rows",
+   "custom/security_audit_feed",
+   "custom/security_facts",
+   "custom/security_ledger",
+   "custom/security_network_rows",
+   "custom/security_notices",
+   "custom/security_observe",
+   "custom/security_os_rows",
+   "custom/security_proposals",
+   "custom/security_ssh",
+   "custom/security_threats",
+   "custom/security_topology"
+  ]
+ },
+ "classes": [
+  "AppSecurityRecord",
+  "AuthzRule",
+  "BrowserPolicy",
+  "ContentPolicy",
+  "ContentPolicyViolation",
+  "DacPolicy",
+  "DeviceInventory",
+  "FirewallRuleSet",
+  "HardwareTrial",
+  "MacProfile",
+  "PermissionGroup",
+  "ProxyConfig",
+  "ProxySnippet",
+  "SecurityAPI",
+  "SecurityArea",
+  "SecurityAuditRun",
+  "SecurityControl",
+  "SecurityDomain",
+  "SecurityEvent",
+  "SecurityProposal",
+  "SecurityScenario",
+  "SecurityThreat",
+  "SecurityTopologyEdge",
+  "SecurityTopologyNode",
+  "ServiceIdentity",
+  "SshCapability",
+  "SshPermissionLevel",
+  "TrustChannel"
+ ],
+ "imports": [
+  [
+   "security.security_basis",
+   [
+    "SecurityDomain",
+    "SecurityArea",
+    "SecurityScenario",
+    "SecurityControl",
+    "SecurityTopologyNode",
+    "SecurityTopologyEdge",
+    "SecurityThreat",
+    "SecurityProposal",
     "MacProfile",
+    "DacPolicy",
     "PermissionGroup",
+    "HardwareTrial",
     "ProxyConfig",
     "ProxySnippet",
-    "SecurityAPI",
-    "SecurityArea",
-    "SecurityAuditRun",
-    "SecurityControl",
-    "SecurityDomain",
-    "SecurityProposal",
-    "SecurityScenario",
-    "SecurityThreat",
-    "SecurityTopologyEdge",
-    "SecurityTopologyNode",
     "ServiceIdentity",
+    "FirewallRuleSet",
+    "TrustChannel",
+    "AuthzRule",
+    "ContentPolicy",
+    "ContentPolicyViolation",
+    "SecurityEvent",
+    "BrowserPolicy",
+    "AppSecurityRecord",
+    "SecurityAuditRun",
     "SshCapability",
+    "DeviceInventory",
     "SshPermissionLevel",
-    "TrustChannel"
+    "SECURITY_CLASSES"
+   ]
   ],
-  "imports": [
-    [
-      "security.security_basis",
-      [
-        "SecurityDomain",
-        "SecurityArea",
-        "SecurityScenario",
-        "SecurityControl",
-        "SecurityTopologyNode",
-        "SecurityTopologyEdge",
-        "SecurityThreat",
-        "SecurityProposal",
-        "MacProfile",
-        "DacPolicy",
-        "PermissionGroup",
-        "HardwareTrial",
-        "ProxyConfig",
-        "ProxySnippet",
-        "ServiceIdentity",
-        "FirewallRuleSet",
-        "TrustChannel",
-        "AuthzRule",
-        "ContentPolicy",
-        "ContentPolicyViolation",
-        "BrowserPolicy",
-        "AppSecurityRecord",
-        "SecurityAuditRun",
-        "SshCapability",
-        "DeviceInventory",
-        "SshPermissionLevel",
-        "SECURITY_CLASSES"
-      ]
-    ],
-    [
-      "security.security_seed",
-      [
-        "SECURITY_SEED_PAIRS"
-      ]
-    ],
-    [
-      "security.security_page",
-      [
-        "SEED_SECURITY_PAGE_DISPLAYS"
-      ]
-    ]
+  [
+   "security.security_seed",
+   [
+    "SECURITY_SEED_PAIRS"
+   ]
   ],
-  "endpoints": "security.security_endpoints:construct_security_endpoints",
-  "seedPairs": "security.security_seed:SECURITY_SEED_PAIRS",
-  "pages": [
-    "security.security_page:SEED_SECURITY_PAGE_DISPLAYS"
+  [
+   "security.security_page",
+   [
+    "SEED_SECURITY_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
+ "endpoints": "security.security_endpoints:construct_security_endpoints",
+ "seedPairs": "security.security_seed:SECURITY_SEED_PAIRS",
+ "pages": [
+  "security.security_page:SEED_SECURITY_PAGE_DISPLAYS"
+ ],
+ "derivedSeeds": false,
+ "initialData": false,
+ "selftests": [
+  "security_selftest"
+ ],
+ "security": {
+  "profile": "web-app",
+  "writable": [
+   "/data"
   ],
-  "derivedSeeds": false,
-  "initialData": false,
-  "selftests": [
-    "security_selftest"
+  "network": [
+   "isle"
   ],
-  "security": {
-    "profile": "web-app",
-    "writable": [
-      "/data"
-    ],
-    "network": [
-      "isle"
-    ],
-    "capabilities": [],
-    "devices": [],
-    "ports": []
-  },
-  "featureModule": false,
-  "coreRequired": false,
-  "legacyDynamicModule": false
+  "capabilities": [],
+  "devices": [],
+  "ports": []
+ },
+ "featureModule": false,
+ "coreRequired": false,
+ "legacyDynamicModule": false
 }

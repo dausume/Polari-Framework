@@ -71,7 +71,29 @@
   "IsoBase",
   "IsoBuild"
  ],
- "imports": [],
+ "imports": [
+  [
+   "iso.iso_basis",
+   [
+    "IsoBase",
+    "DeviceProbe",
+    "IsoBuild",
+    "ISO_CLASSES"
+   ]
+  ],
+  [
+   "iso.iso_seed",
+   [
+    "ISO_SEED_PAIRS"
+   ]
+  ],
+  [
+   "iso.iso_page",
+   [
+    "SEED_ISO_PAGE_DISPLAYS"
+   ]
+  ]
+ ],
  "endpoints": "iso.iso_endpoints:construct_iso_endpoints",
  "seedPairs": "iso.iso_seed:ISO_SEED_PAIRS",
  "pages": [
@@ -94,7 +116,7 @@
   "devices": [],
   "ports": []
  },
- "featureModule": false,
+ "featureModule": true,
  "coreRequired": false,
  "legacyDynamicModule": false
 }

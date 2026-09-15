@@ -104,6 +104,31 @@ def main():
     check('preinst for an expansion: refuses without its base and on a lightweight isle, in his words', hw['kind'] == 'hardware-extension-app' and 'expands isle-relay' in pre and app_forms.LIGHTWEIGHT_ISLE_REFUSAL in pre and 'dpkg -s polari-app-isle-relay' in pre)
     check('preinst for a hardware app names the lightweight-isle and hardware-tier refusals; a software app carries none',
           app_forms.LIGHTWEIGHT_ISLE_REFUSAL in app_forms.preinst_for('x', {'kind': 'hardware-app'}) and app_forms.NOT_HARDWARE_TIER_REFUSAL in app_forms.preinst_for('x', {'kind': 'hardware-app'}) and app_forms.preinst_for('gears', app_forms.manifest_app('gears')) == '')
+    # ISLE_HARDENING_PLAN §17: the DEV VARIANT — a third form; refuses on a production route and outside dev posture; the standing warning
+    dv = app_forms.dev_preinst('gears', app_forms.manifest_app('gears'))
+    check('dev variant: form + deb name + the manifest\'s devVariant list (default when the manifest is silent)',
+          app_forms.FORMS == ('install', 'access', 'dev') and app_forms.dev_deb_name('isle_relay', 'offline') == 'polari-dev-isle-relay-offline'
+          and app_forms.manifest_app('gears')['devVariant'] == app_forms.DEV_VARIANT_DEFAULT)
+    check('dev preinst: REFUSED on a production route, REFUSED unless dev posture (env or an unexpired posture.json), then the standing warning',
+          '/etc/polari/production-route' in dv and 'REFUSED: ' + app_forms.DEV_PRODUCTION_ROUTE_REFUSAL in dv and 'posture.json' in dv and 'DEV_POSTURE' in dv
+          and 'not your own' in dv and 'EXTREMELY DANGEROUS' in dv and dv.rstrip().endswith('exit 0'))
+    dvh = app_forms.dev_preinst('x', {'kind': 'hardware-app', 'devVariant': ['authz']})
+    check('dev variant of a hardware app keeps the hardware refusals after the posture check', app_forms.LIGHTWEIGHT_ISLE_REFUSAL in dvh and dvh.index('DEV_POSTURE') < dvh.index(app_forms.LIGHTWEIGHT_ISLE_REFUSAL))
+    dp = app_forms.dev_postinst('gears', {'devVariant': ['authz', 'content']})
+    check('dev postinst records the variant on the machine (/etc/polari/dev-variants/<module>.json with what it relaxes)', '/etc/polari/dev-variants/gears.json' in dp and '"relaxes": ["authz", "content"]' in dp)
+    import subprocess as _sp, tempfile as _tf
+    with _tf.TemporaryDirectory() as td:
+        _pre = os.path.join(td, 'preinst'); open(_pre, 'w').write(dv.replace('/etc/polari/production-route', os.path.join(td, 'production-route')).replace('/etc/polari/posture.json', os.path.join(td, 'posture.json')))
+        r1 = _sp.run(['sh', _pre], capture_output=True, text=True, env={'PATH': os.environ.get('PATH', ''), 'POLARI_POSTURE': ''})
+        open(os.path.join(td, 'posture.json'), 'w').write('{"posture": "dev", "until": "2999-01-01T00:00:00Z"}')
+        r2 = _sp.run(['sh', _pre], capture_output=True, text=True, env={'PATH': os.environ.get('PATH', ''), 'POLARI_POSTURE': ''})
+        open(os.path.join(td, 'posture.json'), 'w').write('{"posture": "dev", "until": "2020-01-01T00:00:00Z"}')
+        r3 = _sp.run(['sh', _pre], capture_output=True, text=True, env={'PATH': os.environ.get('PATH', ''), 'POLARI_POSTURE': ''})
+        open(os.path.join(td, 'production-route'), 'w').write('')
+        r4 = _sp.run(['sh', _pre], capture_output=True, text=True, env={'PATH': os.environ.get('PATH', ''), 'POLARI_POSTURE': 'dev'})
+    check('dev preinst RUN: no posture → refused; unexpired dev posture → proceeds with the warning; expired → refused; production route beats even POLARI_POSTURE=dev',
+          r1.returncode == 1 and 'REFUSED' in r1.stderr and r2.returncode == 0 and 'DEV VARIANT' in r2.stderr and r3.returncode == 1 and r4.returncode == 1 and 'production route' in r4.stderr,
+          (r1.returncode, r2.returncode, r2.stderr[:80], r3.returncode, r4.returncode))
     g = app_forms.grouped({'reticulum': {}, 'isle_relay': {}, 'gears': {}})
     check('grouping: software / hardware / expansions nest under their base (isle_relay is still a polari-app in its manifest → reticulum is an orphan here)',
           any(m == 'gears' for m, _, _ in g['software']) and (('isle_relay' in g['expansions'] and g['expansions']['isle_relay'][0][0] == 'reticulum') or (g['orphans'] and g['orphans'][0][0] == 'reticulum')), {k: (v if k != 'expansions' else list(v)) for k, v in g.items()})

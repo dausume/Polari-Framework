@@ -174,9 +174,33 @@ def _form_block(module, flavor, form):
     if form == 'access':
         head = '<span class="form-head">Access only — the shell</span><span class="dl-meta">Opens the app hosted on your isle; installs nothing else. For any member, even Access only.'
         head += (' Offline: carries the shell runtime when the core staged it.' if flavor == 'offline' else '') + '</span>'
+    elif form == 'dev':
+        head = ('<span class="form-head"><span class="badge badge-dev">DEV</span> Dev variant — security observes</span>'
+                '<span class="dl-meta">The same app; every security control evaluates but WARNS instead of denying, and what production would deny is counted '
+                '(/api/security/events). Installs only on a machine in dev posture, never on a production route. '
+                'Connecting it to systems that are not your own is extremely dangerous.</span>')
     else:
         head = '<span class="form-head">Install — runs here</span><span class="dl-meta">The app itself, for host / hardware members.</span>'
     return f'<div class="form form-{form}">{head}{state}{button}</div>'
+
+
+def _instance_is_dev():
+    try:
+        from moduleService.posture import is_dev
+        return is_dev()
+    except Exception:
+        return False
+
+
+def _dev_block(module, flavor, app, allowed=True):
+    """The dev variant's column (§17): offered on a dev-posture instance; elsewhere a greyed, honest note."""
+    if not allowed:
+        return ''
+    if _instance_is_dev():
+        return _form_block(module, flavor, 'dev')
+    return ('<div class="form form-dev form-off"><span class="form-head"><span class="badge badge-dev">DEV</span> Dev variant</span>'
+            '<span class="dl-meta">Offered on dev-posture instances only (this one is in production posture). '
+            'The same app with security observing — warns, never denies; for testing on your own isle.</span></div>')
 
 
 def _forms_for(module, flavor, app, tier):
@@ -185,10 +209,10 @@ def _forms_for(module, flavor, app, tier):
     hardware member → everything except core-exclusive apps; isle core → everything. No tier → both forms."""
     from moduleService.tier_reach import install_allowed, norm_tier, tier_notice
     if not tier:
-        return _form_block(module, flavor, 'install') + _form_block(module, flavor, 'access')
+        return _form_block(module, flavor, 'install') + _form_block(module, flavor, 'access') + _dev_block(module, flavor, app)
     t = norm_tier(tier)
     if install_allowed(app, t):
-        return _form_block(module, flavor, 'install') + _form_block(module, flavor, 'access')
+        return _form_block(module, flavor, 'install') + _form_block(module, flavor, 'access') + _dev_block(module, flavor, app)
     why = tier_notice(app.get('kind', ''), t) if t != 'access' else 'an access-only member installs shells only'
     return (f'<div class="form form-install form-off"><span class="form-head">Install — not on this member</span>'
             f'<span class="dl-meta">{html.escape(why)}</span></div>' + _form_block(module, flavor, 'access'))
@@ -504,7 +528,7 @@ class AppDebsPage(treeObject):
         flavor = flavor if flavor in ('online', 'offline') \
             else 'online'
         form = request.params.get('form', 'install')
-        form = form if form in ('install', 'access') else 'install'
+        form = form if form in ('install', 'access', 'dev') else 'install'
         registry = builder.registry_modules()
         if module not in registry:
             _refuse(response,

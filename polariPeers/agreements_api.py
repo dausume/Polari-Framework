@@ -180,7 +180,27 @@ class AgreementsAPI(treeObject):
 
     def _maybe_auto_approve(self, agreement) -> bool:
         """Convenience knob, DEFAULT OFF: auto-approve requesters already
-        on this instance's own isle (mesh-facts evidence required)."""
+        on this instance's own isle (mesh-facts evidence required).
+        DEV BUILD (ISLE_HARDENING_PLAN §17): a dev-posture instance admits a
+        new peer AT ONCE — recorded as a SecurityEvent (peer-admission,
+        would-deny) so the notice bar warns; production waits for the
+        agreement step as before."""
+        try:
+            from security.custom.security_observe import decide
+            proceed, outcome = decide(
+                self.manager, 'peer-admission',
+                f'join-request from {agreement.requester_name}',
+                agreement.requester_base_url, denied=True,
+                reason='production waits for a person to approve the PeerAgreement; the dev build admitted it at once',
+                actor=agreement.requester_fingerprint[:16], source='agreements api')
+        except Exception:
+            proceed = False
+        if proceed:
+            print(f'[PeerAgreement] DEV BUILD: admitting {agreement.agreement_id} '
+                  f'("{agreement.requester_name}") at once — recorded as a '
+                  f'SecurityEvent; production would wait for approval.', flush=True)
+            self._approve(agreement, approved_by='dev-build:observe-mode')
+            return True
         if (os.environ.get('POLARI_AUTO_APPROVE_SAME_ISLE') or '').lower() \
                 not in ('1', 'true', 'yes'):
             return False

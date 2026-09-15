@@ -56,7 +56,25 @@ def instance_fingerprint() -> str:
     return fresh
 
 
-def _http_post_json(url: str, body: Dict[str, Any]) -> Dict[str, Any]:
+def _dev_tls_context(url: str, manager=None):
+    """DEV BUILD (ISLE_HARDENING_PLAN §17): a self-signed or expired certificate on the peer is ACCEPTED, recorded as
+    a SecurityEvent (control 'certificate') so the notice bar warns; production verifies as always (returns None)."""
+    if not url.lower().startswith('https://'):
+        return None
+    try:
+        from security.custom.security_observe import decide
+        proceed, _ = decide(manager, 'certificate', f'https to {url.split("//", 1)[1].split("/", 1)[0]}', url, denied=True,
+                            reason='production verifies the peer certificate against the trusted CAs; the dev build accepted it unverified',
+                            source='join flow')
+    except Exception:
+        proceed = False
+    if not proceed:
+        return None
+    import ssl
+    return ssl._create_unverified_context()
+
+
+def _http_post_json(url: str, body: Dict[str, Any], manager=None) -> Dict[str, Any]:
     try:
         req = urllib.request.Request(
             url, data=json.dumps(body).encode('utf-8'),
@@ -65,6 +83,16 @@ def _http_post_json(url: str, body: Dict[str, Any]) -> Dict[str, Any]:
         with urllib.request.urlopen(req, timeout=PEER_HTTP_TIMEOUT_S) as resp:
             return json.loads(resp.read().decode('utf-8'))
     except Exception as exc:
+        ctx = _dev_tls_context(url, manager) if 'CERTIFICATE' in str(exc).upper() or 'SSL' in type(exc).__name__.upper() else None
+        if ctx is not None:
+            try:
+                req = urllib.request.Request(
+                    url, data=json.dumps(body).encode('utf-8'),
+                    headers={'Content-Type': 'application/json', 'Accept': 'application/json'})
+                with urllib.request.urlopen(req, timeout=PEER_HTTP_TIMEOUT_S, context=ctx) as resp:
+                    return json.loads(resp.read().decode('utf-8'))
+            except Exception as exc2:
+                return {'_error': f'{type(exc2).__name__}: {exc2}'}
         return {'_error': f'{type(exc).__name__}: {exc}'}
 
 

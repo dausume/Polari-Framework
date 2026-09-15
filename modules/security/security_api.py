@@ -64,6 +64,7 @@ class SecurityAPI(treeObject):
             add('/api/security/inventory', self, suffix='inventory')  # GET the devices' installed footprint; POST an inventory.sh payload   # what a user should be told: expired/expiring certs, auto-renew absent
             add('/api/security/audit', self, suffix='audit')          # POST an audit.sh --json payload; GET the latest runs
             add('/api/security/propose', self, suffix='propose')      # POST {app, stanza, groups} → a proposal row
+            add('/api/security/events', self, suffix='events')        # observe mode (§17): what production would have denied, counted; the contract
 
     def _rows(self, class_name):
         return list(((getattr(self.manager, 'objectTables', None) or {}).get(class_name, {}) or {}).values())
@@ -176,6 +177,15 @@ class SecurityAPI(treeObject):
         response.media = {'ok': True, 'stored': bool(o1 and o2), 'device': device, 'role': r1['role'], 'formats': r1['formats'],
                           'ssh': {'verdict': r2['verdict'], 'vector': r2['vector'], 'assurance': r2['assurance'], 'reasons': r2['assurance_reasons'],
                                   'posture': r2['posture'], 'posture_until': r2['posture_until'], 'levels': r2['levels'], 'level_rows': stored_levels, 'groups_touched': groups_touched}}
+
+    def on_get_events(self, request, response):
+        from security.custom.security_observe import events, summary
+        ev = events(self.manager)
+        ctl = request.params.get('control')
+        if ctl:
+            ev = [e for e in ev if e['control'] == ctl]
+        response.media = {'ok': True, 'summary': summary(self.manager), 'events': ev[:500],
+                          'how': 'dev posture (POLARI_POSTURE=dev or /etc/polari/posture.json) = observe: every control evaluates, nothing observable is denied, each would-deny lands here'}
 
     def on_get_notices(self, request, response):
         response.media = notices(self.manager, do_probe=not request.get_param_as_bool('no_probe'))

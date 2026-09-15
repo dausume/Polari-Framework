@@ -149,7 +149,12 @@ def notices(manager=None, do_probe=True):
         identities = service_identity_rows()
     except Exception:
         pass
-    items = posture_notices(manager) + notices_from(probes, controls, identities, hosts)
+    try:
+        from security.custom.security_observe import observe_notice
+        observed = observe_notice(manager)
+    except Exception:
+        observed = []
+    items = posture_notices(manager) + observed + notices_from(probes, controls, identities, hosts)
     worst = 'error' if any(n['level'] == 'error' for n in items) else ('warning' if any(n['level'] == 'warning' for n in items) else ('info' if items else 'ok'))
     return {'ok': True, 'checked_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'hosts': hosts, 'probes': [p for p in probes if p],
             'level': worst, 'notices': items, 'auto_renew': 'pol cert auto-renew install|status|remove — a weekly cron running ca/renew.sh (Let\'s Encrypt and internal certs)'}
