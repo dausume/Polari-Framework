@@ -24,7 +24,30 @@ OBSERVED_CONTROLS = ('authz', 'content', 'browser', 'trust-channel', 'certificat
 INVARIANT_CONTROLS = ('ssh-password', 'upstream-interface', 'production-route', 'secret-export', 'firewall-upstream', 'root-shell-public',
                       'dev-variant-on-production', 'iso-headless-encryption')
 
-_LAST = {}   # name -> when (a cheap in-process rate limit on the persist, not on the counting)
+_PERSIST = {'pending': False, 'lock': None}   # one trailing persist per burst: every count reaches disk, never one persist per act
+
+
+def _schedule_persist(manager, delay=3.0):
+    """Persist the tree once, `delay` seconds after the LAST change of a burst (a rate limit that skipped the trailing
+    increments lost counts across a restart — seen live 2026-09-16: 7 in memory, 4 on disk)."""
+    if not hasattr(manager, 'persistTree'):
+        return
+    import threading
+    if _PERSIST['lock'] is None:
+        _PERSIST['lock'] = threading.Lock()
+    with _PERSIST['lock']:
+        if _PERSIST['pending']:
+            return
+        _PERSIST['pending'] = True
+
+    def run():
+        with _PERSIST['lock']:
+            _PERSIST['pending'] = False
+        try:
+            manager.persistTree()
+        except Exception:
+            pass
+    t = threading.Timer(delay, run); t.daemon = True; t.start()
 
 
 def _now():
@@ -56,14 +79,7 @@ def record(manager, control, action, target, reason='', actor='', app='', outcom
                       'would_deny': would_deny, 'reason': reason, 'posture': _posture.posture(), 'count': 1, 'first_seen': now, 'last_seen': now, 'source': source}
             row = _new_row(manager, tables, 'SecurityEvent', SecurityEvent, fields)
         if save:
-            last = _LAST.get(name, 0)
-            if time.time() - last > 5 and hasattr(manager, 'persistTree'):
-                _LAST[name] = time.time()
-                try:
-                    import threading
-                    threading.Thread(target=manager.persistTree, daemon=True).start()
-                except Exception:
-                    pass
+            _schedule_persist(manager)
         return row
     except Exception:
         return None
@@ -168,15 +184,8 @@ def observe_permission(manager, user_info, class_name, verb, verdict=None, app='
                       'verdict': vd, 'count': 1, 'first_seen': now, 'last_seen': now, 'posture': _posture.posture()}
             from security.objects.security.PermissionObservation import PermissionObservation
             row = _new_row(manager, tables, 'PermissionObservation', PermissionObservation, fields)
-        if save and hasattr(manager, 'persistTree'):
-            last = _LAST.get('obs:' + name, 0)
-            if time.time() - last > 5:
-                _LAST['obs:' + name] = time.time()
-                try:
-                    import threading
-                    threading.Thread(target=manager.persistTree, daemon=True).start()
-                except Exception:
-                    pass
+        if save:
+            _schedule_persist(manager)
         return row
     except Exception:
         return None
