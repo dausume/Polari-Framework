@@ -184,7 +184,7 @@ def observe_permission(manager, user_info, class_name, verb, verdict=None, app='
             row.count = int(getattr(row, 'count', 0) or 0) + 1; row.last_seen = now; row.actor = actor or row.actor
             row.verdict = vd; row.profiles = profiles or row.profiles
         else:
-            fields = {'name': name, 'actor': actor, 'groups': groups_s, 'profiles': profiles, 'verb': verb, 'class_name': class_name, 'app': app,
+            fields = {'name': name, 'actor': actor, 'groups': groups_s, 'profiles': profiles, 'verb': verb, 'class_name': class_name, 'app': app or app_of_class(class_name),
                       'verdict': vd, 'count': 1, 'first_seen': now, 'last_seen': now, 'posture': _posture.posture()}
             from security.objects.security.PermissionObservation import PermissionObservation
             row = _new_row(manager, tables, 'PermissionObservation', PermissionObservation, fields)
@@ -408,13 +408,16 @@ def review(manager, role):
     for o in obs:
         objects.setdefault(o['class_name'], {})[o['verb']] = objects.get(o['class_name'], {}).get(o['verb'], 0) + int(o.get('count') or 0)
     verbs = sorted({o['verb'] for o in obs})
+    apps_of_objects = {}
+    for o in obs:
+        apps_of_objects.setdefault(o.get('app') or app_of_class(o['class_name']) or 'core', set()).add(o['class_name'])
     proposal = {'name': f'{role}', 'title': role.capitalize(), 'description': f'concreted from the role-play review of {role}: {len(objects)} object class(es), {len(by_kind.get("app", []))} app(s), {len(by_kind.get("page", []))} page(s), {len(by_kind.get("endpoint", []))} endpoint(s)',
                 'app_name': '', 'kc_groups_json': _json.dumps([role]), 'verbs_json': _json.dumps(verbs), 'extra_classes_json': _json.dumps(sorted(objects)),
                 'published': False, 'is_prior': False,
                 'notes': 'PROPOSAL from /api/security/observe/review — the permissions admin reviews, narrows, creates the AppPermissionProfile row and publishes it; then /api/security/observe/verify replays the recording against it'}
     return {'ok': True, 'role': role, 'sessions': sessions(manager, role), 'recording': recording_on(manager),
             'apps': by_kind.get('app', []), 'pages': by_kind.get('page', []), 'components': by_kind.get('component', []), 'actions': by_kind.get('action', []),
-            'endpoints': by_kind.get('endpoint', []), 'objects': objects, 'acts': sum(int(o.get('count') or 0) for o in obs),
+            'endpoints': by_kind.get('endpoint', []), 'objects': objects, 'objects_by_app': {k: sorted(v) for k, v in sorted(apps_of_objects.items())}, 'acts': sum(int(o.get('count') or 0) for o in obs),
             'would_deny_today': sum(int(o.get('count') or 0) for o in obs if o.get('verdict') == 'would-deny'),
             'proposed_profile': proposal,
             'handoff': 'give this review to the permissions admin: the objects × verbs become the AppPermissionProfile (kc_groups_json = the KC group the role maps to); the apps/pages/endpoints become the frontend + proxy allow-list for the group'}
@@ -538,3 +541,25 @@ def mark_prototype(manager, name, state, profile='', verdict=''):
             _schedule_persist(manager)
             return {'ok': True, 'role': {k: getattr(r, k, '') for k in PROTO_KEYS}}
     return {'ok': False, 'refusal': f'no prototype role {name}'}
+
+
+# ---- which app a class belongs to (the `app` column of the observations) ------------------------------------------------
+
+_CLASS_APP = {}
+
+
+def app_of_class(class_name):
+    """The module (app) that registers `class_name`, from the core feature-import table; '' for core classes."""
+    if not _CLASS_APP:
+        try:
+            from polariApiServer.feature_imports import FEATURE_IMPORT_BLOCKS
+            from polariapps.objects.apps_permissions._shared import classes_for_module
+            built = {}
+            for feature in {f for f, _ in FEATURE_IMPORT_BLOCKS}:
+                for c in classes_for_module(feature):
+                    built.setdefault(c, feature)
+            if built:
+                _CLASS_APP.update(built)      # only a successful build counts as cached; a failed import retries next time
+        except Exception:
+            return ''
+    return _CLASS_APP.get(class_name, '')

@@ -297,6 +297,7 @@ def main():
             check('a caller without the role-play permission cannot open a session (403 with the reason)', r.status.startswith('403') and 'role-play permission' in r.media['refusal'])
             r = _Res(); api.on_get_observe_roles(_ReqNo(), r)
             check('/api/security/observe/roles lists the prototypes and says whether the caller may role-play', r.media['ok'] and r.media['roles'][0]['name'] == 'data-scientist' and r.media['can_roleplay'] is False and r.media['roleplay_groups'] == ['developers'])
+            check('the app column: a class maps back to the module that registers it (SecurityDomain → security; unknown → \'\')', O.app_of_class('SecurityDomain') == 'security' and O.app_of_class('NoSuchClass') == '')
             r = _Res(); api.on_get_observe_review(_ReqR(), r); r2 = _Res(); api.on_get_observe_verify(_ReqR(), r2)
             check('/api/security/observe/review + /verify answer for the role', r.media['ok'] and r.media['role'] == 'journalist' and r2.media['ok'] and r2.media['group'] == 'journalist')
         finally:
