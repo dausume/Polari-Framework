@@ -29,3 +29,6 @@ from security.objects.security.DeviceInventory import DeviceInventory  # noqa: F
 from security.objects.security.SshPermissionLevel import SshPermissionLevel  # noqa: F401
 from security.objects.security.SecurityEvent import SecurityEvent  # noqa: F401
 from security.objects.security.PermissionObservation import PermissionObservation  # noqa: F401
+from security.objects.security.ObservationSession import ObservationSession  # noqa: F401
+from security.objects.security.UsageObservation import UsageObservation  # noqa: F401
+from security.objects.security.RolePrototype import RolePrototype  # noqa: F401

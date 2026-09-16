@@ -66,6 +66,13 @@ class SecurityAPI(treeObject):
             add('/api/security/propose', self, suffix='propose')      # POST {app, stanza, groups} → a proposal row
             add('/api/security/events', self, suffix='events')        # observe mode (§17): what production would have denied, counted; the contract
             add('/api/security/observations', self, suffix='observations')   # dev mode: who (roles/profiles) did what (class × verb) + the DERIVED profile suggestions
+            add('/api/security/observe', self, suffix='observe')                    # GET the recording knob + open sessions; POST {recording: true|false} — on/off on the fly
+            add('/api/security/observe/session', self, suffix='observe_session')    # POST {role, actor, note} start role-playing; DELETE ?role= (or ?name=) end it
+            add('/api/security/observe/usage', self, suffix='observe_usage')        # POST {role, kind: app|page|component|action|object, item, app, page, detail} from the frontend
+            add('/api/security/observe/review', self, suffix='observe_review')      # GET ?role= everything the role used + the proposed profile (the handoff)
+            add('/api/security/observe/verify', self, suffix='observe_verify')      # GET ?role=&group= replay the recording against the enforced profiles
+            add('/api/security/observe/roles', self, suffix='observe_roles')        # GET the prototype roles + whether the caller may role-play; POST {name, title, description} a new prototype
+            add('/api/security/observe/roles/{name}', self, suffix='observe_role')  # POST {state, profile, verdict} mark prototype → concreted → enforced
 
     def _rows(self, class_name):
         return list(((getattr(self.manager, 'objectTables', None) or {}).get(class_name, {}) or {}).values())
@@ -204,6 +211,117 @@ class SecurityAPI(treeObject):
                           'observations': obs[:1000], 'derived': derive_profiles(self.manager),
                           'how': ('recorded only in dev posture, every CRUDE act, even with POLARI_APP_PERMISSIONS=off; derived = proposed AppPermissionProfile rows '
                                   '(kc_groups_json, verbs_json, extra_classes_json) — review, narrow, then create the row; nothing is applied automatically')}
+
+    # ---- the recording knob + role-play (his asks 2026-09-16) --------------------------------------------------------
+    @staticmethod
+    def _body(request):
+        try:
+            return request.media or {}
+        except Exception:
+            return {}
+
+    def _actor(self, request):
+        ui = getattr(getattr(request, 'context', None), 'user_info', None)
+        return ((ui.get('preferred_username') or ui.get('sub') or '') if isinstance(ui, dict) else '')
+
+    def on_get_observe(self, request, response):
+        from security.custom.security_observe import knob_state, recording_on, sessions, summary
+        s = summary(self.manager)
+        response.media = {'ok': True, 'posture': s['posture'], 'recording': recording_on(self.manager), 'knob': knob_state(), 'open_sessions': sessions(self.manager, active=True),
+                          'how': 'POST {"recording": false} here turns the observation ledgers off on the fly (and true back on); recording never happens outside dev posture'}
+
+    def on_post_observe(self, request, response):
+        from security.custom.security_observe import set_recording, recording_on
+        from security.custom.security_observe import set_roleplay_groups
+        body = self._body(request)
+        out = {}
+        if 'roleplay_groups' in body:
+            out['roleplay'] = set_roleplay_groups(body.get('roleplay_groups') or [], by=self._actor(request))
+        if 'recording' in body:
+            out.update(set_recording(bool(body['recording']), by=self._actor(request)))
+        if not out:
+            return self._bad(response, 'body: {"recording": true|false} and/or {"roleplay_groups": ["group", ...]}')
+        response.media = {**out, 'ok': True, 'recording_now': recording_on(self.manager)}
+
+    def on_post_observe_session(self, request, response):
+        from security.custom.security_observe import start_session
+        from security.custom.security_observe import can_roleplay
+        body = self._body(request)
+        ok, why = can_roleplay(getattr(getattr(request, 'context', None), 'user_info', None))
+        if not ok:
+            response.status = '403 Forbidden'; response.media = {'ok': False, 'refusal': why}; return
+        r = start_session(self.manager, body.get('role', ''), actor=body.get('actor') or self._actor(request), note=body.get('note', ''))
+        if not r.get('ok'):
+            return self._bad(response, r.get('refusal', ''))
+        response.media = r
+
+    def on_delete_observe_session(self, request, response):
+        from security.custom.security_observe import end_session
+        response.media = end_session(self.manager, role=request.params.get('role'), name=request.params.get('name'))
+
+    def on_post_observe_usage(self, request, response):
+        from security.custom.security_observe import observe_usage, recording_on, USAGE_KINDS
+        body = self._body(request)
+        items = body.get('items') if isinstance(body.get('items'), list) else [body]
+        if not recording_on(self.manager):
+            return self._json_ok(response, {'ok': True, 'recorded': 0, 'note': 'not recording (production posture, or the knob is off)'})
+        role = (body.get('role') or getattr(getattr(request, 'context', None), 'roleplay', '') or '')
+        n = 0
+        for it in items:
+            if not isinstance(it, dict) or it.get('kind') not in USAGE_KINDS or not it.get('item'):
+                continue
+            if observe_usage(self.manager, it.get('role') or role, it['kind'], it['item'], app=it.get('app', ''), page=it.get('page', ''), detail=it.get('detail', ''), actor=self._actor(request)) is not None:
+                n += 1
+        response.media = {'ok': True, 'recorded': n, 'kinds': list(USAGE_KINDS)}
+
+    @staticmethod
+    def _json_ok(response, body):
+        response.media = body
+
+    def on_get_observe_roles(self, request, response):
+        from security.custom.security_observe import prototypes, can_roleplay, roleplay_groups_allowed, sessions
+        ui = getattr(getattr(request, 'context', None), 'user_info', None)
+        ok, why = can_roleplay(ui)
+        response.media = {'ok': True, 'roles': prototypes(self.manager, request.params.get('state')), 'can_roleplay': ok, 'why': why,
+                          'roleplay_groups': roleplay_groups_allowed(), 'open_sessions': sessions(self.manager, active=True),
+                          'how': 'POST {name, title, description} creates a prototype role; POST /api/security/observe/session {role} acts as it; the role-play permission = the KC groups in roleplay_groups (POST /api/security/observe {"roleplay_groups": [...]}); admins always may'}
+
+    def on_post_observe_roles(self, request, response):
+        from security.custom.security_observe import create_prototype, can_roleplay
+        ui = getattr(getattr(request, 'context', None), 'user_info', None)
+        ok, why = can_roleplay(ui)
+        if not ok:
+            return self._json(response, {'ok': False, 'refusal': why}, '403 Forbidden') if hasattr(self, '_json') else self._bad(response, why)
+        body = self._body(request)
+        r = create_prototype(self.manager, body.get('name', ''), title=body.get('title', ''), description=body.get('description', ''), by=self._actor(request))
+        if not r.get('ok'):
+            return self._bad(response, r.get('refusal', ''))
+        response.media = r
+
+    def on_post_observe_role(self, request, response, name):
+        from security.custom.security_observe import mark_prototype
+        body = self._body(request)
+        r = mark_prototype(self.manager, name, body.get('state', ''), profile=body.get('profile', ''), verdict=body.get('verdict', ''))
+        if not r.get('ok'):
+            return self._bad(response, r.get('refusal', ''))
+        response.media = r
+
+    def on_get_observe_review(self, request, response):
+        from security.custom.security_observe import review
+        role = request.params.get('role', '')
+        if not role:
+            return self._bad(response, '?role=<the role-played group>')
+        response.media = review(self.manager, role)
+
+    def on_get_observe_verify(self, request, response):
+        from security.custom.security_observe import verify
+        role = request.params.get('role', '')
+        if not role:
+            return self._bad(response, '?role=<the role-played group>[&group=<the KC group it was concreted into>]')
+        r = verify(self.manager, role, request.params.get('group'))
+        if not r.get('ok'):
+            return self._bad(response, r.get('refusal', ''))
+        response.media = r
 
     def on_get_notices(self, request, response):
         response.media = notices(self.manager, do_probe=not request.get_param_as_bool('no_probe'))

@@ -371,6 +371,7 @@ from accessControl.polariPermissionSet import polariPermissionSet
 from accessControl.polariUserGroup import UserGroup
 from accessControl.polariUser import User
 from accessControl.auth_middleware import AuthContextMiddleware
+from accessControl.roleplay_observer import RoleplayObserverMiddleware
 from wsgiref import simple_server
 import falcon
 import secrets
@@ -461,6 +462,8 @@ class polariServer(treeObject):
                 # the incoming Bearer token. Lenient in Phase 1 — never
                 # rejects, just plumbs identity for downstream gating.
                 AuthContextMiddleware(),
+                # dev-mode role-play (2026-09-16): X-Polari-Roleplay → req.context.roleplay; endpoints used are counted per role
+                RoleplayObserverMiddleware(self),
                 ModuleLoadingMiddleware(self),
                 QuiesceMiddleware(self.quiesceState),
             ]
@@ -1207,7 +1210,7 @@ class polariServer(treeObject):
             # security (sec-i-0/1): the taxonomy, the systems per scenario, the three topology views
             SecurityDomain, SecurityArea, SecurityScenario, SecurityControl, SecurityTopologyNode, SecurityTopologyEdge, SecurityThreat, SecurityProposal,
             MacProfile, DacPolicy, PermissionGroup, HardwareTrial, ProxyConfig, ProxySnippet, ServiceIdentity, FirewallRuleSet,
-            TrustChannel, AuthzRule, ContentPolicy, ContentPolicyViolation, SecurityEvent, PermissionObservation, BrowserPolicy, AppSecurityRecord, SecurityAuditRun, SshCapability, DeviceInventory, SshPermissionLevel,
+            TrustChannel, AuthzRule, ContentPolicy, ContentPolicyViolation, SecurityEvent, PermissionObservation, ObservationSession, UsageObservation, RolePrototype, BrowserPolicy, AppSecurityRecord, SecurityAuditRun, SshCapability, DeviceInventory, SshPermissionLevel,
             # iso-1: the ISO arc's rows
             IsoBase, DeviceProbe, IsoBuild]
         # modsplit-1: each instance registers ONLY its assigned

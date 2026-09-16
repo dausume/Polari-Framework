@@ -61,7 +61,8 @@ def crude_permission_gate(manager, request, response, verb,
             try:
                 from security.custom.security_observe import observe_permission
                 observe_permission(manager, user_info, class_name, verb,
-                                   verdict=(verdict_fn(manager, user_info, class_name, verb) if verdict_fn else None))
+                                   verdict=(verdict_fn(manager, user_info, class_name, verb) if verdict_fn else None),
+                                   roleplay=getattr(getattr(request, 'context', None), 'roleplay', '') or '')
             except Exception:
                 pass
         if mode == 'off':

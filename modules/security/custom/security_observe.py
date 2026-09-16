@@ -153,18 +153,22 @@ def _all_rows(manager, table):
     return rows + [r for n, r in _FALLBACK.get(id(tables), {}).get(table, {}).items() if n not in seen]
 
 
-def observe_permission(manager, user_info, class_name, verb, verdict=None, app='', save=True):
+def observe_permission(manager, user_info, class_name, verb, verdict=None, app='', save=True, roleplay=''):
     """Count one CRUDE act into its PermissionObservation row (groups × class × verb). Dev posture only — the caller
-    checks; this never raises. `verdict` is permission_verdict()'s dict when the model ran, None when the gate is off."""
+    checks; this never raises. `verdict` is permission_verdict()'s dict when the model ran, None when the gate is off.
+    `roleplay` (the X-Polari-Roleplay header) attributes the act to the role being played as well."""
     try:
         tables = getattr(manager, 'objectTables', None)
         if tables is None:
+            return None
+        if not knob_state()['recording']:
             return None
         try:
             from polariapps.objects.apps_permissions._shared import caller_groups
             groups, _ = caller_groups(user_info)
         except Exception:
             groups = set((user_info or {}).get('roles') or []) if isinstance(user_info, dict) else set()
+        groups = roleplay_groups(groups, roleplay)
         groups_s = ','.join(sorted(groups)); actor = ''
         if isinstance(user_info, dict):
             actor = user_info.get('preferred_username') or user_info.get('sub') or ''
@@ -184,6 +188,8 @@ def observe_permission(manager, user_info, class_name, verb, verdict=None, app='
                       'verdict': vd, 'count': 1, 'first_seen': now, 'last_seen': now, 'posture': _posture.posture()}
             from security.objects.security.PermissionObservation import PermissionObservation
             row = _new_row(manager, tables, 'PermissionObservation', PermissionObservation, fields)
+        if roleplay:
+            _touch_session(manager, roleplay.strip().lower(), 'acts')
         if save:
             _schedule_persist(manager)
         return row
@@ -242,3 +248,293 @@ def observe_notice(manager, env=None):
                       'Peers are admitted at once, self-signed certificates are accepted, authorization refusals let the act through — all recorded. '
                       'Keep this instance on your own isle.'),
              'action': 'Review /api/security/events; pol deploy posture <node> production when the testing is done'}]
+
+
+# ---- the recording knob + ROLE-PLAY (his asks 2026-09-16) ---------------------------------------------------------------
+# "enable and disable that functionality on the fly" — a runtime knob, persisted beside the data, read on every act;
+# "role-playing as a Journalist … it should show all of the apps and pages and functionality and objects used" — a
+# session attributes everything to the role: objects × verbs (PermissionObservation), endpoints and the frontend's
+# apps / pages / components / actions (UsageObservation). Review → hand to a permissions admin → enforce → VERIFY
+# (replay the recorded acts against the enforced profiles: can the role still do its job?).
+
+import json as _json
+import os as _os
+
+ROLEPLAY_PREFIX = 'roleplay:'
+
+
+def _knob_path():
+    base = _os.environ.get('POLARI_APP_DEBS_DIR', '/app/data/app-debs').rsplit('/app-debs', 1)[0]
+    return _os.environ.get('POLARI_OBSERVE_KNOB', _os.path.join(base, 'security', 'observe.json'))
+
+
+def knob_state():
+    """{recording: bool, changed_at, by, source}. Default: recording ON whenever the posture is dev (nothing to turn on
+    for a dev build); the knob file overrides either way; production never records."""
+    st = {'recording': True, 'changed_at': '', 'by': '', 'source': 'default (dev = on)'}
+    try:
+        d = _json.load(open(_knob_path()))
+        if isinstance(d, dict) and 'recording' in d:
+            st.update({'recording': bool(d['recording']), 'changed_at': d.get('changed_at', ''), 'by': d.get('by', ''), 'source': 'knob'})
+    except Exception:
+        pass
+    return st
+
+
+def set_recording(on, by=''):
+    p = _knob_path(); st = {'recording': bool(on), 'changed_at': _now(), 'by': by}
+    try:
+        _os.makedirs(_os.path.dirname(p), exist_ok=True)
+        tmp = p + '.tmp'; _json.dump(st, open(tmp, 'w')); _os.replace(tmp, p)
+        return {**st, 'ok': True, 'path': p}
+    except Exception as exc:
+        return {**st, 'ok': False, 'refusal': f'could not write the knob at {p}: {exc}'}
+
+
+def recording_on(manager=None, env=None):
+    return _posture.is_dev(env) and knob_state()['recording']
+
+
+def roleplay_groups(groups, roleplay):
+    """The caller's groups plus the role-play marker: observations are attributed to BOTH (the real identity stays
+    visible; the review filters by the role-play)."""
+    g = set(groups or [])
+    if roleplay:
+        g.add(ROLEPLAY_PREFIX + roleplay.strip().lower())
+    return g
+
+
+# ---- sessions
+
+def sessions(manager, role=None, active=None):
+    rows = _all_rows(manager, 'ObservationSession')
+    keys = ('name', 'role', 'actor', 'started_at', 'ended_at', 'active', 'note', 'acts', 'usages')
+    out = [{k: getattr(r, k, '') for k in keys} for r in rows]
+    if role:
+        out = [s for s in out if s['role'] == role]
+    if active is not None:
+        out = [s for s in out if bool(s['active']) == active]
+    out.sort(key=lambda s: s['started_at'] or '', reverse=True)
+    return out
+
+
+def start_session(manager, role, actor='', note=''):
+    role = (role or '').strip().lower()
+    if not role:
+        return {'ok': False, 'refusal': 'role required — the group you are acting as (journalist, operator, …)'}
+    tables = getattr(manager, 'objectTables', None)
+    if tables is None:
+        return {'ok': False, 'refusal': 'no manager'}
+    now = _now()
+    for s in _all_rows(manager, 'ObservationSession'):
+        if getattr(s, 'role', '') == role and getattr(s, 'actor', '') == actor and getattr(s, 'active', False):
+            return {'ok': True, 'session': getattr(s, 'name', ''), 'role': role, 'already_open': True, 'header': {'X-Polari-Roleplay': role}}
+    from security.objects.security.ObservationSession import ObservationSession
+    fields = {'name': f'{role}|{now}', 'role': role, 'actor': actor, 'started_at': now, 'ended_at': '', 'active': True, 'note': note, 'acts': 0, 'usages': 0}
+    row = _new_row(manager, tables, 'ObservationSession', ObservationSession, fields); _schedule_persist(manager)
+    return {'ok': True, 'session': fields['name'], 'role': role, 'already_open': False, 'header': {'X-Polari-Roleplay': role},
+            'recording': recording_on(manager), 'how': 'send the header on every request while acting as the role; the frontend posts its apps/pages/actions to /api/security/observe/usage'}
+
+
+def end_session(manager, role=None, name=None):
+    ended = []
+    for s in _all_rows(manager, 'ObservationSession'):
+        if getattr(s, 'active', False) and ((name and getattr(s, 'name', '') == name) or (role and getattr(s, 'role', '') == role) or (not name and not role)):
+            s.active = False; s.ended_at = _now(); ended.append(getattr(s, 'name', ''))
+    if ended:
+        _schedule_persist(manager)
+    return {'ok': True, 'ended': ended}
+
+
+def _touch_session(manager, role, field):
+    for s in _all_rows(manager, 'ObservationSession'):
+        if getattr(s, 'role', '') == role and getattr(s, 'active', False):
+            setattr(s, field, int(getattr(s, field, 0) or 0) + 1)
+
+
+# ---- usages (frontend apps / pages / components / actions; backend endpoints)
+
+USAGE_KINDS = ('app', 'page', 'component', 'action', 'endpoint', 'object')
+USAGE_KEYS = ('name', 'role', 'kind', 'item', 'app', 'page', 'detail', 'actor', 'count', 'first_seen', 'last_seen')
+
+
+def observe_usage(manager, role, kind, item, app='', page='', detail='', actor='', save=True):
+    """Count one usage into its UsageObservation row (role × kind × item). Never raises."""
+    try:
+        tables = getattr(manager, 'objectTables', None)
+        if tables is None or kind not in USAGE_KINDS or not item:
+            return None
+        role = (role or '').strip().lower(); name = f'{role or "-"}|{kind}|{item}'[:200]; now = _now()
+        row, new = _plain_row(tables, 'UsageObservation', name, None)
+        if not new:
+            row.count = int(getattr(row, 'count', 0) or 0) + 1; row.last_seen = now; row.actor = actor or row.actor
+            if detail:
+                row.detail = detail
+        else:
+            from security.objects.security.UsageObservation import UsageObservation
+            fields = {'name': name, 'role': role, 'kind': kind, 'item': str(item)[:160], 'app': app, 'page': page, 'detail': str(detail)[:200], 'actor': actor,
+                      'count': 1, 'first_seen': now, 'last_seen': now}
+            row = _new_row(manager, tables, 'UsageObservation', UsageObservation, fields)
+        if role:
+            _touch_session(manager, role, 'usages')
+        if save:
+            _schedule_persist(manager)
+        return row
+    except Exception:
+        return None
+
+
+def usages(manager, role=None, kind=None):
+    rows = _all_rows(manager, 'UsageObservation')
+    out = [{k: getattr(r, k, '') for k in USAGE_KEYS} for r in rows]
+    if role:
+        out = [u for u in out if u['role'] == role]
+    if kind:
+        out = [u for u in out if u['kind'] == kind]
+    out.sort(key=lambda u: (u['kind'], -int(u.get('count') or 0), u['item']))
+    return out
+
+
+# ---- the review: everything a role used, as the handoff to the permissions admin
+
+def review(manager, role):
+    role = (role or '').strip().lower(); marker = ROLEPLAY_PREFIX + role
+    obs = [o for o in observations(manager) if marker in (o.get('groups') or '').split(',')]
+    use = usages(manager, role)
+    by_kind = {}
+    for u in use:
+        by_kind.setdefault(u['kind'], []).append({'item': u['item'], 'app': u['app'], 'page': u['page'], 'count': u['count'], 'last_seen': u['last_seen']})
+    objects = {}
+    for o in obs:
+        objects.setdefault(o['class_name'], {})[o['verb']] = objects.get(o['class_name'], {}).get(o['verb'], 0) + int(o.get('count') or 0)
+    verbs = sorted({o['verb'] for o in obs})
+    proposal = {'name': f'{role}', 'title': role.capitalize(), 'description': f'concreted from the role-play review of {role}: {len(objects)} object class(es), {len(by_kind.get("app", []))} app(s), {len(by_kind.get("page", []))} page(s), {len(by_kind.get("endpoint", []))} endpoint(s)',
+                'app_name': '', 'kc_groups_json': _json.dumps([role]), 'verbs_json': _json.dumps(verbs), 'extra_classes_json': _json.dumps(sorted(objects)),
+                'published': False, 'is_prior': False,
+                'notes': 'PROPOSAL from /api/security/observe/review — the permissions admin reviews, narrows, creates the AppPermissionProfile row and publishes it; then /api/security/observe/verify replays the recording against it'}
+    return {'ok': True, 'role': role, 'sessions': sessions(manager, role), 'recording': recording_on(manager),
+            'apps': by_kind.get('app', []), 'pages': by_kind.get('page', []), 'components': by_kind.get('component', []), 'actions': by_kind.get('action', []),
+            'endpoints': by_kind.get('endpoint', []), 'objects': objects, 'acts': sum(int(o.get('count') or 0) for o in obs),
+            'would_deny_today': sum(int(o.get('count') or 0) for o in obs if o.get('verdict') == 'would-deny'),
+            'proposed_profile': proposal,
+            'handoff': 'give this review to the permissions admin: the objects × verbs become the AppPermissionProfile (kc_groups_json = the KC group the role maps to); the apps/pages/endpoints become the frontend + proxy allow-list for the group'}
+
+
+# ---- verify after enforcement: can the role still do its job?
+
+def verify(manager, role, group=None):
+    """Replay every recorded act of the role against the CURRENT profiles as a member of `group` (default: the role
+    name as the KC group). What would be DENIED is what enforcement breaks — fix the profile, or accept the removal."""
+    role = (role or '').strip().lower(); group = (group or role).strip()
+    marker = ROLEPLAY_PREFIX + role
+    obs = [o for o in observations(manager) if marker in (o.get('groups') or '').split(',')]
+    try:
+        from polariapps.objects.apps_permissions._shared import permission_verdict
+    except Exception:
+        return {'ok': False, 'refusal': 'the permissions model (polariapps) is not on this instance; nothing to verify against'}
+    user = {'preferred_username': f'verify:{group}', 'roles': [group], 'raw_claims': {'groups': [group]}}
+    allowed = []; denied = []
+    for o in obs:
+        v = permission_verdict(manager, user, o['class_name'], o['verb'])
+        (allowed if v.get('allowed') else denied).append({'class': o['class_name'], 'verb': o['verb'], 'count': o['count'], 'why': v.get('why', ''), 'via': v.get('via', [])})
+    return {'ok': True, 'role': role, 'group': group, 'recorded_acts': len(obs), 'allowed': allowed, 'denied': denied,
+            'verdict': ('the role can still do everything it was recorded doing' if obs and not denied else ('nothing recorded for this role yet' if not obs else f'{len(denied)} recorded act(s) would now be DENIED — the profile is narrower than the job')),
+            'how': 'after the admin publishes the AppPermissionProfile for the group, run this; every recorded class × verb is replayed through permission_verdict as a member of the group'}
+
+
+# ---- PROTOTYPE ROLES + the role-play PERMISSION (his refinement 2026-09-16) --------------------------------------------
+# A prototype role exists to be role-played: acting as it lets the person do anything (dev posture, observe) while the
+# recording builds its template. The role-play permission is its OWN grant — KC groups named in the knob
+# (`roleplay_groups`) may act as ANY role; admins always may; a dev instance with no list set lets everyone (it is a
+# dev build on the person's own isle). It never applies to admin roles as a target: prototypes are non-admin by nature.
+
+ROLE_STATES = ('prototype', 'concreted', 'enforced')
+PROTO_KEYS = ('name', 'title', 'description', 'state', 'created_by', 'created_at', 'concreted_profile', 'concreted_at', 'verified_at', 'verified_verdict')
+
+
+def roleplay_groups_allowed():
+    try:
+        d = _json.load(open(_knob_path()))
+        g = d.get('roleplay_groups') if isinstance(d, dict) else None
+        return [str(x).lstrip('/') for x in g] if isinstance(g, list) else None
+    except Exception:
+        return None
+
+
+def set_roleplay_groups(groups, by=''):
+    p = _knob_path()
+    try:
+        d = _json.load(open(p))
+        d = d if isinstance(d, dict) else {}
+    except Exception:
+        d = {}
+    d['roleplay_groups'] = [str(g).lstrip('/') for g in (groups or [])]; d['roleplay_groups_changed_at'] = _now(); d['roleplay_groups_by'] = by
+    try:
+        _os.makedirs(_os.path.dirname(p), exist_ok=True); tmp = p + '.tmp'; _json.dump(d, open(tmp, 'w')); _os.replace(tmp, p)
+        return {'ok': True, 'roleplay_groups': d['roleplay_groups']}
+    except Exception as exc:
+        return {'ok': False, 'refusal': f'could not write the knob at {p}: {exc}'}
+
+
+def can_roleplay(user_info, env=None):
+    """(allowed, why) — the role-play permission for this caller."""
+    if not _posture.is_dev(env):
+        return False, 'role-play exists only on a dev-posture instance'
+    try:
+        from polariapps.objects.apps_permissions._shared import caller_groups, ADMIN_ROLES
+        groups, _ = caller_groups(user_info); admin = bool(ADMIN_ROLES & groups)
+    except Exception:
+        groups = set((user_info or {}).get('roles') or []) if isinstance(user_info, dict) else set(); admin = bool({'admin', 'polari-admin'} & groups)
+    if admin:
+        return True, 'admin'
+    allowed = roleplay_groups_allowed()
+    if allowed is None:
+        return True, 'dev instance with no roleplay_groups set: everyone may role-play (set the list to restrict it)'
+    hit = sorted(groups & set(allowed))
+    return (True, f'granted by group(s) {", ".join(hit)}') if hit else (False, f'the role-play permission is granted to {allowed}; you are in {sorted(groups) or "no group"}')
+
+
+def prototypes(manager, state=None):
+    rows = _all_rows(manager, 'RolePrototype')
+    out = [{k: getattr(r, k, '') for k in PROTO_KEYS} for r in rows]
+    if state:
+        out = [p for p in out if p['state'] == state]
+    out.sort(key=lambda p: p['name'])
+    return out
+
+
+def create_prototype(manager, name, title='', description='', by=''):
+    name = (name or '').strip().lower().replace(' ', '-')
+    if not name or not all(c.isalnum() or c in '-_' for c in name):
+        return {'ok': False, 'refusal': 'a role name: letters, digits, - or _ (journalist, data-scientist)'}
+    try:
+        from polariapps.objects.apps_permissions._shared import ADMIN_ROLES
+        if name in ADMIN_ROLES:
+            return {'ok': False, 'refusal': f'{name} is an admin role — prototypes are non-admin roles'}
+    except Exception:
+        pass
+    tables = getattr(manager, 'objectTables', None)
+    if tables is None:
+        return {'ok': False, 'refusal': 'no manager'}
+    for p in prototypes(manager):
+        if p['name'] == name:
+            return {'ok': True, 'role': p, 'existed': True}
+    from security.objects.security.RolePrototype import RolePrototype
+    fields = {'name': name, 'title': title or name.replace('-', ' ').title(), 'description': description, 'state': 'prototype', 'created_by': by, 'created_at': _now(),
+              'concreted_profile': '', 'concreted_at': '', 'verified_at': '', 'verified_verdict': ''}
+    _new_row(manager, tables, 'RolePrototype', RolePrototype, fields); _schedule_persist(manager)
+    return {'ok': True, 'role': fields, 'existed': False, 'next': f'act as it: POST /api/security/observe/session {{"role": "{name}"}} — then review at /api/security/observe/review?role={name}'}
+
+
+def mark_prototype(manager, name, state, profile='', verdict=''):
+    for r in _all_rows(manager, 'RolePrototype'):
+        if getattr(r, 'name', '') == name:
+            if state in ROLE_STATES:
+                r.state = state
+            if profile:
+                r.concreted_profile = profile; r.concreted_at = _now()
+            if verdict:
+                r.verified_at = _now(); r.verified_verdict = verdict
+            _schedule_persist(manager)
+            return {'ok': True, 'role': {k: getattr(r, k, '') for k in PROTO_KEYS}}
+    return {'ok': False, 'refusal': f'no prototype role {name}'}

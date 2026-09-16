@@ -32,7 +32,10 @@ from security.objects.security.AppSecurityRecord import AppSecurityRecord  # noq
 from security.objects.security.SecurityAuditRun import SecurityAuditRun  # noqa: F401
 from security.objects.security.SecurityEvent import SecurityEvent  # noqa: F401
 from security.objects.security.PermissionObservation import PermissionObservation  # noqa: F401
+from security.objects.security.ObservationSession import ObservationSession  # noqa: F401
+from security.objects.security.UsageObservation import UsageObservation  # noqa: F401
+from security.objects.security.RolePrototype import RolePrototype  # noqa: F401
 
 SECURITY_CLASSES = [SecurityDomain, SecurityArea, SecurityScenario, SecurityControl,
                     SecurityTopologyNode, SecurityTopologyEdge, SecurityThreat, SecurityProposal, SshCapability, DeviceInventory, SshPermissionLevel,
-                    MacProfile, DacPolicy, PermissionGroup, HardwareTrial, ProxyConfig, ProxySnippet, ServiceIdentity, FirewallRuleSet, TrustChannel, AuthzRule, ContentPolicy, ContentPolicyViolation, SecurityEvent, PermissionObservation, BrowserPolicy, AppSecurityRecord, SecurityAuditRun]
+                    MacProfile, DacPolicy, PermissionGroup, HardwareTrial, ProxyConfig, ProxySnippet, ServiceIdentity, FirewallRuleSet, TrustChannel, AuthzRule, ContentPolicy, ContentPolicyViolation, SecurityEvent, PermissionObservation, ObservationSession, UsageObservation, RolePrototype, BrowserPolicy, AppSecurityRecord, SecurityAuditRun]

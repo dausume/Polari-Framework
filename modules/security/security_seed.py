@@ -7,7 +7,7 @@ from security_facts + security_topology, never hand-typed. SECURITY_SEED_PAIRS i
 """
 import json
 
-from security.security_basis import (SecurityEvent, PermissionObservation, AppSecurityRecord, AuthzRule, BrowserPolicy, ContentPolicy, ContentPolicyViolation, DacPolicy,
+from security.security_basis import (SecurityEvent, PermissionObservation, ObservationSession, UsageObservation, RolePrototype, AppSecurityRecord, AuthzRule, BrowserPolicy, ContentPolicy, ContentPolicyViolation, DacPolicy,
                                      FirewallRuleSet, HardwareTrial, MacProfile, PermissionGroup, ProxyConfig, ProxySnippet,
                                      SecurityArea, SecurityAuditRun, SecurityControl, SecurityDomain, SecurityProposal, SecurityScenario,
                                      SecurityThreat, SecurityTopologyEdge, SecurityTopologyNode, ServiceIdentity, SshCapability, DeviceInventory, SshPermissionLevel, TrustChannel)
@@ -143,6 +143,9 @@ SECURITY_SEED_PAIRS = [
     ('SshPermissionLevel', SshPermissionLevel, []),
     ('SecurityEvent', SecurityEvent, []),      # observe mode (§17): filled by decisions at runtime, never seeded
     ('PermissionObservation', PermissionObservation, []),   # dev mode: who did what (roles × class × verb) — profiles derived from it
+    ('ObservationSession', ObservationSession, []),         # role-play windows
+    ('UsageObservation', UsageObservation, []),             # what a role USES: apps, pages, components, actions, endpoints
+    ('RolePrototype', RolePrototype, []),                   # roles that exist to be role-played (prototype → concreted → enforced)
 ]
 
 if __name__ == '__main__':

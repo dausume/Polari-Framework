@@ -40,10 +40,12 @@
    "objects/security/FirewallRuleSet",
    "objects/security/HardwareTrial",
    "objects/security/MacProfile",
+   "objects/security/ObservationSession",
    "objects/security/PermissionGroup",
    "objects/security/PermissionObservation",
    "objects/security/ProxyConfig",
    "objects/security/ProxySnippet",
+   "objects/security/RolePrototype",
    "objects/security/SecurityArea",
    "objects/security/SecurityAuditRun",
    "objects/security/SecurityControl",
@@ -57,7 +59,8 @@
    "objects/security/ServiceIdentity",
    "objects/security/SshCapability",
    "objects/security/SshPermissionLevel",
-   "objects/security/TrustChannel"
+   "objects/security/TrustChannel",
+   "objects/security/UsageObservation"
   ],
   "basis": [
    "security_basis"
@@ -103,10 +106,12 @@
   "FirewallRuleSet",
   "HardwareTrial",
   "MacProfile",
+  "ObservationSession",
   "PermissionGroup",
   "PermissionObservation",
   "ProxyConfig",
   "ProxySnippet",
+  "RolePrototype",
   "SecurityAPI",
   "SecurityArea",
   "SecurityAuditRun",
@@ -121,7 +126,8 @@
   "ServiceIdentity",
   "SshCapability",
   "SshPermissionLevel",
-  "TrustChannel"
+  "TrustChannel",
+  "UsageObservation"
  ],
  "imports": [
   [
@@ -149,6 +155,9 @@
     "ContentPolicyViolation",
     "SecurityEvent",
     "PermissionObservation",
+    "ObservationSession",
+    "UsageObservation",
+    "RolePrototype",
     "BrowserPolicy",
     "AppSecurityRecord",
     "SecurityAuditRun",

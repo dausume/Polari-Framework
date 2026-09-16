@@ -20,7 +20,7 @@ def main():
     from security.security_page import SEED_SECURITY_PAGE_DISPLAYS
     from security.custom.security_topology import MODES, VIEWS, build, compare, simulate
     from security.custom.security_facts import SYSTEMS, scenario_names
-    check('twenty-eight row classes', len(SECURITY_CLASSES) == 28, str(len(SECURITY_CLASSES)))
+    check('thirty-one row classes', len(SECURITY_CLASSES) == 31, str(len(SECURITY_CLASSES)))
     check('row class constructs', SecurityTopologyEdge(name='x').name == 'x')
     n = 0
     for scn in scenario_names():
@@ -50,7 +50,7 @@ def main():
     row = [x for x in compare('os')['rows'] if x['means'].startswith('write into') and x['source'] == 'the Polari backend'][0]
     check('compare lines the backend up across routes', all(row[s] != '—' for s in ('isle', 'swarm-lean', 'swarm-full')), str(row))
     check('every system has a provenance', all(s['provenance'] in ('stock', 'qemu', 'polari') for s in SYSTEMS.values()))
-    check('seed pairs: 28, all rows named', len(SECURITY_SEED_PAIRS) == 28 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
+    check('seed pairs: 31, all rows named', len(SECURITY_SEED_PAIRS) == 31 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
     check('edge rows unique by name', len({r['name'] for r in SEED_SECURITY_EDGES}) == len(SEED_SECURITY_EDGES), str(len(SEED_SECURITY_EDGES)))
     check('eight pages, none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 8 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
     from security.custom.security_threats import threats, threat_rows
@@ -230,6 +230,77 @@ def main():
     finally:
         os.environ.clear(); os.environ.update(old_env)
     check('the gate records observations in dev EVEN WITH POLARI_APP_PERMISSIONS=off (no profile table → "ungated"), and still proceeds', g_off is True and len(O.observations(m5)) == 1 and O.observations(m5)[0]['verdict'] == 'ungated')
+    # ---- his asks 2026-09-16: the knob on the fly; ROLE-PLAY a group → review everything it used → concrete → verify
+    with tempfile.TemporaryDirectory() as td:
+        old_env = dict(os.environ); os.environ['POLARI_OBSERVE_KNOB'] = os.path.join(td, 'observe.json'); os.environ['POLARI_POSTURE'] = 'dev'
+        try:
+            check('the knob: recording is ON by default in dev', O.recording_on(m4) is True and O.knob_state()['source'].startswith('default'))
+            O.set_recording(False, by='admin1')
+            m6 = _M(); m6.objectTables = {'PermissionObservation': {}, 'UsageObservation': {}, 'ObservationSession': {}}; m6.persistTree = lambda: None
+            O.observe_permission(m6, u_op, 'PrintJob', 'read', verdict=None); O.observe_usage(m6, 'journalist', 'page', '/scorecard')
+            check('the knob OFF on the fly: nothing is recorded (acts or usages), the state says who and when', O.recording_on(m6) is False and O.observations(m6) == [] and O.knob_state()['by'] == 'admin1')
+            O.set_recording(True, by='admin1')
+            os.environ['POLARI_POSTURE'] = 'production'
+            check('production never records, knob or not', O.recording_on(m6) is False)
+            os.environ['POLARI_POSTURE'] = 'dev'
+            s1 = O.start_session(m6, 'Journalist', actor='dustin', note='acting as the journalist')
+            check('a role-play session opens for the role (lower-cased), tells the header to send, is idempotent while open', s1['ok'] and s1['role'] == 'journalist' and s1['header'] == {'X-Polari-Roleplay': 'journalist'} and O.start_session(m6, 'journalist', actor='dustin')['already_open'] is True)
+            u_j = {'preferred_username': 'dustin', 'roles': ['admin']}
+            O.observe_permission(m6, u_j, 'Article', 'read', verdict={'allowed': True, 'why': 'admin role bypass', 'via': ['admin']}, roleplay='journalist')
+            O.observe_permission(m6, u_j, 'Article', 'create', verdict={'allowed': True, 'why': 'admin role bypass', 'via': ['admin']}, roleplay='journalist')
+            O.observe_permission(m6, u_j, 'Dataset', 'read', verdict={'allowed': True, 'why': 'admin role bypass', 'via': ['admin']}, roleplay='journalist')
+            O.observe_permission(m6, u_j, 'Article', 'read', verdict={'allowed': True, 'why': 'admin role bypass', 'via': ['admin']}, roleplay='journalist')
+            O.observe_usage(m6, 'journalist', 'app', 'journalist', actor='dustin'); O.observe_usage(m6, 'journalist', 'app', 'datascience'); O.observe_usage(m6, 'journalist', 'page', '/journalist/articles', app='journalist')
+            O.observe_usage(m6, 'journalist', 'action', 'publish-article', app='journalist', page='/journalist/articles'); O.observe_usage(m6, 'journalist', 'endpoint', 'GET /api/scoring/{id}'); O.observe_usage(m6, 'journalist', 'page', '/journalist/articles', app='journalist')
+            ob6 = {o['name']: o for o in O.observations(m6)}
+            check('acts while role-playing are attributed to the role AND the real identity (groups carry roleplay:journalist beside admin)',
+                  'admin,roleplay:journalist|Article|read' in ob6 and ob6['admin,roleplay:journalist|Article|read']['count'] == 2)
+            rv = O.review(m6, 'journalist')
+            check('the review of the role: the apps, pages, actions, endpoints it used (counted) and the objects × verbs; a proposed profile in the row\'s shape; the handoff',
+                  [a['item'] for a in rv['apps']] == ['datascience', 'journalist'] or {a['item'] for a in rv['apps']} == {'journalist', 'datascience'}
+                  and rv['pages'][0]['item'] == '/journalist/articles' and rv['pages'][0]['count'] == 2 and rv['actions'][0]['item'] == 'publish-article' and rv['endpoints'][0]['item'] == 'GET /api/scoring/{id}'
+                  and rv['objects'] == {'Article': {'read': 2, 'create': 1}, 'Dataset': {'read': 1}} and json.loads(rv['proposed_profile']['kc_groups_json']) == ['journalist']
+                  and json.loads(rv['proposed_profile']['extra_classes_json']) == ['Article', 'Dataset'] and json.loads(rv['proposed_profile']['verbs_json']) == ['create', 'read'] and rv['proposed_profile']['published'] is False, rv['objects'])
+            sess = O.sessions(m6, 'journalist')[0]
+            check('the session counts what was attributed to it (4 acts, 6 usages) and ends on request', sess['acts'] == 4 and sess['usages'] == 6 and O.end_session(m6, role='journalist')['ended'] and O.sessions(m6, 'journalist', active=True) == [])
+            # verify: concrete the role into a profile, then replay — narrower than the job → the denied acts are named
+            class _P:
+                def __init__(self, **kw): self.__dict__.update(kw)
+            m6.objectTables['AppPermissionProfile'] = {'p1': _P(name='journalist', published=True, kc_groups_json='["journalist"]', verbs_json='["read"]', app_name='', extra_classes_json='["Article", "Dataset"]')}
+            vf = O.verify(m6, 'journalist')
+            check('verify after enforcement: a read-only journalist profile → the recorded Article:create would now be DENIED, the reads allowed; the verdict says the profile is narrower than the job',
+                  vf['ok'] and vf['recorded_acts'] == 3 and [d['class'] + ':' + d['verb'] for d in vf['denied']] == ['Article:create'] and len(vf['allowed']) == 2 and 'narrower' in vf['verdict'], vf)
+            m6.objectTables['AppPermissionProfile']['p1'].verbs_json = '["read", "create"]'
+            check('widen the profile to what the job needs → the role can still do everything it was recorded doing', O.verify(m6, 'journalist')['denied'] == [] and 'still do everything' in O.verify(m6, 'journalist')['verdict'])
+            api.manager = m6; r = _Res(); api.on_get_observe(_Req(), r); ok_knob = r.media['recording'] is True and 'knob' in r.media
+            class _ReqB:
+                params = {}; context = _types.SimpleNamespace(user_info=None, roleplay='journalist')
+                media = {'items': [{'kind': 'page', 'item': '/journalist/inbox', 'app': 'journalist'}, {'kind': 'bogus', 'item': 'x'}]}
+            r = _Res(); api.on_post_observe_usage(_ReqB(), r)
+            check('/api/security/observe answers the knob; /api/security/observe/usage takes a batch from the frontend, attributes it to the role-play header, skips unknown kinds',
+                  ok_knob and r.media['recorded'] == 1 and any(u['item'] == '/journalist/inbox' and u['role'] == 'journalist' for u in O.usages(m6)))
+            class _ReqR:
+                params = {'role': 'journalist'}
+            # prototype roles + the role-play permission
+            pr = O.create_prototype(m6, 'Data Scientist', description='reads datasets, runs notebooks', by='dustin')
+            check('a prototype role is created (lower-cased id, a title), idempotent, never an admin role', pr['ok'] and pr['role']['name'] == 'data-scientist' and pr['role']['state'] == 'prototype'
+                  and O.create_prototype(m6, 'data-scientist')['existed'] is True and O.create_prototype(m6, 'admin')['ok'] is False)
+            check('prototype → concreted (the profile named) → enforced, verified verdict kept',
+                  O.mark_prototype(m6, 'data-scientist', 'concreted', profile='data-scientist')['role']['concreted_profile'] == 'data-scientist' and O.mark_prototype(m6, 'data-scientist', 'enforced', verdict='ok')['role']['state'] == 'enforced'
+                  and O.prototypes(m6, state='enforced')[0]['name'] == 'data-scientist')
+            check('the role-play permission: admins always; a dev instance with no list → everyone; with a list → only its groups; production → nobody',
+                  O.can_roleplay({'roles': ['admin']})[0] and O.can_roleplay({'roles': ['nobody']})[0] and O.set_roleplay_groups(['developers'])['ok']
+                  and O.can_roleplay({'roles': ['developers']})[0] and not O.can_roleplay({'roles': ['journalist']})[0] and not O.can_roleplay({'roles': ['admin']}, env={'POLARI_POSTURE': 'production'})[0])
+            class _ReqNo:
+                params = {}; context = _types.SimpleNamespace(user_info={'roles': ['journalist']}, roleplay=''); media = {'role': 'data-scientist'}
+            r = _Res(); api.on_post_observe_session(_ReqNo(), r)
+            check('a caller without the role-play permission cannot open a session (403 with the reason)', r.status.startswith('403') and 'role-play permission' in r.media['refusal'])
+            r = _Res(); api.on_get_observe_roles(_ReqNo(), r)
+            check('/api/security/observe/roles lists the prototypes and says whether the caller may role-play', r.media['ok'] and r.media['roles'][0]['name'] == 'data-scientist' and r.media['can_roleplay'] is False and r.media['roleplay_groups'] == ['developers'])
+            r = _Res(); api.on_get_observe_review(_ReqR(), r); r2 = _Res(); api.on_get_observe_verify(_ReqR(), r2)
+            check('/api/security/observe/review + /verify answer for the role', r.media['ok'] and r.media['role'] == 'journalist' and r2.media['ok'] and r2.media['group'] == 'journalist')
+        finally:
+            os.environ.clear(); os.environ.update(old_env)
     api.manager = m4; r = _Res(); api.on_get_observations(_Req(), r)
     check('/api/security/observations: the rows, the totals by verdict, the derived suggestions, the how', r.media['ok'] and r.media['count'] == 5 and r.media['by_verdict']['granted-by-profile'] == 2 and len(r.media['derived']) == 2 and 'never' in r.media['how'] or 'nothing is applied' in r.media['how'])
     from security.custom.security_ssh import permission_group_updates, merge_members
