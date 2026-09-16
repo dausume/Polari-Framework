@@ -7,7 +7,7 @@ from security_facts + security_topology, never hand-typed. SECURITY_SEED_PAIRS i
 """
 import json
 
-from security.security_basis import (SecurityEvent, AppSecurityRecord, AuthzRule, BrowserPolicy, ContentPolicy, ContentPolicyViolation, DacPolicy,
+from security.security_basis import (SecurityEvent, PermissionObservation, AppSecurityRecord, AuthzRule, BrowserPolicy, ContentPolicy, ContentPolicyViolation, DacPolicy,
                                      FirewallRuleSet, HardwareTrial, MacProfile, PermissionGroup, ProxyConfig, ProxySnippet,
                                      SecurityArea, SecurityAuditRun, SecurityControl, SecurityDomain, SecurityProposal, SecurityScenario,
                                      SecurityThreat, SecurityTopologyEdge, SecurityTopologyNode, ServiceIdentity, SshCapability, DeviceInventory, SshPermissionLevel, TrustChannel)
@@ -142,6 +142,7 @@ SECURITY_SEED_PAIRS = [
     ('DeviceInventory', DeviceInventory, []),
     ('SshPermissionLevel', SshPermissionLevel, []),
     ('SecurityEvent', SecurityEvent, []),      # observe mode (§17): filled by decisions at runtime, never seeded
+    ('PermissionObservation', PermissionObservation, []),   # dev mode: who did what (roles × class × verb) — profiles derived from it
 ]
 
 if __name__ == '__main__':

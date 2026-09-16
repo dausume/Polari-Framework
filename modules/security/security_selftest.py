@@ -20,7 +20,7 @@ def main():
     from security.security_page import SEED_SECURITY_PAGE_DISPLAYS
     from security.custom.security_topology import MODES, VIEWS, build, compare, simulate
     from security.custom.security_facts import SYSTEMS, scenario_names
-    check('twenty-seven row classes', len(SECURITY_CLASSES) == 27, str(len(SECURITY_CLASSES)))
+    check('twenty-eight row classes', len(SECURITY_CLASSES) == 28, str(len(SECURITY_CLASSES)))
     check('row class constructs', SecurityTopologyEdge(name='x').name == 'x')
     n = 0
     for scn in scenario_names():
@@ -50,7 +50,7 @@ def main():
     row = [x for x in compare('os')['rows'] if x['means'].startswith('write into') and x['source'] == 'the Polari backend'][0]
     check('compare lines the backend up across routes', all(row[s] != '—' for s in ('isle', 'swarm-lean', 'swarm-full')), str(row))
     check('every system has a provenance', all(s['provenance'] in ('stock', 'qemu', 'polari') for s in SYSTEMS.values()))
-    check('seed pairs: 27, all rows named', len(SECURITY_SEED_PAIRS) == 27 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
+    check('seed pairs: 28, all rows named', len(SECURITY_SEED_PAIRS) == 28 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
     check('edge rows unique by name', len({r['name'] for r in SEED_SECURITY_EDGES}) == len(SEED_SECURITY_EDGES), str(len(SEED_SECURITY_EDGES)))
     check('eight pages, none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 8 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
     from security.custom.security_threats import threats, threat_rows
@@ -203,6 +203,35 @@ def main():
             else: _sys.modules[k] = v
     check('the CRUDE permission gate in ENFORCE: a dev build lets the refused act through with an "observed" header + a SecurityEvent; production still 403s',
           g1 is True and 'observed Person:update' in h.h.get('X-Polari-Permission-Advisory', '') and len(O.events(m3)) == 1 and O.events(m3)[0]['actor'] == 'dev1' and g2 is False and h2.status == '403 Forbidden')
+    # ---- his ask 2026-09-15: in dev mode, log which roles / profiles perform which acts → the profiles are WORKED OUT from that
+    import json
+    m4 = _M(); m4.objectTables = {'PermissionObservation': {}}; m4.persistTree = lambda: None
+    u_op = {'preferred_username': 'ops1', 'roles': ['operators']}; u_ad = {'preferred_username': 'root1', 'roles': ['admin']}
+    O.observe_permission(m4, u_op, 'PrintJob', 'read', verdict={'allowed': True, 'why': 'granted by profile(s)', 'via': ['print-operator']})
+    O.observe_permission(m4, u_op, 'PrintJob', 'read', verdict={'allowed': True, 'why': 'granted by profile(s)', 'via': ['print-operator']})
+    O.observe_permission(m4, u_op, 'PrintJob', 'update', verdict={'allowed': False, 'why': 'no granted profile covers PrintJob:update', 'via': []})
+    O.observe_permission(m4, u_ad, 'Person', 'delete', verdict={'allowed': True, 'why': 'admin role bypass', 'via': ['admin']})
+    O.observe_permission(m4, None, 'Person', 'read', verdict=None)
+    O.observe_permission(m4, u_op, 'MaterialLot', 'create', verdict=None)
+    ob = {o['name']: o for o in O.observations(m4)}
+    check('observations: one row per roles × class × verb, counted; the profile that granted; would-deny / admin / unauthenticated / ungated named',
+          ob['operators|PrintJob|read']['count'] == 2 and ob['operators|PrintJob|read']['profiles'] == 'print-operator' and ob['operators|PrintJob|read']['verdict'] == 'granted-by-profile'
+          and ob['operators|PrintJob|update']['verdict'] == 'would-deny' and ob['admin|Person|delete']['verdict'] == 'admin' and ob['-|Person|read']['verdict'] == 'unauthenticated'
+          and ob['operators|MaterialLot|create']['verdict'] == 'ungated', sorted(ob))
+    der = {d['name']: d for d in O.derive_profiles(m4)}
+    check('derived: one proposed AppPermissionProfile per role set in the row\'s own shape — classes touched, verbs used, unpublished, with the evidence; unauthenticated acts derive nothing',
+          set(der) == {'observed-operators', 'observed-admin'} and json.loads(der['observed-operators']['extra_classes_json']) == ['MaterialLot', 'PrintJob']
+          and json.loads(der['observed-operators']['verbs_json']) == ['create', 'read', 'update'] and der['observed-operators']['published'] is False
+          and der['observed-operators']['evidence']['acts'] == 4 and der['observed-operators']['evidence']['would_deny_today'] == 1 and json.loads(der['observed-operators']['kc_groups_json']) == ['operators'], sorted(der))
+    m5 = _M(); m5.objectTables = {'PermissionObservation': {}}; m5.persistTree = lambda: None
+    old_env = dict(os.environ); os.environ['POLARI_APP_PERMISSIONS'] = 'off'; os.environ['POLARI_POSTURE'] = 'dev'
+    try:
+        h = _Hdr(); g_off = crude_permission_gate(m5, _ReqU(), h, 'read', 'Person')
+    finally:
+        os.environ.clear(); os.environ.update(old_env)
+    check('the gate records observations in dev EVEN WITH POLARI_APP_PERMISSIONS=off (no profile table → "ungated"), and still proceeds', g_off is True and len(O.observations(m5)) == 1 and O.observations(m5)[0]['verdict'] == 'ungated')
+    api.manager = m4; r = _Res(); api.on_get_observations(_Req(), r)
+    check('/api/security/observations: the rows, the totals by verdict, the derived suggestions, the how', r.media['ok'] and r.media['count'] == 5 and r.media['by_verdict']['granted-by-profile'] == 2 and len(r.media['derived']) == 2 and 'never' in r.media['how'] or 'nothing is applied' in r.media['how'])
     from security.custom.security_ssh import permission_group_updates, merge_members
     pg = permission_group_updates('n', inv_u)
     check('permission groups: observed sudo + polari-ops members tied per device', pg['sudo']['members'] == 'n: u' and pg['polari-ops']['members'] == 'n: dev1')

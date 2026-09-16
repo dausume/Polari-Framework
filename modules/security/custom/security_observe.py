@@ -118,6 +118,112 @@ def summary(manager, env=None):
             'denied_events': len(denied), 'per_control': per_control, 'contract': {'observed': list(OBSERVED_CONTROLS), 'invariant': list(INVARIANT_CONTROLS)}}
 
 
+# ---- permission observations (his ask 2026-09-15): in dev, log which roles/profiles perform which acts ----------------
+
+def _plain_row(tables, table, name, fields):
+    """Upsert one row into `table` by name: a real treeObject through seed_upsert when a manager is there, else a plain
+    row (a test double, a degraded boot) — either way the count is kept."""
+    rows = tables.setdefault(table, {})
+    row = next((r for r in rows.values() if getattr(r, 'name', '') == name), None)
+    if row is not None:
+        return row, False
+    return None, True
+
+
+def observe_permission(manager, user_info, class_name, verb, verdict=None, app='', save=True):
+    """Count one CRUDE act into its PermissionObservation row (groups × class × verb). Dev posture only — the caller
+    checks; this never raises. `verdict` is permission_verdict()'s dict when the model ran, None when the gate is off."""
+    try:
+        tables = getattr(manager, 'objectTables', None)
+        if tables is None:
+            return None
+        try:
+            from polariapps.objects.apps_permissions._shared import caller_groups
+            groups, _ = caller_groups(user_info)
+        except Exception:
+            groups = set((user_info or {}).get('roles') or []) if isinstance(user_info, dict) else set()
+        groups_s = ','.join(sorted(groups)); actor = ''
+        if isinstance(user_info, dict):
+            actor = user_info.get('preferred_username') or user_info.get('sub') or ''
+        if verdict is None:
+            vd = 'ungated' if user_info else 'unauthenticated'; profiles = ''
+        elif verdict.get('allowed'):
+            vd = 'admin' if 'admin' in str(verdict.get('why', '')) else 'granted-by-profile'; profiles = ','.join(verdict.get('via') or [])
+        else:
+            vd = 'would-deny' if user_info else 'unauthenticated'; profiles = ''
+        name = f"{groups_s or '-'}|{class_name}|{verb}"[:200]; now = _now()
+        row, new = _plain_row(tables, 'PermissionObservation', name, None)
+        if not new:
+            row.count = int(getattr(row, 'count', 0) or 0) + 1; row.last_seen = now; row.actor = actor or row.actor
+            row.verdict = vd; row.profiles = profiles or row.profiles
+        else:
+            fields = {'name': name, 'actor': actor, 'groups': groups_s, 'profiles': profiles, 'verb': verb, 'class_name': class_name, 'app': app,
+                      'verdict': vd, 'count': 1, 'first_seen': now, 'last_seen': now, 'posture': _posture.posture()}
+            row = None
+            try:
+                from security.objects.security.PermissionObservation import PermissionObservation
+                from polariApiServer.seed_upsert import seed_upsert
+                row = seed_upsert(manager, 'PermissionObservation', PermissionObservation, fields)
+            except Exception:
+                row = None
+            if row is None:
+                import types
+                row = types.SimpleNamespace(**fields)
+            rows = tables.setdefault('PermissionObservation', {})
+            if not any(getattr(r, 'name', '') == name for r in rows.values()):
+                rows[name] = row
+        if save and hasattr(manager, 'persistTree'):
+            last = _LAST.get('obs:' + name, 0)
+            if time.time() - last > 5:
+                _LAST['obs:' + name] = time.time()
+                try:
+                    import threading
+                    threading.Thread(target=manager.persistTree, daemon=True).start()
+                except Exception:
+                    pass
+        return row
+    except Exception:
+        return None
+
+
+OBS_KEYS = ('name', 'actor', 'groups', 'profiles', 'verb', 'class_name', 'app', 'verdict', 'count', 'first_seen', 'last_seen', 'posture')
+
+
+def observations(manager):
+    rows = list(((getattr(manager, 'objectTables', None) or {}).get('PermissionObservation') or {}).values())
+    out = [{k: getattr(r, k, '') for k in OBS_KEYS} for r in rows]
+    out.sort(key=lambda d: (d.get('groups') or '', d.get('class_name') or '', d.get('verb') or ''))
+    return out
+
+
+def derive_profiles(manager):
+    """From the observations, ONE proposed AppPermissionProfile per role set: the classes it touched and the verbs it
+    used, with the evidence (counts, first/last seen, what would have been denied today). A SUGGESTION in the shape
+    the profile rows take — apply by creating the row (CRUDE create AppPermissionProfile), never applied here."""
+    obs = observations(manager); by_group = {}
+    for o in obs:
+        g = o.get('groups') or ''
+        if not g:
+            continue          # unauthenticated acts derive nothing: no role to grant to
+        d = by_group.setdefault(g, {'classes': {}, 'acts': 0, 'would_deny': 0, 'first_seen': o['first_seen'], 'last_seen': o['last_seen'], 'actors': set()})
+        d['classes'].setdefault(o['class_name'], {}); d['classes'][o['class_name']][o['verb']] = d['classes'][o['class_name']].get(o['verb'], 0) + int(o.get('count') or 0)
+        d['acts'] += int(o.get('count') or 0); d['would_deny'] += int(o.get('count') or 0) if o.get('verdict') == 'would-deny' else 0
+        d['first_seen'] = min(d['first_seen'], o['first_seen']) if o['first_seen'] else d['first_seen']; d['last_seen'] = max(d['last_seen'], o['last_seen'])
+        if o.get('actor'):
+            d['actors'].add(o['actor'])
+    import json as _json
+    out = []
+    for g, d in sorted(by_group.items()):
+        groups = g.split(','); verbs = sorted({v for cv in d['classes'].values() for v in cv})
+        out.append({'name': 'observed-' + '-'.join(groups)[:60], 'title': f"Observed: {', '.join(groups)}",
+                    'description': f"derived from {d['acts']} observed act(s) by {len(d['actors'])} caller(s) between {d['first_seen']} and {d['last_seen']} in dev posture",
+                    'app_name': '', 'kc_groups_json': _json.dumps(groups), 'verbs_json': _json.dumps(verbs), 'extra_classes_json': _json.dumps(sorted(d['classes'])),
+                    'published': False, 'is_prior': False,
+                    'notes': 'SUGGESTION from /api/security/observations — review the classes and verbs, narrow them, then create the AppPermissionProfile row; nothing is applied automatically',
+                    'evidence': {'classes': d['classes'], 'acts': d['acts'], 'would_deny_today': d['would_deny'], 'actors': sorted(d['actors'])}})
+    return out
+
+
 def observe_notice(manager, env=None):
     """The notice-bar item for observe mode: present only in dev posture; counts what production would have denied."""
     st = _posture.state(env)

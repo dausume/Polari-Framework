@@ -39,9 +39,33 @@ def crude_permission_gate(manager, request, response, verb,
     the API down; failures degrade to proceed-with-header."""
     try:
         mode = gate_mode()
+        # DEV MODE (his ask 2026-09-15): log which roles / profiles perform which acts — even with the gate off —
+        # so app-level permission profiles can be WORKED OUT from evidence (/api/security/observations derives them)
+        dev = False
+        try:
+            from moduleService.posture import is_dev
+            dev = is_dev()
+        except Exception:
+            dev = False
+        user_info = getattr(getattr(request, 'context', None),
+                            'user_info', None)
+        tables = getattr(manager, 'objectTables', None) or {}
+        verdict_fn = None
+        if 'AppPermissionProfile' in tables:
+            try:
+                from polariapps.apps_permissions_basis import (
+                    permission_verdict as verdict_fn)
+            except ImportError:
+                verdict_fn = None
+        if dev:
+            try:
+                from security.custom.security_observe import observe_permission
+                observe_permission(manager, user_info, class_name, verb,
+                                   verdict=(verdict_fn(manager, user_info, class_name, verb) if verdict_fn else None))
+            except Exception:
+                pass
         if mode == 'off':
             return True
-        tables = getattr(manager, 'objectTables', None) or {}
         if 'AppPermissionProfile' not in tables:
             # polariapps absent/not admitted here — nothing to
             # resolve against; today's behavior, stated.
@@ -49,18 +73,12 @@ def crude_permission_gate(manager, request, response, verb,
                 response.set_header(ADVISORY_HEADER,
                                     'no-profile-table')
             return True
-        try:
-            from polariapps.apps_permissions_basis import (
-                permission_verdict)
-        except ImportError:
+        if verdict_fn is None:
             if mode == 'advisory':
                 response.set_header(ADVISORY_HEADER,
                                     'model-unimportable')
             return True
-        user_info = getattr(getattr(request, 'context', None),
-                            'user_info', None)
-        verdict = permission_verdict(manager, user_info,
-                                     class_name, verb)
+        verdict = verdict_fn(manager, user_info, class_name, verb)
         if verdict['allowed']:
             return True
         if mode == 'advisory':

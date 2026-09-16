@@ -65,6 +65,7 @@ class SecurityAPI(treeObject):
             add('/api/security/audit', self, suffix='audit')          # POST an audit.sh --json payload; GET the latest runs
             add('/api/security/propose', self, suffix='propose')      # POST {app, stanza, groups} → a proposal row
             add('/api/security/events', self, suffix='events')        # observe mode (§17): what production would have denied, counted; the contract
+            add('/api/security/observations', self, suffix='observations')   # dev mode: who (roles/profiles) did what (class × verb) + the DERIVED profile suggestions
 
     def _rows(self, class_name):
         return list(((getattr(self.manager, 'objectTables', None) or {}).get(class_name, {}) or {}).values())
@@ -186,6 +187,23 @@ class SecurityAPI(treeObject):
             ev = [e for e in ev if e['control'] == ctl]
         response.media = {'ok': True, 'summary': summary(self.manager), 'events': ev[:500],
                           'how': 'dev posture (POLARI_POSTURE=dev or /etc/polari/posture.json) = observe: every control evaluates, nothing observable is denied, each would-deny lands here'}
+
+    def on_get_observations(self, request, response):
+        """His ask 2026-09-15: in dev mode, which permission profiles and roles perform what actions — the primary
+        route to working out app-level permission profiles. `derived` = one proposed AppPermissionProfile per role
+        set, in the row's own shape, with the evidence; a suggestion, never applied here."""
+        from security.custom.security_observe import observations, derive_profiles, summary
+        obs = observations(self.manager)
+        for k in ('groups', 'class_name', 'verb', 'verdict'):
+            v = request.params.get(k)
+            if v:
+                obs = [o for o in obs if o.get(k) == v]
+        s = summary(self.manager)
+        response.media = {'ok': True, 'posture': s['posture'], 'recording': s['observe'], 'count': len(obs),
+                          'by_verdict': {v: sum(int(o.get('count') or 0) for o in obs if o.get('verdict') == v) for v in ('granted-by-profile', 'admin', 'would-deny', 'unauthenticated', 'ungated')},
+                          'observations': obs[:1000], 'derived': derive_profiles(self.manager),
+                          'how': ('recorded only in dev posture, every CRUDE act, even with POLARI_APP_PERMISSIONS=off; derived = proposed AppPermissionProfile rows '
+                                  '(kc_groups_json, verbs_json, extra_classes_json) — review, narrow, then create the row; nothing is applied automatically')}
 
     def on_get_notices(self, request, response):
         response.media = notices(self.manager, do_probe=not request.get_param_as_bool('no_probe'))
