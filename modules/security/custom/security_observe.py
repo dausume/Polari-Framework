@@ -45,11 +45,8 @@ def record(manager, control, action, target, reason='', actor='', app='', outcom
         tables = getattr(manager, 'objectTables', None)
         if tables is None:
             return None
-        rows = tables.get('SecurityEvent')
         name = event_name(control, action, target); now = _now()
-        row = None
-        if rows:
-            row = next((r for r in rows.values() if getattr(r, 'name', '') == name), None)
+        row, _new = _plain_row(tables, 'SecurityEvent', name, None)
         if row is not None:
             row.count = int(getattr(row, 'count', 0) or 0) + 1; row.last_seen = now; row.reason = reason or row.reason
             row.outcome = outcome; row.actor = actor or row.actor
@@ -57,22 +54,7 @@ def record(manager, control, action, target, reason='', actor='', app='', outcom
             from security.objects.security.SecurityEvent import SecurityEvent
             fields = {'name': name, 'control': control, 'action': action, 'target': target, 'actor': actor, 'app': app, 'outcome': outcome,
                       'would_deny': would_deny, 'reason': reason, 'posture': _posture.posture(), 'count': 1, 'first_seen': now, 'last_seen': now, 'source': source}
-            row = None
-            try:
-                from polariApiServer.seed_upsert import seed_upsert
-                row = seed_upsert(manager, 'SecurityEvent', SecurityEvent, fields)
-            except Exception:
-                try:
-                    row = SecurityEvent(manager=manager, **fields)
-                except Exception:
-                    row = None
-            if row is None:
-                # no full manager here (a test double, a degraded boot): still COUNT it, in the table, as a plain row
-                import types
-                row = types.SimpleNamespace(**fields)
-                tables.setdefault('SecurityEvent', {})[name] = row
-            elif rows is not None and not any(getattr(r, 'name', '') == name for r in rows.values()):
-                rows[name] = row
+            row = _new_row(manager, tables, 'SecurityEvent', SecurityEvent, fields)
         if save:
             last = _LAST.get(name, 0)
             if time.time() - last > 5 and hasattr(manager, 'persistTree'):
@@ -99,7 +81,7 @@ def decide(manager, control, action, target, denied, reason='', actor='', app=''
 
 
 def events(manager):
-    rows = list(((getattr(manager, 'objectTables', None) or {}).get('SecurityEvent') or {}).values())
+    rows = _all_rows(manager, 'SecurityEvent')
     keys = ('name', 'control', 'action', 'target', 'actor', 'app', 'outcome', 'would_deny', 'reason', 'posture', 'count', 'first_seen', 'last_seen', 'source')
     out = [{k: getattr(r, k, '') for k in keys} for r in rows]
     out.sort(key=lambda d: d.get('last_seen') or '', reverse=True)
@@ -120,14 +102,39 @@ def summary(manager, env=None):
 
 # ---- permission observations (his ask 2026-09-15): in dev, log which roles/profiles perform which acts ----------------
 
+_FALLBACK = {}   # id(manager) -> table -> name -> plain row: when the manager cannot construct the tree object (a test double)
+
+
 def _plain_row(tables, table, name, fields):
-    """Upsert one row into `table` by name: a real treeObject through seed_upsert when a manager is there, else a plain
-    row (a test double, a degraded boot) — either way the count is kept."""
-    rows = tables.setdefault(table, {})
+    """Find the row named `name` in the manager's table (a real tree object) or among the fallback rows."""
+    rows = tables.get(table) or {}
     row = next((r for r in rows.values() if getattr(r, 'name', '') == name), None)
-    if row is not None:
-        return row, False
-    return None, True
+    if row is None:
+        row = _FALLBACK.get(id(tables), {}).get(table, {}).get(name)
+    return row, row is None
+
+
+def _new_row(manager, tables, table, cls, fields):
+    """Construct the tree object the way every module API does (cls(manager=..., **fields) registers it in the
+    manager's table and it persists with the tree). If the manager cannot construct one (a test double), keep a
+    plain row in _FALLBACK — NEVER in the manager's table: a foreign object there breaks the CRUDE view of the class
+    ("PolyTyping for type SimpleNamespace could not be found", seen live 2026-09-16)."""
+    try:
+        if getattr(manager, 'idList', None) is not None:
+            return cls(manager=manager, **fields)
+    except Exception:
+        pass
+    import types
+    row = types.SimpleNamespace(**fields)
+    _FALLBACK.setdefault(id(tables), {}).setdefault(table, {})[fields['name']] = row
+    return row
+
+
+def _all_rows(manager, table):
+    tables = getattr(manager, 'objectTables', None) or {}
+    rows = list((tables.get(table) or {}).values())
+    seen = {getattr(r, 'name', '') for r in rows}
+    return rows + [r for n, r in _FALLBACK.get(id(tables), {}).get(table, {}).items() if n not in seen]
 
 
 def observe_permission(manager, user_info, class_name, verb, verdict=None, app='', save=True):
@@ -159,19 +166,8 @@ def observe_permission(manager, user_info, class_name, verb, verdict=None, app='
         else:
             fields = {'name': name, 'actor': actor, 'groups': groups_s, 'profiles': profiles, 'verb': verb, 'class_name': class_name, 'app': app,
                       'verdict': vd, 'count': 1, 'first_seen': now, 'last_seen': now, 'posture': _posture.posture()}
-            row = None
-            try:
-                from security.objects.security.PermissionObservation import PermissionObservation
-                from polariApiServer.seed_upsert import seed_upsert
-                row = seed_upsert(manager, 'PermissionObservation', PermissionObservation, fields)
-            except Exception:
-                row = None
-            if row is None:
-                import types
-                row = types.SimpleNamespace(**fields)
-            rows = tables.setdefault('PermissionObservation', {})
-            if not any(getattr(r, 'name', '') == name for r in rows.values()):
-                rows[name] = row
+            from security.objects.security.PermissionObservation import PermissionObservation
+            row = _new_row(manager, tables, 'PermissionObservation', PermissionObservation, fields)
         if save and hasattr(manager, 'persistTree'):
             last = _LAST.get('obs:' + name, 0)
             if time.time() - last > 5:
@@ -190,7 +186,7 @@ OBS_KEYS = ('name', 'actor', 'groups', 'profiles', 'verb', 'class_name', 'app', 
 
 
 def observations(manager):
-    rows = list(((getattr(manager, 'objectTables', None) or {}).get('PermissionObservation') or {}).values())
+    rows = _all_rows(manager, 'PermissionObservation')
     out = [{k: getattr(r, k, '') for k in OBS_KEYS} for r in rows]
     out.sort(key=lambda d: (d.get('groups') or '', d.get('class_name') or '', d.get('verb') or ''))
     return out
