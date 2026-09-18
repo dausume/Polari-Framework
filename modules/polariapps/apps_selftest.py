@@ -687,6 +687,13 @@ if __name__ == '__main__':
           and all(a['route'] and a['removable'] for a in mine['apps'])
           and [a['via'] for a in mine['apps']]
           == sorted((a['via'] for a in mine['apps']), reverse=True))
+    check('§58 the tailored home: every app the answer names carries the '
+          'title, the useCase line and the route a CARD needs — so the '
+          'tailored home renders from this one call',
+          all(a['name'] and a['title'] and a['route']
+              and 'useCase' in a and isinstance(a['useCase'], str)
+              for a in mine['apps'])
+          and any(a['useCase'] for a in mine['apps']))
 
     rsp = _call(api2, 'on_post_mine', user=two,
                 body={'primary_role': 'operators'})
@@ -711,6 +718,12 @@ if __name__ == '__main__':
           and hidden not in [a['name'] for a in rsp.media['apps']]
           and hidden in [a['name'] for a in rsp.media['removed']]
           and hidden in [s['name'] for s in rsp.media['suggestions']])
+    check('§58: a hidden app and its suggestion carry the SAME card shape '
+          '{name,title,useCase,route} the live apps do',
+          rsp.media['removed'] and rsp.media['suggestions']
+          and all(e['name'] and e['title'] and e['route']
+                  and isinstance(e.get('useCase'), str)
+                  for e in rsp.media['removed'] + rsp.media['suggestions']))
     rsp = _call(api2, 'on_post_mine', user=two,
                 body={'add': ['app-topology-network']})
     added = next((a for a in rsp.media['apps']

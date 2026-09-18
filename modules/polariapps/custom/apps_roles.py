@@ -118,14 +118,19 @@ def _save(manager, row):
 # ---------------------------------------------------------------- apps
 
 def app_index(manager):
-    """{name: {name, title, route}} for every PolariAppDefinition. The route is the app's own home
-    (`/app/<name>`) — it exists for every app, so a bound app can always be navigated to."""
+    """{name: {name, title, useCase, route}} for every PolariAppDefinition. The route is the app's own home
+    (`/app/<name>`) — it exists for every app, so a bound app can always be navigated to.
+
+    `useCase` (§58, the tailored home): a card carrying only a title says nothing about WHY somebody's role
+    brings them that app. It is the same `use_case` string `GET /api/apps` already publishes, so nothing new is
+    exposed — it just reaches the one page that renders a person's own apps as cards."""
     out = {}
     for row in _rows(manager, 'PolariAppDefinition'):
         name = getattr(row, 'name', '')
         if not name:
             continue
         out[name] = {'name': name, 'title': getattr(row, 'title', '') or name,
+                     'useCase': getattr(row, 'use_case', '') or '',
                      'route': f'/app/{name}'}
     return out
 
