@@ -237,6 +237,37 @@ def test_delete_during_serialization_is_not_resurrected(tmpdir):
           _ids(path, 'Widget'))
 
 
+def test_tombstones_settle_and_do_not_pile_up(tmpdir):
+    print('[a tombstone the flush SETTLES is cleared — the set is not a '
+          'leak]')
+    mgr, _db, path = _manager(tmpdir, 'settle')
+    _rows(mgr, 'Widget', Widget, 3)
+    mgr.persistTree()
+
+    # the ordinary case: the delete lands BEFORE the snapshot, so there
+    # is nothing to "drop" — this is what stood forever on the live
+    # stack as `1 tombstones still up`
+    mgr.deleteTreeNode(className='Widget', nodePolariId='w1',
+                       instancesDeleted=[], migratedInstances=[])
+    check('the delete left a tombstone',
+          ('Widget', 'w1') in mgr.currentTombstones())
+    mgr.persistTree()
+    check('the flush rewrote the class, so the tombstone is SETTLED and '
+          'cleared', mgr.currentTombstones() == set(),
+          mgr.currentTombstones())
+    check('and the row really is off disk',
+          _ids(path, 'Widget') == ['w0', 'w2'], _ids(path, 'Widget'))
+
+    # a tombstone for a class this flush did NOT rewrite must survive
+    mgr.noteTreeDeletion('Nothing', 'x1')
+    mgr.persistTree()
+    check('a tombstone for a class the flush never touched is KEPT',
+          ('Nothing', 'x1') in mgr.currentTombstones(),
+          mgr.currentTombstones())
+    check('settledTombstones never settles a key still live in the table',
+          mgr.settledTombstones({('Widget', 'w0')}, {'Widget'}) == set())
+
+
 def test_create_during_serialization_is_never_lost(tmpdir):
     print('[a create landing mid-serialization is written now or next '
           'flush — never lost]')
@@ -457,6 +488,7 @@ def main():
     test_bookkeeping(tmpdir)
     test_drop_prepared_rows(tmpdir)
     test_delete_during_serialization_is_not_resurrected(tmpdir)
+    test_tombstones_settle_and_do_not_pile_up(tmpdir)
     test_create_during_serialization_is_never_lost(tmpdir)
     test_recreated_id_is_not_dropped(tmpdir)
     test_generation_reports_a_moving_tree(tmpdir)

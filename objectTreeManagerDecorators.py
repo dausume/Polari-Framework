@@ -70,9 +70,14 @@ def _managerTombstones(mgr):
         return set()
 
 
-def _managerClearTombstones(mgr, honoured):
+def _managerClearTombstones(mgr, honoured, tombs=None, rewritten=None):
+    """Clear what the flush honoured, plus what it SETTLED — the classes
+    it rewrote whole, whose tombstoned rows are provably off disk now."""
     try:
-        return mgr.clearTombstones(honoured)
+        toClear = set(honoured)
+        if tombs and rewritten:
+            toClear |= mgr.settledTombstones(tombs, rewritten)
+        return mgr.clearTombstones(toClear)
     except Exception:
         return 0
 
@@ -702,6 +707,33 @@ class managerObject:
             d['deletedSinceSnapshot'] -= set(honoured)
             return len(d['deletedSinceSnapshot'])
 
+    def settledTombstones(self, tombs, rewrittenClasses):
+        """Tombstones a flush has SETTLED — its class table was rewritten
+        whole this flush, so the row is provably not on disk any more,
+        whether we dropped it or the snapshot never held it.
+
+        Without this the set only ever grows: a delete that lands BEFORE
+        the snapshot is never "honoured" (there was nothing to drop) and
+        its tombstone would stand for the life of the process. Seen on
+        the live stack as `1 tombstones still up` after a clean delete.
+
+        Only the tombstones passed in are considered, so a delete that
+        arrived DURING the write is untouched and the next flush honours
+        it. A key that has come back in the live table is left alone —
+        the create already cancelled it, and if it has not, the row is
+        live and the tombstone must not be acted on."""
+        settled = set()
+        for className, instanceId in (tombs or ()):
+            if className not in rewrittenClasses:
+                continue
+            try:
+                if instanceId in self.objectTables.get(className, {}):
+                    continue
+            except Exception:
+                pass
+            settled.add((className, instanceId))
+        return settled
+
     def rowIsTombstoned(self, tombs, className, instanceId):
         """True when this row must NOT be written: deleted since the
         snapshot and still gone from the live table."""
@@ -896,9 +928,11 @@ class managerObject:
         # class is rewritten or the DELETE+REPLACE resurrects it.
         tombs = _managerTombstones(self)
         honoured = set()
+        rewritten = set()
         treePathIndex = _managerTreePathIndex(self)
         for module in module_order:
             for className in sorted(groups[module]):
+                rewritten.add(className)
                 instances = []
                 for instanceId, instance in tables[className].items():
                     if _managerIsTombstoned(self, tombs, className,
@@ -945,7 +979,7 @@ class managerObject:
                         })
                     except Exception:
                         pass
-        _managerClearTombstones(self, honoured)
+        _managerClearTombstones(self, honoured, tombs, rewritten)
         note = (f'; {len(fallbackClasses)} classes fell back to '
                 f'row-by-row: {fallbackClasses[:5]}'
                 if fallbackClasses else '')
@@ -1083,7 +1117,9 @@ class managerObject:
         # Only NOW — the rows are committed — do the tombstones go. A
         # delete that landed during the write is still in the set and
         # will be honoured by the next flush.
-        remaining = _managerClearTombstones(self, honoured)
+        rewritten = set(written if ok else ()) | set(fallbackClasses)
+        remaining = _managerClearTombstones(self, honoured, tombs,
+                                            rewritten)
 
         note = (f'; {len(fallbackClasses)} classes fell back to '
                 f'row-by-row: {fallbackClasses[:5]}'
