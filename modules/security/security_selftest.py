@@ -298,8 +298,10 @@ def _people_batch_checks(api, O, _Res, _types, check):
     me = {'sub': A, 'preferred_username': 'demo-viewer', 'roles': ['polari-viewer'], 'raw_claims': {'groups': []}}
     admin = {'sub': 'admin-0', 'preferred_username': 'demo-admin', 'roles': ['polari-admin'], 'raw_claims': {'groups': []}}
     # ---- every route this module registers must HAVE its responder.
-    # Falcon resolves `on_<method>_<suffix>`, silently answering 405 when the suffix and the method name drift
-    # apart — which is exactly what `add_route(..., suffix='people_batch')` beside `def on_post_people` did.
+    # Falcon resolves `on_<method>_<suffix>` and RAISES SuffixedMethodNotFoundError from add_route() itself when it
+    # finds none — so a suffix that has drifted from its method name does not degrade to a 405, it takes the whole
+    # backend down at boot. Seen live: `add_route(..., suffix='people_batch')` beside `def on_post_people` put
+    # prf-backend into a crash loop, and every selftest passed because they call the method directly.
     class _Falcon:
         def __init__(self): self.routes = []
         def add_route(self, uri, resource, suffix=None): self.routes.append((uri, suffix))
@@ -312,8 +314,9 @@ def _people_batch_checks(api, O, _Res, _types, check):
     orphans = [uri for uri, suffix in srv.falconServer.routes
                if not any(hasattr(api, 'on_%s%s' % (m, ('_' + suffix) if suffix else ''))
                           for m in ('get', 'post', 'put', 'delete', 'patch'))]
-    check('every /api/security route registered has a responder named for its suffix — Falcon answers 405, not an '
-          'error, when add_route(suffix=…) and the on_<method>_<suffix> name drift apart',
+    check('every /api/security route registered has a responder named for its suffix — Falcon RAISES from '
+          'add_route() when the suffix and the on_<method>_<suffix> name drift apart, taking the backend down at '
+          'boot rather than answering 405',
           orphans == [] and ('/api/security/people', 'people_batch') in srv.falconServer.routes, orphans)
 
     old_env = dict(os.environ)
