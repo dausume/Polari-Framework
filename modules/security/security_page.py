@@ -13,6 +13,12 @@ from polariApiServer.module_pages_seed import _page, _row, _sapi, _table
 
 EDGE_COLS = 'scenario,source,means,target,verdict,decided_by,provenance,why'
 
+# The `actor` column on every observation ledger holds an opaque Keycloak subject id and never a name (his rule
+# D18-1). `person` tells class-rows-table to show it shortened, with the whole id in the tooltip, and to resolve the
+# names of the rows ON SCREEN in one batched call to the gated door POST /api/security/people while the page renders.
+# A viewer who may not resolve names keeps seeing the short id; nothing is written back into a row either way.
+ACTOR_FORMAT = 'actor:person'
+
 
 def _view_page(view, title, question, actor):
     return _page(f'security-{view}', f'security-{view}', f'{title} — {question}', 'SecurityTopologyEdge', [
@@ -105,15 +111,15 @@ SEED_SECURITY_PAGE_DISPLAYS = [
         _row(0, [_sapi('security-observe-summary', 0, 12, 'This instance: posture, whether security observes or enforces, how many actions ran that production would deny, the contract (what warns vs what still refuses)',
                        '/api/security/events', pick='summary')], min_height=220),
         _row(1, [_table('security-events-table', 0, 12, 'SecurityEvent — one row per decision (control | action | target): outcome, reason, how many times, first/last seen', 'SecurityEvent',
-                        columns='control,action,target,actor,app,outcome,reason,count,first_seen,last_seen,source')]),
+                        columns='control,action,target,actor,app,outcome,reason,count,first_seen,last_seen,source', column_formats=ACTOR_FORMAT)]),
         _row(2, [_table('security-observations-table', 0, 8, 'PermissionObservation — dev mode: which roles / profiles performed which acts (class × verb), counted; the evidence app-level permission profiles are worked out from', 'PermissionObservation',
-                        columns='groups,profiles,class_name,verb,verdict,count,actor,first_seen,last_seen'),
+                        columns='groups,profiles,class_name,verb,verdict,count,actor,first_seen,last_seen', column_formats=ACTOR_FORMAT),
                  _sapi('security-derived-profiles', 1, 4, 'Derived profile suggestions — one proposed AppPermissionProfile per role set (classes touched, verbs used, the evidence); review and narrow before creating the row',
                        '/api/security/observations', pick='derived')], min_height=300),
         _row(3, [_table('security-usage-table', 0, 8, 'UsageObservation — role-play: the apps, pages, components, actions and endpoints each role USED, counted (the "functionality" half of the review)', 'UsageObservation',
-                        columns='role,kind,item,app,page,count,actor,first_seen,last_seen'),
+                        columns='role,kind,item,app,page,count,actor,first_seen,last_seen', column_formats=ACTOR_FORMAT),
                  _table('security-sessions-table', 1, 4, 'Role-play sessions — who acted as which role, when; acts and usages attributed', 'ObservationSession',
-                        columns='role,actor,active,started_at,ended_at,acts,usages')], min_height=260),
+                        columns='role,actor,active,started_at,ended_at,acts,usages', column_formats=ACTOR_FORMAT)], min_height=260),
     ]),
     _view_page('os', 'OS', 'what can a process touch on the machine, and which system stops it', 'prf-backend'),
     _view_page('network', 'Network', 'how do bytes get in, between and out', 'internet'),

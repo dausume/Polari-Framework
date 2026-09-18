@@ -271,6 +271,123 @@ def _pii_checks(api, O, _Res, _types, check):
             os.environ.clear(); os.environ.update(old_env)
 
 
+def _people_batch_checks(api, O, _Res, _types, check):
+    """THE BATCH DOOR (§54) — `POST /api/security/people {subs: [...]}`.
+
+    §53 owed "a batch form and a per-caller rate limit before any page resolves names in bulk"; the security-events
+    page now does exactly that, one call per table render. Proven here against a fake `kc_admin.get_user`: the gate
+    is applied PER SUB, an unknown sub is null rather than an error, the memory cache spares the second Keycloak
+    round trip, and the 61st call in a minute is refused."""
+    import os
+    import tempfile
+    from security.custom import kc_admin as KC
+    from security.custom import security_people as P
+
+    class _M:
+        pass
+
+    class _Req:
+        def __init__(self, ui, media=None, **params):
+            self.params = params
+            self.media = media or {}
+            self.context = _types.SimpleNamespace(user_info=ui, roleplay='')
+
+    A = 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa'      # the caller
+    B = 'bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb'      # somebody else
+    GHOST = 'cccccccc-3333-4333-8333-cccccccccccc'  # a sub this realm has never heard of
+    me = {'sub': A, 'preferred_username': 'demo-viewer', 'roles': ['polari-viewer'], 'raw_claims': {'groups': []}}
+    admin = {'sub': 'admin-0', 'preferred_username': 'demo-admin', 'roles': ['polari-admin'], 'raw_claims': {'groups': []}}
+    old_env = dict(os.environ)
+    asked = []
+    real_get_user = KC.get_user
+
+    def _fake_get_user(sub, env=None):
+        asked.append(sub)
+        if sub == GHOST:
+            return {'ok': False, 'status': 404, 'refusal': 'that user does not exist in this realm'}
+        names = {A: ('Ada', 'Viewer', 'demo-viewer'), B: ('Bo', 'Journalist', 'demo-journalist')}
+        f, l, u = names.get(sub, ('', '', ''))
+        return {'ok': True, 'user': {'id': sub, 'username': u, 'first_name': f, 'last_name': l, 'enabled': True}}
+
+    with tempfile.TemporaryDirectory() as td:
+        os.environ['POLARI_OBSERVE_KNOB'] = os.path.join(td, 'observe.json')
+        os.environ['POLARI_POSTURE'] = 'dev'
+        os.environ['POLARI_KEYCLOAK_ADMIN_URL'] = 'http://pol-keycloak:8080'
+        os.environ['POLARI_KEYCLOAK_REALM'] = 'Polari'
+        os.environ['KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET'] = 'sekrit'
+        os.environ.pop('POLARI_PEOPLE_CACHE_SECONDS', None)
+        KC.get_user = _fake_get_user
+        m = _M(); m.objectTables = {}; m.persistTree = lambda: None
+        api.manager = m
+        P.cache_clear(); P.rate_clear()
+        try:
+            r = _Res(); api.on_post_people(_Req(None, {'subs': [A]}), r)
+            check('the batch door without an identity is 401, exactly as the single door is',
+                  r.status.startswith('401') and not asked, r.media)
+            r = _Res(); api.on_post_people(_Req(me, {'subs': []}), r)
+            r2 = _Res(); api.on_post_people(_Req(me, {'subs': ['x'] * (P.MAX_SUBS + 1)}), r2)
+            check('the batch refuses an empty body and more than %d subject ids in one call, naming the limit' % P.MAX_SUBS,
+                  r.media['ok'] is False and 'subs' in r.media['error']
+                  and r2.media['ok'] is False and str(P.MAX_SUBS) in r2.media['error'], (r.media, r2.media))
+            r = _Res(); api.on_post_people(_Req(me, {'subs': [A, B, GHOST]}), r)
+            check('a plain signed-in caller resolves their OWN sub and no other: B is denied per sub (not a failed '
+                  'call), and a denied sub never appears in `people`',
+                  r.media['ok'] and r.media['people'] == {A: 'Ada Viewer'} and r.media['denied'] == [B, GHOST]
+                  and asked == [A], r.media)
+            r = _Res(); api.on_post_people(_Req(admin, {'subs': [A, B, GHOST, B, '']}), r)
+            check('an ADMIN resolves the whole batch in ONE call: known subs → names, a sub this realm does not know '
+                  '→ null (never an error for the batch), duplicates and blanks collapsed',
+                  r.media['ok'] and r.media['people'] == {A: 'Ada Viewer', B: 'Bo Journalist', GHOST: None}
+                  and r.media['denied'] == [] and r.media['resolved'] == 2, r.media)
+            before = len(asked)
+            r = _Res(); api.on_post_people(_Req(admin, {'subs': [A, B]}), r)
+            check('the memory cache spares the second Keycloak round trip: the same subs answer with the same names '
+                  'and kc_admin.get_user is not called again (TTL %d s, memory only — it dies with the process)' % P.cache_seconds(),
+                  r.media['people'] == {A: 'Ada Viewer', B: 'Bo Journalist'} and len(asked) == before
+                  and r.media['keycloak_calls'] == 0 and r.media['cache']['entries'] >= 2, (len(asked), before, r.media.get('cache')))
+            os.environ['POLARI_PEOPLE_CACHE_SECONDS'] = '0'
+            P.cache_clear(); before = len(asked)
+            r = _Res(); api.on_post_people(_Req(admin, {'subs': [A]}), r)
+            r2 = _Res(); api.on_post_people(_Req(admin, {'subs': [A]}), r2)
+            check('POLARI_PEOPLE_CACHE_SECONDS=0 turns the cache off entirely — every lookup goes back to Keycloak and '
+                  'no name is held anywhere', len(asked) == before + 2 and P.cache_state()['entries'] == 0, len(asked) - before)
+            os.environ.pop('POLARI_PEOPLE_CACHE_SECONDS', None)
+            O.set_people_viewers(['approvers'], by='admin-0')
+            viewer = {'sub': 'v-1', 'preferred_username': 'x', 'roles': ['approvers'], 'raw_claims': {'groups': []}}
+            r = _Res(); api.on_post_people(_Req(viewer, {'subs': [A, B]}), r)
+            check('a member of a group named in the people_viewers knob resolves the whole batch too, and the answer '
+                  'says which group granted it',
+                  r.media['ok'] and set(r.media['people']) == {A, B} and 'approvers' in r.media['why'], r.media)
+            O.set_people_viewers([])
+            # ---- the rate limit: 60 calls a minute per caller
+            P.rate_clear()
+            last = None
+            for _ in range(P.RATE_LIMIT_CALLS):
+                last = _Res(); api.on_post_people(_Req(admin, {'subs': [A]}), last)
+            over = _Res(); api.on_post_people(_Req(admin, {'subs': [A]}), over)
+            other = _Res(); api.on_post_people(_Req(me, {'subs': [A]}), other)
+            check('the rate limit: %d calls a minute per caller pass, the next is 429 with a plain sentence and a '
+                  'Retry-After — and it is PER CALLER, so a different signed-in person is unaffected' % P.RATE_LIMIT_CALLS,
+                  last.media['ok'] and over.status.startswith('429') and over.media['ok'] is False
+                  and 'calls a minute' in over.media['refusal'] and int(getattr(over, 'headers', {}).get('Retry-After', 0)) > 0
+                  and other.media['ok'] is True, (over.status, over.media))
+            # ---- 503: a stack with no Keycloak credential has nothing to fall back on
+            os.environ['KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET'] = ''
+            P.rate_clear(); P.cache_clear()
+            r = _Res(); api.on_post_people(_Req(admin, {'subs': [B]}), r)
+            r2 = _Res(); api.on_post_people(_Req(me, {'subs': [B]}), r2)
+            check('with no Keycloak credential the batch is 503 "no identity provider" — but a batch in which every '
+                  'sub was DENIED never touches Keycloak at all, so it still answers 200 with the denials',
+                  r.status.startswith('503') and r.media['refusal'].startswith('no identity provider')
+                  and r2.media['ok'] is True and r2.media['denied'] == [B] and r2.media['people'] == {}, (r.media, r2.media))
+            check('the batch is never a write: it took no manager table and left none behind',
+                  m.objectTables == {} and 'Ada' not in repr(m.objectTables))
+        finally:
+            KC.get_user = real_get_user
+            P.cache_clear(); P.rate_clear()
+            os.environ.clear(); os.environ.update(old_env)
+
+
 def main():
     from security.security_basis import SECURITY_CLASSES, SecurityTopologyEdge
     from security.security_seed import SECURITY_SEED_PAIRS, SEED_SECURITY_EDGES
@@ -433,6 +550,8 @@ def main():
         params = {}
     class _Res:
         media = None; status = '200 OK'
+        def set_header(self, k, v):
+            self.headers = dict(getattr(self, 'headers', {}), **{k: v})
     api = SecurityAPI(polServer=None, manager=None); api.manager = m2; r = _Res(); api.on_get_events(_Req(), r)
     check('/api/security/events answers with the summary, the events and the how', r.media['ok'] and r.media['summary']['observed_events'] == 1 and len(r.media['events']) >= 2 and 'observe' in r.media['how'],
           (r.media or {}).get('summary'))
@@ -653,6 +772,7 @@ def main():
     check('permission groups: observed sudo + polari-ops members tied per device', pg['sudo']['members'] == 'n: u' and pg['polari-ops']['members'] == 'n: dev1')
     check('members merge per device (this device replaced, others kept)', merge_members('a: x; n: old', 'n', 'n: u') == 'a: x; n: u')
     _pii_checks(api, O, _Res, _types, check)
+    _people_batch_checks(api, O, _Res, _types, check)
     check('the password-guess threat exists on the isle with its counterexample', 'ssh-password-guess' in {t['name'] for t in threats('isle', 'today')['threats']})
     check('threat rows seed for every scenario', len([r for n in scenario_names() for r in threat_rows(n)]) >= 40)
     print('\n%d/%d checks passed' % (passed, total))

@@ -24,7 +24,14 @@ import json
 
 
 def _table(item_id, index, segments, title, class_name, columns='',
-           max_rows=0):
+           max_rows=0, column_formats=''):
+    """`column_formats` = csv of `column:format` pairs, handed to
+    class-rows-table as `columnFormats`. The one format so far is
+    `person` (his rule D18-1): the column holds an opaque Keycloak
+    subject id, so the cell shows it shortened with the whole id in the
+    tooltip, and the visible rows' ids are resolved to names at RENDER
+    time through the gated door `POST /api/security/people`. No name is
+    ever stored in a row."""
     return {
         'id': item_id, 'index': index, 'type': 'component',
         'rowSegmentsUsed': segments, 'gridColumnStart': None,
@@ -33,7 +40,8 @@ def _table(item_id, index, segments, title, class_name, columns='',
         'componentProps': {
             'componentName': 'class-rows-table',
             'inputs': {'className': class_name, 'columns': columns,
-                       'maxRows': max_rows},
+                       'maxRows': max_rows,
+                       'columnFormats': column_formats},
         },
         'item': None, 'nestedRows': [],
     }

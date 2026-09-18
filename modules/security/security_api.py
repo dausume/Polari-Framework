@@ -20,6 +20,9 @@
 /api/security/people/{sub}     GET a Keycloak subject id → {display_name, username}, resolved LIVE from Keycloak and never stored.
                                THE ONE DOOR through the PII boundary (his rule D18-1, 2026-09-18: Polari rows key a person by
                                `sub` alone). Gated: an admin, or your own sub, or a group named in the `people_viewers` knob.
+/api/security/people           POST {subs: [...]} (max 200) → {ok, people: {sub: display_name|null}, denied, how} — the same
+                               door and the same gate, applied per sub, so a table of actors resolves in ONE call. Names are
+                               held in memory for POLARI_PEOPLE_CACHE_SECONDS (300 s) and nowhere else; 60 calls/min/caller.
 The scenario defaults to the one this deployment is (POLARI_DEPLOY_ROUTE: isle → isle, swarm → lean/full by
 profile, else dev). Pure reads over security_topology; nothing here changes the machine.
 """
@@ -80,6 +83,7 @@ class SecurityAPI(treeObject):
             add('/api/security/observe/roles/{name}', self, suffix='observe_role')  # POST {state, profile, verdict} mark prototype → concreted → enforced; {self_claimable} admin-only
             add('/api/security/roles/claimable', self, suffix='roles_claimable')    # GET the roles THIS caller may take for themselves (his ask 2026-09-18)
             add('/api/security/roles/claim', self, suffix='roles_claim')            # POST {role} join the KC group; DELETE ?role= leave it
+            add('/api/security/people', self, suffix='people_batch')                # the SAME door, for a page: POST {subs: [...]} (max 200), the gate applied per sub
             add('/api/security/people/{sub}', self, suffix='people')                # THE ONE GATED DOOR: a Keycloak `sub` → a display name, resolved LIVE, never stored (D18-1)
 
     def _rows(self, class_name):
@@ -462,6 +466,76 @@ class SecurityAPI(treeObject):
                           'username': user.get('username') or '', 'why': why,
                           'how': 'resolved live from Keycloak for this request only — Polari rows key a person by `sub` '
                                  'alone (D18-1) and never cache a name'}
+
+    def _people_gate(self, request):
+        """(caller_sub, may_resolve_anyone, why) — the gate computed ONCE for a batch, exactly the rule the
+        single door applies per call: your own sub always, an admin or a `people_viewers` member for anyone."""
+        from security.custom.security_claims import is_admin, caller
+        from security.custom.security_observe import people_viewers
+        ui = self._user_info(request)
+        caller_sub, _username, groups = caller(ui)
+        if not caller_sub:
+            return '', False, ''
+        if is_admin(ui):
+            return caller_sub, True, 'administrator'
+        hit = sorted(groups & set(people_viewers() or []))
+        if hit:
+            return caller_sub, True, f'granted by group(s) {", ".join(hit)}'
+        return caller_sub, False, 'your own account'
+
+    def on_post_people(self, request, response):
+        """POST /api/security/people {subs: [...]} → {ok, people: {sub: display_name|null}, denied, how}.
+
+        One call for a whole table of actors. The gate is per sub (a stranger's sub lands in `denied`, never in
+        `people`), an unresolvable sub answers null rather than failing the batch, and the names live only in
+        security_people's in-memory cache — see that module: it is the one place a name exists in this backend and
+        it dies with the process."""
+        from security.custom import kc_admin
+        from security.custom import security_people as P
+        body = self._body(request)
+        subs = body.get('subs')
+        if not isinstance(subs, list) or not subs:
+            return self._bad(response, 'body: {"subs": ["<keycloak sub>", …]} — at most %d per call' % P.MAX_SUBS)
+        if len(subs) > P.MAX_SUBS:
+            return self._bad(response, 'too many subject ids in one call: %d asked, %d is the most this door will '
+                                       'resolve at once — page the table.' % (len(subs), P.MAX_SUBS))
+        caller_sub, may_all, why = self._people_gate(request)
+        if not caller_sub:
+            return self._refuse(response, '401 Unauthorized',
+                                'sign in first: resolving Keycloak subject ids to names needs an identity of your own')
+        ok_rate, retry = P.rate_ok(caller_sub)
+        if not ok_rate:
+            response.status = '429 Too Many Requests'
+            response.set_header('Retry-After', str(retry))
+            response.media = {'ok': False, 'refusal': 'too many name lookups: this door answers %d calls a minute per '
+                                                      'caller, and you have used them. Try again in %d seconds — one '
+                                                      'call may carry up to %d subject ids, so batch them.'
+                                                      % (P.RATE_LIMIT_CALLS, retry, P.MAX_SUBS),
+                              'retry_after': retry}
+            return
+        wanted, denied = [], []
+        for s in subs:
+            s = str(s or '')
+            if not s or s in wanted or s in denied:
+                continue
+            (wanted if (may_all or s == caller_sub) else denied).append(s)
+        if wanted:
+            kc_ok, kc_why = kc_admin.configured()
+            if not kc_ok:
+                return self._refuse(response, '503 Service Unavailable', f'no identity provider: {kc_why}',
+                                    denied=denied,
+                                    how='names live in Keycloak; without a Keycloak credential this instance cannot '
+                                        'resolve one, and it keeps no copy to fall back on')
+        people, stats = P.resolve(wanted)
+        response.media = {
+            'ok': True, 'people': people, 'denied': denied, 'why': why,
+            'asked': len(subs), 'resolved': sum(1 for v in people.values() if v), 'cache': P.cache_state(),
+            'keycloak_calls': stats['calls'],
+            'how': ('the same gate as GET /api/security/people/{sub}, applied per subject id: your own always, any '
+                    'other only for an administrator or a member of a group named in the people_viewers knob. A sub '
+                    'this realm does not know answers null. Names are held in memory for %d s and written to no row, '
+                    'no log and no disk (D18-1).' % P.cache_seconds()),
+        }
 
     def on_get_observe_review(self, request, response):
         from security.custom.security_observe import review
