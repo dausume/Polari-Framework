@@ -823,6 +823,9 @@ FEATURE_IMPORT_BLOCKS = (
         ('polariapps.apps_permissions_basis', (
             'AppPermissionProfile', 'SEED_PERMISSION_PROFILES',
         )),
+        ('polariapps.apps_roles_basis', (
+            'RoleAppBinding', 'UserAppPreference',
+        )),
     )),
     ('appstore', (
         ('appstore.appstore_basis', (

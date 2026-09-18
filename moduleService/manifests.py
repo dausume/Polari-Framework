@@ -44,6 +44,16 @@ CONCEPTS = ('objects', 'basis', 'api', 'endpoints', 'seed', 'page', 'catalog',
 #: (a QEMU/KVM guest owning hardware; POLARI_TREE_PLAN / STANDARD_POLARI_APP §3).
 APP_KINDS = ('library', 'polari-app', 'isle-app', 'hardware-app', 'hardware-extension-app', 'suite-app', 'access-app')
 
+#: app.roles (his ask 2026-09-18): the ROLES this module's capability belongs to — plain Keycloak GROUP names
+#: ('journalist', 'data-scientist', 'operators'). HAND-SET, like the security stanza: it survives regeneration
+#: and nothing derives it. polariapps turns it into RoleAppBinding rows — every Polari-App carrying the module is
+#: bound to the named roles, so a person holding one sees those apps first (custom/apps_roles.derive_bindings).
+#: This is the FIRST HALF of the manifest `roles:` stanza designed in AI-Notes/designs/ROLE_GRANT_ROUTES_DESIGN.md
+#: §6 — that stanza's second half (how somebody GETS INTO a role: approval, appointment, election, invitation,
+#: a custom route handler) is designed, not built. A role name here is a group name, never a person.
+ROLE_NAME_MAX = 64
+
+
 # sec-3: the security stanza vocabulary (mirrors os-security/render.py; conform refuses anything else)
 SECURITY_PROFILES = ('web-app', 'worker', 'gateway', 'vpn-gateway', 'hardware-extension')
 SECURITY_NETWORKS = ('isle', 'internet', 'none')
@@ -52,6 +62,37 @@ SECURITY_DEFAULT = {'profile': 'web-app', 'writable': ['/data'], 'network': ['is
                     # ISLE_HARDENING_PLAN §17: the controls the app's DEV VARIANT relaxes to observe (warn, never deny) on a dev-posture instance
                     'devVariant': ['authz', 'content', 'trust-channel', 'certificate', 'peer-admission']}
 DEV_VARIANT_CONTROLS = ('authz', 'content', 'browser', 'trust-channel', 'certificate', 'peer-admission', 'posture-relaxation', 'tier')
+
+
+def role_findings(roles):
+    """Findings for a manifest's OPTIONAL `app.roles` list ([] = fine, including absent).
+
+    A role name is a Keycloak GROUP name: lower-case-ish, no slashes (a group PATH is not a role), no spaces,
+    and never a person. Anything else is refused here rather than turning into a RoleAppBinding nobody can
+    grant."""
+    if roles is None:
+        return []
+    if not isinstance(roles, list):
+        return ['app.roles must be a list of Keycloak group names (omit the key when there are none)']
+    out = []
+    seen = set()
+    for role in roles:
+        if not isinstance(role, str) or not role.strip():
+            out.append('app.roles entries must be non-empty strings, got %r' % (role,))
+            continue
+        name = role.strip()
+        if name != role:
+            out.append('app.roles %r has surrounding whitespace' % (role,))
+        if len(name) > ROLE_NAME_MAX:
+            out.append('app.roles %r is longer than %d characters' % (name, ROLE_NAME_MAX))
+        if '/' in name or ' ' in name:
+            out.append('app.roles %r must be a plain group NAME (no slashes, no spaces) — a group path is not a role' % (name,))
+        if '@' in name:
+            out.append('app.roles %r looks like a person, not a role — roles are groups (his rule D18-1)' % (name,))
+        if name.lower() in seen:
+            out.append('app.roles names %r twice' % (name,))
+        seen.add(name.lower())
+    return out
 
 
 def security_findings(sec):
@@ -375,7 +416,9 @@ def _preserve_hand_set(pkg, manifest):
             if old.get(k):
                 manifest[k] = old[k]
         app = dict(manifest['app'])
-        app.update({k: v for k, v in (old.get('app') or {}).items() if k in ('kind', 'family', 'extends', 'agentTier', 'category', 'subcategories', 'tags')})
+        # `roles` joins the hand-set keys (his ask 2026-09-18): nothing derives which roles a capability serves,
+        # so a regeneration must never drop it.
+        app.update({k: v for k, v in (old.get('app') or {}).items() if k in ('kind', 'family', 'extends', 'agentTier', 'category', 'subcategories', 'tags', 'roles')})
         manifest['app'] = app
     return manifest
 
@@ -411,6 +454,7 @@ def validate(manifest):
         problems.append('a hardware-extension-app must name the hardware app it extends (app.extends)')
     if app.get('kind') in ('hardware-app', 'hardware-extension-app') and app.get('agentTier') != 'hardware':
         problems.append('hardware kinds need app.agentTier = hardware')
+    problems.extend(role_findings(app.get('roles')))
     pkg = manifest.get('package', '')
     for path, _symbols in manifest.get('imports', []):
         if path.split('.')[0] != pkg:

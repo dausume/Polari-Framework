@@ -494,6 +494,253 @@ if __name__ == '__main__':
         else:
             os.environ['POLARI_APP_PERMISSIONS'] = saved_mode
 
+    # ------------------------------------------------------------------
+    print('\n== suite: roles -> apps + my apps (his ask 2026-09-18) ==')
+    import io
+    from polariapps.apps_api import AppsAPI
+    from polariapps.custom import apps_roles as R
+
+    # A caller is a Keycloak token, nothing more: `sub` is who they are,
+    # the `groups` claim is which roles they hold.
+    def _who(sub, *groups, username=''):
+        claims = {'groups': list(groups)}
+        info = {'sub': sub, 'raw_claims': claims, 'roles': []}
+        if username:   # present on a real token; must never reach a row
+            info['preferred_username'] = username
+            claims['preferred_username'] = username
+        return info
+
+    class _Req:
+        """The shape falcon hands a responder: context.user_info + a body."""
+        def __init__(self, user_info=None, body=None):
+            self.context = _ns(user_info=user_info)
+            self.bounded_stream = io.BytesIO(
+                json.dumps(body if body is not None else {}).encode())
+            self.params = {}
+
+    class _Rsp:
+        def __init__(self):
+            self.status = '200 OK'
+            self.media = None
+
+    class _Api:
+        """The real responders over a test double manager (constructing a
+        treeObject AppsAPI needs a whole server)."""
+        def __init__(self, manager):
+            self.manager = manager
+        _payload = AppsAPI._payload
+        _refuse = AppsAPI._refuse
+        _user_info = AppsAPI._user_info
+        _status = AppsAPI._status
+        on_get_roles = AppsAPI.on_get_roles
+        on_post_role = AppsAPI.on_post_role
+        on_get_role_suggested = AppsAPI.on_get_role_suggested
+        on_get_mine = AppsAPI.on_get_mine
+        on_post_mine = AppsAPI.on_post_mine
+
+    def _call(api, method, *args, user=None, body=None):
+        req, rsp = _Req(user, body), _Rsp()
+        getattr(api, method)(req, rsp, *args)
+        return rsp
+
+    # ---- bindings: what the MODULES declare, personas as the fallback
+    roles_mgr = _mgr()            # held: the fallback table is keyed by id()
+    api = _Api(roles_mgr)
+    derived = R.derive_bindings(roles_mgr)
+    check('roles->apps: a manifest `app.roles` binds every app carrying '
+          'the module (scoring -> the political/scorecard apps)',
+          derived.get('journalist', {}).get('derived_from') == 'app.roles'
+          and {'app-policy', 'app-scorecards-data-analysis',
+               'dmv-policy-analysis', 'judicial-lean'}
+          <= set(derived.get('journalist', {}).get('apps', [])),
+          str(derived.get('journalist')))
+    check('roles->apps: demo roles stay inside the 3-6 app budget',
+          all(3 <= len(derived.get(r, {}).get('apps', [])) <= 6
+              for r in ('journalist', 'data-scientist', 'operators')),
+          str({r: len(derived.get(r, {}).get('apps', []))
+               for r in ('journalist', 'data-scientist', 'operators')}))
+    check('roles->apps: PERSONA FALLBACK — a persona name that no '
+          'manifest declares still becomes a binding, marked as derived '
+          'from personas',
+          derived.get('materials-scientist', {}).get('derived_from')
+          == 'personas'
+          and derived['materials-scientist']['apps']
+          == ['app-materials-science'])
+    check('roles->apps: a declared role BEATS the persona of the same '
+          'name (declaration wins, fallback fills gaps)',
+          all(info['derived_from'] in ('app.roles', 'personas')
+              for info in derived.values())
+          and 'app.roles' == derived['operators']['derived_from'])
+
+    rsp = _call(api, 'on_get_roles')
+    listed = {b['role']: b for b in rsp.media['bindings']}
+    check('GET /api/apps/roles: every binding, resolved to app '
+          'name/title/route, source manifest',
+          rsp.media['ok'] and listed['journalist']['source'] == 'manifest'
+          and all(a['route'] == '/app/' + a['name']
+                  for a in listed['journalist']['apps']))
+    check('GET /api/apps/roles: converging twice changes nothing '
+          '(idempotent derivation)',
+          R.ensure_bindings(roles_mgr)['created'] == []
+          and R.ensure_bindings(roles_mgr)['updated'] == [])
+
+    # ---- POST /api/apps/roles/{role}: administrators only
+    rsp = _call(api, 'on_post_role', 'journalist',
+                body={'apps': ['app-policy']})
+    check('POST /api/apps/roles/{role}: anonymous is refused 401',
+          rsp.status.startswith('401') and not rsp.media['ok'])
+    rsp = _call(api, 'on_post_role', 'journalist',
+                user=_who('sub-j', 'journalist'),
+                body={'apps': ['app-policy']})
+    check('POST /api/apps/roles/{role}: a signed-in NON-admin is '
+          'refused 403 and pointed at /api/apps/mine',
+          rsp.status.startswith('403')
+          and '/api/apps/mine' in rsp.media['error'])
+    rsp = _call(api, 'on_post_role', 'journalist',
+                user=_who('sub-admin', 'polari-admin'),
+                body={'apps': ['app-policy', 'nope-not-an-app']})
+    check('POST /api/apps/roles/{role}: an unknown app name is refused '
+          'WITH the known list, not silently dropped',
+          not rsp.media['ok'] and 'nope-not-an-app' in rsp.media['error']
+          and rsp.media['knownApps'])
+    rsp = _call(api, 'on_post_role', 'journalist',
+                user=_who('sub-admin', 'polari-admin'),
+                body={'apps': ['judicial-lean', 'app-policy']})
+    check('POST /api/apps/roles/{role}: an admin binds an ORDERED list; '
+          'source becomes admin',
+          rsp.media['ok'] and rsp.media['source'] == 'admin'
+          and [a['name'] for a in rsp.media['apps']]
+          == ['judicial-lean', 'app-policy'])
+    R.ensure_bindings(roles_mgr)
+    check('roles->apps: the manifest derivation NEVER overwrites an '
+          "admin's binding (a decision outranks a derivation)",
+          R.binding_apps(roles_mgr, 'journalist')
+          == ['judicial-lean', 'app-policy'])
+
+    # ---- suggestions: what a role-play review SAW, never auto-bound
+    def _review_double(_manager, role):
+        return {'ok': True, 'role': role, 'apps': [
+            {'item': 'app-scorecards-data-analysis', 'count': 7,
+             'last_seen': 'now'},
+            {'item': 'judicial-lean', 'count': 2, 'last_seen': 'then'},
+            {'item': 'not-an-app', 'count': 99, 'last_seen': 'never'}]}
+    import security.custom.security_observe as _so_mod  # noqa: F401
+    _saved_review = _so_mod.review
+    try:
+        _so_mod.review = _review_double
+        rsp = _call(api, 'on_get_role_suggested', 'journalist')
+    finally:
+        _so_mod.review = _saved_review
+    sug = rsp.media
+    check('GET /api/apps/roles/{role}/suggested: the review\'s apps come '
+          'back ordered by use, unknown names dropped, already-bound '
+          'flagged — and nothing was bound',
+          sug['ok']
+          and [s['name'] for s in sug['suggested']]
+          == ['app-scorecards-data-analysis', 'judicial-lean']
+          and sug['suggested'][1]['bound'] is True
+          and sug['suggested'][0]['bound'] is False
+          and R.binding_apps(roles_mgr, 'journalist')
+          == ['judicial-lean', 'app-policy']
+          and 'SUGGESTION ONLY' in sug['note'])
+
+    # ---- /api/apps/mine
+    mine_mgr = _mgr()
+    api2 = _Api(mine_mgr)
+    rsp = _call(api2, 'on_get_mine')
+    check('GET /api/apps/mine: anonymous is 401 (this answer is about '
+          'ONE person, and a person is a Keycloak sub)',
+          rsp.status.startswith('401') and not rsp.media['ok'])
+
+    viewer = _who('sub-viewer', 'viewers')
+    rsp = _call(api2, 'on_get_mine', user=viewer)
+    check('GET /api/apps/mine: a caller whose roles bind nothing gets an '
+          'empty list and NO error (the catalogue is still there)',
+          rsp.media['ok'] and rsp.media['apps'] == []
+          and rsp.media['primary_role'] == ''
+          and rsp.media['unboundRoles'] == ['viewers'])
+
+    two = _who('sub-two', 'data-scientist', 'journalist',
+               username='demo-journalist')
+    rsp = _call(api2, 'on_get_mine', user=two)
+    mine = rsp.media
+    first_bound = next(r for r in mine['held_roles']
+                       if R.binding_apps(mine_mgr, r))
+    check('GET /api/apps/mine: two held roles — primary defaults to the '
+          'FIRST held role that has a binding; the rest are additional',
+          mine['ok'] and mine['held_roles'] == ['data-scientist', 'journalist']
+          and mine['primary_role'] == first_bound == 'data-scientist'
+          and mine['additional_roles'] == ['journalist'])
+    check('GET /api/apps/mine: the primary role\'s apps come FIRST, then '
+          "the additional role's; every app carries a route",
+          [a['via'] for a in mine['apps']][:1] == ['primary']
+          and {a['via'] for a in mine['apps']} == {'primary', 'additional'}
+          and all(a['route'] and a['removable'] for a in mine['apps'])
+          and [a['via'] for a in mine['apps']]
+          == sorted((a['via'] for a in mine['apps']), reverse=True))
+
+    rsp = _call(api2, 'on_post_mine', user=two,
+                body={'primary_role': 'operators'})
+    check('POST /api/apps/mine: a primary role the caller does NOT hold '
+          'is refused 400, naming the roles they do hold',
+          rsp.status.startswith('400') and not rsp.media['ok']
+          and rsp.media['held_roles'] == ['data-scientist', 'journalist'])
+    rsp = _call(api2, 'on_post_mine', user=two,
+                body={'primary_role': 'journalist'})
+    check('POST /api/apps/mine: switching the primary to a HELD role '
+          'reorders the list',
+          rsp.media['ok'] and rsp.media['primary_role'] == 'journalist'
+          and rsp.media['additional_roles'] == ['data-scientist']
+          and rsp.media['apps'][0]['role'] == 'journalist')
+
+    # ---- add / remove / restore round trip
+    hidden = rsp.media['apps'][0]['name']
+    rsp = _call(api2, 'on_post_mine', user=two, body={'remove': [hidden]})
+    check('POST /api/apps/mine {remove}: the app leaves the list, shows '
+          'under `removed`, and is offered back as a suggestion',
+          rsp.media['ok']
+          and hidden not in [a['name'] for a in rsp.media['apps']]
+          and hidden in [a['name'] for a in rsp.media['removed']]
+          and hidden in [s['name'] for s in rsp.media['suggestions']])
+    rsp = _call(api2, 'on_post_mine', user=two,
+                body={'add': ['app-topology-network']})
+    added = next((a for a in rsp.media['apps']
+                  if a['name'] == 'app-topology-network'), None)
+    check('POST /api/apps/mine {add}: an app NO role of theirs binds '
+          'joins the list marked via=added',
+          added is not None and added['via'] == 'added')
+    rsp = _call(api2, 'on_post_mine', user=two, body={'restore': [hidden]})
+    check('POST /api/apps/mine {restore}: the hidden app comes back via '
+          'its role, and `removed` is empty again',
+          rsp.media['ok'] and rsp.media['removed'] == []
+          and rsp.media['suggestions'] == []
+          and hidden in [a['name'] for a in rsp.media['apps']])
+    rsp = _call(api2, 'on_post_mine', user=two,
+                body={'add': ['not-a-real-app']})
+    check('POST /api/apps/mine: an unknown app name is refused 400 with '
+          'the known list',
+          rsp.status.startswith('400') and not rsp.media['ok']
+          and rsp.media['knownApps'])
+
+    # ---- D18-1: a person in a Polari row is a Keycloak sub and nothing else
+    pref_rows = R._rows(mine_mgr, R.PREFERENCE_TABLE)
+    bind_rows = R._rows(roles_mgr, R.BINDING_TABLE)
+    def _values(rows):
+        out = []
+        for row in rows:
+            out += [str(v) for v in vars(row).values()]
+        return out
+    blob = ' '.join(_values(pref_rows) + _values(bind_rows))
+    check('D18-1: the rows key the person by the Keycloak sub ALONE — no '
+          'username, e-mail or display name in any field',
+          pref_rows and 'demo-journalist' not in blob and '@' not in blob
+          and all(getattr(r, 'name', '') == getattr(r, 'sub', None)
+                  for r in pref_rows),
+          blob[:300])
+    check('D18-1: an admin binding records WHO by sub only',
+          all(getattr(r, 'updated_by', '') in ('', 'sub-admin')
+              for r in bind_rows))
+
     failed = [label for label, ok in _results if not ok]
     print(f'\n{len(_results) - len(failed)}/{len(_results)} checks '
           f'passed' + (f'; FAILED: {failed}' if failed else ''))

@@ -81,14 +81,17 @@
    "security_selftest"
   ],
   "custom": [
+   "custom/kc_admin",
    "custom/security_app_rows",
    "custom/security_audit_feed",
+   "custom/security_claims",
    "custom/security_facts",
    "custom/security_ledger",
    "custom/security_network_rows",
    "custom/security_notices",
    "custom/security_observe",
    "custom/security_os_rows",
+   "custom/security_people",
    "custom/security_proposals",
    "custom/security_ssh",
    "custom/security_threats",

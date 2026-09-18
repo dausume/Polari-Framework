@@ -65,6 +65,16 @@ class AppsAPI(treeObject):
                 suffix='permissions_my')
             add('/api/apps/permissions/profiles', self,
                 suffix='permissions_profiles')
+            # roles -> apps (his ask 2026-09-18): the apps a role
+            # needs, and one person's refinement of what their roles
+            # gave them. NOTE the falcon gotcha (ledger §54): a
+            # suffix with no matching responder makes add_route RAISE
+            # at boot — every suffix below has its on_<verb>_<suffix>.
+            add('/api/apps/roles', self, suffix='roles')
+            add('/api/apps/roles/{role}', self, suffix='role')
+            add('/api/apps/roles/{role}/suggested', self,
+                suffix='role_suggested')
+            add('/api/apps/mine', self, suffix='mine')
 
     # ---- helpers ----------------------------------------------------
 
@@ -204,6 +214,90 @@ class AppsAPI(treeObject):
             known['source'] = f'keycloak unreachable: {e}'
         response.media = {'ok': True, 'profiles': rows,
                           'knownGroups': known}
+
+    # ---- roles -> apps (his ask 2026-09-18) -------------------------
+
+    def _user_info(self, request):
+        ctx = getattr(request, 'context', None)
+        info = getattr(ctx, 'user_info', None)
+        return info if isinstance(info, dict) else None
+
+    def _status(self, result, ok_status='200 OK'):
+        code = int((result or {}).get('status') or 0)
+        return {400: '400 Bad Request', 401: '401 Unauthorized',
+                403: '403 Forbidden', 404: '404 Not Found',
+                }.get(code, '400 Bad Request' if not result.get('ok')
+                      else ok_status)
+
+    def on_get_roles(self, request, response):
+        """Every role -> apps binding, with each binding's SOURCE.
+        Readable by anyone: it says what a role needs, never who
+        holds it (membership lives in Keycloak)."""
+        from polariapps.custom.apps_roles import bindings
+        response.media = bindings(self.manager)
+
+    def on_post_role(self, request, response, role):
+        """Bind a role to an ordered list of apps. ADMIN ONLY
+        (ADMIN_ROLES) — a binding is institutional, so it is not a
+        thing a person changes for themselves; that is what
+        /api/apps/mine is for."""
+        from polariapps.custom.apps_roles import set_binding
+        from polariapps.objects.apps_permissions._shared import (
+            ADMIN_ROLES, caller_groups)
+        user_info = self._user_info(request)
+        if not user_info:
+            return self._refuse(
+                response, 'sign in first — binding a role to apps is '
+                'an administrator act', '401 Unauthorized')
+        groups, _sources = caller_groups(user_info)
+        if not (set(ADMIN_ROLES) & set(groups)):
+            return self._refuse(
+                response, 'administrators only (ADMIN_ROLES: '
+                + ', '.join(sorted(ADMIN_ROLES)) + ') — your own '
+                'view is POST /api/apps/mine', '403 Forbidden')
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        result = set_binding(
+            self.manager, role, (payload or {}).get('apps'),
+            source=(payload or {}).get('source', 'admin'),
+            by=str(user_info.get('sub') or ''),
+            notes=(payload or {}).get('notes', ''))
+        if not result.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = result
+
+    def on_get_role_suggested(self, request, response, role):
+        """What a role-play review says this role actually used —
+        offered, never bound (knobs-and-suggestions)."""
+        from polariapps.custom.apps_roles import suggested_for_role
+        result = suggested_for_role(self.manager, role)
+        if not result.get('ok'):
+            response.status = '400 Bad Request'
+        response.media = result
+
+    def on_get_mine(self, request, response):
+        """The signed-in person's apps: their primary role's first,
+        then their additional roles', then what they added — minus
+        what they hid, plus the restore suggestions."""
+        from polariapps.custom.apps_roles import my_apps
+        result = my_apps(self.manager, self._user_info(request))
+        if not result.get('ok'):
+            response.status = self._status(result)
+        response.media = result
+
+    def on_post_mine(self, request, response):
+        """{primary_role?, add?, remove?, restore?} — the person's own
+        refinement. The primary role must be one they HOLD."""
+        from polariapps.custom.apps_roles import update_my_apps
+        payload, err = self._payload(request)
+        if err:
+            return self._refuse(response, err)
+        result = update_my_apps(
+            self.manager, self._user_info(request), payload)
+        if not result.get('ok'):
+            response.status = self._status(result)
+        response.media = result
 
     def on_get_export(self, request, response):
         name = request.params.get('name', '')

@@ -1079,6 +1079,10 @@ class polariServer(treeObject):
             PolariAppDefinition, AppDeploymentPlan,
             # sep-7: per-app permission profiles.
             AppPermissionProfile,
+            # roles -> apps (his ask 2026-09-18): the apps a role
+            # needs, and one person's refinement of them (keyed by
+            # the Keycloak sub alone — D18-1).
+            RoleAppBinding, UserAppPreference,
             # App Store (appstore-1): installable shells, artifact
             # records, one-time enrollments, install receipts.
             AppShellDefinition, ShellArtifact, ShellEnrollment,
