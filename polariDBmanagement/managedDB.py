@@ -22,7 +22,7 @@
 from polariFiles.managedFiles import managedFile
 from polariFiles.dataChannels import *
 from sqlite3 import Error
-import os, json, sqlite3, sys
+import os, json, sqlite3, sys, time
 
 from polariDBmanagement.db_adapter import make_adapter
 from polariDBmanagement.keydb_cache import get_cache
@@ -250,7 +250,6 @@ class managedDatabase(managedFile):
         schema-stability OOPS adaptation) — never silent loss."""
         if className not in self.tables:
             return (False, 0, 'no table')
-        serializableTypes = (str, int, float, bool, bytes, type(None))
         try:
             dbConnection = self.adapter.connect()
             dbCursor = dbConnection.cursor()
@@ -258,6 +257,34 @@ class managedDatabase(managedFile):
                                                      className)
         except Exception as e:
             return (False, 0, f'{type(e).__name__}: {e}')
+        allCols, rows = self._buildClassRows(className, instances,
+                                             tableColumns)
+        try:
+            self._writeClassBatch(dbCursor, className, allCols, rows)
+            dbConnection.commit()
+            dbConnection.close()
+            self.cache.invalidateTable(
+                self.name, self._scopedCacheTable(className))
+            self._recordCleanSave(className)
+            return (True, len(rows), '')
+        except Exception as e:
+            try:
+                dbConnection.rollback()
+                dbConnection.close()
+            except Exception:
+                pass
+            return (False, 0, f'{type(e).__name__}: {e}')
+
+    def _buildClassRows(self, className, instances, tableColumns):
+        """Serialize one class's instances into (allCols, rows).
+
+        Pure Python — no database work at all — so the whole-tree
+        persist can do ALL of this BEFORE it opens its write
+        transaction. That is what keeps the transaction (and therefore
+        the window in which a reader is blocked) at a fraction of a
+        second even though building the rows for the whole tree takes
+        tens of seconds."""
+        serializableTypes = (str, int, float, bool, bytes, type(None))
         scope = self.instanceScope
         writeCols = [c for c in tableColumns
                      if c not in ('_branch_path', '_instance_id')]
@@ -299,29 +326,232 @@ class managedDatabase(managedFile):
                     treePath = None
                 values.append(treePath)
             rows.append(tuple(values))
+        return (allCols, rows)
+
+    def _writeClassBatch(self, dbCursor, className, allCols, rows):
+        """The DELETE (scoped) + executemany REPLACE pair. Raises on
+        failure; commits nothing — the caller owns the transaction."""
+        scope = self.instanceScope
+        if scope:
+            dbCursor.execute(
+                f'DELETE FROM {className} WHERE _instance_id = '
+                f'{self.adapter.placeholder}', (scope,))
+        else:
+            dbCursor.execute(f'DELETE FROM {className}')
+        if rows:
+            dbCursor.executemany(
+                self.adapter.replaceSQL(className, allCols), rows)
+
+    # ------------------------------------------------------------------
+    # §51 addendum 2 — ATOMIC whole-tree persist.
+    #
+    # persistTree is DELETE+REPLACE per class. With a commit per class
+    # the file spent the whole flush (~60 s on the home instance) in a
+    # state that was partly new and partly old, and — worse — a class
+    # that fell back to the row-by-row path was visibly EMPTY between
+    # its DELETE and its last INSERT. A container booting inside that
+    # window read the short state (`[DB] Restoring 2 instances of
+    # AppPermissionProfile` when three existed) and its own boot flush
+    # wrote the short state back. Rows died that way.
+    #
+    # The fix has three parts:
+    #   1. serialize every row OUTSIDE any transaction (_buildClassRows),
+    #   2. write the whole tree inside ONE transaction, so a reader sees
+    #      the old tree or the new tree and never a mixture,
+    #   3. publish a `polari_persist_state` marker, COMMITTED BEFORE the
+    #      transaction opens and cleared after it closes, so ANOTHER
+    #      process can tell a flush is in flight and decline to write
+    #      its own (older, possibly partial) reading back.
+    # ------------------------------------------------------------------
+
+    PERSIST_STATE_TABLE = 'polari_persist_state'
+
+    def ensurePersistStateTable(self):
+        """Create the marker table if absent. Never raises."""
         try:
-            if scope:
-                dbCursor.execute(
-                    f'DELETE FROM {className} WHERE _instance_id = '
-                    f'{self.adapter.placeholder}', (scope,))
-            else:
-                dbCursor.execute(f'DELETE FROM {className}')
-            if rows:
-                dbCursor.executemany(
-                    self.adapter.replaceSQL(className, allCols), rows)
-            dbConnection.commit()
-            dbConnection.close()
-            self.cache.invalidateTable(
-                self.name, self._scopedCacheTable(className))
-            self._recordCleanSave(className)
-            return (True, len(rows), '')
+            conn = self.adapter.connect()
+            conn.cursor().execute(
+                f'CREATE TABLE IF NOT EXISTS {self.PERSIST_STATE_TABLE} ('
+                'scope TEXT PRIMARY KEY, pid INTEGER, host TEXT, '
+                'started_at REAL, finished_at REAL, '
+                'classes INTEGER, rows INTEGER)')
+            conn.commit()
+            conn.close()
+            return True
         except Exception as e:
+            print(f'[DB] persist-state table unavailable ({e}) — the '
+                  f'flush still runs, without cross-process guarding',
+                  flush=True)
+            return False
+
+    def _persistStateScope(self):
+        return self.instanceScope or '(default)'
+
+    def readPersistState(self):
+        """The marker row, or None. Never raises."""
+        try:
+            conn = self.adapter.connect()
+            cur = conn.cursor()
+            cur.execute(
+                f'SELECT pid, host, started_at, finished_at, classes, '
+                f'rows FROM {self.PERSIST_STATE_TABLE} WHERE scope = '
+                f'{self.adapter.placeholder}', (self._persistStateScope(),))
+            row = cur.fetchone()
+            conn.close()
+        except Exception:
+            return None
+        if not row:
+            return None
+        return {'pid': row[0], 'host': row[1], 'started_at': row[2],
+                'finished_at': row[3], 'classes': row[4], 'rows': row[5]}
+
+    def persistInProgress(self, staleSeconds=600):
+        """Another live process's UNFINISHED persist, or None.
+
+        Our own pid never blocks us, and a marker older than
+        `staleSeconds` is treated as abandoned (a process killed
+        mid-flush must not wedge every later flush forever)."""
+        state = self.readPersistState()
+        if not state or state.get('finished_at'):
+            return None
+        if state.get('pid') == os.getpid():
+            return None
+        started = state.get('started_at') or 0
+        if (time.time() - started) > staleSeconds:
+            return None
+        return state
+
+    def markPersistStarted(self):
+        """Publish "a flush is in flight" — its own committed
+        transaction, so other processes can actually see it."""
+        try:
+            import socket
+            conn = self.adapter.connect()
+            conn.cursor().execute(
+                self.adapter.replaceSQL(
+                    self.PERSIST_STATE_TABLE,
+                    ['scope', 'pid', 'host', 'started_at',
+                     'finished_at', 'classes', 'rows']),
+                (self._persistStateScope(), os.getpid(),
+                 socket.gethostname(), time.time(), None, 0, 0))
+            conn.commit()
+            conn.close()
+            return True
+        except Exception:
+            return False
+
+    def markPersistFinished(self, classes=0, rows=0):
+        """Clear the in-flight marker and record what landed."""
+        try:
+            import socket
+            conn = self.adapter.connect()
+            cur = conn.cursor()
+            cur.execute(
+                f'SELECT started_at FROM {self.PERSIST_STATE_TABLE} '
+                f'WHERE scope = {self.adapter.placeholder}',
+                (self._persistStateScope(),))
+            row = cur.fetchone()
+            started = row[0] if row else time.time()
+            cur.execute(
+                self.adapter.replaceSQL(
+                    self.PERSIST_STATE_TABLE,
+                    ['scope', 'pid', 'host', 'started_at',
+                     'finished_at', 'classes', 'rows']),
+                (self._persistStateScope(), os.getpid(),
+                 socket.gethostname(), started, time.time(),
+                 classes, rows))
+            conn.commit()
+            conn.close()
+            return True
+        except Exception:
+            return False
+
+    def prepareClassBatch(self, className, instances):
+        """Serialize one class ready for the tree transaction.
+
+        Returns (ok, (allCols, rows), error). Does no writing, holds no
+        transaction — safe to call for every class up front."""
+        if className not in self.tables:
+            return (False, None, 'no table')
+        try:
+            conn = self.adapter.connect()
+            tableColumns = self.adapter.tableColumns(conn, className)
+            conn.close()
+        except Exception as e:
+            return (False, None, f'{type(e).__name__}: {e}')
+        try:
+            allCols, rows = self._buildClassRows(className, instances,
+                                                 tableColumns)
+        except Exception as e:
+            return (False, None, f'{type(e).__name__}: {e}')
+        return (True, (allCols, rows), '')
+
+    def writePreparedBatches(self, prepared):
+        """Write every prepared class in ONE transaction.
+
+        `prepared` is an ordered list of (className, allCols, rows).
+        Each class gets a SAVEPOINT, so one bad class rolls back to
+        exactly its own rows (leaving that class's OLD rows in place
+        for the row-by-row fallback to replace) without losing the
+        rest of the tree.
+
+        Returns (ok, written, failed, rowsWritten):
+          ok           False = the transaction itself never landed;
+                       the caller must fall back to the legacy
+                       per-class path for EVERYTHING.
+          written      [className, ...] that committed
+          failed       {className: error} to retry row-by-row
+          rowsWritten  rows in `written`
+        """
+        written, failed, rowsWritten = [], {}, 0
+        try:
+            conn = self.adapter.connect()
             try:
-                dbConnection.rollback()
-                dbConnection.close()
+                conn.isolation_level = None   # sqlite: we drive BEGIN
             except Exception:
                 pass
-            return (False, 0, f'{type(e).__name__}: {e}')
+            cur = conn.cursor()
+            cur.execute(self.adapter.beginTransactionSQL)
+        except Exception as e:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            return (False, [], {'*': f'{type(e).__name__}: {e}'}, 0)
+        for className, allCols, rows in prepared:
+            savepoint = 'polari_cls'
+            try:
+                cur.execute(f'SAVEPOINT {savepoint}')
+                self._writeClassBatch(cur, className, allCols, rows)
+                cur.execute(f'RELEASE {savepoint}')
+                written.append(className)
+                rowsWritten += len(rows)
+            except Exception as e:
+                failed[className] = f'{type(e).__name__}: {e}'
+                try:
+                    cur.execute(f'ROLLBACK TO {savepoint}')
+                    cur.execute(f'RELEASE {savepoint}')
+                except Exception:
+                    pass
+        try:
+            cur.execute('COMMIT')
+            conn.close()
+        except Exception as e:
+            try:
+                conn.rollback()
+                conn.close()
+            except Exception:
+                pass
+            return (False, [], {'*': f'commit failed: '
+                                     f'{type(e).__name__}: {e}'}, 0)
+        for className in written:
+            try:
+                self.cache.invalidateTable(
+                    self.name, self._scopedCacheTable(className))
+            except Exception:
+                pass
+            self._recordCleanSave(className)
+        return (True, written, failed, rowsWritten)
 
     def _recordCleanSave(self, className):
         """Failure-isolated stabilization hook."""

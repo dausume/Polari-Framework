@@ -15,10 +15,30 @@ class SqliteAdapter(DBAdapter):
 
     dialect = 'sqlite'
     placeholder = '?'
+    #: IMMEDIATE takes the write lock at BEGIN rather than on the first
+    #: write, so the whole-tree persist either gets the file or fails
+    #: fast — it can never get half way and then lose a lock race.
+    beginTransactionSQL = 'BEGIN IMMEDIATE'
 
     def __init__(self, dbName, dbDir=None):
         self.dbName = dbName
         self.dbDir = dbDir
+
+    @staticmethod
+    def _busyTimeoutMs():
+        """How long a reader waits for a writer before giving up.
+
+        §51 addendum 2: the persist now holds ONE transaction over the
+        whole tree, so a concurrent reader (a booting container sharing
+        the volume) must WAIT for it instead of erroring out with
+        'database is locked'. The write window is a fraction of a
+        second — 30 s is a large margin. Knob:
+        POLARI_SQLITE_BUSY_TIMEOUT_MS."""
+        raw = os.environ.get('POLARI_SQLITE_BUSY_TIMEOUT_MS', '')
+        try:
+            return max(0, int(raw))
+        except (TypeError, ValueError):
+            return 30000
 
     @property
     def dbFilePath(self):
@@ -27,7 +47,13 @@ class SqliteAdapter(DBAdapter):
         return self.dbName + '.db'
 
     def connect(self):
-        return sqlite3.connect(self.dbFilePath)
+        conn = sqlite3.connect(self.dbFilePath)
+        try:
+            conn.execute('PRAGMA busy_timeout = %d'
+                         % self._busyTimeoutMs())
+        except Exception:
+            pass
+        return conn
 
     def ensureDatabase(self):
         if self.dbDir:

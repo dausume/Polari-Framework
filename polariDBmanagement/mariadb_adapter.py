@@ -49,6 +49,8 @@ class MariaDBAdapter(DBAdapter):
 
     dialect = 'mariadb'
     placeholder = '%s'
+    #: InnoDB has no IMMEDIATE; row locks are taken as the writes run.
+    beginTransactionSQL = 'START TRANSACTION'
 
     def __init__(self, dbName=None):
         # dbName (e.g. managerObject_DB) is kept for logs; the schema

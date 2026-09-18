@@ -28,6 +28,11 @@ class DBAdapter:
     dialect = 'abstract'
     #: DBAPI paramstyle token used when building parameterized SQL.
     placeholder = '?'
+    #: Statement that opens an explicit write transaction. The
+    #: whole-tree persist drives BEGIN/COMMIT itself so readers see the
+    #: old tree or the new tree, never a half-written one (§51 addendum
+    #: 2). Dialects that need a write lock taken UP FRONT say so here.
+    beginTransactionSQL = 'BEGIN'
 
     def connect(self):
         raise NotImplementedError

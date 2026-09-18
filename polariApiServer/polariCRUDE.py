@@ -67,17 +67,45 @@ class polariCRUDE(treeObject):
     #created by that union, we see if a dataSet with those variables exists.  If it
     #does exist, we add it.  Else, we create a new dataSet with those variables.
     def getUsersObjectAccessPermissions(self, userInfo):
-        #Pass back the minimal permissions to the object allowed for people who
-        #have yet to be able to login.
+        """The LEGACY access matrix — NOT the permission system.
+
+        The real, per-profile gate is
+        `accessControl/app_permissions_gate.py` (`crude_permission_gate`,
+        called at the top of every handler here): it resolves the
+        caller's Keycloak groups against the published
+        `AppPermissionProfile` rows and is the thing that may refuse a
+        request. This matrix predates it and only answers "which verbs
+        exist at all for this caller".
+
+        §51 addendum 2 — it used to be INVERTED: an anonymous caller got
+        C/R/U/D/E while an authenticated one got only R/E, so a CRUDE
+        DELETE carrying a valid admin bearer answered 405 while the same
+        DELETE with no bearer at all succeeded. Both branches now return
+        the same open matrix.
+
+        INVARIANT: this legacy matrix must NEVER grant an anonymous
+        caller more than an authenticated one. Tightening it is
+        welcome — but tighten the authenticated branch only by
+        tightening the anonymous branch at least as much, and put real
+        per-identity rules in the gate, not here.
+        """
+        openMatrix = (
+            {'C': {self.apiObject: "*"}, 'R': {self.apiObject: "*"},
+             'U': {self.apiObject: "*"}, 'D': {self.apiObject: "*"},
+             'E': {self.apiObject: "*"}},
+            {'C': ([], {self.apiObject: "*"}),
+             'R': ([], {self.apiObject: "*"}),
+             'U': ([], {self.apiObject: "*"}),
+             'D': ([], {self.apiObject: "*"}),
+             'E': ([], {self.apiObject: "*"})})
         if(userInfo == None):
-            #TODO For testing temporarily just give universal access, else give
-            #minimal access in this case.
-            #(self.objTyping.basePermissionsDict, self.objTyping.baseAccessDict)
-            return {'C':{self.apiObject:"*"}, 'R':{self.apiObject:"*"}, 'U':{self.apiObject:"*"}, 'D':{self.apiObject:"*"}, 'E':{self.apiObject:"*"}}, {'C':([],{self.apiObject:"*"}),'R':([],{self.apiObject:"*"}),'U':([],{self.apiObject:"*"}), 'D':([],{self.apiObject:"*"}), 'E':([],{self.apiObject:"*"})}
-        #Get the user and compile a permissions dictionary for the object based on
-        #the permissions tied to the user.
-        else:
-            return {'R':{self.apiObject:"*"}, 'E':{self.apiObject:"*"}}, {'R':([],{self.apiObject:"*"}), 'E':([],{self.apiObject:"*"})}
+            #Anonymous. Held open deliberately (a dev instance with no
+            #identity provider must still be usable); the gate is what
+            #refuses in a deployment.
+            return openMatrix
+        #Authenticated. At least what anonymous gets — see the
+        #invariant above.
+        return openMatrix
 
     def _guard_purged(self, response):
         """Return True (and set 404) if this object type has been purged."""
@@ -162,14 +190,14 @@ class polariCRUDE(treeObject):
         if not fieldFilter:
             return instances
         try:
-            #: dict(...) is LOAD-BEARING. The query engine narrows by
-            #: pop()-ing non-matches out of the dict it is handed, and
-            #: getListOfInstancesByAttributes hands back
-            #: self.objectTables[className] ITSELF when the access
-            #: query is "*" — filtering in place would delete real
-            #: instances from the in-memory object tree. Copy first;
-            #: the values are the same object references, so nothing
-            #: else changes.
+            #: dict(...) is belt-and-braces. The query engine narrows
+            #: by pop()-ing non-matches out of the dict it is handed.
+            #: getListOfInstancesByAttributes now always hands back a
+            #: COPY of the class table (§51 addendum 2 — it used to
+            #: hand back self.objectTables[className] ITSELF, so a
+            #: query deleted real instances from the live tree), but
+            #: this call goes straight to the query engine, so it
+            #: copies for itself.
             return self.manager.dictAttributeRequirementsForQuery(
                 className=self.apiObject, queryDictSegment=fieldFilter,
                 remainingInstancesDict=dict(instances))

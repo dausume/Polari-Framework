@@ -421,6 +421,10 @@ class managerObject:
             # Skip variant side tables
             if '_variant' in tName:
                 continue
+            # …and the persist bookkeeping table (§51 addendum 2) —
+            # it holds no objects, only "is a flush in flight".
+            if tName == 'polari_persist_state':
+                continue
 
             # Check if this table maps to a known class
             if tName not in self.objectTypingDict:
@@ -573,6 +577,24 @@ class managerObject:
         if self.db is None:
             print('[DB] Cannot persist tree — no database initialized.', flush=True)
             return
+        # §51 addendum 2 — BOOT SAFETY. Two processes share one sqlite
+        # file during a rolling update. If ANOTHER process is mid-flush,
+        # whatever this process read is at best equally old and at worst
+        # a partial reading of that very flush; writing it back is how
+        # rows died. Decline, honestly and loudly. Our own pid never
+        # blocks us, and an abandoned marker ages out.
+        if hasattr(self.db, 'persistInProgress'):
+            try:
+                inFlight = self.db.persistInProgress()
+            except Exception:
+                inFlight = None
+            if inFlight:
+                print(f'[DB] Persist DECLINED — pid {inFlight.get("pid")} '
+                      f'on {inFlight.get("host")} is flushing this file '
+                      f'(started {inFlight.get("started_at")}). Writing '
+                      f'this tree back could overwrite newer rows with '
+                      f'an older reading.', flush=True)
+                return
         savedCount = 0
         skippedCount = 0
         errorCount = 0
@@ -610,7 +632,14 @@ class managerObject:
             + feature_mods
         classesTotal = sum(len(v) for v in groups.values())
         classesDone = 0
-        # ---- flush: one transaction per class, module by module ----
+        # ---- flush the whole tree in ONE transaction, when the DB
+        # ---- layer supports it (§51 addendum 2). Falls through to the
+        # ---- historical per-class path for any db double that does not.
+        if hasattr(self.db, 'writePreparedBatches'):
+            return self._persistTreeAtomic(tables, groups, module_order,
+                                           classesTotal, skippedCount,
+                                           progress)
+        # ---- legacy: one transaction per class, module by module ----
         for module in module_order:
             for className in sorted(groups[module]):
                 instances = list(tables[className].values())
@@ -654,6 +683,119 @@ class managerObject:
         print(f'[DB] Persisted {savedCount} instances to database '
               f'({classesDone} class batches, {skippedCount} skipped '
               f'— no table, {errorCount} errors{note})', flush=True)
+
+    def _persistTreeAtomic(self, tables, groups, module_order,
+                           classesTotal, skippedCount, progress):
+        """The whole tree in ONE transaction (§51 addendum 2).
+
+        Three phases, and the order of them IS the fix:
+
+          1. SERIALIZE every class outside any transaction. This is the
+             slow part (row building, tree-path serialization) — tens of
+             seconds on a full instance — and it holds no lock.
+          2. Publish the `polari_persist_state` marker (its own tiny
+             committed write) so another process can see a flush is in
+             flight, then write every class inside ONE transaction and
+             commit. A reader sees the whole old tree or the whole new
+             tree; the window is the write, not the serialization.
+          3. Clear the marker, then retry any class the batch refused
+             through the row-by-row path — which carries the
+             schema-stability OOPS adaptation and cannot run inside our
+             transaction (it opens its own connections).
+        """
+        t0 = time.time()
+        savedCount = 0
+        errorCount = 0
+        classesDone = 0
+        prepared = []
+        prepFailed = {}
+        for module in module_order:
+            for className in sorted(groups[module]):
+                instances = list(tables[className].values())
+                ok, payload, err = self.db.prepareClassBatch(className,
+                                                             instances)
+                if ok:
+                    allCols, rows = payload
+                    prepared.append((className, allCols, rows, module))
+                else:
+                    prepFailed[className] = err
+        prepSeconds = time.time() - t0
+
+        self.db.ensurePersistStateTable()
+        self.db.markPersistStarted()
+        # The marker stays up until EVERYTHING (transaction AND any
+        # row-by-row fallback) is done — the fallback is exactly the
+        # non-atomic stretch another process must not read and write
+        # back. The finally clears it even if we die on the way.
+        ok = False
+        failed = {}
+        fallbackClasses = []
+        writeSeconds = 0.0
+        try:
+            tWrite = time.time()
+            ok, written, failed, rowsWritten = \
+                self.db.writePreparedBatches(
+                    [(c, cols, rows) for c, cols, rows, _m in prepared])
+            writeSeconds = time.time() - tWrite
+
+            if ok:
+                savedCount = rowsWritten
+                fallbackClasses = sorted(failed)
+            else:
+                # The transaction itself never landed — nothing was
+                # written, so every class goes down the row-by-row path
+                # rather than being silently skipped.
+                print(f'[DB] Tree transaction FAILED ({failed}) — '
+                      f'falling back to the per-class path', flush=True)
+                fallbackClasses = [c for c, _cols, _rows, _m in prepared]
+            fallbackClasses += sorted(prepFailed)
+
+            for className in fallbackClasses:
+                try:
+                    self.db.deleteAllFromTable(className)
+                except Exception as e:
+                    print(f'[DB] Fallback clear of {className} failed: '
+                          f'{e}', flush=True)
+                for instanceId, instance in tables.get(className,
+                                                       {}).items():
+                    try:
+                        self.db.saveInstanceInDB(instance)
+                        savedCount += 1
+                    except Exception as e:
+                        errorCount += 1
+                        print(f'[DB] Error saving {className}'
+                              f'(id={instanceId}): {e}', flush=True)
+        finally:
+            self.db.markPersistFinished(classes=len(prepared),
+                                        rows=savedCount)
+
+        if progress is not None:
+            for className, _cols, rows, module in prepared:
+                classesDone += 1
+                try:
+                    progress({
+                        'module': module,
+                        'className': className,
+                        'rows': len(rows),
+                        'batched': className not in fallbackClasses,
+                        'batchError': failed.get(className, '')
+                        if ok else 'tree transaction failed',
+                        'classesDone': classesDone,
+                        'classesTotal': classesTotal,
+                        'rowsDone': savedCount,
+                    })
+                except Exception:
+                    pass
+
+        note = (f'; {len(fallbackClasses)} classes fell back to '
+                f'row-by-row: {fallbackClasses[:5]}'
+                if fallbackClasses else '')
+        print(f'[DB] Persisted {savedCount} instances to database in ONE '
+              f'transaction ({len(prepared)} classes, {skippedCount} '
+              f'skipped — no table, {errorCount} errors{note}) — '
+              f'serialize {prepSeconds:.2f}s, write+commit '
+              f'{writeSeconds:.2f}s (the window a reader could see a '
+              f'partial tree)', flush=True)
 
     def identifySeedDBIds(self):
         """Identify DB rows that match runtime seed instances by property fingerprinting.
@@ -1674,11 +1816,22 @@ class managerObject:
     def getListOfInstancesByAttributes(self, className, attributeQueryDict="*"):
         if(not className in self.objectTables.keys()):
             return {}
+        #§51 addendum 2 — dict(...) is LOAD-BEARING, twice over.
+        #The query engine narrows by pop()-ing the non-matches out of
+        #the dict it is handed. This method used to hand it
+        #self.objectTables[className] ITSELF, so *resolving a query*
+        #permanently deleted every non-matching row from the live
+        #object tree: a CRUDE DELETE resolving its target by
+        #{"name": "x"} emptied the whole class (every sibling gone
+        #from the next GET, and gone from disk on the next
+        #persistTree). That is how the three demo AppPermissionProfile
+        #rows were destroyed. The "*" branch is copied for the same
+        #reason — callers narrow what they get back.
         allClassInstancesDict = self.objectTables[className]
-        remainingInstances = allClassInstancesDict
+        remainingInstances = dict(allClassInstancesDict)
         eliminatedInstances = {}
         if(attributeQueryDict == "*"):
-            return allClassInstancesDict
+            return dict(allClassInstancesDict)
         elif(type(attributeQueryDict).__name__ == "list" or type(attributeQueryDict).__name__ == "polariList"):
             remainingInstances = self.listConditionalRequirementsForQuery(className=className, comboMethod="AND",queryListSegment=attributeQueryDict, remainingInstancesDict=remainingInstances)
         elif(type(attributeQueryDict).__name__ == "dict"):
