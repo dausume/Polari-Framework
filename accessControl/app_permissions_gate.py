@@ -72,6 +72,19 @@ def crude_permission_gate(manager, request, response, verb,
                                    roleplay=getattr(getattr(request, 'context', None), 'roleplay', '') or '')
             except Exception:
                 pass
+            # ct-1 (design §3): the CRUDE seam of the causal map. `touch` is the SCOPE RULE — it answers True
+            # only once this chain has reached the armed TraceTarget's class — and the edge that reached it is
+            # the first thing recorded, so the map says what gets TO the target as well as what it reaches.
+            # A no-op with nothing armed; never raises into the gate.
+            try:
+                from security.custom.security_trace import record_edge, touch
+                if touch(manager, class_name, verb):
+                    from accessControl.cause_context import current_cause
+                    entry = str((current_cause() or {}).get('entry_ref') or 'unknown')
+                    record_edge(manager, 'endpoint:%s' % entry,
+                                'object:%s:%s' % (class_name, verb), 'crude')
+            except Exception:
+                pass
         if mode == 'off':
             return True
         if 'AppPermissionProfile' not in tables:

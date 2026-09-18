@@ -15,6 +15,7 @@
 from functools import wraps
 from polariDataTyping.polyTyping import *
 from objectTreeDecorators import TREE_OBJECT_INTERNAL_VARS
+import objectTreeDecorators as _otd      # ct-1: the module-level trace-armed flag lives there (one global read)
 from polariFiles.managedFiles import *
 from polariFiles.managedExecutables import *
 from polariNetworking.defineLocalSys import isoSys
@@ -668,6 +669,21 @@ class managerObject:
             d['persistGeneration'] = 0
         return d
 
+    # ct-1 (CAUSAL_TRACE_OBJECT_FLOW_DESIGN.md §3) — the CREATE and DELETE seams of the effect journal.
+    # Guarded by the same module-level flag `treeObject.__setattr__` reads, so an instance with nothing armed
+    # pays ONE global read per create/delete. The recorder never raises and is a no-op when the chain is not
+    # traced; `touch` is what makes a chain traced when the class IS the target.
+    def _traceEffect(self, className, instanceId, verb):
+        if not _otd._TRACE_ARMED:
+            return
+        try:
+            from security.custom.security_trace import record_effect, touch
+            if className == _otd._TRACE_CLASS:
+                touch(self, className, verb)
+            record_effect(self, className, instanceId, verb)
+        except Exception:
+            pass
+
     def noteTreeMutation(self, className=None, instanceId=None):
         """Record that the tree changed. A create/update also CANCELS a
         tombstone for the same key — an id that came back is live."""
@@ -676,7 +692,9 @@ class managerObject:
             d['persistGeneration'] += 1
             if className is not None and instanceId is not None:
                 d['deletedSinceSnapshot'].discard((className, instanceId))
-            return d['persistGeneration']
+            gen = d['persistGeneration']
+        self._traceEffect(className, instanceId, 'create')
+        return gen
 
     def noteTreeDeletion(self, className, instanceId):
         """Record a removal. This is the tombstone the flush honours."""
@@ -684,7 +702,30 @@ class managerObject:
         with d['persistLock']:
             d['persistGeneration'] += 1
             d['deletedSinceSnapshot'].add((className, instanceId))
-            return d['persistGeneration']
+            gen = d['persistGeneration']
+        self._traceEffect(className, instanceId, 'delete')
+        return gen
+
+    def _traceDeleteCascade(self, className, nodePolariId, instancesDeleted, migratedInstances):
+        """ct-1: `deleteTreeNode` already computes the whole cascade (`instancesDeleted`, `migratedInstances`);
+        each one becomes a journal row under the SAME cause as the delete that started it (design §3). The node
+        the caller asked for is already journaled by `noteTreeDeletion` and is not repeated here."""
+        if not _otd._TRACE_ARMED:
+            return
+        try:
+            from security.custom.security_trace import record_effect
+            for inst in (instancesDeleted or []):
+                ident = str(getattr(inst, 'id', inst) or '')
+                if ident and ident != str(nodePolariId):
+                    record_effect(self, getattr(inst, '__class__', type(inst)).__name__
+                                  if not isinstance(inst, str) else className, ident, 'delete')
+            for inst in (migratedInstances or []):
+                ident = str(getattr(inst, 'id', inst) or '')
+                if ident:
+                    record_effect(self, getattr(inst, '__class__', type(inst)).__name__
+                                  if not isinstance(inst, str) else className, ident, 'migrate')
+        except Exception:
+            pass
 
     def treeGeneration(self):
         """The current mutation generation — a flush compares the value
@@ -1484,6 +1525,7 @@ class managerObject:
             if(deletePath == None):
                 # Simply remove from objectTables
                 del self.objectTables[className][nodePolariId]
+                self._traceDeleteCascade(className, nodePolariId, instancesDeleted, migratedInstances)
                 return (instancesDeleted, migratedInstances)
 
             deleteData = (instToDelete, tupToDelete, deletePath)
@@ -1585,6 +1627,9 @@ class managerObject:
                         shortestPath = outPath
                         shortestPathLength = len(outPath)
                 migratedInstances = self.migrateTreeNode(originalPath=mainKey,newPath=shortestPath,migratedInstances=migratedInstances)
+        if(startDelete == True):
+            # ct-1: the cascade this delete caused, journaled under the same cause (design §3).
+            self._traceDeleteCascade(className, nodePolariId, instancesDeleted, migratedInstances)
         return (instancesDeleted, migratedInstances)
 
     #Migration of a tree node should only occur as a part of the deletion process,

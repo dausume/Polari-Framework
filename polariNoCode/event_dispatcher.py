@@ -148,6 +148,36 @@ class EventDispatcher:
                 return True
         return False
 
+    def _trace_edges(self, trigger, status, source_kind, source_ref):
+        """ct-1 (design §3): the two edges a firing makes — WHAT REACHED the trigger, and WHAT THE TRIGGER RAN
+        and as whom. Lazy import, never raises, and a complete no-op unless a `TraceTarget` is armed and this
+        chain is traced. `touch` is here too because a trigger chain can start on a tick, where no CRUDE gate
+        saw the target class at all."""
+        try:
+            from security.custom.security_trace import record_edge, touch
+        except Exception:
+            return
+        try:
+            name = getattr(trigger, 'name', '')
+            src = str(source_ref or '')
+            if source_kind == 'object':
+                parts = src.split(':')
+                cls = parts[0] if parts else ''
+                verb = parts[-1] if len(parts) > 2 else 'update'
+                touch(self.manager, cls, verb)
+                cause = 'object:%s:%s' % (cls, verb)
+            elif source_kind == 'event':
+                cause = 'event:%s' % src
+            else:
+                cause = '%s:%s' % (source_kind or 'schedule', src)
+            record_edge(self.manager, cause, 'event:trigger:%s' % name, 'trigger-fire')
+            if status == 'fired':
+                record_edge(self.manager, 'event:trigger:%s' % name,
+                            'solution:%s' % getattr(trigger, 'solution_name', ''), 'solution-run',
+                            run_as=str(getattr(trigger, 'run_as', 'definer') or 'definer'))
+        except Exception:
+            pass
+
     def _record(self, trigger, status, source_kind, source_ref, occurrence_key,
                 depth, execution_id='', outcome=None, error=''):
         # ct-0: which chain this firing belongs to, and which cause node
@@ -165,6 +195,7 @@ class EventDispatcher:
             'depth': depth, 'outcome_json': json.dumps(outcome or {}, default=str)[:4000],
             'error': str(error)[:1000],
         }, depth=depth, notify=False)
+        self._trace_edges(trigger, status, source_kind, source_ref)
         if status == 'fired':
             trigger.last_fired = row.fired_at
             trigger.fire_count = int(getattr(trigger, 'fire_count', 0) or 0) + 1

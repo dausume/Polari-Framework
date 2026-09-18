@@ -720,13 +720,302 @@ def _owned_checks(api, O, _Res, _types, check):
         os.environ.clear(); os.environ.update(old_env)
 
 
+def _trace_checks(api, _Res, _types, check):
+    """ct-1 — CAUSAL TRACING: the one armed target, the causal map, the effect journal.
+
+    Everything runs against a manager DOUBLE with a temporary knob file and dev posture, exactly as the observe
+    checks do: `security_observe._new_row` keeps plain rows in `_FALLBACK` when the manager cannot construct a
+    tree object, and `_all_rows` answers them, so the model is exercised end to end without a server."""
+    import os
+    import tempfile
+    from accessControl import cause_context as CC
+    from security.custom import security_trace as T
+
+    class _M:
+        def __init__(self):
+            self.objectTables = {'TraceTarget': {}, 'CausalEdge': {}, 'WriteJournalEntry': {},
+                                 'SecurityEvent': {}, 'OwnedClassPolicy': {}}
+            self.persistTree = lambda: None
+
+        def noteTreeDeletion(self, className, instanceId):
+            return 0
+
+    class _Req:
+        def __init__(self, ui=None, media=None, **params):
+            self.params = params
+            self.media = media or {}
+            self.context = _types.SimpleNamespace(user_info=ui, roleplay='')
+
+    SUB = 'dddddddd-4444-4444-8444-dddddddddddd'
+    admin = {'sub': SUB, 'roles': ['polari-admin'], 'raw_claims': {'groups': []}}
+    old_env = dict(os.environ)
+    with tempfile.TemporaryDirectory() as td:
+        try:
+            os.environ['POLARI_TRACE_KNOB'] = os.path.join(td, 'trace.json')
+            os.environ['POLARI_OBSERVE_KNOB'] = os.path.join(td, 'observe.json')
+            os.environ['POLARI_PERSIST_DEBOUNCE_SECONDS'] = '0'
+            os.environ['POLARI_POSTURE'] = 'production'
+            T._STATE.update({'armed': False, 'name': '', 'class_name': '', 'resumed': False,
+                             'stopped_name': '', 'stopped_until': 0.0})
+            T._TRACED.clear(); T._CREATED.clear()
+            m = _M()
+            prod = T.arm(m, 'Ballot', user_info=admin)
+            check('ct-1: PRODUCTION arms nothing — the refusal names the rule (his ruling 2026-09-18: tracing '
+                  'does not occur in production, only the finalized posture rows derived from it)',
+                  prod['ok'] is False and 'dev-posture' in prod['refusal'] and T._targets(m) == []
+                  and T.tracing_enabled() is False, prod.get('refusal'))
+
+            os.environ['POLARI_POSTURE'] = 'dev'
+            a1 = T.arm(m, 'Ballot', user_info=admin)
+            a2 = T.arm(m, 'Recipe', user_info=admin)
+            import objectTreeDecorators as _otd
+            check('ct-1: arming one class works, records the arming `sub` alone (D18-1) and flips the '
+                  '__setattr__ seam on; a SECOND arm while one is active is REFUSED naming the active one',
+                  a1['ok'] and a1['target']['class_name'] == 'Ballot' and a1['target']['started_by'] == SUB
+                  and _otd._TRACE_ARMED is True and _otd._TRACE_CLASS == 'Ballot'
+                  and a2['ok'] is False and 'already armed: Ballot' in a2['refusal']
+                  and len(T._targets(m)) == 1, a2.get('refusal'))
+
+            # ---- THE SCOPE RULE: a chain that never touches the target writes nothing
+            tok = CC.root_cause('api', 'PUT /api/Recipe/{id}', actor=SUB)
+            try:
+                traced_other = T.touch(m, 'Recipe', 'update')
+                T.record_edge(m, 'endpoint:PUT /api/Recipe/{id}', 'object:Recipe:update', 'crude')
+                T.record_effect(m, 'Recipe', 'r-1', 'update', ['title'])
+            finally:
+                CC.pop_cause(tok)
+            check('ct-1 THE SCOPE RULE: a chain on ANOTHER class is not traced and writes nothing — neither '
+                  'ledger, no counter moved (the cause is still minted; it is simply ignored)',
+                  traced_other is False and T.edges(m) == [] and T.journal(m) == []
+                  and T.status(m)['target']['traces_opened'] == 0, (len(T.edges(m)), len(T.journal(m))))
+
+            # ---- counted, deduped, and the budget that disarms itself
+            tok = CC.root_cause('api', 'PUT /api/Ballot/{id}', actor=SUB)
+            try:
+                traced = T.touch(m, 'Ballot', 'update')
+                for _ in range(3):
+                    T.record_edge(m, 'endpoint:PUT /api/Ballot/{id}', 'object:Ballot:update', 'crude')
+                T.record_edge(m, 'object:Ballot:update', 'event:trigger:tally', 'trigger-fire')
+                over = T.record_edge(m, 'event:trigger:tally', 'solution:tally-votes', 'solution-run',
+                                     run_as='definer')
+                after = T.record_edge(m, 'object:Ballot:update', 'event:topic:Ballot', 'ws-publish')
+            finally:
+                CC.pop_cause(tok)
+            rows = {e['name']: e for e in T.edges(m)}
+            check('ct-1: edges are COUNTED and never duplicated — the same crossing three times is ONE row with '
+                  'count 3 — and the chain is traced from the first touch of the target class',
+                  traced is True and len(rows) == 4 and over is not None and after is not None
+                  and rows['endpoint:PUT /api/Ballot/{id}|object:Ballot:update|crude']['count'] == 3
+                  and rows['object:Ballot:update|event:trigger:tally|trigger-fire']['count'] == 1
+                  and rows['event:trigger:tally|solution:tally-votes|solution-run']['run_as'] == 'definer'
+                  and rows['endpoint:PUT /api/Ballot/{id}|object:Ballot:update|crude']['sample_trace_id'],
+                  sorted(rows))
+            T.disarm(m, 'manual')
+
+            # ---- THE BUDGET RULE, on its own target: the first hit disarms, states why, and is not silent
+            mb = _M()
+            T.arm(mb, 'Ballot', max_edges=2, user_info=admin)
+            tok = CC.root_cause('api', 'PUT /api/Ballot/{id}', actor=SUB)
+            try:
+                T.touch(mb, 'Ballot', 'update')
+                T.record_edge(mb, 'endpoint:PUT /api/Ballot/{id}', 'object:Ballot:update', 'crude')
+                T.record_edge(mb, 'object:Ballot:update', 'event:trigger:tally', 'trigger-fire')
+                hit = T.record_edge(mb, 'event:trigger:tally', 'solution:tally-votes', 'solution-run')
+                nxt = T.record_edge(mb, 'object:Ballot:update', 'event:topic:Ballot', 'ws-publish')
+            finally:
+                CC.pop_cause(tok)
+            target = T.status(mb)['coverage'][0]
+            ev = [e for e in O_events(mb) if e['control'] == 'trace']
+            check('ct-1 THE BUDGET RULE: the third edge hits max_edges=2 — the target DISARMS itself, stamps '
+                  'stopped_because=budget-edges, writes ONE SecurityEvent, and every write declined afterwards '
+                  'inside the window increments `dropped` (2: the one that hit it and the one after)',
+                  hit is None and nxt is None and T.status(mb)['armed'] is False
+                  and target['stopped_because'] == 'budget-edges' and target['active'] is False
+                  and target['dropped'] == 2 and target['edges_written'] == 2 and len(T.edges(mb)) == 2
+                  and len(ev) == 1 and ev[0]['count'] == 1 and _otd._TRACE_ARMED is False,
+                  (target, [e['name'] for e in ev]))
+
+            # ---- the effect journal, the anonymised rule, and clearing on the next arm
+            m2 = _M()
+            T.arm(m2, 'Ballot', user_info=admin)
+            tok = CC.root_cause('api', 'PUT /api/Ballot/{id}', actor=SUB)
+            try:
+                T.touch(m2, 'Ballot', 'update')
+                T.record_effect(m2, 'Ballot', 'b-1', 'update', ['choice'])
+                T.record_effect(m2, 'Ballot', 'b-2', 'delete')
+                trace_id = CC.current_cause()['trace_id']
+            finally:
+                CC.pop_cause(tok)
+            jr = T.journal(m2)
+            check('ct-1 LEDGER B: a local write under a traced chain journals class, verb, instance, the field '
+                  'NAMES (never a value), the trace id, the door it came from, origin=local and the target',
+                  len(jr) == 2 and jr[0]['className'] == 'Ballot' and jr[0]['verb'] == 'update'
+                  and jr[0]['objectId'] == 'b-1' and jr[0]['fieldsChanged'] == '["choice"]'
+                  and jr[0]['traceId'] == trace_id and jr[0]['causeRef'] == 'PUT /api/Ballot/{id}'
+                  and jr[0]['origin'] == 'local' and jr[0]['actor'] == SUB and jr[0]['target'] == 'Ballot'
+                  and T.journal(m2, trace_id='nope') == [], jr)
+            from security.objects.security.OwnedClassPolicy import OwnedClassPolicy as _OCP
+            from security.custom.security_observe import _new_row as _nr
+            _nr(m2, m2.objectTables, 'OwnedClassPolicy', _OCP,
+                {'name': 'Ballot', 'class_name': 'Ballot', 'enabled': True, 'anonymised': True})
+            tok = CC.root_cause('api', 'PUT /api/Ballot/{id}', actor=SUB)
+            try:
+                T.touch(m2, 'Ballot', 'update')
+                T.record_effect(m2, 'Ballot', 'b-3', 'update', ['choice'])
+            finally:
+                CC.pop_cause(tok)
+            anon = T.journal(m2)[-1]
+            check('ct-1 (design §5): for a class whose OwnedClassPolicy is ANONYMISED the journal row keeps the '
+                  'class and the verb and drops BOTH the actor and the object id — tracing a deliberately '
+                  'unlinkable class must not re-link it',
+                  anon['className'] == 'Ballot' and anon['verb'] == 'update'
+                  and anon['objectId'] == '' and anon['actor'] == '' and anon['fieldsChanged'] == '["choice"]',
+                  anon)
+            T.disarm(m2, 'manual')
+            armed_again = T.arm(m2, 'Recipe', user_info=admin)
+            check('ct-1: arming the NEXT target CLEARS the journal (evidence for the current question) while the '
+                  'map is kept, and the previous target stays as a coverage row',
+                  armed_again['ok'] and armed_again['journal_cleared'] == 3 and T.journal(m2) == []
+                  and [c['class_name'] for c in T.coverage(m2)] == ['Ballot', 'Recipe'],
+                  armed_again.get('journal_cleared'))
+
+            # ---- the window, and the restart rule
+            row = T.active_target(m2)
+            row.started_at = '2020-01-01T00:00:00Z'
+            row.window_seconds = 60
+            check('ct-1: `window_seconds` disarms LAZILY on the next write or status read, stamped `window`',
+                  T.active_target(m2) is None and T.status(m2)['armed'] is False
+                  and [c for c in T.coverage(m2) if c['class_name'] == 'Recipe'][0]['stopped_because'] == 'window')
+            m3 = _M()
+            T.arm(m3, 'Ballot', user_info=admin)
+            T._STATE.update({'armed': False, 'name': '', 'class_name': '', 'resumed': False})
+            T._TRACED.clear()
+            st = T.status(m3)
+            check('ct-1 SURVIVE A RESTART: a knob naming a target that THIS process did not arm is a restart — '
+                  'the row is stopped with stopped_because=restart and the knob cleared, so the counters read '
+                  'honestly instead of a target resuming with its live state gone',
+                  st['armed'] is False and T.coverage(m3)[0]['stopped_because'] == 'restart'
+                  and T.knob_state()['target'] == '', (st['armed'], T.coverage(m3)))
+
+            # ---- the map ceiling
+            m4 = _M()
+            T.arm(m4, 'Ballot', user_info=admin)
+            tok = CC.root_cause('api', 'PUT /api/Ballot/{id}', actor=SUB)
+            try:
+                T.touch(m4, 'Ballot', 'update')
+                for i in range(4):
+                    T.record_edge(m4, 'endpoint:PUT /api/Ballot/{id}', 'object:Ballot:v%d' % i, 'crude')
+            finally:
+                CC.pop_cause(tok)
+            for i, e in enumerate(sorted(T._edges(m4), key=lambda r: r.effect)):
+                e.last_seen = '2026-09-1%dT00:00:00Z' % i
+            pruned = T.prune_map(m4, limit=2)
+            kept = sorted(e['effect'] for e in T.edges(m4))
+            check('ct-1: the map has its OWN ceiling (POLARI_TRACE_MAP_MAX_ROWS, default 5000) — the oldest '
+                  '`last_seen` rows are pruned so twenty targets over a year cannot grow it without bound',
+                  pruned == 2 and kept == ['object:Ballot:v2', 'object:Ballot:v3'], (pruned, kept))
+            T.disarm(m4, 'manual')
+
+            # ---- the __setattr__ seam itself (design §3c): the field NAME, never the value, and only the
+            # target class; and the assignments a CONSTRUCTOR makes belong to the create row, not to N updates.
+            m6 = _M()
+            T.arm(m6, 'Ballot', user_info=admin)
+            fake = type('Ballot', (object,), {})()
+            fake.__dict__.update({'manager': m6, 'id': 'b-9'})
+            other = type('Recipe', (object,), {})()
+            other.__dict__.update({'manager': m6, 'id': 'r-9'})
+            tok = CC.root_cause('api', 'PUT /api/Ballot/{id}', actor=SUB)
+            try:
+                T.touch(m6, 'Ballot', 'update')
+                _otd._trace_setattr(fake, 'choice')
+                _otd._trace_setattr(fake, 'manager')        # the tree's own plumbing, never a field somebody set
+                _otd._trace_setattr(other, 'title')         # another class: the seam stops at the name check
+                T.record_effect(m6, 'Ballot', 'b-8', 'create', [])
+                _otd._trace_setattr(fake, 'choice')
+            finally:
+                CC.pop_cause(tok)
+            j6 = T.journal(m6)
+            m6created = _M()
+            T.arm(m6created, 'Ballot', user_info=admin)
+            tok = CC.root_cause('api', 'POST /api/Ballot', actor=SUB)
+            try:
+                T.touch(m6created, 'Ballot', 'create')
+                T.record_effect(m6created, 'Ballot', 'b-7', 'create', [])
+                T.record_effect(m6created, 'Ballot', 'b-7', 'update', ['choice'])
+                T.record_effect(m6created, 'Ballot', 'b-7', 'update', ['election_id'])
+            finally:
+                CC.pop_cause(tok)
+            check('ct-1 the __setattr__ seam: an update on the TARGET class journals the FIELD NAME (never the '
+                  'value); the tree\'s own plumbing attributes and every other class write nothing; and the '
+                  'assignments a constructor makes are the CREATE row, not N update rows after it',
+                  [(r['objectId'], r['verb'], r['fieldsChanged']) for r in j6]
+                  == [('b-9', 'update', '["choice"]'), ('b-8', 'create', '[]'), ('b-9', 'update', '["choice"]')]
+                  and [(r['objectId'], r['verb']) for r in T.journal(m6created)] == [('b-7', 'create')],
+                  [(r['objectId'], r['verb'], r['fieldsChanged']) for r in j6])
+            T.disarm(m6, 'manual')
+            T.disarm(m6created, 'manual')
+
+            # ---- the doors, and the §54 route guard for the three new suffixes
+            class _Falcon:
+                def __init__(self): self.routes = []
+                def add_route(self, uri, resource, suffix=None): self.routes.append((uri, suffix))
+
+            class _Srv:
+                def __init__(self): self.falconServer = _Falcon()
+            srv = _Srv()
+            from security.security_api import SecurityAPI as _API
+            probe = _API(polServer=srv, manager=None)
+            trace_routes = [(u, sfx) for u, sfx in srv.falconServer.routes
+                            if u.startswith('/api/security/trace') or u.endswith('/observe/trace')]
+            check('§54 guard: the three ct-1 doors register and each has its on_<method>_<suffix> responder — a '
+                  'drifted suffix RAISES from add_route() and takes the backend down at boot',
+                  trace_routes == [('/api/security/observe/trace', 'observe_trace'),
+                                   ('/api/security/trace/edges', 'trace_edges'),
+                                   ('/api/security/trace/journal', 'trace_journal')]
+                  and all(any(hasattr(probe, 'on_%s_%s' % (mm, sfx)) for mm in ('get', 'post', 'delete'))
+                          for _u, sfx in trace_routes), trace_routes)
+            m5 = _M()
+            from security.custom.security_observe import set_roleplay_groups
+            set_roleplay_groups(['developers'], by=SUB)
+            api.manager = m5
+            r = _Res(); api.on_post_observe_trace(_Req({'roles': ['journalist']}, {'class_name': 'Ballot'}), r)
+            check('ct-1: arming is a permissions-administration act — a caller without the role-play permission '
+                  'is 403 with the reason, and nothing is armed',
+                  r.status.startswith('403') and T._targets(m5) == [], r.media.get('refusal'))
+            r = _Res(); api.on_post_observe_trace(_Req(admin, {'class_name': 'Ballot', 'max_edges': 9}), r)
+            r2 = _Res(); api.on_post_observe_trace(_Req(admin, {'class_name': 'Ballot'}), r2)
+            r3 = _Res(); api.on_get_observe_trace(_Req(admin), r3)
+            r4 = _Res(); api.on_delete_observe_trace(_Req(admin), r4)
+            r5 = _Res(); api.on_get_trace_edges(_Req(admin), r5)
+            r6 = _Res(); api.on_get_trace_journal(_Req(admin), r6)
+            check('ct-1: the doors answer — POST arms (409 on the second), GET carries the target, the counters '
+                  'and the COVERAGE block, DELETE disarms, and both ledger doors list with their reading',
+                  r.media['ok'] and r.media['target']['max_edges'] == 9 and r2.status.startswith('409')
+                  and r3.media['armed'] is True and r3.media['target']['class_name'] == 'Ballot'
+                  and r3.media['coverage'][0]['class_name'] == 'Ballot'
+                  and r4.media['ok'] and r4.media['armed'] is False
+                  and r5.media['ok'] and 'NOT been traced' in r5.media['how']
+                  and r6.media['ok'] and 'anonymised' in r6.media['how'],
+                  (r2.status, r3.media.get('armed')))
+        finally:
+            T._STATE.update({'armed': False, 'name': '', 'class_name': '', 'resumed': True,
+                             'stopped_name': '', 'stopped_until': 0.0})
+            T._set_armed_flag(False, '')
+            os.environ.clear(); os.environ.update(old_env)
+
+
+def O_events(manager):
+    from security.custom.security_observe import events
+    return events(manager)
+
+
 def main():
     from security.security_basis import SECURITY_CLASSES, SecurityTopologyEdge
     from security.security_seed import SECURITY_SEED_PAIRS, SEED_SECURITY_EDGES
     from security.security_page import SEED_SECURITY_PAGE_DISPLAYS
     from security.custom.security_topology import MODES, VIEWS, build, compare, simulate
     from security.custom.security_facts import SYSTEMS, scenario_names
-    check('thirty-two row classes', len(SECURITY_CLASSES) == 32, str(len(SECURITY_CLASSES)))
+    check('thirty-four row classes', len(SECURITY_CLASSES) == 34, str(len(SECURITY_CLASSES)))
     check('row class constructs', SecurityTopologyEdge(name='x').name == 'x')
     n = 0
     for scn in scenario_names():
@@ -756,7 +1045,7 @@ def main():
     row = [x for x in compare('os')['rows'] if x['means'].startswith('write into') and x['source'] == 'the Polari backend'][0]
     check('compare lines the backend up across routes', all(row[s] != '—' for s in ('isle', 'swarm-lean', 'swarm-full')), str(row))
     check('every system has a provenance', all(s['provenance'] in ('stock', 'qemu', 'polari') for s in SYSTEMS.values()))
-    check('seed pairs: 32, all rows named', len(SECURITY_SEED_PAIRS) == 32 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
+    check('seed pairs: 34, all rows named', len(SECURITY_SEED_PAIRS) == 34 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
     check('edge rows unique by name', len({r['name'] for r in SEED_SECURITY_EDGES}) == len(SEED_SECURITY_EDGES), str(len(SEED_SECURITY_EDGES)))
     check('eight pages, none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 8 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
     # §54: every `actor` column on the security-events page is marked `person`, and the pages CONVERGE.
@@ -764,13 +1053,24 @@ def main():
     _ev = _json_pages.loads([p for p in SEED_SECURITY_PAGE_DISPLAYS if p['name'] == 'security-events'][0]['definition'])
     _tables = [it for r in _ev['rows'] for it in r['items']
                if (it.get('componentProps') or {}).get('componentName') == 'class-rows-table']
+    _actor_tables = [it for it in _tables if 'actor' in it['componentProps']['inputs']['columns'].split(',')]
     check('§54: all four security-events tables (SecurityEvent, PermissionObservation, UsageObservation, '
           'ObservationSession) carry the `actor` column marked actor:person, so the page resolves subject ids to '
           'names at render time instead of showing bare UUIDs',
-          len(_tables) == 4
-          and all('actor' in it['componentProps']['inputs']['columns'] for it in _tables)
-          and all(it['componentProps']['inputs'].get('columnFormats') == 'actor:person' for it in _tables),
-          [(it['id'], it['componentProps']['inputs'].get('columnFormats')) for it in _tables])
+          len(_actor_tables) == 4
+          and all(it['componentProps']['inputs'].get('columnFormats') == 'actor:person' for it in _actor_tables),
+          [(it['id'], it['componentProps']['inputs'].get('columnFormats')) for it in _actor_tables])
+    # ct-1: the Trace tables on the same page — configured tables, not a JSON dump, and the target's person
+    # column is keyed the same way (`started_by` holds a `sub`, D18-1).
+    _trace_tables = {it['id']: it['componentProps']['inputs'] for it in _tables if it['id'].startswith('security-trace-')}
+    check('ct-1: the security-events page gains the Trace tables — TraceTarget (with started_by marked person) '
+          'and CausalEdge — as CONFIGURED tables, no raw JSON and no new component',
+          set(_trace_tables) == {'security-trace-targets', 'security-trace-edges'}
+          and _trace_tables['security-trace-targets']['className'] == 'TraceTarget'
+          and _trace_tables['security-trace-targets'].get('columnFormats') == 'started_by:person'
+          and _trace_tables['security-trace-edges']['className'] == 'CausalEdge'
+          and 'means' in _trace_tables['security-trace-edges']['columns'],
+          sorted(_trace_tables))
     from security.security_page import seed_security_pages, start_page_converge
     check('§54: the pages are CONVERGED, not inserted-by-name — the core display seed only inserts a missing page, '
           'so without this an existing instance keeps serving the old definition for ever (seen live)',
@@ -1123,6 +1423,7 @@ def main():
     _pii_checks(api, O, _Res, _types, check)
     _people_batch_checks(api, O, _Res, _types, check)
     _owned_checks(api, O, _Res, _types, check)
+    _trace_checks(api, _Res, _types, check)
     check('the password-guess threat exists on the isle with its counterexample', 'ssh-password-guess' in {t['name'] for t in threats('isle', 'today')['threats']})
     check('threat rows seed for every scenario', len([r for n in scenario_names() for r in threat_rows(n)]) >= 40)
     print('\n%d/%d checks passed' % (passed, total))

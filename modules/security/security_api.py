@@ -15,6 +15,10 @@
 /api/security/propose    POST {app, groups} (allowed.py --json groups) → a SecurityProposal: the stanza change the harvest asks for
 /api/security/threats    [?scenario=…] [&mode=…] — the threat simulations: each threat's path through the systems, the policy that
                          blocked it, and the counterexample (the actor/group/permission that legitimately reaches the same target)
+/api/security/observe/trace    GET the armed causal-trace target (counters + coverage); POST {class_name, verbs?, max_*?, window_seconds?}
+                               arms ONE class (dev posture only, a second arm is refused naming the active one); DELETE disarms it
+/api/security/trace/edges      [?target=|cause=|effect=|means=] Ledger A — the causal MAP: cause → effect by means, counted, class-level only
+/api/security/trace/journal    [?trace_id=|class=] Ledger B — the effect JOURNAL: which instances a traced chain wrote, cleared on the next arm
 /api/security/roles/claimable  GET the roles THIS caller may take for themselves (a role = a Keycloak group) + the account console URL
 /api/security/roles/claim      POST {role} join that group; DELETE ?role= leave it — self-service, never an admin role (§17b D17-5)
 /api/security/people/{sub}     GET a Keycloak subject id → {display_name, username}, resolved LIVE from Keycloak and never stored.
@@ -79,6 +83,9 @@ class SecurityAPI(treeObject):
             add('/api/security/observe/usage', self, suffix='observe_usage')        # POST {role, kind: app|page|component|action|object, item, app, page, detail} from the frontend
             add('/api/security/observe/review', self, suffix='observe_review')      # GET ?role= everything the role used + the proposed profile (the handoff)
             add('/api/security/observe/verify', self, suffix='observe_verify')      # GET ?role=&group= replay the recording against the enforced profiles
+            add('/api/security/observe/trace', self, suffix='observe_trace')        # ct-1: GET the armed trace target + counters + coverage; POST {class_name,…} arm ONE class; DELETE disarm
+            add('/api/security/trace/edges', self, suffix='trace_edges')            # ct-1: Ledger A, the causal MAP — cause → effect by means, counted [?target=|cause=|effect=|means=]
+            add('/api/security/trace/journal', self, suffix='trace_journal')        # ct-1: Ledger B, the effect JOURNAL — the instances a traced chain wrote [?trace_id=|class=]
             add('/api/security/observe/roles', self, suffix='observe_roles')        # GET the prototype roles + whether the caller may role-play; POST {name, title, description} a new prototype
             add('/api/security/observe/roles/{name}', self, suffix='observe_role')  # POST {state, profile, verdict} mark prototype → concreted → enforced; {self_claimable} admin-only
             add('/api/security/roles/claimable', self, suffix='roles_claimable')    # GET the roles THIS caller may take for themselves (his ask 2026-09-18)
@@ -539,6 +546,68 @@ class SecurityAPI(treeObject):
                     'this realm does not know answers null. Names are held in memory for %d s and written to no row, '
                     'no log and no disk (D18-1).' % P.cache_seconds()),
         }
+
+    # ---- CAUSAL TRACING (ct-1, his ask 2026-09-18) ----------------------------------------------------------
+    # "trace different events and functions … and track the kinds of changes that occur due to those events."
+    # ONE class at a time, dev posture only, budgets that disarm themselves and say so. Arming is a
+    # permissions-administration act (ADMIN_ROLES, or a holder of the role-play permission); reading the status
+    # is not, so anyone signed in can see whether their instance is recording and what it has cost.
+
+    def on_get_observe_trace(self, request, response):
+        from security.custom.security_trace import status
+        if not self._sub(request):
+            return self._refuse(response, '401 Unauthorized',
+                                'sign in first: anyone with an account may see what this instance is recording, '
+                                'but an anonymous caller has no business asking')
+        response.media = status(self.manager)
+
+    def on_post_observe_trace(self, request, response):
+        from security.custom.security_observe import can_roleplay
+        from security.custom.security_trace import arm
+        ui = self._user_info(request)
+        ok, why = can_roleplay(ui)
+        if not ok:
+            return self._refuse(response, '403 Forbidden', why)
+        body = self._body(request)
+        r = arm(self.manager, body.get('class_name') or body.get('class') or '',
+                verbs=body.get('verbs'), max_traces=body.get('max_traces'), max_edges=body.get('max_edges'),
+                max_journal_rows=body.get('max_journal_rows'), max_depth=body.get('max_depth'),
+                window_seconds=body.get('window_seconds'), user_info=ui)
+        if not r.get('ok'):
+            return self._refuse(response, '409 Conflict' if r.get('active') else '400 Bad Request',
+                                r.get('refusal', ''), **{k: v for k, v in r.items() if k == 'active'})
+        response.media = r
+
+    def on_delete_observe_trace(self, request, response):
+        from security.custom.security_observe import can_roleplay
+        from security.custom.security_trace import disarm
+        ui = self._user_info(request)
+        ok, why = can_roleplay(ui)
+        if not ok:
+            return self._refuse(response, '403 Forbidden', why)
+        response.media = disarm(self.manager, because='manual', user_info=ui)
+
+    def on_get_trace_edges(self, request, response):
+        from security.custom.security_trace import coverage, edges, status
+        rows = edges(self.manager, target=request.params.get('target', ''), cause=request.params.get('cause', ''),
+                     effect=request.params.get('effect', ''), means=request.params.get('means', ''))
+        st = status(self.manager)
+        response.media = {'ok': True, 'count': len(rows), 'edges': rows[:1000], 'coverage': coverage(self.manager),
+                          'armed': st['armed'], 'target': st['target'],
+                          'how': ('one counted row per cause → effect by means; an instance id never appears here. '
+                                  'A class with no coverage row has NOT been traced — that is not the same as '
+                                  'nothing reaching it.')}
+
+    def on_get_trace_journal(self, request, response):
+        from security.custom.security_trace import journal, status
+        rows = journal(self.manager, trace_id=request.params.get('trace_id', ''),
+                       class_name=request.params.get('class', '') or request.params.get('class_name', ''))
+        st = status(self.manager)
+        response.media = {'ok': True, 'count': len(rows), 'journal': rows[:1000], 'target': st['target'],
+                          'how': ('the instance-level evidence behind a map edge, for the CURRENT question: it is '
+                                  'cleared when the next target is armed. A class whose OwnedClassPolicy is '
+                                  'anonymised keeps its class and verb here and drops both the actor and the '
+                                  'object id.')}
 
     def on_get_observe_review(self, request, response):
         from security.custom.security_observe import review

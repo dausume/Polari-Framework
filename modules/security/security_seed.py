@@ -7,7 +7,7 @@ from security_facts + security_topology, never hand-typed. SECURITY_SEED_PAIRS i
 """
 import json
 
-from security.security_basis import (SecurityEvent, PermissionObservation, ObservationSession, UsageObservation, RolePrototype, OwnedClassPolicy, AppSecurityRecord, AuthzRule, BrowserPolicy, ContentPolicy, ContentPolicyViolation, DacPolicy,
+from security.security_basis import (SecurityEvent, PermissionObservation, ObservationSession, UsageObservation, RolePrototype, OwnedClassPolicy, TraceTarget, CausalEdge, AppSecurityRecord, AuthzRule, BrowserPolicy, ContentPolicy, ContentPolicyViolation, DacPolicy,
                                      FirewallRuleSet, HardwareTrial, MacProfile, PermissionGroup, ProxyConfig, ProxySnippet,
                                      SecurityArea, SecurityAuditRun, SecurityControl, SecurityDomain, SecurityProposal, SecurityScenario,
                                      SecurityThreat, SecurityTopologyEdge, SecurityTopologyNode, ServiceIdentity, SshCapability, DeviceInventory, SshPermissionLevel, TrustChannel)
@@ -166,6 +166,8 @@ SECURITY_SEED_PAIRS = [
     ('UsageObservation', UsageObservation, []),             # what a role USES: apps, pages, components, actions, endpoints
     ('RolePrototype', RolePrototype, []),                   # roles that exist to be role-played (prototype → concreted → enforced)
     ('OwnedClassPolicy', OwnedClassPolicy, SEED_OWNED_CLASS_POLICIES),   # op-0: the classes whose OWNER defines the rules
+    ('TraceTarget', TraceTarget, []),                       # ct-1: the ONE armed class, its budgets and its counters (a row per class ever traced = the coverage)
+    ('CausalEdge', CausalEdge, []),                         # ct-1: Ledger A, the causal MAP — cause → effect by means, counted, never duplicated
 ]
 
 if __name__ == '__main__':

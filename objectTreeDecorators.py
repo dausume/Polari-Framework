@@ -33,6 +33,41 @@ _LOCK_EXEMPT_CLASSES = frozenset({
     'LockBreakEvent', 'SimulationQueueEntry', 'WriteJournalEntry'})
 
 
+# ct-1 (CAUSAL_TRACE_OBJECT_FLOW_DESIGN.md §2/§3) — the UPDATE seam.
+#
+# `treeObject.__setattr__` runs on every attribute assignment in the tree, so the trace hook there has to cost
+# nothing when nothing is armed: ONE module-global read, checked FIRST, before any other work the method does.
+# `security.custom.security_trace.arm()/disarm()` flip it through `set_trace_armed`; it names the ONE class being
+# traced, so an assignment on any other class stops at the second comparison. Nothing else in the framework may
+# write these — the flag is the arming, and the arming is one class at a time.
+_TRACE_ARMED = False
+_TRACE_CLASS = ''
+#: assignments that are the tree's own plumbing, never a field somebody changed
+_TRACE_SKIP_ATTRS = frozenset({'manager', 'branch', 'inTree', 'id'})
+
+
+def set_trace_armed(on, class_name=''):
+    """Arm/disarm the __setattr__ update seam. Called ONLY by security.custom.security_trace."""
+    global _TRACE_ARMED, _TRACE_CLASS
+    _TRACE_ARMED = bool(on)
+    _TRACE_CLASS = str(class_name or '')
+
+
+def _trace_setattr(instance, name):
+    """Record an `update` effect for the armed class — the FIELD NAME, never the value (design §3). Never
+    raises: an assignment must not fail because a ledger did."""
+    try:
+        if instance.__class__.__name__ != _TRACE_CLASS or name in _TRACE_SKIP_ATTRS:
+            return
+        manager = instance.__dict__.get('manager')
+        if manager is None:
+            return
+        from security.custom.security_trace import record_effect
+        record_effect(manager, _TRACE_CLASS, instance.__dict__.get('id'), 'update', [name])
+    except Exception:
+        pass
+
+
 def treeObjectInit(init):
     #Note: For objects instantiated using this Decorator, MUST USER KEYWORD ARGUMENTS NOT POSITIONAL, EX: (manager=mngObj, id='base64Id')
     @wraps(init)
@@ -113,6 +148,11 @@ class treeObject:
                     pass
 
     def __setattr__(self, name, value):
+        # ct-1: the update seam. ONE module-global read when nothing is armed — measured INSIDE THE NOISE
+        # (§61: 200k scalar assignments, median 668 ns/assignment with the hook vs 680 ns without, run-to-run
+        # spread ±60 ns); everything else, class check included, is behind it.
+        if _TRACE_ARMED:
+            _trace_setattr(self, name)
         if(type(value).__name__ == 'list'):
             #print("converting from list with value ", value, " to a polariList.")
             #Instead of initializing a polariList, we try to just cast the list to be type polariList.

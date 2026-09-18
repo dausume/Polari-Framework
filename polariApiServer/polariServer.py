@@ -1234,6 +1234,8 @@ class polariServer(treeObject):
             TrustChannel, AuthzRule, ContentPolicy, ContentPolicyViolation, SecurityEvent, PermissionObservation, ObservationSession, UsageObservation, RolePrototype, BrowserPolicy, AppSecurityRecord, SecurityAuditRun, SshCapability, DeviceInventory, SshPermissionLevel,
             # op-0: owner-defined permissions — the per-class opt-in
             OwnedClassPolicy,
+            # ct-1: causal tracing — the one armed target and the causal map
+            TraceTarget, CausalEdge,
             # iso-1: the ISO arc's rows
             IsoBase, DeviceProbe, IsoBuild]
         # modsplit-1: each instance registers ONLY its assigned

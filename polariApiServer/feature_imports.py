@@ -1243,7 +1243,7 @@ FEATURE_IMPORT_BLOCKS = (
             'SecurityDomain', 'SecurityArea', 'SecurityScenario', 'SecurityControl',
             'SecurityTopologyNode', 'SecurityTopologyEdge', 'SecurityThreat', 'SecurityProposal',
             'MacProfile', 'DacPolicy', 'PermissionGroup', 'HardwareTrial', 'ProxyConfig', 'ProxySnippet', 'ServiceIdentity', 'FirewallRuleSet',
-            'TrustChannel', 'AuthzRule', 'ContentPolicy', 'ContentPolicyViolation', 'SecurityEvent', 'PermissionObservation', 'ObservationSession', 'UsageObservation', 'RolePrototype', 'OwnedClassPolicy', 'BrowserPolicy', 'AppSecurityRecord', 'SecurityAuditRun', 'SshCapability', 'DeviceInventory', 'SshPermissionLevel', 'SECURITY_CLASSES',
+            'TrustChannel', 'AuthzRule', 'ContentPolicy', 'ContentPolicyViolation', 'SecurityEvent', 'PermissionObservation', 'ObservationSession', 'UsageObservation', 'RolePrototype', 'OwnedClassPolicy', 'TraceTarget', 'CausalEdge', 'BrowserPolicy', 'AppSecurityRecord', 'SecurityAuditRun', 'SshCapability', 'DeviceInventory', 'SshPermissionLevel', 'SECURITY_CLASSES',
         )),
         ('security.security_seed', (
             'SECURITY_SEED_PAIRS',

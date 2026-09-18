@@ -18,6 +18,8 @@ EDGE_COLS = 'scenario,source,means,target,verdict,decided_by,provenance,why'
 # names of the rows ON SCREEN in one batched call to the gated door POST /api/security/people while the page renders.
 # A viewer who may not resolve names keeps seeing the short id; nothing is written back into a row either way.
 ACTOR_FORMAT = 'actor:person'
+#: ct-1's TraceTarget keys its person in `started_by` — the same rule, the same resolution at render time.
+TRACE_ACTOR_FORMAT = 'started_by:person'
 
 
 def _view_page(view, title, question, actor):
@@ -120,6 +122,14 @@ SEED_SECURITY_PAGE_DISPLAYS = [
                         columns='role,kind,item,app,page,count,actor,first_seen,last_seen', column_formats=ACTOR_FORMAT),
                  _table('security-sessions-table', 1, 4, 'Role-play sessions — who acted as which role, when; acts and usages attributed', 'ObservationSession',
                         columns='role,actor,active,started_at,ended_at,acts,usages', column_formats=ACTOR_FORMAT)], min_height=260),
+        # ---- ct-1: causal tracing. ONE class at a time, dev posture only, budgets that disarm themselves.
+        _row(4, [_sapi('security-trace-status', 0, 5, 'Causal tracing — the ONE class armed right now, its budgets and live counters, and the coverage: which classes have ever been traced',
+                       '/api/security/observe/trace', hide='defaults,knob'),
+                 _table('security-trace-targets', 1, 7, 'TraceTarget — one row per class ever traced: budgets, counters and why it stopped. A class with NO row here has not been traced, which is not the same as nothing reaching it', 'TraceTarget',
+                        columns='class_name,active,started_by,started_at,stopped_at,stopped_because,traces_opened,edges_written,journal_written,dropped',
+                        column_formats=TRACE_ACTOR_FORMAT)], min_height=280),
+        _row(5, [_table('security-trace-edges', 0, 12, 'CausalEdge — Ledger A, the causal map: one counted row per cause → effect by means. Class level only; an instance id never appears here (the effect journal is where an instance is looked up)', 'CausalEdge',
+                        columns='cause,effect,means,detail,count,min_depth,max_depth,run_as,target,first_seen,last_seen')]),
     ]),
     _view_page('os', 'OS', 'what can a process touch on the machine, and which system stops it', 'prf-backend'),
     _view_page('network', 'Network', 'how do bytes get in, between and out', 'internet'),

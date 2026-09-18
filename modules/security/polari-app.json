@@ -33,6 +33,7 @@
    "objects/security/AppSecurityRecord",
    "objects/security/AuthzRule",
    "objects/security/BrowserPolicy",
+   "objects/security/CausalEdge",
    "objects/security/ContentPolicy",
    "objects/security/ContentPolicyViolation",
    "objects/security/DacPolicy",
@@ -60,6 +61,7 @@
    "objects/security/ServiceIdentity",
    "objects/security/SshCapability",
    "objects/security/SshPermissionLevel",
+   "objects/security/TraceTarget",
    "objects/security/TrustChannel",
    "objects/security/UsageObservation"
   ],
@@ -97,13 +99,15 @@
    "custom/security_proposals",
    "custom/security_ssh",
    "custom/security_threats",
-   "custom/security_topology"
+   "custom/security_topology",
+   "custom/security_trace"
   ]
  },
  "classes": [
   "AppSecurityRecord",
   "AuthzRule",
   "BrowserPolicy",
+  "CausalEdge",
   "ContentPolicy",
   "ContentPolicyViolation",
   "DacPolicy",
@@ -132,6 +136,7 @@
   "ServiceIdentity",
   "SshCapability",
   "SshPermissionLevel",
+  "TraceTarget",
   "TrustChannel",
   "UsageObservation"
  ],
@@ -165,6 +170,8 @@
     "UsageObservation",
     "RolePrototype",
     "OwnedClassPolicy",
+    "TraceTarget",
+    "CausalEdge",
     "BrowserPolicy",
     "AppSecurityRecord",
     "SecurityAuditRun",
