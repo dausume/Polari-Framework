@@ -219,9 +219,10 @@ def _record(manager, verb, role, sub):
     the opaque Keycloak `sub` and NOTHING else — never preferred_username, never an e-mail, never a display name.
     Resolving a sub back to a person is Keycloak's job, and it stays Keycloak's job."""
     try:
+        past = {'claim': 'claimed', 'release': 'released'}.get(verb, verb)
         _observe.record(manager, 'role-claim', f'{verb} {role}', role, actor=str(sub or ''), outcome='allowed',
                         would_deny=False, source='self-claim',
-                        reason=f'a signed-in account {verb}d the self-claimable role {role}')
+                        reason=f'a signed-in account {past} the self-claimable role {role}')
     except Exception:
         pass
 
