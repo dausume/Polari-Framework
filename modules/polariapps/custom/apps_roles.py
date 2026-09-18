@@ -344,21 +344,39 @@ def suggested_for_role(manager, role):
 
 # --------------------------------------------------------------- my apps
 
+#: Keycloak's own plumbing, which arrives in `realm_access.roles` on every token and is not a role anybody
+#: holds in the sense this feature means. Never offered as a primary role, never bound to apps.
+NOT_A_ROLE = frozenset({'offline_access', 'uma_authorization', 'account'})
+NOT_A_ROLE_PREFIX = ('default-roles-',)
+
+
+def _is_a_role(name):
+    return bool(name) and name not in NOT_A_ROLE and \
+        not name.startswith(NOT_A_ROLE_PREFIX)
+
+
 def caller_sub_and_groups(user_info):
-    """(sub, held roles) for the caller. The roles a person holds ARE the `groups` claim of their token — the
-    same key the permission model grants by — so nothing about role membership is ever stored here."""
+    """(sub, held roles) for the caller.
+
+    The roles a person holds ARE the `groups` claim of their token — that is the key a RoleAppBinding is
+    written against, and nothing about membership is ever stored in Polari. When the realm has no group
+    mapper at all, realm/client ROLES stand in (the same fallback the permission model makes, so an ungroomed
+    realm still works) — minus Keycloak's own plumbing (`offline_access`, `uma_authorization`, `account`,
+    `default-roles-*`), which is on every token and is not a role anybody chose.
+
+    Deliberately NARROWER than `apps_permissions._shared.caller_groups`, which unions groups AND roles: that
+    union is right for deciding what somebody may TOUCH, and wrong for a menu, where it would offer
+    `uma_authorization` as a primary role."""
     if not isinstance(user_info, dict):
         return '', []
     sub = str(user_info.get('sub') or '')
-    try:
-        from polariapps.objects.apps_permissions._shared import caller_groups
-        groups, _sources = caller_groups(user_info)
-    except Exception:  # noqa: BLE001
-        groups = set(str(r) for r in (user_info.get('roles') or []))
-        raw = user_info.get('raw_claims') or {}
-        if isinstance(raw.get('groups'), list):
-            groups |= {str(g).lstrip('/') for g in raw['groups']}
-    return sub, sorted(groups)
+    raw = user_info.get('raw_claims') or {}
+    claim = raw.get('groups')
+    if isinstance(claim, list) and claim:
+        groups = {str(g).lstrip('/') for g in claim}
+    else:
+        groups = {str(r) for r in (user_info.get('roles') or [])}
+    return sub, sorted(g for g in groups if _is_a_role(g))
 
 
 def _preference(manager, sub):

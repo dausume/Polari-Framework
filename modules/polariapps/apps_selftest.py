@@ -652,6 +652,15 @@ if __name__ == '__main__':
           'ONE person, and a person is a Keycloak sub)',
           rsp.status.startswith('401') and not rsp.media['ok'])
 
+    kc_noise = _who('sub-noise', 'journalist', 'offline_access',
+                    'uma_authorization', 'default-roles-polari')
+    rsp = _call(api2, 'on_get_mine', user=kc_noise)
+    check('GET /api/apps/mine: Keycloak\'s own plumbing is not a role — '
+          'offline_access / uma_authorization / default-roles-* never '
+          'reach the menu',
+          rsp.media['held_roles'] == ['journalist']
+          and rsp.media['primary_role'] == 'journalist')
+
     viewer = _who('sub-viewer', 'viewers')
     rsp = _call(api2, 'on_get_mine', user=viewer)
     check('GET /api/apps/mine: a caller whose roles bind nothing gets an '
