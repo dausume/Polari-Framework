@@ -648,7 +648,7 @@ class polyTypedObject(treeObject):
             print("failed to analyze variable with name ", varName, " and value ", varVal)
             
 
-    def serializeTreePath(self, instance):
+    def serializeTreePath(self, instance, treePathIndex=None):
         """Serialize an instance's tree path for database storage.
 
         Uses the manager's tree traversal to get the instance's location in the
@@ -657,6 +657,11 @@ class polyTypedObject(treeObject):
 
         Args:
             instance: The object instance to get the tree path for
+            treePathIndex: optional prebuilt index from
+                `managerObject.buildTreePathIndex()` (§51 addendum 3).
+                Without it this method costs a FULL depth-first search
+                of the whole object tree — per row — which is 99.7 % of
+                a whole-tree flush. The answer is identical either way.
 
         Returns:
             JSON string of the tree path, or None if path cannot be determined.
@@ -665,7 +670,12 @@ class polyTypedObject(treeObject):
         try:
             import json
             instanceTuple = self.manager.getInstanceTuple(instance)
-            tuplePath = self.manager.getTuplePathInObjTree(instanceTuple)
+            if treePathIndex is not None and hasattr(
+                    self.manager, 'treePathFromIndex'):
+                tuplePath = self.manager.treePathFromIndex(
+                    treePathIndex, instanceTuple)
+            else:
+                tuplePath = self.manager.getTuplePathInObjTree(instanceTuple)
             if tuplePath is None:
                 return None
             # Serialize: each tuple is (className, identifiersDict, instanceRef)

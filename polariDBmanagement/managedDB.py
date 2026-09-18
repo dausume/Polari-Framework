@@ -236,7 +236,7 @@ class managedDatabase(managedFile):
             return self._handleSaveMismatch(className, rowList,
                                             valueList, e)
 
-    def saveClassBatch(self, className, instances):
+    def saveClassBatch(self, className, instances, treePathIndex=None):
         """mlb-5b: persist ALL of one class's instances in ONE
         transaction — DELETE (scoped) + executemany REPLACE with a
         uniform full-column row shape. REPLACE sets unnamed columns
@@ -258,7 +258,8 @@ class managedDatabase(managedFile):
         except Exception as e:
             return (False, 0, f'{type(e).__name__}: {e}')
         allCols, rows = self._buildClassRows(className, instances,
-                                             tableColumns)
+                                             tableColumns,
+                                             treePathIndex=treePathIndex)
         try:
             self._writeClassBatch(dbCursor, className, allCols, rows)
             dbConnection.commit()
@@ -275,15 +276,22 @@ class managedDatabase(managedFile):
                 pass
             return (False, 0, f'{type(e).__name__}: {e}')
 
-    def _buildClassRows(self, className, instances, tableColumns):
+    def _buildClassRows(self, className, instances, tableColumns,
+                        treePathIndex=None):
         """Serialize one class's instances into (allCols, rows).
 
         Pure Python — no database work at all — so the whole-tree
         persist can do ALL of this BEFORE it opens its write
         transaction. That is what keeps the transaction (and therefore
         the window in which a reader is blocked) at a fraction of a
-        second even though building the rows for the whole tree takes
-        tens of seconds."""
+        second.
+
+        `treePathIndex` (§51 addendum 3) is the manager's one-DFS index
+        of the object tree. Without it every row pays a FULL depth-first
+        search of the whole tree for its `_branch_path` — 42 297 210
+        recursive calls for 10 870 rows, measured, 99.7 % of a 40-100 s
+        flush. With it the same answer is a dict lookup. The value
+        written is byte-identical either way."""
         serializableTypes = (str, int, float, bool, bytes, type(None))
         scope = self.instanceScope
         writeCols = [c for c in tableColumns
@@ -321,7 +329,18 @@ class managedDatabase(managedFile):
                 treePath = None
                 try:
                     if typing is not None:
+                        if treePathIndex is None:
+                            treePath = typing.serializeTreePath(instance)
+                        else:
+                            treePath = typing.serializeTreePath(
+                                instance, treePathIndex=treePathIndex)
+                except TypeError:
+                    # a typing double from before §51 addendum 3 — ask
+                    # it the old way rather than losing the path
+                    try:
                         treePath = typing.serializeTreePath(instance)
+                    except Exception:
+                        treePath = None
                 except Exception:
                     treePath = None
                 values.append(treePath)
@@ -466,7 +485,7 @@ class managedDatabase(managedFile):
         except Exception:
             return False
 
-    def prepareClassBatch(self, className, instances):
+    def prepareClassBatch(self, className, instances, treePathIndex=None):
         """Serialize one class ready for the tree transaction.
 
         Returns (ok, (allCols, rows), error). Does no writing, holds no
@@ -480,8 +499,9 @@ class managedDatabase(managedFile):
         except Exception as e:
             return (False, None, f'{type(e).__name__}: {e}')
         try:
-            allCols, rows = self._buildClassRows(className, instances,
-                                                 tableColumns)
+            allCols, rows = self._buildClassRows(
+                className, instances, tableColumns,
+                treePathIndex=treePathIndex)
         except Exception as e:
             return (False, None, f'{type(e).__name__}: {e}')
         return (True, (allCols, rows), '')

@@ -88,6 +88,15 @@ class treeObject:
             else:
                 self.manager.objectTables[key] = {}
                 self.manager.objectTables[key][self.id] = self
+            # §51 addendum 3 — every create bumps the tree's mutation
+            # generation and cancels any tombstone standing against the
+            # same (class, id), so a re-created row is never dropped by
+            # a flush that saw the earlier delete. Guarded: tree
+            # creation must NEVER break on bookkeeping.
+            try:
+                self.manager.noteTreeMutation(key, self.id)
+            except Exception:
+                pass
             # xsim-2: objects generated while a gated simulation run is
             # active are auto-locked + tagged with the run (quarantine on
             # failure). Guarded so tree creation NEVER breaks on it.

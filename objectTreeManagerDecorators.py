@@ -23,9 +23,84 @@ from polariApiServer.polariServer import polariServer
 #from polariFiles.managedImages import *
 from polariDataTyping.polariList import polariList
 from polariFiles.dataChannels import *
-import types, inspect, base64, json, os, time, sqlite3
+import types, inspect, base64, json, os, threading, time, sqlite3
 import psutil
 from datetime import datetime
+
+def _withTreePathIndex(fn, *args, treePathIndex=None):
+    """Call a managedDB serializer with the prebuilt tree-path index,
+    falling back to the historical signature for any db double that has
+    not been taught about it. Never changes what gets written."""
+    if treePathIndex is None or not _takesTreePathIndex(fn):
+        return fn(*args)
+    return fn(*args, treePathIndex=treePathIndex)
+
+
+_TREE_PATH_INDEX_SIGS = {}
+
+
+def _takesTreePathIndex(fn):
+    """Signature test, cached — never guessed from a caught TypeError,
+    which would also swallow a real one raised inside the callee."""
+    key = getattr(fn, '__qualname__', None) or repr(fn)
+    if key not in _TREE_PATH_INDEX_SIGS:
+        try:
+            params = inspect.signature(fn).parameters
+            _TREE_PATH_INDEX_SIGS[key] = 'treePathIndex' in params
+        except Exception:
+            _TREE_PATH_INDEX_SIGS[key] = False
+    return _TREE_PATH_INDEX_SIGS[key]
+
+
+# §51 addendum 3 — persistTree/_persistTreeAtomic are bound onto manager
+# DOUBLES in several selftests (a SimpleNamespace carrying just db and
+# objectTables). The bookkeeping below must therefore DEGRADE, not throw:
+# a double without it simply behaves as it did before the addendum.
+def _managerGeneration(mgr):
+    try:
+        return mgr.treeGeneration()
+    except Exception:
+        return None
+
+
+def _managerTombstones(mgr):
+    try:
+        return mgr.currentTombstones()
+    except Exception:
+        return set()
+
+
+def _managerClearTombstones(mgr, honoured):
+    try:
+        return mgr.clearTombstones(honoured)
+    except Exception:
+        return 0
+
+
+def _managerIsTombstoned(mgr, tombs, className, instanceId):
+    if not tombs:
+        return False
+    try:
+        return mgr.rowIsTombstoned(tombs, className, instanceId)
+    except Exception:
+        return False
+
+
+def _managerDropTombstoned(mgr, prepared, tombs):
+    if not tombs:
+        return prepared, set()
+    try:
+        return mgr._dropTombstonedRows(prepared, tombs)
+    except Exception:
+        return prepared, set()
+
+
+def _managerTreePathIndex(mgr):
+    try:
+        return mgr.buildTreePathIndex()
+    except Exception:
+        return None
+
 
 def _captureResourceCheckpoint():
     """Capture a snapshot of current system memory for boot profiling."""
@@ -557,6 +632,181 @@ class managerObject:
 
         print(f'[DB] Restored {len(restoredInstances)} instances ({totalSeedSkips} seeds skipped), {registeredCount} registered in objectTables', flush=True)
 
+    # ------------------------------------------------------------------
+    # §51 addendum 3 — TOMBSTONES and a mutation GENERATION.
+    #
+    # persistTree snapshots objectTables at the top and writes that
+    # snapshot tens of seconds later, and the write is DELETE+REPLACE.
+    # A row deleted in between was therefore RESURRECTED by the flush —
+    # the snapshot still held it. Observed live twice.
+    #
+    # Every removal now leaves a tombstone (className, instanceId), and
+    # at WRITE time — after serialization, just before the transaction —
+    # any prepared row carrying a tombstoned key is DROPPED. Only the
+    # tombstones actually honoured are cleared, so a delete that lands
+    # during the write itself survives to the next flush.
+    #
+    # A tombstone alone is not enough: an id could be deleted and then
+    # re-created before the write. So a row is dropped only when it is
+    # tombstoned AND still absent from the LIVE objectTables — the live
+    # table is the truth, the tombstone only says where to look.
+    # ------------------------------------------------------------------
+    def _persistState(self):
+        """Lazily-created bookkeeping. Kept in __dict__ directly so it
+        never becomes a persisted/typed attribute of the manager."""
+        d = self.__dict__
+        if 'persistLock' not in d:
+            d['persistLock'] = threading.Lock()
+        if 'deletedSinceSnapshot' not in d:
+            d['deletedSinceSnapshot'] = set()
+        if 'persistGeneration' not in d:
+            d['persistGeneration'] = 0
+        return d
+
+    def noteTreeMutation(self, className=None, instanceId=None):
+        """Record that the tree changed. A create/update also CANCELS a
+        tombstone for the same key — an id that came back is live."""
+        d = self._persistState()
+        with d['persistLock']:
+            d['persistGeneration'] += 1
+            if className is not None and instanceId is not None:
+                d['deletedSinceSnapshot'].discard((className, instanceId))
+            return d['persistGeneration']
+
+    def noteTreeDeletion(self, className, instanceId):
+        """Record a removal. This is the tombstone the flush honours."""
+        d = self._persistState()
+        with d['persistLock']:
+            d['persistGeneration'] += 1
+            d['deletedSinceSnapshot'].add((className, instanceId))
+            return d['persistGeneration']
+
+    def treeGeneration(self):
+        """The current mutation generation — a flush compares the value
+        it started from with this one to say whether the tree moved
+        under it."""
+        return self._persistState()['persistGeneration']
+
+    def currentTombstones(self):
+        d = self._persistState()
+        with d['persistLock']:
+            return set(d['deletedSinceSnapshot'])
+
+    def clearTombstones(self, honoured):
+        """Drop ONLY the tombstones this flush acted on. A python set and
+        a sqlite transaction cannot commit together, so the order is the
+        conservative one: filter, COMMIT, then clear. A crash in between
+        leaves the tombstone up and the next flush drops the row again."""
+        d = self._persistState()
+        with d['persistLock']:
+            d['deletedSinceSnapshot'] -= set(honoured)
+            return len(d['deletedSinceSnapshot'])
+
+    def rowIsTombstoned(self, tombs, className, instanceId):
+        """True when this row must NOT be written: deleted since the
+        snapshot and still gone from the live table."""
+        if not tombs or (className, instanceId) not in tombs:
+            return False
+        try:
+            return instanceId not in self.objectTables.get(className, {})
+        except Exception:
+            return True
+
+    def _dropTombstonedRows(self, prepared, tombs):
+        """Filter prepared batches. Returns (prepared, honoured).
+
+        `prepared` is [(className, allCols, rows, module)]. Rows are
+        plain value tuples, so the id is found by position in allCols —
+        a class with no `id` column cannot be filtered and is left
+        alone (reported by the caller, never silently dropped)."""
+        if not tombs:
+            return prepared, set()
+        honoured = set()
+        out = []
+        for className, allCols, rows, module in prepared:
+            try:
+                idx = list(allCols).index('id')
+            except ValueError:
+                out.append((className, allCols, rows, module))
+                continue
+            kept = []
+            for row in rows:
+                instanceId = row[idx] if idx < len(row) else None
+                if self.rowIsTombstoned(tombs, className, instanceId):
+                    honoured.add((className, instanceId))
+                    continue
+                kept.append(row)
+            out.append((className, allCols, kept, module))
+        return out, honoured
+
+    def buildTreePathIndex(self):
+        """ONE depth-first walk of the object tree, indexed by node key.
+
+        §51 addendum 3 — the serialization hot spot. `serializeTreePath`
+        calls `getTuplePathInObjTree` once PER ROW, and that is a full
+        depth-first search of the WHOLE tree in which `getBranchNode`
+        re-walks from the root at every step. ~96 % of rows are not in
+        the tree at all, so those searches never short-circuit: measured
+        42 297 210 recursive calls for 10 870 rows against a 3 900-node
+        tree — 99.7 % of a 40-100 s flush. The tree does not change while
+        the flush serializes, so walk it once.
+
+        Returns {(className, identifiers): [(thirdElement, path), ...]}
+        in the exact order getTuplePathInObjTree would have checked the
+        nodes. The value is a LIST because one (class, identifiers) pair
+        can sit at several places in the tree, and the original returns
+        the first occurrence that is either a duplicate pointer (whose
+        stored path it hands back) or the very instance asked about,
+        walking PAST any other match. Keeping the list preserves that
+        decision exactly instead of guessing which occurrence wins.
+        """
+        index = {}
+        tree = getattr(self, 'objectTree', None)
+        if not isinstance(tree, dict):
+            return index
+
+        def walk(node, path):
+            if not isinstance(node, dict):
+                return
+            keys = list(node.keys())
+            # every child of this node is CHECKED before any subtree is
+            # descended into — that is the original's search order
+            for branchTuple in keys:
+                if not isinstance(branchTuple, tuple) or len(branchTuple) < 3:
+                    continue
+                third = branchTuple[2]
+                found = third if type(third) is tuple else path + [branchTuple]
+                try:
+                    index.setdefault((branchTuple[0], branchTuple[1]),
+                                     []).append((third, found))
+                except TypeError:
+                    # an unhashable identifier set — skip it here; the
+                    # lookup falls back to the live search for that key
+                    continue
+            for branchTuple in keys:
+                walk(node.get(branchTuple), path + [branchTuple])
+
+        walk(tree, [])
+        return index
+
+    def treePathFromIndex(self, index, instanceTuple):
+        """getTuplePathInObjTree's answer, read out of the index."""
+        if index is None:
+            return self.getTuplePathInObjTree(instanceTuple)
+        try:
+            entries = index.get((instanceTuple[0], instanceTuple[1]))
+        except TypeError:
+            # unhashable identifiers: pay for the real search, honestly
+            return self.getTuplePathInObjTree(instanceTuple)
+        if not entries:
+            return None
+        for third, path in entries:
+            if type(third) is tuple:
+                return third
+            if third is instanceTuple[2] or third == instanceTuple[2]:
+                return path
+        return None
+
     def persistTree(self, progress=None):
         """Save all instances from objectTables into the database.
 
@@ -602,6 +852,7 @@ class managerObject:
         # snapshot both levels: saves can CREATE rows mid-iteration
         # (schema-stability profiles/events are treeObjects born
         # inside saveInstanceInDB hooks)
+        snapshotGeneration = _managerGeneration(self)
         tables = {name: dict(instances) for name, instances
                   in list(self.objectTables.items())}
         # ---- group classes by owning module ----
@@ -638,13 +889,26 @@ class managerObject:
         if hasattr(self.db, 'writePreparedBatches'):
             return self._persistTreeAtomic(tables, groups, module_order,
                                            classesTotal, skippedCount,
-                                           progress)
+                                           progress, snapshotGeneration)
         # ---- legacy: one transaction per class, module by module ----
+        # §51 addendum 3 applies here too: this path commits per class,
+        # so a row deleted since the snapshot must be dropped before the
+        # class is rewritten or the DELETE+REPLACE resurrects it.
+        tombs = _managerTombstones(self)
+        honoured = set()
+        treePathIndex = _managerTreePathIndex(self)
         for module in module_order:
             for className in sorted(groups[module]):
-                instances = list(tables[className].values())
-                ok, rows, err = self.db.saveClassBatch(className,
-                                                       instances)
+                instances = []
+                for instanceId, instance in tables[className].items():
+                    if _managerIsTombstoned(self, tombs, className,
+                                            instanceId):
+                        honoured.add((className, instanceId))
+                        continue
+                    instances.append(instance)
+                ok, rows, err = _withTreePathIndex(
+                    self.db.saveClassBatch, className, instances,
+                    treePathIndex=treePathIndex)
                 if ok:
                     savedCount += rows
                 else:
@@ -654,6 +918,10 @@ class managerObject:
                     self.db.deleteAllFromTable(className)
                     for instanceId, instance in tables[
                             className].items():
+                        if _managerIsTombstoned(self, tombs, className,
+                                                instanceId):
+                            honoured.add((className, instanceId))
+                            continue
                         try:
                             self.db.saveInstanceInDB(instance)
                             savedCount += 1
@@ -677,15 +945,20 @@ class managerObject:
                         })
                     except Exception:
                         pass
+        _managerClearTombstones(self, honoured)
         note = (f'; {len(fallbackClasses)} classes fell back to '
                 f'row-by-row: {fallbackClasses[:5]}'
                 if fallbackClasses else '')
+        tombNote = (f', {len(honoured)} deleted-since-snapshot rows '
+                    f'dropped' if honoured else '')
         print(f'[DB] Persisted {savedCount} instances to database '
               f'({classesDone} class batches, {skippedCount} skipped '
-              f'— no table, {errorCount} errors{note})', flush=True)
+              f'— no table, {errorCount} errors{note}{tombNote})',
+              flush=True)
 
     def _persistTreeAtomic(self, tables, groups, module_order,
-                           classesTotal, skippedCount, progress):
+                           classesTotal, skippedCount, progress,
+                           snapshotGeneration=None):
         """The whole tree in ONE transaction (§51 addendum 2).
 
         Three phases, and the order of them IS the fix:
@@ -702,6 +975,12 @@ class managerObject:
              through the row-by-row path — which carries the
              schema-stability OOPS adaptation and cannot run inside our
              transaction (it opens its own connections).
+
+        §51 addendum 3 adds two things to phase 1/2: the tree-path index
+        is built ONCE for the whole flush instead of a full tree search
+        per row, and every prepared row is re-checked against the
+        tombstone set immediately before the write, so a delete that
+        landed DURING serialization is not undone by this flush.
         """
         t0 = time.time()
         savedCount = 0
@@ -709,17 +988,27 @@ class managerObject:
         classesDone = 0
         prepared = []
         prepFailed = {}
+        treePathIndex = _managerTreePathIndex(self)
+        indexSeconds = time.time() - t0
         for module in module_order:
             for className in sorted(groups[module]):
                 instances = list(tables[className].values())
-                ok, payload, err = self.db.prepareClassBatch(className,
-                                                             instances)
+                ok, payload, err = _withTreePathIndex(
+                    self.db.prepareClassBatch, className, instances,
+                    treePathIndex=treePathIndex)
                 if ok:
                     allCols, rows = payload
                     prepared.append((className, allCols, rows, module))
                 else:
                     prepFailed[className] = err
         prepSeconds = time.time() - t0
+
+        # ---- §51 addendum 3: anything deleted while we serialized must
+        # ---- NOT be written back. Filter now, clear only what we
+        # ---- honour, and only after the COMMIT.
+        tombs = _managerTombstones(self)
+        prepared, honoured = _managerDropTombstoned(self, prepared, tombs)
+        endGeneration = _managerGeneration(self)
 
         self.db.ensurePersistStateTable()
         self.db.markPersistStarted()
@@ -758,6 +1047,10 @@ class managerObject:
                           f'{e}', flush=True)
                 for instanceId, instance in tables.get(className,
                                                        {}).items():
+                    if _managerIsTombstoned(self, tombs, className,
+                                            instanceId):
+                        honoured.add((className, instanceId))
+                        continue
                     try:
                         self.db.saveInstanceInDB(instance)
                         savedCount += 1
@@ -787,15 +1080,31 @@ class managerObject:
                 except Exception:
                     pass
 
+        # Only NOW — the rows are committed — do the tombstones go. A
+        # delete that landed during the write is still in the set and
+        # will be honoured by the next flush.
+        remaining = _managerClearTombstones(self, honoured)
+
         note = (f'; {len(fallbackClasses)} classes fell back to '
                 f'row-by-row: {fallbackClasses[:5]}'
                 if fallbackClasses else '')
+        tombNote = ''
+        if honoured or remaining:
+            tombNote = (f', {len(honoured)} rows deleted since the '
+                        f'snapshot were dropped, {remaining} tombstones '
+                        f'still up')
+        moved = ''
+        if snapshotGeneration is not None \
+                and endGeneration != snapshotGeneration:
+            moved = (f', tree moved under the flush: generation '
+                     f'{snapshotGeneration} -> {endGeneration}')
         print(f'[DB] Persisted {savedCount} instances to database in ONE '
               f'transaction ({len(prepared)} classes, {skippedCount} '
-              f'skipped — no table, {errorCount} errors{note}) — '
-              f'serialize {prepSeconds:.2f}s, write+commit '
-              f'{writeSeconds:.2f}s (the window a reader could see a '
-              f'partial tree)', flush=True)
+              f'skipped — no table, {errorCount} errors{note}'
+              f'{tombNote}{moved}) — tree-path index '
+              f'{indexSeconds:.2f}s, serialize {prepSeconds:.2f}s, '
+              f'write+commit {writeSeconds:.2f}s (the window a reader '
+              f'could see a partial tree)', flush=True)
 
     def identifySeedDBIds(self):
         """Identify DB rows that match runtime seed instances by property fingerprinting.
@@ -814,6 +1123,8 @@ class managerObject:
             '_branch_path', 'manager', 'branch', 'inTree', 'complete',
             'objectTree', 'objectTables', 'objectTyping', 'objectTypingDict',
             'polServer', 'hostSys', 'subManagers', 'db',
+            # §51 addendum 3: flush bookkeeping, never data
+            'persistLock', 'deletedSinceSnapshot', 'persistGeneration',
             # User: random per boot
             'sessionSecret', 'sessionCookie', 'sessionJWT',
             # isoSys: Docker container changes hostname each restart
@@ -1124,6 +1435,14 @@ class managerObject:
             tupToDelete = self.getInstanceTuple(instToDelete)
             deletePath = self.getTuplePathInObjTree(tupToDelete)
 
+            # §51 addendum 3 — TOMBSTONE. A flush already in flight
+            # snapshotted objectTables before this delete and would
+            # write the row back; the tombstone is what tells the write
+            # phase to drop it. Recorded for BOTH branches below, and
+            # before either of them, so an exception on the way out
+            # still leaves the intent recorded.
+            self.noteTreeDeletion(className, nodePolariId)
+
             # Handle instances that are in objectTables but not in objectTree
             # This occurs when instances are created without a branch parameter
             if(deletePath == None):
@@ -1359,6 +1678,11 @@ class managerObject:
         # 1. Purge instances from objectTables
         if className in self.objectTables:
             summary['instancesPurged'] = len(self.objectTables[className])
+            # §51 addendum 3 — a purge is a delete of every row of the
+            # class; tombstone each so a flush in flight cannot write
+            # the class back out of its own snapshot.
+            for purgedId in list(self.objectTables[className].keys()):
+                self.noteTreeDeletion(className, purgedId)
             del self.objectTables[className]
 
         # 2. Purge DB table
@@ -2395,6 +2719,13 @@ class managerObject:
                 else:
                     self.objectTables[key] = {}
                     self.objectTables[key][instance.id] = instance
+                # §51 addendum 3 — a create bumps the generation and
+                # cancels any tombstone for the same key: an id that
+                # came back is live and must be written.
+                try:
+                    self.noteTreeMutation(key, instance.id)
+                except Exception:
+                    pass
             else:
                 instance.makeUniqueIdentifier()
                 print("New instance id: ", instance.id)

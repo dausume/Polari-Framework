@@ -150,6 +150,13 @@ def _rollbackCreatedInstances(manager, instances):
         # Remove from objectTables
         if className in manager.objectTables and instId is not None:
             manager.objectTables[className].pop(instId, None)
+            # §51 addendum 3 — a rollback is a delete; tombstone it so a
+            # flush already serializing cannot write the half-made row
+            # back out of its snapshot.
+            try:
+                manager.noteTreeDeletion(className, instId)
+            except Exception:
+                pass
         # Remove from DB
         if hasattr(manager, 'db') and manager.db is not None and instId is not None:
             try:
