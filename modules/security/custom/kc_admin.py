@@ -39,7 +39,10 @@ def config(env=None):
     return {
         'admin_url': (env.get('POLARI_KEYCLOAK_ADMIN_URL') or '').rstrip('/'),
         'realm': env.get('POLARI_KEYCLOAK_REALM') or 'Polari',
-        'client_id': env.get('POLARI_KEYCLOAK_ADMIN_CLIENT_ID') or ADMIN_CLIENT_ID,
+        # NOT POLARI_KEYCLOAK_ADMIN_CLIENT_ID: that one is `admin-cli` on the live stack, a PUBLIC client with no
+        # service account ("Public client not allowed to retrieve service account", seen live 2026-09-18). The
+        # credential we hold is the `polari-backend` client's secret, so the client id must be its own.
+        'client_id': env.get('POLARI_KEYCLOAK_BACKEND_CLIENT_ID') or ADMIN_CLIENT_ID,
         'secret': env.get('KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET') or '',
         'issuer': (env.get('POLARI_KEYCLOAK_ISSUER_URI') or '').rstrip('/'),
     }
@@ -120,7 +123,8 @@ def token(env=None, force=False):
         hint = ''
         if status in (400, 401):
             hint = (' — check the client secret, and that serviceAccountsEnabled is on for '
-                    f"{c['client_id']} (pol-keycloak/startup_shells/configure_clients.sh sets both)")
+                    f"the confidential client {c['client_id']} (pol-keycloak/startup_shells/configure_clients.sh "
+                    'sets both; a PUBLIC client such as admin-cli can never do this)')
         return '', f'the backend could not get a Keycloak service-account token ({status}): {str(body)[:200]}{hint}'
     _TOKEN['value'] = body['access_token']; _TOKEN['expires'] = now + max(30, int(body.get('expires_in') or 60)) - 30
     return _TOKEN['value'], ''
