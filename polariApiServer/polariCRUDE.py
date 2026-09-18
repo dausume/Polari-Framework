@@ -19,6 +19,12 @@ from accessControl.polariPermissionSet import polariPermissionSet
 # sep-7: the per-app permission gate (knob POLARI_APP_PERMISSIONS,
 # default off — see accessControl.app_permissions_gate).
 from accessControl.app_permissions_gate import crude_permission_gate
+# op-0: the INSTANCE-level half of the same gate (owner-defined permissions).
+# Runs AFTER resolution — own rows whole, others' rows projected, unreadable
+# rows omitted; same off|advisory|enforce knob. A class with no
+# OwnedClassPolicy row pays one dict lookup (accessControl.owner_gate).
+from accessControl.owner_gate import (owner_gate_read, owner_gate_stamp,
+                                      owner_gate_write)
 # §51: a row created/updated/deleted through CRUDE reached the DB only on a
 # LATER flush, so a redeploy minutes later silently lost it. Every successful
 # write now schedules ONE trailing persistTree per burst (~3 s, daemon timer,
@@ -273,6 +279,10 @@ class polariCRUDE(treeObject):
                                 print(f"[polariCRUDE] Field resolution error for {self.apiObject} id={instId}: {e}")
             else:
                 jsonObj[self.apiObject] = {}
+            # op-0: owner-defined permissions, per ROW (never a 403 for a list).
+            jsonObj[self.apiObject] = owner_gate_read(
+                self.manager, request, response, self.apiObject,
+                requestedInstances, jsonObj[self.apiObject])
             response.media = [jsonObj]
             response.status = falcon.HTTP_200
         except Exception as err:
@@ -328,6 +338,10 @@ class polariCRUDE(treeObject):
                             print(f"[polariCRUDE] Field resolution error for {self.apiObject} id={instId} profile={profileName}: {e}")
             else:
                 jsonObj[self.apiObject] = {}
+            # op-0: the same per-row owner gate the plain read applies.
+            jsonObj[self.apiObject] = owner_gate_read(
+                self.manager, request, response, self.apiObject,
+                requestedInstances, jsonObj[self.apiObject])
             response.media = [jsonObj]
             response.status = falcon.HTTP_200
         except Exception as err:
@@ -349,6 +363,9 @@ class polariCRUDE(treeObject):
         response.set_header('Powered-By', 'Polari')
 
     def on_get_collection(self, request, response):
+        # STUB (never routed). op-0 note: the collection READ is on_get — it
+        # already returns every matching row and carries the owner gate. When
+        # this responder is built it must call owner_gate_read too.
         pass
 
     #Update in CRUD
@@ -449,6 +466,11 @@ class polariCRUDE(treeObject):
                 response.status = falcon.HTTP_423
                 response.media = lockCheck
                 return
+            # op-0: update on somebody else's instance of an owned class is
+            # refused (advisory: it runs and the header says would-deny).
+            if not owner_gate_write(self.manager, request, response,
+                                    self.apiObject, 'update', instToUpdate):
+                return
             if("updateData" in instUpdate):
                 updateDict = instUpdate["updateData"]
                 #TODO For now we just allow everything to be set, need to implement
@@ -479,6 +501,8 @@ class polariCRUDE(treeObject):
             self._notify_ws_subscribers('update', updatedIds)
 
     def on_put_collection(self, request, response):
+        # STUB (never routed). The design named this the create path; CRUDE's
+        # real create is on_post, which is where op-0's owner stamp sits.
         pass
 
     #Create object instances in CRUDE
@@ -662,6 +686,13 @@ class polariCRUDE(treeObject):
                         else:
                             raise ValueError("Passed a dataSet that did not create any instances.")
         #With all validation of permissions complete and queries resolved, we return the created instances
+        # op-0: stamp the owner on an owned class (the caller's Keycloak sub,
+        # D18-1). An anonymous create on an owned class is refused — under
+        # enforce the just-built rows are rolled back out of the tree.
+        _owner_ok, _owner_refusal = owner_gate_stamp(
+            self.manager, request, response, self.apiObject, tempInstancesList)
+        if not _owner_ok:
+            return
         # Persist newly created instances to database
         if tempInstancesList and hasattr(self.manager, 'db') and self.manager.db is not None:
             for inst in tempInstancesList:
@@ -795,6 +826,10 @@ class polariCRUDE(treeObject):
                 response.status = falcon.HTTP_423
                 response.media = lockCheck
                 return
+            # op-0: delete on somebody else's instance of an owned class.
+            if not owner_gate_write(self.manager, request, response,
+                                    self.apiObject, 'delete', targetInstance):
+                return
             # Check inheritance cascade policy: if this class is a parent to
             # other multi-inheritance classes, enforce the cascade policy.
             if self.objTyping.inheritedByClasses:
@@ -847,6 +882,8 @@ class polariCRUDE(treeObject):
         self._notify_ws_subscribers('delete', deletedIds)
 
     def on_delete_collection(self, request, response):
+        # STUB (never routed). When built it must call owner_gate_write per
+        # resolved instance, exactly as on_delete does.
         pass
 
     def on_event(self, request, response):

@@ -85,6 +85,9 @@ class SecurityAPI(treeObject):
             add('/api/security/roles/claim', self, suffix='roles_claim')            # POST {role} join the KC group; DELETE ?role= leave it
             add('/api/security/people', self, suffix='people_batch')                # the SAME door, for a page: POST {subs: [...]} (max 200), the gate applied per sub
             add('/api/security/people/{sub}', self, suffix='people')                # THE ONE GATED DOOR: a Keycloak `sub` → a display name, resolved LIVE, never stored (D18-1)
+            add('/api/security/owned', self, suffix='owned')                        # op-0: the classes whose OWNER defines the rules, and their policies
+            add('/api/security/owned/{class_name}', self, suffix='owned_class')     # GET one policy; POST (ADMIN_ROLES) set or replace it
+            add('/api/security/owned/{class_name}/{object_id}', self, suffix='owned_instance')   # GET the CALLER's verdict on one instance
 
     def _rows(self, class_name):
         return list(((getattr(self.manager, 'objectTables', None) or {}).get(class_name, {}) or {}).values())
@@ -605,6 +608,59 @@ class SecurityAPI(treeObject):
         row = proposal_row(prop, harvest_source=body.get('source', ''))
         obj = self._upsert('SecurityProposal', SecurityProposal, row)
         response.media = {'ok': True, 'stored': obj is not None, **prop}
+
+    # ---- OWNER-DEFINED PERMISSIONS (op-0, his ask 2026-09-18) ------------------------------------------------
+    # "Owner defined permissions would be something we typically want specifically enabled per object though,
+    # not something we enable by default." So: nothing is owned until a policy row here says so, and the
+    # verdict door explains, per instance, what the caller may do and which fields they would see.
+
+    def on_get_owned(self, request, response):
+        from security.custom.security_owned import policies
+        from accessControl.app_permissions_gate import gate_mode
+        rows = policies(self.manager)
+        response.media = {
+            'ok': True, 'mode': gate_mode(), 'count': len(rows),
+            'enabled': sorted(p['class_name'] for p in rows if p['enabled']),
+            'policies': rows,
+            'how': ('owner-defined permissions are OPT-IN per class: a class behaves exactly as it always did '
+                    'until an enabled policy names it. POST /api/security/owned/<Class> sets one (admins only). '
+                    'The gate follows POLARI_APP_PERMISSIONS (off | advisory | enforce) — the same knob as the '
+                    'class gate; advisory returns the whole row and says would-deny / would-project in the '
+                    'X-Polari-Owner-Advisory header.')}
+
+    def on_get_owned_class(self, request, response, class_name):
+        from security.custom.security_owned import policies, policy_for
+        pol = policy_for(self.manager, class_name)
+        if pol is None:
+            stored = next((p for p in policies(self.manager) if p['class_name'] == class_name), None)
+            return self._json_ok(response, {
+                'ok': True, 'class': class_name, 'owned': False, 'policy': stored,
+                'why': ('a policy row exists but is disabled — a disabled policy is the same as no policy'
+                        if stored else '%s is not an owned class: no OwnedClassPolicy row enables it' % class_name)})
+        response.media = {'ok': True, 'class': class_name, 'owned': True, 'policy': pol}
+
+    def on_post_owned_class(self, request, response, class_name):
+        """Set or replace one class's owner policy. ADMIN_ROLES only: opting a class in changes what every
+        caller may do to every instance of it, which is exactly a permissions-administration act."""
+        from security.custom.security_claims import is_admin
+        from security.custom.security_owned import set_policy
+        if not is_admin(self._user_info(request)):
+            return self._refuse(response, '403 Forbidden',
+                                'only an administrator may opt a class into owner-defined permissions '
+                                '(ADMIN_ROLES: admin, polari-admin)', **{'class': class_name})
+        r = set_policy(self.manager, class_name, self._body(request), by=self._sub(request))
+        if not r.get('ok'):
+            return self._bad(response, r.get('refusal', ''))
+        response.media = {**r, 'how': 'GET /api/security/owned/%s/<id> answers what a caller may do to one '
+                                      'instance, and why' % class_name}
+
+    def on_get_owned_instance(self, request, response, class_name, object_id):
+        """The CALLER's verdict on ONE instance: what they may do, which fields they see, which rule decided."""
+        from security.custom.security_owned import verdict_for_id
+        r = verdict_for_id(self.manager, self._user_info(request), class_name, object_id)
+        if not r.get('ok'):
+            return self._refuse(response, '404 Not Found', r.get('refusal', ''))
+        response.media = r
 
     def on_get_compare(self, request, response):
         view = request.params.get('view', 'os'); mode = request.params.get('mode', 'today')

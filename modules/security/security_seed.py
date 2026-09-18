@@ -7,7 +7,7 @@ from security_facts + security_topology, never hand-typed. SECURITY_SEED_PAIRS i
 """
 import json
 
-from security.security_basis import (SecurityEvent, PermissionObservation, ObservationSession, UsageObservation, RolePrototype, AppSecurityRecord, AuthzRule, BrowserPolicy, ContentPolicy, ContentPolicyViolation, DacPolicy,
+from security.security_basis import (SecurityEvent, PermissionObservation, ObservationSession, UsageObservation, RolePrototype, OwnedClassPolicy, AppSecurityRecord, AuthzRule, BrowserPolicy, ContentPolicy, ContentPolicyViolation, DacPolicy,
                                      FirewallRuleSet, HardwareTrial, MacProfile, PermissionGroup, ProxyConfig, ProxySnippet,
                                      SecurityArea, SecurityAuditRun, SecurityControl, SecurityDomain, SecurityProposal, SecurityScenario,
                                      SecurityThreat, SecurityTopologyEdge, SecurityTopologyNode, ServiceIdentity, SshCapability, DeviceInventory, SshPermissionLevel, TrustChannel)
@@ -113,6 +113,25 @@ SEED_SECURITY_AUTHZ_RULES = authz_rule_rows()
 SEED_SECURITY_BROWSER_POLICIES = browser_policy_rows()
 SEED_SECURITY_LEDGER = app_security_records(APPLIED_TODAY, channels=SEED_SECURITY_TRUST_CHANNELS)
 
+# op-0 (OWNER_DEFINED_PERMISSIONS_DESIGN §9): owner-defined permissions are OPT-IN per class, so this list is
+# deliberately one row long. `UserAppPreference` (§57) is the natural first class: it is already keyed by the
+# person's Keycloak `sub`, it is already de facto owner-only (enforced by its door rather than by the gate), and
+# nobody else has any business reading somebody's app list — others_verbs is empty, so a non-owner sees no row
+# at all rather than a projected one. `owner_field` points at the column it already has instead of adding a
+# duplicate `owner` one (the per-class schema freeze).
+SEED_OWNED_CLASS_POLICIES = [
+    {'name': 'UserAppPreference', 'class_name': 'UserAppPreference', 'enabled': True,
+     'owner_verbs_json': '["read", "update", "delete"]',
+     'others_verbs_json': '[]', 'others_fields_json': '[]',
+     'owner_visible': False, 'owner_may_grant': False,
+     'grantable_verbs_json': '[]', 'grantee_kinds_json': '[]',
+     'frozen_when': '', 'transfer': 'nobody', 'anonymised': False,
+     'owner_field': 'sub',
+     'notes': 'op-0 seed: a person\'s own app list. Owner reads/updates/deletes it; nobody else reads it at all '
+              '(others_verbs []), so the owner column never needs to be visible. The owner is the Keycloak sub '
+              '(D18-1) held in the row\'s existing `sub` column — owner_field names it.'},
+]
+
 SECURITY_SEED_PAIRS = [
     ('SecurityDomain', SecurityDomain, SEED_SECURITY_DOMAINS),
     ('SecurityArea', SecurityArea, SEED_SECURITY_AREAS),
@@ -146,6 +165,7 @@ SECURITY_SEED_PAIRS = [
     ('ObservationSession', ObservationSession, []),         # role-play windows
     ('UsageObservation', UsageObservation, []),             # what a role USES: apps, pages, components, actions, endpoints
     ('RolePrototype', RolePrototype, []),                   # roles that exist to be role-played (prototype → concreted → enforced)
+    ('OwnedClassPolicy', OwnedClassPolicy, SEED_OWNED_CLASS_POLICIES),   # op-0: the classes whose OWNER defines the rules
 ]
 
 if __name__ == '__main__':

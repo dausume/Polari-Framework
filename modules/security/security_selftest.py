@@ -410,13 +410,323 @@ def _people_batch_checks(api, O, _Res, _types, check):
             os.environ.clear(); os.environ.update(old_env)
 
 
+def _owned_checks(api, O, _Res, _types, check):
+    """OWNER-DEFINED PERMISSIONS (op-0) — the policy, the stamp, the gate.
+
+    His ask 2026-09-18: *"other people do not have the permission to alter the data on their vote, they only
+    have partial read access and only to the contents of the vote and groups the vote corresponds to, not who
+    specifically made that vote."* Everything below is that sentence, proven: the owner's floor on their own
+    row, others' ceiling with the projection, the owner column dropped, the unreadable row OMITTED from a list
+    rather than 403-ing it, and the three modes (off / advisory / enforce) behaving as the class gate does."""
+    import os
+    from security.custom import security_owned as W
+    from accessControl.owner_gate import (owner_gate_read, owner_gate_stamp, owner_gate_write,
+                                          ADVISORY_HEADER)
+
+    SUB_A = 'aaaaaaaa-0000-4000-8000-aaaaaaaaaaaa'      # the owner
+    SUB_B = 'bbbbbbbb-0000-4000-8000-bbbbbbbbbbbb'      # somebody else
+    owner_ui = {'sub': SUB_A, 'preferred_username': 'demo-owner', 'roles': ['voters'], 'raw_claims': {'groups': ['voters']}}
+    other_ui = {'sub': SUB_B, 'preferred_username': 'demo-other', 'roles': ['voters'], 'raw_claims': {'groups': ['voters']}}
+    admin_ui = {'sub': 'admin-0', 'preferred_username': 'demo-admin', 'roles': ['polari-admin'], 'raw_claims': {'groups': []}}
+
+    # real classes, not SimpleNamespace: the verdict keys off type(instance).__name__
+    class Ballot:
+        def __init__(self, **kw): self.__dict__.update(kw)
+
+    class VoteRecord:
+        def __init__(self, **kw): self.__dict__.update(kw)
+
+    class UserAppPreference:
+        def __init__(self, **kw): self.__dict__.update(kw)
+
+    class _M:
+        pass
+
+    class _R:
+        """A response double: status, media and the headers the advisory mode writes."""
+        def __init__(self): self.status = '200 OK'; self.media = None; self.headers = {}
+        def set_header(self, k, v): self.headers[k] = v
+
+    class _Q:
+        def __init__(self, ui): self.context = _types.SimpleNamespace(user_info=ui, roleplay='')
+
+    def _mode(m):
+        os.environ['POLARI_APP_PERMISSIONS'] = m
+
+    # ---- the seed: opt-in means the list is deliberately ONE row long
+    from security.security_seed import SEED_OWNED_CLASS_POLICIES
+    seed = SEED_OWNED_CLASS_POLICIES
+    check('op-0 seed: exactly one OwnedClassPolicy row — owner-defined permissions are OPT-IN per class (his '
+          '"not something we enable by default"), and UserAppPreference (§57) is the first class to take it: '
+          'owner reads/updates/deletes, others_verbs [] so nobody else sees the row at all, owner_field `sub` '
+          'because that class already keys its person by the Keycloak sub',
+          len(seed) == 1 and seed[0]['class_name'] == 'UserAppPreference' and seed[0]['enabled'] is True
+          and seed[0]['owner_field'] == 'sub' and seed[0]['others_verbs_json'] == '[]'
+          and seed[0]['owner_visible'] is False, seed)
+
+    old_env = dict(os.environ)
+    try:
+        m = _M()
+        m.objectTables = {'OwnedClassPolicy': {}, 'SecurityEvent': {}, 'Ballot': {}, 'VoteRecord': {},
+                          'UserAppPreference': {}}
+        m.persistTree = lambda: None
+        vr = VoteRecord(id='vr-1', name='election-1', state='open')
+        m.objectTables['VoteRecord']['vr-1'] = vr
+
+        # ---- a class with NO policy pays nothing and changes nothing
+        loose = Ballot(id='b-0', owner='', choice='yes')
+        v0 = W.owner_verdict(m, other_ui, 'update', loose)
+        st0 = W.stamp_owner(m, loose, owner_ui)
+        check('a class with NO enabled policy: the verdict is `no-policy` and allowed (the class gate\'s answer '
+              'stands), and nothing is stamped — an instance of a class nobody opted in carries no owner',
+              W.policy_for(m, 'Ballot') is None and v0['rule'] == 'no-policy' and v0['allowed'] is True
+              and v0['projected_fields'] is None and st0['stamped'] is False and st0['refused'] is False
+              and loose.owner == '', (v0['rule'], st0))
+
+        # ---- the admin door writes the policy (and a disabled row is the same as no row)
+        r = W.set_policy(m, 'Ballot', {'enabled': False, 'owner_verbs': ['read', 'update', 'delete']}, by='admin-0')
+        check('a DISABLED policy row is the same as no policy at all', r['ok'] and W.policy_for(m, 'Ballot') is None)
+        r = W.set_policy(m, 'Ballot', {
+            'enabled': True, 'owner_verbs': ['read', 'update', 'delete'], 'others_verbs': ['read'],
+            'others_fields': ['election_id', 'choice', 'groups'], 'owner_visible': False,
+            'frozen_when': 'VoteRecord.state in (tallied, certified) via vote_record_id',
+            'transfer': 'nobody', 'anonymised': True}, by='admin-0')
+        pol = W.policy_for(m, 'Ballot')
+        check('POST /api/security/owned/<Class> stores the policy the design\'s vote example asks for: owner '
+              'read+update+delete, others read only, others see election_id/choice/groups, the owner column '
+              'hidden, frozen once the record is certified, transfer nobody',
+              r['ok'] and pol and pol['owner_verbs'] == ['read', 'update', 'delete']
+              and pol['others_verbs'] == ['read'] and pol['others_fields'] == ['election_id', 'choice', 'groups']
+              and pol['owner_visible'] is False and pol['transfer'] == 'nobody' and pol['anonymised'] is True, pol)
+        bad = W.set_policy(m, 'Ballot', {'owner_verbs': ['create']})
+        check('owner_verbs may not name `create`: an instance has no owner until it exists, so creation stays '
+              'the class door\'s business — refused with the reason, not silently dropped',
+              bad['ok'] is False and 'create' in bad['refusal'], bad)
+
+        # ---- THE STAMP
+        b1 = Ballot(id='b-1', owner='', election_id='e-1', choice='yes', groups='voters',
+                    cast_at='2026-09-18T10:00:00Z', vote_record_id='vr-1')
+        st = W.stamp_owner(m, b1, owner_ui)
+        check('the owner stamp is the caller\'s opaque Keycloak `sub` and NOTHING else (D18-1): the token also '
+              'carried preferred_username, and it reaches no column',
+              st['stamped'] is True and b1.owner == SUB_A and st['owner'] == SUB_A
+              and 'demo-owner' not in repr(st) + repr(b1.__dict__), (st, b1.__dict__))
+        b_anon = Ballot(id='b-x', owner='', election_id='e-1', choice='no', groups='voters', vote_record_id='vr-1')
+        st_anon = W.stamp_owner(m, b_anon, None)
+        check('an ANONYMOUS create on an owned class is refused with a stated reason — an instance with no owner '
+              'has no owner-defined rule to apply — and the knob that would change it is named',
+              st_anon['stamped'] is False and st_anon['refused'] is True
+              and 'no identity' in st_anon['why'] and 'OwnedClassPolicy' in st_anon['knob'], st_anon)
+
+        # ---- THE OWNER FLOOR, and frozen_when
+        vo = W.owner_verdict(m, owner_ui, 'update', b1)
+        check('the OWNER FLOOR: the owner may update their own row, and the verdict says which rule decided and '
+              'which knob would change it', vo['allowed'] is True and vo['rule'] == 'owner-floor'
+              and vo['projected_fields'] is None and 'OwnedClassPolicy[Ballot]' in vo['knob'], vo)
+        vr.state = 'certified'
+        vf = W.owner_verdict(m, owner_ui, 'update', b1)
+        vfr = W.owner_verdict(m, owner_ui, 'read', b1)
+        check('frozen_when: once the related VoteRecord is certified the OWNER loses update and delete on their '
+              'own ballot (the vote is over) but keeps READ — the verdict names the frozen condition',
+              vf['allowed'] is False and vf['rule'] == 'frozen' and 'certified' in vf['why']
+              and vfr['allowed'] is True, (vf, vfr['allowed']))
+        vr.state = 'open'
+        W.set_policy(m, 'Ballot', {**{k: pol[k] for k in ('owner_verbs', 'others_verbs', 'others_fields',
+                                                          'owner_visible', 'transfer', 'anonymised')},
+                                   'enabled': True, 'frozen_when': 'this is not( an expression'}, by='admin-0')
+        evs_before = len(O.events(m))
+        vbad = W.owner_verdict(m, owner_ui, 'update', b1)
+        check('a MALFORMED frozen_when is NOT frozen — a policy typo must never lock every owner out of their '
+              'own rows — and it lands in the SecurityEvent ledger so the typo is visible',
+              vbad['allowed'] is True and vbad['rule'] == 'owner-floor'
+              and len(O.events(m)) == evs_before + 1
+              and any('frozen_when' in (e['action'] + e['reason']) for e in O.events(m)), vbad)
+        W.set_policy(m, 'Ballot', {'enabled': True, 'owner_verbs': ['read', 'update', 'delete'],
+                                   'others_verbs': ['read'],
+                                   'others_fields': ['election_id', 'choice', 'groups'],
+                                   'owner_visible': False, 'anonymised': True}, by='admin-0')
+
+        # ---- OTHERS' CEILING: partial read, the owner dropped, no writes
+        vothers = W.owner_verdict(m, other_ui, 'read', b1)
+        vwrite = W.owner_verdict(m, other_ui, 'update', b1)
+        row = {'id': 'b-1', 'owner': SUB_A, 'election_id': 'e-1', 'choice': 'yes', 'groups': 'voters',
+               'cast_at': '2026-09-18T10:00:00Z'}
+        projected = W.project(row, vothers['projected_fields'])
+        check('OTHERS\' CEILING (his sentence, exactly): another voter READS the ballot, projected to its '
+              'contents and groups — the owner is dropped, and so is cast_at, because a timestamp beside a '
+              '"who was online" signal unmasks a voter',
+              vothers['allowed'] is True and vothers['rule'] == 'others-ceiling'
+              and vothers['projected_fields'] == ['election_id', 'choice', 'groups']
+              and set(projected) == {'id', 'election_id', 'choice', 'groups'}
+              and 'owner' not in projected and SUB_A not in repr(projected), projected)
+        check('...and another voter may NOT alter it: others_verbs is read only, and the refusal says so',
+              vwrite['allowed'] is False and vwrite['rule'] == 'others-ceiling'
+              and "belongs to somebody else" in vwrite['why'], vwrite)
+        W.set_policy(m, 'Ballot', {'enabled': True, 'owner_verbs': ['read', 'update', 'delete'],
+                                   'others_verbs': ['read'], 'others_fields': ['election_id', 'choice', 'groups'],
+                                   'owner_visible': True}, by='admin-0')
+        check('owner_visible true is the one way the owner column survives a projection (a ballot never sets it)',
+              W.owner_verdict(m, other_ui, 'read', b1)['projected_fields'] == ['election_id', 'choice', 'groups', 'owner'])
+        W.set_policy(m, 'Ballot', {'enabled': True, 'owner_verbs': ['read', 'update', 'delete'],
+                                   'others_verbs': ['read'], 'others_fields': ['election_id', 'choice', 'groups'],
+                                   'owner_visible': False, 'anonymised': True}, by='admin-0')
+        check('an ADMIN is outside the owner rules: allowed, whole row, rule `admin`',
+              W.owner_verdict(m, admin_ui, 'delete', b1)['rule'] == 'admin'
+              and W.owner_verdict(m, admin_ui, 'read', b1)['projected_fields'] is None)
+
+        # ---- THE GATE at the CRUDE layer: lists, the three modes
+        b2 = Ballot(id='b-2', owner=SUB_B, election_id='e-1', choice='no', groups='voters',
+                    cast_at='2026-09-18T11:00:00Z', vote_record_id='vr-1')
+        m.objectTables['Ballot'] = {'b-1': b1, 'b-2': b2}
+        instances = {'b-1': b1, 'b-2': b2}
+
+        def _payload():
+            return [{'dataType': 'Ballot', 'data': [
+                {'id': 'b-1', 'owner': SUB_A, 'election_id': 'e-1', 'choice': 'yes', 'groups': 'voters', 'cast_at': 'x'},
+                {'id': 'b-2', 'owner': SUB_B, 'election_id': 'e-1', 'choice': 'no', 'groups': 'voters', 'cast_at': 'y'}]}]
+
+        _mode('enforce')
+        res = _R(); out = owner_gate_read(m, _Q(owner_ui), res, 'Ballot', instances, _payload())
+        data = {d['id']: d for d in out[0]['data']}
+        check('ENFORCE, a list read: the caller\'s OWN row comes back whole, the other person\'s row is '
+              'PROJECTED — one response, two different shapes, no 403 anywhere',
+              set(data) == {'b-1', 'b-2'} and data['b-1']['owner'] == SUB_A and 'cast_at' in data['b-1']
+              and set(data['b-2']) == {'id', 'election_id', 'choice', 'groups'} and SUB_B not in repr(data['b-2']),
+              data)
+        W.set_policy(m, 'Ballot', {'enabled': True, 'owner_verbs': ['read', 'update', 'delete'],
+                                   'others_verbs': [], 'others_fields': [], 'owner_visible': False}, by='admin-0')
+        res = _R(); out = owner_gate_read(m, _Q(owner_ui), res, 'Ballot', instances, _payload())
+        check('ENFORCE, others_verbs []: a row the caller may not read at all is OMITTED from the list — never a '
+              '403 for the whole list because one row is private (design §3.4)',
+              [d['id'] for d in out[0]['data']] == ['b-1'], [d['id'] for d in out[0]['data']])
+        _mode('advisory')
+        res = _R(); out = owner_gate_read(m, _Q(owner_ui), res, 'Ballot', instances, _payload())
+        adv = res.headers.get(ADVISORY_HEADER, '')
+        check('ADVISORY (the DEPLOYED mode — dev warns, never blocks): the whole list comes back UNCHANGED and '
+              'the header says what enforcement would have hidden',
+              len(out[0]['data']) == 2 and out[0]['data'][1]['owner'] == SUB_B
+              and 'would-deny Ballot:b-2:read' in adv, adv)
+        W.set_policy(m, 'Ballot', {'enabled': True, 'owner_verbs': ['read', 'update', 'delete'],
+                                   'others_verbs': ['read'], 'others_fields': ['election_id', 'choice', 'groups'],
+                                   'owner_visible': False}, by='admin-0')
+        res = _R(); out = owner_gate_read(m, _Q(owner_ui), res, 'Ballot', instances, _payload())
+        check('ADVISORY, a projected read: the whole row is still returned and the header says would-project',
+              len(out[0]['data'][1]) == 6 and 'would-project Ballot:b-2' in res.headers.get(ADVISORY_HEADER, ''),
+              res.headers)
+        _mode('off')
+        res = _R(); out = owner_gate_read(m, _Q(owner_ui), res, 'Ballot', instances, _payload())
+        check('OFF: nothing happens at all — no filtering, no projection, no header',
+              len(out[0]['data']) == 2 and res.headers == {}, res.headers)
+
+        # ---- writes: advisory header vs enforce 403 vs off
+        _mode('advisory')
+        res = _R(); g_adv = owner_gate_write(m, _Q(other_ui), res, 'Ballot', 'update', b1)
+        _mode('enforce')
+        res2 = _R(); g_enf = owner_gate_write(m, _Q(other_ui), res2, 'Ballot', 'update', b1)
+        res3 = _R(); g_own = owner_gate_write(m, _Q(owner_ui), res3, 'Ballot', 'update', b1)
+        _mode('off')
+        res4 = _R(); g_off = owner_gate_write(m, _Q(other_ui), res4, 'Ballot', 'update', b1)
+        check('update on somebody else\'s ballot: ADVISORY runs it with a would-deny header, ENFORCE is 403 '
+              'carrying the evidence dict, OFF does nothing — and the OWNER passes in every mode',
+              g_adv is True and 'would-deny Ballot:b-1:update' in res.headers.get(ADVISORY_HEADER, '')
+              and g_enf is False and res2.status.startswith('403')
+              and res2.media['verdict']['rule'] == 'others-ceiling' and res2.media['why']
+              and g_own is True and g_off is True and res4.headers == {},
+              (res.headers, res2.status, res2.media))
+
+        # ---- the create path: the stamp, and the rollback of an ownerless row under enforce
+        _mode('enforce')
+        fresh = Ballot(id='b-3', owner='', election_id='e-1', choice='yes', groups='voters', vote_record_id='vr-1')
+        m.objectTables['Ballot']['b-3'] = fresh
+        res = _R(); ok_anon, refusal = owner_gate_stamp(m, _Q(None), res, 'Ballot', [fresh])
+        check('ENFORCE + an anonymous create on an owned class: 403, and the row the create loop had already '
+              'built is taken back out of the tree — a refusal must not leave the ownerless instance it exists '
+              'to prevent', ok_anon is False and res.status.startswith('403')
+              and 'b-3' not in m.objectTables['Ballot'], sorted(m.objectTables['Ballot']))
+        fresh2 = Ballot(id='b-4', owner='', election_id='e-1', choice='no', groups='voters', vote_record_id='vr-1')
+        res = _R(); ok_stamp, _ = owner_gate_stamp(m, _Q(owner_ui), res, 'Ballot', [fresh2])
+        check('...and a signed-in create stamps the owner and proceeds', ok_stamp is True and fresh2.owner == SUB_A)
+        _mode('advisory')
+        fresh3 = Ballot(id='b-5', owner='', election_id='e-1', choice='no', groups='voters', vote_record_id='vr-1')
+        res = _R(); ok_adv, _ = owner_gate_stamp(m, _Q(None), res, 'Ballot', [fresh3])
+        check('ADVISORY + an anonymous create: the create still happens (unstamped) and the header says what '
+              'production would have refused', ok_adv is True and fresh3.owner == ''
+              and 'would-deny Ballot::create' in res.headers.get(ADVISORY_HEADER, ''), res.headers)
+
+        # ---- UserAppPreference: the first class to opt in, through its own `sub` column
+        W.set_policy(m, 'UserAppPreference', {
+            'enabled': True, 'owner_verbs': ['read', 'update', 'delete'], 'others_verbs': [],
+            'others_fields': [], 'owner_visible': False, 'owner_field': 'sub'}, by='admin-0')
+        pref = UserAppPreference(id='p-1', name='', sub='', primary_role='', added_apps_json='[]')
+        st_pref = W.stamp_owner(m, pref, owner_ui)
+        vp_own = W.owner_verdict(m, owner_ui, 'update', pref)
+        vp_other = W.owner_verdict(m, other_ui, 'read', pref)
+        check('UserAppPreference opts in through `owner_field: sub` — the column it already has, rather than a '
+              'duplicate `owner` one (the per-class schema freeze): the stamp writes the sub there, the owner '
+              'may update it, and nobody else may even read it',
+              st_pref['stamped'] is True and st_pref['field'] == 'sub' and pref.sub == SUB_A
+              and vp_own['allowed'] is True and vp_own['rule'] == 'owner-floor'
+              and vp_other['allowed'] is False and vp_other['rule'] == 'others-ceiling', (st_pref, vp_other))
+
+        # ---- the verdict door
+        api.manager = m
+        class _ReqO:
+            def __init__(self, ui, media=None, **p):
+                self.params = p; self.media = media or {}
+                self.context = _types.SimpleNamespace(user_info=ui, roleplay='')
+        r = _Res(); api.on_get_owned(_ReqO(owner_ui), r)
+        check('GET /api/security/owned lists the opted-in classes, the mode in force and how the knob reads',
+              r.media['ok'] and 'Ballot' in r.media['enabled'] and 'UserAppPreference' in r.media['enabled']
+              and r.media['mode'] in ('off', 'advisory', 'enforce') and 'OPT-IN' in r.media['how'], r.media.get('enabled'))
+        r = _Res(); api.on_get_owned_class(_ReqO(owner_ui), r, 'NoSuchClass')
+        check('GET /api/security/owned/<Class> for a class nobody opted in says so plainly, and is not an error',
+              r.media['ok'] and r.media['owned'] is False and 'not an owned class' in r.media['why'], r.media)
+        r = _Res(); api.on_post_owned_class(_ReqO(owner_ui, media={'enabled': True}), r, 'Ballot')
+        check('POST /api/security/owned/<Class> from a NON-admin is 403: opting a class in changes what every '
+              'caller may do to every instance of it', r.status.startswith('403') and 'administrator' in r.media['refusal'])
+        r = _Res(); api.on_get_owned_instance(_ReqO(other_ui), r, 'Ballot', 'b-1')
+        check('GET /api/security/owned/<Class>/<id> is the caller\'s own verdict on ONE instance: what they may '
+              'do, which fields they would see, and the rule that decided each',
+              r.media['ok'] and r.media['may'] == ['read'] and r.media['you_are_the_owner'] is False
+              and r.media['fields_you_see'] == ['election_id', 'choice', 'groups']
+              and r.media['verdicts']['update']['rule'] == 'others-ceiling', r.media.get('may'))
+        r = _Res(); api.on_get_owned_instance(_ReqO(owner_ui), r, 'Ballot', 'b-1')
+        check('...and for the OWNER: every owner verb, the whole row, you_are_the_owner true',
+              r.media['ok'] and r.media['you_are_the_owner'] is True and r.media['fields_you_see'] is None
+              and set(r.media['may']) == {'read', 'update', 'delete'}, r.media.get('may'))
+        r = _Res(); api.on_get_owned_instance(_ReqO(owner_ui), r, 'Ballot', 'nope')
+        check('an instance that does not exist is an honest 404, not a stack trace', r.status.startswith('404'))
+
+        # ---- §54 guard: the three new routes register against a fake falconServer
+        class _Falcon:
+            def __init__(self): self.routes = []
+            def add_route(self, uri, resource, suffix=None): self.routes.append((uri, suffix))
+
+        class _Srv:
+            def __init__(self): self.falconServer = _Falcon()
+        srv = _Srv()
+        from security.security_api import SecurityAPI as _API
+        probe = _API(polServer=srv, manager=None)
+        owned_routes = [(u, s) for u, s in srv.falconServer.routes if u.startswith('/api/security/owned')]
+        check('§54 guard: the three owner doors register and each has its on_<method>_<suffix> responder — a '
+              'suffix that has drifted from its method name RAISES from add_route() and takes the backend down '
+              'at boot, so it is proven here rather than in a browser',
+              owned_routes == [('/api/security/owned', 'owned'),
+                               ('/api/security/owned/{class_name}', 'owned_class'),
+                               ('/api/security/owned/{class_name}/{object_id}', 'owned_instance')]
+              and all(any(hasattr(probe, 'on_%s_%s' % (mm, s)) for mm in ('get', 'post', 'put', 'delete'))
+                      for _u, s in owned_routes), owned_routes)
+    finally:
+        os.environ.clear(); os.environ.update(old_env)
+
+
 def main():
     from security.security_basis import SECURITY_CLASSES, SecurityTopologyEdge
     from security.security_seed import SECURITY_SEED_PAIRS, SEED_SECURITY_EDGES
     from security.security_page import SEED_SECURITY_PAGE_DISPLAYS
     from security.custom.security_topology import MODES, VIEWS, build, compare, simulate
     from security.custom.security_facts import SYSTEMS, scenario_names
-    check('thirty-one row classes', len(SECURITY_CLASSES) == 31, str(len(SECURITY_CLASSES)))
+    check('thirty-two row classes', len(SECURITY_CLASSES) == 32, str(len(SECURITY_CLASSES)))
     check('row class constructs', SecurityTopologyEdge(name='x').name == 'x')
     n = 0
     for scn in scenario_names():
@@ -446,7 +756,7 @@ def main():
     row = [x for x in compare('os')['rows'] if x['means'].startswith('write into') and x['source'] == 'the Polari backend'][0]
     check('compare lines the backend up across routes', all(row[s] != '—' for s in ('isle', 'swarm-lean', 'swarm-full')), str(row))
     check('every system has a provenance', all(s['provenance'] in ('stock', 'qemu', 'polari') for s in SYSTEMS.values()))
-    check('seed pairs: 31, all rows named', len(SECURITY_SEED_PAIRS) == 31 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
+    check('seed pairs: 32, all rows named', len(SECURITY_SEED_PAIRS) == 32 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
     check('edge rows unique by name', len({r['name'] for r in SEED_SECURITY_EDGES}) == len(SEED_SECURITY_EDGES), str(len(SEED_SECURITY_EDGES)))
     check('eight pages, none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 8 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
     # §54: every `actor` column on the security-events page is marked `person`, and the pages CONVERGE.
@@ -812,6 +1122,7 @@ def main():
     check('members merge per device (this device replaced, others kept)', merge_members('a: x; n: old', 'n', 'n: u') == 'a: x; n: u')
     _pii_checks(api, O, _Res, _types, check)
     _people_batch_checks(api, O, _Res, _types, check)
+    _owned_checks(api, O, _Res, _types, check)
     check('the password-guess threat exists on the isle with its counterexample', 'ssh-password-guess' in {t['name'] for t in threats('isle', 'today')['threats']})
     check('threat rows seed for every scenario', len([r for n in scenario_names() for r in threat_rows(n)]) >= 40)
     print('\n%d/%d checks passed' % (passed, total))

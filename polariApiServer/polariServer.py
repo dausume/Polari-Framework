@@ -1232,6 +1232,8 @@ class polariServer(treeObject):
             SecurityDomain, SecurityArea, SecurityScenario, SecurityControl, SecurityTopologyNode, SecurityTopologyEdge, SecurityThreat, SecurityProposal,
             MacProfile, DacPolicy, PermissionGroup, HardwareTrial, ProxyConfig, ProxySnippet, ServiceIdentity, FirewallRuleSet,
             TrustChannel, AuthzRule, ContentPolicy, ContentPolicyViolation, SecurityEvent, PermissionObservation, ObservationSession, UsageObservation, RolePrototype, BrowserPolicy, AppSecurityRecord, SecurityAuditRun, SshCapability, DeviceInventory, SshPermissionLevel,
+            # op-0: owner-defined permissions — the per-class opt-in
+            OwnedClassPolicy,
             # iso-1: the ISO arc's rows
             IsoBase, DeviceProbe, IsoBuild]
         # modsplit-1: each instance registers ONLY its assigned

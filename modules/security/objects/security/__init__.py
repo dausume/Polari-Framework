@@ -32,3 +32,4 @@ from security.objects.security.PermissionObservation import PermissionObservatio
 from security.objects.security.ObservationSession import ObservationSession  # noqa: F401
 from security.objects.security.UsageObservation import UsageObservation  # noqa: F401
 from security.objects.security.RolePrototype import RolePrototype  # noqa: F401
+from security.objects.security.OwnedClassPolicy import OwnedClassPolicy  # noqa: F401
