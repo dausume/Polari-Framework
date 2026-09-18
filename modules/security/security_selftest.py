@@ -297,6 +297,25 @@ def _people_batch_checks(api, O, _Res, _types, check):
     GHOST = 'cccccccc-3333-4333-8333-cccccccccccc'  # a sub this realm has never heard of
     me = {'sub': A, 'preferred_username': 'demo-viewer', 'roles': ['polari-viewer'], 'raw_claims': {'groups': []}}
     admin = {'sub': 'admin-0', 'preferred_username': 'demo-admin', 'roles': ['polari-admin'], 'raw_claims': {'groups': []}}
+    # ---- every route this module registers must HAVE its responder.
+    # Falcon resolves `on_<method>_<suffix>`, silently answering 405 when the suffix and the method name drift
+    # apart — which is exactly what `add_route(..., suffix='people_batch')` beside `def on_post_people` did.
+    class _Falcon:
+        def __init__(self): self.routes = []
+        def add_route(self, uri, resource, suffix=None): self.routes.append((uri, suffix))
+
+    class _Srv:
+        def __init__(self): self.falconServer = _Falcon()
+    srv = _Srv()
+    from security.security_api import SecurityAPI as _API
+    _API(polServer=srv, manager=None)
+    orphans = [uri for uri, suffix in srv.falconServer.routes
+               if not any(hasattr(api, 'on_%s%s' % (m, ('_' + suffix) if suffix else ''))
+                          for m in ('get', 'post', 'put', 'delete', 'patch'))]
+    check('every /api/security route registered has a responder named for its suffix — Falcon answers 405, not an '
+          'error, when add_route(suffix=…) and the on_<method>_<suffix> name drift apart',
+          orphans == [] and ('/api/security/people', 'people_batch') in srv.falconServer.routes, orphans)
+
     old_env = dict(os.environ)
     asked = []
     real_get_user = KC.get_user
@@ -321,40 +340,40 @@ def _people_batch_checks(api, O, _Res, _types, check):
         api.manager = m
         P.cache_clear(); P.rate_clear()
         try:
-            r = _Res(); api.on_post_people(_Req(None, {'subs': [A]}), r)
+            r = _Res(); api.on_post_people_batch(_Req(None, {'subs': [A]}), r)
             check('the batch door without an identity is 401, exactly as the single door is',
                   r.status.startswith('401') and not asked, r.media)
-            r = _Res(); api.on_post_people(_Req(me, {'subs': []}), r)
-            r2 = _Res(); api.on_post_people(_Req(me, {'subs': ['x'] * (P.MAX_SUBS + 1)}), r2)
+            r = _Res(); api.on_post_people_batch(_Req(me, {'subs': []}), r)
+            r2 = _Res(); api.on_post_people_batch(_Req(me, {'subs': ['x'] * (P.MAX_SUBS + 1)}), r2)
             check('the batch refuses an empty body and more than %d subject ids in one call, naming the limit' % P.MAX_SUBS,
                   r.media['ok'] is False and 'subs' in r.media['error']
                   and r2.media['ok'] is False and str(P.MAX_SUBS) in r2.media['error'], (r.media, r2.media))
-            r = _Res(); api.on_post_people(_Req(me, {'subs': [A, B, GHOST]}), r)
+            r = _Res(); api.on_post_people_batch(_Req(me, {'subs': [A, B, GHOST]}), r)
             check('a plain signed-in caller resolves their OWN sub and no other: B is denied per sub (not a failed '
                   'call), and a denied sub never appears in `people`',
                   r.media['ok'] and r.media['people'] == {A: 'Ada Viewer'} and r.media['denied'] == [B, GHOST]
                   and asked == [A], r.media)
-            r = _Res(); api.on_post_people(_Req(admin, {'subs': [A, B, GHOST, B, '']}), r)
+            r = _Res(); api.on_post_people_batch(_Req(admin, {'subs': [A, B, GHOST, B, '']}), r)
             check('an ADMIN resolves the whole batch in ONE call: known subs → names, a sub this realm does not know '
                   '→ null (never an error for the batch), duplicates and blanks collapsed',
                   r.media['ok'] and r.media['people'] == {A: 'Ada Viewer', B: 'Bo Journalist', GHOST: None}
                   and r.media['denied'] == [] and r.media['resolved'] == 2, r.media)
             before = len(asked)
-            r = _Res(); api.on_post_people(_Req(admin, {'subs': [A, B]}), r)
+            r = _Res(); api.on_post_people_batch(_Req(admin, {'subs': [A, B]}), r)
             check('the memory cache spares the second Keycloak round trip: the same subs answer with the same names '
                   'and kc_admin.get_user is not called again (TTL %d s, memory only — it dies with the process)' % P.cache_seconds(),
                   r.media['people'] == {A: 'Ada Viewer', B: 'Bo Journalist'} and len(asked) == before
                   and r.media['keycloak_calls'] == 0 and r.media['cache']['entries'] >= 2, (len(asked), before, r.media.get('cache')))
             os.environ['POLARI_PEOPLE_CACHE_SECONDS'] = '0'
             P.cache_clear(); before = len(asked)
-            r = _Res(); api.on_post_people(_Req(admin, {'subs': [A]}), r)
-            r2 = _Res(); api.on_post_people(_Req(admin, {'subs': [A]}), r2)
+            r = _Res(); api.on_post_people_batch(_Req(admin, {'subs': [A]}), r)
+            r2 = _Res(); api.on_post_people_batch(_Req(admin, {'subs': [A]}), r2)
             check('POLARI_PEOPLE_CACHE_SECONDS=0 turns the cache off entirely — every lookup goes back to Keycloak and '
                   'no name is held anywhere', len(asked) == before + 2 and P.cache_state()['entries'] == 0, len(asked) - before)
             os.environ.pop('POLARI_PEOPLE_CACHE_SECONDS', None)
             O.set_people_viewers(['approvers'], by='admin-0')
             viewer = {'sub': 'v-1', 'preferred_username': 'x', 'roles': ['approvers'], 'raw_claims': {'groups': []}}
-            r = _Res(); api.on_post_people(_Req(viewer, {'subs': [A, B]}), r)
+            r = _Res(); api.on_post_people_batch(_Req(viewer, {'subs': [A, B]}), r)
             check('a member of a group named in the people_viewers knob resolves the whole batch too, and the answer '
                   'says which group granted it',
                   r.media['ok'] and set(r.media['people']) == {A, B} and 'approvers' in r.media['why'], r.media)
@@ -363,9 +382,9 @@ def _people_batch_checks(api, O, _Res, _types, check):
             P.rate_clear()
             last = None
             for _ in range(P.RATE_LIMIT_CALLS):
-                last = _Res(); api.on_post_people(_Req(admin, {'subs': [A]}), last)
-            over = _Res(); api.on_post_people(_Req(admin, {'subs': [A]}), over)
-            other = _Res(); api.on_post_people(_Req(me, {'subs': [A]}), other)
+                last = _Res(); api.on_post_people_batch(_Req(admin, {'subs': [A]}), last)
+            over = _Res(); api.on_post_people_batch(_Req(admin, {'subs': [A]}), over)
+            other = _Res(); api.on_post_people_batch(_Req(me, {'subs': [A]}), other)
             check('the rate limit: %d calls a minute per caller pass, the next is 429 with a plain sentence and a '
                   'Retry-After — and it is PER CALLER, so a different signed-in person is unaffected' % P.RATE_LIMIT_CALLS,
                   last.media['ok'] and over.status.startswith('429') and over.media['ok'] is False
@@ -374,8 +393,8 @@ def _people_batch_checks(api, O, _Res, _types, check):
             # ---- 503: a stack with no Keycloak credential has nothing to fall back on
             os.environ['KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET'] = ''
             P.rate_clear(); P.cache_clear()
-            r = _Res(); api.on_post_people(_Req(admin, {'subs': [B]}), r)
-            r2 = _Res(); api.on_post_people(_Req(me, {'subs': [B]}), r2)
+            r = _Res(); api.on_post_people_batch(_Req(admin, {'subs': [B]}), r)
+            r2 = _Res(); api.on_post_people_batch(_Req(me, {'subs': [B]}), r2)
             check('with no Keycloak credential the batch is 503 "no identity provider" — but a batch in which every '
                   'sub was DENIED never touches Keycloak at all, so it still answers 200 with the denials',
                   r.status.startswith('503') and r.media['refusal'].startswith('no identity provider')

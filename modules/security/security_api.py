@@ -483,7 +483,7 @@ class SecurityAPI(treeObject):
             return caller_sub, True, f'granted by group(s) {", ".join(hit)}'
         return caller_sub, False, 'your own account'
 
-    def on_post_people(self, request, response):
+    def on_post_people_batch(self, request, response):
         """POST /api/security/people {subs: [...]} → {ok, people: {sub: display_name|null}, denied, how}.
 
         One call for a whole table of actors. The gate is per sub (a stranger's sub lands in `denied`, never in
