@@ -171,7 +171,11 @@ def observe_permission(manager, user_info, class_name, verb, verdict=None, app='
         groups = roleplay_groups(groups, roleplay)
         groups_s = ','.join(sorted(groups)); actor = ''
         if isinstance(user_info, dict):
-            actor = user_info.get('preferred_username') or user_info.get('sub') or ''
+            # the backend's jwt_validator hands the caller down as `username`; Keycloak's own claim is
+            # `preferred_username`. Without the middle fallback the actor column showed the KC `sub` UUID.
+            actor = (user_info.get('preferred_username')
+                     or user_info.get('username')
+                     or user_info.get('sub') or '')
         if verdict is None:
             vd = 'ungated' if user_info else 'unauthenticated'; profiles = ''
         elif verdict.get('allowed'):
