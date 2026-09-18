@@ -150,8 +150,13 @@ class EventDispatcher:
 
     def _record(self, trigger, status, source_kind, source_ref, occurrence_key,
                 depth, execution_id='', outcome=None, error=''):
+        # ct-0: which chain this firing belongs to, and which cause node
+        # produced it. '' / '' outside dev posture (no cause is minted).
+        from accessControl.cause_context import trace_ids
+        ids = trace_ids()
         row = create_instance(self.manager, 'TriggerFiring', {
             'name': f'firing-{uuid.uuid4().hex[:10]}',
+            'trace_id': ids['trace_id'], 'parent_id': ids['parent_id'],
             'trigger_name': getattr(trigger, 'name', ''),
             'fired_at': datetime.now().isoformat(timespec='seconds'),
             'source_kind': source_kind, 'source_ref': str(source_ref)[:400],
@@ -210,19 +215,27 @@ class EventDispatcher:
         params[TRIGGER_NAME_KEY] = name
         params[TRIGGER_DEPTH_KEY] = depth + 1
         params[TRIGGER_SOURCE_KEY] = str(source_ref)
+        # ct-0: the solution run (and the TriggerFiring row it produces) sits
+        # one seam DOWN from whatever caused this firing — a request, a tick,
+        # another solution. Balanced in finally; a no-op outside dev posture.
+        from accessControl.cause_context import child_cause, pop_cause
+        cause_token = child_cause('trigger', f'trigger:{name}')
         try:
-            from polariNoCode.graph_builder import execute
-            trace = execute(solution, manager=self.manager, params=params)
-        except Exception as e:
-            return self._record(trigger, 'failed', source_kind, source_ref, occurrence_key,
-                                depth, error=f'{type(e).__name__}: {e}')
-        status = getattr(trace, 'status', '')
-        outcome = {'status': status, 'return': getattr(trace, 'final_return_value', None),
-                   'error': getattr(trace, 'error_summary', None)}
-        return self._record(trigger, 'fired' if status == 'completed' else 'failed',
-                            source_kind, source_ref, occurrence_key, depth,
-                            execution_id=getattr(trace, 'execution_id', ''),
-                            outcome=outcome, error=getattr(trace, 'error_summary', '') or '')
+            try:
+                from polariNoCode.graph_builder import execute
+                trace = execute(solution, manager=self.manager, params=params)
+            except Exception as e:
+                return self._record(trigger, 'failed', source_kind, source_ref, occurrence_key,
+                                    depth, error=f'{type(e).__name__}: {e}')
+            status = getattr(trace, 'status', '')
+            outcome = {'status': status, 'return': getattr(trace, 'final_return_value', None),
+                       'error': getattr(trace, 'error_summary', None)}
+            return self._record(trigger, 'fired' if status == 'completed' else 'failed',
+                                source_kind, source_ref, occurrence_key, depth,
+                                execution_id=getattr(trace, 'execution_id', ''),
+                                outcome=outcome, error=getattr(trace, 'error_summary', '') or '')
+        finally:
+            pop_cause(cause_token)
 
     # ---- sources ----
     def object_changed(self, class_name, operation, instance_ids, depth=0):
@@ -273,6 +286,17 @@ class EventDispatcher:
 
     def tick(self, now=None, lookback_seconds=None):
         """Schedule + window triggers for the interval ending at `now`."""
+        # ct-0 (design §4): the tick runs on the `polari-event-tick` THREAD,
+        # which inherits no contextvar and has no request to descend from —
+        # so it mints its own ROOT cause of kind `schedule`, once per tick.
+        from accessControl.cause_context import pop_cause, root_cause
+        cause_token = root_cause('schedule', 'tick')
+        try:
+            return self._tick(now=now, lookback_seconds=lookback_seconds)
+        finally:
+            pop_cause(cause_token)
+
+    def _tick(self, now=None, lookback_seconds=None):
         with self._lock:
             now = now or datetime.now()
             if lookback_seconds:

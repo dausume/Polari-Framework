@@ -666,7 +666,26 @@ class SolutionExecutionEngine:
         """xsim-2 single-writer gate around _execute_ungated: nested
         invocations (_invocation_chain) and executions inside a gated
         run ride the ambient context as tied children; a manager-less
-        engine (unit selftests) has no tree to lock and runs ungated."""
+        engine (unit selftests) has no tree to lock and runs ungated.
+
+        ct-0: the whole run sits under a `solution` cause — a CHILD of
+        whatever caused it (a request, a trigger firing, an outer solution),
+        or a ROOT of kind `solution` when nothing did. Balanced in finally;
+        a no-op outside dev posture."""
+        from accessControl.cause_context import child_or_root_cause, pop_cause
+        _solution_ref = (solution_data.get('solutionName', 'untitled')
+                         if isinstance(solution_data, dict) else 'untitled')
+        _cause_token = child_or_root_cause('solution', f'solution:{_solution_ref}')
+        try:
+            return self._execute_caused(
+                solution_data, input_params, config=config,
+                target_runtime=target_runtime,
+                instance_fields=instance_fields,
+                _invocation_chain=_invocation_chain)
+        finally:
+            pop_cause(_cause_token)
+
+    def _execute_caused(self, solution_data, input_params, config=None, target_runtime='python_backend', instance_fields=None, _invocation_chain=()):
         if _invocation_chain or self.manager is None:
             trace = self._execute_ungated(
                 solution_data, input_params, config=config,

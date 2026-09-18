@@ -24,6 +24,16 @@ from datetime import datetime, timezone
 from polariNoCode.ExecutionTrace.ExecutionStepSnapshot import ExecutionStepSnapshot
 
 
+def _current_trace_id():
+    """The ambient cause's trace id, or '' (ct-0). Lazy + guarded: the trace
+    model is imported by frontend-parity tooling that has no accessControl."""
+    try:
+        from accessControl.cause_context import trace_ids
+        return trace_ids()['trace_id']
+    except Exception:       # noqa: BLE001 — a trace is never worth a failure
+        return ''
+
+
 class ExecutionTrace:
     """Complete ordered record of one execution run."""
 
@@ -37,6 +47,11 @@ class ExecutionTrace:
         self.completed_at = None
         self.final_return_value = None
         self.error_summary = None
+        # ct-0 (CAUSAL_TRACE_OBJECT_FLOW_DESIGN §3/§11): the chain this run
+        # belongs to. Read from the ambient CauseContext at construction —
+        # the engine pushes a `solution` cause before building the trace.
+        # '' outside dev posture, where no cause is minted at all.
+        self.trace_id = _current_trace_id()
 
     def add_step(self, snapshot):
         """Append an ExecutionStepSnapshot to the trace."""
@@ -96,6 +111,8 @@ class ExecutionTrace:
             d['finalReturnValue'] = self.final_return_value
         if self.error_summary is not None:
             d['errorSummary'] = self.error_summary
+        if self.trace_id:
+            d['traceId'] = self.trace_id
         return d
 
     @classmethod
@@ -110,6 +127,7 @@ class ExecutionTrace:
         trace.completed_at = data.get('completedAt')
         trace.final_return_value = data.get('finalReturnValue')
         trace.error_summary = data.get('errorSummary')
+        trace.trace_id = data.get('traceId', '') or ''
         trace.steps = [
             ExecutionStepSnapshot.from_dict(s) if isinstance(s, dict) else s
             for s in data.get('steps', [])

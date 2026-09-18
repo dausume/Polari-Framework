@@ -371,6 +371,7 @@ from accessControl.polariPermissionSet import polariPermissionSet
 from accessControl.polariUserGroup import UserGroup
 from accessControl.polariUser import User
 from accessControl.auth_middleware import AuthContextMiddleware
+from accessControl.cause_middleware import CauseContextMiddleware
 from accessControl.roleplay_observer import RoleplayObserverMiddleware
 from wsgiref import simple_server
 import falcon
@@ -470,6 +471,14 @@ class polariServer(treeObject):
                 # the incoming Bearer token. Lenient in Phase 1 — never
                 # rejects, just plumbs identity for downstream gating.
                 AuthContextMiddleware(),
+                # ct-0 (2026-09-18): the CAUSE a chain travels with —
+                # req.context.cause = {trace_id, parent_id, entry_kind,
+                # entry_ref, actor (sub only), groups, roleplay, depth}.
+                # DEV POSTURE ONLY: production mints nothing at all.
+                # Must sit AFTER AuthContextMiddleware (it reads user_info)
+                # and BEFORE RoleplayObserverMiddleware and the CRUDE gate
+                # (they run inside the chain).
+                CauseContextMiddleware(),
                 # dev-mode role-play (2026-09-16): X-Polari-Roleplay → req.context.roleplay; endpoints used are counted per role
                 RoleplayObserverMiddleware(self),
                 ModuleLoadingMiddleware(self),

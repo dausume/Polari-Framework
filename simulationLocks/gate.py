@@ -23,6 +23,7 @@ same seam).
 from contextlib import contextmanager
 from typing import Dict, List, Optional
 
+from accessControl.cause_context import pop_cause
 from simulationLocks.lease import validate_token
 from simulationLocks.run_context import current_run, pop_run, push_run
 from simulationLocks.sim_queue import finish_run_slot, request_run_slot
@@ -53,15 +54,37 @@ def simulation_gate(manager, sim_kind: str, sim_ref: str,
         yield slot
         return
     token = push_run(slot['runContext'])
+    # ct-0 (design §3, "simulations"): a `simulation` cause is pushed BESIDE
+    # the run context, so every row the run writes is attributable to the run
+    # that caused it. Child of the request/trigger that submitted the run, or
+    # a root of kind `simulation` when nothing did. No-op outside dev posture.
+    cause_token = push_cause_for_run(sim_kind, sim_ref)
     try:
         yield slot
     except Exception:
+        pop_cause(cause_token)
         pop_run(token)
         finish_run_slot(manager, slot['runContext'], outcome='failed')
         raise
     else:
+        pop_cause(cause_token)
         pop_run(token)
         finish_run_slot(manager, slot['runContext'], outcome='done')
+
+
+def push_cause_for_run(sim_kind: str, sim_ref: str):
+    """The `simulation` cause for one gated run (ct-0).
+
+    A SOLUTION run already pushed its own `solution` cause in
+    SolutionExecutionEngine.execute before reaching this gate; pushing a
+    second node for the same run would put a phantom `simulation:solution:X`
+    in the map. So that one case rides the cause it already has."""
+    from accessControl.cause_context import child_or_root_cause, current_cause
+    if sim_kind == 'solution':
+        cause = current_cause()
+        if cause and cause.get('entry_ref') == f'solution:{sim_ref}':
+            return None
+    return child_or_root_cause('simulation', f'{sim_kind}:{sim_ref}')
 
 
 def gate_refusal_media(slot: Dict) -> Dict:

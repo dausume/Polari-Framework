@@ -94,6 +94,12 @@ class TriggerFiring(treeObject):
         status: str = 'fired',
         run_as: str = 'definer',
         depth: int = 0,
+        # ct-0 (CAUSAL_TRACE_OBJECT_FLOW_DESIGN §3): which CHAIN this firing
+        # belongs to, and which cause node produced it. Filled from the
+        # ambient CauseContext in EventDispatcher._record; '' outside dev
+        # posture, where no cause is minted at all.
+        trace_id: str = '',
+        parent_id: str = '',
         # the run's final return value / emitted events summary.
         outcome_json: str = '{}',
         error: str = '',
@@ -110,6 +116,8 @@ class TriggerFiring(treeObject):
         self.status = status
         self.run_as = run_as
         self.depth = depth
+        self.trace_id = trace_id
+        self.parent_id = parent_id
         self.outcome_json = outcome_json
         self.error = error
         self.notes = notes
