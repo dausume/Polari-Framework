@@ -18,4 +18,11 @@ def construct_security_endpoints(polServer):
         start_pii_scrub(polServer.manager, polServer)
     except Exception as exc:       # a migration must never stop the module from coming up
         print('[security] PII scrub could not be scheduled: %s' % exc, flush=True)
+    try:
+        # §54: the core display seed only INSERTS a missing page, so a change to one of these pages' definitions
+        # never reaches an instance that already has them. Converge them once the rows are restored.
+        from security.security_page import start_page_converge
+        start_page_converge(polServer.manager, polServer)
+    except Exception as exc:
+        print('[security] page converge could not be scheduled: %s' % exc, flush=True)
     return api

@@ -125,3 +125,53 @@ SEED_SECURITY_PAGE_DISPLAYS = [
     _view_page('network', 'Network', 'how do bytes get in, between and out', 'internet'),
     _view_page('app', 'App', 'who gets access to what, through which means', 'visitor'),
 ]
+
+
+def seed_security_pages(manager):
+    """CONVERGE the security pages, rather than insert-by-name.
+
+    The core display seed only INSERTS a DisplayDefinition that is missing, so on an instance that already has these
+    pages a change to a page's `definition` never lands — §54's `actor:person` columns were seeded into the code and
+    the live stack went on serving the old definition (the seed field-addition gotcha, hit again). `upsert_seed_rows`
+    diffs the fields and leaves a row alone when `is_prior` is False, so a page somebody has customized here is still
+    theirs."""
+    from moduleService.seed_upsert import upsert_seed_pairs
+    from polariApiServer.displayDefinition import DisplayDefinition
+    return upsert_seed_pairs(manager, [
+        ('DisplayDefinition', DisplayDefinition, SEED_SECURITY_PAGE_DISPLAYS),
+    ], tag='SecurityPagesSeed')
+
+
+def start_page_converge(manager, polServer=None, wait_s=300, rows_wait_s=120, tick=2.0):
+    """Run `seed_security_pages` once, AFTER the tree's display rows are restored.
+
+    Same reasoning as the PII scrub beside it: the endpoint constructor runs while falcon's routes are built, long
+    before lazy boot's Phase B restores DisplayDefinition, so converging inline would walk an empty table and simply
+    insert everything again on the next boot. Daemon thread, never raises into the boot."""
+    import threading
+    import time
+
+    def _rows():
+        return len((getattr(manager, 'objectTables', None) or {}).get('DisplayDefinition', {}) or {})
+
+    def _run():
+        start = time.time()
+        while time.time() - start < wait_s:
+            registry = getattr(polServer, 'bootRegistry', None)
+            try:
+                pending = bool(registry.is_data_pending('security')) if registry is not None else False
+            except Exception:
+                pending = False
+            if not pending and (_rows() or time.time() - start >= rows_wait_s):
+                break
+            time.sleep(tick)
+        try:
+            for r in seed_security_pages(manager):
+                if r.get('inserted') or r.get('updated'):
+                    print('[SecurityPagesSeed] %s: +%d ~%d' % (r['class'], len(r.get('inserted', [])), len(r.get('updated', []))), flush=True)
+        except Exception as exc:
+            print('[SecurityPagesSeed] failed: %s' % exc, flush=True)
+
+    t = threading.Thread(target=_run, name='security-pages-converge', daemon=True)
+    t.start()
+    return t

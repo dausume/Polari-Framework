@@ -449,6 +449,23 @@ def main():
     check('seed pairs: 31, all rows named', len(SECURITY_SEED_PAIRS) == 31 and all(r.get('name') for _, _, rows in SECURITY_SEED_PAIRS for r in rows))
     check('edge rows unique by name', len({r['name'] for r in SEED_SECURITY_EDGES}) == len(SEED_SECURITY_EDGES), str(len(SEED_SECURITY_EDGES)))
     check('eight pages, none with api-json-panel', len(SEED_SECURITY_PAGE_DISPLAYS) == 8 and all('api-json-panel' not in p['definition'] for p in SEED_SECURITY_PAGE_DISPLAYS))
+    # §54: every `actor` column on the security-events page is marked `person`, and the pages CONVERGE.
+    import json as _json_pages
+    _ev = _json_pages.loads([p for p in SEED_SECURITY_PAGE_DISPLAYS if p['name'] == 'security-events'][0]['definition'])
+    _tables = [it for r in _ev['rows'] for it in r['items']
+               if (it.get('componentProps') or {}).get('componentName') == 'class-rows-table']
+    check('§54: all four security-events tables (SecurityEvent, PermissionObservation, UsageObservation, '
+          'ObservationSession) carry the `actor` column marked actor:person, so the page resolves subject ids to '
+          'names at render time instead of showing bare UUIDs',
+          len(_tables) == 4
+          and all('actor' in it['componentProps']['inputs']['columns'] for it in _tables)
+          and all(it['componentProps']['inputs'].get('columnFormats') == 'actor:person' for it in _tables),
+          [(it['id'], it['componentProps']['inputs'].get('columnFormats')) for it in _tables])
+    from security.security_page import seed_security_pages, start_page_converge
+    check('§54: the pages are CONVERGED, not inserted-by-name — the core display seed only inserts a missing page, '
+          'so without this an existing instance keeps serving the old definition for ever (seen live)',
+          callable(seed_security_pages) and callable(start_page_converge)
+          and 'start_page_converge' in open('modules/security/security_endpoints.py').read())
     from security.custom.security_threats import threats, threat_rows
     th = {t['name']: t for t in threats('swarm-lean', 'stock')['threats']}
     check('stock: the image backdoor, raw sniff AND the socket (if mounted) get THROUGH — docker alone stops none', th['image-backdoor']['verdict'] == 'allowed' and th['raw-sniff']['verdict'] == 'allowed' and th['docker-socket']['verdict'] == 'allowed')
