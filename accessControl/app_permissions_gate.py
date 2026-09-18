@@ -25,6 +25,13 @@ import os
 MODE_ENV = 'POLARI_APP_PERMISSIONS'
 MODES = ('off', 'advisory', 'enforce')
 ADVISORY_HEADER = 'X-Polari-Permission-Advisory'
+# §51: an expired bearer used to read as "would-deny everything" — a 403
+# storm under enforce, indistinguishable from a real permission problem.
+# An unauthenticated caller is a DIFFERENT answer and says so; the auth
+# middleware adds X-Polari-Auth: invalid-or-expired when a Bearer was sent
+# and refused, so "your session died" never masquerades as "you lack a grant".
+AUTH_HEADER = 'X-Polari-Auth'
+AUTH_INVALID = 'invalid-or-expired'
 
 
 def gate_mode():
@@ -82,9 +89,27 @@ def crude_permission_gate(manager, request, response, verb,
         verdict = verdict_fn(manager, user_info, class_name, verb)
         if verdict['allowed']:
             return True
+        # §51: no identity at all is not a permission verdict. Name it, and
+        # say whether a token was sent and refused (expired session) or none
+        # was sent (anonymous), so the caller fixes the right thing.
+        unauthenticated = user_info is None
+        auth_failed = bool(getattr(getattr(request, 'context', None),
+                                   'auth_failed', False))
+        if unauthenticated:
+            verdict = dict(verdict)
+            verdict['unauthenticated'] = True
+            verdict['auth'] = AUTH_INVALID if auth_failed else 'no-token'
+            if auth_failed:
+                try:
+                    response.set_header(AUTH_HEADER, AUTH_INVALID)
+                except Exception:      # noqa: BLE001
+                    pass
         if mode == 'advisory':
             response.set_header(
                 ADVISORY_HEADER,
+                (f'unauthenticated {class_name}:{verb}'
+                 f'{" (token invalid or expired)" if auth_failed else ""}')
+                if unauthenticated else
                 f'would-deny {class_name}:{verb}')
             return True
         # enforce — unless this instance is a DEV BUILD (ISLE_HARDENING_PLAN §17): then
@@ -106,7 +131,17 @@ def crude_permission_gate(manager, request, response, verb,
             return True
         response.status = '403 Forbidden'
         response.media = {'ok': False,
-                          'error': 'permission refused',
+                          'error': ('unauthenticated' if unauthenticated
+                                    else 'permission refused'),
+                          'why': (('the request carried no usable identity — '
+                                   'the bearer token was rejected (expired, '
+                                   'wrong issuer, or bad signature); sign in '
+                                   'again' if auth_failed else
+                                   'the request carried no bearer token — '
+                                   'sign in')
+                                  if unauthenticated else
+                                  str(verdict.get('why') or
+                                      'no granted profile covers this act')),
                           'verdict': verdict,
                           'mode': mode}
         try:

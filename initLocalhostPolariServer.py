@@ -103,6 +103,19 @@ if(__name__=='__main__'):
     db_enabled = config.get_bool('database.enabled', True)
     localHostedManagerServer = managerObject(hasServer=True, hasDB=db_enabled)
 
+    # §51: `docker service update --force` / `docker stop` sends SIGTERM to
+    # this process (it is PID 1 in the image). Flush the tree ONCE before we
+    # go, then hand the signal back to the default handler — without this the
+    # last seconds of CRUDE writes (a permission profile just concreted, say)
+    # died with the container. Knob: POLARI_PERSIST_ON_SIGTERM=off.
+    if db_enabled:
+        try:
+            from polariApiServer.persist_debounce import install_sigterm_flush
+            install_sigterm_flush(localHostedManagerServer)
+        except Exception as exc:                                # noqa: BLE001
+            print(f'[Persist] SIGTERM flush NOT armed ({exc}) — a stop can '
+                  f'lose the last writes', flush=True)
+
     # Persist all initialized instances to database (lazy boots defer
     # this to the admission worker's close-out — the DB doesn't exist
     # yet in Phase 0).

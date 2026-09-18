@@ -24,30 +24,14 @@ OBSERVED_CONTROLS = ('authz', 'content', 'browser', 'trust-channel', 'certificat
 INVARIANT_CONTROLS = ('ssh-password', 'upstream-interface', 'production-route', 'secret-export', 'firewall-upstream', 'root-shell-public',
                       'dev-variant-on-production', 'iso-headless-encryption')
 
-_PERSIST = {'pending': False, 'lock': None}   # one trailing persist per burst: every count reaches disk, never one persist per act
+def _schedule_persist(manager, delay=None):
+    """Persist the tree once per burst of changes (a rate limit that skipped the trailing increments lost counts
+    across a restart — seen live 2026-09-16: 7 in memory, 4 on disk).
 
-
-def _schedule_persist(manager, delay=3.0):
-    """Persist the tree once, `delay` seconds after the LAST change of a burst (a rate limit that skipped the trailing
-    increments lost counts across a restart — seen live 2026-09-16: 7 in memory, 4 on disk)."""
-    if not hasattr(manager, 'persistTree'):
-        return
-    import threading
-    if _PERSIST['lock'] is None:
-        _PERSIST['lock'] = threading.Lock()
-    with _PERSIST['lock']:
-        if _PERSIST['pending']:
-            return
-        _PERSIST['pending'] = True
-
-    def run():
-        with _PERSIST['lock']:
-            _PERSIST['pending'] = False
-        try:
-            manager.persistTree()
-        except Exception:
-            pass
-    t = threading.Timer(delay, run); t.daemon = True; t.start()
+    The implementation moved to `polariApiServer.persist_debounce` (§51, 2026-09-17) so CRUDE writes get the same
+    guarantee from the same code; this name stays as the module's local spelling of it."""
+    from polariApiServer.persist_debounce import schedule_persist
+    return schedule_persist(manager, delay=delay, reason='security observation')
 
 
 def _now():

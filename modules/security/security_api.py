@@ -201,7 +201,17 @@ class SecurityAPI(treeObject):
         set, in the row's own shape, with the evidence; a suggestion, never applied here."""
         from security.custom.security_observe import observations, derive_profiles, summary
         obs = observations(self.manager)
-        for k in ('groups', 'class_name', 'verb', 'verdict'):
+        # §51: `groups` is a comma-joined SET on the row (a real login carries
+        # default-roles-polari,journalist,…,roleplay:journalist), so exact
+        # equality against the whole field could never match a filter naming
+        # ONE group — ?groups=journalist returned 0 rows while the row plainly
+        # contained it. Membership for `groups`; exact for the rest.
+        gq = (request.params.get('groups') or '').strip()
+        if gq:
+            wanted = {g.strip() for g in gq.split(',') if g.strip()}
+            obs = [o for o in obs
+                   if wanted <= {g.strip() for g in str(o.get('groups') or '').split(',') if g.strip()}]
+        for k in ('class_name', 'verb', 'verdict'):
             v = request.params.get(k)
             if v:
                 obs = [o for o in obs if o.get(k) == v]

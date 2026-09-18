@@ -19,6 +19,11 @@ from accessControl.polariPermissionSet import polariPermissionSet
 # sep-7: the per-app permission gate (knob POLARI_APP_PERMISSIONS,
 # default off — see accessControl.app_permissions_gate).
 from accessControl.app_permissions_gate import crude_permission_gate
+# §51: a row created/updated/deleted through CRUDE reached the DB only on a
+# LATER flush, so a redeploy minutes later silently lost it. Every successful
+# write now schedules ONE trailing persistTree per burst (~3 s, daemon timer,
+# never blocking the request).
+from polariApiServer.persist_debounce import schedule_persist
 from polariAnalytics.functionalityAnalysis import getAccessToClass
 import json
 import setOperators
@@ -434,6 +439,10 @@ class polariCRUDE(treeObject):
             else:
                 return self._refuse(response, falcon.HTTP_400,
                     "Received Update request containing a valid instance id, but no updateData to perform the update with.")
+        # §51: the update reached the row's own table above; this puts the
+        # WHOLE tree on disk once, shortly after the burst ends, so a
+        # redeploy cannot lose it.
+        schedule_persist(self.manager, reason=f'CRUDE update {self.apiObject}')
         updatedIds = []
         for instUpdate in massUpdateDataSet:
             if "polariId" in instUpdate:
@@ -639,6 +648,14 @@ class polariCRUDE(treeObject):
         elif tempInstancesList:
             print(f'[polariCRUDE] WARNING: {len(tempInstancesList)} instance(s) created but DB not available!', flush=True)
 
+        # §51: saveInstanceInDB above writes THIS row's table; the trailing
+        # persist puts the whole tree (including any table that was not ready
+        # when the row was born) on disk within seconds of the burst — a
+        # profile concreted minutes before `pol prod apply` used to vanish.
+        if tempInstancesList:
+            schedule_persist(self.manager,
+                             reason=f'CRUDE create {self.apiObject}')
+
         #Return the created instances in the response
         if tempInstancesList:
             response.status = falcon.HTTP_201
@@ -791,6 +808,10 @@ class polariCRUDE(treeObject):
             else:
                 return self._refuse(response, falcon.HTTP_409,
                     "Target resolved for multiple instances, must resolve to only one.")
+        # §51: the rows are gone from the DB above; the trailing persist makes
+        # the rest of the tree (cascades, nullified parents, migrations) match
+        # on disk too, within seconds, without blocking this request.
+        schedule_persist(self.manager, reason=f'CRUDE delete {self.apiObject}')
         response.media = {"instancesDeleted":instancesDeleted,"migratedInstances":migratedInstances}
         #Take the return value and convert it to a format that can be
         response.status = falcon.HTTP_200

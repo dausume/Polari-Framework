@@ -403,7 +403,15 @@ class CORSExtraHeadersMiddleware:
     Note: In staging/prod, nginx also sets these headers. Duplicates are tolerated."""
     def process_response(self, req, resp, resource, req_succeeded):
         resp.set_header('Access-Control-Allow-Headers',
-                        'Content-Type, Authorization, Accept, Origin, X-Requested-With')
+                        'Content-Type, Authorization, Accept, Origin, '
+                        'X-Requested-With, X-Polari-Roleplay')
+        # §51: a browser cannot READ a response header cross-origin unless it
+        # is exposed. Both of these exist to be read by the caller:
+        # X-Polari-Auth says the bearer was refused (expired session, not a
+        # permission problem) and X-Polari-Permission-Advisory says what an
+        # enforcing instance would have denied.
+        resp.set_header('Access-Control-Expose-Headers',
+                        'X-Polari-Auth, X-Polari-Permission-Advisory')
         resp.set_header('Access-Control-Max-Age', '86400')
 
 class apiError(Exception):

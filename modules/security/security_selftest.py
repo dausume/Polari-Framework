@@ -304,6 +304,88 @@ def main():
             os.environ.clear(); os.environ.update(old_env)
     api.manager = m4; r = _Res(); api.on_get_observations(_Req(), r)
     check('/api/security/observations: the rows, the totals by verdict, the derived suggestions, the how', r.media['ok'] and r.media['count'] == 5 and r.media['by_verdict']['granted-by-profile'] == 2 and len(r.media['derived']) == 2 and 'never' in r.media['how'] or 'nothing is applied' in r.media['how'])
+    # ---- ledger §51 defect 2: ?groups=<name> is a MEMBERSHIP test, not equality against the joined field.
+    # A real login's row carries the whole KC group set (default-roles-polari,journalist,…,roleplay:journalist),
+    # so exact equality could never match a filter naming one group — every filtered result in the §51 run had
+    # to be computed client-side.
+    m7 = _M(); m7.objectTables = {'PermissionObservation': {}}; m7.persistTree = lambda: None
+    old_env = dict(os.environ); os.environ['POLARI_POSTURE'] = 'dev'; os.environ.pop('POLARI_OBSERVE_KNOB', None)
+    try:
+        u_real = {'preferred_username': 'demo-journalist', 'roles': ['journalist', 'polari-user', 'offline_access']}
+        O.observe_permission(m7, u_real, 'TermsDocument', 'read', verdict={'allowed': False, 'why': 'no granted profile covers TermsDocument:read', 'via': []}, roleplay='journalist')
+        O.observe_permission(m7, {'preferred_username': 'ops1', 'roles': ['operators']}, 'PrintJob', 'read', verdict=None)
+        class _ReqF:
+            def __init__(self, **p): self.params = p
+        api.manager = m7
+        r = _Res(); api.on_get_observations(_ReqF(groups='journalist'), r)
+        rall = _Res(); api.on_get_observations(_ReqF(), rall)
+        rno = _Res(); api.on_get_observations(_ReqF(groups='nobody'), rno)
+        rboth = _Res(); api.on_get_observations(_ReqF(groups='journalist,roleplay:journalist'), rboth)
+        rv = _Res(); api.on_get_observations(_ReqF(groups='journalist', verb='create'), rv)
+        check('/api/security/observations?groups=<name> matches a row whose group SET contains it (§51: it was exact '
+              'equality against the whole comma-joined field, so a real multi-group login could never match)',
+              rall.media['count'] == 2 and r.media['count'] == 1 and 'journalist' in r.media['observations'][0]['groups']
+              and rno.media['count'] == 0 and rboth.media['count'] == 1 and rv.media['count'] == 0,
+              (rall.media['count'], r.media['count'], rno.media['count'], rboth.media['count'], rv.media['count']))
+    finally:
+        os.environ.clear(); os.environ.update(old_env)
+    # ---- ledger §51 defect 3: an EXPIRED bearer must read as UNAUTHENTICATED, not as "would-deny everything"
+    from accessControl.auth_middleware import AuthContextMiddleware
+    class _HdrReq:
+        def __init__(self, header=None):
+            self._h = header; self.context = _types.SimpleNamespace()
+        def get_header(self, name):
+            return self._h if name.lower() == 'authorization' else None
+    class _Stub:
+        def validate(self, token):   # every token is expired/refused, as an expired one is
+            return None
+    mw = AuthContextMiddleware(validator=_Stub())
+    q1 = _HdrReq('Bearer eyJhbGciOiJSUzI1NiJ9.expired.sig'); h1 = _Hdr()
+    mw.process_request(q1, h1)
+    q2 = _HdrReq(None); h2b = _Hdr()
+    mw.process_request(q2, h2b)
+    check('the auth middleware: a Bearer that failed validation answers X-Polari-Auth: invalid-or-expired and marks '
+          'the request auth_failed; no bearer at all sets no header (anonymous is not an error)',
+          q1.context.user_info is None and q1.context.auth_failed is True and h1.h.get('X-Polari-Auth') == 'invalid-or-expired'
+          and q2.context.user_info is None and q2.context.auth_failed is False and 'X-Polari-Auth' not in h2b.h, (h1.h, h2b.h))
+    class _ReqExp:
+        context = _types.SimpleNamespace(user_info=None, auth_failed=True)
+    class _ReqAnon:
+        context = _types.SimpleNamespace(user_info=None, auth_failed=False)
+    _sys.modules['polariapps'] = pkg; _sys.modules['polariapps.apps_permissions_basis'] = fake
+    m8 = _M(); m8.objectTables = {'AppPermissionProfile': {}, 'SecurityEvent': {}}; m8.persistTree = lambda: None
+    old_env = dict(os.environ); os.environ['POLARI_POSTURE'] = 'production'
+    try:
+        os.environ['POLARI_APP_PERMISSIONS'] = 'advisory'
+        ha = _Hdr(); ga = crude_permission_gate(m8, _ReqExp(), ha, 'read', 'Person')
+        hn = _Hdr(); gn = crude_permission_gate(m8, _ReqAnon(), hn, 'read', 'Person')
+        hu = _Hdr(); gu = crude_permission_gate(m8, _ReqU(), hu, 'read', 'Person')
+        os.environ['POLARI_APP_PERMISSIONS'] = 'enforce'
+        he = _Hdr(); ge = crude_permission_gate(m8, _ReqExp(), he, 'read', 'Person')
+    finally:
+        os.environ.clear(); os.environ.update(old_env)
+        for k, v in saved.items():
+            if v is None: _sys.modules.pop(k, None)
+            else: _sys.modules[k] = v
+    check('the gate in ADVISORY: an expired/absent identity says "unauthenticated", NOT "would-deny" (§51: a stale '
+          'token grew a would-deny header on every read — under enforce a 403 storm indistinguishable from a real '
+          'permission problem); an authenticated caller without the grant still reads would-deny',
+          ga is True and ha.h['X-Polari-Permission-Advisory'] == 'unauthenticated Person:read (token invalid or expired)'
+          and ha.h.get('X-Polari-Auth') == 'invalid-or-expired'
+          and gn is True and hn.h['X-Polari-Permission-Advisory'] == 'unauthenticated Person:read' and 'X-Polari-Auth' not in hn.h
+          and gu is True and hu.h['X-Polari-Permission-Advisory'] == 'would-deny Person:read', (ha.h, hn.h, hu.h))
+    check('the gate in ENFORCE: the refusal for a dead session says unauthenticated + "sign in again", with the '
+          'evidence, instead of a bare permission refusal',
+          ge is False and he.status == '403 Forbidden' and he.media['error'] == 'unauthenticated'
+          and 'sign in again' in he.media['why'] and he.media['verdict']['auth'] == 'invalid-or-expired', he.media)
+    m9 = _M(); m9.objectTables = {'PermissionObservation': {}}; m9.persistTree = lambda: None
+    old_env = dict(os.environ); os.environ['POLARI_POSTURE'] = 'dev'
+    try:
+        O.observe_permission(m9, None, 'Person', 'read', verdict={'allowed': False, 'why': 'no authenticated identity — no profile can match', 'via': []})
+    finally:
+        os.environ.clear(); os.environ.update(old_env)
+    check('the observation for an unauthenticated act is recorded as "unauthenticated", never "would-deny"',
+          O.observations(m9)[0]['verdict'] == 'unauthenticated', O.observations(m9))
     from security.custom.security_ssh import permission_group_updates, merge_members
     pg = permission_group_updates('n', inv_u)
     check('permission groups: observed sudo + polari-ops members tied per device', pg['sudo']['members'] == 'n: u' and pg['polari-ops']['members'] == 'n: dev1')
