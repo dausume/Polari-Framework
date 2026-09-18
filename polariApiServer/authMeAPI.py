@@ -15,6 +15,7 @@ import os
 import time
 
 import requests
+from polariApiServer import outbound
 from objectTreeDecorators import *
 import falcon
 
@@ -101,7 +102,11 @@ class AuthJwksHealthAPI(treeObject):
             return
         try:
             t0 = time.time()
-            resp = requests.get(jwks_uri, timeout=5)
+            # ct-3: the JWKS fetch is a keycloak send carrying no Polari
+            # object (public signing keys come back; nothing of ours goes).
+            resp = outbound.http_request(
+                'keycloak', os.environ.get('POLARI_KEYCLOAK_REALM') or 'Polari',
+                'GET', jwks_uri, timeout=5, lib='requests')
             out['latencyMs'] = int((time.time() - t0) * 1000)
             out['httpStatus'] = resp.status_code
             if resp.status_code == 200:

@@ -22,20 +22,30 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, Optional
 
+from polariApiServer import outbound
+
 REMOTE_HTTP_TIMEOUT_S = 6
 
 
 def _http_json(method: str, url: str, body: Optional[Dict] = None,
-               headers: Optional[Dict] = None) -> Dict[str, Any]:
-    """Injectable transport (selftests monkeypatch this)."""
+               headers: Optional[Dict] = None, peer_name: str = '',
+               payload_classes=()) -> Dict[str, Any]:
+    """Injectable transport (selftests monkeypatch this).
+
+    ct-3: rung 4 is a PEER send — the `X-Polari-Trace` header goes on here,
+    so the owner instance's map joins this chain and the read/write shows as
+    one edge on BOTH sides. The fencing token and run id stay in their own
+    headers exactly as before; nothing about the wire changes."""
     data = json.dumps(body).encode('utf-8') if body is not None else None
     request = urllib.request.Request(
         url, data=data, method=method,
         headers={'Content-Type': 'application/json',
                  'Accept': 'application/json', **(headers or {})})
     try:
-        with urllib.request.urlopen(
-                request, timeout=REMOTE_HTTP_TIMEOUT_S) as response:
+        with outbound.http_request(
+                'peer', peer_name, method, request,
+                payload_classes=payload_classes,
+                timeout=REMOTE_HTTP_TIMEOUT_S, lib='urllib') as response:
             return json.loads(response.read().decode('utf-8'))
     except urllib.error.HTTPError as e:
         try:
@@ -79,7 +89,8 @@ def fetch_remote_api(manager, ref, target_instance: str) -> Dict:
     bare = {'kind': 'objectRef', 'className': ref['className'],
             'name': ref['name'], 'id': ref['id']}
     reply = _http_json('POST', f'{base}/api/refs/resolve',
-                       {'ref': bare})
+                       {'ref': bare}, peer_name=target_instance,
+                       payload_classes=(ref['className'],))
     if reply.get('_error'):
         return {'ok': False, 'refusal': {
             'error': f"instance '{target_instance}' unreachable at "
@@ -122,7 +133,9 @@ def push_remote_write(manager, ref, fields: Dict, run_id: str,
     reply = _http_json('POST', f'{base}/api/refs/apply-write',
                        {'ref': bare, 'fields': fields},
                        headers={'X-Polari-Run-Id': run_id,
-                                'X-Polari-Lease-Token': str(token)})
+                                'X-Polari-Lease-Token': str(token)},
+                       peer_name=target_instance,
+                       payload_classes=(ref['className'],))
     if reply.get('_error'):
         return {'ok': False,
                 'error': f"instance '{target_instance}' unreachable "
@@ -139,7 +152,8 @@ def validate_epoch_for_owner(manager, token: int) -> Dict:
         from simulationLocks.lease import validate_token
         return validate_token(manager, token)
     reply = _http_json('GET',
-                       f'{core_url}/api/simulation-locks/lease')
+                       f'{core_url}/api/simulation-locks/lease',
+                       peer_name='core')
     if reply.get('_error'):
         return {'ok': False,
                 'error': f'core unreachable for epoch validation '

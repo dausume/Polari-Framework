@@ -35,6 +35,8 @@ import os
 import time
 import urllib.request
 
+from polariApiServer import outbound
+
 _MODULE = 'collab.media'
 
 #: Short-lived by design (plan §1: "short-lived, never issued to a
@@ -109,7 +111,9 @@ def reachable(timeout=3):
     if not url:
         return None
     try:
-        with urllib.request.urlopen(url + '/', timeout=timeout) as resp:
+        with outbound.http_request('livekit', 'livekit', 'GET', url + '/',
+                                   means='probe',
+                                   timeout=timeout, lib='urllib') as resp:
             return resp.status == 200
     except Exception:
         return False
@@ -178,7 +182,8 @@ def room_service(method, payload, timeout=10):
                  'Authorization': 'Bearer ' + minted['token']},
         method='POST')
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as resp:
+        with outbound.http_request('livekit', 'livekit', 'POST', request,
+                                   timeout=timeout, lib='urllib') as resp:
             body = json.load(resp) if resp.length != 0 else {}
             return {'ok': True, 'result': body if isinstance(body, dict)
                     else {}}

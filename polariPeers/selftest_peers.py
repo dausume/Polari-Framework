@@ -115,7 +115,7 @@ def main():
 
     # Peer listing with mocked liveness.
     real_get = peers_api_mod._http_get_json
-    peers_api_mod._http_get_json = lambda url: (
+    peers_api_mod._http_get_json = lambda url, *_a, **_k: (
         {'success': True, 'data': {'instanceName': 'polari-b'}}
         if 'ping' in url else {'_error': 'nope'})
     try:
@@ -129,7 +129,7 @@ def main():
               and row['identity'].get('instanceName') == 'polari-b')
 
         # Peer-simulations proxy parsing (CRUDE envelope).
-        peers_api_mod._http_get_json = lambda url: [
+        peers_api_mod._http_get_json = lambda url, *_a, **_k: [
             {'SimulationDefinition': [{'data': [
                 {'name': 'wind-field-3d', 'intent': 'observe',
                  'description': 'wind'},
@@ -143,7 +143,7 @@ def main():
               len(sims) == 2 and sims[1]['intent'] == 'search',
               f'sims={[s["name"] for s in sims]}')
 
-        peers_api_mod._http_get_json = lambda url: {'_error': 'down'}
+        peers_api_mod._http_get_json = lambda url, *_a, **_k: {'_error': 'down'}
         resp = _Resp()
         api.on_get_peer_simulations(_req(), resp, 'b')
         check('unreachable peer -> structured 502',

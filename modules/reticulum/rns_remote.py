@@ -25,6 +25,8 @@ import os
 import urllib.error
 import urllib.request
 
+from polariApiServer import outbound
+
 _MODULE = 'reticulum.mesh'
 
 #: The licence pins ARE facts about this deployment — surfaced by the
@@ -67,8 +69,9 @@ def reachable(timeout=3):
     if not url:
         return None
     try:
-        with urllib.request.urlopen(url + '/status',
-                                    timeout=timeout) as resp:
+        with outbound.http_request('reticulum', 'sidecar', 'GET',
+                                   url + '/status', means='probe',
+                                   timeout=timeout, lib='urllib') as resp:
             return resp.status == 200
     except Exception:
         return False
@@ -85,8 +88,9 @@ def sidecar_status(timeout=5):
                     'RETICULUM_URL is unset and the topology resolves '
                     "no provider for 'reticulum.mesh'.")}
     try:
-        with urllib.request.urlopen(url + '/status',
-                                    timeout=timeout) as resp:
+        with outbound.http_request('reticulum', 'sidecar', 'GET',
+                                   url + '/status', means='probe',
+                                   timeout=timeout, lib='urllib') as resp:
             body = json.load(resp)
             return {'ok': True, 'status': body if isinstance(body, dict)
                     else {}}
@@ -113,9 +117,15 @@ PIN_ISOLATION_NOTE = (
     'this mesh (licence-pin isolation, RETICULUM_LICENCE_GATE.md)')
 
 
-def _sidecar_json(path, payload=None, timeout=6):
+def _sidecar_json(path, payload=None, timeout=6, payload_classes=()):
     """GET (payload None) or POST json to the sidecar; honest
-    refusal ladder when unresolved/unreachable."""
+    refusal ladder when unresolved/unreachable.
+
+    ct-3: the ONE sidecar wire seam. `payload_classes` is empty for every
+    caller today — an LXMF message carries free text and a destination
+    hash, not a Polari row; a class name goes here the day an app pushes
+    object data over the mesh (ret-8's inbound half is a proposal, not a
+    send)."""
     url = server_url()
     if not url:
         return {'ok': False,
@@ -131,7 +141,11 @@ def _sidecar_json(path, payload=None, timeout=6):
                 url + path, data=json.dumps(payload).encode(),
                 headers={'Content-Type': 'application/json'},
                 method='POST')
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with outbound.http_request(
+                'reticulum', 'sidecar',
+                'GET' if payload is None else 'POST', req,
+                payload_classes=payload_classes,
+                timeout=timeout, lib='urllib') as resp:
             body = json.load(resp)
             return body if isinstance(body, dict) else {
                 'ok': False, 'error': 'sidecar sent a non-object'}

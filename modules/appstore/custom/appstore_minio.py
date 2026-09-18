@@ -12,6 +12,8 @@ import os
 from datetime import timedelta
 from urllib.parse import urlparse
 
+from polariApiServer import outbound
+
 ARTIFACT_BUCKET = 'shell-artifacts'
 
 
@@ -76,12 +78,15 @@ def get_bytes(manager, key, bucket=ARTIFACT_BUCKET):
     if store is None:
         return store_status(manager)
     try:
-        resp = store.client.get_object(bucket, key)
-        try:
-            data = resp.read()
-        finally:
-            resp.close()
-            resp.release_conn()
+        # ct-3: an app-store artifact (a shell archive / prebuilt binary)
+        # comes back — a blob, not a Polari row.
+        with outbound.wrap('s3', getattr(store, 'endpoint', ''), 's3'):
+            resp = store.client.get_object(bucket, key)
+            try:
+                data = resp.read()
+            finally:
+                resp.close()
+                resp.release_conn()
         return {'ok': True, 'data': data}
     except Exception as e:
         return {'ok': False,

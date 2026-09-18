@@ -278,14 +278,18 @@ def push(manager, binding, row_names=None, confirm='',
             return found
         if found.get('result'):
             odoo_id = found['result'][0]['id']
+            # ct-3: this is the one Odoo call carrying Polari object data
+            # — the binding's polari_class is what crosses.
             out = handle.execute_kw(model, 'write',
-                                    [[odoo_id], vals], confirm=confirm)
+                                    [[odoo_id], vals], confirm=confirm,
+                                    payload_classes=(class_name,))
             if not out.get('ok'):
                 return out
             updated.append({'row': row_name, 'odooId': odoo_id})
         else:
             out = handle.execute_kw(model, 'create', [vals],
-                                    confirm=confirm)
+                                    confirm=confirm,
+                                    payload_classes=(class_name,))
             if not out.get('ok'):
                 return out
             created.append({'row': row_name, 'odooId': out['result']})

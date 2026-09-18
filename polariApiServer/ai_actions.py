@@ -24,6 +24,8 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+from polariApiServer import outbound
+
 _PORT = os.environ.get("BACKEND_HTTP_PORT", "3000")
 _BASE = f"http://localhost:{_PORT}"
 _DATA = Path(__file__).resolve().parents[1] / "data"
@@ -59,6 +61,15 @@ def classify(op):
 
 # -- HTTP-to-self executors (stdlib) -----------------------------------
 
+def _class_of(path):
+    """The Polari class an executor path writes: '/MealEntry' -> ('MealEntry',).
+    A non-class path (an /api/... door) names no class rather than guessing."""
+    seg = str(path or '').lstrip('/').split('/', 1)[0].split('?', 1)[0]
+    if not seg or seg == 'api' or not seg[:1].isalpha():
+        return ()
+    return (seg,)
+
+
 def _multipart(method, path, fields):
     boundary = uuid.uuid4().hex
     body = b""
@@ -69,7 +80,12 @@ def _multipart(method, path, fields):
     body += f"--{boundary}--\r\n".encode()
     req = urllib.request.Request(_BASE + path, data=body, method=method)
     req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
-    with urllib.request.urlopen(req, timeout=20) as resp:
+    # ct-3: kind 'self' — the executor dials THIS instance's own API over
+    # HTTP, so the send leaves the process even though it never leaves the
+    # host. The class it writes IS the path's first segment.
+    with outbound.http_request('self', 'polari-api', method, req,
+                               payload_classes=_class_of(path),
+                               timeout=20, lib='urllib') as resp:
         return {"status": resp.status, "body": _safe_json(resp.read().decode())}
 
 
@@ -77,7 +93,9 @@ def _post_json(path, payload):
     data = json.dumps(payload).encode()
     req = urllib.request.Request(_BASE + path, data=data, method="POST")
     req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, timeout=20) as resp:
+    with outbound.http_request('self', 'polari-api', 'POST', req,
+                               payload_classes=_class_of(path),
+                               timeout=20, lib='urllib') as resp:
         return {"status": resp.status, "body": _safe_json(resp.read().decode())}
 
 

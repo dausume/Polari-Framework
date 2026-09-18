@@ -14,6 +14,7 @@ manage live connections — explicitly, never at boot.
 import json
 
 from objectTreeDecorators import treeObject, treeObjectInit
+from polariApiServer import outbound
 
 from mqttbridge.custom.mqtt_bridge import (
     WORKERS, BridgeWorker, paho_available,
@@ -115,10 +116,14 @@ class MqttBridgeAPI(treeObject):
             body = payload.get('payload', '')
             if not topic:
                 return self._refuse(response, 'topic required')
-            worker.client.publish(topic,
-                                  json.dumps(body)
-                                  if isinstance(body, (dict, list))
-                                  else str(body))
+            # ct-3: paho owns the wire — wrap the publish. mqtt-1 has
+            # auto-publish OFF, so this explicit test publish is the ONLY
+            # send, and it carries an operator-typed payload, not a row.
+            with outbound.wrap('mqtt', name, 'mqtt'):
+                worker.client.publish(topic,
+                                      json.dumps(body)
+                                      if isinstance(body, (dict, list))
+                                      else str(body))
             response.media = {'ok': True, 'published': topic,
                               'note': 'explicit test publish — '
                                       'auto-publish stays OFF at '

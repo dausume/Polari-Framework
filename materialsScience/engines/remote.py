@@ -21,7 +21,11 @@ import os
 import time
 import urllib.request
 
+from polariApiServer import outbound
+
 _ENGINE = 'msci'
+#: ct-3: the engines worker is an `engine:` node on the object topology.
+_KIND = 'engine'
 
 
 def engines_url():
@@ -85,15 +89,21 @@ def remote_capability(timeout=5):
     if not url:
         return None
     try:
-        with urllib.request.urlopen(f'{url}/capability',
-                                    timeout=timeout) as response:
+        with outbound.http_request(_KIND, _ENGINE, 'GET',
+                                   f'{url}/capability', means='probe',
+                                   timeout=timeout,
+                                   lib='urllib') as response:
             return json.load(response)
     except Exception:
         return None
 
 
-def remote_post(path, payload, timeout=300):
-    """POST JSON to the worker; {'ok': False, suggestion} when it can't."""
+def remote_post(path, payload, timeout=300, payload_classes=()):
+    """POST JSON to the worker; {'ok': False, suggestion} when it can't.
+
+    ct-3: the engine seam. `_meter` (sep-4 usage rows) stays exactly where
+    it was — the two record different things: metering counts bytes and
+    latency for capacity, the wrapper records WHAT LEFT for the map."""
     url = engines_url_for(path)
     if not url:
         return {'ok': False, 'error': 'no engines worker configured',
@@ -107,7 +117,10 @@ def remote_post(path, payload, timeout=300):
     started = time.time()
     result = None
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with outbound.http_request(_KIND, _ENGINE, 'POST', request,
+                                   payload_classes=payload_classes,
+                                   timeout=timeout,
+                                   lib='urllib') as response:
             raw = response.read()
             result = json.loads(raw)
             _meter(True, started, len(body_out), len(raw))

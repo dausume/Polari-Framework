@@ -31,6 +31,7 @@ import falcon
 from objectTreeDecorators import *
 
 from polariApiServer import reasoning_config
+from polariApiServer import outbound
 
 #: Defaults for the OpenAI-compatible audio wire; LocalAI accepts
 #: these as model aliases when the matching backends are installed.
@@ -148,9 +149,13 @@ class voiceAPI(treeObject):
         ext = ctype.split('/')[-1] or 'webm'
         try:
             client, settings = _client()
-            result = client.audio.transcriptions.create(
-                model=settings.get('stt_model', DEFAULT_STT_MODEL),
-                file=('speech.%s' % ext, audio, ctype))
+            # ct-3: the audio BYTES are never recorded — the wrapper says a
+            # send happened, to which provider, by which wire, and nothing
+            # else. payload_classes is () because no Polari row crosses.
+            with outbound.wrap('provider', 'voice-stt', 'sdk'):
+                result = client.audio.transcriptions.create(
+                    model=settings.get('stt_model', DEFAULT_STT_MODEL),
+                    file=('speech.%s' % ext, audio, ctype))
             text = getattr(result, 'text', '') or ''
         except Exception as exc:  # noqa: BLE001 — refuse honestly
             return self._refuse(
@@ -175,11 +180,13 @@ class voiceAPI(treeObject):
                                 "speak requires 'text'")
         try:
             client, settings = _client()
-            result = client.audio.speech.create(
-                model=settings.get('tts_model', DEFAULT_TTS_MODEL),
-                voice=body.get('voice')
-                or settings.get('tts_voice', DEFAULT_TTS_VOICE),
-                input=text)
+            # the TEXT is never recorded either — same rule as transcribe.
+            with outbound.wrap('provider', 'voice-tts', 'sdk'):
+                result = client.audio.speech.create(
+                    model=settings.get('tts_model', DEFAULT_TTS_MODEL),
+                    voice=body.get('voice')
+                    or settings.get('tts_voice', DEFAULT_TTS_VOICE),
+                    input=text)
             audio = result.read() if hasattr(result, 'read') \
                 else getattr(result, 'content', b'')
         except Exception as exc:  # noqa: BLE001 — refuse honestly

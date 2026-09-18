@@ -452,7 +452,7 @@ if __name__ == '__main__':
 
     calls = []
 
-    def _fake_http(method, url, body=None, headers=None):
+    def _fake_http(method, url, body=None, headers=None, **_kw):
         calls.append((method, url, body, headers))
         if url.endswith('/api/refs/resolve'):
             return {'ok': True,

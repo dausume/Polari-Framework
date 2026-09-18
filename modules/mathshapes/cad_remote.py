@@ -19,6 +19,8 @@ import os
 import time
 import urllib.request
 
+from polariApiServer import outbound
+
 _MODULE = 'mathshapes.cad'
 _ENGINE = 'cad'
 
@@ -70,15 +72,19 @@ def remote_capability(timeout=5):
     if not url:
         return None
     try:
-        with urllib.request.urlopen(f'{url}/capability',
-                                    timeout=timeout) as response:
+        with outbound.http_request('engine', _ENGINE, 'GET',
+                                   f'{url}/capability', means='probe',
+                                   timeout=timeout,
+                                   lib='urllib') as response:
             return json.load(response)
     except Exception:
         return None
 
 
-def remote_post(path, payload, timeout=300):
-    """POST JSON to the worker; {'ok': False, suggestion} when it can't."""
+def remote_post(path, payload, timeout=300, payload_classes=()):
+    """POST JSON to the worker; {'ok': False, suggestion} when it can't.
+    ct-3: geometry parameters cross, not rows — callers that DO send a
+    row's data name its class in `payload_classes`."""
     url = engines_url_for()
     if not url:
         return {'ok': False, 'error': 'no cad-engines worker configured',
@@ -91,7 +97,10 @@ def remote_post(path, payload, timeout=300):
         headers={'Content-Type': 'application/json'}, method='POST')
     started = time.time()
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with outbound.http_request('engine', _ENGINE, 'POST', request,
+                                   payload_classes=payload_classes,
+                                   timeout=timeout,
+                                   lib='urllib') as response:
             raw = response.read()
             _meter(True, started, len(body_out), len(raw))
             return json.loads(raw)

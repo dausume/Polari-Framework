@@ -65,10 +65,11 @@ def _probe(url, timeout=3):
     cached = _PROBE_CACHE.get(url)
     if cached and now - cached[0] < _PROBE_TTL_S:
         return cached[1]
-    import urllib.request
+    from polariApiServer import outbound
     try:
-        with urllib.request.urlopen(f'{url}/capability',
-                                    timeout=timeout):
+        with outbound.http_request('provider', 'capability-probe', 'GET',
+                                   f'{url}/capability', means='probe',
+                                   timeout=timeout, lib='urllib'):
             alive = True
     except Exception:
         alive = False

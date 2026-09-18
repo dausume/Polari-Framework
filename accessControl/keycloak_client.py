@@ -26,6 +26,14 @@ from typing import List, Dict, Optional
 
 import requests
 
+from polariApiServer import outbound
+
+#: ct-3: every call below leaves through `outbound.send`. Keycloak carries
+#: NO Polari object — a token grant and a role/group listing are its own
+#: rows — so `payload_classes` is empty at all four sites, and the trace
+#: header is never added (it goes to `peer` kinds only).
+_KIND = 'keycloak'
+
 
 class KeycloakClientError(RuntimeError):
     """Raised when the admin client can't talk to Keycloak."""
@@ -66,14 +74,14 @@ class KeycloakClient:
             )
         url = f"{self.admin_url}/realms/{self.realm}/protocol/openid-connect/token"
         try:
-            resp = requests.post(
-                url,
+            resp = outbound.http_request(
+                _KIND, self.realm, 'POST', url,
                 data={
                     'grant_type': 'client_credentials',
                     'client_id': self.client_id,
                     'client_secret': self.client_secret,
                 },
-                timeout=10,
+                timeout=10, lib='requests',
             )
         except requests.RequestException as e:
             raise KeycloakClientError(f"Could not reach Keycloak token endpoint: {e}") from e
@@ -106,10 +114,10 @@ class KeycloakClient:
         token = self._get_token()
         url = f"{self.admin_url}/admin/realms/{self.realm}/roles"
         try:
-            resp = requests.get(
-                url,
+            resp = outbound.http_request(
+                _KIND, self.realm, 'GET', url,
                 headers={'Authorization': f'Bearer {token}'},
-                timeout=10,
+                timeout=10, lib='requests',
             )
         except requests.RequestException as e:
             raise KeycloakClientError(f"Could not list realm roles: {e}") from e
@@ -143,7 +151,9 @@ class KeycloakClient:
         # Realm role mappings still need a separate call per group.
         list_url = f"{self.admin_url}/admin/realms/{self.realm}/groups?briefRepresentation=false"
         try:
-            resp = requests.get(list_url, headers=headers, timeout=10)
+            resp = outbound.http_request(_KIND, self.realm, 'GET', list_url,
+                                         headers=headers, timeout=10,
+                                         lib='requests')
         except requests.RequestException as e:
             raise KeycloakClientError(f"Could not list groups: {e}") from e
         if resp.status_code != 200:
@@ -171,7 +181,9 @@ class KeycloakClient:
             realm_roles: List[str] = []
             try:
                 role_url = f"{self.admin_url}/admin/realms/{self.realm}/groups/{gid}/role-mappings/realm"
-                role_resp = requests.get(role_url, headers=headers, timeout=10)
+                role_resp = outbound.http_request(
+                    _KIND, self.realm, 'GET', role_url, headers=headers,
+                    timeout=10, lib='requests')
                 if role_resp.status_code == 200:
                     realm_roles = [r.get('name') for r in role_resp.json() if r.get('name')]
             except requests.RequestException:

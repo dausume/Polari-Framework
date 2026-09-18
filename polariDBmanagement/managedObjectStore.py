@@ -8,6 +8,7 @@ or connected dynamically via the ObjectStorageAPI.
 import os
 import time
 from objectTreeDecorators import treeObject, treeObjectInit
+from polariApiServer import outbound
 
 
 class managedObjectStore(treeObject):
@@ -55,7 +56,11 @@ class managedObjectStore(treeObject):
                 region='us-east-1',
             )
             # Verify connection by listing buckets
-            bucket_list = [b.name for b in self.client.list_buckets()]
+            # ct-3: the minio SDK owns the wire, so the seam is a `wrap`
+            # around the call. Bucket NAMES are the store's own, not a
+            # Polari class — payload_classes stays empty here.
+            with outbound.wrap('s3', self.endpoint, 's3'):
+                bucket_list = [b.name for b in self.client.list_buckets()]
             self.buckets = bucket_list
             self.connected = True
         except Exception as e:
@@ -116,17 +121,22 @@ class managedObjectStore(treeObject):
         if not self.connected or self.client is None:
             raise RuntimeError('Object store not connected')
         self.ensure_bucket(bucket)
-        if content_type:
-            self.client.fput_object(bucket, object_name, file_path, content_type=content_type)
-        else:
-            self.client.fput_object(bucket, object_name, file_path)
+        # ct-3: a FILE crosses to the object store. The bytes are never
+        # recorded; the bucket is the system name and the payload is a
+        # blob, not a Polari row, so payload_classes stays empty.
+        with outbound.wrap('s3', self.endpoint, 's3'):
+            if content_type:
+                self.client.fput_object(bucket, object_name, file_path, content_type=content_type)
+            else:
+                self.client.fput_object(bucket, object_name, file_path)
         return f'{bucket}/{object_name}'
 
     def download_file(self, bucket, object_name, local_path) -> str:
         """Download an object to a local file. Returns local path."""
         if not self.connected or self.client is None:
             raise RuntimeError('Object store not connected')
-        self.client.fget_object(bucket, object_name, local_path)
+        with outbound.wrap('s3', self.endpoint, 's3'):
+            self.client.fget_object(bucket, object_name, local_path)
         return local_path
 
     def list_objects(self, bucket, prefix='') -> list:

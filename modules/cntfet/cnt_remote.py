@@ -40,8 +40,12 @@ import time
 import urllib.error
 import urllib.request
 
+from polariApiServer import outbound
+
 KNOB = 'CNTFET_ENGINES_URL'
 PROVIDER_MODULE = 'cntfet.engines'
+#: ct-3: the name this worker carries as an `engine:` node on the map.
+_ENGINE = 'cnt'
 REMOTE = 'remote'
 
 _CAP_CACHE = {}
@@ -75,8 +79,10 @@ def remote_capability(url, timeout=5):
     if cached and now - cached[0] < _CAP_TTL_S:
         return cached[1]
     try:
-        with urllib.request.urlopen(f'{url}/capability',
-                                    timeout=timeout) as response:
+        with outbound.http_request('engine', _ENGINE, 'GET',
+                                   f'{url}/capability', means='probe',
+                                   timeout=timeout,
+                                   lib='urllib') as response:
             cap = json.load(response)
     except Exception:
         cap = None
@@ -121,9 +127,10 @@ def active_url():
     return knob_url() or topology_url()
 
 
-def remote_post(path, payload, timeout=600):
+def remote_post(path, payload, timeout=600, payload_classes=()):
     """POST JSON to the active worker. Transport failure raises
-    RemoteError; the worker's own {'ok': False} passes through."""
+    RemoteError; the worker's own {'ok': False} passes through.
+    ct-3: device/geometry parameters cross, not rows."""
     url = active_url()
     if not url:
         raise RemoteError(f'no cnt-engines worker resolvable ({KNOB} '
@@ -133,7 +140,10 @@ def remote_post(path, payload, timeout=600):
         f'{url}{path}', data=data,
         headers={'Content-Type': 'application/json'}, method='POST')
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
+        with outbound.http_request('engine', _ENGINE, 'POST', req,
+                                   payload_classes=payload_classes,
+                                   timeout=timeout,
+                                   lib='urllib') as response:
             return json.load(response)
     except urllib.error.HTTPError as exc:
         try:

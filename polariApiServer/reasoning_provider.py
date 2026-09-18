@@ -19,6 +19,8 @@ or the frontend. This is the reasoning slice of the capability manager.
 
 import os
 
+from polariApiServer import outbound
+
 # Kept in sync with polari-mcp/ai_conventions.json — the standard the AI follows.
 GATED_CAPABILITIES = [
     {"area": "topology", "intent": "report modules, connections, and instance shape (read-only)"},
@@ -100,8 +102,15 @@ class AnthropicReasoningProvider:
         msgs.append({"role": "user", "content": message})
         proposals, text = [], ""
         for _ in range(6):  # read tools auto-run; propose tools pause for the user
-            resp = self.client.messages.create(
-                model=self.model, max_tokens=1024, system=system, tools=tools, messages=msgs)
+            # ct-3: an SDK send to a reasoning provider. The MESSAGE never
+            # goes in a row — only that a send happened, to which provider,
+            # by which wire. payload_classes is () because what crosses is
+            # the operator's prose, not a Polari row (the class counts in
+            # the system prompt are aggregates, not instances).
+            with outbound.wrap('provider', self.name, 'sdk'):
+                resp = self.client.messages.create(
+                    model=self.model, max_tokens=1024, system=system,
+                    tools=tools, messages=msgs)
             text = "".join(getattr(b, "text", "") for b in resp.content
                            if getattr(b, "type", None) == "text")
             msgs.append({"role": "assistant", "content": resp.content})
@@ -155,8 +164,10 @@ class OpenAIReasoningProvider:
         msgs.append({"role": "user", "content": message})
         proposals, text = [], ""
         for _ in range(6):
-            resp = self.client.chat.completions.create(
-                model=self.model, max_tokens=1024, messages=msgs, tools=tools)
+            with outbound.wrap('provider', self.name, 'sdk'):
+                resp = self.client.chat.completions.create(
+                    model=self.model, max_tokens=1024, messages=msgs,
+                    tools=tools)
             msg = resp.choices[0].message
             text = msg.content or text
             calls = msg.tool_calls or []

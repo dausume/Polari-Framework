@@ -25,6 +25,8 @@ import os
 import urllib.error
 import urllib.request
 
+from polariApiServer import outbound
+
 #: execute_kw methods that cannot mutate — everything else is a write.
 READ_SAFE_METHODS = frozenset({
     'search', 'search_read', 'search_count', 'read', 'read_group',
@@ -47,9 +49,17 @@ def _refuse(refusal, suggestion=None):
     return out
 
 
-def jsonrpc(base_url, service, method, args, timeout=15):
+def jsonrpc(base_url, service, method, args, timeout=15,
+            payload_classes=(), system_name=''):
     """One raw JSON-RPC call. Returns {ok, result} or a refusal —
-    never raises."""
+    never raises.
+
+    ct-3: the ONE Odoo wire seam — every handle call funnels here, so
+    wrapping it once covers `version`, `authenticate` and every
+    `execute_kw`. `payload_classes` names the Polari classes whose data
+    crosses (the binding's `polari_class` on a push); the VALUES never
+    leave this frame, and `args` carries the RPC password, so nothing of
+    this call but its shape is ever recorded."""
     if not base_url:
         return _refuse('no Odoo base_url configured',
                        _suggestion('empty base_url on the config row',
@@ -63,7 +73,10 @@ def jsonrpc(base_url, service, method, args, timeout=15):
         data=json.dumps(payload).encode(),
         headers={'Content-Type': 'application/json'})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with outbound.http_request(
+                'odoo', system_name or base_url.rstrip('/'), 'POST', req,
+                means='json-rpc', payload_classes=payload_classes,
+                timeout=timeout, lib='urllib') as resp:
             body = json.load(resp)
     except Exception as exc:  # noqa: BLE001 — refusals, not crashes
         return _refuse(f'odoo unreachable at {base_url}: {exc}',
@@ -126,7 +139,7 @@ class OdooHandle:
     def version(self):
         """Unauthenticated server probe (common.version)."""
         return jsonrpc(self.base_url(), 'common', 'version', [],
-                       timeout=self.timeout)
+                       timeout=self.timeout, system_name=self.name)
 
     def authenticate(self):
         """Resolve uid once per handle; refusal if auth fails."""
@@ -138,7 +151,8 @@ class OdooHandle:
         login = getattr(self.config, 'auth_login', '') or ''
         db = getattr(self.config, 'db', '') or ''
         out = jsonrpc(self.base_url(), 'common', 'authenticate',
-                      [db, login, secret, {}], timeout=self.timeout)
+                      [db, login, secret, {}], timeout=self.timeout,
+                      system_name=self.name)
         if not out.get('ok'):
             return out
         if not out.get('result'):
@@ -180,9 +194,13 @@ class OdooHandle:
         return None
 
     def execute_kw(self, model, method, args=None, kwargs=None,
-                   confirm=''):
+                   confirm='', payload_classes=()):
         """Authenticated object call. Writes (any method not in
-        READ_SAFE_METHODS) pass the data-driven guards first."""
+        READ_SAFE_METHODS) pass the data-driven guards first.
+
+        `payload_classes` (ct-3) names the Polari classes whose data this
+        call carries — the caller holds the binding, so only the caller
+        knows. A read passes nothing."""
         if method not in READ_SAFE_METHODS:
             refusal = self._write_guard(method, confirm)
             if refusal:
@@ -197,7 +215,9 @@ class OdooHandle:
         return jsonrpc(self.base_url(), 'object', 'execute_kw',
                        [db, self._uid, secret, model, method,
                         list(args or []), dict(kwargs or {})],
-                       timeout=self.timeout)
+                       timeout=self.timeout,
+                       payload_classes=payload_classes,
+                       system_name=self.name)
 
     def search_read(self, model, domain=None, fields=None, limit=0,
                     offset=0, order=''):

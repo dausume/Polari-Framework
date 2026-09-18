@@ -43,6 +43,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from polariApiServer import outbound
+
 #: How to decode the body. The row says which; nothing sniffs.
 RESPONSE_FORMATS = ('json', 'text', 'tsv', 'csv', 'xport', 'binary')
 
@@ -134,7 +136,11 @@ def default_fetcher(url, timeout=120, headers=None):
     """(status, body_bytes_or_none, error). Never raises."""
     req = urllib.request.Request(url, headers=dict(headers or {}))
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        # ct-3: an external API domain. Nothing of OURS crosses (the fetch
+        # pulls third-party data in) and the URL is never recorded — it can
+        # carry an apikey-query secret; see `redact` above.
+        with outbound.http_request('profiler', 'api-endpoint', 'GET', req,
+                                   timeout=timeout, lib='urllib') as resp:
             return getattr(resp, 'status', 200), resp.read(), ''
     except urllib.error.HTTPError as exc:
         try:

@@ -47,6 +47,7 @@ from typing import Any, Dict, List, Optional
 
 import falcon
 
+from polariApiServer import outbound
 from objectTreeDecorators import treeObject, treeObjectInit
 
 PEER_HTTP_TIMEOUT_S = 4
@@ -70,12 +71,24 @@ def peer_token() -> str:
         return ''
 
 
-def _http_get_json(url: str) -> Dict[str, Any]:
+def _http_get_json(url: str, peer_name: str = '',
+                   payload_classes=()) -> Dict[str, Any]:
     """GET a JSON document with a short timeout; structured error on
-    failure ({'_error': msg})."""
+    failure ({'_error': msg}).
+
+    ct-3: a PEER send — the one kind that carries `X-Polari-Trace`, so the
+    two instances' maps join on the same trace id. `peer_name` is the
+    PeerNode row's name (never a raw address in a row, design §7); it is ''
+    only where the caller genuinely has no row (the join handshake, which
+    is talking to a node that is not a peer yet). `payload_classes` names
+    what comes BACK in our vocabulary — a peer read pulls rows of that
+    class across the boundary just as surely as a write pushes them."""
     try:
         req = urllib.request.Request(url, headers={'Accept': 'application/json'})
-        with urllib.request.urlopen(req, timeout=PEER_HTTP_TIMEOUT_S) as resp:
+        with outbound.http_request(
+                'peer', peer_name, 'GET', req,
+                payload_classes=payload_classes,
+                timeout=PEER_HTTP_TIMEOUT_S, lib='urllib') as resp:
             return json.loads(resp.read().decode('utf-8'))
     except (urllib.error.URLError, OSError, ValueError) as exc:
         return {'_error': f'{type(exc).__name__}: {exc}'}
@@ -119,7 +132,8 @@ class PeersAPI(treeObject):
         out: List[Dict[str, Any]] = []
         for peer in self._peer_rows():
             base = getattr(peer, 'base_url', '')
-            ping = _http_get_json(f'{base}/api/peers/ping') if base else \
+            ping = _http_get_json(f'{base}/api/peers/ping',
+                                  getattr(peer, 'name', '')) if base else \
                 {'_error': 'no base_url'}
             alive = '_error' not in ping
             peer.status = 'alive' if alive else 'unreachable'
@@ -233,7 +247,8 @@ class PeersAPI(treeObject):
                               'error': f'Peer "{peer_name}" is not registered.'}
             return
         base = getattr(peer, 'base_url', '')
-        payload = _http_get_json(f'{base}/SimulationDefinition')
+        payload = _http_get_json(f'{base}/SimulationDefinition', peer_name,
+                                 payload_classes=('SimulationDefinition',))
         if '_error' in payload:
             response.status = falcon.HTTP_502
             response.media = {'success': False,
@@ -398,7 +413,10 @@ class PeersAPI(treeObject):
                 return
             base = getattr(peer, 'base_url', '')
             module_name = source.get('module') or ''
-            payload = _http_get_json(f'{base}/api/modules/{module_name}')
+            # a module bundle: the classes it carries are named in its
+            # manifest (requiredClasses), which we only see once it lands.
+            payload = _http_get_json(f'{base}/api/modules/{module_name}',
+                                     getattr(peer, 'name', ''))
             if '_error' in payload:
                 response.status = falcon.HTTP_502
                 response.media = {'success': False,

@@ -19,6 +19,8 @@ MCP server — the model is just another source of proposals.
 import json
 import urllib.request
 
+from polariApiServer import outbound
+
 try:
     from polariApiServer.ai_actions import _BASE  # server (package) path
 except ImportError:
@@ -70,9 +72,21 @@ def openai_tools():
                           "parameters": t["input_schema"]}} for t in TOOL_SPECS]
 
 
+def _class_of(path):
+    """'/DisplayDefinition' -> ('DisplayDefinition',); an /api door -> ()."""
+    seg = str(path or '').lstrip('/').split('/', 1)[0].split('?', 1)[0]
+    if not seg or seg == 'api' or not seg[:1].isalpha():
+        return ()
+    return (seg,)
+
+
 def _get_trim(path, limit=3000):
     try:
-        with urllib.request.urlopen(_BASE + path, timeout=15) as resp:
+        # ct-3: the AI's READ tools also dial this instance's own API.
+        with outbound.http_request('self', 'polari-api', 'GET',
+                                   _BASE + path,
+                                   payload_classes=_class_of(path),
+                                   timeout=15, lib='urllib') as resp:
             body = resp.read().decode()
     except Exception as exc:  # noqa: BLE001
         return f"(read failed: {exc})"
