@@ -12,9 +12,16 @@ class RolePrototype(treeObject):
     template a permissions admin concretes into an enforced group (AppPermissionProfile + KC group), after which
     the recording is replayed to prove the role can still do its job. State moves prototype → concreted → enforced."""
 
+    SELF_CLAIMABLE_DOC = (
+        'SELF-CLAIMABLE (his ask 2026-09-18): whether a signed-in person may put themselves into this role without '
+        'an administrator. In DEV posture every prototype role is claimable unless this is explicitly False; in '
+        'PRODUCTION only the roles flagged True (plus the knob list `claimable_groups`) are. Admin roles are NEVER '
+        'claimable, whatever this says — see security.custom.security_claims.')
+
     @treeObjectInit
     def __init__(self, name: str = '', title: str = '', description: str = '', state: str = 'prototype', created_by: str = '',
-                 created_at: str = '', concreted_profile: str = '', concreted_at: str = '', verified_at: str = '', verified_verdict: str = ''):
+                 created_at: str = '', concreted_profile: str = '', concreted_at: str = '', verified_at: str = '', verified_verdict: str = '',
+                 self_claimable: bool = False):
         self.name = name                        # the role id, lower-case ('journalist')
         self.title = title
         self.description = description
@@ -25,3 +32,4 @@ class RolePrototype(treeObject):
         self.concreted_at = concreted_at
         self.verified_at = verified_at
         self.verified_verdict = verified_verdict
+        self.self_claimable = self_claimable    # may anyone signed-in claim it? (see SELF_CLAIMABLE_DOC)

@@ -15,6 +15,8 @@
 /api/security/propose    POST {app, groups} (allowed.py --json groups) → a SecurityProposal: the stanza change the harvest asks for
 /api/security/threats    [?scenario=…] [&mode=…] — the threat simulations: each threat's path through the systems, the policy that
                          blocked it, and the counterexample (the actor/group/permission that legitimately reaches the same target)
+/api/security/roles/claimable  GET the roles THIS caller may take for themselves (a role = a Keycloak group) + the account console URL
+/api/security/roles/claim      POST {role} join that group; DELETE ?role= leave it — self-service, never an admin role (§17b D17-5)
 The scenario defaults to the one this deployment is (POLARI_DEPLOY_ROUTE: isle → isle, swarm → lean/full by
 profile, else dev). Pure reads over security_topology; nothing here changes the machine.
 """
@@ -72,7 +74,9 @@ class SecurityAPI(treeObject):
             add('/api/security/observe/review', self, suffix='observe_review')      # GET ?role= everything the role used + the proposed profile (the handoff)
             add('/api/security/observe/verify', self, suffix='observe_verify')      # GET ?role=&group= replay the recording against the enforced profiles
             add('/api/security/observe/roles', self, suffix='observe_roles')        # GET the prototype roles + whether the caller may role-play; POST {name, title, description} a new prototype
-            add('/api/security/observe/roles/{name}', self, suffix='observe_role')  # POST {state, profile, verdict} mark prototype → concreted → enforced
+            add('/api/security/observe/roles/{name}', self, suffix='observe_role')  # POST {state, profile, verdict} mark prototype → concreted → enforced; {self_claimable} admin-only
+            add('/api/security/roles/claimable', self, suffix='roles_claimable')    # GET the roles THIS caller may take for themselves (his ask 2026-09-18)
+            add('/api/security/roles/claim', self, suffix='roles_claim')            # POST {role} join the KC group; DELETE ?role= leave it
 
     def _rows(self, class_name):
         return list(((getattr(self.manager, 'objectTables', None) or {}).get(class_name, {}) or {}).values())
@@ -235,22 +239,27 @@ class SecurityAPI(treeObject):
         return ((ui.get('preferred_username') or ui.get('sub') or '') if isinstance(ui, dict) else '')
 
     def on_get_observe(self, request, response):
-        from security.custom.security_observe import knob_state, recording_on, sessions, summary
+        from security.custom.security_observe import knob_state, recording_on, sessions, summary, roleplay_groups_allowed, claimable_groups, claim_denied_roles
         s = summary(self.manager)
         response.media = {'ok': True, 'posture': s['posture'], 'recording': recording_on(self.manager), 'knob': knob_state(), 'open_sessions': sessions(self.manager, active=True),
-                          'how': 'POST {"recording": false} here turns the observation ledgers off on the fly (and true back on); recording never happens outside dev posture'}
+                          'roleplay_groups': roleplay_groups_allowed(), 'claimable_groups': claimable_groups(), 'claim_denied': claim_denied_roles(),
+                          'how': 'POST {"recording": false} here turns the observation ledgers off on the fly (and true back on); recording never happens outside dev posture. '
+                                 '{"claimable_groups": [...]} names KC groups anyone signed in may claim at /api/security/roles/claim'}
 
     def on_post_observe(self, request, response):
         from security.custom.security_observe import set_recording, recording_on
-        from security.custom.security_observe import set_roleplay_groups
+        from security.custom.security_observe import set_roleplay_groups, set_claimable_groups
         body = self._body(request)
         out = {}
         if 'roleplay_groups' in body:
             out['roleplay'] = set_roleplay_groups(body.get('roleplay_groups') or [], by=self._actor(request))
+        if 'claimable_groups' in body:
+            # the knob beside roleplay_groups: KC groups anyone signed in may take for themselves, in ANY posture
+            out['claimable'] = set_claimable_groups(body.get('claimable_groups') or [], by=self._sub(request))
         if 'recording' in body:
             out.update(set_recording(bool(body['recording']), by=self._actor(request)))
         if not out:
-            return self._bad(response, 'body: {"recording": true|false} and/or {"roleplay_groups": ["group", ...]}')
+            return self._bad(response, 'body: {"recording": true|false} and/or {"roleplay_groups": [...]} and/or {"claimable_groups": [...]}')
         response.media = {**out, 'ok': True, 'recording_now': recording_on(self.manager)}
 
     def on_post_observe_session(self, request, response):
@@ -309,12 +318,95 @@ class SecurityAPI(treeObject):
         response.media = r
 
     def on_post_observe_role(self, request, response, name):
+        """{state, profile, verdict} moves the prototype along its ladder (as before).
+        {self_claimable: true|false} decides whether anyone signed in may take the role for themselves — that one is
+        ADMIN-ONLY: letting a self-claimed role widen its own claimability would close the loop on itself."""
         from security.custom.security_observe import mark_prototype
         body = self._body(request)
-        r = mark_prototype(self.manager, name, body.get('state', ''), profile=body.get('profile', ''), verdict=body.get('verdict', ''))
+        sc = body.get('self_claimable', None)
+        if sc is not None:
+            from security.custom.security_claims import is_admin
+            ui = self._user_info(request)
+            if not is_admin(ui):
+                return self._refuse(response, '403 Forbidden',
+                                    'only an administrator may change whether a role is self-claimable '
+                                    '(ADMIN_ROLES: admin, polari-admin)')
+            sc = bool(sc)
+        r = mark_prototype(self.manager, name, body.get('state', ''), profile=body.get('profile', ''), verdict=body.get('verdict', ''),
+                           self_claimable=sc, by=self._sub(request))
         if not r.get('ok'):
             return self._bad(response, r.get('refusal', ''))
         response.media = r
+
+    # ---- SELF-CLAIMABLE ROLES (his words 2026-09-18) -------------------------------------------------------------
+    # "It should not be the case all roles can be taken by anyone, but self-proclaimable roles should be a thing,
+    # especially in dev mode." A role is a Keycloak GROUP; claiming one puts the caller's `sub` into it through the
+    # polari-backend service account. The POLICY lives in security.custom.security_claims, the mechanism in kc_admin.
+
+    def _user_info(self, request):
+        return getattr(getattr(request, 'context', None), 'user_info', None)
+
+    def _sub(self, request):
+        """The caller's opaque Keycloak id. The ONLY identifier this arc writes into a Polari row, event or knob —
+        his PII rule (2026-09-18): Keycloak exists to keep names and e-mails out of Polari."""
+        ui = self._user_info(request)
+        return str(ui.get('sub') or '') if isinstance(ui, dict) else ''
+
+    @staticmethod
+    def _refuse(response, status, why, **extra):
+        response.status = status
+        response.media = {'ok': False, 'refusal': why, **extra}
+
+    def on_get_roles_claimable(self, request, response):
+        from security.custom.security_claims import claimable_roles, caller, how
+        from security.custom.kc_admin import account_url, configured
+        from moduleService import posture as _posture
+        ui = self._user_info(request)
+        # PII rule (his, 2026-09-18): Polari never handles the person's name here — the answer echoes the caller's
+        # own opaque Keycloak `sub` and nothing else. The browser already has the display name in its own token.
+        sub, _username, groups = caller(ui)
+        roles = claimable_roles(self.manager, ui)
+        kc_ok, kc_why = configured()
+        response.media = {'ok': True, 'posture': _posture.posture(), 'authenticated': bool(sub), 'sub': sub,
+                          'roles': roles, 'held': sorted(r['role'] for r in roles if r['held']),
+                          'groups': sorted(groups), 'account_url': account_url(),
+                          'keycloak': {'ready': kc_ok, 'why': kc_why},
+                          'how': how(self.manager, ui)}
+
+    def on_post_roles_claim(self, request, response):
+        from security.custom.security_claims import claim, caller
+        ui = self._user_info(request)
+        sub, _u, _g = caller(ui)
+        if not sub:
+            return self._refuse(response, '401 Unauthorized',
+                                'sign in first: a role is claimed for a Keycloak account, and this request carries none')
+        role = (self._body(request).get('role') or request.params.get('role') or '')
+        if not role:
+            return self._bad(response, 'body: {"role": "<the role you want>"} — GET /api/security/roles/claimable lists them')
+        r = claim(self.manager, ui, role)
+        if not r.get('ok'):
+            return self._refuse(response, self._status_of(r), r.get('refusal', ''), role=role)
+        response.media = r
+
+    def on_delete_roles_claim(self, request, response):
+        from security.custom.security_claims import release, caller
+        ui = self._user_info(request)
+        sub, _u, _g = caller(ui)
+        if not sub:
+            return self._refuse(response, '401 Unauthorized',
+                                'sign in first: a role is released from a Keycloak account, and this request carries none')
+        role = request.params.get('role') or (self._body(request).get('role') or '')
+        if not role:
+            return self._bad(response, '?role=<the role you want to give up>')
+        r = release(self.manager, ui, role)
+        if not r.get('ok'):
+            return self._refuse(response, self._status_of(r), r.get('refusal', ''), role=role)
+        response.media = r
+
+    @staticmethod
+    def _status_of(result):
+        return {401: '401 Unauthorized', 403: '403 Forbidden', 502: '502 Bad Gateway',
+                503: '503 Service Unavailable'}.get(int(result.get('status') or 403), '403 Forbidden')
 
     def on_get_observe_review(self, request, response):
         from security.custom.security_observe import review

@@ -14,6 +14,142 @@ def check(label, cond, extra=''):
     print('  [%s] %s %s' % ('PASS' if cond else 'FAIL', label, extra if not cond else ''))
 
 
+def _claims_checks(api, m, O, _Res, _types, check):
+    """SELF-CLAIMABLE ROLES (his words 2026-09-18) — the rule, the refusals, and the two Keycloak calls.
+
+    Runs inside the observe block, so the posture is dev and the knob is a temporary file. `m` already carries the
+    prototype role `data-scientist`; this adds the rest. The Keycloak half is proven against a fake `_http`: the
+    point is that claim/release hit the RIGHT endpoints with the right method, not that urllib works."""
+    import os
+    from security.custom import kc_admin as KC
+    from security.custom import security_claims as C
+
+    O.create_prototype(m, 'journalist', title='Journalist', description='reporter-facing pages')
+    O.create_prototype(m, 'polari-ops', title='Polari Ops')          # a reserved-looking name: never claimable unflagged
+    O.create_prototype(m, 'auditor', title='Auditor', self_claimable=True)
+    u = {'sub': 'u-1', 'preferred_username': 'demo-viewer', 'roles': ['polari-viewer'], 'raw_claims': {'groups': []}}
+    u_held = {'sub': 'u-1', 'preferred_username': 'demo-viewer', 'roles': ['polari-viewer'], 'raw_claims': {'groups': ['journalist']}}
+    u_admin = {'sub': 'u-9', 'preferred_username': 'demo-admin', 'roles': ['polari-admin'], 'raw_claims': {'groups': []}}
+    dev_names = [r['role'] for r in C.claimable_roles(m, u)]
+    check('claimable roles in DEV: every prototype role is claimable whatever its state (data-scientist is `enforced`), '
+          'but NEVER an admin role, never "Polari Administrators"/"Polari Developers", never a reserved polari-* name '
+          'that was not flagged',
+          dev_names == ['auditor', 'data-scientist', 'journalist']
+          and not ({'admin', 'polari-admin', 'polari-ops', 'Polari Administrators', 'Polari Developers'} & set(dev_names)), dev_names)
+    check('held: the caller\'s own token groups mark the roles they already have',
+          [r['held'] for r in C.claimable_roles(m, u)] == [False, False, False]
+          and [r['role'] for r in C.claimable_roles(m, u_held) if r['held']] == ['journalist'])
+    check('an UNAUTHENTICATED caller may claim nothing (no `sub`, no claim)',
+          C.claimable_roles(m, None) == [] and C.claimable_roles(m, {'roles': ['journalist']}) == []
+          and C.may_claim(m, None, 'journalist')[0] is False)
+    O.set_claim_denied('journalist', True, by='demo-admin')
+    check('an admin\'s explicit NO removes a role from the dev free-for-all (the bool column cannot hold "never '
+          'decided" vs "decided no", so the NO lives in the knob)',
+          'journalist' not in [r['role'] for r in C.claimable_roles(m, u)] and O.claim_denied_roles() == ['journalist'])
+    O.set_claim_denied('journalist', False, by='demo-admin')
+    O.set_claimable_groups(['operators', 'polari-admin'], by='demo-admin')
+    knob = {r['role']: r for r in C.claimable_roles(m, u) if r['source'] == 'knob'}
+    check('the claimable_groups knob adds plain KC groups beside the prototypes — and still refuses an admin one',
+          list(knob) == ['operators'] and O.claimable_groups() == ['operators', 'polari-admin'], list(knob))
+    prod = [r['role'] for r in C.claimable_roles(m, u, env={})]
+    check('in PRODUCTION posture only the roles FLAGGED self_claimable plus the knob list may be taken — nothing is '
+          'claimable by default', prod == ['auditor', 'operators'], prod)
+    check('the refusal names the rule: an admin role, the instance-administration groups, a reserved polari-* name',
+          'administrator role' in C.may_claim(m, u, 'polari-admin')[1]
+          and 'administers this instance' in C.may_claim(m, u, 'Polari Administrators')[1]
+          and 'reserved Polari group name' in C.may_claim(m, u, 'polari-ops')[1]
+          and 'not self-claimable' in C.may_claim(m, u, 'data-scientist', env={})[1])
+    # ---- the Keycloak half, against a fake _http: the right endpoints, the right methods
+    calls = []
+    real_http = KC._http
+    old_env = dict(os.environ)
+    try:
+        os.environ['POLARI_KEYCLOAK_ADMIN_URL'] = 'http://pol-keycloak:8080'
+        os.environ['POLARI_KEYCLOAK_REALM'] = 'Polari'
+        os.environ['POLARI_KEYCLOAK_ISSUER_URI'] = 'https://auth.example.invalid/realms/Polari'
+        os.environ['KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET'] = 'sekrit'
+        state = {'exists': False}
+
+        def _fake(method, url, headers=None, data=None, form=False):
+            calls.append((method, url.split('/realms/')[-1]))
+            if url.endswith('/protocol/openid-connect/token'):
+                return 200, {'access_token': 'TOK', 'expires_in': 300}
+            if '/groups?search=' in url:
+                return (200, [{'id': 'g1', 'name': 'journalist', 'path': '/journalist'}]) if state['exists'] else (200, [])
+            if method == 'POST' and url.endswith('/groups'):
+                state['exists'] = True
+                return 201, None
+            if method in ('PUT', 'DELETE') and '/users/u-1/groups/g1' in url:
+                return 204, None
+            return 404, 'unexpected'
+        KC._http = _fake
+        KC._TOKEN.update({'value': '', 'expires': 0})
+        no_kc = C.claim(m, u, 'journalist', env={'POLARI_POSTURE': 'dev', 'POLARI_KEYCLOAK_ADMIN_URL': 'http://pol-keycloak:8080',
+                                                 'POLARI_KEYCLOAK_REALM': 'Polari', 'KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET': ''})
+        r_claim = C.claim(m, u, 'journalist')
+        r_again = C.claim(m, u, 'journalist')
+        r_rel = C.release(m, u, 'journalist')
+        r_admin = C.claim(m, u, 'polari-admin')
+    finally:
+        KC._http = real_http; KC._TOKEN.update({'value': '', 'expires': 0})
+        os.environ.clear(); os.environ.update(old_env)
+    check('claiming a role CREATES the Keycloak group when a prototype role has none yet, then PUTs the caller into '
+          'it; a second claim finds the group instead of making it; releasing DELETEs the membership',
+          r_claim['ok'] and r_claim['group_id'] == 'g1' and r_claim['group_created'] is True
+          and r_again['ok'] and r_again['group_created'] is False
+          and r_rel['ok'] and r_rel['released'] is True
+          and ('POST', 'Polari/protocol/openid-connect/token') in calls
+          and ('POST', 'Polari/groups') in [(m_, u_.split('/admin/realms/')[-1]) for m_, u_ in calls]
+          and ('PUT', 'Polari/users/u-1/groups/g1') in [(m_, u_.split('/admin/realms/')[-1]) for m_, u_ in calls]
+          and ('DELETE', 'Polari/users/u-1/groups/g1') in [(m_, u_.split('/admin/realms/')[-1]) for m_, u_ in calls], calls)
+    check('a claim with no Keycloak credential in the environment answers 503 with the env var to set, not a stack trace',
+          no_kc['ok'] is False and no_kc['status'] == 503 and 'KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET' in no_kc['refusal'], no_kc)
+    check('an admin role is refused (403) before Keycloak is touched at all',
+          r_admin['ok'] is False and r_admin['status'] == 403 and 'administrator role' in r_admin['refusal'])
+    ev = {e['action']: e for e in O.events(m) if e['control'] == 'role-claim'}
+    check('every claim and release lands in the SecurityEvent ledger — identified ONLY by the opaque Keycloak `sub` '
+          '(his PII rule 2026-09-18: Keycloak exists to keep names and e-mails out of Polari), never by the username',
+          set(ev) == {'claim journalist', 'release journalist'} and ev['claim journalist']['count'] == 2
+          and ev['claim journalist']['actor'] == 'u-1' and ev['claim journalist']['source'] == 'self-claim'
+          and ev['claim journalist']['would_deny'] is False
+          and 'demo-viewer' not in repr(O.events(m)), sorted(ev))
+    # ---- the routes
+    class _ReqC:
+        def __init__(self, ui, media=None, **params):
+            self.params = params; self.media = media or {}
+            self.context = _types.SimpleNamespace(user_info=ui, roleplay='')
+    api.manager = m
+    r = _Res(); api.on_get_roles_claimable(_ReqC(u), r)
+    check('GET /api/security/roles/claimable: the posture, the roles, what is held, the Keycloak account console URL '
+          'and how to use it', r.media['ok'] and r.media['posture'] == 'dev' and r.media['authenticated'] is True
+          and [x['role'] for x in r.media['roles']] == ['auditor', 'data-scientist', 'journalist', 'operators']
+          and r.media['sub'] == 'u-1' and 'who' not in r.media
+          and r.media['account_url'] == '' and 'never self-claimable' in r.media['how'], r.media.get('roles'))
+    r = _Res(); api.on_post_roles_claim(_ReqC(None, media={'role': 'journalist'}), r)
+    check('POST /api/security/roles/claim without a bearer is 401, not 403 (there is nobody to claim FOR)',
+          r.status.startswith('401') and 'sign in first' in r.media['refusal'])
+    r = _Res(); api.on_post_roles_claim(_ReqC(u, media={'role': 'polari-admin'}), r)
+    check('POST /api/security/roles/claim {"role": "polari-admin"} is 403 with the rule that refused',
+          r.status.startswith('403') and 'administrator role' in r.media['refusal'])
+    check('the account console URL is the realm\'s own /account, from POLARI_KEYCLOAK_ISSUER_URI',
+          __import__('security.custom.kc_admin', fromlist=['x']).account_url(
+              env={'POLARI_KEYCLOAK_ISSUER_URI': 'https://auth.example.invalid/realms/Polari'})
+          == 'https://auth.example.invalid/realms/Polari/account')
+    before_flag = {p['name']: p['self_claimable'] for p in O.prototypes(m)}
+    r = _Res(); api.on_post_observe_role(_ReqC(u, media={'self_claimable': True}), r, 'data-scientist')
+    check('POST /api/security/observe/roles/<name> {"self_claimable": true} from a NON-admin is refused (403) and '
+          'changes nothing: a self-claimed role must not be able to widen its own claimability',
+          r.status.startswith('403') and 'administrator' in r.media['refusal']
+          and {p['name']: p['self_claimable'] for p in O.prototypes(m)} == before_flag)
+    r = _Res(); api.on_post_observe_role(_ReqC(u_admin, media={'self_claimable': False}), r, 'data-scientist')
+    after = {p['name']: p for p in O.prototypes(m)}
+    check('...and an ADMIN may set it: the row records the flag and the explicit NO reaches the knob, so dev posture '
+          'honours it too', r.media['ok'] and after['data-scientist']['self_claimable'] is False
+          and 'data-scientist' in O.claim_denied_roles()
+          and 'data-scientist' not in [x['role'] for x in C.claimable_roles(m, u)], O.claim_denied_roles())
+    O.set_claim_denied('data-scientist', False); O.set_claimable_groups([])
+
+
 def main():
     from security.security_basis import SECURITY_CLASSES, SecurityTopologyEdge
     from security.security_seed import SECURITY_SEED_PAIRS, SEED_SECURITY_EDGES
@@ -300,6 +436,7 @@ def main():
             check('the app column: a class maps back to the module that registers it (SecurityDomain → security; unknown → \'\')', O.app_of_class('SecurityDomain') == 'security' and O.app_of_class('NoSuchClass') == '')
             r = _Res(); api.on_get_observe_review(_ReqR(), r); r2 = _Res(); api.on_get_observe_verify(_ReqR(), r2)
             check('/api/security/observe/review + /verify answer for the role', r.media['ok'] and r.media['role'] == 'journalist' and r2.media['ok'] and r2.media['group'] == 'journalist')
+            _claims_checks(api, m6, O, _Res, _types, check)
         finally:
             os.environ.clear(); os.environ.update(old_env)
     api.manager = m4; r = _Res(); api.on_get_observations(_Req(), r)

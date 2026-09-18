@@ -440,7 +440,8 @@ def verify(manager, role, group=None):
 # dev build on the person's own isle). It never applies to admin roles as a target: prototypes are non-admin by nature.
 
 ROLE_STATES = ('prototype', 'concreted', 'enforced')
-PROTO_KEYS = ('name', 'title', 'description', 'state', 'created_by', 'created_at', 'concreted_profile', 'concreted_at', 'verified_at', 'verified_verdict')
+PROTO_KEYS = ('name', 'title', 'description', 'state', 'created_by', 'created_at', 'concreted_profile', 'concreted_at', 'verified_at', 'verified_verdict',
+              'self_claimable')
 
 
 def roleplay_groups_allowed():
@@ -467,6 +468,64 @@ def set_roleplay_groups(groups, by=''):
         return {'ok': False, 'refusal': f'could not write the knob at {p}: {exc}'}
 
 
+def claimable_groups():
+    """The knob's list of KC groups ANYONE signed in may claim for themselves (his ask 2026-09-18), beside the
+    RolePrototype rows flagged `self_claimable`. None = the knob has never been set (an empty list is a deliberate
+    "nothing extra"). Mirrors roleplay_groups_allowed() exactly — same file, same shape."""
+    try:
+        d = _json.load(open(_knob_path()))
+        g = d.get('claimable_groups') if isinstance(d, dict) else None
+        return [str(x).lstrip('/') for x in g] if isinstance(g, list) else None
+    except Exception:
+        return None
+
+
+def set_claimable_groups(groups, by=''):
+    p = _knob_path()
+    try:
+        d = _json.load(open(p))
+        d = d if isinstance(d, dict) else {}
+    except Exception:
+        d = {}
+    d['claimable_groups'] = [str(g).lstrip('/') for g in (groups or [])]; d['claimable_groups_changed_at'] = _now(); d['claimable_groups_by'] = by
+    try:
+        _os.makedirs(_os.path.dirname(p), exist_ok=True); tmp = p + '.tmp'; _json.dump(d, open(tmp, 'w')); _os.replace(tmp, p)
+        return {'ok': True, 'claimable_groups': d['claimable_groups']}
+    except Exception as exc:
+        return {'ok': False, 'refusal': f'could not write the knob at {p}: {exc}'}
+
+
+def claim_denied_roles():
+    """The prototype roles an admin has EXPLICITLY marked un-claimable (`POST /api/security/observe/roles/<name>
+    {"self_claimable": false}`). The row's own `self_claimable` column is a plain bool, so it cannot tell "never
+    decided" from "decided no" — and dev posture needs that difference: there, everything is claimable UNLESS
+    somebody said no. The explicit NOs live here, in the same knob file as the rest of the observe switches."""
+    try:
+        d = _json.load(open(_knob_path()))
+        g = d.get('claim_denied') if isinstance(d, dict) else None
+        return [str(x).strip().lower() for x in g] if isinstance(g, list) else []
+    except Exception:
+        return []
+
+
+def set_claim_denied(name, denied, by=''):
+    """Add/remove one role from the explicit-NO list. Returns the new list."""
+    name = (name or '').strip().lower(); p = _knob_path()
+    try:
+        d = _json.load(open(p))
+        d = d if isinstance(d, dict) else {}
+    except Exception:
+        d = {}
+    cur = [str(x).strip().lower() for x in (d.get('claim_denied') or []) if str(x).strip()]
+    cur = sorted(set(cur) | {name}) if denied else [x for x in cur if x != name]
+    d['claim_denied'] = cur; d['claim_denied_changed_at'] = _now(); d['claim_denied_by'] = by
+    try:
+        _os.makedirs(_os.path.dirname(p), exist_ok=True); tmp = p + '.tmp'; _json.dump(d, open(tmp, 'w')); _os.replace(tmp, p)
+        return {'ok': True, 'claim_denied': cur}
+    except Exception as exc:
+        return {'ok': False, 'refusal': f'could not write the knob at {p}: {exc}', 'claim_denied': cur}
+
+
 def can_roleplay(user_info, env=None):
     """(allowed, why) — the role-play permission for this caller."""
     if not _posture.is_dev(env):
@@ -487,14 +546,14 @@ def can_roleplay(user_info, env=None):
 
 def prototypes(manager, state=None):
     rows = _all_rows(manager, 'RolePrototype')
-    out = [{k: getattr(r, k, '') for k in PROTO_KEYS} for r in rows]
+    out = [{k: (bool(getattr(r, k, False)) if k == 'self_claimable' else getattr(r, k, '')) for k in PROTO_KEYS} for r in rows]
     if state:
         out = [p for p in out if p['state'] == state]
     out.sort(key=lambda p: p['name'])
     return out
 
 
-def create_prototype(manager, name, title='', description='', by=''):
+def create_prototype(manager, name, title='', description='', by='', self_claimable=False):
     name = (name or '').strip().lower().replace(' ', '-')
     if not name or not all(c.isalnum() or c in '-_' for c in name):
         return {'ok': False, 'refusal': 'a role name: letters, digits, - or _ (journalist, data-scientist)'}
@@ -512,12 +571,14 @@ def create_prototype(manager, name, title='', description='', by=''):
             return {'ok': True, 'role': p, 'existed': True}
     from security.objects.security.RolePrototype import RolePrototype
     fields = {'name': name, 'title': title or name.replace('-', ' ').title(), 'description': description, 'state': 'prototype', 'created_by': by, 'created_at': _now(),
-              'concreted_profile': '', 'concreted_at': '', 'verified_at': '', 'verified_verdict': ''}
+              'concreted_profile': '', 'concreted_at': '', 'verified_at': '', 'verified_verdict': '', 'self_claimable': bool(self_claimable)}
     _new_row(manager, tables, 'RolePrototype', RolePrototype, fields); _schedule_persist(manager)
     return {'ok': True, 'role': fields, 'existed': False, 'next': f'act as it: POST /api/security/observe/session {{"role": "{name}"}} — then review at /api/security/observe/review?role={name}'}
 
 
-def mark_prototype(manager, name, state, profile='', verdict=''):
+def mark_prototype(manager, name, state, profile='', verdict='', self_claimable=None, by=''):
+    """Move a prototype along its ladder, and/or set its SELF-CLAIMABLE flag. `self_claimable` is tri-state: None
+    leaves it alone, True/False decides it (and records the explicit NO in the knob so dev posture honours it too)."""
     for r in _all_rows(manager, 'RolePrototype'):
         if getattr(r, 'name', '') == name:
             if state in ROLE_STATES:
@@ -526,8 +587,11 @@ def mark_prototype(manager, name, state, profile='', verdict=''):
                 r.concreted_profile = profile; r.concreted_at = _now()
             if verdict:
                 r.verified_at = _now(); r.verified_verdict = verdict
+            if self_claimable is not None:
+                r.self_claimable = bool(self_claimable)
+                set_claim_denied(name, not self_claimable, by=by)
             _schedule_persist(manager)
-            return {'ok': True, 'role': {k: getattr(r, k, '') for k in PROTO_KEYS}}
+            return {'ok': True, 'role': {k: (bool(getattr(r, k, False)) if k == 'self_claimable' else getattr(r, k, '')) for k in PROTO_KEYS}}
     return {'ok': False, 'refusal': f'no prototype role {name}'}
 
 
